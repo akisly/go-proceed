@@ -20,6 +20,7 @@
 - Table definitions come verbatim from `technical/schema.sql` — no new columns (spec §4.1). No demo `kind`/`expires_at`.
 - Design tokens are sourced from `prototype/src/styles.css` (Evidence Atlas); only visual tokens are reused, never prototype state/markup (spec §3.1).
 - Money fields use integer minor units; currency default `UAH`; timezone default `Europe/Kyiv` (schema.sql).
+- **Error codes come from `technical/error-catalog.csv` verbatim** — SCREAMING_SNAKE, with the catalog's exact `http_status`: `VALIDATION_FAILED`=422, `IDEMPOTENCY_CONFLICT`=409, `AUTH_REQUIRED`=401. Never invent a dotted/lowercase code or an off-catalog status. A missing required header is a `VALIDATION_FAILED` with the header named in `fieldErrors`.
 - **Relative imports are EXTENSIONLESS** (`from "./http"`, not `"./http.js"`). The workspace uses `moduleResolution: "Bundler"`; `.js` specifiers pointing at `.ts` sources resolve under `tsc`/Vite but NOT under Turbopack (Next 16's default bundler), so `next build` fails on them. Code blocks below that still show `.js` predate this rule — drop the extension.
 
 ---
@@ -1255,7 +1256,7 @@ describe("http helpers", () => {
     expect(res.headers.get("x-request-id")).toBe("req-9");
   });
   it("HttpProblem carries status and body", () => {
-    const e = new HttpProblem(401, problem("auth.required", "d"));
+    const e = new HttpProblem(401, problem("AUTH_REQUIRED", "d"));
     expect(e.status).toBe(401);
     expect(e.body.code).toBe("auth.required");
   });
@@ -1288,10 +1289,13 @@ export function jsonProblem(status: number, body: ProblemJson): Response {
   });
 }
 
-export function ok(status: number, body: unknown, requestId: string): Response {
+export function ok(
+  status: number, body: unknown, requestId: string,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "content-type": "application/json", "x-request-id": requestId },
+    headers: { "content-type": "application/json", "x-request-id": requestId, ...extraHeaders },
   });
 }
 
@@ -1311,7 +1315,7 @@ export function toProblemResponse(err: unknown, requestId: string): Response {
         userAction: "Використайте новий ключ або повторіть початковий запит без змін.",
       }));
   }
-  return jsonProblem(500, problem("internal.error", "Внутрішня помилка.",
+  return jsonProblem(500, problem("INTERNAL_ERROR", "Внутрішня помилка.",
     { requestId, retryable: true }));
 }
 
@@ -1329,7 +1333,7 @@ export async function requireUser(requestId: string): Promise<{ userId: string }
   const supabase = await supabaseServer();
   const { data, error } = await supabase.auth.getUser();
   if (error || !data.user) {
-    throw new HttpProblem(401, problem("auth.required", "Потрібна автентифікація.", {
+    throw new HttpProblem(401, problem("AUTH_REQUIRED", "Потрібна автентифікація.", {
       requestId, retryable: false, userAction: "Увійдіть у систему.",
     }));
   }
@@ -1472,9 +1476,10 @@ export async function POST(req: Request): Promise<Response> {
 
     const idempotencyKey = idempotencyKeyFrom(req);
     if (!idempotencyKey) {
-      throw new HttpProblem(400, problem("idempotency.required",
+      throw new HttpProblem(422, problem("VALIDATION_FAILED",
         "Заголовок Idempotency-Key обовʼязковий.", { requestId, retryable: false,
-        userAction: "Додайте Idempotency-Key і повторіть." }));
+        fieldErrors: [{ path: "Idempotency-Key", message: "required" }],
+        userAction: "correct_fields" }));
     }
 
     // Read the RAW body once: it is both parsed and hashed (request_hash must be a
@@ -1484,13 +1489,13 @@ export async function POST(req: Request): Promise<Response> {
     let json: unknown;
     try { json = JSON.parse(raw); }
     catch {
-      throw new HttpProblem(400, problem("validation.failed", "Тіло запиту не є валідним JSON.",
+      throw new HttpProblem(422, problem("VALIDATION_FAILED", "Тіло запиту не є валідним JSON.",
         { requestId, retryable: false }));
     }
 
     const parsed = createOrganizationRequest.safeParse(json);
     if (!parsed.success) {
-      throw new HttpProblem(400, problem("validation.failed", "Некоректні дані організації.", {
+      throw new HttpProblem(422, problem("VALIDATION_FAILED", "Некоректні дані організації.", {
         requestId, retryable: false,
         fieldErrors: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
       }));
@@ -1540,7 +1545,11 @@ export async function POST(req: Request): Promise<Response> {
       });
     });
 
-    return ok(out.status, out.body, requestId);
+    // Idempotency-Replay-Until lets a client tell "still replayable" from "window
+    // expired" — without it a late retry silently creates a SECOND organization.
+    return ok(out.status, out.body, requestId, {
+      "Idempotency-Replay-Until": out.expiresAt.toISOString(),
+    });
   } catch (err) {
     // Single mapping point: HttpProblem → its status, IdempotencyConflictError → 409, else 500.
     return toProblemResponse(err, requestId);
