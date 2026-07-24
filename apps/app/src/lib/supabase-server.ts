@@ -9,8 +9,16 @@ export async function supabaseServer() {
     {
       cookies: {
         getAll: () => store.getAll(),
-        setAll: (all) =>
-          all.forEach(({ name, value, options }) => store.set(name, value, options)),
+        setAll: (all) => {
+          // cookies().set() throws when called from a plain Server Component. getUser()
+          // may refresh the token and trigger this, so swallow that case: the refreshed
+          // cookie is re-issued on the next Route Handler / Server Action request.
+          try {
+            all.forEach(({ name, value, options }) => store.set(name, value, options));
+          } catch {
+            /* not writable in this context */
+          }
+        },
       },
     },
   );
