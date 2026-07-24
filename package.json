@@ -2,7 +2,9 @@
   "name": "aktflow",
   "private": true,
   "packageManager": "pnpm@9.12.0",
-  "engines": { "node": ">=24 <25" },
+  "engines": {
+    "node": ">=24 <25"
+  },
   "scripts": {
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -10,6 +12,8 @@
     "test": "turbo run test"
   },
   "devDependencies": {
+    "@types/pg": "^8.20.0",
+    "pg": "^8.22.0",
     "turbo": "2.5.4",
     "typescript": "5.9.2",
     "vitest": "3.2.4"
