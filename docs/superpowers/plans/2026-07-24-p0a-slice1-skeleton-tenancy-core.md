@@ -1213,7 +1213,14 @@ export async function supabaseServer() {
     {
       cookies: {
         getAll: () => store.getAll(),
-        setAll: (all) => all.forEach(({ name, value, options }) => store.set(name, value, options)),
+        setAll: (all) => {
+          // cookies().set() throws when called from a plain Server Component. getUser()
+          // may refresh the token and trigger this, so swallow that case: the refreshed
+          // cookie is re-issued on the next Route Handler / Server Action request.
+          try {
+            all.forEach(({ name, value, options }) => store.set(name, value, options));
+          } catch { /* not writable in this context */ }
+        },
       },
     },
   );
@@ -1284,8 +1291,29 @@ export function ok(status: number, body: unknown, requestId: string): Response {
   });
 }
 
+/**
+ * Single error→Response mapping every route handler must use. Without it each
+ * handler re-implements the instanceof chain and one missed case turns a
+ * documented 409 IDEMPOTENCY_CONFLICT into an opaque 500.
+ */
+export function toProblemResponse(err: unknown, requestId: string): Response {
+  if (err instanceof HttpProblem) {
+    return jsonProblem(err.status, { ...err.body, requestId: err.body.requestId || requestId });
+  }
+  if (err instanceof IdempotencyConflictError) {
+    return jsonProblem(409, problem("IDEMPOTENCY_CONFLICT",
+      "Той самий Idempotency-Key використано з іншим тілом запиту.", {
+        requestId, retryable: false,
+        userAction: "Використайте новий ключ або повторіть початковий запит без змін.",
+      }));
+  }
+  return jsonProblem(500, problem("internal.error", "Внутрішня помилка.",
+    { requestId, retryable: true }));
+}
+
 export { problem };
 ```
+> `toProblemResponse` imports `IdempotencyConflictError` from `@aktflow/database`. Every route handler's `catch` is exactly `return toProblemResponse(err, requestId);` — no per-route instanceof chains.
 
 `apps/app/src/lib/auth.ts`:
 ```ts
@@ -1426,7 +1454,7 @@ Expected: FAIL — route module missing.
 import { createHash } from "node:crypto";
 import { requireUser } from "../../../lib/auth.js";
 import { requestIdFrom, idempotencyKeyFrom } from "../../../lib/request-context.js";
-import { HttpProblem, jsonProblem, ok } from "../../../lib/http.js";
+import { HttpProblem, toProblemResponse, ok } from "../../../lib/http.js";
 import { createOrganizationRequest, problem, type CreateOrganizationResponse } from "@aktflow/contracts";
 import { buildOrganizationCreation } from "@aktflow/domain";
 import { withTenantTx, recordAudit, enqueueOutbox, withIdempotency } from "@aktflow/database";
@@ -1510,8 +1538,8 @@ export async function POST(req: Request): Promise<Response> {
 
     return ok(out.status, out.body, requestId);
   } catch (err) {
-    if (err instanceof HttpProblem) return jsonProblem(err.status, err.body);
-    return jsonProblem(500, problem("internal.error", "Внутрішня помилка.", { requestId, retryable: true }));
+    // Single mapping point: HttpProblem → its status, IdempotencyConflictError → 409, else 500.
+    return toProblemResponse(err, requestId);
   }
 }
 ```
@@ -1591,7 +1619,7 @@ Expected: FAIL — route missing.
 ```ts
 import { requireUser } from "../../../../lib/auth.js";
 import { requestIdFrom } from "../../../../lib/request-context.js";
-import { HttpProblem, jsonProblem, ok } from "../../../../lib/http.js";
+import { HttpProblem, toProblemResponse, ok } from "../../../../lib/http.js";
 import { meContextResponse, problem } from "@aktflow/contracts";
 import { withTenantTx } from "@aktflow/database";
 
@@ -1613,8 +1641,8 @@ export async function GET(req: Request): Promise<Response> {
     });
     return ok(200, body, requestId);
   } catch (err) {
-    if (err instanceof HttpProblem) return jsonProblem(err.status, err.body);
-    return jsonProblem(500, problem("internal.error", "Внутрішня помилка.", { requestId, retryable: true }));
+    // Single mapping point: HttpProblem → its status, IdempotencyConflictError → 409, else 500.
+    return toProblemResponse(err, requestId);
   }
 }
 ```
