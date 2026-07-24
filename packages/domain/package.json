@@ -1,0 +1,9 @@
+{
+  "name": "@aktflow/domain",
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run", "lint": "eslint src" },
+  "dependencies": { "@aktflow/contracts": "workspace:*" }
+}
