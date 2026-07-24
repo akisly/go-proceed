@@ -36,6 +36,19 @@ importers:
         specifier: workspace:*
         version: link:../contracts
 
+  packages/testing:
+    dependencies:
+      '@aktflow/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      pg:
+        specifier: ^8.22.0
+        version: 8.22.0
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
+
 packages:
 
   '@esbuild/aix-ppc64@0.28.1':
