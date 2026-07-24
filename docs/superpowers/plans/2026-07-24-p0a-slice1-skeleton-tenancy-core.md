@@ -635,6 +635,17 @@ create or replace function app.current_actor() returns uuid
 language sql stable as $$
   select nullif(current_setting('app.actor_user_id', true), '')::uuid
 $$;
+
+-- SECURITY DEFINER so the membership-bootstrap policy can check whether an org
+-- already has members WITHOUT being narrowed by memberships' own RLS (a plain
+-- subquery on memberships inside the policy would only see the caller's own rows
+-- and defeat the anti-hijack guard). Bypasses RLS for this one boolean only.
+create or replace function app.org_has_members(org uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.memberships where organization_id = org)
+$$;
+revoke all on function app.org_has_members(uuid) from public;
+grant execute on function app.org_has_members(uuid) to aktflow_app;
 ```
 > `app` schema is a Postgres GUC namespace for `set_config`; the `app.current_actor()` function lives in a real `app` schema — create it: add `create schema if not exists app;` before the function and `grant usage on schema app to aktflow_app;`.
 
@@ -665,11 +676,20 @@ create policy le_select on public.legal_entities for select to aktflow_app
 create policy le_insert on public.legal_entities for insert to aktflow_app
   with check (app.current_actor() is not null);
 
--- memberships: an actor sees only their own membership rows; during bootstrap may insert their own owner row
+-- memberships: an actor sees only their own membership rows.
 create policy m_select on public.memberships for select to aktflow_app
   using (user_id = app.current_actor());
+-- Bootstrap-only insert: an actor may insert ONLY their own owner row, and ONLY
+-- into an org that has no members yet. This prevents self-inserting an owner
+-- membership into someone else's existing org (cross-tenant privilege escalation).
+-- app.org_has_members bypasses RLS so the emptiness check is not narrowed to the
+-- caller's own rows. Broader membership creation (admin invites) arrives in the
+-- Membership & scopes slice with its own policies.
 create policy m_insert on public.memberships for insert to aktflow_app
-  with check (user_id = app.current_actor() and role = 'owner');
+  with check (
+    user_id = app.current_actor()
+    and role = 'owner'
+    and not app.org_has_members(memberships.organization_id));
 
 -- read projection for GET /v1/me/context
 create view api.me_context as
@@ -719,8 +739,26 @@ describe("RLS tenant isolation", () => {
       c.query("select * from api.me_context"));
     expect(r.rows.every((row: { user_id: string }) => row.user_id === B)).toBe(true);
   });
+
+  it("actor B cannot self-insert an owner membership into actor A's existing org", async () => {
+    // A's org from the first test already has A's owner membership (org is non-empty).
+    // B attempting to insert an owner row for itself must be blocked by the
+    // m_insert WITH CHECK (app.org_has_members guard) — this is the anti-hijack rule.
+    const orgId = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+    await expect(
+      asActor(B, orgId, (c) =>
+        c.query(
+          "insert into public.memberships (organization_id, user_id, role, status, all_projects) values ($1,$2,'owner','active',true)",
+          [orgId, B])),
+    ).rejects.toThrow(/row-level security|violates/i);
+    // And B still sees none of A's org.
+    const seenByB = await asActor(B, orgId, (c) =>
+      c.query("select id from public.organizations where id=$1", [orgId]));
+    expect(seenByB.rowCount).toBe(0);
+  });
 });
 ```
+> These three tests must run in order and share the org created in test 1 (`resetDb()` runs once at the start of test 1). The third test is the headline anti-hijack proof; it must FAIL against the naive `m_insert` policy and PASS with the `app.org_has_members` guard.
 
 - [ ] **Step 4: Implement the pg test helper**
 
