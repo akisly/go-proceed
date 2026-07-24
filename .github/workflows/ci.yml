@@ -1,0 +1,58 @@
+name: ci
+on:
+  push: { branches: [main] }
+  pull_request: {}
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      # Local Supabase Postgres, reachable once `supabase start` has come up.
+      APP_DB_URL: postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres
+      SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      # next build only needs these present (not real secrets) — no page in
+      # this app hits Supabase at build time, but supabaseServer() reads them
+      # eagerly, so an unset var would still be a footgun for future routes.
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.0 }
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 24, cache: pnpm }
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: supabase/setup-cli@v1
+        with: { version: latest }
+
+      # Cold runners pull the full local Postgres/GoTrue/Kong image set on
+      # first boot, which is slow — give this room instead of relying on the
+      # job-level timeout to cover it.
+      - name: supabase start
+        timeout-minutes: 15
+        run: supabase start
+
+      # Applies migrations 0001-0005 in order and loads supabase/seed.sql
+      # (the AUTH_USER_A / AUTH_USER_B fixtures the RLS + integration suites
+      # depend on).
+      - name: supabase db reset
+        run: supabase db reset
+
+      - run: pnpm turbo run typecheck
+
+      # --concurrency=1 is load-bearing, not a style choice: @aktflow/database,
+      # @aktflow/testing (the RLS negative-policy suite), and @aktflow/app's
+      # integration tests all hit the SAME local Postgres instance and
+      # truncate/reset overlapping tables. apps/app already serializes its own
+      # test files via vitest's fileParallelism:false, but turbo will happily
+      # run different packages' `test` tasks concurrently unless told not to,
+      # which would let one package's truncate race another's in-flight
+      # transaction. Serialize across the whole run instead of trying to
+      # enumerate which suites are "safe" to parallelize.
+      - run: pnpm turbo run test --concurrency=1
+
+      - run: pnpm turbo run build

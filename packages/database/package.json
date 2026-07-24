@@ -4,7 +4,7 @@
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
-  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run", "lint": "eslint src" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
   "dependencies": { "@aktflow/domain": "workspace:*", "@aktflow/contracts": "workspace:*", "pg": "^8.22.0" },
   "devDependencies": { "@types/pg": "^8.20.0" }
 }
