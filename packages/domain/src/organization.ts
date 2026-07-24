@@ -4,7 +4,7 @@ export interface OrganizationRow {
   id: string; legal_name: string; display_name: string; edrpou: string | null;
   base_currency: string; timezone: string; status: "trial"; version: number;
 }
-export interface LegalEntityRow { id: string; organization_id: string; legal_name: string; edrpou: string | null }
+export interface LegalEntityRow { id: string; organization_id: string; legal_name: string; registration_code: string | null; country_code: string }
 export interface MembershipRow {
   id: string; organization_id: string; user_id: string;
   role: "owner"; status: "active"; all_projects: boolean; version: number;
@@ -36,7 +36,7 @@ export function buildOrganizationCreation(
   };
   const legalEntity: LegalEntityRow = {
     id: ids.legalEntityId, organization_id: ids.organizationId,
-    legal_name: input.legalName, edrpou,
+    legal_name: input.legalName, registration_code: edrpou, country_code: "UA",
   };
   const membership: MembershipRow = {
     id: ids.membershipId, organization_id: ids.organizationId, user_id: actorUserId,

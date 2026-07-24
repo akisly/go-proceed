@@ -21,6 +21,18 @@ describe("buildOrganizationCreation", () => {
     expect(out.membership.user_id).toBe(actor);
     expect(out.membership.organization_id).toBe(ids.organizationId);
     expect(out.legalEntity.organization_id).toBe(ids.organizationId);
+    expect(out.legalEntity.registration_code).toBe(null);
+    expect(out.legalEntity.country_code).toBe("UA");
+  });
+
+  it("maps edrpou to legal entity registration_code", () => {
+    const out = buildOrganizationCreation(
+      { legalName: "ТОВ Test", displayName: "Test", baseCurrency: "UAH", timezone: "Europe/Kyiv", edrpou: "12345678" },
+      actor, ids,
+    );
+    expect(out.legalEntity.registration_code).toBe("12345678");
+    expect(out.legalEntity.country_code).toBe("UA");
+    expect(out.organization.edrpou).toBe("12345678");
   });
 
   it("emits an audit intent and an outbox intent for the creation", () => {
