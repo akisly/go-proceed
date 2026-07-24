@@ -49,9 +49,12 @@ apps/
     package.json, next.config.ts, tsconfig.json, tailwind.config.ts, .env.example
     app/(auth)/login/page.tsx
     app/(app)/context/page.tsx
+    # NOTE: a Next.js app MUST have exactly ONE app-router root. Keep every route
+    # and page under apps/app/app/ — never create apps/app/src/app/, or Next
+    # silently ignores it and the /v1/* handlers 404 in a real build.
     src/lib/{supabase-server.ts,request-context.ts,auth.ts,http.ts}
-    src/app/v1/organizations/route.ts
-    src/app/v1/me/context/route.ts
+    app/v1/organizations/route.ts
+    app/v1/me/context/route.ts
     tests/{organizations.int.test.ts,me-context.int.test.ts}
   landing/       package.json, next.config.ts, app/page.tsx  (placeholder shell only)
 ```
@@ -1374,7 +1377,7 @@ git commit -m "feat(app): next.js scaffold, supabase auth guard, request-context
 ## Task 8: BFF `POST /v1/organizations` (bootstrap command)
 
 **Files:**
-- Create: `apps/app/src/app/v1/organizations/route.ts`
+- Create: `apps/app/app/v1/organizations/route.ts`
 - Test: `apps/app/tests/organizations.int.test.ts`
 
 **Interfaces:**
@@ -1405,7 +1408,7 @@ beforeEach(async () => {
 
 describe("POST /v1/organizations", () => {
   it("creates org+legal_entity+owner membership+audit+outbox atomically", async () => {
-    const { POST } = await import("../src/app/v1/organizations/route.js");
+    const { POST } = await import("../app/v1/organizations/route.js");
     const res = await POST(new Request("http://x/v1/organizations", {
       method: "POST",
       headers: { "content-type": "application/json", "idempotency-key": "k1" },
@@ -1420,7 +1423,7 @@ describe("POST /v1/organizations", () => {
   });
 
   it("replays idempotently — same key does not create a second org", async () => {
-    const { POST } = await import("../src/app/v1/organizations/route.js");
+    const { POST } = await import("../app/v1/organizations/route.js");
     const make = () => POST(new Request("http://x/v1/organizations", {
       method: "POST",
       headers: { "content-type": "application/json", "idempotency-key": "dup" },
@@ -1431,7 +1434,7 @@ describe("POST /v1/organizations", () => {
   });
 
   it("rejects a missing Idempotency-Key with problem+json", async () => {
-    const { POST } = await import("../src/app/v1/organizations/route.js");
+    const { POST } = await import("../app/v1/organizations/route.js");
     const res = await POST(new Request("http://x/v1/organizations", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ legalName: "A", displayName: "B" }),
@@ -1449,12 +1452,12 @@ Expected: FAIL — route module missing.
 
 - [ ] **Step 3: Implement the route**
 
-`apps/app/src/app/v1/organizations/route.ts`:
+`apps/app/app/v1/organizations/route.ts`:
 ```ts
 import { createHash } from "node:crypto";
-import { requireUser } from "../../../lib/auth.js";
-import { requestIdFrom, idempotencyKeyFrom } from "../../../lib/request-context.js";
-import { HttpProblem, toProblemResponse, ok } from "../../../lib/http.js";
+import { requireUser } from "../../../src/lib/auth.js";
+import { requestIdFrom, idempotencyKeyFrom } from "../../../src/lib/request-context.js";
+import { HttpProblem, toProblemResponse, ok } from "../../../src/lib/http.js";
 import { createOrganizationRequest, problem, type CreateOrganizationResponse } from "@aktflow/contracts";
 import { buildOrganizationCreation } from "@aktflow/domain";
 import { withTenantTx, recordAudit, enqueueOutbox, withIdempotency } from "@aktflow/database";
@@ -1562,7 +1565,7 @@ git commit -m "feat(app): POST /v1/organizations bootstrap command (atomic org+m
 ## Task 9: BFF `GET /v1/me/context` (tenant-scoped read)
 
 **Files:**
-- Create: `apps/app/src/app/v1/me/context/route.ts`, `apps/app/app/(app)/context/page.tsx`
+- Create: `apps/app/app/v1/me/context/route.ts`, `apps/app/app/(app)/context/page.tsx`
 - Test: `apps/app/tests/me-context.int.test.ts`
 
 **Interfaces:**
@@ -1596,7 +1599,7 @@ beforeEach(async () => {
 describe("GET /v1/me/context", () => {
   it("returns only the caller's memberships", async () => {
     await seedOrgFor(A); await seedOrgFor(B);
-    const { GET } = await import("../src/app/v1/me/context/route.js");
+    const { GET } = await import("../app/v1/me/context/route.js");
     current = A;
     const res = await GET(new Request("http://x/v1/me/context"));
     expect(res.status).toBe(200);
@@ -1615,11 +1618,11 @@ Expected: FAIL — route missing.
 
 - [ ] **Step 3: Implement the route**
 
-`apps/app/src/app/v1/me/context/route.ts`:
+`apps/app/app/v1/me/context/route.ts`:
 ```ts
-import { requireUser } from "../../../../lib/auth.js";
-import { requestIdFrom } from "../../../../lib/request-context.js";
-import { HttpProblem, toProblemResponse, ok } from "../../../../lib/http.js";
+import { requireUser } from "../../../../src/lib/auth.js";
+import { requestIdFrom } from "../../../../src/lib/request-context.js";
+import { HttpProblem, toProblemResponse, ok } from "../../../../src/lib/http.js";
 import { meContextResponse, problem } from "@aktflow/contracts";
 import { withTenantTx } from "@aktflow/database";
 
