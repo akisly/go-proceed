@@ -1,0 +1,288 @@
+# Staging provisioning runbook — AktFlow P0a slice 1
+
+This is an executable runbook for a human operator with a Supabase account
+and a Vercel account. Nothing in this repo automates it, and nothing in
+this repo has run it yet (see "Status" at the bottom). It provisions:
+
+1. A staging Supabase project with migrations 0001-0005 applied.
+2. Two Vercel projects (`apps/app`, `apps/landing`) built from this
+   monorepo via pnpm + Turborepo.
+3. A verification pass that proves the same vertical slice this repo tests
+   locally (`POST /v1/organizations` → `GET /v1/me/context`, audit +
+   outbox + cron drain, tenant isolation) also works against staging.
+
+Do not commit any secret produced by these steps (project ref is not
+secret; DB URL, anon key, and service_role key are). Store them in a
+password manager and in Vercel's encrypted environment variables only.
+
+---
+
+## 1. Create the staging Supabase project
+
+1. In the Supabase dashboard, create a new project named `aktflow-staging`
+   (region: pick the one closest to `app.aktflow.com`'s expected traffic).
+2. Record, in a password manager (not in this repo):
+   - **Project ref** (e.g. `abcdefghijklmnop`) — visible in the dashboard
+     URL and in Project Settings → General.
+   - **DB URL** — Project Settings → Database → Connection string (use the
+     **session pooler** connection string for `APP_DB_URL`, since Vercel
+     serverless functions are short-lived; the direct connection string is
+     fine for one-off `psql`/SQL-editor work).
+   - **anon key** — Project Settings → API → `anon` `public` key. This is
+     `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+   - **service_role key** — Project Settings → API → `service_role` key.
+     Needed only for the outbox-drain Edge Function path (not deployed in
+     this slice, see `supabase/functions/outbox-drain/index.ts`) and for
+     any one-off admin scripts. Never expose it to the browser or commit it.
+3. `NEXT_PUBLIC_SUPABASE_URL` is `https://<project-ref>.supabase.co`.
+
+## 2. Set the `aktflow_app_login` password on staging
+
+Migration `0003_roles_and_grants.sql` creates the `aktflow_app_login`
+LOGIN role and sets a **dev-only** password (`app_pw`) that is fine for
+the local Supabase stack but must never be reused anywhere reachable from
+the internet.
+
+1. After running `supabase db push` (§3 below) so the role exists, open
+   the staging project's SQL Editor and run, with a freshly generated
+   secret (e.g. `openssl rand -base64 24`):
+   ```sql
+   alter role aktflow_app_login password '<generated-secret>';
+   ```
+2. Record `<generated-secret>` in the password manager alongside the
+   project ref.
+3. Compose `APP_DB_URL` for the app deployment using that password and
+   the **pooler** host/port from §1, e.g.:
+   ```
+   postgresql://aktflow_app_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
+   ```
+   `packages/database/src/pool.ts` reads this verbatim from `APP_DB_URL`
+   at request time — no other code path composes it. `aktflow_app_login`
+   is `noinherit nobypassrls` and only gains privilege via `set local role
+   aktflow_app` inside `withTenantTx` (see `packages/database/src/tx.ts`),
+   so this password grants nothing by itself beyond `LOGIN` +
+   `aktflow_app` membership.
+
+## 3. Link the project and push migrations
+
+From the repo root, with the Supabase CLI installed and authenticated
+(`supabase login`):
+
+```bash
+supabase link --project-ref <project-ref>
+supabase db push
+```
+
+This applies `supabase/migrations/0001_core_tenancy.sql` through
+`0005_outbox_drain_cron.sql` in order, exactly as `supabase db reset` does
+locally. `supabase/seed.sql` is **not** applied by `db push` (push only
+runs migrations) — do not seed staging with the local dev fixtures
+(`AUTH_USER_A` / `AUTH_USER_B`); staging users are created via Supabase
+Auth in §6.
+
+### 3.1 Verify `pg_cron` exists on the staging image
+
+Migration `0005_outbox_drain_cron.sql` wraps `create extension pg_cron`
+and every `cron.*` call in defensive `do $$ ... exception ... end $$`
+blocks specifically because `pg_cron` requires
+`shared_preload_libraries=pg_cron`, which is true on the standard
+Supabase-hosted image but is **not guaranteed** on every plan/region — if
+it's absent, the migration only `raise notice`s and silently skips
+scheduling the `outbox-drain` job. A clean `db push` is therefore not
+sufficient proof the drain is live. After pushing, check explicitly in
+the SQL Editor:
+
+```sql
+select extname from pg_extension where extname = 'pg_cron';
+-- expect one row
+
+select jobid, jobname, schedule, active from cron.job where jobname = 'outbox-drain';
+-- expect exactly one active row, schedule = '30 seconds'
+```
+
+If `pg_cron` is missing: enable it via Database → Extensions in the
+dashboard (or contact Supabase support if the plan doesn't expose it),
+then re-run `supabase db push` (§3.2 proves this is safe to repeat) so the
+`do $$ ... end $$` block in `0005` re-evaluates and schedules the job.
+
+### 3.2 Empirically double-apply the migrations (idempotency proof)
+
+Every migration in this slice is written to be safe to re-run (`create
+... if not exists`, `drop policy if exists` before `create policy`,
+`cron.schedule` upserts by job name, etc.) — but that is a claim, and this
+runbook requires proving it on staging rather than trusting the comments:
+
+```bash
+supabase db push   # first apply — should report 5 migrations applied
+supabase db push   # second apply, immediately after — should report
+                    # "Remote database is up to date" / 0 migrations
+                    # applied, and exit 0
+```
+
+Then confirm nothing was duplicated:
+
+```sql
+select count(*) from cron.job where jobname = 'outbox-drain'; -- expect 1, not 2
+select count(*) from pg_extension where extname = 'pg_cron';  -- expect 1
+```
+
+If either apply exits non-zero, or `outbox-drain` shows up twice, treat
+that as a migration bug and stop — do not proceed to §4 against a staging
+DB in an unknown state.
+
+## 4. Create two Vercel projects from the monorepo
+
+Both projects import the same GitHub repo/branch; only the root directory
+and env vars differ.
+
+### `apps/app`
+
+- Root directory: `apps/app`
+- Framework preset: Next.js
+- Build command: `cd ../.. && pnpm turbo run build --filter=@aktflow/app`
+  (or accept Vercel's monorepo auto-detection, which runs `pnpm install`
+  at the repo root and `next build` in the root directory — either works
+  since Turborepo's task graph builds `@aktflow/database`,
+  `@aktflow/domain`, `@aktflow/contracts` first via `dependsOn: ["^build"]`
+  in `turbo.json`).
+- Install command: `pnpm install` (repo root — pnpm workspaces require
+  this; do not let Vercel install inside `apps/app` alone).
+- Environment variables (Production + Preview):
+  - `NEXT_PUBLIC_SUPABASE_URL` = `https://<project-ref>.supabase.co`
+  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the anon key from §1
+  - `APP_DB_URL` = the pooler connection string composed in §2
+- Domain: `app.aktflow.com`
+
+### `apps/landing`
+
+- Root directory: `apps/landing`
+- Framework preset: Next.js
+- Build command: default (Vercel monorepo auto-detect) or
+  `cd ../.. && pnpm turbo run build --filter=@aktflow/landing`
+- Install command: `pnpm install` (repo root)
+- Environment variables: none required — `apps/landing` is static-first
+  and contains no API routes and no Supabase server client (see
+  `apps/landing/next.config.ts`).
+- Domain: `aktflow.com`
+
+### 4.1 pnpm + Turborepo build settings (both projects)
+
+- Vercel auto-detects pnpm from `pnpm-lock.yaml` + `packageManager` in the
+  root `package.json` (`pnpm@9.12.0`) — no manual override needed for the
+  package manager itself.
+- Set an **Ignored Build Step** per project so a push touching only the
+  other app (or only docs) doesn't trigger a redundant deploy:
+  ```
+  npx turbo-ignore
+  ```
+  (run from each project's root directory setting — `turbo-ignore` reads
+  the project name from `apps/app/package.json` /
+  `apps/landing/package.json` and diffs against the last successful
+  deploy for that project using Turborepo's task graph, so a change to
+  `packages/ui` correctly triggers `apps/landing` but a change to
+  `apps/app/app/v1/organizations/route.ts` alone does not trigger
+  `apps/landing`.)
+
+## 5. Deploy
+
+Push to the branch each Vercel project is configured to track (or trigger
+a manual deploy from the Vercel dashboard). Confirm both builds succeed
+and `app.aktflow.com` / `aktflow.com` resolve once DNS is pointed at
+Vercel.
+
+## 6. End-to-end verification checklist
+
+Run this against the **staging** Supabase project + the deployed
+`apps/app`, not local. Record actual results (row counts, header values,
+timings) — a checked box with no evidence is not verification.
+
+1. **Create an Auth user.** In the staging Supabase dashboard →
+   Authentication → Users → Add user (or via the Auth API). Obtain a
+   session/access token for that user (e.g. via the Auth REST API's
+   password-grant endpoint, or the dashboard's "impersonate" flow if
+   available). Call this user **A**.
+
+2. **Bootstrap an organization.**
+   ```bash
+   curl -i -X POST https://app.aktflow.com/v1/organizations \
+     -H "Authorization: Bearer <A's access token>" \
+     -H "Content-Type: application/json" \
+     -H "Idempotency-Key: $(uuidgen)" \
+     -d '{"legalName":"Staging Verify LLC","displayName":"Staging Verify"}'
+   ```
+   - [ ] Response status is **201**.
+   - [ ] Response has an `Idempotency-Replay-Until` header (an ISO
+     timestamp in the future) — set by `apps/app/app/v1/organizations/route.ts`.
+   - [ ] Response body has `organizationId`, `membershipId`,
+     `role: "owner"`, `version: 1`.
+
+3. **Repeat the exact same request (same `Idempotency-Key`, same body).**
+   - [ ] Response status is still **201** (a replay, not a new create) with
+     the **same** `organizationId`/`membershipId` as step 2.
+   - [ ] `select count(*) from organizations where id = '<organizationId>'`
+     in the SQL editor is **1**, not 2 — the retry did not create a second
+     org.
+
+4. **Repeat with the same `Idempotency-Key` but a different body**
+   (e.g. change `displayName`):
+   - [ ] Response status is **409** with problem-type `code:
+     IDEMPOTENCY_CONFLICT` (see `packages/database/src/idempotency.ts` /
+     `technical/error-catalog.csv`).
+
+5. **Read back tenant context.**
+   ```bash
+   curl -i https://app.aktflow.com/v1/me/context \
+     -H "Authorization: Bearer <A's access token>"
+   ```
+   - [ ] Response status **200**.
+   - [ ] The organization created in step 2 appears in the response with
+     role `owner`.
+
+6. **Confirm audit + outbox rows, and that the cron drain runs.**
+   In the SQL editor, immediately after step 2:
+   ```sql
+   select count(*) from audit_events where organization_id = '<organizationId>';
+   -- expect 1
+   select id, processed_at from transaction_outbox where organization_id = '<organizationId>';
+   -- expect 1 row, processed_at is NULL right after creation
+   ```
+   Wait ~30 seconds (the `outbox-drain` cron job's schedule — confirmed
+   present in §3.1), then re-run the second query:
+   - [ ] `processed_at` is now set (non-null) on that row, without any
+     manual intervention — proves `cron.schedule('outbox-drain', '30
+     seconds', ...)` is actually running on staging, not just present in
+     `cron.job`.
+
+7. **Cross-tenant isolation.** Create a second Auth user, **B**, who has
+   never been added to A's organization. Obtain B's access token and:
+   ```bash
+   curl -i https://app.aktflow.com/v1/me/context \
+     -H "Authorization: Bearer <B's access token>"
+   ```
+   - [ ] B's `organizations` list does **not** include the org created in
+     step 2 (empty list, or only orgs B legitimately created/joined).
+   - [ ] Optionally, attempt B reading A's org directly at the DB level
+     (mirrors `packages/testing/src/rls.test.ts`'s local RLS suite) and
+     confirm zero rows — RLS policies from `0004_rls_policies.sql` should
+     behave identically on staging since the schema is identical.
+
+If every box above is checked with real evidence pasted into the PR/ops
+log, staging is verified end-to-end. Do not mark this done from local
+results alone — local Postgres and hosted Supabase can diverge in
+`pg_cron` availability, connection pooling, and role/grant edge cases,
+which is exactly what §3.1 and §3.2 exist to catch.
+
+---
+
+## Status
+
+**Staging has not been provisioned or verified as of this writing.** This
+repo's environment has no GitHub remote, no Vercel account, and no
+Supabase cloud project connected — Tasks 1-12 of the P0a slice-1 plan were
+built and verified entirely against the local Supabase stack
+(`supabase start` / `supabase db reset`, `pnpm turbo run
+typecheck|test|build`). This runbook is written so a human operator with
+real Supabase/Vercel accounts can execute it later; none of its steps
+have been run against a real staging project. See
+`.superpowers/sdd/2026-07-24-p0a-slice1-skeleton-tenancy-core/task-12-report.md`
+for the local substitute proof that was run instead.
