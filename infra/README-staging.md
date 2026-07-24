@@ -48,10 +48,13 @@ supabase db push
 
 This applies `supabase/migrations/0001_core_tenancy.sql` through
 `0005_outbox_drain_cron.sql` in order, exactly as `supabase db reset` does
-locally. `supabase/seed.sql` is **not** applied by `db push` (push only
-runs migrations) — do not seed staging with the local dev fixtures
-(`AUTH_USER_A` / `AUTH_USER_B`); staging users are created via Supabase
-Auth in §6.
+locally. A plain `supabase db push` (as run above, with no flags) does
+**not** apply `supabase/seed.sql` — push only runs migrations — so do not
+seed staging with the local dev fixtures (`AUTH_USER_A` / `AUTH_USER_B`)
+this way; staging users are created via Supabase Auth in §6. This is
+about the default, unflagged command only — see the prohibition list at
+the start of §3 for the specific push/reset/Branching variants that DO
+apply `seed.sql`, which must never be run against this project.
 
 ### 2.1 Verify `pg_cron` exists on the staging image
 
@@ -105,6 +108,27 @@ DB in an unknown state.
 
 ## 3. Set the `aktflow_app_login` password on staging (mandatory, do this now)
 
+**Never run any of the following against this (or any real) Supabase
+project — each one applies `supabase/seed.sql`, which sets
+`aktflow_app_login`'s password to the known dev value `app_pw`:**
+
+- `supabase db push --include-seed`
+- `supabase db reset --linked` (with or without `--include-seed` — the
+  reset itself destroys and rebuilds the linked remote database from
+  local migrations, and `--include-seed` on top of that reloads
+  `seed.sql`)
+- Enabling Supabase Branching while `[db.seed] enabled = true` in
+  `supabase/config.toml` — preview branches are reseeded from
+  `./supabase/seed.sql` automatically (equivalent to a local `supabase db
+  reset`), with no flag required, on every preview branch's own
+  internet-reachable database. If Branching is ever turned on for this
+  project, set `[db.seed] enabled = false` first.
+
+If any of the above is ever run against staging or production, treat
+`aktflow_app_login`'s password as compromised — it will have been reset
+to `app_pw` — and immediately re-run the rotation steps below to set a
+fresh secret before any traffic is allowed through.
+
 **Do not skip or defer this step.** Migration `0003_roles_and_grants.sql`
 creates the `aktflow_app_login` LOGIN role with **no password at all** —
 `supabase db push` never sets one, on purpose. Nothing can
@@ -133,8 +157,9 @@ password.
    ```
 2. Record `<generated-secret>` in the password manager alongside the
    project ref. Never commit it, and never reuse the local dev value
-   (`app_pw` — set only by `supabase/seed.sql`, which `db push` never
-   runs) here.
+   (`app_pw` — set only by `supabase/seed.sql`, which a *default* `db
+   push` never runs, but the prohibited commands listed at the top of
+   this section do) here.
 3. Compose `APP_DB_URL` for the app deployment using that password and
    the **pooler** host/port from §1, e.g.:
    ```

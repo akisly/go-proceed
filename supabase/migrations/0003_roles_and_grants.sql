@@ -19,14 +19,18 @@ grant aktflow_app to aktflow_app_login;
 -- role aktflow_app`), so this credential is top-tier and must never be a
 -- known/shared value on anything reachable from the internet.
 --
--- `supabase db push` (staging/prod) runs ONLY this file — the role is
--- created LOGIN-capable but with a NULL password, so nothing can
+-- A DEFAULT `supabase db push` (staging/prod) runs ONLY this file — the
+-- role is created LOGIN-capable but with a NULL password, so nothing can
 -- password-authenticate as it until an operator sets a real secret
--- (infra/README-staging.md §2, mandatory before any app deploy connects).
+-- (infra/README-staging.md §3, mandatory before any app deploy connects).
 --
 -- `supabase db reset` (local/CI) additionally applies supabase/seed.sql,
--- which sets a fixed dev-only password there — never in a migration, so it
--- can never reach a real project via db push.
+-- which sets a fixed dev-only password there — never in a migration.
+-- That password is NOT unreachable from a real project in every case,
+-- though: `supabase db push --include-seed`, `supabase db reset --linked
+-- --include-seed`, and Supabase Branching preview branches (automatic,
+-- no flag) all apply seed.sql. See supabase/seed.sql and
+-- infra/README-staging.md §3 for the do-not-run list this implies.
 create schema if not exists app;
 grant usage on schema app to aktflow_app;
 
