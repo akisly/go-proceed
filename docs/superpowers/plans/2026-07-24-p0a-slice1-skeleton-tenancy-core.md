@@ -924,6 +924,10 @@ export function getPool(): pg.Pool {
     const connectionString = process.env.APP_DB_URL;
     if (!connectionString) throw new Error("APP_DB_URL is not set");
     pool = new Pool({ connectionString, max: 10 });
+    // REQUIRED: an idle pooled client that dies (DB restart, idle reaper, network
+    // partition) emits 'error' on the Pool. With no listener Node exits on an
+    // unhandled 'error' event, so one upstream blip would kill the whole server.
+    pool.on("error", (err) => { console.error("[db] idle client error", err); });
   }
   return pool;
 }
@@ -946,6 +950,7 @@ export async function withTenantTx<T>(
   ctx: TenantContext, fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
   const client = await getPool().connect();
+  let released = false;
   try {
     await client.query("begin");
     await client.query("set local role aktflow_app");
@@ -958,10 +963,19 @@ export async function withTenantTx<T>(
     await client.query("commit");
     return result;
   } catch (err) {
-    await client.query("rollback");
+    // If ROLLBACK itself fails the client may still be in an aborted-transaction
+    // state; destroy it via release(err) instead of returning it to the pool, and
+    // always propagate the ORIGINAL error rather than the rollback failure.
+    try {
+      await client.query("rollback");
+    } catch (rollbackErr) {
+      client.release(rollbackErr as Error);
+      released = true;
+    }
     throw err;
   } finally {
-    client.release(); // GUCs are transaction-local; nothing leaks to the pooled connection
+    // GUCs are transaction-local and the role is SET LOCAL; nothing leaks to the pool.
+    if (!released) client.release();
   }
 }
 ```
@@ -976,15 +990,24 @@ import type { AuditIntent } from "@aktflow/domain";
 
 export async function recordAudit(
   tx: Tx, ctx: TenantContext, intent: AuditIntent,
-  opts: { objectVersion?: number; reasonCode?: string } = {},
+  // organizationId override exists ONLY for bootstrap commands that create the org
+  // inside the same transaction (ctx.organizationId is still null there). Callers
+  // must never fabricate a second TenantContext to smuggle a different tenant in.
+  // actorType covers the non-user actors the CHECK allows ('system'/'worker'/'external').
+  opts: { objectVersion?: number; reasonCode?: string; organizationId?: string;
+          actorType?: "user" | "external" | "system" | "worker" } = {},
 ): Promise<void> {
+  const organizationId = opts.organizationId ?? ctx.organizationId;
+  // audit_events.organization_id is NOT NULL — fail loudly rather than hitting 23502.
+  if (!organizationId) throw new Error("recordAudit requires an organization id");
   await tx.query(
     `insert into public.audit_events
        (organization_id, actor_user_id, actor_type, action, object_type, object_id,
         request_id, details, object_version, reason_code)
-     values ($1,$2,'user',$3,$4,$5,$6,$7,$8,$9)`,
-    [ctx.organizationId, ctx.actorUserId, intent.action, intent.object_type, intent.object_id,
-     ctx.requestId, intent.details, opts.objectVersion ?? null, opts.reasonCode ?? null],
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+    [organizationId, ctx.actorUserId, opts.actorType ?? "user", intent.action,
+     intent.object_type, intent.object_id, ctx.requestId, intent.details,
+     opts.objectVersion ?? null, opts.reasonCode ?? null],
   );
 }
 ```
@@ -996,12 +1019,15 @@ import type { OutboxIntent } from "@aktflow/domain";
 
 export async function enqueueOutbox(
   tx: Tx, ctx: TenantContext, intent: OutboxIntent,
+  // Same bootstrap-only override rule as recordAudit — never fabricate a TenantContext.
+  opts: { organizationId?: string } = {},
 ): Promise<void> {
+  const organizationId = opts.organizationId ?? ctx.organizationId;
   await tx.query(
     `insert into public.transaction_outbox
        (organization_id, topic, aggregate_type, aggregate_id, payload_version, payload)
      values ($1,$2,$3,$4,$5,$6)`,
-    [ctx.organizationId, intent.topic, intent.aggregate_type, intent.aggregate_id,
+    [organizationId, intent.topic, intent.aggregate_type, intent.aggregate_id,
      intent.payload_version, intent.payload],
   );
 }
@@ -1011,15 +1037,30 @@ export async function enqueueOutbox(
 ```ts
 import type { Tx } from "./tx.js";
 
+/** Retention windows from docs/22-data-api-contract.md §166. */
+export const IDEMPOTENCY_CLASS_TTL = {
+  standard_30d: 2_592_000,
+  ledger_400d: 34_560_000,
+} as const;
+export type IdempotencyClass = keyof typeof IDEMPOTENCY_CLASS_TTL;
+
+/** Same key + different request hash ⇒ IDEMPOTENCY_CONFLICT (409, non-retryable). */
+export class IdempotencyConflictError extends Error {
+  readonly code = "IDEMPOTENCY_CONFLICT";
+  constructor() { super("Idempotency-Key reused with a different request body."); }
+}
+
 export interface IdempotencyArgs {
   organizationId: string | null;
   actorScope: string;   // e.g. `user:${userId}` — bounds the key to an actor
   operationId: string;  // logical operation, e.g. "organizations.create"
   key: string;          // the Idempotency-Key header value
   requestHash: string;  // 64-char lowercase sha256 hex of the raw request body
-  ttlSeconds?: number;  // idempotency window; default 86400 (24h)
+  idempotencyClass?: IdempotencyClass; // default "standard_30d" (30d, per contract)
 }
-export interface IdempotencyHit<T> { replayed: boolean; status: number; body: T }
+export interface IdempotencyHit<T> {
+  replayed: boolean; status: number; body: T; expiresAt: Date; // expiresAt ⇒ Idempotency-Replay-Until
+}
 
 /**
  * Idempotency against public.idempotency_records (exact schema.sql shape:
@@ -1032,29 +1073,51 @@ export interface IdempotencyHit<T> { replayed: boolean; status: number; body: T 
 export async function withIdempotency<T>(
   tx: Tx, args: IdempotencyArgs, fn: () => Promise<{ status: number; body: T }>,
 ): Promise<IdempotencyHit<T>> {
+  // Serialize same-key callers for the rest of this transaction. Without it two
+  // concurrent callers both pass the SELECT, both run fn(), and both commit domain
+  // side effects while ON CONFLICT silently drops the loser's ledger row.
+  // Correctness relies on READ COMMITTED (withTenantTx's default): the post-lock
+  // SELECT must take a fresh snapshot that sees the winner's committed row.
+  await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))",
+    [["idem", args.organizationId ?? "", args.actorScope, args.operationId, args.key].join("|")]);
+
   const found = await tx.query(
-    `select state, response_status, response_body
+    `select state, request_hash, response_status, response_body, expires_at
        from public.idempotency_records
       where organization_id is not distinct from $1
         and actor_scope = $2 and operation_id = $3 and idempotency_key = $4`,
     [args.organizationId, args.actorScope, args.operationId, args.key],
   );
-  const prior = found.rows[0] as { state: string; response_status: number; response_body: T } | undefined;
-  if (prior && prior.state === "completed") {
-    return { replayed: true, status: prior.response_status, body: prior.response_body };
+  const prior = found.rows[0] as
+    { state: string; request_hash: string; response_status: number; response_body: T; expires_at: Date } | undefined;
+  if (prior) {
+    // Contract (doc 22 §166): same key + DIFFERENT hash ⇒ IDEMPOTENCY_CONFLICT.
+    if (prior.request_hash !== args.requestHash) throw new IdempotencyConflictError();
+    if (prior.state === "completed") {
+      return { replayed: true, status: prior.response_status, body: prior.response_body,
+               expiresAt: prior.expires_at };
+    }
   }
+
   const result = await fn();
-  await tx.query(
+  const ttl = IDEMPOTENCY_CLASS_TTL[args.idempotencyClass ?? "standard_30d"];
+  const ins = await tx.query(
     `insert into public.idempotency_records
        (organization_id, actor_scope, operation_id, idempotency_key, request_hash,
         state, response_status, response_body, response_headers, expires_at, completed_at)
-     values ($1,$2,$3,$4,$5,'completed',$6,$7,'{}'::jsonb,
+     values ($1,$2,$3,$4,$5,'completed',$6,$7::jsonb,'{}'::jsonb,
              now() + make_interval(secs => $8), now())
-     on conflict (organization_id, actor_scope, operation_id, idempotency_key) do nothing`,
+     on conflict (organization_id, actor_scope, operation_id, idempotency_key) do nothing
+     returning expires_at`,
     [args.organizationId, args.actorScope, args.operationId, args.key, args.requestHash,
-     result.status, result.body, args.ttlSeconds ?? 86400],
+     result.status, JSON.stringify(result.body ?? null), ttl],
   );
-  return { replayed: false, status: result.status, body: result.body };
+  if (ins.rowCount === 0) {
+    // Unreachable while the advisory lock holds; never claim to have stored a body we didn't.
+    throw new Error("idempotency record lost a race after the advisory lock");
+  }
+  return { replayed: false, status: result.status, body: result.body,
+           expiresAt: (ins.rows[0] as { expires_at: Date }).expires_at };
 }
 ```
 > This matches `technical/schema.sql` `idempotency_records` verbatim (columns `actor_scope`, `operation_id`, `request_hash` — sha256 hex checked by `~ '^[0-9a-f]{64}$'` — `state`, `response_status`, `response_body`, `response_headers`, `expires_at not null`, and the `state='completed' ⇒ response_* not null` check). Insert directly as `'completed'` (valid under the check) and rely on the unique constraint + `on conflict do nothing` for replay races. Task 5 grants `select, insert` on this table — no UPDATE needed.
