@@ -627,7 +627,9 @@ grant select, insert on public.legal_entities to aktflow_app;
 grant select, insert, update on public.memberships to aktflow_app;
 grant select, insert on public.audit_events to aktflow_app;
 grant usage on sequence public.audit_events_id_seq to aktflow_app;
-grant select, insert, update on public.transaction_outbox to aktflow_app;
+-- INSERT-only per data-access-surface.csv DA-099: the BFF may only enqueue event
+-- intents; reading/draining them belongs to aktflow_worker (DA-058).
+grant insert on public.transaction_outbox to aktflow_app;
 grant select, insert on public.idempotency_records to aktflow_app;
 
 -- actor helper
@@ -673,8 +675,14 @@ create policy le_select on public.legal_entities for select to aktflow_app
     select 1 from public.memberships m
     where m.organization_id = legal_entities.organization_id
       and m.user_id = app.current_actor() and m.status = 'active'));
+-- A legal entity is never a bootstrap target: it always belongs to an existing org
+-- the actor must be an active member of. Without this check any actor could inject
+-- rows into another tenant's org (cross-tenant data injection).
 create policy le_insert on public.legal_entities for insert to aktflow_app
-  with check (app.current_actor() is not null);
+  with check (exists (
+    select 1 from public.memberships m
+    where m.organization_id = legal_entities.organization_id
+      and m.user_id = app.current_actor() and m.status = 'active'));
 
 -- memberships: an actor sees only their own membership rows.
 create policy m_select on public.memberships for select to aktflow_app
@@ -755,6 +763,18 @@ describe("RLS tenant isolation", () => {
     const seenByB = await asActor(B, orgId, (c) =>
       c.query("select id from public.organizations where id=$1", [orgId]));
     expect(seenByB.rowCount).toBe(0);
+  });
+
+  it("actor B cannot inject a legal entity into actor A's org", async () => {
+    // le_insert requires an ACTIVE membership in the target org. B has none,
+    // so this cross-tenant injection must be rejected by RLS.
+    const orgId = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+    await expect(
+      asActor(B, orgId, (c) =>
+        c.query(
+          "insert into public.legal_entities (organization_id, legal_name) values ($1,'Injected')",
+          [orgId])),
+    ).rejects.toThrow(/row-level security|violates/i);
   });
 });
 ```
@@ -1401,13 +1421,16 @@ export async function POST(req: Request): Promise<Response> {
            values ($1,$2,$3,$4,$5,$6,'trial',1)`,
           [c.organization.id, c.organization.legal_name, c.organization.display_name,
            c.organization.edrpou, c.organization.base_currency, c.organization.timezone]);
-        await tx.query(
-          `insert into public.legal_entities (id, organization_id, legal_name, registration_code, country_code) values ($1,$2,$3,$4,$5)`,
-          [c.legalEntity.id, c.legalEntity.organization_id, c.legalEntity.legal_name, c.legalEntity.registration_code, c.legalEntity.country_code]);
+        // ORDER MATTERS: the owner membership must exist BEFORE the legal entity,
+        // because le_insert requires an active membership in that org (anti-injection).
+        // m_insert still passes here because the org has no members yet (bootstrap).
         await tx.query(
           `insert into public.memberships (id, organization_id, user_id, role, status, all_projects, version)
            values ($1,$2,$3,'owner','active',true,1)`,
           [c.membership.id, c.membership.organization_id, c.membership.user_id]);
+        await tx.query(
+          `insert into public.legal_entities (id, organization_id, legal_name, registration_code, country_code) values ($1,$2,$3,$4,$5)`,
+          [c.legalEntity.id, c.legalEntity.organization_id, c.legalEntity.legal_name, c.legalEntity.registration_code, c.legalEntity.country_code]);
         // now that membership exists, set org context so subsequent audit read policies pass
         await tx.query("select set_config('app.organization_id', $1, true)", [c.organization.id]);
         await recordAudit(tx, { actorUserId: userId, organizationId: c.organization.id, requestId }, c.audit);
@@ -1817,5 +1840,10 @@ git commit -m "feat: landing shell with Evidence Atlas tokens + staging provisio
 **2. Placeholder scan:** No "TBD/TODO"; every code step has real code. The three "copy verbatim from schema.sql" instructions are deliberate (schema is the authoritative source per Global Constraints) and name the exact tables/columns — not placeholders.
 
 **3. Type consistency:** `TenantContext`, `Tx`, `AuditIntent`, `OutboxIntent`, `buildOrganizationCreation(input, actorUserId, ids)`, `withTenantTx(ctx, fn)`, `recordAudit(tx, ctx, intent)`, `enqueueOutbox(tx, ctx, intent)`, `withIdempotency(tx, key, actorUserId, fn)`, `problem(code, detail, opts)`, `requireUser(requestId)`, `jsonProblem`/`ok`/`requestIdFrom` are defined once and consumed with matching signatures across Tasks 2–9. ✓
+
+**Deferred security items (from the Task 5 deep review — tracked, not built here):**
+- `audit_events`, `transaction_outbox`, `idempotency_records` have NO RLS. Grant-revocation protects `anon`/`authenticated` only — it gives no tenant isolation on the shared `aktflow_app` role, so those tables rely on BFF query correctness (`where organization_id = …`). Add RLS in the slice that introduces their read paths.
+- `api.me_context` is owner-run (not `security_invoker`); its `user_id = app.current_actor()` predicate is the only isolation. Consider `WITH (security_invoker = true)` for defense-in-depth.
+- `legal_entities` UPDATE grant (DA-003) and `idempotency_records` UPDATE (DA-134) are intentionally omitted: no update path exists in this slice and `withIdempotency` is insert-only. Add each with its flow *and* a matching UPDATE policy.
 
 **Known follow-ups (out of slice 1, tracked for slice 2+):** real login UI + session cookies; `X-Organization-Id` enforcement middleware for non-bootstrap routes; MFA binding; membership scopes + no-owner-elevation; cron→Edge Function HTTP wiring when a consumer exists; shadcn component layer.
