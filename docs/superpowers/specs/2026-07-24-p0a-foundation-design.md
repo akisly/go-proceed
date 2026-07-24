@@ -43,7 +43,7 @@ packages/
   domain/              чистый TS: entities, инварианты, без I/O (org, membership, scope)
   contracts/           zod-схемы + generated types = единый источник API I/O + валидации
   database/            типизированный query-слой, транзакционный паттерн, migration runner, seed fixtures
-  ui/                  общие design tokens + web-примитивы (landing + app)
+  ui/                  shadcn/ui-примитивы + design tokens из прототипа (landing + app) — см. §3.1
   testing/             shared test helpers (tenant fixtures, negative-policy harness)
 infra/                 GitHub Actions workflows, env templates
 ```
@@ -53,6 +53,15 @@ infra/                 GitHub Actions workflows, env templates
 - `packages/contracts` — единственное место, где живут request/response shapes; runtime-валидация = эти zod-схемы (doc 07 §4).
 - `apps/app` BFF handlers — тонкие: validate (contracts) → tenant-scoped tx → domain → атомарный commit domain+audit+outbox. Никакой бизнес-логики в route-файлах.
 - `packages/database` — владеет транзакционным паттерном (set `app.actor_user_id`/org/request context, least-priv `aktflow_app`), чтобы каждый handler переиспользовал один audited путь.
+
+### 3.1 UI kit и design tokens (зафиксировано)
+
+- **Компонентный слой: shadcn/ui** (Radix primitives + Tailwind) в `apps/app` и `apps/landing`, обёрнут/расширен в `packages/ui`. Это база для accessible-примитивов из doc 07 §1 ("custom tokens + accessible primitives"); shadcn копируется в код (не runtime-зависимость), поэтому framework lock-in отсутствует.
+- **Design tokens берём из уже существующего прототипа** — `prototype/src/styles.css`, нормативная визуальная система **Evidence Atlas** (README, doc 05). Токены переносим в `packages/ui` как источник истины и мапим в Tailwind theme / CSS-переменные, которые потребляет shadcn:
+  - Цвета: Carbon/ink `#171717`, ink-2 `#242424`, Signal/Lime `#c6ff34` (+ `--signal-dark #667f12`), Slate `#484c5e`, Paper `#fbfbfb`, line `rgba(72,76,94,.17)`, muted `#666979`; статусные amber `#f2b84b` / red `#e45c55` / blue `#65719a`; glass-поверхности; atlas-акценты (`--atlas-blue #18376a` и пр.).
+  - Шрифты: body **Inter Variable**, заголовки/brand **Manrope Variable** (`@fontsource-variable/*`).
+  - Shadow/radius шкалы (`--shadow-xs/-sm/-/-lime`) и reduced-motion fallback переносим как токены.
+- Ничего из прототипного React-state/разметки в production не копируем — только визуальные токены. Прототип остаётся visual/interaction spec.
 
 ## 4. Sub-slice 1 — Skeleton + tenancy core (первый план)
 
