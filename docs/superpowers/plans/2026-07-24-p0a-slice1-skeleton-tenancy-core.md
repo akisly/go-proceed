@@ -410,7 +410,7 @@ export interface OrganizationRow {
   id: string; legal_name: string; display_name: string; edrpou: string | null;
   base_currency: string; timezone: string; status: "trial"; version: number;
 }
-export interface LegalEntityRow { id: string; organization_id: string; legal_name: string; edrpou: string | null }
+export interface LegalEntityRow { id: string; organization_id: string; legal_name: string; registration_code: string | null; country_code: string }
 export interface MembershipRow {
   id: string; organization_id: string; user_id: string;
   role: "owner"; status: "active"; all_projects: boolean; version: number;
@@ -442,7 +442,7 @@ export function buildOrganizationCreation(
   };
   const legalEntity: LegalEntityRow = {
     id: ids.legalEntityId, organization_id: ids.organizationId,
-    legal_name: input.legalName, edrpou,
+    legal_name: input.legalName, registration_code: edrpou, country_code: "UA",
   };
   const membership: MembershipRow = {
     id: ids.membershipId, organization_id: ids.organizationId, user_id: actorUserId,
@@ -1320,8 +1320,8 @@ export async function POST(req: Request): Promise<Response> {
           [c.organization.id, c.organization.legal_name, c.organization.display_name,
            c.organization.edrpou, c.organization.base_currency, c.organization.timezone]);
         await tx.query(
-          `insert into public.legal_entities (id, organization_id, legal_name, edrpou) values ($1,$2,$3,$4)`,
-          [c.legalEntity.id, c.legalEntity.organization_id, c.legalEntity.legal_name, c.legalEntity.edrpou]);
+          `insert into public.legal_entities (id, organization_id, legal_name, registration_code, country_code) values ($1,$2,$3,$4,$5)`,
+          [c.legalEntity.id, c.legalEntity.organization_id, c.legalEntity.legal_name, c.legalEntity.registration_code, c.legalEntity.country_code]);
         await tx.query(
           `insert into public.memberships (id, organization_id, user_id, role, status, all_projects, version)
            values ($1,$2,$3,'owner','active',true,1)`,
