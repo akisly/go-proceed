@@ -1,6 +1,6 @@
 import { problem } from "@aktflow/contracts";
-import { HttpProblem } from "./http.js";
-import { supabaseServer } from "./supabase-server.js";
+import { HttpProblem } from "./http";
+import { supabaseServer } from "./supabase-server";
 
 export async function requireUser(requestId: string): Promise<{ userId: string }> {
   const supabase = await supabaseServer();

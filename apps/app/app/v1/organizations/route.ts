@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
-import { requireUser } from "../../../lib/auth.js";
-import { idempotencyKeyFrom } from "../../../lib/request-context.js";
-import { HttpProblem, toProblemResponse, ok, requestIdFrom } from "../../../lib/http.js";
+import { requireUser } from "../../../src/lib/auth";
+import { idempotencyKeyFrom } from "../../../src/lib/request-context";
+import { HttpProblem, toProblemResponse, ok, requestIdFrom } from "../../../src/lib/http";
 import { createOrganizationRequest, problem, type CreateOrganizationResponse } from "@aktflow/contracts";
 import { buildOrganizationCreation } from "@aktflow/domain";
 import { withTenantTx, recordAudit, enqueueOutbox, withIdempotency } from "@aktflow/database";

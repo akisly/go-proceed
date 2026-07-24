@@ -36,7 +36,7 @@ afterEach(() => { state.forceOutboxFailure = false; });
 
 describe("POST /v1/organizations", () => {
   it("creates org+legal_entity+owner membership+audit+outbox atomically", async () => {
-    const { POST } = await import("../src/app/v1/organizations/route.js");
+    const { POST } = await import("../app/v1/organizations/route.js");
     const res = await POST(new Request("http://x/v1/organizations", {
       method: "POST",
       headers: { "content-type": "application/json", "idempotency-key": "k1" },
@@ -51,7 +51,7 @@ describe("POST /v1/organizations", () => {
   });
 
   it("replays idempotently — same key does not create a second org", async () => {
-    const { POST } = await import("../src/app/v1/organizations/route.js");
+    const { POST } = await import("../app/v1/organizations/route.js");
     const make = () => POST(new Request("http://x/v1/organizations", {
       method: "POST",
       headers: { "content-type": "application/json", "idempotency-key": "dup" },
@@ -68,7 +68,7 @@ describe("POST /v1/organizations", () => {
   });
 
   it("rejects a missing Idempotency-Key with problem+json", async () => {
-    const { POST } = await import("../src/app/v1/organizations/route.js");
+    const { POST } = await import("../app/v1/organizations/route.js");
     const res = await POST(new Request("http://x/v1/organizations", {
       method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ legalName: "A", displayName: "B" }),
@@ -78,7 +78,7 @@ describe("POST /v1/organizations", () => {
   });
 
   it("same key + different body → 409 IDEMPOTENCY_CONFLICT, no second org", async () => {
-    const { POST } = await import("../src/app/v1/organizations/route.js");
+    const { POST } = await import("../app/v1/organizations/route.js");
     const first = await POST(new Request("http://x/v1/organizations", {
       method: "POST",
       headers: { "content-type": "application/json", "idempotency-key": "conflict-key" },
@@ -100,7 +100,7 @@ describe("POST /v1/organizations", () => {
 
   it("rolls back org+membership+legal_entity+audit when a later step fails (full atomicity)", async () => {
     state.forceOutboxFailure = true;
-    const { POST } = await import("../src/app/v1/organizations/route.js");
+    const { POST } = await import("../app/v1/organizations/route.js");
     const res = await POST(new Request("http://x/v1/organizations", {
       method: "POST",
       headers: { "content-type": "application/json", "idempotency-key": "atomic-fail" },

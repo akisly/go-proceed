@@ -1,4 +1,4 @@
-import type { Tx } from "./tx.js";
+import type { Tx } from "./tx";
 
 // Retention classes per docs/22-data-api-contract.md:166 and
 // technical/error-catalog.csv:14. standard_30d applies to ordinary

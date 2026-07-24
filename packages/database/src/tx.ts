@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { getPool } from "./pool.js";
+import { getPool } from "./pool";
 
 export interface TenantContext {
   actorUserId: string;

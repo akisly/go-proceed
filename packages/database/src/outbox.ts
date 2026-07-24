@@ -1,4 +1,4 @@
-import type { Tx, TenantContext } from "./tx.js";
+import type { Tx, TenantContext } from "./tx";
 import type { OutboxIntent } from "@aktflow/domain";
 
 export interface EnqueueOutboxOpts {

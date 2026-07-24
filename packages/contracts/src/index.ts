@@ -1,3 +1,3 @@
-export * from "./problem.js";
-export * from "./organizations.js";
-export * from "./me-context.js";
+export * from "./problem";
+export * from "./organizations";
+export * from "./me-context";

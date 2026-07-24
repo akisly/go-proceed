@@ -1,5 +1,5 @@
-import type { Tx } from "./tx.js";
-import type { TenantContext } from "./tx.js";
+import type { Tx } from "./tx";
+import type { TenantContext } from "./tx";
 import type { AuditIntent } from "@aktflow/domain";
 
 export interface RecordAuditOpts {
