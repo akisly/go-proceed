@@ -26,12 +26,20 @@ describe("RLS tenant isolation", () => {
     expect(seenByB.rowCount).toBe(0);
   }, 120_000);
 
-  it("substituting app.organization_id does not grant cross-tenant read", async () => {
-    // B claims A's orgId in context but has no membership → still zero rows
+  it("a caller with no membership sees zero api.me_context rows regardless of the app.organization_id GUC value", async () => {
+    // No policy in this slice reads app.organization_id at all — api.me_context
+    // and every RLS policy here key off app.actor_user_id (app.current_actor())
+    // only. This test proves that setting app.organization_id to A's org (a
+    // value B has no membership in) has no effect either way: B still sees
+    // nothing, because B has no membership anywhere, not because the org GUC
+    // was "rejected". A prior version of this test asserted
+    // `rows.every(row => row.user_id === B)`, which is vacuously true on an
+    // empty array and would still pass even if org-substitution somehow leaked
+    // another user's rows in — assert the row count explicitly instead.
     const orgId = "cccccccc-cccc-cccc-cccc-cccccccccccc";
     const r = await asActor(B, orgId, (c) =>
       c.query("select * from api.me_context"));
-    expect(r.rows.every((row: { user_id: string }) => row.user_id === B)).toBe(true);
+    expect(r.rowCount).toBe(0);
   });
 
   it("actor B cannot self-insert an owner membership into actor A's existing org", async () => {

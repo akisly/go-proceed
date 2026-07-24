@@ -13,10 +13,20 @@ do $$ begin
 end $$;
 grant aktflow_app to aktflow_app_login;
 
--- Dev-only password so packages/testing can connect as aktflow_app_login.
--- Staging/prod must set this via a managed secret, not a migration.
-alter role aktflow_app_login password 'app_pw';
-
+-- SECURITY: aktflow_app_login intentionally gets NO password here. Membership
+-- in aktflow_app IS full tenant-table read/write privilege (app.actor_user_id
+-- is a plain session GUC any authenticated connection can set via `set local
+-- role aktflow_app`), so this credential is top-tier and must never be a
+-- known/shared value on anything reachable from the internet.
+--
+-- `supabase db push` (staging/prod) runs ONLY this file — the role is
+-- created LOGIN-capable but with a NULL password, so nothing can
+-- password-authenticate as it until an operator sets a real secret
+-- (infra/README-staging.md §2, mandatory before any app deploy connects).
+--
+-- `supabase db reset` (local/CI) additionally applies supabase/seed.sql,
+-- which sets a fixed dev-only password there — never in a migration, so it
+-- can never reach a real project via db push.
 create schema if not exists app;
 grant usage on schema app to aktflow_app;
 

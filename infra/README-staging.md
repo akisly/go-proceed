@@ -36,34 +36,7 @@ password manager and in Vercel's encrypted environment variables only.
      any one-off admin scripts. Never expose it to the browser or commit it.
 3. `NEXT_PUBLIC_SUPABASE_URL` is `https://<project-ref>.supabase.co`.
 
-## 2. Set the `aktflow_app_login` password on staging
-
-Migration `0003_roles_and_grants.sql` creates the `aktflow_app_login`
-LOGIN role and sets a **dev-only** password (`app_pw`) that is fine for
-the local Supabase stack but must never be reused anywhere reachable from
-the internet.
-
-1. After running `supabase db push` (§3 below) so the role exists, open
-   the staging project's SQL Editor and run, with a freshly generated
-   secret (e.g. `openssl rand -base64 24`):
-   ```sql
-   alter role aktflow_app_login password '<generated-secret>';
-   ```
-2. Record `<generated-secret>` in the password manager alongside the
-   project ref.
-3. Compose `APP_DB_URL` for the app deployment using that password and
-   the **pooler** host/port from §1, e.g.:
-   ```
-   postgresql://aktflow_app_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
-   ```
-   `packages/database/src/pool.ts` reads this verbatim from `APP_DB_URL`
-   at request time — no other code path composes it. `aktflow_app_login`
-   is `noinherit nobypassrls` and only gains privilege via `set local role
-   aktflow_app` inside `withTenantTx` (see `packages/database/src/tx.ts`),
-   so this password grants nothing by itself beyond `LOGIN` +
-   `aktflow_app` membership.
-
-## 3. Link the project and push migrations
+## 2. Link the project and push migrations
 
 From the repo root, with the Supabase CLI installed and authenticated
 (`supabase login`):
@@ -80,7 +53,7 @@ runs migrations) — do not seed staging with the local dev fixtures
 (`AUTH_USER_A` / `AUTH_USER_B`); staging users are created via Supabase
 Auth in §6.
 
-### 3.1 Verify `pg_cron` exists on the staging image
+### 2.1 Verify `pg_cron` exists on the staging image
 
 Migration `0005_outbox_drain_cron.sql` wraps `create extension pg_cron`
 and every `cron.*` call in defensive `do $$ ... exception ... end $$`
@@ -102,10 +75,10 @@ select jobid, jobname, schedule, active from cron.job where jobname = 'outbox-dr
 
 If `pg_cron` is missing: enable it via Database → Extensions in the
 dashboard (or contact Supabase support if the plan doesn't expose it),
-then re-run `supabase db push` (§3.2 proves this is safe to repeat) so the
+then re-run `supabase db push` (§2.2 proves this is safe to repeat) so the
 `do $$ ... end $$` block in `0005` re-evaluates and schedules the job.
 
-### 3.2 Empirically double-apply the migrations (idempotency proof)
+### 2.2 Empirically double-apply the migrations (idempotency proof)
 
 Every migration in this slice is written to be safe to re-run (`create
 ... if not exists`, `drop policy if exists` before `create policy`,
@@ -127,8 +100,51 @@ select count(*) from pg_extension where extname = 'pg_cron';  -- expect 1
 ```
 
 If either apply exits non-zero, or `outbox-drain` shows up twice, treat
-that as a migration bug and stop — do not proceed to §4 against a staging
+that as a migration bug and stop — do not proceed to §3 against a staging
 DB in an unknown state.
+
+## 3. Set the `aktflow_app_login` password on staging (mandatory, do this now)
+
+**Do not skip or defer this step.** Migration `0003_roles_and_grants.sql`
+creates the `aktflow_app_login` LOGIN role with **no password at all** —
+`supabase db push` never sets one, on purpose. Nothing can
+password-authenticate as `aktflow_app_login` until you set a secret here,
+which is intentional: it means a freshly pushed staging database is
+inert (unreachable by the app) rather than reachable with a known
+default, and §4-§5 below (creating the Vercel deployment, which needs
+`APP_DB_URL`) cannot meaningfully proceed until this step is done.
+
+Membership in the `aktflow_app` role **is** full tenant-table
+read/write privilege: `app.actor_user_id` is a plain session GUC that
+any connection authenticated as `aktflow_app_login` can set via `set
+local role aktflow_app` (see `packages/database/src/tx.ts`), and RLS
+policies key off that GUC, not off any secondary secret. There is no
+second gate — anyone who has this password can read and write every
+tenant's `organizations`, `memberships`, `legal_entities`,
+`audit_events`, `transaction_outbox` and `idempotency_records` rows.
+Treat it as a top-tier secret, equivalent in blast radius to a database
+admin credential for tenant data — not as a low-stakes app-connection
+password.
+
+1. Open the staging project's SQL Editor and run, with a freshly
+   generated secret (e.g. `openssl rand -base64 24`):
+   ```sql
+   alter role aktflow_app_login password '<generated-secret>';
+   ```
+2. Record `<generated-secret>` in the password manager alongside the
+   project ref. Never commit it, and never reuse the local dev value
+   (`app_pw` — set only by `supabase/seed.sql`, which `db push` never
+   runs) here.
+3. Compose `APP_DB_URL` for the app deployment using that password and
+   the **pooler** host/port from §1, e.g.:
+   ```
+   postgresql://aktflow_app_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
+   ```
+   `packages/database/src/pool.ts` reads this verbatim from `APP_DB_URL`
+   at request time — no other code path composes it.
+4. Do not proceed to §4 (creating the Vercel projects / setting their
+   `APP_DB_URL`) until this step is complete — there is no working
+   `APP_DB_URL` to configure them with otherwise.
 
 ## 4. Create two Vercel projects from the monorepo
 
@@ -150,7 +166,7 @@ and env vars differ.
 - Environment variables (Production + Preview):
   - `NEXT_PUBLIC_SUPABASE_URL` = `https://<project-ref>.supabase.co`
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the anon key from §1
-  - `APP_DB_URL` = the pooler connection string composed in §2
+  - `APP_DB_URL` = the pooler connection string composed in §3
 - Domain: `app.aktflow.com`
 
 ### `apps/landing`
@@ -247,7 +263,7 @@ timings) — a checked box with no evidence is not verification.
    -- expect 1 row, processed_at is NULL right after creation
    ```
    Wait ~30 seconds (the `outbox-drain` cron job's schedule — confirmed
-   present in §3.1), then re-run the second query:
+   present in §2.1), then re-run the second query:
    - [ ] `processed_at` is now set (non-null) on that row, without any
      manual intervention — proves `cron.schedule('outbox-drain', '30
      seconds', ...)` is actually running on staging, not just present in
@@ -270,7 +286,7 @@ If every box above is checked with real evidence pasted into the PR/ops
 log, staging is verified end-to-end. Do not mark this done from local
 results alone — local Postgres and hosted Supabase can diverge in
 `pg_cron` availability, connection pooling, and role/grant edge cases,
-which is exactly what §3.1 and §3.2 exist to catch.
+which is exactly what §2.1 and §2.2 exist to catch.
 
 ---
 

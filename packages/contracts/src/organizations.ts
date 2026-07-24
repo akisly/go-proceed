@@ -1,8 +1,9 @@
 import { z } from "zod";
 
 export const createOrganizationRequest = z.object({
-  legalName: z.string().trim().min(1).max(300),
-  displayName: z.string().trim().min(1).max(200),
+  // Bounds must match technical/openapi.yaml components.schemas.OrganizationCreate.
+  legalName: z.string().trim().min(1).max(240),
+  displayName: z.string().trim().min(1).max(160),
   edrpou: z.string().trim().regex(/^\d{8,10}$/).optional(),
   baseCurrency: z.string().length(3).default("UAH"),
   timezone: z.string().min(1).default("Europe/Kyiv"),

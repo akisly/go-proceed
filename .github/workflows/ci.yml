@@ -8,6 +8,10 @@ jobs:
     timeout-minutes: 30
     env:
       # Local Supabase Postgres, reachable once `supabase start` has come up.
+      # 'app_pw' is set by supabase/seed.sql (applied by `supabase start` /
+      # `supabase db reset`, both below) — never by a migration, so this
+      # known password can never reach a real staging/prod project, which is
+      # provisioned via `supabase db push` (migrations only, no seed).
       APP_DB_URL: postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres
       SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       # next build only needs these present (not real secrets) — no page in
@@ -38,7 +42,7 @@ jobs:
 
       # Applies migrations 0001-0005 in order and loads supabase/seed.sql
       # (the AUTH_USER_A / AUTH_USER_B fixtures the RLS + integration suites
-      # depend on).
+      # depend on, and the dev-only aktflow_app_login password above).
       - name: supabase db reset
         run: supabase db reset
 

@@ -23,4 +23,30 @@ describe("createOrganizationRequest", () => {
     });
     expect(r.success).toBe(false);
   });
+
+  // Bounds must match technical/openapi.yaml components.schemas.OrganizationCreate
+  // (legalName maxLength 240, displayName maxLength 160).
+  it("accepts legalName/displayName at the exact catalog max length", () => {
+    const r = createOrganizationRequest.safeParse({
+      legalName: "a".repeat(240),
+      displayName: "b".repeat(160),
+    });
+    expect(r.success).toBe(true);
+  });
+
+  it("rejects legalName over 240 chars", () => {
+    const r = createOrganizationRequest.safeParse({
+      legalName: "a".repeat(241), displayName: "b",
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.path).toEqual(["legalName"]);
+  });
+
+  it("rejects displayName over 160 chars", () => {
+    const r = createOrganizationRequest.safeParse({
+      legalName: "a", displayName: "b".repeat(161),
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error.issues[0]?.path).toEqual(["displayName"]);
+  });
 });

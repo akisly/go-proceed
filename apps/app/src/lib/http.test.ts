@@ -9,13 +9,48 @@ describe("http helpers", () => {
     expect(id).toMatch(/[0-9a-f-]{36}/);
   });
 
-  it("echoes provided X-Request-Id", () => {
-    const id = requestIdFrom(new Request("http://x/", { headers: { "x-request-id": "req-9" } }));
-    expect(id).toBe("req-9");
+  it("echoes a valid provided X-Request-Id", () => {
+    const id = requestIdFrom(new Request("http://x/", { headers: { "x-request-id": "req-0123456789ab" } }));
+    expect(id).toBe("req-0123456789ab");
+  });
+
+  // technical/openapi.yaml components.parameters.RequestId: minLength 16,
+  // maxLength 128, ^[A-Za-z0-9._:-]+$ — docs/22-data-api-contract.md:170
+  // requires invalid values REJECTED (never echoed into audit_events).
+  it("rejects an oversized X-Request-Id (>128 chars) with 422 VALIDATION_FAILED", () => {
+    const oversized = "a".repeat(129);
+    try {
+      requestIdFrom(new Request("http://x/", { headers: { "x-request-id": oversized } }));
+      expect.unreachable();
+    } catch (e) {
+      expect(e).toBeInstanceOf(HttpProblem);
+      const err = e as HttpProblem;
+      expect(err.status).toBe(422);
+      expect(err.body.code).toBe("VALIDATION_FAILED");
+      expect(err.body.userAction).toBe("correct_fields");
+      expect(err.body.fieldErrors).toEqual([{ path: "X-Request-Id", message: "invalid" }]);
+    }
+  });
+
+  it("rejects an undersized X-Request-Id (<16 chars) with 422 VALIDATION_FAILED", () => {
+    expect(() => requestIdFrom(new Request("http://x/", { headers: { "x-request-id": "short" } })))
+      .toThrow(HttpProblem);
+  });
+
+  it("rejects an illegal-charset X-Request-Id with 422 VALIDATION_FAILED", () => {
+    const illegal = "valid-length-but-has spaces!!";
+    try {
+      requestIdFrom(new Request("http://x/", { headers: { "x-request-id": illegal } }));
+      expect.unreachable();
+    } catch (e) {
+      const err = e as HttpProblem;
+      expect(err.status).toBe(422);
+      expect(err.body.code).toBe("VALIDATION_FAILED");
+    }
   });
 
   it("jsonProblem sets status, content-type and X-Request-Id", async () => {
-    const res = jsonProblem(409, problem("org.conflict", "d", { requestId: "req-9" }));
+    const res = jsonProblem(409, problem("VERSION_CONFLICT", "d", { requestId: "req-9" }));
     expect(res.status).toBe(409);
     expect(res.headers.get("content-type")).toContain("application/problem+json");
     expect(res.headers.get("x-request-id")).toBe("req-9");
@@ -54,21 +89,28 @@ describe("toProblemResponse", () => {
     expect(res.headers.get("x-request-id")).toBe("req-1");
   });
 
-  it("maps IdempotencyConflictError to 409 IDEMPOTENCY_CONFLICT with problem+json content-type", async () => {
+  it("maps IdempotencyConflictError to 409 IDEMPOTENCY_CONFLICT with the catalog userAction token", async () => {
     const res = toProblemResponse(new IdempotencyConflictError(), "req-2");
     expect(res.status).toBe(409);
     expect(res.headers.get("content-type")).toContain("application/problem+json");
     const body = await res.json();
     expect(body.code).toBe("IDEMPOTENCY_CONFLICT");
+    // technical/error-catalog.csv: IDEMPOTENCY_CONFLICT's user_action is the
+    // catalog token, not free-text Ukrainian prose (human text stays in detail).
+    expect(body.userAction).toBe("new_key_or_reuse_original");
     expect(res.headers.get("x-request-id")).toBe("req-2");
   });
 
-  it("maps an unknown Error to 500 with retryable true", async () => {
+  it("maps an unknown Error to the documented 500 fallback (catalog has no generic 5xx row)", async () => {
     const res = toProblemResponse(new Error("boom"), "req-3");
     expect(res.status).toBe(500);
     const body = await res.json();
     expect(body.code).toBe("INTERNAL_ERROR");
     expect(body.retryable).toBe(true);
+    // "retry_later" is a real technical/error-catalog.csv token (used by
+    // RATE_LIMITED, UPLOAD_UNAVAILABLE, ...), reused here for consistency
+    // since INTERNAL_ERROR itself has no catalog row of its own.
+    expect(body.userAction).toBe("retry_later");
     expect(res.headers.get("x-request-id")).toBe("req-3");
   });
 });

@@ -12,9 +12,15 @@ export const runtime = "nodejs"; // node-postgres requires the Node runtime
 // caller cannot widen or redirect their own result by supplying someone
 // else's org id.
 export async function GET(req: Request): Promise<Response> {
-  const requestId = requestIdFrom(req);
+  // Fallback id in case X-Request-Id itself fails validation below (before a
+  // "real" requestId exists to attach to that very problem+json response).
+  let requestId = crypto.randomUUID();
   try {
-    const { userId } = await requireUser(requestId);
+    // requestIdFrom validates syntax/length per docs/22-data-api-contract.md:170
+    // and throws HttpProblem 422 VALIDATION_FAILED for an invalid header
+    // instead of ever echoing it back into audit_events.request_id.
+    requestId = requestIdFrom(req);
+    const { userId } = await requireUser(requestId, req);
 
     const rows = await withTenantTx(
       { actorUserId: userId, organizationId: null, requestId },

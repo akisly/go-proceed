@@ -1,6 +1,11 @@
 import { Client, type QueryResult, type QueryResultRow } from "pg";
 import { execSync } from "node:child_process";
 
+// 'app_pw' is the local/CI-only password set by supabase/seed.sql (never a
+// migration — supabase/migrations/0003_roles_and_grants.sql intentionally
+// creates aktflow_app_login with no password, so `supabase db push` against
+// staging/prod never sets a known credential). Override via APP_DB_URL for
+// any other environment.
 const APP_URL = process.env.APP_DB_URL
   ?? "postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres";
 

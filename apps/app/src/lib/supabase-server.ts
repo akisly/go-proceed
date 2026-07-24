@@ -1,5 +1,18 @@
 import { createServerClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
+
+// Stateless client used only to validate an inbound `Authorization: Bearer`
+// token via `auth.getUser(token)`. It never persists or refreshes a
+// session/cookie — the token comes from the caller on every request, so
+// there is nothing local to cache.
+export function supabaseAnon() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { auth: { persistSession: false, autoRefreshToken: false } },
+  );
+}
 
 export async function supabaseServer() {
   const store = await cookies();
