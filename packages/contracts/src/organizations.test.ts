@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createOrganizationRequest } from "./organizations.js";
+import { createOrganizationRequest } from "./organizations";
 
 describe("createOrganizationRequest", () => {
   it("accepts a minimal valid body and defaults currency/timezone", () => {

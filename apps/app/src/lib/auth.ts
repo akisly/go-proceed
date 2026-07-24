@@ -11,7 +11,7 @@ export async function requireUser(requestId: string): Promise<{ userId: string }
   if (error || !data.user) {
     throw new HttpProblem(
       401,
-      problem("auth.required", "Потрібна автентифікація.", {
+      problem("AUTH_REQUIRED", "Потрібна автентифікація.", {
         requestId,
         retryable: false,
         userAction: "Увійдіть у систему.",

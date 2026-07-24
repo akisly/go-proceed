@@ -13,11 +13,16 @@ export async function POST(req: Request): Promise<Response> {
   try {
     const { userId } = await requireUser(requestId);
 
+    // technical/error-catalog.csv is authoritative: VALIDATION_FAILED is 422,
+    // user_action "correct_fields" — a missing Idempotency-Key is a request
+    // validation failure like any other, not a bespoke off-catalog code.
     const idempotencyKey = idempotencyKeyFrom(req);
     if (!idempotencyKey) {
-      throw new HttpProblem(400, problem("idempotency.required",
-        "Заголовок Idempotency-Key обовʼязковий.", { requestId, retryable: false,
-        userAction: "Додайте Idempotency-Key і повторіть." }));
+      throw new HttpProblem(422, problem("VALIDATION_FAILED",
+        "Заголовок Idempotency-Key обовʼязковий.", {
+          requestId, retryable: false, userAction: "correct_fields",
+          fieldErrors: [{ path: "Idempotency-Key", message: "required" }],
+        }));
     }
 
     // Read the RAW body once: it is both parsed and hashed (request_hash must be a
@@ -27,14 +32,14 @@ export async function POST(req: Request): Promise<Response> {
     let json: unknown;
     try { json = JSON.parse(raw); }
     catch {
-      throw new HttpProblem(400, problem("validation.failed", "Тіло запиту не є валідним JSON.",
-        { requestId, retryable: false }));
+      throw new HttpProblem(422, problem("VALIDATION_FAILED", "Тіло запиту не є валідним JSON.",
+        { requestId, retryable: false, userAction: "correct_fields" }));
     }
 
     const parsed = createOrganizationRequest.safeParse(json);
     if (!parsed.success) {
-      throw new HttpProblem(400, problem("validation.failed", "Некоректні дані організації.", {
-        requestId, retryable: false,
+      throw new HttpProblem(422, problem("VALIDATION_FAILED", "Некоректні дані організації.", {
+        requestId, retryable: false, userAction: "correct_fields",
         fieldErrors: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
       }));
     }
@@ -86,7 +91,13 @@ export async function POST(req: Request): Promise<Response> {
       });
     });
 
-    return ok(out.status, out.body, requestId);
+    // docs/22-data-api-contract.md:166 / technical/openapi.yaml declare this
+    // header on the 201 so a client can distinguish "still replayable" from
+    // "window expired" — without it a late retry could silently create a
+    // second organization instead of replaying.
+    return ok(out.status, out.body, requestId, {
+      "Idempotency-Replay-Until": out.expiresAt.toISOString(),
+    });
   } catch (err) {
     // Single mapping point: HttpProblem → its status, IdempotencyConflictError → 409, else 500.
     return toProblemResponse(err, requestId);

@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withTenantTx } from "./tx.js";
-import { recordAudit } from "./audit.js";
-import { enqueueOutbox } from "./outbox.js";
+import { withTenantTx } from "./tx";
+import { recordAudit } from "./audit";
+import { enqueueOutbox } from "./outbox";
 import { Client } from "pg";
 
 // Fixed seeded auth.users row (see supabase/seed.sql) - memberships.user_id

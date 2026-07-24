@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildOrganizationCreation } from "./organization.js";
+import { buildOrganizationCreation } from "./organization";
 
 const ids = {
   organizationId: "11111111-1111-1111-1111-111111111111",

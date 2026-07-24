@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { appClient, asActor, resetDb } from "./pg.js";
+import { appClient, asActor, resetDb } from "./pg";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";

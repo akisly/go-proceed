@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withTenantTx } from "./tx.js";
-import { withIdempotency, IdempotencyConflictError, IDEMPOTENCY_CLASS_TTL } from "./idempotency.js";
+import { withTenantTx } from "./tx";
+import { withIdempotency, IdempotencyConflictError, IDEMPOTENCY_CLASS_TTL } from "./idempotency";
 import { Client } from "pg";
 
 const admin = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";

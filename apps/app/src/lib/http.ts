@@ -26,12 +26,16 @@ export function jsonProblem(status: number, body: ProblemJson): Response {
   });
 }
 
-export function ok(status: number, body: unknown, requestId: string): Response {
+export function ok(
+  status: number, body: unknown, requestId: string,
+  extraHeaders: Record<string, string> = {},
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "content-type": "application/json",
       "x-request-id": requestId,
+      ...extraHeaders,
     },
   });
 }
@@ -53,7 +57,7 @@ export function toProblemResponse(err: unknown, requestId: string): Response {
       }),
     );
   }
-  return jsonProblem(500, problem("internal.error", "Внутрішня помилка.", { requestId, retryable: true }));
+  return jsonProblem(500, problem("INTERNAL_ERROR", "Внутрішня помилка.", { requestId, retryable: true }));
 }
 
 export { problem };
