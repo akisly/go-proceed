@@ -30,6 +30,22 @@ importers:
         specifier: 3.24.1
         version: 3.24.1
 
+  packages/database:
+    dependencies:
+      '@aktflow/contracts':
+        specifier: workspace:*
+        version: link:../contracts
+      '@aktflow/domain':
+        specifier: workspace:*
+        version: link:../domain
+      pg:
+        specifier: ^8.22.0
+        version: 8.22.0
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.20.0
+        version: 8.20.0
+
   packages/domain:
     dependencies:
       '@aktflow/contracts':
