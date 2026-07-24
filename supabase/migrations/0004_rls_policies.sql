@@ -27,7 +27,10 @@ create policy le_insert on public.legal_entities for insert to aktflow_app
 create policy m_select on public.memberships for select to aktflow_app
   using (user_id = app.current_actor());
 create policy m_insert on public.memberships for insert to aktflow_app
-  with check (user_id = app.current_actor() and role = 'owner');
+  with check (
+    user_id = app.current_actor()
+    and role = 'owner'
+    and not app.org_has_members(memberships.organization_id));
 
 -- read projection for GET /v1/me/context
 create view api.me_context as

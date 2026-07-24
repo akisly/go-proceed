@@ -53,3 +53,12 @@ create or replace function app.current_actor() returns uuid
 language sql stable as $$
   select nullif(current_setting('app.actor_user_id', true), '')::uuid
 $$;
+
+-- SECURITY DEFINER so the membership-bootstrap policy can check whether an org
+-- already has members WITHOUT being narrowed by memberships' own RLS.
+create or replace function app.org_has_members(org uuid) returns boolean
+language sql stable security definer set search_path = public as $$
+  select exists (select 1 from public.memberships where organization_id = org)
+$$;
+revoke all on function app.org_has_members(uuid) from public;
+grant execute on function app.org_has_members(uuid) to aktflow_app;

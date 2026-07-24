@@ -34,6 +34,19 @@ describe("RLS tenant isolation", () => {
     expect(r.rows.every((row: { user_id: string }) => row.user_id === B)).toBe(true);
   });
 
+  it("actor B cannot self-insert an owner membership into actor A's existing org", async () => {
+    const orgId = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+    await expect(
+      asActor(B, orgId, (c) =>
+        c.query(
+          "insert into public.memberships (organization_id, user_id, role, status, all_projects) values ($1,$2,'owner','active',true)",
+          [orgId, B])),
+    ).rejects.toThrow(/row-level security|violates/i);
+    const seenByB = await asActor(B, orgId, (c) =>
+      c.query("select id from public.organizations where id=$1", [orgId]));
+    expect(seenByB.rowCount).toBe(0);
+  });
+
   it("aktflow_app role has nobypassrls and cannot see any org row without actor context", async () => {
     const orgId = "cccccccc-cccc-cccc-cccc-cccccccccccc";
     const c = appClient();
