@@ -20,6 +20,7 @@
 - Table definitions come verbatim from `technical/schema.sql` — no new columns (spec §4.1). No demo `kind`/`expires_at`.
 - Design tokens are sourced from `prototype/src/styles.css` (Evidence Atlas); only visual tokens are reused, never prototype state/markup (spec §3.1).
 - Money fields use integer minor units; currency default `UAH`; timezone default `Europe/Kyiv` (schema.sql).
+- **Relative imports are EXTENSIONLESS** (`from "./http"`, not `"./http.js"`). The workspace uses `moduleResolution: "Bundler"`; `.js` specifiers pointing at `.ts` sources resolve under `tsc`/Vite but NOT under Turbopack (Next 16's default bundler), so `next build` fails on them. Code blocks below that still show `.js` predate this rule — drop the extension.
 
 ---
 
