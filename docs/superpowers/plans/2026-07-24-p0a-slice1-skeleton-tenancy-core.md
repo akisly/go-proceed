@@ -784,7 +784,7 @@ git commit -m "feat(db): least-priv roles, RLS tenant policies, api.me_context, 
 - Produces:
   - `withTenantTx(ctx: TenantContext, fn: (tx: Tx) => Promise<T>): Promise<T>` where `TenantContext = { actorUserId: string; organizationId: string | null; requestId: string; membershipVersion?: number }`. Sets `role aktflow_app` + transaction-local GUCs, commits/rolls back atomically.
   - `Tx` = `{ query: pg.Client["query"] }`.
-  - `recordAudit(tx, ctx, intent, opts?)`, `enqueueOutbox(tx, ctx, intent)`, `withIdempotency(tx, key, actorUserId, fn)`.
+  - `recordAudit(tx, ctx, intent, opts?)`, `enqueueOutbox(tx, ctx, intent)`, `withIdempotency(tx, args, fn)` where `args = { organizationId, actorScope, operationId, key, requestHash, ttlSeconds? }` and `fn` returns `{ status, body }`; result is `{ replayed, status, body }`.
 
 - [ ] **Step 1: Manifest + tsconfig + deps**
 
@@ -953,29 +953,53 @@ export async function enqueueOutbox(
 ```ts
 import type { Tx } from "./tx.js";
 
-export interface IdempotencyHit<T> { replayed: boolean; result: T }
+export interface IdempotencyArgs {
+  organizationId: string | null;
+  actorScope: string;   // e.g. `user:${userId}` — bounds the key to an actor
+  operationId: string;  // logical operation, e.g. "organizations.create"
+  key: string;          // the Idempotency-Key header value
+  requestHash: string;  // 64-char lowercase sha256 hex of the raw request body
+  ttlSeconds?: number;  // idempotency window; default 86400 (24h)
+}
+export interface IdempotencyHit<T> { replayed: boolean; status: number; body: T }
 
-/** Returns the stored result on replay, else runs fn and stores its JSON result. */
+/**
+ * Idempotency against public.idempotency_records (exact schema.sql shape:
+ * unique (organization_id, actor_scope, operation_id, idempotency_key), with a
+ * state/response check constraint and a not-null expires_at > created_at).
+ * On replay of a completed record, returns the stored status + body.
+ * Otherwise runs fn and stores a single 'completed' record.
+ * MUST run inside a withTenantTx transaction. Requires only SELECT+INSERT grants.
+ */
 export async function withIdempotency<T>(
-  tx: Tx, key: string, actorUserId: string, fn: () => Promise<T>,
+  tx: Tx, args: IdempotencyArgs, fn: () => Promise<{ status: number; body: T }>,
 ): Promise<IdempotencyHit<T>> {
-  const existing = await tx.query(
-    "select response from public.idempotency_records where idempotency_key=$1 and actor_user_id=$2",
-    [key, actorUserId],
+  const found = await tx.query(
+    `select state, response_status, response_body
+       from public.idempotency_records
+      where organization_id is not distinct from $1
+        and actor_scope = $2 and operation_id = $3 and idempotency_key = $4`,
+    [args.organizationId, args.actorScope, args.operationId, args.key],
   );
-  if (existing.rowCount && existing.rows[0]) {
-    return { replayed: true, result: existing.rows[0].response as T };
+  const prior = found.rows[0] as { state: string; response_status: number; response_body: T } | undefined;
+  if (prior && prior.state === "completed") {
+    return { replayed: true, status: prior.response_status, body: prior.response_body };
   }
   const result = await fn();
   await tx.query(
-    `insert into public.idempotency_records (idempotency_key, actor_user_id, response)
-     values ($1,$2,$3)`,
-    [key, actorUserId, result],
+    `insert into public.idempotency_records
+       (organization_id, actor_scope, operation_id, idempotency_key, request_hash,
+        state, response_status, response_body, response_headers, expires_at, completed_at)
+     values ($1,$2,$3,$4,$5,'completed',$6,$7,'{}'::jsonb,
+             now() + make_interval(secs => $8), now())
+     on conflict (organization_id, actor_scope, operation_id, idempotency_key) do nothing`,
+    [args.organizationId, args.actorScope, args.operationId, args.key, args.requestHash,
+     result.status, result.body, args.ttlSeconds ?? 86400],
   );
-  return { replayed: false, result };
+  return { replayed: false, status: result.status, body: result.body };
 }
 ```
-> Confirm `idempotency_records` column names against `technical/schema.sql` (`idempotency_key`, `actor_user_id`, `response` jsonb). If they differ, use the schema's names — schema is authoritative. Grant `aktflow_app` select/insert accordingly (Task 5 already grants).
+> This matches `technical/schema.sql` `idempotency_records` verbatim (columns `actor_scope`, `operation_id`, `request_hash` — sha256 hex checked by `~ '^[0-9a-f]{64}$'` — `state`, `response_status`, `response_body`, `response_headers`, `expires_at not null`, and the `state='completed' ⇒ response_* not null` check). Insert directly as `'completed'` (valid under the check) and rely on the unique constraint + `on conflict do nothing` for replay races. Task 5 grants `select, insert` on this table — no UPDATE needed.
 
 `packages/database/src/index.ts`:
 ```ts
@@ -1278,12 +1302,15 @@ Expected: FAIL — route module missing.
 
 `apps/app/src/app/v1/organizations/route.ts`:
 ```ts
+import { createHash } from "node:crypto";
 import { requireUser } from "../../../lib/auth.js";
 import { requestIdFrom, idempotencyKeyFrom } from "../../../lib/request-context.js";
 import { HttpProblem, jsonProblem, ok } from "../../../lib/http.js";
-import { createOrganizationRequest, problem } from "@aktflow/contracts";
+import { createOrganizationRequest, problem, type CreateOrganizationResponse } from "@aktflow/contracts";
 import { buildOrganizationCreation } from "@aktflow/domain";
 import { withTenantTx, recordAudit, enqueueOutbox, withIdempotency } from "@aktflow/database";
+
+export const runtime = "nodejs"; // node-postgres + node:crypto require the Node runtime
 
 export async function POST(req: Request): Promise<Response> {
   const requestId = requestIdFrom(req);
@@ -1297,7 +1324,18 @@ export async function POST(req: Request): Promise<Response> {
         userAction: "Додайте Idempotency-Key і повторіть." }));
     }
 
-    const parsed = createOrganizationRequest.safeParse(await req.json());
+    // Read the RAW body once: it is both parsed and hashed (request_hash must be a
+    // 64-char sha256 hex per the idempotency_records check constraint).
+    const raw = await req.text();
+    const requestHash = createHash("sha256").update(raw).digest("hex");
+    let json: unknown;
+    try { json = JSON.parse(raw); }
+    catch {
+      throw new HttpProblem(400, problem("validation.failed", "Тіло запиту не є валідним JSON.",
+        { requestId, retryable: false }));
+    }
+
+    const parsed = createOrganizationRequest.safeParse(json);
     if (!parsed.success) {
       throw new HttpProblem(400, problem("validation.failed", "Некоректні дані організації.", {
         requestId, retryable: false,
@@ -1312,8 +1350,14 @@ export async function POST(req: Request): Promise<Response> {
     };
     const c = buildOrganizationCreation(parsed.data, userId, ids);
 
-    const result = await withTenantTx({ actorUserId: userId, organizationId: null, requestId }, async (tx) => {
-      const idem = await withIdempotency(tx, idempotencyKey, userId, async () => {
+    const out = await withTenantTx({ actorUserId: userId, organizationId: null, requestId }, async (tx) => {
+      return withIdempotency<CreateOrganizationResponse>(tx, {
+        organizationId: null,
+        actorScope: `user:${userId}`,
+        operationId: "organizations.create",
+        key: idempotencyKey,
+        requestHash,
+      }, async () => {
         await tx.query(
           `insert into public.organizations (id, legal_name, display_name, edrpou, base_currency, timezone, status, version)
            values ($1,$2,$3,$4,$5,$6,'trial',1)`,
@@ -1331,21 +1375,23 @@ export async function POST(req: Request): Promise<Response> {
         await recordAudit(tx, { actorUserId: userId, organizationId: c.organization.id, requestId }, c.audit);
         await enqueueOutbox(tx, { actorUserId: userId, organizationId: c.organization.id, requestId }, c.outbox);
         return {
-          organizationId: c.organization.id, membershipId: c.membership.id,
-          role: "owner" as const, version: 1,
+          status: 201,
+          body: {
+            organizationId: c.organization.id, membershipId: c.membership.id,
+            role: "owner" as const, version: 1,
+          },
         };
       });
-      return idem.result;
     });
 
-    return ok(201, result, requestId);
+    return ok(out.status, out.body, requestId);
   } catch (err) {
     if (err instanceof HttpProblem) return jsonProblem(err.status, err.body);
     return jsonProblem(500, problem("internal.error", "Внутрішня помилка.", { requestId, retryable: true }));
   }
 }
 ```
-> The `legal_entities` insert columns must match `technical/schema.sql`. Adjust the column list if the source differs (schema authoritative).
+> `withIdempotency` runs INSIDE the `withTenantTx` transaction; its `fn` returns `{ status, body }`. On idempotent replay the stored `status`+`body` are returned and no rows are inserted. `legal_entities`/`idempotency_records` columns follow `technical/schema.sql` (schema authoritative).
 
 - [ ] **Step 4: Run test to verify it passes**
 
