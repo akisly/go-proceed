@@ -20,8 +20,14 @@ create policy le_select on public.legal_entities for select to aktflow_app
     select 1 from public.memberships m
     where m.organization_id = legal_entities.organization_id
       and m.user_id = app.current_actor() and m.status = 'active'));
+-- A legal entity is never a bootstrap target: it always belongs to an existing org
+-- the actor must be an active member of. Without this check any actor could inject
+-- rows into another tenant's org (cross-tenant data injection).
 create policy le_insert on public.legal_entities for insert to aktflow_app
-  with check (app.current_actor() is not null);
+  with check (exists (
+    select 1 from public.memberships m
+    where m.organization_id = legal_entities.organization_id
+      and m.user_id = app.current_actor() and m.status = 'active'));
 
 -- memberships: an actor sees only their own membership rows; during bootstrap may insert their own owner row
 create policy m_select on public.memberships for select to aktflow_app

@@ -47,6 +47,16 @@ describe("RLS tenant isolation", () => {
     expect(seenByB.rowCount).toBe(0);
   });
 
+  it("actor B cannot inject a legal entity into actor A's org", async () => {
+    const orgId = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+    await expect(
+      asActor(B, orgId, (c) =>
+        c.query(
+          "insert into public.legal_entities (organization_id, legal_name) values ($1,'Injected')",
+          [orgId])),
+    ).rejects.toThrow(/row-level security|violates/i);
+  });
+
   it("aktflow_app role has nobypassrls and cannot see any org row without actor context", async () => {
     const orgId = "cccccccc-cccc-cccc-cccc-cccccccccccc";
     const c = appClient();

@@ -45,7 +45,9 @@ grant select, insert on public.legal_entities to aktflow_app;
 grant select, insert, update on public.memberships to aktflow_app;
 grant select, insert on public.audit_events to aktflow_app;
 grant usage on sequence public.audit_events_id_seq to aktflow_app;
-grant select, insert, update on public.transaction_outbox to aktflow_app;
+-- INSERT-only per data-access-surface.csv DA-099: the BFF may only enqueue event
+-- intents; reading/draining them belongs to aktflow_worker (DA-058).
+grant insert on public.transaction_outbox to aktflow_app;
 grant select, insert on public.idempotency_records to aktflow_app;
 
 -- actor helper
