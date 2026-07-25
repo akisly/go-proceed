@@ -1,8 +1,8 @@
 {
   "ok": true,
   "specVersion": "2.9.0",
-  "executedAt": "2026-07-24T10:54:11.047Z",
-  "method": "Puppeteer + packaged headless Chromium deterministic repository smoke harness",
+  "executedAt": "2026-07-25T23:51:22.152Z",
+  "method": "Puppeteer + resolved headless Chromium (puppeteer-managed chrome-for-testing) deterministic repository smoke harness",
   "buildSource": "prototype/dist",
   "viewportCoverage": [
     "1487x1058",
