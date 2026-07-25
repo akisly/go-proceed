@@ -1,0 +1,16 @@
+feature_key,meter,unit,pilot,start,control,portfolio,limit_behavior,existing_data_behavior
+active_projects,active_project,project,1,1,3,8+,warn_then_block_new_activation,readable
+office_seats,office_seat,user,8,5,15,custom,warn_then_block_new_activation,readable
+field_collaborators,field_member,user,fair_use,fair_use,fair_use,fair_use,review_abuse_not_surprise_charge,readable
+storage_bytes,storage,byte,negotiated,50GB,200GB,custom,warn_then_block_new_upload,readable_exportable
+core_evidence,none,boolean,yes,yes,yes,yes,deny_if_suspended,readable
+generic_package,package_job,job,yes,yes,yes,yes,warn_or_contract_overage,existing_artifacts_readable
+variations,none,boolean,no,no,yes,yes,hide_and_api_deny,existing_records_readable
+external_review,external_share,share,no,no,yes,yes,block_new_share,existing_decisions_readable
+advanced_reports,report_job,job,no,basic,yes,yes,block_new_advanced_job,basic_readable
+custom_templates,custom_template,template,1_gated,no,limited,custom,block_publish,existing_version_usable
+api_webhooks,api_call,request,no,no,optional,yes,rate_limit_or_contract_overage,core_ui_readable
+webhook_endpoints,webhook_endpoint,destination,no,no,optional,yes,block_new_endpoint,existing_deliveries_readable
+sso,none,boolean,no,no,no,option,contract_required,password_access_policy_defined
+organization_export,export_job,job,yes,yes,yes,yes,never_block_for_billing,always_available_with_auth
+support_tier,none,tier,guided,business_hours,business_hours_priority,contract,route_by_contract,no_data_effect

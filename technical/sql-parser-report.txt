@@ -1,0 +1,13 @@
+AktFlow PostgreSQL independent syntax evidence
+Specification: technical/schema.sql
+Specification version: 2.9.0-spec
+Specification SHA-256: be644f819f140900e33413818b424d04e5bc4f26d02293eda1311ef94bb7142c
+Parser: pgsql-parser 18.1.1 / libpg-query WASM
+Executed: 2026-07-23 Europe/Kyiv workspace run
+Result: PASS
+Statements parsed: 412
+Errors: 0
+
+Boundary: this proves PostgreSQL parser acceptance only. It does not replace ordered
+migration execution against the pinned PostgreSQL 15 runtime, extension checks,
+RLS authorization tests, rollback/forward-fix rehearsal or restore evidence.

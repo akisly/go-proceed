@@ -1,0 +1,17 @@
+surface,dimension,limit,window,burst,lock_or_backoff,notes
+submitPilotLead,per_ip,5,10m,2,exponential_backoff_then_soft_block,Public intake behind WAF; uniform accepted/duplicate response
+submitPilotLead,per_ip,20,24h,-,soft_block_and_review,Daily cap independent of window burst
+acceptInvitation,per_token,10,1h,-,lock_token_after_limit,Wrong-token guessing on a specific invite
+acceptInvitation,per_ip,30,1h,5,exponential_backoff,Enumeration across invites
+externalShareOtp,per_share,5,15m,-,lock_share_and_cooldown,Matches state machine attempt_limit_reached/cooldown; cooldown 30m
+externalShareOtp,per_ip,20,1h,-,soft_block,Cross-share OTP abuse
+loginPassword,per_account,10,15m,3,progressive_delay_then_lock,User-safe recovery; generic errors
+loginPassword,per_ip,50,15m,10,exponential_backoff,Credential stuffing
+resetPassword,per_account,5,1h,-,soft_block,One-time short-lived link
+mfaChallenge,per_session,6,10m,-,lock_and_reauth,Step-up brute-force
+createExport,per_tenant,10,1h,2,queue_and_contract_overage,Expensive job; never blocks read
+generatePackageVersion,per_project,20,1h,3,queue,Expensive render; snapshot idempotent
+authenticated_api_read,per_tenant,600,1m,120,429_retry_after,Baseline read budget
+authenticated_api_write,per_tenant,120,1m,30,429_retry_after,Baseline write budget
+uploadIntent,per_tenant,300,1h,50,429_retry_after,Paired with storage quota
+webhookInbound,per_endpoint,120,1m,30,429_and_signature_reject,Inbound provider callbacks

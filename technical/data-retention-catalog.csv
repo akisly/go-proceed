@@ -1,0 +1,127 @@
+object_name,release,retention_class_source,allowed_classes,personal_data,legal_hold_behavior,deletion_strategy,policy_status,external_gate,notes
+organizations,Pilot,fixed:identity_access,identity_access,possible,evaluate,anonymize_or_retain_basis,duration_external_gate,V-003,Tenant root survives only where a legal or security basis remains
+legal_entities,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Legal identity data follows validated contract and accounting duties
+branches,GA,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Branch configuration is country-pack dependent
+memberships,Pilot,fixed:identity_access,identity_access,true,evaluate,anonymize_or_retain_basis,duration_external_gate,V-003,Access history is retained separately from active identity
+invitations,Pilot,fixed:identity_access,identity_access,true,evaluate,expire_then_delete,duration_external_gate,V-003,Unused token material expires before record disposal
+projects,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Project root controls dependent record scope
+counterparties,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Contract party identity may be legally material
+counterparty_contacts,GA,fixed:contract_baseline,contract_baseline,true,evaluate,anonymize_or_retain_basis,duration_external_gate,V-003,Contact identity is minimized independently of counterparty facts
+project_counterparties,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Project relationship follows baseline retention
+locations,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Site address and location tree may be sensitive
+membership_project_scopes,Pilot,fixed:identity_access,identity_access,true,evaluate,policy_worker,duration_external_gate,V-003,Authorization history remains auditable
+membership_location_scopes,Pilot,fixed:identity_access,identity_access,true,evaluate,policy_worker,duration_external_gate,V-003,Authorization history remains auditable
+contracts,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Contract root is immutable after publication rules apply
+contract_versions,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Published baseline versions preserve provenance
+import_jobs,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Import decisions and errors explain published baseline
+import_row_results,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Row-level validation follows source baseline
+work_items,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Work identity and rates follow baseline duties
+work_item_locations,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Work-location mapping follows baseline
+evidence_rule_versions,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Rule history is required to reproduce readiness
+work_item_requirements,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Requirement facts follow evidence history
+requirement_evaluations,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Evaluation history proves readiness derivation
+requirement_waivers,Pilot,fixed:evidence_original,evidence_original,true,evaluate,policy_worker,duration_external_gate,V-003,Named approval and reason remain auditable
+evidence_requests,Pilot,fixed:evidence_original,evidence_original,true,evaluate,policy_worker,duration_external_gate,V-003,Request lifecycle follows resulting evidence context
+capture_sessions,Pilot,fixed:evidence_original,evidence_original,true,evaluate,policy_worker,duration_external_gate,V-003,Capture receipt is retained with evidence provenance
+upload_intents,Pilot,row:retention_class,contract_baseline|evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Server selects class from purpose and policy version
+evidence_objects,Pilot,row:retention_class,evidence_original|evidence_derivative,true,evaluate,object_inventory_worker,duration_external_gate,V-003,Original and derivative rows carry explicit object class
+evidence_requirement_links,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Link preserves evidence explanation
+quantity_entries,Pilot,fixed:evidence_original,evidence_original,true,evaluate,policy_worker,duration_external_gate,V-003,Append-only quantity ledger follows project evidence
+review_decisions,Pilot,fixed:evidence_original,evidence_original,true,evaluate,policy_worker,duration_external_gate,V-003,Reviewer identity and reason are auditable
+variations,GA,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Variation root may affect entitlement and money
+variation_versions,GA,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Immutable valuation history follows commercial duties
+variation_decisions,GA,fixed:project_commercial,project_commercial,true,evaluate,policy_worker,duration_external_gate,V-003,Decision identity and assurance remain auditable
+reporting_periods,Pilot,fixed:package_artifact,package_artifact,possible,evaluate,policy_worker,duration_external_gate,V-003,Period boundary anchors immutable packages
+package_versions,Pilot,fixed:package_artifact,package_artifact,possible,evaluate,object_inventory_worker,duration_external_gate,V-003,Manifest tuple uses package_artifact class
+package_lines,Pilot,fixed:package_artifact,package_artifact,possible,evaluate,policy_worker,duration_external_gate,V-003,Frozen line snapshot follows package
+package_line_quantity_sources,Pilot,fixed:package_artifact,package_artifact,possible,evaluate,policy_worker,duration_external_gate,V-003,Normalized provenance remains with package
+package_line_evidence_sources,Pilot,fixed:package_artifact,package_artifact,possible,evaluate,policy_worker,duration_external_gate,V-003,Normalized provenance remains with package
+package_artifacts,Pilot,fixed:package_artifact,package_artifact,possible,evaluate,object_inventory_worker,duration_external_gate,V-003,Generated object has class hash size and MIME
+package_submissions,Pilot,fixed:package_artifact,package_artifact,true,evaluate,policy_worker,duration_external_gate,V-003,Submission receipt may be contractually material
+receivables,GA,fixed:project_commercial,project_commercial,possible,evaluate,statutory_policy_worker,duration_external_gate,V-003,Financial ledger is not erased by generic user delete
+acceptance_records,GA,fixed:project_commercial,project_commercial,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Acceptance assurance and actor are preserved
+receivable_adjustments,GA,fixed:project_commercial,project_commercial,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Append-only adjustment history remains reconcilable
+retention_releases,GA,fixed:project_commercial,project_commercial,possible,evaluate,statutory_policy_worker,duration_external_gate,V-003,Commercial retention release is separate from data retention
+payments,GA,fixed:project_commercial,project_commercial,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Payment facts follow accounting validation
+payment_allocations,GA,fixed:project_commercial,project_commercial,possible,evaluate,statutory_policy_worker,duration_external_gate,V-003,Allocation history remains append-only
+payment_reversals,GA,fixed:project_commercial,project_commercial,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Reversal is a durable correcting command
+reconciliation_imports,GA,fixed:project_commercial,project_commercial,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Imported bank-like source is separately classified
+external_shares,GA,fixed:package_artifact,package_artifact,true,evaluate,expire_then_policy_worker,duration_external_gate,V-003,Capability expires while decision evidence may remain
+external_sessions,GA,fixed:identity_access,identity_access,true,evaluate,expire_then_delete,duration_external_gate,V-003,Session secrets expire independently of decision record
+external_decisions,GA,fixed:package_artifact,package_artifact,true,evaluate,policy_worker,duration_external_gate,V-003,Exact-version external decision remains with package
+audit_events,Pilot,fixed:security_audit,security_audit,true,preserve_or_restrict,append_only_policy_worker,duration_external_gate,V-003,Audit is minimized and tamper resistant
+sync_operations,Pilot,fixed:evidence_original,evidence_original,true,evaluate,policy_worker,duration_external_gate,V-003,Mobile receipt supports deduplication and provenance
+plan_versions,Pilot,fixed:saas_billing,saas_billing,false,evaluate,statutory_policy_worker,duration_external_gate,V-003,Immutable seller plan basis follows SaaS billing
+subscriptions,Pilot,fixed:saas_billing,saas_billing,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Customer subscription history remains auditable
+entitlement_overrides,Pilot,fixed:saas_billing,saas_billing,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Override reason and approver remain auditable
+usage_snapshots,GA,fixed:saas_billing,saas_billing,possible,evaluate,statutory_policy_worker,duration_external_gate,V-003,Billing usage stores minimized aggregates
+jobs,Pilot,fixed:support_incident,support_incident,possible,evaluate,policy_worker,duration_external_gate,V-003,Job resource correlation excludes raw payload
+transaction_outbox,Pilot,fixed:support_incident,support_incident,possible,evaluate,policy_worker,duration_external_gate,V-003,Delivered payload is minimized by event schema
+notification_preferences,Pilot,fixed:identity_access,identity_access,true,evaluate,policy_worker,duration_external_gate,V-003,Preference history follows membership
+notification_deliveries,Pilot,fixed:support_incident,support_incident,true,evaluate,policy_worker,duration_external_gate,V-003,Provider identifiers and failures are minimized
+support_access_grants,GA,fixed:support_incident,support_incident,true,preserve_or_restrict,policy_worker,duration_external_gate,V-003,Support authorization evidence is security relevant
+support_access_grant_projects,GA,fixed:support_incident,support_incident,true,preserve_or_restrict,policy_worker,duration_external_gate,V-003,Grant scope evidence follows support case
+export_jobs,Pilot,row:retention_class,temporary_export,possible,evaluate,expire_then_object_delete,duration_external_gate,V-003,Export object requires expiry and integrity tuple
+legal_holds,GA,fixed:security_audit,security_audit,true,preserve_or_restrict,release_then_policy_worker,duration_external_gate,V-003,Hold record outlives release as audit evidence
+organization_settings,Pilot,fixed:identity_access,identity_access,possible,evaluate,policy_worker,duration_external_gate,V-003,Policy versions remain attributable
+ownership_transfers,GA,fixed:identity_access,identity_access,true,preserve_or_restrict,policy_worker,duration_external_gate,V-003,Two-party ownership evidence is security relevant
+access_reviews,Pilot,fixed:security_audit,security_audit,true,preserve_or_restrict,policy_worker,duration_external_gate,V-003,Review snapshot supports access governance
+membership_permission_overrides,Pilot,fixed:identity_access,identity_access,true,preserve_or_restrict,policy_worker,duration_external_gate,V-003,Deny override reason and actor remain auditable
+unit_definitions,Pilot,fixed:contract_baseline,contract_baseline,false,evaluate,policy_worker,duration_external_gate,V-003,Versioned unit semantics reproduce quantities
+import_files,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,object_inventory_worker,duration_external_gate,V-003,Verified source inherits upload intent class
+import_mapping_presets,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Mapping may reveal customer field names
+import_diffs,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Diff explains baseline change
+rule_packs,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Pack identity controls evidence requirements
+rule_pack_versions,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Version history reproduces evaluation
+rule_assignments,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Scoped assignment follows evidence context
+readiness_snapshots,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Snapshot proves deterministic status
+notifications,Pilot,fixed:identity_access,identity_access,true,evaluate,policy_worker,duration_external_gate,V-003,Notification payload is minimal and user scoped
+job_attempts,Pilot,fixed:support_incident,support_incident,possible,evaluate,policy_worker,duration_external_gate,V-003,Attempt diagnostics exclude customer content
+dead_letters,Pilot,fixed:support_incident,support_incident,possible,preserve_or_restrict,policy_worker,duration_external_gate,V-003,Redacted payload supports incident recovery
+deletion_jobs,Pilot,fixed:security_audit,security_audit,true,preserve_or_restrict,append_only_policy_worker,duration_external_gate,V-003,Deletion certificate and failures remain auditable
+security_events,Pilot,fixed:security_audit,security_audit,true,preserve_or_restrict,append_only_policy_worker,duration_external_gate,V-003,Safe metadata only and no raw customer content
+saas_invoices,Pilot,fixed:saas_billing,saas_billing,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Issue basis follows seller accounting validation
+saas_payments,Pilot,fixed:saas_billing,saas_billing,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Settlement evidence remains reconcilable
+saas_invoice_adjustments,GA,fixed:saas_billing,saas_billing,true,evaluate,statutory_policy_worker,duration_external_gate,V-003,Correction history is append-only
+integration_connections,GA,fixed:support_incident,support_incident,true,preserve_or_restrict,secret_delete_metadata_retain,duration_external_gate,V-003,Encrypted secret is destroyed separately from audit metadata
+webhook_endpoints,GA,fixed:support_incident,support_incident,possible,preserve_or_restrict,secret_delete_metadata_retain,duration_external_gate,V-003,Secret material rotates and is never exported
+webhook_deliveries,GA,fixed:support_incident,support_incident,possible,preserve_or_restrict,policy_worker,duration_external_gate,V-003,Response diagnostics are allowlisted
+contract_term_versions,Pilot,fixed:contract_baseline,contract_baseline,false,evaluate,policy_worker,duration_external_gate,V-003,Versioned deterministic commercial timing and document policy
+reference_documents,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Controlled document identity and status
+reference_document_versions,Pilot,fixed:contract_baseline,contract_baseline,possible,evaluate,policy_worker,duration_external_gate,V-003,Immutable controlled input revision and original file metadata
+work_assignments,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Operational assignment history linked to evidence and quantities
+requirement_occurrences,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Repeatable evidence obligations and hold-point state
+typed_evidence_records,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Structured certificate test drawing and document responses
+review_tasks,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Internal review responsibility SLA and outcome linkage
+hold_point_decisions,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Append-only operational inspection decision
+concealment_events,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Append-only closure timing record
+variation_subjects,GA,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Exact change-event work assignment or evidence linkage
+package_decision_items,Pilot,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Pending/final exact-line response versions and correction ownership
+invitation_project_scopes,Pilot,fixed:identity_access,identity_access,true,evaluate,policy_worker,duration_external_gate,V-003,Pending invitation project authorization scope and acceptance audit input
+invitation_location_scopes,Pilot,fixed:identity_access,identity_access,true,evaluate,policy_worker,duration_external_gate,V-003,Pending invitation location authorization scope and acceptance audit input
+concealment_event_evidence,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Exact-subject link between immutable closure and evidence history
+package_decision_sets,Pilot,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Immutable source receipt separate final receipt server totals and reconciliation state
+idempotency_records,Pilot,fixed:security_audit,security_audit,possible,evaluate,ttl_then_policy_delete,duration_external_gate,V-003,Request hashes and minimized replay responses under declared TTL
+saved_views,Pilot,fixed:identity_access,identity_access,true,evaluate,delete_with_owner_or_org,duration_external_gate,V-003,Actor-owned allowlisted workflow preferences
+impact_previews,Pilot,fixed:project_commercial,project_commercial,possible,evaluate,ttl_then_policy_delete,duration_external_gate,V-003,Short-lived mutation preview hashes results and consumption record
+assignment_reassignment_receipts,Pilot,fixed:security_audit,security_audit,possible,evaluate,policy_worker,duration_external_gate,V-003,Immutable assignee version reason and offline-policy lineage
+review_task_reassignment_receipts,Pilot,fixed:security_audit,security_audit,possible,evaluate,policy_worker,duration_external_gate,V-003,Immutable reviewer and exact target reassignment lineage
+assignment_reference_acknowledgements,Pilot,fixed:evidence_original,evidence_original,possible,evaluate,policy_worker,duration_external_gate,V-003,Exact stale snapshot and controlled reference acknowledgement
+package_number_reservations,Pilot,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Consumed or voided package numbers remain non-reusable audit records
+subscription_state_previews,GA,fixed:saas_billing,saas_billing,possible,evaluate,ttl_then_policy_delete,duration_external_gate,V-003,Short-lived cancel/reactivate consequence snapshot and hash
+saas_payment_reversals,GA,fixed:saas_billing,saas_billing,possible,evaluate,policy_worker,duration_external_gate,V-003,Append-only platform settlement reversal and external reference
+numbering_series,Pilot,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Stable server-owned package numbering sequence format creation receipt and immutable issued-history basis
+offline_authorization_leases,Pilot,fixed:security_audit,security_audit,possible,evaluate,ttl_then_policy_delete,duration_external_gate,V-003,Bounded proof of assignment membership and offline submission authority
+member_offboarding_previews,Pilot,fixed:identity_access,identity_access,true,evaluate,ttl_then_policy_delete,duration_external_gate,V-003,Short-lived organization-wide dependency hash and revoke planning record
+member_offboarding_preview_items,Pilot,fixed:identity_access,identity_access,true,evaluate,ttl_then_policy_delete,duration_external_gate,V-003,Exact cross-project responsibility resolutions and replacement identities
+occurrence_trigger_events,Pilot,fixed:security_audit,security_audit,possible,evaluate,policy_worker,duration_external_gate,V-003,Append-only deterministic trigger receipt and authoritative input hash
+requirement_waiver_revocations,Pilot,fixed:security_audit,security_audit,possible,evaluate,policy_worker,duration_external_gate,V-003,Append-only waiver revocation actor reason and target version
+capture_authorization_resolutions,Pilot,fixed:security_audit,security_audit,true,evaluate,policy_worker,duration_external_gate,V-003,Security exception disposition minimized evidence summary and immutable receipt hash
+capture_reporting_date_confirmations,Pilot,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Claimed and authoritative reporting date decision history with immutable receipt hash
+period_close_cycles,Pilot,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Numbered period close reopen and cancellation history
+package_decision_issues,Pilot,fixed:project_commercial,project_commercial,possible,evaluate,policy_worker,duration_external_gate,V-003,Normalized reconciliation discrepancies and their resolution record
+member_offboarding_plans,Pilot,fixed:identity_access,identity_access,true,evaluate,ttl_then_policy_delete,duration_external_gate,V-003,Cursor based organization dependency plan and version binding
+member_offboarding_plan_items,Pilot,fixed:identity_access,identity_access,true,evaluate,ttl_then_policy_delete,duration_external_gate,V-003,Exact responsibility resolution and replacement identity
+membership_project_scope_removal_receipts,Pilot,fixed:security_audit,security_audit,true,evaluate,policy_worker,duration_external_gate,V-003,Append-only scoped authorization removal receipt
+export_cancellation_receipts,Pilot,fixed:security_audit,security_audit,possible,evaluate,policy_worker,duration_external_gate,V-003,Durable cancellation request worker completion and cleanup receipt
+review_decision_corrections,Pilot,fixed:security_audit,security_audit,possible,evaluate,policy_worker,duration_external_gate,V-003,Append-only guarded review correction reason actor target version and receipt

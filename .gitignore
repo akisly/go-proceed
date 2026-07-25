@@ -9,3 +9,11 @@ supabase/.temp/
 .next/
 next-env.d.ts
 .turbo/
+
+# IDE and local tooling
+.idea/
+.codegraph/
+
+# Prototype build + QA scratch (qa-screenshots/ IS tracked — validate_package.py:2404 requires them)
+prototype/dist/
+prototype/qa-runtime-tmp/

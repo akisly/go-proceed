@@ -1,0 +1,14 @@
+term_key,ui_uk,definition,never_means
+performed,Виконано,Quantity recorded as physically performed from the append-only ledger,Customer acceptance or readiness
+ready_internal,Готово внутрішньо,Versioned AktFlow rules and authorized internal decisions currently pass,Customer acceptance or guaranteed payment
+at_risk,Під ризиком,Performed value not currently ready_internal with explicit classified reasons,Loss or rejection certainty
+packaged,У пакеті,Exact quantity and evidence inputs are frozen in a package snapshot,Submitted or accepted
+submitted,Подано,Exact immutable package version has a recorded submission receipt,Delivered successfully unless receipt says so
+operational_acknowledgement,Операційне підтвердження,Authenticated workflow record that a version was seen or received,Approval of price or electronic signature
+authenticated_acceptance,Автентифікований запис прийняття,Exact-version decision with recorded identity/session assurance,Qualified electronic signature
+qualified_electronic_signature,КЕП,Signature validated through an approved qualified trust-service flow,Button click image or workflow acknowledgement
+project_payment,Оплата за роботи,Customer payment allocated to a construction receivable,AktFlow subscription payment
+saas_payment,Оплата AktFlow,Payment of an AktFlow subscription invoice,Customer payment for construction work
+waiver,Waiver,Authorized scoped time-bound exception disclosed in readiness and manifest,Deletion or satisfaction of the underlying requirement
+evidence_original,Оригінал доказу,Immutable private object with recorded hash and source metadata,Proof that real-world content is true
+package_adapter,Адаптер пакета,Versioned customer/country transformation with fixtures and sign-off,Universal legal compliance

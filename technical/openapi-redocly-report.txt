@@ -1,0 +1,19 @@
+AktFlow OpenAPI independent lint evidence
+Specification: technical/openapi.yaml
+Specification version: 2.9.0-spec
+Specification SHA-256: 9e6b3ad460b1e55f06c06cc8641aaff801c98de083c058af9a0e9cdea3bd944e
+Validator: @redocly/cli 2.40.0
+Executed: 2026-07-23 Europe/Kyiv workspace run
+Command: redocly lint technical/openapi.yaml
+Ruleset: Redocly built-in recommended configuration
+Result: PASS
+Errors: 0
+Warnings: 0
+
+Canonical CLI result:
+technical/openapi.yaml: validated
+Woohoo! Your API description is valid.
+
+Inventory at validation: 134 paths, 157 operations, 258 component schemas.
+
+Boundary: this proves OpenAPI structural/lint validity only. It is not runtime API conformance, authorization, RLS or penetration-test evidence.

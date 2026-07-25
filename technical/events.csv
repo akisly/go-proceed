@@ -1,0 +1,125 @@
+event_name,version,trigger,required_properties,pii_policy,primary_metric
+landing_viewed,1,public landing rendered,"locale,source,campaign,device_class",no identifiers beyond anonymous session,acquisition
+demo_workspace_opened,1,demo CTA succeeds,"source,role_view",synthetic workspace only,acquisition
+pilot_form_started,1,first meaningful pilot input,"source,company_size_bucket,specialization",no company/contact in analytics,pilot funnel
+pilot_form_submitted,1,server accepted pilot lead,"source,company_size_bucket,active_projects_bucket",contact stays CRM/operational store,pilot funnel
+workspace_created,1,organization transaction committed,"org_id_pseudo,creator_role",pseudonymous org only,activation
+organization_updated,1,versioned organization settings command committed,"actor_role,changed_field_classes",no organization identity or raw values,workspace governance
+membership_changed,1,membership role scope or status committed,"actor_role,target_role,change_type,scope_type",no email/name/access detail,security governance
+ownership_transfer_requested,1,two-party ownership transfer request committed,"requester_role,successor_role,expiry_bucket",no user identity contact or token,security governance
+ownership_transfer_completed,1,two-party transfer transaction committed,"previous_owner_role,new_owner_role,duration_bucket",no user identity/contact,security governance
+project_created,1,project committed,"org_id_pseudo,project_id_pseudo,template_type",no project name,activation
+project_updated,1,versioned project command committed,"actor_role,changed_field_classes,state",no project name address or customer value,project governance
+location_created,1,project location committed,"actor_role,depth_bucket,source_type",no location name path or address,activation
+estimate_import_started,1,validated file queued,"format,size_bucket,row_bucket",no filename/content,activation
+estimate_import_validated,1,dry run completed,"format,row_bucket,valid_bucket,error_types,duration_bucket",no row content,import quality
+estimate_import_confirmed,1,contract version committed,"format,row_bucket,warning_bucket,duration_bucket",no commercial exact values,activation
+rule_impact_previewed,1,version-bound rule impact preview stored,"pack_type,rule_count_bucket,affected_items_bucket,warning_bucket",no custom rule text work text or exact value,configuration safety
+rules_published,1,rule pack version published,"pack_type,rule_count_bucket,affected_items_bucket",no custom rule text,activation
+team_invitation_sent,1,invite delivery queued,"inviter_role,invitee_role,scope_type",no email,collaboration
+team_invitation_accepted,1,invite and membership transaction committed,"invitee_role,scope_type,mfa_strength",no email token name or organization title,activation
+team_invitation_revoked,1,unused invitation revoked or replaced,"actor_role,invitee_role,reason_code",no email token or recipient identity,security governance
+work_item_created,1,single work item committed,"creator_role,source_type,unit_code,contract_version_age_bucket",no description code rate or exact quantity,activation
+work_assignment_changed,1,work assignment or state command committed,"actor_role,target_role,scope_type,state",no work description assignee identity or exact value,field governance
+evidence_request_created,1,scoped request committed,"requester_role,assignee_role,requirement_type,due_bucket",no instructions names exact work text or amount,review quality
+evidence_request_resolved,1,request fulfilled cancelled or expired,"result,reason_code,duration_bucket,requirement_type",no instructions actor identity or exact work text,review quality
+assignment_opened,1,field user views assignment,"platform,role,connectivity,state",no work description,field adoption
+capture_started,1,local capture session created,"platform,connectivity,requirement_type",no media/location,field funnel
+upload_grant_issued,1,short-lived private upload capability committed,"purpose,type_bucket,size_bucket,actor_role",no storage key filename content or capability,upload reliability
+upload_completed,1,declared upload sealed and verification queued,"purpose,type_bucket,size_bucket,result",no filename storage key hash or content,upload reliability
+capture_saved_local,1,draft and outbox committed,"platform,connectivity,evidence_type,count_bucket",no media/location,offline reliability
+capture_submitted,1,server confirms command,"platform,connectivity,latency_bucket,evidence_count_bucket",no media/description,activation
+capture_sync_failed,1,sync attempt failed,"platform,error_code,attempt_bucket,outbox_age_bucket",no payload,offline reliability
+sync_conflict_detected,1,server returns version conflict,"entity_type,conflict_type,platform",no business values,sync quality
+review_returned,1,decision committed,"reviewer_role,reason_code,loop_count_bucket,value_bucket",no comment/exact value,review quality
+review_approved,1,decision committed,"reviewer_role,loop_count_bucket,value_bucket,duration_bucket",no exact value,activation
+readiness_changed,1,projection state changes,"from_state,to_state,reason_code,value_bucket,engine_version",no exact value,north star leading
+readiness_override_created,1,authorized override committed,"actor_role,reason_code,scope_type,expiry_bucket,value_bucket",no free text,governance
+variation_created,1,variation draft committed,"creator_role,category,value_bucket,started_before_direction",no narrative,variation capture
+variation_issued,1,immutable variation version issued,"issuer_role,category,value_bucket,channel",no narrative recipient identity or exact value,variation governance
+variation_acknowledged,1,external/internal acknowledgement,"channel,duration_bucket,value_bucket",no actor identity,variation conversion
+period_close_opened,1,user enters close cockpit,"role,days_to_period_end,blocker_count_bucket,value_bucket",no exact amount,close funnel
+period_created,1,reporting period command committed,"actor_role,duration_bucket,source_type",no exact dates project identity or amount,close governance
+period_closed,1,version-bound close command committed,"actor_role,blocker_bucket,warning_bucket,value_bucket",no exact amount date or project identity,close governance
+period_reopened,1,authorized closed period returns to open,"actor_role,reason_code,package_state,age_bucket",no free text or exact value,close governance
+package_generation_requested,1,version snapshot committed,"template_type,item_count_bucket,page_estimate_bucket",no document content,close funnel
+package_generated,1,worker validates artifacts,"template_type,duration_bucket,page_count_bucket,size_bucket,result",no document content,close funnel
+package_download_grant_issued,1,short-lived package artifact capability committed,"actor_role,artifact_type,expiry_bucket",no URL token document content or project identity,data access governance
+package_submitted,1,submission receipt committed,"channel,value_bucket,days_from_period_end",no recipient/exact amount,north star
+package_returned,1,external return decision committed,"reason_code,value_bucket,duration_bucket",no comment,commercial outcome
+package_accepted,1,acceptance committed,"value_bucket,duration_bucket,channel",no exact amount,commercial outcome
+receivable_created,1,accepted/invoice state creates receivable,"term_bucket,value_bucket,retention_present",no customer/reference,receivables
+payment_recorded,1,payment allocation committed,"value_bucket,days_after_due_bucket,partial",no banking reference,commercial outcome
+acceptance_recorded,1,versioned acceptance basis committed,"state,assurance_level,value_bucket,channel",no actor identity source reference or exact amount,commercial outcome
+receivable_state_changed,1,receivable command committed,"from_state,to_state,reason_code,value_bucket",no customer reference or exact amount,receivables
+retention_released,1,retention release committed,"value_bucket,due_bucket,partial",no reference or exact amount,commercial outcome
+payment_reversed,1,payment reversal committed,"value_bucket,reason_code,full_reversal",no banking reference or exact amount,commercial outcome
+payment_import_queued,1,reconciliation source accepted,"format,row_bucket,size_bucket",no filename row content or bank reference,receivables
+report_exported,1,export job completed,"report_type,format,row_bucket,role",no report contents,feature adoption
+organization_export_requested,1,scoped organization export snapshot queued,"scope_type,format,initiator_role",no organization identity export content or URL,data portability
+export_download_grant_issued,1,short-lived completed-export capability committed,"scope_type,initiator_role,expiry_bucket",no URL token organization identity or export content,data portability
+plan_change_previewed,1,user sees price consequence,"from_plan,to_plan,change_type",no billing identity,billing funnel
+plan_changed,1,billing change committed,"from_plan,to_plan,change_type,channel",no invoice/provider payload,revenue
+organization_export_completed,1,full export produced,"size_bucket,duration_bucket,initiator_role",no export URL,data portability
+organization_closure_requested,1,owner starts cooling-off workflow,"initiator_role,cooling_off_bucket,active_project_bucket",no organization identity or content,data portability
+organization_closure_cancelled,1,owner cancels during cooling-off,"initiator_role,age_bucket,reason_code",no organization identity or free text,data portability
+notification_delivered,1,provider or in-app delivery confirmed,"event_key,channel,duration_bucket,result",no recipient/free text/provider token,communication reliability
+notification_read,1,user records an in-app notification read receipt,"event_key,age_bucket,source",no recipient/resource ID/free text,communication usefulness
+notification_preferences_changed,1,user changes notification preferences,"changed_event_count,channel_classes,mandatory_preserved",no recipient/event values/free text,communication preference health
+webhook_delivered,1,signed endpoint acknowledged event,"event_type,attempt_bucket,duration_bucket,result",no endpoint URL/secret/payload,integration reliability
+webhook_replay_requested,1,authorized replay attempt queued,"event_type,prior_result,attempt_bucket,actor_role",no endpoint URL secret payload or event content,integration reliability
+integration_changed,1,integration mapping or lifecycle command committed,"integration_type,action,state",no endpoint URL secret mapping values or payload,integration reliability
+integration_mapping_previewed,1,redacted integration mapping preview completed,"integration_type,result,warning_bucket,field_bucket",no endpoint URL secret mapping values or payload,integration reliability
+integration_secret_rotated,1,new integration secret version activated,"integration_type,overlap_bucket,actor_role",no secret endpoint URL or actor identity,security governance
+support_grant_opened,1,tenant-approved support access starts,"scope_type,duration_bucket,case_type,approver_role",no case text/platform identity/customer content,security governance
+support_grant_closed,1,support grant revoked or expired,"scope_type,actual_duration_bucket,close_type",no case text/platform identity,security governance
+subscription_state_changed,1,subscription state transaction committed,"from_state,to_state,reason_code,plan_key",no billing identity/invoice reference,revenue reliability
+saas_invoice_state_changed,1,SaaS invoice lifecycle transaction committed,"from_state,to_state,reason_code,value_bucket,document_type",no billing identity/reference/exact amount,revenue reliability
+saas_payment_recorded,1,manual SaaS settlement committed,"value_bucket,days_after_due_bucket,result",no banking reference billing identity or exact amount,revenue reliability
+external_share_created,1,exact-version external review capability committed,"resource_type,otp_required,expiry_bucket,creator_role",no token recipient identity resource ID or content,external review
+external_share_opened,1,reviewer session established,"resource_type,otp_required,assurance_level,attempt_bucket",no token/actor identity/device fingerprint,external review
+external_decision_recorded,1,append-only exact-version decision committed,"resource_type,decision,assurance_level,duration_bucket",no comment/actor identity/exact money,external review
+contract_terms_published,1,exact contract terms version published,"version_bucket,scope_type,impact_bucket,actor_role",no formula values rates identities or free text,baseline governance
+work_assignment_created,1,versioned field assignment committed,"priority,scope_type,due_bucket,requirement_bucket",no assignee identity description or exact quantity,field governance
+requirement_occurrence_changed,1,occurrence state transaction committed,"requirement_type,from_state,to_state,due_bucket",no evidence content identity or exact location,field governance
+reference_revision_published,1,controlled project reference revision published,"document_type,revision_bucket,impact_bucket,actor_role",no file name content identity or project code,baseline governance
+typed_evidence_validated,1,allowlisted structured evidence validation completed,"form_type,result,warning_bucket,field_bucket",no answers values identity or evidence content,evidence quality
+hold_point_decided,1,exact occurrence hold decision committed,"decision,requirement_type,assurance_level,duration_bucket",no notes identity evidence content or location,quality governance
+concealment_recorded,1,post-pass concealment event appended,"requirement_type,delay_bucket,actor_role,source",no notes identity media or location,quality governance
+review_task_changed,1,review task assignment or state committed,"from_state,to_state,sla_bucket,actor_role",no reviewer identity target identity or content,review reliability
+package_line_decisions_recorded,1,line decisions reconcile and commit,"decision_mix,line_bucket,value_bucket,channel",no comments identities package reference or exact value,commercial outcome
+package_decision_set_started,1,exact source response opened line reconciliation,"source_type,decision_type,line_bucket,channel",no source reference actor identity comment package identity or exact value,commercial workflow
+package_decision_item_saved,1,pending exact line choice saved without downstream effect,"decision,line_progress_bucket,source_type",no package or line identity amount reason owner comment or reference,commercial workflow
+quantity_correction_recorded,1,append-only quantity correction committed,"reason_code,entry_type,value_bucket,source",no exact quantity identity work code or free text,quantity integrity
+impact_preview_created,1,persisted impact preview completed,"preview_type,blocking_bucket,warning_bucket,duration_bucket",no row data identities free text file names or commercial values,baseline safety
+saved_view_created,1,actor-owned saved view committed,"view_key,filter_count,sort_count",no filter values name user or project identity,workflow adoption
+location_import_committed,1,fresh hierarchical location preview accepted,"row_bucket,warning_bucket,created_bucket",no codes names paths file metadata or project identity,setup efficiency
+evidence_invalidated,1,exact evidence object invalidated,"kind,reason_code,affected_occurrence_bucket",no object key hash identity media content comment or location,quality integrity
+package_decision_set_reconciled,1,all immutable package lines balanced,"source_type,decision_mix,line_bucket,value_bucket",no exact amount package identity actor identity comments or references,commercial outcome
+member_offboarding_previewed,1,exact member impact preview persisted,"resource_bucket,blocking_bucket,replacement_bucket",no member replacement or project identities,access safety
+work_assignment_reassigned,1,exact-version assignment reassignment committed,"state,offline_policy,reason_code",no user assignment work location or quantity identities,field continuity
+assignment_reference_acknowledged,1,stale assignment reference acknowledged,"document_type,reason_code",no document number revision hash assignment or actor identity,reference safety
+review_task_reassigned,1,exact-target review task reassignment committed,"target_type,state,sla_bucket",no reviewer target project or evidence identity,review continuity
+contract_state_changed,1,guarded contract lifecycle transition committed,"from_state,to_state,reason_code",no contract customer project or value identity,contract lifecycle
+variation_state_changed,1,guarded variation internal transition committed,"from_state,to_state,action",no variation project actor narrative or exact value,commercial workflow
+external_share_revoked,1,external capability and sessions revoked,"prior_state,resource_type,reason_code",no token recipient session resource or actor identity,external security
+subscription_state_previewed,1,cancel or reactivate consequence preview persisted,"action,current_state,consequence_bucket",no organization billing identity invoice or exact price,subscription safety
+saas_payment_reversed,1,append-only platform settlement reversal committed,"reason_code,amount_bucket,invoice_state",no payment invoice organization bank reference or exact amount,platform billing integrity
+assignment_execution_bundle_issued,1,bounded offline authorization lease issued,"lease_ttl_bucket,assignment_state,result",no user project assignment or lease identifiers,offline authorization safety
+occurrence_trigger_materialized,1,strategy input creates or replays one occurrence,"strategy_type,result,source_type",no assignment rule occurrence batch or quantity identity,requirement determinism
+capture_authorization_exception_resolved,1,security reviewer resolves post-invalidation first receipt,"decision,reason_code,lease_state",no actor capture assignment evidence summary or lease identity,offline authorization safety
+capture_reporting_date_confirmed,1,authorized reviewer decides claimed reporting date,"decision,date_shift_bucket,period_state",no exact dates capture actor project or quantity,commercial cutoff integrity
+occurrence_waiver_revoked,1,active occurrence waiver is explicitly revoked,"reason_code,remaining_ttl_bucket,occurrence_state",no actor project occurrence quantity value or narrative,readiness integrity
+review_decision_corrected,1,current review decision is invalidated by an append-only correction receipt and the capture is reopened,"prior_decision,reopen_result,reason_code",no actor capture package evidence comment or identity,review integrity
+member_offboarding_plan_changed,1,offboarding scan resolution preview or consume advances,"from_state,to_state,dependency_bucket,blocking_bucket",no member replacement project or resource identities,access safety
+membership_project_scope_removed,1,one project authorization scope is removed,"reason_code,dependency_bucket,lease_bucket",no member project actor or resource identities,least privilege
+package_decision_issue_changed,1,reconciliation issue is created resolved or cancelled,"issue_type,severity,from_state,to_state",no package line amount reference actor or narrative,reconciliation integrity
+export_cancel_requested,1,authorized actor requests export cancellation,"from_state,running,result",no actor organization scope archive or job identity,export safety
+export_cancelled,1,worker completes cancellation and partial cleanup,"prior_state,artifact_count_bucket,result",no actor organization object keys hashes or job identity,export safety
+numbering_series_retired,1,unreferenced numbering series is retired without changing issued history,"reason_code,issued_count_bucket,result",no organization contract series prefix sequence or actor identity,numbering integrity
+numbering_series_created,1,new stable numbering format is created,"padding_bucket,contract_state,result",no organization contract series key prefix sequence or actor identity,numbering integrity
+estimate_import_failed,1,import job failed terminal,"error_code,row_bucket",no file contents or names,import reliability
+package_generation_failed,1,package generation failed after retries,"error_code,attempt_bucket",no amounts or identifiers,close reliability
+organization_export_failed,1,export job failed,"error_code,attempt_bucket",no exported contents,export reliability
+notification_delivery_failed,1,notification bounced or failed terminally,"channel,error_code",no recipient identity,notification reliability
+webhook_delivery_failed,1,webhook delivery dead-lettered,"endpoint_bucket,error_code,attempt_bucket",no payload,integration reliability

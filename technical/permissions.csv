@@ -1,0 +1,86 @@
+resource,action,owner,admin,commercial_manager,pto_manager,project_manager,foreman,field_worker,internal_reviewer,estimator,accountant,viewer,integration_admin,security_admin,external_reviewer,scope_or_condition
+organization,read,yes,yes,yes,yes,yes,limited,limited,project,project,project,yes,yes,yes,no,active membership
+organization,update,yes,yes,no,no,no,no,no,no,no,no,no,no,security_fields,no,admin excludes ownership/billing owner
+organization,transfer_ownership,yes,no,no,no,no,no,no,no,no,no,no,no,no,no,recent auth current owner plus successor
+organization,export_all,yes,yes,no,no,no,no,no,no,no,no,no,no,no,no,recent auth and export receipt
+organization,close,yes,no,no,no,no,no,no,no,no,no,no,no,no,no,recent auth cooling-off legal hold check
+members,read,yes,yes,yes,yes,project,project,assigned_user,project,project,project,project,yes,yes,no,scope preserved; Pilot has no team/crew aggregate
+members,invite,yes,yes,no,project,project,no,no,no,no,no,no,no,no,no,cannot grant higher role
+members,revoke,yes,yes,no,no,no,no,no,no,no,no,no,no,security,no,organization-wide revoke requires owner admin or security admin and a consumable offboarding plan; cannot remove final owner
+members,change_scope,yes,yes,no,no,no,no,no,no,no,no,no,no,security,no,organization-wide scope mutation requires owner admin or security admin; deny escalation and invalidate leases and sessions
+project,create,yes,yes,yes,yes,no,no,no,no,no,no,no,no,no,no,entitlement limit
+project,read,yes,yes,yes,yes,scoped,scoped,assigned,scoped,scoped,scoped,scoped,no,security_metadata,no,project/location scope
+project,update,yes,yes,yes,yes,scoped,no,no,no,no,no,no,no,no,no,archived read-only
+contract,read,yes,yes,yes,yes,scoped,limited,no,scoped,scoped,scoped,scoped,no,no,no,rates separate permission
+contract,version_create,yes,yes,yes,yes,scoped,no,no,no,scoped,no,no,no,no,no,published immutable
+contract,transition,yes,yes,yes,yes,scoped,no,no,no,no,no,no,no,no,no,exact version and project lifecycle guards; active contract blocks project completion/archive
+work_item,read,yes,yes,yes,yes,scoped,scoped,assigned,scoped,scoped,scoped,scoped,no,no,no,location/rate visibility applies
+work_item,create,yes,yes,yes,yes,scoped,no,no,no,scoped,no,no,no,no,no,single-item create must bind published contract version and audit source
+work_item,assign,yes,yes,yes,yes,scoped,scoped,no,no,no,no,no,no,no,no,active project and target scope
+quantity_entry,create,yes,yes,yes,yes,scoped,assigned,assigned,no,scoped,no,no,no,no,no,idempotent bounds and ledger
+quantity_entry,correct,yes,yes,yes,yes,scoped,own_or_assigned,own_returned,no,scoped,no,no,no,no,no,append-only correction
+evidence,create,yes,yes,yes,yes,scoped,assigned,assigned,no,no,no,no,no,no,no,rule file policy
+evidence,read,yes,yes,yes,yes,scoped,scoped,assigned,scoped,scoped,scoped,scoped,no,no,token,external exact shared version
+evidence,correct,yes,yes,yes,yes,scoped,own_or_assigned,own_returned,no,no,no,no,no,no,no,new derivative/revision
+evidence_request,read,yes,yes,yes,yes,scoped,scoped,assigned,scoped,scoped,scoped,scoped,no,no,no,exact work project and location scope
+evidence_request,create,yes,yes,yes,yes,scoped,scoped,no,scoped,no,no,no,no,no,no,reason assignee due date and active blocker required
+evidence_request,cancel,yes,yes,yes,yes,scoped,own_request,no,scoped,no,no,no,no,no,no,version match reason audit and blocker remains
+review,decide,yes,yes,yes,yes,scoped,no,no,scoped,no,no,no,no,no,token,segregation of duties and exact version
+readiness,override,yes,yes,yes,yes,scoped,no,no,no,no,no,no,no,no,no,reason expiry audit and manifest
+rule,publish,yes,yes,no,yes,scoped,no,no,no,scoped,no,no,no,no,no,new version impact preview
+variation,create,yes,yes,yes,yes,scoped,assigned,assigned,no,scoped,no,no,no,no,no,field roles draft/evidence only
+variation,value,yes,yes,yes,yes,scoped,no,no,no,scoped,no,no,no,no,no,commercial rate permission
+variation,approve_internal,yes,yes,yes,yes,scoped,no,no,no,no,no,no,no,no,no,may require separate actor
+variation,external_decide,no,no,no,no,no,no,no,no,no,no,no,no,no,token,exact version assurance label
+period,close,yes,yes,yes,yes,scoped,no,no,no,scoped,scoped,no,no,no,no,hard gates and override permission
+period,reopen,yes,yes,yes,yes,scoped,no,no,no,scoped,scoped,no,no,no,no,recent auth reason no submitted package and exact version
+package,generate,yes,yes,yes,yes,scoped,no,no,no,scoped,scoped,no,no,no,no,immutable snapshot and entitlement
+package,submit,yes,yes,yes,yes,explicit,no,no,no,no,explicit,no,no,no,no,explicit project grant recent version
+package,external_decide,no,no,no,no,no,no,no,no,no,no,no,no,no,token,exact package version only
+receivable,read,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,scoped,no,no,no,commercial scope
+receivable,update,yes,yes,yes,no,scoped,no,no,no,scoped,scoped,no,no,no,no,audited transitions
+payment,record,yes,yes,yes,no,no,no,no,no,no,yes,no,no,no,no,idempotent allocation invariant
+payment,reconcile,yes,yes,yes,no,no,no,no,no,no,yes,no,no,no,no,maker-checker threshold
+report,view,yes,yes,yes,yes,scoped,limited,assigned,scoped,scoped,scoped,scoped,no,no,no,row scope preserved
+export,create,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,conditional,no,no,no,separate entitlement recent auth for all
+template,publish,yes,yes,yes,yes,no,no,no,no,scoped,no,no,no,no,no,versioned adapter gate
+integration,manage,yes,yes,no,no,no,no,no,no,no,no,no,yes,no,no,secrets never redisplayed
+saas_subscription,manage,yes,delegated,no,no,no,no,no,no,no,delegated,no,no,no,no,tenant may manage plan/subscription only; never issue settle cancel or credit AktFlow invoices
+platform_saas_billing,manage,no,no,no,no,no,no,no,no,no,no,no,no,no,no,isolated platform_billing audience and aktflow_platform_billing role only; tenant membership never authorizes settlement
+security,manage,yes,limited,no,no,no,no,no,no,no,no,no,no,yes,no,MFA sessions access review only
+audit,read,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,conditional,no,security,no,no raw tokens/secrets/free text policy
+support_grant,approve,yes,yes,no,no,no,no,no,no,no,no,no,no,security,no,recent auth scope TTL visible banner
+notification,read,yes,yes,yes,yes,scoped,scoped,assigned,scoped,scoped,scoped,scoped,no,security,no,own recipient and effective project scope
+notification,mark_read,yes,yes,yes,yes,scoped,scoped,assigned,scoped,scoped,scoped,scoped,no,security,no,own recipient notifications only
+notification,manage_preferences,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,yes,no,security,no,own preferences only; mandatory security and billing classes cannot be disabled
+contract_terms,read,yes,yes,yes,yes,scoped,limited,limited,scoped,scoped,scoped,scoped,no,security,no,published exact project version; sensitive commercial fields remain scoped
+contract_terms,publish,yes,yes,yes,yes,explicit,no,no,no,scoped,no,no,no,no,no,fresh preview and confirmations; immutable after publish
+assignment,read,yes,yes,yes,yes,scoped,scoped,own,scoped,scoped,no,scoped,no,security,no,exact project and location scope; worker sees own assignment only
+assignment,manage,yes,yes,no,yes,yes,scoped,no,no,no,no,no,no,no,no,create or reassign with exact versions quantity and reason
+assignment,issue_offline_bundle,yes,yes,no,yes,scoped,scoped,own,no,no,no,no,no,security,no,exact active membership assignment and policy versions; bounded server authorization lease
+occurrence,read,yes,yes,yes,yes,scoped,scoped,own,scoped,scoped,no,scoped,no,security,no,derived from visible assignment and requirement scope
+occurrence,capture,yes,yes,no,yes,scoped,scoped,own,no,no,no,no,no,no,no,only active exact assignment occurrence and local receipt
+reference_document,read,yes,yes,yes,yes,scoped,scoped,assigned,scoped,scoped,no,scoped,no,security,no,published revision in project and location scope
+reference_document,publish,yes,yes,no,yes,explicit,no,no,no,scoped,no,no,no,no,no,fresh impact preview and immutable revision
+typed_evidence,create,yes,yes,no,yes,scoped,scoped,own,no,no,no,no,no,no,no,allowlisted form type and exact occurrence
+typed_evidence,invalidate,yes,yes,no,yes,scoped,no,no,scoped,no,no,no,no,security,no,append-only reason and recompute; original response retained
+hold_point,decide,yes,yes,no,yes,scoped,no,no,scoped,no,no,no,no,security,no,reviewer cannot decide own capture; exact occurrence version
+review_task,manage,yes,yes,no,yes,scoped,no,no,scoped,no,no,no,no,security,no,assignment reallocation escalation and completion under SLA
+package_decision,record,yes,yes,yes,yes,explicit,no,no,scoped,no,explicit,no,no,no,token,line totals must reconcile to immutable package version
+quantity,correct,yes,yes,yes,yes,scoped,scoped,own,scoped,scoped,no,no,no,security,no,append-only correction reason and transfer identity; no overwrite
+project_search,read,yes,yes,scoped,scoped,scoped,scoped,scoped,scoped,scoped,scoped,scoped,scoped,scoped,no,results are filtered by project and location scope before ranking
+saved_view,manage,own,own,own,own,own,own,own,own,own,own,own,own,own,no,actor-owned allowlisted filters only
+location_import,manage,yes,yes,yes,yes,scoped,no,no,no,scoped,no,no,no,no,no,fresh preview required; referenced locations cannot be deleted
+evidence,invalidate,yes,yes,no,yes,scoped,no,no,scoped,no,no,no,no,security,no,append-only invalidation of exact evidence object with linked occurrence recomputation
+member_project_scope,remove,yes,yes,no,scoped,scoped,no,no,no,no,no,no,no,security,no,may remove only an explicitly scoped project after dependency preview; cannot mutate global role or other project scopes
+member_offboarding_plan,manage,yes,yes,no,no,no,no,no,no,no,no,no,no,security,no,organization-wide cursor scan exact versions explicit resolutions recent auth and one-time consume
+occurrence,declare_trigger,yes,yes,no,yes,scoped,scoped,own,no,no,no,no,no,no,no,field actor may declare only material batch for own active assignment; calendar is scheduler-owned and quantity threshold is emitted by authoritative ledger transaction
+requirement_waiver,revoke,yes,yes,yes,yes,scoped,no,no,no,no,no,no,no,security,no,exact active waiver version reason occurrence not closed and readiness recompute
+capture_authorization_exception,resolve,yes,yes,no,no,no,no,no,no,no,no,no,no,yes,no,recent MFA independent security review evidence summary exact quarantined capture version
+capture_reporting_date,confirm,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,no,no,security,no,device date is a claim only; authoritative date must respect open period and business calendar
+review,correct,yes,yes,no,yes,scoped,no,no,scoped,no,no,no,no,security,no,recent auth exact current decision short window separation of duties and no downstream package or receivable
+package_decision_issue,resolve,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,no,no,no,no,explicit note while decision set is still pending; blocking issues prevent reconciliation
+export,cancel,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,conditional,no,no,no,recent auth and exact export state; running worker stops only at a safe boundary
+numbering_series,retire,yes,yes,yes,yes,scoped,no,no,no,no,no,no,no,no,no,may retire an unused or used series only with no active terms reference or reservation; sequence and issued numbers remain immutable
+numbering_series,read,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,no,no,security,no,visible through the exact contract and project scope; next sequence is read-only
+numbering_series,create,yes,yes,yes,yes,scoped,no,no,no,no,no,no,no,no,no,GA only; exact active contract version unique series key and new immutable format

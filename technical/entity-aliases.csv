@@ -1,0 +1,22 @@
+documented_name,canonical_target,release,status,implementation_boundary
+profiles,external:auth.users,Pilot,external,Identity profile and verified contact remain in the Auth provider; tenant membership stores authorization only.
+project_memberships,table:membership_project_scopes,Pilot,alias,Project and location scope tables are the canonical membership link; there is no second membership table.
+import_rows,table:import_row_results,Pilot,alias,Only validation/result rows are stored; the immutable source file remains authoritative.
+reporting_calendars,table:reporting_periods,Pilot,alias,Project reporting policy creates explicit periods; no mutable calendar table is authoritative.
+waivers,table:requirement_waivers,Pilot,alias,Requirement waiver is the only readiness exception record.
+evidence_derivatives,column:evidence_objects.parent_id,Pilot,alias,Original and derivative use one object table with immutable lineage.
+variation_lines,column:variation_versions.cost_breakdown,GA,alias,GA v1 stores versioned structured breakdown in the immutable version; normalize only after measured query need.
+variation_communications,table:variation_decisions,GA,alias,Issued versions and append-only decisions are canonical; generic chat is intentionally excluded.
+retention_schedules,table:retention_releases,GA,alias,Retention basis is an adjustment and each release is append-only; no free-floating schedule mutates receivable truth.
+product_plans,table:plan_versions,Pilot,alias,Plan identity and version are one immutable catalog record.
+features,column:plan_versions.entitlements,Pilot,alias,Feature keys are validated configuration rather than mutable tenant rows.
+plan_entitlements,column:plan_versions.entitlements,Pilot,alias,Immutable plan JSON plus server validation is canonical until catalog scale justifies normalization.
+subscription_addons,table:entitlement_overrides,Pilot,alias,Time-bound signed override is the supported Pilot and GA extension mechanism.
+usage_events,table:usage_snapshots,GA,deferred,Raw per-action billing event storage is deferred; domain events and periodic immutable snapshots prevent a second analytics ledger.
+saas_invoice_lines,table:saas_invoices,GA,deferred,Pilot invoices are single-line; normalized lines require accountant-approved multi-line tax cases before enablement.
+saas_payment_allocations,table:saas_payments,GA,deferred,Pilot payment targets one invoice; many-to-many allocation is disabled until a verified accounting case exists.
+credits,table:saas_invoice_adjustments,GA,alias,Cancel and credit corrections are append-only invoice adjustments.
+capture_tasks,table:work_assignments,Pilot,alias,Capture task is the UX name for an immutable assignment version; it is never an assignee field on a contract line.
+evidence_requirement_occurrences,table:requirement_occurrences,Pilot,alias,An occurrence is the executable requirement instance for one assignment scope and exact rule and reference versions.
+controlled_reference_revisions,table:reference_document_versions,Pilot,alias,Controlled reference revision is the immutable published version used by assignments occurrences captures and packages.
+cost_code,table:import_files,GA,deferred,Accounting cost code stays inside the stored source import file until an accounting adapter maps it; no Pilot domain column.

@@ -1,0 +1,262 @@
+domain,state,storage_scope,release,terminal,ui_uk,definition
+organization,trial,server,Pilot,false,Пілотний простір,Organization exists under a qualified Pilot subscription and remains exportable
+organization,active,server,Pilot,false,Активна,Organization may consume features allowed by its effective entitlement
+organization,suspended,server,Pilot,false,Призупинена,New consumption is blocked while read export pay and support remain
+organization,closing,server,Pilot,false,Закривається,Closure cooling-off and export process is active
+organization,closed,server,Pilot,true,Закрита,Interactive use ended and retention policy controls remaining data
+invitation,draft,server,Pilot,false,Чернетка,Invite has not been queued for delivery
+invitation,queued,server,Pilot,false,У черзі,Delivery intent is committed
+invitation,sent,server,Pilot,false,Надіслано,One-time token is awaiting use
+invitation,accepted,server,Pilot,true,Прийнято,Invite created or activated exactly one membership
+invitation,expired,server,Pilot,true,Строк минув,Token is unusable after TTL
+invitation,revoked,server,Pilot,true,Відкликано,Authorized actor invalidated the token
+invitation,delivery_failed,server,Pilot,false,Не доставлено,Delivery failed and may be retried with a new attempt
+membership,invited,server,Pilot,false,Запрошено,Membership shell exists but cannot authorize requests
+membership,active,server,Pilot,false,Активний доступ,Membership may authorize within role and scopes
+membership,suspended,server,Pilot,false,Призупинено,Temporary access block preserving history
+membership,revoked,server,Pilot,true,Відкликано,Access is removed and history remains attributed
+ownership_transfer,requested,server,GA,false,Передачу запитано,Current owner initiated a time-bound two-party transfer
+ownership_transfer,successor_confirmed,server,GA,false,Наступника підтверджено,Successor completed recent-auth acceptance and atomic completion is pending
+ownership_transfer,completed,server,GA,true,Власника змінено,Exactly one successor became owner and previous owner role was adjusted atomically
+ownership_transfer,cancelled,server,GA,true,Передачу скасовано,Authorized actor cancelled before completion without changing ownership
+ownership_transfer,expired,server,GA,true,Строк передачі минув,Time window elapsed and the successor can no longer confirm
+project,draft,server,Pilot,false,Чернетка,Project setup is incomplete and cannot receive live capture
+project,active,server,Pilot,false,Активний,Project accepts scoped operational commands
+project,paused,server,Pilot,false,На паузі,New operational work is limited while reads remain
+project,completed,server,Pilot,false,Завершений,Operational work ended but close and commercial history remain
+project,archived,server,Pilot,true,Архівний,Read-only project excluded from active-project metering
+contract,draft,server,Pilot,false,Чернетка,Contract shell is not the active baseline
+contract,active,server,Pilot,false,Активний,At least one published version forms the current baseline
+contract,completed,server,Pilot,false,Завершений,Scope is complete but may be explicitly reopened while retained history stays immutable
+contract,terminated,server,Pilot,true,Припинений,Contract ended by explicit reason without deleting history
+contract_version,draft,server,Pilot,false,Чернетка,Editable mapping and source metadata before validation
+contract_version,validating,server,Pilot,false,Перевіряється,Dry-run validation is executing
+contract_version,ready_to_publish,server,Pilot,false,Готова до публікації,Validation passed and impact preview awaits confirmation
+contract_version,published,server,Pilot,false,Опублікована,Immutable baseline version used by work items
+contract_version,superseded,server,Pilot,true,Замінена,A newer published version is current while this remains reproducible
+contract_version,rejected,server,Pilot,true,Відхилена,Validation or authorization rejected publication
+work_item,planned,projection,Pilot,false,Заплановано,No assignment exists and net performed quantity is zero
+work_item,assigned,projection,Pilot,false,Призначено,At least one non-cancelled assignment is planned assigned or accepted and no higher projection condition wins
+work_item,in_progress,projection,Pilot,false,У роботі,At least one assignment is in_progress or returned and no completed condition wins
+work_item,performed,projection,Pilot,false,Виконано,Net performed quantity is positive or a submitted assignment exists while the full completion condition is false and no in-progress condition wins
+work_item,completed,projection,Pilot,false,Завершено,Net performed quantity covers the immutable contract quantity and every non-cancelled assignment is completed
+work_item,cancelled,projection,Pilot,false,Скасовано,At least one assignment exists every assignment is cancelled and net performed quantity is zero; a later authorized assignment may change the projection
+import_job,queued,server,Pilot,false,У черзі,Import request is durable and awaiting a worker
+import_job,running,server,Pilot,false,Виконується,Worker is validating or applying rows
+import_job,retry_wait,server,Pilot,false,Очікує повтору,Retryable failure is waiting for backoff
+import_job,succeeded,server,Pilot,true,Завершено,Import result and reconciliation summary are committed
+import_job,failed_terminal,server,Pilot,true,Помилка,Human correction or a new job is required
+import_job,cancelled,server,Pilot,true,Скасовано,Job stopped without partially publishing a baseline
+import_row,valid,server,Pilot,true,Коректний,Row can be applied
+import_row,warning,server,Pilot,true,Попередження,Row needs explicit confirmation but is not invalid
+import_row,error,server,Pilot,true,Помилка,Row cannot be applied
+import_row,ignored,server,Pilot,true,Пропущено,User or rule intentionally excludes the row
+import_row,duplicate,server,Pilot,true,Дублікат,Row matches an existing source fingerprint
+upload_intent,authorized,server,Pilot,false,Дозволено завантаження,Server stored an exact tenant project purpose object key type size hash and expiry tuple
+upload_intent,sealed,server,Pilot,true,Файл зафіксовано,Declared multipart bytes matched the immutable tuple and one verification job was committed
+upload_intent,expired,server,Pilot,true,Строк дозволу минув,Grant TTL elapsed before a valid seal and a new intent is required
+upload_intent,cancelled,server,Pilot,true,Завантаження скасовано,Authorized cancellation invalidated the grant without accepting bytes
+rule_version,draft,server,Pilot,false,Чернетка,Rule configuration is editable
+rule_version,published,server,Pilot,false,Опублікована,Immutable rule version may evaluate requirements
+rule_version,retired,server,Pilot,true,Виведена,New assignments are blocked while history remains reproducible
+requirement,not_applicable,projection,Pilot,true,Не застосовується,Published rule does not apply to this subject snapshot
+requirement,missing,projection,Pilot,false,Відсутнє,Required evidence or fact is absent
+requirement,pending_scan,projection,Pilot,false,Перевірка файлу,Evidence is quarantined for technical scan
+requirement,pending_review,projection,Pilot,false,Очікує перевірки,Technical inputs exist but human review is outstanding
+requirement,met,projection,Pilot,true,Виконано,Current versioned inputs satisfy the rule
+requirement,failed,projection,Pilot,false,Не виконано,Inputs were reviewed and do not satisfy the rule
+requirement,waived,projection,Pilot,false,Waiver,Authorized time-bound waiver affects readiness without deleting the requirement
+requirement,expired,projection,Pilot,false,Waiver прострочено,Waiver expired and re-evaluation is required
+evidence_request,open,server,Pilot,false,Потрібні докази,Scoped request remains actionable and does not clear the blocker
+evidence_request,fulfilled,server,Pilot,true,Виконано,Approved linked evidence satisfies the requested requirement
+evidence_request,cancelled,server,Pilot,true,Скасовано,Authorized actor cancelled the request with reason while history remains
+evidence_request,expired,server,Pilot,true,Строк минув,Due window elapsed and the unresolved blocker remains visible
+readiness,not_started,projection,Pilot,false,Не розпочато,No performed quantity exists for the evaluated subject
+readiness,evidence_missing,projection,Pilot,false,Бракує доказів,Performed quantity has one or more missing applicable requirements
+readiness,review_pending,projection,Pilot,false,Очікує перевірки,Technical evidence exists but a required internal decision is outstanding
+readiness,ready_internal,projection,Pilot,false,Внутрішньо готово,Current versioned inputs satisfy internal readiness rules without claiming customer acceptance
+readiness,overridden_ready,projection,Pilot,false,Готово з винятком,Authorized time-bound waiver makes the snapshot internally ready and remains visible
+readiness,packaged,projection,Pilot,false,У пакеті,Exact snapshot was included in an immutable package version
+readiness,submitted,projection,Pilot,false,Подано,Package containing this snapshot has a recorded submission receipt
+readiness,accepted_external,projection,GA,true,Прийнято зовні,Exact package version has an external or manual acceptance record at displayed assurance
+readiness,returned_external,projection,GA,false,Повернено зовні,Exact package version was returned and a corrected version is required
+mobile_capture,local_draft,device,Pilot,false,Чернетка на пристрої,Local transaction exists and has not entered the outbox
+mobile_capture,local_queued,device,Pilot,false,Збережено на пристрої,Local command is durable and queued for sync
+mobile_capture,uploading,device,Pilot,false,Синхронізація,Media and manifest are being transmitted
+mobile_capture,server_confirmed,device,Pilot,true,Підтверджено сервером,Server receipt confirms the canonical capture session
+mobile_capture,failed_terminal,device,Pilot,false,Потрібна дія,Automatic retry stopped; an explicit retry creates a new outbox attempt from the retained local record
+capture_session,server_received,server,Pilot,false,Отримано сервером,Manifest and quantity commands committed atomically
+capture_session,scanning,server,Pilot,false,Перевірка файлів,Media security and metadata pipeline is running
+capture_session,pending_review,server,Pilot,false,Очікує перевірки,All technical gates passed and reviewer action is required
+capture_session,returned,server,Pilot,false,Повернено,Immutable decision normally requires a linked new revision; a tightly guarded decision correction may reopen review
+capture_session,approved,server,Pilot,false,Схвалено,Immutable internal decision contributes to readiness; a tightly guarded decision correction may reopen review before downstream use
+capture_session,quarantined,server,Pilot,false,Карантин,Unsafe or suspicious media blocks downstream use
+capture_session,terminal_failed,server,Pilot,true,Технічна помилка,Server cannot continue this revision and a replacement is required
+variation,draft,server,GA,false,Чернетка,Editable change record
+variation,evidence_ready,server,GA,false,Докази готові,Required internal evidence is linked
+variation,internally_approved,server,GA,false,Внутрішньо схвалено,Authorized internal review permits issue
+variation,issued,server,GA,false,Notice видано,Immutable notice version was recorded for sending
+variation,acknowledged,server,GA,false,Отримання підтверджено,Receipt is recorded without approving price
+variation,approved,server,GA,false,Погоджено,Authorized exact-version approval exists
+variation,rejected,server,GA,true,Відхилено,External or authorized rejection is recorded
+variation,withdrawn,server,GA,true,Відкликано,Issuer withdrew the version without deleting evidence
+variation,disputed,server,GA,false,Спір,Commercial disagreement requires resolution
+variation,incorporated,server,GA,true,Включено до договору,A new contract version carries the approved change
+period,open,server,Pilot,false,Відкритий,Operational entries may be associated with the period
+period,preflight,server,Pilot,false,Попередня перевірка,One close lock evaluates blockers and warnings
+period,closing,server,Pilot,false,Закривається,Authorized immutable snapshot is being committed
+period,closed,server,Pilot,false,Закритий,Period snapshot is fixed; an explicit audited reopen starts a new close cycle without changing prior packages
+period,reopened,server,Pilot,false,Повторно відкритий,Reasoned reopen permits a new close while preserving old packages
+package,draft_snapshot,server,Pilot,false,Snapshot,Immutable package inputs exist before rendering
+package,generating,server,Pilot,false,Генерується,Renderer job is running
+package,generation_failed,server,Pilot,false,Помилка генерації,Retry or a new explicit version is required
+package,generated,server,Pilot,false,Згенеровано,Artifacts and hashes exist but final pre-submit checks remain
+package,ready_to_submit,server,Pilot,false,Готово до подання,All enabled pre-submit gates passed
+package,submitted,server,Pilot,false,Подано,Exact immutable version has a submission receipt
+package,pending_reconciliation,server,Pilot,false,Очікує звірки,Recorded aggregate response is not allowed to change commercial state until every immutable line is reconciled
+package,returned,server,Pilot,true,Повернено,This immutable version is terminal; correction creates a linked new package version
+package,accepted,server,Pilot,true,Прийнято,Operational acceptance at displayed assurance level targets this exact immutable version
+package,superseded,server,Pilot,true,Замінено,A newer package version is current
+package,withdrawn,server,Pilot,true,Відкликано,Submission is withdrawn while its receipt remains
+external_share,created,server,GA,false,Створено,Hashed capability exists but is not yet active
+external_share,active,server,GA,false,Активне,Capability may establish a scoped session
+external_share,otp_challenged,server,GA,false,Очікує коду,Identity challenge is outstanding
+external_share,opened,server,GA,false,Відкрито,Scoped exact-version session is active
+external_share,decided,server,GA,true,Рішення надано,Append-only decision receipt exists
+external_share,expired,server,GA,true,Строк минув,TTL ended capability use
+external_share,revoked,server,GA,true,Відкликано,Issuer invalidated the capability immediately
+external_share,locked,server,GA,false,Заблоковано,Abuse controls require authorized recovery or expiry
+acceptance,pending,server,GA,false,Очікує рішення,No complete commercial acceptance exists
+acceptance,partially_accepted,server,GA,true,Частково прийнято,This append-only decision is terminal for the record; a later resolution creates a superseding acceptance record
+acceptance,accepted,server,GA,true,Прийнято,Commercial acceptance basis is recorded at its assurance level
+acceptance,returned,server,GA,true,Повернено,This append-only decision is terminal; clarification creates a superseding acceptance record or new package version
+acceptance,disputed,server,GA,true,Спір,This append-only decision is terminal; resolution creates a superseding acceptance record
+receivable,draft,server,GA,false,Чернетка,Commercial record is not issued
+receivable,issued,server,GA,false,Видано,Receivable basis was issued but is not due
+receivable,due,server,GA,false,До сплати,Payment due date is active
+receivable,part_paid,server,GA,false,Частково оплачено,Valid allocations are below outstanding amount
+receivable,paid,server,GA,true,Оплачено,Valid allocations equal payable amount
+receivable,overdue,server,GA,false,Прострочено,Outstanding amount passed its due date
+receivable,disputed,server,GA,false,Спір,Payment basis or amount is contested
+receivable,written_off,server,GA,true,Списано,Authorized adjustment closes outstanding amount
+receivable,cancelled,server,GA,true,Скасовано,Receivable was voided through an auditable correction path
+subscription,pilot,server,Pilot,false,Пілот,Qualified time-bound commercial grant
+subscription,trialing,server,GA,false,Пробний період,Self-service trial when enabled after GA controls
+subscription,active,server,Pilot,false,Активна,Entitlements derive from current plan and grants
+subscription,grace,server,Pilot,false,Пільговий період,Payment is overdue but safe access remains
+subscription,suspended,server,Pilot,false,Призупинена,New consumption is blocked while read export pay support remain
+subscription,cancelled,server,Pilot,false,Скасована,Renewal stopped and period-end/export policy applies
+subscription,export_only,server,Pilot,false,Лише експорт,Authentication and export remain during closure window
+subscription,closed,server,Pilot,true,Закрита,Subscription no longer grants service consumption
+saas_invoice,draft,server,Pilot,false,Чернетка рахунку,Billing basis exists but document has not been issued
+saas_invoice,issued,server,Pilot,false,Запит виставлено,Immutable payment request or validated seller document was issued through its configured channel
+saas_invoice,due,server,Pilot,false,До сплати,Issued amount reached its due date without full settlement
+saas_invoice,paid,server,Pilot,false,Сплачено,Configured reconciliation linked full settlement; later correction requires append-only credit and payment reversal
+saas_invoice,overdue,server,Pilot,false,Прострочено,Due date passed with outstanding balance while safe grace rules apply
+saas_invoice,cancelled,server,GA,true,Скасовано,Authorized correction cancelled an unpayable document while retaining lineage
+saas_invoice,credited,server,GA,true,Скориговано,Versioned credit correction resolved the issued document without rewriting it
+job,queued,server,Pilot,false,У черзі,Durable work is awaiting a worker
+job,running,server,Pilot,false,Виконується,A worker owns the current attempt lease
+job,retry_wait,server,Pilot,false,Очікує повтору,Retryable failure is in backoff
+job,succeeded,server,Pilot,true,Завершено,Result and side effects are committed
+job,failed_terminal,server,Pilot,true,Помилка,Automatic retry is exhausted or unsafe
+job,cancelled,server,Pilot,true,Скасовано,Cancellation completed at a safe boundary
+notification_delivery,queued,server,Pilot,false,У черзі,Delivery intent exists
+notification_delivery,sent,server,Pilot,false,Надіслано,Configured delivery sink accepted the message
+notification_delivery,delivered,server,Pilot,true,Доставлено,In-app commit or an approved provider confirms delivery
+notification_delivery,bounced,server,GA,true,Відхилено,Approved external provider reports permanent recipient failure
+notification_delivery,failed,server,Pilot,false,Помилка,Retry policy determines the next action
+notification_delivery,cancelled,server,Pilot,true,Скасовано,Delivery was intentionally stopped
+integration,active,server,GA,false,Активна,Connection may create new outbound delivery intents
+integration,paused,server,GA,false,Призупинена,New deliveries wait while configuration and history remain
+integration,revoked,server,GA,true,Відкликана,Credentials are invalidated and no new delivery is permitted
+webhook_delivery,queued,server,GA,false,У черзі,Committed event is awaiting delivery worker
+webhook_delivery,sending,server,GA,false,Надсилається,Worker owns a fenced delivery attempt
+webhook_delivery,delivered,server,GA,true,Доставлено,Endpoint returned an accepted response and receipt is stored
+webhook_delivery,retry_wait,server,GA,false,Очікує повтору,Retryable response is waiting for backoff
+webhook_delivery,failed_terminal,server,GA,true,Не доставлено,Retry policy exhausted or the failure is non-retryable
+webhook_delivery,cancelled,server,GA,true,Скасовано,Connection revocation or authorized action stopped delivery
+export_job,requested,server,Pilot,false,Запитано,Export intent exists before recent-auth authorization
+export_job,authorized,server,Pilot,false,Авторизовано,Scope and recent authentication are fixed
+export_job,collecting,server,Pilot,false,Збираються дані,Worker is gathering scoped records
+export_job,packaging,server,Pilot,false,Формується архів,Files and manifest are being assembled
+export_job,ready,server,Pilot,false,Готово,Short-lived audited download is available
+export_job,expired,server,Pilot,true,Строк минув,Download grant expired while job evidence remains
+export_job,failed,server,Pilot,true,Помилка,This job attempt is terminal; retry is represented by a new export request linked to the failed receipt
+export_job,cancelled,server,Pilot,true,Скасовано,Authorized cancellation stopped export
+export_job,cancel_requested,server,Pilot,false,Скасування запитано,Worker must stop at a safe boundary and erase partial export artifacts
+requirement_waiver,active,server,Pilot,false,Діє,Time-bound waiver is current and visibly affects readiness
+requirement_waiver,expired,server,Pilot,true,Строк минув,Waiver elapsed and no longer changes readiness
+requirement_waiver,revoked,server,Pilot,true,Відкликано,Authorized revocation ended the waiver before expiry
+period_close_cycle,preflight,server,Pilot,false,Попередня перевірка,Numbered close cycle owns a blocker snapshot
+period_close_cycle,committed,server,Pilot,false,Зафіксовано,Close cycle committed an immutable package snapshot
+period_close_cycle,reopened,server,Pilot,true,Повторно відкрито,Committed cycle remains historical after a guarded reopen
+period_close_cycle,cancelled,server,Pilot,true,Скасовано,Preflight cycle ended without a committed package
+member_offboarding_plan,draft,server,Pilot,false,Чернетка,Dependency scan may continue by cursor
+member_offboarding_plan,ready_for_preview,server,Pilot,false,Готово до перевірки,Complete dependency set awaits explicit resolutions
+member_offboarding_plan,previewed,server,Pilot,false,Перевірено,Exact plan and dependency hash may be consumed
+member_offboarding_plan,consumed,server,Pilot,true,Виконано,Membership or scope change consumed the exact plan once
+member_offboarding_plan,expired,server,Pilot,true,Строк минув,Plan must be rebuilt against current dependencies
+package_decision_issue,open,server,Pilot,false,Відкрито,Reconciliation warning or blocker needs explicit treatment
+package_decision_issue,resolved,server,Pilot,true,Вирішено,Issue was explicitly resolved with actor and note
+package_decision_issue,cancelled,server,Pilot,true,Скасовано,Issue no longer applies because its pending decision set was superseded
+numbering_series,active,server,Pilot,false,Активна,Server may reserve the next immutable document number
+numbering_series,retired,server,GA,true,Завершена,No new numbers may be reserved while issued sequence history remains immutable
+deletion_job,requested,server,Pilot,false,Запитано,Closure request exists and safe export is offered
+deletion_job,cooling_off,server,Pilot,false,Період відновлення,Customer may cancel before execution
+deletion_job,blocked_by_hold,server,Pilot,false,Legal hold або політика,Applicable records cannot be deleted or retention is unvalidated
+deletion_job,scheduled,server,Pilot,false,Заплановано,Validated retention and hold gates passed and execution time is fixed
+deletion_job,executing,server,Pilot,false,Видалення,Multi-store deletion is running behind the validated retention gate
+deletion_job,verified,server,Pilot,false,Перевіряється,Counts failures and retained bases are reconciled
+deletion_job,complete,server,Pilot,true,Завершено,Deletion report is committed
+deletion_job,cancelled,server,Pilot,true,Скасовано,Owner cancelled during cooling-off and interactive access was restored
+support_grant,requested,server,GA,false,Запитано,Tenant approval is outstanding
+support_grant,active,server,GA,false,Активний,Named platform actor has time-bound scoped access
+support_grant,revoked,server,GA,true,Відкликано,Tenant or platform security removed access
+support_grant,expired,server,GA,true,Строк минув,TTL automatically ended access
+contract_terms,draft,server,Pilot,false,Чернетка умов,Commercial timing and document policy is editable but not authoritative
+contract_terms,validating,server,Pilot,false,Перевіряється,Deterministic formulas and required confirmations are being checked
+contract_terms,published,server,Pilot,false,Опубліковано,Immutable terms version may govern new assignments and periods
+contract_terms,superseded,server,Pilot,true,Замінено,Newer version exists while historical snapshots remain pinned
+contract_terms,rejected,server,Pilot,true,Відхилено,Validation failed and this version cannot govern work
+work_assignment,planned,server,Pilot,false,Заплановано,Exact work location quantity and window exist before assignment
+work_assignment,assigned,server,Pilot,false,Призначено,One scoped Pilot assignee is responsible
+work_assignment,accepted,server,Pilot,false,Прийнято в роботу,Assignee acknowledged exact scope and versions
+work_assignment,in_progress,server,Pilot,false,Виконується,Field execution or capture is active
+work_assignment,submitted,server,Pilot,false,Передано на перевірку,Capture for this assignment has a server receipt
+work_assignment,returned,server,Pilot,false,Повернено,Concrete correction is required without rewriting prior capture
+work_assignment,completed,server,Pilot,true,Завершено,Required occurrences and authorized operational completion are satisfied
+work_assignment,cancelled,server,Pilot,true,Скасовано,Reasoned cancellation preserves prior evidence and quantity history
+requirement_occurrence,required,server,Pilot,false,Потрібно,Exact repeatable obligation exists
+requirement_occurrence,capture_pending,server,Pilot,false,Фіксація триває,Local or server capture has not reached inspection readiness
+requirement_occurrence,ready_for_inspection,server,Pilot,false,Готово до перевірки,Minimum evidence is available for authorized decision
+requirement_occurrence,passed,server,Pilot,false,Пройдено,Authorized reviewer passed the occurrence
+requirement_occurrence,passed_with_notes,server,Pilot,false,Пройдено із зауваженнями,Authorized pass includes visible non-blocking notes
+requirement_occurrence,failed,server,Pilot,false,Не пройдено,Correction or a new occurrence decision is required
+requirement_occurrence,waived,server,Pilot,false,Виняток,Time-bound authorized waiver is visible
+requirement_occurrence,expired,server,Pilot,true,Строк минув,Due window ended without valid closure
+requirement_occurrence,closed,server,Pilot,true,Закрито,Eligible decision plus append-only closure event completed the hold point
+reference_document,draft,server,Pilot,false,Чернетка редакції,Reference metadata or original is incomplete
+reference_document,validating,server,Pilot,false,Перевіряється,Revision identity file and impact are being checked
+reference_document,published,server,Pilot,false,Чинна редакція,Exact immutable revision may be linked to new work
+reference_document,superseded,server,Pilot,true,Замінена редакція,New revision exists while old snapshots remain readable
+reference_document,rejected,server,Pilot,true,Відхилена редакція,Revision failed validation and cannot become current
+typed_evidence,received,server,Pilot,false,Отримано,Schema response and provenance were committed
+typed_evidence,valid,server,Pilot,false,Структура валідна,Required fields and configured limits passed validation
+typed_evidence,warning,server,Pilot,false,Потрібна увага,Response is structurally usable with explicit warning
+typed_evidence,invalidated,server,Pilot,true,Виключено,Reasoned decision removed this response from readiness without deletion
+review_task,open,server,Pilot,false,Очікує призначення,Review obligation and SLA clock exist
+review_task,assigned,server,Pilot,false,Призначено,Named reviewer owns the task
+review_task,in_review,server,Pilot,false,Перевіряється,Reviewer opened exact target version
+review_task,completed,server,Pilot,true,Завершено,Immutable decision satisfied this review task
+review_task,cancelled,server,Pilot,true,Скасовано,Target became inapplicable while history remains
+review_task,expired,server,Pilot,true,Прострочено,SLA expired and escalation remains visible
+package_decision_item,pending,server,Pilot,false,Чернетка рішення,Editable exact line choice with no package readiness or correction effect
+package_decision_item,returned,server,Pilot,false,Повернено,Finalized exact line requires correction
+package_decision_item,accepted,server,Pilot,true,Прийнято,Exact submitted line was operationally accepted
+package_decision_item,modified,server,Pilot,false,Змінено,External decision changed the line amount and requires reconciliation
+package_decision_item,correction_open,server,Pilot,false,Виправлення,Owned correction action is active
+package_decision_item,resolved,server,Pilot,true,Вирішено,Correction is linked to a later immutable package version
+package_decision_set,pending_reconciliation,server,Pilot,false,Очікує звірки,Exact source response exists but editable line decisions are incomplete
+package_decision_set,reconciled,server,Pilot,true,Звірено,Every submitted package line has one balanced immutable decision
+package_decision_set,superseded,server,Pilot,true,Замінено,A later correction set is authoritative while this receipt remains immutable
