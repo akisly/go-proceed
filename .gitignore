@@ -17,3 +17,6 @@ next-env.d.ts
 # Prototype build + QA scratch (qa-screenshots/ IS tracked — validate_package.py:2404 requires them)
 prototype/dist/
 prototype/qa-runtime-tmp/
+
+# Claude Code native worktrees (never commit worktree contents)
+.claude/worktrees/
