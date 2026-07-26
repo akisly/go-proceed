@@ -173,7 +173,7 @@ Addresses A.4.22, and Finding 1's gitignore half.
     "eslint-plugin-react-refresh": "0.5.3",
     "globals": "17.7.0",
     "puppeteer": "24.10.2",
-    "typescript-eslint": "8.46.0",
+    "typescript-eslint": "8.65.0",
     "vite": "8.1.5"
   }
 }
