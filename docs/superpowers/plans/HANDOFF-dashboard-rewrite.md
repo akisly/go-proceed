@@ -1,12 +1,16 @@
 # HANDOFF — internal dashboard rewrite (Tailwind + shadcn)
 
-**Branch:** `feat/p0a-child-a-prototype` (git worktree)
-**Worktree:** `/Users/akisliy/Downloads/aktflow-product-package 2/.claude/worktrees/feat+p0a-child-a-prototype`
-**State at handoff:** branch is **green and committed**. Nothing half-applied.
-**Last commit:** `a495590` build(demo): Tailwind v4 theme layer scoped to the internal shell
+**Branch:** `claude/dashboard-rewrite-handoff-5b2789` (git worktree)
+**State:** **green and committed**. Nothing half-applied.
+**Last commit:** checkpoint 4 — legacy CSS retired
 
-Start a fresh session in that worktree and read this file first. Everything below
-is verified, not assumed.
+Start a fresh session in that worktree and read this file first, then
+`.interface-design/system.md`, which is the source of truth for every design
+value. Everything below is verified, not assumed.
+
+**All four checkpoints are complete.** What remains is listed in §3 and is
+smaller than what was done; §9 lists the project-wide gaps that a green suite
+does not close.
 
 ---
 
@@ -64,18 +68,71 @@ The previous guard compared hex literals only, so a shadcn theme in HSL or
 
 ---
 
+### Checkpoint 1 — primitives and the shell (`665b8d4`)
+
+`components.json`, `src/lib/utils.ts`, `src/components/ui/{button,tooltip,separator}.tsx`,
+rewritten `AppShell`. **`shadcn init` was NOT run and must not be** — it rewrites
+the theme block in oklch and imports Preflight, both of which the colour guard
+would only catch after the damage. The config was written by hand and the `@/`
+alias resolves, so `npx shadcn add …` works.
+
+The finding that mattered: the frozen sheets were **unlayered**, and an
+unlayered author declaration beats a layered one at any specificity. `a { color:
+inherit }` beat every `text-*` utility; `button,input,select { font: inherit }`
+beat every font-size utility. Silently. `theme.css` now owns the layer order —
+`legacy, theme, base, components, utilities` — and imports both frozen sheets as
+`layer(legacy)`.
+
+### Checkpoint 2 — register, filters, `/app` (`76765ca`)
+
+Semantic `<table>` with `table-fixed`, three renderings (6 columns / 4 columns /
+cards). Money summary with the risk qualifier `domain/risk.ts` requires.
+Readiness bar. Ukrainian plural helper + 8 tests.
+
+### Checkpoint 3 — evidence and rules (`280036c`)
+
+Caught and guarded a **false consequence**: every card in the blocking section
+was captioned «Ця конкретна вимога подання пакета не блокує». Counts were correct
+and the suite was green while the page said the opposite of the truth. The base
+type size was also inverted (15px prose base, register steps down to 13px).
+
+### Checkpoint 4 — legacy CSS retired
+
+546 lines removed from `demo.css` — every rule describing a DOM that no longer
+exists. Public-route equivalence proven by diffing all 240 computed-property rows
+on `/pilot`, not by eye.
+
+---
+
 ## 3. Remaining
 
-1. **Finish checkpoint 1** — `shadcn init` against the existing theme; install only
-   the primitives that earn their place; build shared primitives + `AppShell`.
-2. **Checkpoint 2** — `/app`, work register, filters, summaries, responsive
-   table↔card system.
-3. **Checkpoint 3** — evidence, readiness, package, detail routes.
-4. **Checkpoint 4** — states, responsive refinement, accessibility, consistency.
+Not blockers, and none of it is required for the rewrite to be coherent.
 
-**`.interface-design/system.md` has not been written.** Write it alongside the
-first components so values are recorded as they are decided, not reconstructed
-afterwards. It is meant to be the source of truth for all rewritten routes.
+1. **`/demo` still renders the legacy components.** `MoneyCard`, `StatusChip`
+   and `UnrecoverableNote` were deliberately left alone because `/demo` is out of
+   scope; `MoneySummary`, `ReadinessBadge` and `UnrecoverableCallout` are their
+   internal replacements. Both sets read the same `READINESS_LABEL_UK` and
+   `readinessTone`, so the facts cannot diverge — only the presentation is
+   duplicated. Retiring the legacy three needs `/demo` to come into scope.
+
+2. **`readinessTone` collapses «Очікує перевірки» into the amber tone.** A review
+   queue is not an evidence gap, the theme already defines the blue
+   `readiness-review-*` tokens, and the frozen sheet even ships an unused
+   `.status--review`. Splitting them is a one-line change to
+   `src/domain/readiness.ts` — but that function is shared with `/demo`, so it is
+   a scope decision, not a code decision.
+
+3. **The bundle grew ~33 KiB gzip** (94 → 127) from Radix, cva and tailwind-merge.
+   Cold transfer for `/` is ~260 KiB against a 1.5 MB budget, so this is
+   headroom, not a problem. If it ever matters, `TooltipProvider` is only needed
+   between 768 and 1240px and is the obvious first split.
+
+4. **`qa` failed once in 13 runs** and did not reproduce in 12 subsequent runs.
+   The failure output was not captured. If it recurs, capture it before assuming
+   it is a flake.
+
+**`.interface-design/system.md` is written** and is the source of truth. Read it
+before changing any design value.
 
 ---
 
@@ -131,6 +188,37 @@ not approved):
 6. **`.money-card small` was pushed to 16px** by a ≥16px body-text floor that
    grouped a card eyebrow with body copy. Card labels are labels, not body text.
 
+7. **Unlayered CSS beats every cascade layer**, at any specificity. This inverted
+   the whole rewrite until `theme.css` took over the imports — see §2.
+
+8. **`!important` reverses layer order**: the *lowest* layer wins. The
+   `prefers-reduced-motion` block is deliberately unlayered for this reason.
+
+9. **tailwind-merge has to be taught this theme.** `text-data` is not a t-shirt
+   size, so stock tailwind-merge classifies it as a *colour*, decides it
+   conflicts with `text-foreground`, and drops one of them silently.
+   `src/lib/utils.ts` overrides the affected class groups.
+
+10. **Radix portals escape `.aktflow-app`** — no font, no reduced-motion block,
+    no focus ring. Anything that portals must carry its own.
+
+11. **`items-center` on a flex column collapses children to their content box.**
+    It gave the 68px rail an 18×44 hit area where 36×44 was intended.
+
+12. **Ukrainian 11–14 take the genitive plural** despite ending in 1–4. Use
+    `pluralUk`/`rowsUk` from `src/domain/format.ts`, never `${n} рядків`.
+
+13. **An assertion must name the contract, not the markup.** The drawer-trap
+    assertion named `.sidebar__close` and reported a FAILING trap when the
+    drawer's DOM order changed while the trap worked perfectly. An assertion
+    that fires on a correct change teaches you to edit the assertion.
+
+14. **A component correct for one caller's filter is a bug waiting for the
+    second.** `RequirementList` keyed on `blocksSubmission` alone, which was fine
+    while only `/app/evidence` (pending-only) used it, and rendered
+    already-satisfied records as blocking the moment `/app/rules` passed a full
+    list.
+
 ---
 
 ## 6. Verification — run after every checkpoint
@@ -151,24 +239,28 @@ All must exit 0 and `git status --porcelain` must print nothing.
 expected — `{{CONTACT_EMAIL}}` and `{{FORM_PROCESSOR}}` are unresolved launch
 blockers. Do **not** invent values to make it pass.
 
-**Baseline right now:** 126 tests pass; typecheck/lint/build/qa exit 0.
+**Baseline right now:** 134 tests pass; typecheck/lint/build/qa exit 0.
 
 ---
 
 ## 7. Current measured baseline (compare against these)
 
-| Metric | Value |
-|---|---|
-| `/app/work` chrome before first row @1440 | 357px |
-| `/app` chrome before first data @1440 | 274px |
-| Rows visible in a 900px fold | 10 |
-| Money column right edges | 1 (aligned) |
-| Sub-12px elements on `/app/work` | 0 |
-| Touch targets <44px @390 | 0 |
-| Landing header contrast | 17.32 / 8.21 / 8.21 / 17.32 / 17.32 |
-| `/app` readiness split | 7 states summing to 14 |
-| At-risk figure, all surfaces | 612 300,00 ₴ |
-| Cold transfer for `/` | ~227 KiB against a 1.5 MB budget |
+| Metric | Before rewrite | Now |
+|---|---:|---:|
+| `/app/work` chrome before first row @1440 | 357px | **237px** |
+| `/app` chrome before first data @1440 | 274px | **183px** |
+| Rows visible in a 900px fold | 10 | **14 — all of them** |
+| Money column right edges | 1 (aligned) | 1 (aligned) |
+| Sub-12px elements on `/app/work` | 0 | 0 |
+| Touch targets <44px @390 | 0 | 0 |
+| Rail share of width @1440 | — | 16.7% (doc 05 Carbon budget 17–21%) |
+| `demo.css` | 1232 lines | **708 lines** |
+| At-risk figure, all surfaces | 612 300,00 ₴ | 612 300,00 ₴ |
+| `/app` readiness split | 7 states summing to 14 | 7 states summing to 14 |
+| Cold transfer for `/` | ~227 KiB | ~260 KiB against a 1.5 MB budget |
+
+`/app`'s figure rose 36px from the shell-only state deliberately: the total now
+sits in a real panel with its honesty qualifier, rather than loose on the page.
 
 ---
 

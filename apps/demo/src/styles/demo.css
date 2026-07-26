@@ -27,17 +27,6 @@
 }
 
 /*
- * ER-7c: the /pilot CTA lives in the content area, not the sidebar, so it
- * needs its own layout — the button itself is already styled by
- * `.button.button--signal` from ../styles.css.
- */
-.pilot-cta {
-  display: flex;
-  justify-content: flex-end;
-  padding: 16px 30px 0;
-}
-
-/*
  * A.4.5: the money form used by the three-situations view and the
  * unrecoverable annotation. ../styles.css has no equivalent class (checked
  * before adding this one) — closest precedent is `.hero-product__top`'s
@@ -356,65 +345,10 @@
   min-width: 220px;
 }
 
-/*
- * Task 14: EmptyState.tsx's shared shell. Checked ../styles.css first —
- * `.filter-empty` (prototype's Packages/Work/Dashboard pages) is the
- * closest precedent but is a single bare `<p>` with no room for a hint
- * line or an action button/link, and RULING 5 requires every empty state
- * to name the situation, explain why, and offer a next step — never a bare
- * "нічого не знайдено". Built from the same panel tokens already used by
- * `.blockers-panel`/`.close-checklist` (--line/--paper/--ink/--muted)
- * rather than inventing new ones — zero literal hex (tests/styles.test.ts).
- */
-.empty-state {
-  display: grid;
-  gap: 8px;
-  justify-items: start;
-  padding: 24px 22px;
-  margin: 8px 0;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--paper);
-  color: var(--ink);
-}
-.empty-state b {
-  font-size: 14px;
-}
-.empty-state p {
-  margin: 0;
-  color: var(--muted);
-  font-size: 13px;
-  line-height: 1.5;
-}
-.empty-state .button {
-  margin-top: 4px;
-}
-.empty-state .success-mark {
-  margin-bottom: 0;
-}
-
 /* ==========================================================================
  * Task 15 — Responsive layout and WCAG 2.2 AA contract.
  * ==========================================================================
  */
-
-/*
- * RULING 3 — the frozen stylesheet's two `outline:0` rules
- * (`.search-box input`, `.quantity-input input` — apps/demo/src/styles.css)
- * beat the sheet's own general `input:focus-visible` rule on specificity tie
- * + source order, silently removing the focus ring `/app/work`'s search box
- * actually ships with. Both selectors are matched exactly (2 classes/pseudo
- * + 1 element beats the frozen rule's 1 class + 1 element outright, so this
- * wins regardless of source order) and re-given the "2px Carbon outline at
- * 2px offset" the ruling specifies. `.quantity-input` is not rendered by any
- * apps/demo page today (a prototype-only field-capture pattern), but the
- * ruling asked for both fixed on principle, so both are covered here.
- */
-.search-box input:focus-visible,
-.quantity-input input:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
-}
 
 /*
  * RULING 5 — the compact/full money-form toggle. `formatUahCompact`
@@ -457,16 +391,9 @@
 .roadmap-list dd,
 .legal-doc code,
 .legal-doc__updated,
-.segmented button,
-.search-box input,
-.sidebar__nav a,
 .status,
-.work-table__head span,
-.work-row,
 .money-card small,
 .money-card span,
-.empty-state b,
-.empty-state p,
 .pilot-page > header a,
 .pilot-form label,
 .pilot-form label > small,
@@ -500,106 +427,37 @@ option {
 }
 
 /*
- * Defect fix (task 15 review): the 16px promotion above covers font-size for
- * `.work-table__head span` and `.work-row` (and, via the descendant `<small>`,
- * `.work-row__title small` below), but neither line touched colour — the
- * frozen sheet's own `color:#7a7f7a` (styles.css' `.work-table__head`) and
- * `color:#898e8a` (`.work-row small`) stayed exactly as dense, low-contrast
- * labels meant to read as 8-9px "eyebrow" text. Promoted to 16px and left at
- * those colours, both fail AA body-text contrast (3.66:1 and 3.33:1 — need
- * 4.5:1). `#4c514d` and `#515652` are copied verbatim from styles.css
- * (`.site-header nav a` / `.hero__copy>p`) — no new literal hex.
- *
- * `.work-table__head` sets `color` on the row container, not on its `<span>`
- * children directly, so this only needs to out-specify nothing — it targets
- * the span itself, which has no competing explicit `color` declaration
- * anywhere in the cascade.
- */
-.work-table__head span {
-  color: #4c514d;
-}
-
-/*
- * `.work-row small` (the item-code eyebrow inside `.work-row__title`) has the
- * same specificity bug already fixed once in this file for `.work-row b`
- * (see `.work-row .work-row__label`, below): the <768px card view's
- * `.work-row__title small { font-size:16px }` rule only ever applied inside
- * that one media query, so at >=768px the frozen `.work-row small {
- * color:#898e8a; font-size:8px }` (specificity 0,1,1) still rendered
- * unmodified — sub-16px AND (independent of size) below 4.5:1 at every
- * width, since no rule anywhere set `color` on this element outside this
- * fix. Qualified with both ancestor classes (0,2,1) to beat the frozen rule
- * outright at every width, the same technique the `.work-row__label` fix
- * below already uses for the identical bug shape.
- */
-.work-row .work-row__title small {
-  color: #515652;
-  font-size: 16px;
-}
-
-/*
  * Touch targets >= 44x44px, >= 8px apart (task 15 accessibility contract).
  * The frozen design system sizes most inline controls for a mouse (29-40px
- * is the norm) — every selector below is, again, a control apps/demo's own
+ * is the norm) — every selector below is a control apps/demo's own PUBLIC
  * pages actually render. Standalone links (a logo, a footer link list, a
  * "back" link) are sized here; links embedded inside a sentence (e.g. the
  * "Конфіденційність" link inside /pilot's privacy paragraph) are left at
  * their inline size — WCAG 2.5.8 Target Size (Minimum) explicitly exempts
  * a target "in a sentence, or whose size is otherwise constrained by the
  * line-height of non-target text".
+ *
+ * The internal app no longer appears here: /app/** is Tailwind now, and its
+ * controls carry their own `min-h-11` from src/components/ui/button.tsx and
+ * the shell. Two systems both claiming to own the touch-target floor is how
+ * one of them quietly stops being true.
  */
 .button--small,
-.search-box,
-.sidebar__nav a,
-.segmented button,
 .brand,
 .skip-link,
 .site-menu,
 .pilot-page > header a,
-.landing footer a,
-.app-footer a {
+.landing footer a {
   min-height: 44px;
 }
-.icon-button.sidebar__close,
-.icon-button.mobile-menu,
 .site-menu {
   width: 44px;
   height: 44px;
 }
 .skip-link,
-.landing footer a,
-.app-footer a {
+.landing footer a {
   display: inline-flex;
   align-items: center;
-}
-.segmented {
-  gap: 8px;
-  overflow-x: auto;
-}
-.filter-bar {
-  overflow-x: auto;
-}
-/*
- * Fix round (task 15) — real bug found live, not caught by the scrollWidth
- * check: the frozen stylesheet hides /app/work and /app/evidence's search
- * box outright below 560px (`.filter-bar .search-box{display:none}`,
- * styles.css `@media (max-width:560px)`) — a regression this task must not
- * ship, since RULING 6 requires Task 14's filters to keep working, and the
- * search box is one of them. Restored, and moved onto its own full-width
- * row instead of the desktop's `margin-left:auto` end-alignment, which
- * would otherwise squeeze it into whatever space the (also horizontally
- * scrolling) segmented control leaves on a 360px screen.
- */
-@media (max-width: 767px) {
-  .filter-bar {
-    flex-wrap: wrap;
-  }
-  .filter-bar .search-box {
-    display: flex;
-    width: 100%;
-    min-width: 0;
-    margin-left: 0;
-  }
 }
 
 /*
@@ -616,256 +474,6 @@ option {
   border-bottom: 1px solid var(--line);
 }
 
-/*
- * Task 15: a genuine contentinfo landmark for /app/* (see AppShell.tsx) —
- * previously absent entirely.
- */
-.app-footer {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 8px 20px;
-  padding: 20px max(24px, calc((100vw - 1240px) / 2));
-  color: var(--muted);
-  font-size: 16px;
-  border-top: 1px solid var(--line);
-}
-.app-footer a {
-  font-weight: 700;
-  color: var(--ink);
-}
-
-/*
- * Task 15 three-viewport contract, sidebar half (brief's viewport table):
- *  >=1240px:    Carbon rail, always visible (the frozen, unqueried default
- *               below 1240 is already exactly that — nothing to override).
- *  768-1239px:  collapsed to icons, labels revealed on hover/focus.
- *  <768px:      off-canvas behind a >=44px control.
- *
- * The frozen stylesheet's own off-canvas breakpoint is 820px
- * (apps/demo/src/styles.css `@media (max-width:820px)`), not the brief's
- * 768px — the two rules below both win over it for every property they
- * repeat, at any width where both apply, because styles/demo.css loads
- * after styles.css (see the file header comment) and is later in source
- * order at equal specificity.
- */
-@media (min-width: 768px) and (max-width: 1239px) {
-  .app-frame {
-    grid-template-columns: 76px 1fr;
-  }
-  /* Cancels the frozen 820px query's off-canvas positioning for the
-     768-820px overlap — this range gets the icon rail, not the drawer. */
-  .sidebar {
-    position: sticky;
-    top: 0;
-    width: auto;
-    transform: none;
-  }
-  .sidebar__close,
-  .mobile-menu {
-    display: none;
-  }
-  .sidebar__nav a {
-    justify-content: flex-start;
-    overflow: hidden;
-  }
-  .sidebar__nav a span {
-    display: inline-block;
-    max-width: 0;
-    overflow: hidden;
-    opacity: 0;
-    white-space: nowrap;
-  }
-  .sidebar__nav a:hover span,
-  .sidebar__nav a:focus-visible span {
-    max-width: 140px;
-    opacity: 1;
-    margin-left: 2px;
-  }
-}
-@media (min-width: 768px) and (max-width: 1239px) and (prefers-reduced-motion: no-preference) {
-  .sidebar__nav a span {
-    transition: max-width 0.15s ease, opacity 0.15s ease;
-  }
-}
-
-@media (max-width: 767px) {
-  .app-frame {
-    grid-template-columns: 1fr;
-  }
-  .sidebar {
-    position: fixed;
-    left: 0;
-    top: 0;
-    width: min(300px, 84vw);
-    height: 100vh;
-    z-index: 50;
-    transform: translateX(-100%);
-  }
-  .sidebar--open {
-    transform: translateX(0);
-  }
-  .sidebar__close {
-    display: grid;
-    margin-bottom: 18px;
-  }
-  .mobile-menu {
-    display: grid;
-  }
-  .sidebar-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 40;
-    border: 0;
-    background: rgba(23, 23, 23, 0.45);
-  }
-  .app-header {
-    padding: 0 16px;
-    gap: 12px;
-  }
-}
-@media (max-width: 767px) and (prefers-reduced-motion: no-preference) {
-  .sidebar {
-    transition: transform 0.2s ease;
-  }
-}
-@media (max-width: 767px) and (prefers-reduced-motion: reduce) {
-  .sidebar {
-    transition: none;
-  }
-}
-
-/*
- * Task 15 three-viewport contract, work-table half: "Cards, not horizontal
- * scroll; each card leads with UAH and state" (RULING 6). Applies to both
- * .work-table users (src/pages/App.tsx's "at risk" table and
- * src/pages/Work.tsx's full register — see the shared
- * src/components/WorkTable.tsx). Column DOM order is untouched (title,
- * location, planned, captured, value, status — see WorkTable.tsx's own
- * comment); only the visual position changes here, and only inside this
- * media query, so nothing about the >=768px grid (unconditioned, elsewhere
- * in styles.css) is affected.
- *
- * `.work-row__label` (Локація / Заплановано / Зафіксовано) exists only for
- * the <768px card, where `.work-table__head` is hidden — at >=768px the
- * table header row already labels each column, so the field label is
- * hidden here by default and only switched on inside the <768px query
- * below. Fix round: the first version omitted this >=768px `display:none`
- * entirely, so every cell rendered "ЛокаціяСекція А…" — the label text
- * duplicated ahead of the header-labelled value in the live table.
- *
- * Fix round 2: `.work-row__label` alone (specificity 0,1,0) still lost to
- * the frozen `.work-row b { font-size:9px; overflow:hidden;
- * text-overflow:ellipsis; white-space:nowrap }` (styles.css — specificity
- * 0,1,1, one class + one element) at every width, since the label is a
- * `<b>` inside `.work-row` and therefore matches both selectors — confirmed
- * live via getComputedStyle (9px, not the 13px set below). Qualified with
- * the `.work-row` ancestor class here (0,2,0) to win outright rather than
- * relying on source order.
- */
-.work-row .work-row__label {
-  display: none;
-}
-
-@media (max-width: 767px) {
-  .work-table {
-    min-width: 0;
-  }
-  .full-work-table,
-  .risk-table-panel {
-    overflow: visible;
-  }
-  .work-table__head {
-    display: none;
-  }
-  .work-row {
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 4px 12px;
-    align-items: start;
-    min-height: 0;
-    padding: 16px;
-    margin: 0 16px 10px;
-    border: 1px solid var(--line);
-    border-radius: 12px;
-    background: var(--white);
-  }
-  .risk-table-panel .work-row:first-of-type {
-    margin-top: 16px;
-  }
-  .work-row > span {
-    min-width: 0;
-  }
-  .work-row__value {
-    order: 1;
-    grid-column: 1;
-    align-self: center;
-    font-size: 20px;
-    font-weight: 750;
-    color: var(--ink);
-  }
-  .work-row__status {
-    order: 2;
-    grid-column: 2;
-    justify-self: end;
-    align-self: center;
-  }
-  .work-row__title {
-    order: 3;
-    grid-column: 1 / -1;
-    padding-top: 8px;
-    border-top: 1px solid var(--line);
-  }
-  /*
-   * Defect fix (task 15 review): the font-size:16px rule that used to live
-   * here for `.work-row__title small` (the item-code eyebrow) is now
-   * redundant — `.work-row .work-row__title small`, above this media query,
-   * sets the same 16px at higher specificity (0,2,1 vs this block's 0,1,1)
-   * unconditionally, so it already applied here too. Removed rather than
-   * left duplicated to avoid two rules drifting apart on a future edit.
-   */
-  .work-row__title b {
-    font-size: 16px;
-  }
-  .work-row__location,
-  .work-row__planned,
-  .work-row__captured {
-    grid-column: 1 / -1;
-    display: flex;
-    justify-content: space-between;
-    gap: 8px;
-    font-size: 16px;
-  }
-  .work-row__location {
-    order: 4;
-  }
-  .work-row__planned {
-    order: 5;
-  }
-  .work-row__captured {
-    order: 6;
-  }
-  .work-row .work-row__label {
-    display: inline;
-    flex-shrink: 0;
-    white-space: nowrap;
-    color: var(--muted);
-    font-weight: 700;
-    font-size: 16px;
-  }
-  /*
-   * Fix round (task 15): the title was overflow-truncated to one line with
-   * an ellipsis (inherited from the frozen desktop `.work-row b` rule,
-   * written for a fixed-height table row). A mobile card has vertical room
-   * to spare, so let the full title wrap instead of hiding it — the title
-   * is the one field on this card that identifies which work item it is.
-   */
-  .work-row__title b {
-    overflow: visible;
-    white-space: normal;
-    text-overflow: clip;
-  }
-}
 
 /*
  * Fix round (task 15): `.blockers-panel > header > div` wraps a `<span>`
@@ -914,15 +522,19 @@ option {
  * `!important` declaration priority over a non-important one regardless of
  * source order, so a non-important override would silently lose to it.
  *
- * Only `.sidebar` (AppShell.tsx) is actually rendered by any apps/demo
- * route today — the other 9 selectors are dead CSS in this build (no
- * Login/Field/onboarding/external-review page was ever ported; see
- * qa/routes.mjs's REDIRECTED_ROUTES, all of which land on /demo) and so
- * never fetch anything regardless of what their `background-image` points
- * at. They are overridden anyway, on the same "no asset 404s" hard
- * constraint that governs `.sidebar`: if a later task ever does render one
- * of them, it inherits a working derivative instead of resurrecting a 404
- * against the frozen sheet's original PNG path.
+ * NONE of these selectors is rendered by any apps/demo route as of the
+ * dashboard rewrite. `.sidebar` was the last one — the internal shell no
+ * longer uses that class name (it is Tailwind on `[data-app-rail]`), so the
+ * blueprint texture is no longer fetched at all. The other nine were already
+ * dead: no Login/Field/onboarding/external-review page was ever ported, and
+ * qa/routes.mjs's REDIRECTED_ROUTES all land on /demo.
+ *
+ * They are kept anyway, on the "no asset 404s" hard constraint: the frozen
+ * sheet still points every one of them at a .png that does not exist in
+ * public/, so if a later task ever renders one of these surfaces it inherits
+ * a working .webp derivative instead of resurrecting a 404. Deleting these
+ * overrides would re-arm that trap; the cost of keeping them is ~1KB of CSS
+ * that never matches.
  */
 .mobile-section {
   background:
@@ -937,11 +549,6 @@ option {
 .role-stage__visual {
   background:
     linear-gradient(rgba(242,240,233,.82),rgba(242,240,233,.82)),
-    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
-}
-.sidebar {
-  background:
-    linear-gradient(180deg,rgba(23,23,23,.96),rgba(23,23,23,.99)),
     url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
 }
 .document-preview {
@@ -1045,16 +652,6 @@ option {
 [data-money] {
   font-variant-numeric: tabular-nums;
 }
-
-.work-row__value[data-money] {
-  /* `text-align` is inert on an inline box, whose width hugs its text — the
-     measured right edges still varied by 13px. Filling the grid cell is what
-     actually aligns the column. */
-  display: block;
-  text-align: right;
-  font-weight: 600;
-}
-
 .money-card small {
   font-size: 12px;
   font-weight: 500;
@@ -1065,79 +662,6 @@ option {
   font-size: 26px;
   font-weight: 600;
   line-height: 1.15;
-}
-
-/*
- * Review 07 · B-ii, root cause. `.work-table__head` and `.work-row` are each
- * their OWN grid container (styles.css:349), so `1.4fr 1fr .7fr .7fr 1fr .55fr`
- * resolves independently per row against that row's content. A long
- * «Секція Б · 2 поверх · осі 4-9» pushes its column wider than a short one, so
- * the "table" is really fourteen unrelated grids that only look aligned when
- * the content happens to fit. Measured at 1440px: six different right edges
- * across the money column.
- *
- * `minmax(0, …)` stops content forcing a track wider than its fraction, so
- * every row resolves to identical column widths and the currency column
- * actually lines up. Same fractions, same visual proportions — no protected
- * file touched.
- */
-.work-table__head,
-.work-row {
-  grid-template-columns:
-    minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.7fr)
-    minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 0.55fr);
-}
-
-/* ---------------------------------------------------------------------------
- * Review 07 · Cluster A — the header region (A1, A2, A3)
- *
- * Four reports converged on these bands from different directions, so they are
- * corrected in one pass rather than four.
- *
- * A1/A2  The /pilot CTA sat in its own right-aligned band above every /app
- *        <h1>, belonging to no content group, and pushed the first data row to
- *        421px on /app/work — 47% of a 900px fold spent on chrome before any
- *        work appeared. It now lives at the foot of the sidebar rail.
- * A3     The active nav item was a solid ~231px Lime block while the primary
- *        action is also Lime, collapsing "you are here" and "do this" into one
- *        signal — and a standing allocation against doc 05's Lime <=5% surface
- *        budget on every /app route. A tonal shift plus a Lime edge keeps the
- *        wayfinding unmistakable and returns the Lime fill to actions.
- * ------------------------------------------------------------------------- */
-.sidebar__cta {
-  margin-top: auto;
-  padding: 16px;
-}
-
-.sidebar__cta .button {
-  width: 100%;
-  justify-content: center;
-}
-
-.sidebar__nav a.active {
-  background: rgba(255, 255, 255, 0.07);
-  border-left: 3px solid var(--signal);
-  color: #fff;
-}
-
-/*
- * Review 07 · I1 — desktop work-table type floor.
- *
- * Task 15's >=16px body-text floor reached the <768px card view and never the
- * desktop table: measured 56 elements at 9px on /app/work at 1440px and 16 on
- * /app, against zero at 390px. 9px item codes and column labels on the register
- * an estimator scans all day is a legibility failure, not a density choice.
- *
- * 12px with a 1.35 line-height clears the sub-12px threshold the audit uses
- * while keeping the table dense. Colours are unchanged — they were corrected to
- * 7.27:1 and 7.49:1 in an earlier round and remain compliant at this size.
- */
-.work-row b,
-.work-row small,
-.work-row__label,
-.work-table__head span {
-  font-size: 12px;
-  line-height: 1.35;
 }
 
 /* ---------------------------------------------------------------------------
@@ -1157,29 +681,14 @@ option {
  *     arm's length.
  * ------------------------------------------------------------------------- */
 @media (max-width: 767px) {
-  .search-box input {
-    min-height: 44px;
-  }
-
   /* The privacy link is an unclassed <a> inside a <p> in .pilot-form — it sits
      in running copy, so it cannot become a block without breaking the sentence.
      inline-flex with a 44px min-height grows the hit area while the text keeps
      its place in the line. */
-  .pilot-form p a,
-  .legal-links a,
-  .app-footer a {
+  .pilot-form p a {
     display: inline-flex;
     align-items: center;
     min-height: 44px;
-  }
-
-  /* Needs the descendant form: an earlier fix round added
-     `.work-row .work-row__label` at 16px for the card view, which outranks a
-     bare class selector however late it appears. */
-  .work-row .work-row__label {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--muted);
   }
 }
 
@@ -1196,37 +705,4 @@ option {
 .pilot-page__promise span {
   color: var(--muted);
   font-size: 14px;
-}
-
-/* ---------------------------------------------------------------------------
- * Review 07 · I4 + I7 — evidence scannability and reading measure
- *
- * I4  The at-risk figure sat mid-sentence in body copy, so triaging seven rows
- *     meant reading each one to find the number. It now leads its own line and
- *     inherits the tabular treatment, so the amounts line up down the page.
- * I7  /app/rules ran ~148 characters per line (measured 1182px at 16px) while
- *     /legal/privacy is correctly capped at 672px. Long prose at full container
- *     width is genuinely hard to track back to the next line.
- * ------------------------------------------------------------------------- */
-.evidence-risk {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 4px 8px;
-  margin: 4px 0 0;
-}
-
-.evidence-risk__amount {
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.evidence-risk__qualifier {
-  color: var(--slate);
-}
-
-.rules-page p,
-.rules-page li,
-.rules-page h2 + p {
-  max-width: 68ch;
 }

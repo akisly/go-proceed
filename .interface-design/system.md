@@ -352,7 +352,31 @@ hand-rolled `h-px bg-border` is either always announced or never announced.
 
 ---
 
-## 7. Testing split
+## 7. Who owns what CSS
+
+| file | owns | may it be edited? |
+|---|---|---|
+| `src/styles.css` | the approved design system | **never** — byte-identical to `prototype/src/styles.css`, test-enforced |
+| `src/styles/demo.css` | public routes only (`/`, `/pilot`, `/roadmap`, `/legal/*`, `/demo`) | yes, for public routes |
+| `src/styles/theme.css` | tokens, layer order, the `.aktflow-app` base | yes |
+| Tailwind utilities | everything under `/app/**` | — |
+
+`/app/**` has **no** hand-written CSS. If an internal component needs a rule that
+utilities cannot express, it belongs in `theme.css`'s `base` layer with a reason,
+not in `demo.css`.
+
+The checkpoint-4 pass removed 546 lines from `demo.css` — every rule describing
+a DOM that no longer exists (`.work-row*`, `.work-table*`, `.sidebar*`,
+`.app-frame`, `.app-header`, `.app-footer`, `.filter-bar`, `.segmented`,
+`.search-box`, `.empty-state*`, `.evidence-risk*`, `.rules-page*`). Two systems
+both claiming to own the touch-target floor or the type floor is how one of them
+quietly stops being true.
+
+Equivalence on the public routes was proven, not assumed: every computed
+property of every element and pseudo-element on `/pilot` (240 rows) is identical
+before and after, as is all geometry.
+
+## 8. Testing split
 
 Adding jsdom is not approved.
 
