@@ -1087,3 +1087,35 @@ option {
     minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.7fr)
     minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 0.55fr);
 }
+
+/* ---------------------------------------------------------------------------
+ * Review 07 · Cluster A — the header region (A1, A2, A3)
+ *
+ * Four reports converged on these bands from different directions, so they are
+ * corrected in one pass rather than four.
+ *
+ * A1/A2  The /pilot CTA sat in its own right-aligned band above every /app
+ *        <h1>, belonging to no content group, and pushed the first data row to
+ *        421px on /app/work — 47% of a 900px fold spent on chrome before any
+ *        work appeared. It now lives at the foot of the sidebar rail.
+ * A3     The active nav item was a solid ~231px Lime block while the primary
+ *        action is also Lime, collapsing "you are here" and "do this" into one
+ *        signal — and a standing allocation against doc 05's Lime <=5% surface
+ *        budget on every /app route. A tonal shift plus a Lime edge keeps the
+ *        wayfinding unmistakable and returns the Lime fill to actions.
+ * ------------------------------------------------------------------------- */
+.sidebar__cta {
+  margin-top: auto;
+  padding: 16px;
+}
+
+.sidebar__cta .button {
+  width: 100%;
+  justify-content: center;
+}
+
+.sidebar__nav a.active {
+  background: rgba(255, 255, 255, 0.07);
+  border-left: 3px solid var(--signal);
+  color: #fff;
+}

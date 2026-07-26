@@ -167,6 +167,18 @@ export default function AppShell() {
               </NavLink>
             ))}
           </nav>
+          {/* ER-7c: /pilot is the only structured capture surface and the email
+              permits exactly one link, so it needs a reachable entry that is NOT
+              a sidebar nav item. Review 07 · A1/A2: it previously sat in its own
+              right-aligned band ABOVE every /app <h1> (measured y=137 vs 185),
+              belonging to no content group and outranking the page title on a
+              triage screen. At the foot of the rail it stays one click away and
+              stops consuming the fold. */}
+          <div className="sidebar__cta">
+            <NavLink to="/pilot" className="button button--signal" data-testid="pilot-cta">
+              Розкажіть, як у вас
+            </NavLink>
+          </div>
         </aside>
 
         {/* Task 15 fix round: while the drawer is open on a narrow viewport,
@@ -195,14 +207,6 @@ export default function AppShell() {
               <span>AktFlow</span>
             </Link>
           </header>
-          {/* ER-7c: /pilot is the only structured capture surface and the email
-              permits exactly one link, so it needs a reachable entry that is NOT
-              a sidebar item. */}
-          <aside className="pilot-cta">
-            <NavLink to="/pilot" className="button button--signal" data-testid="pilot-cta">
-              Розкажіть, як у вас
-            </NavLink>
-          </aside>
           <Routes>
             <Route index element={<Dashboard />} />
             <Route path="work" element={<Work />} />
