@@ -1,6 +1,13 @@
+import { fileURLToPath, URL } from "node:url";
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // Vitest does not read vite.config.ts here (this is its own config file), so
+  // the alias has to be repeated. tests/nav.test.ts imports AppShell, which
+  // reaches src/components/ui/* and therefore `@/lib/utils`.
+  resolve: {
+    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+  },
   test: {
     // Node environment only. Component/DOM behaviour is asserted by the
     // puppeteer harness in qa/, matching the repo's existing split. No jsdom

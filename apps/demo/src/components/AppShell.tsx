@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom'
-import { Boxes, Compass, ListChecks, Menu, ScanLine, X } from 'lucide-react'
+import { Boxes, Compass, ListChecks, Menu, MessageSquare, ScanLine, X } from 'lucide-react'
 import Dashboard from '../pages/App'
 import Work from '../pages/Work'
 import Evidence from '../pages/Evidence'
 import Rules from '../pages/Rules'
+import { Button } from './ui/button'
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from './ui/tooltip'
 
 /**
  * Exactly three live entries plus one roadmap entry, zero disabled items
  * (spec A.4.9). doc 05 §10's three nav groups are honestly collapsed to what
  * exists; everything else is named once, on /roadmap.
  *
- * Task 15: an `icon` is added to each entry for the 768–1239px "collapsed to
- * icons, labels on hover/focus" rail (see .sidebar__nav in styles/demo.css).
  * `Boxes`/`ScanLine`/`ListChecks` are the exact icons
  * `prototype/src/components/AppShell.jsx` already uses for these same three
  * routes (/app/work, /app/evidence, /app/rules) — read for icon choice only,
@@ -28,29 +28,97 @@ export const SIDEBAR_ITEMS = [
 ] as const
 
 /**
- * Task 15 (RULING 6's <768px off-canvas requirement): the sidebar becomes a
- * translated-offscreen drawer below 768px (`.sidebar` / `.sidebar--open` in
- * styles/demo.css, which moves the frozen stylesheet's 820px off-canvas
- * breakpoint to the brief's 768px). `transform: translateX(-100%)` alone
- * still leaves the drawer's links in the tab order while it is invisible —
- * a real keyboard trap — so `inert` (below) removes them from the
- * accessibility tree whenever the drawer is both narrow-viewport and
- * closed, and restores them the instant either condition changes.
+ * The rail has three states, and they are a contract (task 15's viewport
+ * table), not a preference:
+ *
+ *   <768px       off-canvas drawer behind a >=44px control
+ *   768..1239px  collapsed to 68px of icons, labels in a tooltip
+ *   >=1240px     240px open, labels visible
+ *
+ * Both hooks below read the same two breakpoints the theme defines, so the
+ * behavioural half and the visual half can never drift onto different numbers.
  */
-function useIsNarrowViewport(): boolean {
-  const [isNarrow, setIsNarrow] = useState(() => window.matchMedia('(max-width: 767px)').matches)
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
   useEffect(() => {
-    const mql = window.matchMedia('(max-width: 767px)')
-    const onChange = () => setIsNarrow(mql.matches)
+    const mql = window.matchMedia(query)
+    const onChange = () => setMatches(mql.matches)
     mql.addEventListener('change', onChange)
     return () => mql.removeEventListener('change', onChange)
-  }, [])
-  return isNarrow
+  }, [query])
+  return matches
+}
+
+/**
+ * A tooltip on a labelled link is noise, so it is mounted only in the one
+ * range where the label is not on screen. Note this is a *supplement*: the
+ * label stays in the DOM at every width (visually hidden in the icon range),
+ * so the link's accessible name never depends on the tooltip being reachable.
+ */
+function RailLabel({ children }: { children: string }) {
+  return <span className="truncate md:sr-only wide:not-sr-only">{children}</span>
+}
+
+function RailLink({
+  to,
+  label,
+  icon: Icon,
+  showTooltip,
+  onNavigate,
+}: {
+  to: string
+  label: string
+  icon: typeof Boxes
+  showTooltip: boolean
+  onNavigate: () => void
+}) {
+  const link = (
+    <NavLink
+      to={to}
+      onClick={onNavigate}
+      className={({ isActive }) =>
+        [
+          'group relative flex min-h-11 items-center gap-3 rounded-control px-3',
+          'font-medium transition-colors duration-150 ease-out-strong',
+          'md:justify-center md:px-0 wide:justify-start wide:px-3',
+          isActive ? 'bg-rail-hover text-surface' : 'text-rail-muted hover:bg-rail-hover hover:text-rail-foreground',
+        ].join(' ')
+      }
+    >
+      {({ isActive }) => (
+        <>
+          {/*
+           * Review 07 · A3: "you are here" used to be a solid Lime block, which
+           * collapsed wayfinding and the primary action into one signal and
+           * spent the <=5% Lime budget on every /app route before any action
+           * had been offered. A tonal shift carries the state; a 3px Lime edge
+           * makes it unmistakable. Absolutely positioned rather than a
+           * `border-l`, so the active item's text does not shift 3px sideways
+           * as you navigate.
+           */}
+          {isActive ? (
+            <span aria-hidden="true" className="absolute inset-y-1 left-0 w-[3px] rounded-pill bg-accent" />
+          ) : null}
+          <Icon size={18} aria-hidden="true" />
+          <RailLabel>{label}</RailLabel>
+        </>
+      )}
+    </NavLink>
+  )
+
+  if (!showTooltip) return link
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{link}</TooltipTrigger>
+      <TooltipContent side="right">{label}</TooltipContent>
+    </Tooltip>
+  )
 }
 
 export default function AppShell() {
   const [open, setOpen] = useState(false)
-  const isNarrow = useIsNarrowViewport()
+  const isNarrow = useMediaQuery('(max-width: 767px)')
+  const isIconRail = useMediaQuery('(min-width: 768px) and (max-width: 1239px)')
   const toggleRef = useRef<HTMLButtonElement>(null)
   const closeRef = useRef<HTMLButtonElement>(null)
 
@@ -59,42 +127,42 @@ export default function AppShell() {
   }
 
   /*
-   * Fix round (task 15): focus into the drawer on open, an Escape path, and
-   * focus back to the toggle on close — all via one effect keyed on `open`,
-   * not a direct `.focus()` call inside `closeMenu`. `.app-main` (including
+   * BEHAVIOUR PRESERVED VERBATIM FROM THE PRE-REWRITE SHELL. This is a
+   * presentation rewrite; the drawer's focus contract was established by live
+   * verification in an earlier round and is not being re-derived here. Only
+   * the selectors changed, from the old `.sidebar*` class names to the
+   * `data-*` hooks below — see qa/verify.mjs, which uses the same query.
+   *
+   * Focus into the drawer on open, an Escape path, and focus back to the
+   * toggle on close — all via one effect keyed on `open`, not a direct
+   * `.focus()` call inside `closeMenu`. The main column (including
    * `toggleRef`'s button) is `inert` while the drawer is open; a bare
    * `toggleRef.current?.focus()` called synchronously inside the click/key
-   * handler ran BEFORE React committed the re-render that clears that
-   * `inert`, so the browser silently dropped the focus call and left focus
-   * on <body> (confirmed live: Escape closed the drawer but did not return
-   * focus). The cleanup function below runs after React has committed the
-   * DOM for the render where `open` became false, by which point `inert`
-   * is already cleared, so the focus call actually lands.
+   * handler ran BEFORE React committed the re-render that clears that `inert`,
+   * so the browser silently dropped the focus call and left focus on <body>
+   * (confirmed live: Escape closed the drawer but did not return focus). The
+   * cleanup function below runs after React has committed the DOM for the
+   * render where `open` became false, by which point `inert` is already
+   * cleared, so the focus call actually lands.
    */
   useEffect(() => {
     if (!open) return
     closeRef.current?.focus()
     /*
-     * Defect fix (task 15 review): `inert` on <aside>/<main> alone (plus,
-     * after the fix above, the skip-link and <footer>) stops focus from
-     * ever landing on background content, but it does not make Tab/
-     * Shift+Tab wrap in a single keystroke — a browser's native Tab order
-     * has no "last" element that loops; past the drawer's own last
-     * focusable node, focus normally goes to browser chrome (in a headless
-     * page with none, `document.body`), and a second Tab is needed to
-     * re-enter the document. Explicit wrap-around, matching the WAI-ARIA
-     * APG modal dialog pattern, closes that gap: computed fresh on every
-     * Tab (not cached at open-time) so it stays correct regardless of
-     * DOM order changes. `.sidebar-backdrop` is deliberately included as
-     * the trap's last stop — it is a real, already-focusable `<button>`
-     * (aria-label "Закрити меню"), and the pre-fix live verification above
-     * already established Tab reaching it, straight after the four nav
-     * links, as the correct/expected sequence — only the further leak past
-     * it into <footer> was the bug.
+     * `inert` on the rail/main alone stops focus ever landing on background
+     * content, but it does not make Tab/Shift+Tab wrap in a single keystroke —
+     * a browser's native Tab order has no "last" element that loops. Explicit
+     * wrap-around, matching the WAI-ARIA APG modal dialog pattern, computed
+     * fresh on every Tab (not cached at open-time) so it stays correct
+     * regardless of DOM order changes. The backdrop is deliberately the trap's
+     * last stop — it is a real, already-focusable <button> (aria-label
+     * "Закрити меню").
      */
     function getDrawerFocusable(): HTMLElement[] {
       return Array.from(
-        document.querySelectorAll<HTMLElement>('.sidebar a[href], .sidebar button, .sidebar-backdrop'),
+        document.querySelectorAll<HTMLElement>(
+          '[data-app-rail] a[href], [data-app-rail] button, [data-rail-backdrop]',
+        ),
       )
     }
     function onKeyDown(event: KeyboardEvent) {
@@ -106,9 +174,9 @@ export default function AppShell() {
       const focusable = getDrawerFocusable()
       const first = focusable[0]
       const last = focusable[focusable.length - 1]
-      // `noUncheckedIndexedAccess`: both are `HTMLElement | undefined` by
-      // type even though `getDrawerFocusable()` can only return an empty
-      // array here if the drawer's own markup vanished mid-session.
+      // `noUncheckedIndexedAccess`: both are `HTMLElement | undefined` by type
+      // even though `getDrawerFocusable()` can only return an empty array here
+      // if the drawer's own markup vanished mid-session.
       if (first === undefined || last === undefined) return
       if (event.shiftKey && document.activeElement === first) {
         event.preventDefault()
@@ -120,10 +188,8 @@ export default function AppShell() {
     }
     window.addEventListener('keydown', onKeyDown)
     // Captured now rather than read from the ref inside the cleanup below —
-    // the button this ref points to does not change for the component's
-    // lifetime, but react-hooks/exhaustive-deps flags reading `.current`
-    // inside a cleanup on principle (it could be stale for a ref that DOES
-    // get reassigned), so this satisfies the rule without disabling it.
+    // react-hooks/exhaustive-deps flags reading `.current` inside a cleanup on
+    // principle, so this satisfies the rule without disabling it.
     const toggle = toggleRef.current
     return () => {
       window.removeEventListener('keydown', onKeyDown)
@@ -131,115 +197,206 @@ export default function AppShell() {
     }
   }, [open])
 
+  const drawerHidden = isNarrow && !open
+
   return (
-    <>
-      <div className="app-frame">
-        {/* Task 15 defect fix: the trap only covered <aside>/<main> — the
-            skip-link sits outside both, before <aside> in the DOM, so with
-            neither of them inert, Shift+Tab from the drawer's first
-            focusable element (the close button) escaped backward onto it
-            while the drawer was still visually open. Mirrors <main>'s own
-            `inert={isNarrow && open}` condition: inert exactly when the
-            drawer is the modal surface. */}
+    <TooltipProvider>
+      <div className="aktflow-app grid min-h-screen grid-cols-1 bg-background md:grid-cols-[68px_1fr] wide:grid-cols-[240px_1fr]">
         <a className="skip-link" href="#main-content" inert={isNarrow && open}>
           До основного вмісту
         </a>
-        <aside className={`sidebar${open ? ' sidebar--open' : ''}`} inert={isNarrow && !open}>
-          <button
-            type="button"
-            className="icon-button sidebar__close"
-            onClick={closeMenu}
-            aria-label="Закрити меню"
-            ref={closeRef}
-          >
-            <X size={20} aria-hidden="true" />
-          </button>
-          <nav className="sidebar__nav" aria-label="Основна навігація">
+
+        {/*
+         * THE RAIL. doc 05 puts Carbon at 17-21% of surface; a full-height
+         * 240px rail on a 1440px viewport is ~16.7% of it, so this dark region
+         * IS that budget rather than an extra helping of it. Everything else in
+         * the product is Paper or White.
+         *
+         * 240px against an otherwise unconstrained content column states the
+         * relationship plainly: navigation serves the register, it is not its
+         * peer.
+         */}
+        <aside
+          data-app-rail
+          data-open={open ? 'true' : 'false'}
+          inert={drawerHidden}
+          className={[
+            'z-40 flex flex-col bg-rail text-rail-foreground',
+            // Below md the rail is an overlay drawer, so it leaves the grid.
+            'fixed inset-y-0 left-0 w-[min(300px,84vw)] shadow-drawer',
+            open ? 'translate-x-0' : '-translate-x-full',
+            'motion-safe:transition-transform motion-safe:duration-200 motion-safe:ease-out-strong',
+            // From md up it is a real column again: sticky, full height, and
+            // stopping just under the disclosure strip rather than at the
+            // viewport edge, which would slide the brand out of sight.
+            'md:sticky md:inset-auto md:top-strip md:h-[calc(100vh-var(--spacing-strip))]',
+            'md:w-auto md:translate-x-0 md:shadow-none md:transition-none',
+            'md:border-r md:border-rail-line',
+            /*
+             * NOT `md:items-center`. Measured: it shrank every rail child to
+             * its content box, so at the 68px icon width a nav link's hit area
+             * was 18x44 instead of 36x44 and the /pilot CTA was 16px wide. The
+             * children stay full-width; each one centres its OWN content with
+             * `md:justify-center`, which is the difference between a centred
+             * icon and a collapsed control.
+             */
+            'px-3 py-4 md:px-4 wide:px-3',
+          ].join(' ')}
+        >
+          <div className="mb-6 flex items-center justify-between gap-2 md:mb-8 md:justify-center wide:justify-between">
+            <Link
+              to="/"
+              aria-label="AktFlow — головна"
+              className="brand brand--light flex min-h-11 items-center gap-2.5 rounded-control px-1 md:px-0"
+            >
+              <span className="brand__mark">
+                <span />
+              </span>
+              <span className="md:sr-only wide:not-sr-only">AktFlow</span>
+            </Link>
+            <Button
+              ref={closeRef}
+              type="button"
+              variant="ghost"
+              size="icon"
+              onClick={closeMenu}
+              aria-label="Закрити меню"
+              data-rail-close
+              className="text-rail-muted hover:bg-rail-hover hover:text-rail-foreground md:hidden"
+            >
+              <X size={20} aria-hidden="true" />
+            </Button>
+          </div>
+
+          <nav className="flex flex-col gap-1" aria-label="Основна навігація">
             {SIDEBAR_ITEMS.map(item => (
-              <NavLink
+              <RailLink
                 key={item.to}
                 to={item.to}
-                className={({ isActive }) => (isActive ? 'active' : undefined)}
-                onClick={() => setOpen(false)}
-              >
-                <item.icon size={18} aria-hidden="true" />
-                <span>{item.label}</span>
-              </NavLink>
+                label={item.label}
+                icon={item.icon}
+                showTooltip={isIconRail}
+                onNavigate={closeMenu}
+              />
             ))}
           </nav>
-          {/* ER-7c: /pilot is the only structured capture surface and the email
-              permits exactly one link, so it needs a reachable entry that is NOT
-              a sidebar nav item. Review 07 · A1/A2: it previously sat in its own
-              right-aligned band ABOVE every /app <h1> (measured y=137 vs 185),
-              belonging to no content group and outranking the page title on a
-              triage screen. At the foot of the rail it stays one click away and
-              stops consuming the fold. */}
-          <div className="sidebar__cta">
-            <NavLink to="/pilot" className="button button--signal" data-testid="pilot-cta">
-              Розкажіть, як у вас
-            </NavLink>
+
+          {/*
+           * ER-7c: /pilot is the only structured capture surface and the email
+           * permits exactly one link, so it needs a reachable entry that is NOT
+           * a sidebar nav item. Review 07 · A1/A2 moved it out of a band above
+           * every /app <h1>, where it outranked the page title on a triage
+           * screen, to the foot of the rail — one click away, consuming none of
+           * the fold. It is the single Lime fill in the product.
+           */}
+          <div className="mt-auto pt-6">
+            <Button asChild variant="signal" className="w-full md:px-0 wide:px-4">
+              {/* MessageSquare, not Compass: /roadmap already owns Compass in
+                  the nav above, and at the 68px rail both collapse to icon
+                  only — two different destinations behind one glyph. */}
+              <NavLink to="/pilot" data-testid="pilot-cta">
+                <MessageSquare size={16} aria-hidden="true" />
+                <span className="md:sr-only wide:not-sr-only">Розкажіть, як у вас</span>
+              </NavLink>
+            </Button>
           </div>
         </aside>
 
-        {/* Task 15 fix round: while the drawer is open on a narrow viewport,
-            .app-main sits visually behind the dark backdrop but was still
-            fully focusable — a keyboard user tabbing past the drawer's own
-            links landed on header/pilot-cta/filter controls they could not
-            see were "inside" an open modal-style overlay. `inert` mirrors
-            the sidebar's own condition in reverse: exactly one of the two
-            regions is interactive at a time on a narrow viewport. */}
-        <main className="app-main" id="main-content" tabIndex={-1} inert={isNarrow && open}>
-          <header className="app-header">
-            <button
+        {/*
+         * The content column. `min-w-0` is load-bearing: a grid item defaults
+         * to `min-width: auto`, so the register's own horizontal overflow would
+         * otherwise widen this track and push the whole page sideways instead
+         * of scrolling inside its own panel.
+         */}
+        <div className="flex min-w-0 flex-col">
+          {/*
+           * Below md the rail is off-canvas, so this bar carries the only route
+           * back to it — and the brand, which lives in the rail at every other
+           * width. Above md it is gone entirely: 56px of chrome that repeats
+           * what the rail already says is 56px not spent on the register.
+           */}
+          <header
+            className="sticky top-strip z-30 flex h-14 items-center gap-3 border-b border-border bg-surface px-4 md:hidden"
+            inert={isNarrow && open}
+          >
+            <Button
+              ref={toggleRef}
               type="button"
-              className="icon-button mobile-menu"
+              variant="ghost"
+              size="icon"
               onClick={() => setOpen(true)}
               aria-label="Відкрити меню"
               aria-expanded={open}
-              ref={toggleRef}
+              data-rail-toggle
             >
               <Menu size={20} aria-hidden="true" />
-            </button>
-            <Link className="brand" to="/" aria-label="AktFlow — головна">
+            </Button>
+            <Link className="brand flex min-h-11 items-center gap-2.5" to="/" aria-label="AktFlow — головна">
               <span className="brand__mark">
                 <span />
               </span>
               <span>AktFlow</span>
             </Link>
           </header>
-          <Routes>
-            <Route index element={<Dashboard />} />
-            <Route path="work" element={<Work />} />
-            <Route path="evidence" element={<Evidence />} />
-            <Route path="rules" element={<Rules />} />
-            <Route path="*" element={<Navigate to="/demo" replace />} />
-          </Routes>
-        </main>
-        {open && <button type="button" className="sidebar-backdrop" onClick={closeMenu} aria-label="Закрити меню" />}
+
+          <main
+            className="mx-auto w-full max-w-[1240px] flex-1 px-4 py-6 md:px-6 md:py-8 wide:px-8"
+            id="main-content"
+            tabIndex={-1}
+            inert={isNarrow && open}
+          >
+            <Routes>
+              <Route index element={<Dashboard />} />
+              <Route path="work" element={<Work />} />
+              <Route path="evidence" element={<Evidence />} />
+              <Route path="rules" element={<Rules />} />
+              <Route path="*" element={<Navigate to="/demo" replace />} />
+            </Routes>
+          </main>
+
+          {/*
+           * A genuine contentinfo landmark for /app/*. It is a sibling of
+           * <main> inside a plain <div>, never a descendant of it: the
+           * HTML/ARIA mapping strips a <footer>'s implicit contentinfo role
+           * when it sits inside main/article/aside/nav/section, so nesting it
+           * there would render the same markup carrying no landmark at all.
+           */}
+          <footer className="border-t border-border" inert={isNarrow && open}>
+            {/* The rule spans the column; the content inside it stops at the
+                same 1240px measure as <main>, so the two align rather than the
+                footer running wider than everything it closes off. */}
+            <div className="mx-auto flex w-full max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-1 px-4 py-4 text-foreground-muted md:px-6 wide:px-8">
+              <span>AktFlow — демонстраційний прототип.</span>
+              {/* min-w-11 alongside min-h-11: WCAG 2.5.5 is 44px in BOTH
+                  directions, and «Умови» measures ~46px of text — close enough
+                  to the floor that a font or weight change would silently drop
+                  it under. */}
+              <Link
+                className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold text-foreground"
+                to="/legal/privacy"
+              >
+                Конфіденційність
+              </Link>
+              <Link
+                className="inline-flex min-h-11 min-w-11 items-center justify-center font-semibold text-foreground"
+                to="/legal/terms"
+              >
+                Умови
+              </Link>
+            </div>
+          </footer>
+        </div>
+
+        {open ? (
+          <button
+            type="button"
+            data-rail-backdrop
+            className="fixed inset-0 z-30 border-0 bg-carbon/45 md:hidden"
+            onClick={closeMenu}
+            aria-label="Закрити меню"
+          />
+        ) : null}
       </div>
-      {/*
-       * Task 15: a genuine contentinfo landmark for /app/*, which previously
-       * had none — and no way back to "/" other than the browser's own back
-       * button. Deliberately a sibling of .app-frame, not a child: .app-frame
-       * is a fixed two-column grid (sidebar + main), and a third grid child
-       * would auto-place into row 2 of the sidebar's own 238px column rather
-       * than spanning full width. Nesting it inside <main> instead was also
-       * rejected — the HTML/ARIA mapping strips a <footer>'s implicit
-       * contentinfo role when it is a descendant of <main> (or
-       * article/aside/nav/section), so it would render but carry no landmark
-       * at all.
-       *
-       * Task 15 defect fix: also outside the old <aside>/<main>-only inert
-       * boundary — Tab from the last nav link, through the (correctly
-       * non-inert) backdrop, was landing 4000+px below the viewport on
-       * "Конфіденційність" while the drawer was still open. Same
-       * `isNarrow && open` condition as <main> and the skip-link above.
-       */}
-      <footer className="app-footer" inert={isNarrow && open}>
-        <span>AktFlow — демонстраційний прототип.</span>
-        <Link to="/legal/privacy">Конфіденційність</Link>
-        <Link to="/legal/terms">Умови</Link>
-      </footer>
-    </>
+    </TooltipProvider>
   )
 }

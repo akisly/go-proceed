@@ -401,6 +401,36 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
       }
     }
 
+    // Dashboard rewrite: the rail is `position: sticky` and has to come to rest
+    // directly under the disclosure strip, which is also sticky and paints
+    // over it. That offset is a hardcoded number in the theme (`--spacing-strip`)
+    // because the strip's rendered height (37px) is not its declared
+    // `min-height` (36px) — line-height decides it. Assert the two still agree,
+    // so a copy or type change to the strip cannot silently slide the rail's
+    // brand under it, or open a gap of bare page above the rail.
+    if (route === '/app') {
+      const offsets = await page.evaluate(() => {
+        const strip = document.querySelector('[data-testid="disclosure-strip"]')
+        const rail = document.querySelector('[data-app-rail]')
+        if (!strip || !rail) return null
+        return {
+          stripHeight: Math.round(strip.getBoundingClientRect().height),
+          railStickyTop: parseFloat(getComputedStyle(rail).top),
+          railPosition: getComputedStyle(rail).position,
+        }
+      })
+      if (offsets === null) {
+        ctx.findings.push('/app: expected both [data-testid="disclosure-strip"] and [data-app-rail] to be present')
+      } else if (offsets.railPosition !== 'sticky') {
+        ctx.findings.push(`/app: expected the rail to be position:sticky at 1440px, got ${offsets.railPosition}`)
+      } else if (Math.round(offsets.railStickyTop) !== offsets.stripHeight) {
+        ctx.findings.push(
+          `/app: rail sticky top is ${offsets.railStickyTop}px but the disclosure strip renders ` +
+            `${offsets.stripHeight}px tall — update --spacing-strip in src/styles/theme.css`,
+        )
+      }
+    }
+
     // RULING 2: screenshot every shipped route, including /app/rules
     // specifically (it previously shipped a claim the code could not
     // support and was rewritten — a visual record is worth having).
@@ -518,13 +548,21 @@ async function auditJourney(browser, baseUrl, ctx) {
 
 // -----------------------------------------------------------------------
 // RULING 2: the drawer focus trap at 360px. AppShell's own keydown handler
-// computes `.sidebar a[href], .sidebar button, .sidebar-backdrop` fresh on
-// every Tab (see src/components/AppShell.tsx) — this audit uses the exact
-// same selector so it is testing the real trap boundary, not a guess at it.
-// Both the close button and the backdrop share aria-label "Закрити меню"
-// (confirmed by reading AppShell.tsx), so wraps are identified by class
-// name (.sidebar__close vs .sidebar-backdrop), not by aria-label.
+// computes `[data-app-rail] a[href], [data-app-rail] button,
+// [data-rail-backdrop]` fresh on every Tab (see src/components/AppShell.tsx)
+// — this audit uses the exact same selector so it is testing the real trap
+// boundary, not a guess at it. Both the close button and the backdrop share
+// aria-label "Закрити меню" (confirmed by reading AppShell.tsx), so wraps are
+// identified by their data hook, not by aria-label.
+//
+// Dashboard rewrite: these were `.sidebar*` class names until the shell moved
+// to Tailwind. They are now `data-*` attributes precisely so the audit hook and
+// the visual styling cannot be coupled — a class rename during a restyle used
+// to silently turn this whole audit into a no-op, since a `page.click` on a
+// selector matching nothing throws and was caught as "audit crashed" rather
+// than as a failing accessibility contract.
 // -----------------------------------------------------------------------
+const RAIL_FOCUSABLE = '[data-app-rail] a[href], [data-app-rail] button, [data-rail-backdrop]'
 // Review 07 · I5 — touch targets at phone width.
 //
 // The usage context is a site engineer on a building site: outdoors, one hand,
@@ -557,48 +595,89 @@ async function auditTouchTargets(browser, baseUrl, ctx) {
 
 async function auditDrawerFocusTrap(browser, baseUrl, ctx) {
   const url = `${baseUrl}/app/work`
-  const trap = { forwardWrap: null, backwardWrap: null }
+  const trap = { focusableCount: 0, forwardWrap: null, backwardWrap: null }
   const diagnostics = await withPage(browser, async page => {
     await page.setViewport({ width: 360, height: 800 })
     await page.goto(url, { waitUntil: 'networkidle0' })
-    await page.click('.mobile-menu')
-    await page.waitForSelector('.sidebar--open')
+    await page.click('[data-rail-toggle]')
+    await page.waitForSelector('[data-app-rail][data-open="true"]')
 
-    const readActiveElement = () =>
-      page.evaluate(() => {
+    /*
+     * The contract is "the cycle closes", NOT "the cycle closes on this
+     * particular control". The previous version named the two expected
+     * elements outright (`.sidebar__close`, `.sidebar-backdrop`), which meant
+     * that reordering the drawer's own markup — putting the brand ahead of the
+     * close button, as the rewrite did — reported a FAILING focus trap while
+     * the trap was in fact working perfectly. An assertion that fires on a
+     * correct change is worse than no assertion: it trains you to edit the
+     * assertion, which is how a real regression eventually gets waved through.
+     *
+     * So both wrap targets are resolved live from the same query the shell's
+     * own handler uses, and identity is compared against the actual ends of
+     * that list. `count` is asserted too — a one-element list would satisfy
+     * both wraps trivially.
+     */
+    const describeFocus = () =>
+      page.evaluate(selector => {
+        const list = [...document.querySelectorAll(selector)]
         const el = document.activeElement
-        return { tagName: el?.tagName ?? null, className: el && 'className' in el ? String(el.className) : null }
-      })
+        const identify = node =>
+          node instanceof HTMLElement
+            ? {
+                tag: node.tagName,
+                label: (node.getAttribute('aria-label') ?? node.textContent ?? '').trim().slice(0, 32),
+              }
+            : null
+        return {
+          count: list.length,
+          active: identify(el),
+          activeIsFirst: el === list[0],
+          activeIsLast: el === list[list.length - 1],
+        }
+      }, RAIL_FOCUSABLE)
+
+    const focusEnd = which =>
+      page.evaluate(
+        (selector, end) => {
+          const list = document.querySelectorAll(selector)
+          const node = end === 'first' ? list[0] : list[list.length - 1]
+          if (node instanceof HTMLElement) node.focus()
+        },
+        RAIL_FOCUSABLE,
+        which,
+      )
 
     // Forward wrap: Tab from the last focusable element must cycle to the first.
-    await page.evaluate(() => {
-      const list = document.querySelectorAll('.sidebar a[href], .sidebar button, .sidebar-backdrop')
-      const lastEl = list[list.length - 1]
-      if (lastEl instanceof HTMLElement) lastEl.focus()
-    })
+    await focusEnd('last')
     await page.keyboard.press('Tab')
-    trap.forwardWrap = await readActiveElement()
-    if (!trap.forwardWrap.className?.includes('sidebar__close')) {
+    trap.forwardWrap = await describeFocus()
+    trap.focusableCount = trap.forwardWrap.count
+    if (!trap.forwardWrap.activeIsFirst) {
       ctx.findings.push(
-        `drawer focus trap: Tab from the last focusable element should wrap to .sidebar__close, ` +
-          `document.activeElement was ${JSON.stringify(trap.forwardWrap)}`,
+        `drawer focus trap: Tab from the last focusable element should wrap to the first, ` +
+          `document.activeElement was ${JSON.stringify(trap.forwardWrap.active)}`,
       )
     }
 
     // Backward wrap: Shift+Tab from the first focusable element must cycle to the last.
-    await page.evaluate(() => {
-      const list = document.querySelectorAll('.sidebar a[href], .sidebar button, .sidebar-backdrop')
-      const firstEl = list[0]
-      if (firstEl instanceof HTMLElement) firstEl.focus()
-    })
+    await focusEnd('first')
     await page.keyboard.down('Shift')
     await page.keyboard.press('Tab')
     await page.keyboard.up('Shift')
-    trap.backwardWrap = await readActiveElement()
-    if (!trap.backwardWrap.className?.includes('sidebar-backdrop')) {
+    trap.backwardWrap = await describeFocus()
+    if (!trap.backwardWrap.activeIsLast) {
       ctx.findings.push(
-        `drawer focus trap: Shift+Tab from the first focusable element should wrap to .sidebar-backdrop, ` +
-          `document.activeElement was ${JSON.stringify(trap.backwardWrap)}`,
+        `drawer focus trap: Shift+Tab from the first focusable element should wrap to the last, ` +
+          `document.activeElement was ${JSON.stringify(trap.backwardWrap.active)}`,
+      )
+    }
+
+    // A trap over one element wraps onto itself and proves nothing. The drawer
+    // ships a brand link, a close button, four nav links, the /pilot CTA and
+    // the backdrop.
+    if (trap.focusableCount < 8) {
+      ctx.findings.push(
+        `drawer focus trap: expected at least 8 focusable elements in the drawer, found ${trap.focusableCount}`,
       )
     }
   })
@@ -739,7 +818,7 @@ async function main() {
       ctx.findings.push(`generated CSS colour audit: crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
     }
 
-    let drawerFocusTrap = { forwardWrap: null, backwardWrap: null }
+    let drawerFocusTrap = { focusableCount: 0, forwardWrap: null, backwardWrap: null }
     try {
       drawerFocusTrap = await auditDrawerFocusTrap(browser, baseUrl, ctx)
     } catch (err) {
