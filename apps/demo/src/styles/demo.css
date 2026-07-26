@@ -1182,3 +1182,18 @@ option {
     color: var(--muted);
   }
 }
+
+/* Review 07 · I2 — the reciprocity promise now sits above the first field,
+   where it can influence the decision to start typing rather than confirming
+   one already made. Quiet by design: it is a promise, not a sales pitch. */
+.pilot-page__promise {
+  margin: 0 0 24px;
+  color: var(--slate);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+.pilot-page__promise span {
+  color: var(--muted);
+  font-size: 14px;
+}

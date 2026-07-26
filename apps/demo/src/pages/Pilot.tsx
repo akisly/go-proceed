@@ -278,7 +278,7 @@ export default function Pilot() {
             Ми отримали назву компанії, контактний email і ваші відповіді про те, як зараз влаштовано фіксування
             фото й обсягів, зберігання файлів та підготовку закриття періоду.
           </p>
-          <p>Прочитаю це особисто і напишу у відповідь на вказаний email.</p>
+          <p>Прочитаю це особисто і відповім протягом 2 робочих днів на вказаний email. — Олександр</p>
           <p>
             Щоб попросити видалення надісланих відповідей, напишіть на <code>{CONTACT_EMAIL}</code>.
           </p>
@@ -310,7 +310,23 @@ export default function Pilot() {
             <p>
               Це не форма реєстрації в продукт — кілька запитань про ваш поточний процес, щоб зрозуміти, чи підійде
               AktFlow вашим об’єктам. Обов’язкові лише «Компанія» і «Email»; решта — за бажанням, і чим детальніше
-              ви опишете свій процес, тим краще ми його зрозуміємо.
+              ви опишете свій процес, тим краще я його зрозумію.
+            </p>
+            {/*
+              Review 07 · I2. The form asks for about ten minutes of detail about
+              a company's internal process, and the only thing offered in return
+              — «Прочитаю це особисто і напишу у відповідь» — sat on the SUCCESS
+              screen, visible only after the work was already done. At the moment
+              the visitor decides whether to start typing there was no time
+              estimate, no name and no statement of what comes back.
+              Founder-confirmed values: signature «Олександр», commitment
+              «Відповім протягом 2 робочих днів.»
+            */}
+            <p className="pilot-page__promise">
+              Це займе близько 10 хвилин. Я прочитаю відповіді особисто — не бот і не відділ продажів — і відповім
+              протягом 2 робочих днів на вказаний email. Дзвонити не буду.
+              <br />
+              <span>— Олександр, автор AktFlow</span>
             </p>
           </div>
 
