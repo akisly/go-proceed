@@ -3,7 +3,6 @@ import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FORBIDDEN_CLAIM_PATTERNS } from '../qa/forbidden-claims.mjs'
-import { PLACEHOLDER_TOKEN_PATTERN_GLOBAL } from '../qa/placeholder-tokens.mjs'
 
 // RULING 1 (task 11): bare __dirname does not exist in this ESM package —
 // derived the same way tests/styles.test.ts already does.
@@ -39,38 +38,21 @@ describe('GA-gated states', () => {
 })
 
 /**
- * Fix round (final review, finding I1) — nothing previously guarded against
- * an unreplaced `{{TOKEN}}` placeholder (e.g. `{{CONTACT_EMAIL}}`,
- * `{{FORM_PROCESSOR}}` — see the LAUNCH BLOCKER comments in
- * src/pages/Pilot.tsx and src/pages/Legal.tsx) reaching a real deploy. A
- * build today would produce a live `mailto:{{CONTACT_EMAIL}}` link. This is
- * the last mechanical check standing between that and a shipped page, so it
- * is written to FAIL LOUDLY, not warn — see ../qa/placeholder-tokens.mjs for
- * the shared pattern and the reasoning for why this must stay a hard gate.
- *
- * Both tokens are genuinely unresolved in this codebase as of this writing,
- * so this test currently, correctly, FAILS — confirmed by running it. That
- * is not a bug to quietly fix by loosening the pattern or excluding a file;
- * it is the guard doing exactly its job ahead of an actual deploy. Whether
- * to replace the tokens with real values now, or leave this red until a
- * monitored contact address and (if ever used) a form processor are
- * available, is a product decision for a human, not something this fix
- * round invents a plausible-looking placeholder to paper over.
+ * Fix round (final review, finding I1) — an earlier version of this file
+ * asserted no unreplaced `{{TOKEN}}` placeholder (e.g. `{{CONTACT_EMAIL}}`,
+ * `{{FORM_PROCESSOR}}`) appears in src/, as a test in the DEFAULT suite. A
+ * subsequent review round correctly identified that as its own defect: both
+ * tokens are genuinely unresolved today, so that test failed on every run,
+ * meaning `pnpm test` could never be green — which trains everyone to
+ * ignore red, and hides the other ~88 genuine tests behind a known,
+ * deliberate failure. That check now lives in `qa/preflight.mjs`
+ * (`pnpm --filter @aktflow/demo preflight`), a separate, explicit,
+ * deploy-time gate documented as a hard prerequisite in README.md §3 — not
+ * part of the default test/CI suite. `qa/verify.mjs`'s bundle scan still
+ * *reports* any surviving tokens (non-failing, alongside `missingAssets`) so
+ * a routine QA run keeps them visible without going red over them. See
+ * `../qa/placeholder-tokens.mjs` for the still-shared pattern.
  */
-describe('deploy-blocking placeholder tokens', () => {
-  it('contains no unreplaced {{TOKEN}} placeholder in src/ before deploy', () => {
-    const corpus = allSource(srcDir)
-    const matches = corpus.match(PLACEHOLDER_TOKEN_PATTERN_GLOBAL)
-    if (matches !== null) {
-      const unique = [...new Set(matches)].sort()
-      throw new Error(
-        `LAUNCH BLOCKER: found unreplaced placeholder token(s) in src/: ${unique.join(', ')}. ` +
-          'Each one must be replaced with a real, deployment-ready value before this site is deployed ' +
-          '(see the LAUNCH BLOCKER comments in src/pages/Pilot.tsx and src/pages/Legal.tsx).',
-      )
-    }
-  })
-})
 
 /**
  * Fix round 1: the "absent-capability claims" block above only proves each

@@ -457,14 +457,22 @@ async function scanBundleForForbiddenClaims(distDir, ctx) {
 }
 
 /**
- * Fix round (final review, finding I1) — the built-bundle counterpart to
- * tests/claims.test.ts's "deploy-blocking placeholder tokens" describe
- * block. Same shared pattern (./placeholder-tokens.mjs), same intent: this
- * is a FAILING gate, not a warning, and both tokens ({{CONTACT_EMAIL}},
- * {{FORM_PROCESSOR}}) are genuinely unresolved as of this writing, so this
- * scan currently, correctly, fails a real QA run against dist/ — a deploy
- * today would ship a live `mailto:{{CONTACT_EMAIL}}` link, exactly what
- * this scan exists to catch before it reaches a real subcontractor.
+ * Fix round (final review, finding I1, then re-scoped by a follow-up review
+ * round) — the built-bundle counterpart to the deploy-blocking placeholder
+ * check. Originally this pushed a `ctx.findings` entry (a FAILING gate) for
+ * any unreplaced `{{TOKEN}}` — but both `{{CONTACT_EMAIL}}` and
+ * `{{FORM_PROCESSOR}}` are genuinely unresolved today, so a routine QA run
+ * would fail forever, training everyone to ignore red and burying the rest
+ * of a real QA report behind a known, deliberate failure.
+ *
+ * The hard, failing gate now lives in `qa/preflight.mjs`
+ * (`pnpm --filter @aktflow/demo preflight`), a separate command documented
+ * in README.md §3 as a hard prerequisite before publishing. This scan stays
+ * in the routine QA run for VISIBILITY only: it populates
+ * `ctx.placeholderTokenOccurrences` (reported as `report.placeholderTokens`,
+ * the same non-failing treatment as `missingAssets` below) so a QA report
+ * still surfaces exactly which tokens and which built files carry them,
+ * without ever affecting `report.ok`.
  */
 async function scanBundleForPlaceholderTokens(distDir, ctx) {
   const allFiles = await walkFiles(distDir)
@@ -473,12 +481,12 @@ async function scanBundleForPlaceholderTokens(distDir, ctx) {
     const content = await readFile(file, 'utf8')
     const relPath = path.relative(distDir, file)
     const matches = content.match(PLACEHOLDER_TOKEN_PATTERN_GLOBAL)
-    if (matches) {
-      const unique = [...new Set(matches)].sort()
-      ctx.findings.push(
-        `bundle scan: LAUNCH BLOCKER — unreplaced placeholder token(s) ${unique.join(', ')} found in ${relPath}. ` +
-          'Each one must be replaced with a real, deployment-ready value before this site is deployed.',
-      )
+    if (!matches) continue
+    for (const token of new Set(matches)) {
+      if (!ctx.placeholderTokenOccurrences.has(token)) {
+        ctx.placeholderTokenOccurrences.set(token, new Set())
+      }
+      ctx.placeholderTokenOccurrences.get(token).add(relPath)
     }
   }
 }
@@ -495,6 +503,10 @@ async function main() {
   const ctx = {
     findings: [],
     missingAssetCounts: new Map(),
+    // Fix round (I1 re-scope): token -> Set<relative dist/ path>. Populated
+    // by scanBundleForPlaceholderTokens, never pushed to `findings` — see
+    // that function's comment for why this is report-only, not a gate.
+    placeholderTokenOccurrences: new Map(),
     shotNames: [],
   }
 
@@ -549,6 +561,13 @@ async function main() {
       .map(([url, occurrences]) => ({ url, occurrences }))
       .sort((a, b) => a.url.localeCompare(b.url))
 
+    // Fix round (I1 re-scope): same non-failing treatment as missingAssets
+    // above — visible in the report, never a cause for report.ok === false.
+    // The hard, failing gate is `pnpm --filter @aktflow/demo preflight`.
+    const placeholderTokens = [...ctx.placeholderTokenOccurrences.entries()]
+      .map(([token, files]) => ({ token, files: [...files].sort() }))
+      .sort((a, b) => a.token.localeCompare(b.token))
+
     // RULING 4: this report must be honest about what it does not check —
     // a green run means "no known claim class reappeared and every shipped
     // surface renders", not "this deployment is fully verified".
@@ -582,6 +601,12 @@ async function main() {
       // This whole category must drop to 0 kinds once Task 17 ships those
       // files (favicon aside).
       missingAssets,
+      // Fix round (I1 re-scope): unreplaced {{TOKEN}} placeholders found in
+      // the built bundle — informational only, does not affect `ok`. Empty
+      // once both {{CONTACT_EMAIL}} and {{FORM_PROCESSOR}} are replaced;
+      // non-empty today. `pnpm --filter @aktflow/demo preflight` is the
+      // command that actually fails on this — see README.md §3.
+      placeholderTokens,
       journey,
       drawerFocusTrap,
       summary: {
@@ -591,6 +616,7 @@ async function main() {
         bundleFilesScanned,
         missingAssetKinds: missingAssets.length,
         missingAssetOccurrences: missingAssets.reduce((sum, a) => sum + a.occurrences, 0),
+        placeholderTokenKinds: placeholderTokens.length,
       },
       notCovered,
     }
@@ -607,6 +633,15 @@ async function main() {
         `${journey.steps.length}-step journey, drawer focus trap, ${bundleFilesScanned} bundle files scanned. ` +
         `${missingAssets.length} known missing asset(s) (${report.summary.missingAssetOccurrences} occurrence(s)) — see qa-output/qa-report.json.`,
     )
+    if (placeholderTokens.length > 0) {
+      // Deliberately console.warn, not console.error — this must never
+      // affect the exit code. `pnpm --filter @aktflow/demo preflight` is
+      // the command that fails on this before a real deploy (README.md §3).
+      console.warn(
+        `NOTE (not a failure): ${placeholderTokens.length} unreplaced placeholder token(s) still in the built bundle ` +
+          `(${placeholderTokens.map(t => t.token).join(', ')}). Run "pnpm --filter @aktflow/demo preflight" before deploying.`,
+      )
+    }
   } finally {
     await browser.close()
     await closeServer()

@@ -98,6 +98,23 @@ misdescribe who actually receives submitted data (exactly the failure the
 disclosure exists to prevent — see the full comment blocks at the source
 locations above).
 
+**Hard prerequisite: `pnpm --filter @aktflow/demo preflight` must exit `0`
+before this site is published.** It mechanically scans `src/` for the
+literal `{{TOKEN}}` pattern and fails, naming every unreplaced token and the
+file(s) it lives in, if either row of the table above is still a
+placeholder — which, as of this writing, it is: this command fails today.
+This is deliberately **not** part of `pnpm test` or `pnpm qa` (both of those
+must stay green for ordinary development and CI); it is a separate, explicit
+command precisely because it is expected to be red until someone actively
+resolves the table above, and a suite that is red by default trains people
+to ignore red. `pnpm qa`'s bundle scan still *reports* any surviving tokens
+(`report.placeholderTokens` in `qa-output/qa-report.json`, alongside
+`missingAssets`) without failing the run, so routine QA output keeps them
+visible. Both `preflight` and the QA report read the same pattern from
+`apps/demo/qa/placeholder-tokens.mjs`, so this list and the mechanical check
+cannot silently drift apart — if you add a third `{{TOKEN}}` anywhere in
+`src/`, update this table in the same change.
+
 **`{{FORM_PROCESSOR}}` is conditional on `VITE_PILOT_ENDPOINT`.** `/pilot`
 (`apps/demo/src/pages/Pilot.tsx:47`) reads `VITE_PILOT_ENDPOINT` at build
 time. Unset (today's state, and Vercel's default if the env var above is
@@ -172,8 +189,9 @@ every asset path actually present in `apps/demo/dist/` does not match it
 ## 5. Local verification before any deploy
 
 ```bash
-pnpm --filter @aktflow/demo build   # -> apps/demo/dist
-pnpm --filter @aktflow/demo qa      # headless-Chrome route/redirect/claim crawl against dist
+pnpm --filter @aktflow/demo build      # -> apps/demo/dist
+pnpm --filter @aktflow/demo qa         # headless-Chrome route/redirect/claim crawl against dist
+pnpm --filter @aktflow/demo preflight  # REQUIRED before publishing — see §3; not part of build/qa
 ```
 
 `apps/demo/qa/verify.mjs` serves `dist/` locally with the same
@@ -182,7 +200,11 @@ route, every never-written redirect, the `/demo` journey, the drawer focus
 trap, and scans the bundle for forbidden claim classes and real company
 names. It writes its report to the gitignored `apps/demo/qa-output/` and
 leaves the tracked tree unchanged — a run should never appear in
-`git status`.
+`git status`. `pnpm qa` passing is evidence the app *works*; it is
+deliberately silent on whether the §3 placeholder tokens are resolved (it
+only reports them, never fails on them) — `pnpm preflight` is the command
+that answers that question, and it is the one that must exit `0` before
+publishing.
 
 Full twenty-item verification gate record (per doc 40 §A.3.8 and this
 task's brief):
