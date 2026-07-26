@@ -3,6 +3,7 @@ import { fileURLToPath } from 'node:url'
 import { resolve, dirname } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { FORBIDDEN_CLAIM_PATTERNS } from '../qa/forbidden-claims.mjs'
+import { PLACEHOLDER_TOKEN_PATTERN_GLOBAL } from '../qa/placeholder-tokens.mjs'
 
 // RULING 1 (task 11): bare __dirname does not exist in this ESM package —
 // derived the same way tests/styles.test.ts already does.
@@ -34,6 +35,40 @@ describe('GA-gated states', () => {
     const corpus = allSource(srcDir)
     expect(corpus).not.toContain('accepted_external')
     expect(corpus).not.toContain('returned_external')
+  })
+})
+
+/**
+ * Fix round (final review, finding I1) — nothing previously guarded against
+ * an unreplaced `{{TOKEN}}` placeholder (e.g. `{{CONTACT_EMAIL}}`,
+ * `{{FORM_PROCESSOR}}` — see the LAUNCH BLOCKER comments in
+ * src/pages/Pilot.tsx and src/pages/Legal.tsx) reaching a real deploy. A
+ * build today would produce a live `mailto:{{CONTACT_EMAIL}}` link. This is
+ * the last mechanical check standing between that and a shipped page, so it
+ * is written to FAIL LOUDLY, not warn — see ../qa/placeholder-tokens.mjs for
+ * the shared pattern and the reasoning for why this must stay a hard gate.
+ *
+ * Both tokens are genuinely unresolved in this codebase as of this writing,
+ * so this test currently, correctly, FAILS — confirmed by running it. That
+ * is not a bug to quietly fix by loosening the pattern or excluding a file;
+ * it is the guard doing exactly its job ahead of an actual deploy. Whether
+ * to replace the tokens with real values now, or leave this red until a
+ * monitored contact address and (if ever used) a form processor are
+ * available, is a product decision for a human, not something this fix
+ * round invents a plausible-looking placeholder to paper over.
+ */
+describe('deploy-blocking placeholder tokens', () => {
+  it('contains no unreplaced {{TOKEN}} placeholder in src/ before deploy', () => {
+    const corpus = allSource(srcDir)
+    const matches = corpus.match(PLACEHOLDER_TOKEN_PATTERN_GLOBAL)
+    if (matches !== null) {
+      const unique = [...new Set(matches)].sort()
+      throw new Error(
+        `LAUNCH BLOCKER: found unreplaced placeholder token(s) in src/: ${unique.join(', ')}. ` +
+          'Each one must be replaced with a real, deployment-ready value before this site is deployed ' +
+          '(see the LAUNCH BLOCKER comments in src/pages/Pilot.tsx and src/pages/Legal.tsx).',
+      )
+    }
   })
 })
 

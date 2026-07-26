@@ -52,6 +52,31 @@ describe('buildMailto', () => {
     expect(url).not.toContain(' ')
     expect(() => new URL(url)).not.toThrow()
   })
+
+  /**
+   * Fix round (final review, finding C1) — the two assertions above pass
+   * even for the buggy implementation: `new URLSearchParams({...}).toString()`
+   * encodes a space as `+`, which contains no literal ' ' character (so
+   * "percent-encodes Cyrillic safely" passed for the wrong reason), and
+   * `URL.searchParams.get('body')` transparently converts `+` back to a
+   * space when READING form-urlencoded query params, which is exactly why
+   * "carries every free-text answer" also passed against the bug — decoding
+   * through `URLSearchParams` hid the defect instead of exercising it.
+   *
+   * These assertions read the RAW url string instead (no `URLSearchParams`
+   * round-trip), which is what a mail client actually receives and
+   * percent-decodes per RFC 6068 — mail clients do not translate `+` back
+   * into a space, only `application/x-www-form-urlencoded` consumers do.
+   * Verified this fails against the pre-fix implementation by temporarily
+   * reverting `buildMailto` to `new URLSearchParams(...).toString()` and
+   * re-running this file: both assertions below failed (the raw `%20` was
+   * literally absent, replaced by `+`), then restored the fix.
+   */
+  it('encodes a space in the body as %20 in the raw URL, never as +', () => {
+    expect(url).toContain('%20')
+    const [, query = ''] = url.split('?')
+    expect(query).not.toMatch(/\+/)
+  })
 })
 
 /**

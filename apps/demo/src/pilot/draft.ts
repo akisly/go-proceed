@@ -82,10 +82,22 @@ export const FIELD_LABEL: Record<keyof PilotDraft, string> = {
   willingToShare: 'Готові показати знеособлений приклад свого процесу',
 }
 
+/**
+ * Fix round (final review, finding C1) — deliberately NOT
+ * `new URLSearchParams(...).toString()`. `URLSearchParams` serialises with
+ * `application/x-www-form-urlencoded` encoding, which renders a space as
+ * `+`. Mail clients percent-decode a `mailto:` URI per RFC 6068, but they do
+ * NOT additionally translate `+` back into a space (that translation is
+ * specific to form-urlencoded bodies, not the `mailto:` scheme) — so the
+ * previous implementation delivered every contractor's answers with `+`
+ * literally standing in for every space, e.g. `Прораб+надсилає+фото+у+Viber`
+ * instead of `Прораб надсилає фото у Viber`. `encodeURIComponent` emits
+ * `%20` for a space, which every mail client decodes correctly.
+ */
 export function buildMailto(to: string, draft: PilotDraft): string {
   const body = FIELDS.map(field => `${FIELD_LABEL[field]}:\n${draft[field]}`).join('\n\n')
-  const params = new URLSearchParams({ subject: `AktFlow · ${draft.company}`, body })
-  return `mailto:${to}?${params.toString()}`
+  const subject = `AktFlow · ${draft.company}`
+  return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 
 /**

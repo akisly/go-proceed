@@ -5,6 +5,7 @@ import process from 'node:process'
 import { launch } from './browser.mjs'
 import { REDIRECTED_ROUTES, SHIPPED_ROUTES } from './routes.mjs'
 import { FORBIDDEN_CLAIM_PATTERNS } from './forbidden-claims.mjs'
+import { PLACEHOLDER_TOKEN_PATTERN_GLOBAL } from './placeholder-tokens.mjs'
 
 // FINDING 1: every generated artifact lands here, and this directory is
 // gitignored. A QA run must leave `git status` clean. prototype/ writes 19
@@ -455,6 +456,33 @@ async function scanBundleForForbiddenClaims(distDir, ctx) {
   return textFiles.length
 }
 
+/**
+ * Fix round (final review, finding I1) — the built-bundle counterpart to
+ * tests/claims.test.ts's "deploy-blocking placeholder tokens" describe
+ * block. Same shared pattern (./placeholder-tokens.mjs), same intent: this
+ * is a FAILING gate, not a warning, and both tokens ({{CONTACT_EMAIL}},
+ * {{FORM_PROCESSOR}}) are genuinely unresolved as of this writing, so this
+ * scan currently, correctly, fails a real QA run against dist/ — a deploy
+ * today would ship a live `mailto:{{CONTACT_EMAIL}}` link, exactly what
+ * this scan exists to catch before it reaches a real subcontractor.
+ */
+async function scanBundleForPlaceholderTokens(distDir, ctx) {
+  const allFiles = await walkFiles(distDir)
+  const textFiles = allFiles.filter(file => TEXT_FILE_EXTENSIONS.has(path.extname(file).toLowerCase()))
+  for (const file of textFiles) {
+    const content = await readFile(file, 'utf8')
+    const relPath = path.relative(distDir, file)
+    const matches = content.match(PLACEHOLDER_TOKEN_PATTERN_GLOBAL)
+    if (matches) {
+      const unique = [...new Set(matches)].sort()
+      ctx.findings.push(
+        `bundle scan: LAUNCH BLOCKER — unreplaced placeholder token(s) ${unique.join(', ')} found in ${relPath}. ` +
+          'Each one must be replaced with a real, deployment-ready value before this site is deployed.',
+      )
+    }
+  }
+}
+
 // -----------------------------------------------------------------------
 // Orchestration. Every audit is wrapped so one crashing selector still
 // yields a full report covering everything else, rather than an early,
@@ -504,6 +532,7 @@ async function main() {
     let bundleFilesScanned = 0
     try {
       bundleFilesScanned = await scanBundleForForbiddenClaims(DIST, ctx)
+      await scanBundleForPlaceholderTokens(DIST, ctx)
     } catch (err) {
       ctx.findings.push(`bundle scan: crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
     }

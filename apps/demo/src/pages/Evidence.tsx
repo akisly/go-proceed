@@ -4,6 +4,7 @@ import { AlertTriangle, Check } from 'lucide-react'
 import { PROJECT } from '../data/project'
 import { formatUah } from '../components/MoneyCard'
 import EmptyState from '../components/EmptyState'
+import { READINESS_LABEL_UK } from '../domain/labels'
 import type { EvidenceKind, WorkItem } from '../domain/types'
 
 /** Not governed by doc 05 §5 (that lock is on ReadinessState only) — a plain, local, honest translation of the evidence kind. */
@@ -31,6 +32,54 @@ function hasBlockingGap(item: WorkItem): boolean {
 }
 function hasOnlyNonBlockingGap(item: WorkItem): boolean {
   return !hasBlockingGap(item) && item.requirements.some(req => req.status === 'pending')
+}
+
+/**
+ * Fix round (final review, finding C3) — /app (App.tsx's AT_RISK_ITEMS) and
+ * this page previously disagreed on what "at risk" means: the dashboard
+ * gates it on `readiness === 'evidence_missing'` (4 rows, 612 300 ₴), while
+ * this page's "Під ризиком" sentence fired for every item with an open
+ * *blocking* requirement regardless of readiness — which pulled in
+ * `not_started` items (work that has not begun, so nothing has been earned
+ * yet, so nothing is currently at risk) and produced a different set (5
+ * rows, 748 900 ₴) two clicks away from the dashboard, for an audience whose
+ * job is reconciling exactly these numbers.
+ *
+ * A `not_started` item with a blocking requirement is still worth listing
+ * here — the open requirement is real and will need to be closed — so the
+ * item stays in the "Вимоги, що блокують подання" section; only the value
+ * claim is gated. `readiness` (not just `hasBlockingGap`) is the single
+ * predicate both pages now share for "is this row's value at risk today".
+ */
+function riskSentence(item: WorkItem): string {
+  if (item.readiness === 'evidence_missing') {
+    return `Під ризиком ${formatUah(item.valueUah)} за цим рядком, доки нижченаведені вимоги не закрито.`
+  }
+  return (
+    `Поточний статус рядка — «${READINESS_LABEL_UK[item.readiness]}»: сума за ним ще не входить у гроші під ` +
+    'ризиком. Вимоги нижче потрібно буде закрити до подання пакета.'
+  )
+}
+
+/**
+ * Fix round (final review, finding C3, the wi-em-0802 case named in the
+ * review) — a `readiness === 'evidence_missing'` item whose only open
+ * requirement is non-blocking (so it lands in the non-blocking section
+ * above, never the blocking one) still counts toward /app's "Гроші під
+ * ризиком" total, because that dashboard gates purely on readiness. Without
+ * this note, the item would appear here with no risk language at all while
+ * silently being part of the dashboard's at-risk sum two clicks away —
+ * itself a smaller version of the same disagreement this fix round exists
+ * to close. Scoped to `evidence_missing` only, so it says nothing for a
+ * `not_started`/`ready_internal`/etc. item with a stray non-blocking gap,
+ * which genuinely is not part of that total.
+ */
+function nonBlockingRiskNote(item: WorkItem): string | null {
+  if (item.readiness !== 'evidence_missing') return null
+  return (
+    `Рядок усе ще має статус «${READINESS_LABEL_UK.evidence_missing}», тому ${formatUah(item.valueUah)} ` +
+    'враховано в сумі «Гроші під ризиком» на дашборді — просто ця конкретна вимога подання пакета не блокує.'
+  )
 }
 
 type GapFilter = 'all' | 'blocking' | 'non-blocking'
@@ -164,9 +213,7 @@ export default function Evidence() {
                   </div>
                   <b>{blockingRequirements.length}</b>
                 </header>
-                <p>
-                  Під ризиком {formatUah(item.valueUah)} за цим рядком, доки нижченаведені вимоги не закрито.
-                </p>
+                <p>{riskSentence(item)}</p>
                 <div className="blocker-list">
                   {blockingRequirements.map(req => (
                     <article key={req.id}>
@@ -192,6 +239,7 @@ export default function Evidence() {
           <p>Ці вимоги ще не закрито, але окремо вони подання пакета не зупиняють.</p>
           {nonBlockingToShow.map(item => {
             const openRequirements = item.requirements.filter(req => req.status === 'pending')
+            const riskNote = nonBlockingRiskNote(item)
             return (
               <article key={item.id} className="panel blockers-panel">
                 <header>
@@ -200,6 +248,7 @@ export default function Evidence() {
                     <b>{item.title}</b>
                   </div>
                 </header>
+                {riskNote && <p>{riskNote}</p>}
                 <div className="blocker-list">
                   {openRequirements.map(req => (
                     <article key={req.id}>

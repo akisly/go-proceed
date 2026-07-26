@@ -116,7 +116,13 @@ export default function Pilot() {
     return { draft: existing ?? EMPTY_DRAFT, restored: existing !== null }
   })
   const [draft, setDraft] = useState<PilotDraft>(initial.draft)
-  const restored = initial.restored
+  // Fix round (final review, finding C2) — was `const restored = initial.restored`,
+  // a value fixed for the component's whole lifetime. Now stateful so
+  // `handleDeleteDraft` below can turn the "Чернетку відновлено" notice off
+  // the moment the visitor actually deletes that restored draft — otherwise
+  // the page would keep claiming a draft was restored after the visitor had
+  // just removed it.
+  const [restored, setRestored] = useState<boolean>(initial.restored)
   const [submitState, setSubmitState] = useState<SubmitState>({ phase: 'idle' })
   // Captured once, from the very first render's `draft` value (restored or
   // empty) — React ignores the argument on every render after the first, so
@@ -207,6 +213,30 @@ export default function Pilot() {
     setSubmitState({ phase: 'error', mailto: result.mailto })
   }
 
+  /**
+   * Fix round (final review, finding C2) — `clearDraft()` previously had
+   * exactly one call site, inside `result.kind === 'sent'` above, which is
+   * only reachable when `VITE_PILOT_ENDPOINT` is configured. With no
+   * endpoint (today's deployment), the outcome is always 'mailto' and the
+   * draft persisted indefinitely with no way for the visitor to remove it —
+   * while both this page and /legal/privacy claimed it would be deleted.
+   * This is the visitor's own real control over that: it clears storage,
+   * resets the in-memory form back to empty, and turns off the "restored"
+   * notice, so the page state matches what actually happened. `EMPTY_DRAFT`
+   * is reused (not a fresh `{ ...EMPTY_DRAFT }`) so `initialDraftRef.current`
+   * and the new `draft` are the same object reference — the debounced
+   * autosave effect above compares by reference and skips saving when they
+   * match, which is what stops it from silently writing an empty draft
+   * straight back into storage a moment after this runs.
+   */
+  function handleDeleteDraft() {
+    clearDraft()
+    setDraft(EMPTY_DRAFT)
+    initialDraftRef.current = EMPTY_DRAFT
+    setRestored(false)
+    setSubmitState({ phase: 'idle' })
+  }
+
   if (submitState.phase === 'sent') {
     return (
       <div className="pilot-page pilot-page--success">
@@ -295,18 +325,30 @@ export default function Pilot() {
 
           {/* RULING 1: no endpoint is provisioned yet, so this is the normal,
               intended submission route today — not an error banner. Same
-              InlineBanner drop-in as above, role="status" preserved. */}
+              InlineBanner drop-in as above, role="status" preserved.
+              Fix round (final review, finding C2): copy corrected — the page
+              cannot detect whether the visitor actually pressed "Надіслати"
+              in their own mail client, so it no longer claims the draft is
+              kept only "until the letter is sent". It now says what is
+              actually true (kept until the visitor removes it themselves)
+              and gives them the means to do that right here, next to the
+              link that opens their mail client — the exact place someone
+              who has just done that will see it. */}
           {submitState.phase === 'mailto' && (
             <InlineBanner ref={bannerRef} tone="success" role="status" icon={<Mail size={20} aria-hidden="true" />}>
               <b>Лист із вашими відповідями готовий</b>
               <span>
                 Натисніть «Відкрити лист», перевірте текст і надішліть його зі своєї поштової програми — до цього
-                моменту нічого не передається нікуди. Відповіді лишаються збереженими у цьому браузері, доки лист
-                не буде надіслано.
+                моменту нічого не передається нікуди. Сайт не може перевірити, чи ви справді натиснули «Надіслати» у
+                своєму поштовому клієнті, тож відповіді лишаються в цьому браузері, доки ви самі не видалите
+                чернетку кнопкою нижче.
                 <br />
                 <a className="button button--outline button--small" href={submitState.mailto}>
                   Відкрити лист
-                </a>
+                </a>{' '}
+                <button type="button" className="button button--outline button--small" onClick={handleDeleteDraft}>
+                  Видалити чернетку
+                </button>
               </span>
             </InlineBanner>
           )}
