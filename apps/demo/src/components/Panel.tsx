@@ -14,9 +14,16 @@ import { cn } from '@/lib/utils'
  * not a set of cards; rounding it like one makes fourteen rows of dense
  * financial data look like a marketing grid.
  */
-function Panel({ className, ...props }: ComponentProps<'section'>) {
+/**
+ * `as` exists for one real distinction, not for generality: a panel that frames
+ * a region of the page is a `<section>`, while a panel that IS one self-contained
+ * record — an evidence card, repeated down a list — is an `<article>`. Nesting a
+ * `<section>` inside a `<section>` to hold a single work item says something
+ * about document structure that is not true.
+ */
+function Panel({ as: Comp = 'section', className, ...props }: ComponentProps<'section'> & { as?: 'section' | 'article' }) {
   return (
-    <section
+    <Comp
       data-slot="panel"
       className={cn('overflow-hidden rounded-panel border border-border bg-surface', className)}
       {...props}

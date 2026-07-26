@@ -27,7 +27,13 @@ import { cn } from '@/lib/utils'
 function Table({ className, ...props }: ComponentProps<'table'>) {
   return (
     <div data-slot="table-container" className="w-full overflow-x-auto">
-      <table data-slot="table" className={cn('w-full min-w-[640px] table-fixed', className)} {...props} />
+      {/*
+       * `text-data` (13px) is the one deliberate step down from the app's 15px
+       * prose base. Fourteen rows of six columns is the only place in this
+       * product where density beats comfort — and it is what lets a whole
+       * reporting period fit in one 900px fold.
+       */}
+      <table data-slot="table" className={cn('w-full min-w-[640px] table-fixed text-data', className)} {...props} />
     </div>
   )
 }

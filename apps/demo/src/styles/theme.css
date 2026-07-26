@@ -254,25 +254,24 @@
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
 
-    /* DENSITY, DECIDED IN ONE PLACE.
+    /* DENSITY, DECIDED IN ONE PLACE — and the default is PROSE, not data.
      *
-     * The same register is read in two postures: at a desk, where the whole
-     * period has to fit in one fold, and on a phone at arm's length on a site,
-     * where it does not. Those want different base sizes, and resolving that
-     * per component is how a codebase ends up with `text-body md:text-data`
-     * sprayed across forty call sites, each one a chance to disagree.
+     * This was the other way round first: a 13px data base at the desk,
+     * stepping up to 15px on a phone. Building /app/evidence and /app/rules on
+     * it showed why that is wrong. Those pages are mostly running copy — the
+     * risk qualifier, the versioning explanation — and a 13px paragraph is
+     * uncomfortable to read at any width, while doc 05 puts body at 15-17 and
+     * 12-13 at metadata. The dense base made the common case wrong and forced
+     * an explicit `text-body` onto every paragraph in the app to fix it.
      *
-     * So the base size is the responsive decision, and everything that is just
-     * "text" inherits it. Explicit `text-*` utilities are reserved for
-     * deliberate steps away from the body — headings, eyebrows, the focal
-     * figure — never for restating the default at a second breakpoint. */
-    font-size: var(--text-body); /* 15px — phone, arm's length */
-  }
-
-  @media (min-width: 768px) {
-    .aktflow-app {
-      font-size: var(--text-data); /* 13px — desk, whole-period density */
-    }
+     * Inverted: the base is 15px everywhere, and the ONE surface that genuinely
+     * needs density — the register table — steps down to `text-data` itself
+     * (see components/ui/table.tsx). One deliberate step down in one component
+     * beats forty deliberate steps up scattered across pages.
+     *
+     * A phone gets 15px too, which is what the field audience needs anyway:
+     * outdoors, one hand, at arm's length. */
+    font-size: var(--text-body);
   }
 
   /* Preflight is not imported (see the file header), and the frozen sheet's

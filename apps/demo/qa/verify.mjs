@@ -274,11 +274,11 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
     // with only a non-blocking gap, in the default (unfiltered) view.
     if (route === '/app/evidence') {
       const blockingCount = await page.$$eval(
-        'section[aria-label="Вимоги, що блокують подання"] > article.blockers-panel',
+        '[data-evidence-group="blocking"] [data-evidence-item]',
         els => els.length,
       )
       const nonBlockingCount = await page.$$eval(
-        'section[aria-label="Вимоги без блокування"] > article.blockers-panel',
+        '[data-evidence-group="non-blocking"] [data-evidence-item]',
         els => els.length,
       )
       if (blockingCount !== 5) {
@@ -286,6 +286,29 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
       }
       if (nonBlockingCount !== 2) {
         ctx.findings.push(`/app/evidence: expected 2 items with only a non-blocking gap, found ${nonBlockingCount}`)
+      }
+
+      // FALSE-CONSEQUENCE GUARD, added after the rewrite shipped exactly this
+      // bug for one build: every card in the blocking section carried the
+      // clause «Ця конкретна вимога подання пакета не блокує», because the
+      // qualifier was derived from the work item alone when it is really a fact
+      // about which SECTION the card is in. The counts above were both correct
+      // and green while the page told the reader the opposite of the truth.
+      //
+      // A word-level check is crude, but this is the one claim on the page that
+      // must never invert, and «не блокує» cannot appear anywhere inside a
+      // section titled "requirements that block submission".
+      const falseNonBlockingClaims = await page.$$eval(
+        '[data-evidence-group="blocking"] [data-evidence-item]',
+        els =>
+          els
+            .filter(el => /не\s+блокує/u.test(el.textContent ?? ''))
+            .map(el => (el.textContent ?? '').trim().slice(0, 40)),
+      )
+      for (const claim of falseNonBlockingClaims) {
+        ctx.findings.push(
+          `/app/evidence: a card in the BLOCKING section claims "не блокує" — "${claim}…"`,
+        )
       }
     }
 
