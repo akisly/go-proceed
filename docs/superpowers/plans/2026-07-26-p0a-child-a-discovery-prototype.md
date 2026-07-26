@@ -929,8 +929,8 @@ const workItems: readonly WorkItem[] = [
 
 export const PROJECT = {
   /** Fictional. No real Ukrainian company, GC or brand may appear here. */
-  name: 'ЖК «Північна брама» · черга 2',
-  customer: 'ТОВ «Мостобуд-Інвест» (вигаданий генпідрядник)',
+  name: 'ЖК «Приклад-Північ» · черга 2',
+  customer: 'ТОВ «Приклад-Буд» (синтетичний генпідрядник)',
   workItems,
 } as const
 ```

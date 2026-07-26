@@ -255,9 +255,12 @@ const workItems: readonly WorkItem[] = [
   },
 ]
 
+// Naming convention: every organisation and site in this dataset uses the «Приклад-*»
+// prefix so it reads as sample data on sight. Never use a plausible real Ukrainian
+// company or residential-complex name here — see the demo's synthetic-data disclosure.
 export const PROJECT = {
   /** Fictional. No real Ukrainian company, GC or brand may appear here. */
-  name: 'ЖК «Північна брама» · черга 2',
-  customer: 'ТОВ «Мостобуд-Інвест» (вигаданий генпідрядник)',
+  name: 'ЖК «Приклад-Північ» · черга 2',
+  customer: 'ТОВ «Приклад-Буд» (синтетичний генпідрядник)',
   workItems,
 } as const
