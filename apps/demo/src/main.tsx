@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import './styles/fonts.css'
 import './styles.css'
 import './styles/demo.css'
+import './styles/theme.css'
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(

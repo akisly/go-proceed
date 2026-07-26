@@ -129,15 +129,28 @@ describe('colour-bearing custom properties', () => {
 })
 
 describe('Tailwind arbitrary colour values', () => {
+  /*
+   * Fixtures are ASSEMBLED, never written as literal class strings.
+   *
+   * Tailwind v4 scans the project for candidates and does not distinguish test
+   * files from UI. Written literally, `bg-[#ff00ff]` here caused Tailwind to
+   * emit real utilities into the production bundle — the colour guard caught
+   * four unapproved colours shipping from this very file. Concatenation keeps
+   * the fixture invisible to the scanner while testing exactly the same input.
+   */
+  const cls = (util: string, colour: string) => `<div className="${util}-[${colour}]" />`
+
   it('extracts arbitrary colours from class names', () => {
-    const found = extractTailwindArbitraryColours('<div className="bg-[#ff0000] text-[oklch(0.7_0.1_140)]" />')
+    const found = extractTailwindArbitraryColours(
+      `${cls('bg', '#ff0000')} ${cls('text', 'oklch(0.7_0.1_140)')}`,
+    )
     expect(found).toContain('#ff0000')
     expect(found.some(f => f.startsWith('oklch('))).toBe(true)
   })
 
   it('fails an unapproved arbitrary colour in JSX', () => {
     const findings = auditTailwindArbitrary({
-      source: '<div className="bg-[#ff00ff]" />',
+      source: cls('bg', '#ff00ff'),
       label: 'Foo.tsx',
       approved: APPROVED,
     })
@@ -146,7 +159,7 @@ describe('Tailwind arbitrary colour values', () => {
 
   it('passes an approved arbitrary colour', () => {
     const findings = auditTailwindArbitrary({
-      source: '<div className="bg-[#c6ff34]" />',
+      source: cls('bg', '#c6ff34'),
       label: 'Foo.tsx',
       approved: APPROVED,
     })

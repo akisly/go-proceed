@@ -1,0 +1,175 @@
+/* ===========================================================================
+ * AktFlow internal dashboard — Tailwind v4 theme layer
+ *
+ * SCOPE
+ * -----
+ * This system governs the INTERNAL application only (`/app/**` and the shared
+ * register embedded in `/demo`). The public routes — `/`, `/pilot`, `/roadmap`,
+ * `/legal/*` — continue to render from the frozen `src/styles.css`, untouched.
+ *
+ * Preflight is deliberately NOT imported. Tailwind's base reset would fight the
+ * 2,110-line approved stylesheet that still styles every public page, and that
+ * sheet is frozen and byte-identical to prototype/src/styles.css by test. Only
+ * the theme and utilities layers are pulled in.
+ *
+ * PALETTE DISCIPLINE
+ * ------------------
+ * `--color-*: initial` clears Tailwind's entire stock colour namespace, so no
+ * slate-500 or blue-600 can be reached by accident. Every token below resolves
+ * to a literal that already exists in prototype/src/styles.css — verified, not
+ * assumed — and qa/colour-audit.mjs fails the build on any colour outside that
+ * set, in any CSS format.
+ *
+ * There is no second design system here. These are semantic *names* for doc 05
+ * values, not new values.
+ * ========================================================================= */
+
+@layer theme, base, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+/* Scope content detection to application source ONLY.
+ *
+ * Tailwind v4 auto-detects candidates across the project. tests/palette.test.ts
+ * contains deliberately-unapproved arbitrary values as fixtures
+ * (unapproved magenta and red fixtures) — Tailwind found them and emitted real
+ * utilities into the production bundle. The colour guard caught it; this stops
+ * it happening. Test and QA sources are not UI and must never generate CSS. */
+@source not '../../dist';
+@source not '../../qa-output';
+@source not '../../tests';
+@source not '../../qa';
+
+@theme {
+  /* ---- Clear the stock namespace. Nothing Tailwind ships is reachable. ---- */
+  --color-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+
+  /* ---- Surfaces -------------------------------------------------------- */
+  /* Paper is the canvas; White is the working surface a register sits on.
+     One hue, shifting only lightness — the sidebar shares the canvas rather
+     than becoming its own coloured world. */
+  --color-background: #fbfbfb;
+  --color-surface: #fff;
+  --color-surface-muted: #f2f3ef;
+  --color-surface-sunken: #ebece9;
+
+  /* Carbon chrome. The rail is the one dark region in the product. */
+  --color-carbon: #171717;
+  --color-carbon-muted: #353936;
+
+  /* ---- Text ------------------------------------------------------------ */
+  /* Four levels. Two is too flat to build hierarchy from. */
+  --color-foreground: #171717; /* 17.93:1 on white */
+  --color-foreground-secondary: #484c5e; /* 8.50:1 — Slate */
+  --color-foreground-muted: #666979; /* 5.86:1 */
+  --color-foreground-subtle: #7a7f7a; /* metadata only, never body */
+
+  /* ---- Structure ------------------------------------------------------- */
+  --color-border: rgba(72, 76, 94, 0.17);
+  --color-border-strong: #e9ebe7;
+
+  /* ---- Accent ---------------------------------------------------------- */
+  /* Lime is the action colour and nothing else. It never carries text on
+     white (1.18:1); it is a ground for Carbon (15.16:1). Budget: <=5%. */
+  --color-accent: #c6ff34;
+  --color-accent-foreground: #171717;
+  --color-accent-ink: #667f12; /* 4.56:1 — accent TEXT, white grounds only */
+
+  /* ---- Semantic -------------------------------------------------------- */
+  --color-warning: #f2b84b;
+  --color-warning-surface: #fff0d3;
+  --color-warning-foreground: #8b560b; /* 5.43:1 on warning-surface */
+  --color-destructive: #e45c55;
+  --color-success-surface: #edf8d2;
+  --color-success-foreground: #526b11;
+  --color-info-surface: #e8eefc;
+  --color-info-foreground: #3756a1;
+
+  /* ---- Readiness ------------------------------------------------------- */
+  /* Seven catalog states collapse to four visual tones. The LABEL always
+     carries the meaning — these only tint it, never replace it. */
+  --color-readiness-ready-surface: #edf8d2;
+  --color-readiness-ready-foreground: #526b11;
+  --color-readiness-attention-surface: #fff0d3;
+  --color-readiness-attention-foreground: #8b560b;
+  --color-readiness-review-surface: #e8eefc;
+  --color-readiness-review-foreground: #3756a1;
+  --color-readiness-idle-surface: #ebece9;
+  --color-readiness-idle-foreground: #353936;
+
+  /* ---- Evidence -------------------------------------------------------- */
+  --color-evidence-satisfied: #526b11;
+  --color-evidence-pending: #8b560b;
+  --color-evidence-blocking: #e45c55;
+
+  /* ---- Type ------------------------------------------------------------ */
+  /* Manrope carries display weight, Inter carries data. Unchanged from doc 05. */
+  --font-display: 'Manrope Variable', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+
+  /* 1.2 minor third from a 13px data base — a register is read, not browsed. */
+  --text-micro: 11px;
+  --text-meta: 12px;
+  --text-data: 13px;
+  --text-body: 15px;
+  --text-h3: 18px;
+  --text-h2: 22px;
+  --text-h1: 26px;
+
+  /* ---- Radii ----------------------------------------------------------- */
+  /* Small and deliberate. A register is not a set of cards. */
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --radius-pill: 999px;
+
+  /* ---- Motion ---------------------------------------------------------- */
+  /* Strong ease-out only; never ease-in, which stalls the first frame. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+/* ===========================================================================
+ * Internal shell scope.
+ *
+ * Everything below applies only inside `.aktflow-app`, so the public routes
+ * are untouched by the new system even though both stylesheets are loaded.
+ * ========================================================================= */
+.aktflow-app {
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+  font-size: var(--text-data);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Every figure in this product is money or a count. Tabular by default here,
+   rather than remembered per component. */
+.aktflow-app [data-numeric],
+.aktflow-app table {
+  font-variant-numeric: tabular-nums;
+}
+
+.aktflow-app :is(h1, h2, h3) {
+  font-family: var(--font-display);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+/* Focus is a visible contract, not a nicety. Slate ring + Lime halo, matching
+   the treatment already used on the public routes so the two never disagree. */
+.aktflow-app :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-foreground-secondary);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 5px rgba(198, 255, 52, 0.34);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aktflow-app *,
+  .aktflow-app *::before,
+  .aktflow-app *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

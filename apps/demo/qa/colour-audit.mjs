@@ -189,9 +189,18 @@ export function parseColour(raw) {
 const COLOUR_LITERAL_RE =
   /#[0-9a-fA-F]{3,8}\b|(?:rgba?|hsla?|oklch|oklab|color-mix)\([^()]*(?:\([^()]*\)[^()]*)*\)/gi
 
+/**
+ * CSS comments are stripped before scanning. A hex value inside a comment is
+ * documentation, not a shipped colour — minifiers drop it entirely — and
+ * flagging it makes the guard fire on its own explanatory notes.
+ */
+function stripCssComments(css) {
+  return css.replace(/\/\*[\s\S]*?\*\//g, ' ')
+}
+
 /** Every colour literal in a CSS (or JSX) string, in source order. */
 export function extractColourLiterals(css) {
-  return (css.match(COLOUR_LITERAL_RE) ?? []).map(raw => raw.trim())
+  return (stripCssComments(css).match(COLOUR_LITERAL_RE) ?? []).map(raw => raw.trim())
 }
 
 /**
