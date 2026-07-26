@@ -321,6 +321,22 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
       }
     }
 
+    // Review 07 · I1: 56 elements rendered at 9px on /app/work at desktop
+    // width, while 390px measured zero — Task 15's >=16px floor reached the
+    // mobile card view and never the desktop table. This runs at the pinned
+    // 1440x900 audit viewport, which is where the defect lives.
+    if (route === '/app/work' || route === '/app') {
+      const tiny = await page.evaluate(() =>
+        [...document.querySelectorAll('*')]
+          .filter(el => el.children.length === 0 && el.textContent.trim())
+          .map(el => ({ px: parseFloat(getComputedStyle(el).fontSize), cls: el.className || el.tagName }))
+          .filter(el => el.px < 12))
+      if (tiny.length > 0) {
+        const worst = [...new Set(tiny.map(t => `${t.px}px ${t.cls}`))].slice(0, 3).join('; ')
+        ctx.findings.push(`${route}: ${tiny.length} elements render below 12px (${worst})`)
+      }
+    }
+
     // Review 07 · B3: the readiness split rendered three hard-coded states
     // summing to 9 beside a denominator reading «з 14 рядків». Five of
     // fourteen rows were unrepresented. On a product whose only asset is

@@ -1119,3 +1119,23 @@ option {
   border-left: 3px solid var(--signal);
   color: #fff;
 }
+
+/*
+ * Review 07 · I1 — desktop work-table type floor.
+ *
+ * Task 15's >=16px body-text floor reached the <768px card view and never the
+ * desktop table: measured 56 elements at 9px on /app/work at 1440px and 16 on
+ * /app, against zero at 390px. 9px item codes and column labels on the register
+ * an estimator scans all day is a legibility failure, not a density choice.
+ *
+ * 12px with a 1.35 line-height clears the sub-12px threshold the audit uses
+ * while keeping the table dense. Colours are unchanged — they were corrected to
+ * 7.27:1 and 7.49:1 in an earlier round and remain compliant at this size.
+ */
+.work-row b,
+.work-row small,
+.work-row__label,
+.work-table__head span {
+  font-size: 12px;
+  line-height: 1.35;
+}
