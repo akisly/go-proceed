@@ -996,3 +996,29 @@ option {
     display: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Review 07 · B1 — landing header link contrast
+ *
+ * `styles.css:409-410` scope the landing header's link colours to `.landing`,
+ * which in the prototype sat on a DARK hero. Task 11's claim scrub removed that
+ * dark treatment but kept the class, so the rules inverted: `#fff` on Paper
+ * measured 1.03:1 and `#b9bdb9` measured 1.84:1 against the header's
+ * rgba(251,251,251,.91). Three of four links were unreadable on the first
+ * screen a recipient sees.
+ *
+ * styles.css is frozen, so the correction lives here. --slate measures 8.5:1
+ * on white and --ink 17.93:1; both clear AA with room. No new hex.
+ * ------------------------------------------------------------------------- */
+.landing .site-header nav a {
+  color: var(--slate);
+}
+
+.landing .site-header nav a:hover,
+.landing .site-header nav a:focus-visible {
+  color: var(--ink);
+}
+
+.landing .site-header .link-button {
+  color: var(--ink);
+}

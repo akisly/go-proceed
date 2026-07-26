@@ -179,6 +179,27 @@ function slugRoute(route) {
 // two routes whose headline number is a direct readout of the dataset —
 // the number on screen matches src/data/project.ts exactly.
 // -----------------------------------------------------------------------
+/** WCAG relative luminance from a computed `rgb(r, g, b)` string. */
+function luminance(rgb) {
+  const [r, g, b] = rgb.match(/\d+/g).slice(0, 3).map(Number)
+  const channel = c => {
+    const s = c / 255
+    return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4
+  }
+  return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)
+}
+
+/**
+ * WCAG 2.x contrast ratio between two computed `rgb(...)` strings.
+ * Lives here rather than in a unit test because it needs real computed
+ * styles from a rendered page, which the node-only vitest env cannot produce.
+ */
+function contrastRatio(foreground, background) {
+  const a = luminance(foreground)
+  const b = luminance(background)
+  return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05)
+}
+
 async function auditShippedRoute(browser, baseUrl, route, ctx) {
   const url = `${baseUrl}${route}`
   const diagnostics = await withPage(browser, async page => {
@@ -227,6 +248,36 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
       }
       if (nonBlockingCount !== 2) {
         ctx.findings.push(`/app/evidence: expected 2 items with only a non-blocking gap, found ${nonBlockingCount}`)
+      }
+    }
+
+    // Review 07 · B1: the landing header's link colours were scoped to
+    // `.landing` in the frozen stylesheet, which in the prototype sat on a
+    // DARK hero. Task 11's claim scrub removed that treatment but kept the
+    // class, inverting three of four links into unreadability.
+    if (route === '/') {
+      const headerLinks = await page.evaluate(() => {
+        const header = document.querySelector('.site-header')
+        if (!header) return []
+        const headerBg = getComputedStyle(header).backgroundColor
+        const pageBg = getComputedStyle(document.body).backgroundColor
+        const opaque = headerBg === 'rgba(0, 0, 0, 0)' ? pageBg : headerBg
+        return [...header.querySelectorAll('a')].map(a => ({
+          text: a.textContent.trim(),
+          color: getComputedStyle(a).color,
+          background: opaque,
+        }))
+      })
+      if (headerLinks.length === 0) {
+        ctx.findings.push('/: expected links in .site-header, found none')
+      }
+      for (const link of headerLinks) {
+        const ratio = contrastRatio(link.color, link.background)
+        if (ratio < 4.5) {
+          ctx.findings.push(
+            `/: header link "${link.text}" contrast ${ratio.toFixed(2)}:1 against ${link.background} (needs 4.5:1)`,
+          )
+        }
       }
     }
 
