@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { NavLink } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { Link, NavLink } from 'react-router-dom'
 import { AlertTriangle, Check } from 'lucide-react'
 import { PROJECT, TODAY } from '../data/project'
 import { isUnrecoverable, readinessTone } from '../domain/readiness'
@@ -98,9 +98,55 @@ export default function Demo() {
   const pendingCount = FOCUS.requirements.filter(r => r.status === 'pending').length
   const satisfiedRequirements = FOCUS.requirements.filter(r => r.status === 'satisfied')
 
+  /*
+   * Task 15 accessibility contract: "/demo steps advance with Enter/Space
+   * and arrow keys." Enter/Space already work for free — "Назад"/"Далі"
+   * below are real <button> elements, and browsers activate buttons on
+   * both keys natively. Arrow-key stepping does not exist natively for a
+   * <button>, so it needs an explicit handler. Scoped to ArrowRight/
+   * ArrowLeft (not Up/Down, which stay free for normal page scrolling) and
+   * skipped whenever focus is on a text-editable control, so a future field
+   * that accepts typed input on this page would not have its own arrow-key
+   * behaviour (cursor movement, native <select> option cycling) hijacked —
+   * defensive today, since no such control exists on this page yet.
+   */
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target
+      if (
+        target instanceof HTMLElement &&
+        (target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName))
+      ) {
+        return
+      }
+      if (event.key === 'ArrowRight') {
+        setStep(previousStep => Math.min(DEMO_STEPS.length - 1, previousStep + 1))
+      } else if (event.key === 'ArrowLeft') {
+        setStep(previousStep => Math.max(0, previousStep - 1))
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [])
+
   return (
-    <main className="onboarding-content">
-      <ol className="demo-progress" aria-label="Кроки демонстрації">
+    <>
+      {/* Task 15: a landmark <header> plus a way back to "/" — previously
+          /demo had neither, so a visitor five steps deep had no route out
+          except the browser's own back button. Same brand markup as
+          Landing.tsx/Pilot.tsx (no new content invented), just wrapped in
+          .app-brand-header (styles/demo.css) instead of each page's own
+          bespoke header treatment, since this page has none of its own. */}
+      <header className="app-brand-header">
+        <Link className="brand" to="/" aria-label="AktFlow — головна">
+          <span className="brand__mark">
+            <span />
+          </span>
+          <span>AktFlow</span>
+        </Link>
+      </header>
+      <main className="onboarding-content">
+        <ol className="demo-progress" aria-label="Кроки демонстрації">
         {DEMO_STEPS.map((s, i) => (
           <li key={s.id} aria-current={i === step ? 'step' : undefined}>
             <span aria-hidden="true">{i + 1}</span>
@@ -275,6 +321,7 @@ export default function Demo() {
           )}
         </div>
       </nav>
-    </main>
+      </main>
+    </>
   )
 }

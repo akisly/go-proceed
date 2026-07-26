@@ -1,8 +1,9 @@
 import { PROJECT, TODAY } from '../data/project'
 import { isUnrecoverable } from '../domain/readiness'
-import MoneyCard, { formatUah } from '../components/MoneyCard'
+import MoneyCard from '../components/MoneyCard'
 import StatusChip from '../components/StatusChip'
 import UnrecoverableNote from '../components/UnrecoverableNote'
+import WorkTable from '../components/WorkTable'
 
 /**
  * Task 10 / A.3.2a hierarchy: money at risk first, readiness split second,
@@ -47,36 +48,7 @@ export default function Dashboard() {
       <section aria-label="Роботи під ризиком">
         <h2>Роботи під ризиком</h2>
         <article className="panel risk-table-panel">
-          <div className="work-table">
-            <div className="work-table__head">
-              <span>Робота</span>
-              <span>Локація</span>
-              <span>Заплановано</span>
-              <span>Зафіксовано</span>
-              <span>Вартість</span>
-              <span>Статус</span>
-            </div>
-            {AT_RISK_ITEMS.map(item => (
-              <div className="work-row" key={item.id}>
-                <span>
-                  <small>{item.code}</small>
-                  <b>{item.title}</b>
-                </span>
-                <span>{item.locationId}</span>
-                <span>
-                  {item.plannedQuantity} {item.unit}
-                </span>
-                <span>
-                  {item.capturedQuantity} {item.unit}
-                </span>
-                <span>{formatUah(item.valueUah)}</span>
-                <span>
-                  <StatusChip state={item.readiness} />
-                </span>
-              </div>
-            ))}
-            {AT_RISK_ITEMS.length === 0 && <p>Наразі немає рядків зі статусом «Бракує доказів».</p>}
-          </div>
+          <WorkTable items={AT_RISK_ITEMS} emptyMessage="Наразі немає рядків зі статусом «Бракує доказів»." />
         </article>
       </section>
 

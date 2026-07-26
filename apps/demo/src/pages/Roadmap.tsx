@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { Link, NavLink } from 'react-router-dom'
 
 /**
  * Conceptual capabilities, Slate-annotated. NOT a feature grid: no icon-in-circle
@@ -20,23 +20,37 @@ const CONCEPTUAL = [
  * A top-level route (see src/App.tsx), not nested under AppShell — unlike
  * the four /app/* pages there is no sidebar here, so this page renders its
  * own <main> rather than relying on AppShell's (Ruling 6).
+ *
+ * Task 15: adds the same landmark <header>/brand-link pattern as Demo.tsx —
+ * this route previously had no way back to "/" other than the browser's
+ * own back button.
  */
 export default function Roadmap() {
   return (
-    <main className="roadmap-page">
-      <h1>Що далі</h1>
-      <p>Нижче — напрям, а не наявні функції. Нічого з цього зараз не працює.</p>
-      <dl className="roadmap-list">
-        {CONCEPTUAL.map(entry => (
-          <div key={entry.title}>
-            <dt>{entry.title}</dt>
-            <dd>{entry.note}</dd>
-          </div>
-        ))}
-      </dl>
-      <NavLink to="/app" className="button button--outline">
-        До робочої області
-      </NavLink>
-    </main>
+    <>
+      <header className="app-brand-header">
+        <Link className="brand" to="/" aria-label="AktFlow — головна">
+          <span className="brand__mark">
+            <span />
+          </span>
+          <span>AktFlow</span>
+        </Link>
+      </header>
+      <main className="roadmap-page">
+        <h1>Що далі</h1>
+        <p>Нижче — напрям, а не наявні функції. Нічого з цього зараз не працює.</p>
+        <dl className="roadmap-list">
+          {CONCEPTUAL.map(entry => (
+            <div key={entry.title}>
+              <dt>{entry.title}</dt>
+              <dd>{entry.note}</dd>
+            </div>
+          ))}
+        </dl>
+        <NavLink to="/app" className="button button--outline">
+          До робочої області
+        </NavLink>
+      </main>
+    </>
   )
 }

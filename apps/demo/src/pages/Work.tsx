@@ -2,8 +2,8 @@ import { useState, type ChangeEvent, type ReactNode } from 'react'
 import { Search } from 'lucide-react'
 import { PROJECT } from '../data/project'
 import { formatUah } from '../components/MoneyCard'
-import StatusChip from '../components/StatusChip'
 import EmptyState from '../components/EmptyState'
+import WorkTable from '../components/WorkTable'
 import { READINESS_LABEL_UK } from '../domain/labels'
 import type { ReadinessState, WorkItem } from '../domain/types'
 
@@ -164,35 +164,7 @@ export default function Work() {
 
       <section className="panel full-work-table" aria-label="Реєстр робіт">
         {visibleItems.length > 0 ? (
-          <div className="work-table">
-            <div className="work-table__head">
-              <span>Робота</span>
-              <span>Локація</span>
-              <span>Заплановано</span>
-              <span>Зафіксовано</span>
-              <span>Вартість</span>
-              <span>Статус</span>
-            </div>
-            {visibleItems.map(item => (
-              <div className="work-row" key={item.id}>
-                <span>
-                  <small>{item.code}</small>
-                  <b>{item.title}</b>
-                </span>
-                <span>{item.locationId}</span>
-                <span>
-                  {item.plannedQuantity} {item.unit}
-                </span>
-                <span>
-                  {item.capturedQuantity} {item.unit}
-                </span>
-                <span>{formatUah(item.valueUah)}</span>
-                <span>
-                  <StatusChip state={item.readiness} />
-                </span>
-              </div>
-            ))}
-          </div>
+          <WorkTable items={visibleItems} />
         ) : (
           <EmptyState
             title="Немає робіт за цим фільтром"
