@@ -314,3 +314,15 @@
 .legal-doc .button {
   margin-top: 28px;
 }
+
+/*
+ * Task 13: /pilot's submit button swaps its label to "Надсилаю…" while a
+ * request is in flight (RULING 5). ../styles.css's `.button` sizes itself to
+ * its content (padding + justify-content:center, no reserved width), so
+ * without a floor the button visibly narrows every time the label shortens.
+ * min-width is set to comfortably fit the longer idle-state label
+ * ("Надіслати відповіді"), so the shorter in-flight label never shrinks it.
+ */
+.pilot-submit {
+  min-width: 220px;
+}
