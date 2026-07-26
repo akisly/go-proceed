@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Check, Mail } from 'lucide-react'
-import { clearDraft, FIELD_LABEL, loadDraft, saveDraft, submitPilotDraft, type PilotDraft } from '../pilot/draft'
+import { clearDraft, draftAsPlainText, FIELD_LABEL, loadDraft, saveDraft, submitPilotDraft, type PilotDraft } from '../pilot/draft'
 import InlineBanner from '../components/InlineBanner'
 
 /**
@@ -115,6 +115,8 @@ export default function Pilot() {
     const existing = loadDraft()
     return { draft: existing ?? EMPTY_DRAFT, restored: existing !== null }
   })
+  // Review 07 · I3: transient result of the copy-to-clipboard fallback.
+  const [copyState, setCopyState] = useState<'idle' | 'copied' | 'failed'>('idle')
   const [draft, setDraft] = useState<PilotDraft>(initial.draft)
   // Fix round (final review, finding C2) — was `const restored = initial.restored`,
   // a value fixed for the component's whole lifetime. Now stateful so
@@ -229,6 +231,25 @@ export default function Pilot() {
    * match, which is what stops it from silently writing an empty draft
    * straight back into storage a moment after this runs.
    */
+  /*
+   * Review 07 · I3. The mailto link stays the primary route; this is the escape
+   * hatch for a machine where it silently does nothing — webmail-only corporate
+   * desktops, where «Відкрити лист» produces no window and no error, and the
+   * visitor's ten minutes of answers die on the device.
+   *
+   * navigator.clipboard rejects on insecure origins and on denied permission,
+   * so failure is caught and reported in Ukrainian rather than thrown. The
+   * mailto path is untouched on either branch.
+   */
+  async function handleCopyAnswers() {
+    try {
+      await navigator.clipboard.writeText(draftAsPlainText(draft))
+      setCopyState('copied')
+    } catch {
+      setCopyState('failed')
+    }
+  }
+
   function handleDeleteDraft() {
     clearDraft()
     setDraft(EMPTY_DRAFT)
@@ -346,9 +367,19 @@ export default function Pilot() {
                 <a className="button button--outline button--small" href={submitState.mailto}>
                   Відкрити лист
                 </a>{' '}
+                <button type="button" className="button button--outline button--small" onClick={handleCopyAnswers}>
+                  Скопіювати відповіді
+                </button>{' '}
                 <button type="button" className="button button--outline button--small" onClick={handleDeleteDraft}>
                   Видалити чернетку
                 </button>
+                {copyState !== 'idle' && (
+                  <span role="status" className="privacy-line">
+                    {copyState === 'copied'
+                      ? 'Відповіді скопійовано — можна вставити їх у будь-який лист.'
+                      : 'Не вдалося скопіювати автоматично. Виділіть текст листа вручну та скопіюйте його.'}
+                  </span>
+                )}
               </span>
             </InlineBanner>
           )}

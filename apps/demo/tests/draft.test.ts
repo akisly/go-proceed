@@ -1,14 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import {
-  buildMailto,
-  clearDraft,
-  loadDraft,
-  parseDraft,
-  saveDraft,
-  serialiseDraft,
-  submitPilotDraft,
-  type PilotDraft,
-} from '../src/pilot/draft'
+import { FIELDS, FIELD_LABEL, buildMailto, clearDraft, draftAsPlainText, loadDraft, parseDraft, saveDraft, serialiseDraft, submitPilotDraft, type PilotDraft } from '../src/pilot/draft'
 
 const draft: PilotDraft = {
   company: 'ТОВ «Приклад»',
@@ -259,5 +250,56 @@ describe('submitPilotDraft', () => {
     // ('sent') outcome does, and that decision belongs to the caller
     // (Pilot.tsx), which only ever calls clearDraft() on 'sent'.
     expect(loadDraft()).toEqual(draft)
+  })
+})
+
+/**
+ * Review 07 · I3. `mailto:` was the only delivery path. On a machine with
+ * webmail only, «Відкрити лист» does nothing and the visitor's answers — the
+ * entire output of this outreach — are lost with no way to recover them.
+ */
+describe('draftAsPlainText', () => {
+  const draft: PilotDraft = {
+    company: 'Приклад-Буд',
+    email: 'a@b.ua',
+    specialisation: 'Електромонтаж',
+    siteCount: '3',
+    capture: 'Фото у Viber',
+    storage: 'Google Drive',
+    returnReason: 'Немає фото до закриття',
+    closingTime: '5 днів',
+    willingToShare: 'Так',
+  }
+
+  it('labels every field so the recipient can read it', () => {
+    const text = draftAsPlainText(draft)
+    for (const label of Object.values(FIELD_LABEL)) {
+      expect(text).toContain(label)
+    }
+  })
+
+  it('contains every answer the visitor typed', () => {
+    const text = draftAsPlainText(draft)
+    for (const value of Object.values(draft)) {
+      expect(text).toContain(value)
+    }
+  })
+
+  it('uses real newlines, not percent-encoded ones', () => {
+    const text = draftAsPlainText(draft)
+    expect(text).toContain('\n')
+    expect(text).not.toContain('%0A')
+    expect(text).not.toContain('%20')
+  })
+
+  it('survives an empty draft without throwing', () => {
+    const empty = Object.fromEntries(FIELDS.map(f => [f, ''])) as unknown as PilotDraft
+    expect(() => draftAsPlainText(empty)).not.toThrow()
+    expect(draftAsPlainText(empty)).toContain(FIELD_LABEL.company)
+  })
+
+  it('preserves multi-line answers a visitor pasted in', () => {
+    const multiline: PilotDraft = { ...draft, capture: 'Рядок 1\nРядок 2\nРядок 3' }
+    expect(draftAsPlainText(multiline)).toContain('Рядок 1\nРядок 2\nРядок 3')
   })
 })

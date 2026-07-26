@@ -94,6 +94,23 @@ export const FIELD_LABEL: Record<keyof PilotDraft, string> = {
  * instead of `Прораб надсилає фото у Viber`. `encodeURIComponent` emits
  * `%20` for a space, which every mail client decodes correctly.
  */
+/**
+ * The same body `buildMailto` encodes, as readable plain text.
+ *
+ * Review 07 · I3: `mailto:` was the only delivery path. On a corporate machine
+ * with webmail only, clicking «Відкрити лист» does nothing at all — no error,
+ * no fallback — and ten minutes of a contractor's answers about their evidence
+ * process die on the device. Those answers are the entire output of this
+ * outreach, so a silent dead end is the most expensive failure this form has.
+ *
+ * This is the copy-and-paste escape hatch. Deliberately identical in content
+ * and order to the mailto body, so whichever route the visitor takes, the
+ * recipient reads the same thing.
+ */
+export function draftAsPlainText(draft: PilotDraft): string {
+  return FIELDS.map(field => `${FIELD_LABEL[field]}:\n${draft[field]}`).join('\n\n')
+}
+
 export function buildMailto(to: string, draft: PilotDraft): string {
   const body = FIELDS.map(field => `${FIELD_LABEL[field]}:\n${draft[field]}`).join('\n\n')
   const subject = `AktFlow · ${draft.company}`
