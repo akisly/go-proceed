@@ -124,8 +124,21 @@ returned-package half — which is the half that matters most.
 
 > **Do not let an easy source quietly redefine what evidence you are looking for.**
 
-A full Track P harvest — filtering the API by works CPV codes and enumerating attachments
-across many tenders — is a worthwhile follow-up and was **not** completed in this pass.
+### Track P harvest attempted 26.07.2026 — supplier identities are NOT publicly reachable
+
+The POST search API **works**: `prozorro.gov.ua/api/search/tenders` with
+`{"cpv":["45310000-3"],"status":["complete"],"page":1}` returns **10,000 electrical-works
+tenders**. But each result exposes only the **procuring entity** — the hospital or municipality
+*buying* the work — plus `tenderID`, `title`, `value` and `status`. The **contractor performing
+the work** lives in `awards[].suppliers[]` on the tender detail, and reaching it needs the
+openprocurement internal UUID:
+
+- `prozorro.gov.ua/api/tenders/{tenderID}` → **404**
+- `public.api.openprocurement.org/api/2.5/tenders?tenderID=…` → **ignores the parameter**,
+  returning the chronological feed from February 2015
+
+Mapping `tenderID` → UUID would require paging the entire feed since 2015. **Yield from this
+source: 0 leads.** It remains the best *document* source (Track P) and a poor *lead* source.
 
 ---
 

@@ -36,16 +36,18 @@ survive contact with a cold consumer-Gmail sender:
 **~0.6 artifact providers from 150 leads.** To reach the doc 12 Stage-0 gate of **≥3 artifact
 providers** at those rates, the implied volume is roughly **800 qualified leads** — not 150.
 
-That number is the argument for the channel mix in §B.0, not for sending harder. It is also why
-`maintenance` being the only in-range bucket after 15 companies matters: at ~10 min/lead
-(ER-8d), 800 leads is ~130 hours of research before the first artifact.
+That number is the argument for the channel mix in §B.0, not for sending harder. It is also what
+makes the B0 yield rate load-bearing: 24 qualified from 62 examined, at ~10 min/lead (ER-8d),
+implies roughly **340 hours of research** to reach 800 qualified leads. That is the real cost of
+the cold path, and it is the strongest argument in this file for Track P, W and C.
 
-### An additional deliverability risk observed in batch 1
+### A deliverability risk measured across the 24 qualified leads
 
-Among the companies that publish an address at all, **free mailboxes (`@ukr.net`, `@gmail.com`)
-are common even at 100+ staff**. Consumer-to-consumer-domain cold mail is filtered aggressively.
-Bounce and silent-drop rates should be watched from the first cohort, and a bounce is `R9` —
-never a prompt to guess a replacement address.
+**8 of the 24 qualified leads (33%) use a free mailbox** (`@ukr.net`, `@gmail.com`, `@i.ua`) —
+including companies with 100+ staff. Contact-type split: 14 department, 9 general, 1
+personal-business. Consumer-to-consumer-domain cold mail is filtered aggressively, so bounce and
+silent-drop rates must be watched from the first cohort. A bounce is `R9` — never a prompt to
+guess a replacement address.
 
 ---
 
