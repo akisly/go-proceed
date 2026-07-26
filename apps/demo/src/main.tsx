@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import '@fontsource-variable/inter'
 import '@fontsource-variable/manrope'
 import './styles.css'
+import './styles/demo.css'
 import App from './App'
 
 createRoot(document.getElementById('root')!).render(
