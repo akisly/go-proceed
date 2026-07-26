@@ -20,3 +20,10 @@ prototype/qa-runtime-tmp/
 
 # Claude Code native worktrees (never commit worktree contents)
 .claude/worktrees/
+
+# Child B discovery — personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)
+discovery/leads.csv
+discovery/outreach-log.csv
+discovery/suppression.csv
+discovery/drafts/
+discovery/*.db
