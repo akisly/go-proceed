@@ -74,3 +74,52 @@
   font-size: 14px;
   line-height: 1.45;
 }
+
+/*
+ * Task 8: the /demo five-step journey's progress stepper and trailing
+ * button cluster. Checked first for a fit in ../styles.css — rejected:
+ * .onboarding__steps assumes a dark aside (its .active text goes white,
+ * which disappears on this page's light background) and .occurrence-steps
+ * hardcodes a 4-column grid for a different step count. Built from the
+ * same tokens instead of either. .onboarding-footer already gives the
+ * back/forward split (flex + space-between) and needs no addition here.
+ */
+.demo-progress {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 6px;
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+}
+.demo-progress li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+.demo-progress li[aria-current='step'] {
+  color: var(--ink);
+}
+.demo-progress li span {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  display: grid;
+  place-items: center;
+  font-size: 10px;
+}
+.demo-progress li[aria-current='step'] span {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: var(--ink);
+}
+.demo-nav__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
