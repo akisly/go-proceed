@@ -1,8 +1,98 @@
-// apps/demo/src/pages/App.tsx — replaced in Task 10
-export default function App() {
+import { PROJECT, TODAY } from '../data/project'
+import { isUnrecoverable } from '../domain/readiness'
+import MoneyCard, { formatUah } from '../components/MoneyCard'
+import StatusChip from '../components/StatusChip'
+import UnrecoverableNote from '../components/UnrecoverableNote'
+
+/**
+ * Task 10 / A.3.2a hierarchy: money at risk first, readiness split second,
+ * work table third. The "at risk" set below is the same evidence_missing
+ * filter that produces the MoneyCard total, so the table under it is a
+ * literal accounting of that number rather than a decorative list — every
+ * row shown sums to exactly what the card claims.
+ */
+const AT_RISK_ITEMS = [...PROJECT.workItems]
+  .filter(item => item.readiness === 'evidence_missing')
+  .sort((a, b) => b.valueUah - a.valueUah)
+
+const UNRECOVERABLE_ITEMS = PROJECT.workItems.filter(item => isUnrecoverable(item, TODAY))
+
+export default function Dashboard() {
+  const atRisk = PROJECT.workItems
+    .filter(item => item.readiness === 'evidence_missing')
+    .reduce((sum, item) => sum + item.valueUah, 0)
+
   return (
     <>
-      <h1>Огляд</h1>
+      <h1>Готовність до закриття періоду</h1>
+      <p>
+        {PROJECT.name} · {PROJECT.customer}
+      </p>
+
+      <section aria-label="Гроші під ризиком">
+        <h2>Гроші під ризиком</h2>
+        <MoneyCard label="Під ризиком" value={atRisk} denominator={`з ${PROJECT.workItems.length} рядків`} />
+      </section>
+
+      <section aria-label="Розподіл готовності">
+        <h2>Розподіл готовності</h2>
+        {(['ready_internal', 'review_pending', 'evidence_missing'] as const).map(state => (
+          <p key={state}>
+            <StatusChip state={state} />
+            <span>{PROJECT.workItems.filter(item => item.readiness === state).length}</span>
+          </p>
+        ))}
+      </section>
+
+      <section aria-label="Роботи під ризиком">
+        <h2>Роботи під ризиком</h2>
+        <article className="panel risk-table-panel">
+          <div className="work-table">
+            <div className="work-table__head">
+              <span>Робота</span>
+              <span>Локація</span>
+              <span>Заплановано</span>
+              <span>Зафіксовано</span>
+              <span>Вартість</span>
+              <span>Статус</span>
+            </div>
+            {AT_RISK_ITEMS.map(item => (
+              <div className="work-row" key={item.id}>
+                <span>
+                  <small>{item.code}</small>
+                  <b>{item.title}</b>
+                </span>
+                <span>{item.locationId}</span>
+                <span>
+                  {item.plannedQuantity} {item.unit}
+                </span>
+                <span>
+                  {item.capturedQuantity} {item.unit}
+                </span>
+                <span>{formatUah(item.valueUah)}</span>
+                <span>
+                  <StatusChip state={item.readiness} />
+                </span>
+              </div>
+            ))}
+            {AT_RISK_ITEMS.length === 0 && <p>Наразі немає рядків зі статусом «Бракує доказів».</p>}
+          </div>
+        </article>
+      </section>
+
+      <section aria-label="Неповоротні рядки">
+        <h2>Неповоротні рядки</h2>
+        <p>Неповоротних рядків: {UNRECOVERABLE_ITEMS.length}</p>
+        {UNRECOVERABLE_ITEMS.map(item => (
+          <article key={item.id}>
+            <span className="eyebrow-chip">{item.code}</span>
+            <p>
+              <b>{item.title}</b>
+            </p>
+            <UnrecoverableNote item={item} today={TODAY} />
+          </article>
+        ))}
+      </section>
     </>
   )
 }

@@ -123,3 +123,39 @@
   align-items: center;
   gap: 10px;
 }
+
+/*
+ * Task 10: /roadmap's page wrapper and annotated list. Checked ../styles.css
+ * first — neither class exists there (confirmed by grep). Deliberately NOT
+ * `display: grid` with columns: the brief requires a single list, not a
+ * feature grid (AI-slop blacklist #2/#3), so this stays a plain vertical
+ * stack of definition-list rows built from the same --line/--muted tokens
+ * everything else here uses.
+ */
+.roadmap-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+.roadmap-page > p {
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+.roadmap-list {
+  margin: 0 0 28px;
+  border-top: 1px solid var(--line);
+}
+.roadmap-list > div {
+  padding: 18px 2px;
+  border-bottom: 1px solid var(--line);
+}
+.roadmap-list dt {
+  margin: 0 0 6px;
+  font-size: 16px;
+  font-weight: 750;
+}
+.roadmap-list dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+}
