@@ -74,8 +74,49 @@ export default function AppShell() {
   useEffect(() => {
     if (!open) return
     closeRef.current?.focus()
+    /*
+     * Defect fix (task 15 review): `inert` on <aside>/<main> alone (plus,
+     * after the fix above, the skip-link and <footer>) stops focus from
+     * ever landing on background content, but it does not make Tab/
+     * Shift+Tab wrap in a single keystroke — a browser's native Tab order
+     * has no "last" element that loops; past the drawer's own last
+     * focusable node, focus normally goes to browser chrome (in a headless
+     * page with none, `document.body`), and a second Tab is needed to
+     * re-enter the document. Explicit wrap-around, matching the WAI-ARIA
+     * APG modal dialog pattern, closes that gap: computed fresh on every
+     * Tab (not cached at open-time) so it stays correct regardless of
+     * DOM order changes. `.sidebar-backdrop` is deliberately included as
+     * the trap's last stop — it is a real, already-focusable `<button>`
+     * (aria-label "Закрити меню"), and the pre-fix live verification above
+     * already established Tab reaching it, straight after the four nav
+     * links, as the correct/expected sequence — only the further leak past
+     * it into <footer> was the bug.
+     */
+    function getDrawerFocusable(): HTMLElement[] {
+      return Array.from(
+        document.querySelectorAll<HTMLElement>('.sidebar a[href], .sidebar button, .sidebar-backdrop'),
+      )
+    }
     function onKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') closeMenu()
+      if (event.key === 'Escape') {
+        closeMenu()
+        return
+      }
+      if (event.key !== 'Tab') return
+      const focusable = getDrawerFocusable()
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      // `noUncheckedIndexedAccess`: both are `HTMLElement | undefined` by
+      // type even though `getDrawerFocusable()` can only return an empty
+      // array here if the drawer's own markup vanished mid-session.
+      if (first === undefined || last === undefined) return
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault()
+        last.focus()
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault()
+        first.focus()
+      }
     }
     window.addEventListener('keydown', onKeyDown)
     // Captured now rather than read from the ref inside the cleanup below —
@@ -93,7 +134,16 @@ export default function AppShell() {
   return (
     <>
       <div className="app-frame">
-        <a className="skip-link" href="#main-content">До основного вмісту</a>
+        {/* Task 15 defect fix: the trap only covered <aside>/<main> — the
+            skip-link sits outside both, before <aside> in the DOM, so with
+            neither of them inert, Shift+Tab from the drawer's first
+            focusable element (the close button) escaped backward onto it
+            while the drawer was still visually open. Mirrors <main>'s own
+            `inert={isNarrow && open}` condition: inert exactly when the
+            drawer is the modal surface. */}
+        <a className="skip-link" href="#main-content" inert={isNarrow && open}>
+          До основного вмісту
+        </a>
         <aside className={`sidebar${open ? ' sidebar--open' : ''}`} inert={isNarrow && !open}>
           <button
             type="button"
@@ -174,8 +224,14 @@ export default function AppShell() {
        * contentinfo role when it is a descendant of <main> (or
        * article/aside/nav/section), so it would render but carry no landmark
        * at all.
+       *
+       * Task 15 defect fix: also outside the old <aside>/<main>-only inert
+       * boundary — Tab from the last nav link, through the (correctly
+       * non-inert) backdrop, was landing 4000+px below the viewport on
+       * "Конфіденційність" while the drawer was still open. Same
+       * `isNarrow && open` condition as <main> and the skip-link above.
        */}
-      <footer className="app-footer">
+      <footer className="app-footer" inert={isNarrow && open}>
         <span>AktFlow — демонстраційний прототип.</span>
         <Link to="/legal/privacy">Конфіденційність</Link>
         <Link to="/legal/terms">Умови</Link>

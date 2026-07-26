@@ -65,17 +65,40 @@
 /*
  * The Red annotation for A.4.5's unrecoverable case (spec A.3.3, decision
  * D3). --red already exists in ../styles.css; no fallback is needed here.
+ *
+ * Defect fix (task 15 review): promoting the sentence to 16px for the
+ * body-text floor made `color: var(--red)` (#e45c55) an AA body-text
+ * failure — 3.40:1 on Paper, and --red measures only 3.52:1 even against
+ * pure white, so no background in the frozen sheet pairs with it at 4.5:1.
+ * This is the one place in the product where alarm IS the point, so the
+ * fix is not to quietly neutralise it to grey. Instead it follows the
+ * frozen sheet's own established pattern for compliant alarm/status text —
+ * `.status--risk { color:#8b560b; background:#fff0d3; }` (styles.css) —
+ * dark, compliant text on a tinted surface, rather than the accent colour
+ * carrying both roles. --red stays exactly where it was already visually
+ * doing the signalling: the ShieldAlert icon (below) and this new left
+ * rule, both still unmistakably red at a glance; the sentence itself reads
+ * in #8b560b on #fff0d3, 5.43:1, comfortably above 4.5:1. Both hexes are
+ * copied verbatim from `.status--risk` — no new literal hex introduced.
  */
 .unrecoverable-note {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  color: var(--red);
+  color: #8b560b;
+  background: #fff0d3;
+  border-left: 3px solid var(--red);
+  border-radius: 6px;
+  padding: 10px 12px;
   /* Task 15: 14px -> 16px, the task's body-text floor (this note carries the
      unrecoverable-evidence argument the whole demo exists to make — it is
      not supplementary text). */
   font-size: 16px;
   line-height: 1.45;
+}
+.unrecoverable-note svg {
+  flex-shrink: 0;
+  color: var(--red);
 }
 
 /*
@@ -477,6 +500,44 @@ option {
 }
 
 /*
+ * Defect fix (task 15 review): the 16px promotion above covers font-size for
+ * `.work-table__head span` and `.work-row` (and, via the descendant `<small>`,
+ * `.work-row__title small` below), but neither line touched colour — the
+ * frozen sheet's own `color:#7a7f7a` (styles.css' `.work-table__head`) and
+ * `color:#898e8a` (`.work-row small`) stayed exactly as dense, low-contrast
+ * labels meant to read as 8-9px "eyebrow" text. Promoted to 16px and left at
+ * those colours, both fail AA body-text contrast (3.66:1 and 3.33:1 — need
+ * 4.5:1). `#4c514d` and `#515652` are copied verbatim from styles.css
+ * (`.site-header nav a` / `.hero__copy>p`) — no new literal hex.
+ *
+ * `.work-table__head` sets `color` on the row container, not on its `<span>`
+ * children directly, so this only needs to out-specify nothing — it targets
+ * the span itself, which has no competing explicit `color` declaration
+ * anywhere in the cascade.
+ */
+.work-table__head span {
+  color: #4c514d;
+}
+
+/*
+ * `.work-row small` (the item-code eyebrow inside `.work-row__title`) has the
+ * same specificity bug already fixed once in this file for `.work-row b`
+ * (see `.work-row .work-row__label`, below): the <768px card view's
+ * `.work-row__title small { font-size:16px }` rule only ever applied inside
+ * that one media query, so at >=768px the frozen `.work-row small {
+ * color:#898e8a; font-size:8px }` (specificity 0,1,1) still rendered
+ * unmodified — sub-16px AND (independent of size) below 4.5:1 at every
+ * width, since no rule anywhere set `color` on this element outside this
+ * fix. Qualified with both ancestor classes (0,2,1) to beat the frozen rule
+ * outright at every width, the same technique the `.work-row__label` fix
+ * below already uses for the identical bug shape.
+ */
+.work-row .work-row__title small {
+  color: #515652;
+  font-size: 16px;
+}
+
+/*
  * Touch targets >= 44x44px, >= 8px apart (task 15 accessibility contract).
  * The frozen design system sizes most inline controls for a mouse (29-40px
  * is the norm) — every selector below is, again, a control apps/demo's own
@@ -755,9 +816,14 @@ option {
     padding-top: 8px;
     border-top: 1px solid var(--line);
   }
-  .work-row__title small {
-    font-size: 16px;
-  }
+  /*
+   * Defect fix (task 15 review): the font-size:16px rule that used to live
+   * here for `.work-row__title small` (the item-code eyebrow) is now
+   * redundant — `.work-row .work-row__title small`, above this media query,
+   * sets the same 16px at higher specificity (0,2,1 vs this block's 0,1,1)
+   * unconditionally, so it already applied here too. Removed rather than
+   * left duplicated to avoid two rules drifting apart on a future edit.
+   */
   .work-row__title b {
     font-size: 16px;
   }
