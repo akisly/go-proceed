@@ -1,4 +1,5 @@
 import { ShieldAlert } from 'lucide-react'
+import { formatDateUk } from '../domain/format'
 import { isUnrecoverable, type WorkItem } from '../domain/readiness'
 import { formatUah } from './MoneyCard'
 
@@ -15,15 +16,25 @@ import { formatUah } from './MoneyCard'
  * dataset always supplies a positive cost for unrecoverable items, so this
  * branch is expected to be unreachable in practice — it exists to stay
  * correct if that ever changes.
+ *
+ * The concealment date renders through formatDateUk (DD.MM.YYYY, the
+ * product's user-facing convention) inside a <time> element so the ISO
+ * value stays available to assistive tech and future parsing via
+ * dateTime, while the visible text never shows a raw machine format.
  */
 export default function UnrecoverableNote({ item, today }: { item: WorkItem; today: string }) {
   if (!isUnrecoverable(item, today)) return null
   const { recoveryCostUah, concealedAt } = item
+  // isUnrecoverable already guarantees concealedAt is non-null; this guard
+  // exists only so TypeScript narrows it without a non-null assertion.
+  if (concealedAt === null) return null
   return (
     <p className="unrecoverable-note" role="note">
       <ShieldAlert size={16} aria-hidden="true" />
       <span>
-        Конструкцію закрито {concealedAt}. Доказ уже не відновити без розкриття.
+        {'Конструкцію закрито '}
+        <time dateTime={concealedAt}>{formatDateUk(concealedAt)}</time>
+        {'. Доказ уже не відновити без розкриття.'}
         {recoveryCostUah !== null && recoveryCostUah > 0
           ? ` Орієнтовна вартість розкриття — ${formatUah(recoveryCostUah)}.`
           : null}
