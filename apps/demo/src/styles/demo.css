@@ -36,3 +36,41 @@
   justify-content: flex-end;
   padding: 16px 30px 0;
 }
+
+/*
+ * A.4.5: the money form used by the three-situations view and the
+ * unrecoverable annotation. ../styles.css has no equivalent class (checked
+ * before adding this one) — closest precedent is `.hero-product__top`'s
+ * label/value pairing, whose scale this mirrors.
+ */
+.money-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.money-card small {
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+}
+.money-card b {
+  font-size: 16px;
+}
+.money-card span {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+/*
+ * The Red annotation for A.4.5's unrecoverable case (spec A.3.3, decision
+ * D3). --red already exists in ../styles.css; no fallback is needed here.
+ */
+.unrecoverable-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  color: var(--red);
+  font-size: 14px;
+  line-height: 1.45;
+}
