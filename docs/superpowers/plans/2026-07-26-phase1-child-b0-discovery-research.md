@@ -8,6 +8,17 @@
 
 **Tech Stack:** TypeScript (strict, `verbatimModuleSyntax`, `noUncheckedIndexedAccess`), pnpm workspaces, Turborepo, Vitest, `node:sqlite` (built-in), `psl` (Public Suffix List, ER-4). No Postgres, no Supabase, no network services.
 
+## Execution mode — inline, two checkpoints
+
+Founder decision, 26.07.2026. Run tasks **inline in one session**. Do **not** pause between individual tasks unless there is a genuine blocker.
+
+| Checkpoint | After | What is reviewed |
+|---|---|---|
+| **1** | Tasks 1–7 | The whole code layer: store, triage, gates, export, reply rules. Full suite green, baseline unchanged |
+| **2** | Tasks 8–11 | Source registry, the 30 qualified leads, per-trade report, and the preparation artifacts |
+
+A **genuine blocker** is: a source that cannot be verified and has no substitute; a bucket that cannot reach its range floor with genuinely qualified companies; any instruction here that turns out to conflict with a hard restriction. Ordinary test failures, missing sources with substitutes, and judgment calls inside a task are not blockers — resolve them and keep going.
+
 ---
 
 ## Scope Boundary — read before Task 1
@@ -60,6 +71,8 @@ Baseline measured at `aa10481` after `pnpm install --frozen-lockfile`:
 
 - **Never guess, infer, pattern-match or construct an email address.** No `firstname.lastname@`, no `info@` invented from a domain. If no public business email is published, the lead becomes `unreachable` with `disqualify_reason = D5` (§B.3 Prohibited, §B.10 Loop 3 step 4, ER-5b).
 - **Every important claim carries the URL it came from** (§B.3). A fact with no `source_url` is not a fact.
+- **A stored URL is not verification (D-3).** Open the source and confirm it supports the specific claim before setting a `_verified` flag, and record *what on the page* supports it in the `_evidence_note`. A URL that exists but does not support the claim is **not verified**.
+- **`fit_score` is a coarse ordering field, never evidence (D-2).** Not a probability, not a demand metric, not statistically meaningful.
 - **Never invent a fact to fill a column. Empty beats wrong.** (§B.10 Loop 2).
 - **Publicly available information only.** No purchased lists, scraped databases, leaked data, paywall or login circumvention, personal (non-business) addresses (§B.3 Prohibited).
 - **Sources marked *verify-first* must have their existence and current URL confirmed live before use.** Do not assume a directory or association exists because this document names it. **Do not invent association names** (§B.3 Tier 4).
@@ -76,16 +89,27 @@ Baseline measured at `aa10481` after `pnpm install --frozen-lockfile`:
 
 ## Trade distribution mandate — founder instruction, 26.07.2026
 
-Electrical remains the **primary wedge** because the current demo uses an electrical scenario. It is **not** the exclusive market. The first 30 qualified leads use this approximate distribution:
+Electrical remains the **primary wedge** because the current demo uses an electrical scenario. It is **not** the exclusive market.
 
-| `quota_bucket` | Target | `primary_trade` values that map here |
+> **Founder correction, 26.07.2026.** The 18/4/3/3/2 split was specified as an **approximate research mix, not a hard qualification quota.** **Do not admit weak leads merely to fill a bucket.** The exact structural quota is replaced by target ranges.
+
+| `quota_bucket` | Target range | `primary_trade` values that map here |
 |---|---|---|
-| `electrical_group` | **18** | `electrical`, `low_voltage` (covers low-voltage, security, access-control, building-automation contractors) |
-| `hvac` | **4** | `hvac` (HVAC and ventilation) |
-| `plumbing` | **3** | `plumbing` (plumbing / engineering networks) |
-| `solar` | **3** | `solar` |
-| `maintenance` | **2** | `maintenance` (facility / technical maintenance) |
-| `none` | 0 | anything else — allowed in the store, excluded from the 30 |
+| `electrical_group` | **16–18** | `electrical`, `low_voltage` (covers low-voltage, security, access-control, building-automation contractors) |
+| `hvac` | **3–5** | `hvac` (HVAC and ventilation) |
+| `plumbing` | **2–4** | `plumbing` (plumbing / engineering networks) |
+| `solar` | **2–4** | `solar` |
+| `maintenance` | **1–3** | `maintenance` (facility / technical maintenance) |
+| `none` | — | anything else — allowed in the store, excluded from the 30 |
+| **Total** | **30 qualified leads** | |
+
+**Rules governing the ranges:**
+
+- **Research at least four trade groups.** Covering only electrical plus one adjacent segment does not satisfy the mandate.
+- Range floors sum to 24 and ceilings to 34, so 30 is reachable without breaching any range. Prefer a distribution that sits inside every range.
+- **If a bucket does not contain enough genuinely qualified companies, record the shortfall and fill the remaining places with the strongest verified candidates from another segment.** Backfill may push a receiving bucket above its ceiling; that is permitted **only** as documented backfill.
+- **Report the deviation explicitly** in `discovery/per-trade-report.md` — which bucket fell short, how many places, what was searched before concluding it, and which segment absorbed them.
+- A lead admitted to reach a number, rather than because it passed the triage and all three verification dimensions, is a defect. Quality gates are never relaxed for distribution.
 
 **This supersedes doc 40 lines 674–676**, which recommended leading electrical-only and deferring the other trades to a later wave. The founder's decision is that adjacent trades are tested in batch 1.
 
@@ -103,20 +127,37 @@ Electrical remains the **primary wedge** because the current demo uses an electr
 
 ---
 
-## Decisions this plan makes — flag for review
+## Decisions — founder-approved 26.07.2026
 
-Four points where the spec is silent or self-contradictory. Each is resolved here, with rationale, because an implementer would otherwise have to guess.
+Four points where the spec was silent or self-contradictory. All four are now settled by founder decision; D-2 carries a clarification and D-3 was revised before execution.
 
-**D-1 — The scorecard is the ER-8d 3-question triage, not §B.2's 8-criterion weighted score.**
+**D-1 — APPROVED. The scorecard is the ER-8d 3-question triage, not §B.2's 8-criterion weighted score.** The triage is the **primary qualification mechanism**.
 §B.0.10 makes ER-8 authoritative over the §B body on the scorecard, and T25 tracks the correction. §B.2's weighted S1–S8 with ×2.5/×2.0/×1.5 multipliers, 120-raw normalization and band-boundary tests is **superseded**. Rationale (ER-8d): at n≤800, eight weighted judgment calls read off company websites launder guesses as data, and the §Effort budget of ~3.6 min/lead was unrealistic — **10 min/lead is the honest number.** Retained from §B.2: the D1–D9 disqualifiers, the blocking validations, suppression, and source-URL discipline. Dropped: weighted normalization, confidence sub-scores, band-boundary tests, per-variant experiment framework.
 
-**D-2 — `fit_score` survives as a coarse function of the triage, because ER-2's `fit_band` is a generated column over it.**
-The triage answers three booleans; the score is `85 / 60 / 45 / 20` for `3 / 2 / 1 / 0` yes-answers, which reproduces A/B/C/D banding under ER-2's existing 75/55/40 thresholds unchanged. T25's verification ("triage reproduces A/B/C banding on 20 sample leads") is satisfied without a second banding rule.
+**D-2 — APPROVED with clarification. `fit_score` survives as a coarse function of the triage, because ER-2's `fit_band` is a generated column over it.**
+The triage answers three booleans; the score is `85 / 60 / 45 / 20` for `3 / 2 / 1 / 0` yes-answers, which reproduces A/B/C/D banding under ER-2's existing 75/55/40 thresholds unchanged.
 
-**D-3 — `confidence_score` becomes a mechanical generated column over three verification URLs, replacing the 5-component judgment sub-score.**
-§B.4.2 blocking validation 3 requires `confidence_score ≥ 60`, but ER-8d drops confidence sub-scores. Resolution: `confidence_score` = `40` (identity URL present) + `30` (specialization URL present) + `30` (email source URL present). It is computed by SQLite from whether a URL exists, so it contains **no judgment** — which is what ER-8d objected to — while keeping the ≥60 gate meaningful and testable. **This changes a documented gate and is the decision most worth a reviewer's attention.**
+> **Founder clarification.** `fit_score` is a **coarse ordering and compatibility field only. It is not a probability, a demand metric, or a statistically meaningful score.** The triage class and the underlying verified signals remain primary. Never present `fit_score` or `fit_band` as evidence of anything; use them to sort a worklist and to satisfy the ER-2 generated column, nothing more. Any report that quotes a mean `fit_score`, or treats a 60 as "better than" a 45 by 15 units of anything, is misusing it.
 
-**D-4 — `leads.csv` keeps §B.4's 42 columns in their documented order; new columns append at 43+.**
+**D-3 — REVISED before execution. Verification is a manual claim-support check per dimension, not URL presence.**
+
+> **Founder decision:** URL presence alone must not be treated as evidence confidence. **A URL that exists but does not support the claim does not count as verified.**
+
+Three **mandatory** verification dimensions, each independently checked by opening the source and confirming it actually supports the specific claim:
+
+| Dimension | Verified means |
+|---|---|
+| **Identity** | The named legal/trading entity is confirmed at the source — state registry or official directory. The page is about *this* company |
+| **Specialization** | The source shows this company **performs installation work in the recorded trade**. Their own site or an award record. A KVED code alone is not specialization evidence (§B.2 registry note) |
+| **Public business contact** | The business email appears **verbatim** at the source, published on the company's own domain or an official directory |
+
+Each dimension stores three fields: a `_verified` flag (the outcome of the manual check), a `_source_url`, and a `_evidence_note` recording **what on that page supports the claim**. The note is the audit trail that distinguishes a real check from a pasted link.
+
+**A lead may become `qualified` only when all three dimensions are verified and all three source URLs are stored.** This is enforced twice — by a SQLite `CHECK` constraint on the row, and by `checkResearchGates` — so a missing dimension cannot be argued around.
+
+`confidence_score` remains as a **mechanical compatibility field representing verification completeness only**. It is computed as `40/30/30` over the three dimensions, where a dimension counts **only if both its `_verified` flag is set and its URL is stored**. Critically: **a summed score may never compensate for a missing mandatory dimension.** The `≥60` threshold of §B.4.2 is retained for schema compatibility but is *not* the qualification gate — the three-dimension AND is. A lead with identity + specialization verified and no contact scores 70 and is still **not** qualifiable.
+
+**D-4 — APPROVED. `leads.csv` keeps §B.4's 42 columns in their documented order; new columns append at 43+.** The `hash` column is removed from the outreach-log schema only.
 The ER-2 note under §B.4 says "Column 21 (`hash`) is dropped", but §B.4's column 21 is `email_normalized`; ER-2's body makes clear the dropped column is **§B.5's** column 21. So: `outreach-log.csv` drops `hash` (21 → 20 columns); `leads.csv` keeps all 42. Columns required by ER-3c, §B.0.7 and the trade mandate are appended after 42 rather than renumbering a documented contract.
 
 ---
@@ -136,6 +177,11 @@ discovery/
   reply-classification.md               R1–R11 rules + label taxonomy. COMMITTED
   per-trade-report.md                   Task 10 output. COMMITTED
   findings/                             doc 30 §4 findings, one .md per company. COMMITTED
+  artifacts/                            Task 11 preparation documents. COMMITTED
+    intermediary-one-pager.md
+    data-terms-note.md
+    artifact-checklist.md
+    paid-audit-scope.md
   evals/replies/*.md                    15 reply fixtures + expected class. COMMITTED
   src/
     types.ts                            Enums and row types
@@ -243,10 +289,25 @@ export const QUOTA_BUCKETS = [
 ] as const;
 export type QuotaBucket = (typeof QUOTA_BUCKETS)[number];
 
-/** Quota targets for the first 30 qualified leads (founder mandate 26.07.2026). */
-export const QUOTA_TARGETS: Record<Exclude<QuotaBucket, "none">, number> = {
-  electrical_group: 18, hvac: 4, plumbing: 3, solar: 3, maintenance: 2,
+/**
+ * Target RANGES for the first 30 qualified leads (founder correction 26.07.2026).
+ * These are a research mix, NOT a hard quota. Never admit a weak lead to fill a
+ * bucket; record the shortfall and backfill from the strongest verified segment.
+ */
+export const QUOTA_RANGES: Record<Exclude<QuotaBucket, "none">, { min: number; max: number }> = {
+  electrical_group: { min: 16, max: 18 },
+  hvac: { min: 3, max: 5 },
+  plumbing: { min: 2, max: 4 },
+  solar: { min: 2, max: 4 },
+  maintenance: { min: 1, max: 3 },
 };
+
+export const TOTAL_QUALIFIED_TARGET = 30;
+export const MIN_TRADE_GROUPS_RESEARCHED = 4;
+
+/** The three mandatory verification dimensions (D-3). All three are required. */
+export const VERIFICATION_DIMENSIONS = ["identity", "specialization", "contact"] as const;
+export type VerificationDimension = (typeof VERIFICATION_DIMENSIONS)[number];
 
 export const CHANNEL_TRACKS = ["cold", "warm", "community", "referral"] as const;
 export type ChannelTrack = (typeof CHANNEL_TRACKS)[number];
@@ -292,10 +353,20 @@ export interface LeadInput {
   source_urls: string;
   edrpou?: string;
   email?: string;
-  email_source_url?: string;
   email_type?: "personal_business" | "department" | "general";
+
+  // D-3: each dimension needs a manual claim-support check, its URL, and a note
+  // saying WHAT on that page supports the claim. A URL alone is not verification.
+  identity_verified?: boolean;
   identity_source_url?: string;
+  identity_evidence_note?: string;
+  specialization_verified?: boolean;
   specialization_source_url?: string;
+  specialization_evidence_note?: string;
+  contact_verified?: boolean;
+  email_source_url?: string;
+  contact_evidence_note?: string;
+
   personalization_signal?: string;
   personalization_source_url?: string;
   personalization_verified_at?: string;
@@ -507,10 +578,21 @@ CREATE TABLE IF NOT EXISTS leads (
   contact_role              TEXT,
   contact_source_url        TEXT,
   email                     TEXT,
-  email_source_url          TEXT,
   email_type                TEXT,
+
+  -- D-3: three mandatory verification dimensions. `_verified` is the outcome of a
+  -- MANUAL check that the source supports the claim; `_evidence_note` records what
+  -- on the page supports it. A stored URL with no verified flag is not evidence.
+  identity_verified         INTEGER NOT NULL DEFAULT 0 CHECK (identity_verified IN (0,1)),
   identity_source_url       TEXT,
+  identity_evidence_note    TEXT,
+  specialization_verified   INTEGER NOT NULL DEFAULT 0 CHECK (specialization_verified IN (0,1)),
   specialization_source_url TEXT,
+  specialization_evidence_note TEXT,
+  contact_verified          INTEGER NOT NULL DEFAULT 0 CHECK (contact_verified IN (0,1)),
+  email_source_url          TEXT,
+  contact_evidence_note     TEXT,
+
   source_urls               TEXT NOT NULL,
   triage_q1                 INTEGER NOT NULL DEFAULT 0 CHECK (triage_q1 IN (0,1)),
   triage_q2                 INTEGER NOT NULL DEFAULT 0 CHECK (triage_q2 IN (0,1)),
@@ -542,12 +624,24 @@ CREATE TABLE IF NOT EXISTS leads (
          WHEN fit_score >= 40 THEN 'C'
          ELSE 'D' END) STORED,
 
-  -- D-3: mechanical, URL-presence only. No judgment component.
+  -- D-3: VERIFICATION COMPLETENESS ONLY. A dimension counts only when its manual
+  -- check passed AND its URL is stored. This is a compatibility field — it is NOT
+  -- the qualification gate, and a sum may never compensate for a missing dimension.
   confidence_score INTEGER GENERATED ALWAYS AS (
-    (CASE WHEN identity_source_url       IS NOT NULL AND identity_source_url       <> '' THEN 40 ELSE 0 END) +
-    (CASE WHEN specialization_source_url IS NOT NULL AND specialization_source_url <> '' THEN 30 ELSE 0 END) +
-    (CASE WHEN email_source_url          IS NOT NULL AND email_source_url          <> '' THEN 30 ELSE 0 END)
+    (CASE WHEN identity_verified = 1
+            AND identity_source_url       IS NOT NULL AND identity_source_url       <> '' THEN 40 ELSE 0 END) +
+    (CASE WHEN specialization_verified = 1
+            AND specialization_source_url IS NOT NULL AND specialization_source_url <> '' THEN 30 ELSE 0 END) +
+    (CASE WHEN contact_verified = 1
+            AND email_source_url          IS NOT NULL AND email_source_url          <> '' THEN 30 ELSE 0 END)
   ) STORED,
+
+  -- The real gate: all three dimensions, ANDed. Never a threshold on the sum.
+  verification_complete INTEGER GENERATED ALWAYS AS (
+    CASE WHEN identity_verified = 1       AND identity_source_url       IS NOT NULL AND identity_source_url       <> ''
+          AND specialization_verified = 1 AND specialization_source_url IS NOT NULL AND specialization_source_url <> ''
+          AND contact_verified = 1        AND email_source_url          IS NOT NULL AND email_source_url          <> ''
+         THEN 1 ELSE 0 END) STORED,
 
   quota_bucket TEXT GENERATED ALWAYS AS (
     CASE WHEN primary_trade IN ('electrical','low_voltage') THEN 'electrical_group'
@@ -559,7 +653,10 @@ CREATE TABLE IF NOT EXISTS leads (
 
   UNIQUE (domain_normalized),
   UNIQUE (email_normalized),
-  CHECK (outreach_status <> 'qualified' OR (email IS NOT NULL AND email <> ''))
+  -- D-3 enforced in the database: a lead cannot sit at `qualified` unless it has a
+  -- verbatim public email AND all three verification dimensions are complete.
+  CHECK (outreach_status <> 'qualified' OR (
+    email IS NOT NULL AND email <> '' AND verification_complete = 1))
 );
 
 CREATE TABLE IF NOT EXISTS outreach_log (
@@ -676,17 +773,23 @@ describe("ingestLead", () => {
     expect(second.merged_into).toBe(first.lead_id);
   });
 
-  it("merges source_urls and keeps the higher confidence on collision", () => {
+  it("merges source_urls and never downgrades an existing verification", () => {
     store.ingestLead(base);
     store.ingestLead({
       ...base,
       source_urls: "https://clarity-project.info/edr/12345678",
+      identity_verified: true,
       identity_source_url: "https://clarity-project.info/edr/12345678",
+      identity_evidence_note: "ЄДР картка: назва та ЄДРПОУ збігаються",
     });
     const lead = store.allLeads()[0];
     expect(lead?.source_urls).toContain("clarity-project.info");
     expect(lead?.source_urls).toContain("pryklad-elektro.com.ua/projects");
     expect(lead?.confidence_score).toBe(40);
+
+    // A later merge that omits the flag must not clear it.
+    store.ingestLead({ ...base, source_urls: "https://work.ua/jobs/1" });
+    expect(store.allLeads()[0]?.confidence_score).toBe(40);
   });
 
   it("allows many leads with no email (D5 unreachable) without unique collisions", () => {
@@ -706,13 +809,62 @@ describe("generated columns", () => {
     }
   });
 
-  it("derives confidence_score from the three verification URLs only", () => {
+  // D-3: URL presence alone is NOT evidence. The manual check must have passed.
+  it("scores zero when URLs are stored but no dimension was verified", () => {
     const { lead_id } = store.ingestLead({
       ...base,
       identity_source_url: "https://clarity-project.info/edr/12345678",
       specialization_source_url: "https://pryklad-elektro.com.ua/services",
+      email: "info@pryklad-elektro.com.ua",
+      email_source_url: "https://pryklad-elektro.com.ua/contacts",
+    });
+    const lead = store.getLead(lead_id);
+    expect(lead?.confidence_score).toBe(0);
+    expect(lead?.verification_complete).toBe(0);
+  });
+
+  it("counts a dimension only when the verified flag AND the URL are both present", () => {
+    const { lead_id } = store.ingestLead({
+      ...base,
+      identity_verified: true, identity_source_url: "https://clarity-project.info/edr/12345678",
+      identity_evidence_note: "ЄДР картка збігається з назвою на сайті",
+      specialization_verified: true, specialization_source_url: "https://pryklad-elektro.com.ua/services",
+      specialization_evidence_note: "Сторінка послуг описує електромонтаж",
+    });
+    const lead = store.getLead(lead_id);
+    expect(lead?.confidence_score).toBe(70);
+    expect(lead?.verification_complete).toBe(0); // contact still missing
+  });
+
+  it("a verified flag with no URL contributes nothing", () => {
+    const { lead_id } = store.ingestLead({ ...base, identity_verified: true });
+    expect(store.getLead(lead_id)?.confidence_score).toBe(0);
+  });
+});
+
+// D-3: the database itself refuses a qualified lead with an incomplete dimension.
+describe("qualification gate in the schema", () => {
+  it("refuses `qualified` when a mandatory dimension is missing, whatever the sum", () => {
+    const { lead_id } = store.ingestLead({
+      ...base,
+      identity_verified: true, identity_source_url: "https://clarity-project.info/edr/1",
+      specialization_verified: true, specialization_source_url: "https://pryklad-elektro.com.ua/s",
+      email: "info@pryklad-elektro.com.ua",
     });
     expect(store.getLead(lead_id)?.confidence_score).toBe(70);
+    expect(() => store.setStatus(lead_id, "qualified")).toThrow(/CHECK constraint failed/);
+  });
+
+  it("allows `qualified` once all three dimensions are complete", () => {
+    const { lead_id } = store.ingestLead({
+      ...base,
+      identity_verified: true, identity_source_url: "https://clarity-project.info/edr/1",
+      specialization_verified: true, specialization_source_url: "https://pryklad-elektro.com.ua/s",
+      contact_verified: true, email: "info@pryklad-elektro.com.ua",
+      email_source_url: "https://pryklad-elektro.com.ua/contacts",
+    });
+    expect(() => store.setStatus(lead_id, "qualified")).not.toThrow();
+    expect(store.getLead(lead_id)?.confidence_score).toBe(100);
   });
 
   it("maps primary_trade to the mandated quota buckets", () => {
@@ -771,7 +923,9 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { normalizeDomain, normalizeEmail } from "./normalize";
-import type { ChannelTrack, EventType, LeadInput } from "./types";
+import type {
+  ChannelTrack, EventType, LeadInput, OutreachStatus, VerificationDimension,
+} from "./types";
 
 const SCHEMA_PATH = join(dirname(fileURLToPath(import.meta.url)), "schema.sql");
 
@@ -782,7 +936,13 @@ export interface LeadRecord extends Record<string, unknown> {
   source_urls: string;
   fit_score: number;
   fit_band: string;
+  /** Verification COMPLETENESS, not truth or judgment (D-3). Never a gate on its own. */
   confidence_score: number;
+  /** The actual gate: 1 only when all three dimensions are verified with URLs. */
+  verification_complete: 0 | 1;
+  identity_verified: 0 | 1;
+  specialization_verified: 0 | 1;
+  contact_verified: 0 | 1;
   quota_bucket: string;
   primary_trade: string;
   outreach_status: string;
@@ -816,8 +976,17 @@ export interface Store {
   getLead(leadId: string): LeadRecord | undefined;
   allLeads(): LeadRecord[];
   setFitScore(leadId: string, score: number): void;
+  /** Throws if the schema CHECK refuses the transition (D-3). Do not catch and ignore. */
+  setStatus(leadId: string, status: OutreachStatus): void;
+  setVerification(leadId: string, dimension: VerificationDimension, evidence: VerificationEvidence): void;
   rawExec(sql: string): void;
   close(): void;
+}
+
+export interface VerificationEvidence {
+  verified: boolean;
+  source_url: string;
+  evidence_note: string;
 }
 
 function pad(n: number, width: number): string { return String(n).padStart(width, "0"); }
@@ -866,20 +1035,34 @@ export function openStore(path: string): Store {
         // Collision: merge source_urls, keep the higher confidence_score by
         // preferring whichever record carries more verification URLs.
         const merged = mergeSourceUrls(existing.source_urls, input.source_urls);
+        // A verified flag may only ever be raised together with its URL and note,
+        // and an existing verification is never downgraded by a later merge.
         db.prepare(`
           UPDATE leads SET
             source_urls = ?,
             identity_source_url = COALESCE(NULLIF(identity_source_url,''), ?),
+            identity_evidence_note = COALESCE(NULLIF(identity_evidence_note,''), ?),
+            identity_verified = MAX(identity_verified, ?),
             specialization_source_url = COALESCE(NULLIF(specialization_source_url,''), ?),
+            specialization_evidence_note = COALESCE(NULLIF(specialization_evidence_note,''), ?),
+            specialization_verified = MAX(specialization_verified, ?),
             email_source_url = COALESCE(NULLIF(email_source_url,''), ?),
+            contact_evidence_note = COALESCE(NULLIF(contact_evidence_note,''), ?),
+            contact_verified = MAX(contact_verified, ?),
             email = COALESCE(email, ?),
             edrpou = COALESCE(NULLIF(edrpou,''), ?),
             updated_at = ?
           WHERE lead_id = ?`).run(
           merged,
           input.identity_source_url ?? null,
+          input.identity_evidence_note ?? null,
+          input.identity_verified === true ? 1 : 0,
           input.specialization_source_url ?? null,
+          input.specialization_evidence_note ?? null,
+          input.specialization_verified === true ? 1 : 0,
           input.email_source_url ?? null,
+          input.contact_evidence_note ?? null,
+          input.contact_verified === true ? 1 : 0,
           input.email ?? null,
           input.edrpou ?? null,
           new Date().toISOString(),
@@ -902,9 +1085,12 @@ export function openStore(path: string): Store {
           channel_track, size_signal, size_signal_source, icp_match_reason, job_fit_note,
           trade_transfer_note, personalization_signal, personalization_source_url,
           personalization_verified_at, contact_person, contact_role, contact_source_url,
-          email, email_source_url, email_type, identity_source_url, specialization_source_url,
+          email, email_type,
+          identity_verified, identity_source_url, identity_evidence_note,
+          specialization_verified, specialization_source_url, specialization_evidence_note,
+          contact_verified, email_source_url, contact_evidence_note,
           source_urls, outreach_status, next_action, ladder_rung, created_at, updated_at
-        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
+        ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`).run(
         leadId, input.company_name, null, input.edrpou ?? null, input.website, domain,
         input.city, input.regions_served, input.specialization, null, input.primary_trade,
         input.channel_track, input.size_signal ?? null, input.size_signal_source ?? null,
@@ -912,8 +1098,13 @@ export function openStore(path: string): Store {
         input.personalization_signal ?? null, input.personalization_source_url ?? null,
         input.personalization_verified_at ?? null, input.contact_person ?? null,
         input.contact_role ?? null, input.contact_source_url ?? null,
-        input.email ?? null, input.email_source_url ?? null, input.email_type ?? null,
-        input.identity_source_url ?? null, input.specialization_source_url ?? null,
+        input.email ?? null, input.email_type ?? null,
+        input.identity_verified === true ? 1 : 0, input.identity_source_url ?? null,
+        input.identity_evidence_note ?? null,
+        input.specialization_verified === true ? 1 : 0, input.specialization_source_url ?? null,
+        input.specialization_evidence_note ?? null,
+        input.contact_verified === true ? 1 : 0, input.email_source_url ?? null,
+        input.contact_evidence_note ?? null,
         input.source_urls, "new", "qualify", 1, now, now,
       );
       store.appendEvent({
@@ -957,6 +1148,27 @@ export function openStore(path: string): Store {
     setFitScore(leadId, score) {
       db.prepare("UPDATE leads SET fit_score = ?, updated_at = ? WHERE lead_id = ?")
         .run(score, new Date().toISOString(), leadId);
+    },
+
+    setStatus(leadId, status) {
+      // Lets the schema CHECK reject `qualified` on an incomplete lead (D-3).
+      db.prepare("UPDATE leads SET outreach_status = ?, updated_at = ? WHERE lead_id = ?")
+        .run(status, new Date().toISOString(), leadId);
+    },
+
+    setVerification(leadId, dimension, evidence) {
+      // A flag may only be raised together with its URL and its evidence note.
+      if (evidence.verified && (evidence.source_url === "" || evidence.evidence_note === "")) {
+        throw new Error(`setVerification: ${dimension} verified requires a source_url and an evidence_note`);
+      }
+      const columns: Record<VerificationDimension, [string, string, string]> = {
+        identity: ["identity_verified", "identity_source_url", "identity_evidence_note"],
+        specialization: ["specialization_verified", "specialization_source_url", "specialization_evidence_note"],
+        contact: ["contact_verified", "email_source_url", "contact_evidence_note"],
+      };
+      const cols = columns[dimension];
+      db.prepare(`UPDATE leads SET ${cols[0]} = ?, ${cols[1]} = ?, ${cols[2]} = ?, updated_at = ? WHERE lead_id = ?`)
+        .run(evidence.verified ? 1 : 0, evidence.source_url, evidence.evidence_note, new Date().toISOString(), leadId);
     },
 
     rawExec(sql) { db.exec(sql); },
@@ -1208,7 +1420,10 @@ function lead(patch: Partial<LeadRecord> = {}): LeadRecord {
     domain_normalized: "pryklad-elektro.com.ua",
     email_normalized: "info@pryklad-elektro.com.ua",
     source_urls: "https://pryklad-elektro.com.ua/projects",
-    fit_score: 85, fit_band: "A", confidence_score: 100,
+    fit_score: 85, fit_band: "A", confidence_score: 100, verification_complete: 1,
+    identity_verified: 1, specialization_verified: 1, contact_verified: 1,
+    identity_source_url: "https://clarity-project.info/edr/12345678",
+    specialization_source_url: "https://pryklad-elektro.com.ua/services",
     quota_bucket: "electrical_group", primary_trade: "electrical",
     outreach_status: "researching",
     email: "info@pryklad-elektro.com.ua",
@@ -1246,10 +1461,33 @@ describe("checkResearchGates", () => {
     expect(checkResearchGates(lead({ personalization_verified_at: "2026-06-26" }), ctx)).toEqual([]);
   });
 
-  it("blocks confidence below 60", () => {
-    expect(checkResearchGates(lead({ confidence_score: 59 }), ctx))
-      .toContainEqual({ code: "LOW_CONFIDENCE", detail: expect.any(String) });
-    expect(checkResearchGates(lead({ confidence_score: 60 }), ctx)).toEqual([]);
+  // D-3: each dimension is mandatory on its own.
+  it("blocks an unverified identity even when a URL is stored", () => {
+    expect(checkResearchGates(lead({ identity_verified: 0 }), ctx))
+      .toContainEqual({ code: "IDENTITY_UNVERIFIED", detail: expect.any(String) });
+    expect(checkResearchGates(lead({ identity_source_url: null }), ctx))
+      .toContainEqual({ code: "IDENTITY_UNVERIFIED", detail: expect.any(String) });
+  });
+
+  it("blocks an unverified specialization", () => {
+    expect(checkResearchGates(lead({ specialization_verified: 0 }), ctx))
+      .toContainEqual({ code: "SPECIALIZATION_UNVERIFIED", detail: expect.any(String) });
+  });
+
+  it("blocks an unverified contact", () => {
+    expect(checkResearchGates(lead({ contact_verified: 0 }), ctx))
+      .toContainEqual({ code: "CONTACT_UNVERIFIED", detail: expect.any(String) });
+  });
+
+  // The decisive test: a high sum must never buy a missing dimension.
+  it("a 70 confidence score does not compensate for a missing contact dimension", () => {
+    const failures = checkResearchGates(
+      lead({ confidence_score: 70, contact_verified: 0, verification_complete: 0 }), ctx);
+    expect(failures).toContainEqual({ code: "CONTACT_UNVERIFIED", detail: expect.any(String) });
+  });
+
+  it("ignores confidence_score entirely when all three dimensions are verified", () => {
+    expect(checkResearchGates(lead({ confidence_score: 0 }), ctx)).toEqual([]);
   });
 
   it("blocks bands C and D", () => {
@@ -1268,8 +1506,13 @@ describe("checkResearchGates", () => {
   });
 
   it("reports every failure, not just the first", () => {
-    const failures = checkResearchGates(lead({ email: null, confidence_score: 10, fit_band: "D" }), ctx);
-    expect(failures.length).toBeGreaterThanOrEqual(3);
+    const failures = checkResearchGates(
+      lead({ email: null, contact_verified: 0, identity_verified: 0, fit_band: "D" }), ctx);
+    const codes = failures.map((f) => f.code);
+    expect(codes).toContain("NO_EMAIL");
+    expect(codes).toContain("IDENTITY_UNVERIFIED");
+    expect(codes).toContain("CONTACT_UNVERIFIED");
+    expect(codes).toContain("BAND_NOT_CONTACTABLE");
   });
 });
 ```
@@ -1297,7 +1540,6 @@ export interface GateContext {
 export interface GateFailure { code: string; detail: string }
 
 const PERSONALIZATION_MAX_AGE_DAYS = 30;
-const MIN_CONFIDENCE = 60;
 const CONTACTABLE_BANDS = new Set(["A", "B"]);
 
 function daysBetween(fromIso: string, toIso: string): number {
@@ -1311,9 +1553,14 @@ function isBlank(value: unknown): boolean {
 }
 
 /**
- * §B.4.2 blocking validations, research-stage subset.
+ * §B.4.2 blocking validations, research-stage subset, plus the D-3 verification
+ * dimensions. Returns EVERY failure, so one research pass fixes all of them.
+ *
  * Omitted deliberately: touch_count (nothing sent in B0) and the composed-body
  * checks of ER-5a, which need a draft that Child A gates.
+ *
+ * `confidence_score` is deliberately NOT consulted here. It is a completeness
+ * readout for reporting; the gate is the three-dimension AND below.
  */
 export function checkResearchGates(lead: LeadRecord, ctx: GateContext): GateFailure[] {
   const failures: GateFailure[] = [];
@@ -1330,8 +1577,17 @@ export function checkResearchGates(lead: LeadRecord, ctx: GateContext): GateFail
   if (!isBlank(verifiedAt) && daysBetween(verifiedAt as string, ctx.today) > PERSONALIZATION_MAX_AGE_DAYS) {
     failures.push({ code: "PERSONALIZATION_STALE", detail: `verified >${PERSONALIZATION_MAX_AGE_DAYS} days ago` });
   }
-  if (lead.confidence_score < MIN_CONFIDENCE) {
-    failures.push({ code: "LOW_CONFIDENCE", detail: `confidence ${lead.confidence_score} < ${MIN_CONFIDENCE}` });
+
+  // D-3: three mandatory dimensions, ANDed. NEVER a threshold on confidence_score —
+  // a sum must not let two verified dimensions compensate for a missing third.
+  if (lead.identity_verified !== 1 || isBlank(lead.identity_source_url)) {
+    failures.push({ code: "IDENTITY_UNVERIFIED", detail: "identity not confirmed against a stored source" });
+  }
+  if (lead.specialization_verified !== 1 || isBlank(lead.specialization_source_url)) {
+    failures.push({ code: "SPECIALIZATION_UNVERIFIED", detail: "installation work in the recorded trade not confirmed" });
+  }
+  if (lead.contact_verified !== 1 || isBlank(emailSource)) {
+    failures.push({ code: "CONTACT_UNVERIFIED", detail: "business email not confirmed verbatim at a stored source" });
   }
   if (!CONTACTABLE_BANDS.has(lead.fit_band)) {
     failures.push({ code: "BAND_NOT_CONTACTABLE", detail: `band ${lead.fit_band} is not A or B` });
@@ -1414,6 +1670,15 @@ describe("exportLeadsCsv", () => {
     expect(LEADS_COLUMNS).toContain("last_processed_message_id");
   });
 
+  it("exports the D-3 verification evidence for every dimension", () => {
+    for (const col of [
+      "identity_verified", "identity_source_url", "identity_evidence_note",
+      "specialization_verified", "specialization_source_url", "specialization_evidence_note",
+      "contact_verified", "email_source_url", "contact_evidence_note",
+      "verification_complete",
+    ]) expect(LEADS_COLUMNS).toContain(col);
+  });
+
   it("starts with a UTF-8 BOM and uses LF line endings", () => {
     store.ingestLead(base);
     const csv = exportLeadsCsv(store);
@@ -1467,10 +1732,14 @@ export const LEADS_COLUMNS = [
   "next_action_date", "touch_count", "gmail_thread_id", "template_variant",
   "experiment_id", "reply_class", "disqualify_reason", "ladder_rung", "notes",
   "created_at", "updated_at",
-  // 43+ — ER-3c, §B.0.7, trade mandate, D-3 provenance
+  // 43+ — ER-3c, §B.0.7, trade mandate, D-3 verification evidence
   "last_processed_message_id", "channel_track", "primary_trade", "quota_bucket",
-  "job_fit_note", "trade_transfer_note", "identity_source_url",
-  "specialization_source_url", "triage_q1", "triage_q2", "triage_q3", "recheck_after",
+  "job_fit_note", "trade_transfer_note",
+  "identity_verified", "identity_source_url", "identity_evidence_note",
+  "specialization_verified", "specialization_source_url", "specialization_evidence_note",
+  "contact_verified", "contact_evidence_note",
+  "verification_complete",
+  "triage_q1", "triage_q2", "triage_q3", "recheck_after",
 ] as const;
 
 export const OUTREACH_LOG_COLUMNS = [
@@ -1743,16 +2012,30 @@ git commit -m "docs(discovery): verified source registry and Track P document-av
 
 - [ ] **Step 1: Work bucket by bucket, largest first**
 
-Order: `electrical_group` (18) → `hvac` (4) → `plumbing` (3) → `solar` (3) → `maintenance` (2).
+Order: `electrical_group` (16–18) → `hvac` (3–5) → `plumbing` (2–4) → `solar` (2–4) → `maintenance` (1–3). **Research at least four trade groups.** Aim for the middle of each range and stop researching a bucket once it is inside its range and the total is on track for 30.
 
 Per candidate, in order:
 1. Fetch the company's own site. Confirm it is live and Ukrainian.
 2. Apply D1–D9 via `screen()`. Any permanent hit → record `disqualified` + reason, emit `lead_disqualified`, stop. No public email → `unreachable` + `recheck_after` (ER-5b), stop.
 3. Answer the three triage questions, each against evidence on the page you are looking at.
-4. Capture `identity_source_url` (registry/official directory), `specialization_source_url` (their **own** site or an award record), `email_source_url` (where the address is published).
+4. **Run the three verification checks of Step 1a below.** This is the step that decides qualification.
 5. Copy `email` **verbatim**. If none is published, go to `unreachable` — **never construct, infer, pattern-match or guess an address.**
 6. Capture the personalization signal, preferring Tier 5 (their own «Проєкти»/«Об'єкти»/«Новини», Facebook, YouTube, Google Business). Registry data proves they exist; their own project page proves you looked. Record the text, the URL, and `personalization_verified_at` = today.
-7. `ingestLead`, then `setFitScore`, then `checkResearchGates`. Zero failures → `qualified`. Any failure → leave at `researching` and record what is missing.
+7. `ingestLead`, then `setFitScore`, then `checkResearchGates`. Zero failures → `setStatus(id, "qualified")`. Any failure → leave at `researching` and record what is missing.
+
+- [ ] **Step 1a: Verify all three dimensions by opening the source (D-3)**
+
+**A stored URL is not verification.** For each dimension, open the source, confirm it supports *this specific claim*, then call `setVerification` with the URL **and** a note saying what on the page supports it. If the page does not support the claim, leave `verified` false and keep looking — do not store the link and move on.
+
+| Dimension | Confirm on the page | Example `evidence_note` |
+|---|---|---|
+| `identity` | The named entity is this company — registry or official directory record matching the trading name and, if known, ЄДРПОУ | «Картка ЄДР: назва та ЄДРПОУ 12345678 збігаються з підвалом сайту» |
+| `specialization` | They **perform installation work** in the recorded trade. Their own site or an award record. **A KVED code alone is not specialization evidence** (§B.2 registry note) | «Сторінка "Послуги": монтаж кабельних мереж, фото бригад на об'єктах» |
+| `contact` | The business email appears **verbatim** on their own domain or an official directory | «Сторінка "Контакти": info@… опубліковано у підвалі» |
+
+Common failure to catch: a Clarity/YouControl page that lists the company but shows only a KVED code proves **identity**, not **specialization**. Two dimensions from one page is possible only when that page genuinely evidences both.
+
+A lead missing any dimension cannot be `qualified` — the schema CHECK and `checkResearchGates` both refuse it, and **a high `confidence_score` does not buy the missing one.**
 
 - [ ] **Step 2: Write `job_fit_note` for every lead, against the same job**
 
@@ -1790,11 +2073,32 @@ tail -n +2 discovery/leads.csv | cut -d, -f6 | sort | uniq -d
 ```
 Expected: empty — `domain_normalized` is unique (acceptance criterion 6). Repeat for `email_normalized` (field 21), ignoring blanks from `unreachable` leads.
 
-Then confirm by query: 30 leads at `qualified`; bucket counts equal 18/4/3/3/2; every qualified lead has non-empty `email_source_url` and `personalization_source_url`; `confidence_score ≥ 60` on all of them; `outreach-log.csv` contains a `lead_created` event per lead.
+Then confirm by query:
+- 30 leads at `qualified`;
+- every bucket sits **inside its range**, or its shortfall is recorded per Step 5a;
+- **at least four trade groups** were researched;
+- every qualified lead has `verification_complete = 1` — which implies all three `_verified` flags, all three source URLs, and all three evidence notes;
+- every qualified lead has a non-empty `personalization_source_url`;
+- `outreach-log.csv` contains a `lead_created` event per lead.
+
+**Do not** verify by `confidence_score ≥ 60`. That threshold is retained for schema compatibility only; a 70 can hide a missing mandatory dimension (D-3).
+
+- [ ] **Step 5a: Record any shortfall and backfill honestly**
+
+If a bucket cannot reach its floor with genuinely qualified companies, **do not admit a weak lead to fill it.** Record in `discovery/per-trade-report.md`:
+- which bucket fell short and by how many places;
+- what was searched before concluding it — sources tried, candidates screened, why they failed (disqualifier, unreachable, or unverifiable);
+- which segment absorbed the remaining places, and why those candidates were the strongest verified alternatives.
+
+Backfill may push a receiving bucket above its ceiling. That is permitted **only** as documented backfill, never silently.
 
 - [ ] **Step 6: Spot-check 20 leads against their sources (acceptance criterion 5)**
 
-Pick 20 at random. For each, open `email_source_url` and confirm the address in `leads.csv` appears there **byte-identically**. Any mismatch is a hard failure: fix the row or drop the lead. Record the audit result in `discovery/README.md` with the date.
+Pick 20 at random. For each:
+1. Open `email_source_url` and confirm the address in `leads.csv` appears there **byte-identically**.
+2. Open `specialization_source_url` and confirm it actually evidences installation work in the recorded trade — re-testing the D-3 claim-support rule on a sample.
+
+Any mismatch is a hard failure: fix the row or drop the lead. Record the audit result — sample size, failures found, action taken — in `discovery/README.md` with the date.
 
 - [ ] **Step 7: Commit — code and notes only, never the CSVs**
 
@@ -1822,12 +2126,18 @@ git commit -m "docs(discovery): research findings for the first 30 qualified lea
 
 `discovery/per-trade-report.md`, one row per bucket, **no aggregate row over all 30**:
 
-| Bucket | Target | Qualified | Disqualified | Unreachable (D5) | Median confidence | Candidates screened | Min/lead |
-|---|---|---|---|---|---|---|---|
+| Bucket | Target range | Qualified | In range? | Disqualified | Unreachable (D5) | Unverifiable | Candidates screened | Min/lead |
+|---|---|---|---|---|---|---|---|---|
+
+"Unverifiable" counts candidates dropped because a dimension could not be verified — distinct from disqualified (wrong ICP) and unreachable (no public email). That number is itself a finding: it says how much of the segment is researchable at all from public sources.
 
 Then, per bucket, a short prose section covering: which sources actually produced qualified leads; what the shared job looks like concretely in that trade; what transfers from the electrical workflow and what does not; and whether this segment shows **stronger** pain signals than electrical.
 
-State plainly that these are **research-stage counts, not response rates**. Nothing has been sent. No reply data exists.
+- [ ] **Step 1a: Report every deviation from the target ranges explicitly**
+
+A dedicated section naming each bucket outside its range, the shortfall size, what was searched, and which segment absorbed the places. If every bucket landed in range, say so in one line. **A distribution that silently differs from the ranges is a reporting failure**, even when the total reaches 30.
+
+State plainly that these are **research-stage counts, not response rates**. Nothing has been sent. No reply data exists. Do not quote a mean `fit_score` anywhere — it is a coarse ordering field, not a metric (D-2).
 
 - [ ] **Step 2: Register the stop rule before any data arrives (T27 / ER-8c)**
 
@@ -1868,23 +2178,69 @@ git commit -m "docs(discovery): per-trade report and pre-registered 50-send stop
 
 ---
 
-## Appendix — adjacent ungated work, NOT in B0 scope
+## Task 11: Preparation artifacts (founder-approved, non-gated)
 
-Flagged for a founder decision, deliberately excluded from the tasks above so this plan does not expand its approved scope.
+**Files:**
+- Create: `discovery/artifacts/intermediary-one-pager.md`
+- Create: `discovery/artifacts/data-terms-note.md`
+- Create: `discovery/artifacts/artifact-checklist.md`
+- Create: `discovery/artifacts/paid-audit-scope.md`
 
-§B.0.3 establishes that **warm and community tracks are not gated on the demo** — only cold email is, because only cold email sends a stranger a link. Two artifacts those tracks need carry **no demo URL** and could therefore be built now:
+**Interfaces:**
+- Consumes: doc 30 §3, §B.0.5, §B.0.6, ER-8a, doc 14 §5.
+- Produces: four Ukrainian documents, committed. **Preparation artifacts only.**
 
-1. **The intermediary one-pager (§B.0.5)** — one Ukrainian page stating what you are researching, what you ask their contacts for, **what you will never ask**, what they get, and the §B.0.6 consent rule.
-2. **The rung-3/4 kit (ER-8a)** — a one-page Ukrainian data-processing/NDA note per doc 30 §3 (purpose limitation, deletion date, secure upload), the doc 30 §3 artifact checklist as a sendable document, and a one-page paid readiness-audit scope naming the 15–30k UAH figure. ER-8a rates this **"worth more to the gate than half of Child A"**, because an `R3_wants_artifacts_exchange` reply carries a 24h SLA and §B.1 says "send data terms first" — with nothing to send.
+**Why these are non-gated.** §B.0.3: warm and community tracks are **not** gated on the demo, because only cold email sends a stranger a link. None of these four documents carries a demo URL. ER-8a rates the rung-3/4 kit **"worth more to the gate than half of Child A"** — an `R3_wants_artifacts_exchange` reply carries a 24h SLA and §B.1 says "send data terms first", with nothing currently to send.
 
-Both are documents, not sends. Neither was in the approved B0 allow-list, so neither is planned here. If the founder wants them, they are a separate ~4-hour task.
+**Hard boundary for this task: do not contact anyone, do not create Gmail drafts, do not create Gmail labels, do not begin B1.** These are documents on disk awaiting founder review.
+
+- [ ] **Step 1: Intermediary one-pager (§B.0.5)**
+
+One Ukrainian page, reusable across every intermediary type. **Distinct from the §B.6 cold templates**, which are written to contractors — an intermediary is not your user; they are deciding whether you are worth their professional reputation with their own clients.
+
+Must state: what you are researching; what you ask their contacts for; **what you will never ask**; what they get; and the §B.0.6 consent rule.
+
+Carry the §B.0.4 role boundaries so the document does not overreach: estimators are **expert informants and referral filters, not artifact providers** — they often serve whoever controls the package, frequently the GC rather than your subcontractor, and a tool that automates documentation workflow can read as a commercial threat to someone who sells documentation work. Distributor reps are **name producers, not document sources.**
+
+- [ ] **Step 2: Data-terms note (doc 30 §3)**
+
+One Ukrainian page covering **purpose limitation, deletion date and secure upload**, offered at the moment of asking — §B.1 makes rung 3 a hard gate: no document is requested, redacted or otherwise, before data terms are agreed in writing.
+
+- [ ] **Step 3: Artifact checklist, as a sendable document**
+
+The doc 30 §3 checklist, plus both stripping requirements from §B.0.6 stated as requirements on the sender:
+
+**Commercial anonymization** — company names, prices.
+
+**Security stripping (CEO decision 15)** — removing names and prices is **not sufficient in wartime Ukraine**. Require removal of: precise site locations and coordinates; EXIF and embedded geodata on any photograph; identifiable infrastructure — substations, switchgear rooms, transformer yards, comms nodes; references identifying critical facilities or reconstruction sites.
+
+State the handling rule plainly: **if material arrives unstripped, it is not stored** — delete it, tell the sender what was wrong, offer to receive a corrected version.
+
+State the third-party consent rule (§B.0.6): an estimator's КБ-2в and АВР packages **are not theirs**; before accepting any artifact from an intermediary, obtain explicit attestation they are entitled to share it — *confirm you may share this, or ask your client first, I will wait* — recorded alongside the artifact.
+
+- [ ] **Step 4: Paid readiness-audit scope**
+
+One Ukrainian page naming the **15–30k UAH per site** figure from doc 14 §5 and a concrete deliverable. Bound by the §B.1 honesty rules: state AktFlow is currently a **demonstration prototype**; never claim customers, users, traction, validated demand or a Ukrainian reference; never cite a metric AktFlow has not measured; never claim legal force for any evidence type (doc 00, doc 24).
+
+- [ ] **Step 5: Honesty review across all four**
+
+Re-read each document against the §B.1 honesty rules above. Any sentence implying existing customers, measured results or legal force is a defect — rewrite it. These documents will be read by detail-obsessed engineering buyers; an unverifiable claim is fatal.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add discovery/artifacts
+git commit -m "docs(discovery): intermediary one-pager, data terms, artifact checklist, audit scope"
+```
 
 ---
 
 ## Self-review
 
-**Spec coverage.** §B.0.7 `channel_track` → Task 1 + 3. §B.0.9 Track P map → Task 8 step 5. §B.2 disqualifiers → Task 4. §B.3 sources → Task 8. §B.4 schema, dedup, suppression → Tasks 3 + 6. §B.4.2 blocking validations → Task 5. §B.5 log + retention → Tasks 3 + 6 + 1. §B.8 rules + taxonomy → Task 7. §B.9 layout + gitignore → Task 1. §B.10 Loops 1–3 → Task 9. ER-2 → Task 3. ER-3c watermark → Task 3 column + Task 7 rule. ER-4 PSL + mandatory test → Task 2. ER-5b → Task 4. ER-6 eval reframe → Task 7. ER-8c stop rule → Task 10. ER-8d triage → Task 4. Founder trade mandate → Tasks 1, 3, 9, 10.
+**Spec coverage.** §B.0.7 `channel_track` → Task 1 + 3. §B.0.9 Track P map → Task 8 step 5. §B.2 disqualifiers → Task 4. §B.3 sources → Task 8. §B.4 schema, dedup, suppression → Tasks 3 + 6. §B.4.2 blocking validations → Task 5. §B.5 log + retention → Tasks 3 + 6 + 1. §B.8 rules + taxonomy → Task 7. §B.9 layout + gitignore → Task 1. §B.10 Loops 1–3 → Task 9. ER-2 → Task 3. ER-3c watermark → Task 3 column + Task 7 rule. ER-4 PSL + mandatory test → Task 2. ER-5b → Task 4. ER-6 eval reframe → Task 7. ER-8c stop rule → Task 10. ER-8d triage → Task 4. ER-8a rung-3/4 kit + §B.0.5 one-pager + §B.0.6 consent and stripping rules → Task 11. Founder trade-range mandate → Tasks 1, 3, 9, 10. D-3 verification → Tasks 1, 3, 5, 6, 9.
 
-**Deliberately out of scope, each with a stated reason:** §B.6/§B.7 templates and ER-5a's `validate.ts` (need the demo URL or a composed body — Child A gates both); §B.10 Loops 4–10 (drafting, approval, send, reply, follow-up); Gmail label creation (writes to a real mailbox); ER-8a and §B.0.5 documents (Appendix, outside the approved allow-list).
+**Deliberately out of scope, each with a stated reason:** §B.6/§B.7 templates and ER-5a's `validate.ts` (need the demo URL or a composed body — Child A gates both); §B.10 Loops 4–10 (drafting, approval, send, reply, follow-up); Gmail label creation (writes to a real mailbox). ER-8a and §B.0.5 documents are now **in** scope as Task 11 per founder approval.
 
-**Type consistency.** `LeadInput` (Task 1) is the sole ingest shape; `LeadRecord` (Task 3) is the sole read shape and is what Tasks 5 and 6 consume. `screen()` returns a discriminated union on `kind`, narrowed at every call site. `Store` gains `allEvents`, `allSuppressions` and `allTouchCounts` in Task 6 step 4 — the only place the interface grows after Task 3.
+**Type consistency.** `LeadInput` (Task 1) is the sole ingest shape; `LeadRecord` (Task 3) is the sole read shape and is what Tasks 5 and 6 consume. `screen()` returns a discriminated union on `kind`, narrowed at every call site. `Store` gains `setStatus` and `setVerification` in Task 3, and `allEvents`, `allSuppressions`, `allTouchCounts` in Task 6 step 4.
+
+**D-3 consistency check.** The three-dimension AND is enforced in three independent places, and all three must agree: the `verification_complete` generated column, the table `CHECK` on `outreach_status = 'qualified'`, and `checkResearchGates`. `confidence_score` is consulted by **none** of them — it appears only in exports and reports. Verified against `node:sqlite` before execution: a lead scoring 70 with identity + specialization verified and no contact is refused at `qualified`, and URLs stored without a passed manual check score 0.
