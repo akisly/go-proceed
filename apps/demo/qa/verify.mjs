@@ -281,6 +281,30 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
       }
     }
 
+    // Review 07 · B3: the readiness split rendered three hard-coded states
+    // summing to 9 beside a denominator reading «з 14 рядків». Five of
+    // fourteen rows were unrepresented. On a product whose only asset is
+    // honesty about numbers, the parts must equal the whole.
+    if (route === '/app') {
+      const split = await page.evaluate(() => {
+        const counts = [...document.querySelectorAll('[data-readiness-count]')]
+          .map(el => Number(el.textContent.trim()))
+        const denominator = document.body.innerText.match(/з\s*(\d+)\s*рядк/u)
+        return {
+          sum: counts.reduce((total, n) => total + n, 0),
+          states: counts.length,
+          denominator: denominator ? Number(denominator[1]) : null,
+        }
+      })
+      if (split.states === 0) {
+        ctx.findings.push('/app: expected [data-readiness-count] elements in the readiness split, found none')
+      } else if (split.denominator !== null && split.sum !== split.denominator) {
+        ctx.findings.push(
+          `/app: readiness split sums to ${split.sum} across ${split.states} states but the denominator says ${split.denominator}`,
+        )
+      }
+    }
+
     // Step 5: [data-testid="pilot-cta"] exists on /app.
     if (route === '/app') {
       const ctaCount = await page.$$eval('[data-testid="pilot-cta"]', els => els.length)
