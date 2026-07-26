@@ -5,17 +5,28 @@ import { TODAY } from '../data/project'
 
 /**
  * ============================================================================
- * LAUNCH BLOCKER — {{CONTACT_EMAIL}} IS A PLACEHOLDER, NOT A REAL ADDRESS.
+ * LAUNCH BLOCKER — TWO PLACEHOLDER TOKENS BELOW, NEITHER IS A REAL VALUE.
  * ============================================================================
- * No monitored mailbox has been authorised for this deployment yet. Every
- * occurrence of the token below (rendered as visible text on /legal/privacy)
- * MUST be replaced with a real, monitored address before this site is
- * published. Do not invent a plausible-looking one and do not reuse a
- * personal address as a stand-in — a deletion request sent to an
- * unmonitored placeholder would simply go nowhere. The site must not go
- * live with this token unreplaced.
+ * Neither a monitored mailbox nor a form-processing service has been
+ * authorised for this deployment yet. Every occurrence of BOTH tokens below
+ * (rendered as visible text on /legal/privacy) MUST, before this site is
+ * published, either be replaced with a real value or have the sentence
+ * containing it removed:
+ *
+ * - {{CONTACT_EMAIL}} — do not invent a plausible-looking address and do
+ *   not reuse a personal address as a stand-in. A deletion request sent to
+ *   an unmonitored placeholder would simply go nowhere.
+ * - {{FORM_PROCESSOR}} — the third-party form-handling service (see
+ *   `PILOT_ENDPOINT` / `VITE_PILOT_ENDPOINT` in src/pages/Pilot.tsx) that
+ *   receives submitted field values IF one is ever configured for this
+ *   build. Naming the wrong service, or leaving this unreplaced while an
+ *   endpoint is live, would misdescribe who actually receives the data —
+ *   exactly the failure this disclosure exists to prevent.
+ *
+ * The site must not go live with either token unreplaced.
  */
 const CONTACT_EMAIL = '{{CONTACT_EMAIL}}'
+const FORM_PROCESSOR = '{{FORM_PROCESSOR}}'
 
 /**
  * The exact localStorage key Task 13's `apps/demo/src/pilot/draft.ts` writes
@@ -57,22 +68,52 @@ function PrivacyDocument() {
         сама по собі вона нікуди не надсилається — і видаляється автоматично одразу після успішного надсилання
         форми.
       </p>
-
-      <h2>Куди йде надіслана форма і як довго вона зберігається</h2>
       <p>
-        У цієї демонстрації немає власного сервера чи бази даних, тому надісланим даним нема де «зберігатися» на
-        нашому боці. Кнопка надсилання формує лист, уже заповнений вашими відповідями, і відкриває його у вашій
-        власній поштовій програмі — адресований на <code>{CONTACT_EMAIL}</code>. Лист існує лише тоді, коли ви
-        самі натиснете «Надіслати» у своєму поштовому клієнті: до цього моменту нічого не передається жодному
-        серверу цього проєкту. Тому термін зберігання визначаємо не ми: після відправлення лист живе так само, як
-        і будь-який інший e-mail, — у вашій надісланій пошті та у скриньці <code>{CONTACT_EMAIL}</code>, за
-        звичайними правилами вашого й нашого поштового сервісу, а не за окремою політикою цього сайту.
+        Це звичайний localStorage браузера — без шифрування і без окремого захисту. Прочитати цю чернетку може
+        будь-хто чи будь-яка програма з доступом до цього профілю браузера на цьому пристрої, зокрема на спільному
+        або робочому комп’ютері.
       </p>
+
+      <h2>Куди йде надіслана форма</h2>
+      <p>
+        У цієї демонстрації немає власного сервера чи бази даних — сама вона нічого не «зберігає». Що саме
+        відбувається з вашими відповідями після натискання кнопки надсилання, залежить від того, чи для цього
+        розгортання налаштовано сторонній сервіс обробки форм. Нижче — усі три можливі стани; лише один із них
+        діє зараз.
+      </p>
+      <ul>
+        <li>
+          <strong>Сьогодні — сервіс обробки форм не налаштовано.</strong> Кнопка надсилання не звертається до
+          жодного сервера. Вона лише формує лист, уже заповнений усіма дев’ятьма вашими відповідями, і відкриває
+          його у вашій власній поштовій програмі — адресований на <code>{CONTACT_EMAIL}</code>. Лист існує лише
+          тоді, коли ви самі натиснете «Надіслати» у своєму поштовому клієнті: до цього моменту сам сайт нічого
+          нікуди не передає.
+        </li>
+        <li>
+          <strong>Якщо сервіс обробки форм налаштовано (<code>{FORM_PROCESSOR}</code>) і надсилання пройшло
+          успішно.</strong> Усі дев’ять значень полів форми передаються цьому сторонньому сервісу — з цього
+          моменту саме <code>{FORM_PROCESSOR}</code> отримує та обробляє ці дані від нашого імені (виступає
+          обробником для цього надсилання), а не ми. Термін і умови зберігання визначає цей сторонній сервіс за
+          власною політикою, а не цей сайт. Локальна чернетка одразу видаляється.
+        </li>
+        <li>
+          <strong>Якщо сервіс обробки форм налаштовано, але надсилання не вдалося.</strong> Дані до стороннього
+          сервісу не доходять. Форма пропонує той самий попередньо заповнений лист на{' '}
+          <code>{CONTACT_EMAIL}</code>, а локальна чернетка не видаляється, доки надсилання не вдасться.
+        </li>
+      </ul>
 
       <h2>Як попросити видалення</h2>
       <p>
-        Щоб попросити видалити надісланий лист, напишіть на <code>{CONTACT_EMAIL}</code>. Якщо ви отримали
-        посилання на цю демонстрацію в листі від нас, найпростіше — відповісти просто на той самий лист.
+        Якщо форма пішла листом (це сьогоднішня поведінка) — прохання про видалення означає прохання видалити
+        конкретний лист зі скриньки одержувача, а не запис у базі даних: такої бази тут немає. Напишіть на{' '}
+        <code>{CONTACT_EMAIL}</code> з проханням видалити лист. Якщо ви отримали посилання на цю демонстрацію в
+        листі від нас, найпростіше — відповісти просто на той самий лист.
+      </p>
+      <p>
+        Якщо ж форма пройшла через сервіс обробки форм (<code>{FORM_PROCESSOR}</code>), запис про це надсилання
+        існує в тому сторонньому сервісі, а не в нас: напишіть на <code>{CONTACT_EMAIL}</code>, і ми передамо
+        ваше прохання про видалення до <code>{FORM_PROCESSOR}</code>.
       </p>
 
       <h2>Аналітика й стеження</h2>
