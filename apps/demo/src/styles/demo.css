@@ -883,3 +883,116 @@ option {
   flex-direction: column;
   gap: 4px;
 }
+
+/* ==========================================================================
+ * Task 17 — Evidence Atlas image derivatives (RULING 1, RULING 2).
+ * ==========================================================================
+ * ../styles.css (frozen, deletion-only — never edited, see tests/styles.
+ * test.ts) references two source PNGs directly by path in ~11
+ * `background-image` declarations. The source PNGs live in
+ * design-references/evidence-atlas/assets/*.png — 2.2-2.3MB apiece,
+ * read-only, never shipped as-is (task-17-brief.md / CLAUDE.md's global
+ * constraints).
+ *
+ * RULING 2 named two legitimate routes and required measuring before
+ * choosing between them: ship optimised PNGs at the frozen paths, or
+ * override the `background-image` declarations here to point at generated
+ * WebP files instead. Measured (qa/generate-assets.mjs, task-17-report.md
+ * Step 1): a PNG re-encode at any width that clears the 400KB/asset budget
+ * was already too small/blurry for a full-bleed cover background (533-
+ * 612KB even downsized to 640px wide), while WebP clears the budget by 2-3x
+ * *at full native resolution* (both sources are already a modest
+ * 1586x992 — no upscale, no downscale). So this overrides rather than
+ * ships degraded PNGs at the frozen paths.
+ *
+ * Every declaration below is copied byte-for-byte from ../styles.css
+ * except the file extension — the gradient overlay, position, size,
+ * `fixed` attachment and `!important` (`.auth-aside`) are all unchanged,
+ * so only which file loads differs. Loads after ../styles.css (see this
+ * file's own header comment), so at equal specificity these win by source
+ * order alone; `.auth-aside` repeats `!important` because CSS gives an
+ * `!important` declaration priority over a non-important one regardless of
+ * source order, so a non-important override would silently lose to it.
+ *
+ * Only `.sidebar` (AppShell.tsx) is actually rendered by any apps/demo
+ * route today — the other 9 selectors are dead CSS in this build (no
+ * Login/Field/onboarding/external-review page was ever ported; see
+ * qa/routes.mjs's REDIRECTED_ROUTES, all of which land on /demo) and so
+ * never fetch anything regardless of what their `background-image` points
+ * at. They are overridden anyway, on the same "no asset 404s" hard
+ * constraint that governs `.sidebar`: if a later task ever does render one
+ * of them, it inherits a working derivative instead of resurrecting a 404
+ * against the frozen sheet's original PNG path.
+ */
+.mobile-section {
+  background:
+    linear-gradient(90deg,rgba(23,23,23,.98),rgba(23,23,23,.86)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
+}
+.mobile-stage {
+  background:
+    linear-gradient(rgba(72,76,94,.18),rgba(23,23,23,.36)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
+}
+.role-stage__visual {
+  background:
+    linear-gradient(rgba(242,240,233,.82),rgba(242,240,233,.82)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
+}
+.sidebar {
+  background:
+    linear-gradient(180deg,rgba(23,23,23,.96),rgba(23,23,23,.99)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
+}
+.document-preview {
+  background:
+    linear-gradient(rgba(242,240,233,.8),rgba(242,240,233,.8)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
+}
+.replacement-upload.is-added {
+  background:
+    linear-gradient(rgba(198,255,52,.82),rgba(198,255,52,.82)),
+    url('/assets/evidence-atlas/cable-tray-evidence.webp') center/cover;
+}
+.auth-aside {
+  background:
+    linear-gradient(90deg,rgba(23,23,23,.95),rgba(23,23,23,.82)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover!important;
+}
+.onboarding__aside {
+  background:
+    linear-gradient(rgba(23,23,23,.96),rgba(23,23,23,.96)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
+}
+.external-page {
+  background:
+    linear-gradient(rgba(251,251,251,.9),rgba(251,251,251,.9)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover fixed;
+}
+.external-document {
+  background:
+    linear-gradient(rgba(255,255,255,.94),rgba(255,255,255,.94)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
+}
+.legal-page>main>aside {
+  background:
+    linear-gradient(rgba(23,23,23,.92),rgba(23,23,23,.96)),
+    url('/assets/evidence-atlas/blueprint-folio.webp') center/cover;
+}
+
+/*
+ * Task 17 (RULING 4) — print stylesheet for the static package PDF.
+ * qa/generate-assets.mjs prints /demo's final "package" step to PDF with
+ * puppeteer's page.pdf(), which emulates the `print` media type by
+ * default. The step navigation controls (Назад/Далі, the "Подивитись усе"
+ * link, and the PDF download link itself — see src/pages/Demo.tsx) are
+ * inert chrome in a static, already-downloaded file, so they are hidden
+ * here; the disclosure strip (RULING 4's synthetic-data disclosure) and
+ * the step progress list are left visible, since both are honest content
+ * about what the document is, not interactive chrome.
+ */
+@media print {
+  .onboarding-footer {
+    display: none;
+  }
+}
