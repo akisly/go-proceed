@@ -54,6 +54,9 @@ function hasOnlyNonBlockingGap(item: WorkItem): boolean {
  */
 function riskSentence(item: WorkItem): string {
   if (isAtRisk(item)) {
+    // Kept for the non-visual path; the rendered form splits the figure out
+    // into its own element (review 07 · I4) so it can be scanned down the page
+    // rather than read out of a sentence.
     return `Під ризиком ${formatUah(item.valueUah)} за цим рядком, доки нижченаведені вимоги не закрито.`
   }
   return (
@@ -220,7 +223,21 @@ export default function Evidence() {
                   </div>
                   <b>{blockingRequirements.length}</b>
                 </header>
-                <p>{riskSentence(item)}</p>
+                {isAtRisk(item) ? (
+                  /* Review 07 · I4: the amount was embedded mid-sentence in body
+                     copy, so triaging seven rows meant reading each one. The
+                     figure now leads its own line and carries [data-money], so
+                     it inherits the tabular treatment and lines up down the
+                     page; the qualifying clause follows. */
+                  <p className="evidence-risk">
+                    <span className="evidence-risk__amount" data-money>{formatUah(item.valueUah)}</span>
+                    <span className="evidence-risk__qualifier">
+                      під ризиком за цим рядком, доки нижченаведені вимоги не закрито.
+                    </span>
+                  </p>
+                ) : (
+                  <p>{riskSentence(item)}</p>
+                )}
                 <div className="blocker-list">
                   {blockingRequirements.map(req => (
                     <article key={req.id}>

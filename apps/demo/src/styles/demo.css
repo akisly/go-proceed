@@ -1197,3 +1197,36 @@ option {
   color: var(--muted);
   font-size: 14px;
 }
+
+/* ---------------------------------------------------------------------------
+ * Review 07 · I4 + I7 — evidence scannability and reading measure
+ *
+ * I4  The at-risk figure sat mid-sentence in body copy, so triaging seven rows
+ *     meant reading each one to find the number. It now leads its own line and
+ *     inherits the tabular treatment, so the amounts line up down the page.
+ * I7  /app/rules ran ~148 characters per line (measured 1182px at 16px) while
+ *     /legal/privacy is correctly capped at 672px. Long prose at full container
+ *     width is genuinely hard to track back to the next line.
+ * ------------------------------------------------------------------------- */
+.evidence-risk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 4px 0 0;
+}
+
+.evidence-risk__amount {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.evidence-risk__qualifier {
+  color: var(--slate);
+}
+
+.rules-page p,
+.rules-page li,
+.rules-page h2 + p {
+  max-width: 68ch;
+}

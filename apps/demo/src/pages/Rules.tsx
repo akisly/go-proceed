@@ -42,7 +42,7 @@ const EXAMPLE = findExampleItem('wi-em-0711')
 
 export default function Rules() {
   return (
-    <>
+    <div className="rules-page">
       <h1>Як версіонуються вимоги до доказів</h1>
       <p>
         Ця сторінка пояснює задум версіонування вимог до доказів — навіщо воно потрібне і як має працювати, — а не
@@ -96,6 +96,6 @@ export default function Rules() {
         ))}
       </ul>
       <p>У цій демонстрації ці записи не мають версії правил — лише мітку часу фіксації.</p>
-    </>
+    </div>
   )
 }
