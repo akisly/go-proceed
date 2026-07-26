@@ -1173,7 +1173,10 @@ option {
     min-height: 44px;
   }
 
-  .work-row__label {
+  /* Needs the descendant form: an earlier fix round added
+     `.work-row .work-row__label` at 16px for the card view, which outranks a
+     bare class selector however late it appears. */
+  .work-row .work-row__label {
     font-size: 13px;
     font-weight: 500;
     color: var(--muted);
