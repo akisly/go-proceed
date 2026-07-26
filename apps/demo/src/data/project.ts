@@ -54,7 +54,7 @@ const workItems: readonly WorkItem[] = [
     concealedAt: null,
     recoveryCostUah: null,
     requirements: [
-      { id: 'r-5', kind: 'typed_form', label: 'Протокол на кожну лінію', status: 'satisfied', capturedAt: '2026-07-24', blocksSubmission: true },
+      { id: 'r-5', kind: 'typed_form', label: 'Протокол випробувань виконаних ліній', status: 'satisfied', capturedAt: '2026-07-24', blocksSubmission: true },
     ],
   },
   {
@@ -107,7 +107,7 @@ const workItems: readonly WorkItem[] = [
     concealedAt: '2026-07-15',
     recoveryCostUah: 58_000,
     requirements: [
-      { id: 'r-10', kind: 'photo', label: 'Фото траси до зашивки коробом', status: 'pending', capturedAt: null, blocksSubmission: true },
+      { id: 'r-10', kind: 'photo', label: 'Фото траси до закриття коробом', status: 'pending', capturedAt: null, blocksSubmission: true },
       { id: 'r-11', kind: 'quantity', label: 'Обсяг прокладеного кабелю', status: 'satisfied', capturedAt: '2026-07-14', blocksSubmission: true },
     ],
   },
@@ -132,7 +132,7 @@ const workItems: readonly WorkItem[] = [
   {
     id: 'wi-em-0802',
     code: 'ЕМ-08.02',
-    title: 'Прокладання кабелю КППГнг у штробі до датчиків пожежної сигналізації',
+    title: 'Прокладання кабелю КПСнг(А)-FRLS у штробі до датчиків пожежної сигналізації',
     locationId: 'Секція Б · 1 поверх · осі 2-5',
     plannedQuantity: 180,
     capturedQuantity: 150,
@@ -167,7 +167,7 @@ const workItems: readonly WorkItem[] = [
   {
     id: 'wi-em-1003',
     code: 'ЕМ-10.03',
-    title: 'Монтаж світильників LED у коридорах 3 поверху секції Б',
+    title: 'Монтаж світлодіодних світильників у коридорах 3 поверху секції Б',
     locationId: 'Секція Б · 3 поверх · осі 4-9',
     plannedQuantity: 68,
     capturedQuantity: 68,
@@ -185,7 +185,7 @@ const workItems: readonly WorkItem[] = [
   {
     id: 'wi-em-1101',
     code: 'ЕМ-11.01',
-    title: 'Монтаж щита ЩАО-3 поверхового освітлення з автоматичними вимикачами',
+    title: 'Монтаж щита аварійного освітлення ЩАО-3 з автоматичними вимикачами',
     locationId: 'Секція В · 3 поверх · електрощитова',
     plannedQuantity: 1,
     capturedQuantity: 1,
@@ -221,7 +221,7 @@ const workItems: readonly WorkItem[] = [
   {
     id: 'wi-em-1302',
     code: 'ЕМ-13.02',
-    title: 'Встановлення розеткових груп та групових щитів ЩО-2 в офісному блоці 1 поверху',
+    title: 'Встановлення розеткових груп та групового щита ЩО-2 в офісному блоці 1 поверху',
     locationId: 'Секція Б · 1 поверх · осі 6-10',
     plannedQuantity: 52,
     capturedQuantity: 52,
@@ -244,7 +244,7 @@ const workItems: readonly WorkItem[] = [
     plannedQuantity: 1,
     capturedQuantity: 1,
     unit: 'компл',
-    valueUah: 74_600,
+    valueUah: 26_800,
     readiness: 'submitted',
     concealmentHoldPoint: false,
     concealedAt: null,
