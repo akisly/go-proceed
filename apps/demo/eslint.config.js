@@ -24,7 +24,11 @@ export default [
     },
   },
   {
+    // qa/verify.mjs runs under Node but also authors small closures that
+    // execute inside the browser via puppeteer's page.evaluate() — those
+    // reference document/window/fetch, not Node globals. Both global sets
+    // apply to the whole file rather than trying to scope them per-closure.
     files: ['qa/**/*.mjs'],
-    languageOptions: { globals: globals.node, sourceType: 'module' },
+    languageOptions: { globals: { ...globals.node, ...globals.browser }, sourceType: 'module' },
   },
 ]
