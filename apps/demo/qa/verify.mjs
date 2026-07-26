@@ -493,6 +493,36 @@ async function auditJourney(browser, baseUrl, ctx) {
 // (confirmed by reading AppShell.tsx), so wraps are identified by class
 // name (.sidebar__close vs .sidebar-backdrop), not by aria-label.
 // -----------------------------------------------------------------------
+// Review 07 · I5 — touch targets at phone width.
+//
+// The usage context is a site engineer on a building site: outdoors, one hand,
+// often gloved. WCAG 2.5.5 puts the floor at 44x44 CSS px; measured, the
+// /app/work search input was 22px tall and /pilot's «Конфіденційність» link
+// 20px — both roughly half target on the viewport where it matters most.
+// -----------------------------------------------------------------------
+async function auditTouchTargets(browser, baseUrl, ctx) {
+  for (const route of ['/', '/demo', '/app', '/app/work', '/pilot']) {
+    await withPage(browser, async page => {
+      await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true })
+      await page.goto(`${baseUrl}${route}`, { waitUntil: 'networkidle0' })
+      const small = await page.evaluate(() =>
+        [...document.querySelectorAll('a, button, input, select, textarea')]
+          .map(el => {
+            const r = el.getBoundingClientRect()
+            return {
+              label: (el.textContent || el.getAttribute('type') || el.tagName).trim().slice(0, 24),
+              w: Math.round(r.width),
+              h: Math.round(r.height),
+            }
+          })
+          .filter(r => r.h > 0 && (r.h < 44 || r.w < 44)))
+      for (const t of small) {
+        ctx.findings.push(`${route} @390: touch target below 44px — "${t.label}" ${t.w}x${t.h}`)
+      }
+    })
+  }
+}
+
 async function auditDrawerFocusTrap(browser, baseUrl, ctx) {
   const url = `${baseUrl}/app/work`
   const trap = { forwardWrap: null, backwardWrap: null }
@@ -667,7 +697,8 @@ async function main() {
 
     let drawerFocusTrap = { forwardWrap: null, backwardWrap: null }
     try {
-      drawerFocusTrap = await auditDrawerFocusTrap(browser, baseUrl, ctx)
+      drawerFocusTrap = await auditTouchTargets(browser, baseUrl, ctx)
+  await auditDrawerFocusTrap(browser, baseUrl, ctx)
     } catch (err) {
       ctx.findings.push(`drawer focus trap: audit crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
     }

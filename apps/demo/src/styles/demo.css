@@ -1139,3 +1139,43 @@ option {
   font-size: 12px;
   line-height: 1.35;
 }
+
+/* ---------------------------------------------------------------------------
+ * Review 07 · I5 + I6 — phone-width adaptation
+ *
+ * Usage context, which is what decides these values: a site engineer outdoors
+ * on a building site, one hand, often gloved. That is not a desk.
+ *
+ * I5  Two controls sat at roughly half the WCAG 2.5.5 minimum — the work-list
+ *     search input at 348x22 and /pilot's «Конфіденційність» footer link at
+ *     134x20. Both are raised to a 44px hit height. The link keeps its visual
+ *     size; only its hit area grows, so the footer's density is unchanged.
+ * I6  Task 15's >=16px floor was applied broadly and inflated metadata labels
+ *     to bold ~17px, so a 390x844 screen showed roughly two work cards and the
+ *     labels competed with the values they label. Labels step down; the values
+ *     they describe keep the floor, because those are what gets read at
+ *     arm's length.
+ * ------------------------------------------------------------------------- */
+@media (max-width: 767px) {
+  .search-box input {
+    min-height: 44px;
+  }
+
+  /* The privacy link is an unclassed <a> inside a <p> in .pilot-form — it sits
+     in running copy, so it cannot become a block without breaking the sentence.
+     inline-flex with a 44px min-height grows the hit area while the text keeps
+     its place in the line. */
+  .pilot-form p a,
+  .legal-links a,
+  .app-footer a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+  }
+
+  .work-row__label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+  }
+}
