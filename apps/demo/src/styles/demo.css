@@ -1022,3 +1022,68 @@ option {
 .landing .site-header .link-button {
   color: var(--ink);
 }
+
+/* ---------------------------------------------------------------------------
+ * Review 07 · Cluster B — money rendering
+ *
+ * Three findings, one pass:
+ *   B-i   no tabular figures anywhere; measured 11px of horizontal jitter
+ *         between rows in the work table's currency column (x=1065 vs x=1054),
+ *         so the column could not be scanned vertically.
+ *   B-ii  money sat left-aligned at 16px/400 in that column, lighter than the
+ *         row title at 700 — the least emphasised thing on a row in a register
+ *         whose entire job is money at risk.
+ *   B-iii .money-card b and .money-card small both computed to 16px, so the
+ *         dashboard's focal figure and its label were the same size.
+ *
+ * These rules sit at the end of the file deliberately: the >=16px body-text
+ * floor added in Task 15 groups `.money-card small` with genuine body copy
+ * further up, which is what flattened the card. A card label is an eyebrow,
+ * not body copy; 12px uppercase with tracking and --muted stays legible and
+ * restores the hierarchy. Values keep the floor and gain size.
+ * ------------------------------------------------------------------------- */
+[data-money] {
+  font-variant-numeric: tabular-nums;
+}
+
+.work-row__value[data-money] {
+  /* `text-align` is inert on an inline box, whose width hugs its text — the
+     measured right edges still varied by 13px. Filling the grid cell is what
+     actually aligns the column. */
+  display: block;
+  text-align: right;
+  font-weight: 600;
+}
+
+.money-card small {
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+}
+
+.money-card b[data-money] {
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+
+/*
+ * Review 07 · B-ii, root cause. `.work-table__head` and `.work-row` are each
+ * their OWN grid container (styles.css:349), so `1.4fr 1fr .7fr .7fr 1fr .55fr`
+ * resolves independently per row against that row's content. A long
+ * «Секція Б · 2 поверх · осі 4-9» pushes its column wider than a short one, so
+ * the "table" is really fourteen unrelated grids that only look aligned when
+ * the content happens to fit. Measured at 1440px: six different right edges
+ * across the money column.
+ *
+ * `minmax(0, …)` stops content forcing a track wider than its fraction, so
+ * every row resolves to identical column widths and the currency column
+ * actually lines up. Same fractions, same visual proportions — no protected
+ * file touched.
+ */
+.work-table__head,
+.work-row {
+  grid-template-columns:
+    minmax(0, 1.4fr) minmax(0, 1fr) minmax(0, 0.7fr)
+    minmax(0, 0.7fr) minmax(0, 1fr) minmax(0, 0.55fr);
+}

@@ -46,7 +46,7 @@ export default function MoneyCard({ label, value, denominator }: {
           (RULING 5, task 15 controller ruling: <768px switches to the
           compact form, ≥768px keeps the full form — see .money-card__full /
           .money-card__compact in styles/demo.css). */}
-      <b aria-label={formatUah(value)}>
+      <b aria-label={formatUah(value)} data-money>
         <span className="money-card__full">{formatUah(value)}</span>
         <span className="money-card__compact">{formatUahCompact(value)}</span>
       </b>

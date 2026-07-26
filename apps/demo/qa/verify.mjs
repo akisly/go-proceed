@@ -203,6 +203,12 @@ function contrastRatio(foreground, background) {
 async function auditShippedRoute(browser, baseUrl, route, ctx) {
   const url = `${baseUrl}${route}`
   const diagnostics = await withPage(browser, async page => {
+    // Audit at an explicit desktop width. Previously this inherited
+    // puppeteer's incidental 800x600 default — neither the desktop layout
+    // (>=1240px rail + full table) nor the mobile one (<768px cards), so every
+    // measurement here was taken at a width the design never targets. The
+    // dedicated 360x800 responsive pass below covers the narrow case.
+    await page.setViewport({ width: 1440, height: 900 })
     const response = await page.goto(url, { waitUntil: 'networkidle0' })
     if (!response || response.status() !== 200) {
       ctx.findings.push(`${route}: expected HTTP 200, got ${response ? response.status() : 'no response'}`)
@@ -277,6 +283,40 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
           ctx.findings.push(
             `/: header link "${link.text}" contrast ${ratio.toFixed(2)}:1 against ${link.background} (needs 4.5:1)`,
           )
+        }
+      }
+    }
+
+    // Review 07 · Cluster B: money had no tabular figures anywhere (measured
+    // 11px column jitter between rows), and sat left-aligned at body weight in
+    // a currency column an estimator scans. Figures must line up vertically.
+    if (route === '/app/work' || route === '/app') {
+      const money = await page.evaluate(() =>
+        [...document.querySelectorAll('[data-money]')].map(el => {
+          const cs = getComputedStyle(el)
+          return { fvn: cs.fontVariantNumeric, align: cs.textAlign, inTable: !!el.closest('.work-row') }
+        }))
+      if (money.length === 0) {
+        ctx.findings.push(`${route}: expected [data-money] elements, found none`)
+      }
+      for (const cell of money) {
+        if (!/tabular-nums/.test(cell.fvn)) {
+          ctx.findings.push(`${route}: money is not tabular (font-variant-numeric: ${cell.fvn})`)
+        }
+        if (cell.inTable && cell.align !== 'right') {
+          ctx.findings.push(`${route}: money in the work table is not right-aligned (${cell.align})`)
+        }
+      }
+
+      // Assert the RESULT, not the property. `text-align: right` is inert on an
+      // inline box, so the declaration can be present while the column is still
+      // ragged — which is exactly what happened first time round.
+      if (route === '/app/work') {
+        const edges = await page.evaluate(() =>
+          [...new Set([...document.querySelectorAll('.work-row__value')]
+            .map(el => Math.round(el.getBoundingClientRect().right)))])
+        if (edges.length > 1) {
+          ctx.findings.push(`/app/work: money column has ${edges.length} different right edges (${edges.join(', ')})`)
         }
       }
     }

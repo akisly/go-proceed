@@ -61,7 +61,7 @@ export default function WorkTable({ items, emptyMessage }: { items: readonly Wor
               {item.capturedQuantity} {item.unit}
             </span>
           </span>
-          <span className="work-row__value">{formatUah(item.valueUah)}</span>
+          <span className="work-row__value" data-money>{formatUah(item.valueUah)}</span>
           <span className="work-row__status">
             <StatusChip state={item.readiness} />
           </span>
