@@ -89,7 +89,7 @@ export default function Landing() {
         {/* doc 05 §10 above-the-fold slot 1-3: outcome statement, explanation, CTA. */}
         <section className="hero hero--copy-only" id="product">
           <div className="hero__copy">
-            <span className="eyebrow-chip">Для підрядників-електромонтажників в Україні</span>
+            <span className="eyebrow-chip">Для електромонтажних підрядників в Україні</span>
             <h1>Виконані роботи мають ставати оплатою.</h1>
             <p>
               AktFlow пов’язує кожну позицію робіт із вимогами до доказів і станом готовності до подання — щоб було

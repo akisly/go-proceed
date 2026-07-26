@@ -167,16 +167,34 @@
  * /assets/evidence-atlas images ship here yet), and inventing a mockup with
  * fabricated numbers is exactly the failure mode this task exists to avoid.
  * This modifier collapses the grid to one column instead of leaving the
- * second column's reserved space empty. `.eyebrow-chip` also needs a
- * contrast fix here only: its background is the un-themed --signal token,
- * but text color inherits #fff from `.landing .hero`'s dark theme (checked
- * ../styles.css first — no existing rule sets eyebrow-chip's own color).
+ * second column's reserved space empty. (`.eyebrow-chip` needed no contrast
+ * fix here: ../styles.css's later "Evidence Atlas" section re-themes
+ * `.landing .hero` to `color:var(--ink)` on `--paper`, not dark-on-signal as
+ * an earlier, overridden rule in the same file suggests at a glance —
+ * confirmed via getComputedStyle in a live render before assuming either
+ * way, per ruling 2's spirit of checking claims against what actually
+ * renders rather than against how the source reads top-to-bottom.)
+ *
+ * Fix round 1: `.hero--copy-only` only overrode grid-template-columns, so
+ * `.hero`'s `min-height` (680px unconditioned, then 700px from the later
+ * "Evidence Atlas" section — confirmed via document.styleSheets, the 700px
+ * rule wins at any width above the 620px breakpoint where ../styles.css
+ * itself resets `.hero` to `min-height:auto`) still applied. Sized for a
+ * mockup column this layout no longer has, it left ~100-150px of dead
+ * centred whitespace above and below the copy at desktop (1280px:
+ * copy 486px + padding 164px = 650px natural vs. 700px forced) and, worse,
+ * at tablet (768px: copy 392px + padding 164px = 556px natural vs. the same
+ * 700px forced — the gap grows as the copy gets shorter, since min-height
+ * doesn't scale with it). 560px sits below the shortest natural height
+ * measured across desktop/tablet, so it now acts as a floor for
+ * short-content edge cases rather than a forced height — confirmed by
+ * re-measuring in a live render at 1280px, 768px and 375px after the
+ * change (see task-11-report.md); mobile already used `min-height:auto`
+ * beneath 620px, unaffected either way.
  */
 .hero--copy-only {
   grid-template-columns: 1fr;
-}
-.landing .hero .eyebrow-chip {
-  color: var(--ink);
+  min-height: 560px;
 }
 
 /*

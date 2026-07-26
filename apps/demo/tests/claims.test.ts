@@ -36,3 +36,30 @@ describe('GA-gated states', () => {
     expect(corpus).not.toContain('returned_external')
   })
 })
+
+/**
+ * Fix round 1: the "absent-capability claims" block above only proves each
+ * pattern is silent on THIS codebase's real content — it says nothing about
+ * whether the pattern would actually catch the claim class it was written
+ * for. These tests are the other half: each new proximity pattern is
+ * asserted against the exact wording from the fix-round-1 review that the
+ * original four narrow patterns let through untouched, so a future edit
+ * that accidentally narrows a pattern into a no-op fails loudly here
+ * instead of silently.
+ */
+describe('regression guard actually catches its documented example claims', () => {
+  const EXAMPLE_CLAIMS: Readonly<Record<string, string>> = {
+    'pricing-recurring': 'План Контроль коштує 10 900 гривень щомісяця',
+    'mobile-field-device': 'Працює на телефоні майстра в полі',
+  }
+
+  for (const [id, example] of Object.entries(EXAMPLE_CLAIMS)) {
+    it(`${id} matches its documented example claim`, () => {
+      const entry = FORBIDDEN_CLAIM_PATTERNS.find(p => p.id === id)
+      if (!entry) {
+        throw new Error(`claims.test.ts: expected a FORBIDDEN_CLAIM_PATTERNS entry with id "${id}".`)
+      }
+      expect(example).toMatch(entry.pattern)
+    })
+  }
+})
