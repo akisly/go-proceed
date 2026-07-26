@@ -163,13 +163,18 @@ There is no desktop top bar. The brand lives in the rail; a second 76px band
 repeating it is 76px not spent on rows. The mobile bar (56px) exists only below
 `md`, because that is the only width where the rail is hidden.
 
-Measured at 1440×900 after the shell rewrite:
+Measured at 1440×900:
 
-| | before | after |
-|---|---:|---:|
-| `/app/work` chrome before first row | 357px | **271px** |
-| `/app` chrome before first data | 274px | **147px** |
-| rows visible in a 900px fold | 10 | **11** |
+| | before | after shell | after register |
+|---|---:|---:|---:|
+| `/app/work` chrome before first row | 357px | 271px | **237px** |
+| rows visible in a 900px fold | 10 | 11 | **14 — all of them** |
+| `/app` chrome before first data | 274px | 147px | **183px** |
+
+`/app`'s figure went back up by 36px and that is the right trade: the total now
+sits inside a real panel with its honesty qualifier beside it, instead of being
+loose text on the page background. The register is the surface where every pixel
+above the fold is a row; the dashboard is not.
 
 ---
 
@@ -229,6 +234,73 @@ depends on the tooltip.
 three Carbon surfaces, and they are the same thing: the application talking about
 itself. Content surfaces are Paper and White, without exception.
 
+### Panel — `src/components/Panel.tsx`
+
+The one content surface: White on Paper, 1px border, `rounded-panel`, **no
+shadow**. `PanelHeader` gives it an `<h2>` and an optional count on one
+baseline. Everything that reads as "above the page" is chrome, and chrome is
+Carbon — content stays flat.
+
+### WorkRegister — `src/components/WorkRegister.tsx`
+
+Three renderings, matching the shell's three states:
+
+| width | rendering |
+|---|---|
+| `≥ wide` | 6-column `<table>`, `table-fixed` — 28/21/10/10/15/16 |
+| `md … wide` | same table, quantity columns dropped — 30/24/20/26 |
+| `< md` | cards, each leading with the amount and the state |
+
+**Not one DOM with CSS.** Changing `display` on table elements strips their
+implicit ARIA roles, so the "responsive table" trick forces you to hand
+`role="table"/"row"/"cell"` back and maintain an invisible second copy of the
+semantics. And the card view is not a reflow — it is a different hierarchy
+(RULING 6: the phone leads with money and state; the desk leads with identity).
+
+**`table-fixed` is the fix for the fourteen-grids defect.** Column geometry is a
+property of the element now, not something to maintain. Never reintroduce a
+per-row grid.
+
+**Numeric columns are right-aligned.** That is what makes a shortfall scannable:
+620/620 and 180/150 differ in *shape* when their digits share a right edge.
+
+Widths are measured against the real longest content — «Секція А · підвал ·
+електрощитова ВРУ-1», «Внутрішньо готово», «620 м» — never guessed. The two
+quantity columns are 10% because their *header* is the binding constraint, not
+their figure; at 9% they collided into «ЗАПЛАНОВАНОЗАФІКСОВАНО».
+
+Row: `px-3 py-2.5`, `border-b border-border-strong`, `hover:bg-surface-muted/60`.
+
+### SegmentedFilter — `src/components/SegmentedFilter.tsx`
+
+Chips, `h-11 md:h-8`, scrolling horizontally rather than wrapping.
+
+Radix Select would be far more compact for eight options and is the **wrong**
+control: this demo's claim is that it covers the state catalog honestly, and a
+dropdown hides that catalog behind a click. The visible option set is content.
+
+`aria-pressed` buttons, not `role="tab"` — these filter a list in place; there is
+no `tabpanel` to promise.
+
+### MoneySummary — `src/components/MoneySummary.tsx`
+
+The only 32px thing on any screen. Three levers at once: label 12px uppercase
+tracked muted, figure `text-display`/600/Carbon/tabular, denominator muted body.
+
+**The qualifier is not decoration.** `src/domain/risk.ts` sets a wording rule for
+every surface consuming this number — it is money whose evidence is currently
+missing, not money that will certainly go unpaid, and the phrasing stays
+conditional. The eyebrow is the `<h2>`; naming the panel with `aria-label` and
+adding an `sr-only` heading says the same thing twice.
+
+### ReadinessSplit — `src/components/ReadinessSplit.tsx`
+
+A proportional bar over a fully labelled legend. Segments use `flex-grow: count`
+rather than percentages, so they always consume exactly the track — the parts
+cannot fail to equal the whole. The bar is `aria-hidden` and carries no
+information of its own; every state is named in its canonical `ui_uk` label
+below it, so this is never colour-as-sole-signal.
+
 ### Separator — `src/components/ui/separator.tsx`
 
 Radix, so `decorative` is a decision at the call site rather than an accident. A
@@ -267,6 +339,16 @@ hand-rolled `h-px bg-border` is either always announced or never announced.
    `text-align` is inert on an inline box — an assertion passed while the money
    column was visibly ragged. Assert the *result* (shared right edges), never the
    declaration.
+
+7. **`items-center` on a flex column collapses children to their content box.**
+   It cost the 68px rail an 18×44 hit area where 36×44 was intended. Keep
+   children full width; centre their own content with `justify-center`.
+
+8. **Ukrainian has three plural forms and the teens are the trap.** 11–14 take
+   the genitive plural despite ending in 1–4. Use `pluralUk`/`rowsUk`
+   (`src/domain/format.ts`), never `${n} рядків`. There has been no
+   native-speaker review of this product's copy, so grammar rules get encoded
+   and tested rather than eyeballed.
 
 ---
 

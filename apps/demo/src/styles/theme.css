@@ -172,6 +172,11 @@
   --text-h3: 18px;
   --text-h2: 22px;
   --text-h1: 26px;
+  /* One step further up the same 1.2 ratio, reserved for the single focal
+     figure on a screen — /app's money-at-risk total. doc 05 §1 opens with
+     "large totals": the number this product exists to surface should not be
+     the same size as the page title that introduces it. */
+  --text-display: 32px;
 
   /* ---- Radii ----------------------------------------------------------- */
   /* Small and deliberate. A register is not a set of cards. */
@@ -320,6 +325,7 @@
   /* Every figure in this product is money or a count. Tabular by default here,
      rather than remembered per component. */
   .aktflow-app [data-numeric],
+  .aktflow-app [data-money],
   .aktflow-app table {
     font-variant-numeric: tabular-nums;
   }

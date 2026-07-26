@@ -264,7 +264,7 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
     // RULING 2: /app/work must show 14 rows — PROJECT.workItems.length,
     // read live off the rendered table, not re-asserted against the source.
     if (route === '/app/work') {
-      const rowCount = await page.$$eval('.full-work-table .work-row', els => els.length)
+      const rowCount = await page.$$eval('[data-work-register] [data-work-row]', els => els.length)
       if (rowCount !== 14) {
         ctx.findings.push(`/app/work: expected 14 rows (PROJECT.workItems.length), found ${rowCount}`)
       }
@@ -326,7 +326,12 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
       const money = await page.evaluate(() =>
         [...document.querySelectorAll('[data-money]')].map(el => {
           const cs = getComputedStyle(el)
-          return { fvn: cs.fontVariantNumeric, align: cs.textAlign, inTable: !!el.closest('.work-row') }
+          // Right-alignment is a property of the TABLE rendering only. Below
+          // 768px the register renders as cards where the amount leads the
+          // card (RULING 6), so it is correctly left-aligned there — scoping
+          // this to [data-work-table] keeps the assertion true at every width
+          // instead of only at the one it happens to run at.
+          return { fvn: cs.fontVariantNumeric, align: cs.textAlign, inTable: !!el.closest('[data-work-table]') }
         }))
       if (money.length === 0) {
         ctx.findings.push(`${route}: expected [data-money] elements, found none`)
@@ -345,9 +350,11 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
       // ragged — which is exactly what happened first time round.
       if (route === '/app/work') {
         const edges = await page.evaluate(() =>
-          [...new Set([...document.querySelectorAll('.work-row__value')]
+          [...new Set([...document.querySelectorAll('[data-work-table] [data-money]')]
             .map(el => Math.round(el.getBoundingClientRect().right)))])
-        if (edges.length > 1) {
+        if (edges.length === 0) {
+          ctx.findings.push('/app/work: expected money cells inside [data-work-table], found none')
+        } else if (edges.length > 1) {
           ctx.findings.push(`/app/work: money column has ${edges.length} different right edges (${edges.join(', ')})`)
         }
       }

@@ -3,7 +3,12 @@ import { Search } from 'lucide-react'
 import { PROJECT } from '../data/project'
 import { formatUah } from '../components/MoneyCard'
 import EmptyState from '../components/EmptyState'
-import WorkTable from '../components/WorkTable'
+import PageHeader from '../components/PageHeader'
+import { Panel } from '../components/Panel'
+import SegmentedFilter from '../components/SegmentedFilter'
+import WorkRegister from '../components/WorkRegister'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
 import { READINESS_LABEL_UK } from '../domain/labels'
 import type { ReadinessState, WorkItem } from '../domain/types'
 
@@ -91,26 +96,26 @@ function describeActiveFilter(filter: ReadinessFilter, query: string): string {
 function clearAction(hasActiveFilter: boolean, onClear: () => void): ReactNode | undefined {
   if (!hasActiveFilter) return undefined
   return (
-    <button type="button" className="button button--outline button--small" onClick={onClear}>
+    <Button type="button" variant="outline" size="sm" onClick={onClear}>
       Скинути фільтр
-    </button>
+    </Button>
   )
 }
 
 /**
- * Ruling 2 (Task 10): the full register, one row per PROJECT.workItems
- * entry, using the existing `.work-table` design-system class rather than
- * inventing a new table style. Quantity "against plan" is rendered as two
- * columns — planned and captured, both unit-suffixed — since that is the
- * only lossless way to show a shortfall (a single "12/18 шт" string would
- * still need two numbers; two columns keep both scannable at table width).
+ * The full register, one row per PROJECT.workItems entry.
  *
- * Task 14: adds a real readiness-state filter (`.segmented`, reused from
- * the approved prototype's Packages/Dashboard pages — grepped first,
- * `.segmented`/`.filter-bar`/`.search-box` already exist in styles.css, no
- * new CSS needed for the controls themselves) plus a code/title/location
- * search box, so the filtered-to-zero row (A.3.7a) is a real interaction
- * rather than a state that can never occur.
+ * LAYOUT INTENT. This is a triage surface: someone opens it to find what is
+ * blocking the close. So the page spends as little as possible before the first
+ * row — a one-line header, a one-line filter bar, then the register. Everything
+ * above the table was measured and cut where it could be: the total moved into
+ * the header's stat slot instead of occupying its own band, and the desktop top
+ * bar is gone entirely (see AppShell).
+ *
+ * The filter row keeps the segmented control and the search on ONE line from md
+ * up, with the search fixed at the end. They are two dimensions of the same
+ * question, and splitting them onto two rows made the register start 40px lower
+ * for no gain.
  */
 export default function Work() {
   const [filter, setFilter] = useState<ReadinessFilter>('all')
@@ -125,46 +130,45 @@ export default function Work() {
 
   return (
     <>
-      <h1>Реєстр робіт</h1>
-      <div className="page-intro">
-        <div>
-          {/* aria-live: announces the filtered count whenever the visitor
-              changes the readiness filter or the search text. */}
-          <h2 aria-live="polite">
-            {visibleItems.length} з {PROJECT.workItems.length} позицій · {formatUah(TOTAL_VALUE)}
-          </h2>
-          <p>{PROJECT.name}</p>
-        </div>
-      </div>
+      <PageHeader
+        title="Реєстр робіт"
+        meta={PROJECT.name}
+        stat={`${visibleItems.length} з ${PROJECT.workItems.length} позицій · ${formatUah(TOTAL_VALUE)}`}
+      />
 
-      <div className="filter-bar">
-        <div className="segmented" role="group" aria-label="Фільтр за готовністю">
-          {READINESS_FILTER_OPTIONS.map(option => (
-            <button
-              key={option}
-              type="button"
-              aria-pressed={filter === option}
-              className={filter === option ? 'active' : ''}
-              onClick={() => setFilter(option)}
-            >
-              {filterLabel(option)}
-            </button>
-          ))}
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center">
+        <div className="min-w-0 flex-1">
+          <SegmentedFilter
+            label="Фільтр за готовністю"
+            options={READINESS_FILTER_OPTIONS}
+            value={filter}
+            onChange={setFilter}
+            renderLabel={filterLabel}
+          />
         </div>
-        <label className="search-box">
-          <Search size={16} aria-hidden="true" />
-          <input
+        {/* 224px, not 256: the eight readiness chips beside it need 867px at
+            1440, and the wider field pushed «Подано» into a half-cut chip on
+            first paint. The field still comfortably fits «Код, назва або
+            локація». */}
+        <div className="relative shrink-0 md:w-56">
+          <Search
+            size={16}
+            aria-hidden="true"
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-foreground-muted"
+          />
+          <Input
             value={query}
             onChange={(event: ChangeEvent<HTMLInputElement>) => setQuery(event.target.value)}
             placeholder="Код, назва або локація"
             aria-label="Пошук роботи за кодом, назвою або локацією"
+            className="pl-9"
           />
-        </label>
+        </div>
       </div>
 
-      <section className="panel full-work-table" aria-label="Реєстр робіт">
+      <Panel aria-label="Реєстр робіт">
         {visibleItems.length > 0 ? (
-          <WorkTable items={visibleItems} />
+          <WorkRegister items={visibleItems} />
         ) : (
           <EmptyState
             title="Немає робіт за цим фільтром"
@@ -172,7 +176,7 @@ export default function Work() {
             action={clearAction(isFiltered, clearFilter)}
           />
         )}
-      </section>
+      </Panel>
     </>
   )
 }

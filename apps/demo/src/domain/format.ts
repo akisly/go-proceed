@@ -24,3 +24,34 @@ export function formatDateUk(iso: string): string {
   })
   return formatter.format(new Date(`${iso}T00:00:00Z`))
 }
+
+/**
+ * Ukrainian has three plural forms, and picking the wrong one is the kind of
+ * error a non-native reviewer waves through and a native reader trips over
+ * immediately. This project has had no native-speaker review yet, so the rule
+ * is encoded rather than eyeballed per call site.
+ *
+ *   one   1, 21, 31 … but NOT 11        — «1 рядок»
+ *   few   2-4, 22-24 … but NOT 12-14    — «4 рядки»
+ *   many  0, 5-20, 25-30 …              — «14 рядків»
+ *
+ * The teens are the trap: 11-14 all take `many` despite ending in 1-4, which is
+ * why the check is on the last TWO digits and not just the last one. The
+ * existing «Неповоротних рядків: 3» construction elsewhere sidesteps this by
+ * always using the genitive — correct, but it forces every label into a
+ * "noun: number" shape. This lets a count read as a phrase.
+ */
+export function pluralUk(count: number, one: string, few: string, many: string): string {
+  const n = Math.abs(Math.trunc(count))
+  const lastTwo = n % 100
+  if (lastTwo >= 11 && lastTwo <= 14) return many
+  const last = n % 10
+  if (last === 1) return one
+  if (last >= 2 && last <= 4) return few
+  return many
+}
+
+/** «4 рядки», «14 рядків», «1 рядок». */
+export function rowsUk(count: number): string {
+  return `${count} ${pluralUk(count, 'рядок', 'рядки', 'рядків')}`
+}
