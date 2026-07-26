@@ -100,7 +100,7 @@ cannot mark an assumption `validated`.
 
 | Quantity | Value at 26.07.2026 |
 |---|---|
-| Qualified leads available | **6** (target 30) |
+| Qualified leads available | **24** (target 30) |
 | Sends to date | **0** |
 | Replies to date | **0** |
 | Artifact providers | **0** (Stage-0 gate needs ≥3) |
@@ -109,3 +109,7 @@ cannot mark an assumption `validated`.
 
 **No V-gate was closed by B0, and none could be.** Desk research produces candidates, not
 evidence about the market. Findings are mapped without closing anything.
+
+**The 24/62 result measures lead-verification yield only.** It says how many companies could be
+identified and verified from public sources. It says nothing whatsoever about demand — neither
+for nor against. Any reading of it as market signal is a category error.

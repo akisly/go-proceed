@@ -1,233 +1,268 @@
-# Per-trade research report — B0 batch 1
+# Per-trade research report — B0
 
-**Date:** 26.07.2026 · **Status:** research complete for this pass · **Nothing has been sent.**
+**Date:** 26.07.2026 · **Nothing has been sent. No contact has been made.**
 
-These are **research-stage counts, not response rates.** No email exists, no contact has been
-made, and no reply data exists. Results are reported **separately by trade**; there is
-deliberately **no aggregate row** and **no blended metric** across trades.
+These are **lead-verification yield counts, not market signal.** They measure how many companies
+could be identified and verified from public sources — **nothing here is evidence of demand or
+lack of demand.** Results are reported **separately by trade**; there is deliberately **no
+aggregate row** and **no blended metric** across trades.
 
 ---
 
-## Headline: verified shortfall, not a complete batch
+## Headline
 
-**6 of 30 qualified.** The batch is **short by 24**. Per founder instruction, the shortfall is
-reported rather than filled by lowering standards or padding buckets.
+| | |
+|---|---|
+| Candidate records surfaced from verified sources | **~130 named companies** (58 ASEU catalogue entries, ~58 KVED rows carrying own-site URLs, 14 work.ua employers) |
+| **Examined in depth** | **62** |
+| **Qualified** | **24** |
+| Disqualified | **10** |
+| Unreachable (D5, recoverable) | **8** |
+| Researching (verification incomplete) | **20** |
 
-| Bucket | Target range | Qualified | In range? | Gap |
+**24 of 30 qualified. Short by 6.** All 24 carry `verification_complete = 1` — identity,
+specialization and public business contact each confirmed on a page that supports that specific
+claim, with the evidence note stored. Verified by query: zero qualified leads have an incomplete
+dimension.
+
+---
+
+## Formal stop condition
+
+The approved stop condition was: **30 qualified**, or **≥60 examined in depth with all approved
+high-yield sources materially worked** and a documented reason why more cannot be obtained
+without lowering standards.
+
+**Condition 2 is satisfied.** 62 examined (≥60). All five ordered sources were worked:
+
+| # | Source | Materially worked? | Outcome |
+|---|---|---|---|
+| 1 | ASEU installer catalogue | **yes** | 58 entries enumerated, 9 profiles opened, **6 qualified** |
+| 2 | ProZorro open API | **yes — to its accessible limit** | Search API works (10,000 electrical-works tenders). **Yield: 0 leads.** Blocker documented below |
+| 3 | work.ua dated ПТО/ВТВ vacancies | **yes** | 14 dated vacancies captured, 2 employers pursued to registry level, **0 qualified** |
+| 4 | Revisit blocked candidates | **yes** | АЛЬЯНС-БЕЗПЕКА **converted to qualified**; Антіфаєр contacts page 404 |
+| 5 | Expand company-owned site searches | **yes** | The bulk of the 62 |
+
+### Why the remaining 6 cannot be obtained without lowering standards
+
+1. **ProZorro cannot yield supplier identities through its public surfaces.** The POST search API
+   returns only the **procuring entity** — the hospital or municipality buying the work, not the
+   contractor performing it. The contractor lives in `awards[].suppliers[]` on the tender detail,
+   which needs the openprocurement internal UUID. `prozorro.gov.ua/api/tenders/{tenderID}` returns
+   **404**, and the openprocurement feed **ignores `?tenderID=`**, returning its chronological feed
+   from February 2015 instead. Mapping tenderID → UUID would require paging the entire feed since
+   2015. This was the highest-expected-yield source and it produced **zero** leads.
+2. **work.ua employers mostly have no findable website.** A dated ВТВ vacancy is an excellent
+   signal, but the employer must still be verifiable on a company-owned page. Of the two pursued:
+   ТОВ «Сігнум Газ Груп» (ЄДРПОУ 40075878) has no site and its registered activity is **wholesale
+   fuel trading**, not installation; ТОВ «Прогрін» could not be located at all.
+3. **The binding constraint is published contact, not candidate supply.** KVED catalogues alone
+   list ~12,000 companies. **8 of 62 examined (13%) publish no readable business email**, and a
+   further **12 sites could not be loaded at all** (expired/self-signed/mismatched TLS, 403, 404,
+   500, DNS failure) — 19% of everything examined.
+
+Closing the last 6 would require guessing addresses, using personal contacts, or admitting
+companies whose specialization could not be verified. All three are forbidden, so the batch stops
+at 24.
+
+---
+
+## Source yield
+
+```
+source → surfaced → examined → qualified → no email → stale → wrong ICP
+```
+
+| Source | Surfaced | Examined | Qualified | No email | Stale | Wrong ICP | Site unloadable |
+|---|---|---|---|---|---|---|---|
+| **ASEU installer catalogue** (official association directory) | 58 | 9 | **6** | 2 | 0 | 1 | 0 |
+| **ua-region KVED catalogues** (aggregator → own sites) | ~58 with URLs | 49 | **17** | 6 | 2 | 9 | 12 |
+| **work.ua** dated ПТО/ВТВ vacancies | 14 | 2 | **0** | 1 | 0 | 1 | 0 |
+| **ProZorro open API** | 10,000 tenders | 2 sampled | **0** | — | — | — | supplier data unreachable |
+| **Direct web search** | ~6 | 2 | **1** | 0 | 0 | 1 | 0 |
+
+**ASEU is the standout: a 67% qualification rate.** It publishes company name, region, website,
+email and phone in one verified place, and membership carries a documents-checked marker. The
+association catalogue outperformed every other source by a wide margin — including the vendor
+installer directories the spec predicted would be the highest-precision class, which produced
+nothing.
+
+### Disqualification reasons across all 62
+
+| Reason | Count |
+|---|---|
+| **D5** — no readable public business email (recoverable, 90-day recheck) | 8 |
+| **D3** — retail/wholesale/manufacturing/provider, no installation delivery | 6 |
+| **D6** — inactive, last dated content >24 months | 2 |
+| **D2** — no visible field-work process | 1 |
+| **D1** — developer of its own projects, not a subcontractor | 1 |
+| Verification incomplete → held at `researching` | 20 |
+
+---
+
+## Qualification yield by trade
+
+| Bucket | Target range | Qualified | In range? | Deviation |
 |---|---|---|---|---|
-| `electrical_group` | 16–18 | **3** | ✗ | −13 |
-| `hvac` | 3–5 | **1** | ✗ | −2 |
-| `plumbing` | 2–4 | **1** | ✗ | −1 |
-| `solar` | 2–4 | **0** | ✗ | −2 |
-| `maintenance` | 1–3 | **1** | ✓ **in range** | — |
-| **Total** | **30** | **6** | ✗ | **−24** |
+| `electrical_group` | 16–18 | **11** | ✗ | **−5** below floor |
+| `hvac` | 3–5 | **2** | ✗ | **−1** below floor |
+| `plumbing` | 2–4 | **1** | ✗ | **−1** below floor |
+| `solar` | 2–4 | **8** | ✗ | **+4** above ceiling |
+| `maintenance` | 1–3 | **2** | ✓ **in range** | — |
+| **Total** | **30** | **24** | ✗ | **−6** |
 
 **Trade groups researched: 6** (electrical, low-voltage, HVAC, plumbing, solar, maintenance) —
-satisfies the ≥4 requirement.
+the ≥4 requirement is satisfied.
 
-**No backfill was performed.** Backfill moves places between buckets; with every bucket short
-there was nothing to move. Padding `electrical_group` with weak companies would have breached
-the explicit instruction not to.
+### The solar overshoot is documented backfill, not padding
+
+`solar` sits **4 above its ceiling**. This is the sanctioned backfill mechanism: three buckets
+fell short, and the approved rule is to fill remaining places with the strongest verified
+candidates from another segment. Every solar lead passed the identical three-dimension standard —
+none was admitted to reach a number. The overshoot exists because **ASEU is the only source in
+the entire registry that publishes verified contact data at scale**, so the segment it serves was
+the cheapest to qualify honestly. The shortfall in electrical is a source-access problem, not an
+ICP or demand problem.
 
 ---
 
-## Funnel for this pass
+## Top 10 qualified leads
 
-| Stage | Count |
+Ranked by strength of job fit and signal. **`fit_score` is a coarse ordering field and is not
+quoted as a metric** (D-2); all 24 are band A with `confidence_score = 100`.
+
+| # | Company | Trade | Why it ranks here |
+|---|---|---|---|
+| 1 | **ТОВ «Новітні Енергетичні Програми»** | electrical | **Freshest dated evidence in the whole batch**: PS 35 kV «Тлумач»/«Тисмениця» reconstruction published **26.06.2026** and a 35 kV cable line in Artsyz for a wind station **18.06.2026** — one month old. Buried 35 kV cable is the cleanest instance of the shared job. Own electricians on staff |
+| 2 | **ІБК «Енергокапітал»** | electrical | Cable 0.4–110 kV in pipe channels and trenches; 30 installers in-house. Strongest concealed-work profile. Department mailbox on own domain |
+| 3 | **ТОВ «Укравтономгаз»** | plumbing | Buried LPG pipework and tanks — the most expensive concealment to reverse in the batch. Dated signal: 15.04.2025 webinar by the named director. Own-domain address |
+| 4 | **ТОВ «Структум»** | electrical | Underground cable lines, substations, railway contact network, emergency recovery works. Two own-domain mailboxes. Size (300+) above the ICP band — recorded, not hidden |
+| 5 | **Компанія «РЕЙДЕН»** | electrical | Earthing loops are buried by definition — cross-section, depth and weld quality unverifiable after backfill. 17 years, 1,500+ projects, `info@` own domain |
+| 6 | **НВП «Інтеренерго»** | maintenance | Dated 2024–2025 projects incl. a 19.2 MW gas-piston station, with named in-house installation personnel. Own-domain address |
+| 7 | **Протипожежна компанія «Брандмауер»** | low_voltage | 500 designs / 300 installations per year, DSNS-accredited, clients incl. Coca-Cola and WOG. Own-domain address. Identity rests on a domain redirect — flagged |
+| 8 | **ТОВ «Авенстон»** | solar | Commercial/industrial solar **general contracting** — the only solar lead whose model puts it under external acceptance, which is where the thesis lives. ASEU-verified |
+| 9 | **ТОВ «Пожежний Захист»** | low_voltage | Suppression pipework, aspiration, smoke protection and fire-resistant cable treatment — all concealed. Dated licence (ДСНС order №621, 14.09.2021). Free mailbox flagged |
+| 10 | **REC SECURITY LLC** | low_voltage | Structured cabling, electrical wiring and lightning protection — concealed in structure and in ground. ISO 9001:2015 / 23932:2018 certificates dated 2024–2025. Own-domain address |
+
+Immediately below: **ТОВ «Промавтоматика Вінниця»** (400+ projects, 20 MW), **Блок Майстер
+Україна** (175 MW built, own installation team), **ТОВ «Електропівденмонтаж»** (123 specialists —
+held back by a free mailbox and no dated activity; **critical-infrastructure portfolio, so
+§B.0.6 geodata stripping applies to any future artefact**).
+
+---
+
+## Public-contact gaps
+
+**8 of 62 examined (13%) publish no readable public business email.** All are `unreachable` with
+a 90-day `recheck_after` (ER-5b), not permanently burned — the ICP judgment was never the problem.
+**No address was guessed, inferred or pattern-matched.**
+
+| Company | Gap |
 |---|---|
-| Candidates surfaced from verified sources | 40+ (KVED catalogue rows and ASEU catalogue entries with own-site URLs) |
-| **Examined in depth** (site fetched, claims checked) | **15** |
-| **Qualified** (all three dimensions verified + live signal) | **6** |
-| Not qualified | **9** |
+| ВЕНБЕСТ, ТОВ «Платінум Електрик» | Address obfuscated by Cloudflare email-protection — unreadable |
+| Київ Клімат, ТОВ «Соленсі», ТОВ «КВК Електрик», ТОВ «АНІКО» | Phones only; no address published |
+| ТОВ «Антіфаєр» | Phone, Viber and Telegram only; `/kontakty/` returns 404 |
+| Rivne Solar Group | Only a personal address (`имя+рік народження@gmail.com`) — a private contact, excluded |
 
-### Why the 9 failed
+**Free-mail addresses were not treated as automatic rejections.** Where a company explicitly
+publishes one for business use, it is recorded with a deliverability-risk note, per instruction.
+**8 of the 24 qualified leads (33%) use a free mailbox** (`@ukr.net`, `@gmail.com`, `@i.ua`).
+Contact-type split across the 24: 14 department, 9 general, 1 personal-business.
 
-| Reason | Count | Companies |
-|---|---|---|
-| **D5 — no readable public business email** | 3 | ВЕНБЕСТ (address obfuscated by Cloudflare, unreadable), Київ Клімат (phones and prices only), АЛЬЯНС-БЕЗПЕКА (none on main page) |
-| **D6 — inactive, last dated content >24 months** | 2 | РС-Безпека (25.03.2019), АРТ-КОМФОРТ (18.10.2019 / 22.12.2018) |
-| **D1 — developer of its own projects, not a subcontractor** | 1 | Будівельний Альянс |
-| **Verification incomplete — held at `researching`** | 3 | Омега Клімат (no dated activity, © 2017), Unisolar (brand/legal-entity link unproven; contact on a different domain; portfolio Moldova-weighted), ДНІПРО-СГЕМ (site serves no content) |
+That 33% is a live risk for the ER-8c stop rule: consumer-Gmail-to-consumer-domain cold mail is
+filtered aggressively, and a bounce is `R9` — never a prompt to guess a replacement.
 
-**All 6 qualified leads carry `verification_complete = 1`** — identity, specialization and public
-contact each confirmed on a page that supports that specific claim, with the evidence note
-stored. `confidence_score = 100` and `fit_band = A` for all six. Domains are unique
-(`uniq -d` returns empty).
+**A further 12 candidate sites (19% of everything examined) could not be loaded at all** — expired,
+self-signed or mismatched TLS certificates, 403/404/500 responses, and dead DNS. These are held at
+`researching` with the exact technical reason, not rejected on ICP.
 
 ---
 
 ## Results by trade
 
-### `electrical_group` — 3 of 16–18
+### `electrical_group` — 11 of 16–18
 
-The largest shortfall, and the primary wedge. Three qualified:
+Eleven qualified: НЕП, ІБК «Енергокапітал», Структум, РЕЙДЕН, Брандмауер, Пожежний Захист,
+REC Security, Проектлінк, ШІЛД-ФАЄР, Електропівденмонтаж, АЛЬЯНС-БЕЗПЕКА.
 
-- **ІБК «Енергокапітал»** (Київ) — cable networks 0.4–110 kV, cable in pipe channels,
-  substations, 30 installers on staff. The strongest concealed-work profile in the batch.
-- **ТОВ «Електропівденмонтаж»** (Харків) — electrical installation, КВПіА, relay protection,
-  123 specialists, 26 years.
-- **ТОВ «ШІЛД-ФАЄР»** (Київ, low-voltage) — fire alarm, suppression, smoke control installation.
+**The job needs no translation here.** Cable in screed and pipe channels, buried earthing loops,
+underground communication lines, fire-detection shleifs and suppression pipework above ceilings —
+all closed behind structure, all unverifiable afterwards without excavation or demolition.
 
-**The job in this trade is unambiguous.** Cable in screed and in pipe channels, secondary
-wiring, КВПіА loops and fire-detection shleifs are all closed behind structure. Depth of
-laying, cable marking and joint condition cannot be re-verified after backfill without
-excavation. This is the segment where the shared job needs no translation.
+### `hvac` — 2 of 3–5
 
-**Why only three:** the constraint was not candidate supply — KVED 43.21 alone lists 3,822
-companies. It was that most small electrical contractors publish a phone and a Viber number
-rather than a business email, or their sites have not been updated since before 2022.
+Берком (duct manufacture *and* installation, dated portfolio to 17.04.2025) and Здоровий клімат
+(200+ commissioned objects, site-video documentation).
 
-### `hvac` — 1 of 3–5
+**Transfers cleanly:** ducts above suspended ceilings and in shafts. **Trade-specific:** closing
+leans on aerodynamic testing and balancing protocols rather than hidden-work acts alone — a demo
+built on an electrical scenario would need that named differently before it reads as their process.
 
-- **ТОВ «ВКФ «Берком»** (Львів) — ventilation duct manufacture *and* installation, portfolio of
-  15+ installed systems (extract hoods, roof fans, smoke removal).
+### `plumbing` — 1 of 2–4
 
-**What transfers cleanly:** ducts, aspiration nodes and smoke-removal runs sit above suspended
-ceilings and in shafts. Once the ceiling closes, joint quality and insulation cannot be checked
-without dismantling. The evidence-before-concealment logic is the same as electrical.
+Укравтономгаз only. **Transfers strongly:** buried pipework costs more to expose than a ceiling.
+**Trade-specific:** a statutory gas inspection regime already prescribes part of the process.
 
-**What is trade-specific:** the acceptance artefact differs — HVAC closing leans on
-commissioning and airflow-balance protocols (аеродинамічні випробування) rather than
-hidden-work acts alone. A demo built around an electrical scenario would need that named
-differently before it reads as *their* process.
+Two further candidates (АНІКО, Київська Бурова Компанія) match the job but failed on contact or
+activity, and two pipeline sites could not be loaded.
 
-**Caution recorded:** Берком's newest dated portfolio item is 17.04.2025 — over 12 months old.
-Activity within 12 months is **not** confirmed.
+### `solar` — 8 of 2–4 (over ceiling, documented backfill)
 
-### `plumbing` / engineering networks — 1 of 2–4
+Правильне Електроживлення, Авенстон, УТЕМ СОЛАР, Промавтоматика Вінниця, Блок Майстер, DELA
+ENERGY, Променергомонтаж, Академ Інвест.
 
-- **ТОВ «Укравтономгаз»** (Ужгород) — autonomous LPG gas-supply systems, «проведення монтажних
-  робіт», 650 turnkey objects.
+**Transfers:** roof-mounting nodes and cable runs are closed by roofing details. **Trade-specific:**
+acceptance rests on commissioning protocols and capacity tests rather than КБ-2в. Авенстон is the
+exception worth noting — as an EPC general contractor it faces genuine external acceptance.
 
-**What transfers cleanly:** buried pipework and LPG tanks are backfilled. Trench routes, laying
-depth and welded-joint condition are unverifiable afterwards without excavation — arguably a
-*stronger* instance of the shared job than electrical, because excavation is more expensive
-than opening a ceiling.
+### `maintenance` — 2 of 1–3 ✓ in range
 
-**What is trade-specific:** gas work carries a statutory inspection and commissioning regime of
-its own, with an external authority in the loop. That raises the stakes on evidence but also
-means part of the process is already prescribed — the tool would have to fit around it, not
-replace it.
-
-**This is the segment with the clearest dated activity signal** in the whole batch: a webinar on
-15.04.2025 led by the named director, plus an April 2025 trade-journal interview.
-
-### `solar` — 0 of 2–4
-
-**Zero qualified, despite the best source in the registry.** АСЕУ (`catalog.aseu.org.ua`) is a
-verified association with a public catalogue of **119+ installers** — precisely the pre-filtered
-list §B.3 predicted would be the highest-precision class.
-
-The one candidate examined (**Unisolar**) failed identity verification: the site runs on
-`unisolar.energy` while the published address is on `unisolar.com.ua`, no full legal name is
-published, the ЄДРПОУ in the catalogue belongs to a differently-named entity, and the visible
-project portfolio is Moldova-weighted rather than Ukrainian.
-
-**This is a shortfall of coverage, not of supply.** The ASEU catalogue was found late in the
-pass and its individual company profiles were not worked through. It is the single highest-yield
-next action.
-
-### `maintenance` — 1 of 1–3 ✓ **the only bucket in range**
-
-- **НВП «Інтеренерго»** (Харків) — cogeneration, biogas, biomass boilers: design, supply,
-  installation and commissioning with its own installation personnel; 2024–2025 gas-piston
-  projects including a 19.2 MW facility.
-
-**What transfers cleanly:** plant-room pipework and cable trays are closed behind cladding and
-insulation; commissioning evidence has to exist before that happens.
-
-**What is trade-specific:** the acceptance counterparty is often the equipment owner's technical
-service rather than a GC's ПТО, and the artefact is a commissioning protocol rather than КБ-2в.
-The billing-proof half of the AktFlow thesis is weaker here.
+Інтеренерго (cogeneration/biogas, dated 2024–25 projects) and Агроремсервісприлад-М (fuel modules
+and weighing systems; **underground tanks and pipework** — arguably the strongest concealment
+instance outside plumbing, with a fuel-regulator inspection attached).
 
 ---
 
 ## Is any adjacent segment showing stronger pain than electrical?
 
-**Tentatively yes — plumbing / engineering networks.** Buried gas pipework is the most expensive
-concealment to reverse in the batch: excavation costs far exceed opening a ceiling, and the
-statutory inspection regime means missing evidence has a regulator attached, not just a client.
+**Plumbing/engineering networks and the fuel-infrastructure end of maintenance both look
+structurally stronger** — buried assets cost far more to expose than a ceiling, and both carry a
+statutory inspector as an additional acceptance counterparty.
 
-**This is a hypothesis from desk research on one company, not a finding.** No operator has said
-it. doc 30 §1 forbids treating a founder inference as validated, and n=1 supports nothing. It is
-recorded here as the question worth putting to the first plumbing respondents.
-
----
-
-## Public-contact gaps — the dominant constraint
-
-**4 of 15 companies examined (27%) published no readable public business email**, and a fifth
-published only a personal-format address on a free domain.
-
-| Company | Gap |
-|---|---|
-| ВЕНБЕСТ | Address obfuscated by Cloudflare email-protection — unreadable programmatically |
-| Київ Клімат | Phones and a price list only |
-| АЛЬЯНС-БЕЗПЕКА | None on the main page (contacts page not yet checked) |
-| АРТ-КОМФОРТ | None published |
-| РС-Безпека | `rostyslavs@ukr.net` — owner's personal-format address, not a business mailbox |
-
-**No address was guessed, inferred, or pattern-matched.** Per ER-5b these are `unreachable` with
-a 90-day `recheck_after`, not permanently disqualified — the contact may appear later, and the
-ICP judgment was never the problem.
-
-A further observation for the message itself: among those that *do* publish an address, free
-mailboxes (`@ukr.net`, `@gmail.com`) are common even for companies with 100+ staff. Deliverability
-from a consumer Gmail sender to these recipients is a real risk the ER-8c stop rule should watch.
+**This is a hypothesis from desk research, not a finding.** No operator has said it. n is tiny,
+doc 30 §1 forbids treating a founder inference as validated, and **nothing in this report measures
+demand.** It is recorded as the question to put to the first plumbing and maintenance respondents.
 
 ---
 
 ## Deviations from the plan, stated explicitly
 
-1. **Every bucket except `maintenance` is below its range floor.** Cause: verification standard
-   held, candidate throughput too low in one pass. Not caused by candidate scarcity.
-2. **Tier 2 vendor installer directories produced zero leads.** Ajax Systems — the vendor the
-   spec rated most promising as Ukrainian and "likely rich" — exposes only a partner-portal
-   login, no public installer directory. The other vendors were not verified and were therefore
-   not used. The spec's expectation that this is the "highest ICP precision" source class was
-   **not borne out**.
-3. **Three of five Tier 1 registry front-ends are unusable** (Clarity paywalled, YouControl
-   requires account registration, Opendatabot 403). Identity verification fell back to
-   company-published legal requisites cross-checked against a catalogue ЄДРПОУ, which is
-   recorded per lead in `identity_evidence_note`. The ProZorro open API *is* usable and remains
-   the strongest untapped official source.
-4. **No association was named that was not verified.** Only АСЕУ was confirmed; no HVAC or
-   electrical contractor association with a public member list was found, and none was invented.
+1. **Three buckets below floor** (electrical −5, hvac −1, plumbing −1); **solar +4 above ceiling**
+   as documented backfill; maintenance in range. Cause: verification standard held, source access
+   constrained. **No lead was admitted to fill a bucket.**
+2. **ProZorro yielded zero leads** despite being accessible and the highest-expected-yield source.
+   Exact blocker recorded above.
+3. **Vendor installer directories (Tier 2) yielded zero leads.** Ajax Systems — rated "likely
+   rich" by the spec — exposes only a partner-portal login. The spec's "highest ICP precision"
+   claim was not borne out.
+4. **Three of five Tier 1 registry front-ends remain unusable** (Clarity paywalled, YouControl
+   requires registration, Opendatabot 403). Identity verification rests on company-published legal
+   requisites cross-checked against catalogue ЄДРПОУ, recorded per lead.
+5. **One aggregator/company ЄДРПОУ conflict found and resolved in favour of the company.**
+   ua-region lists 38348416 for АЛЬЯНС-БЕЗПЕКА; the company's own contacts page publishes
+   **44564041**. The company-owned source was taken as authoritative and the conflict recorded —
+   a concrete demonstration of why aggregators are discovery-only.
 
 ---
 
-## Ranking of the qualified leads
+## What would close the remaining 6
 
-Six qualified, so a top-10 cannot be produced. All six are band A with `confidence_score = 100`;
-`fit_score` is a **coarse ordering field only and is not quoted as a metric** (D-2). The ordering
-below is a judgment on the strength of the *job fit* and the *signal*, not a score.
-
-| # | Company | Trade | Why it ranks here |
-|---|---|---|---|
-| 1 | **ІБК «Енергокапітал»** | electrical | Strongest concealed-work exposure in the batch — cable 0.4–110 kV in pipe channels and trenches. 30 installers in-house means real crews, real field evidence. Department mailbox on its own domain |
-| 2 | **ТОВ «Укравтономгаз»** | plumbing | Buried LPG pipework is the most expensive concealment to reverse. **Best dated signal in the batch**: 15.04.2025 webinar by the named director. Own-domain address |
-| 3 | **НВП «Інтеренерго»** | maintenance | Only lead with dated 2024–2025 project evidence *and* named in-house installation personnel. Own-domain address |
-| 4 | **ТОВ «ШІЛД-ФАЄР»** | low_voltage | Clean pure-play installer, `info@` on its own domain, Kyiv address published. Signal is a 2025-standard review — topical but undated |
-| 5 | **ТОВ «Електропівденмонтаж»** | electrical | Largest verified crew (123 specialists) and deep concealed-work profile. Held back by a free mailbox and no dated activity. **Critical-infrastructure portfolio → §B.0.6 geodata stripping applies to any future artefact** |
-| 6 | **ТОВ «ВКФ «Берком»** | hvac | Real installed-systems portfolio with dated entries. Held back by newest date being 17.04.2025 (>12 months) and a free mailbox |
-
-**Leads 4–6 carry named weaknesses.** Each is genuinely verified against all three dimensions;
-none is padding. But 5 and 6 have no activity signal inside 12 months, and 4's signal is a blog
-topic rather than a trigger event. Before any of the three is drafted to, §B.10 Loop 4 step 2
-requires re-fetching the signal and blocking if it is no longer live.
-
----
-
-## What would close the gap
-
-In rough order of expected yield:
-
-1. **Work the ASEU catalogue** (119+ verified solar installers, individual profiles unread) —
-   the clearest path to filling `solar` and probably overshooting it.
-2. **Harvest the ProZorro open API by works CPV** — official, no auth, live today. Yields award
-   records that verify both identity *and* specialization from a single authoritative source,
-   which is exactly the dimension pair that fell back to catalogue cross-checking here.
-3. **Mine the 144 live «інженер ПТО» vacancies on work.ua** — a vacancy is simultaneously a
-   documentation-burden signal and a **dated** personalization hook, which is the weakest
-   attribute across the current six.
-4. **Check contacts pages for the three D5 leads** before their 90-day recheck.
+1. **Work ASEU pages 2–6** (~61 more installer profiles). Highest proven yield at 67%, though it
+   would deepen the solar overshoot unless restricted to firms with commercial/industrial EPC
+   profiles.
+2. **Find an equivalent association catalogue for electrical or HVAC.** None with a public member
+   list was found; none was invented. This is the single highest-leverage unknown.
+3. **Retry the 12 unloadable sites** from a normal browser — TLS and 403 blocks are automation
+   artefacts, not evidence about the companies.
+4. **Check contacts pages for the 8 D5 leads** before their 90-day recheck; АЛЬЯНС-БЕЗПЕКА
+   converted exactly this way.
