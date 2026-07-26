@@ -6,6 +6,7 @@ import { launch } from './browser.mjs'
 import { REDIRECTED_ROUTES, SHIPPED_ROUTES } from './routes.mjs'
 import { FORBIDDEN_CLAIM_PATTERNS } from './forbidden-claims.mjs'
 import { PLACEHOLDER_TOKEN_PATTERN_GLOBAL } from './placeholder-tokens.mjs'
+import { auditColours, buildApprovedPalette } from './colour-audit.mjs'
 
 // FINDING 1: every generated artifact lands here, and this directory is
 // gitignored. A QA run must leave `git status` clean. prototype/ writes 19
@@ -140,6 +141,37 @@ async function withPage(browser, task) {
 // or left to fail the zero-console-error gate (which would block on a
 // defect this task is explicitly told not to chase). Any OTHER console
 // error, page error, or unexpected (non-asset) 404 is a genuine finding.
+/**
+ * Step zero of the dashboard rewrite: audit the colour that actually SHIPS.
+ *
+ * tests/palette.test.ts guards authored source. This guards the built bundle —
+ * the only place a Tailwind/shadcn theme's generated colour becomes visible,
+ * because utilities and theme layers do not exist as authored CSS. Without it a
+ * colour could enter through a class name or a plugin default and reach a real
+ * page while every source-level check stayed green.
+ */
+async function auditGeneratedCss(findings) {
+  const approvedCss = await readFile(path.resolve('../../prototype/src/styles.css'), 'utf8')
+  const approved = buildApprovedPalette(approvedCss)
+  const assetsDir = path.join(DIST, 'assets')
+  let entries
+  try {
+    entries = await readdir(assetsDir)
+  } catch {
+    findings.push('generated CSS: dist/assets is missing — was the build run?')
+    return
+  }
+  const sheets = entries.filter(f => f.endsWith('.css'))
+  if (sheets.length === 0) {
+    findings.push('generated CSS: no .css emitted into dist/assets')
+    return
+  }
+  for (const sheet of sheets) {
+    const css = await readFile(path.join(assetsDir, sheet), 'utf8')
+    findings.push(...auditColours({ css, label: `dist/assets/${sheet}`, approved }))
+  }
+}
+
 const ASSET_404_RE = /\.(png|jpe?g|gif|webp|svg|pdf|ico)$/i
 
 function classifyDiagnostics(label, diagnostics, findings, missingAssetCounts) {
@@ -695,10 +727,21 @@ async function main() {
       ctx.findings.push(`/demo journey: audit crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
     }
 
+    try {
+      await auditTouchTargets(browser, baseUrl, ctx)
+    } catch (err) {
+      ctx.findings.push(`touch targets: audit crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
+    }
+
+    try {
+      await auditGeneratedCss(ctx.findings)
+    } catch (err) {
+      ctx.findings.push(`generated CSS colour audit: crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
+    }
+
     let drawerFocusTrap = { forwardWrap: null, backwardWrap: null }
     try {
-      drawerFocusTrap = await auditTouchTargets(browser, baseUrl, ctx)
-  await auditDrawerFocusTrap(browser, baseUrl, ctx)
+      drawerFocusTrap = await auditDrawerFocusTrap(browser, baseUrl, ctx)
     } catch (err) {
       ctx.findings.push(`drawer focus trap: audit crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
     }
