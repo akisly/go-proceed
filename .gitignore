@@ -20,3 +20,6 @@ prototype/qa-runtime-tmp/
 
 # Claude Code native worktrees (never commit worktree contents)
 .claude/worktrees/
+
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/
