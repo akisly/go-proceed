@@ -1,5 +1,6 @@
 import { PROJECT, TODAY } from '../data/project'
 import { isUnrecoverable, type ReadinessState } from '../domain/readiness'
+import { atRiskItems, atRiskTotalUah } from '../domain/risk'
 import MoneyCard from '../components/MoneyCard'
 import StatusChip from '../components/StatusChip'
 import UnrecoverableNote from '../components/UnrecoverableNote'
@@ -12,9 +13,7 @@ import WorkTable from '../components/WorkTable'
  * literal accounting of that number rather than a decorative list — every
  * row shown sums to exactly what the card claims.
  */
-const AT_RISK_ITEMS = [...PROJECT.workItems]
-  .filter(item => item.readiness === 'evidence_missing')
-  .sort((a, b) => b.valueUah - a.valueUah)
+const AT_RISK_ITEMS = [...atRiskItems(PROJECT.workItems)].sort((a, b) => b.valueUah - a.valueUah)
 
 const UNRECOVERABLE_ITEMS = PROJECT.workItems.filter(item => isUnrecoverable(item, TODAY))
 
@@ -46,9 +45,8 @@ const READINESS_DISTRIBUTION = READINESS_PIPELINE_ORDER
   .filter(entry => entry.count > 0)
 
 export default function Dashboard() {
-  const atRisk = PROJECT.workItems
-    .filter(item => item.readiness === 'evidence_missing')
-    .reduce((sum, item) => sum + item.valueUah, 0)
+  // Review 07 · B2: one definition, imported — never re-derived per surface.
+  const atRisk = atRiskTotalUah(PROJECT.workItems)
 
   return (
     <>

@@ -3,6 +3,7 @@ import { Link, NavLink } from 'react-router-dom'
 import { AlertTriangle, Check } from 'lucide-react'
 import { PROJECT, TODAY } from '../data/project'
 import { isUnrecoverable, readinessTone } from '../domain/readiness'
+import { atRiskTotalUah } from '../domain/risk'
 import { formatDateUk } from '../domain/format'
 import type { EvidenceKind, WorkItem } from '../domain/types'
 import StatusChip from '../components/StatusChip'
@@ -284,6 +285,16 @@ export default function Demo() {
             <p>
               У розділ «Потребує дій» входить {formatUah(FOCUS.valueUah)} за рядком {FOCUS.code} — саме той, що ви щойно
               бачили: обсяг закладено, фото до закриття ще немає.
+            </p>
+            {/*
+              Review 07 · B2. This breakdown groups by state of readiness, so its
+              amber bucket is wider than the «Під ризиком» figure on «Огляд».
+              Both numbers are correct; previously nothing on screen said why they
+              differ. Scope them explicitly rather than quietly showing two totals.
+            */}
+            <p className="page-intro">
+              Це розподіл за станом готовності. «Під ризиком» в «Огляді» — вужча величина: лише рядки, яким бракує
+              доказів, {formatUah(atRiskTotalUah(PROJECT.workItems))}.
             </p>
           </>
         )}

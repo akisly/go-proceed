@@ -4,6 +4,7 @@ import { AlertTriangle, Check } from 'lucide-react'
 import { PROJECT } from '../data/project'
 import { formatUah } from '../components/MoneyCard'
 import EmptyState from '../components/EmptyState'
+import { isAtRisk } from '../domain/risk'
 import { READINESS_LABEL_UK } from '../domain/labels'
 import type { EvidenceKind, WorkItem } from '../domain/types'
 
@@ -52,7 +53,7 @@ function hasOnlyNonBlockingGap(item: WorkItem): boolean {
  * predicate both pages now share for "is this row's value at risk today".
  */
 function riskSentence(item: WorkItem): string {
-  if (item.readiness === 'evidence_missing') {
+  if (isAtRisk(item)) {
     return `Під ризиком ${formatUah(item.valueUah)} за цим рядком, доки нижченаведені вимоги не закрито.`
   }
   return (
@@ -75,10 +76,16 @@ function riskSentence(item: WorkItem): string {
  * which genuinely is not part of that total.
  */
 function nonBlockingRiskNote(item: WorkItem): string | null {
-  if (item.readiness !== 'evidence_missing') return null
+  if (!isAtRisk(item)) return null
+  // Review 07 · B2 asks that the wording stay aligned across /app and
+  // /app/evidence. Both sentences on this page now open with the same
+  // «Під ризиком {сума} за цим рядком» clause, so a reader can add the
+  // figures down the page and land on the dashboard total without having to
+  // notice that two different phrasings mean the same thing. The distinction
+  // that matters — this requirement does not block submission — follows.
   return (
-    `Рядок усе ще має статус «${READINESS_LABEL_UK.evidence_missing}», тому ${formatUah(item.valueUah)} ` +
-    'враховано в сумі «Гроші під ризиком» на дашборді — просто ця конкретна вимога подання пакета не блокує.'
+    `Під ризиком ${formatUah(item.valueUah)} за цим рядком: статус — ` +
+    `«${READINESS_LABEL_UK.evidence_missing}». Ця конкретна вимога подання пакета не блокує.`
   )
 }
 
