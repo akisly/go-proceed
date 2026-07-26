@@ -112,6 +112,12 @@ cannot mark an assumption `validated`.
 **No V-gate was closed by B0, and none could be.** Desk research produces candidates, not
 evidence about the market. Findings are mapped without closing anything.
 
+**Correction logged 26.07.2026:** B0 recorded ProZorro as unable to yield contractor identities.
+A follow-up spike refuted that — 26 tenders tested, 25 contractors extracted (96%). ProZorro can
+supply identity, specialization signal and dated activity; it still cannot supply a usable
+outreach address. The funnel volumes above are unchanged, but the *cost per qualified lead* would
+fall materially under a B0.1 enrichment pass. See `prozorro-contractor-extraction-spike.md`.
+
 **The 24/62 result measures lead-verification yield only.** It says how many companies could be
 identified and verified from public sources. It says nothing whatsoever about demand — neither
 for nor against. Any reading of it as market signal is a category error.

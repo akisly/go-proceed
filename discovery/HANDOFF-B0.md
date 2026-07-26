@@ -45,18 +45,20 @@ source → surfaced → examined → qualified → no email → stale → wrong 
 | ASEU installer catalogue (association directory) | 58 | 9 | **6** | 2 | 0 | 1 | 0 |
 | ua-region KVED catalogues → company-owned sites | ~58 | 49 | **17** | 6 | 2 | 9 | 12 |
 | work.ua dated ПТО/ВТВ vacancies | 14 | 2 | **0** | 1 | 0 | 1 | 0 |
-| ProZorro open API | 10,000 tenders | 2 | **0** | — | — | — | supplier data unreachable |
+| ProZorro open API | 10,000 tenders | 2 | **0** | — | — | — | wrong method used in B0 — see spike |
 | Direct web search | ~6 | 2 | **1** | 0 | 0 | 1 | 0 |
 
 ### Blockers found, stated plainly
 
-- **ProZorro cannot yield contractor identities publicly.** Its POST search API works and returns
-  10,000 electrical-works tenders, but exposes only the **procuring entity** — the hospital or
-  municipality *buying* the work. The contractor sits in `awards[].suppliers[]` on the tender
-  detail, which needs the openprocurement internal UUID. `prozorro.gov.ua/api/tenders/{tenderID}`
-  returns 404 and the openprocurement feed ignores `?tenderID=`, serving its chronological feed
-  from February 2015. Mapping would require paging the whole feed since 2015.
-  **Highest-expected-yield source; actual yield zero.**
+- **ProZorro yielded zero leads *during B0* — but the reason recorded at the time was wrong.**
+  Its POST search API exposes only the **procuring entity**, which is correct. The conclusion drawn
+  from that — that contractor identities are unreachable — was **refuted by a follow-up spike on
+  26.07.2026** (`prozorro-contractor-extraction-spike.md`). The feed's `opt_fields=tenderID,status`
+  returns the internal UUID alongside the tenderID, and `GET /tenders/{uuid}` exposes
+  `awards[].suppliers[]`. **Measured: 26 tenders tested, 25 contractors extracted (96%), 24 unique.**
+  ProZorro can verify identity, specialization signal and dated activity — but **not** the
+  public-business-contact dimension, which must still come from the company's own site. B0's zero
+  stands as what happened; it is not a limit of the source.
 - **Three of five Tier 1 registry front-ends are unusable** — Clarity paywalled (450 UAH/day),
   YouControl requires account registration, Opendatabot returns 403.
 - **Vendor installer directories (Tier 2) yielded nothing.** Ajax Systems, which the spec rated
@@ -180,10 +182,11 @@ Specific distortions to carry forward:
 | **Verification incomplete** | 8 | Mixed profiles, brand/legal-entity links unproven, or no dated activity. Held rather than admitted |
 | **Disqualified** | 10 | 6 wrong ICP (retail/manufacturing/provider), 2 inactive >24 months, 1 developer of its own projects, 1 no visible field-work process |
 
-Highest-leverage next moves, if B0 is ever reopened: work ASEU pages 2–6 (~61 more profiles at a
-proven rate); find an equivalent association catalogue for electrical or HVAC — **none was found
-and none was invented**; retry the 12 unloadable sites from a browser; re-check the 8 D5 contacts
-pages.
+Highest-leverage next moves, if B0 is ever reopened: **a scoped B0.1 ProZorro enrichment pass**
+(96% identity yield, directly targets the electrical shortfall — see the spike report); work ASEU
+pages 2–6 (~61 more profiles at a proven rate); find an equivalent association catalogue for
+electrical or HVAC — **none was found and none was invented**; retry the 12 unloadable sites from a
+browser; re-check the 8 D5 contacts pages.
 
 ---
 

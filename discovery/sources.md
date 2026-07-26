@@ -116,7 +116,8 @@ actually obtainable publicly** versus which still require a human.
 | КБ-2в, КБ-3 | **not observed** | Not present in the sampled record |
 | Акти прихованих робіт, defect acts | **not observed** | Not present in the sampled record |
 
-**The §B.0.9 limitation is confirmed empirically, not merely quoted.** Published material skews
+**On documents specifically, the §B.0.9 limitation is confirmed empirically, not merely quoted.**
+This is separate from contractor identity, which *is* reachable (above). Published material skews
 **tender-stage** (кошториси, ТЗ, contracts) rather than **closing-stage** (a returned АВР
 carrying reviewer comments, hidden-work acts with photographs). AktFlow's thesis lives at
 closing. Track P therefore likely yields the estimate half of doc 30 **V-001** and **not** the
@@ -124,21 +125,31 @@ returned-package half — which is the half that matters most.
 
 > **Do not let an easy source quietly redefine what evidence you are looking for.**
 
-### Track P harvest attempted 26.07.2026 — supplier identities are NOT publicly reachable
+### Track P harvest 26.07.2026 — CORRECTED 26.07.2026 by a follow-up spike
 
-The POST search API **works**: `prozorro.gov.ua/api/search/tenders` with
-`{"cpv":["45310000-3"],"status":["complete"],"page":1}` returns **10,000 electrical-works
-tenders**. But each result exposes only the **procuring entity** — the hospital or municipality
-*buying* the work — plus `tenderID`, `title`, `value` and `status`. The **contractor performing
-the work** lives in `awards[].suppliers[]` on the tender detail, and reaching it needs the
-openprocurement internal UUID:
+**An earlier note here claimed contractor identities were not publicly reachable. That was
+wrong.** See `prozorro-contractor-extraction-spike.md` for the full test.
 
-- `prozorro.gov.ua/api/tenders/{tenderID}` → **404**
-- `public.api.openprocurement.org/api/2.5/tenders?tenderID=…` → **ignores the parameter**,
-  returning the chronological feed from February 2015
+What is true: the POST search API (`prozorro.gov.ua/api/search/tenders`) returns **only the
+procuring entity** — buyer, `tenderID`, `title`, `value`, `status`. No internal id, no awards.
 
-Mapping `tenderID` → UUID would require paging the entire feed since 2015. **Yield from this
-source: 0 leads.** It remains the best *document* source (Track P) and a poor *lead* source.
+What is **also** true, and was missed: the OpenProcurement feed
+`GET /tenders?descending=1&opt_fields=tenderID,status` returns the internal **UUID alongside the
+tenderID**, and accepts a timestamp `offset`, so any date window can be entered directly. From
+the UUID, `GET /tenders/{uuid}` yields `awards[].suppliers[]` with contractor legal name and
+`UA-EDR` identifier.
+
+**Measured: 26 tenders tested, 25 contractors extracted (96%), 24 unique after dedup.**
+
+The earlier false negative came from `?tenderID=` returning **HTTP 200 with an unrelated feed**
+instead of an error — a silently ignored parameter that looks like a filtered answer.
+
+| Purpose | ProZorro status |
+|---|---|
+| Identity (legal name + ЄДРПОУ) | **verified usable** — official registry record |
+| Specialization signal (CPV + work description) | **usable as a signal**; self-performed field work still confirmed on the company's own site |
+| Dated activity (award date, contract value) | **verified usable** |
+| **Public business contact** | **NOT satisfied.** `suppliers[].contactPoint` is a named individual's tender-correspondence address, often personal. **Never used for outreach**; the address must be verified separately on the company-owned website |
 
 ---
 
