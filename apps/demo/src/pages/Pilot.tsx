@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Check, Mail } from 'lucide-react'
-import { clearDraft, loadDraft, saveDraft, submitPilotDraft, type PilotDraft } from '../pilot/draft'
+import { clearDraft, FIELD_LABEL, loadDraft, saveDraft, submitPilotDraft, type PilotDraft } from '../pilot/draft'
 
 /**
  * Task 13 — /pilot, the only structured capture surface in this deployment
@@ -102,13 +102,29 @@ export default function Pilot() {
   // (RULING 3) never throws either, so this is safe even if localStorage is
   // corrupt or the browser denies access outright — it can run directly
   // during the first render with nothing to guard.
-  const [draft, setDraft] = useState<PilotDraft>(() => loadDraft() ?? EMPTY_DRAFT)
-  const [restored] = useState<boolean>(() => loadDraft() !== null)
+  //
+  // Fix round: reads storage exactly once. The previous version called
+  // `loadDraft()` from two independent `useState` initialisers (one for
+  // `draft`, one for `restored`) — harmless in practice since loadDraft is
+  // idempotent, but two reads to derive two values from the same read is
+  // needless duplication. `initial` is itself a stable `useState` value
+  // (never updated via its own setter), so `initial.restored` stays correct
+  // for the component's lifetime without needing a second state atom.
+  const [initial] = useState<{ draft: PilotDraft; restored: boolean }>(() => {
+    const existing = loadDraft()
+    return { draft: existing ?? EMPTY_DRAFT, restored: existing !== null }
+  })
+  const [draft, setDraft] = useState<PilotDraft>(initial.draft)
+  const restored = initial.restored
   const [submitState, setSubmitState] = useState<SubmitState>({ phase: 'idle' })
   // Captured once, from the very first render's `draft` value (restored or
   // empty) — React ignores the argument on every render after the first, so
   // this reference never changes for the lifetime of the component.
   const initialDraftRef = useRef<PilotDraft>(draft)
+  // Fix round: focus target for the error/mailto banners. Only one of the
+  // two is ever mounted at a time (mutually exclusive phases), so one ref
+  // shared across both JSX blocks is enough.
+  const bannerRef = useRef<HTMLDivElement>(null)
 
   // Debounced autosave, 500ms after the last change. Compares by reference
   // rather than a "have we run once yet" flag: `setDraft` only ever
@@ -128,6 +144,24 @@ export default function Pilot() {
     const timer = window.setTimeout(() => saveDraft(draft), 500)
     return () => window.clearTimeout(timer)
   }, [draft])
+
+  /**
+   * Fix round, item 3 — a nine-field form means the submit button sits far
+   * below the fold; without this, clicking it produced no visible change
+   * for a sighted keyboard user (the banner rendered off-screen, above the
+   * scroll position) and no announcement at all for a screen-reader user
+   * (focus stayed on the submit button). Chosen: move focus to the banner
+   * (`tabIndex={-1}` + `.focus()`) rather than a bare `scrollIntoView`,
+   * because focusing an off-screen element also scrolls it into view in
+   * every evergreen browser — one mechanism covers both the sighted-user
+   * and the screen-reader-announcement half of the problem, where
+   * `scrollIntoView` alone would only fix the former.
+   */
+  useEffect(() => {
+    if (submitState.phase === 'error' || submitState.phase === 'mailto') {
+      bannerRef.current?.focus()
+    }
+  }, [submitState.phase])
 
   function updateField(field: keyof PilotDraft) {
     return (event: ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
@@ -229,7 +263,10 @@ export default function Pilot() {
           </div>
 
           {restored && (
-            <p className="privacy-line">
+            // Fix round item 3: role="status" so a screen-reader user is
+            // told the draft came back, consistent with the submit-outcome
+            // banners below (role="alert"/role="status").
+            <p className="privacy-line" role="status">
               <Check size={16} aria-hidden="true" />
               Чернетку відновлено з попереднього разу — можете продовжити зі свого місця.
             </p>
@@ -238,7 +275,7 @@ export default function Pilot() {
           {/* RULING 5: a persistent inline banner, never a toast — stays until
               resolved, never auto-dismisses, never clears the visitor's input. */}
           {submitState.phase === 'error' && (
-            <div className="state-banner state-banner--warning" role="alert">
+            <div ref={bannerRef} tabIndex={-1} className="state-banner state-banner--warning" role="alert">
               <AlertTriangle size={20} aria-hidden="true" />
               <div>
                 <b>Не вдалося надіслати автоматично</b>
@@ -253,7 +290,7 @@ export default function Pilot() {
           {/* RULING 1: no endpoint is provisioned yet, so this is the normal,
               intended submission route today — not an error banner. */}
           {submitState.phase === 'mailto' && (
-            <div className="state-banner state-banner--success" role="status">
+            <div ref={bannerRef} tabIndex={-1} className="state-banner state-banner--success" role="status">
               <Mail size={20} aria-hidden="true" />
               <div>
                 <b>Лист із вашими відповідями готовий</b>
@@ -271,7 +308,7 @@ export default function Pilot() {
           )}
 
           <label htmlFor="pilot-company">
-            Компанія *
+            {FIELD_LABEL.company} *
             <input
               id="pilot-company"
               name="company"
@@ -283,7 +320,7 @@ export default function Pilot() {
           </label>
 
           <label htmlFor="pilot-email">
-            Email *
+            {FIELD_LABEL.email} *
             <input
               id="pilot-email"
               name="email"
@@ -297,7 +334,7 @@ export default function Pilot() {
 
           <div className="field-pair">
             <label htmlFor="pilot-specialisation">
-              Спеціалізація
+              {FIELD_LABEL.specialisation}
               <select
                 id="pilot-specialisation"
                 name="specialisation"
@@ -312,7 +349,7 @@ export default function Pilot() {
               </select>
             </label>
             <label htmlFor="pilot-site-count">
-              Активних об’єктів
+              {FIELD_LABEL.siteCount}
               <select id="pilot-site-count" name="siteCount" value={draft.siteCount} onChange={updateField('siteCount')}>
                 {SITE_COUNT_OPTIONS.map(option => (
                   <option key={option.value} value={option.value}>
@@ -326,7 +363,7 @@ export default function Pilot() {
           {/* A.3.2a hierarchy (RULING 4): the core discovery question comes
               first among the three free-text answers. */}
           <label htmlFor="pilot-capture">
-            Як зараз збираються фото і обсяги з об’єкта
+            {FIELD_LABEL.capture}
             <textarea
               id="pilot-capture"
               name="capture"
@@ -338,7 +375,7 @@ export default function Pilot() {
           </label>
 
           <label htmlFor="pilot-storage">
-            Де зберігаються ці фото і файли зараз
+            {FIELD_LABEL.storage}
             <textarea
               id="pilot-storage"
               name="storage"
@@ -349,7 +386,7 @@ export default function Pilot() {
           </label>
 
           <label htmlFor="pilot-return-reason">
-            Найчастіша причина, чому акт повертають на доопрацювання
+            {FIELD_LABEL.returnReason}
             <textarea
               id="pilot-return-reason"
               name="returnReason"
@@ -361,7 +398,7 @@ export default function Pilot() {
 
           <div className="field-pair">
             <label htmlFor="pilot-closing-time">
-              Скільки часу займає підготовка закриття періоду
+              {FIELD_LABEL.closingTime}
               <select
                 id="pilot-closing-time"
                 name="closingTime"
@@ -376,7 +413,7 @@ export default function Pilot() {
               </select>
             </label>
             <label htmlFor="pilot-willing-to-share">
-              Готові показати знеособлений приклад свого процесу
+              {FIELD_LABEL.willingToShare}
               <select
                 id="pilot-willing-to-share"
                 name="willingToShare"

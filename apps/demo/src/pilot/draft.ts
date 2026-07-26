@@ -21,10 +21,20 @@ export interface PilotDraft {
   willingToShare: string
 }
 
-const FIELDS: readonly (keyof PilotDraft)[] = [
+/**
+ * Field order, fixed once here. `capture` comes before `storage` and
+ * `returnReason` because A.3.2a requires the core discovery question first
+ * among the three free-text answers — the order below IS the order both
+ * `/pilot`'s form (Pilot.tsx) and `/legal/privacy`'s enumeration (Legal.tsx)
+ * render in.
+ */
+export const FIELDS: readonly (keyof PilotDraft)[] = [
   'company', 'email', 'specialisation', 'siteCount',
   'capture', 'storage', 'returnReason', 'closingTime', 'willingToShare',
 ]
+
+/** Компанія and Email only (RULING 4, task 13) — every other field is optional. */
+export const REQUIRED_FIELDS: ReadonlySet<keyof PilotDraft> = new Set<keyof PilotDraft>(['company', 'email'])
 
 export function serialiseDraft(draft: PilotDraft): string {
   return JSON.stringify(draft)
@@ -47,20 +57,33 @@ export function parseDraft(raw: string | null): PilotDraft | null {
   return Object.fromEntries(FIELDS.map(f => [f, record[f]])) as unknown as PilotDraft
 }
 
-const LABEL: Record<keyof PilotDraft, string> = {
+/**
+ * Fix round (post-Task-13 review): the single source of truth for every
+ * field's visible label. Previously `Pilot.tsx` hardcoded its <label> text
+ * inline, `Legal.tsx`'s privacy enumeration hardcoded its own (shorter,
+ * incomplete) prose, and this module had a third, separately-worded copy
+ * used only for the mailto body — three independently-editable copies of
+ * the same nine strings, which is exactly how the privacy page ended up
+ * under-listing what the form collects and contradicting its own "усіма
+ * дев'ятьма" / "Це все, що форма запитує" claims. Both pages, and
+ * `buildMailto` below, now read from this one object, so they cannot drift
+ * apart again — a labels test in `Legal.test`-adjacent coverage is the
+ * mechanical enforcement; this comment is the human-readable one.
+ */
+export const FIELD_LABEL: Record<keyof PilotDraft, string> = {
   company: 'Компанія',
   email: 'Email',
   specialisation: 'Спеціалізація',
   siteCount: 'Активних об’єктів',
-  capture: 'Як збираються фото і обсяги',
-  storage: 'Де зберігається',
-  returnReason: 'Причина повернення акта',
-  closingTime: 'Час на підготовку закриття',
-  willingToShare: 'Готові показати знеособлений приклад',
+  capture: 'Як зараз збираються фото і обсяги з об’єкта',
+  storage: 'Де зберігаються ці фото і файли зараз',
+  returnReason: 'Найчастіша причина, чому акт повертають на доопрацювання',
+  closingTime: 'Скільки часу займає підготовка закриття періоду',
+  willingToShare: 'Готові показати знеособлений приклад свого процесу',
 }
 
 export function buildMailto(to: string, draft: PilotDraft): string {
-  const body = FIELDS.map(field => `${LABEL[field]}:\n${draft[field]}`).join('\n\n')
+  const body = FIELDS.map(field => `${FIELD_LABEL[field]}:\n${draft[field]}`).join('\n\n')
   const params = new URLSearchParams({ subject: `AktFlow · ${draft.company}`, body })
   return `mailto:${to}?${params.toString()}`
 }
