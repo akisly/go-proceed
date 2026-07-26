@@ -159,3 +159,85 @@
   color: var(--muted);
   font-size: 13px;
 }
+
+/*
+ * Task 11: the landing's hero. ../styles.css's `.hero` is a two-column grid
+ * built for a right-side product mockup (`.hero-product`/`.hero-atlas`) —
+ * neither exists in apps/demo (no FinancialRail component was ported, no
+ * /assets/evidence-atlas images ship here yet), and inventing a mockup with
+ * fabricated numbers is exactly the failure mode this task exists to avoid.
+ * This modifier collapses the grid to one column instead of leaving the
+ * second column's reserved space empty. `.eyebrow-chip` also needs a
+ * contrast fix here only: its background is the un-themed --signal token,
+ * but text color inherits #fff from `.landing .hero`'s dark theme (checked
+ * ../styles.css first — no existing rule sets eyebrow-chip's own color).
+ */
+.hero--copy-only {
+  grid-template-columns: 1fr;
+}
+.landing .hero .eyebrow-chip {
+  color: var(--ink);
+}
+
+/*
+ * Task 11: wraps `.domain-boundary` (../styles.css) at landing width. That
+ * class is designed as a compact inline note inside an existing page's
+ * padded content column (see prototype's Team/Payments pages) — it has no
+ * max-width or horizontal padding of its own, so used bare here it would
+ * stretch edge-to-edge. Mirrors `.hero`/`.final-cta`'s own width formula.
+ */
+.landing-boundary {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 0 max(40px, calc((100vw - 1240px) / 2)) 60px;
+}
+
+/*
+ * Task 11: `.proof-boundary` and `.proof-boundary__not` (ProofBoundary.tsx)
+ * do not exist in ../styles.css. Built from tokens already used by
+ * `.landing`'s other panels (--ink/--paper/--line/--muted/--amber) — no
+ * literal hex introduced (see tests/styles.test.ts).
+ */
+.proof-boundary {
+  max-width: 1320px;
+  margin: 0 auto;
+  padding: 56px max(40px, calc((100vw - 1240px) / 2)) 8px;
+}
+.proof-boundary h2 {
+  font-size: 28px;
+  letter-spacing: -1px;
+  margin-bottom: 14px;
+}
+.proof-boundary > p {
+  max-width: 680px;
+  color: var(--muted);
+  line-height: 1.6;
+  margin-bottom: 22px;
+}
+.proof-boundary__not {
+  display: grid;
+  gap: 11px;
+  max-width: 620px;
+  padding: 20px 22px;
+  margin: 0;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  color: var(--ink);
+  font-size: 13px;
+}
+.proof-boundary__not li {
+  padding-left: 18px;
+  position: relative;
+}
+.proof-boundary__not li:before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--amber);
+}

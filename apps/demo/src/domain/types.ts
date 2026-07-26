@@ -7,8 +7,11 @@ export type ReadinessState =
   | 'overridden_ready'
   | 'packaged'
   | 'submitted'
-// accepted_external and returned_external are GA-gated per the catalog and are
-// deliberately absent: showing them would over-claim (spec A.4.7).
+// The catalog's two GA-gated states — external acceptance and external
+// return — are deliberately absent from this union: showing them would
+// over-claim (spec A.4.7). tests/claims.test.ts (task 11) guards against
+// ever writing their raw identifiers anywhere under src, comments included,
+// so this note deliberately avoids spelling them out verbatim.
 
 export type EvidenceKind = 'photo' | 'file' | 'voice_note' | 'quantity' | 'typed_form'
 export type RequirementStatus = 'pending' | 'satisfied'
