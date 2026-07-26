@@ -8,5 +8,8 @@ export default defineConfig({
     environment: "node",
     fileParallelism: false,
     include: ["tests/**/*.test.ts"],
+    // No test files exist until Task 2. Without this, an empty (or
+    // filtered) run fails the pipeline instead of passing trivially.
+    passWithNoTests: true,
   },
 });
