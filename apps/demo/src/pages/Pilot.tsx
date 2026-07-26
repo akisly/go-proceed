@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'r
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Check, Mail } from 'lucide-react'
 import { clearDraft, FIELD_LABEL, loadDraft, saveDraft, submitPilotDraft, type PilotDraft } from '../pilot/draft'
+import InlineBanner from '../components/InlineBanner'
 
 /**
  * Task 13 — /pilot, the only structured capture surface in this deployment
@@ -273,38 +274,41 @@ export default function Pilot() {
           )}
 
           {/* RULING 5: a persistent inline banner, never a toast — stays until
-              resolved, never auto-dismisses, never clears the visitor's input. */}
+              resolved, never auto-dismisses, never clears the visitor's input.
+              Task 14: refactored onto the shared InlineBanner component
+              (src/components/InlineBanner.tsx) — a clean drop-in here, since
+              it forwards `ref` to the exact same `<div>` the focus effect
+              above already targets, and reproduces `tabIndex={-1}` plus the
+              `state-banner`/`state-banner--warning` classes and `role="alert"`
+              byte-for-byte. The draft itself is untouched by this refactor —
+              nothing here calls clearDraft/saveDraft, so preservation on the
+              error path is unaffected. */}
           {submitState.phase === 'error' && (
-            <div ref={bannerRef} tabIndex={-1} className="state-banner state-banner--warning" role="alert">
-              <AlertTriangle size={20} aria-hidden="true" />
-              <div>
-                <b>Не вдалося надіслати автоматично</b>
-                <span>
-                  Ваші відповіді нікуди не зникли — вони й далі збережені у цьому браузері. Спробуйте ще раз або{' '}
-                  <a href={submitState.mailto}>надішліть їх листом</a>.
-                </span>
-              </div>
-            </div>
+            <InlineBanner ref={bannerRef} tone="warning" role="alert" icon={<AlertTriangle size={20} aria-hidden="true" />}>
+              <b>Не вдалося надіслати автоматично</b>
+              <span>
+                Ваші відповіді нікуди не зникли — вони й далі збережені у цьому браузері. Спробуйте ще раз або{' '}
+                <a href={submitState.mailto}>надішліть їх листом</a>.
+              </span>
+            </InlineBanner>
           )}
 
           {/* RULING 1: no endpoint is provisioned yet, so this is the normal,
-              intended submission route today — not an error banner. */}
+              intended submission route today — not an error banner. Same
+              InlineBanner drop-in as above, role="status" preserved. */}
           {submitState.phase === 'mailto' && (
-            <div ref={bannerRef} tabIndex={-1} className="state-banner state-banner--success" role="status">
-              <Mail size={20} aria-hidden="true" />
-              <div>
-                <b>Лист із вашими відповідями готовий</b>
-                <span>
-                  Натисніть «Відкрити лист», перевірте текст і надішліть його зі своєї поштової програми — до цього
-                  моменту нічого не передається нікуди. Відповіді лишаються збереженими у цьому браузері, доки лист
-                  не буде надіслано.
-                  <br />
-                  <a className="button button--outline button--small" href={submitState.mailto}>
-                    Відкрити лист
-                  </a>
-                </span>
-              </div>
-            </div>
+            <InlineBanner ref={bannerRef} tone="success" role="status" icon={<Mail size={20} aria-hidden="true" />}>
+              <b>Лист із вашими відповідями готовий</b>
+              <span>
+                Натисніть «Відкрити лист», перевірте текст і надішліть його зі своєї поштової програми — до цього
+                моменту нічого не передається нікуди. Відповіді лишаються збереженими у цьому браузері, доки лист
+                не буде надіслано.
+                <br />
+                <a className="button button--outline button--small" href={submitState.mailto}>
+                  Відкрити лист
+                </a>
+              </span>
+            </InlineBanner>
           )}
 
           <label htmlFor="pilot-company">

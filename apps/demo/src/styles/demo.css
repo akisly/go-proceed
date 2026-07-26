@@ -326,3 +326,40 @@
 .pilot-submit {
   min-width: 220px;
 }
+
+/*
+ * Task 14: EmptyState.tsx's shared shell. Checked ../styles.css first —
+ * `.filter-empty` (prototype's Packages/Work/Dashboard pages) is the
+ * closest precedent but is a single bare `<p>` with no room for a hint
+ * line or an action button/link, and RULING 5 requires every empty state
+ * to name the situation, explain why, and offer a next step — never a bare
+ * "нічого не знайдено". Built from the same panel tokens already used by
+ * `.blockers-panel`/`.close-checklist` (--line/--paper/--ink/--muted)
+ * rather than inventing new ones — zero literal hex (tests/styles.test.ts).
+ */
+.empty-state {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+  padding: 24px 22px;
+  margin: 8px 0;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--paper);
+  color: var(--ink);
+}
+.empty-state b {
+  font-size: 14px;
+}
+.empty-state p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.empty-state .button {
+  margin-top: 4px;
+}
+.empty-state .success-mark {
+  margin-bottom: 0;
+}
