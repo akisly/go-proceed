@@ -259,3 +259,58 @@
   border-radius: 50%;
   background: var(--amber);
 }
+
+/*
+ * Task 12: /legal's document wrapper. Checked ../styles.css first — its
+ * only two-document layout, `.legal-page`, assumes a full-height marketing
+ * shell with a background photograph at /assets/evidence-atlas/*.png this
+ * app has never shipped (same gap Task 11's `.hero--copy-only` note
+ * documents for the landing hero) and a fixed two-column grid this plain
+ * content doesn't need. Reuses `.roadmap-page`'s single-column measure
+ * instead of inventing a new max-width or type scale from nothing — both
+ * pages read as the same content type at different lengths. `.privacy-line`
+ * and the `.button--*` family are used as-is from ../styles.css; only the
+ * spacing this page needs around them is new.
+ */
+.legal-doc {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 40px 24px 64px;
+}
+.legal-doc__updated {
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 28px;
+}
+.legal-doc h2 {
+  margin: 32px 0 10px;
+  font-size: 18px;
+}
+.legal-doc p {
+  color: var(--slate);
+  line-height: 1.6;
+  margin: 0 0 4px;
+}
+.legal-doc ul {
+  margin: 0 0 16px;
+  padding-left: 20px;
+  color: var(--slate);
+  line-height: 1.6;
+}
+.legal-doc li {
+  margin-bottom: 8px;
+}
+.legal-doc code {
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 12px;
+  background: var(--paper);
+}
+.legal-doc .privacy-line {
+  max-width: fit-content;
+  margin: 4px 0 16px;
+}
+.legal-doc .button {
+  margin-top: 28px;
+}
