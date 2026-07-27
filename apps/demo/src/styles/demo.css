@@ -333,18 +333,6 @@
   margin-top: 28px;
 }
 
-/*
- * Task 13: /pilot's submit button swaps its label to "Надсилаю…" while a
- * request is in flight (RULING 5). ../styles.css's `.button` sizes itself to
- * its content (padding + justify-content:center, no reserved width), so
- * without a floor the button visibly narrows every time the label shortens.
- * min-width is set to comfortably fit the longer idle-state label
- * ("Надіслати відповіді"), so the shorter in-flight label never shrinks it.
- */
-.pilot-submit {
-  min-width: 220px;
-}
-
 /* ==========================================================================
  * Task 15 — Responsive layout and WCAG 2.2 AA contract.
  * ==========================================================================
@@ -386,7 +374,6 @@
 .site-header nav a,
 .link-button,
 .eyebrow-chip,
-.button--small,
 .privacy-line,
 .roadmap-list dd,
 .legal-doc code,
@@ -394,12 +381,6 @@
 .status,
 .money-card small,
 .money-card span,
-.pilot-page > header a,
-.pilot-form label,
-.pilot-form label > small,
-.pilot-form input,
-.pilot-form select,
-.pilot-form textarea,
 .blockers-panel > header span,
 .blockers-panel > header > b,
 .blocker-list b,
@@ -431,22 +412,18 @@ option {
  * The frozen design system sizes most inline controls for a mouse (29-40px
  * is the norm) — every selector below is a control apps/demo's own PUBLIC
  * pages actually render. Standalone links (a logo, a footer link list, a
- * "back" link) are sized here; links embedded inside a sentence (e.g. the
- * "Конфіденційність" link inside /pilot's privacy paragraph) are left at
- * their inline size — WCAG 2.5.8 Target Size (Minimum) explicitly exempts
- * a target "in a sentence, or whose size is otherwise constrained by the
- * line-height of non-target text".
+ * "back" link) are sized here.
  *
- * The internal app no longer appears here: /app/** is Tailwind now, and its
- * controls carry their own `min-h-11` from src/components/ui/button.tsx and
- * the shell. Two systems both claiming to own the touch-target floor is how
- * one of them quietly stops being true.
+ * Neither the internal app nor /pilot appears here any more: both are Tailwind
+ * now, and their controls carry their own `min-h-11` from
+ * src/components/ui/button.tsx, ui/input.tsx, ui/select.tsx and ui/textarea.tsx.
+ * Two systems both claiming to own the touch-target floor is how one of them
+ * quietly stops being true. What is left below is exactly the set of legacy
+ * selectors still rendered by /legal and the landing's frozen chrome.
  */
-.button--small,
 .brand,
 .skip-link,
 .site-menu,
-.pilot-page > header a,
 .landing footer a {
   min-height: 44px;
 }
@@ -674,35 +651,18 @@ option {
  *     search input at 348x22 and /pilot's «Конфіденційність» footer link at
  *     134x20. Both are raised to a 44px hit height. The link keeps its visual
  *     size; only its hit area grows, so the footer's density is unchanged.
+ *
+ *     NEITHER RULE LIVES HERE ANY MORE, and both obligations still hold. The
+ *     work-list input is /app/work, which is Tailwind (`Input`'s own `h-11`);
+ *     the «Конфіденційність» link is /pilot, which is Tailwind too now — it
+ *     carries `inline-flex min-h-11 items-center md:min-h-0` at its call site
+ *     in src/pages/Pilot.tsx, which is the same rule expressed where the
+ *     element is. qa/verify.mjs's `auditTouchTargets` measures /pilot at
+ *     390px and is what actually holds the line on this, not the location of
+ *     the declaration.
  * I6  Task 15's >=16px floor was applied broadly and inflated metadata labels
  *     to bold ~17px, so a 390x844 screen showed roughly two work cards and the
  *     labels competed with the values they label. Labels step down; the values
  *     they describe keep the floor, because those are what gets read at
  *     arm's length.
  * ------------------------------------------------------------------------- */
-@media (max-width: 767px) {
-  /* The privacy link is an unclassed <a> inside a <p> in .pilot-form — it sits
-     in running copy, so it cannot become a block without breaking the sentence.
-     inline-flex with a 44px min-height grows the hit area while the text keeps
-     its place in the line. */
-  .pilot-form p a {
-    display: inline-flex;
-    align-items: center;
-    min-height: 44px;
-  }
-}
-
-/* Review 07 · I2 — the reciprocity promise now sits above the first field,
-   where it can influence the decision to start typing rather than confirming
-   one already made. Quiet by design: it is a promise, not a sales pitch. */
-.pilot-page__promise {
-  margin: 0 0 24px;
-  color: var(--slate);
-  font-size: 15px;
-  line-height: 1.5;
-}
-
-.pilot-page__promise span {
-  color: var(--muted);
-  font-size: 14px;
-}

@@ -659,6 +659,119 @@ async function auditTouchTargets(browser, baseUrl, ctx) {
 }
 
 // -----------------------------------------------------------------------
+// /pilot's structural contract.
+//
+// This page was rewritten off the frozen `.pilot-form` markup onto the design
+// system, and a restyle is exactly the kind of change that silently breaks a
+// form: a `<label>` that stops wrapping its control still LOOKS like a label,
+// a `for` that no longer resolves still renders bold text above an input, and
+// a dropped `required` is invisible until someone submits an empty field. The
+// screenshot is identical in all three cases. So the contract is asserted
+// structurally, on the real DOM, rather than trusted to survive a refactor.
+//
+// The nine fields are restated here on purpose, rather than imported from
+// src/pilot/draft.ts. A guard that reads its expectations out of the module it
+// guards cannot catch a change to that module — it would just agree with
+// whatever it finds. `required` encodes RULING 4: Компанія and Email only.
+// -----------------------------------------------------------------------
+const PILOT_FIELDS = [
+  { name: 'company', id: 'pilot-company', required: true },
+  { name: 'email', id: 'pilot-email', required: true },
+  { name: 'specialisation', id: 'pilot-specialisation', required: false },
+  { name: 'siteCount', id: 'pilot-site-count', required: false },
+  { name: 'capture', id: 'pilot-capture', required: false },
+  { name: 'storage', id: 'pilot-storage', required: false },
+  { name: 'returnReason', id: 'pilot-return-reason', required: false },
+  { name: 'closingTime', id: 'pilot-closing-time', required: false },
+  { name: 'willingToShare', id: 'pilot-willing-to-share', required: false },
+]
+
+async function auditPilotForm(browser, baseUrl, ctx) {
+  // `withPage` resolves to its own console/404 diagnostics, not to the task's
+  // return value, so the measurement is hoisted out of the closure — the same
+  // shape `auditIconRail` below uses. Returning `withPage(...)` directly here
+  // silently reported `{consoleErrors, pageErrors, notFound}` as the form
+  // audit's result, which looked plausible in qa-report.json and said nothing.
+  let measured = { sections: null, fields: null, problems: null }
+
+  await withPage(browser, async page => {
+    await page.setViewport({ width: 1440, height: 900 })
+    await page.goto(`${baseUrl}/pilot`, { waitUntil: 'networkidle0' })
+
+    const result = await page.evaluate(expected => {
+      const problems = []
+      const form = document.querySelector('form')
+      if (!form) return { problems: ['no <form> on /pilot'], sections: 0, fields: 0 }
+
+      for (const field of expected) {
+        const control = document.getElementById(field.id)
+        if (!control) {
+          problems.push(`no control with id="${field.id}"`)
+          continue
+        }
+        if (!['INPUT', 'SELECT', 'TEXTAREA'].includes(control.tagName)) {
+          problems.push(`#${field.id} is a <${control.tagName.toLowerCase()}>, not a form control`)
+        }
+        if (control.getAttribute('name') !== field.name) {
+          problems.push(`#${field.id} has name="${control.getAttribute('name')}", expected "${field.name}"`)
+        }
+        if (!form.contains(control)) {
+          problems.push(`#${field.id} is outside the <form>`)
+        }
+
+        // RULING 4: a real <label for>, never a placeholder standing in for one.
+        const labels = [...document.querySelectorAll(`label[for="${field.id}"]`)]
+        if (labels.length !== 1) {
+          problems.push(`#${field.id} has ${labels.length} <label for> elements, expected exactly 1`)
+        } else if ((labels[0].textContent ?? '').trim().length === 0) {
+          problems.push(`#${field.id}'s <label> is empty`)
+        }
+
+        const isRequired = control.hasAttribute('required')
+        if (isRequired !== field.required) {
+          problems.push(
+            `#${field.id} is ${isRequired ? '' : 'not '}required, expected ${field.required ? '' : 'not '}required`,
+          )
+        }
+      }
+
+      // Every control inside the form must be one of the nine, the submit
+      // button, or the privacy link — an unexpected input here means a field
+      // was added without being declared to this guard or to /legal/privacy's
+      // enumeration, which is how the two pages drift apart about what is
+      // actually collected.
+      const declared = new Set(expected.map(f => f.id))
+      for (const control of form.querySelectorAll('input, select, textarea')) {
+        if (!declared.has(control.id)) {
+          problems.push(`undeclared form control in /pilot's <form>: <${control.tagName.toLowerCase()} id="${control.id}">`)
+        }
+      }
+
+      const sections = form.querySelectorAll('section')
+      for (const section of sections) {
+        if (!section.querySelector('h2')) problems.push('a /pilot form section has no <h2>')
+      }
+      const grouped = [...sections].reduce((n, s) => n + s.querySelectorAll('input, select, textarea').length, 0)
+      if (grouped !== expected.length) {
+        problems.push(`${grouped} of ${expected.length} fields sit inside a titled section`)
+      }
+
+      const submit = form.querySelector('button[type="submit"]')
+      if (!submit) problems.push('/pilot has no submit button')
+
+      return { problems, sections: sections.length, fields: expected.length }
+    }, PILOT_FIELDS)
+
+    for (const problem of result.problems) {
+      ctx.findings.push(`/pilot form: ${problem}`)
+    }
+    measured = { sections: result.sections, fields: result.fields, problems: result.problems.length }
+  })
+
+  return measured
+}
+
+// -----------------------------------------------------------------------
 // The 768-1239px icon rail had NO coverage at all, and that is exactly where
 // a real defect shipped: `TooltipTrigger asChild` is only mounted in this
 // range, and Radix's Slot stringified NavLink's function-valued `className`
@@ -870,10 +983,11 @@ async function scanBundleForForbiddenClaims(distDir, ctx) {
  * Fix round (final review, finding I1, then re-scoped by a follow-up review
  * round) — the built-bundle counterpart to the deploy-blocking placeholder
  * check. Originally this pushed a `ctx.findings` entry (a FAILING gate) for
- * any unreplaced `{{TOKEN}}` — but both `{{CONTACT_EMAIL}}` and
- * `{{FORM_PROCESSOR}}` are genuinely unresolved today, so a routine QA run
- * would fail forever, training everyone to ignore red and burying the rest
- * of a real QA report behind a known, deliberate failure.
+ * any unreplaced `{{TOKEN}}` — but `{{FORM_PROCESSOR}}` is genuinely
+ * unresolved today (as was `{{CONTACT_EMAIL}}`, now a real mailbox in
+ * src/data/contact.ts), so a routine QA run would fail forever, training
+ * everyone to ignore red and burying the rest of a real QA report behind a
+ * known, deliberate failure.
  *
  * The hard, failing gate now lives in `qa/preflight.mjs`
  * (`pnpm --filter @aktflow/demo preflight`), a separate command documented
@@ -948,6 +1062,13 @@ async function main() {
       await auditTouchTargets(browser, baseUrl, ctx)
     } catch (err) {
       ctx.findings.push(`touch targets: audit crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
+    }
+
+    let pilotForm = { sections: null, fields: null, problems: null }
+    try {
+      pilotForm = await auditPilotForm(browser, baseUrl, ctx)
+    } catch (err) {
+      ctx.findings.push(`/pilot form: audit crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
     }
 
     try {
@@ -1032,11 +1153,13 @@ async function main() {
       missingAssets,
       // Fix round (I1 re-scope): unreplaced {{TOKEN}} placeholders found in
       // the built bundle — informational only, does not affect `ok`. Empty
-      // once both {{CONTACT_EMAIL}} and {{FORM_PROCESSOR}} are replaced;
-      // non-empty today. `pnpm --filter @aktflow/demo preflight` is the
-      // command that actually fails on this — see README.md §3.
+      // once {{FORM_PROCESSOR}} is replaced, the last one left now that
+      // {{CONTACT_EMAIL}} is resolved; non-empty today.
+      // `pnpm --filter @aktflow/demo preflight` is the command that actually
+      // fails on this — see README.md §3.
       placeholderTokens,
       journey,
+      pilotForm,
       iconRail,
       drawerFocusTrap,
       summary: {

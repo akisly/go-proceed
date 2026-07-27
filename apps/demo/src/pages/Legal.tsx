@@ -2,31 +2,34 @@ import { Link, Navigate, useParams } from 'react-router-dom'
 import { ShieldCheck } from 'lucide-react'
 import { formatDateUk } from '../domain/format'
 import { TODAY } from '../data/project'
+import { CONTACT_EMAIL } from '../data/contact'
 import { FIELD_LABEL, FIELDS, REQUIRED_FIELDS } from '../pilot/draft'
 
 /**
  * ============================================================================
- * LAUNCH BLOCKER — TWO PLACEHOLDER TOKENS BELOW, NEITHER IS A REAL VALUE.
+ * LAUNCH BLOCKER — ONE PLACEHOLDER TOKEN BELOW IS NOT A REAL VALUE.
  * ============================================================================
- * Neither a monitored mailbox nor a form-processing service has been
- * authorised for this deployment yet. Every occurrence of BOTH tokens below
- * (rendered as visible text on /legal/privacy) MUST, before this site is
- * published, either be replaced with a real value or have the sentence
- * containing it removed:
+ * {{FORM_PROCESSOR}} is the third-party form-handling service (see
+ * `PILOT_ENDPOINT` / `VITE_PILOT_ENDPOINT` in src/pages/Pilot.tsx) that would
+ * receive submitted field values IF one is ever configured for this build. No
+ * such service has been authorised. Both occurrences below are rendered as
+ * visible text on /legal/privacy, and before this site is published each MUST
+ * either be replaced with the real service name or have the sentence
+ * containing it removed. Naming the wrong service, or leaving this unreplaced
+ * while an endpoint is live, would misdescribe who actually receives the data
+ * — exactly the failure this disclosure exists to prevent.
  *
- * - {{CONTACT_EMAIL}} — do not invent a plausible-looking address and do
- *   not reuse a personal address as a stand-in. A deletion request sent to
- *   an unmonitored placeholder would simply go nowhere.
- * - {{FORM_PROCESSOR}} — the third-party form-handling service (see
- *   `PILOT_ENDPOINT` / `VITE_PILOT_ENDPOINT` in src/pages/Pilot.tsx) that
- *   receives submitted field values IF one is ever configured for this
- *   build. Naming the wrong service, or leaving this unreplaced while an
- *   endpoint is live, would misdescribe who actually receives the data —
- *   exactly the failure this disclosure exists to prevent.
+ * The site must not go live with this token unreplaced.
  *
- * The site must not go live with either token unreplaced.
+ * The CONTACT_EMAIL token, which used to sit alongside it here, is RESOLVED:
+ * it is now a real monitored mailbox, defined once in src/data/contact.ts and
+ * shared with /pilot so the address this page tells people to write to and the
+ * address their answers were actually sent to cannot drift apart. See that
+ * file for what "resolved" had to mean before the token could be replaced —
+ * and note that it is named there and here without its `{{ }}` braces on
+ * purpose, since qa/preflight.mjs matches that syntax in comments too and
+ * would otherwise report this file as still carrying it.
  */
-const CONTACT_EMAIL = '{{CONTACT_EMAIL}}'
 const FORM_PROCESSOR = '{{FORM_PROCESSOR}}'
 
 /**

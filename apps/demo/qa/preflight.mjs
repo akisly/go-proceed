@@ -13,11 +13,12 @@ import { PLACEHOLDER_TOKEN_PATTERN_GLOBAL } from './placeholder-tokens.mjs'
  *
  * Instead, `pnpm --filter @aktflow/demo preflight` is a separate, explicit
  * command that MUST be run — and MUST exit 0 — before `apps/demo` is
- * published. Both currently-unresolved tokens ({{CONTACT_EMAIL}},
- * {{FORM_PROCESSOR}}) are documented as hard prerequisites in README.md §3;
- * this script is the mechanical enforcement of that same list, sharing the
- * one pattern (./placeholder-tokens.mjs) with `qa/verify.mjs`'s report-only
- * (non-failing) scan of the built bundle, so the two can never drift apart.
+ * published. The one currently-unresolved token ({{FORM_PROCESSOR}}; its
+ * former companion {{CONTACT_EMAIL}} is resolved, see src/data/contact.ts) is
+ * documented as a hard prerequisite in README.md §3; this script is the
+ * mechanical enforcement of that same list, sharing the one pattern
+ * (./placeholder-tokens.mjs) with `qa/verify.mjs`'s report-only (non-failing)
+ * scan of the built bundle, so the two can never drift apart.
  *
  * Scans `src/` (source, not `dist/`) because this is meant to run before a
  * build even exists — a fast, no-build-required check a developer or CI can
@@ -70,9 +71,13 @@ async function main() {
       ...lines,
       '',
       'Each token above must be replaced with a real, deployment-ready value before apps/demo is',
-      'published — see the LAUNCH BLOCKER comments in src/pages/Pilot.tsx and src/pages/Legal.tsx,',
-      'and the full launch-blocker list in apps/demo/README.md §3. Do not invent a plausible-looking',
-      'value to make this pass.',
+      'published — see the LAUNCH BLOCKER comment in src/pages/Legal.tsx and the full',
+      'launch-blocker list in apps/demo/README.md §3. Do not invent a plausible-looking value to',
+      'make this pass.',
+      '',
+      'If a file is listed here that defines no placeholder, check its COMMENTS: this scan matches',
+      'the token syntax anywhere in the file. Prose about a token should name it without braces —',
+      'src/data/contact.ts is the worked example.',
     ].join('\n'),
   )
   process.exitCode = 1

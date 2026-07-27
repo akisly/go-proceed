@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from 'react'
+import type { ComponentProps, ElementType, ReactNode } from 'react'
 
 import { cn } from '@/lib/utils'
 
@@ -15,13 +15,31 @@ import { cn } from '@/lib/utils'
  * financial data look like a marketing grid.
  */
 /**
- * `as` exists for one real distinction, not for generality: a panel that frames
- * a region of the page is a `<section>`, while a panel that IS one self-contained
- * record — an evidence card, repeated down a list — is an `<article>`. Nesting a
- * `<section>` inside a `<section>` to hold a single work item says something
- * about document structure that is not true.
+ * `as` exists for real distinctions in what the panel MEANS, not for
+ * generality. A panel that frames a region of the page is a `<section>`; a
+ * panel that IS one self-contained record — an evidence card, repeated down a
+ * list — is an `<article>`; and a panel that is only the visual surface for
+ * content whose sectioning element and heading already exist around it is a
+ * `<div>`. Nesting a `<section>` inside a `<section>` to hold a single work
+ * item says something about document structure that is not true.
+ *
+ * The `div` case is /pilot's four field groups: each is already a `<section>`
+ * with its own `<h2>` and lead, and the panel inside is just the surface the
+ * inputs sit on. Rendering that as a second `<section>` put an untitled region
+ * in the document outline inside every titled one — caught by
+ * `auditPilotForm` in qa/verify.mjs, which is why that guard checks the
+ * outline rather than the pixels.
  */
-function Panel({ as: Comp = 'section', className, ...props }: ComponentProps<'section'> & { as?: 'section' | 'article' }) {
+function Panel({ as = 'section', className, ...props }: ComponentProps<'section'> & { as?: 'section' | 'article' | 'div' }) {
+  /*
+   * `section` and `article` both carry a plain `HTMLElement` ref while `div`
+   * carries `HTMLDivElement`, so the union has no single assignable ref type
+   * and TS rejects the spread. The public prop type stays `ComponentProps<
+   * 'section'>` — the widest of the three, so callers are still checked
+   * against real HTML attributes — and only the internal element reference is
+   * widened. Nothing in this file reads the ref.
+   */
+  const Comp = as as ElementType
   return (
     <Comp
       data-slot="panel"
