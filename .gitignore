@@ -20,3 +20,13 @@ prototype/qa-runtime-tmp/
 
 # Claude Code native worktrees (never commit worktree contents)
 .claude/worktrees/
+
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/
+
+# apps/demo build + QA artifacts. qa-output/ is ignored so a QA run never
+# dirties tracked files (unlike prototype/qa-screenshots, which are tracked
+# because validate_package.py:2404 requires them on disk).
+apps/demo/dist/
+apps/demo/qa-output/
+apps/demo/qa-runtime-tmp/

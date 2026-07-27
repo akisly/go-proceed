@@ -2,8 +2,9 @@ import puppeteer from 'puppeteer-core'
 import chromiumBinary, { inflate } from '@sparticuz/chromium'
 import { createHash } from 'node:crypto'
 import { spawnSync } from 'node:child_process'
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
+import os from 'node:os'
 import path from 'node:path'
 import process from 'node:process'
 
@@ -29,26 +30,164 @@ await mkdir(output, { recursive: true })
 await mkdir(path.resolve('qa-runtime-tmp/home'), { recursive: true })
 await mkdir(path.resolve('qa-runtime-tmp/cache'), { recursive: true })
 
-chromiumBinary.setGraphicsMode = false
-const chromiumArchive = path.resolve('node_modules/@sparticuz/chromium/bin/chromium.br')
-const chromiumCacheKey = createHash('sha256').update(await readFile(chromiumArchive)).digest('hex').slice(0, 16)
-const chromiumCache = path.resolve(`qa-runtime-tmp/chromium-${chromiumCacheKey}`)
-const inheritedTmpDir = process.env.TMPDIR
-process.env.TMPDIR = chromiumCache
-await mkdir(chromiumCache, { recursive: true })
-let executablePath = await inflate(chromiumArchive)
-let chromiumProbe = spawnSync(executablePath, ['--no-sandbox', '--headless', '--version'], { encoding: 'utf8' })
-if (chromiumProbe.status !== 0) {
-  await rm(chromiumCache, { recursive: true, force: true })
-  await mkdir(chromiumCache, { recursive: true })
-  executablePath = await inflate(chromiumArchive)
-  chromiumProbe = spawnSync(executablePath, ['--no-sandbox', '--headless', '--version'], { encoding: 'utf8' })
+// ── Browser resolution ──────────────────────────────────────────────────────
+//
+// @sparticuz/chromium ships a Linux x86-64 ELF binary built for Lambda. On any
+// other platform `exec` fails with ENOEXEC — on darwin/arm64 it can never work.
+// It is therefore NOT the default and never the mandatory local binary. It is
+// kept for exactly the environment that requires it.
+//
+// Order (first working wins):
+//   1. explicit override   AKTFLOW_CHROME_PATH | PUPPETEER_EXECUTABLE_PATH | CHROME_PATH
+//   2. puppeteer-managed Chrome for Testing  (pinned version — most deterministic)
+//   3. playwright-managed Chromium
+//   4. installed system browser              (Chrome / Chromium / Edge / Brave)
+//   5. @sparticuz/chromium                   — serverless or linux-x64 only
+const IS_SERVERLESS = Boolean(
+  process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.LAMBDA_TASK_ROOT ||
+  process.env.AWS_EXECUTION_ENV || process.env.VERCEL,
+)
+const IS_LINUX_X64 = process.platform === 'linux' && process.arch === 'x64'
+const HOME = os.homedir()
+
+// Replace the whole value of a React-controlled <input>.
+//
+// Keyboard select-all is NOT usable here. Measured in headless Chrome 150:
+// Ctrl+A and Meta+A both leave selectionEnd - selectionStart === 0, and a
+// triple-click does not select either. The old harness used Ctrl+A + Backspace,
+// which deleted a single character, so "0.48" + "0.52" became "0.40.52" -> NaN,
+// `.validate-evidence` stayed disabled and `.pass-hold` never rendered.
+//
+// React tracks the input's value internally, so assigning `el.value` alone is
+// ignored on the next render. Going through the native setter and dispatching a
+// bubbling `input` event is what makes React observe the change.
+async function setControlledInput(page, selector, value) {
+  await page.$eval(selector, (element, next) => {
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set
+    setter.call(element, next)
+    element.dispatchEvent(new Event('input', { bubbles: true }))
+  }, value)
 }
-if (chromiumProbe.status !== 0) {
-  throw new Error(`Chromium integrity probe failed status=${chromiumProbe.status} signal=${chromiumProbe.signal || 'none'} stderr=${(chromiumProbe.stderr || '').trim()}`)
+
+function browserResponds(candidate) {
+  if (!candidate) return false
+  const probe = spawnSync(candidate, ['--no-sandbox', '--headless', '--version'], { encoding: 'utf8' })
+  return probe.status === 0
 }
-if (inheritedTmpDir === undefined) delete process.env.TMPDIR
-else process.env.TMPDIR = inheritedTmpDir
+
+async function versionDirs(root) {
+  try {
+    const entries = await readdir(root, { withFileTypes: true })
+    return entries.filter(entry => entry.isDirectory()).map(entry => path.join(root, entry.name)).sort().reverse()
+  } catch {
+    return []
+  }
+}
+
+async function managedBrowser(roots, leaves) {
+  for (const root of roots) {
+    for (const versionDir of await versionDirs(root)) {
+      for (const leaf of leaves) {
+        const candidate = path.join(versionDir, leaf)
+        if (browserResponds(candidate)) return candidate
+      }
+    }
+  }
+  return null
+}
+
+async function resolveBrowser() {
+  for (const key of ['AKTFLOW_CHROME_PATH', 'PUPPETEER_EXECUTABLE_PATH', 'CHROME_PATH']) {
+    const override = process.env[key]
+    if (!override) continue
+    if (!browserResponds(override)) {
+      throw new Error(`${key}="${override}" did not respond to --version; fix the path or unset it`)
+    }
+    return { executablePath: override, source: `env:${key}` }
+  }
+
+  const puppeteerChrome = await managedBrowser(
+    [path.join(HOME, '.cache/puppeteer/chrome'), path.join(HOME, '.cache/puppeteer/chrome-headless-shell')],
+    [
+      'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+      'chrome-mac-x64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing',
+      'chrome-linux64/chrome',
+      'chrome-headless-shell-mac-arm64/chrome-headless-shell',
+      'chrome-headless-shell-mac-x64/chrome-headless-shell',
+      'chrome-headless-shell-linux64/chrome-headless-shell',
+    ],
+  )
+  if (puppeteerChrome) return { executablePath: puppeteerChrome, source: 'puppeteer-managed chrome-for-testing' }
+
+  const playwrightChromium = await managedBrowser(
+    [path.join(HOME, 'Library/Caches/ms-playwright'), path.join(HOME, '.cache/ms-playwright')],
+    [
+      'chrome-mac/Chromium.app/Contents/MacOS/Chromium',
+      'chrome-mac-arm64/Chromium.app/Contents/MacOS/Chromium',
+      'chrome-linux/chrome',
+      'chrome-mac/headless_shell',
+      'chrome-linux/headless_shell',
+    ],
+  )
+  if (playwrightChromium) return { executablePath: playwrightChromium, source: 'playwright-managed chromium' }
+
+  const systemBrowsers = [
+    '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+    '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge',
+    '/Applications/Brave Browser.app/Contents/MacOS/Brave Browser',
+    '/usr/bin/google-chrome',
+    '/usr/bin/google-chrome-stable',
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/snap/bin/chromium',
+  ]
+  for (const candidate of systemBrowsers) {
+    if (browserResponds(candidate)) return { executablePath: candidate, source: 'system browser' }
+  }
+
+  if (IS_SERVERLESS || IS_LINUX_X64) {
+    chromiumBinary.setGraphicsMode = false
+    const chromiumArchive = path.resolve('node_modules/@sparticuz/chromium/bin/chromium.br')
+    const chromiumCacheKey = createHash('sha256').update(await readFile(chromiumArchive)).digest('hex').slice(0, 16)
+    const chromiumCache = path.resolve(`qa-runtime-tmp/chromium-${chromiumCacheKey}`)
+    const inheritedTmpDir = process.env.TMPDIR
+    process.env.TMPDIR = chromiumCache
+    await mkdir(chromiumCache, { recursive: true })
+    let packaged = await inflate(chromiumArchive)
+    if (!browserResponds(packaged)) {
+      await rm(chromiumCache, { recursive: true, force: true })
+      await mkdir(chromiumCache, { recursive: true })
+      packaged = await inflate(chromiumArchive)
+    }
+    if (inheritedTmpDir === undefined) delete process.env.TMPDIR
+    else process.env.TMPDIR = inheritedTmpDir
+    if (browserResponds(packaged)) return { executablePath: packaged, source: '@sparticuz/chromium (serverless)' }
+  }
+
+  throw new Error(
+    [
+      `No usable Chromium found for ${process.platform}/${process.arch}.`,
+      '',
+      'Tried, in order:',
+      '  1. $AKTFLOW_CHROME_PATH / $PUPPETEER_EXECUTABLE_PATH / $CHROME_PATH (unset or not runnable)',
+      '  2. puppeteer-managed Chrome for Testing in ~/.cache/puppeteer',
+      '  3. playwright-managed Chromium in ~/Library/Caches/ms-playwright or ~/.cache/ms-playwright',
+      '  4. installed Chrome / Chromium / Edge / Brave',
+      IS_SERVERLESS || IS_LINUX_X64
+        ? '  5. @sparticuz/chromium (serverless path attempted, still unusable)'
+        : '  5. @sparticuz/chromium — SKIPPED: Linux x86-64 binary, unusable on this platform',
+      '',
+      'Fix by either:',
+      '  npx @puppeteer/browsers install chrome@stable   # pinned, deterministic',
+      '  npx playwright install chromium                 # playwright-managed',
+      '  export AKTFLOW_CHROME_PATH="/path/to/chrome"    # explicit',
+    ].join('\n'),
+  )
+}
+
+const { executablePath, source: browserSource } = await resolveBrowser()
+console.log(`[qa] browser: ${browserSource}\n[qa] path:    ${executablePath}`)
 const browser = await puppeteer.launch({
   executablePath,
   headless: true,
@@ -412,11 +551,7 @@ await functionalClosure.waitForFunction(() => location.pathname === '/app/occurr
 await functionalClosure.waitForSelector('.typed-form input')
 if (await functionalClosure.$('.conceal-work')) findings.push('concealment control is reachable before an eligible hold decision')
 await functionalClosure.click('.typed-form input')
-await functionalClosure.keyboard.down('Control')
-await functionalClosure.keyboard.press('KeyA')
-await functionalClosure.keyboard.up('Control')
-await functionalClosure.keyboard.press('Backspace')
-await functionalClosure.type('.typed-form input', '0.52')
+await setControlledInput(functionalClosure, '.typed-form input', '0.52')
 await functionalClosure.click('.validate-evidence')
 if (await functionalClosure.$('.conceal-work')) findings.push('concealment control is reachable before an eligible hold decision')
 await functionalClosure.click('.pass-hold')
@@ -443,7 +578,7 @@ const report = {
   ok: findings.length === 0,
   specVersion: '2.9.0',
   executedAt: new Date().toISOString(),
-  method: 'Puppeteer + packaged headless Chromium deterministic repository smoke harness',
+  method: `Puppeteer + resolved headless Chromium (${browserSource}) deterministic repository smoke harness`,
   buildSource: 'prototype/dist',
   viewportCoverage: ['1487x1058', '1440x1100', '1440x1050', '1440x1024', '1200x850', '390x844'],
   flowFamilies: ['acquisition', 'auth-invite', 'onboarding-import', 'rule-versioning', 'work-detail', 'review-correction', 'variation', 'close-package-submission', 'external-review', 'project-commercials', 'saas-subscription', 'team-access', 'field-offline', 'contract-reference-baseline', 'assignment-occurrences', 'hold-point-concealment', 'package-line-decisions'],

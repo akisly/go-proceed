@@ -63,3 +63,158 @@ jobs:
       - run: pnpm turbo run test --concurrency=1
 
       - run: pnpm turbo run build
+
+  # apps/demo is standalone (no Supabase dependency), so it gets its own job
+  # rather than folding into `verify` above. This also covers Finding 3: CI
+  # previously ran no browser assertion at all.
+  demo-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with: { version: 9.12.0 }
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # apps/demo/qa/browser.mjs uses full `puppeteer`, which downloads a
+      # pinned Chrome for Testing build at install time. pnpm may skip
+      # dependency lifecycle (postinstall) scripts depending on config, so
+      # don't assume the download happened — invoke puppeteer's own
+      # installer explicitly. It is a no-op if the pinned build is already
+      # present.
+      - name: Ensure puppeteer's pinned Chrome is installed
+        working-directory: apps/demo
+        run: pnpm exec puppeteer browsers install chrome
+
+      # Chrome for Testing needs the same shared libraries as any Chrome
+      # build. ubuntu-latest ships a system Chrome (and therefore most of
+      # these transitively), but that has changed under us before — install
+      # explicitly rather than relying on an incidental side effect of an
+      # unrelated preinstalled package.
+      - name: Install Chrome headless runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates fonts-liberation libasound2t64 libatk-bridge2.0-0 \
+            libatk1.0-0 libcups2 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0 \
+            libgtk-3-0 libnspr4 libnss3 libxcomposite1 libxdamage1 \
+            libxfixes3 libxkbcommon0 libxrandr2 xdg-utils
+
+      # Verify the browser actually launches on this runner before trusting
+      # any downstream step's result — reuses the harness's own launch()
+      # (including its AKTFLOW_CHROME_PATH override) so this checks the
+      # exact code path `qa` below depends on, not a stand-in.
+      - name: Verify Chrome launches
+        working-directory: apps/demo
+        run: |
+          node --input-type=module -e "
+          import { launch } from './qa/browser.mjs';
+          const browser = await launch();
+          console.log('Chrome launched:', await browser.version());
+          await browser.close();
+          "
+
+      - run: pnpm --filter @aktflow/demo typecheck
+      - run: pnpm --filter @aktflow/demo lint
+      - run: pnpm --filter @aktflow/demo test
+      - run: pnpm --filter @aktflow/demo build
+      - run: pnpm --filter @aktflow/demo qa
+
+      # apps/demo/qa/verify.mjs writes every generated artifact under the
+      # gitignored qa-output/ (see its FINDING 1 comment). Unlike
+      # prototype/'s harness (see package-validate below), a QA run here
+      # must never touch a tracked file — assert it.
+      - name: Assert apps/demo QA run left the tree clean
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "apps/demo qa run modified the working tree:"
+            git status --porcelain
+            exit 1
+          fi
+
+      - name: Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-qa-output
+          path: apps/demo/qa-output/
+          retention-days: 14
+
+  # Runs the prototype/ package-contract validator (scripts/validate_package.py
+  # + prototype's own lint/build/qa) — previously nothing in CI ran this at
+  # all, so neither the package contract nor A.4.19 had any CI enforcement.
+  package-validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+
+      # NPM, NOT PNPM — and no pnpm/action-setup at all.
+      #
+      # This job installs with `npm --prefix prototype ci` and then runs
+      # `make validate`, which is entirely `npm --prefix prototype …` plus
+      # scripts/validate_package.py. Nothing in the Makefile or scripts/ calls
+      # pnpm, so the pnpm/action-setup step here was unused.
+      #
+      # More than unused: `cache: pnpm` made setup-node resolve the pnpm store
+      # path and register a post-job save for it. Since `pnpm install` never
+      # runs in this job the store is never created, so every run ended with
+      #
+      #   Error: Path Validation Error: Path(s) specified in the action for
+      #   caching do(es) not exist, hence no cache is being saved.
+      #
+      # It was not a broken cache, it was a cache that could never work —
+      # pointed at a package manager this job does not use. Caching npm against
+      # prototype/package-lock.json is the version that actually caches the
+      # dependencies this job actually installs.
+      #
+      # The other two jobs both run `pnpm install --frozen-lockfile`, so their
+      # `cache: pnpm` is correct and is left alone.
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: prototype/package-lock.json
+
+      - run: npm --prefix prototype ci
+
+      - run: make validate
+
+      # ---------------------------------------------------------------
+      # NOTE: no "git diff --exit-code -- prototype" step here, by design.
+      #
+      # `make validate` (the validate-qa target) runs
+      # `npm --prefix prototype run qa`, whose verify.mjs *regenerates*
+      # prototype/qa-results.json and the 19 tracked PNGs under
+      # prototype/qa-screenshots/ on every single run — including a run
+      # against an untouched, freshly-checked-out HEAD. On the host this
+      # workflow was authored on, a clean-checkout `make validate` exits 0
+      # but leaves 14 tracked files modified (qa-results.json plus 13 of
+      # the 19 screenshots). scripts/validate_package.py:2435-2447 then
+      # reads qa-results.json and requires those screenshots to exist,
+      # so validating and leaving the tree clean are mutually exclusive
+      # with the current prototype/ harness: asserting a clean diff here
+      # would fail on every run, including ones that changed nothing.
+      #
+      # This is measured, pre-existing repository behaviour, not a bug in
+      # this workflow, and prototype/ is out of scope to change to fix it
+      # (see docs/40-phase1-discovery-outreach.md §A.6 for the deferred-debt
+      # record, and its A.4.19 note for why that acceptance criterion's two
+      # halves cannot both be satisfied without changing prototype/). Do
+      # not "fix" this by adding the assertion back.
+      #
+      # The clean-tree contract this repository *can* uphold — that running
+      # a QA harness must not dirty the working tree — is enforced above,
+      # in demo-qa, against apps/demo's harness instead, which genuinely
+      # satisfies it by writing to a gitignored directory.
+      # ---------------------------------------------------------------

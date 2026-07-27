@@ -184,8 +184,51 @@ required_files = [
 for path in required_files:
     require(path.exists(), f"missing required artifact: {path.relative_to(ROOT)}")
 
-doc_numbers = [int(path.name[:2]) for path in DOCS.glob("[0-9][0-9]-*.md")]
-require(sorted(doc_numbers) == list(range(40)), "docs: expected one contiguous document for every index 00..39")
+# Numbered documentation contract.
+#
+# The upper bound is DERIVED from what is on disk, not hard-coded: docs/NN-*.md
+# must form one contiguous sequence starting at 00 and ending at the highest
+# index present. Adding doc N+1 is therefore a normal, non-breaking act. The
+# previous form asserted `== list(range(40))`, which turned every new document
+# into a build break (docs/40-* did exactly that).
+#
+# Still fail-closed on: a missing index, a duplicate index, a malformed numeric
+# prefix, or a sequence that does not start at 00.
+numbered_docs: dict[int, list[str]] = defaultdict(list)
+malformed_docs: list[str] = []
+for path in sorted(DOCS.glob("*.md")):
+    prefix = re.match(r"(\d+)(?=-)", path.name)
+    if prefix is None:
+        continue  # unnumbered docs/*.md are outside this contract, as before
+    if len(prefix.group(1)) != 2:
+        malformed_docs.append(path.name)
+        continue
+    numbered_docs[int(prefix.group(1))].append(path.name)
+
+require(
+    not malformed_docs,
+    "docs: numbered documents need a two-digit prefix; malformed: "
+    + ", ".join(sorted(malformed_docs)),
+)
+require(bool(numbered_docs), "docs: expected at least one numbered document (docs/NN-*.md)")
+
+duplicate_docs = sorted(
+    f"{index:02d} -> {', '.join(sorted(names))}"
+    for index, names in numbered_docs.items()
+    if len(names) > 1
+)
+require(not duplicate_docs, "docs: duplicate numbered indices: " + "; ".join(duplicate_docs))
+
+if numbered_docs:
+    highest_doc = max(numbered_docs)
+    missing_docs = [f"{index:02d}" for index in range(highest_doc + 1) if index not in numbered_docs]
+    require(
+        not missing_docs,
+        f"docs: expected one contiguous document for every index 00..{highest_doc:02d}; "
+        f"missing: {', '.join(missing_docs)}",
+    )
+
+doc_numbers = sorted(numbered_docs)
 
 link_pattern = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 markdown_files = [ROOT / "README.md", *sorted(DOCS.glob("*.md")), ROOT / "prototype" / "README.md"]
