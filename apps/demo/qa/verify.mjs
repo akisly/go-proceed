@@ -545,13 +545,13 @@ async function auditJourney(browser, baseUrl, ctx) {
   const diagnostics = await withPage(browser, async page => {
     await page.goto(url, { waitUntil: 'networkidle0' })
 
-    const stepCount = await page.$$eval('.demo-progress li', els => els.length)
+    const stepCount = await page.$$eval('[data-demo-step]', els => els.length)
     if (stepCount !== 5) {
       ctx.findings.push(`/demo journey: expected 5 steps in the progress list, found ${stepCount}`)
     }
 
     for (let i = 0; i < stepCount; i++) {
-      const activeIndex = await page.$$eval('.demo-progress li', els =>
+      const activeIndex = await page.$$eval('[data-demo-step]', els =>
         els.findIndex(el => el.getAttribute('aria-current') === 'step'),
       )
       if (activeIndex !== i) {
@@ -565,7 +565,7 @@ async function auditJourney(browser, baseUrl, ctx) {
         ctx.findings.push(`/demo journey step ${i}: panel rendered no visible text`)
       }
 
-      const backDisabled = await page.$eval('.onboarding-footer > button.button--outline', el => el.disabled)
+      const backDisabled = await page.$eval('[data-demo-back]', el => el.disabled)
       const expectedDisabled = i === 0
       if (backDisabled !== expectedDisabled) {
         ctx.findings.push(
@@ -595,10 +595,10 @@ async function auditJourney(browser, baseUrl, ctx) {
           journey.pdfLink = { href: pdfHref, status }
         }
       } else {
-        await page.click('.onboarding-footer button.button--dark')
+        await page.click('[data-demo-next]')
         await page.waitForFunction(
           expectedIndex =>
-            Array.from(document.querySelectorAll('.demo-progress li')).findIndex(
+            Array.from(document.querySelectorAll('[data-demo-step]')).findIndex(
               el => el.getAttribute('aria-current') === 'step',
             ) === expectedIndex,
           {},

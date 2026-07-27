@@ -89,7 +89,13 @@ function Node({
   )
 }
 
-export default function EvidenceWindow() {
+/**
+ * `showHeader` exists for /demo, where the guided journey has already spent
+ * three steps naming this exact row — repeating its code and title a fourth
+ * time would be noise. The landing needs the header, because there the row
+ * arrives with no context at all.
+ */
+export default function EvidenceWindow({ showHeader = true }: { showHeader?: boolean }) {
   // The dataset is authored to always contain this case (src/data/project.ts,
   // and /demo throws at import time without it), but the landing must not be
   // the surface that crashes if that ever changes.
@@ -100,13 +106,15 @@ export default function EvidenceWindow() {
 
   return (
     <figure className="rounded-panel border border-border bg-surface p-5">
-      <figcaption className="mb-4">
-        <span className="block text-meta font-medium uppercase tracking-[0.06em] text-foreground-muted">
-          Один рядок із демонстрації
-        </span>
-        <span className="mt-1 block font-semibold text-foreground">{ITEM.code}</span>
-        <span className="block text-foreground-secondary">{ITEM.title}</span>
-      </figcaption>
+      {showHeader ? (
+        <figcaption className="mb-4">
+          <span className="block text-meta font-medium uppercase tracking-[0.06em] text-foreground-muted">
+            Один рядок із демонстрації
+          </span>
+          <span className="mt-1 block font-semibold text-foreground">{ITEM.code}</span>
+          <span className="block text-foreground-secondary">{ITEM.title}</span>
+        </figcaption>
+      ) : null}
 
       <ol className="mb-4">
         {capturedAt !== null ? <Node date={capturedAt} label="Обсяг зафіксовано" tone="done" /> : null}
