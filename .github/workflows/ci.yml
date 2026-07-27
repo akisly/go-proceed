@@ -159,13 +159,32 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: '3.12' }
 
-      - uses: pnpm/action-setup@v4
-        with: { version: 9.12.0 }
-
+      # NPM, NOT PNPM — and no pnpm/action-setup at all.
+      #
+      # This job installs with `npm --prefix prototype ci` and then runs
+      # `make validate`, which is entirely `npm --prefix prototype …` plus
+      # scripts/validate_package.py. Nothing in the Makefile or scripts/ calls
+      # pnpm, so the pnpm/action-setup step here was unused.
+      #
+      # More than unused: `cache: pnpm` made setup-node resolve the pnpm store
+      # path and register a post-job save for it. Since `pnpm install` never
+      # runs in this job the store is never created, so every run ended with
+      #
+      #   Error: Path Validation Error: Path(s) specified in the action for
+      #   caching do(es) not exist, hence no cache is being saved.
+      #
+      # It was not a broken cache, it was a cache that could never work —
+      # pointed at a package manager this job does not use. Caching npm against
+      # prototype/package-lock.json is the version that actually caches the
+      # dependencies this job actually installs.
+      #
+      # The other two jobs both run `pnpm install --frozen-lockfile`, so their
+      # `cache: pnpm` is correct and is left alone.
       - uses: actions/setup-node@v4
         with:
           node-version-file: .nvmrc
-          cache: pnpm
+          cache: npm
+          cache-dependency-path: prototype/package-lock.json
 
       - run: npm --prefix prototype ci
 
