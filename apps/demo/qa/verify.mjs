@@ -261,6 +261,41 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
       ctx.findings.push(`${route}: expected exactly 1 <h1>, found ${h1Count}`)
     }
 
+    /*
+     * A class attribute containing source code means a function-valued
+     * `className` reached the DOM as a string.
+     *
+     * How it happens: react-router's NavLink accepts `className` (and
+     * `children`) as a function of `{ isActive }`, while Radix `asChild`
+     * MERGES props onto its child and merges `className` by string
+     * concatenation. Wrap a function-className NavLink in a Slot — a
+     * TooltipTrigger, a Button asChild — and the arrow function is stringified
+     * into the class attribute. React does not warn; TypeScript cannot see it,
+     * because both prop types are individually valid.
+     *
+     * It shipped once, in the rail's tooltip range (768-1240px), and survived
+     * a full-page screenshot AND a bounding-box probe, because a class
+     * attribute is a token list and most Tailwind names inside the stringified
+     * source are still valid tokens. Only the ones touching a quote or comma
+     * were dropped — which happened to include both branches of the
+     * active/inactive colour ternary, so the active nav item silently lost
+     * every colour cue while everything still looked laid out.
+     *
+     * Hence a structural check rather than a visual one: no rendered class
+     * attribute may contain `=>`, `function`, `{` or `;`. Cheap, and it covers
+     * every component on every route, not just the one that was caught.
+     */
+    const codeInClass = await page.evaluate(() =>
+      [...document.querySelectorAll('[class]')]
+        .map(el => ({ tag: el.tagName, cls: el.getAttribute('class') ?? '' }))
+        .filter(el => /=>|\bfunction\b|[{};]/.test(el.cls))
+        .map(el => `${el.tag}: ${el.cls.slice(0, 60).replace(/\s+/g, ' ')}…`))
+    for (const found of codeInClass) {
+      ctx.findings.push(
+        `${route}: a class attribute contains source code — a function-valued className reached the DOM (${found})`,
+      )
+    }
+
     // RULING 2: /app/work must show 14 rows — PROJECT.workItems.length,
     // read live off the rendered table, not re-asserted against the source.
     if (route === '/app/work') {
@@ -623,6 +658,79 @@ async function auditTouchTargets(browser, baseUrl, ctx) {
   }
 }
 
+// -----------------------------------------------------------------------
+// The 768-1239px icon rail had NO coverage at all, and that is exactly where
+// a real defect shipped: `TooltipTrigger asChild` is only mounted in this
+// range, and Radix's Slot stringified NavLink's function-valued `className`
+// into the class attribute. The shipped-route audit pins 1440 (no tooltip),
+// the touch-target audit pins 390 (drawer, no tooltip), and the focus-trap
+// audit pins 360. Three viewports, none of them the one with the bug.
+//
+// The shell documents three states as a contract. Each of them needs a pass.
+// -----------------------------------------------------------------------
+async function auditIconRail(browser, baseUrl, ctx) {
+  const rail = { width: null, activeLinks: null, distinctColours: null }
+  const diagnostics = await withPage(browser, async page => {
+    await page.setViewport({ width: 900, height: 900 })
+    await page.goto(`${baseUrl}/app/work`, { waitUntil: 'networkidle0' })
+
+    // Same structural check as the shipped-route audit, run at the width where
+    // the Slot-wrapped trigger actually exists.
+    const codeInClass = await page.evaluate(() =>
+      [...document.querySelectorAll('[class]')]
+        .map(el => ({ tag: el.tagName, cls: el.getAttribute('class') ?? '' }))
+        .filter(el => /=>|\bfunction\b|[{};]/.test(el.cls))
+        .map(el => `${el.tag}: ${el.cls.slice(0, 60).replace(/\s+/g, ' ')}…`))
+    for (const found of codeInClass) {
+      ctx.findings.push(
+        `/app/work @900: a class attribute contains source code — a function-valued className reached the DOM (${found})`,
+      )
+    }
+
+    const measured = await page.evaluate(() => {
+      const aside = document.querySelector('[data-app-rail]')
+      const links = [...document.querySelectorAll('[data-app-rail] nav a')]
+      return {
+        width: aside ? Math.round(aside.getBoundingClientRect().width) : null,
+        active: links.filter(a => a.getAttribute('aria-current') === 'page').length,
+        colours: [...new Set(links.map(a => getComputedStyle(a).color))],
+        labelsHidden: links.every(a => {
+          const span = a.querySelector('span:not([aria-hidden])')
+          return span !== null && Math.round(span.getBoundingClientRect().width) <= 1
+        }),
+      }
+    })
+    rail.width = measured.width
+    rail.activeLinks = measured.active
+    rail.distinctColours = measured.colours.length
+
+    if (measured.width !== 68) {
+      ctx.findings.push(`/app/work @900: expected the rail collapsed to 68px, measured ${measured.width}px`)
+    }
+    if (measured.active !== 1) {
+      ctx.findings.push(`/app/work @900: expected exactly 1 nav link with aria-current="page", found ${measured.active}`)
+    }
+    // THE ACTUAL REGRESSION. When the class attribute was source text, both
+    // branches of the active/inactive colour ternary were dropped and all four
+    // links inherited one colour — "you are here" was invisible. Asserting the
+    // rendered RESULT (two distinct colours) rather than the declaration.
+    if (measured.colours.length < 2) {
+      ctx.findings.push(
+        `/app/work @900: every nav link renders the same colour (${measured.colours.join(', ')}) — ` +
+          'the active item is indistinguishable from the inactive ones',
+      )
+    }
+    if (!measured.labelsHidden) {
+      ctx.findings.push('/app/work @900: expected nav labels to be visually hidden in the icon rail')
+    }
+
+    await page.screenshot({ path: path.join(SHOTS, 'app-work-icon-rail.png'), fullPage: true })
+    ctx.shotNames.push('app-work-icon-rail.png')
+  })
+  classifyDiagnostics('/app/work @900 (icon rail)', diagnostics, ctx.findings, ctx.missingAssetCounts)
+  return rail
+}
+
 async function auditDrawerFocusTrap(browser, baseUrl, ctx) {
   const url = `${baseUrl}/app/work`
   const trap = { focusableCount: 0, forwardWrap: null, backwardWrap: null }
@@ -848,6 +956,13 @@ async function main() {
       ctx.findings.push(`generated CSS colour audit: crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
     }
 
+    let iconRail = { width: null, activeLinks: null, distinctColours: null }
+    try {
+      iconRail = await auditIconRail(browser, baseUrl, ctx)
+    } catch (err) {
+      ctx.findings.push(`icon rail: audit crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`)
+    }
+
     let drawerFocusTrap = { focusableCount: 0, forwardWrap: null, backwardWrap: null }
     try {
       drawerFocusTrap = await auditDrawerFocusTrap(browser, baseUrl, ctx)
@@ -922,6 +1037,7 @@ async function main() {
       // command that actually fails on this — see README.md §3.
       placeholderTokens,
       journey,
+      iconRail,
       drawerFocusTrap,
       summary: {
         shippedRoutesChecked: SHIPPED_ROUTES.length,

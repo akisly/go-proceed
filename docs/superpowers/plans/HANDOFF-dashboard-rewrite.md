@@ -219,6 +219,24 @@ not approved):
     already-satisfied records as blocking the moment `/app/rules` passed a full
     list.
 
+15. **Never pass a function-valued `className`/`children` into a Radix
+    `asChild`.** `Slot` merges `className` by string concatenation, so a
+    `NavLink`'s `({ isActive }) => …` gets stringified into the class attribute.
+    No React warning, no type error. Resolve state with `useResolvedPath` +
+    `useMatch` and pass plain strings.
+
+16. **A half-broken class attribute looks fine in a screenshot.** The bug above
+    survived a full-page screenshot AND a bounding-box probe, because a class
+    attribute is a token list and most Tailwind names inside the stringified
+    source remain valid tokens. Only the ones adjacent to a quote or comma were
+    lost — which happened to be both colour branches. Assert structure
+    (`no source code in any class`) as well as pixels.
+
+17. **Every viewport in the contract needs its own audit pass.** The harness
+    pinned 1440, 390 and 360 — and the 768–1240px icon rail, a documented state,
+    had nothing. That is exactly where #15 shipped, because the tooltip that
+    triggers it only mounts in that range. `auditIconRail` now covers it.
+
 ---
 
 ## 6. Verification — run after every checkpoint

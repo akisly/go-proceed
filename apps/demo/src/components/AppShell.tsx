@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Link, NavLink, Navigate, Route, Routes } from 'react-router-dom'
+import { Link, NavLink, Navigate, Route, Routes, useMatch, useResolvedPath } from 'react-router-dom'
 import { Boxes, Compass, ListChecks, Menu, MessageSquare, ScanLine, X } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import Dashboard from '../pages/App'
 import Work from '../pages/Work'
 import Evidence from '../pages/Evidence'
@@ -72,37 +73,63 @@ function RailLink({
   showTooltip: boolean
   onNavigate: () => void
 }) {
+  /*
+   * NEVER PASS A FUNCTION-VALUED `className` OR `children` INTO A RADIX
+   * `asChild`. NavLink supports both in function form, and this used them —
+   * until `TooltipTrigger asChild` wrapped the link between 768 and 1240px.
+   * Radix's Slot MERGES props onto its child, and it merges `className` by
+   * string concatenation. Handed a function, it stringifies it, so the live
+   * DOM carried the source text of the arrow function as its class attribute.
+   *
+   * What made this genuinely nasty is that it half-worked. A class attribute
+   * is a whitespace-delimited token list, and the stringified source still
+   * contains most of the Tailwind names as separate tokens — so `flex`,
+   * `min-h-11` and `relative` kept applying and the rail looked plausible in a
+   * screenshot and measured 35x44 in a geometry probe. Only the tokens sitting
+   * against a quote or comma were dropped: `px-3`, `font-medium`,
+   * `duration-150`, `ease-out-strong`, `wide:px-3` — and, worst,
+   * `text-surface` and `text-rail-muted`, which meant BOTH ternary branches
+   * died and the active item lost every colour cue it had. Four nav links all
+   * inheriting the rail's own foreground, with no "you are here" left but the
+   * Lime bar.
+   *
+   * So `isActive` is resolved here instead, with the same two hooks NavLink
+   * uses internally, and every prop below is a plain string or plain JSX.
+   * `end: false` matches NavLink's own default. NavLink is kept rather than a
+   * bare Link because it still contributes `aria-current="page"`, which is the
+   * part of it that carries accessibility value.
+   *
+   * qa/verify.mjs now fails any route whose DOM contains a class attribute
+   * that looks like source code, so this whole class of bug cannot return
+   * silently anywhere in the app.
+   */
+  const resolved = useResolvedPath(to)
+  const isActive = useMatch({ path: resolved.pathname, end: false }) !== null
+
   const link = (
     <NavLink
       to={to}
       onClick={onNavigate}
-      className={({ isActive }) =>
-        [
-          'group relative flex min-h-11 items-center gap-3 rounded-control px-3',
-          'font-medium transition-colors duration-150 ease-out-strong',
-          'md:justify-center md:px-0 wide:justify-start wide:px-3',
-          isActive ? 'bg-rail-hover text-surface' : 'text-rail-muted hover:bg-rail-hover hover:text-rail-foreground',
-        ].join(' ')
-      }
-    >
-      {({ isActive }) => (
-        <>
-          {/*
-           * Review 07 · A3: "you are here" used to be a solid Lime block, which
-           * collapsed wayfinding and the primary action into one signal and
-           * spent the <=5% Lime budget on every /app route before any action
-           * had been offered. A tonal shift carries the state; a 3px Lime edge
-           * makes it unmistakable. Absolutely positioned rather than a
-           * `border-l`, so the active item's text does not shift 3px sideways
-           * as you navigate.
-           */}
-          {isActive ? (
-            <span aria-hidden="true" className="absolute inset-y-1 left-0 w-[3px] rounded-pill bg-accent" />
-          ) : null}
-          <Icon size={18} aria-hidden="true" />
-          <RailLabel>{label}</RailLabel>
-        </>
+      className={cn(
+        'group relative flex min-h-11 items-center gap-3 rounded-control px-3',
+        'font-medium transition-colors duration-150 ease-out-strong',
+        'md:justify-center md:px-0 wide:justify-start wide:px-3',
+        isActive ? 'bg-rail-hover text-surface' : 'text-rail-muted hover:bg-rail-hover hover:text-rail-foreground',
       )}
+    >
+      {/*
+       * Review 07 · A3: "you are here" used to be a solid Lime block, which
+       * collapsed wayfinding and the primary action into one signal and spent
+       * the <=5% Lime budget on every /app route before any action had been
+       * offered. A tonal shift carries the state; a 3px Lime edge makes it
+       * unmistakable. Absolutely positioned rather than a `border-l`, so the
+       * active item's text does not shift 3px sideways as you navigate.
+       */}
+      {isActive ? (
+        <span aria-hidden="true" className="absolute inset-y-1 left-0 w-[3px] rounded-pill bg-accent" />
+      ) : null}
+      <Icon size={18} aria-hidden="true" />
+      <RailLabel>{label}</RailLabel>
     </NavLink>
   )
 
@@ -247,7 +274,7 @@ export default function AppShell() {
             <Link
               to="/"
               aria-label="AktFlow — головна"
-              className="brand brand--light flex min-h-11 items-center gap-2.5 rounded-control px-1 md:px-0"
+              className="brand brand--light flex min-h-11 items-center gap-2.5 rounded-control px-1 wide:px-3 md:px-0"
             >
               <span className="brand__mark">
                 <span />

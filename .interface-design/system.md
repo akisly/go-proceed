@@ -331,6 +331,24 @@ hand-rolled `h-px bg-border` is either always announced or never announced.
    shell's base layer — no font, no reduced-motion block, no focus ring. Anything
    that portals must carry `font-sans` and `motion-reduce:` itself.
 
+4b. **Never pass a function-valued `className` or `children` into a Radix
+   `asChild`.** react-router's `NavLink` accepts both as functions of
+   `{ isActive }`; Radix's `Slot` merges `className` by *string concatenation*,
+   so it stringifies the function into the class attribute. React does not warn
+   and TypeScript cannot see it — both prop types are individually valid.
+
+   It shipped. And it half-worked, which is why it survived screenshots and a
+   bounding-box probe: a class attribute is a token list, and most Tailwind
+   names inside the stringified source are still valid tokens. Only the ones
+   touching a quote or comma were dropped — including *both* branches of the
+   active/inactive colour ternary, so the active nav item silently lost every
+   colour cue while the layout still looked right.
+
+   Resolve state yourself (`useResolvedPath` + `useMatch`, `end: false` matches
+   NavLink's default) and pass plain strings. `qa/verify.mjs` now fails any
+   route whose DOM carries a class attribute containing `=>`, `function`, `{`
+   or `;`.
+
 5. **Never write a literal Tailwind class string in a test.** Tailwind v4 scans
    the whole project and does not distinguish tests from UI; it will emit test
    fixtures as real CSS into the production bundle. Assemble fixtures at runtime.
@@ -389,3 +407,12 @@ restyle used to turn a whole audit into a no-op. And an assertion must name the
 **contract** ("the focus cycle closes"), not the current markup ("focus lands on
 `.sidebar__close`") — an assertion that fires on a correct change teaches you to
 edit the assertion.
+
+**Every viewport in the contract needs a pass.** The harness pinned 1440
+(shipped routes), 390 (touch targets) and 360 (focus trap) — and the 768–1240px
+icon rail, a documented state of the shell, had none. That is precisely where a
+defect shipped, because the tooltip that triggered it only mounts in that range.
+`auditIconRail` closes it: rail width, exactly one `aria-current="page"`, labels
+visually hidden, no source code in any class attribute, and — the assertion that
+would actually have caught the bug — **at least two distinct link colours**, so
+"you are here" cannot silently become invisible.
