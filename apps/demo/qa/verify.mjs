@@ -353,7 +353,7 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
     // class, inverting three of four links into unreadability.
     if (route === '/') {
       const headerLinks = await page.evaluate(() => {
-        const header = document.querySelector('.site-header')
+        const header = document.querySelector('[data-site-header]')
         if (!header) return []
         const headerBg = getComputedStyle(header).backgroundColor
         const pageBg = getComputedStyle(document.body).backgroundColor
@@ -365,7 +365,7 @@ async function auditShippedRoute(browser, baseUrl, route, ctx) {
         }))
       })
       if (headerLinks.length === 0) {
-        ctx.findings.push('/: expected links in .site-header, found none')
+        ctx.findings.push('/: expected links in [data-site-header], found none')
       }
       for (const link of headerLinks) {
         const ratio = contrastRatio(link.color, link.background)

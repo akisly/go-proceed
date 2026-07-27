@@ -55,3 +55,22 @@ export function pluralUk(count: number, one: string, few: string, many: string):
 export function rowsUk(count: number): string {
   return `${count} ${pluralUk(count, 'рядок', 'рядки', 'рядків')}`
 }
+
+/** «1 день», «2 дні», «11 днів». */
+export function daysUk(count: number): string {
+  return `${count} ${pluralUk(count, 'день', 'дні', 'днів')}`
+}
+
+/**
+ * Whole days between two ISO `YYYY-MM-DD` dates.
+ *
+ * Both are parsed at midnight UTC, the same pin `formatDateUk` uses, so the
+ * result never shifts by one because the viewer is west of UTC — which for a
+ * figure like "the evidence window was one day wide" would be the difference
+ * between the argument landing and reading as nonsense.
+ */
+export function daysBetween(fromIso: string, toIso: string): number {
+  const from = Date.parse(`${fromIso}T00:00:00Z`)
+  const to = Date.parse(`${toIso}T00:00:00Z`)
+  return Math.round((to - from) / 86_400_000)
+}
