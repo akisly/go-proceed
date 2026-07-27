@@ -1,8 +1,26 @@
-import { useEffect, useRef, useState, type ChangeEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertTriangle, ArrowLeft, Check, Mail } from 'lucide-react'
-import { clearDraft, draftAsPlainText, FIELD_LABEL, loadDraft, saveDraft, submitPilotDraft, type PilotDraft } from '../pilot/draft'
+import {
+  clearDraft,
+  draftAsPlainText,
+  FIELDS,
+  FIELD_LABEL,
+  loadDraft,
+  REQUIRED_FIELDS,
+  saveDraft,
+  submitPilotDraft,
+  type PilotDraft,
+} from '../pilot/draft'
+import { CONTACT_EMAIL } from '../data/contact'
+import { pluralUk } from '../domain/format'
 import InlineBanner from '../components/InlineBanner'
+import PageHeader from '../components/PageHeader'
+import { Panel } from '../components/Panel'
+import { Button } from '../components/ui/button'
+import { Input } from '../components/ui/input'
+import { Select } from '../components/ui/select'
+import { Textarea } from '../components/ui/textarea'
 
 /**
  * Task 13 — /pilot, the only structured capture surface in this deployment
@@ -17,19 +35,29 @@ import InlineBanner from '../components/InlineBanner'
  * scheduling link, no phone number, no pricing, no "book a demo". Nine
  * fields, only Компанія and Email required, real <label htmlFor> on every
  * one (placeholder-as-label is prohibited).
+ *
+ * ── THE REWRITE ──────────────────────────────────────────────────────────────
+ *
+ * This was the last public page still rendering the frozen sheet's
+ * `.pilot-page` / `.pilot-form` markup, which meant the one surface asking a
+ * stranger for ten minutes of their time looked like it belonged to a
+ * different product than the landing that sent them here. It is on the design
+ * system now, same as /, /demo and /roadmap.
+ *
+ * The nine fields are unchanged, in the unchanged order (draft.ts's `FIELDS`
+ * is the source of truth for that order and A.3.2a fixes it), but they are no
+ * longer one undifferentiated wall. They are four named groups, each with a
+ * lead saying why it is being asked — the same move /demo's five steps got,
+ * for the same reason: a reader who understands why a question is on the page
+ * answers it, and a reader facing nine unexplained inputs closes the tab. The
+ * leads describe THIS FORM, not the product; nothing here claims a capability.
+ *
+ * Every founder-confirmed sentence is carried across verbatim (the «Олександр»
+ * signature, «протягом 2 робочих днів», «Дзвонити не буду»), as is every
+ * behaviour below: RULING 1's mailto path, RULING 3's draft durability,
+ * RULING 5's persistent banners, and Review 07's promise placement (I2) and
+ * clipboard fallback (I3).
  */
-
-/**
- * ============================================================================
- * LAUNCH BLOCKER — {{CONTACT_EMAIL}} IS A PLACEHOLDER, NOT A REAL ADDRESS.
- * ============================================================================
- * Same token, same rule as src/pages/Legal.tsx: no monitored mailbox has
- * been authorised for this deployment yet. Every occurrence below MUST be
- * replaced with a real, monitored address before this site is published —
- * this is where the mailto fallback (RULING 1) and the success receipt's
- * deletion-request instructions (RULING 4) both point.
- */
-const CONTACT_EMAIL = '{{CONTACT_EMAIL}}'
 
 /**
  * RULING 1 (task 13 controller ruling) — `VITE_PILOT_ENDPOINT` is not
@@ -96,6 +124,99 @@ type SubmitState =
   | { readonly phase: 'sent' }
   | { readonly phase: 'mailto'; readonly mailto: string }
   | { readonly phase: 'error'; readonly mailto: string }
+
+/**
+ * The header both states of this page share — the form and the success
+ * receipt. Same shape as /demo's and /roadmap's (RULING 6's landmark
+ * `<header>` with a way back to "/"), so all three read as one site.
+ */
+function PilotHeader() {
+  return (
+    <header className="border-b border-border">
+      <div className="mx-auto flex w-full max-w-[720px] items-center gap-4 px-5 py-3">
+        <Link className="brand" to="/" aria-label="AktFlow — головна">
+          <span className="brand__mark">
+            <span />
+          </span>
+          <span>AktFlow</span>
+        </Link>
+        <Button asChild variant="ghost" size="sm" className="ml-auto">
+          <Link to="/">
+            <ArrowLeft /> На головну
+          </Link>
+        </Button>
+      </div>
+    </header>
+  )
+}
+
+/**
+ * One labelled field. The `<label htmlFor>` is the point (RULING 4 prohibits
+ * placeholder-as-label), so this exists to make that pairing the only way to
+ * add a field here rather than a convention someone has to remember — `id` is
+ * required, and the label is always rendered as a real element above the
+ * control, never collapsed into a placeholder.
+ *
+ * `required` drives BOTH the visible asterisk and the control's own attribute
+ * at the call site, so the two cannot disagree about which fields are
+ * mandatory.
+ */
+function Field({
+  id,
+  label,
+  required = false,
+  hint,
+  children,
+}: {
+  id: string
+  label: string
+  required?: boolean
+  hint?: string
+  children: ReactNode
+}) {
+  return (
+    <div className="flex flex-col gap-2">
+      <label htmlFor={id} className="font-semibold text-foreground-secondary">
+        {label}
+        {required ? ' *' : ''}
+      </label>
+      {children}
+      {/*
+        `text-meta`, not a bare `<small>`. `<small>` on its own takes the user
+        agent's 0.83em, which lands at 12.5px here — a size that exists nowhere
+        in this product's scale (--text-micro is 11px, --text-meta is 12px) and
+        is therefore the one piece of type on the page nobody chose. The
+        element still carries the right semantics; only the size comes from the
+        system instead of the browser.
+      */}
+      {hint ? <small className="text-meta text-foreground-muted">{hint}</small> : null}
+    </div>
+  )
+}
+
+/**
+ * A named group of fields, with the reason it is being asked.
+ *
+ * Same editorial grammar as /demo: heading, then a lead in the reader's own
+ * terms, then the artifact. The lead is what makes nine questions feel like
+ * four short conversations instead of a wall of inputs.
+ *
+ * `<Panel as="div">`, not the default `<section>`: this component's own
+ * `<section>` and `<h2>` already declare the region, so a sectioning element
+ * around the inputs would add an untitled region to the document outline
+ * inside every titled one. See Panel.tsx's note on `as`.
+ */
+function FormSection({ title, lead, children }: { title: string; lead: string; children: ReactNode }) {
+  return (
+    <section>
+      <h2 className="text-h3">{title}</h2>
+      <p className="mt-1 max-w-[62ch] text-foreground-secondary">{lead}</p>
+      <Panel as="div" className="mt-3 flex flex-col gap-5 p-4">
+        {children}
+      </Panel>
+    </section>
+  )
+}
 
 export default function Pilot() {
   // Restore-on-mount (brief step 5) as a lazy initializer rather than an
@@ -215,22 +336,6 @@ export default function Pilot() {
     setSubmitState({ phase: 'error', mailto: result.mailto })
   }
 
-  /**
-   * Fix round (final review, finding C2) — `clearDraft()` previously had
-   * exactly one call site, inside `result.kind === 'sent'` above, which is
-   * only reachable when `VITE_PILOT_ENDPOINT` is configured. With no
-   * endpoint (today's deployment), the outcome is always 'mailto' and the
-   * draft persisted indefinitely with no way for the visitor to remove it —
-   * while both this page and /legal/privacy claimed it would be deleted.
-   * This is the visitor's own real control over that: it clears storage,
-   * resets the in-memory form back to empty, and turns off the "restored"
-   * notice, so the page state matches what actually happened. `EMPTY_DRAFT`
-   * is reused (not a fresh `{ ...EMPTY_DRAFT }`) so `initialDraftRef.current`
-   * and the new `draft` are the same object reference — the debounced
-   * autosave effect above compares by reference and skips saving when they
-   * match, which is what stops it from silently writing an empty draft
-   * straight back into storage a moment after this runs.
-   */
   /*
    * Review 07 · I3. The mailto link stays the primary route; this is the escape
    * hatch for a machine where it silently does nothing — webmail-only corporate
@@ -250,6 +355,22 @@ export default function Pilot() {
     }
   }
 
+  /**
+   * Fix round (final review, finding C2) — `clearDraft()` previously had
+   * exactly one call site, inside `result.kind === 'sent'` above, which is
+   * only reachable when `VITE_PILOT_ENDPOINT` is configured. With no
+   * endpoint (today's deployment), the outcome is always 'mailto' and the
+   * draft persisted indefinitely with no way for the visitor to remove it —
+   * while both this page and /legal/privacy claimed it would be deleted.
+   * This is the visitor's own real control over that: it clears storage,
+   * resets the in-memory form back to empty, and turns off the "restored"
+   * notice, so the page state matches what actually happened. `EMPTY_DRAFT`
+   * is reused (not a fresh `{ ...EMPTY_DRAFT }`) so `initialDraftRef.current`
+   * and the new `draft` are the same object reference — the debounced
+   * autosave effect above compares by reference and skips saving when they
+   * match, which is what stops it from silently writing an empty draft
+   * straight back into storage a moment after this runs.
+   */
   function handleDeleteDraft() {
     clearDraft()
     setDraft(EMPTY_DRAFT)
@@ -260,54 +381,52 @@ export default function Pilot() {
 
   if (submitState.phase === 'sent') {
     return (
-      <div className="pilot-page pilot-page--success">
-        <header>
-          <Link className="brand" to="/" aria-label="AktFlow — головна">
-            <span className="brand__mark">
-              <span />
-            </span>
-            <span>AktFlow</span>
-          </Link>
-        </header>
-        <main className="pilot-success">
-          <span className="success-mark synced">
-            <Check size={38} aria-hidden="true" />
+      <div className="aktflow-app flex min-h-screen flex-col">
+        <PilotHeader />
+        <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col items-center px-5 py-16 text-center">
+          <span
+            aria-hidden="true"
+            className="grid size-16 place-items-center rounded-pill bg-accent text-accent-foreground"
+          >
+            <Check size={32} />
           </span>
-          <h1>Дякуємо. Відповіді отримано.</h1>
-          <p>
+          <h1 className="mt-6 text-h1">Дякуємо. Відповіді отримано.</h1>
+          <p className="mt-4 max-w-[58ch] text-foreground-secondary">
             Ми отримали назву компанії, контактний email і ваші відповіді про те, як зараз влаштовано фіксування
             фото й обсягів, зберігання файлів та підготовку закриття періоду.
           </p>
-          <p>Прочитаю це особисто і відповім протягом 2 робочих днів на вказаний email. — Олександр</p>
-          <p>
+          <p className="mt-3 max-w-[58ch] text-foreground-secondary">
+            Прочитаю це особисто і відповім протягом 2 робочих днів на вказаний email. — Олександр
+          </p>
+          <p className="mt-3 max-w-[58ch] text-foreground-secondary">
             Щоб попросити видалення надісланих відповідей, напишіть на <code>{CONTACT_EMAIL}</code>.
           </p>
-          <Link className="button button--outline" to="/">
-            На головну
-          </Link>
+          <Button asChild variant="outline" className="mt-8">
+            <Link to="/">На головну</Link>
+          </Button>
         </main>
       </div>
     )
   }
 
   return (
-    <div className="pilot-page">
-      <header>
-        <Link className="brand" to="/" aria-label="AktFlow — головна">
-          <span className="brand__mark">
-            <span />
-          </span>
-          <span>AktFlow</span>
-        </Link>
-        <Link to="/">
-          <ArrowLeft size={16} aria-hidden="true" /> На головну
-        </Link>
-      </header>
-      <main>
-        <form className="pilot-form" onSubmit={handleSubmit}>
+    <div className="aktflow-app flex min-h-screen flex-col">
+      <PilotHeader />
+
+      {/*
+       * 720px, not the 1240px the internal app uses. A nine-field form read
+       * once, top to bottom, wants a reading measure — the same reasoning
+       * /demo's 900px column is built on, one notch tighter because a column
+       * of inputs is narrower than a column of panels.
+       */}
+      <main className="mx-auto w-full max-w-[720px] flex-1 px-5 py-8">
+        <form className="flex flex-col gap-8" onSubmit={handleSubmit}>
           <div>
-            <h1>Розкажіть, як у вас влаштовано закриття періоду</h1>
-            <p>
+            <PageHeader
+              title="Розкажіть, як у вас влаштовано закриття періоду"
+              stat={`${FIELDS.length} ${pluralUk(FIELDS.length, 'запитання', 'запитання', 'запитань')} · обов’язкові ${REQUIRED_FIELDS.size}`}
+            />
+            <p className="max-w-[62ch] text-foreground-secondary">
               Це не форма реєстрації в продукт — кілька запитань про ваш поточний процес, щоб зрозуміти, чи підійде
               AktFlow вашим об’єктам. Обов’язкові лише «Компанія» і «Email»; решта — за бажанням, і чим детальніше
               ви опишете свій процес, тим краще я його зрозумію.
@@ -321,12 +440,15 @@ export default function Pilot() {
               estimate, no name and no statement of what comes back.
               Founder-confirmed values: signature «Олександр», commitment
               «Відповім протягом 2 робочих днів.»
+
+              Quiet by design: it is a promise, not a sales pitch — so a tonal
+              shift and a single accent rule, not a coloured callout.
             */}
-            <p className="pilot-page__promise">
+            <p className="mt-5 max-w-[62ch] rounded-panel border-l-[3px] border-accent bg-surface-muted px-4 py-3 text-foreground-secondary">
               Це займе близько 10 хвилин. Я прочитаю відповіді особисто — не бот і не відділ продажів — і відповім
               протягом 2 робочих днів на вказаний email. Дзвонити не буду.
               <br />
-              <span>— Олександр, автор AktFlow</span>
+              <span className="text-foreground-muted">— Олександр, автор AktFlow</span>
             </p>
           </div>
 
@@ -334,8 +456,11 @@ export default function Pilot() {
             // Fix round item 3: role="status" so a screen-reader user is
             // told the draft came back, consistent with the submit-outcome
             // banners below (role="alert"/role="status").
-            <p className="privacy-line" role="status">
-              <Check size={16} aria-hidden="true" />
+            <p
+              role="status"
+              className="flex items-center gap-2 rounded-panel bg-success-surface px-4 py-3 text-success-foreground"
+            >
+              <Check size={16} aria-hidden="true" className="shrink-0" />
               Чернетку відновлено з попереднього разу — можете продовжити зі свого місця.
             </p>
           )}
@@ -343,26 +468,26 @@ export default function Pilot() {
           {/* RULING 5: a persistent inline banner, never a toast — stays until
               resolved, never auto-dismisses, never clears the visitor's input.
               Task 14: refactored onto the shared InlineBanner component
-              (src/components/InlineBanner.tsx) — a clean drop-in here, since
-              it forwards `ref` to the exact same `<div>` the focus effect
-              above already targets, and reproduces `tabIndex={-1}` plus the
-              `state-banner`/`state-banner--warning` classes and `role="alert"`
-              byte-for-byte. The draft itself is untouched by this refactor —
-              nothing here calls clearDraft/saveDraft, so preservation on the
-              error path is unaffected. */}
+              (src/components/InlineBanner.tsx), which forwards `ref` to the
+              exact same `<div>` the focus effect above targets and keeps
+              `tabIndex={-1}` plus `role="alert"`. The draft itself is untouched
+              by that refactor — nothing here calls clearDraft/saveDraft, so
+              preservation on the error path is unaffected. */}
           {submitState.phase === 'error' && (
-            <InlineBanner ref={bannerRef} tone="warning" role="alert" icon={<AlertTriangle size={20} aria-hidden="true" />}>
+            <InlineBanner ref={bannerRef} tone="warning" role="alert" icon={<AlertTriangle size={20} aria-hidden="true" className="mt-0.5 shrink-0" />}>
               <b>Не вдалося надіслати автоматично</b>
               <span>
                 Ваші відповіді нікуди не зникли — вони й далі збережені у цьому браузері. Спробуйте ще раз або{' '}
-                <a href={submitState.mailto}>надішліть їх листом</a>.
+                <a className="underline underline-offset-4" href={submitState.mailto}>
+                  надішліть їх листом
+                </a>
+                .
               </span>
             </InlineBanner>
           )}
 
           {/* RULING 1: no endpoint is provisioned yet, so this is the normal,
-              intended submission route today — not an error banner. Same
-              InlineBanner drop-in as above, role="status" preserved.
+              intended submission route today — not an error banner.
               Fix round (final review, finding C2): copy corrected — the page
               cannot detect whether the visitor actually pressed "Надіслати"
               in their own mail client, so it no longer claims the draft is
@@ -372,168 +497,211 @@ export default function Pilot() {
               link that opens their mail client — the exact place someone
               who has just done that will see it. */}
           {submitState.phase === 'mailto' && (
-            <InlineBanner ref={bannerRef} tone="success" role="status" icon={<Mail size={20} aria-hidden="true" />}>
+            <InlineBanner ref={bannerRef} tone="success" role="status" icon={<Mail size={20} aria-hidden="true" className="mt-0.5 shrink-0" />}>
               <b>Лист із вашими відповідями готовий</b>
               <span>
                 Натисніть «Відкрити лист», перевірте текст і надішліть його зі своєї поштової програми — до цього
                 моменту нічого не передається нікуди. Сайт не може перевірити, чи ви справді натиснули «Надіслати» у
                 своєму поштовому клієнті, тож відповіді лишаються в цьому браузері, доки ви самі не видалите
                 чернетку кнопкою нижче.
-                <br />
-                <a className="button button--outline button--small" href={submitState.mailto}>
-                  Відкрити лист
-                </a>{' '}
-                <button type="button" className="button button--outline button--small" onClick={handleCopyAnswers}>
-                  Скопіювати відповіді
-                </button>{' '}
-                <button type="button" className="button button--outline button--small" onClick={handleDeleteDraft}>
-                  Видалити чернетку
-                </button>
-                {copyState !== 'idle' && (
-                  <span role="status" className="privacy-line">
-                    {copyState === 'copied'
-                      ? 'Відповіді скопійовано — можна вставити їх у будь-який лист.'
-                      : 'Не вдалося скопіювати автоматично. Виділіть текст листа вручну та скопіюйте його.'}
-                  </span>
-                )}
               </span>
+              <span className="mt-1 flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm">
+                  <a href={submitState.mailto}>Відкрити лист</a>
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={handleCopyAnswers}>
+                  Скопіювати відповіді
+                </Button>
+                <Button type="button" variant="outline" size="sm" onClick={handleDeleteDraft}>
+                  Видалити чернетку
+                </Button>
+              </span>
+              {copyState !== 'idle' && (
+                <span role="status">
+                  {copyState === 'copied'
+                    ? 'Відповіді скопійовано — можна вставити їх у будь-який лист.'
+                    : 'Не вдалося скопіювати автоматично. Виділіть текст листа вручну та скопіюйте його.'}
+                </span>
+              )}
             </InlineBanner>
           )}
 
-          <label htmlFor="pilot-company">
-            {FIELD_LABEL.company} *
-            <input
-              id="pilot-company"
-              name="company"
-              required
-              maxLength={180}
-              value={draft.company}
-              onChange={updateField('company')}
-            />
-          </label>
+          <FormSection
+            title="Хто ви"
+            lead="Єдині два обов’язкові поля на цій сторінці — щоб було кому і куди відповісти."
+          >
+            <Field id="pilot-company" label={FIELD_LABEL.company} required>
+              <Input
+                id="pilot-company"
+                name="company"
+                required
+                maxLength={180}
+                value={draft.company}
+                onChange={updateField('company')}
+              />
+            </Field>
 
-          <label htmlFor="pilot-email">
-            {FIELD_LABEL.email} *
-            <input
-              id="pilot-email"
-              name="email"
-              type="email"
-              required
-              maxLength={254}
-              value={draft.email}
-              onChange={updateField('email')}
-            />
-          </label>
+            <Field id="pilot-email" label={FIELD_LABEL.email} required>
+              <Input
+                id="pilot-email"
+                name="email"
+                type="email"
+                required
+                maxLength={254}
+                value={draft.email}
+                onChange={updateField('email')}
+              />
+            </Field>
+          </FormSection>
 
-          <div className="field-pair">
-            <label htmlFor="pilot-specialisation">
-              {FIELD_LABEL.specialisation}
-              <select
-                id="pilot-specialisation"
-                name="specialisation"
-                value={draft.specialisation}
-                onChange={updateField('specialisation')}
-              >
-                {SPECIALISATION_OPTIONS.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label htmlFor="pilot-site-count">
-              {FIELD_LABEL.siteCount}
-              <select id="pilot-site-count" name="siteCount" value={draft.siteCount} onChange={updateField('siteCount')}>
-                {SITE_COUNT_OPTIONS.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+          <FormSection
+            title="Ваші об’єкти"
+            lead="Два уточнення про масштаб: закриття одного об’єкта і закриття п’ятнадцяти — це різні задачі."
+          >
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field id="pilot-specialisation" label={FIELD_LABEL.specialisation}>
+                <Select
+                  id="pilot-specialisation"
+                  name="specialisation"
+                  value={draft.specialisation}
+                  onChange={updateField('specialisation')}
+                >
+                  {SPECIALISATION_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field id="pilot-site-count" label={FIELD_LABEL.siteCount}>
+                <Select
+                  id="pilot-site-count"
+                  name="siteCount"
+                  value={draft.siteCount}
+                  onChange={updateField('siteCount')}
+                >
+                  {SITE_COUNT_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+          </FormSection>
 
           {/* A.3.2a hierarchy (RULING 4): the core discovery question comes
-              first among the three free-text answers. */}
-          <label htmlFor="pilot-capture">
-            {FIELD_LABEL.capture}
-            <textarea
+              first among the three free-text answers — `capture`, then
+              `storage`, then `returnReason`, matching draft.ts's `FIELDS`. */}
+          <FormSection
+            title="Як зараз влаштований процес"
+            lead="Найважливіша частина, і єдина, де відповідь пишеться словами. Опишіть, як воно є насправді — навіть якщо це месенджер і папка на робочому столі. Саме такі відповіді тут корисні."
+          >
+            <Field
               id="pilot-capture"
-              name="capture"
-              maxLength={2000}
-              value={draft.capture}
-              onChange={updateField('capture')}
-            />
-            <small>Хто знімає, куди складає, як ці дані потім потрапляють у акт.</small>
-          </label>
+              label={FIELD_LABEL.capture}
+              hint="Хто знімає, куди складає, як ці дані потім потрапляють у акт."
+            >
+              <Textarea
+                id="pilot-capture"
+                name="capture"
+                maxLength={2000}
+                value={draft.capture}
+                onChange={updateField('capture')}
+              />
+            </Field>
 
-          <label htmlFor="pilot-storage">
-            {FIELD_LABEL.storage}
-            <textarea
-              id="pilot-storage"
-              name="storage"
-              maxLength={2000}
-              value={draft.storage}
-              onChange={updateField('storage')}
-            />
-          </label>
+            <Field id="pilot-storage" label={FIELD_LABEL.storage}>
+              <Textarea
+                id="pilot-storage"
+                name="storage"
+                maxLength={2000}
+                value={draft.storage}
+                onChange={updateField('storage')}
+              />
+            </Field>
 
-          <label htmlFor="pilot-return-reason">
-            {FIELD_LABEL.returnReason}
-            <textarea
-              id="pilot-return-reason"
-              name="returnReason"
-              maxLength={2000}
-              value={draft.returnReason}
-              onChange={updateField('returnReason')}
-            />
-          </label>
+            <Field id="pilot-return-reason" label={FIELD_LABEL.returnReason}>
+              <Textarea
+                id="pilot-return-reason"
+                name="returnReason"
+                maxLength={2000}
+                value={draft.returnReason}
+                onChange={updateField('returnReason')}
+              />
+            </Field>
+          </FormSection>
 
-          <div className="field-pair">
-            <label htmlFor="pilot-closing-time">
-              {FIELD_LABEL.closingTime}
-              <select
-                id="pilot-closing-time"
-                name="closingTime"
-                value={draft.closingTime}
-                onChange={updateField('closingTime')}
+          <FormSection title="Закриття періоду" lead="Дві короткі відповіді наостанок.">
+            <div className="grid gap-5 md:grid-cols-2">
+              <Field id="pilot-closing-time" label={FIELD_LABEL.closingTime}>
+                <Select
+                  id="pilot-closing-time"
+                  name="closingTime"
+                  value={draft.closingTime}
+                  onChange={updateField('closingTime')}
+                >
+                  {CLOSING_TIME_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+
+              <Field id="pilot-willing-to-share" label={FIELD_LABEL.willingToShare}>
+                <Select
+                  id="pilot-willing-to-share"
+                  name="willingToShare"
+                  value={draft.willingToShare}
+                  onChange={updateField('willingToShare')}
+                >
+                  {WILLING_TO_SHARE_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            </div>
+          </FormSection>
+
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <p className="max-w-[46ch] text-foreground-secondary">
+              Що станеться з цими відповідями, описано на сторінці{' '}
+              {/*
+                Review 07 · I5 carried across from the retired `.pilot-form p a`
+                rule. This link sits inside a sentence, so it cannot become a
+                block without breaking the line — `inline-flex` with a 44px
+                min-height grows the hit area for a gloved hand at phone width
+                while the text keeps its place in the running copy. `md:min-h-0`
+                hands the line its normal leading back at the desk, exactly as
+                the old max-width:767px media query did.
+              */}
+              <Link
+                to="/legal/privacy"
+                className="inline-flex min-h-11 items-center font-semibold text-foreground underline underline-offset-4 md:min-h-0"
               >
-                {CLOSING_TIME_OPTIONS.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label htmlFor="pilot-willing-to-share">
-              {FIELD_LABEL.willingToShare}
-              <select
-                id="pilot-willing-to-share"
-                name="willingToShare"
-                value={draft.willingToShare}
-                onChange={updateField('willingToShare')}
-              >
-                {WILLING_TO_SHARE_OPTIONS.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
+                Конфіденційність
+              </Link>
+              .
+            </p>
 
-          <p>
-            Що станеться з цими відповідями, описано на сторінці <Link to="/legal/privacy">Конфіденційність</Link>.
-          </p>
-
-          <div className="pilot-form__actions">
-            <button
+            {/*
+              `min-w-[220px]` replaces the retired `.pilot-submit` rule, and for
+              the same reason: the label swaps to «Надсилаю…» while a request is
+              in flight, and a content-sized button visibly narrows every time
+              it does. The floor fits the longer idle label.
+            */}
+            <Button
               type="submit"
-              className="button button--dark pilot-submit"
+              variant="signal"
+              className="min-w-[220px]"
               disabled={submitState.phase === 'submitting'}
             >
               {submitState.phase === 'submitting' ? 'Надсилаю…' : 'Надіслати відповіді'}
-            </button>
+            </Button>
           </div>
         </form>
       </main>

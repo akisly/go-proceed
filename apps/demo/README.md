@@ -74,35 +74,44 @@ needs a decision from whoever owns the `aktflow.com` registration question.
 
 ## 3. Launch blockers — must be resolved before publishing
 
-Two literal placeholder tokens are rendered as visible text on `/legal/privacy`
-and used again in `/pilot`. Neither has an authorised real value. Both carry
-`LAUNCH BLOCKER` comments at their point of definition:
+One literal placeholder token is still rendered as visible text on
+`/legal/privacy`. It has no authorised real value, and it carries a
+`LAUNCH BLOCKER` comment at its point of definition:
 
 | Token | Defined in | Used in |
 |---|---|---|
-| `{{CONTACT_EMAIL}}` | `apps/demo/src/pages/Legal.tsx:29`, `apps/demo/src/pages/Pilot.tsx:32` | `/legal/privacy` (three places), `/legal/terms` route family, `/pilot`'s `mailto:` fallback and success receipt |
-| `{{FORM_PROCESSOR}}` | `apps/demo/src/pages/Legal.tsx:30` | `/legal/privacy` only (two places) |
+| `{{FORM_PROCESSOR}}` | `apps/demo/src/pages/Legal.tsx` | `/legal/privacy` only (two places) |
 
-**The site must not be published until, for each token, one of the
-following is true:**
+**The site must not be published until one of the following is true:**
 
-1. it is replaced with a real, authorised value (a monitored mailbox for
-   `{{CONTACT_EMAIL}}`; the actual third-party form-processing service name
-   for `{{FORM_PROCESSOR}}`), or
+1. it is replaced with the actual third-party form-processing service name, or
 2. the sentence containing it is removed.
 
-Do not invent a plausible-looking value for either — an unmonitored
-placeholder address would make the privacy page's deletion-request
-instructions go nowhere, and naming the wrong form processor would
-misdescribe who actually receives submitted data (exactly the failure the
-disclosure exists to prevent — see the full comment blocks at the source
-locations above).
+Do not invent a plausible-looking value — naming the wrong form processor
+would misdescribe who actually receives submitted data, exactly the failure
+the disclosure exists to prevent (see the full comment block at the source
+location above).
+
+### Resolved: `{{CONTACT_EMAIL}}`
+
+This token used to sit alongside `{{FORM_PROCESSOR}}` in the table above. It is
+now a real, monitored mailbox, defined once in `apps/demo/src/data/contact.ts`
+and imported by both `Legal.tsx` and `Pilot.tsx` — one definition rather than
+the two independent literals it had while it was a token, because /pilot's
+`mailto:` and /legal/privacy's deletion-request instructions must name the same
+address and nothing mechanical would catch it if they drifted.
+
+The bar this had to clear was not "a value that looks like an address" but "a
+mailbox someone actually reads", since the whole point of publishing it is that
+a deletion request sent there arrives somewhere. See the comment in
+`contact.ts`.
 
 **Hard prerequisite: `pnpm --filter @aktflow/demo preflight` must exit `0`
 before this site is published.** It mechanically scans `src/` for the
 literal `{{TOKEN}}` pattern and fails, naming every unreplaced token and the
-file(s) it lives in, if either row of the table above is still a
-placeholder — which, as of this writing, it is: this command fails today.
+file(s) it lives in, if any row of the table above is still a placeholder —
+which, as of this writing, `{{FORM_PROCESSOR}}` is: **this command still fails
+today**, on that one token alone.
 This is deliberately **not** part of `pnpm test` or `pnpm qa` (both of those
 must stay green for ordinary development and CI); it is a separate, explicit
 command precisely because it is expected to be red until someone actively
@@ -112,7 +121,7 @@ to ignore red. `pnpm qa`'s bundle scan still *reports* any surviving tokens
 `missingAssets`) without failing the run, so routine QA output keeps them
 visible. Both `preflight` and the QA report read the same pattern from
 `apps/demo/qa/placeholder-tokens.mjs`, so this list and the mechanical check
-cannot silently drift apart — if you add a third `{{TOKEN}}` anywhere in
+cannot silently drift apart — if you add another `{{TOKEN}}` anywhere in
 `src/`, update this table in the same change.
 
 **`{{FORM_PROCESSOR}}` is conditional on `VITE_PILOT_ENDPOINT`.** `/pilot`

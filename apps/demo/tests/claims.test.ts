@@ -42,10 +42,13 @@ describe('GA-gated states', () => {
  * asserted no unreplaced `{{TOKEN}}` placeholder (e.g. `{{CONTACT_EMAIL}}`,
  * `{{FORM_PROCESSOR}}`) appears in src/, as a test in the DEFAULT suite. A
  * subsequent review round correctly identified that as its own defect: both
- * tokens are genuinely unresolved today, so that test failed on every run,
- * meaning `pnpm test` could never be green — which trains everyone to
+ * tokens were genuinely unresolved at the time, so that test failed on every
+ * run, meaning `pnpm test` could never be green — which trains everyone to
  * ignore red, and hides the other ~88 genuine tests behind a known,
- * deliberate failure. That check now lives in `qa/preflight.mjs`
+ * deliberate failure. (`{{CONTACT_EMAIL}}` has since been resolved — see
+ * `src/data/contact.ts` — but `{{FORM_PROCESSOR}}` has not, so the reasoning
+ * still holds and the check stays out of this suite.) It now lives in
+ * `qa/preflight.mjs`
  * (`pnpm --filter @aktflow/demo preflight`), a separate, explicit,
  * deploy-time gate documented as a hard prerequisite in README.md §3 — not
  * part of the default test/CI suite. `qa/verify.mjs`'s bundle scan still
