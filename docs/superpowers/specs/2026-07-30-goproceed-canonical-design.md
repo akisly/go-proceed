@@ -359,7 +359,7 @@ When v2 follows a return:
 - an unchanged previously accepted segment is not claimed again;
 - v2 may carry a `prior_acceptance_reference` to the v1 decision;
 - the earlier decision remains the source;
-- repeated review is skipped only when stable segment identity and
+- repeated review is skipped only when claim-scope lineage and
   `approval_scope_hash` match.
 
 The approval-scope hash contains all facts material to that approval:

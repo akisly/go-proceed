@@ -222,7 +222,7 @@ submitter.
 2. Correction creates successor progress/evidence/review facts.
 3. Compiler prepares v2 from corrected facts.
 4. Previously accepted unchanged segments are not claimed again.
-5. v2 may reference v1 acceptance only when stable segment identity and approval
+5. v2 may reference v1 acceptance only when claim-scope lineage and approval
    scope hash match.
 6. Material change to quantity, price/currency/tax, relevant evidence, contract
    terms, or approval policy requires a new decision.

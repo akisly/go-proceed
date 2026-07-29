@@ -62,6 +62,10 @@ quantities reconcile to the parent.
 Evidence return never changes money automatically. A financial effect requires
 an explicit quantity decision.
 
+Quantity accepted by all required external approvers is final inside v0.1.
+Dispute is recorded visibly, but reversal, compensating acceptance, and release
+of the accepted reservation require a later explicitly designed authority.
+
 Every required quantity approver whose scope covers a segment must accept it.
 Return by any required quantity approver blocks that segment. Observers cannot
 decide. Unaddressed scope remains pending.
@@ -102,7 +106,7 @@ decision is never copied or represented as a v2 decision.
 
 When v2 follows a return, an unchanged accepted segment may be excluded from the
 new claim and linked with a `prior_acceptance_reference`. Re-review may be
-skipped only when stable segment identity and `approval_scope_hash` prove that
+skipped only when claim-scope lineage and `approval_scope_hash` prove that
 all approval-material facts are unchanged.
 
 The hash includes quantity, relevant price/currency/tax basis, applicable

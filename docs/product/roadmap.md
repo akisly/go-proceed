@@ -268,6 +268,7 @@ subledger/export layer without changing evidence or acceptance history.
 ### Candidate sequence
 
 - change-order boundary and approved contract adjustments;
+- formal accepted-quantity dispute, reversal, and compensation authority;
 - acceptance subledger and accounting export;
 - receivable/invoice assistance;
 - retentions and deductions;
