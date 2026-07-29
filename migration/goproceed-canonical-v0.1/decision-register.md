@@ -49,3 +49,4 @@
 | D-040 | 2026-07-30 | New canonical work is built in the symbolic `canonical` GoProceed worktree. | Preserve old tree and Git history while creating a clean package. | `docs/decisions/ADR-004-roadmap-demo-and-documentation.md` |
 | D-041 | 2026-07-30 | Old files are not deleted before explicit disposition and transfer review. | Preserve user work and historical evidence. | `docs/decisions/ADR-004-roadmap-demo-and-documentation.md` |
 | D-042 | 2026-07-30 | The lead workbook is evidence for 50 mapped leads and 21 marked sends, not proof of 50 sends or product demand. | Keep discovery claims auditable. | `docs/discovery/outreach-log.md` |
+| D-043 | 2026-07-30 | v0.1 ships a separate online-only Expo/React Native field client in `apps/mobile` for iOS and Android; full offline extends it in v0.3. | Preserve the approved mobile-first field workflow without bringing offline authorization and sync into v0.1. | `docs/decisions/ADR-004-roadmap-demo-and-documentation.md` |

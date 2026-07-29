@@ -59,6 +59,7 @@ scenario.
 
 - `apps/landing` is a permanent, separately deployed marketing product.
 - `apps/app` is the authenticated GoProceed product.
+- `apps/mobile` is the Expo/React Native field client for iOS and Android.
 - The durable interactive product demo belongs to `apps/app` at `/demo`.
 - A query switch such as `?demo=true` must not turn a real tenant session into
   demo mode.
@@ -66,9 +67,27 @@ scenario.
   data.
 - Initial deployments may use separate free Vercel domains.
 
-Online mobile use is included in v0.1. It retains the local original until the
-server confirms receipt and safely retries the whole upload. This is not full
-offline mode; full offline belongs to v0.3.
+Online mobile use is included in v0.1 as a separate native client, not a
+responsive-web substitute. The client supports camera capture and platform
+photo/file selection, retains the pending original and retry state in
+OS-sandboxed persistent app storage through an ordinary restart, and removes it
+only after server receipt and integrity confirmation.
+
+The v0.1 pilot support floor is iOS 16.4+ and Android 10+. Before M2 UX freeze,
+the actual pilot-device inventory must confirm this floor and include at least
+one supported iPhone and one lower-resource supported Android device. A change
+to the floor requires an explicit compatibility decision and recorded device
+evidence.
+
+Preview builds use EAS internal distribution. Pilot builds use TestFlight and
+the Google Play internal-testing track when the store accounts are ready. A
+public App Store or Google Play listing is not a v0.1 closure gate.
+
+v0.1 does not authorize offline task access or new capture that starts without
+current server authorization. It only protects an online capture when the
+connection or app is interrupted. v0.3 extends the same mobile client with
+time-bounded offline authorization, task access, synchronization, conflicts,
+and resumable upload; it is not planned as a second mobile rewrite.
 
 ### Documentation migration
 

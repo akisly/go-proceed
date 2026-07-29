@@ -12,7 +12,8 @@
 
 - Product name is `GoProceed`; `AktFlow` appears in active docs only when identifying legacy history.
 - v0.1 ends at protected partial external acceptance and derived value at risk.
-- Online mobile is v0.1; full offline is v0.3.
+- Expo/React Native iOS/Android `apps/mobile` is online-only in v0.1; full
+  offline extends the same client in v0.3.
 - One workspace supports multiple own legal entities.
 - A project may contain contracts of different own legal entities.
 - One package belongs to exactly one contract.
@@ -261,7 +262,8 @@ VaR.
 - [ ] **Step 6: Write ADR-004**
 
 Record version-gated roadmap, separate landing, `/demo` in `apps/app`,
-online-mobile v0.1, offline v0.3, no hard dates, and the documentation migration
+Expo/React Native `apps/mobile` for online-only iOS/Android work in v0.1,
+offline extension in v0.3, no hard dates, and the documentation migration
 hierarchy.
 
 - [ ] **Step 7: Verify active authority**
@@ -441,7 +443,8 @@ git commit -m "docs: define GoProceed canonical domain"
 
 - [ ] **Step 1: Describe system boundaries**
 
-Map `apps/landing`, `apps/app`, future mobile client, Supabase/PostgreSQL,
+Map `apps/landing`, `apps/app`, Expo/React Native `apps/mobile`,
+Supabase/PostgreSQL,
 private object storage, background workers, and email delivery.
 
 - [ ] **Step 2: Document relational design rules**

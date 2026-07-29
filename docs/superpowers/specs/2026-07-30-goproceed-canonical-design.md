@@ -44,7 +44,8 @@ allocations, reconciliation entries, or statutory accounting documents.
 
 - `apps/landing` is a separate marketing product and deployment.
 - `apps/app` is the GoProceed product.
-- Online mobile work is part of v0.1.
+- `apps/mobile` is the Expo/React Native field client for iOS and Android.
+- Online-only native mobile work is part of v0.1.
 - Full offline operation is deferred to v0.3.
 - The durable product demo belongs to `apps/app` at `/demo`.
 - A query parameter such as `?demo=true` must not switch a production tenant
@@ -197,12 +198,24 @@ not mutable readiness flags.
 
 ### 7.3 Online mobile boundary
 
+v0.1 ships `apps/mobile` as a separate Expo/React Native client for iOS and
+Android. It supports camera capture and platform photo/file selection while the
+user has current server authorization. The pilot support floor is iOS 16.4+ and
+Android 10+, verified against the actual pilot-device inventory before M2 UX
+freeze.
+
+Preview builds use EAS internal distribution. Pilot builds use TestFlight and
+Google Play internal testing when the store accounts are ready. Public store
+listing is not a v0.1 closure gate.
+
 v0.1 does not require offline authorization, offline task browsing, background
-sync, conflict resolution, or resumable upload.
+sync, conflict resolution, or resumable upload. v0.3 extends the same client
+rather than replacing it.
 
 It must still survive a connection failure during an online capture:
 
 - the local original remains until server receipt is confirmed;
+- pending original and retry state survive an ordinary app restart;
 - whole-upload retry is idempotent;
 - UI distinguishes not sent, sending, server-confirmed, and failed;
 - local data is not removed before receipt and integrity verification.
@@ -652,6 +665,7 @@ interviews, named projects, and pilot commitment are validation evidence.
 - rounded parts reconcile to line totals;
 - project currencies are not silently combined;
 - upload failure does not delete the mobile original;
+- ordinary app restart does not lose a pending online capture;
 - published versions cannot be mutated or deleted;
 - import does not execute formulas, macros, or dangerous archives.
 

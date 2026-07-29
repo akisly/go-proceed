@@ -51,7 +51,8 @@ baseline.
 - controlled XLSX and CSV contract-baseline import;
 - versioned contract work items and source provenance;
 - assignments and append-only performed-quantity entries;
-- online mobile evidence capture with safe whole-upload retry;
+- a separate online-only Expo/React Native field client for iOS and Android
+  with safe whole-upload retry;
 - requirements, exceptions, internal review, and readiness;
 - immutable package versions and artifacts;
 - protected external review by personal email link without a workspace account;
