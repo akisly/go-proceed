@@ -24,7 +24,7 @@ describe("RLS tenant isolation", () => {
     const seenByB = await asActor(B, orgId, (c) =>
       c.query("select id from public.organizations where id=$1", [orgId]));
     expect(seenByB.rowCount).toBe(0);
-  }, 120_000);
+  }, 300_000); // resetDb restarts the whole local stack; cold CI runners need headroom
 
   it("a caller with no membership sees zero api.me_context rows regardless of the app.organization_id GUC value", async () => {
     // No policy in this slice reads app.organization_id at all — api.me_context

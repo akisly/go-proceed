@@ -1,5 +1,8 @@
 import { Client, type QueryResult, type QueryResultRow } from "pg";
-import { execSync } from "node:child_process";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
+
+const execAsync = promisify(exec);
 
 // 'app_pw' is the local/CI-only password set by supabase/seed.sql (never a
 // migration — supabase/migrations/0003_roles_and_grants.sql intentionally
@@ -38,8 +41,13 @@ export async function asActor<T extends QueryResultRow = QueryResultRow>(
 }
 
 export async function resetDb(): Promise<void> {
-  execSync("pnpm dlx supabase db reset --no-seed=false", { stdio: "ignore" });
+  // Use the installed supabase CLI directly: `pnpm dlx supabase` re-downloads
+  // the CLI on every reset (CI runners tripped the 120s test timeout on that
+  // alone), and a SYNC exec blocks the vitest worker's event loop long enough
+  // to kill its RPC ("Timeout calling onTaskUpdate"). Async exec + the
+  // setup-cli/homebrew binary fixes both.
+  await execAsync("supabase db reset --no-seed=false", { maxBuffer: 16 * 1024 * 1024 });
   // seed.sql intentionally carries no credential; restore the dev-only
   // password the same way local/CI setup does (local-host-only script).
-  execSync("pnpm -w db:local-credentials", { stdio: "ignore" });
+  await execAsync("pnpm -w db:local-credentials", { maxBuffer: 16 * 1024 * 1024 });
 }
