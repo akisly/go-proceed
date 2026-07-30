@@ -42,6 +42,7 @@ export async function GET(req: Request): Promise<Response> {
     const body = meContextResponse.parse({
       userId,
       memberships: rows.map((m) => ({
+        workspaceId: m.organization_id,
         organizationId: m.organization_id,
         displayName: m.display_name,
         role: m.role,
