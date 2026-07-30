@@ -42,9 +42,11 @@ export function parseLocalizedDecimal(
   }
   const m = /^(-?)(\d+)(?:\.(\d+))?$/.exec(t);
   if (!m) return fail;
-  const [, sign, intPart, fracPart = ""] = m;
-  if (intPart.length > MAX_INT_DIGITS || fracPart.length > MAX_FRAC_DIGITS) return fail;
-  const scaled = BigInt((sign === "-" ? "-" : "") + intPart + fracPart);
+  const sign = m[1] ?? "";
+  const intPart = m[2] ?? "";
+  const fracPart = m[3] ?? "";
+  if (intPart === "" || intPart.length > MAX_INT_DIGITS || fracPart.length > MAX_FRAC_DIGITS) return fail;
+  const scaled = BigInt(sign + intPart + fracPart);
   return { ok: true, value: { scaled, scale: fracPart.length } };
 }
 
