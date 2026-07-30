@@ -25,7 +25,9 @@ type RouteCtx = { params: Promise<Record<string, string>> };
  * becomes the Idempotency-Replay-Until header.
  */
 export function commandRoute<T>(
-  schema: z.ZodType<T>,
+  // Input type `unknown` so T binds to the schema OUTPUT (defaults applied),
+  // not the pre-parse input where defaulted fields are still optional.
+  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
   run: (a: CommandArgs<T>) => Promise<HandlerResult>,
 ): (req: Request, ctx: RouteCtx) => Promise<Response> {
   return async (req, ctx) => {
