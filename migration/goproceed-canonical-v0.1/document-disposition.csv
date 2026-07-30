@@ -1,0 +1,105 @@
+source_path,source_state,disposition,target_path,information_moved,information_rejected,reason,review_status
+docs/00-product-brief.md,tracked_at_base,rewrite,docs/product/vision-and-positioning.md,positioning problem statement and target segment,unverified ROI and market-size claims,canonical product package replaces the brief without unproven claims,approved
+docs/01-prd.md,tracked_at_base,rewrite,docs/product/scope-and-boundaries.md,v0.1 in/out boundary and deferred contexts,126-table single-release framing,PRD scope split into approved boundary plus roadmap gates,approved
+docs/02-market-competition.md,tracked_at_base,archive,docs/legacy/README.md,none,none,market research kept as historical reference; claims never validated with customers,approved
+docs/03-personas-jtbd-workflows.md,tracked_at_base,rewrite,docs/product/personas-and-workflows.md,actor separation and end-to-end workflows,rigid job-title role model,personas rebuilt on governance roles plus responsibilities,approved
+docs/04-screen-specification.md,tracked_at_base,defer,docs/legacy/README.md,none,none,screen-level UI spec is per-milestone UX input; not canonical v0.1 authority,deferred_scope
+docs/05-design-system.md,tracked_at_base,defer,docs/legacy/README.md,none,none,design-system reference for later UI work; no v0.1 documentation authority,deferred_scope
+docs/06-data-model-permissions.md,tracked_at_base,rewrite,docs/architecture/data-model.md,identity chain and permission concepts,126-table finance/support/offline schema,superseded by canonical data-model rules plus technical/database catalogs,approved
+docs/07-technical-architecture.md,tracked_at_base,rewrite,docs/architecture/system-overview.md,surface boundaries and trust model,integration-platform and support-plane runtime,rebuilt on approved v0.1 boundary,approved
+docs/08-api-integrations.md,tracked_at_base,rewrite,technical/openapi/scope-v0.1.csv,BFF operation concepts,157-operation surface and webhook platform,replaced by 51-operation v0.1 scope; integrations deferred,approved
+docs/09-security-compliance.md,tracked_at_base,rewrite,docs/architecture/tenancy-and-security.md,tenancy grants RLS and external-link security,qualified-signature and compliance claims,superseded by canonical security architecture,approved
+docs/10-billing-pricing.md,tracked_at_base,defer,docs/legacy/README.md,none,none,SaaS billing is outside v0.1 by ADR-001,deferred_scope
+docs/11-analytics-events.md,tracked_at_base,defer,docs/legacy/README.md,none,none,product analytics is v0.2 candidate scope with privacy controls,deferred_scope
+docs/12-roadmap-delivery.md,tracked_at_base,rewrite,docs/product/roadmap.md,version gating idea,fixed dates and premature GA framing,replaced by evidence-gated roadmap and delivery docs,approved
+docs/13-qa-acceptance.md,tracked_at_base,rewrite,docs/delivery/test-strategy.md,test family concepts,claims of executed acceptance coverage,rebuilt as forward test strategy with honest baseline,approved
+docs/14-gtm-pilot.md,tracked_at_base,merge,docs/discovery/validated-assumptions.md,pilot gating and validation separation,lead counts framed as demand proof,GTM claims split into evidence ledger and readiness gates,approved
+docs/15-risks-decisions.md,tracked_at_base,merge,migration/goproceed-canonical-v0.1/decision-register.md,decisions that survived review,superseded assumptions,approved decisions now live in ADRs and the register,approved
+docs/16-fidelity-ledger.md,tracked_at_base,archive,docs/legacy/README.md,none,none,historical audit artifact of the old package,approved
+docs/17-production-readiness-index.md,tracked_at_base,rewrite,docs/delivery/production-readiness.md,pilot gate concepts,production-ready claims,replaced by testable pilot gates,approved
+docs/18-domain-state-machines.md,tracked_at_base,rewrite,technical/states/state-catalog.csv,lifecycle concepts,mutable-status state machines,rebuilt as fact/lifecycle/projection catalogs,approved
+docs/19-organizations-roles-access.md,tracked_at_base,rewrite,docs/architecture/tenancy-and-security.md,governance versus operational responsibility split,thirteen rigid membership roles,replaced by four governance roles plus responsibilities and capabilities,approved
+docs/20-flow-catalog.md,tracked_at_base,defer,docs/legacy/README.md,none,none,UI flow catalog is per-milestone UX input,deferred_scope
+docs/21-plans-entitlements-billing.md,tracked_at_base,defer,docs/legacy/README.md,none,none,entitlements and billing are outside v0.1,deferred_scope
+docs/22-data-api-contract.md,tracked_at_base,keep,docs/22-data-api-contract.md,idempotency and request-id rules already implemented,none,runtime code comments cite exact lines; supersede references during v0.0 then archive,approved
+docs/23-offline-media-protocol.md,tracked_at_base,rewrite,docs/architecture/files-and-storage.md,upload intent and integrity concepts,v0.1 offline authorization and resumable chunks,online v0.1 protocol canonicalized; offline moved to v0.3,approved
+docs/24-legal-regulatory-gates.md,tracked_at_base,defer,docs/delivery/production-readiness.md,gate concept referenced as external gates,none,jurisdictional decisions stay external gates before pilot,deferred_scope
+docs/25-security-threat-model.md,tracked_at_base,merge,docs/architecture/tenancy-and-security.md,threat families for auth storage and external links,threats for unshipped finance/support planes,live threats folded into canonical security doc,approved
+docs/26-sre-operations.md,tracked_at_base,defer,docs/legacy/README.md,none,none,SRE runbook material matures toward v1.0 gates,deferred_scope
+docs/27-qa-traceability.md,tracked_at_base,rewrite,technical/database/invariant-catalog.csv,invariant-to-test traceability idea,coverage claims without executed tests,test_evidence column now carries traceability,approved
+docs/28-pilot-ga-delivery.md,tracked_at_base,rewrite,docs/delivery/version-0.1.md,milestone slicing idea,GA commitments,replaced by M1-M6 evidence gates,approved
+docs/29-prototype-coverage.md,tracked_at_base,archive,docs/legacy/README.md,none,none,prototype coverage snapshot is historical,approved
+docs/30-validation-evidence-register.md,tracked_at_base,rewrite,docs/discovery/validated-assumptions.md,evidence-kind separation,rows treating research as validation,rebuilt with zero-signal honesty,approved
+docs/31-architecture-decisions.md,tracked_at_base,merge,docs/decisions/ADR-001-product-boundary.md,decisions surviving review across ADR-001..004,superseded decisions,ADR set plus decision register own approved decisions,approved
+docs/32-customer-country-adapters.md,tracked_at_base,defer,docs/legacy/README.md,none,none,adapters are v0.2 candidate scope,deferred_scope
+docs/33-support-admin-plane.md,tracked_at_base,defer,docs/legacy/README.md,none,none,support plane is explicitly outside v0.1 with no implicit operator access,deferred_scope
+docs/34-production-gate-checklist.md,tracked_at_base,rewrite,docs/delivery/production-readiness.md,checklist concept,claims of satisfied gates,replaced by evidence-based gates,approved
+docs/35-data-access-tenancy.md,tracked_at_base,rewrite,docs/architecture/tenancy-and-security.md,grant/RLS layering,legacy role matrix,superseded by canonical tenancy doc; companion CSV kept for runtime references,approved
+docs/36-security-verification-profile.md,tracked_at_base,rewrite,docs/delivery/test-strategy.md,security test families,claimed verification results,forward-looking security test requirements own this now,approved
+docs/37-functional-closure-feature-register.md,tracked_at_base,archive,docs/legacy/README.md,none,none,closure claims for the 126-table target are historical,approved
+docs/38-business-logic-closure.md,tracked_at_base,archive,docs/legacy/README.md,none,none,closure claims are historical,approved
+docs/39-evidence-graph.md,tracked_at_base,archive,docs/legacy/README.md,none,none,evidence-graph snapshot is historical,approved
+docs/40-phase1-discovery-outreach.md,tracked_at_base,merge,docs/discovery/outreach-log.md,workbook-evidenced outreach facts and deferred-debt records,send counts framed as validation,evidenced facts moved; unreconciled sends stay labeled,approved
+docs/README.md,tracked_at_base,rewrite,docs/README.md,navigation role,old numbered-doc index authority,canonical README with source-of-truth precedence committed in Task 2,approved
+ARCHITECTURE-AUDIT-ANSWERS.md,tracked_at_base,archive,docs/legacy/README.md,none,none,402KB audit answers are historical evidence not active requirements,approved
+CHANGELOG-ARCH-AUDIT-20260724.md,tracked_at_base,archive,docs/legacy/README.md,none,none,historical audit changelog,approved
+CHANGELOG-AUDIT-FIX-20260723.md,tracked_at_base,archive,docs/legacy/README.md,none,none,historical audit changelog,approved
+CHANGELOG-PRODUCTION-READINESS-20260724.md,tracked_at_base,archive,docs/legacy/README.md,none,none,historical readiness changelog with contradiction-free claims treated as evidence only,approved
+README.md,tracked_at_base,rewrite,README.md,repo entry role,old target-package framing,root entry point rewrite is Task 10; not yet performed,pending_transfer
+CLAUDE.md,tracked_at_base,keep,CLAUDE.md,none,none,active workflow instructions for this repository,approved
+design-qa.md,tracked_at_base,archive,docs/legacy/README.md,none,none,historical design QA snapshot,approved
+Makefile,tracked_at_base,keep,Makefile,none,none,runtime tooling used by CI package-validate,approved
+package.json,tracked_at_base,keep,package.json,none,none,runtime workspace manifest,approved
+pnpm-lock.yaml,tracked_at_base,keep,pnpm-lock.yaml,none,none,runtime lockfile tracked for supply-chain integrity,approved
+pnpm-workspace.yaml,tracked_at_base,keep,pnpm-workspace.yaml,none,none,runtime workspace configuration,approved
+tsconfig.base.json,tracked_at_base,keep,tsconfig.base.json,none,none,runtime TypeScript configuration,approved
+turbo.json,tracked_at_base,keep,turbo.json,none,none,runtime build orchestration,approved
+.editorconfig,tracked_at_base,keep,.editorconfig,none,none,editor configuration,approved
+.nvmrc,tracked_at_base,keep,.nvmrc,none,none,node version pin required by CI,approved
+.gitignore,tracked_at_base,keep,.gitignore,none,none,runtime ignore rules,approved
+.github/workflows/ci.yml,tracked_at_base,keep,.github/workflows/ci.yml,none,none,active CI; SHA-pinning and permissions block are a v0.0 gate item,approved
+infra/README-staging.md,tracked_at_base,keep,infra/README-staging.md,none,none,active staging credential runbook cited by migrations,approved
+.interface-design/,tracked_at_base,keep,.interface-design/,none,none,tooling configuration,approved
+scripts/,tracked_at_base,keep,scripts/,none,none,runtime validation scripts incl validate_package.py used by CI,approved
+supabase/,tracked_at_base,keep,supabase/,none,none,applied migrations are the truth for the actual database,approved
+apps/app/,tracked_at_base,keep,apps/app/,none,none,runtime BFF slice; canonical target extends it additively,approved
+apps/landing/,tracked_at_base,keep,apps/landing/,none,none,permanent separate marketing surface,approved
+apps/demo/,tracked_at_base,keep,apps/demo/,none,none,interaction-comparison reference during migration; not the durable /demo,approved
+packages/,tracked_at_base,keep,packages/,none,none,runtime workspace packages incl RLS test suite,approved
+prototype/,tracked_at_base,keep,prototype/,none,none,legacy reference harness validated by CI; not a deployable surface; disposition per file deferred to cleanup proposal,approved
+design-references/,tracked_at_base,keep,design-references/,none,none,design reference material for later UI milestones,approved
+design-qa/,tracked_at_base,archive,docs/legacy/README.md,none,none,historical design QA artifacts,approved
+technical/schema.sql,tracked_at_base,keep,technical/database/schema-v0.1.sql,column definitions copied verbatim into migrations 0001-0002,126-table finance/support/offline target,migration comments cite exact line ranges; archive only after v0.0 re-points references,approved
+technical/openapi.yaml,tracked_at_base,keep,technical/openapi/scope-v0.1.csv,idempotency-replay header contract already implemented,157-operation surface,runtime comments cite it; archive after v0.0 reference migration,approved
+technical/error-catalog.csv,tracked_at_base,keep,technical/error-catalog.csv,none,none,runtime problem-code authority cited by apps/app/src/lib/http.ts,approved
+technical/data-access-surface.csv,tracked_at_base,keep,technical/data-access-surface.csv,none,none,grant allowlist DA-099/DA-058 cited by migration 0003,approved
+technical/state-catalog.csv,tracked_at_base,rewrite,technical/states/state-catalog.csv,lifecycle states that are facts,mutable-status rows,superseded by fact/projection-separated catalog,approved
+technical/state-transitions.csv,tracked_at_base,rewrite,technical/states/transition-catalog.csv,valid transitions,transitions for unshipped contexts,superseded by canonical transition catalog,approved
+technical/events.csv,tracked_at_base,rewrite,technical/events/event-catalog.csv,domain event concepts,finance/support topics,superseded by canonical event catalog with audit/delivery separation,approved
+technical/permissions.csv,tracked_at_base,rewrite,technical/permissions/capabilities.csv,capability concepts,rigid role matrix,superseded by closed capabilities plus presets,approved
+technical/entitlements.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,billing entitlements are outside v0.1,deferred_scope
+technical/terminology.csv,tracked_at_base,rewrite,docs/domain/glossary.md,canonical terms,legacy synonyms as separate concepts,glossary is the single terminology authority,approved
+technical/entity-aliases.csv,tracked_at_base,merge,docs/domain/glossary.md,alias-to-canonical mapping rule,none,glossary usage rule owns synonym policy,approved
+technical/data-retention-catalog.csv,tracked_at_base,defer,docs/delivery/production-readiness.md,retention-class concepts,invented default durations,input to the approved retention schedule external gate,deferred_scope
+technical/asvs-profile.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,ASVS mapping is a later compliance exercise,deferred_scope
+technical/mobile-security-profile.csv,tracked_at_base,merge,docs/architecture/files-and-storage.md,Expo pending-original protection requirements,offline-era requirements,envelope-encryption and quarantine rules canonicalized,approved
+technical/rate-limits.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,throttling values are M5 implementation input,deferred_scope
+technical/copy-catalog.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,UI copy is per-milestone UX input,deferred_scope
+technical/ui-actions.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,UI action inventory is per-milestone UX input,deferred_scope
+technical/command-availability.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,command availability matrix is per-milestone input,deferred_scope
+technical/implementation-backlog.csv,tracked_at_base,archive,docs/legacy/README.md,none,none,superseded by the canonical implementation plan,approved
+technical/test-catalog.csv,tracked_at_base,rewrite,docs/delivery/test-strategy.md,test family inventory,claimed executed coverage,test strategy plus invariant catalog own testing truth,approved
+technical/traceability.csv,tracked_at_base,rewrite,technical/database/invariant-catalog.csv,requirement-to-test tracing idea,rows for unshipped scope,invariant catalog test_evidence column owns tracing,approved
+technical/openapi-redocly-report.txt,tracked_at_base,delete_after_transfer,none,none,generated lint report,machine-generated report reproducible from source; deletion requires explicit user approval in the cleanup proposal,pending_user_approval
+technical/sql-parser-report.txt,tracked_at_base,delete_after_transfer,none,none,generated parser report,machine-generated report reproducible from source; deletion requires explicit user approval in the cleanup proposal,pending_user_approval
+docs/superpowers/,approved_design_commit,keep,docs/superpowers/,none,none,approved canonical design spec and plan,approved
+.agents/ (canonical tree),user_added_canonical,keep,.agents/,none,none,user-added tooling; preserved untracked; never staged deleted or classified without explicit authorization,approved
+skills-lock.json (canonical tree),user_added_canonical,keep,skills-lock.json,none,none,user-added tooling lockfile; preserved untracked,approved
+.agents/ (old tree),uncommitted_old_tree,defer,none,none,none,user work in the read-only old tree; not copied; user decides its future,user_review_required
+.claude/ (old tree),uncommitted_old_tree,defer,none,none,none,user tooling state in the old tree; not copied,user_review_required
+apps/ modified files (old tree),uncommitted_old_tree,defer,none,none,none,seven uncommitted app modifications in the old tree; require manual review before any transfer,user_review_required
+docs/ modified files (old tree),uncommitted_old_tree,defer,none,none,none,four uncommitted doc modifications in the old tree; require manual review,user_review_required
+.gitignore (old tree),uncommitted_old_tree,defer,none,none,none,uncommitted modification in the old tree,user_review_required
+AGENTS.md (old tree),uncommitted_old_tree,defer,none,none,none,uncommitted user instruction file in the old tree,user_review_required
+migration/ (old tree),uncommitted_old_tree,defer,none,none,none,uncommitted migration artifact in the old tree,user_review_required
+skills-lock.json (old tree),uncommitted_old_tree,defer,none,none,none,uncommitted user lockfile in the old tree,user_review_required

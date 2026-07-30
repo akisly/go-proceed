@@ -13,24 +13,29 @@
 - [x] Record old-tree modified and untracked paths in the source inventory.
 - [x] Save the approved canonical design and implementation plan.
 - [x] Preserve user-added `.agents` tooling and `skills-lock.json`.
-- [ ] Reconcile every old source to one final disposition.
+- [x] Reconcile every old source to one final disposition
+      (`document-disposition.csv`, 104 unique sources: 29 keep, 28 rewrite,
+      7 merge, 25 defer, 13 archive, 2 delete_after_transfer pending user
+      approval; old-tree uncommitted paths deferred to user review).
 
 ## Canonical authority
 
-- [ ] Create documentation index and source-of-truth hierarchy.
-- [ ] Create approved ADRs.
-- [ ] Rewrite product scope and roadmap.
-- [ ] Rewrite canonical domain model.
-- [ ] Rewrite architecture and security model.
-- [ ] Build target data/API/permissions/states/events catalogs.
-- [ ] Write delivery and discovery evidence.
+- [x] Create documentation index and source-of-truth hierarchy.
+- [x] Create approved ADRs.
+- [x] Rewrite product scope and roadmap.
+- [x] Rewrite canonical domain model.
+- [x] Rewrite architecture and security model.
+- [x] Build target data/API/permissions/states/events catalogs
+      (`technical/`, commit 9f3c333; 70 design relations, 51 operations).
+- [x] Write delivery and discovery evidence
+      (`docs/delivery/`, `docs/discovery/`, commit 6fed2df).
 
 ## Validation
 
 - [ ] Validate required metadata.
 - [ ] Validate relative links.
-- [ ] Validate technical CSV shape.
-- [ ] Validate one disposition per source.
+- [x] Validate technical CSV shape.
+- [x] Validate one disposition per source.
 - [ ] Check active GoProceed branding.
 - [ ] Check prohibited placeholder language.
 - [ ] Review spec coverage.

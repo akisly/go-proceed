@@ -40,7 +40,13 @@ It may not be used to:
 
 ## Disposition process
 
-Every legacy source is mapped in the migration ledger to one outcome:
+The completed per-source matrix lives at
+[`migration/goproceed-canonical-v0.1/document-disposition.csv`](../../migration/goproceed-canonical-v0.1/document-disposition.csv)
+(104 unique sources as of 2026-07-30). Four legacy files stay `keep` because
+running code cites them directly: `docs/22-data-api-contract.md`,
+`technical/schema.sql`, `technical/openapi.yaml`, `technical/error-catalog.csv`,
+and `technical/data-access-surface.csv`; they may be archived only after v0.0
+re-points those references. Every legacy source is mapped to one outcome:
 
 - `keep` — remains active without semantic change;
 - `rewrite` — useful information moves to a new canonical owner;
