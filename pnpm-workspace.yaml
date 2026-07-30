@@ -1,3 +1,10 @@
 packages:
   - "apps/*"
   - "packages/*"
+
+# Build-script policy (D-048): only these packages may run install scripts.
+# Read by pnpm >=10 here; pnpm 9.x reads the same list from package.json
+# "pnpm.onlyBuiltDependencies". Keep both in sync.
+onlyBuiltDependencies:
+  - esbuild
+  - sharp

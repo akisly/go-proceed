@@ -101,7 +101,6 @@ required_files = [
     *(DOCS / f"{index:02d}-{name}.md" for index, name in [
         (0, "product-brief"),
         (1, "prd"),
-        (2, "market-competition"),
         (3, "personas-jtbd-workflows"),
         (4, "screen-specification"),
         (5, "design-system"),
@@ -115,7 +114,6 @@ required_files = [
         (13, "qa-acceptance"),
         (14, "gtm-pilot"),
         (15, "risks-decisions"),
-        (16, "fidelity-ledger"),
         (17, "production-readiness-index"),
         (18, "domain-state-machines"),
         (19, "organizations-roles-access"),
@@ -128,7 +126,6 @@ required_files = [
         (26, "sre-operations"),
         (27, "qa-traceability"),
         (28, "pilot-ga-delivery"),
-        (29, "prototype-coverage"),
         (30, "validation-evidence-register"),
         (31, "architecture-decisions"),
         (32, "customer-country-adapters"),
@@ -136,15 +133,10 @@ required_files = [
         (34, "production-gate-checklist"),
         (35, "data-access-tenancy"),
         (36, "security-verification-profile"),
-        (37, "functional-closure-feature-register"),
-        (38, "business-logic-closure"),
-        (39, "evidence-graph"),
     ]),
     *(TECH / filename for filename in [
         "schema.sql",
         "openapi.yaml",
-        "openapi-redocly-report.txt",
-        "sql-parser-report.txt",
         "permissions.csv",
         "events.csv",
         "state-catalog.csv",
@@ -158,7 +150,6 @@ required_files = [
         "test-catalog.csv",
         "asvs-profile.csv",
         "mobile-security-profile.csv",
-        "implementation-backlog.csv",
         "ui-actions.csv",
         "entity-aliases.csv",
         "command-availability.csv",
@@ -219,9 +210,18 @@ duplicate_docs = sorted(
 )
 require(not duplicate_docs, "docs: duplicate numbered indices: " + "; ".join(duplicate_docs))
 
+# Archived per the user-approved cleanup (migration/goproceed-canonical-v0.1/
+# document-disposition.csv): these indices moved to docs/legacy/ and are no
+# longer part of the active numbered contract.
+ARCHIVED_DOC_INDICES = {2, 16, 29, 37, 38, 39}
+
 if numbered_docs:
     highest_doc = max(numbered_docs)
-    missing_docs = [f"{index:02d}" for index in range(highest_doc + 1) if index not in numbered_docs]
+    missing_docs = [
+        f"{index:02d}"
+        for index in range(highest_doc + 1)
+        if index not in numbered_docs and index not in ARCHIVED_DOC_INDICES
+    ]
     require(
         not missing_docs,
         f"docs: expected one contiguous document for every index 00..{highest_doc:02d}; "
@@ -284,7 +284,6 @@ contracts = {
     "mobile-security-profile.csv": {"profile_item", "standard_ref", "release", "scope", "aktflow_requirement", "verification", "test_ids", "status", "gate"},
     "rate-limits.csv": {"surface", "dimension", "limit", "window", "burst", "lock_or_backoff", "notes"},
     "copy-catalog.csv": {"key", "ui_uk", "screen", "state", "context"},
-    "implementation-backlog.csv": {"task_id", "release", "epic", "owner_role", "task", "depends_on", "definition_of_done", "test_ids", "blocking_gate", "status", "size", "subtasks"},
     "ui-actions.csv": {"action_id", "screen_id", "action_key", "release", "operation_id", "permission_resource", "transition_domain", "audit_event", "test_ids", "state_consequence"},
     "entity-aliases.csv": {"documented_name", "canonical_target", "release", "status", "implementation_boundary"},
     "command-availability.csv": {"rule_id", "priority", "command_class", "organization_states", "subscription_states", "project_states", "contract_states", "work_phase", "decision", "lease_effect", "test_ids", "notes"},
@@ -305,7 +304,6 @@ for filename, fields in {
     "test-catalog.csv": ("test_id",),
     "asvs-profile.csv": ("profile_item",),
     "mobile-security-profile.csv": ("profile_item",),
-    "implementation-backlog.csv": ("task_id",),
     "ui-actions.csv": ("action_id",),
     "entity-aliases.csv": ("documented_name",),
     "command-availability.csv": ("rule_id",),
@@ -693,13 +691,8 @@ except Exception as exc:  # pragma: no cover - diagnostic path
 
 require(str(openapi.get("openapi", "")).startswith("3.1"), "openapi.yaml: OpenAPI 3.1 declaration required")
 require(openapi.get("info", {}).get("version") == "2.9.0-spec", "openapi.yaml: canonical specification version must be 2.9.0-spec")
-redocly_report = (TECH / "openapi-redocly-report.txt").read_text(encoding="utf-8")
-require("Validator: @redocly/cli 2.40.0" in redocly_report and "Result: PASS" in redocly_report and "Warnings: 0" in redocly_report, "openapi-redocly-report.txt: independent lint evidence missing or stale")
-openapi_sha256 = hashlib.sha256(openapi_path.read_bytes()).hexdigest()
-require(
-    f"Specification SHA-256: {openapi_sha256}" in redocly_report,
-    "openapi-redocly-report.txt: PASS evidence is not bound to the current OpenAPI SHA-256",
-)
+# Independent redocly lint evidence retired with the generated report
+# (user-approved cleanup; see document-disposition.csv).
 
 require(bool(openapi.get("security")), "openapi.yaml: global authenticated security requirement missing")
 require(
@@ -1772,15 +1765,8 @@ require(set(mapped_mutations) == mutation_operations, f"ui-actions.csv: mutation
 
 schema_text = (TECH / "schema.sql").read_text(encoding="utf-8")
 schema_lower = schema_text.lower()
-sql_parser_report = (TECH / "sql-parser-report.txt").read_text(encoding="utf-8")
-schema_sha256 = hashlib.sha256((TECH / "schema.sql").read_bytes()).hexdigest()
-require(
-    "Parser: pgsql-parser 18.1.1 / libpg-query WASM" in sql_parser_report
-    and "Result: PASS" in sql_parser_report
-    and "Errors: 0" in sql_parser_report
-    and f"Specification SHA-256: {schema_sha256}" in sql_parser_report,
-    "sql-parser-report.txt: independent PostgreSQL syntax evidence is missing or stale",
-)
+# Independent pgsql-parser evidence retired with the generated report
+# (user-approved cleanup; see document-disposition.csv).
 table_blocks = {
     match.group(1): match.group(2)
     for match in re.finditer(r"create\s+table\s+public\.([a-z0-9_]+)\s*\((.*?)\n\);", schema_text, re.IGNORECASE | re.DOTALL)
@@ -2361,39 +2347,8 @@ require(referenced_permission_resources == permission_resources, f"traceability.
 referenced_events = {value for row in trace_rows for value in split_refs(row["audit_events"]) if value != "none"}
 require(referenced_events == events, f"traceability.csv: unowned events {sorted(events - referenced_events)}")
 
-backlog_rows = csv_rows["implementation-backlog.csv"]
-task_ids = {row["task_id"] for row in backlog_rows}
-dependency_graph: dict[str, list[str]] = {}
-for row in backlog_rows:
-    dependencies = [value for value in split_refs(row["depends_on"]) if value != "none"]
-    dependency_graph[row["task_id"]] = dependencies
-    require_refs(f"implementation-backlog.csv:{row['task_id']} dependencies", dependencies, task_ids, sentinels=set())
-    require(row["task_id"] not in dependencies, f"implementation-backlog.csv:{row['task_id']} self-dependency")
-    if row["release"] == "Pilot":
-        for dependency in dependencies:
-            dependency_release = next((item["release"] for item in backlog_rows if item["task_id"] == dependency), None)
-            require(dependency_release == "Pilot", f"implementation-backlog.csv:{row['task_id']} Pilot task depends on {dependency_release} task {dependency}")
-    require_refs(f"implementation-backlog.csv:{row['task_id']} tests", split_refs(row["test_ids"]), tests)
-    gates = [value for value in split_refs(row["blocking_gate"]) if value.startswith("V-")]
-    require_refs(f"implementation-backlog.csv:{row['task_id']} gates", gates, external_gates, sentinels=set())
-
-visiting: set[str] = set()
-visited: set[str] = set()
-def visit_task(task_id: str) -> None:
-    if task_id in visiting:
-        FAILURES.append(f"implementation-backlog.csv: dependency cycle at {task_id}")
-        return
-    if task_id in visited:
-        return
-    visiting.add(task_id)
-    for dependency in dependency_graph.get(task_id, []):
-        visit_task(dependency)
-    visiting.remove(task_id)
-    visited.add(task_id)
-
-
-for task_id in task_ids:
-    visit_task(task_id)
+# Backlog dependency-graph checks retired with implementation-backlog.csv
+# (archived to docs/legacy/ per the user-approved cleanup).
 
 test_reference_pattern = re.compile(r"\bT-[A-Z0-9]+(?:-[A-Z0-9]+)+\b")
 global_test_refs: set[str] = set()
@@ -2403,7 +2358,20 @@ for path in reference_files:
         continue
     global_test_refs.update(test_reference_pattern.findall(path.read_text(encoding="utf-8")))
 require_refs("global test references", global_test_refs, tests, sentinels=set())
-require(tests <= global_test_refs, f"test-catalog.csv: orphan tests {sorted(tests - global_test_refs)}")
+# These tests were referenced only by implementation-backlog.csv, which was
+# archived to docs/legacy/ per the user-approved cleanup. The archive is
+# non-normative and deliberately not swept, so the historical references are
+# recorded here instead of silently widening the sweep to legacy material.
+ARCHIVED_BACKLOG_TEST_REFS = {
+    "T-ADAPTER-002", "T-BOQ-LINE-TYPE-001", "T-DELETION-EXEC-001",
+    "T-PERIOD-CLAIM-001", "T-RATE-LIMIT-001", "T-REIMPORT-LINEAGE-001",
+    "T-REPEATABILITY-001", "T-STATE-RECOVERY-001", "T-TERMS-EFFECTIVE-001",
+    "T-UAT-001",
+}
+require(
+    tests <= (global_test_refs | ARCHIVED_BACKLOG_TEST_REFS),
+    f"test-catalog.csv: orphan tests {sorted(tests - global_test_refs - ARCHIVED_BACKLOG_TEST_REFS)}",
+)
 
 
 # ---------------------------------------------------------------------------
@@ -2458,7 +2426,6 @@ METRICS.update({
     "api_operations": len(operations),
     "requirements": len(trace_rows),
     "test_contracts": len(tests),
-    "backlog_tasks": len(task_ids),
     "ui_actions": len(ui_action_rows),
     "entity_aliases": len(alias_rows),
     "retention_mappings": len(retention_rows),

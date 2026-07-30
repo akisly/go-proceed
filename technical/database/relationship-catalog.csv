@@ -1,0 +1,117 @@
+from_entity,relationship,to_entity,cardinality,required,tenant_safe_key,on_delete,invariant_id
+memberships,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
+memberships,subject_of,auth.users,N:1,yes,user_id -> auth.users(id) provider-global subject only,restrict,INV-001
+invitations,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
+parties,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
+party_legal_profiles,describes,parties,N:1,yes,workspace_id+party_id -> parties(workspace_id+id),restrict,INV-001
+own_legal_entity_profiles,marks_own,parties,1:1,yes,workspace_id+party_id -> parties(workspace_id+id) unique per party,restrict,INV-020
+party_contacts,belongs_to,parties,N:1,yes,workspace_id+party_id -> parties(workspace_id+id),restrict,INV-001
+projects,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
+project_parties,relates,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-021
+project_parties,names,parties,N:1,yes,workspace_id+party_id -> parties(workspace_id+id),restrict,INV-001
+project_access_grants,scopes,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-021
+project_access_grants,grants_to,memberships,N:1,yes,workspace_id+member_id -> memberships(workspace_id+id),restrict,INV-021
+project_responsibility_assignments,scopes,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-021
+project_responsibility_assignments,assigns,memberships,N:1,yes,workspace_id+member_id -> memberships(workspace_id+id),restrict,INV-021
+contracts,belongs_to,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-001
+contracts,own_party,parties,N:1,yes,workspace_id+own_party_id -> parties(workspace_id+id) plus own_legal_entity_profiles existence,restrict,INV-002
+contracts,customer_party,parties,N:1,yes,workspace_id+customer_party_id -> parties(workspace_id+id),restrict,INV-002
+contract_versions,versions,contracts,N:1,yes,workspace_id+project_id+contract_id -> contracts(workspace_id+project_id+id),restrict,INV-015
+contract_versions,sourced_from,import_batches,N:1,no,workspace_id+import_batch_id -> import_batches(workspace_id+id),restrict,INV-016
+work_items,belongs_to,contract_versions,N:1,yes,workspace_id+project_id+contract_id+contract_version_id -> contract_versions(workspace_id+project_id+contract_id+id),restrict,INV-015
+work_items,measured_in,unit_definitions,N:1,yes,workspace_id+unit_id -> unit_definitions(workspace_id+id),restrict,INV-001
+work_items,supersedes,work_items,N:1,no,workspace_id+predecessor_work_item_id -> work_items(workspace_id+id) lineage only,restrict,INV-015
+locations,belongs_to,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-001
+import_batches,targets,contracts,N:1,yes,workspace_id+project_id+contract_id -> contracts(workspace_id+project_id+id),restrict,INV-016
+import_files,belongs_to,import_batches,N:1,yes,workspace_id+import_batch_id -> import_batches(workspace_id+id),restrict,INV-016
+import_row_results,belongs_to,import_files,N:1,yes,workspace_id+import_file_id -> import_files(workspace_id+id),restrict,INV-016
+source_amount_resolutions,resolves,import_row_results,N:1,yes,workspace_id+import_row_result_id -> import_row_results(workspace_id+id),restrict,INV-054
+work_assignments,derives_from,work_items,N:1,yes,workspace_id+project_id+contract_id+contract_version_id+work_item_id -> work_items full chain candidate key,restrict,INV-003
+work_assignments,located_at,locations,N:1,no,workspace_id+project_id+location_id -> locations(workspace_id+project_id+id),restrict,INV-001
+work_assignments,performed_by,parties,N:1,no,workspace_id+performer_party_id -> parties(workspace_id+id),restrict,INV-001
+work_assignments,assigned_to,memberships,N:1,no,workspace_id+assignee_member_id -> memberships(workspace_id+id),restrict,INV-001
+work_assignments,pins,requirement_template_versions,N:1,no,workspace_id+requirement_template_version_id -> requirement_template_versions(workspace_id+id),restrict,INV-015
+progress_entries,records_for,work_assignments,N:1,yes,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id),restrict,INV-023
+progress_entries,adjusts,progress_entries,N:1,no,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id) root must be non-adjustment,restrict,INV-023
+progress_allocation_heads,serializes,progress_entries,1:1,yes,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id) unique head per root,restrict,INV-025
+valuation_allocations,splits_pool_of,work_items,N:1,yes,workspace_id+work_item_id -> work_items(workspace_id+id),restrict,INV-055
+valuation_allocations,follows,progress_entries,N:1,no,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id),restrict,INV-055
+capture_events,attempts,upload_intents,N:1,no,workspace_id+upload_intent_id -> upload_intents(workspace_id+id),restrict,INV-014
+upload_intents,scopes,work_assignments,N:1,yes,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id),restrict,INV-047
+upload_intents,satisfies,requirement_occurrences,N:1,no,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-047
+evidence_objects,finalized_from,upload_intents,N:1,no,workspace_id+upload_intent_id -> upload_intents(workspace_id+id),restrict,INV-046
+evidence_objects,derived_from,evidence_objects,N:1,no,workspace_id+source_evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-045
+evidence_requirement_links,links,evidence_objects,N:1,yes,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-001
+evidence_requirement_links,links,requirement_occurrences,N:1,yes,workspace_id+project_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+project_id+id),restrict,INV-001
+requirement_occurrences,obliges,work_assignments,N:1,yes,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id),restrict,INV-001
+requirement_occurrences,pins,requirement_template_versions,N:1,yes,workspace_id+requirement_template_version_id -> requirement_template_versions(workspace_id+id),restrict,INV-015
+requirement_occurrences,located_at,locations,N:1,no,workspace_id+project_id+location_id -> locations(workspace_id+project_id+id),restrict,INV-001
+requirement_exceptions,excepts,requirement_occurrences,N:1,yes,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-035
+requirement_exceptions,supersedes,requirement_exceptions,N:1,no,workspace_id+predecessor_exception_id unique -> requirement_exceptions(workspace_id+id),restrict,INV-035
+requirement_exception_heads,serializes,requirement_occurrences,1:1,yes,workspace_id+requirement_occurrence_id+exception_scope unique head,restrict,INV-035
+requirement_exception_heads,points_at,requirement_exceptions,N:1,no,workspace_id+current_exception_id -> requirement_exceptions(workspace_id+id),restrict,INV-035
+review_target_sets,reviews,requirement_occurrences,N:1,yes,workspace_id+project_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+project_id+id),restrict,INV-036
+review_target_items,belongs_to,review_target_sets,N:1,yes,workspace_id+review_target_set_id -> review_target_sets(workspace_id+id),restrict,INV-036
+review_target_items,names,evidence_objects,N:1,no,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-036
+review_target_items,names,evidence_requirement_links,N:1,no,workspace_id+evidence_requirement_link_id -> evidence_requirement_links(workspace_id+id),restrict,INV-036
+internal_review_decisions,decides,review_target_sets,N:1,yes,workspace_id+review_target_set_id -> review_target_sets(workspace_id+id),restrict,INV-035
+internal_review_decisions,supersedes,internal_review_decisions,N:1,no,workspace_id+superseded_decision_id unique -> internal_review_decisions(workspace_id+id),restrict,INV-035
+internal_review_heads,serializes,review_target_sets,1:1,yes,workspace_id+review_target_set_id unique head,restrict,INV-035
+internal_review_heads,points_at,internal_review_decisions,N:1,no,workspace_id+current_decision_id -> internal_review_decisions(workspace_id+id),restrict,INV-035
+packages,belongs_to,contracts,N:1,yes,workspace_id+project_id+contract_id -> contracts(workspace_id+project_id+id),restrict,INV-003
+package_versions,versions,packages,N:1,yes,workspace_id+project_id+contract_id+package_id -> packages(workspace_id+project_id+contract_id+id),restrict,INV-015
+package_versions,pins,contract_versions,N:1,yes,workspace_id+project_id+contract_id+contract_version_id -> contract_versions chain,restrict,INV-003
+package_versions,pins,package_template_versions,N:1,yes,workspace_id+package_template_version_id -> package_template_versions(workspace_id+id),restrict,INV-015
+package_scope_heads,selects_current,package_versions,N:1,no,workspace_id+project_id+contract_id+package_id+current_package_version_id -> package_versions chain,restrict,INV-027
+package_scope_heads,serializes,packages,1:1,yes,workspace_id+project_id+contract_id+package_series unique scope key,restrict,INV-027
+package_lines,belongs_to,package_versions,N:1,yes,workspace_id+project_id+contract_id+package_id+package_version_id -> package_versions chain,restrict,INV-003
+package_lines,claims,work_items,N:1,yes,workspace_id+work_item_id -> work_items(workspace_id+id) version pinned,restrict,INV-033
+package_lines,located_at,locations,N:1,no,workspace_id+project_id+location_id -> locations(workspace_id+project_id+id),restrict,INV-033
+claim_scope_lineages,scopes,contracts,N:1,yes,workspace_id+project_id+contract_id -> contracts(workspace_id+project_id+id),restrict,INV-030
+claim_scope_lineages,partitions,claim_scope_lineages,N:1,no,workspace_id+parent_lineage_id -> claim_scope_lineages(workspace_id+id),restrict,INV-004
+claim_segment_lineage_heads,serializes,claim_scope_lineages,1:1,yes,workspace_id+claim_scope_lineage_id unique head,restrict,INV-006
+package_line_claim_segments,belongs_to,package_lines,N:1,yes,workspace_id+package_version_id+package_line_id -> package_lines(workspace_id+package_version_id+id),restrict,INV-004
+package_line_claim_segments,carries,claim_scope_lineages,N:1,yes,workspace_id+contract_id+claim_scope_lineage_id -> claim_scope_lineages(workspace_id+contract_id+id),restrict,INV-030
+package_line_claim_segments,partitions,package_line_claim_segments,N:1,no,workspace_id+parent_segment_id -> package_line_claim_segments(workspace_id+id),restrict,INV-004
+package_line_progress_sources,composes,package_line_claim_segments,N:1,yes,workspace_id+package_version_id+claim_segment_id -> package_line_claim_segments chain,restrict,INV-005
+package_line_progress_sources,draws_from,progress_entries,N:1,yes,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id) non-adjustment root,restrict,INV-005
+progress_claim_allocations,moves,progress_entries,N:1,yes,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id),restrict,INV-005
+progress_claim_allocations,affects,package_line_claim_segments,N:1,no,workspace_id+claim_segment_id -> package_line_claim_segments(workspace_id+id),restrict,INV-005
+progress_claim_allocations,within,package_versions,N:1,no,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-026
+progress_claim_allocations,releases,progress_claim_allocations,N:1,no,workspace_id+original_allocation_id -> progress_claim_allocations(workspace_id+id),restrict,INV-026
+package_evidence_sources,pins,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-003
+package_evidence_sources,pins,evidence_objects,N:1,yes,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-003
+package_artifacts,generated_from,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-045
+package_approval_requirements,pinned_to,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-034
+package_approval_requirements,addressed_to,party_contacts,N:1,no,workspace_id+recipient_contact_id -> party_contacts(workspace_id+id),restrict,INV-001
+package_submissions,submits,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-015
+external_access_grants,scopes,package_versions,N:1,yes,workspace_id+project_id+contract_id+package_id+package_version_id -> package_versions chain,restrict,INV-009
+external_access_grants,addressed_to,party_contacts,N:1,no,workspace_id+recipient_contact_id -> party_contacts(workspace_id+id),restrict,INV-001
+external_access_grants,reissues,external_access_grants,N:1,no,workspace_id+replaced_grant_id -> external_access_grants(workspace_id+id),restrict,INV-009
+external_sessions,issued_from,external_access_grants,N:1,yes,workspace_id+external_access_grant_id -> external_access_grants(workspace_id+id),restrict,INV-057
+external_decision_batches,decides_on,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-041
+external_decision_batches,via_session,external_sessions,N:1,yes,workspace_id+external_session_id -> external_sessions(workspace_id+id),restrict,INV-009
+external_decision_batches,via_grant,external_access_grants,N:1,yes,workspace_id+external_access_grant_id -> external_access_grants(workspace_id+id),restrict,INV-009
+external_quantity_decisions,recorded_in,external_decision_batches,N:1,yes,workspace_id+decision_batch_id -> external_decision_batches(workspace_id+id),restrict,INV-028
+external_quantity_decisions,fulfils,package_approval_requirements,N:1,yes,workspace_id+package_version_id+approval_requirement_id -> package_approval_requirements chain,restrict,INV-028
+external_quantity_decisions,targets,package_line_claim_segments,N:1,yes,workspace_id+package_version_id+package_line_id+claim_segment_id -> package_line_claim_segments chain,restrict,INV-028
+external_evidence_decisions,recorded_in,external_decision_batches,N:1,yes,workspace_id+decision_batch_id -> external_decision_batches(workspace_id+id),restrict,INV-028
+external_evidence_decisions,fulfils,package_approval_requirements,N:1,yes,workspace_id+package_version_id+approval_requirement_id -> package_approval_requirements chain,restrict,INV-028
+external_evidence_decisions,targets_evidence,evidence_objects,N:1,yes,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-032
+external_evidence_decisions,targets_occurrence,requirement_occurrences,N:1,yes,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-032
+external_decision_issues,recorded_in,external_decision_batches,N:1,yes,workspace_id+decision_batch_id -> external_decision_batches(workspace_id+id),restrict,INV-028
+external_decision_coverage,extends,external_quantity_decisions,N:1,yes,workspace_id+quantity_decision_id -> external_quantity_decisions(workspace_id+id),restrict,INV-006
+external_decision_coverage,covers,package_line_claim_segments,N:1,yes,workspace_id+descendant_segment_id -> package_line_claim_segments(workspace_id+id),restrict,INV-006
+prior_acceptance_references,belongs_to,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id) successor version,restrict,INV-008
+prior_acceptance_references,for_segment,package_line_claim_segments,N:1,yes,workspace_id+package_version_id+claim_segment_id -> successor segment chain,restrict,INV-030
+prior_acceptance_references,for_requirement,package_approval_requirements,N:1,yes,workspace_id+package_version_id+approval_requirement_id -> successor requirement chain,restrict,INV-030
+prior_acceptance_references,references,external_quantity_decisions,N:1,yes,workspace_id+original_quantity_decision_id -> external_quantity_decisions(workspace_id+id) same workspace project contract package series,restrict,INV-008
+audit_events,scopes,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-043
+idempotency_records,scopes,workspaces,N:1,no,workspace_id -> workspaces(id) null only for pre-workspace bootstrap,restrict,INV-048
+transaction_outbox,scopes,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-042
+jobs,consumes,transaction_outbox,N:1,yes,workspace_id+outbox_event_id -> transaction_outbox(workspace_id+id) unique consumer+event+effect,restrict,INV-049
+job_attempts,executes,jobs,N:1,yes,workspace_id+job_id -> jobs(workspace_id+id),restrict,INV-050
+dead_letters,records,jobs,N:1,yes,workspace_id+job_id -> jobs(workspace_id+id),restrict,INV-050
+notifications,scopes,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
+notifications,addressed_to,memberships,N:1,no,workspace_id+recipient_member_id -> memberships(workspace_id+id),restrict,INV-001
+message_deliveries,delivers,notifications,N:1,yes,workspace_id+notification_id -> notifications(workspace_id+id),restrict,INV-044

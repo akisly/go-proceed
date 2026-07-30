@@ -1,0 +1,36 @@
+capability_id,plane,description,related_operations,milestone
+workspace.manage,workspace,Manage workspace settings display identity and closure initiation,workspaces.create,v0.1-M1
+members.manage,workspace,Invite suspend and change governance roles; last-active-owner protected,invitations.create invitations.accept members.list,v0.1-M1
+parties.manage,workspace,Create and edit parties contacts and ordinary legal profiles,parties.create parties.update parties.legal_profile.put,v0.1-M1
+own_legal_profiles.manage,workspace,Mark and govern own legal entities; stricter than parties.manage (INV-020),parties.own_profile.create,v0.1-M1
+projects.create,workspace,Create projects; atomically grants creator project.admin (INV-019),projects.create,v0.1-M1
+units.manage,workspace,Manage unit definitions and precision rules,import_batches.validate,v0.1-M1
+requirement_templates.manage,workspace,Draft and publish immutable requirement template versions,requirement_templates.create requirement_templates.publish,v0.1-M3
+package_templates.manage,workspace,Draft and publish immutable package template versions,package_versions.create,v0.1-M4
+audit.view,workspace,Read audit trail; default capability of the auditor governance role,none,v0.1-M1
+project.admin,project,Manage project access grants and responsibility assignments,project_access.grant project_responsibilities.assign,v0.1-M1
+project.view,project,See the project and its non-restricted contents,projects.list assignments.list,v0.1-M1
+contracts.edit,project,Create contracts and edit contract drafts,contracts.create,v0.1-M1
+imports.manage,project,Create import batches add files run validation and record resolutions,import_batches.create import_files.add import_batches.validate import_resolutions.create,v0.1-M1
+imports.publish,project,Explicitly publish a validated import into an immutable contract version,import_batches.publish,v0.1-M1
+assignments.manage,project,Create and maintain work assignments,assignments.create,v0.1-M2
+progress.record,project,Record root progress measurements,progress.record,v0.1-M2
+progress.adjust,project,Record signed progress adjustments within reservation bounds (INV-024/INV-025),progress.adjust,v0.1-M2
+evidence.record,project,Create upload intents and finalize evidence captures,upload_intents.create upload_intents.finalize,v0.1-M2
+evidence.custody,project,Manage derivatives corrections and custodial evidence duties,evidence_links.create,v0.1-M2
+requirements.assign,project,Create requirement occurrences with pinned template versions,requirement_occurrences.create,v0.1-M3
+requirement_exceptions.decide,project,Record waiver not-applicable and accept-risk exception facts,requirement_exceptions.create,v0.1-M3
+internal_review.decide,project,Submit internal review decisions on immutable target sets,internal_reviews.decide,v0.1-M3
+packages.compile,project,Create packages draft versions and freeze immutable snapshots,packages.create package_versions.create package_versions.freeze packages.head_advance packages.corrected_successor,v0.1-M4
+packages.submit,project,Record submissions and issue or revoke external access grants,package_submissions.create external_grants.issue external_grants.revoke_reissue,v0.1-M5
+acceptance.view,project,Read acceptance projection and decision history,acceptance.get package_versions.get,v0.1-M5
+var.view,project,Read value-at-risk projection by currency and state,value_at_risk.get,v0.1-M6
+external.view_scope,external,View exactly the granted package version scope,external.scope,v0.1-M5
+external.decide_quantity,external,Submit quantity decisions for granted requirement plus exact segments; denied for observers (INV-031),external.decisions_submit,v0.1-M5
+external.decide_evidence,external,Submit evidence decisions for granted requirement plus exact evidence targets,external.decisions_submit,v0.1-M5
+service.upload_finalize,service,Transition staged uploads after integrity authorization and scan checks,upload_intents.finalize,v0.1-M2
+service.artifact_render,service,Read one frozen manifest and insert an immutable artifact identity,package_artifacts.download,v0.1-M4
+service.outbox_dispatch,service,Claim outbox records and create deterministic jobs,none,v0.0
+service.projection_rebuild,service,Read authoritative facts and replace rebuildable projection rows,readiness.get value_at_risk.get,v0.1-M3
+service.orphan_purge,service,Purge orphaned staging objects within 24 hours,none,v0.1-M2
+service.notification_deliver,service,Create notifications and record channel delivery results,none,v0.0

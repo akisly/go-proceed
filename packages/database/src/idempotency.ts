@@ -68,10 +68,19 @@ export async function withIdempotency<T>(
     | { state: string; response_status: number; response_body: T; request_hash: string; expires_at: Date }
     | undefined;
 
-  if (prior && prior.request_hash !== args.requestHash) {
+  // Expiry gate BEFORE the conflict check: an expired record no longer
+  // answers for this key in any way — neither replay nor conflict. The app
+  // role has no DELETE grant, so removal goes through the scoped SECURITY
+  // DEFINER command added by migration 0007.
+  const expired = prior && new Date(prior.expires_at).getTime() <= Date.now();
+  if (expired) {
+    await tx.query("select app.delete_expired_idempotency($1,$2,$3,$4)",
+      [args.organizationId, args.actorScope, args.operationId, args.key]);
+  }
+  if (prior && !expired && prior.request_hash !== args.requestHash) {
     throw new IdempotencyConflictError();
   }
-  if (prior && prior.state === "completed") {
+  if (prior && !expired && prior.state === "completed") {
     return { replayed: true, status: prior.response_status, body: prior.response_body, expiresAt: prior.expires_at };
   }
 

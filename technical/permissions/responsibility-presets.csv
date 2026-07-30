@@ -1,0 +1,16 @@
+preset_id,kind,maps_to_capabilities,description
+performer,responsibility,none,Party-level accountability for performing the work; provenance only and never a member permission
+progress_recorder,responsibility,progress.record,Member who submits measured quantity
+evidence_recorder,responsibility,evidence.record,Member who captures or uploads evidence
+evidence_custodian,responsibility,evidence.custody,Member/party accountable for the authoritative original and correction chain
+requirement_owner,responsibility,requirement_templates.manage requirements.assign,Member who publishes templates and assigns occurrences
+package_compiler,responsibility,packages.compile,Member who drafts and freezes package versions
+internal_verifier,responsibility,internal_review.decide,Member who decides internal evidence/requirement readiness
+package_submitter,responsibility,packages.submit,Member who submits frozen versions and issues protected links
+acceptance_liaison,responsibility,acceptance.view,Member who tracks external decisions and communicates with reviewers
+commercial_observer,responsibility,acceptance.view var.view,Member who monitors monetary exposure without edit rights
+foreman,ui_persona,progress.record evidence.record,Field lead recording daily progress and photo evidence
+pto_engineer,ui_persona,requirements.assign internal_review.decide evidence.custody,Production-technical engineer managing requirements and internal review
+estimator,ui_persona,contracts.edit imports.manage imports.publish,Commercial baseline owner importing and publishing contract versions
+commercial_manager,ui_persona,var.view acceptance.view packages.submit,Commercial lead submitting packages and watching value at risk
+project_manager,ui_persona,project.admin assignments.manage,Project lead managing access responsibilities and assignments

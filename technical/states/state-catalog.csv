@@ -1,0 +1,87 @@
+state_machine,state,kind,description,source_document
+workspace.status,trial,stored_lifecycle,New workspace before activation,docs/architecture/data-model.md
+workspace.status,active,stored_lifecycle,Operating workspace,docs/architecture/data-model.md
+workspace.status,suspended,stored_lifecycle,Access suspended by governance/operations,docs/architecture/data-model.md
+workspace.status,closing,stored_lifecycle,Manual closure procedure in progress,docs/architecture/files-and-storage.md
+workspace.status,closed,stored_lifecycle,Closed after the approved manual procedure,docs/architecture/files-and-storage.md
+membership.status,active,stored_lifecycle,Current governed member,docs/architecture/tenancy-and-security.md
+membership.status,suspended,stored_lifecycle,Temporarily suspended member,docs/architecture/tenancy-and-security.md
+membership.status,ended,stored_lifecycle,Ended membership retained as history,docs/architecture/tenancy-and-security.md
+invitation.status,pending,stored_lifecycle,Offer issued and unexpired,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
+invitation.status,accepted,stored_lifecycle,Offer accepted into a membership,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
+invitation.status,revoked,stored_lifecycle,Offer withdrawn,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
+invitation.status,expired,stored_lifecycle,Offer expired unused,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
+contract_version.status,draft,stored_lifecycle,Editable draft under optimistic version,docs/domain/domain-model.md
+contract_version.status,published,stored_lifecycle,Immutable snapshot; correction publishes a successor (INV-015),docs/domain/domain-model.md
+import_batch.status,created,stored_lifecycle,Batch created; no files parsed yet,docs/architecture/files-and-storage.md
+import_batch.status,parsing,stored_lifecycle,Safe parse in progress,docs/architecture/files-and-storage.md
+import_batch.status,parsed,stored_lifecycle,Raw rows and provenance captured,docs/architecture/files-and-storage.md
+import_batch.status,mapping,stored_lifecycle,Mapping/normalization selected,docs/architecture/files-and-storage.md
+import_batch.status,validated,stored_lifecycle,Row validation complete with blocking-error report,docs/architecture/files-and-storage.md
+import_batch.status,preview_ready,stored_lifecycle,Reviewed preview available for explicit publication,docs/architecture/files-and-storage.md
+import_batch.status,published,stored_lifecycle,Published into an immutable contract version,docs/architecture/files-and-storage.md
+import_batch.status,failed,stored_lifecycle,Failed closed with named validation/resource errors,docs/architecture/files-and-storage.md
+import_batch.status,abandoned,stored_lifecycle,Explicitly abandoned draft batch,docs/architecture/files-and-storage.md
+assignment.status,draft,stored_lifecycle,Assignment being prepared,docs/domain/execution-and-evidence.md
+assignment.status,active,stored_lifecycle,Operational scope open for progress and evidence,docs/domain/execution-and-evidence.md
+assignment.status,paused,stored_lifecycle,Temporarily paused scope,docs/domain/execution-and-evidence.md
+assignment.status,completed,stored_lifecycle,Scope completed,docs/domain/execution-and-evidence.md
+assignment.status,cancelled,stored_lifecycle,Scope cancelled; history retained,docs/domain/execution-and-evidence.md
+upload_intent.status,intent_authorized,stored_lifecycle,Intent validated; staging destination issued,docs/architecture/files-and-storage.md
+upload_intent.status,staged,stored_lifecycle,Bytes exist only under an intent-bound uncommitted key,docs/architecture/files-and-storage.md
+upload_intent.status,integrity_verified,stored_lifecycle,Server-verified size and content hash match the intent,docs/architecture/files-and-storage.md
+upload_intent.status,scan_pending,stored_lifecycle,Inspection in progress; inaccessible to product reads (INV-046),docs/architecture/files-and-storage.md
+upload_intent.status,available,stored_lifecycle,Evidence identity and receipt committed atomically,docs/architecture/files-and-storage.md
+upload_intent.status,scan_blocked,stored_lifecycle,Inspection failed closed; restricted quarantine,docs/architecture/files-and-storage.md
+upload_intent.status,orphaned_for_purge,stored_lifecycle,Authorization recheck failed; inaccessible pending 24h purge (INV-047),docs/architecture/files-and-storage.md
+upload_intent.status,expired,stored_lifecycle,Intent expired before completion,docs/architecture/files-and-storage.md
+mobile_pending_original,not_sent,client_local,Original captured/selected; not yet sending,docs/architecture/files-and-storage.md
+mobile_pending_original,sending,client_local,Upload intent created/replayed; bytes in flight,docs/architecture/files-and-storage.md
+mobile_pending_original,awaiting_receipt,client_local,Bytes sent; waiting for durable receipt,docs/architecture/files-and-storage.md
+mobile_pending_original,server_confirmed,client_local,Available receipt persisted; cleanup-eligible (INV-013),docs/architecture/files-and-storage.md
+mobile_pending_original,failed,client_local,Connection/server/integrity failure; original retained,docs/architecture/files-and-storage.md
+mobile_pending_original,quarantined,client_local,Logout/revocation/account switch; hidden and encrypted (INV-053),docs/architecture/files-and-storage.md
+mobile_pending_original,discarded,client_local,Explicit warned user deletion,docs/architecture/files-and-storage.md
+mobile_pending_original,expired_purged,client_local,Seven-day quarantine expiry after warning,docs/architecture/files-and-storage.md
+package_version.status,draft,stored_lifecycle,Editable draft under optimistic version,docs/domain/packages-and-acceptance.md
+package_version.status,frozen,stored_lifecycle,Immutable snapshot; correction freezes a successor (INV-015),docs/domain/packages-and-acceptance.md
+package_scope_head.head_state,current_prepared,stored_head,Sole current version prepared and not under active submission,docs/domain/packages-and-acceptance.md
+package_scope_head.head_state,active_for_review,stored_head,Sole current version submitted and reviewable under the current epoch,docs/domain/packages-and-acceptance.md
+claim_segment.lineage,pending_leaf,stored_lifecycle,Active leaf segment; the only decision-eligible grain,docs/domain/packages-and-acceptance.md
+claim_segment.lineage,partitioned,stored_lifecycle,Parent superseded by reconciling children (INV-004),docs/domain/packages-and-acceptance.md
+external_grant.status,active,stored_lifecycle,Grant valid within expiry and revocation version,docs/architecture/tenancy-and-security.md
+external_grant.status,revoked,stored_lifecycle,Explicitly revoked; sessions invalidated (INV-009),docs/architecture/tenancy-and-security.md
+external_grant.status,expired,stored_lifecycle,Expired after 7 days or package supersession,docs/architecture/tenancy-and-security.md
+external_grant.status,superseded,stored_lifecycle,Replaced by reissue lineage,docs/architecture/tenancy-and-security.md
+external_session.status,active,stored_lifecycle,Valid session within idle/absolute TTL,docs/architecture/tenancy-and-security.md
+external_session.status,expired,stored_lifecycle,Idle 30m or absolute 12h TTL reached,docs/architecture/tenancy-and-security.md
+external_session.status,revoked,stored_lifecycle,Revoked by reissue epoch advance or rotation,docs/architecture/tenancy-and-security.md
+job.status,queued,stored_lifecycle,Eligible for claim,docs/architecture/jobs-events-and-audit.md
+job.status,running,stored_lifecycle,Leased attempt executing,docs/architecture/jobs-events-and-audit.md
+job.status,retry_wait,stored_lifecycle,Waiting for backed-off available_at,docs/architecture/jobs-events-and-audit.md
+job.status,succeeded,stored_lifecycle,Effect committed idempotently,docs/architecture/jobs-events-and-audit.md
+job.status,dead_letter,stored_lifecycle,Exhausted or permanently invalid; explicit replay only,docs/architecture/jobs-events-and-audit.md
+job.status,cancelled,stored_lifecycle,Safely cancelled where the contract defines it,docs/architecture/jobs-events-and-audit.md
+notification.status,created,stored_lifecycle,Recipient should be informed,docs/architecture/jobs-events-and-audit.md
+notification.status,seen,stored_lifecycle,Recipient saw the notification,docs/architecture/jobs-events-and-audit.md
+notification.status,dismissed,stored_lifecycle,Recipient dismissed it,docs/architecture/jobs-events-and-audit.md
+message_delivery.status,requested,stored_lifecycle,Channel delivery requested,docs/architecture/jobs-events-and-audit.md
+message_delivery.status,provider_accepted,stored_lifecycle,Provider accepted the request; not proof of human receipt,docs/architecture/jobs-events-and-audit.md
+message_delivery.status,failed,stored_lifecycle,Normalized failure after policy classification,docs/architecture/jobs-events-and-audit.md
+message_delivery.status,ambiguous,stored_lifecycle,Ambiguous provider result pending reconciliation,docs/architecture/jobs-events-and-audit.md
+requirement_occurrence.review,occurrence,projection,Obligation exists without linked evidence,docs/domain/execution-and-evidence.md
+requirement_occurrence.review,evidence_linked,projection,Current evidence linked; review pending,docs/domain/execution-and-evidence.md
+requirement_occurrence.review,reviewed_ready,projection,Current head review accepts; nonterminal,docs/domain/execution-and-evidence.md
+requirement_occurrence.review,reviewed_returned,projection,Current head review returns; correction expected,docs/domain/execution-and-evidence.md
+requirement_occurrence.review,excepted,projection,Current exception head waives/not-applicable/accepts risk; revocable,docs/domain/execution-and-evidence.md
+package_review.projection,submitted,projection,Submission recorded for the current version,docs/domain/packages-and-acceptance.md
+package_review.projection,active_for_review,projection,Reviewable under the current epoch,docs/domain/packages-and-acceptance.md
+package_review.projection,superseded_for_review,projection,Superseded by head advance; old decisions denied (INV-041),docs/domain/packages-and-acceptance.md
+package_review.projection,completed,projection,All required decisions terminal for the version,docs/domain/packages-and-acceptance.md
+var.workflow_state,accepted,projection,All required quantity approvals accept or valid prior references (precedence 1),docs/domain/value-at-risk.md
+var.workflow_state,returned,projection,Any required quantity approval returned the exact segment (precedence 2),docs/domain/value-at-risk.md
+var.workflow_state,submitted_pending,projection,Submitted; approvals incomplete without return (precedence 3),docs/domain/value-at-risk.md
+var.workflow_state,packaged_not_submitted,projection,In the sole current_prepared version with no active submission (precedence 4),docs/domain/value-at-risk.md
+var.workflow_state,internal_review,projection,Undergoing internal review; not yet ready (precedence 5),docs/domain/value-at-risk.md
+var.workflow_state,evidence_blocked,projection,Missing/returned evidence or unresolved blocking requirement (precedence 6),docs/domain/value-at-risk.md
+var.workflow_state,ready_not_packaged,projection,Internally ready but not allocated to a frozen package (precedence 7),docs/domain/value-at-risk.md
