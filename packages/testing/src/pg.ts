@@ -11,8 +11,16 @@ const APP_URL = process.env.APP_DB_URL
 
 export function appClient(): Client { return new Client({ connectionString: APP_URL }); }
 
+// Superuser connection for fixtures/assertions that must bypass RLS.
+export async function adminClient(): Promise<Client> {
+  const c = new Client({ connectionString: process.env.SUPABASE_DB_URL
+    ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres" });
+  await c.connect();
+  return c;
+}
+
 export async function asActor<T extends QueryResultRow = QueryResultRow>(
-  actorUserId: string, organizationId: string,
+  actorUserId: string, organizationId: string | null,
   fn: (c: Client) => Promise<QueryResult<T>> | Promise<void>,
 ): Promise<QueryResult<T>> {
   const c = appClient();
@@ -21,7 +29,7 @@ export async function asActor<T extends QueryResultRow = QueryResultRow>(
     await c.query("begin");
     await c.query("set local role aktflow_app");
     await c.query("select set_config('app.actor_user_id', $1, true)", [actorUserId]);
-    await c.query("select set_config('app.organization_id', $1, true)", [organizationId]);
+    await c.query("select set_config('app.organization_id', $1, true)", [organizationId ?? ""]);
     const res = await fn(c);
     await c.query("commit");
     return (res ?? { rows: [], rowCount: 0 }) as QueryResult<T>;
@@ -31,4 +39,7 @@ export async function asActor<T extends QueryResultRow = QueryResultRow>(
 
 export async function resetDb(): Promise<void> {
   execSync("pnpm dlx supabase db reset --no-seed=false", { stdio: "ignore" });
+  // seed.sql intentionally carries no credential; restore the dev-only
+  // password the same way local/CI setup does (local-host-only script).
+  execSync("pnpm -w db:local-credentials", { stdio: "ignore" });
 }
