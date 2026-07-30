@@ -53,8 +53,12 @@
 - [x] Confirm no unreviewed user work is selected for deletion (old-tree
       uncommitted paths and canonical `.agents/` + `skills-lock.json` are
       preserve/defer only).
-- [ ] Obtain user approval before moving or deleting legacy sources.
-- [ ] Begin v0.0 implementation only after documentation promotion.
+- [x] Obtain user approval before moving or deleting legacy sources
+      (approved in full 2026-07-30; safe subset executed the same day, the
+      remainder is blocked by the legacy package validator — see
+      `cleanup-proposal.md` execution record).
+- [x] Begin v0.0 implementation only after documentation promotion
+      (promotion complete; v0.0 started 2026-07-30 per user instruction).
 
 ## Current blockers
 

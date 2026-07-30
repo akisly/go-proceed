@@ -1,14 +1,46 @@
 # Cleanup proposal
 
-**Status:** Proposed — awaiting explicit user approval of exact paths
+**Status:** Approved by the user on 2026-07-30; partially executed — see
+execution record below
 
 **Applies to:** documentation migration
 **Last reviewed:** 2026-07-30
 
-Nothing in this proposal has been moved or deleted. Per the migration
-principle, deletion happens only after the user approves the exact paths
-below. The authoritative per-source mapping is
-[document-disposition.csv](document-disposition.csv).
+The user approved sections 1–2 in full on 2026-07-30. The authoritative
+per-source mapping is [document-disposition.csv](document-disposition.csv).
+
+## Execution record (2026-07-30)
+
+**Executed** (one `git mv` commit; history follows):
+
+- `ARCHITECTURE-AUDIT-ANSWERS.md` → `docs/legacy/`
+- `CHANGELOG-ARCH-AUDIT-20260724.md` → `docs/legacy/`
+- `CHANGELOG-AUDIT-FIX-20260723.md` → `docs/legacy/`
+- `CHANGELOG-PRODUCTION-READINESS-20260724.md` → `docs/legacy/`
+- `design-qa.md` → `docs/legacy/`
+- `design-qa/` → `docs/legacy/design-qa/`
+
+**Approved but blocked by the legacy package validator**
+(`scripts/validate_package.py`, run by the CI `package-validate` job):
+
+- `docs/02-market-competition.md`, `docs/16-fidelity-ledger.md`,
+  `docs/29-prototype-coverage.md`,
+  `docs/37-functional-closure-feature-register.md`,
+  `docs/38-business-logic-closure.md`, `docs/39-evidence-graph.md` —
+  the validator requires a contiguous `docs/00..NN` numbered sequence and
+  lists each file in `required_files`; moving any of them turns CI red.
+- `technical/implementation-backlog.csv` — required file whose rows feed the
+  validator's dependency-graph checks.
+- `technical/openapi-redocly-report.txt`, `technical/sql-parser-report.txt` —
+  required files with content/SHA-binding checks (lines ~696–702, ~1775–1782).
+
+Executing these without breaking CI would mean rewriting the legacy package
+contract inside `validate_package.py` — a change too consequential for a
+cleanup commit. **Unblock path:** the v0.0 plan carries an explicit work item
+to re-scope or retire `validate_package.py` (the legacy package it validates
+is now officially historical); once that lands, this blocked subset executes
+under the same protocol. The user's approval remains on record; no re-approval
+is needed, only the blocker's removal.
 
 ## 1. Propose: archive (move under `docs/legacy/` in one reviewed commit)
 
