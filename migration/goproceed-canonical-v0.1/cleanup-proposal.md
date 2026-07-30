@@ -42,6 +42,20 @@ is now officially historical); once that lands, this blocked subset executes
 under the same protocol. The user's approval remains on record; no re-approval
 is needed, only the blocker's removal.
 
+**Unblocked and executed 2026-07-30 (v0.0 plan Task 9):**
+`validate_package.py` re-scoped (archived-index allowlist; report/backlog
+checks retired with provenance comments; ten backlog-only test references
+recorded as `ARCHIVED_BACKLOG_TEST_REFS`). Then:
+
+- `docs/{02,16,29,37,38,39}-*.md` → `docs/legacy/` (git mv)
+- `technical/implementation-backlog.csv` → `docs/legacy/` (git mv)
+- `technical/openapi-redocly-report.txt`, `technical/sql-parser-report.txt`
+  deleted (git rm)
+
+Both validators pass after execution. The approved cleanup is now complete;
+the runtime-cited `keep` files remain the only legacy candidates awaiting a
+later re-point-and-archive pass.
+
 ## 1. Propose: archive (move under `docs/legacy/` in one reviewed commit)
 
 Historical evidence, no active authority. 13 sources:

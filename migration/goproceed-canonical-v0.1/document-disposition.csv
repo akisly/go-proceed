@@ -1,7 +1,7 @@
 source_path,source_state,disposition,target_path,information_moved,information_rejected,reason,review_status
 docs/00-product-brief.md,tracked_at_base,rewrite,docs/product/vision-and-positioning.md,positioning problem statement and target segment,unverified ROI and market-size claims,canonical product package replaces the brief without unproven claims,approved
 docs/01-prd.md,tracked_at_base,rewrite,docs/product/scope-and-boundaries.md,v0.1 in/out boundary and deferred contexts,126-table single-release framing,PRD scope split into approved boundary plus roadmap gates,approved
-docs/02-market-competition.md,tracked_at_base,archive,docs/legacy/README.md,none,none,market research kept as historical reference; claims never validated with customers,approved_blocked_by_legacy_validator
+docs/02-market-competition.md,tracked_at_base,archive,docs/legacy/02-market-competition.md,none,none,market research kept as historical reference; claims never validated with customers,executed_2026-07-30
 docs/03-personas-jtbd-workflows.md,tracked_at_base,rewrite,docs/product/personas-and-workflows.md,actor separation and end-to-end workflows,rigid job-title role model,personas rebuilt on governance roles plus responsibilities,approved
 docs/04-screen-specification.md,tracked_at_base,defer,docs/legacy/README.md,none,none,screen-level UI spec is per-milestone UX input; not canonical v0.1 authority,deferred_scope
 docs/05-design-system.md,tracked_at_base,defer,docs/legacy/README.md,none,none,design-system reference for later UI work; no v0.1 documentation authority,deferred_scope
@@ -15,7 +15,7 @@ docs/12-roadmap-delivery.md,tracked_at_base,rewrite,docs/product/roadmap.md,vers
 docs/13-qa-acceptance.md,tracked_at_base,rewrite,docs/delivery/test-strategy.md,test family concepts,claims of executed acceptance coverage,rebuilt as forward test strategy with honest baseline,approved
 docs/14-gtm-pilot.md,tracked_at_base,merge,docs/discovery/validated-assumptions.md,pilot gating and validation separation,lead counts framed as demand proof,GTM claims split into evidence ledger and readiness gates,approved
 docs/15-risks-decisions.md,tracked_at_base,merge,migration/goproceed-canonical-v0.1/decision-register.md,decisions that survived review,superseded assumptions,approved decisions now live in ADRs and the register,approved
-docs/16-fidelity-ledger.md,tracked_at_base,archive,docs/legacy/README.md,none,none,historical audit artifact of the old package,approved_blocked_by_legacy_validator
+docs/16-fidelity-ledger.md,tracked_at_base,archive,docs/legacy/16-fidelity-ledger.md,none,none,historical audit artifact of the old package,executed_2026-07-30
 docs/17-production-readiness-index.md,tracked_at_base,rewrite,docs/delivery/production-readiness.md,pilot gate concepts,production-ready claims,replaced by testable pilot gates,approved
 docs/18-domain-state-machines.md,tracked_at_base,rewrite,technical/states/state-catalog.csv,lifecycle concepts,mutable-status state machines,rebuilt as fact/lifecycle/projection catalogs,approved
 docs/19-organizations-roles-access.md,tracked_at_base,rewrite,docs/architecture/tenancy-and-security.md,governance versus operational responsibility split,thirteen rigid membership roles,replaced by four governance roles plus responsibilities and capabilities,approved
@@ -28,7 +28,7 @@ docs/25-security-threat-model.md,tracked_at_base,merge,docs/architecture/tenancy
 docs/26-sre-operations.md,tracked_at_base,defer,docs/legacy/README.md,none,none,SRE runbook material matures toward v1.0 gates,deferred_scope
 docs/27-qa-traceability.md,tracked_at_base,rewrite,technical/database/invariant-catalog.csv,invariant-to-test traceability idea,coverage claims without executed tests,test_evidence column now carries traceability,approved
 docs/28-pilot-ga-delivery.md,tracked_at_base,rewrite,docs/delivery/version-0.1.md,milestone slicing idea,GA commitments,replaced by M1-M6 evidence gates,approved
-docs/29-prototype-coverage.md,tracked_at_base,archive,docs/legacy/README.md,none,none,prototype coverage snapshot is historical,approved_blocked_by_legacy_validator
+docs/29-prototype-coverage.md,tracked_at_base,archive,docs/legacy/29-prototype-coverage.md,none,none,prototype coverage snapshot is historical,executed_2026-07-30
 docs/30-validation-evidence-register.md,tracked_at_base,rewrite,docs/discovery/validated-assumptions.md,evidence-kind separation,rows treating research as validation,rebuilt with zero-signal honesty,approved
 docs/31-architecture-decisions.md,tracked_at_base,merge,docs/decisions/ADR-001-product-boundary.md,decisions surviving review across ADR-001..004,superseded decisions,ADR set plus decision register own approved decisions,approved
 docs/32-customer-country-adapters.md,tracked_at_base,defer,docs/legacy/README.md,none,none,adapters are v0.2 candidate scope,deferred_scope
@@ -36,9 +36,9 @@ docs/33-support-admin-plane.md,tracked_at_base,defer,docs/legacy/README.md,none,
 docs/34-production-gate-checklist.md,tracked_at_base,rewrite,docs/delivery/production-readiness.md,checklist concept,claims of satisfied gates,replaced by evidence-based gates,approved
 docs/35-data-access-tenancy.md,tracked_at_base,rewrite,docs/architecture/tenancy-and-security.md,grant/RLS layering,legacy role matrix,superseded by canonical tenancy doc; companion CSV kept for runtime references,approved
 docs/36-security-verification-profile.md,tracked_at_base,rewrite,docs/delivery/test-strategy.md,security test families,claimed verification results,forward-looking security test requirements own this now,approved
-docs/37-functional-closure-feature-register.md,tracked_at_base,archive,docs/legacy/README.md,none,none,closure claims for the 126-table target are historical,approved_blocked_by_legacy_validator
-docs/38-business-logic-closure.md,tracked_at_base,archive,docs/legacy/README.md,none,none,closure claims are historical,approved_blocked_by_legacy_validator
-docs/39-evidence-graph.md,tracked_at_base,archive,docs/legacy/README.md,none,none,evidence-graph snapshot is historical,approved_blocked_by_legacy_validator
+docs/37-functional-closure-feature-register.md,tracked_at_base,archive,docs/legacy/37-functional-closure-feature-register.md,none,none,closure claims for the 126-table target are historical,executed_2026-07-30
+docs/38-business-logic-closure.md,tracked_at_base,archive,docs/legacy/38-business-logic-closure.md,none,none,closure claims are historical,executed_2026-07-30
+docs/39-evidence-graph.md,tracked_at_base,archive,docs/legacy/39-evidence-graph.md,none,none,evidence-graph snapshot is historical,executed_2026-07-30
 docs/40-phase1-discovery-outreach.md,tracked_at_base,merge,docs/discovery/outreach-log.md,workbook-evidenced outreach facts and deferred-debt records,send counts framed as validation,evidenced facts moved; unreconciled sends stay labeled,approved
 docs/README.md,tracked_at_base,rewrite,docs/README.md,navigation role,old numbered-doc index authority,canonical README with source-of-truth precedence committed in Task 2,approved
 ARCHITECTURE-AUDIT-ANSWERS.md,tracked_at_base,archive,docs/legacy/ARCHITECTURE-AUDIT-ANSWERS.md,none,none,402KB audit answers are historical evidence not active requirements,executed_2026-07-30
@@ -87,11 +87,11 @@ technical/rate-limits.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,
 technical/copy-catalog.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,UI copy is per-milestone UX input,deferred_scope
 technical/ui-actions.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,UI action inventory is per-milestone UX input,deferred_scope
 technical/command-availability.csv,tracked_at_base,defer,docs/legacy/README.md,none,none,command availability matrix is per-milestone input,deferred_scope
-technical/implementation-backlog.csv,tracked_at_base,archive,docs/legacy/README.md,none,none,superseded by the canonical implementation plan,approved_blocked_by_legacy_validator
+technical/implementation-backlog.csv,tracked_at_base,archive,docs/legacy/implementation-backlog.csv,none,none,superseded by the canonical implementation plan,executed_2026-07-30
 technical/test-catalog.csv,tracked_at_base,rewrite,docs/delivery/test-strategy.md,test family inventory,claimed executed coverage,test strategy plus invariant catalog own testing truth,approved
 technical/traceability.csv,tracked_at_base,rewrite,technical/database/invariant-catalog.csv,requirement-to-test tracing idea,rows for unshipped scope,invariant catalog test_evidence column owns tracing,approved
-technical/openapi-redocly-report.txt,tracked_at_base,delete_after_transfer,none,none,generated lint report,machine-generated report reproducible from source; deletion requires explicit user approval in the cleanup proposal,approved_blocked_by_legacy_validator
-technical/sql-parser-report.txt,tracked_at_base,delete_after_transfer,none,none,generated parser report,machine-generated report reproducible from source; deletion requires explicit user approval in the cleanup proposal,approved_blocked_by_legacy_validator
+technical/openapi-redocly-report.txt,tracked_at_base,delete_after_transfer,none,none,generated lint report,machine-generated report reproducible from source; deletion requires explicit user approval in the cleanup proposal,deleted_2026-07-30
+technical/sql-parser-report.txt,tracked_at_base,delete_after_transfer,none,none,generated parser report,machine-generated report reproducible from source; deletion requires explicit user approval in the cleanup proposal,deleted_2026-07-30
 docs/superpowers/,approved_design_commit,keep,docs/superpowers/,none,none,approved canonical design spec and plan,approved
 .agents/ (canonical tree),user_added_canonical,keep,.agents/,none,none,user-added tooling; preserved untracked; never staged deleted or classified without explicit authorization,approved
 skills-lock.json (canonical tree),user_added_canonical,keep,skills-lock.json,none,none,user-added tooling lockfile; preserved untracked,approved
