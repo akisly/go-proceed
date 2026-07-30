@@ -135,3 +135,22 @@ Documentation work may continue from this recorded state. Product
 implementation cannot claim a green baseline until v0.0 supplies the local
 database, resolves demo imports and build-script policy, and reruns the complete
 test command.
+
+## v0.0 re-run (2026-07-30)
+
+Serialized `pnpm turbo run test --concurrency=1 --force` against a freshly
+reset local database after migrations 0006–0009:
+
+- Test files: 30 passed, 0 failed (contracts 1, demo 16, domain 1, testing 6,
+  database 2, app 4)
+- Tests: 194 passed, 0 failed
+- Plus the `supabase/functions/outbox-drain` project (outside the pnpm
+  workspace, run via the root vitest workspace): 1 file / 2 tests passed
+- **Total: 196 tests / 31 files, zero failures, zero quarantines**
+- Environment: local Supabase reachable; `APP_DB_URL` set;
+  build-script policy D-048 active; demo suites run via `vitest.workspace.ts`;
+  dev password set by `pnpm db:local-credentials` (never seed.sql).
+
+The green-baseline gate of docs/delivery/version-0.0.md is satisfied for the
+local environment. CI evidence with pinned actions and staging verification
+remain open items recorded there.

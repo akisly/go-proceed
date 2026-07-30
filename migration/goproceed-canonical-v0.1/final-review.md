@@ -78,6 +78,12 @@ work; no code changed):
 until v0.0 supplies the local database environment, fixes the demo import,
 resolves the build-script policy, and re-runs the serialized suite.
 
+**2026-07-30 update:** v0.0 execution delivered exactly that. The serialized
+re-run from a clean database after migrations 0006–0009 is fully green —
+196 tests / 31 files, zero failures, zero quarantines — recorded in the
+[baseline re-run addendum](baseline-verification.md). Remaining v0.0
+evidence: a CI run with pinned actions (needs push) and staging verification.
+
 ## 5. Discovery evidence discrepancy
 
 The founder reports outreach to 50 companies; the 2026-07-28 workbook
