@@ -12,6 +12,12 @@
     "test": "turbo run test",
     "validate:canonical-docs": "node scripts/validate-canonical-docs.mjs"
   },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  },
   "devDependencies": {
     "@types/pg": "^8.20.0",
     "pg": "^8.22.0",
