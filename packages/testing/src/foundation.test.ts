@@ -81,13 +81,16 @@ describe("0006 foundation tenant isolation", () => {
     expect(seenByA.rowCount).toBe(1);
   });
 
-  it("a viewer cannot insert a legal entity; the owner can", async () => {
+  // 0010 replaced the mixed v0.0 role set with the four canonical governance
+  // roles (ADR-002); 'auditor' is the canonical non-privileged role that the
+  // 0006 le_insert policy (owner/admin only) must still deny.
+  it("an auditor cannot insert a legal entity; the owner can", async () => {
     const org = randomUUID();
     await bootstrap(A, org);
     const admin = await adminClient();
     try {
       await admin.query(
-        "insert into public.memberships (organization_id, user_id, role, status, all_projects) values ($1,$2,'viewer','active',false)",
+        "insert into public.memberships (organization_id, user_id, role, status, all_projects) values ($1,$2,'auditor','active',false)",
         [org, B]);
     } finally { await admin.end(); }
     await expect(asActor(B, org, (c) =>
