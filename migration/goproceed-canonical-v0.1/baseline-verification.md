@@ -107,6 +107,13 @@ The 22 test failures are primarily the unavailable local database environment.
 The three demo suite collection failures are a separate code/import defect and
 must not be described as an environmental DB failure.
 
+**2026-07-30 correction:** the three `apps/demo` collection failures were a
+root-runner configuration gap, not a missing module —
+`apps/demo/src/lib/utils.ts` exists and `apps/demo/vitest.config.ts` defines
+the `@` alias, but the root `vitest run` ignored per-package configs.
+`vitest.workspace.ts` restores parity (demo project: 16 files / 134 tests
+pass under the root runner); per-package runs were always green.
+
 The root Turbo command is also blocked while pnpm build-script approvals remain
 unresolved.
 
