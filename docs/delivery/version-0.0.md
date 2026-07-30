@@ -102,9 +102,13 @@ migrations 0006–0009, and recorded in the
 quarantines** (194 via `turbo run test --concurrency=1 --force` plus the
 2-test outbox-drain project) from a freshly reset local database.
 
+CI evidence recorded 2026-07-30: PR
+[akisly/akt-flow#3](https://github.com/akisly/akt-flow/pull/3) runs the
+pinned-SHA workflow green — `verify` (serialized suite against the freshly
+migrated local stack), `demo-qa`, and `package-validate` all pass.
+
 Still open before v0.0 formally closes:
 
-- a CI run on GitHub with the pinned actions (needs the branch pushed);
 - staging password verification and a staging catalog snapshot (needs staging
   access per infra/README-staging.md);
 - the `supabase_admin` default-ACL residual stays a watched platform item
