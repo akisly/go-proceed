@@ -20,7 +20,10 @@ export interface CsvLimits {
 }
 export const CSV_LIMITS: CsvLimits = {
   maxBytes: 20_971_520,
-  maxRows: 200_000,
+  // Sized for what the synchronous validate/publish path can actually hold
+  // in one transaction; a larger estimate fails closed with CSV_TOO_MANY_ROWS
+  // rather than timing out mid-write.
+  maxRows: 20_000,
   maxCols: 256,
   maxFieldChars: 32_768,
 };

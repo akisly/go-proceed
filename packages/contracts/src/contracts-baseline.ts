@@ -19,7 +19,12 @@ export const createContractRequest = z.object({
 }).refine((v) => v.ownPartyId !== v.customerPartyId, {
   message: "own and customer party must differ",
   path: ["customerPartyId"],
-});
+}).refine(
+  // exclusive adds tax to net and inclusive extracts it from gross; neither is
+  // computable without a rate (docs/domain/value-at-risk.md compatibility table).
+  (v) => !(["exclusive", "inclusive"].includes(v.taxMode) && v.taxRateBps == null),
+  { message: "taxRateBps is required for exclusive and inclusive tax modes", path: ["taxRateBps"] },
+);
 export type CreateContractRequest = z.infer<typeof createContractRequest>;
 
 export interface CreateContractResponse { contractId: string; version: number }

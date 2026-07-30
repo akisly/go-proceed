@@ -3069,6 +3069,72 @@ Plan complete and saved to `docs/superpowers/plans/2026-07-30-goproceed-v0.1-m1-
 
 **2. Inline Execution** — execute tasks in this session with superpowers:executing-plans, batch execution with checkpoints.
 
+---
+
+## Post-implementation review findings (2026-07-31)
+
+The plan was executed in full (commits `a860e8c`..`b85aa23`, 340 tests green). A
+`/plan-eng-review` against the **implementation** then found 19 defects that a
+green suite did not catch. Thirteen are being fixed on this branch; the rest are
+in `TODOS.md`.
+
+### What already exists (reused, not rebuilt)
+
+The v0.0 foundation carried more than half the milestone: `withTenantTx`,
+`withIdempotency`, `recordAudit`, `enqueueOutbox`, the problem+json mapper, and
+the `app.current_actor()` / `org_has_members` RLS idiom. M1 added no parallel
+machinery — `commandRoute` wraps the existing primitives rather than replacing
+them, and the SECURITY DEFINER helpers follow the sanctioned `org_has_members`
+precedent.
+
+### NOT in scope (deliberately deferred)
+
+- **Async job pipeline for import.** No `jobs`/`job_attempts` tables exist in
+  M1; batching plus an honest row cap makes the synchronous path defensible
+  until M2 brings the operational module.
+- **Physical rename `organizations` → `workspaces`.** Additive-only policy; the
+  destructive migration needs its own approval.
+- **Import bytes in object storage.** Stays in `bytea` until M2's upload-intent
+  infrastructure lands; hash-based provenance is unaffected.
+- **`project_parties` and `organizations.default_own_party_id` writers.** Schema
+  exists per the entity catalog; no M1 operation populates them.
+- **KБ-2в / KБ-3 package templates.** Correctly absent — those are M4 package
+  artifacts, and the forms are `примірні` (Order №554 as amended 2011), so they
+  belong in versioned templates, never in the core schema.
+
+### Critical gaps (no test, no error handling, silent in production)
+
+| # | Gap | Status |
+|---|---|---|
+| 1 | `tax_mode='inclusive'` adds VAT instead of extracting it | fixing |
+| 2 | Mapped `location` column dropped at publish | fixing |
+| 3 | Discrepancy resolution keyed without `import_file_id` crosses files | fixing |
+| 4 | Row with a source amount but no unit price publishes as zero value | fixing |
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | ISSUES_OPEN | 19 issues, 4 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+**CODEX:** Codex CLI timed out at 5 minutes; the outside voice ran as an
+independent Claude subagent instead. It contributed 16 of the 19 findings,
+including all four INV-020 / resolution-integrity defects.
+
+**CROSS-MODEL:** No tension. The outside voice did not contradict any first-pass
+finding; it extended them. Both passes independently flagged the money layer and
+the import-resolution lifecycle as the weakest surfaces.
+
+**VERDICT:** ENG REVIEW COMPLETE — 13 fixes accepted for this branch (4 P1, 6 P2,
+plus the 3 first-pass findings), 6 P3 findings deferred to `TODOS.md`. Re-run the
+suite before merge.
+
+NO UNRESOLVED DECISIONS
+
 
 
 

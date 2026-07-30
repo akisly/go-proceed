@@ -96,7 +96,10 @@ export async function POST(
       const projectId: string = b0.rows[0].project_id;
       return withIdempotency<AddImportFileResponse>(tx, {
         organizationId: workspaceId, actorScope: `user:${userId}`,
-        operationId: "import_files.add", key: idempotencyKey, requestHash: contentHash,
+        operationId: "import_files.add", key: idempotencyKey,
+        // The batch is part of the request identity: the same bytes uploaded to
+        // a DIFFERENT batch is a different command, not a replay.
+        requestHash: createHash("sha256").update(`${batchId}|${contentHash}`).digest("hex"),
       }, async () => {
         const m = await requireActiveMembership(tx, requestId, userId, workspaceId);
         await requireProjectCapability(tx, requestId,

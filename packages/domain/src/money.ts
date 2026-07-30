@@ -98,6 +98,54 @@ export function netFromGross(grossMinor: bigint, taxRateBps: number, midpoint: M
   return divRound(grossMinor * 10000n, 10000n + BigInt(taxRateBps), midpoint);
 }
 
+export type PriceBasis = "net" | "gross";
+
+/**
+ * Canonical price basis per docs/domain/value-at-risk.md:
+ *   exclusive → net    (tax is added to canonical net)
+ *   inclusive → gross  (net and tax are extracted from canonical gross)
+ *   exempt / out_of_scope → net (tax is zero, so net equals gross)
+ *   unknown   → null   (the slice is numerically unvalued)
+ * The doc forbids the `net + inclusive` and `gross + exclusive` combinations;
+ * deriving the basis from the mode makes them unrepresentable.
+ */
+export function canonicalPriceBasis(taxMode: TaxMode): PriceBasis | null {
+  switch (taxMode) {
+    case "exclusive": return "net";
+    case "inclusive": return "gross";
+    case "exempt":
+    case "out_of_scope": return "net";
+    case "unknown": return null;
+  }
+}
+
+/**
+ * Decompose a source amount that is stated in `basis` into net/tax/gross.
+ * For a gross basis the tax is the REMAINDER (gross − net), never a second
+ * rounding, so `gross = net + tax` holds exactly — the work_items CHECK
+ * constraint depends on that identity.
+ */
+export function splitByBasis(
+  amountMinor: bigint, basis: PriceBasis | null,
+  taxRateBps: number | null, taxMode: TaxMode, midpoint: Midpoint,
+): { net: bigint; tax: bigint; gross: bigint; warning?: "TAX_MODE_UNKNOWN" } {
+  if (basis === "gross" && taxRateBps != null) {
+    const net = netFromGross(amountMinor, taxRateBps, midpoint);
+    return { net, tax: amountMinor - net, gross: amountMinor };
+  }
+  return taxSplit(amountMinor, taxRateBps, taxMode, midpoint);
+}
+
+/** Largest minor-unit magnitude that safely fits work_items' bigint columns. */
+export const MAX_MINOR_UNITS = 9_000_000_000_000_000_000n;
+
+/** True when the value fits numeric(18,6) — at most 12 integer digits. */
+export function fitsNumeric18_6(v: Decimal): boolean {
+  const abs = v.scaled < 0n ? -v.scaled : v.scaled;
+  const integerPart = abs / pow10(v.scale);
+  return integerPart < 1_000_000_000_000n;
+}
+
 /**
  * INV-054 core, strict-OR (plan decision 8): a mismatch is INSIDE tolerance
  * only when it passes BOTH the absolute minor-unit bound AND the relative

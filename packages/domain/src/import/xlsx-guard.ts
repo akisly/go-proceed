@@ -19,7 +19,7 @@ export const XLSX_LIMITS: XlsxLimits = {
   maxEntries: 10_000,
   maxTotalUncompressed: 104_857_600, // 100 MB
   maxCompressionRatio: 100,
-  maxRows: 200_000,
+  maxRows: 20_000, // see CSV_LIMITS.maxRows — synchronous-path ceiling
   maxCols: 256,
   maxCellChars: 32_768,
 };

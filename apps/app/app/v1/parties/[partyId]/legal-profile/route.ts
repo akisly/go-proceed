@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireWorkspaceCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requirePartyEditCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { putLegalProfileRequest, type LegalProfileResponse } from "@aktflow/contracts";
 import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
@@ -26,7 +26,8 @@ export const PUT = commandRoute(putLegalProfileRequest, async (a) => {
       operationId: "parties.legal_profile.put", key: a.idempotencyKey, requestHash: a.requestHash,
     }, async () => {
       const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "parties.manage");
+      // INV-020: stricter permission when this party is an own legal entity.
+      await requirePartyEditCapability(tx, a.requestId, m.role, workspaceId, partyId);
       const existing = await tx.query(
         `select id, version from public.party_legal_profiles where workspace_id = $1 and party_id = $2`,
         [workspaceId, partyId]);

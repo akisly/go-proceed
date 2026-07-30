@@ -30,6 +30,16 @@ export const POST = commandRoute(createInvitationRequest, async (a) => {
           "Запрошення може створити лише власник або адміністратор.",
           { requestId: a.requestId, retryable: false, userAction: "request_scope" }));
       }
+      // A pending-but-expired invitation still occupies
+      // invitations_pending_email_unique, so retire it before re-inviting.
+      // (app.accept_invitation cannot do this itself: it raises, which would
+      // roll its own UPDATE back.)
+      await tx.query(
+        `update public.invitations
+            set status = 'expired', updated_at = now(), version = version + 1
+          where workspace_id = $1 and lower(email) = lower($2)
+            and status = 'pending' and expires_at <= now()`,
+        [workspaceId, a.body.email]);
       try {
         await tx.query(
           `insert into public.invitations (id, workspace_id, email, role, token_hash, expires_at, invited_by)

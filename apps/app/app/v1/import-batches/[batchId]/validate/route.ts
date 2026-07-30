@@ -6,8 +6,9 @@ import { loadImportBatchResponse } from "../../../../../src/lib/import-batch";
 import { validateImportBatchRequest } from "@aktflow/contracts";
 import {
   parseCsv, parseXlsx, applyMapping, validateRow, buildPreview, normalizeUnitCode,
-  workspaceCapabilities, PARSER_VERSION,
+  workspaceCapabilities, canonicalPriceBasis, PARSER_VERSION,
   type SourceRow, type RowValidation, type ContractPins, type GovernanceRole,
+  type RowResolution,
 } from "@aktflow/domain";
 import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
 
@@ -31,6 +32,9 @@ function mappedPayload(v: RowValidation): Record<string, unknown> {
     unitPriceState: v.unitPriceState,
     derivedMinor: v.derivedMinor?.toString() ?? null,
     sourceMinor: v.sourceMinor?.toString() ?? null,
+    // The canonical valuation decided HERE, under one pin generation, is what
+    // publish writes verbatim — publish never re-derives money.
+    valuationBasis: v.valuationBasis,
     net: v.net?.toString() ?? null,
     tax: v.tax?.toString() ?? null,
     gross: v.gross?.toString() ?? null,
@@ -162,15 +166,29 @@ export const POST = commandRoute(validateImportBatchRequest, async (a) => {
       const units = new Map<string, { id: string; precision: number }>(
         unitRows.rows.map((u) => [u.normalized_code, { id: u.id, precision: u.unit_precision }]));
 
-      // Resolutions carry forward by (worksheet, source_row) identity.
+      // Resolutions carry forward by (file, worksheet, source_row) identity —
+      // the file id is part of the key because two CSVs in one batch both have
+      // worksheet null and legitimately share row numbers. The approved
+      // amounts travel with it so validateRow can reject a stale approval.
       const resolved = await tx.query(
-        `select r.worksheet, r.source_row from public.source_amount_resolutions s
+        `select r.import_file_id, r.worksheet, r.source_row, s.chosen_basis,
+                s.source_amount_minor_units, s.derived_amount_minor_units
+           from public.source_amount_resolutions s
            join public.import_row_results r
              on r.workspace_id = s.workspace_id and r.import_batch_id = s.import_batch_id
             and r.id = s.row_result_id
-          where s.workspace_id = $1 and s.import_batch_id = $2`,
+          where s.workspace_id = $1 and s.import_batch_id = $2
+          order by s.created_at, s.id`,
         [loaded.workspaceId, batchId]);
-      const resolvedKeys = new Set(resolved.rows.map((r) => `${r.worksheet ?? ""}|${r.source_row}`));
+      const resolutionsByRow = new Map<string, RowResolution>();
+      for (const r of resolved.rows) {
+        // Later resolutions supersede earlier ones for the same physical row.
+        resolutionsByRow.set(`${r.import_file_id}|${r.worksheet ?? ""}|${r.source_row}`, {
+          chosenBasis: r.chosen_basis,
+          approvedSourceMinor: r.source_amount_minor_units === null ? null : BigInt(r.source_amount_minor_units),
+          approvedDerivedMinor: r.derived_amount_minor_units === null ? null : BigInt(r.derived_amount_minor_units),
+        });
+      }
 
       const pins: ContractPins = {
         currency: loaded.row.currency,
@@ -180,7 +198,9 @@ export const POST = commandRoute(validateImportBatchRequest, async (a) => {
         minorScale: 2,
         tolAbsMinor: BigInt(loaded.row.source_tolerance_minor_units),
         tolBps: Number(loaded.row.source_tolerance_bps),
-        priceBasis: "net",
+        // Derived from the contract's tax mode, never assumed: an inclusive
+        // contract carries gross prices and its tax is extracted, not added.
+        priceBasis: canonicalPriceBasis(loaded.row.tax_mode),
         locale: a.body.config.locale,
       };
 
@@ -201,13 +221,20 @@ export const POST = commandRoute(validateImportBatchRequest, async (a) => {
                on conflict (workspace_id, normalized_code) do nothing
                returning id, unit_precision`,
               [randomUUID(), loaded.workspaceId, mr.unitText, a.userId]);
-            if (created.rows[0]) {
-              unit = { id: created.rows[0].id, precision: created.rows[0].unit_precision };
+            // DO NOTHING returns no row when a concurrent import registered the
+            // same code first; re-read it instead of failing the whole batch
+            // with UNIT_UNKNOWN.
+            const resolvedUnit = created.rows[0] ?? (await tx.query(
+              `select id, unit_precision from public.unit_definitions
+                where workspace_id = $1 and normalized_code = $2`,
+              [loaded.workspaceId, code])).rows[0];
+            if (resolvedUnit) {
+              unit = { id: resolvedUnit.id, precision: resolvedUnit.unit_precision };
               units.set(code, unit);
             }
           }
           const v = validateRow(mr, unit ? { normalizedCode: code, precision: unit.precision } : null,
-            pins, resolvedKeys.has(`${mr.worksheet ?? ""}|${mr.sourceRowNo}`));
+            pins, resolutionsByRow.get(`${p.fileId}|${mr.worksheet ?? ""}|${mr.sourceRowNo}`) ?? null);
           records.push({
             fileId: p.fileId, v,
             sourceCells: cellsByRow.get(`${mr.worksheet ?? ""}|${mr.sourceRowNo}`) ?? {},
@@ -217,16 +244,27 @@ export const POST = commandRoute(validateImportBatchRequest, async (a) => {
       await setStatus("validated");
 
       const preview = buildPreview(records.map((r) => r.v));
-      for (const r of records) {
+      // Chunked multi-row INSERT: one round trip per CHUNK_ROWS rows instead of
+      // one per row, so a real estimate does not hold the transaction open (and
+      // the batch row locked) for minutes.
+      const CHUNK_ROWS = 500;
+      for (let start = 0; start < records.length; start += CHUNK_ROWS) {
+        const chunk = records.slice(start, start + CHUNK_ROWS);
+        const values: unknown[] = [];
+        const tuples = chunk.map((r, i) => {
+          const b = i * 13;
+          values.push(randomUUID(), loaded.workspaceId, batchId, r.fileId, attempt,
+            r.v.row.worksheet, r.v.row.sourceRowNo,
+            JSON.stringify(r.sourceCells), JSON.stringify(mappedPayload(r.v)),
+            r.v.severity, r.v.codes, PARSER_VERSION, mappingVersion);
+          return `($${b + 1},$${b + 2},$${b + 3},$${b + 4},$${b + 5},$${b + 6},$${b + 7},`
+            + `$${b + 8},$${b + 9},$${b + 10},$${b + 11},$${b + 12},$${b + 13})`;
+        }).join(",");
         await tx.query(
           `insert into public.import_row_results
              (id, workspace_id, import_batch_id, import_file_id, attempt, worksheet, source_row,
               source_cells, mapped, severity, error_codes, parser_version, mapping_version)
-           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
-          [randomUUID(), loaded.workspaceId, batchId, r.fileId, attempt,
-           r.v.row.worksheet, r.v.row.sourceRowNo,
-           JSON.stringify(r.sourceCells), JSON.stringify(mappedPayload(r.v)),
-           r.v.severity, r.v.codes, PARSER_VERSION, mappingVersion]);
+           values ${tuples}`, values);
       }
 
       const finalStatus = preview.rowCount === 0

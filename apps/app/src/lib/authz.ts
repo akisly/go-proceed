@@ -33,6 +33,22 @@ export function requireWorkspaceCapability(
   }
 }
 
+/**
+ * INV-020: editing a party that is one of the workspace's OWN legal entities
+ * needs the stricter own_legal_profiles.manage, not ordinary parties.manage.
+ * The own party's official name and ЄДРПОУ are frozen into every published
+ * contract version, so an admin must not be able to rewrite that identity.
+ */
+export async function requirePartyEditCapability(
+  tx: Tx, requestId: string, role: GovernanceRole, workspaceId: string, partyId: string,
+): Promise<void> {
+  const own = await tx.query(
+    `select 1 from public.own_legal_entity_profiles where workspace_id = $1 and party_id = $2`,
+    [workspaceId, partyId]);
+  requireWorkspaceCapability(requestId, role,
+    own.rows.length > 0 ? "own_legal_profiles.manage" : "parties.manage");
+}
+
 export async function requireProjectCapability(
   tx: Tx, requestId: string,
   args: { workspaceId: string; projectId: string; memberId: string; capability: ProjectCapability },

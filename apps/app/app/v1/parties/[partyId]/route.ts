@@ -1,5 +1,5 @@
 import { commandRoute } from "../../../../src/lib/command";
-import { requireActiveMembership, requireWorkspaceCapability } from "../../../../src/lib/authz";
+import { requireActiveMembership, requirePartyEditCapability } from "../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../src/lib/http";
 import { updatePartyRequest, type PartyResponse } from "@aktflow/contracts";
 import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
@@ -27,7 +27,8 @@ export const PATCH = commandRoute(updatePartyRequest, async (a) => {
       operationId: "parties.update", key: a.idempotencyKey, requestHash: a.requestHash,
     }, async () => {
       const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "parties.manage");
+      // INV-020: stricter permission when this party is an own legal entity.
+      await requirePartyEditCapability(tx, a.requestId, m.role, workspaceId, partyId);
       const upd = await tx.query(
         `update public.parties set display_name = coalesce($3, display_name),
                 version = version + 1, updated_at = now()

@@ -3,6 +3,7 @@ import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { createResolutionRequest, type CreateResolutionResponse } from "@aktflow/contracts";
+import { RESOLVABLE_CODES } from "@aktflow/domain";
 import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
 
 export const runtime = "nodejs";
@@ -53,11 +54,12 @@ export const POST = commandRoute(createResolutionRequest, async (a) => {
             fieldErrors: [{ path: "rowResultId", message: "not in latest attempt" }],
           }));
       }
-      if (!(row.rows[0].error_codes ?? []).includes("AMOUNT_MISMATCH")) {
+      const rowCodes: string[] = row.rows[0].error_codes ?? [];
+      if (!RESOLVABLE_CODES.some((c) => rowCodes.includes(c))) {
         throw new HttpProblem(422, problem("VALIDATION_FAILED",
-          "Цей рядок не має розбіжності суми, яку треба вирішувати.", {
+          "Цей рядок не потребує вирішення джерельної суми.", {
             requestId: a.requestId, retryable: false, userAction: "correct_fields",
-            fieldErrors: [{ path: "rowResultId", message: "no AMOUNT_MISMATCH" }],
+            fieldErrors: [{ path: "rowResultId", message: `expected one of ${RESOLVABLE_CODES.join(", ")}` }],
           }));
       }
       const mapped = row.rows[0].mapped as { sourceMinor: string | null; derivedMinor: string | null };
@@ -69,7 +71,9 @@ export const POST = commandRoute(createResolutionRequest, async (a) => {
               source_amount_minor_units, derived_amount_minor_units, resolved_by)
            values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
           [resolutionId, workspaceId, batchId, a.body.rowResultId, a.body.chosenBasis,
-           a.body.reason, mapped.sourceMinor ?? "0", mapped.derivedMinor ?? "0", a.userId]);
+           // Store the amounts EXACTLY as validated: re-validation compares them
+           // and must be able to tell "no derived amount" from "derived zero".
+           a.body.reason, mapped.sourceMinor, mapped.derivedMinor, a.userId]);
       } catch (e) {
         if (e instanceof Error && /source_amount_resolutions_workspace_id_import_batch_id_row/.test(e.message)) {
           throw new HttpProblem(409, problem("VERSION_CONFLICT",
