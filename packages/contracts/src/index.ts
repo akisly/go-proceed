@@ -7,3 +7,4 @@ export * from "./invitations";
 export * from "./parties";
 export * from "./projects";
 export * from "./project-access";
+export * from "./contracts-baseline";
