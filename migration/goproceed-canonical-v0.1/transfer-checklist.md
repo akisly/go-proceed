@@ -32,21 +32,27 @@
 
 ## Validation
 
-- [ ] Validate required metadata.
-- [ ] Validate relative links.
+- [x] Validate required metadata (`pnpm validate:canonical-docs`).
+- [x] Validate relative links (same validator).
 - [x] Validate technical CSV shape.
 - [x] Validate one disposition per source.
-- [ ] Check active GoProceed branding.
-- [ ] Check prohibited placeholder language.
-- [ ] Review spec coverage.
+- [x] Check active GoProceed branding (AktFlow only in legacy context;
+      runtime identifiers excluded as a v0.0 rename item).
+- [x] Check prohibited placeholder language (rg scan 2026-07-30: no genuine
+      placeholders; two regex substring artifacts — "Backfill into" and the
+      plan's own command string — reviewed and dismissed).
+- [x] Review spec coverage (all 21 canonical-design sections mapped to active
+      owners; table in `final-review.md`).
 - [x] Record exact test baseline.
 
 ## Promotion
 
-- [ ] Point root README to canonical documents.
-- [ ] Mark legacy material non-normative.
-- [ ] Produce cleanup proposal with exact paths.
-- [ ] Confirm no unreviewed user work is selected for deletion.
+- [x] Point root README to canonical documents.
+- [x] Mark legacy material non-normative.
+- [x] Produce cleanup proposal with exact paths (`cleanup-proposal.md`).
+- [x] Confirm no unreviewed user work is selected for deletion (old-tree
+      uncommitted paths and canonical `.agents/` + `skills-lock.json` are
+      preserve/defer only).
 - [ ] Obtain user approval before moving or deleting legacy sources.
 - [ ] Begin v0.0 implementation only after documentation promotion.
 
