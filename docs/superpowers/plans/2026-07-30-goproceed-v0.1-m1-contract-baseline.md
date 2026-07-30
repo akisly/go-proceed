@@ -3106,10 +3106,12 @@ precedent.
 
 | # | Gap | Status |
 |---|---|---|
-| 1 | `tax_mode='inclusive'` adds VAT instead of extracting it | fixing |
-| 2 | Mapped `location` column dropped at publish | fixing |
-| 3 | Discrepancy resolution keyed without `import_file_id` crosses files | fixing |
-| 4 | Row with a source amount but no unit price publishes as zero value | fixing |
+| 1 | `tax_mode='inclusive'` adds VAT instead of extracting it | FIXED (4a35ca6) |
+| 2 | Mapped `location` column dropped at publish | FIXED (4a35ca6) |
+| 3 | Discrepancy resolution keyed without `import_file_id` crosses files | FIXED (4a35ca6) |
+| 4 | Row with a source amount but no unit price publishes as zero value | FIXED (4a35ca6) |
+
+All four now have regression tests in `apps/app/tests/review-fixes.int.test.ts`.
 
 ## GSTACK REVIEW REPORT
 
@@ -3117,7 +3119,7 @@ precedent.
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | ISSUES_OPEN | 19 issues, 4 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 19 issues, 13 fixed, 6 deferred |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | — |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
 
@@ -3129,9 +3131,10 @@ including all four INV-020 / resolution-integrity defects.
 finding; it extended them. Both passes independently flagged the money layer and
 the import-resolution lifecycle as the weakest surfaces.
 
-**VERDICT:** ENG REVIEW COMPLETE — 13 fixes accepted for this branch (4 P1, 6 P2,
-plus the 3 first-pass findings), 6 P3 findings deferred to `TODOS.md`. Re-run the
-suite before merge.
+**VERDICT:** ENG REVIEW CLEARED — 13 fixes landed in `4a35ca6` (4 P1, 6 P2, plus
+the 3 first-pass findings) with regression coverage; 6 P3 findings deferred to
+`TODOS.md` with code citations. Clean-slate gate after the fixes: 361 tests,
+typecheck, and build all green; catalog snapshot `20260730-2358` committed.
 
 NO UNRESOLVED DECISIONS
 
