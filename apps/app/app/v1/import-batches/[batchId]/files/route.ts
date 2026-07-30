@@ -84,15 +84,16 @@ export async function POST(
 
     const ctx = { actorUserId: userId, organizationId: null, requestId };
     const out = await withTenantTx(ctx, async (tx) => {
-      const b = await tx.query(
-        `select workspace_id, project_id, status, version from public.import_batches where id = $1 for update`,
-        [batchId]);
-      if (b.rows.length === 0) {
+      // Plain select first: FOR UPDATE engages the UPDATE RLS policy and would
+      // turn a capability denial into a 404 for view-only members.
+      const b0 = await tx.query(
+        `select workspace_id, project_id from public.import_batches where id = $1`, [batchId]);
+      if (b0.rows.length === 0) {
         throw new HttpProblem(404, problem("RESOURCE_NOT_FOUND", "Пакет імпорту не знайдено.",
           { requestId, retryable: false, userAction: "return_to_list" }));
       }
-      const workspaceId: string = b.rows[0].workspace_id;
-      const projectId: string = b.rows[0].project_id;
+      const workspaceId: string = b0.rows[0].workspace_id;
+      const projectId: string = b0.rows[0].project_id;
       return withIdempotency<AddImportFileResponse>(tx, {
         organizationId: workspaceId, actorScope: `user:${userId}`,
         operationId: "import_files.add", key: idempotencyKey, requestHash: contentHash,
@@ -100,6 +101,9 @@ export async function POST(
         const m = await requireActiveMembership(tx, requestId, userId, workspaceId);
         await requireProjectCapability(tx, requestId,
           { workspaceId, projectId, memberId: m.memberId, capability: "imports.manage" });
+        const b = await tx.query(
+          `select status from public.import_batches where workspace_id = $1 and id = $2 for update`,
+          [workspaceId, batchId]);
         // Files are frozen after 'created': later states must see a stable set.
         if (b.rows[0].status !== "created") {
           throw new HttpProblem(409, problem("IMPORT_JOB_CONFLICT",

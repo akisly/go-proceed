@@ -9,3 +9,4 @@ export * from "./projects";
 export * from "./project-access";
 export * from "./contracts-baseline";
 export * from "./imports";
+export * from "./contract-versions";

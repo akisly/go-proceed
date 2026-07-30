@@ -9,3 +9,4 @@ export * from "./import/xlsx";
 export * from "./import/mapping";
 export * from "./import/validate";
 export * from "./import/version";
+export * from "./import/publish";
