@@ -10,7 +10,8 @@
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
-    "validate:canonical-docs": "node scripts/validate-canonical-docs.mjs"
+    "validate:canonical-docs": "node scripts/validate-canonical-docs.mjs",
+    "db:local-credentials": "node scripts/set-local-app-password.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

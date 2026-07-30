@@ -47,11 +47,16 @@ jobs:
         timeout-minutes: 15
         run: supabase start
 
-      # Applies migrations 0001-0005 in order and loads supabase/seed.sql
+      # Applies the migration chain in order and loads supabase/seed.sql
       # (the AUTH_USER_A / AUTH_USER_B fixtures the RLS + integration suites
-      # depend on, and the dev-only aktflow_app_login password above).
+      # depend on; seed.sql no longer sets any credential).
       - name: supabase db reset
         run: supabase db reset
+
+      # Dev-only password for aktflow_app_login — set by a local-host-only
+      # script, never by seed.sql (see scripts/set-local-app-password.mjs).
+      - name: Set local app-role password (never via seed.sql)
+        run: pnpm db:local-credentials
 
       - run: pnpm turbo run typecheck
 
