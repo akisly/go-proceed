@@ -8,3 +8,4 @@ export * from "./import/xlsx-guard";
 export * from "./import/xlsx";
 export * from "./import/mapping";
 export * from "./import/validate";
+export * from "./import/version";

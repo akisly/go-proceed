@@ -1,23 +1,25 @@
 import type { SourceRow } from "./csv";
 
-/** Column mapping: values are spreadsheet column letters ("A".."ZZ"). */
+/** Column mapping: values are spreadsheet column letters ("A".."ZZ").
+ * Optional members allow explicit `undefined` so zod-inferred request types
+ * remain assignable under exactOptionalPropertyTypes. */
 export interface ColumnMapping {
-  sourceKey?: string;
-  workCode?: string;
+  sourceKey?: string | undefined;
+  workCode?: string | undefined;
   description: string;
-  section?: string;
+  section?: string | undefined;
   unit: string;
   quantity: string;
-  unitPrice?: string;
-  amount?: string;
-  location?: string;
-  externalRef?: string;
+  unitPrice?: string | undefined;
+  amount?: string | undefined;
+  location?: string | undefined;
+  externalRef?: string | undefined;
 }
 
 export interface ImportConfig {
   locale: "uk-UA" | "en-US";
   headerRow: number; // rows at or before this 1-based row are skipped (0 = none)
-  worksheet?: string;
+  worksheet?: string | undefined;
 }
 
 export interface MappedRow {

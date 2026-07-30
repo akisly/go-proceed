@@ -108,3 +108,100 @@ describe("import_batches.get", () => {
     expect(denied.status).toBe(404);
   });
 });
+
+const MAPPING = { description: "A", unit: "B", quantity: "C", unitPrice: "D" };
+
+async function validate(batchId: string, body: Record<string, unknown>) {
+  const { POST } = await import("../app/v1/import-batches/[batchId]/validate/route");
+  return POST(jsonReq(`http://x/v1/import-batches/${batchId}/validate`, body),
+    { params: Promise.resolve({ batchId }) });
+}
+
+describe("import_batches.validate", () => {
+  it("happy CSV → preview_ready with exact totals and auto-registered units", async () => {
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.csv", enc(CSV_OK));
+    const res = await validate(batchId, { mapping: MAPPING, config: { headerRow: 1 }, expectedVersion: 2 });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("preview_ready");
+    expect(body.rowCount).toBe(2);
+    expect(body.blockingCount).toBe(0);
+    // 10×199,99 + 5,5×150,00 = 199990 + 82500 = 282490 minor units net
+    expect(body.totals.netMinor).toBe("282490");
+    expect(body.sourceManifestHash).toMatch(/^[0-9a-f]{64}$/);
+    const units = await q<{ normalized_code: string }>(
+      "select normalized_code from public.unit_definitions where workspace_id=$1", [fx.workspaceId]);
+    expect(units.map((u) => u.normalized_code)).toEqual(["м2"]);
+  });
+
+  it("INV-054: amount mismatch beyond tolerance keeps the batch at validated", async () => {
+    const batchId = await createBatch(fx.contractId);
+    const csv = "Назва;Од;К-сть;Ціна;Сума\nМурування;м2;10;199,99;2 100,00\n";
+    await addFile(batchId, "кошторис.csv", enc(csv));
+    const res = await validate(batchId, {
+      mapping: { ...MAPPING, amount: "E" }, config: { headerRow: 1 }, expectedVersion: 2,
+    });
+    const body = await res.json();
+    expect(body.status).toBe("validated");
+    expect(body.needsResolutionCount).toBe(1);
+    expect(body.rowResults[0].severity).toBe("blocking");
+    expect(body.rowResults[0].errorCodes).toContain("AMOUNT_MISMATCH");
+  });
+
+  it("unknown unit without units.manage blocks with UNIT_UNKNOWN", async () => {
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.csv", enc(CSV_OK));
+    await grantTo(C, ["imports.manage"]); // C is role=member → no units.manage
+    current = C;
+    const res = await validate(batchId, { mapping: MAPPING, config: { headerRow: 1 }, expectedVersion: 2 });
+    const body = await res.json();
+    expect(body.status).toBe("validated");
+    expect(body.rowResults.every((r: { errorCodes: string[] }) => r.errorCodes.includes("UNIT_UNKNOWN"))).toBe(true);
+  });
+
+  it("XLSX with a formula cell surfaces inert FORMULA_CELL warning", async () => {
+    const ExcelJS = (await import("exceljs")).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Кошторис");
+    ws.addRow(["Назва", "Од", "К-сть", "Ціна"]);
+    ws.addRow(["Мурування", "м2", "10", "199,99"]);
+    ws.addRow(["Розрахунок", "м2", "5", { formula: "C2*2", result: 20 }]);
+    const bytes = new Uint8Array(await wb.xlsx.writeBuffer());
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.xlsx", bytes);
+    const res = await validate(batchId, { mapping: MAPPING, config: { headerRow: 1 }, expectedVersion: 2 });
+    const body = await res.json();
+    expect(body.status).toBe("preview_ready");
+    const formulaRow = body.rowResults.find((r: { errorCodes: string[] }) => r.errorCodes.includes("FORMULA_CELL"));
+    expect(formulaRow).toBeTruthy();
+    expect(formulaRow.severity).toBe("warning");
+  });
+
+  it("corrupted xlsx inner content → batch failed with named codes (HTTP 200)", async () => {
+    const bad = craftZip([{ name: "xl/workbook.xml", data: Buffer.from("<broken") }]);
+    const batchId = await createBatch(fx.contractId);
+    // craftZip output passes the container guard (no bomb/macros) but exceljs
+    // cannot load it → XLSX_MALFORMED at validate time.
+    const added = await addFile(batchId, "битий.xlsx", bad);
+    expect(added.status).toBe(201);
+    const res = await validate(batchId, { mapping: MAPPING, config: { headerRow: 1 }, expectedVersion: 2 });
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("failed");
+    expect(body.failureCodes).toContain("XLSX_MALFORMED");
+    expect(body.rowResults).toHaveLength(0);
+  });
+
+  it("stale expectedVersion → 409 VERSION_CONFLICT; files frozen after validate", async () => {
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.csv", enc(CSV_OK));
+    const stale = await validate(batchId, { mapping: MAPPING, config: { headerRow: 1 }, expectedVersion: 1 });
+    expect(stale.status).toBe(409);
+    expect((await stale.json()).code).toBe("VERSION_CONFLICT");
+    await validate(batchId, { mapping: MAPPING, config: { headerRow: 1 }, expectedVersion: 2 });
+    const late = await addFile(batchId, "пізній.csv", enc("a;b\n1;2\n"));
+    expect(late.status).toBe(409);
+    expect((await late.json()).code).toBe("IMPORT_JOB_CONFLICT");
+  });
+});
