@@ -11,7 +11,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "validate:canonical-docs": "node scripts/validate-canonical-docs.mjs",
-    "db:local-credentials": "node scripts/set-local-app-password.mjs"
+    "db:local-credentials": "node scripts/set-local-app-password.mjs",
+    "db:catalog-snapshot": "node scripts/snapshot-db-catalog.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
