@@ -1,0 +1,71 @@
+state_machine,from_state,to_state,trigger,guard_or_rule,source_document
+workspace.status,trial,active,activation command,workspace.manage capability,docs/architecture/data-model.md
+workspace.status,active,suspended,governance/operations suspension,authorized command with audit,docs/architecture/data-model.md
+workspace.status,suspended,active,reinstatement command,authorized command with audit,docs/architecture/data-model.md
+workspace.status,active,closing,manual closure procedure start,approved closure procedure incl export offer (EXTERNAL GATE),docs/architecture/files-and-storage.md
+workspace.status,closing,closed,closure completion,dry-run inventory and recorded outcome,docs/architecture/files-and-storage.md
+membership.status,active,suspended,suspension command,cannot suspend the last active owner (INV-017),docs/architecture/tenancy-and-security.md
+membership.status,suspended,active,reinstatement command,members.manage,docs/architecture/tenancy-and-security.md
+membership.status,active,ended,membership end command,cannot end the last active owner (INV-017),docs/architecture/tenancy-and-security.md
+invitation.status,pending,accepted,accept command,valid unexpired token verifier; single use,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
+invitation.status,pending,revoked,revoke command,members.manage,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
+invitation.status,pending,expired,expiry sweep,expires_at passed,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
+contract_version.status,draft,published,explicit publish command,imports.publish; discrepancies resolved (INV-054); party snapshots pinned,docs/domain/domain-model.md
+import_batch.status,created,parsing,validate command,files staged with verified integrity and scan,docs/architecture/files-and-storage.md
+import_batch.status,parsing,parsed,safe parse completes,resource limits held; formulas inert (INV-016),docs/architecture/files-and-storage.md
+import_batch.status,parsing,failed,parser limit/format failure,fail closed with named errors,docs/architecture/files-and-storage.md
+import_batch.status,parsed,mapping,mapping selection,mapping definition/version recorded,docs/architecture/files-and-storage.md
+import_batch.status,mapping,validated,row validation completes,per-row results recorded,docs/architecture/files-and-storage.md
+import_batch.status,validated,preview_ready,preview build,normalized preview persisted,docs/architecture/files-and-storage.md
+import_batch.status,preview_ready,published,explicit publish command,no blocking rows; tolerance respected or resolved (INV-054),docs/architecture/files-and-storage.md
+import_batch.status,preview_ready,abandoned,abandon command,imports.manage,docs/architecture/files-and-storage.md
+assignment.status,draft,active,activate command,assignments.manage,docs/domain/execution-and-evidence.md
+assignment.status,active,paused,pause command,assignments.manage,docs/domain/execution-and-evidence.md
+assignment.status,paused,active,resume command,assignments.manage,docs/domain/execution-and-evidence.md
+assignment.status,active,completed,complete command,assignments.manage,docs/domain/execution-and-evidence.md
+assignment.status,active,cancelled,cancel command,history retained; progress facts unaffected,docs/domain/execution-and-evidence.md
+upload_intent.status,intent_authorized,staged,bytes received on the intent-bound key,single staging attempt key; no overwrite (INV-045),docs/architecture/files-and-storage.md
+upload_intent.status,staged,integrity_verified,server verifies size and hash,server-observed values match the intent,docs/architecture/files-and-storage.md
+upload_intent.status,integrity_verified,scan_pending,inspection starts,pinned scanner/policy version,docs/architecture/files-and-storage.md
+upload_intent.status,scan_pending,available,finalization commits,authorization recheck passes; evidence identity + receipt atomic,docs/architecture/files-and-storage.md
+upload_intent.status,scan_pending,scan_blocked,inspection fails or errors,fail closed; restricted quarantine,docs/architecture/files-and-storage.md
+upload_intent.status,staged,orphaned_for_purge,authorization recheck fails,inaccessible; purged within 24h (INV-047),docs/architecture/files-and-storage.md
+upload_intent.status,integrity_verified,orphaned_for_purge,authorization recheck fails,inaccessible; purged within 24h (INV-047),docs/architecture/files-and-storage.md
+upload_intent.status,scan_pending,orphaned_for_purge,authorization recheck fails,inaccessible; purged within 24h (INV-047),docs/architecture/files-and-storage.md
+upload_intent.status,intent_authorized,expired,intent expiry,quota reservation released,docs/architecture/files-and-storage.md
+mobile_pending_original,not_sent,sending,create/replay upload intent,current server authorization at start,docs/domain/execution-and-evidence.md
+mobile_pending_original,sending,awaiting_receipt,bytes sent,whole-file upload without transformation,docs/domain/execution-and-evidence.md
+mobile_pending_original,awaiting_receipt,server_confirmed,available receipt persisted,receipt content identity/size/hash match (INV-013),docs/domain/execution-and-evidence.md
+mobile_pending_original,awaiting_receipt,failed,no final receipt or integrity error,original retained; retry offered,docs/domain/execution-and-evidence.md
+mobile_pending_original,sending,failed,connection/server/integrity error,original retained,docs/domain/execution-and-evidence.md
+mobile_pending_original,failed,sending,retry same whole upload,idempotent replay of the same intent,docs/domain/execution-and-evidence.md
+mobile_pending_original,not_sent,quarantined,logout/revocation/account switch,encrypted and hidden; never silent delete (INV-053),docs/domain/execution-and-evidence.md
+mobile_pending_original,sending,quarantined,abort on logout/revocation,encrypted and hidden (INV-053),docs/domain/execution-and-evidence.md
+mobile_pending_original,failed,quarantined,logout/revocation/account switch,encrypted and hidden (INV-053),docs/domain/execution-and-evidence.md
+mobile_pending_original,awaiting_receipt,quarantined,authorization fails,encrypted and hidden (INV-053),docs/domain/execution-and-evidence.md
+mobile_pending_original,quarantined,not_sent,same identity reauthorized,same subject and same workspace only,docs/domain/execution-and-evidence.md
+mobile_pending_original,quarantined,discarded,explicit warned deletion,audit-safe non-content metadata retained,docs/domain/execution-and-evidence.md
+mobile_pending_original,quarantined,expired_purged,seven-day expiry after warning,fixed quarantine bound,docs/architecture/files-and-storage.md
+mobile_pending_original,not_sent,discarded,explicit user discard,warned deletion,docs/domain/execution-and-evidence.md
+mobile_pending_original,failed,discarded,explicit user discard,warned deletion,docs/domain/execution-and-evidence.md
+package_version.status,draft,frozen,freeze command,all sources validated; segment approval coverage (INV-034); stale-source conflict otherwise,docs/domain/packages-and-acceptance.md
+package_scope_head.head_state,current_prepared,active_for_review,submission via head transaction,epoch incremented; grants scoped to the exact version,docs/domain/packages-and-acceptance.md
+package_scope_head.head_state,active_for_review,current_prepared,successor installed by head advance,old grants/sessions revoked; unaccepted allocations released (INV-026/INV-041),docs/domain/packages-and-acceptance.md
+claim_segment.lineage,pending_leaf,partitioned,partial decision partition,one transaction; children reconcile; coverage propagates (INV-004/INV-006),docs/domain/packages-and-acceptance.md
+external_grant.status,active,revoked,revoke or reissue command,all sessions invalidated (INV-009),docs/architecture/tenancy-and-security.md
+external_grant.status,active,expired,7-day expiry or package supersession,fail closed,docs/architecture/tenancy-and-security.md
+external_grant.status,active,superseded,reissue lineage,new grant references replaced grant,docs/architecture/tenancy-and-security.md
+external_session.status,active,expired,30m idle or 12h absolute TTL,server-side verifier check,docs/architecture/tenancy-and-security.md
+external_session.status,active,revoked,grant revocation or epoch advance,checked under the same review epoch as decisions (INV-041),docs/architecture/tenancy-and-security.md
+job.status,queued,running,worker claims lease,FOR UPDATE SKIP LOCKED claim; fence issued (INV-050),docs/architecture/jobs-events-and-audit.md
+job.status,running,succeeded,attempt succeeds,idempotent effect identity satisfied (INV-049),docs/architecture/jobs-events-and-audit.md
+job.status,running,retry_wait,retryable failure,backed-off available_at stored,docs/architecture/jobs-events-and-audit.md
+job.status,retry_wait,queued,available_at reached,retry policy version pinned,docs/architecture/jobs-events-and-audit.md
+job.status,running,dead_letter,permanent failure or exhaustion,append dead letter; alert; explicit replay only,docs/architecture/jobs-events-and-audit.md
+job.status,retry_wait,dead_letter,max attempts or age exceeded,append dead letter,docs/architecture/jobs-events-and-audit.md
+job.status,queued,cancelled,authorized cancel,only where the domain contract defines safe cancellation,docs/architecture/jobs-events-and-audit.md
+notification.status,created,seen,recipient views,recipient identity only,docs/architecture/jobs-events-and-audit.md
+notification.status,seen,dismissed,recipient dismisses,recipient identity only,docs/architecture/jobs-events-and-audit.md
+message_delivery.status,requested,provider_accepted,provider accepts request,normalized provider result,docs/architecture/jobs-events-and-audit.md
+message_delivery.status,requested,failed,provider failure classified,bounded error class,docs/architecture/jobs-events-and-audit.md
+message_delivery.status,requested,ambiguous,timeout/lost response,reconcile via provider idempotency before any new generation,docs/architecture/jobs-events-and-audit.md

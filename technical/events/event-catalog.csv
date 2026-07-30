@@ -1,0 +1,32 @@
+event,kind,payload_version,aggregate,idempotency_effect_key,producer,consumers,milestone
+workspace.created,domain_event,1,workspace,consumer + outbox_event_id + effect_kind,bff.workspaces.create,notification_creator,v0.1-M1
+invitation.issued,domain_event,1,workspace,notification: recipient + kind + source fact,bff.invitations.create,notification_creator email_delivery,v0.1-M1
+invitation.accepted,domain_event,1,workspace,consumer + outbox_event_id + effect_kind,bff.invitations.accept,notification_creator,v0.1-M1
+project.created,domain_event,1,project,consumer + outbox_event_id + effect_kind,bff.projects.create,projection_rebuilder,v0.1-M1
+contract.created,domain_event,1,contract,consumer + outbox_event_id + effect_kind,bff.contracts.create,projection_rebuilder,v0.1-M1
+contract_version.published,domain_event,1,contract_version,projection: kind + watermark + algorithm + scope,bff.import_batches.publish,projection_rebuilder notification_creator,v0.1-M1
+work_assignment.created,domain_event,1,work_assignment,consumer + outbox_event_id + effect_kind,bff.assignments.create,notification_creator,v0.1-M2
+progress_entry.recorded,domain_event,1,progress_entry,projection: kind + watermark + algorithm + scope,bff.progress.record,projection_rebuilder,v0.1-M2
+progress_adjustment.recorded,domain_event,1,progress_entry,projection: kind + watermark + algorithm + scope,bff.progress.adjust,projection_rebuilder,v0.1-M2
+evidence.available,domain_event,1,evidence_object,inspection: upload_intent + content_hash + policy_version,bff.upload_intents.finalize,projection_rebuilder notification_creator,v0.1-M2
+evidence.scan_blocked,domain_event,1,upload_intent,inspection: upload_intent + content_hash + policy_version,worker.evidence_inspector,notification_creator,v0.1-M2
+upload_intent.orphaned,domain_event,1,upload_intent,purge: storage_object + purge_policy_generation,bff.upload_intents.finalize,worker.orphan_purge,v0.1-M2
+storage_orphan.purged,domain_event,1,upload_intent,purge: storage_object + purge_policy_generation,worker.orphan_purge,operations_alerting,v0.1-M2
+requirement_occurrence.created,domain_event,1,requirement_occurrence,consumer + outbox_event_id + effect_kind,bff.requirement_occurrences.create,projection_rebuilder,v0.1-M3
+requirement_exception.recorded,domain_event,1,requirement_occurrence,consumer + outbox_event_id + effect_kind,bff.requirement_exceptions.create,projection_rebuilder,v0.1-M3
+internal_review.decided,domain_event,1,review_target_set,projection: kind + watermark + algorithm + scope,bff.internal_reviews.decide,projection_rebuilder notification_creator,v0.1-M3
+package_version.frozen,domain_event,1,package_version,artifact: version + kind + renderer + config,bff.package_versions.freeze,worker.artifact_renderer projection_rebuilder,v0.1-M4
+package_artifact.rendered,domain_event,1,package_artifact,artifact: version + kind + renderer + config,worker.artifact_renderer,notification_creator,v0.1-M4
+package_head.advanced,domain_event,1,package_scope_head,projection: kind + watermark + algorithm + scope,bff.packages.head_advance,projection_rebuilder notification_creator,v0.1-M4
+package.submitted,domain_event,1,package_version,consumer + outbox_event_id + effect_kind,bff.package_submissions.create,projection_rebuilder notification_creator,v0.1-M5
+external_grant.issued,domain_event,1,external_access_grant,token-free; delivery is the one-time post-commit protocol (INV-044),bff.external_grants.issue,notification_creator,v0.1-M5
+external_grant.revoked,domain_event,1,external_access_grant,consumer + outbox_event_id + effect_kind,bff.external_grants.revoke_reissue,notification_creator,v0.1-M5
+delivery_attention.raised,domain_event,1,external_access_grant,notification: recipient + kind + source fact,bff.external_grants.issue,notification_creator operations_alerting,v0.1-M5
+external_decision_batch.recorded,domain_event,1,external_decision_batch,projection: kind + watermark + algorithm + scope,bff.external.decisions_submit,projection_rebuilder notification_creator,v0.1-M5
+prior_acceptance.referenced,domain_event,1,package_version,consumer + outbox_event_id + effect_kind,bff.package_versions.freeze,projection_rebuilder,v0.1-M5
+audit.member_command,audit_action,1,per-command target,append-only audit row per command,bff,none (accountability evidence only),v0.0
+audit.external_command,audit_action,1,per-command target,append-only audit row with grant/session identity,bff.external_plane,none (accountability evidence only),v0.1-M5
+audit.service_command,audit_action,1,per-job target,append-only audit row with service principal + causation,workers,none (accountability evidence only),v0.0
+audit.security_signal,audit_action,1,security scope,append-only signal without sensitive row contents,bff workers,operations_alerting,v0.1-M5
+delivery.notification_email,delivery_topic,1,notification,delivery: notification + channel + generation,worker.notification_deliver,email_provider_adapter,v0.0
+delivery.protected_link_email,delivery_topic,1,external_access_grant,one-time in-memory post-commit send; NEVER outbox/job (INV-044),bff.external_grants.issue,email_provider_adapter,v0.1-M5
