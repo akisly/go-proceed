@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { getPool } from "./pool";
+import { getPool, getServicePool } from "./pool";
 
 export interface TenantContext {
   actorUserId: string;
@@ -9,14 +9,15 @@ export interface TenantContext {
 }
 export interface Tx { query: PoolClient["query"] }
 
-export async function withTenantTx<T>(
+async function runTx<T>(
+  pool: ReturnType<typeof getPool>, role: string,
   ctx: TenantContext, fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  const client = await getPool().connect();
+  const client = await pool.connect();
   let released = false;
   try {
     await client.query("begin");
-    await client.query("set local role aktflow_app");
+    await client.query(`set local role ${role}`);
     await client.query("select set_config('app.actor_user_id', $1, true)", [ctx.actorUserId]);
     await client.query("select set_config('app.organization_id', $1, true)", [ctx.organizationId ?? ""]);
     await client.query("select set_config('app.request_id', $1, true)", [ctx.requestId]);
@@ -36,4 +37,28 @@ export async function withTenantTx<T>(
   } finally {
     if (!released) client.release(); // GUCs are transaction-local; nothing leaks to the pooled connection
   }
+}
+
+export async function withTenantTx<T>(
+  ctx: TenantContext, fn: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  return runTx(getPool(), "aktflow_app", ctx, fn);
+}
+
+/**
+ * A transaction on the server's own connection.
+ *
+ * Same shape as withTenantTx, and it still carries the actor GUC: this is the
+ * server acting ON BEHALF OF a member, so ownership and capability checks keep
+ * working exactly as they did. The service principal authorizes nothing by
+ * itself; it only vouches for what the server observed.
+ *
+ * Use it for writes made AFTER the server has looked at the bytes. Reads and
+ * authorization stay on withTenantTx, so an ordinary request never touches this
+ * connection.
+ */
+export async function withServiceTx<T>(
+  ctx: TenantContext, fn: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  return runTx(getServicePool(), "aktflow_service", ctx, fn);
 }

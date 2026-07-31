@@ -5,7 +5,7 @@ import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   finalizeUploadIntentRequest, type FinalizeUploadIntentResponse,
 } from "@aktflow/contracts";
-import { withTenantTx, recordAudit, enqueueOutbox } from "@aktflow/database";
+import { withTenantTx, withServiceTx, recordAudit, enqueueOutbox } from "@aktflow/database";
 import {
   STORAGE_PROVIDER, downloadObject, objectSize,
 } from "../../../../../src/lib/evidence-storage";
@@ -51,7 +51,7 @@ async function recordFailure(
   ctx: { actorUserId: string; organizationId: string | null; requestId: string },
   intent: IntentRow, intentId: string, failureCode: string,
 ): Promise<void> {
-  await withTenantTx(ctx, async (tx) => {
+  await withServiceTx(ctx, async (tx) => {
     const r = await tx.query<{ applied: boolean }>(
       "select app.fail_upload_intent($1,$2,$3) as applied",
       [intent.workspace_id, intentId, failureCode]);
@@ -217,7 +217,7 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
   const inspection = await inspectContent(bytes, intent.claimed_media_type);
 
   if (inspection.outcome === "blocked") {
-    const blocked = await withTenantTx(ctx, async (tx) => {
+    const blocked = await withServiceTx(ctx, async (tx) => {
       // Through the definer (0028): blocked_at is not the member's to write,
       // and the transition is conditional so a concurrent expiry or purge claim
       // is not overwritten with a fresh retention clock.
@@ -253,10 +253,14 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
       { requestId: a.requestId, retryable: false, userAction: "recapture_or_contact_support" }));
   }
 
-  // INV-047: authorization is rechecked at the moment evidence is created, not
-  // only when the upload was authorized. Bytes may have been in flight for
-  // hours.
-  const result = await withTenantTx<FinalizeResult>(ctx, async (tx) => {
+    // On the SERVICE connection (migration 0034). Everything from here down
+    // records what the server concluded after reading the bytes, and a write
+    // that speaks for the server has to come from the server's own identity —
+    // otherwise the column says "server" because the caller typed it.
+    //
+    // The boundary is the moment, not the statement list: the next write added
+    // to this path is on the right side of it by default.
+  const result = await withServiceTx<FinalizeResult>(ctx, async (tx) => {
     // One command (migrations 0029, 0031, 0032). Evidence cannot be assembled
     // by the caller: the app role holds no insert on evidence_objects and no
     // update on upload_intents at all. Provenance comes from the intent, the

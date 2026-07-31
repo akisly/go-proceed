@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withTenantTx } from "./tx";
+import { withTenantTx, withServiceTx } from "./tx";
 import { recordAudit } from "./audit";
 import { enqueueOutbox } from "./outbox";
 import { Client } from "pg";
@@ -44,5 +44,33 @@ describe("withTenantTx", () => {
       throw new Error("boom");
     })).rejects.toThrow("boom");
     expect(await count("select count(*) n from public.organizations where id=$1", [orgId])).toBe(0);
+  });
+});
+
+describe("withServiceTx", () => {
+  it("runs as the service role while keeping the login as session_user", async () => {
+    // session_user staying the login is not incidental: it is the only reason
+    // a SECURITY DEFINER function can ask who connected, which is what
+    // migration 0035 depends on.
+    const seen = await withServiceTx(
+      { actorUserId: A, organizationId: null, requestId: "req-service" },
+      async (tx) => {
+        const r = await tx.query<{ cu: string; su: string }>(
+          "select current_user as cu, session_user as su");
+        return r.rows[0]!;
+      });
+    expect(seen.cu).toBe("aktflow_service");
+    expect(seen.su).toBe("aktflow_service_login");
+  });
+
+  it("still carries the actor, because the server acts on a member's behalf", async () => {
+    const seen = await withServiceTx(
+      { actorUserId: A, organizationId: null, requestId: "req-service" },
+      async (tx) => {
+        const r = await tx.query<{ actor: string }>(
+          "select current_setting('app.actor_user_id', true) as actor");
+        return r.rows[0]!;
+      });
+    expect(seen.actor).toBe(A);
   });
 });
