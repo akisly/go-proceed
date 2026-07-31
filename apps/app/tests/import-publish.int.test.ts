@@ -238,3 +238,33 @@ describe("zero-priced rows publish", () => {
     expect(rows[0]!.unit_price_decimal).toBeNull();
   });
 });
+
+describe("publish idempotency retention", () => {
+  it("keeps the publish record for the audit window, not thirty days", async () => {
+    // Publishing fixes the money pool every later exposure slice is carved
+    // from, so the record has to stay replayable for the audit retention
+    // window. TODOS.md carried the 30-day default as a deferred finding.
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.csv", enc(CSV_V1));
+    await validate(batchId, 2);
+    const view = await (await getBatch(batchId)).json();
+    const mismatch = view.rowResults.find(
+      (r: { errorCodes: string[] }) => r.errorCodes.includes("AMOUNT_MISMATCH"));
+    await resolve(batchId, {
+      rowResultId: mismatch.rowResultId, chosenBasis: "approved_source_amount",
+      reason: "Приклад-обґрунтування",
+    });
+    const resolved = await (await getBatch(batchId)).json();
+    await validate(batchId, resolved.version);
+    const ready = await (await getBatch(batchId)).json();
+    const res = await publish(batchId, ready.version, ready.sourceManifestHash);
+    expect(res.status, await res.clone().text()).toBe(201);
+
+    const rows = await q<{ expires_at: string; created_at: string }>(
+      `select expires_at::text, created_at::text from public.idempotency_records
+        where operation_id = 'import_batches.publish'`);
+    const days = (new Date(rows[0]!.expires_at).getTime()
+      - new Date(rows[0]!.created_at).getTime()) / 86_400_000;
+    expect(Math.round(days)).toBe(400);
+  });
+});

@@ -40,6 +40,10 @@ export const POST = commandRoute(publishImportBatchRequest, async (a) => {
     return withIdempotency<PublishImportBatchResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "import_batches.publish", key: a.idempotencyKey, requestHash: a.requestHash,
+      // Publishing a contract version is the ledger event of v0.1-M1: it fixes
+      // the money pool every later exposure slice is carved from. It shipped on
+      // the 30-day default, which TODOS.md carried as a deferred finding.
+      idempotencyClass: "ledger_400d",
     }, async () => {
       const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
       await requireProjectCapability(tx, a.requestId,

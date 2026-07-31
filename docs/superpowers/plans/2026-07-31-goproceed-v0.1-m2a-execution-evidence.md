@@ -2270,10 +2270,14 @@ start until D1, D2, D4, and D5 are decided.
 | D9 | Task 9's bucket renumbered to `0020`, Task 13's purge to `0021`. | plan text above |
 | D3 | One private bucket with an immutable key issued at intent time; the promotion step is deleted, not journalled. A second bucket would not carry retention either, since "delete if no evidence row after 24 hours" is a domain-state rule bucket lifecycle cannot express. | `0020`, `evidence-storage.ts` |
 
+| D4 | Purge gets its own queue and worker, not the outbox: `drain_outbox` marks every claimed row processed with no dispatch, and purge needs its own retry budget and failure queue anyway. | `0021`, `evidence-purge.ts` |
+| D7 | Inspection sniffs magic bytes and requires them to agree with the authorized type. Recording `passed` after re-reading the client's own MIME string was false provenance. | `evidence-inspection.ts` |
+| D8 | The idempotency record holds the intent identity and key only; the upload grant is minted per call, replays included. | `upload-intents/route.ts` |
+| D10 | Template versioning takes an advisory lock; assignment creation requires the work item's version to be the contract's current published one. | Tasks 5 and 6 |
+| Codex sequencing | Task 14 gained the work-item-lock test the plan omitted: parallel `progress.record` under DIFFERENT idempotency keys. | `concurrency.int.test.ts` |
+
 **UNRESOLVED DECISIONS:**
-- D4 — `drain_outbox` marks every claimed row processed with no topic dispatch, so purge needs either dispatch in the drainer or its own runner. Belongs to Task 13, which is not built.
-- D7 — the inspection stub records `inspection_status = 'passed'` after only re-checking the client-claimed MIME string; add magic-byte sniffing and quota, or stop recording `passed`. Belongs to Task 11.
-- D8 — upload retry semantics: a signed URL inside a 30-day idempotency response, no transition to `staged`, no new-attempt path after an integrity failure. Belongs to Task 10.
-- D10 — `max(version_no)+1` without serialization in Task 5; Task 6's work-item query accepts any version of the contract despite claiming to pin the current published one.
-- A4, C1, C2, P1, P2 — the five lower-severity items above.
-- Task 14 must add the work-item-lock test: parallel `progress.record` under *different* idempotency keys.
+- A4 — `va_insert` accepts either progress capability, so `progress.record` alone can write an adjustment's allocation. The policy cannot tell the two apart without reading the entry, and the route writes both; left as a known weakening of the second layer.
+- C1 — `m2-schema.test.ts` still builds its world inline rather than through `m2-fixture.ts`. Deliberate: it tests DDL and should not depend on a helper that depends on that DDL.
+- C2 — no ASCII diagrams in the new code. Three places earn one: the `progress_entries` lineage discriminator, the `upload_intents` state machine, the per-root allocation.
+- P1/P2 (performance) — `pah_select` runs a correlated subquery per row, and `progress.record` sums all entries for the work item on every insert. Both are O(n) under a lock that is already held; measure before optimising.
