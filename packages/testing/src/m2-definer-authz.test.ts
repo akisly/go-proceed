@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { Client } from "pg";
 import { adminClient } from "./pg";
-import { seedM2World, grantM2Capabilities, seedAssignment, type M2Fixture } from "./m2-fixture";
+import { seedM2World, grantM2Capabilities, seedAssignment, type M2Fixture , dropM2Workspaces } from "./m2-fixture";
 
 // The SECURITY DEFINER functions added by 0016 bypass RLS by definition. M1's
 // definers are safe because each one resolves the actor itself — 0011:11 says
@@ -36,7 +36,7 @@ async function asMemberB<T>(fn: (cl: Client) => Promise<T>): Promise<T> {
 
 beforeAll(async () => {
   c = await adminClient();
-  await c.query("truncate public.organizations cascade");
+  await dropM2Workspaces(c, [WS_A, WS_B]);
   a = await seedM2World(c, { workspaceId: WS_A, userId: USER_A, email: "a@example.test", suffix: "A" });
   await seedM2World(c, { workspaceId: WS_B, userId: USER_B, email: "b@example.test", suffix: "B" });
   await grantM2Capabilities(c, a);
@@ -51,7 +51,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await c.query("truncate public.organizations cascade");
+  await dropM2Workspaces(c, [WS_A, WS_B]);
   await c.end();
 });
 

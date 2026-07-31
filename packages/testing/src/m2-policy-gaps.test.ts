@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
 import { adminClient, asActor } from "./pg";
-import { seedM2World, grantM2Capabilities, seedAssignment, type M2Fixture } from "./m2-fixture";
+import { seedM2World, grantM2Capabilities, seedAssignment, type M2Fixture , dropM2Workspaces } from "./m2-fixture";
 
 // Coverage gaps the engineering review found in 0016's policies. Both are about
 // write paths that the first RLS suite never exercised.
@@ -16,7 +16,7 @@ let rootId: string;
 
 beforeAll(async () => {
   c = await adminClient();
-  await c.query("truncate public.organizations cascade");
+  await dropM2Workspaces(c, [WS]);
   f = await seedM2World(c, { workspaceId: WS, userId: USER, email: "c@example.test", suffix: "C" });
   await grantM2Capabilities(c, f);
   assignmentId = await seedAssignment(c, f);
@@ -30,7 +30,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await c.query("truncate public.organizations cascade");
+  await dropM2Workspaces(c, [WS]);
   await c.end();
 });
 

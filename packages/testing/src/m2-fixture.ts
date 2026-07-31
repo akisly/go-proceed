@@ -45,15 +45,17 @@ export async function seedM2World(c: Client, o: SeedOptions): Promise<M2Fixture>
   const gross = net + tax;
   const contractQuantity = o.contractQuantity ?? "100";
 
-  // auth.users survives `truncate public.organizations cascade`, and its email
-  // uniqueness is partial, so a leftover row under a different id collides.
-  await c.query(`delete from auth.users where email = $1 and id <> $2`, [o.email, o.userId]);
+  // auth.users outlives a scoped workspace cleanup, and its email uniqueness is
+  // partial. Deleting a colliding row is not an option — other suites' memberships
+  // may still reference it — so the address is derived from the id and cannot
+  // collide in the first place. SeedOptions.email stays for readability at the
+  // call site; it is not what lands in the row.
   await c.query(
     `insert into auth.users (id, instance_id, aud, role, email,
                              encrypted_password, created_at, updated_at)
      values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated',
              'authenticated', $2, '', now(), now())
-     on conflict (id) do nothing`, [o.userId, o.email]);
+     on conflict (id) do nothing`, [o.userId, `${o.userId}@fixture.test`]);
   await c.query(
     `insert into public.organizations (id, legal_name, display_name)
      values ($1, $2, $2)`, [o.workspaceId, `Приклад-Простір-${o.suffix}`]);
@@ -175,4 +177,57 @@ export async function seedAssignment(c: Client, f: M2Fixture): Promise<string> {
     [f.workspaceId, f.projectId, f.contractId, f.contractVersionId,
      f.workItemId, f.memberId]);
   return r.rows[0].id;
+}
+
+/**
+ * Removes only the workspaces a suite owns, in dependency order.
+ *
+ * A blanket `truncate public.organizations cascade` also destroys state other
+ * suites depend on — it left packages/testing/src/foundation.test.ts failing
+ * five assertions until this was scoped. A test that corrupts the shared
+ * database for its neighbours is worse than a missing test.
+ */
+export async function dropM2Workspaces(c: Client, workspaceIds: readonly string[]): Promise<void> {
+  const ids = [...workspaceIds];
+
+  // The M2 module tables carry append-only triggers, so DELETE is refused even
+  // for the table owner — correctly, that is the whole point of 0016. TRUNCATE
+  // bypasses row triggers, which is why the M1 fixtures reach for it too. These
+  // eight tables are written only by the M2 suites, so clearing them wholesale
+  // is safe; the M1 tables below are shared and get scoped deletes instead.
+  await c.query(`truncate
+    public.capture_events, public.evidence_objects, public.upload_intents,
+    public.valuation_allocations, public.progress_allocation_heads,
+    public.progress_entries, public.work_assignments,
+    public.requirement_template_versions cascade`);
+
+  const tables = [
+    "work_items", "contract_versions", "import_row_results", "import_files",
+    "import_batches", "source_amount_resolutions", "contracts",
+    "project_responsibility_assignments", "project_access_grants",
+    "project_parties", "projects", "locations", "unit_definitions",
+    "own_legal_entity_profiles", "party_legal_profiles", "party_contacts",
+    "parties", "invitations", "memberships",
+    "audit_events", "transaction_outbox",
+  ];
+  // Resolve the tenant column from the catalog rather than guessing: some M1
+  // tables name it organization_id, and a guess-then-catch loop turns a missing
+  // column into an unrelated failure three suites downstream.
+  const cols = await c.query<{ table_name: string; column_name: string }>(
+    `select table_name, column_name from information_schema.columns
+      where table_schema = 'public' and table_name = any($1::text[])
+        and column_name in ('workspace_id','organization_id')`, [tables]);
+  const tenantColumn = new Map(cols.rows.map((r) => [r.table_name, r.column_name]));
+
+  for (const table of tables) {
+    const col = tenantColumn.get(table);
+    if (!col) continue;
+    await c.query(
+      `alter table public.${table} disable trigger user`).catch(() => undefined);
+    await c.query(`delete from public.${table} where ${col} = any($1::uuid[])`, [ids])
+      .finally(async () => {
+        await c.query(`alter table public.${table} enable trigger user`).catch(() => undefined);
+      });
+  }
+  await c.query(`delete from public.organizations where id = any($1::uuid[])`, [ids]);
 }

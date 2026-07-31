@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { adminClient } from "./pg";
+import { dropM2Workspaces } from "./m2-fixture";
 import type { Client } from "pg";
 
 // Structural assertions, not existence checks: a table that exists with the
@@ -106,7 +107,7 @@ describe("0015 INV-023 enforcement is the database's, not a route's", () => {
 
   beforeAll(async () => {
     // Direct inserts: this file tests DDL, so it bypasses routes and RLS.
-    await c.query(`truncate public.organizations cascade`);
+    await dropM2Workspaces(c, [ws]);
     await c.query(
       `insert into auth.users (id, instance_id, aud, role, email,
                                encrypted_password, created_at, updated_at)
@@ -208,7 +209,7 @@ describe("0015 INV-023 enforcement is the database's, not a route's", () => {
   });
 
   afterAll(async () => {
-    await c.query(`truncate public.organizations cascade`);
+    await dropM2Workspaces(c, [ws]);
   });
 
   it("accepts an adjustment on a root", () => {

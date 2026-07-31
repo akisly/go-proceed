@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
 import { adminClient, asActor } from "./pg";
-import { seedM2World, grantM2Capabilities, seedAssignment, type M2Fixture } from "./m2-fixture";
+import { seedM2World, grantM2Capabilities, seedAssignment, type M2Fixture , dropM2Workspaces } from "./m2-fixture";
 
 // 0016 must make the database a real second layer. Migration 0014 exists because
 // M1's write policies asked only "is the actor an active member?", so a
@@ -22,7 +22,7 @@ let rootEntryA: string;
 
 beforeAll(async () => {
   c = await adminClient();
-  await c.query("truncate public.organizations cascade");
+  await dropM2Workspaces(c, [WS_A, WS_B]);
 
   a = await seedM2World(c, { workspaceId: WS_A, userId: USER_A, email: "a@example.test", suffix: "A" });
   b = await seedM2World(c, { workspaceId: WS_B, userId: USER_B, email: "b@example.test", suffix: "B" });
@@ -51,7 +51,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await c.query("truncate public.organizations cascade");
+  await dropM2Workspaces(c, [WS_A, WS_B]);
   await c.end();
 });
 
