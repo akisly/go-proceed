@@ -5,8 +5,8 @@ import {
   seedM2World, grantM2Capabilities, seedAssignment, dropM2Workspaces, type M2Fixture,
 } from "./m2-fixture";
 
-// Migration 0023. Each test attempts the exact write the hardening exists to
-// stop; a green suite that never tries the attack proves nothing.
+// Migrations 0023 and 0025. Each test attempts the exact write the hardening
+// exists to stop; a green suite that never tries the attack proves nothing.
 
 const WS_A = "eeee1111-1111-1111-1111-111111111111";
 const WS_B = "eeee2222-2222-2222-2222-222222222222";
@@ -224,5 +224,103 @@ describe("upload intent identity is not writable", () => {
     const after = await c.query(
       `select status from public.upload_intents where id = $1`, [mine.rows[0].id]);
     expect(after.rows[0].status).toBe("intent_authorized");
+  });
+});
+
+describe("a valuation allocation is bound to the fact it values", () => {
+  let rootA: string;
+  let adjustmentA: string;
+
+  beforeAll(async () => {
+    const r = await c.query(
+      `insert into public.progress_entries
+         (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+          quantity, recorded_by_member_id)
+       values ($1,$2,$3,$4,'root',7,$5) returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.workItemId, a.memberId]);
+    rootA = r.rows[0].id;
+
+    const adj = await c.query(
+      `insert into public.progress_entries
+         (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+          quantity, root_progress_entry_id, root_is_root, reason_code,
+          recorded_by_member_id)
+       values ($1,$2,$3,$4,'adjustment',-2,$5,true,'measurement_error',$6)
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.workItemId, rootA, a.memberId]);
+    adjustmentA = adj.rows[0].id;
+  });
+
+  const insertAllocation = (over: Record<string, unknown>) => {
+    const v: Record<string, unknown> = {
+      workspace_id: a.workspaceId, project_id: a.projectId, contract_id: a.contractId,
+      work_item_id: a.workItemId, progress_entry_id: rootA, root_progress_entry_id: rootA,
+      lineage_key: `probe:${crypto.randomUUID()}`, quantity: 7, funded_quantity: 7,
+      net_minor_units: 100, tax_minor_units: 20, gross_minor_units: 120, ...over,
+    };
+    const cols = Object.keys(v);
+    return c.query(
+      `insert into public.valuation_allocations (${cols.join(",")})
+       values (${cols.map((_, i) => `$${i + 1}`).join(",")})`,
+      cols.map((k) => v[k]));
+  };
+
+  it("rejects a quantity that disagrees with the progress fact", async () => {
+    // The whole point: an allocation that valued a different amount of work
+    // than the fact records used to be writable, and the append-only trigger
+    // then made it permanent.
+    expect(await sqlstate(() => insertAllocation({ quantity: 99 }))).toBe("23503");
+  });
+
+  it("rejects a work item the progress entry does not belong to", async () => {
+    expect(await sqlstate(() => insertAllocation({ work_item_id: b.workItemId })))
+      .toBeTruthy();
+  });
+
+  it("rejects a root reference that points at an adjustment", async () => {
+    expect(await sqlstate(() => insertAllocation({ root_progress_entry_id: adjustmentA })))
+      .toBe("23503");
+  });
+
+  it("rejects funded quantity larger than the slice", async () => {
+    expect(await sqlstate(() => insertAllocation({
+      progress_entry_id: adjustmentA, root_progress_entry_id: rootA,
+      quantity: -2, funded_quantity: -5,
+    }))).toBe("23514");
+  });
+
+  it("rejects funded quantity with the wrong sign", async () => {
+    expect(await sqlstate(() => insertAllocation({
+      progress_entry_id: adjustmentA, root_progress_entry_id: rootA,
+      quantity: -2, funded_quantity: 2,
+    }))).toBe("23514");
+  });
+
+  it("accepts an allocation that matches its fact exactly", async () => {
+    expect(await sqlstate(() => insertAllocation({}))).toBeNull();
+  });
+
+  it("requires progress.adjust to value an adjustment, not progress.record", async () => {
+    await c.query(
+      `update public.project_access_grants set revoked_at = now()
+        where workspace_id = $1 and member_id = $2 and capability = 'progress.adjust'`,
+      [a.workspaceId, a.memberId]);
+    try {
+      const code = await sqlstate(() => asActor(USER_A, WS_A, (cl) => cl.query(
+        `insert into public.valuation_allocations
+           (workspace_id, project_id, contract_id, work_item_id, progress_entry_id,
+            root_progress_entry_id, lineage_key, quantity, funded_quantity,
+            net_minor_units, tax_minor_units, gross_minor_units)
+         values ($1,$2,$3,$4,$5,$6,$7,-2,-2,-10,-2,-12)`,
+        [a.workspaceId, a.projectId, a.contractId, a.workItemId, adjustmentA, rootA,
+         `probe:${crypto.randomUUID()}`])));
+      // 42501: the policy refused, because progress.record does not authorize
+      // valuing an adjustment.
+      expect(code).toBe("42501");
+    } finally {
+      await c.query(
+        `update public.project_access_grants set revoked_at = null
+          where workspace_id = $1 and member_id = $2`, [a.workspaceId, a.memberId]);
+    }
   });
 });
