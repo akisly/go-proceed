@@ -2267,10 +2267,10 @@ start until D1, D2, D4, and D5 are decided.
 | D2 | Column-scoped UPDATE grant on `upload_intents`; the orphan transition moves to `app.orphan_upload_intent`, which authorizes on intent ownership rather than the capability revocation just removed. | `0019` |
 | D5 | Foreign key widened to `(workspace_id, work_assignment_id, work_item_id, root_progress_entry_id, root_is_root)`, with a behavioural test asserting 23503 on a cross-assignment adjustment. | `0019` |
 | D6 | `unique (storage_bucket, storage_key)` and `unique (staging_bucket, staging_storage_key)`. | `0019` |
-| D9 | Task 9's buckets renumbered to `0020`, Task 13's purge to `0021`. | plan text above |
+| D9 | Task 9's bucket renumbered to `0020`, Task 13's purge to `0021`. | plan text above |
+| D3 | One private bucket with an immutable key issued at intent time; the promotion step is deleted, not journalled. A second bucket would not carry retention either, since "delete if no evidence row after 24 hours" is a domain-state rule bucket lifecycle cannot express. | `0020`, `evidence-storage.ts` |
 
 **UNRESOLVED DECISIONS:**
-- D3 — storage promotion is not atomic; choose an immutable key with visibility controlled in PostgreSQL, or an explicit promotion journal. Belongs to Task 11, which is not built.
 - D4 — `drain_outbox` marks every claimed row processed with no topic dispatch, so purge needs either dispatch in the drainer or its own runner. Belongs to Task 13, which is not built.
 - D7 — the inspection stub records `inspection_status = 'passed'` after only re-checking the client-claimed MIME string; add magic-byte sniffing and quota, or stop recording `passed`. Belongs to Task 11.
 - D8 — upload retry semantics: a signed URL inside a 30-day idempotency response, no transition to `staged`, no new-attempt path after an integrity failure. Belongs to Task 10.

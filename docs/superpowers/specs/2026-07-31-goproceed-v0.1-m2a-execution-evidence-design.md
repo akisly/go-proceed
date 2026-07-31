@@ -307,18 +307,34 @@ should not be.
 
 ### 6.1 Storage substrate
 
-Two private Supabase Storage buckets, declared in `supabase/config.toml` and
-created by migration:
+**One** private Supabase Storage bucket, `evidence`, declared in
+`supabase/config.toml` and created by migration `0020`.
 
-| Bucket | Contents | Access |
-|---|---|---|
-| `evidence-staging` | uncommitted intent-bound bytes | server service role only; no domain reads; purged |
-| `evidence-originals` | available originals | server service role only |
+The design first called for a staging bucket and an originals bucket with a
+promotion step between them. Engineering review rejected that (finding D3):
+moving an object between buckets cannot be atomic with the PostgreSQL
+transaction that creates the evidence row, so a crash or rollback in between
+leaves bytes nobody references, and a sweep for unreferenced originals can
+delete an object a still-committing transaction is about to claim.
 
-`storage.objects` policies deny everything to `authenticated` and `anon`. Every
-read and write goes through the server. Storage keys are opaque
-(`{uuid}/{uuid}`) and carry no workspace name, filename, contract number, or
-other business identifier.
+Removing the move removes the failure mode rather than mitigating it. The
+storage key is issued when the intent is authorized and never changes, which is
+also the most direct reading of INV-045. Staged bytes are not evidence because
+no `evidence_objects` row points at them — which is what
+[files-and-storage.md](../../architecture/files-and-storage.md) already says:
+an object existing in storage does not make it evidence.
+
+The two logical storage classes in that document stay separated by policy
+rather than by bucket, which it explicitly permits. A second bucket would not
+carry retention either: "delete if no evidence row after 24 hours" is a
+domain-state rule that bucket lifecycle cannot express, so the purge job reads
+PostgreSQL in either design.
+
+`storage.objects` carries no policy for `anon` or `authenticated` on this
+bucket, so RLS denies them by default. Every read and write goes through the
+server, which checks PostgreSQL first. Storage keys are opaque (`{uuid}/{uuid}`)
+and carry no workspace name, filename, contract number, or other business
+identifier.
 
 Tests run against the same local Supabase Storage service the deployed system
 uses. No in-memory or Postgres-backed fake adapter is built: M1's review lesson
