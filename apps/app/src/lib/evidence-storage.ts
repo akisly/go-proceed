@@ -28,11 +28,11 @@ if (SERVICE_KEY === "") {
 }
 
 let client: SupabaseClient | null = null;
-function storage() {
+function storage(bucket: string = EVIDENCE_BUCKET) {
   client ??= createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
-  return client.storage.from(EVIDENCE_BUCKET);
+  return client.storage.from(bucket);
 }
 
 /**
@@ -78,8 +78,15 @@ export async function objectExists(key: string): Promise<boolean> {
   return !error;
 }
 
-/** Idempotent: removing an absent key is not an error. */
-export async function removeObject(key: string): Promise<void> {
-  const { error } = await storage().remove([key]);
-  if (error) throw new Error(`storage: remove failed for ${key}: ${error.message}`);
+/**
+ * Idempotent: removing an absent key is not an error.
+ *
+ * The bucket is a parameter because the purge worker is told which bucket to
+ * clear by the database. Assuming the default there made "the object is not in
+ * the bucket I happened to look in" indistinguishable from "the object is gone",
+ * so a row could be marked purged while its bytes survived elsewhere.
+ */
+export async function removeObject(key: string, bucket: string = EVIDENCE_BUCKET): Promise<void> {
+  const { error } = await storage(bucket).remove([key]);
+  if (error) throw new Error(`storage: remove failed for ${bucket}/${key}: ${error.message}`);
 }

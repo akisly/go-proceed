@@ -55,13 +55,22 @@ export async function drainEvidencePurge(batch = 50): Promise<PurgeOutcome> {
     let failed = 0;
     for (const row of claimed.rows) {
       try {
-        if (row.storage_key) await removeObject(row.storage_key);
+        if (row.storage_key) {
+          if (!row.storage_bucket) {
+            // The database said which bucket to clear and did not know. Deleting
+            // from a guessed bucket would report success while the bytes lived
+            // on somewhere else.
+            throw new Error("purge: intent has a storage key but no bucket");
+          }
+          await removeObject(row.storage_key, row.storage_bucket);
+        }
         await c.query("select public.complete_upload_purge($1)", [row.upload_intent_id]);
         purged += 1;
       } catch (e) {
-        // The row stays unpurged and keeps its reason. After five attempts it
-        // stops being claimed and stands as an operational alert: bytes that
-        // should be gone and are not.
+        // The row stays unpurged and keeps its reason, and THIS is where the
+        // retry budget is spent (migration 0024): a deletion was attempted and
+        // failed. A worker that dies before getting here leaves only its claim,
+        // which the one-hour window reclaims.
         await c.query("select public.fail_upload_purge($1,$2)",
           [row.upload_intent_id, (e as Error).message.slice(0, 500)]);
         failed += 1;

@@ -178,7 +178,10 @@ describe("purge worker", () => {
     const claimed = await q<{ upload_intent_id: string }>(
       `select * from public.claim_upload_purge(50)`);
     expect(claimed.map((r) => r.upload_intent_id)).toContain(intent.uploadIntentId);
-    expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(1);
+    // Claiming spends no retry budget: a worker that dies here attempted
+    // nothing, and burning an attempt for that was how a row could be excluded
+    // permanently with no failure ever recorded (0024).
+    expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(0);
 
     await q(`select public.fail_upload_purge($1,$2)`,
       [intent.uploadIntentId, "storage unavailable"]);
@@ -230,5 +233,50 @@ describe("purge worker", () => {
           and routine_name in ('claim_upload_purge','complete_upload_purge',
                                'fail_upload_purge','expire_upload_intents')`);
     expect(grants[0]!.n).toBe("0");
+  });
+
+  it("spends the retry budget only on attempts that actually failed", async () => {
+    const intent = await stagedIntent();
+    await q(`update public.upload_intents set expires_at = now() - interval '1 hour'
+              where id = $1`, [intent.uploadIntentId]);
+    await expireUploadIntents();
+
+    // Three claims with no worker outcome, standing in for three crashes.
+    for (let i = 0; i < 3; i++) {
+      await q(`select * from public.claim_upload_purge(50)`);
+      await q(`update public.upload_intents set purge_claimed_at = null where id = $1`,
+        [intent.uploadIntentId]);
+    }
+    expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(0);
+
+    // One real failure does cost a retry.
+    await q(`select * from public.claim_upload_purge(50)`);
+    await q(`select public.fail_upload_purge($1,$2)`,
+      [intent.uploadIntentId, "storage unavailable"]);
+    expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(1);
+
+    // And the bytes are still there to be retried.
+    expect(await objectExists(intent.storage.key)).toBe(true);
+  });
+
+  it("refuses to purge when the database names no bucket", async () => {
+    // Deleting from a guessed bucket reports success whether or not the bytes
+    // were there, so the row would be marked purged while they survived.
+    const intent = await stagedIntent();
+    await q(`update public.upload_intents
+                set expires_at = now() - interval '1 hour' where id = $1`,
+      [intent.uploadIntentId]);
+    await expireUploadIntents();
+    await q(`update public.upload_intents set staging_bucket = null where id = $1`,
+      [intent.uploadIntentId]);
+
+    const outcome = await drainEvidencePurge();
+    expect(outcome.failed).toBe(1);
+    expect(outcome.purged).toBe(0);
+
+    const row = await statusOf(intent.uploadIntentId);
+    expect(row.purged_at).toBeNull();
+    expect(row.purge_failure).toContain("bucket");
+    expect(await objectExists(intent.storage.key)).toBe(true);
   });
 });
