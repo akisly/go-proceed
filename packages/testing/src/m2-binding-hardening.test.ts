@@ -1,0 +1,228 @@
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import type { Client } from "pg";
+import { adminClient, asActor } from "./pg";
+import {
+  seedM2World, grantM2Capabilities, seedAssignment, dropM2Workspaces, type M2Fixture,
+} from "./m2-fixture";
+
+// Migration 0023. Each test attempts the exact write the hardening exists to
+// stop; a green suite that never tries the attack proves nothing.
+
+const WS_A = "eeee1111-1111-1111-1111-111111111111";
+const WS_B = "eeee2222-2222-2222-2222-222222222222";
+const USER_A = "eeee3333-3333-3333-3333-333333333333";
+const USER_B = "eeee4444-4444-4444-4444-444444444444";
+
+let c: Client;
+let a: M2Fixture;
+let b: M2Fixture;
+let assignmentA: string;
+
+/** Runs SQL and reports the SQLSTATE, or null when it succeeded. */
+async function sqlstate(fn: () => Promise<unknown>): Promise<string | null> {
+  try { await fn(); return null; } catch (e) { return (e as { code?: string }).code ?? "unknown"; }
+}
+
+beforeAll(async () => {
+  c = await adminClient();
+  await dropM2Workspaces(c, [WS_A, WS_B]);
+  a = await seedM2World(c, { workspaceId: WS_A, userId: USER_A, email: "ea@example.test", suffix: "EA" });
+  b = await seedM2World(c, { workspaceId: WS_B, userId: USER_B, email: "eb@example.test", suffix: "EB" });
+  await grantM2Capabilities(c, a);
+  await grantM2Capabilities(c, b);
+  assignmentA = await seedAssignment(c, a);
+});
+
+afterAll(async () => {
+  await dropM2Workspaces(c, [WS_A, WS_B]);
+  await c.end();
+});
+
+describe("a progress entry cannot pair one project's assignment with another's work item", () => {
+  it("rejects a foreign work item on a local assignment", async () => {
+    // The valuation writer sums by work_item_id, so this would silently move
+    // another project's performed quantity.
+    const code = await sqlstate(() => c.query(
+      `insert into public.progress_entries
+         (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+          quantity, recorded_by_member_id)
+       values ($1,$2,$3,$4,'root',5,$5)`,
+      [a.workspaceId, a.projectId, assignmentA, b.workItemId, a.memberId]));
+    expect(code).toBe("23503");
+  });
+
+  it("still accepts the assignment's own work item", async () => {
+    const code = await sqlstate(() => c.query(
+      `insert into public.progress_entries
+         (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+          quantity, recorded_by_member_id)
+       values ($1,$2,$3,$4,'root',5,$5)`,
+      [a.workspaceId, a.projectId, assignmentA, a.workItemId, a.memberId]));
+    expect(code).toBeNull();
+  });
+});
+
+describe("an assignment cannot pin a draft template", () => {
+  it("rejects a draft version", async () => {
+    const draft = await c.query(
+      `insert into public.requirement_template_versions
+         (workspace_id, template_key, version_no, evidence_type, created_by_member_id)
+       values ($1,'draft-pin',1,'photo',$2) returning id`, [a.workspaceId, a.memberId]);
+
+    const code = await sqlstate(() => c.query(
+      `insert into public.work_assignments
+         (workspace_id, project_id, contract_id, contract_version_id, work_item_id,
+          requirement_template_version_id, created_by_member_id)
+       values ($1,$2,$3,$4,$5,$6,$7)`,
+      [a.workspaceId, a.projectId, a.contractId, a.contractVersionId, a.workItemId,
+       draft.rows[0].id, a.memberId]));
+    expect(code).toBe("23503");
+  });
+
+  it("accepts a published version", async () => {
+    const published = await c.query(
+      `insert into public.requirement_template_versions
+         (workspace_id, template_key, version_no, status, evidence_type, allowed_media,
+          template_hash, published_at, published_by_member_id, created_by_member_id)
+       values ($1,'pub-pin',1,'published','photo',
+               '{"mimeTypes":["image/jpeg"],"maxByteSize":1024}'::jsonb,
+               repeat('a',64), now(), $2, $2) returning id`,
+      [a.workspaceId, a.memberId]);
+
+    const code = await sqlstate(() => c.query(
+      `insert into public.work_assignments
+         (workspace_id, project_id, contract_id, contract_version_id, work_item_id,
+          requirement_template_version_id, created_by_member_id)
+       values ($1,$2,$3,$4,$5,$6,$7)`,
+      [a.workspaceId, a.projectId, a.contractId, a.contractVersionId, a.workItemId,
+       published.rows[0].id, a.memberId]));
+    expect(code).toBeNull();
+  });
+
+  it("rejects publishing a template whose media rules are malformed", async () => {
+    // The upload gate calls allowed_media.mimeTypes.includes, which throws on a
+    // bad shape and widens to the fallback when the lookup finds nothing.
+    for (const media of ['{}', '{"mimeTypes":[]}', '{"mimeTypes":["image/jpeg"]}',
+                         '{"mimeTypes":"image/jpeg","maxByteSize":1}']) {
+      const code = await sqlstate(() => c.query(
+        `insert into public.requirement_template_versions
+           (workspace_id, template_key, version_no, status, evidence_type, allowed_media,
+            template_hash, published_at, published_by_member_id, created_by_member_id)
+         values ($1,$2,1,'published','photo',$3::jsonb,repeat('a',64),now(),$4,$4)`,
+        [a.workspaceId, `bad-${Math.random().toString(36).slice(2, 8)}`, media, a.memberId]));
+      expect(code, media).toBe("23514");
+    }
+  });
+});
+
+describe("evidence rows must agree with the intent they claim", () => {
+  let intentId: string;
+  let key: string;
+
+  beforeAll(async () => {
+    key = `${crypto.randomUUID()}/${crypto.randomUUID()}`;
+    const r = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),11,repeat('b',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), key]);
+    intentId = r.rows[0].id;
+  });
+
+  const insertEvidence = (over: Record<string, unknown>) => {
+    const v = {
+      workspace_id: a.workspaceId, project_id: a.projectId,
+      content_hash: "b".repeat(64), byte_size: 11, media_type: "image/jpeg",
+      storage_bucket: "evidence", storage_key: key, storage_provider: "supabase",
+      origin_method: "native_camera", recorder_member_id: a.memberId,
+      upload_intent_id: intentId, inspection_status: "passed",
+      inspection_policy_version: "test", ...over,
+    };
+    const cols = Object.keys(v);
+    return asActor(USER_A, WS_A, (cl) => cl.query(
+      `insert into public.evidence_objects (${cols.join(",")}, server_received_at)
+       values (${cols.map((_, i) => `$${i + 1}`).join(",")}, now())`,
+      cols.map((k) => (v as Record<string, unknown>)[k])));
+  };
+
+  it("rejects evidence with no upload intent at all", async () => {
+    expect(await sqlstate(() => insertEvidence({ upload_intent_id: null }))).toBeTruthy();
+  });
+
+  it("rejects a storage key the intent never issued", async () => {
+    expect(await sqlstate(() => insertEvidence({ storage_key: "forged/key" }))).toBeTruthy();
+  });
+
+  it("rejects a content hash the intent never expected", async () => {
+    expect(await sqlstate(() => insertEvidence({ content_hash: "c".repeat(64) }))).toBeTruthy();
+  });
+
+  it("rejects a byte size the intent never expected", async () => {
+    expect(await sqlstate(() => insertEvidence({ byte_size: 99 }))).toBeTruthy();
+  });
+
+  it("rejects a recorder who is not the intent's creator", async () => {
+    const other = await c.query(
+      `insert into public.memberships (organization_id, user_id, role, status)
+       values ($1,$2,'member','active') returning id`, [a.workspaceId, USER_B]);
+    expect(await sqlstate(() => insertEvidence({ recorder_member_id: other.rows[0].id })))
+      .toBeTruthy();
+  });
+
+  it("accepts a row that matches its intent exactly", async () => {
+    expect(await sqlstate(() => insertEvidence({}))).toBeNull();
+  });
+});
+
+describe("upload intent identity is not writable", () => {
+  it("gives the app role no update on the storage key or bucket", async () => {
+    const r = await c.query(
+      `select column_name from information_schema.column_privileges
+        where grantee = 'aktflow_app' and table_name = 'upload_intents'
+          and privilege_type = 'UPDATE'
+        order by column_name`);
+    const cols = r.rows.map((x) => x.column_name).sort();
+    expect(cols).toEqual(["failure_code", "finalized_evidence_object_id", "status", "version"]);
+  });
+
+  it("denies a member updating an intent they did not create", async () => {
+    const mine = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),10,repeat('b',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(),
+       `${crypto.randomUUID()}/${crypto.randomUUID()}`]);
+
+    // A second member of the same workspace, granted evidence.record on the
+    // same project — previously enough to retarget somebody else's intent.
+    const other = await c.query(
+      `select id from public.memberships where organization_id = $1 and user_id = $2`,
+      [a.workspaceId, USER_B]);
+    await c.query(
+      `insert into public.project_access_grants
+         (workspace_id, project_id, member_id, capability, granted_by)
+       values ($1,$2,$3,'evidence.record',$4), ($1,$2,$3,'project.view',$4)
+       on conflict do nothing`,
+      [a.workspaceId, a.projectId, other.rows[0].id, USER_A]);
+
+    const r = await asActor(USER_B, WS_A, (cl) => cl.query(
+      `update public.upload_intents set status = 'available'
+        where workspace_id = $1 and id = $2`, [a.workspaceId, mine.rows[0].id]));
+    // RLS filters the row out rather than raising: zero rows updated.
+    expect(r.rowCount ?? 0).toBe(0);
+
+    const after = await c.query(
+      `select status from public.upload_intents where id = $1`, [mine.rows[0].id]);
+    expect(after.rows[0].status).toBe("intent_authorized");
+  });
+});

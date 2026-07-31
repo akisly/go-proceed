@@ -114,3 +114,20 @@ test rather than leaving it implicit. Migration `0022` added
 scheme will need.
 **Depends on:** a design decision about whether allocation lineage may be
 rewritten by a command acting on a different root.
+
+## P2 — capture_events cannot tell the server's assertion from a member's
+
+**What:** `capture_events.event_source` distinguishes what the device claimed
+from what the server observed, but v0.1-M2-A has no service principal separate
+from `aktflow_app`. Migration 0023 binds a capture event to an intent the actor
+created, which stops forging events on somebody else's upload, but a member can
+still write `event_source = 'server'` on their own.
+
+**Why:** the column is provenance. If it can be set by the party it is meant to
+distinguish from, it records less than it appears to.
+
+**Pros of fixing:** the server's account of an upload becomes unforgeable.
+**Cons:** needs the service plane — `service.upload_finalize` already exists in
+`technical/permissions/capabilities.csv` — which means a second database role
+and a way for routes to act as it. That is infrastructure, not a policy tweak.
+**Depends on:** the service-principal work the capability catalog anticipates.

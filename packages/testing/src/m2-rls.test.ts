@@ -185,9 +185,11 @@ describe("0016 append-only and immutability", () => {
   it("freezes a published requirement template version (INV-015)", async () => {
     const t = await c.query(
       `insert into public.requirement_template_versions
-         (workspace_id, template_key, version_no, status, evidence_type,
+         (workspace_id, template_key, version_no, status, evidence_type, allowed_media,
           template_hash, published_at, published_by_member_id, created_by_member_id)
-       values ($1,'photo-set',1,'published','photo',repeat('c',64),now(),$2,$2)
+       values ($1,'photo-set',1,'published','photo',
+               '{"mimeTypes":["image/jpeg"],"maxByteSize":1024}'::jsonb,
+               repeat('c',64),now(),$2,$2)
        returning id`, [a.workspaceId, a.memberId]);
     let failed = false;
     try {
@@ -199,10 +201,16 @@ describe("0016 append-only and immutability", () => {
   });
 
   it("allows a draft template to be published without altering frozen content", async () => {
+    // Media rules are supplied at draft time: 0023 requires a published version
+    // to carry a usable allowlist, because the upload gate reads it without
+    // defending itself against a malformed shape.
     const t = await c.query(
       `insert into public.requirement_template_versions
-         (workspace_id, template_key, version_no, evidence_type, created_by_member_id)
-       values ($1,'draft-set',1,'photo',$2) returning id`, [a.workspaceId, a.memberId]);
+         (workspace_id, template_key, version_no, evidence_type, allowed_media,
+          created_by_member_id)
+       values ($1,'draft-set',1,'photo',
+               '{"mimeTypes":["image/jpeg"],"maxByteSize":1024}'::jsonb,$2)
+       returning id`, [a.workspaceId, a.memberId]);
     await c.query(
       `update public.requirement_template_versions
           set status = 'published', template_hash = repeat('d',64),
@@ -217,8 +225,11 @@ describe("0016 append-only and immutability", () => {
   it("rejects publishing that also alters frozen content", async () => {
     const t = await c.query(
       `insert into public.requirement_template_versions
-         (workspace_id, template_key, version_no, evidence_type, created_by_member_id)
-       values ($1,'sneaky-set',1,'photo',$2) returning id`, [a.workspaceId, a.memberId]);
+         (workspace_id, template_key, version_no, evidence_type, allowed_media,
+          created_by_member_id)
+       values ($1,'sneaky-set',1,'photo',
+               '{"mimeTypes":["image/jpeg"],"maxByteSize":1024}'::jsonb,$2)
+       returning id`, [a.workspaceId, a.memberId]);
     let failed = false;
     try {
       await c.query(
