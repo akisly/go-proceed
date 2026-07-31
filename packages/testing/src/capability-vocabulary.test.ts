@@ -17,9 +17,10 @@ it("keeps the grant API enum and the database constraint in agreement", async ()
   const r = await c.query<{ src: string }>(
     `select pg_get_constraintdef(oid) as src from pg_constraint
       where conname = 'project_access_grants_capability_check'`);
-  expect(r.rows.length).toBe(1);
+  const constraint = r.rows[0];
+  expect(constraint).toBeDefined();
 
-  const inDatabase = [...r.rows[0].src.matchAll(/'([a-z_]+\.[a-z_]+)'::text/g)]
+  const inDatabase = [...constraint!.src.matchAll(/'([a-z_]+\.[a-z_]+)'::text/g)]
     .map((m) => m[1]!).sort();
   const inApi = [...projectCapability.options].sort();
 
