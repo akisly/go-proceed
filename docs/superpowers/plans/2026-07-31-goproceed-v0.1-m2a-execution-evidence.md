@@ -2159,3 +2159,114 @@ git commit -m "test(m2): vertical assignment-progress-evidence scenario and gate
 Run `/plan-eng-review` on this slice. Triage its findings, fix every P1 and P2 on the branch
 before calling M2-A done, and record the verdict in a `## GSTACK REVIEW REPORT` section at the
 end of this file — the same shape M1's plan used.
+
+## NOT in scope
+
+- `apps/mobile` and every mobile-local concern (INV-013/014/053) — split into M2-B because its
+  exit gates need developer accounts and physical hardware.
+- A real anti-malware engine — the inspection hook is a policy stub with a recorded policy
+  version. Codex disputes that this is honest enough; see D7.
+- Derivatives and thumbnails, offline authorization, background sync, resumable chunks (v0.3).
+- M3 requirement surface beyond the two pulled-forward template operations.
+- M4 packages, claim segments, the progress-claim ledger, the corrected-successor command.
+- Reservation writers — M2-A implements the guard and the assertion, nothing reserves.
+- Deferred M1 findings that stay deferred: invitation email binding, membership reactivation,
+  ending responsibility assignments. Each needs a product decision this slice does not force.
+
+## What already exists
+
+| Existing | Reused? |
+|---|---|
+| `commandRoute`/`queryRoute`, `withTenantTx`, `withIdempotency`, `recordAudit`, `enqueueOutbox` | Yes — every M2 route is built on them |
+| `packages/domain/src/money.ts` BigInt engine | Yes — `valuation.ts` extends it rather than duplicating |
+| `app.has_project_capability`, `app.reject_mutation`, `app.member_role`, `app.active_member_id` | Yes — 0016 reuses all four |
+| M1 multipart staging into `bytea` (`import-batches/[batchId]/files`) | **No, deliberately** — evidence goes to private object storage |
+| `drain_outbox` / `claim_outbox` / dead-letter (0005, 0008) | Planned for purge alerting — **but see D4: `drain_outbox` marks every topic processed without dispatching, so the purge design does not work as written** |
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `/codex review` | Independent 2nd opinion | 1 | issues_found | 5 P0, 4 P1 |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | issues_open | 11 issues, 1 critical gap |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | not applicable (no UI in M2-A) |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+**Scope reviewed:** the implemented foundation (`main..HEAD`, migrations 0015–0018,
+`packages/domain/src/valuation.ts`, the four `packages/testing/src/m2-*` suites) plus the plan
+governing Tasks 5–15. Complexity check tripped (8 tables, 9 operations, 4 modules); scope
+accepted as-is, since it is an approved milestone already reduced once by the M2-A/M2-B split.
+
+**Fixed on the branch during this review**
+
+| ID | Sev | Finding | Fix |
+|---|---|---|---|
+| A1 | P1 | Both `SECURITY DEFINER` allocation-head functions took `p_workspace` from the caller and never resolved the actor. Demonstrated: a member of workspace B planted a head row in workspace A with `effective_quantity` 999999, and the cross-tenant call leaked A's balances through its raise messages. | `0017`, `m2-definer-authz.test.ts` |
+| A3 | P2 | `capture_events.project_id` was nullable and the insert policy only demanded `evidence.record` when it was present, so `project.view` alone could append permanent forged provenance bound to an unseen intent. | `0018`, `m2-policy-gaps.test.ts` |
+| T1 | P2 | The M2 suites opened with a global `truncate public.organizations cascade`, breaking five `foundation.test.ts` assertions — persistently, across runs. | scoped cleanup in `m2-fixture.ts` |
+
+**Open — Codex (outside voice), verified against the code**
+
+| ID | Sev | Finding |
+|---|---|---|
+| D1 | P0 | **Valuation lineage is wrong.** `sliceAllocation` keys off total work-item quantity, not the corrected root, so a correction can carry money away from a root that never received it (root A ends at −1 while root B keeps +1). Aggregate reconciliation still passes, which is exactly why the suite missed it — and the "order independence" test is a telescoping tautology that cannot fail. M4 package lines sum per-slice amounts, so per-slice figures must be individually meaningful. |
+| D2 | P0 | `grant update on public.upload_intents` is column-wide, so `evidence.record` can rewrite expected hashes, staging keys, actor, assignment, status, and the evidence pointer. Conversely the `ui_update` policy requires that same capability, so after revocation the planned finalize path **cannot** set `orphaned_for_purge` — INV-047's revocation branch is unreachable as designed. |
+| D3 | P0 | Storage promotion is not atomic and cannot be. The planned sweep of unreferenced originals can delete an object moved by a still-uncommitted successful finalize. Needs one immutable key with visibility controlled in PostgreSQL, or an explicit promotion journal. |
+| D4 | P0 | The purge design does not work: `drain_outbox` sets `processed_at = now()` on every claimed row with no topic filter and no dispatch (verified in the live catalog), so the 30-second cron would mark purge requests done while the bytes survive. |
+| D5 | P0 | INV-023 is only half structural. The FK is `(workspace_id, root_progress_entry_id, root_is_root)` — it forbids a chain but permits a root from another assignment or work item, which the invariant text and the plan's own §7.3 both require. The commit message claiming the invariant is enforced by a foreign key overstated it. |
+| D6 | P1 | `unique (workspace_id, storage_key)` lets two workspaces reference the same physical object key. Uniqueness must be global per bucket. |
+| D7 | P1 | The inspection stub re-checks the client-claimed MIME string and then records `inspection_status = 'passed'`. No magic-byte sniffing, no quota, no scanner-failure handling — false provenance rather than a safe stub. |
+| D8 | P1 | Task 10 stores a signed URL inside a 30-day idempotency response; nothing transitions an intent to `staged`; integrity failure claims retryability with no new-attempt path. |
+| D9 | P1 | Sequencing: Tasks 5–8 must not start until D1/D2/D5 are settled. The security fixes already occupy `0017`/`0018`, so Task 9's buckets become `0019` and purge `0020`. Task 14 omits the work-item-lock test (parallel `progress.record` under *different* idempotency keys). |
+| D10 | P1 | Task 5 versions templates with `max(version_no)+1` without serialization; Task 6 claims to pin the current published version but its query accepts a work item from any version of that contract. |
+
+**Open — this review, not yet fixed**
+
+| ID | Sev | Finding |
+|---|---|---|
+| A4 | P3 | `va_insert` accepts either progress capability, so `progress.record` alone can write an adjustment's allocation. |
+| C1 | P2 | `m2-schema.test.ts` still duplicates ~60 lines of world-building that `m2-fixture.ts` now provides. |
+| C2 | P3 | No ASCII diagrams in the new code. Three earn one: the `progress_entries` lineage discriminator, the `upload_intents` state machine, the telescopic allocation. |
+| P1 | P3 | `pah_select` runs a correlated subquery into an RLS-protected table per row. |
+| P2 | P3 | `progress.record` sums all entries for the work item on every insert — O(n) per write under the lock. |
+
+**Test coverage**
+
+```
+IMPLEMENTED (tasks 1-4)                          GAPS
+[+] 0015 DDL            ★★★ 11 tests             [GAP] adjustment across assignment/work item (D5)
+[+] 0016 RLS/triggers   ★★★ 18 tests             [GAP] out_of_scope absent from the property walk
+[+] 0017 definer authz  ★★★  2 tests             [GAP] valuation per-root lineage (D1) — no test exists
+[+] 0018 provenance     ★★★  4 tests                   because the aggregate assertion hides it
+[+] valuation engine    ★★★ 17 tests (mutation-checked)
+COVERAGE: 80/80 green, 13 files  |  QUALITY: ★★★ across the implemented surface
+```
+
+**CODEX:** ran (`codex exec`, high reasoning). Five P0 and four P1, all against code and plan
+sections this review had already passed. Two were verified directly against the live database
+(`drain_outbox` dispatch, the INV-023 FK definition) before being recorded.
+
+**CROSS-MODEL:** the reviews agree on direction and disagree on one substantive point. This
+review recommended the telescopic allocation and defended it in the spec; Codex argues the
+approach cannot satisfy both aggregate reconciliation and lineage-correct corrections, and
+proposes storing quantity plus exact rational entitlement in M2, allocating minor units only
+in M4 when the sibling set exists. Working the counter-example by hand confirms Codex is right
+on the facts. The remaining judgement is which repair to choose (D1), and that is the user's
+call, not this review's.
+
+**VERDICT:** ENG REVIEW NOT CLEAR — three P1/P2 findings fixed and re-proved on the branch,
+but ten remain open, one of them a critical gap in the money layer. Tasks 5–15 should not
+start until D1, D2, D4, and D5 are decided.
+
+**UNRESOLVED DECISIONS:**
+- D1 — money model: per-root monetary lineage, or Codex's rational-entitlement deferral to M4.
+- D2 — `upload_intents` write surface and how revocation reaches `orphaned_for_purge`.
+- D3 — storage promotion: immutable key with PostgreSQL-controlled visibility, or a journal.
+- D4 — purge dispatch: `drain_outbox` needs topic dispatch, or purge needs its own runner.
+- D5 — widen the INV-023 foreign key to assignment and work item.
+- D6 — make storage-key uniqueness global per bucket.
+- D7 — inspection stub: sniff magic bytes and quota, or stop recording `passed`.
+- D8/D10 — upload retry semantics; template version and assignment pinning races.
+- D9 — renumber Task 9/13 migrations to 0019/0020 and reorder Task 14's lock test.
+- A4, C1, C2, P1, P2 — the five lower-severity items above.
