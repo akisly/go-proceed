@@ -120,9 +120,16 @@ describe("the service principal is a separate identity", () => {
   it("is unreachable from the application login", async () => {
     // The direction that matters. aktflow_app_login must never be able to
     // SET ROLE its way into asserting server facts.
-    expect(await memberOf("aktflow_service")).toEqual(["aktflow_service_login"]);
-    expect(await memberOf("aktflow_service")).not.toContain("aktflow_app_login");
-    expect(await memberOf("aktflow_service")).not.toContain("aktflow_app");
+    //
+    // The migration owner is filtered out rather than asserted. PostgreSQL 16+
+    // auto-grants the creating role admin-option membership in every role it
+    // creates, so 'postgres' appears here — and on aktflow_app from migration
+    // 0003, where nothing ever looked. That is role bookkeeping, not a hole:
+    // the owner runs the migrations and can do anything regardless.
+    const members = (await memberOf("aktflow_service")).filter((m) => m !== "postgres");
+    expect(members).toEqual(["aktflow_service_login"]);
+    expect(members).not.toContain("aktflow_app_login");
+    expect(members).not.toContain("aktflow_app");
   });
 
   it("refuses the application login an actual SET ROLE", async () => {

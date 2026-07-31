@@ -20,6 +20,9 @@ jobs:
       # infra/README-staging.md §3 for the commands that DO apply seed.sql
       # and must never be run there.
       APP_DB_URL: postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres
+      # The service principal's connection (migration 0034). Set by the same
+      # local-credentials script as APP_DB_URL, one step below.
+      SERVICE_DB_URL: postgresql://aktflow_service_login:service_pw@127.0.0.1:54322/postgres
       SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       # next build only needs these present (not real secrets) — no page in
       # this app hits Supabase at build time, but supabaseServer() reads them
