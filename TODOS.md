@@ -115,6 +115,27 @@ scheme will need.
 **Depends on:** a design decision about whether allocation lineage may be
 rewritten by a command acting on a different root.
 
+## P3 — the two retention figures v0.1-M2-A had to choose are defaults, not policy
+
+**What:** `organizations.evidence_quota_bytes` (NULL, meaning unlimited) and
+`organizations.blocked_content_retention_days` (7). Both mechanisms are
+implemented and tested; both numbers are placeholders.
+
+**Why:** `technical/data-retention-catalog.csv` marks every duration in this
+product `duration_external_gate`, so neither figure is this slice's to settle.
+The quota defaults to unlimited because that is the behaviour that already
+shipped — turning it on with an invented number would break workspaces to
+enforce a rule nobody approved. The blocked-content window defaults to seven
+days because the domain already fixes seven days for the analogous quarantine
+(a revoked pending original), and files-and-storage.md puts both in one
+"Restricted quarantine" class.
+
+**Pros of settling them:** the quota starts protecting storage instead of only
+being enforceable.
+**Cons:** none technical; this is a policy decision with a retention schedule
+behind it.
+**Depends on:** the approved retention schedule (external gate V-003).
+
 ## P2 — capture_events cannot tell the server's assertion from a member's
 
 **What:** `capture_events.event_source` distinguishes what the device claimed

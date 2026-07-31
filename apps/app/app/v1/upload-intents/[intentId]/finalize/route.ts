@@ -181,7 +181,8 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
     await withTenantTx(ctx, async (tx) => {
       await tx.query(
         `update public.upload_intents
-            set status = 'scan_blocked', failure_code = $3, version = version + 1
+            set status = 'scan_blocked', failure_code = $3,
+                blocked_at = now(), version = version + 1
           where workspace_id = $1 and id = $2`,
         [intent.workspace_id, intentId, inspection.failureCode]);
       await tx.query(

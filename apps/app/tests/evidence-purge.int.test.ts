@@ -122,9 +122,10 @@ describe("purge worker", () => {
     expect(await objectExists(intent.storage.key)).toBe(true);
   });
 
-  it("leaves scan-blocked content to restricted retention, not the 24h purge", async () => {
-    // Blocked content follows remediation and restricted retention, which is a
-    // different policy from "the caller never came back".
+  it("leaves scan-blocked content alone inside its retention window", async () => {
+    // Blocked content follows restricted retention, which is a different policy
+    // from "the caller never came back" — a shorter window would delete a file
+    // captured on Friday before anyone reported it on Monday.
     const intent = await stagedIntent(PNG, "image/jpeg");
     await finalize(intent.uploadIntentId);
     expect((await statusOf(intent.uploadIntentId)).status).toBe("scan_blocked");
@@ -132,6 +133,45 @@ describe("purge worker", () => {
     await expireUploadIntents();
     const outcome = await drainEvidencePurge();
     expect(outcome.claimed).toBe(0);
+    expect(await objectExists(intent.storage.key)).toBe(true);
+  });
+
+  it("purges scan-blocked content once its window closes, keeping the record", async () => {
+    const intent = await stagedIntent(PNG, "image/jpeg");
+    await finalize(intent.uploadIntentId);
+    const blocked = await statusOf(intent.uploadIntentId);
+    expect(blocked.status).toBe("scan_blocked");
+
+    // Eight days after the block, one past the seven-day default.
+    await q(`update public.upload_intents set blocked_at = now() - interval '8 days'
+              where id = $1`, [intent.uploadIntentId]);
+
+    const outcome = await drainEvidencePurge();
+    expect(outcome.purged).toBe(1);
+    expect(await objectExists(intent.storage.key)).toBe(false);
+
+    // The content goes; what happened does not. The failure stays diagnosable
+    // after the bytes are gone.
+    const after = await statusOf(intent.uploadIntentId);
+    expect(after.status).toBe("scan_blocked");
+    expect(after.purged_at).not.toBeNull();
+    const detail = await q<{ failure_code: string; expected_content_hash: string }>(
+      `select failure_code, expected_content_hash from public.upload_intents
+        where id = $1`, [intent.uploadIntentId]);
+    expect(detail[0]!.failure_code).toBe("declared_type_mismatch");
+    expect(detail[0]!.expected_content_hash).toBeTruthy();
+  });
+
+  it("honours a workspace's own retention window", async () => {
+    await q(`update public.organizations set blocked_content_retention_days = 30
+              where id = $1`, [fx.workspaceId]);
+    const intent = await stagedIntent(PNG, "image/jpeg");
+    await finalize(intent.uploadIntentId);
+    await q(`update public.upload_intents set blocked_at = now() - interval '8 days'
+              where id = $1`, [intent.uploadIntentId]);
+
+    // Eight days is past the default and well inside thirty.
+    expect((await drainEvidencePurge()).claimed).toBe(0);
     expect(await objectExists(intent.storage.key)).toBe(true);
   });
 
