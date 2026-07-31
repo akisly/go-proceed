@@ -19,6 +19,20 @@ type IntentRow = {
 };
 
 /**
+ * What the finalization transaction concluded.
+ *
+ * Named rather than inferred because the two failing outcomes must be returned,
+ * not thrown: the command writes on both — `content_missing` on the row, or the
+ * orphaning — and throwing inside withTenantTx rolls that write back. The
+ * response is raised after the commit, which only works if the caller can tell
+ * the shapes apart.
+ */
+type FinalizeResult =
+  | { outcome: "unauthorized" }
+  | { outcome: "no_content" }
+  | { outcome: "ok"; evidenceObjectId: string; serverReceivedAt: Date };
+
+/**
  * Records an integrity failure against an intent, through the command that owns
  * the transition (migration 0031).
  *
@@ -27,17 +41,20 @@ type IntentRow = {
  * for purge during the storage read ended up carrying failure provenance from a
  * request that arrived after it was already over.
  *
- * `observedBytes` is what the server actually found in the bucket. It corrects
- * the quota reservation, which was made from the size the client declared.
+ * The command also corrects the quota reservation, which was made from the size
+ * the client declared at authorization. It reads the real size from the bucket
+ * itself rather than taking it from here (migration 0033): quota is a shared
+ * workspace resource, so a figure the caller supplies is one the caller can use
+ * to lock everyone else out.
  */
 async function recordFailure(
   ctx: { actorUserId: string; organizationId: string | null; requestId: string },
-  intent: IntentRow, intentId: string, failureCode: string, observedBytes: number,
+  intent: IntentRow, intentId: string, failureCode: string,
 ): Promise<void> {
   await withTenantTx(ctx, async (tx) => {
     const r = await tx.query<{ applied: boolean }>(
-      "select app.fail_upload_intent($1,$2,$3,$4) as applied",
-      [intent.workspace_id, intentId, failureCode, observedBytes]);
+      "select app.fail_upload_intent($1,$2,$3) as applied",
+      [intent.workspace_id, intentId, failureCode]);
     if (r.rows[0]?.applied !== true) return;
     await tx.query(
       `insert into public.capture_events
@@ -162,12 +179,11 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
       { requestId: a.requestId, retryable: true, userAction: "refresh_upload_state_or_request_new_grant" }));
   }
   if (storedSize !== Number(intent.expected_byte_size)) {
-    // The observed size goes in with the failure: the reservation was made from
-    // the size the client declared, and this is where the server finds out what
-    // was actually stored (migration 0031). A caller who declares one byte and
-    // uploads the bucket maximum has that maximum counted against them until
-    // the bytes are purged.
-    await recordFailure(ctx, intent, intentId, "integrity_size_mismatch", storedSize);
+    // The failure also corrects the reservation: it was made from the size the
+    // client declared at authorization, and a caller who declares one byte and
+    // uploads the bucket maximum should have that maximum counted against them
+    // until the bytes are purged. The command reads the real size itself.
+    await recordFailure(ctx, intent, intentId, "integrity_size_mismatch");
     throw new HttpProblem(422, problem("UPLOAD_CHECKSUM_MISMATCH",
       `Отримано ${storedSize} Б замість очікуваних ${intent.expected_byte_size} Б.`,
       { requestId: a.requestId, retryable: true, userAction: "retry_part" }));
@@ -190,7 +206,7 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
     // The original is NOT deleted and the intent stays retryable: the failure
     // table requires the local original be kept and the failure named.
     const failureCode = sizeMatches ? "integrity_hash_mismatch" : "integrity_size_mismatch";
-    await recordFailure(ctx, intent, intentId, failureCode, bytes.byteLength);
+    await recordFailure(ctx, intent, intentId, failureCode);
     throw new HttpProblem(422, problem("UPLOAD_CHECKSUM_MISMATCH",
       sizeMatches
         ? "Хеш отриманого вмісту не збігається з очікуваним. Оригінал збережено, спробуйте ще раз."
@@ -240,7 +256,7 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
   // INV-047: authorization is rechecked at the moment evidence is created, not
   // only when the upload was authorized. Bytes may have been in flight for
   // hours.
-  const result = await withTenantTx(ctx, async (tx) => {
+  const result = await withTenantTx<FinalizeResult>(ctx, async (tx) => {
     // One command (migrations 0029, 0031, 0032). Evidence cannot be assembled
     // by the caller: the app role holds no insert on evidence_objects and no
     // update on upload_intents at all. Provenance comes from the intent, the
@@ -258,21 +274,48 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
        inspection.outcome, inspection.policyVersion]);
     const row = r.rows[0];
 
-    // 'no_content' (migration 0032): the object was deleted or replaced between
-    // the storage read above and this call. Same answer as a state change,
-    // because it is the same kind of event — the world moved under a caller who
-    // had already checked.
-    if (row === undefined || row.outcome === "conflict" || row.outcome === "no_content") {
-      throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
-        "Стан наміру завантаження змінився під час обробки. Потрібне нове завантаження.",
-        { requestId: a.requestId, retryable: false,
-          userAction: "refresh_upload_state_or_request_new_grant" }));
+    const conflict = () => new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
+      "Стан наміру завантаження змінився під час обробки. Потрібне нове завантаження.",
+      { requestId: a.requestId, retryable: false,
+        userAction: "refresh_upload_state_or_request_new_grant" }));
+
+    // Every outcome is named, including the one that does not exist yet. An
+    // unrecognised value used to fall past the branches and dereference a null
+    // evidence id, turning a future protocol addition into a 500 at the point
+    // where the receipt is read.
+    //
+    //   'conflict'     the intent moved under the caller
+    //   'no_content'   the object was deleted or replaced since the read above
+    //                  (0032); the command records content_missing on the row
+    //   'unauthorized' the grant is gone; the command orphaned the bytes under
+    //                  the same row lock, because the caller who just lost
+    //                  their grant is the one whose second call would be
+    //                  refused
+    //   'already'      an earlier call created the evidence; return the receipt
+    //   'created'      this call created it, and only this call publishes
+    if (row === undefined) throw conflict();
+    switch (row.outcome) {
+      case "conflict":
+        // Nothing was written, so throwing here is free: the rollback discards
+        // an empty transaction.
+        throw conflict();
+      case "no_content":
+      case "unauthorized":
+        // These two DID write — content_missing on the row, or the orphaning —
+        // and throwing inside withTenantTx rolls the transaction back. So the
+        // outcome is returned and the response is raised after the commit.
+        return { outcome: row.outcome as "no_content" | "unauthorized" };
+      case "already":
+      case "created":
+        break;
+      default:
+        // A plain Error, not an HttpProblem: this is a server defect, and the
+        // unmapped-error path already turns those into 500 INTERNAL_ERROR. The
+        // catalog does not list that code as route-emitted, and the fidelity
+        // test enforces it — a route that names it directly is claiming the
+        // failure is part of the contract when it is the opposite.
+        throw new Error(`unknown finalization outcome: ${row.outcome}`);
     }
-    // The command orphaned the bytes itself, under the same row lock. It does
-    // that rather than leaving it to a second call because the caller who has
-    // just lost their grant is precisely the one whose second call would be
-    // refused.
-    if (row.outcome === "unauthorized") return { orphaned: true as const };
 
     const evidenceObjectId = row.evidence_object_id!;
 
@@ -307,15 +350,21 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
       `select server_received_at from public.evidence_objects
         where workspace_id = $1 and id = $2`, [intent.workspace_id, evidenceObjectId]);
     return {
-      orphaned: false as const, evidenceObjectId,
+      outcome: "ok" as const, evidenceObjectId,
       serverReceivedAt: received.rows[0].server_received_at as Date,
     };
   });
 
-  if (result.orphaned) {
+  if (result.outcome === "unauthorized") {
     throw new HttpProblem(403, problem("SCOPE_PROJECT_DENIED",
       "Доступ відкликано під час завантаження. Байти позначено на очищення.",
       { requestId: a.requestId, retryable: false, userAction: "request_project_scope" }));
+  }
+  if (result.outcome === "no_content") {
+    throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
+      "Байти цього завантаження більше не знайдено. Потрібне нове завантаження.",
+      { requestId: a.requestId, retryable: false,
+        userAction: "refresh_upload_state_or_request_new_grant" }));
   }
 
   const body: FinalizeUploadIntentResponse = {

@@ -471,7 +471,7 @@ describe("upload intent identity is not writable", () => {
     for (const call of [
       ["select app.block_upload_intent($1,$2,'declared_type_mismatch')"],
       ["select app.orphan_upload_intent($1,$2)"],
-      ["select app.fail_upload_intent($1,$2,'integrity_size_mismatch',10)"],
+      ["select app.fail_upload_intent($1,$2,'integrity_size_mismatch')"],
     ] as const) {
       expect(await sqlstate(() => asActor(USER_B, WS_A, (cl) =>
         cl.query(call[0], [a.workspaceId, mine.rows[0].id])))).toBeTruthy();
@@ -716,6 +716,11 @@ describe("server-only transitions and the quota oracle", () => {
     // upload URL cannot bound what is really sent — Supabase enforces only the
     // bucket-wide maximum. Declare one byte, upload fifty megabytes, never
     // finalize, repeat. This is the moment the server learns the truth.
+    //
+    // The size is NOT a parameter (migration 0033). Quota is a shared workspace
+    // resource, so a figure the caller supplies is one the caller can use to
+    // lock every other member out of uploading. The command reads the bucket.
+    const key = `${crypto.randomUUID()}/${crypto.randomUUID()}`;
     const intent = await c.query(
       `insert into public.upload_intents
          (workspace_id, project_id, work_assignment_id, created_by_member_id,
@@ -725,12 +730,12 @@ describe("server-only transitions and the quota oracle", () => {
        values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),1,repeat('b',64),
                'image','image/jpeg','evidence',$6, now() + interval '1 day', 1)
        returning id`,
-      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(),
-       `${crypto.randomUUID()}/${crypto.randomUUID()}`]);
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), key]);
+    await putStorageObject(c, key, 52428800);
 
     const applied = await asActor(USER_A, WS_A, (cl) => cl.query<{ b: boolean }>(
-      `select app.fail_upload_intent($1,$2,$3,$4) as b`,
-      [a.workspaceId, intent.rows[0].id, "integrity_size_mismatch", 52428800]));
+      `select app.fail_upload_intent($1,$2,$3) as b`,
+      [a.workspaceId, intent.rows[0].id, "integrity_size_mismatch"]));
     expect(applied.rows[0]!.b).toBe(true);
 
     const after = await c.query(
@@ -739,15 +744,18 @@ describe("server-only transitions and the quota oracle", () => {
     expect(Number(after.rows[0].quota_reserved_bytes)).toBe(52428800);
     expect(after.rows[0].failure_code).toBe("integrity_size_mismatch");
 
-    // A later, smaller observation must not hand the quota back while the large
-    // object is still sitting there.
+    // A reservation already larger than what is in the bucket must not be handed
+    // back: greatest only ever admits that more is held, never less.
+    await c.query(
+      `update public.upload_intents set quota_reserved_bytes = 60000000
+        where id = $1`, [intent.rows[0].id]);
     await asActor(USER_A, WS_A, (cl) => cl.query(
-      `select app.fail_upload_intent($1,$2,$3,$4)`,
-      [a.workspaceId, intent.rows[0].id, "integrity_hash_mismatch", 1]));
+      `select app.fail_upload_intent($1,$2,$3)`,
+      [a.workspaceId, intent.rows[0].id, "integrity_hash_mismatch"]));
     const again = await c.query(
       `select quota_reserved_bytes from public.upload_intents where id = $1`,
       [intent.rows[0].id]);
-    expect(Number(again.rows[0].quota_reserved_bytes)).toBe(52428800);
+    expect(Number(again.rows[0].quota_reserved_bytes)).toBe(60000000);
   });
 
   it("does not record a failure against an intent that already moved on", async () => {
@@ -767,8 +775,8 @@ describe("server-only transitions and the quota oracle", () => {
     // Expired during the storage read. Writing failure provenance now would
     // attach a verdict from a request that arrived after the grant was over.
     const applied = await asActor(USER_A, WS_A, (cl) => cl.query<{ b: boolean }>(
-      `select app.fail_upload_intent($1,$2,$3,$4) as b`,
-      [a.workspaceId, intent.rows[0].id, "integrity_size_mismatch", 99]));
+      `select app.fail_upload_intent($1,$2,$3) as b`,
+      [a.workspaceId, intent.rows[0].id, "integrity_size_mismatch"]));
     expect(applied.rows[0]!.b).toBe(false);
 
     const after = await c.query(
