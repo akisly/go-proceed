@@ -227,4 +227,44 @@ describe("upload_intents.create", () => {
     const res = await createIntent(VALID());
     expect([403, 404]).toContain(res.status);
   });
+
+  it("refuses a replay grant after the creator loses evidence.record", async () => {
+    // The grant is minted outside the idempotency callback, which does not
+    // re-run on replay. Without a state and authorization re-check, a caller who
+    // has since lost the capability replays the original request and gets a
+    // working upload token.
+    const key = crypto.randomUUID();
+    await createIntent(VALID(), assignmentId, key);
+
+    await q(
+      `update public.project_access_grants set revoked_at = now()
+        where workspace_id = $1 and member_id = $2 and capability = 'evidence.record'`,
+      [fx.workspaceId, fx.memberId]);
+
+    const replay = await createIntent(VALID(), assignmentId, key);
+    expect(replay.status).toBe(403);
+  });
+
+  it("refuses a replay grant once the intent has been purged", async () => {
+    // Bytes uploaded against a purged intent are never claimed again, because
+    // purged_at is already set. They would sit in the bucket forever.
+    const key = crypto.randomUUID();
+    const first = await (await createIntent(VALID(), assignmentId, key)).json();
+    await q(
+      `update public.upload_intents set status = 'expired', purged_at = now()
+        where id = $1`, [first.uploadIntentId]);
+
+    const replay = await createIntent(VALID(), assignmentId, key);
+    expect(replay.status).toBe(409);
+    expect((await replay.json()).code).toBe("VERSION_CONFLICT");
+  });
+
+  it("refuses a replay grant once the intent has expired", async () => {
+    const key = crypto.randomUUID();
+    const first = await (await createIntent(VALID(), assignmentId, key)).json();
+    await q(`update public.upload_intents set expires_at = now() - interval '1 hour'
+              where id = $1`, [first.uploadIntentId]);
+
+    expect((await createIntent(VALID(), assignmentId, key)).status).toBe(409);
+  });
 });

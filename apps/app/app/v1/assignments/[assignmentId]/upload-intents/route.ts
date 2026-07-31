@@ -122,7 +122,7 @@ export const POST = commandRoute(createUploadIntentRequest, async (a) => {
       return {
         status: 201,
         body: {
-          uploadIntentId, status: "intent_authorized",
+          uploadIntentId, workspaceId, status: "intent_authorized",
           expiresAt: expiresAt.toISOString(),
           storage: { bucket: EVIDENCE_BUCKET, key: storageKey },
         },
@@ -130,9 +130,39 @@ export const POST = commandRoute(createUploadIntentRequest, async (a) => {
     });
   });
 
-  // Minted per call, including replays, and never stored. The idempotency record
-  // outlives the grant by orders of magnitude, so persisting it would guarantee
-  // a replay handed back a dead link (engineering review, finding D8).
+  // Minting per call is what keeps a replay's grant alive (D8), but it also means
+  // the grant is issued OUTSIDE the idempotency callback — which does not re-run
+  // on a replay. Without the check below, a caller who has since lost
+  // evidence.record, or whose intent has expired or already been purged, would
+  // replay the original request and receive a working token for the old key:
+  // bytes uploaded against a row that will never be claimed again, because
+  // purged_at is already set.
+  const grantable = await withTenantTx(ctx, async (tx) => {
+    const r = await tx.query(
+      `select status, expires_at, purged_at, purge_claimed_at, project_id
+         from public.upload_intents where workspace_id = $1 and id = $2`,
+      [out.body.workspaceId, out.body.uploadIntentId]);
+    const row = r.rows[0];
+    if (!row) return { ok: false as const, reason: "gone" as const };
+
+    const m = await requireActiveMembership(tx, a.requestId, a.userId, out.body.workspaceId);
+    await requireProjectCapability(tx, a.requestId, {
+      workspaceId: out.body.workspaceId, projectId: row.project_id,
+      memberId: m.memberId, capability: "evidence.record",
+    });
+
+    const usable = row.status === "intent_authorized"
+      && row.purged_at === null && row.purge_claimed_at === null
+      && new Date(row.expires_at).getTime() > Date.now();
+    return usable ? { ok: true as const } : { ok: false as const, reason: "stale" as const };
+  });
+
+  if (!grantable.ok) {
+    throw new HttpProblem(409, problem("VERSION_CONFLICT",
+      "Цей намір завантаження більше не приймає байти. Створіть новий.",
+      { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
+  }
+
   const grant = await createSignedUpload(out.body.storage.key);
   const body: CreateUploadIntentResponse = {
     ...out.body,

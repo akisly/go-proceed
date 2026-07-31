@@ -20,6 +20,8 @@ export type CreateUploadIntentRequest = z.infer<typeof createUploadIntentRequest
  */
 export interface UploadIntentReceipt {
   uploadIntentId: string;
+  /** Carried so a replay can re-check state and authorization before granting. */
+  workspaceId: string;
   status: string;
   expiresAt: string;
   storage: { bucket: string; key: string };

@@ -50,6 +50,7 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
               i.origin_method, i.original_filename, i.claimed_capture_time,
               i.claimed_tz_offset, i.source_app_version, i.expires_at,
               i.created_by_member_id, i.finalized_evidence_object_id, i.failure_code,
+              i.purged_at, i.purge_claimed_at,
               e.content_hash, e.server_received_at
          from public.upload_intents i
          left join public.evidence_objects e
@@ -83,6 +84,20 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
   if (intent.status === "scan_blocked" || intent.status === "orphaned_for_purge") {
     throw new HttpProblem(409, problem("VERSION_CONFLICT",
       "Це завантаження вже завершено з відмовою.",
+      { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
+  }
+  // Once the purge worker has claimed an intent, it is on its way to having its
+  // bytes deleted. Letting finalization proceed would either create evidence
+  // pointing at bytes about to vanish, or race the delete. Claimed is terminal
+  // for finalization.
+  if (intent.purged_at !== null || intent.purge_claimed_at !== null) {
+    throw new HttpProblem(409, problem("VERSION_CONFLICT",
+      "Байти цього наміру вже позначено на очищення. Потрібне нове завантаження.",
+      { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
+  }
+  if (intent.status === "expired") {
+    throw new HttpProblem(409, problem("VERSION_CONFLICT",
+      "Термін дії наміру завантаження минув.",
       { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
   }
   if (new Date(intent.expires_at).getTime() <= Date.now()) {
@@ -217,12 +232,24 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
        intentId, intent.source_app_version,
        inspection.outcome, inspection.policyVersion]);
 
-    await tx.query(
+    // Conditional, and the row count is checked. Between the pre-flight checks
+    // and this point the expiry sweep can have marked the intent, or the purge
+    // worker can have claimed it — storage IO and inspection happen outside the
+    // transaction, so that window is real. Zero rows means the intent moved
+    // under us, and throwing rolls back the evidence row inserted moments ago.
+    const promoted = await tx.query(
       `update public.upload_intents
           set status = 'available', finalized_evidence_object_id = $3,
               failure_code = null, version = version + 1
-        where workspace_id = $1 and id = $2`,
+        where workspace_id = $1 and id = $2
+          and status = 'intent_authorized'
+          and purged_at is null and purge_claimed_at is null`,
       [intent.workspace_id, intentId, evidenceObjectId]);
+    if (promoted.rowCount !== 1) {
+      throw new HttpProblem(409, problem("VERSION_CONFLICT",
+        "Стан наміру завантаження змінився під час обробки. Потрібне нове завантаження.",
+        { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
+    }
 
     await tx.query(
       `insert into public.capture_events

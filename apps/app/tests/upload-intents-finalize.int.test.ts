@@ -292,4 +292,47 @@ describe("upload_intents.finalize", () => {
     const res = await finalize(intent.uploadIntentId);
     expect([403, 404]).toContain(res.status);
   });
+
+  it("refuses to finalize an intent the purge worker has claimed", async () => {
+    // Claimed is terminal for finalization: otherwise finalize either creates
+    // evidence pointing at bytes about to vanish, or races the delete.
+    const intent = await staged(JPEG);
+    await q(`update public.upload_intents
+                set status = 'expired', purge_claimed_at = now() where id = $1`,
+      [intent.uploadIntentId]);
+
+    const res = await finalize(intent.uploadIntentId);
+    expect(res.status).toBe(409);
+
+    const evidence = await q<{ n: string }>(
+      `select count(*) n from public.evidence_objects where workspace_id = $1`,
+      [fx.workspaceId]);
+    expect(evidence[0]!.n).toBe("0");
+  });
+
+  it("rolls back the evidence row when the intent moves during processing", async () => {
+    // Storage IO and inspection happen outside the transaction, so the intent
+    // can be expired or claimed in that window. The final transition is
+    // conditional and its row count is checked; a miss must leave nothing
+    // behind.
+    const intent = await staged(JPEG);
+    const { POST } = await import("../app/v1/upload-intents/[intentId]/finalize/route");
+
+    setInspector(async (bytes, mediaType) => {
+      // Simulate the sweep landing while inspection is in flight.
+      await q(`update public.upload_intents set status = 'expired' where id = $1`,
+        [intent.uploadIntentId]);
+      return { outcome: "passed", detectedMediaType: mediaType,
+               failureCode: null, policyVersion: "test-window" };
+    });
+
+    const res = await POST(jsonReq("http://x", {}),
+      { params: Promise.resolve({ intentId: intent.uploadIntentId }) });
+    expect(res.status).toBe(409);
+
+    const evidence = await q<{ n: string }>(
+      `select count(*) n from public.evidence_objects where workspace_id = $1`,
+      [fx.workspaceId]);
+    expect(evidence[0]!.n).toBe("0");
+  });
 });
