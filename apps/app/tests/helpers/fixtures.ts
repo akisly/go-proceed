@@ -142,3 +142,66 @@ export function craftZip(entries: { name: string; data: Buffer; declaredUncompre
   eocd.writeUInt32LE(offset, 16);
   return new Uint8Array(Buffer.concat([...chunks, cdBuf, eocd]));
 }
+
+export interface PublishedBaselineFixture extends BaselineFixture {
+  contractVersionId: string;
+  /** Work items of the published version, in position order. */
+  workItems: { id: string; workCode: string | null; unitCode: string }[];
+}
+
+/**
+ * Drives a clean CSV through create → stage → validate → publish so v0.1-M2
+ * suites start from a real published contract version rather than hand-inserted
+ * rows. Every amount reconciles, so no discrepancy resolution is needed.
+ */
+export async function publishedBaselineFixture(
+  userId: string, extraCapabilities: readonly string[] = [],
+): Promise<PublishedBaselineFixture> {
+  const fx = await baselineFixture(userId);
+
+  if (extraCapabilities.length > 0) {
+    const { POST: grant } = await import("../../app/v1/projects/[projectId]/access-grants/route");
+    const res = await grant(
+      jsonReq("http://x", { memberId: fx.memberId, capabilities: extraCapabilities }),
+      { params: Promise.resolve({ projectId: fx.projectId }) });
+    // A silently swallowed grant failure shows up later as an unexplained 403
+    // in every test that used this fixture.
+    if (res.status >= 300) {
+      throw new Error(`publishedBaselineFixture: grant returned ${res.status} ${await res.text()}`);
+    }
+  }
+
+  const csv =
+    "Шифр;Назва;Од;К-сть;Ціна;Сума\n" +
+    "1.1;Мурування;м2;10;199,99;1 999,90\n" +
+    "1.3;Утеплення;м2;5,5;150,00;825,00\n";
+
+  const batchId = await createBatch(fx.contractId);
+  await addFile(batchId, "кошторис.csv", new TextEncoder().encode(csv));
+
+  const { POST: validate } = await import("../../app/v1/import-batches/[batchId]/validate/route");
+  await validate(jsonReq("http://x", {
+    mapping: { sourceKey: "A", description: "B", unit: "C", quantity: "D", unitPrice: "E", amount: "F" },
+    config: { headerRow: 1 }, expectedVersion: 2,
+  }), { params: Promise.resolve({ batchId }) });
+
+  const view = await (await getBatch(batchId)).json();
+  const { POST: publish } = await import("../../app/v1/import-batches/[batchId]/publish/route");
+  const res = await publish(jsonReq("http://x", {
+    expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+  }), { params: Promise.resolve({ batchId }) });
+  if (res.status !== 201) {
+    throw new Error(`publishedBaselineFixture: publish returned ${res.status} ${await res.text()}`);
+  }
+  const contractVersionId = (await res.json()).contractVersionId as string;
+
+  const workItems = await q<{ id: string; work_code: string | null; unit_code: string }>(
+    `select id, work_code, unit_code from public.work_items
+      where workspace_id = $1 and contract_version_id = $2 order by position`,
+    [fx.workspaceId, contractVersionId]);
+
+  return {
+    ...fx, contractVersionId,
+    workItems: workItems.map((w) => ({ id: w.id, workCode: w.work_code, unitCode: w.unit_code })),
+  };
+}
