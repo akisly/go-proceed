@@ -5,7 +5,7 @@ parties.manage,workspace,Create and edit parties contacts and ordinary legal pro
 own_legal_profiles.manage,workspace,Mark and govern own legal entities; stricter than parties.manage (INV-020),parties.own_profile.create,v0.1-M1
 projects.create,workspace,Create projects; atomically grants creator project.admin (INV-019),projects.create,v0.1-M1
 units.manage,workspace,Manage unit definitions and precision rules,import_batches.validate,v0.1-M1
-requirement_templates.manage,workspace,Draft and publish immutable requirement template versions,requirement_templates.create requirement_templates.publish,v0.1-M3
+requirement_templates.manage,workspace,Draft and publish immutable requirement template versions,requirement_templates.create requirement_templates.publish,v0.1-M2
 package_templates.manage,workspace,Draft and publish immutable package template versions,package_versions.create,v0.1-M4
 audit.view,workspace,Read audit trail; default capability of the auditor governance role,none,v0.1-M1
 project.admin,project,Manage project access grants and responsibility assignments,project_access.grant project_responsibilities.assign,v0.1-M1

@@ -27,8 +27,8 @@ progress.adjust,POST,/v1/progress-entries/{entryId}/adjustments,command,required
 upload_intents.create,POST,/v1/assignments/{assignmentId}/upload-intents,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
 upload_intents.finalize,POST,/v1/upload-intents/{intentId}/finalize,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
 upload_intents.get,GET,/v1/upload-intents/{intentId},query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
-requirement_templates.create,POST,/v1/workspaces/{workspaceId}/requirement-templates,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M3
-requirement_templates.publish,POST,/v1/requirement-templates/{templateVersionId}/publish,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M3
+requirement_templates.create,POST,/v1/workspaces/{workspaceId}/requirement-templates,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
+requirement_templates.publish,POST,/v1/requirement-templates/{templateVersionId}/publish,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
 requirement_occurrences.create,POST,/v1/assignments/{assignmentId}/requirement-occurrences,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M3
 evidence_links.create,POST,/v1/occurrences/{occurrenceId}/evidence-links,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M3
 requirement_exceptions.create,POST,/v1/occurrences/{occurrenceId}/exceptions,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M3
