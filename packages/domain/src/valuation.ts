@@ -17,6 +17,26 @@ export interface WorkItemValuation {
 }
 
 /**
+ * State the allocator needs, all of it read under the work-item row lock.
+ *
+ * Two levels, because money is carved at work-item level but RETURNED at root
+ * level. Without the root figures a correction cannot know what its own lineage
+ * was actually given, and can hand back money a different root received.
+ */
+export interface AllocationState {
+  /** Quantity performed across the whole work item before this entry, scale 6. */
+  workItemPerformed: bigint;
+  /** Minor units already allocated across the whole work item. */
+  workItemAllocated: PoolAmounts;
+  /** Effective quantity of THIS entry's root before this entry, scale 6. */
+  rootQuantity: bigint;
+  /** Minor units already allocated to THIS entry's root. */
+  rootAllocated: PoolAmounts;
+}
+
+export const ZERO: PoolAmounts = { net: 0n, tax: 0n, gross: 0n };
+
+/**
  * Whether this work item's money is knowable at all, and why not when it isn't.
  *
  * The pool numbers alone cannot answer this. M1's publish writes
@@ -25,13 +45,10 @@ export interface WorkItemValuation {
  * columns are NOT NULL, so a work item whose money is unknown carries a pool of
  * 0 — indistinguishable by value from work that is genuinely free. The
  * qualifying facts are the only way to tell the two apart, and INV-038 needs
- * that distinction preserved at write time, because nothing downstream can
- * reconstruct it later.
+ * that distinction preserved at write time.
  */
 export function unvaluedReason(w: WorkItemValuation): UnvaluedReason | null {
   if (w.taxMode === "unknown") return "unknown_tax_basis";
-  // An approved source amount prices the item directly, so a missing unit price
-  // is irrelevant there. A zero unit price is a real price of zero.
   if (w.valuationBasis === "unit_price_derived" && w.unitPriceState === "missing") {
     return "missing_unit_price";
   }
@@ -39,67 +56,121 @@ export function unvaluedReason(w: WorkItemValuation): UnvaluedReason | null {
 }
 
 /**
- * Money allocated to the first `cumulativeQuantity` of within-contract work.
- *
- * Telescopic rather than incremental: a slice is the difference of two
- * cumulative values (see `sliceAllocation`). That makes
- * `pool = unperformed + sum(slices)` reconcile exactly by construction on every
- * component, makes the result independent of the order entries were appended,
- * and makes a negative correction return precisely what it was given.
- *
- * Quantity beyond the contract quantity allocates nothing further: the pool
- * covers within-contract scope only (docs/domain/value-at-risk.md), and
- * over-contract exposure is INV-039's concern in M6, not a second pool here.
- *
- * Components are never allocated independently. Which pair is allocated and
- * which one is derived follows the tax mode, so `gross = net + tax` holds for
- * every slice, for their sum, and for the unperformed leftover.
+ * Which two components are allocated, and how the third is derived.
+ * `gross = net + tax` therefore holds for every slice by construction.
  */
-export function cumulativeAllocation(
-  w: WorkItemValuation, cumulativeQuantity: bigint,
-): PoolAmounts {
-  const reason = unvaluedReason(w);
-  if (reason !== null) {
-    throw new Error(`cumulativeAllocation: work item is unvalued (${reason}); ` +
-      "call unvaluedReason first");
-  }
-  const denom = w.contractQuantity;
-  if (denom <= 0n) return { net: 0n, tax: 0n, gross: 0n };
-  const q = cumulativeQuantity <= 0n ? 0n
-    : cumulativeQuantity > denom ? denom
-    : cumulativeQuantity;
-  // Non-negative operands, so BigInt truncation toward zero is floor.
-  const share = (component: bigint): bigint => (component * q) / denom;
+type Coupling = "net_tax" | "gross_tax" | "gross_only";
 
-  switch (w.taxMode) {
-    case "exclusive": {
-      const net = share(w.pool.net);
-      const tax = share(w.pool.tax);
-      return { net, tax, gross: net + tax };
-    }
-    case "inclusive": {
-      const gross = share(w.pool.gross);
-      const tax = share(w.pool.tax);
-      return { net: gross - tax, tax, gross };
-    }
+function coupling(taxMode: TaxMode): Coupling {
+  switch (taxMode) {
+    case "exclusive": return "net_tax";
+    case "inclusive": return "gross_tax";
     case "exempt":
-    case "out_of_scope": {
-      const gross = share(w.pool.gross);
-      return { net: gross, tax: 0n, gross };
-    }
-    default:
-      throw new Error(`cumulativeAllocation: unsupported tax mode ${w.taxMode}`);
+    case "out_of_scope": return "gross_only";
+    default: throw new Error(`valuation: unsupported tax mode ${taxMode}`);
+  }
+}
+
+function assemble(c: Coupling, a: bigint, b: bigint): PoolAmounts {
+  switch (c) {
+    case "net_tax":   return { net: a, tax: b, gross: a + b };
+    case "gross_tax": return { net: a - b, tax: b, gross: a };
+    case "gross_only": return { net: a, tax: 0n, gross: a };
+  }
+}
+
+function componentsOf(c: Coupling, p: PoolAmounts): [bigint, bigint] {
+  switch (c) {
+    case "net_tax":   return [p.net, p.tax];
+    case "gross_tax": return [p.gross, p.tax];
+    case "gross_only": return [p.gross, 0n];
   }
 }
 
 /**
- * The money one progress fact moves, as the difference between the cumulative
- * allocation after it and before it. Negative when the fact reduces quantity.
+ * Splits `total` minor units between a carved slice of `q` and the leftover
+ * `denom - q`, by floor plus largest remainder.
+ *
+ * The leftover is the unperformed pool, which has no lineage identifier to
+ * tie-break against, so an exact tie goes to the slice — the side that does
+ * carry a stable identifier. Deterministic, and documented rather than
+ * incidental.
+ */
+function carve(total: bigint, q: bigint, denom: bigint): bigint {
+  if (denom <= 0n || q <= 0n || total === 0n) return 0n;
+  if (q >= denom) return total;
+  const sliceProduct = total * q;
+  const floorSlice = sliceProduct / denom;
+  const remSlice = sliceProduct - floorSlice * denom;
+
+  const leftProduct = total * (denom - q);
+  const floorLeft = leftProduct / denom;
+  const remLeft = leftProduct - floorLeft * denom;
+
+  const deficit = total - floorSlice - floorLeft; // 0 or 1
+  if (deficit <= 0n) return floorSlice;
+  return remSlice >= remLeft ? floorSlice + deficit : floorSlice;
+}
+
+/** Proportional reduction of an already-allocated amount, floored. */
+function shrink(allocated: bigint, newQty: bigint, oldQty: bigint): bigint {
+  if (oldQty <= 0n || newQty <= 0n) return 0n;
+  if (newQty >= oldQty) return allocated;
+  return (allocated * newQty) / oldQty;
+}
+
+/**
+ * The money one progress fact moves. Negative when the fact reduces quantity.
+ *
+ * Positive quantity carves from the CURRENT unperformed pool, exactly as
+ * docs/domain/value-at-risk.md prescribes. Negative quantity re-proportions
+ * within the entry's OWN root and returns the difference, so a correction can
+ * only hand back money that root actually received.
+ *
+ * An earlier revision of this module computed a slice as the difference of two
+ * cumulative allocations keyed off total work-item quantity. That reconciled in
+ * aggregate and corrupted lineage: correcting one root could strip a cent from a
+ * different root and leave the corrected one holding a negative balance. M4
+ * package lines SUM per-slice amounts, so each slice has to be meaningful on its
+ * own, not merely as a term in a telescoping series.
  */
 export function sliceAllocation(
-  w: WorkItemValuation, beforeQuantity: bigint, afterQuantity: bigint,
+  w: WorkItemValuation, state: AllocationState, deltaQuantity: bigint,
 ): PoolAmounts {
-  const a = cumulativeAllocation(w, beforeQuantity);
-  const b = cumulativeAllocation(w, afterQuantity);
-  return { net: b.net - a.net, tax: b.tax - a.tax, gross: b.gross - a.gross };
+  const reason = unvaluedReason(w);
+  if (reason !== null) {
+    throw new Error(`sliceAllocation: work item is unvalued (${reason}); ` +
+      "call unvaluedReason first");
+  }
+  if (deltaQuantity === 0n) return ZERO;
+
+  const c = coupling(w.taxMode);
+
+  if (deltaQuantity > 0n) {
+    // Remaining within-contract quantity and the money still unallocated.
+    const remainingQty = w.contractQuantity - state.workItemPerformed;
+    if (remainingQty <= 0n) return ZERO; // wholly over-contract: INV-039's problem in M6
+    const q = deltaQuantity > remainingQty ? remainingQty : deltaQuantity;
+
+    const [poolA, poolB] = componentsOf(c, w.pool);
+    const [usedA, usedB] = componentsOf(c, state.workItemAllocated);
+    return assemble(c,
+      carve(poolA - usedA, q, remainingQty),
+      carve(poolB - usedB, q, remainingQty));
+  }
+
+  // Negative: return from this root's own allocation, proportionally.
+  const newRootQty = state.rootQuantity + deltaQuantity;
+  if (newRootQty < 0n) {
+    throw new Error("sliceAllocation: adjustment drives root quantity below zero");
+  }
+  const [heldA, heldB] = componentsOf(c, state.rootAllocated);
+  const keptA = shrink(heldA, newRootQty, state.rootQuantity);
+  const keptB = shrink(heldB, newRootQty, state.rootQuantity);
+  const kept = assemble(c, keptA, keptB);
+  return {
+    net: kept.net - state.rootAllocated.net,
+    tax: kept.tax - state.rootAllocated.tax,
+    gross: kept.gross - state.rootAllocated.gross,
+  };
 }

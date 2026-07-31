@@ -64,10 +64,16 @@ describe("0015 module DDL", () => {
     expect(enums.rows).toEqual([]);
   });
 
-  it("makes an adjustment chain structurally unrepresentable (INV-023)", async () => {
+  it("scopes the INV-023 reference to assignment and work item, not just root-ness", async () => {
+    // 0015 constrained only (workspace_id, id, is_root): a chain was
+    // unrepresentable, but an adjustment could still point at a root in another
+    // assignment or work item. 0019 widened it, because the invariant says
+    // "the same workspace assignment and work item".
     const src = await constraintSrc("progress_entries_root_is_root_fkey");
-    expect(src).toMatch(/\(workspace_id, root_progress_entry_id, root_is_root\)/);
-    expect(src).toMatch(/REFERENCES progress_entries\(workspace_id, id, is_root\)/);
+    expect(src).toMatch(
+      /\(workspace_id, work_assignment_id, work_item_id, root_progress_entry_id, root_is_root\)/);
+    expect(src).toMatch(
+      /REFERENCES progress_entries\(workspace_id, work_assignment_id, work_item_id, id, is_root\)/);
   });
 
   it("keeps gross = net + tax, or all three null with a reason", async () => {
@@ -250,6 +256,36 @@ describe("0015 INV-023 enforcement is the database's, not a route's", () => {
         [ws, projectId, assignmentId, workItemId, rootId, memberId]);
     } catch (e) { code = (e as { code?: string }).code; }
     expect(code).toBe("23514");
+  });
+
+  it("rejects an adjustment whose root belongs to another assignment", async () => {
+    // The behavioural half of INV-023's scope. 0015's narrower key accepted
+    // this; 0019's does not.
+    const memberId = (await c.query(
+      `select id from public.memberships where organization_id = $1`, [ws])).rows[0].id;
+    const second = await c.query(
+      `select workspace_id, project_id, contract_id, contract_version_id, work_item_id
+         from public.work_assignments where workspace_id = $1 and id = $2`,
+      [ws, assignmentId]);
+    const other = await c.query(
+      `insert into public.work_assignments
+         (workspace_id, project_id, contract_id, contract_version_id, work_item_id,
+          created_by_member_id)
+       values ($1,$2,$3,$4,$5,$6) returning id`,
+      [ws, second.rows[0].project_id, second.rows[0].contract_id,
+       second.rows[0].contract_version_id, second.rows[0].work_item_id, memberId]);
+
+    let code: string | undefined;
+    try {
+      await c.query(
+        `insert into public.progress_entries
+           (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+            quantity, root_progress_entry_id, root_is_root, reason_code,
+            recorded_by_member_id)
+         values ($1,$2,$3,$4,'adjustment',-1,$5,true,'measurement_error',$6)`,
+        [ws, projectId, other.rows[0].id, workItemId, rootId, memberId]);
+    } catch (e) { code = (e as { code?: string }).code; }
+    expect(code).toBe("23503");
   });
 
   it("rejects an adjustment with no reason code", async () => {
