@@ -211,30 +211,37 @@ number that can drift.
 
 A new `packages/domain/src/valuation.ts`, built on M1's BigInt engine.
 
-Allocation is **telescopic**, not incremental. A slice is the difference of two
-cumulative values:
+Allocation is **incremental and per-root**, which is what
+[value-at-risk.md](../../domain/value-at-risk.md) prescribed all along:
 
-```
-cumulative(q) = component × min(q, contractQuantity) / contractQuantity
-slice         = cumulative(after) − cumulative(before)
-```
+- **positive quantity** carves from the *current* unperformed pool —
+  `floor(remaining × q / remainingQuantity)` on each allocated component, with
+  the one leftover minor unit going to the larger remainder. The leftover here
+  is the unperformed pool, which carries no lineage identifier, so an exact tie
+  goes to the slice — the side that does have a stable identity;
+- **negative quantity** re-proportions within the entry's **own root** and
+  returns the difference, so a correction can only hand back money that root
+  actually received.
 
-where `before` and `after` are the work item's cumulative performed quantity
-around this entry. Three properties follow by construction rather than by
-careful bookkeeping: the slices telescope to `cumulative(total)`, so
-`pool = unperformed + Σ slices` reconciles **exactly**; the result does not
-depend on the order entries were appended; and a negative correction returns
-precisely what it was given. The worked example in
-[value-at-risk.md](../../domain/value-at-risk.md) falls out unchanged — two
-quantity-1 slices of a one-cent quantity-2 pool yield `0` and `1`, one cent
-total, not two.
+The allocator therefore needs two levels of state, both read under the
+work-item row lock: the work item's performed quantity and allocated amounts,
+and the same pair for the entry's root.
 
-The largest-remainder rule with a `lineage_key` tie-break in that document
-governs partitioning a parent among **siblings**, which is M4's package lines
-and claim segments. A progressive carve against a monotone cumulative function
-needs no remainder distribution, because there is no set of peers to distribute
-across; the leftover is the unperformed pool itself. `lineage_key` is still
-recorded on every allocation so M4 inherits a stable identity.
+An earlier revision of this design computed a slice as the difference of two
+cumulative allocations keyed off total work-item quantity. It was rejected in
+engineering review: it reconciles in aggregate but corrupts lineage. With a
+one-cent pool over quantity 2, root A takes 0 and root B takes 1; correcting A
+by −1 then strips B's cent and leaves A holding −1 at zero quantity. M4 package
+lines SUM per-slice amounts, so each slice has to be meaningful on its own, not
+merely as a term in a telescoping series. The property test that defended the
+telescopic version was itself a tautology — summing terms that telescope by
+construction cannot fail.
+
+The reviewed alternative — store quantity plus exact rational entitlement in M2
+and allocate minor units only in M4 — was also rejected, because
+value-at-risk.md requires a package line to sum *already allocated* canonical
+amounts rather than recompute them. Adopting it would change an approved domain
+document, not just this slice.
 
 Quantity beyond `contractQuantity` allocates nothing further: the pool covers
 within-contract scope only, and over-contract exposure is INV-039's concern in

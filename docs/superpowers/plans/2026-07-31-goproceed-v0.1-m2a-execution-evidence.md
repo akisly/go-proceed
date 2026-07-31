@@ -1601,7 +1601,7 @@ git commit -m "feat(m2): append-only progress adjustment with reservation and li
 
 **Files:**
 - Modify: `supabase/config.toml:105-116`
-- Create: `supabase/migrations/0017_evidence_storage_buckets.sql`
+- Create: `supabase/migrations/0020_evidence_storage_buckets.sql` (0017-0019 were taken by the engineering-review corrections)
 - Create: `apps/app/src/lib/evidence-storage.ts`
 - Test: `apps/app/tests/evidence-storage.int.test.ts`
 
@@ -1631,7 +1631,7 @@ public = false
 file_size_limit = "50MiB"
 ```
 
-Create `supabase/migrations/0017_evidence_storage_buckets.sql` so deployed environments get the
+Create `supabase/migrations/0020_evidence_storage_buckets.sql` so deployed environments get the
 same two private buckets and no client-side access at all:
 
 ```sql
@@ -1683,7 +1683,7 @@ pnpm --filter @aktflow/app exec vitest run tests/evidence-storage.int.test.ts
 ```
 
 ```bash
-git add supabase/config.toml supabase/migrations/0017_evidence_storage_buckets.sql \
+git add supabase/config.toml supabase/migrations/0020_evidence_storage_buckets.sql \
         apps/app/src/lib/evidence-storage.ts apps/app/tests/evidence-storage.int.test.ts
 git commit -m "feat(m2): private evidence buckets and server-only storage module"
 ```
@@ -1945,7 +1945,7 @@ git commit -m "feat(m2): upload intent receipt query"
 ### Task 13: Orphan purge within 24 hours (INV-047)
 
 **Files:**
-- Create: `supabase/migrations/0018_upload_purge.sql`
+- Create: `supabase/migrations/0021_upload_purge.sql`
 - Create: `apps/app/src/lib/evidence-purge.ts`
 - Test: `apps/app/tests/evidence-purge.int.test.ts`
 
@@ -1971,7 +1971,7 @@ Create `apps/app/tests/evidence-purge.int.test.ts`:
 
 - [ ] **Step 2: Write the SQL side**
 
-Create `supabase/migrations/0018_upload_purge.sql` with a `security definer` function that
+Create `supabase/migrations/0021_upload_purge.sql` with a `security definer` function that
 selects expired or orphaned intents, updates their status, and inserts one
 `public.transaction_outbox` row per intent with topic `evidence.staging_purge_requested` and a
 payload of `{ workspaceId, uploadIntentId, bucket, key }`. Schedule it with the **guarded**
@@ -2009,7 +2009,7 @@ Expected: PASS
 - [ ] **Step 4: Commit**
 
 ```bash
-git add supabase/migrations/0018_upload_purge.sql apps/app/src/lib/evidence-purge.ts \
+git add supabase/migrations/0021_upload_purge.sql apps/app/src/lib/evidence-purge.ts \
         apps/app/tests/evidence-purge.int.test.ts
 git commit -m "feat(m2): idempotent orphan staging purge with outbox-driven deletion"
 ```
@@ -2259,14 +2259,21 @@ call, not this review's.
 but ten remain open, one of them a critical gap in the money layer. Tasks 5–15 should not
 start until D1, D2, D4, and D5 are decided.
 
+**Post-review resolution (same branch, decided and implemented).**
+
+| ID | Decision | Landed |
+|---|---|---|
+| D1 | Per-root lineage, implementing what value-at-risk.md prescribed: positive quantity carves from the current unperformed pool, negative quantity re-proportions within its own root. Codex's rational-entitlement deferral was rejected because the domain doc requires package lines to SUM already-allocated amounts, so deferring would change an approved document. | `valuation.ts` rewritten; ledger property test with per-root assertions; counter-example as a regression test; mutation-checked |
+| D2 | Column-scoped UPDATE grant on `upload_intents`; the orphan transition moves to `app.orphan_upload_intent`, which authorizes on intent ownership rather than the capability revocation just removed. | `0019` |
+| D5 | Foreign key widened to `(workspace_id, work_assignment_id, work_item_id, root_progress_entry_id, root_is_root)`, with a behavioural test asserting 23503 on a cross-assignment adjustment. | `0019` |
+| D6 | `unique (storage_bucket, storage_key)` and `unique (staging_bucket, staging_storage_key)`. | `0019` |
+| D9 | Task 9's buckets renumbered to `0020`, Task 13's purge to `0021`. | plan text above |
+
 **UNRESOLVED DECISIONS:**
-- D1 — money model: per-root monetary lineage, or Codex's rational-entitlement deferral to M4.
-- D2 — `upload_intents` write surface and how revocation reaches `orphaned_for_purge`.
-- D3 — storage promotion: immutable key with PostgreSQL-controlled visibility, or a journal.
-- D4 — purge dispatch: `drain_outbox` needs topic dispatch, or purge needs its own runner.
-- D5 — widen the INV-023 foreign key to assignment and work item.
-- D6 — make storage-key uniqueness global per bucket.
-- D7 — inspection stub: sniff magic bytes and quota, or stop recording `passed`.
-- D8/D10 — upload retry semantics; template version and assignment pinning races.
-- D9 — renumber Task 9/13 migrations to 0019/0020 and reorder Task 14's lock test.
+- D3 — storage promotion is not atomic; choose an immutable key with visibility controlled in PostgreSQL, or an explicit promotion journal. Belongs to Task 11, which is not built.
+- D4 — `drain_outbox` marks every claimed row processed with no topic dispatch, so purge needs either dispatch in the drainer or its own runner. Belongs to Task 13, which is not built.
+- D7 — the inspection stub records `inspection_status = 'passed'` after only re-checking the client-claimed MIME string; add magic-byte sniffing and quota, or stop recording `passed`. Belongs to Task 11.
+- D8 — upload retry semantics: a signed URL inside a 30-day idempotency response, no transition to `staged`, no new-attempt path after an integrity failure. Belongs to Task 10.
+- D10 — `max(version_no)+1` without serialization in Task 5; Task 6's work-item query accepts any version of the contract despite claiming to pin the current published one.
 - A4, C1, C2, P1, P2 — the five lower-severity items above.
+- Task 14 must add the work-item-lock test: parallel `progress.record` under *different* idempotency keys.
