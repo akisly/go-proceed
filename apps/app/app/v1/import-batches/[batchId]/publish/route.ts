@@ -191,7 +191,14 @@ export const POST = commandRoute(publishImportBatchRequest, async (a) => {
           unit.id, unit.code, unit.precision,
           decimalText(mp.quantity.scaled, mp.quantity.scale),
           mp.unitPriceState,
-          mp.unitPrice ? decimalText(mp.unitPrice.scaled, mp.unitPrice.scale) : null,
+          // Tied to the STATE, not to the presence of a parsed value. A price of
+          // 0,00 parses into a Decimal whose object is truthy, so the old
+          // `mp.unitPrice ? …` wrote "0.00" alongside state 'zero' and violated
+          // `(unit_price_state = 'known') = (unit_price_decimal is not null)` —
+          // publishing any estimate containing a zero-priced row returned 500.
+          // Zero-priced rows are ordinary (work bundled into another line).
+          mp.unitPriceState === "known" && mp.unitPrice
+            ? decimalText(mp.unitPrice.scaled, mp.unitPrice.scale) : null,
           mp.unitPrice ? priceBasis : null,
           approvedBasis ? "approved_source_amount" : "unit_price_derived",
           contract.currency, contract.tax_mode, contract.tax_rate_bps,

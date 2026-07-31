@@ -208,3 +208,33 @@ describe("publish", () => {
     expect((await getVersion(fx.contractId, 99)).status).toBe(404);
   });
 });
+
+describe("zero-priced rows publish", () => {
+  // Found while building the v0.1-M2 valuation matrix. publish wrote
+  // unit_price_decimal from `mp.unitPrice ? … : null`, and a price of 0,00
+  // parses into a Decimal whose object is truthy, so a 'zero' row was stored
+  // with a non-null decimal and violated
+  // `(unit_price_state = 'known') = (unit_price_decimal is not null)`.
+  // Publishing any estimate containing a zero-priced row returned 500. No M1
+  // fixture ever imported one.
+  const CSV_ZERO =
+    "Шифр;Назва;Од;К-сть;Ціна;Сума\n" +
+    "1.1;Мурування;м2;10;199,99;1 999,90\n" +
+    "1.5;Складування (у вартості);м2;4;0,00;0,00\n";
+
+  it("stores a zero price as state 'zero' with no decimal", async () => {
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.csv", enc(CSV_ZERO));
+    await validate(batchId, 2);
+    const view = await (await getBatch(batchId)).json();
+
+    const res = await publish(batchId, view.version, view.sourceManifestHash);
+    expect(res.status, await res.clone().text()).toBe(201);
+
+    const rows = await q<{ unit_price_state: string; unit_price_decimal: string | null }>(
+      `select unit_price_state, unit_price_decimal::text from public.work_items
+        where workspace_id = $1 and source_key = '1.5'`, [fx.workspaceId]);
+    expect(rows[0]!.unit_price_state).toBe("zero");
+    expect(rows[0]!.unit_price_decimal).toBeNull();
+  });
+});
