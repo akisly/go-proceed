@@ -40,3 +40,14 @@ export interface FinalizeUploadIntentResponse {
   serverReceivedAt: string | null;
   failureCode: string | null;
 }
+
+export interface GetUploadIntentResponse {
+  uploadIntentId: string;
+  status: string;
+  evidenceObjectId: string | null;
+  contentHash: string | null;
+  byteSize: number | null;
+  serverReceivedAt: string | null;
+  failureCode: string | null;
+  expiresAt: string;
+}
