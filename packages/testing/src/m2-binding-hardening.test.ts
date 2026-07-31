@@ -454,3 +454,62 @@ describe("server-only transitions and the quota oracle", () => {
   });
 });
 
+describe("an allocation's root is the root of the fact it values", () => {
+  it("rejects a root belonging to a different fact", async () => {
+    // 0025 required the reference to be a root; 0030 requires it to be THIS
+    // fact's root. Without that an adjustment could attach its money lineage to
+    // a root in another assignment or work item of the same workspace.
+    const otherAssignment = await seedAssignment(c, a);
+    const foreignRoot = await c.query(
+      `insert into public.progress_entries
+         (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+          quantity, recorded_by_member_id)
+       values ($1,$2,$3,$4,'root',5,$5) returning id`,
+      [a.workspaceId, a.projectId, otherAssignment, a.workItemId, a.memberId]);
+
+    const ownRoot = await c.query(
+      `insert into public.progress_entries
+         (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+          quantity, recorded_by_member_id)
+       values ($1,$2,$3,$4,'root',6,$5) returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.workItemId, a.memberId]);
+
+    const code = await sqlstate(() => c.query(
+      `insert into public.valuation_allocations
+         (workspace_id, project_id, contract_id, work_item_id, progress_entry_id,
+          root_progress_entry_id, lineage_key, quantity, funded_quantity,
+          net_minor_units, tax_minor_units, gross_minor_units)
+       values ($1,$2,$3,$4,$5,$6,$7,6,6,10,2,12)`,
+      [a.workspaceId, a.projectId, a.contractId, a.workItemId,
+       ownRoot.rows[0].id, foreignRoot.rows[0].id, `probe:${crypto.randomUUID()}`]));
+    expect(code).toBe("23503");
+  });
+
+  it("accepts an adjustment valued against its own root", async () => {
+    const root = await c.query(
+      `insert into public.progress_entries
+         (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+          quantity, recorded_by_member_id)
+       values ($1,$2,$3,$4,'root',9,$5) returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.workItemId, a.memberId]);
+    const adj = await c.query(
+      `insert into public.progress_entries
+         (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
+          quantity, root_progress_entry_id, root_is_root, reason_code,
+          recorded_by_member_id)
+       values ($1,$2,$3,$4,'adjustment',-3,$5,true,'measurement_error',$6)
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.workItemId, root.rows[0].id, a.memberId]);
+
+    const code = await sqlstate(() => c.query(
+      `insert into public.valuation_allocations
+         (workspace_id, project_id, contract_id, work_item_id, progress_entry_id,
+          root_progress_entry_id, lineage_key, quantity, funded_quantity,
+          net_minor_units, tax_minor_units, gross_minor_units)
+       values ($1,$2,$3,$4,$5,$6,$7,-3,-3,-10,-2,-12)`,
+      [a.workspaceId, a.projectId, a.contractId, a.workItemId,
+       adj.rows[0].id, root.rows[0].id, `probe:${crypto.randomUUID()}`]));
+    expect(code).toBeNull();
+  });
+});
+

@@ -84,6 +84,13 @@ export const POST = commandRoute(createUploadIntentRequest, async (a) => {
       // column nobody wrote. A workspace with no limit configured is unlimited,
       // which is the behaviour that shipped — the figure itself is an external
       // gate (see 0015 and 0026).
+      // Serialized per workspace. Read-then-reserve is a classic
+      // check-then-act: without the lock, concurrent creations all read the
+      // same total, all find room, and all reserve — oversubscribing a limit
+      // that exists precisely to be a limit.
+      await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))",
+        [`evidence_quota|${workspaceId}`]);
+
       const quota = await tx.query(
         `select o.evidence_quota_bytes,
                 app.evidence_bytes_in_use($1) as in_use

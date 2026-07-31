@@ -136,6 +136,25 @@ being enforceable.
 behind it.
 **Depends on:** the approved retention schedule (external gate V-003).
 
+## P2 — purge claims are not fenced
+
+**What:** `public.claim_upload_purge` marks a row claimed with a timestamp, and
+`complete_upload_purge` / `fail_upload_purge` take only the intent id. A worker
+that stalls past the one-hour reclaim window, then resumes, can clear a newer
+worker's claim or spend its retry budget — neither function can tell the current
+claimant from a stale one.
+
+**Why:** today the purge worker has no deployed runner at all, so there is
+exactly one caller and the window is theoretical. It stops being theoretical the
+moment a second instance runs.
+
+**Pros of fixing:** the claim becomes a lease with an owner, which is what the
+one-hour window already implies.
+**Cons:** a claim token column plus signature changes to three functions and the
+worker; worth doing WITH the deployment work rather than before it, so the
+fencing matches whatever runner is chosen.
+**Depends on:** wiring the purge worker to a runtime (see the gate record).
+
 ## P1 — nothing proves inspection actually ran
 
 **What:** `app.finalize_upload_intent` (migration 0029) is the only way to create

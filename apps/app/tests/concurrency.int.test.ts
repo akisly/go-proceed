@@ -228,3 +228,31 @@ describe("v0.1-M1 carry-over", () => {
     expect(Number(after[0]!.n) - Number(before[0]!.n)).toBe(1);
   });
 });
+
+describe("the storage quota holds under contention", () => {
+  it("does not let concurrent creations oversubscribe the limit", async () => {
+    // Read-then-reserve is check-then-act: without a per-workspace lock all
+    // callers read the same total, all find room, and all reserve.
+    const bytes = JPEG.byteLength;
+    await q(`update public.organizations set evidence_quota_bytes = $2 where id = $1`,
+      [fx.workspaceId, bytes * 2]);
+
+    const { POST } = await import("../app/v1/assignments/[assignmentId]/upload-intents/route");
+    const results = await inParallel(5, (i) => POST(keyed({
+      expectedContentHash: hashOf(JPEG), expectedByteSize: bytes,
+      claimedMediaType: "image/jpeg", deviceCaptureId: `d-${i}`,
+      originMethod: "native_camera",
+    }, `quota-${i}`), { params: Promise.resolve({ assignmentId }) }));
+
+    const created = fulfilled(results).filter((r) => r.status === 201).length;
+    const refused = fulfilled(results).filter((r) => r.status === 422).length;
+    expect(created).toBe(2);
+    expect(refused).toBe(3);
+
+    const reserved = await q<{ s: string }>(
+      `select coalesce(sum(quota_reserved_bytes),0)::text s from public.upload_intents
+        where workspace_id = $1 and status = 'intent_authorized'`, [fx.workspaceId]);
+    expect(Number(reserved[0]!.s)).toBeLessThanOrEqual(bytes * 2);
+  });
+});
+
