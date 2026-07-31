@@ -192,6 +192,31 @@ describe("parallel finalize on one upload intent", () => {
     const ids = new Set(bodies.map((b) => b.evidenceObjectId));
     expect(ids.size).toBe(1);
     for (const b of bodies) expect(b.contentHash).toBe(bodies[0]!.contentHash);
+
+    // One evidence object was never the whole question, and asserting only that
+    // is how this stayed green over a real defect: the row lock did produce one
+    // row, but the three losing calls each received its id and could not tell
+    // they had not created it, so each went on to append a capture event, an
+    // audit entry and an evidence.available outbox row. The outbox has no
+    // uniqueness constraint, so a subscriber saw the evidence arrive four
+    // times. Migration 0031 makes the command report whether it created.
+    const evidenceId = bodies[0]!.evidenceObjectId;
+    const events = await q<{ n: string }>(
+      `select count(*) n from public.capture_events
+        where workspace_id = $1 and upload_intent_id = $2
+          and client_state = 'server_confirmed'`,
+      [fx.workspaceId, intent.uploadIntentId]);
+    expect(events[0]!.n).toBe("1");
+
+    const outbox = await q<{ n: string }>(
+      `select count(*) n from public.transaction_outbox
+        where topic = 'evidence.available' and aggregate_id = $1`, [evidenceId]);
+    expect(outbox[0]!.n).toBe("1");
+
+    const audits = await q<{ n: string }>(
+      `select count(*) n from public.audit_events
+        where action = 'evidence.available' and object_id = $1`, [evidenceId]);
+    expect(audits[0]!.n).toBe("1");
   });
 });
 

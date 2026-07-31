@@ -195,8 +195,10 @@ describe("evidence is created only by the finalization command", () => {
 
   const finalize = (over: Partial<{
     hash: string; size: number; media: string; status: string; policy: string;
-  }> = {}) => asActor(USER_A, WS_A, (cl) => cl.query<{ evidence: string | null }>(
-    `select app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7) as evidence`,
+  }> = {}) => asActor(USER_A, WS_A, (cl) => cl.query<{
+    evidence_object_id: string | null; outcome: string;
+  }>(
+    `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
     [a.workspaceId, intentId, over.hash ?? "d".repeat(64), over.size ?? 11,
      over.media ?? "image/jpeg", over.status ?? "passed", over.policy ?? "probe-1"]));
 
@@ -209,7 +211,8 @@ describe("evidence is created only by the finalization command", () => {
 
   it("copies provenance from the intent rather than taking it from the caller", async () => {
     const r = await finalize();
-    const id = r.rows[0]!.evidence;
+    const id = r.rows[0]!.evidence_object_id;
+    expect(r.rows[0]!.outcome).toBe("created");
     expect(id).toBeTruthy();
 
     const row = await c.query(
@@ -230,12 +233,18 @@ describe("evidence is created only by the finalization command", () => {
     expect(intent.rows[0].finalized_evidence_object_id).toBe(id);
   });
 
-  it("returns the same receipt when called again", async () => {
+  it("returns the same receipt when called again, and says it did not create it", async () => {
     const again = await finalize();
     const row = await c.query(
       `select finalized_evidence_object_id from public.upload_intents where id = $1`,
       [intentId]);
-    expect(again.rows[0]!.evidence).toBe(row.rows[0].finalized_evidence_object_id);
+    expect(again.rows[0]!.evidence_object_id).toBe(row.rows[0].finalized_evidence_object_id);
+
+    // Migration 0031. Returning a bare uuid left the caller unable to tell "I
+    // created this" from "someone already had", so every losing parallel call
+    // and every client retry appended another capture event, audit entry and
+    // evidence.available outbox row.
+    expect(again.rows[0]!.outcome).toBe("already");
 
     const count = await c.query(
       `select count(*) n from public.evidence_objects where upload_intent_id = $1`,
@@ -245,21 +254,113 @@ describe("evidence is created only by the finalization command", () => {
 
   it("refuses a caller who did not create the intent", async () => {
     expect(await sqlstate(() => asActor(USER_B, WS_A, (cl) => cl.query(
-      `select app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+      `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
       [a.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]))))
       .toBeTruthy();
+  });
+
+  // Migration 0031: INV-047 is decided inside the row lock, not trusted from a
+  // route that checked a moment earlier.
+  it("orphans the bytes itself when the capability is gone", async () => {
+    const revokedKey = `${crypto.randomUUID()}/${crypto.randomUUID()}`;
+    const other = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),11,repeat('d',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), revokedKey]);
+
+    await c.query(
+      `delete from public.project_access_grants
+        where workspace_id = $1 and member_id = $2 and capability = 'evidence.record'`,
+      [a.workspaceId, a.memberId]);
+    try {
+      const r = await asActor(USER_A, WS_A, (cl) => cl.query<{
+        evidence_object_id: string | null; outcome: string;
+      }>(`select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+        [a.workspaceId, other.rows[0].id, "d".repeat(64), 11, "image/jpeg",
+         "passed", "probe-047"]));
+
+      // Named, not raised: the caller's access ended, which is not a server
+      // defect and must not reach the client as one.
+      expect(r.rows[0]!.outcome).toBe("unauthorized");
+      expect(r.rows[0]!.evidence_object_id).toBeNull();
+
+      // And the bytes are marked in the same statement. Leaving this to a
+      // second call is what INV-047 cannot afford: the caller who just lost
+      // their grant is exactly the one whose second call gets refused.
+      const after = await c.query(
+        `select status, failure_code from public.upload_intents where id = $1`,
+        [other.rows[0].id]);
+      expect(after.rows[0].status).toBe("orphaned_for_purge");
+      expect(after.rows[0].failure_code).toBe("authorization_revoked");
+
+      const none = await c.query(
+        `select count(*) n from public.evidence_objects where upload_intent_id = $1`,
+        [other.rows[0].id]);
+      expect(none.rows[0].n).toBe("0");
+    } finally {
+      await c.query(
+        `insert into public.project_access_grants
+           (workspace_id, project_id, member_id, capability, granted_by)
+         values ($1,$2,$3,'evidence.record',$4)`,
+        [a.workspaceId, a.projectId, a.memberId, USER_A]);
+    }
+  });
+
+  it("still owns what it created after being deactivated", async () => {
+    // Identity and permission are different questions. Ownership was answered
+    // with app.active_member_id, so a member deactivated mid-upload could
+    // neither finalize (right) nor abandon their own bytes (wrong) — the
+    // command raised on an assertion that was never about them, which reaches
+    // the client as a 500 and leaves the bytes authorized until expiry.
+    const key = `${crypto.randomUUID()}/${crypto.randomUUID()}`;
+    const mine = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),11,repeat('d',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), key]);
+
+    await c.query(
+      `update public.memberships set status = 'suspended' where id = $1`, [a.memberId]);
+    try {
+      const r = await asActor(USER_A, WS_A, (cl) => cl.query<{ b: boolean }>(
+        `select app.orphan_upload_intent($1,$2) as b`, [a.workspaceId, mine.rows[0].id]));
+      expect(r.rows[0]!.b).toBe(true);
+
+      const after = await c.query(
+        `select status from public.upload_intents where id = $1`, [mine.rows[0].id]);
+      expect(after.rows[0].status).toBe("orphaned_for_purge");
+    } finally {
+      await c.query(
+        `update public.memberships set status = 'active' where id = $1`, [a.memberId]);
+    }
   });
 });
 
 describe("upload intent identity is not writable", () => {
   it("gives the app role no update on the storage key or bucket", async () => {
+    // This asserted the grant list equals exactly the four state-machine
+    // columns, which was true and was the problem: written to prove the key and
+    // bucket are unwritable, it froze the writable state column beside them as
+    // expected behaviour, and stayed green through 0028 and 0029 while both
+    // claimed transitions were server-only. Migration 0031 removed the grant;
+    // the assertion is now that there is no update surface at all.
     const r = await c.query(
       `select column_name from information_schema.column_privileges
         where grantee = 'aktflow_app' and table_name = 'upload_intents'
           and privilege_type = 'UPDATE'
         order by column_name`);
-    const cols = r.rows.map((x) => x.column_name).sort();
-    expect(cols).toEqual(["failure_code", "finalized_evidence_object_id", "status", "version"]);
+    expect(r.rows.map((x) => x.column_name)).toEqual([]);
   });
 
   it("denies a member updating an intent they did not create", async () => {
@@ -287,11 +388,24 @@ describe("upload intent identity is not writable", () => {
        on conflict do nothing`,
       [a.workspaceId, a.projectId, other.rows[0].id, USER_A]);
 
-    const r = await asActor(USER_B, WS_A, (cl) => cl.query(
+    // The direct write is gone entirely (0031), so this no longer rests on RLS
+    // filtering the row out — there is no update privilege to filter.
+    expect(await sqlstate(() => asActor(USER_B, WS_A, (cl) => cl.query(
       `update public.upload_intents set status = 'available'
-        where workspace_id = $1 and id = $2`, [a.workspaceId, mine.rows[0].id]));
-    // RLS filters the row out rather than raising: zero rows updated.
-    expect(r.rowCount ?? 0).toBe(0);
+        where workspace_id = $1 and id = $2`, [a.workspaceId, mine.rows[0].id]))))
+      .toBe("42501");
+
+    // Which moves the question to the commands: each one authorizes on having
+    // created the intent, so a second member holding the same capabilities on
+    // the same project still cannot move somebody else's upload.
+    for (const call of [
+      ["select app.block_upload_intent($1,$2,'declared_type_mismatch')"],
+      ["select app.orphan_upload_intent($1,$2)"],
+      ["select app.fail_upload_intent($1,$2,'integrity_size_mismatch',10)"],
+    ] as const) {
+      expect(await sqlstate(() => asActor(USER_B, WS_A, (cl) =>
+        cl.query(call[0], [a.workspaceId, mine.rows[0].id])))).toBeTruthy();
+    }
 
     const after = await c.query(
       `select status from public.upload_intents where id = $1`, [mine.rows[0].id]);
@@ -451,6 +565,175 @@ describe("server-only transitions and the quota oracle", () => {
     const r = await asActor(USER_A, WS_A, (cl) =>
       cl.query<{ n: string }>(`select app.evidence_bytes_in_use($1) as n`, [a.workspaceId]));
     expect(Number(r.rows[0]!.n)).toBeGreaterThanOrEqual(0);
+  });
+
+  // Migration 0031.
+  it("counts bytes that are still in the bucket, whatever the intent says", async () => {
+    // 0028 widened this to blocked and orphaned content and said in its own
+    // comment that bytes count "until purged_at is set" — then enumerated
+    // statuses instead. Expired intents, and authorized ones past their
+    // deadline that the fifteen-minute sweep has not reached, held real bytes
+    // and were counted as nothing. With no purge worker deployed, nothing is
+    // where they stayed.
+    const usage = () => asActor(USER_A, WS_A, (cl) => cl.query<{ n: string }>(
+      `select app.evidence_bytes_in_use($1) as n`, [a.workspaceId]))
+      .then((r) => Number(r.rows[0]!.n));
+
+    const before = await usage();
+    for (const [status, ttl] of [
+      ["expired", "-1 hour"], ["intent_authorized", "-1 hour"],
+    ] as const) {
+      await c.query(
+        `insert into public.upload_intents
+           (workspace_id, project_id, work_assignment_id, created_by_member_id,
+            origin_method, idempotency_key, request_hash, expected_byte_size,
+            expected_content_hash, allowed_content_family, claimed_media_type,
+            staging_bucket, staging_storage_key, expires_at, status,
+            quota_reserved_bytes)
+         values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),1000,repeat('c',64),
+                 'image','image/jpeg','evidence',$6, now() + $7::interval, $8, 1000)`,
+        [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(),
+         `${crypto.randomUUID()}/${crypto.randomUUID()}`, ttl, status]);
+    }
+    expect(await usage()).toBe(before + 2000);
+
+    // And purged bytes stop counting, which is the whole point of the column.
+    await c.query(
+      `update public.upload_intents set purged_at = now()
+        where workspace_id = $1 and expected_content_hash = repeat('c',64)`,
+      [a.workspaceId]);
+    expect(await usage()).toBe(before);
+  });
+
+  it("gives the app role no way to write intent state directly", async () => {
+    // The command story from 0028 and 0029 was only ever as strong as this:
+    // while status was writable, every server-only transition was optional.
+    const r = await c.query(
+      `select count(*)::int n from information_schema.column_privileges
+        where grantee = 'aktflow_app' and table_name = 'upload_intents'
+          and privilege_type = 'UPDATE'`);
+    expect(r.rows[0].n).toBe(0);
+  });
+
+  it("refuses a direct promotion to available", async () => {
+    const intent = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),10,repeat('b',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(),
+       `${crypto.randomUUID()}/${crypto.randomUUID()}`]);
+
+    // The creator, in their own workspace, holding every capability: still no.
+    // Evidence-free 'available' would release the quota reservation and present
+    // an upload that never happened as finished.
+    expect(await sqlstate(() => asActor(USER_A, WS_A, (cl) => cl.query(
+      `update public.upload_intents set status = 'available'
+        where workspace_id = $1 and id = $2`,
+      [a.workspaceId, intent.rows[0].id])))).toBeTruthy();
+
+    const after = await c.query(
+      `select status from public.upload_intents where id = $1`, [intent.rows[0].id]);
+    expect(after.rows[0].status).toBe("intent_authorized");
+  });
+
+  it("corrects the reservation to the bytes actually stored", async () => {
+    // The reservation is made from the size the CLIENT declares, and a signed
+    // upload URL cannot bound what is really sent — Supabase enforces only the
+    // bucket-wide maximum. Declare one byte, upload fifty megabytes, never
+    // finalize, repeat. This is the moment the server learns the truth.
+    const intent = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at, quota_reserved_bytes)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),1,repeat('b',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day', 1)
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(),
+       `${crypto.randomUUID()}/${crypto.randomUUID()}`]);
+
+    const applied = await asActor(USER_A, WS_A, (cl) => cl.query<{ b: boolean }>(
+      `select app.fail_upload_intent($1,$2,$3,$4) as b`,
+      [a.workspaceId, intent.rows[0].id, "integrity_size_mismatch", 52428800]));
+    expect(applied.rows[0]!.b).toBe(true);
+
+    const after = await c.query(
+      `select quota_reserved_bytes, failure_code from public.upload_intents
+        where id = $1`, [intent.rows[0].id]);
+    expect(Number(after.rows[0].quota_reserved_bytes)).toBe(52428800);
+    expect(after.rows[0].failure_code).toBe("integrity_size_mismatch");
+
+    // A later, smaller observation must not hand the quota back while the large
+    // object is still sitting there.
+    await asActor(USER_A, WS_A, (cl) => cl.query(
+      `select app.fail_upload_intent($1,$2,$3,$4)`,
+      [a.workspaceId, intent.rows[0].id, "integrity_hash_mismatch", 1]));
+    const again = await c.query(
+      `select quota_reserved_bytes from public.upload_intents where id = $1`,
+      [intent.rows[0].id]);
+    expect(Number(again.rows[0].quota_reserved_bytes)).toBe(52428800);
+  });
+
+  it("does not record a failure against an intent that already moved on", async () => {
+    const intent = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at, status)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),10,repeat('b',64),
+               'image','image/jpeg','evidence',$6, now() - interval '1 hour',
+               'intent_authorized')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(),
+       `${crypto.randomUUID()}/${crypto.randomUUID()}`]);
+
+    // Expired during the storage read. Writing failure provenance now would
+    // attach a verdict from a request that arrived after the grant was over.
+    const applied = await asActor(USER_A, WS_A, (cl) => cl.query<{ b: boolean }>(
+      `select app.fail_upload_intent($1,$2,$3,$4) as b`,
+      [a.workspaceId, intent.rows[0].id, "integrity_size_mismatch", 99]));
+    expect(applied.rows[0]!.b).toBe(false);
+
+    const after = await c.query(
+      `select failure_code from public.upload_intents where id = $1`,
+      [intent.rows[0].id]);
+    expect(after.rows[0].failure_code).toBeNull();
+  });
+
+  it("does not block an intent whose grant ran out while inspection ran", async () => {
+    const intent = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at, status)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),10,repeat('b',64),
+               'image','image/jpeg','evidence',$6, now() - interval '1 minute',
+               'intent_authorized')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(),
+       `${crypto.randomUUID()}/${crypto.randomUUID()}`]);
+
+    // The sweep has not run yet, so the row still reads authorized. Blocking it
+    // would restart a seven-day retention window on content already due for
+    // purge.
+    const applied = await asActor(USER_A, WS_A, (cl) => cl.query<{ b: boolean }>(
+      `select app.block_upload_intent($1,$2,$3) as b`,
+      [a.workspaceId, intent.rows[0].id, "declared_type_mismatch"]));
+    expect(applied.rows[0]!.b).toBe(false);
+
+    const after = await c.query(
+      `select status, blocked_at from public.upload_intents where id = $1`,
+      [intent.rows[0].id]);
+    expect(after.rows[0].status).toBe("intent_authorized");
+    expect(after.rows[0].blocked_at).toBeNull();
   });
 });
 

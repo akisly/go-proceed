@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   finalizeUploadIntentRequest, type FinalizeUploadIntentResponse,
@@ -12,6 +12,42 @@ import {
 import { inspectContent } from "../../../../../src/lib/evidence-inspection";
 
 export const runtime = "nodejs";
+
+type IntentRow = {
+  workspace_id: string; project_id: string; work_assignment_id: string;
+  device_capture_id: string | null;
+};
+
+/**
+ * Records an integrity failure against an intent, through the command that owns
+ * the transition (migration 0031).
+ *
+ * The capture event is appended only when the transition applied. The route
+ * used to write both unconditionally, so an intent that expired or was claimed
+ * for purge during the storage read ended up carrying failure provenance from a
+ * request that arrived after it was already over.
+ *
+ * `observedBytes` is what the server actually found in the bucket. It corrects
+ * the quota reservation, which was made from the size the client declared.
+ */
+async function recordFailure(
+  ctx: { actorUserId: string; organizationId: string | null; requestId: string },
+  intent: IntentRow, intentId: string, failureCode: string, observedBytes: number,
+): Promise<void> {
+  await withTenantTx(ctx, async (tx) => {
+    const r = await tx.query<{ applied: boolean }>(
+      "select app.fail_upload_intent($1,$2,$3,$4) as applied",
+      [intent.workspace_id, intentId, failureCode, observedBytes]);
+    if (r.rows[0]?.applied !== true) return;
+    await tx.query(
+      `insert into public.capture_events
+         (workspace_id, project_id, work_assignment_id, upload_intent_id,
+          device_capture_id, client_state, event_source, failure_code)
+       values ($1,$2,$3,$4,$5,'failed','server',$6)`,
+      [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
+       intent.device_capture_id, failureCode]);
+  });
+}
 
 /**
  * Finalization is not wrapped in withIdempotency: the upload intent IS the
@@ -63,9 +99,15 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
 
     // The front door checks membership and ownership, NOT the evidence
     // capability. Losing that capability between authorizing the upload and
-    // finalizing it is precisely the INV-047 scenario, so it has to be caught by
-    // the recheck below — which orphans the bytes — rather than turned away here,
-    // where the staged object would be left with nothing marking it for purge.
+    // finalizing it is precisely the INV-047 scenario, so it has to reach the
+    // finalization command — which orphans the bytes under the row lock and
+    // says so — rather than be turned away here, where the staged object would
+    // be left with nothing marking it for purge.
+    //
+    // Membership is different: without it there is no read privilege on the
+    // intent at all, so a deactivated member gets 404 above and their bytes wait
+    // for the intent TTL. That gap is recorded in TODOS.md; the commands
+    // themselves accept them (0031), only this route cannot reach the commands.
     const m = await requireActiveMembership(tx, a.requestId, a.userId, row.workspace_id);
     if (row.created_by_member_id !== m.memberId) {
       throw notFound;
@@ -120,19 +162,12 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
       { requestId: a.requestId, retryable: true, userAction: "refresh_upload_state_or_request_new_grant" }));
   }
   if (storedSize !== Number(intent.expected_byte_size)) {
-    await withTenantTx(ctx, async (tx) => {
-      await tx.query(
-        `update public.upload_intents
-            set failure_code = 'integrity_size_mismatch', version = version + 1
-          where workspace_id = $1 and id = $2`, [intent.workspace_id, intentId]);
-      await tx.query(
-        `insert into public.capture_events
-           (workspace_id, project_id, work_assignment_id, upload_intent_id,
-            device_capture_id, client_state, event_source, failure_code)
-         values ($1,$2,$3,$4,$5,'failed','server','integrity_size_mismatch')`,
-        [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
-         intent.device_capture_id]);
-    });
+    // The observed size goes in with the failure: the reservation was made from
+    // the size the client declared, and this is where the server finds out what
+    // was actually stored (migration 0031). A caller who declares one byte and
+    // uploads the bucket maximum has that maximum counted against them until
+    // the bytes are purged.
+    await recordFailure(ctx, intent, intentId, "integrity_size_mismatch", storedSize);
     throw new HttpProblem(422, problem("UPLOAD_CHECKSUM_MISMATCH",
       `Отримано ${storedSize} Б замість очікуваних ${intent.expected_byte_size} Б.`,
       { requestId: a.requestId, retryable: true, userAction: "retry_part" }));
@@ -155,19 +190,7 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
     // The original is NOT deleted and the intent stays retryable: the failure
     // table requires the local original be kept and the failure named.
     const failureCode = sizeMatches ? "integrity_hash_mismatch" : "integrity_size_mismatch";
-    await withTenantTx(ctx, async (tx) => {
-      await tx.query(
-        `update public.upload_intents set failure_code = $3, version = version + 1
-          where workspace_id = $1 and id = $2`,
-        [intent.workspace_id, intentId, failureCode]);
-      await tx.query(
-        `insert into public.capture_events
-           (workspace_id, project_id, work_assignment_id, upload_intent_id,
-            device_capture_id, client_state, event_source, failure_code)
-         values ($1,$2,$3,$4,$5,'failed','server',$6)`,
-        [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
-         intent.device_capture_id, failureCode]);
-    });
+    await recordFailure(ctx, intent, intentId, failureCode, bytes.byteLength);
     throw new HttpProblem(422, problem("UPLOAD_CHECKSUM_MISMATCH",
       sizeMatches
         ? "Хеш отриманого вмісту не збігається з очікуваним. Оригінал збережено, спробуйте ще раз."
@@ -178,12 +201,14 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
   const inspection = await inspectContent(bytes, intent.claimed_media_type);
 
   if (inspection.outcome === "blocked") {
-    await withTenantTx(ctx, async (tx) => {
+    const blocked = await withTenantTx(ctx, async (tx) => {
       // Through the definer (0028): blocked_at is not the member's to write,
       // and the transition is conditional so a concurrent expiry or purge claim
       // is not overwritten with a fresh retention clock.
-      await tx.query("select app.block_upload_intent($1,$2,$3)",
+      const r = await tx.query<{ applied: boolean }>(
+        "select app.block_upload_intent($1,$2,$3) as applied",
         [intent.workspace_id, intentId, inspection.failureCode]);
+      if (r.rows[0]?.applied !== true) return false;
       await tx.query(
         `insert into public.capture_events
            (workspace_id, project_id, work_assignment_id, upload_intent_id,
@@ -191,7 +216,18 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
          values ($1,$2,$3,$4,$5,'failed','server',$6)`,
         [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
          intent.device_capture_id, inspection.failureCode]);
+      return true;
     });
+    // Losing the transition means the intent expired or was claimed for purge
+    // while inspection ran. Reporting SCAN_REJECTED there would tell the client
+    // its content was refused when what actually happened is that its grant ran
+    // out, and the two call for different actions.
+    if (!blocked) {
+      throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
+        "Стан наміру завантаження змінився під час перевірки вмісту.",
+        { requestId: a.requestId, retryable: false,
+          userAction: "refresh_upload_state_or_request_new_grant" }));
+    }
     // No evidence_objects row is created, which is why inspection_status has no
     // 'blocked' value: blocked content never becomes evidence at all (INV-046).
     throw new HttpProblem(422, problem("SCAN_REJECTED",
@@ -205,61 +241,59 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
   // only when the upload was authorized. Bytes may have been in flight for
   // hours.
   const result = await withTenantTx(ctx, async (tx) => {
-    let stillAuthorized = true;
-    try {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, intent.workspace_id);
-      await requireProjectCapability(tx, a.requestId, {
-        workspaceId: intent.workspace_id, projectId: intent.project_id,
-        memberId: m.memberId, capability: "evidence.record",
-      });
-    } catch { stillAuthorized = false; }
-
-    if (!stillAuthorized) {
-      // Through the definer, because the ordinary update policy demands the very
-      // capability that was just revoked (migration 0019).
-      await tx.query("select app.orphan_upload_intent($1,$2)", [intent.workspace_id, intentId]);
-      return { orphaned: true as const };
-    }
-
-    // One command (migration 0029). Evidence cannot be assembled by the caller:
-    // the app role holds no insert on evidence_objects at all. Provenance comes
-    // from the intent, the content identity must equal what authorization fixed,
-    // and the promotion to available happens in the same statement — so the
-    // advisory lock, the existence pre-check and the conditional update this
-    // route used to orchestrate are the database's job now.
-    const r = await tx.query<{ evidence: string | null }>(
-      `select app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7) as evidence`,
+    // One command (migrations 0029, 0031). Evidence cannot be assembled by the
+    // caller: the app role holds no insert on evidence_objects and no update on
+    // upload_intents at all. Provenance comes from the intent, the content
+    // identity must equal what authorization fixed, INV-047 is rechecked inside
+    // the row lock, and the promotion to available happens in the same
+    // statement.
+    const r = await tx.query<{ evidence_object_id: string | null; outcome: string }>(
+      `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
       [intent.workspace_id, intentId, actualHash, bytes.byteLength,
        inspection.detectedMediaType ?? intent.claimed_media_type,
        inspection.outcome, inspection.policyVersion]);
-    const evidenceObjectId = r.rows[0]?.evidence ?? null;
+    const row = r.rows[0];
 
-    if (evidenceObjectId === null) {
+    if (row === undefined || row.outcome === "conflict") {
       throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
         "Стан наміру завантаження змінився під час обробки. Потрібне нове завантаження.",
         { requestId: a.requestId, retryable: false,
           userAction: "refresh_upload_state_or_request_new_grant" }));
     }
+    // The command orphaned the bytes itself, under the same row lock. It does
+    // that rather than leaving it to a second call because the caller who has
+    // just lost their grant is precisely the one whose second call would be
+    // refused.
+    if (row.outcome === "unauthorized") return { orphaned: true as const };
 
-    await tx.query(
-      `insert into public.capture_events
-         (workspace_id, project_id, work_assignment_id, upload_intent_id,
-          device_capture_id, client_state, event_source, capture_time_trust)
-       values ($1,$2,$3,$4,$5,'server_confirmed','server','server_estimated')`,
-      [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
-       intent.device_capture_id]);
+    const evidenceObjectId = row.evidence_object_id!;
 
-    await recordAudit(tx, ctx, {
-      action: "evidence.available", object_type: "evidence_object",
-      object_id: evidenceObjectId,
-      details: { uploadIntentId: intentId, byteSize: bytes.byteLength },
-    }, { organizationId: intent.workspace_id });
-    await enqueueOutbox(tx, ctx, {
-      topic: "evidence.available", aggregate_type: "evidence_object",
-      aggregate_id: evidenceObjectId, payload_version: 1,
-      payload: { workspaceId: intent.workspace_id, projectId: intent.project_id,
-                 uploadIntentId: intentId, evidenceObjectId },
-    }, { organizationId: intent.workspace_id });
+    // Only the call that created the evidence publishes what happened. A losing
+    // parallel call, or a client retrying because it never saw the first
+    // response, gets 'already' and emits nothing: the outbox has no uniqueness
+    // constraint, so an evidence.available published once per retry would be
+    // delivered once per retry.
+    if (row.outcome === "created") {
+      await tx.query(
+        `insert into public.capture_events
+           (workspace_id, project_id, work_assignment_id, upload_intent_id,
+            device_capture_id, client_state, event_source, capture_time_trust)
+         values ($1,$2,$3,$4,$5,'server_confirmed','server','server_estimated')`,
+        [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
+         intent.device_capture_id]);
+
+      await recordAudit(tx, ctx, {
+        action: "evidence.available", object_type: "evidence_object",
+        object_id: evidenceObjectId,
+        details: { uploadIntentId: intentId, byteSize: bytes.byteLength },
+      }, { organizationId: intent.workspace_id });
+      await enqueueOutbox(tx, ctx, {
+        topic: "evidence.available", aggregate_type: "evidence_object",
+        aggregate_id: evidenceObjectId, payload_version: 1,
+        payload: { workspaceId: intent.workspace_id, projectId: intent.project_id,
+                   uploadIntentId: intentId, evidenceObjectId },
+      }, { organizationId: intent.workspace_id });
+    }
 
     const received = await tx.query(
       `select server_received_at from public.evidence_objects

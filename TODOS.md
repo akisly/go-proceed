@@ -192,3 +192,41 @@ distinguish from, it records less than it appears to.
 `technical/permissions/capabilities.csv` — which means a second database role
 and a way for routes to act as it. That is infrastructure, not a policy tweak.
 **Depends on:** the service-principal work the capability catalog anticipates.
+
+## P2 — a deactivated member cannot abandon their own upload through the route
+
+**What:** migration 0031 makes the commands answer ownership with
+`app.member_id_any_status`, so a member deactivated mid-upload can still orphan
+their own bytes at the database level, and the hardening suite proves it. The
+finalize ROUTE still cannot reach that path: its front door calls
+`requireActiveMembership`, and the intent's own SELECT policy requires an active
+membership, so a deactivated caller gets 404 before any command runs.
+
+**Why:** INV-047 wants revoked content marked for purge promptly. Losing the
+`evidence.record` capability is handled — the finalization command orphans the
+bytes itself, inside the row lock. Losing the membership outright is not: those
+bytes wait for the 24-hour intent TTL, get swept to `expired`, and enter the
+purge queue from there.
+
+**Pros of fixing:** the two revocation shapes behave the same, and the promptness
+INV-047 asks for stops depending on which one happened.
+**Cons:** the route cannot read the intent at all without an active membership,
+so this needs a definer for the read as well — a second authorization path whose
+only caller is this case. Worth doing deliberately, not as a patch.
+**Bounded by:** the intent TTL. The bytes are collected within 24 hours either
+way; what differs is whether that happens at revocation or at expiry.
+
+## P2 — the evidence purge worker still runs nowhere
+
+**What:** unchanged from the pre-landing review, but 0031 raises the stakes.
+Usage now counts every unpurged byte, so storage that is never purged is storage
+that is never given back, and a workspace with a quota set will eventually stop
+accepting uploads rather than silently overrun.
+
+**Why:** `0021` schedules only the expiry marking, which is pure SQL. Deleting
+bytes needs storage credentials, so `apps/app/src/lib/evidence-purge.ts` must be
+wired to a runtime that holds them.
+
+**Pros of fixing:** INV-047's 24-hour guarantee starts operating instead of being
+demonstrated by tests, and the quota becomes a bound rather than a ratchet.
+**Cons:** deployment work, not code — it is written and tested already.

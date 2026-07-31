@@ -294,15 +294,33 @@ describe("upload_intents.create", () => {
     expect(body.userAction).toBe("reduce_file_or_request_policy_change");
   });
 
-  it("counts a live intent's reservation, and stops counting it once it lapses", async () => {
+  it("counts a reservation until the bytes are gone, not until the grant lapses", async () => {
     await q(`update public.organizations set evidence_quota_bytes = $2 where id = $1`,
       [fx.workspaceId, PAYLOAD.byteLength + 1]);
     const first = await (await createIntent(VALID())).json();
     expect((await createIntent(VALID())).status).toBe(422);
 
-    // An expired intent promises nothing, so the room comes back.
+    // This used to assert the opposite — that an expired intent "promises
+    // nothing, so the room comes back" — which read as obvious and was the
+    // whole exploit. An expiring grant does not remove anything from the
+    // bucket: it only stops the caller finalizing. Handing the quota back at
+    // that moment let one workspace hold unbounded storage by uploading,
+    // never finalizing, and waiting. With no purge worker deployed, those bytes
+    // stay forever (migration 0031).
     await q(`update public.upload_intents set expires_at = now() - interval '1 hour'
               where id = $1`, [first.uploadIntentId]);
+    expect((await createIntent(VALID())).status).toBe(422);
+
+    // The sweep marking it 'expired' changes nothing either — it is a label on
+    // the same bytes.
+    await q(`update public.upload_intents set status = 'expired' where id = $1`,
+      [first.uploadIntentId]);
+    expect((await createIntent(VALID())).status).toBe(422);
+
+    // purged_at is the fact that frees the room, because it is the one that
+    // means the object was deleted.
+    await q(`update public.upload_intents set purged_at = now() where id = $1`,
+      [first.uploadIntentId]);
     expect((await createIntent(VALID())).status).toBe(201);
   });
 
