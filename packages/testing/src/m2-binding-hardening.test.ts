@@ -23,6 +23,21 @@ async function sqlstate(fn: () => Promise<unknown>): Promise<string | null> {
   try { await fn(); return null; } catch (e) { return (e as { code?: string }).code ?? "unknown"; }
 }
 
+/**
+ * Puts an object in the bucket the way the Storage API would, so a finalization
+ * in these tests is finalizing something real.
+ *
+ * Migration 0032 makes the command require the bytes to exist. Before it, every
+ * test here finalized an intent whose staging key pointed at nothing and got a
+ * valid evidence row back — which was the defect, demonstrated by the tests
+ * meant to prove the opposite.
+ */
+async function putStorageObject(cl: Client, key: string, size: number): Promise<void> {
+  await cl.query(
+    `insert into storage.objects (bucket_id, name, metadata)
+     values ('evidence', $1, jsonb_build_object('size', $2::int))`, [key, size]);
+}
+
 beforeAll(async () => {
   c = await adminClient();
   await dropM2Workspaces(c, [WS_A, WS_B]);
@@ -191,6 +206,61 @@ describe("evidence is created only by the finalization command", () => {
        returning id`,
       [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), key]);
     intentId = r.rows[0].id;
+    await putStorageObject(c, key, 11);
+  });
+
+  it("refuses to write a receipt for bytes that are not there", async () => {
+    // Migration 0032. Everything else the command verifies is about the INTENT;
+    // present the hash and size it already declared and this used to produce an
+    // evidence row — a receipt, naming a storage key, for an upload that never
+    // happened. The object's existence is the one fact the receipt is about,
+    // and every test in this file used to finalize against an empty bucket.
+    const emptyKey = `${crypto.randomUUID()}/${crypto.randomUUID()}`;
+    const ghost = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),11,repeat('d',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), emptyKey]);
+
+    const r = await asActor(USER_A, WS_A, (cl) => cl.query<{
+      evidence_object_id: string | null; outcome: string;
+    }>(`select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+      [a.workspaceId, ghost.rows[0].id, "d".repeat(64), 11, "image/jpeg",
+       "passed", "probe-0032"]));
+    expect(r.rows[0]!.outcome).toBe("no_content");
+    expect(r.rows[0]!.evidence_object_id).toBeNull();
+
+    // An object of a different size is refused too: the bytes have to be the
+    // ones authorization fixed, not merely some bytes at that key.
+    const wrongKey = `${crypto.randomUUID()}/${crypto.randomUUID()}`;
+    await putStorageObject(c, wrongKey, 12);
+    const wrong = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),11,repeat('d',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), wrongKey]);
+
+    const r2 = await asActor(USER_A, WS_A, (cl) => cl.query<{ outcome: string }>(
+      `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+      [a.workspaceId, wrong.rows[0].id, "d".repeat(64), 11, "image/jpeg",
+       "passed", "probe-0032"]));
+    expect(r2.rows[0]!.outcome).toBe("no_content");
+
+    const none = await c.query(
+      `select count(*) n from public.evidence_objects
+        where upload_intent_id in ($1,$2)`,
+      [ghost.rows[0].id, wrong.rows[0].id]);
+    expect(none.rows[0].n).toBe("0");
   });
 
   const finalize = (over: Partial<{

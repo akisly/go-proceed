@@ -241,12 +241,16 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
   // only when the upload was authorized. Bytes may have been in flight for
   // hours.
   const result = await withTenantTx(ctx, async (tx) => {
-    // One command (migrations 0029, 0031). Evidence cannot be assembled by the
-    // caller: the app role holds no insert on evidence_objects and no update on
-    // upload_intents at all. Provenance comes from the intent, the content
-    // identity must equal what authorization fixed, INV-047 is rechecked inside
-    // the row lock, and the promotion to available happens in the same
-    // statement.
+    // One command (migrations 0029, 0031, 0032). Evidence cannot be assembled
+    // by the caller: the app role holds no insert on evidence_objects and no
+    // update on upload_intents at all. Provenance comes from the intent, the
+    // content identity must equal what authorization fixed, the bytes must
+    // actually be in the bucket at that size, INV-047 is rechecked inside the
+    // row lock, and the promotion to available happens in the same statement.
+    //
+    // Everything this route verified above is verified again there. That is the
+    // point: the checks up here decide what to TELL the client, and the ones
+    // down there decide what may be written.
     const r = await tx.query<{ evidence_object_id: string | null; outcome: string }>(
       `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
       [intent.workspace_id, intentId, actualHash, bytes.byteLength,
@@ -254,7 +258,11 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
        inspection.outcome, inspection.policyVersion]);
     const row = r.rows[0];
 
-    if (row === undefined || row.outcome === "conflict") {
+    // 'no_content' (migration 0032): the object was deleted or replaced between
+    // the storage read above and this call. Same answer as a state change,
+    // because it is the same kind of event — the world moved under a caller who
+    // had already checked.
+    if (row === undefined || row.outcome === "conflict" || row.outcome === "no_content") {
       throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
         "Стан наміру завантаження змінився під час обробки. Потрібне нове завантаження.",
         { requestId: a.requestId, retryable: false,
