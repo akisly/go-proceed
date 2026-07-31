@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
-import { adminClient, asActor } from "./pg";
+import { adminClient, asActor, asService } from "./pg";
 import {
   seedM2World, grantM2Capabilities, seedAssignment, dropM2Workspaces, type M2Fixture,
 } from "./m2-fixture";
@@ -227,7 +227,7 @@ describe("evidence is created only by the finalization command", () => {
        returning id`,
       [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), emptyKey]);
 
-    const r = await asActor(USER_A, WS_A, (cl) => cl.query<{
+    const r = await asService(USER_A, WS_A, (cl) => cl.query<{
       evidence_object_id: string | null; outcome: string;
     }>(`select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
       [a.workspaceId, ghost.rows[0].id, "d".repeat(64), 11, "image/jpeg",
@@ -250,7 +250,7 @@ describe("evidence is created only by the finalization command", () => {
        returning id`,
       [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), wrongKey]);
 
-    const r2 = await asActor(USER_A, WS_A, (cl) => cl.query<{ outcome: string }>(
+    const r2 = await asService(USER_A, WS_A, (cl) => cl.query<{ outcome: string }>(
       `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
       [a.workspaceId, wrong.rows[0].id, "d".repeat(64), 11, "image/jpeg",
        "passed", "probe-0032"]));
@@ -265,7 +265,7 @@ describe("evidence is created only by the finalization command", () => {
 
   const finalize = (over: Partial<{
     hash: string; size: number; media: string; status: string; policy: string;
-  }> = {}) => asActor(USER_A, WS_A, (cl) => cl.query<{
+  }> = {}) => asService(USER_A, WS_A, (cl) => cl.query<{
     evidence_object_id: string | null; outcome: string;
   }>(
     `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
@@ -323,10 +323,26 @@ describe("evidence is created only by the finalization command", () => {
   });
 
   it("refuses a caller who did not create the intent", async () => {
+    // Still on the member connection, and since migration 0035 it is refused
+    // there before ownership is ever examined — the service check is the first
+    // statement in the command. The assertion is unchanged and still correct:
+    // this caller does not get to finalize this intent, for either reason.
     expect(await sqlstate(() => asActor(USER_B, WS_A, (cl) => cl.query(
       `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
       [a.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]))))
       .toBeTruthy();
+  });
+
+  it("refuses the member identity outright, before anything else", async () => {
+    // Migration 0035. The caller below owns the intent and holds every
+    // capability; identity is what stops them now.
+    let message = "";
+    try {
+      await asActor(USER_A, WS_A, (cl) => cl.query(
+        `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+        [a.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]));
+    } catch (e) { message = (e as Error).message; }
+    expect(message).toMatch(/service/i);
   });
 
   // Migration 0031: INV-047 is decided inside the row lock, not trusted from a
@@ -349,7 +365,7 @@ describe("evidence is created only by the finalization command", () => {
         where workspace_id = $1 and member_id = $2 and capability = 'evidence.record'`,
       [a.workspaceId, a.memberId]);
     try {
-      const r = await asActor(USER_A, WS_A, (cl) => cl.query<{
+      const r = await asService(USER_A, WS_A, (cl) => cl.query<{
         evidence_object_id: string | null; outcome: string;
       }>(`select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
         [a.workspaceId, other.rows[0].id, "d".repeat(64), 11, "image/jpeg",
