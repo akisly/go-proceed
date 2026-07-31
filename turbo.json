@@ -25,6 +25,7 @@
       ],
       "env": [
         "APP_DB_URL",
+        "SERVICE_DB_URL",
         "SUPABASE_DB_URL"
       ],
       "inputs": [
