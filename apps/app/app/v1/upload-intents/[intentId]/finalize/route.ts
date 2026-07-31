@@ -179,11 +179,10 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
 
   if (inspection.outcome === "blocked") {
     await withTenantTx(ctx, async (tx) => {
-      await tx.query(
-        `update public.upload_intents
-            set status = 'scan_blocked', failure_code = $3,
-                blocked_at = now(), version = version + 1
-          where workspace_id = $1 and id = $2`,
+      // Through the definer (0028): blocked_at is not the member's to write,
+      // and the transition is conditional so a concurrent expiry or purge claim
+      // is not overwritten with a fresh retention clock.
+      await tx.query("select app.block_upload_intent($1,$2,$3)",
         [intent.workspace_id, intentId, inspection.failureCode]);
       await tx.query(
         `insert into public.capture_events

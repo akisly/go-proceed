@@ -324,3 +324,61 @@ describe("a valuation allocation is bound to the fact it values", () => {
     }
   });
 });
+
+describe("server-only transitions and the quota oracle", () => {
+  it("does not let a member write blocked_at", async () => {
+    // 0027 granted the column so finalize could record it; the intent's own
+    // creator could then null it and keep the content out of the purge queue
+    // for good, defeating the retention window that grant existed to serve.
+    const r = await c.query(
+      `select column_name from information_schema.column_privileges
+        where grantee = 'aktflow_app' and table_name = 'upload_intents'
+          and privilege_type = 'UPDATE'`);
+    expect(r.rows.map((x) => x.column_name)).not.toContain("blocked_at");
+  });
+
+  it("blocks only from a state that can still be blocked", async () => {
+    const key = `${crypto.randomUUID()}/${crypto.randomUUID()}`;
+    const intent = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at, status)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),10,repeat('b',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day','expired')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), key]);
+
+    // Already expired: blocking must not overwrite that and restart the
+    // retention clock from scratch.
+    const applied = await asActor(USER_A, WS_A, (cl) => cl.query<{ b: boolean }>(
+      `select app.block_upload_intent($1,$2,$3) as b`,
+      [a.workspaceId, intent.rows[0].id, "declared_type_mismatch"]));
+    expect(applied.rows[0]!.b).toBe(false);
+
+    const after = await c.query(
+      `select status, blocked_at from public.upload_intents where id = $1`,
+      [intent.rows[0].id]);
+    expect(after.rows[0].status).toBe("expired");
+    expect(after.rows[0].blocked_at).toBeNull();
+  });
+
+  it("refuses to report another workspace's storage usage", async () => {
+    // SECURITY DEFINER with an arbitrary workspace argument and no actor check
+    // made this readable by any authenticated session.
+    let message = "";
+    try {
+      await asActor(USER_A, WS_A, (cl) =>
+        cl.query(`select app.evidence_bytes_in_use($1)`, [b.workspaceId]));
+    } catch (e) { message = (e as Error).message; }
+    expect(message).toMatch(/not a member/);
+  });
+
+  it("still answers for the caller's own workspace", async () => {
+    const r = await asActor(USER_A, WS_A, (cl) =>
+      cl.query<{ n: string }>(`select app.evidence_bytes_in_use($1) as n`, [a.workspaceId]));
+    expect(Number(r.rows[0]!.n)).toBeGreaterThanOrEqual(0);
+  });
+});
+

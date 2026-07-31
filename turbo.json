@@ -2,14 +2,37 @@
   "$schema": "https://turbo.build/schema.json",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
-      "outputs": ["dist/**", ".next/**"],
-      "env": ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]
+      "dependsOn": [
+        "^build"
+      ],
+      "outputs": [
+        "dist/**",
+        ".next/**"
+      ],
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY"
+      ]
     },
-    "typecheck": { "dependsOn": ["^build"] },
+    "typecheck": {
+      "dependsOn": [
+        "^build"
+      ]
+    },
     "test": {
-      "dependsOn": ["^build"],
-      "env": ["APP_DB_URL", "SUPABASE_DB_URL"]
+      "dependsOn": [
+        "^build"
+      ],
+      "env": [
+        "APP_DB_URL",
+        "SUPABASE_DB_URL"
+      ],
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../supabase/migrations/**",
+        "../../supabase/seed.sql",
+        "../../supabase/config.toml"
+      ]
     },
     "dev": {
       "cache": false,
