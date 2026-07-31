@@ -1,8 +1,9 @@
--- Seed two auth users for tests (AUTH_USER_A / AUTH_USER_B).
+-- Seed three auth users for tests (AUTH_USER_A / AUTH_USER_B / AUTH_USER_C).
 insert into auth.users (id, email, aud, role)
 values
   ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','a@example.test','authenticated','authenticated'),
-  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','b@example.test','authenticated','authenticated')
+  ('bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb','b@example.test','authenticated','authenticated'),
+  ('cccccccc-cccc-cccc-cccc-cccccccccccc','c@example.test','authenticated','authenticated')
 on conflict (id) do nothing;
 
 -- The dev-only aktflow_app_login password is NOT set here. seed.sql can be

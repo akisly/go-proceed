@@ -1,0 +1,18 @@
+import { describe, it, expect } from "vitest";
+import { workspaceCapabilities } from "./authz";
+
+describe("workspaceCapabilities (plan decision 5, INV-020)", () => {
+  it("owner holds own_legal_profiles.manage; admin does not", () => {
+    expect(workspaceCapabilities("owner")).toContain("own_legal_profiles.manage");
+    expect(workspaceCapabilities("admin")).not.toContain("own_legal_profiles.manage");
+  });
+  it("admin holds parties.manage, projects.create, units.manage", () => {
+    for (const c of ["parties.manage", "projects.create", "units.manage"] as const) {
+      expect(workspaceCapabilities("admin")).toContain(c);
+    }
+  });
+  it("member and auditor hold no workspace capabilities", () => {
+    expect(workspaceCapabilities("member")).toEqual([]);
+    expect(workspaceCapabilities("auditor")).toEqual([]);
+  });
+});
