@@ -29,3 +29,14 @@ export interface UploadIntentReceipt {
 export interface CreateUploadIntentResponse extends UploadIntentReceipt {
   upload: { signedUrl: string; token: string };
 }
+
+export const finalizeUploadIntentRequest = z.object({}).strict();
+
+export interface FinalizeUploadIntentResponse {
+  uploadIntentId: string;
+  status: string;
+  evidenceObjectId: string | null;
+  contentHash: string | null;
+  serverReceivedAt: string | null;
+  failureCode: string | null;
+}
