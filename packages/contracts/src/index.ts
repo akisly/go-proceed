@@ -13,3 +13,4 @@ export * from "./contract-versions";
 export * from "./requirements";
 export * from "./assignments";
 export * from "./progress";
+export * from "./progress-adjustments";

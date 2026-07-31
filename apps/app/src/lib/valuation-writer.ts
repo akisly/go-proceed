@@ -154,3 +154,19 @@ export async function appendValuationAllocation(
     ? { valued: true, net: slice.net, tax: slice.tax, gross: slice.gross, reason: null }
     : { valued: false, net: null, tax: null, gross: null, reason };
 }
+
+/**
+ * Serializes adjustment and (from M4) allocation on one root's balance head.
+ *
+ * Callers take this AFTER lockWorkItem, always in that order. The work-item lock
+ * alone would be sufficient today — it is strictly coarser, covering every root
+ * of the item — but M4's claim allocation serializes per root, and two commands
+ * reaching for different advisory keys is how a serialization guarantee quietly
+ * stops holding.
+ */
+export async function lockAllocationHead(
+  tx: Tx, workspaceId: string, rootProgressEntryId: string,
+): Promise<void> {
+  await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))",
+    [`allocation_head|${workspaceId}|${rootProgressEntryId}`]);
+}
