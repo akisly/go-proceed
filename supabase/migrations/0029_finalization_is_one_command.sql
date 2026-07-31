@@ -36,6 +36,13 @@
 revoke insert on public.evidence_objects from aktflow_app;
 drop policy eo_insert on public.evidence_objects;
 
+-- On raising versus returning NULL, since the two answer differently at the
+-- HTTP boundary: NULL means "the intent moved", which is a race the client can
+-- see and act on, so the route turns it into 409. Every RAISE below is an
+-- assertion the route has already checked — ownership, capability, and that the
+-- content matches what authorization fixed — so reaching one means the ROUTE is
+-- wrong, not the request. Those surface as 500, which is the honest answer.
+-- Do not map them to 4xx: that would present a server defect as a user error.
 create or replace function app.finalize_upload_intent(
   p_workspace uuid,
   p_intent uuid,
