@@ -2276,8 +2276,17 @@ start until D1, D2, D4, and D5 are decided.
 | D10 | Template versioning takes an advisory lock; assignment creation requires the work item's version to be the contract's current published one. | Tasks 5 and 6 |
 | Codex sequencing | Task 14 gained the work-item-lock test the plan omitted: parallel `progress.record` under DIFFERENT idempotency keys. | `concurrency.int.test.ts` |
 
+**Pre-landing review (`/review`), same branch.** Three findings from this pass
+and thirteen from its outside voice; eleven of the thirteen are fixed here.
+Migrations `0022`–`0027` carry them: funded quantity for over-contract
+corrections, evidence and pin binding, purge attempt accounting, allocation
+binding, the storage quota, and blocked-content retention. Full account in the
+gate record.
+
 **UNRESOLVED DECISIONS:**
-- A4 — `va_insert` accepts either progress capability, so `progress.record` alone can write an adjustment's allocation. The policy cannot tell the two apart without reading the entry, and the route writes both; left as a known weakening of the second layer.
-- C1 — `m2-schema.test.ts` still builds its world inline rather than through `m2-fixture.ts`. Deliberate: it tests DDL and should not depend on a helper that depends on that DDL.
-- C2 — no ASCII diagrams in the new code. Three places earn one: the `progress_entries` lineage discriminator, the `upload_intents` state machine, the per-root allocation.
-- P1/P2 (performance) — `pah_select` runs a correlated subquery per row, and `progress.record` sums all entries for the work item on every insert. Both are O(n) under a lock that is already held; measure before optimising.
+- Codex 11 — nothing invokes the purge worker. An operations step, named in the gate record rather than claimed as done.
+- Codex 13 — `inspection_status = 'passed'` means the magic bytes matched the declared type, not that the content is safe. Deliberate for v0.1 and stated in the spec.
+- Valuation funding is first-come and is not redistributed when a root withdraws. A named test in `valuation.test.ts` and a P1 in `TODOS.md`; closing it is a lineage decision, not a patch.
+- `capture_events.event_source` is unenforceable without a service principal. P2 in `TODOS.md`.
+- The evidence quota and blocked-content retention figures await the approved retention schedule. P3 in `TODOS.md`.
+- A4, C1, C2, P1/P2 (performance) — the lower-severity items above, unchanged.
