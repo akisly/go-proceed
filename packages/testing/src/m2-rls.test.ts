@@ -277,8 +277,10 @@ describe("0016 reservation invariant", () => {
   });
 
   it("recomputes effective quantity onto the head", async () => {
-    await c.query(`select app.open_allocation_head($1,$2,$3)`,
-      [a.workspaceId, rootEntryA, "10"]);
+    // Through the app role as a real member: the definer authorizes its caller,
+    // so an admin connection with no actor GUC is no longer a valid stand-in.
+    await asActor(USER_A, WS_A, (cl) =>
+      cl.query(`select app.open_allocation_head($1,$2)`, [a.workspaceId, rootEntryA]));
     await c.query(
       `insert into public.progress_entries
          (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,
@@ -286,7 +288,8 @@ describe("0016 reservation invariant", () => {
           recorded_by_member_id)
        values ($1,$2,$3,$4,'adjustment',-4,$5,true,'measurement_error',$6)`,
       [a.workspaceId, a.projectId, assignmentA, a.workItemId, rootEntryA, a.memberId]);
-    await c.query(`select app.assert_reservation_invariant($1,$2)`, [a.workspaceId, rootEntryA]);
+    await asActor(USER_A, WS_A, (cl) =>
+      cl.query(`select app.assert_reservation_invariant($1,$2)`, [a.workspaceId, rootEntryA]));
     const h = await c.query(
       `select effective_quantity from public.progress_allocation_heads
         where workspace_id = $1 and root_progress_entry_id = $2`, [a.workspaceId, rootEntryA]);
@@ -310,8 +313,8 @@ describe("0016 reservation invariant", () => {
       [a.workspaceId, a.projectId, assignmentA, a.workItemId, rootEntryA, a.memberId]);
     let message = "";
     try {
-      await c.query(`select app.assert_reservation_invariant($1,$2)`,
-        [a.workspaceId, rootEntryA]);
+      await asActor(USER_A, WS_A, (cl) =>
+        cl.query(`select app.assert_reservation_invariant($1,$2)`, [a.workspaceId, rootEntryA]));
     } catch (e) { message = (e as Error).message; }
     expect(message).toMatch(/INV-025/);
   });
