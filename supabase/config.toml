@@ -107,19 +107,18 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# One private bucket for evidence. Staged bytes and available originals share
-# it: an object existing in storage is not evidence
-# (docs/architecture/files-and-storage.md), and what makes it evidence is an
-# evidence_objects row in PostgreSQL. A second bucket would only buy a
-# bucket-to-bucket move that cannot be atomic with the database transaction,
-# and it would not carry retention either — "delete if no evidence row after 24
-# hours" is a domain-state rule that bucket lifecycle cannot express, so the
-# purge job reads PostgreSQL regardless.
-[storage.buckets.evidence]
-public = false
-file_size_limit = "50MiB"
+# The evidence bucket is NOT declared here. It is created by
+# supabase/migrations/0020_evidence_bucket.sql, which carries the reasoning for
+# there being one bucket rather than a staging/originals pair.
+#
+# Declaring it in both places created it twice: the migration inserts the row,
+# and the CLI then syncs declared buckets through the Storage API after the
+# reset. That worked until it did not — the toolchain is the one part of this
+# repo that changes without a commit (the CI job installs the CLI at `latest`),
+# and a bucket that two mechanisms create is a bucket whose creation depends on
+# both of them agreeing. The migration is the one that runs everywhere
+# `supabase db push` runs, so it is the one that stays.
 
-# Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
 

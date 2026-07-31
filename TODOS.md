@@ -230,3 +230,25 @@ wired to a runtime that holds them.
 **Pros of fixing:** INV-047's 24-hour guarantee starts operating instead of being
 demonstrated by tests, and the quota becomes a bound rather than a ratchet.
 **Cons:** deployment work, not code — it is written and tested already.
+
+## P3 — the Supabase CLI is unpinned, so the toolchain changes without a commit
+
+**What:** `.github/workflows/ci.yml` pins the `supabase/setup-cli` action by SHA
+and then asks it for `version: latest`. The action is reproducible; the tool it
+installs is not. At the time of writing CI runs CLI **2.111.0** while local
+development runs **2.75.0** — 36 releases apart.
+
+**Why it surfaced:** the first CI run of the v0.1-M2-A branch failed in
+`supabase db reset`, after all 33 migrations applied, with a 502 from the local
+stack while restarting containers. A rerun with no code change passed, so that
+one was a runner flake. But diagnosing it meant asking whether a CLI release had
+changed behaviour, and the honest answer was that nobody could tell — which is
+the actual problem. A green build that depends on an unpinned tool is a build
+whose result can change overnight for reasons no commit explains.
+
+**Pros of fixing:** CI failures become attributable to the diff. Local and CI
+run the same tool, so "works on my machine" stops being a category of answer.
+**Cons:** a pinned CLI has to be bumped deliberately, and a stale pin drifts from
+the Supabase platform it talks to. That is a maintenance cost, not a hidden one.
+**Not done here** because it changes CI policy for the whole repo, and `main`
+has been passing with `latest` since long before this branch.
