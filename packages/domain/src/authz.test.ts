@@ -16,3 +16,12 @@ describe("workspaceCapabilities (plan decision 5, INV-020)", () => {
     expect(workspaceCapabilities("auditor")).toEqual([]);
   });
 });
+
+describe("M2-A capabilities", () => {
+  it("grants requirement template management to owner and admin only", () => {
+    expect(workspaceCapabilities("owner")).toContain("requirement_templates.manage");
+    expect(workspaceCapabilities("admin")).toContain("requirement_templates.manage");
+    expect(workspaceCapabilities("member")).not.toContain("requirement_templates.manage");
+    expect(workspaceCapabilities("auditor")).not.toContain("requirement_templates.manage");
+  });
+});

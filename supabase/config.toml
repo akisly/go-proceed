@@ -107,14 +107,18 @@ enabled = true
 # The maximum file size allowed (e.g. "5MB", "500KB").
 file_size_limit = "50MiB"
 
-# Uncomment to configure local storage buckets
-# [storage.buckets.images]
-# public = false
-# file_size_limit = "50MiB"
-# allowed_mime_types = ["image/png", "image/jpeg"]
-# objects_path = "./images"
+# The evidence bucket is NOT declared here. It is created by
+# supabase/migrations/0020_evidence_bucket.sql, which carries the reasoning for
+# there being one bucket rather than a staging/originals pair.
+#
+# Declaring it in both places created it twice: the migration inserts the row,
+# and the CLI then syncs declared buckets through the Storage API after the
+# reset. That worked until it did not — the toolchain is the one part of this
+# repo that changes without a commit (the CI job installs the CLI at `latest`),
+# and a bucket that two mechanisms create is a bucket whose creation depends on
+# both of them agreeing. The migration is the one that runs everywhere
+# `supabase db push` runs, so it is the one that stays.
 
-# Allow connections via S3 compatible clients
 [storage.s3_protocol]
 enabled = true
 

@@ -10,3 +10,8 @@ export * from "./project-access";
 export * from "./contracts-baseline";
 export * from "./imports";
 export * from "./contract-versions";
+export * from "./requirements";
+export * from "./assignments";
+export * from "./progress";
+export * from "./progress-adjustments";
+export * from "./uploads";

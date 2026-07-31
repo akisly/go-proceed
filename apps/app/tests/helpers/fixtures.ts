@@ -142,3 +142,190 @@ export function craftZip(entries: { name: string; data: Buffer; declaredUncompre
   eocd.writeUInt32LE(offset, 16);
   return new Uint8Array(Buffer.concat([...chunks, cdBuf, eocd]));
 }
+
+export interface PublishedBaselineFixture extends BaselineFixture {
+  contractVersionId: string;
+  /** Work items of the published version, in position order. */
+  workItems: { id: string; workCode: string | null; unitCode: string }[];
+}
+
+/**
+ * Drives a clean CSV through create → stage → validate → publish so v0.1-M2
+ * suites start from a real published contract version rather than hand-inserted
+ * rows. Every amount reconciles, so no discrepancy resolution is needed.
+ */
+export async function publishedBaselineFixture(
+  userId: string, extraCapabilities: readonly string[] = [],
+): Promise<PublishedBaselineFixture> {
+  const fx = await baselineFixture(userId);
+
+  if (extraCapabilities.length > 0) {
+    const { POST: grant } = await import("../../app/v1/projects/[projectId]/access-grants/route");
+    const res = await grant(
+      jsonReq("http://x", { memberId: fx.memberId, capabilities: extraCapabilities }),
+      { params: Promise.resolve({ projectId: fx.projectId }) });
+    // A silently swallowed grant failure shows up later as an unexplained 403
+    // in every test that used this fixture.
+    if (res.status >= 300) {
+      throw new Error(`publishedBaselineFixture: grant returned ${res.status} ${await res.text()}`);
+    }
+  }
+
+  const csv =
+    "Шифр;Назва;Од;К-сть;Ціна;Сума\n" +
+    "1.1;Мурування;м2;10;199,99;1 999,90\n" +
+    "1.3;Утеплення;м2;5,5;150,00;825,00\n";
+
+  const batchId = await createBatch(fx.contractId);
+  await addFile(batchId, "кошторис.csv", new TextEncoder().encode(csv));
+
+  const { POST: validate } = await import("../../app/v1/import-batches/[batchId]/validate/route");
+  await validate(jsonReq("http://x", {
+    mapping: { sourceKey: "A", description: "B", unit: "C", quantity: "D", unitPrice: "E", amount: "F" },
+    config: { headerRow: 1 }, expectedVersion: 2,
+  }), { params: Promise.resolve({ batchId }) });
+
+  const view = await (await getBatch(batchId)).json();
+  const { POST: publish } = await import("../../app/v1/import-batches/[batchId]/publish/route");
+  const res = await publish(jsonReq("http://x", {
+    expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+  }), { params: Promise.resolve({ batchId }) });
+  if (res.status !== 201) {
+    throw new Error(`publishedBaselineFixture: publish returned ${res.status} ${await res.text()}`);
+  }
+  const contractVersionId = (await res.json()).contractVersionId as string;
+
+  const workItems = await q<{ id: string; work_code: string | null; unit_code: string }>(
+    `select id, work_code, unit_code from public.work_items
+      where workspace_id = $1 and contract_version_id = $2 order by position`,
+    [fx.workspaceId, contractVersionId]);
+
+  return {
+    ...fx, contractVersionId,
+    workItems: workItems.map((w) => ({ id: w.id, workCode: w.work_code, unitCode: w.unit_code })),
+  };
+}
+
+export interface MatrixFixtureOptions {
+  taxMode: "exclusive" | "inclusive" | "exempt" | "out_of_scope" | "unknown";
+  taxRateBps?: number;
+  /** CSV data rows, without the header. */
+  rows: string[];
+  /** Resolve every discrepancy onto the approved source amount before publishing. */
+  approveSourceAmounts?: boolean;
+  capabilities?: readonly string[];
+  contractNo?: string;
+}
+
+export interface MatrixFixture extends PublishedBaselineFixture {
+  /** Published work items keyed by their source key (column A of the CSV). */
+  bySourceKey: Record<string, {
+    id: string; unitPriceState: string; valuationBasis: string;
+    net: string; tax: string; gross: string; contractQuantity: string;
+  }>;
+}
+
+/**
+ * Publishes one contract whose work items span chosen points of the
+ * tax_mode x unit_price_state x valuation_basis matrix, through the real import
+ * path rather than by seeding rows — work_items are immutable, and a fixture
+ * that bypassed the importer would not prove the importer produces these shapes.
+ *
+ * v0.1-M1 shipped 340 green tests while inclusive tax double-counted VAT,
+ * because every fixture was exclusive, priced, and unit-price-derived. This
+ * helper exists so the M2 money suites cannot repeat that.
+ */
+export async function matrixFixture(
+  userId: string, o: MatrixFixtureOptions,
+): Promise<MatrixFixture> {
+  const fx = await baselineFixture(userId, {
+    contractBody: {
+      contractNo: o.contractNo ?? `Д-2026/${o.taxMode}-${Math.random().toString(36).slice(2, 8)}`,
+      taxMode: o.taxMode,
+      ...(o.taxRateBps === undefined ? {} : { taxRateBps: o.taxRateBps }),
+    },
+  });
+
+  if (o.capabilities?.length) {
+    const { POST: grant } = await import("../../app/v1/projects/[projectId]/access-grants/route");
+    const res = await grant(
+      jsonReq("http://x", { memberId: fx.memberId, capabilities: o.capabilities }),
+      { params: Promise.resolve({ projectId: fx.projectId }) });
+    if (res.status >= 300) {
+      throw new Error(`matrixFixture: grant returned ${res.status} ${await res.text()}`);
+    }
+  }
+
+  const csv = "Шифр;Назва;Од;К-сть;Ціна;Сума\n" + o.rows.join("\n") + "\n";
+  const batchId = await createBatch(fx.contractId);
+  await addFile(batchId, "кошторис.csv", new TextEncoder().encode(csv));
+
+  const { POST: validate } = await import("../../app/v1/import-batches/[batchId]/validate/route");
+  await validate(jsonReq("http://x", {
+    mapping: { sourceKey: "A", description: "B", unit: "C", quantity: "D", unitPrice: "E", amount: "F" },
+    config: { headerRow: 1 }, expectedVersion: 2,
+  }), { params: Promise.resolve({ batchId }) });
+
+  if (o.approveSourceAmounts) {
+    const view = await (await getBatch(batchId)).json();
+    const pending = (view.rowResults ?? []).filter(
+      (r: { errorCodes: string[] }) => r.errorCodes.includes("AMOUNT_MISMATCH"));
+    const { POST: resolve } = await import(
+      "../../app/v1/import-batches/[batchId]/resolutions/route");
+    for (const row of pending) {
+      const res = await resolve(jsonReq("http://x", {
+        rowResultId: row.rowResultId, chosenBasis: "approved_source_amount",
+        reason: "Приклад-обґрунтування",
+      }), { params: Promise.resolve({ batchId }) });
+      if (res.status >= 300) {
+        throw new Error(`matrixFixture: resolution returned ${res.status} ${await res.text()}`);
+      }
+    }
+    // Resolving a discrepancy does not by itself make the batch publishable:
+    // the batch stays in needs-resolution until it is validated again with the
+    // resolutions in place.
+    const revalidated = await (await getBatch(batchId)).json();
+    await validate(jsonReq("http://x", {
+      mapping: { sourceKey: "A", description: "B", unit: "C", quantity: "D", unitPrice: "E", amount: "F" },
+      config: { headerRow: 1 }, expectedVersion: revalidated.version,
+    }), { params: Promise.resolve({ batchId }) });
+  }
+
+  const view = await (await getBatch(batchId)).json();
+  const { POST: publish } = await import("../../app/v1/import-batches/[batchId]/publish/route");
+  const res = await publish(jsonReq("http://x", {
+    expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+  }), { params: Promise.resolve({ batchId }) });
+  if (res.status !== 201) {
+    throw new Error(`matrixFixture: publish returned ${res.status} ${await res.text()}`);
+  }
+  const contractVersionId = (await res.json()).contractVersionId as string;
+
+  const items = await q<{
+    id: string; source_key: string; work_code: string | null; unit_code: string;
+    unit_price_state: string; valuation_basis: string;
+    net_amount_minor_units: string; tax_amount_minor_units: string;
+    gross_amount_minor_units: string; contract_quantity: string;
+  }>(
+    `select id, source_key, work_code, unit_code, unit_price_state, valuation_basis,
+            net_amount_minor_units::text, tax_amount_minor_units::text,
+            gross_amount_minor_units::text, contract_quantity::text
+       from public.work_items
+      where workspace_id = $1 and contract_version_id = $2 order by position`,
+    [fx.workspaceId, contractVersionId]);
+
+  return {
+    ...fx,
+    contractVersionId,
+    workItems: items.map((w) => ({ id: w.id, workCode: w.work_code, unitCode: w.unit_code })),
+    bySourceKey: Object.fromEntries(items.map((w) => [w.source_key, {
+      id: w.id,
+      unitPriceState: w.unit_price_state,
+      valuationBasis: w.valuation_basis,
+      net: w.net_amount_minor_units,
+      tax: w.tax_amount_minor_units,
+      gross: w.gross_amount_minor_units,
+      contractQuantity: w.contract_quantity,
+    }])),
+  };
+}

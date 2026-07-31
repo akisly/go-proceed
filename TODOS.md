@@ -34,19 +34,6 @@ same bearer-vs-identity question, so settle both together.
 capability questions — it is not a one-line change.
 **Depends on:** the membership lifecycle commands (not in v0.1-M1's 21 operations).
 
-## P3 — publish uses the standard 30-day idempotency class
-
-**What:** `apps/app/app/v1/import-batches/[batchId]/publish/route.ts` omits
-`idempotencyClass`, so it takes `standard_30d`, while
-`packages/database/src/idempotency.ts` reserves `ledger_400d` for
-"financial/ledger-affecting operations that must stay replayable for the audit
-retention window".
-
-**Why:** publishing a contract version is the ledger event of this milestone.
-**Pros:** one-line change, aligns retention with the audit window.
-**Cons:** none known; confirm 400 days matches the retention catalog first.
-**Depends on:** `technical/data-retention-catalog.csv` review.
-
 ## P3 — responsibility assignments can never be ended
 
 **What:** `project_responsibility_assignments` rejects UPDATE and DELETE
@@ -70,18 +57,198 @@ populates them — a reader cannot tell "not built yet" from "broken".
 **Pros:** either wire them up or document them as deliberately schema-only.
 **Cons:** project_parties needs its own command and capability decision.
 **Context:** `technical/database/entity-catalog.csv` lists both as `v0.1-M1`
-while `technical/openapi/scope-v0.1.csv` has no operation for either. Reconcile
-the two catalogs when the M2 slice is planned.
+while `technical/openapi/scope-v0.1.csv` has no operation for either.
+**Partly addressed in v0.1-M2-A:** `project_parties` is now annotated in the
+entity catalog as deliberately schema-only, so a reader can tell "not built yet"
+from "broken". Wiring it up still needs its own command and capability
+decision.
 
-## P3 — no concurrency tests anywhere in M1
+## Closed by v0.1-M2-A (2026-07-31)
 
-**What:** nothing in `apps/app/tests` or `packages/testing/src` runs two
-commands in parallel. Publish serialisation (contract row lock), the
-idempotency advisory lock, and unit auto-registration were all reasoned about
-but never demonstrated under contention.
+- **publish idempotency class** — `import_batches.publish` now takes
+  `ledger_400d`, with a test asserting the 400-day retention window.
+- **no concurrency tests** — `apps/app/tests/concurrency.int.test.ts` covers the
+  work-item lock under different idempotency keys, parallel adjustments on one
+  allocation head, parallel finalize on one upload intent, and the M1 carry-over
+  of two parallel publishes of one import batch. Mutation-checked by removing
+  the work-item lock.
 
-**Why:** the reasoning may be right and still not be true.
-**Pros:** turns three arguments into three tests.
-**Cons:** parallel DB tests need care with the serialized runner
-(`turbo run test --concurrency=1` exists precisely because of shared-DB races).
-**Depends on:** nothing; can be done any time.
+## P2 — a zero unit price used to break publish (fixed, kept as context)
+
+**What:** `apps/app/app/v1/import-batches/[batchId]/publish/route.ts` derived
+`unit_price_decimal` from whether a price parsed. A price of `0,00` parses into
+a truthy `Decimal` object, so a row with `unit_price_state = 'zero'` was stored
+with a non-null decimal and violated
+`(unit_price_state = 'known') = (unit_price_decimal is not null)`. Publishing
+any estimate containing a zero-priced row returned 500.
+
+**Why it is here:** the defect was found while building the v0.1-M2-A valuation
+fixture matrix, not by the M1 review, because no M1 fixture ever imported a
+zero-priced row — and rows priced at zero are ordinary, being work bundled into
+another line. Fixed with a regression test that fails without the change. Kept
+as a record of the fixture-shape gap that hid it.
+
+## P1 — valuation funding is first-come and is never redistributed
+
+**What:** the work-item pool is claimed by whichever root records first. When
+that root later withdraws, the freed money is not offered to roots whose
+performed quantity now sits within the contract quantity. Minimal case, contract
+quantity 4 and a pool of 400: root A records 4 and takes all 400; root B records
+4 and gets nothing; A corrects away its 4 and returns 400. Performed quantity is
+now exactly 4 and the pool is entirely idle, with B holding nothing for work
+that is fully within contract.
+
+**Why:** M6's value-at-risk projection reports B's four units as performed but
+unvalued, which is wrong — they are within contract and priced.
+
+**Pros of fixing:** the pool matches performed scope in every ordering, not only
+the ones where nobody over-performs and then corrects.
+**Cons:** closing it means a correction on one root writes allocations for OTHER
+roots. That is a lineage decision, not a patch: `progress.adjust` currently
+touches only its own root by design, and the engineering review's D1 finding was
+specifically about money moving between roots.
+**Context:** found by the over-contract property walk in
+`packages/domain/src/valuation.test.ts`, which documents the gap as a named
+test rather than leaving it implicit. Migration `0022` added
+`valuation_allocations.funded_quantity`, which is the fact any redistribution
+scheme will need.
+**Depends on:** a design decision about whether allocation lineage may be
+rewritten by a command acting on a different root.
+
+## P3 — the two retention figures v0.1-M2-A had to choose are defaults, not policy
+
+**What:** `organizations.evidence_quota_bytes` (NULL, meaning unlimited) and
+`organizations.blocked_content_retention_days` (7). Both mechanisms are
+implemented and tested; both numbers are placeholders.
+
+**Why:** `technical/data-retention-catalog.csv` marks every duration in this
+product `duration_external_gate`, so neither figure is this slice's to settle.
+The quota defaults to unlimited because that is the behaviour that already
+shipped — turning it on with an invented number would break workspaces to
+enforce a rule nobody approved. The blocked-content window defaults to seven
+days because the domain already fixes seven days for the analogous quarantine
+(a revoked pending original), and files-and-storage.md puts both in one
+"Restricted quarantine" class.
+
+**Pros of settling them:** the quota starts protecting storage instead of only
+being enforceable.
+**Cons:** none technical; this is a policy decision with a retention schedule
+behind it.
+**Depends on:** the approved retention schedule (external gate V-003).
+
+## P2 — purge claims are not fenced
+
+**What:** `public.claim_upload_purge` marks a row claimed with a timestamp, and
+`complete_upload_purge` / `fail_upload_purge` take only the intent id. A worker
+that stalls past the one-hour reclaim window, then resumes, can clear a newer
+worker's claim or spend its retry budget — neither function can tell the current
+claimant from a stale one.
+
+**Why:** today the purge worker has no deployed runner at all, so there is
+exactly one caller and the window is theoretical. It stops being theoretical the
+moment a second instance runs.
+
+**Pros of fixing:** the claim becomes a lease with an owner, which is what the
+one-hour window already implies.
+**Cons:** a claim token column plus signature changes to three functions and the
+worker; worth doing WITH the deployment work rather than before it, so the
+fencing matches whatever runner is chosen.
+**Depends on:** wiring the purge worker to a runtime (see the gate record).
+
+## P1 — nothing proves inspection actually ran
+
+**What:** `app.finalize_upload_intent` (migration 0029) is the only way to create
+evidence, and it fixes provenance, content identity and the state transition.
+The one thing it cannot check is whether the bytes were really downloaded,
+hashed and inspected — it takes `inspection_status` from its caller.
+
+**Why:** in v0.1-M2-A the route IS the server. The database has no way to tell
+the server's verdict from a member's claim about their own upload, because both
+arrive as `aktflow_app`. A member willing to call the function directly can
+assert `passed` for content nobody looked at, provided they present the hash
+their own intent declared.
+
+**Pros of fixing:** `inspection_status` becomes a fact rather than an assertion,
+which is what the whole evidence chain rests on.
+**Cons:** needs the service plane. `service.upload_finalize` already exists in
+`technical/permissions/capabilities.csv`; the work is a second database role,
+credentials for it, and routes that act as it for exactly this call.
+**Depends on:** the same service-principal work as the `event_source` item
+below. Doing them together is the point.
+
+## P2 — capture_events cannot tell the server's assertion from a member's
+
+**What:** `capture_events.event_source` distinguishes what the device claimed
+from what the server observed, but v0.1-M2-A has no service principal separate
+from `aktflow_app`. Migration 0023 binds a capture event to an intent the actor
+created, which stops forging events on somebody else's upload, but a member can
+still write `event_source = 'server'` on their own.
+
+**Why:** the column is provenance. If it can be set by the party it is meant to
+distinguish from, it records less than it appears to.
+
+**Pros of fixing:** the server's account of an upload becomes unforgeable.
+**Cons:** needs the service plane — `service.upload_finalize` already exists in
+`technical/permissions/capabilities.csv` — which means a second database role
+and a way for routes to act as it. That is infrastructure, not a policy tweak.
+**Depends on:** the service-principal work the capability catalog anticipates.
+
+## P2 — a deactivated member cannot abandon their own upload through the route
+
+**What:** migration 0031 makes the commands answer ownership with
+`app.member_id_any_status`, so a member deactivated mid-upload can still orphan
+their own bytes at the database level, and the hardening suite proves it. The
+finalize ROUTE still cannot reach that path: its front door calls
+`requireActiveMembership`, and the intent's own SELECT policy requires an active
+membership, so a deactivated caller gets 404 before any command runs.
+
+**Why:** INV-047 wants revoked content marked for purge promptly. Losing the
+`evidence.record` capability is handled — the finalization command orphans the
+bytes itself, inside the row lock. Losing the membership outright is not: those
+bytes wait for the 24-hour intent TTL, get swept to `expired`, and enter the
+purge queue from there.
+
+**Pros of fixing:** the two revocation shapes behave the same, and the promptness
+INV-047 asks for stops depending on which one happened.
+**Cons:** the route cannot read the intent at all without an active membership,
+so this needs a definer for the read as well — a second authorization path whose
+only caller is this case. Worth doing deliberately, not as a patch.
+**Bounded by:** the intent TTL. The bytes are collected within 24 hours either
+way; what differs is whether that happens at revocation or at expiry.
+
+## P2 — the evidence purge worker still runs nowhere
+
+**What:** unchanged from the pre-landing review, but 0031 raises the stakes.
+Usage now counts every unpurged byte, so storage that is never purged is storage
+that is never given back, and a workspace with a quota set will eventually stop
+accepting uploads rather than silently overrun.
+
+**Why:** `0021` schedules only the expiry marking, which is pure SQL. Deleting
+bytes needs storage credentials, so `apps/app/src/lib/evidence-purge.ts` must be
+wired to a runtime that holds them.
+
+**Pros of fixing:** INV-047's 24-hour guarantee starts operating instead of being
+demonstrated by tests, and the quota becomes a bound rather than a ratchet.
+**Cons:** deployment work, not code — it is written and tested already.
+
+## P3 — the Supabase CLI is unpinned, so the toolchain changes without a commit
+
+**What:** `.github/workflows/ci.yml` pins the `supabase/setup-cli` action by SHA
+and then asks it for `version: latest`. The action is reproducible; the tool it
+installs is not. At the time of writing CI runs CLI **2.111.0** while local
+development runs **2.75.0** — 36 releases apart.
+
+**Why it surfaced:** the first CI run of the v0.1-M2-A branch failed in
+`supabase db reset`, after all 33 migrations applied, with a 502 from the local
+stack while restarting containers. A rerun with no code change passed, so that
+one was a runner flake. But diagnosing it meant asking whether a CLI release had
+changed behaviour, and the honest answer was that nobody could tell — which is
+the actual problem. A green build that depends on an unpinned tool is a build
+whose result can change overnight for reasons no commit explains.
+
+**Pros of fixing:** CI failures become attributable to the diff. Local and CI
+run the same tool, so "works on my machine" stops being a category of answer.
+**Cons:** a pinned CLI has to be bumped deliberately, and a stale pin drifts from
+the Supabase platform it talks to. That is a maintenance cost, not a hidden one.
+**Not done here** because it changes CI policy for the whole repo, and `main`
+has been passing with `latest` since long before this branch.

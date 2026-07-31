@@ -208,3 +208,63 @@ describe("publish", () => {
     expect((await getVersion(fx.contractId, 99)).status).toBe(404);
   });
 });
+
+describe("zero-priced rows publish", () => {
+  // Found while building the v0.1-M2 valuation matrix. publish wrote
+  // unit_price_decimal from `mp.unitPrice ? … : null`, and a price of 0,00
+  // parses into a Decimal whose object is truthy, so a 'zero' row was stored
+  // with a non-null decimal and violated
+  // `(unit_price_state = 'known') = (unit_price_decimal is not null)`.
+  // Publishing any estimate containing a zero-priced row returned 500. No M1
+  // fixture ever imported one.
+  const CSV_ZERO =
+    "Шифр;Назва;Од;К-сть;Ціна;Сума\n" +
+    "1.1;Мурування;м2;10;199,99;1 999,90\n" +
+    "1.5;Складування (у вартості);м2;4;0,00;0,00\n";
+
+  it("stores a zero price as state 'zero' with no decimal", async () => {
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.csv", enc(CSV_ZERO));
+    await validate(batchId, 2);
+    const view = await (await getBatch(batchId)).json();
+
+    const res = await publish(batchId, view.version, view.sourceManifestHash);
+    expect(res.status, await res.clone().text()).toBe(201);
+
+    const rows = await q<{ unit_price_state: string; unit_price_decimal: string | null }>(
+      `select unit_price_state, unit_price_decimal::text from public.work_items
+        where workspace_id = $1 and source_key = '1.5'`, [fx.workspaceId]);
+    expect(rows[0]!.unit_price_state).toBe("zero");
+    expect(rows[0]!.unit_price_decimal).toBeNull();
+  });
+});
+
+describe("publish idempotency retention", () => {
+  it("keeps the publish record for the audit window, not thirty days", async () => {
+    // Publishing fixes the money pool every later exposure slice is carved
+    // from, so the record has to stay replayable for the audit retention
+    // window. TODOS.md carried the 30-day default as a deferred finding.
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.csv", enc(CSV_V1));
+    await validate(batchId, 2);
+    const view = await (await getBatch(batchId)).json();
+    const mismatch = view.rowResults.find(
+      (r: { errorCodes: string[] }) => r.errorCodes.includes("AMOUNT_MISMATCH"));
+    await resolve(batchId, {
+      rowResultId: mismatch.rowResultId, chosenBasis: "approved_source_amount",
+      reason: "Приклад-обґрунтування",
+    });
+    const resolved = await (await getBatch(batchId)).json();
+    await validate(batchId, resolved.version);
+    const ready = await (await getBatch(batchId)).json();
+    const res = await publish(batchId, ready.version, ready.sourceManifestHash);
+    expect(res.status, await res.clone().text()).toBe(201);
+
+    const rows = await q<{ expires_at: string; created_at: string }>(
+      `select expires_at::text, created_at::text from public.idempotency_records
+        where operation_id = 'import_batches.publish'`);
+    const days = (new Date(rows[0]!.expires_at).getTime()
+      - new Date(rows[0]!.created_at).getTime()) / 86_400_000;
+    expect(Math.round(days)).toBe(400);
+  });
+});
