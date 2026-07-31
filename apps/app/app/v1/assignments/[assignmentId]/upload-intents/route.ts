@@ -67,16 +67,37 @@ export const POST = commandRoute(createUploadIntentRequest, async (a) => {
       // The failure table in docs/domain/execution-and-evidence.md requires the
       // user see the exact limit, not a generic rejection.
       if (!media.mimeTypes.includes(a.body.claimedMediaType)) {
-        throw new HttpProblem(422, problem("EVIDENCE_MEDIA_REJECTED",
+        throw new HttpProblem(422, problem("UPLOAD_SIZE_LIMIT",
           `Тип «${a.body.claimedMediaType}» не дозволений. Дозволені: ${media.mimeTypes.join(", ")}.`,
-          { requestId: a.requestId, retryable: false, userAction: "correct_fields",
+          { requestId: a.requestId, retryable: false, userAction: "reduce_file_or_request_policy_change",
             fieldErrors: [{ path: "claimedMediaType", message: "media type not allowed" }] }));
       }
       if (a.body.expectedByteSize > media.maxByteSize) {
-        throw new HttpProblem(422, problem("EVIDENCE_MEDIA_REJECTED",
+        throw new HttpProblem(422, problem("UPLOAD_SIZE_LIMIT",
           `Розмір ${a.body.expectedByteSize} Б перевищує ліміт ${media.maxByteSize} Б.`,
-          { requestId: a.requestId, retryable: false, userAction: "correct_fields",
+          { requestId: a.requestId, retryable: false, userAction: "reduce_file_or_request_policy_change",
             fieldErrors: [{ path: "expectedByteSize", message: "exceeds the allowed size" }] }));
+      }
+
+      // Quota. The protocol says the server validates it before issuing the
+      // destination; until 0026 nothing did, and quota_reserved_bytes was a
+      // column nobody wrote. A workspace with no limit configured is unlimited,
+      // which is the behaviour that shipped — the figure itself is an external
+      // gate (see 0015 and 0026).
+      const quota = await tx.query(
+        `select o.evidence_quota_bytes,
+                app.evidence_bytes_in_use($1) as in_use
+           from public.organizations o where o.id = $1`, [workspaceId]);
+      const limit = quota.rows[0]?.evidence_quota_bytes;
+      if (limit !== null && limit !== undefined) {
+        const inUse = BigInt(quota.rows[0].in_use);
+        if (inUse + BigInt(a.body.expectedByteSize) > BigInt(limit)) {
+          // 422 per the catalog: the request is unacceptable as stated, and the
+          // caller's move is to send less or ask for a policy change.
+          throw new HttpProblem(422, problem("UPLOAD_SIZE_LIMIT",
+            `Ліміт сховища вичерпано: зайнято ${inUse} Б із ${limit} Б.`,
+            { requestId: a.requestId, retryable: false, userAction: "reduce_file_or_request_policy_change" }));
+        }
       }
 
       const uploadIntentId = randomUUID();
@@ -89,8 +110,9 @@ export const POST = commandRoute(createUploadIntentRequest, async (a) => {
             device_capture_id, origin_method, original_filename, claimed_capture_time,
             claimed_tz_offset, source_app_version, idempotency_key, request_hash,
             expected_byte_size, expected_content_hash, allowed_content_family,
-            claimed_media_type, staging_bucket, staging_storage_key, expires_at)
-         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)`,
+            claimed_media_type, staging_bucket, staging_storage_key, expires_at,
+            quota_reserved_bytes)
+         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$14)`,
         [uploadIntentId, workspaceId, projectId, assignmentId, m.memberId,
          a.body.deviceCaptureId, a.body.originMethod, a.body.originalFilename ?? null,
          a.body.claimedCaptureTime ?? null, a.body.claimedTzOffset ?? null,

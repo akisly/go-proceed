@@ -73,6 +73,27 @@ export async function downloadObject(key: string): Promise<Uint8Array> {
   return new Uint8Array(await data.arrayBuffer());
 }
 
+/**
+ * The stored object's size in bytes, or null when the key holds nothing.
+ *
+ * Read from storage metadata rather than by downloading. finalize used to pull
+ * the whole object into memory before comparing it with the intent's declared
+ * size, so a caller could declare ten bytes, upload fifty megabytes, and force
+ * the server to buffer all of it just to reject it.
+ */
+export async function objectSize(
+  key: string, bucket: string = EVIDENCE_BUCKET,
+): Promise<number | null> {
+  const slash = key.lastIndexOf("/");
+  const prefix = slash === -1 ? "" : key.slice(0, slash);
+  const name = slash === -1 ? key : key.slice(slash + 1);
+  const { data, error } = await storage(bucket).list(prefix, { search: name, limit: 100 });
+  if (error) throw new Error(`storage: list failed for ${bucket}/${key}: ${error.message}`);
+  const found = data?.find((o) => o.name === name);
+  const size = (found?.metadata as { size?: number } | undefined)?.size;
+  return typeof size === "number" ? size : null;
+}
+
 export async function objectExists(key: string): Promise<boolean> {
   const { error } = await storage().download(key);
   return !error;

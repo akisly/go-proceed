@@ -6,7 +6,9 @@ import {
   finalizeUploadIntentRequest, type FinalizeUploadIntentResponse,
 } from "@aktflow/contracts";
 import { withTenantTx, recordAudit, enqueueOutbox } from "@aktflow/database";
-import { STORAGE_PROVIDER, downloadObject } from "../../../../../src/lib/evidence-storage";
+import {
+  STORAGE_PROVIDER, downloadObject, objectSize,
+} from "../../../../../src/lib/evidence-storage";
 import { inspectContent } from "../../../../../src/lib/evidence-inspection";
 
 export const runtime = "nodejs";
@@ -95,26 +97,54 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
       "Байти цього наміру вже позначено на очищення. Потрібне нове завантаження.",
       { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
   }
-  if (intent.status === "expired") {
-    throw new HttpProblem(409, problem("VERSION_CONFLICT",
+  // 410 with the catalogued code, not a generic conflict: an expired grant is
+  // gone rather than contended, and the client's action is to ask for a new one.
+  if (intent.status === "expired"
+      || new Date(intent.expires_at).getTime() <= Date.now()) {
+    throw new HttpProblem(410, problem("UPLOAD_GRANT_EXPIRED",
       "Термін дії наміру завантаження минув.",
-      { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
-  }
-  if (new Date(intent.expires_at).getTime() <= Date.now()) {
-    throw new HttpProblem(409, problem("VERSION_CONFLICT",
-      "Термін дії наміру завантаження минув.",
-      { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
+      { requestId: a.requestId, retryable: false,
+        userAction: "request_new_upload_grant" }));
   }
 
   // Storage IO happens outside the transaction: it is slow, and holding a
   // database connection across it buys nothing.
+  //
+  // Size is checked from metadata FIRST. Downloading before comparing let a
+  // caller declare ten bytes, upload the bucket's fifty-megabyte maximum, and
+  // make the server buffer all of it purely to reject it.
+  const storedSize = await objectSize(intent.staging_storage_key, intent.staging_bucket);
+  if (storedSize === null) {
+    throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
+      "Байти ще не завантажено за цим наміром.",
+      { requestId: a.requestId, retryable: true, userAction: "refresh_upload_state_or_request_new_grant" }));
+  }
+  if (storedSize !== Number(intent.expected_byte_size)) {
+    await withTenantTx(ctx, async (tx) => {
+      await tx.query(
+        `update public.upload_intents
+            set failure_code = 'integrity_size_mismatch', version = version + 1
+          where workspace_id = $1 and id = $2`, [intent.workspace_id, intentId]);
+      await tx.query(
+        `insert into public.capture_events
+           (workspace_id, project_id, work_assignment_id, upload_intent_id,
+            device_capture_id, client_state, event_source, failure_code)
+         values ($1,$2,$3,$4,$5,'failed','server','integrity_size_mismatch')`,
+        [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
+         intent.device_capture_id]);
+    });
+    throw new HttpProblem(422, problem("UPLOAD_CHECKSUM_MISMATCH",
+      `Отримано ${storedSize} Б замість очікуваних ${intent.expected_byte_size} Б.`,
+      { requestId: a.requestId, retryable: true, userAction: "retry_part" }));
+  }
+
   let bytes: Uint8Array;
   try {
     bytes = await downloadObject(intent.staging_storage_key);
   } catch {
-    throw new HttpProblem(409, problem("UPLOAD_NOT_STAGED",
+    throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
       "Байти ще не завантажено за цим наміром.",
-      { requestId: a.requestId, retryable: true, userAction: "retry_later" }));
+      { requestId: a.requestId, retryable: true, userAction: "refresh_upload_state_or_request_new_grant" }));
   }
 
   const actualHash = createHash("sha256").update(bytes).digest("hex");
@@ -138,11 +168,11 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
         [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
          intent.device_capture_id, failureCode]);
     });
-    throw new HttpProblem(422, problem("EVIDENCE_INTEGRITY_FAILED",
+    throw new HttpProblem(422, problem("UPLOAD_CHECKSUM_MISMATCH",
       sizeMatches
         ? "Хеш отриманого вмісту не збігається з очікуваним. Оригінал збережено, спробуйте ще раз."
         : `Отримано ${bytes.byteLength} Б замість очікуваних ${intent.expected_byte_size} Б.`,
-      { requestId: a.requestId, retryable: true, userAction: "retry_later" }));
+      { requestId: a.requestId, retryable: true, userAction: "retry_part" }));
   }
 
   const inspection = await inspectContent(bytes, intent.claimed_media_type);
@@ -164,11 +194,11 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
     });
     // No evidence_objects row is created, which is why inspection_status has no
     // 'blocked' value: blocked content never becomes evidence at all (INV-046).
-    throw new HttpProblem(422, problem("EVIDENCE_SCAN_BLOCKED",
+    throw new HttpProblem(422, problem("SCAN_REJECTED",
       inspection.failureCode === "declared_type_mismatch"
         ? `Вміст не відповідає заявленому типу «${intent.claimed_media_type}».`
         : "Тип вмісту не розпізнано.",
-      { requestId: a.requestId, retryable: false, userAction: "correct_fields" }));
+      { requestId: a.requestId, retryable: false, userAction: "recapture_or_contact_support" }));
   }
 
   // INV-047: authorization is rechecked at the moment evidence is created, not

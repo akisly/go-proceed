@@ -132,7 +132,7 @@ describe("upload_intents.finalize", () => {
     const intent = await createIntent(JPEG);
     const res = await finalize(intent.uploadIntentId);
     expect(res.status).toBe(409);
-    expect((await res.json()).code).toBe("UPLOAD_NOT_STAGED");
+    expect((await res.json()).code).toBe("UPLOAD_INTENT_CONFLICT");
   });
 
   it("keeps the original and stays retryable on a hash mismatch", async () => {
@@ -143,7 +143,7 @@ describe("upload_intents.finalize", () => {
 
     const res = await finalize(intent.uploadIntentId);
     expect(res.status).toBe(422);
-    expect((await res.json()).code).toBe("EVIDENCE_INTEGRITY_FAILED");
+    expect((await res.json()).code).toBe("UPLOAD_CHECKSUM_MISMATCH");
 
     const rows = await q<{ status: string; failure_code: string }>(
       `select status, failure_code from public.upload_intents where id = $1`,
@@ -175,7 +175,7 @@ describe("upload_intents.finalize", () => {
 
     const res = await finalize(intent.uploadIntentId);
     expect(res.status).toBe(422);
-    expect((await res.json()).code).toBe("EVIDENCE_SCAN_BLOCKED");
+    expect((await res.json()).code).toBe("SCAN_REJECTED");
 
     const rows = await q<{ status: string; failure_code: string }>(
       `select status, failure_code from public.upload_intents where id = $1`,
@@ -243,7 +243,11 @@ describe("upload_intents.finalize", () => {
     const intent = await staged(JPEG);
     await q(`update public.upload_intents set expires_at = now() - interval '1 hour'
               where id = $1`, [intent.uploadIntentId]);
-    expect((await finalize(intent.uploadIntentId)).status).toBe(409);
+    // 410, the catalogued answer for an expired upload grant: it is gone rather
+    // than contended, and the client's next move is to ask for a new one.
+    const expired = await finalize(intent.uploadIntentId);
+    expect(expired.status).toBe(410);
+    expect((await expired.json()).code).toBe("UPLOAD_GRANT_EXPIRED");
   });
 
   it("refuses to finalize a blocked intent again", async () => {

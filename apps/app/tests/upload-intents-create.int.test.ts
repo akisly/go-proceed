@@ -129,7 +129,7 @@ describe("upload_intents.create", () => {
     const wrongType = await createIntent(VALID(), pinned);
     expect(wrongType.status).toBe(422);
     const typeBody = await wrongType.json();
-    expect(typeBody.code).toBe("EVIDENCE_MEDIA_REJECTED");
+    expect(typeBody.code).toBe("UPLOAD_SIZE_LIMIT");
     // The user must see the exact allowed set, not a generic rejection.
     expect(typeBody.detail).toContain("image/png");
 
@@ -266,5 +266,52 @@ describe("upload_intents.create", () => {
               where id = $1`, [first.uploadIntentId]);
 
     expect((await createIntent(VALID(), assignmentId, key)).status).toBe(409);
+  });
+
+  it("is unlimited when the workspace has no quota configured", async () => {
+    // NULL means unlimited, which is the behaviour that shipped. The figure
+    // itself is an external gate (the approved retention schedule), so the
+    // mechanism lands without inventing a number.
+    const before = await q<{ evidence_quota_bytes: string | null }>(
+      `select evidence_quota_bytes from public.organizations where id = $1`,
+      [fx.workspaceId]);
+    expect(before[0]!.evidence_quota_bytes).toBeNull();
+    expect((await createIntent(VALID())).status).toBe(201);
+  });
+
+  it("refuses an intent that would exceed the workspace quota", async () => {
+    await q(`update public.organizations set evidence_quota_bytes = $2 where id = $1`,
+      [fx.workspaceId, PAYLOAD.byteLength + 1]);
+
+    // The first fits and reserves its bytes.
+    expect((await createIntent(VALID())).status).toBe(201);
+
+    // The second does not, because the live intent's reservation counts.
+    const res = await createIntent(VALID());
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("UPLOAD_SIZE_LIMIT");
+    expect(body.userAction).toBe("reduce_file_or_request_policy_change");
+  });
+
+  it("counts a live intent's reservation, and stops counting it once it lapses", async () => {
+    await q(`update public.organizations set evidence_quota_bytes = $2 where id = $1`,
+      [fx.workspaceId, PAYLOAD.byteLength + 1]);
+    const first = await (await createIntent(VALID())).json();
+    expect((await createIntent(VALID())).status).toBe(422);
+
+    // An expired intent promises nothing, so the room comes back.
+    await q(`update public.upload_intents set expires_at = now() - interval '1 hour'
+              where id = $1`, [first.uploadIntentId]);
+    expect((await createIntent(VALID())).status).toBe(201);
+  });
+
+  it("records what the intent reserved", async () => {
+    const body = await (await createIntent(VALID())).json();
+    const rows = await q<{ quota_reserved_bytes: string }>(
+      `select quota_reserved_bytes from public.upload_intents where id = $1`,
+      [body.uploadIntentId]);
+    // The column existed since 0015 and nothing ever wrote it.
+    expect(Number(rows[0]!.quota_reserved_bytes)).toBe(PAYLOAD.byteLength);
   });
 });
