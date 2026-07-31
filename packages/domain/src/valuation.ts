@@ -30,8 +30,24 @@ export interface AllocationState {
   workItemAllocated: PoolAmounts;
   /** Effective quantity of THIS entry's root before this entry, scale 6. */
   rootQuantity: bigint;
+  /**
+   * The part of that quantity which actually drew money, scale 6.
+   *
+   * Differs from rootQuantity once a root crosses the contract quantity: the
+   * over-contract remainder is performed but unfunded. A correction has to know
+   * the difference, or it returns money the root never received. This cannot be
+   * derived after the fact, because each carve takes from the pool remaining at
+   * that moment and money-per-unit is not constant.
+   */
+  rootFundedQuantity: bigint;
   /** Minor units already allocated to THIS entry's root. */
   rootAllocated: PoolAmounts;
+}
+
+export interface SliceResult {
+  amounts: PoolAmounts;
+  /** Signed change to the root's funded quantity, scale 6. */
+  fundedQuantity: bigint;
 }
 
 export const ZERO: PoolAmounts = { net: 0n, tax: 0n, gross: 0n };
@@ -136,41 +152,65 @@ function shrink(allocated: bigint, newQty: bigint, oldQty: bigint): bigint {
  */
 export function sliceAllocation(
   w: WorkItemValuation, state: AllocationState, deltaQuantity: bigint,
-): PoolAmounts {
+): SliceResult {
   const reason = unvaluedReason(w);
   if (reason !== null) {
     throw new Error(`sliceAllocation: work item is unvalued (${reason}); ` +
       "call unvaluedReason first");
   }
-  if (deltaQuantity === 0n) return ZERO;
+  if (deltaQuantity === 0n) return { amounts: ZERO, fundedQuantity: 0n };
 
   const c = coupling(w.taxMode);
 
   if (deltaQuantity > 0n) {
-    // Remaining within-contract quantity and the money still unallocated.
+    // Only the within-contract part of the delta draws money. The rest is
+    // performed and unfunded: over-contract exposure is INV-039's concern in
+    // M6, not a second pool here.
     const remainingQty = w.contractQuantity - state.workItemPerformed;
-    if (remainingQty <= 0n) return ZERO; // wholly over-contract: INV-039's problem in M6
-    const q = deltaQuantity > remainingQty ? remainingQty : deltaQuantity;
+    if (remainingQty <= 0n) return { amounts: ZERO, fundedQuantity: 0n };
+    const funded = deltaQuantity > remainingQty ? remainingQty : deltaQuantity;
 
     const [poolA, poolB] = componentsOf(c, w.pool);
     const [usedA, usedB] = componentsOf(c, state.workItemAllocated);
-    return assemble(c,
-      carve(poolA - usedA, q, remainingQty),
-      carve(poolB - usedB, q, remainingQty));
+    return {
+      amounts: assemble(c,
+        carve(poolA - usedA, funded, remainingQty),
+        carve(poolB - usedB, funded, remainingQty)),
+      fundedQuantity: funded,
+    };
   }
 
-  // Negative: return from this root's own allocation, proportionally.
+  // Negative: unfunded quantity goes first.
+  //
+  // A root that recorded three units against one unit of remaining contract
+  // scope holds one unit's worth of money. Correcting away two units removes
+  // exactly the part that never earned anything, so no money moves. Scaling by
+  // the root's total quantity instead would hand back two thirds of a payment
+  // the root did receive, and — once the work item is fully performed — that
+  // money can never be allocated again.
+  const removal = -deltaQuantity;
   const newRootQty = state.rootQuantity + deltaQuantity;
   if (newRootQty < 0n) {
     throw new Error("sliceAllocation: adjustment drives root quantity below zero");
   }
+
+  const unfunded = state.rootQuantity - state.rootFundedQuantity;
+  const unfundedRemoved = removal > unfunded ? unfunded : removal;
+  const fundedRemoved = removal - unfundedRemoved;
+  if (fundedRemoved <= 0n) return { amounts: ZERO, fundedQuantity: 0n };
+
+  const newFunded = state.rootFundedQuantity - fundedRemoved;
   const [heldA, heldB] = componentsOf(c, state.rootAllocated);
-  const keptA = shrink(heldA, newRootQty, state.rootQuantity);
-  const keptB = shrink(heldB, newRootQty, state.rootQuantity);
-  const kept = assemble(c, keptA, keptB);
+  const kept = assemble(c,
+    shrink(heldA, newFunded, state.rootFundedQuantity),
+    shrink(heldB, newFunded, state.rootFundedQuantity));
+
   return {
-    net: kept.net - state.rootAllocated.net,
-    tax: kept.tax - state.rootAllocated.tax,
-    gross: kept.gross - state.rootAllocated.gross,
+    amounts: {
+      net: kept.net - state.rootAllocated.net,
+      tax: kept.tax - state.rootAllocated.tax,
+      gross: kept.gross - state.rootAllocated.gross,
+    },
+    fundedQuantity: -fundedRemoved,
   };
 }

@@ -27,26 +27,29 @@ const add = (a: PoolAmounts, b: PoolAmounts): PoolAmounts =>
 class Ledger {
   workItemPerformed = 0n;
   workItemAllocated: PoolAmounts = ZERO;
-  readonly roots = new Map<string, { quantity: bigint; allocated: PoolAmounts }>();
+  readonly roots = new Map<string,
+    { quantity: bigint; funded: bigint; allocated: PoolAmounts }>();
 
   constructor(private readonly w: WorkItemValuation) {}
 
   apply(rootId: string, delta: bigint): PoolAmounts {
-    const root = this.roots.get(rootId) ?? { quantity: 0n, allocated: ZERO };
+    const root = this.roots.get(rootId) ?? { quantity: 0n, funded: 0n, allocated: ZERO };
     const state: AllocationState = {
       workItemPerformed: this.workItemPerformed,
       workItemAllocated: this.workItemAllocated,
       rootQuantity: root.quantity,
+      rootFundedQuantity: root.funded,
       rootAllocated: root.allocated,
     };
-    const slice = sliceAllocation(this.w, state, delta);
+    const { amounts, fundedQuantity } = sliceAllocation(this.w, state, delta);
     this.workItemPerformed += delta;
-    this.workItemAllocated = add(this.workItemAllocated, slice);
+    this.workItemAllocated = add(this.workItemAllocated, amounts);
     this.roots.set(rootId, {
       quantity: root.quantity + delta,
-      allocated: add(root.allocated, slice),
+      funded: root.funded + fundedQuantity,
+      allocated: add(root.allocated, amounts),
     });
-    return slice;
+    return amounts;
   }
 
   unperformed(): PoolAmounts {
@@ -256,5 +259,149 @@ describe("ledger invariants over a randomised walk", () => {
         expect(sum).toEqual(l.workItemAllocated);
       }
     }
+  });
+});
+
+describe("over-contract corrections do not destroy money", () => {
+  // Found by the pre-landing review's outside voice. The first implementation
+  // shrank a root's allocation by its TOTAL quantity, including the
+  // over-contract part that never earned anything, so money vanished and — once
+  // the work item was fully performed — could never be allocated again.
+  const item: WorkItemValuation = {
+    pool: { net: 400n, tax: 0n, gross: 400n },
+    contractQuantity: Q(4),
+    taxMode: "exempt",
+    unitPriceState: "known",
+    valuationBasis: "unit_price_derived",
+  };
+
+  it("keeps the pool fully allocated when a correction removes only unfunded quantity", () => {
+    const l = new Ledger(item);
+    l.apply("A", Q(3));          // carves 300, one unit of contract scope left
+    l.apply("B", Q(3));          // only one unit is fundable, carves the last 100
+    expect(l.workItemAllocated.gross).toBe(400n);
+
+    const returned = l.apply("B", -Q(2));   // both units removed were unfunded
+    expect(returned.gross).toBe(0n);
+    expect(l.roots.get("B")!.allocated.gross).toBe(100n);
+    expect(l.workItemAllocated.gross).toBe(400n);
+    expect(l.unperformed().gross).toBe(0n);
+  });
+
+  it("returns money once the correction reaches funded quantity", () => {
+    const l = new Ledger(item);
+    l.apply("A", Q(3));
+    l.apply("B", Q(3));
+    l.apply("B", -Q(2));         // unfunded only
+    const returned = l.apply("B", -Q(1));   // now it bites
+
+    expect(returned.gross).toBe(-100n);
+    expect(l.roots.get("B")!.allocated.gross).toBe(0n);
+    expect(l.workItemAllocated.gross).toBe(300n);
+    // Freed scope is allocatable again, which is the whole point.
+    const c = l.apply("C", Q(1));
+    expect(c.gross).toBe(100n);
+    expect(l.workItemAllocated.gross).toBe(400n);
+  });
+
+  it("allocates the whole pool once performed quantity reaches the contract", () => {
+    // The general property the example is one case of.
+    const l = new Ledger(item);
+    l.apply("A", Q(10));         // wildly over contract in one go
+    expect(l.workItemAllocated.gross).toBe(400n);
+    l.apply("A", -Q(6));         // still over contract afterwards
+    expect(l.workItemAllocated.gross).toBe(400n);
+    expect(l.unperformed().gross).toBe(0n);
+  });
+});
+
+describe("ledger invariants with over-contract quantities", () => {
+  const base: WorkItemValuation = {
+    pool: { net: 400n, tax: 0n, gross: 400n },
+    contractQuantity: Q(4),
+    taxMode: "exempt",
+    unitPriceState: "known",
+    valuationBasis: "unit_price_derived",
+  };
+
+  it("never leaves the pool short while performed quantity covers the contract", () => {
+    // The earlier random walk never crossed the contract quantity, which is why
+    // it missed the defect above. This one deliberately over-performs.
+    let seed = 7;
+    const next = (): number => {
+      seed = (seed * 1103515245 + 12345) % 2147483648;
+      return seed / 2147483648;
+    };
+
+    for (const taxMode of ["exclusive", "inclusive", "exempt"] as const) {
+      for (let trial = 0; trial < 150; trial++) {
+        const net = BigInt(Math.floor(next() * 50_000) + 1);
+        const tax = taxMode === "exempt" ? 0n : net / 5n;
+        const contractQuantity = BigInt(Math.floor(next() * 5) + 1) * 1_000_000n;
+        const item2: WorkItemValuation = {
+          ...base, taxMode,
+          pool: { net, tax, gross: net + tax },
+          contractQuantity,
+        };
+        const l = new Ledger(item2);
+        const ids = ["r1", "r2", "r3"];
+
+        for (let step = 0; step < 10; step++) {
+          const id = ids[Math.floor(next() * ids.length)]!;
+          const root = l.roots.get(id);
+          const up = next() < 0.65 || !root || root.quantity === 0n;
+          // Deliberately generous deltas relative to the contract quantity.
+          const delta = up
+            ? BigInt(Math.floor(next() * 4) + 1) * 1_000_000n
+            : -(BigInt(Math.floor(next() * Number(root!.quantity / 1_000_000n) + 1)) * 1_000_000n);
+          if (delta === 0n || (!up && root!.quantity + delta < 0n)) continue;
+          l.apply(id, delta);
+        }
+
+        const unperformed = l.unperformed();
+        expect(unperformed.net).toBeGreaterThanOrEqual(0n);
+        expect(unperformed.gross).toBe(unperformed.net + unperformed.tax);
+        for (const root of l.roots.values()) {
+          expect(root.allocated.net).toBeGreaterThanOrEqual(0n);
+          expect(root.funded).toBeLessThanOrEqual(root.quantity);
+        }
+        // Money never exceeds the pool, and every root's holding is backed by
+        // funded quantity. The stronger property — "pool fully allocated
+        // whenever the contract quantity is performed" — does NOT hold, by
+        // design gap rather than by accident; see the test below.
+        expect(unperformed.gross).toBeGreaterThanOrEqual(0n);
+        let held = 0n;
+        for (const root of l.roots.values()) held += root.allocated.gross;
+        expect(held).toBe(l.workItemAllocated.gross);
+      }
+    }
+  });
+});
+
+describe("KNOWN GAP: funding is first-come and is not redistributed", () => {
+  it("leaves a later root unfunded after an earlier root withdraws", () => {
+    // Found by the over-contract property walk above, and NOT the same defect
+    // the outside voice named. Funding is claimed by whoever records first. When
+    // that root withdraws, the freed pool is not offered to roots whose
+    // performed quantity is now within the contract.
+    const item: WorkItemValuation = {
+      pool: { net: 400n, tax: 0n, gross: 400n },
+      contractQuantity: Q(4), taxMode: "exempt",
+      unitPriceState: "known", valuationBasis: "unit_price_derived",
+    };
+    const l = new Ledger(item);
+    l.apply("A", Q(4));                      // takes the whole pool
+    expect(l.apply("B", Q(4)).gross).toBe(0n);   // nothing left to fund
+    l.apply("A", -Q(4));                     // gives it all back
+
+    // B has performed four units, exactly the contract quantity, and holds
+    // nothing. The pool is idle.
+    expect(l.roots.get("B")!.allocated.gross).toBe(0n);
+    expect(l.unperformed().gross).toBe(400n);
+    expect(l.workItemPerformed).toBe(Q(4));
+
+    // Recorded as a test rather than left implicit: closing it means writing
+    // allocations for roots OTHER than the one being corrected, which is a
+    // design decision about lineage, not a patch. Tracked in TODOS.md.
   });
 });

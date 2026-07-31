@@ -89,6 +89,10 @@ export async function appendValuationAllocation(
 
   const reason = unvaluedReason(item);
   let slice: PoolAmounts = ZERO;
+  // How much of this slice's quantity actually drew money. Differs from the
+  // delta once the work item crosses its contract quantity, and a later
+  // correction needs the difference or it returns money never received.
+  let fundedQuantity = 0n;
 
   if (reason === null) {
     // Every quantity sum EXCLUDES the entry being valued. The caller has
@@ -118,7 +122,10 @@ export async function appendValuationAllocation(
            as root_net,
          coalesce((select sum(v.tax_minor_units) from public.valuation_allocations v
                     where v.workspace_id = $1 and v.root_progress_entry_id = $3), 0)::text
-           as root_tax`,
+           as root_tax,
+         coalesce((select sum(v.funded_quantity) from public.valuation_allocations v
+                    where v.workspace_id = $1 and v.root_progress_entry_id = $3), 0)::text
+           as root_funded`,
       [args.workspaceId, args.workItemId, args.rootProgressEntryId, args.progressEntryId]);
     const t = totals.rows[0]!;
 
@@ -131,20 +138,24 @@ export async function appendValuationAllocation(
       workItemPerformed: toScaled6(t.work_item_performed),
       workItemAllocated: { net: workItemNet, tax: workItemTax, gross: workItemNet + workItemTax },
       rootQuantity: toScaled6(t.root_quantity),
+      rootFundedQuantity: toScaled6(t.root_funded),
       rootAllocated: { net: rootNet, tax: rootTax, gross: rootNet + rootTax },
     };
-    slice = sliceAllocation(item, state, args.deltaQuantity);
+    const result = sliceAllocation(item, state, args.deltaQuantity);
+    slice = result.amounts;
+    fundedQuantity = result.fundedQuantity;
   }
 
   await tx.query(
     `insert into public.valuation_allocations
        (id, workspace_id, project_id, contract_id, work_item_id, progress_entry_id,
-        root_progress_entry_id, lineage_key, quantity,
+        root_progress_entry_id, lineage_key, quantity, funded_quantity,
         net_minor_units, tax_minor_units, gross_minor_units, unvalued_reason)
-     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)`,
+     values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
     [randomUUID(), args.workspaceId, args.projectId, args.contractId, args.workItemId,
      args.progressEntryId, args.rootProgressEntryId,
      `progress:${args.progressEntryId}`, fromScaled6(args.deltaQuantity),
+     fromScaled6(fundedQuantity),
      reason === null ? slice.net.toString() : null,
      reason === null ? slice.tax.toString() : null,
      reason === null ? slice.gross.toString() : null,

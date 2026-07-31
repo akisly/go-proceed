@@ -87,3 +87,30 @@ fixture matrix, not by the M1 review, because no M1 fixture ever imported a
 zero-priced row — and rows priced at zero are ordinary, being work bundled into
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
+
+## P1 — valuation funding is first-come and is never redistributed
+
+**What:** the work-item pool is claimed by whichever root records first. When
+that root later withdraws, the freed money is not offered to roots whose
+performed quantity now sits within the contract quantity. Minimal case, contract
+quantity 4 and a pool of 400: root A records 4 and takes all 400; root B records
+4 and gets nothing; A corrects away its 4 and returns 400. Performed quantity is
+now exactly 4 and the pool is entirely idle, with B holding nothing for work
+that is fully within contract.
+
+**Why:** M6's value-at-risk projection reports B's four units as performed but
+unvalued, which is wrong — they are within contract and priced.
+
+**Pros of fixing:** the pool matches performed scope in every ordering, not only
+the ones where nobody over-performs and then corrects.
+**Cons:** closing it means a correction on one root writes allocations for OTHER
+roots. That is a lineage decision, not a patch: `progress.adjust` currently
+touches only its own root by design, and the engineering review's D1 finding was
+specifically about money moving between roots.
+**Context:** found by the over-contract property walk in
+`packages/domain/src/valuation.test.ts`, which documents the gap as a named
+test rather than leaving it implicit. Migration `0022` added
+`valuation_allocations.funded_quantity`, which is the fact any redistribution
+scheme will need.
+**Depends on:** a design decision about whether allocation lineage may be
+rewritten by a command acting on a different root.
