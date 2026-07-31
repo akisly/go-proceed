@@ -209,15 +209,36 @@ number that can drift.
 
 ### 5.2 Algorithm
 
-New functions in `packages/domain/src/money.ts`, extending M1's BigInt engine:
+A new `packages/domain/src/valuation.ts`, built on M1's BigInt engine.
+
+Allocation is **telescopic**, not incremental. A slice is the difference of two
+cumulative values:
 
 ```
-allocateExposureSlice({
-  poolQuantity, poolNet, poolTax, poolGross,
-  sliceQuantity, taxMode, priceBasis, unitPriceState, lineageKey,
-}) -> { valued: true,  net, tax, gross }
-   |  { valued: false, reason }
+cumulative(q) = component × min(q, contractQuantity) / contractQuantity
+slice         = cumulative(after) − cumulative(before)
 ```
+
+where `before` and `after` are the work item's cumulative performed quantity
+around this entry. Three properties follow by construction rather than by
+careful bookkeeping: the slices telescope to `cumulative(total)`, so
+`pool = unperformed + Σ slices` reconciles **exactly**; the result does not
+depend on the order entries were appended; and a negative correction returns
+precisely what it was given. The worked example in
+[value-at-risk.md](../../domain/value-at-risk.md) falls out unchanged — two
+quantity-1 slices of a one-cent quantity-2 pool yield `0` and `1`, one cent
+total, not two.
+
+The largest-remainder rule with a `lineage_key` tie-break in that document
+governs partitioning a parent among **siblings**, which is M4's package lines
+and claim segments. A progressive carve against a monotone cumulative function
+needs no remainder distribution, because there is no set of peers to distribute
+across; the leftover is the unperformed pool itself. `lineage_key` is still
+recorded on every allocation so M4 inherits a stable identity.
+
+Quantity beyond `contractQuantity` allocates nothing further: the pool covers
+within-contract scope only, and over-contract exposure is INV-039's concern in
+M6, not a second pool here.
 
 Per [value-at-risk.md](../../domain/value-at-risk.md) "Segment allocation and
 rounding", components are never allocated independently:
@@ -229,8 +250,10 @@ rounding", components are never allocated independently:
 | `exempt`, `out_of_scope` | pinned primary component, `tax = 0` | the other component |
 | `unknown` | — | slice is `valued: false`, all three columns NULL |
 
-Each allocated component takes floor minor units, and the remainder is
-distributed by largest remainder with a stable tie-break on `lineage_key`.
+Each allocated component floors; the third is derived, never floored
+independently. Because both the slice and the unperformed remainder derive the
+same component the same way, `gross = net + tax` holds for every slice, for
+their sum, and for the leftover.
 
 **The pool numbers alone are not sufficient input.** M1's publish writes
 `mp.net ?? "0"` into `net_amount_minor_units` (`publish/route.ts:200`), so a
@@ -385,7 +408,8 @@ being skipped.
 - no double rounding: two quantity-1 slices at unit price `0.005` allocate from
   the one-cent quantity-2 pool rather than becoming two cents (the worked
   example in value-at-risk.md);
-- largest-remainder ties resolve deterministically by `lineage_key`.
+- over-contract quantity allocates nothing beyond the pool, and the slice that
+  crosses the contract quantity allocates only its within-contract part.
 
 ### 7.3 Invariant tests
 
