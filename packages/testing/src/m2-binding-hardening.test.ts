@@ -31,6 +31,13 @@ beforeAll(async () => {
   await grantM2Capabilities(c, a);
   await grantM2Capabilities(c, b);
   assignmentA = await seedAssignment(c, a);
+
+  // A second member of workspace A, used by the ownership probes below. Created
+  // here rather than inside one test, so deleting or reordering a test cannot
+  // leave the others without it.
+  await c.query(
+    `insert into public.memberships (organization_id, user_id, role, status)
+     values ($1,$2,'member','active')`, [a.workspaceId, USER_B]);
 });
 
 afterAll(async () => {
@@ -150,32 +157,97 @@ describe("evidence rows must agree with the intent they claim", () => {
       cols.map((k) => (v as Record<string, unknown>)[k])));
   };
 
+  it("cannot be written directly at all", async () => {
+    // 0029 removed the insert grant. Constraining more columns from a policy
+    // would not have fixed the shape: evidence is the product of one server
+    // transition, not an INSERT the caller assembles.
+    expect(await sqlstate(() => insertEvidence({}))).toBe("42501");
+  });
+
   it("rejects evidence with no upload intent at all", async () => {
     expect(await sqlstate(() => insertEvidence({ upload_intent_id: null }))).toBeTruthy();
   });
 
-  it("rejects a storage key the intent never issued", async () => {
-    expect(await sqlstate(() => insertEvidence({ storage_key: "forged/key" }))).toBeTruthy();
+
+
+
+
+});
+
+describe("evidence is created only by the finalization command", () => {
+  let intentId: string;
+  let key: string;
+
+  beforeAll(async () => {
+    key = `${crypto.randomUUID()}/${crypto.randomUUID()}`;
+    const r = await c.query(
+      `insert into public.upload_intents
+         (workspace_id, project_id, work_assignment_id, created_by_member_id,
+          origin_method, idempotency_key, request_hash, expected_byte_size,
+          expected_content_hash, allowed_content_family, claimed_media_type,
+          staging_bucket, staging_storage_key, expires_at)
+       values ($1,$2,$3,$4,'native_camera',$5,repeat('a',64),11,repeat('d',64),
+               'image','image/jpeg','evidence',$6, now() + interval '1 day')
+       returning id`,
+      [a.workspaceId, a.projectId, assignmentA, a.memberId, crypto.randomUUID(), key]);
+    intentId = r.rows[0].id;
   });
 
-  it("rejects a content hash the intent never expected", async () => {
-    expect(await sqlstate(() => insertEvidence({ content_hash: "c".repeat(64) }))).toBeTruthy();
+  const finalize = (over: Partial<{
+    hash: string; size: number; media: string; status: string; policy: string;
+  }> = {}) => asActor(USER_A, WS_A, (cl) => cl.query<{ evidence: string | null }>(
+    `select app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7) as evidence`,
+    [a.workspaceId, intentId, over.hash ?? "d".repeat(64), over.size ?? 11,
+     over.media ?? "image/jpeg", over.status ?? "passed", over.policy ?? "probe-1"]));
+
+  it("refuses content that is not what authorization fixed", async () => {
+    // The hash and size were declared when the upload was authorized, so a
+    // caller cannot present different bytes as this intent's evidence.
+    expect(await sqlstate(() => finalize({ hash: "e".repeat(64) }))).toBeTruthy();
+    expect(await sqlstate(() => finalize({ size: 12 }))).toBeTruthy();
   });
 
-  it("rejects a byte size the intent never expected", async () => {
-    expect(await sqlstate(() => insertEvidence({ byte_size: 99 }))).toBeTruthy();
+  it("copies provenance from the intent rather than taking it from the caller", async () => {
+    const r = await finalize();
+    const id = r.rows[0]!.evidence;
+    expect(id).toBeTruthy();
+
+    const row = await c.query(
+      `select storage_key, storage_bucket, storage_provider, recorder_member_id,
+              origin_method, relation_kind
+         from public.evidence_objects where id = $1`, [id]);
+    expect(row.rows[0].storage_key).toBe(key);
+    expect(row.rows[0].storage_bucket).toBe("evidence");
+    expect(row.rows[0].storage_provider).toBe("supabase");
+    expect(row.rows[0].recorder_member_id).toBe(a.memberId);
+    expect(row.rows[0].relation_kind).toBe("original");
+
+    // And the intent moved with it, in the same statement.
+    const intent = await c.query(
+      `select status, finalized_evidence_object_id from public.upload_intents
+        where id = $1`, [intentId]);
+    expect(intent.rows[0].status).toBe("available");
+    expect(intent.rows[0].finalized_evidence_object_id).toBe(id);
   });
 
-  it("rejects a recorder who is not the intent's creator", async () => {
-    const other = await c.query(
-      `insert into public.memberships (organization_id, user_id, role, status)
-       values ($1,$2,'member','active') returning id`, [a.workspaceId, USER_B]);
-    expect(await sqlstate(() => insertEvidence({ recorder_member_id: other.rows[0].id })))
+  it("returns the same receipt when called again", async () => {
+    const again = await finalize();
+    const row = await c.query(
+      `select finalized_evidence_object_id from public.upload_intents where id = $1`,
+      [intentId]);
+    expect(again.rows[0]!.evidence).toBe(row.rows[0].finalized_evidence_object_id);
+
+    const count = await c.query(
+      `select count(*) n from public.evidence_objects where upload_intent_id = $1`,
+      [intentId]);
+    expect(count.rows[0].n).toBe("1");
+  });
+
+  it("refuses a caller who did not create the intent", async () => {
+    expect(await sqlstate(() => asActor(USER_B, WS_A, (cl) => cl.query(
+      `select app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+      [a.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]))))
       .toBeTruthy();
-  });
-
-  it("accepts a row that matches its intent exactly", async () => {
-    expect(await sqlstate(() => insertEvidence({}))).toBeNull();
   });
 });
 

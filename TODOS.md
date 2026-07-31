@@ -136,6 +136,27 @@ being enforceable.
 behind it.
 **Depends on:** the approved retention schedule (external gate V-003).
 
+## P1 — nothing proves inspection actually ran
+
+**What:** `app.finalize_upload_intent` (migration 0029) is the only way to create
+evidence, and it fixes provenance, content identity and the state transition.
+The one thing it cannot check is whether the bytes were really downloaded,
+hashed and inspected — it takes `inspection_status` from its caller.
+
+**Why:** in v0.1-M2-A the route IS the server. The database has no way to tell
+the server's verdict from a member's claim about their own upload, because both
+arrive as `aktflow_app`. A member willing to call the function directly can
+assert `passed` for content nobody looked at, provided they present the hash
+their own intent declared.
+
+**Pros of fixing:** `inspection_status` becomes a fact rather than an assertion,
+which is what the whole evidence chain rests on.
+**Cons:** needs the service plane. `service.upload_finalize` already exists in
+`technical/permissions/capabilities.csv`; the work is a second database role,
+credentials for it, and routes that act as it for exactly this call.
+**Depends on:** the same service-principal work as the `event_source` item
+below. Doing them together is the point.
+
 ## P2 — capture_events cannot tell the server's assertion from a member's
 
 **What:** `capture_events.event_source` distinguishes what the device claimed

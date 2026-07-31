@@ -221,64 +221,24 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
       return { orphaned: true as const };
     }
 
-    // Serialize finalization of this intent. Without it, two callers both see
-    // no evidence row, both insert, and the unique constraint on
-    // (workspace_id, upload_intent_id) hands one of them a 23505 that surfaces
-    // as a 500 — to the caller most likely to be here, namely the client
-    // retrying because it is unsure the first call landed. The lock releases
-    // with the transaction.
-    await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))",
-      [`upload_intent|${intent.workspace_id}|${intentId}`]);
-
-    // Under that lock, an existing row means a concurrent call already
-    // finished. Returning its receipt is the correct answer to "did this
-    // work?", not an error.
-    const existing = await tx.query(
-      `select id from public.evidence_objects
-        where workspace_id = $1 and upload_intent_id = $2`,
-      [intent.workspace_id, intentId]);
-    if (existing.rows.length > 0) {
-      return { orphaned: false as const, alreadyFinalized: true as const,
-               evidenceObjectId: existing.rows[0].id as string };
-    }
-
-    const evidenceObjectId = randomUUID();
-    await tx.query(
-      `insert into public.evidence_objects
-         (id, workspace_id, project_id, content_hash, byte_size, media_type,
-          original_filename, storage_bucket, storage_key, storage_provider,
-          origin_method, relation_kind, recorder_member_id, device_capture_id,
-          claimed_capture_time, claimed_tz_offset, capture_time_trust,
-          server_received_at, upload_intent_id, source_app_version,
-          inspection_status, inspection_policy_version)
-       values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,'original',$12,$13,$14,$15,$16,
-               now(),$17,$18,$19,$20)`,
-      [evidenceObjectId, intent.workspace_id, intent.project_id, actualHash,
-       bytes.byteLength, inspection.detectedMediaType ?? intent.claimed_media_type,
-       intent.original_filename, intent.staging_bucket, intent.staging_storage_key,
-       STORAGE_PROVIDER, intent.origin_method, intent.created_by_member_id,
-       intent.device_capture_id, intent.claimed_capture_time, intent.claimed_tz_offset,
-       intent.claimed_capture_time ? "device_claimed" : "unknown",
-       intentId, intent.source_app_version,
+    // One command (migration 0029). Evidence cannot be assembled by the caller:
+    // the app role holds no insert on evidence_objects at all. Provenance comes
+    // from the intent, the content identity must equal what authorization fixed,
+    // and the promotion to available happens in the same statement — so the
+    // advisory lock, the existence pre-check and the conditional update this
+    // route used to orchestrate are the database's job now.
+    const r = await tx.query<{ evidence: string | null }>(
+      `select app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7) as evidence`,
+      [intent.workspace_id, intentId, actualHash, bytes.byteLength,
+       inspection.detectedMediaType ?? intent.claimed_media_type,
        inspection.outcome, inspection.policyVersion]);
+    const evidenceObjectId = r.rows[0]?.evidence ?? null;
 
-    // Conditional, and the row count is checked. Between the pre-flight checks
-    // and this point the expiry sweep can have marked the intent, or the purge
-    // worker can have claimed it — storage IO and inspection happen outside the
-    // transaction, so that window is real. Zero rows means the intent moved
-    // under us, and throwing rolls back the evidence row inserted moments ago.
-    const promoted = await tx.query(
-      `update public.upload_intents
-          set status = 'available', finalized_evidence_object_id = $3,
-              failure_code = null, version = version + 1
-        where workspace_id = $1 and id = $2
-          and status = 'intent_authorized'
-          and purged_at is null and purge_claimed_at is null`,
-      [intent.workspace_id, intentId, evidenceObjectId]);
-    if (promoted.rowCount !== 1) {
-      throw new HttpProblem(409, problem("VERSION_CONFLICT",
+    if (evidenceObjectId === null) {
+      throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
         "Стан наміру завантаження змінився під час обробки. Потрібне нове завантаження.",
-        { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry" }));
+        { requestId: a.requestId, retryable: false,
+          userAction: "refresh_upload_state_or_request_new_grant" }));
     }
 
     await tx.query(
@@ -314,21 +274,6 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
     throw new HttpProblem(403, problem("SCOPE_PROJECT_DENIED",
       "Доступ відкликано під час завантаження. Байти позначено на очищення.",
       { requestId: a.requestId, retryable: false, userAction: "request_project_scope" }));
-  }
-
-  if ("alreadyFinalized" in result) {
-    const receipt = await withTenantTx(ctx, (tx) => tx.query(
-      `select server_received_at from public.evidence_objects
-        where workspace_id = $1 and id = $2`,
-      [intent.workspace_id, result.evidenceObjectId]));
-    const body: FinalizeUploadIntentResponse = {
-      uploadIntentId: intentId, status: "available",
-      evidenceObjectId: result.evidenceObjectId,
-      contentHash: actualHash,
-      serverReceivedAt: receipt.rows[0]?.server_received_at?.toISOString?.() ?? null,
-      failureCode: null,
-    };
-    return { status: 200, body };
   }
 
   const body: FinalizeUploadIntentResponse = {
