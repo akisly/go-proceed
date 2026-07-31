@@ -176,6 +176,27 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
       return { orphaned: true as const };
     }
 
+    // Serialize finalization of this intent. Without it, two callers both see
+    // no evidence row, both insert, and the unique constraint on
+    // (workspace_id, upload_intent_id) hands one of them a 23505 that surfaces
+    // as a 500 — to the caller most likely to be here, namely the client
+    // retrying because it is unsure the first call landed. The lock releases
+    // with the transaction.
+    await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [`upload_intent|${intent.workspace_id}|${intentId}`]);
+
+    // Under that lock, an existing row means a concurrent call already
+    // finished. Returning its receipt is the correct answer to "did this
+    // work?", not an error.
+    const existing = await tx.query(
+      `select id from public.evidence_objects
+        where workspace_id = $1 and upload_intent_id = $2`,
+      [intent.workspace_id, intentId]);
+    if (existing.rows.length > 0) {
+      return { orphaned: false as const, alreadyFinalized: true as const,
+               evidenceObjectId: existing.rows[0].id as string };
+    }
+
     const evidenceObjectId = randomUUID();
     await tx.query(
       `insert into public.evidence_objects
@@ -236,6 +257,21 @@ export const POST = commandRoute(finalizeUploadIntentRequest, async (a) => {
     throw new HttpProblem(403, problem("SCOPE_PROJECT_DENIED",
       "Доступ відкликано під час завантаження. Байти позначено на очищення.",
       { requestId: a.requestId, retryable: false, userAction: "request_project_scope" }));
+  }
+
+  if ("alreadyFinalized" in result) {
+    const receipt = await withTenantTx(ctx, (tx) => tx.query(
+      `select server_received_at from public.evidence_objects
+        where workspace_id = $1 and id = $2`,
+      [intent.workspace_id, result.evidenceObjectId]));
+    const body: FinalizeUploadIntentResponse = {
+      uploadIntentId: intentId, status: "available",
+      evidenceObjectId: result.evidenceObjectId,
+      contentHash: actualHash,
+      serverReceivedAt: receipt.rows[0]?.server_received_at?.toISOString?.() ?? null,
+      failureCode: null,
+    };
+    return { status: 200, body };
   }
 
   const body: FinalizeUploadIntentResponse = {

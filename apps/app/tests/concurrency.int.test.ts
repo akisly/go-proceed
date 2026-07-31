@@ -181,11 +181,17 @@ describe("parallel finalize on one upload intent", () => {
       [fx.workspaceId]);
     expect(rows[0]!.n).toBe("1");
 
-    // Every caller that succeeded saw the same receipt.
-    const bodies = await Promise.all(
-      fulfilled(results).filter((r) => r.status === 200).map((r) => r.json()));
+    // EVERY caller succeeds, not just the one that won. Asserting only on the
+    // 200s hid a real defect: the losers used to receive 500 from an unhandled
+    // unique violation, and the caller most likely to be racing here is the
+    // client retrying because it is unsure the first call landed.
+    const statuses = fulfilled(results).map((r) => r.status);
+    expect(statuses).toEqual([200, 200, 200, 200]);
+
+    const bodies = await Promise.all(fulfilled(results).map((r) => r.json()));
     const ids = new Set(bodies.map((b) => b.evidenceObjectId));
     expect(ids.size).toBe(1);
+    for (const b of bodies) expect(b.contentHash).toBe(bodies[0]!.contentHash);
   });
 });
 

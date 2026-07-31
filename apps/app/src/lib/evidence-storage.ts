@@ -11,10 +11,21 @@ export const EVIDENCE_BUCKET = "evidence";
 export const STORAGE_PROVIDER = "supabase";
 
 // Local defaults mirror packages/testing/src/pg.ts: the suites run against the
-// local stack without env setup, and any other environment overrides them.
-const SUPABASE_URL = process.env.SUPABASE_URL ?? "http://127.0.0.1:54321";
+// local stack without env setup. The service key falls back ONLY when the URL is
+// the local stack's, so a deployment missing SUPABASE_SERVICE_ROLE_KEY fails
+// loudly at startup instead of carrying a literal credential from source into an
+// environment it was never meant for. The local value is the published Supabase
+// demo secret, not a real one.
+const LOCAL_URL = "http://127.0.0.1:54321";
+const SUPABASE_URL = process.env.SUPABASE_URL ?? LOCAL_URL;
 const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-  ?? "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz";
+  ?? (SUPABASE_URL === LOCAL_URL ? "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz" : "");
+
+if (SERVICE_KEY === "") {
+  throw new Error(
+    "evidence storage: SUPABASE_SERVICE_ROLE_KEY is required when SUPABASE_URL is not the local stack",
+  );
+}
 
 let client: SupabaseClient | null = null;
 function storage() {

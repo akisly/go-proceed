@@ -32,8 +32,12 @@ export const POST = commandRoute(createUploadIntentRequest, async (a) => {
 
   const ctx = { actorUserId: a.userId, organizationId: null, requestId: a.requestId };
   const out = await withTenantTx(ctx, async (tx) => {
+    // Assignment status is deliberately NOT read or gated on. Progress recording
+    // requires an active assignment, but evidence must stay attachable after one
+    // completes — a correction to an already-finished assignment still needs its
+    // photo. Selecting the column and ignoring it would read as an oversight.
     const asg = await tx.query(
-      `select workspace_id, project_id, requirement_template_version_id, status
+      `select workspace_id, project_id, requirement_template_version_id
          from public.work_assignments where id = $1`, [assignmentId]);
     if (asg.rows.length === 0) throw notFound;
     const { workspace_id: workspaceId, project_id: projectId,
