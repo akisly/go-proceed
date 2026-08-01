@@ -14,6 +14,11 @@ let c: Client;
 beforeAll(async () => { c = await adminClient(); });
 afterAll(async () => { await c.end(); });
 
+/** Runs SQL and reports the SQLSTATE, or null when it succeeded. */
+async function sqlstate(fn: () => Promise<unknown>): Promise<string | null> {
+  try { await fn(); return null; } catch (e) { return (e as { code?: string }).code ?? "unknown"; }
+}
+
 /** Direct grants only — pg_auth_members is not transitive. */
 async function memberOf(role: string): Promise<string[]> {
   const r = await c.query<{ grantee: string }>(
@@ -146,18 +151,16 @@ describe("only the server may say the server said it", () => {
     // evidence.record, and presents exactly the hash and size authorization
     // fixed. What they do not have is the right to say inspection passed.
     //
-    // The PRIVILEGE now fires first: 0035 revokes execute from aktflow_app, so
-    // a member connection is stopped at the door with 42501 and never reaches
-    // the guard's own message. Either refusal is the same boundary, and the
-    // assertion accepts both so that removing one does not leave this green on
-    // the other by accident.
-    let message = "";
-    try {
-      await asActor(USER_S, WS_S, (cl) => cl.query(
-        `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
-        [f.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]));
-    } catch (e) { message = (e as Error).message; }
-    expect(message).toMatch(/permission denied for function finalize_upload_intent|service/i);
+    // The privilege denies before the body runs: 0035 revokes execute from
+    // aktflow_app, so a member connection is stopped at the door and never
+    // reaches the guard's own raise inside the body. Asserting the SQLSTATE
+    // rather than the message is what makes the revoke's removal visible — the
+    // guard's raise text also matches /service/i, so a message-based assertion
+    // would pass whether or not the revoke exists.
+    const code = await sqlstate(() => asActor(USER_S, WS_S, (cl) => cl.query(
+      `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+      [f.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"])));
+    expect(code).toBe("42501");
 
     const none = await c.query(
       `select count(*) n from public.evidence_objects where upload_intent_id = $1`,

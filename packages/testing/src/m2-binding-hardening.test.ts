@@ -346,18 +346,17 @@ describe("evidence is created only by the finalization command", () => {
     // Migration 0035. The caller below owns the intent and holds every
     // capability; identity is what stops them now.
     //
-    // The PRIVILEGE fires first: 0035 revokes execute on the function from
-    // aktflow_app, so a member connection is refused with 42501 at the door and
-    // never reaches the guard's raise inside the body. Either refusal is this
-    // boundary, so the assertion accepts both rather than pinning the one that
-    // happens to come first.
-    let message = "";
-    try {
-      await asActor(USER_A, WS_A, (cl) => cl.query(
-        `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
-        [a.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]));
-    } catch (e) { message = (e as Error).message; }
-    expect(message).toMatch(/permission denied for function finalize_upload_intent|service/i);
+    // The privilege denies before the body runs: 0035 revokes execute on the
+    // function from aktflow_app, so a member connection is refused at the door
+    // and the guard's own raise inside the body is never reached from an
+    // application connection. Asserting the SQLSTATE rather than the message
+    // is what makes the revoke's removal visible — the guard's raise text also
+    // matches /service/i, so a message-based assertion would stay green
+    // whether or not the revoke exists.
+    const code = await sqlstate(() => asActor(USER_A, WS_A, (cl) => cl.query(
+      `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+      [a.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"])));
+    expect(code).toBe("42501");
   });
 
   // Migration 0031: INV-047 is decided inside the row lock, not trusted from a
