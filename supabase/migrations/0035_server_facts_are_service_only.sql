@@ -142,11 +142,16 @@ create policy ce_insert on public.capture_events for insert to aktflow_app
              and u.project_id = capture_events.project_id
              and u.created_by_member_id = app.active_member_id(capture_events.workspace_id))));
 
+-- The intent is required, not merely checked when present. capture_events has no
+-- foreign key on project_id or work_assignment_id, so a null-intent branch would
+-- scope a server-sourced event to nothing at all: any workspace, any project id
+-- the caller cares to type. All three server call sites name an intent, so the
+-- branch had no user and was only surface.
 create policy ce_insert_server on public.capture_events for insert to aktflow_service
   with check (
     event_source = 'server'
-    and (upload_intent_id is null or exists (
+    and exists (
           select 1 from public.upload_intents u
            where u.workspace_id = capture_events.workspace_id
              and u.id = capture_events.upload_intent_id
-             and u.project_id = capture_events.project_id)));
+             and u.project_id = capture_events.project_id));

@@ -323,14 +323,23 @@ describe("evidence is created only by the finalization command", () => {
   });
 
   it("refuses a caller who did not create the intent", async () => {
-    // Still on the member connection, and since migration 0035 it is refused
-    // there before ownership is ever examined — the service check is the first
-    // statement in the command. The assertion is unchanged and still correct:
-    // this caller does not get to finalize this intent, for either reason.
-    expect(await sqlstate(() => asActor(USER_B, WS_A, (cl) => cl.query(
-      `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
-      [a.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]))))
-      .toBeTruthy();
+    // On the service connection deliberately. Since migration 0035 the identity
+    // guard is the command's first statement, so a call made as the member never
+    // reaches the ownership check at all — and both refusals raise P0001, which
+    // a SQLSTATE assertion cannot tell apart. Reaching ownership now costs
+    // getting past identity first, and ownership is what this test is about:
+    // USER_B is a member of workspace A, and the intent still is not theirs.
+    //
+    // Asserted on the message, not merely on "something was raised": the
+    // weaker form went green against the identity guard, which would have let
+    // the ownership branch be deleted with the suite none the wiser.
+    let message = "";
+    try {
+      await asService(USER_B, WS_A, (cl) => cl.query(
+        `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
+        [a.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]));
+    } catch (e) { message = (e as Error).message; }
+    expect(message).toMatch(/not authorized to finalize/);
   });
 
   it("refuses the member identity outright, before anything else", async () => {
