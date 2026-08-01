@@ -109,8 +109,17 @@ DB in an unknown state.
 ## 3. Set the `aktflow_app_login` and `aktflow_service_login` passwords on staging (mandatory, do this now)
 
 **Never run any of the following against this (or any real) Supabase
-project — each one applies `supabase/seed.sql`, which sets
-`aktflow_app_login`'s password to the known dev value `app_pw`:**
+project. Each one destroys and rebuilds, or reseeds, the target database:**
+
+> This warning used to say the danger was `supabase/seed.sql` setting
+> `aktflow_app_login`'s password to the known dev value `app_pw`. That stopped
+> being true when the password moved out of `seed.sql` into
+> `scripts/set-local-app-password.mjs`, which refuses non-local hosts — read
+> the first lines of `supabase/seed.sql` and you will see it sets no password
+> at all. The prohibition still stands, for a bigger reason: these commands
+> rebuild the database. An operator who checks the stated reason, finds it
+> false, and concludes the rule is stale would destroy staging.
+
 
 - `supabase db push --include-seed`
 - `supabase db reset --linked` (with or without `--include-seed` — the
