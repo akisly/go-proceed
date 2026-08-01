@@ -29,3 +29,16 @@ export function getServicePool(): pg.Pool {
   }
   return servicePool;
 }
+
+/**
+ * Test-only. Drops the cached service pool so the next getServicePool() reads
+ * SERVICE_DB_URL again — the only way to exercise a MISCONFIGURED service URL,
+ * which is what withServiceTx's identity assertion exists to catch. Nothing in
+ * the application calls this: the pool is a process-lifetime singleton and
+ * re-reading its configuration at runtime is not a behaviour the server wants.
+ */
+export async function resetServicePoolForTests(): Promise<void> {
+  const previous = servicePool;
+  servicePool = null;
+  if (previous) await previous.end();
+}

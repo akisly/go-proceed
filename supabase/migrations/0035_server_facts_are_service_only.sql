@@ -155,3 +155,16 @@ create policy ce_insert_server on public.capture_events for insert to aktflow_se
            where u.workspace_id = capture_events.workspace_id
              and u.id = capture_events.upload_intent_id
              and u.project_id = capture_events.project_id));
+
+-- The guard above is a raise; this is the same boundary expressed as a
+-- privilege. It survives a future `create or replace` that drops the guard,
+-- and it makes a mis-wired connection fail with 42501 at the door rather than
+-- P0001 from inside the body.
+--
+-- aktflow_service is a member of aktflow_app (0034), so revoking from
+-- aktflow_app takes the inherited grant with it — the explicit grant below is
+-- what keeps the server able to finalize at all.
+revoke execute on function app.finalize_upload_intent(
+  uuid, uuid, text, bigint, text, text, text) from aktflow_app;
+grant execute on function app.finalize_upload_intent(
+  uuid, uuid, text, bigint, text, text, text) to aktflow_service;
