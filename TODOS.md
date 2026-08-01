@@ -155,7 +155,7 @@ worker; worth doing WITH the deployment work rather than before it, so the
 fencing matches whatever runner is chosen.
 **Depends on:** wiring the purge worker to a runtime (see the gate record).
 
-## P1 — nothing proves inspection actually ran
+## CLOSED — nothing proves inspection actually ran
 
 **What:** `app.finalize_upload_intent` (migration 0029) is the only way to create
 evidence, and it fixes provenance, content identity and the state transition.
@@ -176,7 +176,13 @@ credentials for it, and routes that act as it for exactly this call.
 **Depends on:** the same service-principal work as the `event_source` item
 below. Doing them together is the point.
 
-## P2 — capture_events cannot tell the server's assertion from a member's
+**Closed** 2026-08-01 by migrations `0034` and `0035` on
+`claude/m2-service-principal`. The verdict is now writable only from a
+connection whose login is a member of `aktflow_service`, which
+`aktflow_app_login` is not. This does not make inspection *correct* — see the
+gate record for what remains true.
+
+## CLOSED — capture_events cannot tell the server's assertion from a member's
 
 **What:** `capture_events.event_source` distinguishes what the device claimed
 from what the server observed, but v0.1-M2-A has no service principal separate
@@ -192,6 +198,12 @@ distinguish from, it records less than it appears to.
 `technical/permissions/capabilities.csv` — which means a second database role
 and a way for routes to act as it. That is infrastructure, not a policy tweak.
 **Depends on:** the service-principal work the capability catalog anticipates.
+
+**Closed** 2026-08-01 by migrations `0034` and `0035` on
+`claude/m2-service-principal`. The verdict is now writable only from a
+connection whose login is a member of `aktflow_service`, which
+`aktflow_app_login` is not. This does not make inspection *correct* — see the
+gate record for what remains true.
 
 ## P2 — a deactivated member cannot abandon their own upload through the route
 
