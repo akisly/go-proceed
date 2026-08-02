@@ -81,9 +81,10 @@ are contested and are deliberately absent until Task 5.
 Create `packages/testing/src/token-fidelity.test.ts`:
 
 ```ts
-import { describe, it, expect } from "vitest";
-import { readFileSync } from "node:fs";
+import { describe, it, expect, beforeAll, afterAll } from "vitest";
+import { readFileSync, readdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
 
 /**
@@ -99,11 +100,50 @@ import { execFileSync } from "node:child_process";
  */
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 
-/** Regenerates into a temp dir and returns what the generator would write. */
+/**
+ * A fixed, never-cleaned output path (the original `/tmp/token-fidelity`) let
+ * a broken generator pass this guard silently. If a generator stopped
+ * honouring `TOKENS_OUT_DIR` — e.g. someone hardcoded the real output path
+ * back in — it would overwrite the committed file at its real location as a
+ * side effect, while this test kept reading a stale-but-matching copy left
+ * in the fixed temp path by an earlier successful run, and passed. On a
+ * clean checkout that failed correctly with ENOENT; on a warm CI runner or a
+ * second local `vitest` invocation it did not. A reviewer built and
+ * confirmed exactly this regression.
+ *
+ * The fix is two-layered: `runDir` is unique per test-file execution
+ * (`mkdtempSync`) and removed afterwards (`rmSync`), so no earlier run's
+ * output can be waiting there to be misread; and each `regenerate()` call
+ * gets its own fresh subdirectory of `runDir`, checked empty immediately
+ * before the generator runs and checked to contain exactly the expected file
+ * immediately after. A generator that silently ignores `TOKENS_OUT_DIR`
+ * leaves that subdirectory empty, so the post-run assertion fails and
+ * `readFileSync` never gets the chance to read back something stale.
+ * Isolation here is the mechanism the guard depends on, not tidiness.
+ */
+let runDir: string;
+
+beforeAll(() => {
+  runDir = mkdtempSync(join(tmpdir(), "token-fidelity-"));
+});
+
+afterAll(() => {
+  rmSync(runDir, { recursive: true, force: true });
+});
+
+/** Regenerates into a fresh, empty subdirectory of this run's temp root and
+ * returns what the generator wrote. See the comment above `runDir` for why
+ * this checks the directory's contents before and after, rather than
+ * trusting that `TOKENS_OUT_DIR` was honoured. */
 function regenerate(script: string, out: string): string {
+  const dir = mkdtempSync(join(runDir, `${script}-`));
+  expect(readdirSync(dir)).toEqual([]);
+
   execFileSync("node", [join(repoRoot, "packages/tokens/scripts", script)],
-    { cwd: repoRoot, env: { ...process.env, TOKENS_OUT_DIR: "/tmp/token-fidelity" } });
-  return readFileSync(join("/tmp/token-fidelity", out), "utf8");
+    { cwd: repoRoot, env: { ...process.env, TOKENS_OUT_DIR: dir } });
+
+  expect(readdirSync(dir)).toEqual([out]);
+  return readFileSync(join(dir, out), "utf8");
 }
 
 describe("generated tokens match their source", () => {
