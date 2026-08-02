@@ -284,3 +284,32 @@ one did.
 **Cons:** it is a normative-document edit and should be made by whoever owns the
 architecture baseline, alongside a check of the Node and Next.js pins in the
 same paragraph, which may have drifted for the same reason nobody noticed.
+
+## P2 — the pilot-device inventory does not exist
+
+**What:** `docs/product/roadmap.md`, `docs/product/scope-and-boundaries.md`
+and `ADR-004` all require an actual pilot-device inventory — one supported
+iPhone and one lower-resource supported Android device, physical, confirming
+the iOS 16.4+ / Android 10+ support floor — as *entry* evidence for v0.1-M2,
+required before capture UX is frozen. No such inventory exists.
+`docs/superpowers/plans/evidence/2026-08-01-b0-procurement.md` records the
+two devices as unprocured; this entry is the standing tracker for that gap.
+
+**Why:** the requirement sits in front of capture UX, which is B1's work, but
+the roadmap only asks that the inventory confirm the support floor before
+that UX is frozen, not before B1 starts. Nothing in B1 or B2 reads a device
+inventory or blocks on one. The document that does depend on it is B3's —
+the acceptance matrix and device-install step need the physical devices
+themselves, and the inventory is how their model numbers and OS versions get
+into that matrix in the first place. So this is a prerequisite for B3, not
+for B1 or B2, and should not be read as blocking either of them.
+
+**Pros of fixing:** closes an entry-evidence gap the roadmap has carried
+open since before B0, and gives B3's acceptance matrix real device rows
+instead of placeholders.
+**Cons:** none technical — it is a purchasing/logistics task, not code.
+**Depends on:** the same two devices named in the B0 procurement record.
+Buying them is independent of the account procurement, but the iPhone's UDID
+still has to be registered under the Apple Developer Program membership
+before an internal-distribution build will install on it, so the inventory
+is complete in practice only after that account exists.
