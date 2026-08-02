@@ -264,3 +264,23 @@ run the same tool, so "works on my machine" stops being a category of answer.
 the Supabase platform it talks to. That is a maintenance cost, not a hidden one.
 **Not done here** because it changes CI policy for the whole repo, and `main`
 has been passing with `latest` since long before this branch.
+
+## P3 — doc 07's Expo SDK baseline is behind what v0.1-M2-B0 initialises
+
+**What:** `docs/07-technical-architecture.md:8` names "Expo SDK 56" and `:20`
+fixes it as the version baseline with the rule "Pin exact patch versions and
+image digests". `apps/mobile` was initialised with `create-expo-app` on the
+owner's instruction and resolves to Expo SDK 57.0.9.
+
+**Why it is recorded rather than fixed:** the document carries no Historical
+marker and is not under `docs/legacy`, so by `docs/README.md:25-41` it is target
+version design — precedence rank 2, normative for architecture. Editing a
+normative architecture document is not a foundations slice's call. The owner's
+instruction governs what was built; the document should catch up deliberately.
+
+**Pros of fixing:** the architecture document stops naming a version nothing
+uses, and the next reader does not have to discover the divergence the way this
+one did.
+**Cons:** it is a normative-document edit and should be made by whoever owns the
+architecture baseline, alongside a check of the Node and Next.js pins in the
+same paragraph, which may have drifted for the same reason nobody noticed.
