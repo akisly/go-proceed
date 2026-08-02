@@ -32,7 +32,9 @@
         "$TURBO_DEFAULT$",
         "../../supabase/migrations/**",
         "../../supabase/seed.sql",
-        "../../supabase/config.toml"
+        "../../supabase/config.toml",
+        "../../technical/copy-catalog.csv",
+        "../../packages/tokens/src/tokens.json"
       ]
     },
     "dev": {
