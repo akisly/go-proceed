@@ -86,12 +86,17 @@ describe("capture events are provenance, not a free-write surface", () => {
     // project_id was present, and the column was nullable. These rows are
     // append-only provenance facts, so a forged one is permanent. 0018 makes
     // project_id NOT NULL and demands evidence.record unconditionally.
+    // event_source must be 'device'. Since migration 0035 ce_insert's FIRST
+    // clause is `event_source = 'device'`, so a member-connection insert
+    // claiming 'server' is refused there and never reaches the capability
+    // check this test is named for — which would make the test green even if
+    // the evidence.record clause were deleted.
     const failed = await withOnly(["project.view"], async () => {
       try {
         await asActor(USER, WS, (cl) => cl.query(
           `insert into public.capture_events
              (workspace_id, project_id, device_capture_id, client_state, event_source)
-           values ($1,$2,'forged-device','server_confirmed','server')`, [WS, f.projectId]));
+           values ($1,$2,'forged-device','server_confirmed','device')`, [WS, f.projectId]));
         return false;
       } catch { return true; }
     });
@@ -123,13 +128,17 @@ describe("capture events are provenance, not a free-write surface", () => {
        values ($1,$2,$3,'evidence.record',$4), ($1,$2,$3,'project.view',$4)`,
       [WS, otherProjectId, f.memberId, USER]);
 
+    // event_source must be 'device' here for the same reason as above: on a
+    // member connection ce_insert's `event_source = 'device'` clause is
+    // evaluated first, and 'server' would be refused by that clause alone —
+    // leaving the intent-agreement clause below untested.
     let failed = false;
     try {
       await asActor(USER, WS, (cl) => cl.query(
         `insert into public.capture_events
            (workspace_id, project_id, upload_intent_id, device_capture_id,
             client_state, event_source)
-         values ($1,$2,$3,'forged-device','server_confirmed','server')`,
+         values ($1,$2,$3,'forged-device','server_confirmed','device')`,
         [WS, otherProjectId, intent.rows[0].id]));
     } catch { failed = true; }
     expect(failed).toBe(true);

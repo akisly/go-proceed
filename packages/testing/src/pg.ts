@@ -12,6 +12,11 @@ const execAsync = promisify(exec);
 const APP_URL = process.env.APP_DB_URL
   ?? "postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres";
 
+// The server's identity. 'service_pw' is the local/CI-only password set by
+// scripts/set-local-app-password.mjs — never by a migration, never by seed.sql.
+const SERVICE_URL = process.env.SERVICE_DB_URL
+  ?? "postgresql://aktflow_service_login:service_pw@127.0.0.1:54322/postgres";
+
 export function appClient(): Client { return new Client({ connectionString: APP_URL }); }
 
 // Superuser connection for fixtures/assertions that must bypass RLS.
@@ -31,6 +36,25 @@ export async function asActor<T extends QueryResultRow = QueryResultRow>(
   try {
     await c.query("begin");
     await c.query("set local role aktflow_app");
+    await c.query("select set_config('app.actor_user_id', $1, true)", [actorUserId]);
+    await c.query("select set_config('app.organization_id', $1, true)", [organizationId ?? ""]);
+    const res = await fn(c);
+    await c.query("commit");
+    return (res ?? { rows: [], rowCount: 0 }) as QueryResult<T>;
+  } catch (e) { await c.query("rollback"); throw e; }
+  finally { await c.end(); }
+}
+
+/** Runs as the server rather than as a member. Same shape as asActor. */
+export async function asService<T extends QueryResultRow = QueryResultRow>(
+  actorUserId: string, organizationId: string | null,
+  fn: (c: Client) => Promise<QueryResult<T>> | Promise<void>,
+): Promise<QueryResult<T>> {
+  const c = new Client({ connectionString: SERVICE_URL });
+  await c.connect();
+  try {
+    await c.query("begin");
+    await c.query("set local role aktflow_service");
     await c.query("select set_config('app.actor_user_id', $1, true)", [actorUserId]);
     await c.query("select set_config('app.organization_id', $1, true)", [organizationId ?? ""]);
     const res = await fn(c);

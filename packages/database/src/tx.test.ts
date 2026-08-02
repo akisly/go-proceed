@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
-import { withTenantTx } from "./tx";
+import { withTenantTx, withServiceTx } from "./tx";
+import { resetServicePoolForTests } from "./pool";
 import { recordAudit } from "./audit";
 import { enqueueOutbox } from "./outbox";
 import { Client } from "pg";
@@ -44,5 +45,71 @@ describe("withTenantTx", () => {
       throw new Error("boom");
     })).rejects.toThrow("boom");
     expect(await count("select count(*) n from public.organizations where id=$1", [orgId])).toBe(0);
+  });
+});
+
+describe("withServiceTx", () => {
+  it("runs as the service role while keeping the login as session_user", async () => {
+    // session_user staying the login is not incidental: it is the only reason
+    // a SECURITY DEFINER function can ask who connected, which is what
+    // migration 0035 depends on.
+    const seen = await withServiceTx(
+      { actorUserId: A, organizationId: null, requestId: "req-service" },
+      async (tx) => {
+        const r = await tx.query<{ cu: string; su: string }>(
+          "select current_user as cu, session_user as su");
+        return r.rows[0]!;
+      });
+    expect(seen.cu).toBe("aktflow_service");
+    expect(seen.su).toBe("aktflow_service_login");
+  });
+
+  it("still carries the actor, because the server acts on a member's behalf", async () => {
+    const seen = await withServiceTx(
+      { actorUserId: A, organizationId: null, requestId: "req-service" },
+      async (tx) => {
+        const r = await tx.query<{ actor: string }>(
+          "select current_setting('app.actor_user_id', true) as actor");
+        return r.rows[0]!;
+      });
+    expect(seen.actor).toBe(A);
+  });
+
+  it("refuses to run when SERVICE_DB_URL is not the service login", async () => {
+    // The misconfiguration with no symptom. Migration 0035's guard asks
+    // pg_has_role(session_user, 'aktflow_service', 'member'), which is TRUE for
+    // a superuser: a SERVICE_DB_URL pointed at an admin connection satisfies
+    // every check the database makes and the boundary evaporates silently.
+    //
+    // Two admin URLs, because they are stopped in different places and only the
+    // first one reaches the assertion this test exists for:
+    //   - supabase_admin is rolsuper, so `set local role aktflow_service`
+    //     succeeds and the 0035 guard returns true. Nothing but the check in
+    //     withServiceTx stands between that connection and an inspection
+    //     verdict; delete the check and this case goes green.
+    //   - postgres here is NOT rolsuper. It holds ADMIN OPTION on the role it
+    //     created, which makes pg_has_role 'member' true but leaves SET ROLE
+    //     denied, so the database refuses it one step earlier — as it does for
+    //     a SERVICE_DB_URL pointed at APP_DB_URL.
+    const cases: ReadonlyArray<readonly [string, RegExp]> = [
+      ["postgresql://supabase_admin:postgres@127.0.0.1:54322/postgres",
+       /SERVICE_DB_URL is not the service login/],
+      [admin, /permission denied to set role/],
+    ];
+    const previous = process.env.SERVICE_DB_URL;
+    try {
+      for (const [url, expected] of cases) {
+        process.env.SERVICE_DB_URL = url;
+        await resetServicePoolForTests();   // re-read the env var on next connect
+        await expect(withServiceTx(
+          { actorUserId: A, organizationId: null, requestId: "req-misconfigured" },
+          async (tx) => { await tx.query("select 1"); }),
+        ).rejects.toThrow(expected);
+      }
+    } finally {
+      if (previous === undefined) delete process.env.SERVICE_DB_URL;
+      else process.env.SERVICE_DB_URL = previous;
+      await resetServicePoolForTests();   // leave the singleton on the real URL
+    }
   });
 });
