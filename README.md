@@ -65,7 +65,7 @@ pnpm validate:canonical-docs
 - `apps/app` — the web product and BFF; the durable isolated `/demo` arrives
   inside it in v0.2.
 - `apps/mobile` — approved Expo/React Native iOS/Android field client;
-  online-only in v0.1, full offline in v0.3. Not yet created.
+  online-only in v0.1, full offline in v0.3.
 - `apps/demo`, `prototype/` — legacy reference material, not product surfaces.
 
 ## Next executable milestone

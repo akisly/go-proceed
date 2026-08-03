@@ -35,8 +35,9 @@ operation, and a general integration platform are outside this boundary.
 - `apps/demo` and `prototype/` physically exist as legacy/reference design
   material. They are not canonical v0.1 runtime surfaces and must not be treated
   as deployable product closure.
-- `apps/mobile` does not yet physically exist. It is an approved target that must
-  be created and verified before the v0.1 mobile milestone can close.
+- `apps/mobile` exists as a committed pnpm workspace (22 tracked files, Expo
+  SDK 57.0.9, expo-router). The v0.1 mobile milestone remains open on
+  functionality, not on existence.
 - Supabase foundation assets and database packages exist, but their presence
   does not prove that the canonical domain, security, worker, storage, or
   recovery behavior is complete.

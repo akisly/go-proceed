@@ -5,7 +5,7 @@
 | Layer | MVP choice | Rationale |
 |---|---|---|
 | Office web | Next.js 16.2.11+ patched 16.2.x, React, TypeScript | SSR landing/auth, mature app routing, one web codebase; security-patched Active LTS floor |
-| Field app | Expo SDK 56 / React Native, TypeScript | camera/files/offline, shared domain types, OTA strategy |
+| Field app | Expo SDK 57 / React Native, TypeScript | camera/files/offline, shared domain types, OTA strategy |
 | UI | custom tokens + accessible primitives | distinct product character; avoid framework lock-in |
 | API | Next.js BFF + domain service layer | fast solo delivery; no direct business mutations from client |
 | Database/Auth/Storage | managed Supabase Postgres/Auth/Storage/Realtime | fast MVP with SQL/RLS and managed operations |
@@ -17,7 +17,7 @@
 | Product analytics | privacy-conscious event pipeline | activation/readiness/retention measurement |
 | CI/CD | GitHub Actions, preview env, managed deploys | repeatable checks and rollback |
 
-Version baseline at reconciliation date 2026-07-22: Next.js **16.2.11 or newer security-patched 16.2.x**, Expo SDK 56 and Node.js 24 LTS. Generic `16.2` is forbidden because the 20.07.2026 security release fixed four HIGH and five MEDIUM findings in 16.2.11. Pin exact patch versions and image digests in lockfiles/deployment evidence; Dependabot/Renovate-style alerts do not auto-deploy and every upgrade passes CI, staging and rollback rehearsal. Node 22 remains a maintenance fallback only while every selected dependency and hosting target supports it. Preview/canary features are excluded from Pilot.
+Version baseline at reconciliation date 2026-07-22: Next.js **16.2.11 or newer security-patched 16.2.x**, Expo SDK 57.0.9 and Node.js 24 LTS. Generic `16.2` is forbidden because the 20.07.2026 security release fixed four HIGH and five MEDIUM findings in 16.2.11. Pin exact patch versions and image digests in lockfiles/deployment evidence; Dependabot/Renovate-style alerts do not auto-deploy and every upgrade passes CI, staging and rollback rehearsal. Node 22 remains a maintenance fallback only while every selected dependency and hosting target supports it. Preview/canary features are excluded from Pilot.
 
 ## 2. Logical architecture
 
