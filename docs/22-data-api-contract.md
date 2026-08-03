@@ -127,7 +127,7 @@ Pilot-контракт единиц: полевая фиксация всегд�
 
 ## 5. API surface by domain
 
-`technical/openapi.yaml` v2.9 is the exact allowlist: 113 Pilot and 44 GA-forward operations at this revision. An endpoint name in prose is not authorization to implement it. Supabase owns sign-in/session primitives; therefore `/me` and raw session/token operations are intentionally absent from the AktFlow domain API.
+`technical/openapi/scope-v0.1.csv` is the exact v0.1 allowlist: 51 operations. `technical/openapi.yaml` v2.9 is the wider target surface — 157 operations, 113 Pilot and 44 GA-forward at this revision — and is not authorization to implement anything in v0.1. An endpoint name in prose is not authorization to implement it either. Supabase owns sign-in/session primitives; therefore `/me` and raw session/token operations are intentionally absent from the AktFlow domain API.
 
 ### Public acquisition
 

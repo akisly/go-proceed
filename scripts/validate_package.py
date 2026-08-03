@@ -6,9 +6,11 @@ and the CSV registries) internally and against each other, the OpenAPI surface's
 completeness and flow/screen ownership, the prototype's critical routes and
 evidence-loop artifacts, and cross-document links among README.md, docs/*.md and
 prototype/README.md. It no longer asserts the numbered docs/NN-*.md layer's shape
-or existence. One content assertion remains, reading docs/22-data-api-contract.md
-to check its stated OpenAPI Pilot/GA operation counts against the spec; it is
-removed in the commit that corrects that document's allowlist sentence.
+or existence, and it no longer reads any numbered doc by name: the one remaining
+content assertion against docs/22-data-api-contract.md's stated OpenAPI Pilot/GA
+operation counts was removed in the commit that corrected that document's
+allowlist sentence, and is now a self-contained check that openapi.yaml's own
+x-release buckets sum to its operation count.
 
 This validator proves internal specification consistency only. It deliberately does
 not convert unvalidated external gates or missing runtime evidence into a pass.
@@ -1647,10 +1649,17 @@ for op_id, (_, _, operation) in operations.items():
     elif op_id in operations:
         require(operation.get("security") == [], f"openapi.yaml: capability/public operation {op_id} must explicitly override bearer auth")
 
-count_statement = re.search(r"exact allowlist:\s*(\d+) Pilot and (\d+) GA-forward", (DOCS / "22-data-api-contract.md").read_text(encoding="utf-8"))
-require(count_statement is not None, "docs/22: exact OpenAPI release count statement missing")
-if count_statement:
-    require((release_counts["Pilot"], release_counts["GA"]) == tuple(map(int, count_statement.groups())), "docs/22: OpenAPI Pilot/GA operation counts are stale")
+# This was an assertion about a sentence in docs/22, comparing release_counts to
+# two numbers regexed out of prose. The prose moved; the tally did not stop being
+# worth checking. Repointed at openapi.yaml itself: every operation must carry an
+# x-release that lands in one of the two buckets, so the buckets must sum to the
+# operation count. Deleting it outright would have left release_counts built on
+# every run and read by nothing.
+require(
+    release_counts["Pilot"] + release_counts["GA"] == len(operations),
+    "openapi.yaml: every operation must declare x-release Pilot or GA; "
+    f"{release_counts['Pilot']} + {release_counts['GA']} != {len(operations)} operations",
+)
 
 # ---------------------------------------------------------------------------
 # Semantic UI-action closure
