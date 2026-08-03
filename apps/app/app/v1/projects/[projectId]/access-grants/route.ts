@@ -1,8 +1,8 @@
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { grantProjectAccessRequest, type GrantProjectAccessResponse } from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+import { grantProjectAccessRequest, type GrantProjectAccessResponse } from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

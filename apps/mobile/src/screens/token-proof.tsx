@@ -12,7 +12,7 @@
 // status-label-fidelity.test.ts for status-labels.generated.json, and
 // token-fidelity.test.ts for the two token artifacts.
 import { ScrollView, Text, View, StyleSheet } from "react-native";
-import { color } from "@aktflow/tokens";
+import { color } from "@goproceed/tokens";
 import { clientStateLabel, type ClientState } from "../lib/status-labels";
 
 const STATES: ClientState[] = [

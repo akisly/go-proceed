@@ -1,5 +1,5 @@
 // Metro resolves from the app directory only by default, so it would not find
-// workspace packages like `@aktflow/tokens` without watchFolders and
+// workspace packages like `@goproceed/tokens` without watchFolders and
 // nodeModulesPaths pointing at the monorepo root.
 //
 // Hierarchical lookup is deliberately LEFT ON: pnpm stores each package's own

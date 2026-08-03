@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requirePartyEditCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { putLegalProfileRequest, type LegalProfileResponse } from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+import { putLegalProfileRequest, type LegalProfileResponse } from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

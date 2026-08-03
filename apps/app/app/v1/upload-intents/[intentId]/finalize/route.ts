@@ -4,8 +4,8 @@ import { requireActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   finalizeUploadIntentRequest, type FinalizeUploadIntentResponse,
-} from "@aktflow/contracts";
-import { withTenantTx, withServiceTx, recordAudit, enqueueOutbox } from "@aktflow/database";
+} from "@goproceed/contracts";
+import { withTenantTx, withServiceTx, recordAudit, enqueueOutbox } from "@goproceed/database";
 import {
   STORAGE_PROVIDER, downloadObject, objectSize,
 } from "../../../../../src/lib/evidence-storage";

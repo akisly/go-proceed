@@ -1,5 +1,5 @@
 {
-  "name": "@aktflow/testing",
+  "name": "@goproceed/testing",
   "version": "0.0.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "pg": "^8.22.0",
-    "@aktflow/contracts": "workspace:*"
+    "@goproceed/contracts": "workspace:*"
   },
   "devDependencies": {
     "@types/pg": "^8.20.0"

@@ -2,9 +2,9 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { createInvitationRequest, type CreateInvitationResponse } from "@aktflow/contracts";
-import { generateInvitationToken } from "@aktflow/domain";
-import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@aktflow/database";
+import { createInvitationRequest, type CreateInvitationResponse } from "@goproceed/contracts";
+import { generateInvitationToken } from "@goproceed/domain";
+import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

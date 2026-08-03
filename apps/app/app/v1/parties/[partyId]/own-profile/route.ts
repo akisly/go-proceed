@@ -1,8 +1,8 @@
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireWorkspaceCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { createOwnProfileRequest, type OwnProfileResponse } from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+import { createOwnProfileRequest, type OwnProfileResponse } from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

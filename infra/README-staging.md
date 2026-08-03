@@ -253,8 +253,8 @@ and env vars differ.
 - Build command: `cd ../.. && pnpm turbo run build --filter=@aktflow/app`
   (or accept Vercel's monorepo auto-detection, which runs `pnpm install`
   at the repo root and `next build` in the root directory — either works
-  since Turborepo's task graph builds `@aktflow/database`,
-  `@aktflow/domain`, `@aktflow/contracts` first via `dependsOn: ["^build"]`
+  since Turborepo's task graph builds `@goproceed/database`,
+  `@goproceed/domain`, `@goproceed/contracts` first via `dependsOn: ["^build"]`
   in `turbo.json`).
 - Install command: `pnpm install` (repo root — pnpm workspaces require
   this; do not let Vercel install inside `apps/app` alone).

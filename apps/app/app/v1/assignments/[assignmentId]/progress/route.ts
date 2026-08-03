@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { recordProgressRequest, type RecordProgressResponse } from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@aktflow/database";
+import { recordProgressRequest, type RecordProgressResponse } from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
 import {
   appendValuationAllocation, lockWorkItem, toScaled6, fromScaled6,
 } from "../../../../../src/lib/valuation-writer";

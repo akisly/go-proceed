@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { HttpProblem, jsonProblem, ok, requestIdFrom, toProblemResponse } from "./http";
-import { problem } from "@aktflow/contracts";
-import { IdempotencyConflictError } from "@aktflow/database";
+import { problem } from "@goproceed/contracts";
+import { IdempotencyConflictError } from "@goproceed/database";
 
 describe("http helpers", () => {
   it("generates a request id when header is absent", () => {

@@ -1,9 +1,9 @@
 import { queryRoute } from "../../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../../src/lib/http";
-import type { ContractVersionResponse, WorkItemView } from "@aktflow/contracts";
-import { computeDiff, type DiffComparable } from "@aktflow/domain";
-import { withTenantTx } from "@aktflow/database";
+import type { ContractVersionResponse, WorkItemView } from "@goproceed/contracts";
+import { computeDiff, type DiffComparable } from "@goproceed/domain";
+import { withTenantTx } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

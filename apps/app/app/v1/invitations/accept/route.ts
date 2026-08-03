@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import { commandRoute } from "../../../../src/lib/command";
 import { HttpProblem, problem } from "../../../../src/lib/http";
-import { acceptInvitationRequest, type AcceptInvitationResponse } from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@aktflow/database";
+import { acceptInvitationRequest, type AcceptInvitationResponse } from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

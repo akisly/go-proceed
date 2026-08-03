@@ -1,8 +1,8 @@
 import { commandRoute } from "../../../../src/lib/command";
 import { requireActiveMembership, requirePartyEditCapability } from "../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../src/lib/http";
-import { updatePartyRequest, type PartyResponse } from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+import { updatePartyRequest, type PartyResponse } from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

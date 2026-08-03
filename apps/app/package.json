@@ -11,9 +11,9 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@aktflow/contracts": "workspace:*",
-    "@aktflow/database": "workspace:*",
-    "@aktflow/domain": "workspace:*",
+    "@goproceed/contracts": "workspace:*",
+    "@goproceed/database": "workspace:*",
+    "@goproceed/domain": "workspace:*",
     "@supabase/ssr": "0.5.2",
     "@supabase/supabase-js": "2.47.10",
     "next": "16.2.11",

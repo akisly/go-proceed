@@ -11,8 +11,8 @@
    reference.
 
    A consumer that wants both the custom properties and this base styling
-   must import both: "@aktflow/ui/tokens.css" for the tokens,
-   "@aktflow/ui/base.css" for this. */
+   must import both: "@goproceed/ui/tokens.css" for the tokens,
+   "@goproceed/ui/base.css" for this. */
 
 body {
   font-family: "Inter Variable", Inter, sans-serif;

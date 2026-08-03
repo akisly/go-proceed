@@ -5,8 +5,8 @@ import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   createUploadIntentRequest,
   type CreateUploadIntentResponse, type UploadIntentReceipt,
-} from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+} from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 import {
   EVIDENCE_BUCKET, newEvidenceKey, createSignedUpload,
 } from "../../../../../src/lib/evidence-storage";

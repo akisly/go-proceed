@@ -69,8 +69,8 @@ jobs:
 
       - run: pnpm turbo run typecheck
 
-      # --concurrency=1 is load-bearing, not a style choice: @aktflow/database,
-      # @aktflow/testing (the RLS negative-policy suite), and @aktflow/app's
+      # --concurrency=1 is load-bearing, not a style choice: @goproceed/database,
+      # @goproceed/testing (the RLS negative-policy suite), and @aktflow/app's
       # integration tests all hit the SAME local Postgres instance and
       # truncate/reset overlapping tables. apps/app already serializes its own
       # test files via vitest's fileParallelism:false, but turbo will happily

@@ -1,7 +1,7 @@
 import { requireUser } from "../../../../src/lib/auth";
 import { requestIdFrom, toProblemResponse, ok } from "../../../../src/lib/http";
-import { meContextResponse } from "@aktflow/contracts";
-import { withTenantTx } from "@aktflow/database";
+import { meContextResponse } from "@goproceed/contracts";
+import { withTenantTx } from "@goproceed/database";
 
 export const runtime = "nodejs"; // node-postgres requires the Node runtime
 

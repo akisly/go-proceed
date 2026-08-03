@@ -1,8 +1,8 @@
 import { queryRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import type { ListAssignmentsResponse } from "@aktflow/contracts";
-import { withTenantTx } from "@aktflow/database";
+import type { ListAssignmentsResponse } from "@goproceed/contracts";
+import { withTenantTx } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

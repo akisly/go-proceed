@@ -35,7 +35,7 @@ const out = [
   "/**",
   " * Structurally React Native's own `BoxShadowValue`",
   " * (react-native@0.86.2, Libraries/StyleSheet/StyleSheetTypes.d.ts:343-350),",
-  " * declared here rather than imported so @aktflow/tokens stays free of a",
+  " * declared here rather than imported so @goproceed/tokens stays free of a",
   " * react-native dependency and keeps working in the web build. RN's version",
   " * makes `color`, `blurRadius` and `spreadDistance` optional and allows",
   " * strings for the numbers, so this narrower shape is assignable to it, and",

@@ -2,9 +2,9 @@ import { createHash, randomUUID } from "node:crypto";
 import { requireUser } from "../../../src/lib/auth";
 import { idempotencyKeyFrom } from "../../../src/lib/request-context";
 import { HttpProblem, toProblemResponse, ok, requestIdFrom } from "../../../src/lib/http";
-import { createOrganizationRequest, problem, type CreateOrganizationResponse } from "@aktflow/contracts";
-import { buildOrganizationCreation } from "@aktflow/domain";
-import { withTenantTx, recordAudit, enqueueOutbox, withIdempotency } from "@aktflow/database";
+import { createOrganizationRequest, problem, type CreateOrganizationResponse } from "@goproceed/contracts";
+import { buildOrganizationCreation } from "@goproceed/domain";
+import { withTenantTx, recordAudit, enqueueOutbox, withIdempotency } from "@goproceed/database";
 
 export const runtime = "nodejs"; // node-postgres + node:crypto require the Node runtime
 

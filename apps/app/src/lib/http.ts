@@ -1,5 +1,5 @@
-import { problem, type ProblemJson } from "@aktflow/contracts";
-import { IdempotencyConflictError } from "@aktflow/database";
+import { problem, type ProblemJson } from "@goproceed/contracts";
+import { IdempotencyConflictError } from "@goproceed/database";
 
 export class HttpProblem extends Error {
   status: number;

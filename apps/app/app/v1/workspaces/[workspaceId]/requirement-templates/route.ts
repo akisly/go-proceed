@@ -4,8 +4,8 @@ import { requireActiveMembership, requireWorkspaceCapability } from "../../../..
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   createRequirementTemplateRequest, type CreateRequirementTemplateResponse,
-} from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+} from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

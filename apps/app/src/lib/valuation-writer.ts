@@ -1,9 +1,9 @@
 import { randomUUID } from "node:crypto";
-import type { Tx } from "@aktflow/database";
+import type { Tx } from "@goproceed/database";
 import {
   sliceAllocation, unvaluedReason, ZERO,
   type AllocationState, type PoolAmounts, type WorkItemValuation,
-} from "@aktflow/domain";
+} from "@goproceed/domain";
 
 /** Scaled bigint (scale 6) from the string pg returns for numeric(20,6). */
 export function toScaled6(value: string): bigint {

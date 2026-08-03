@@ -3,14 +3,14 @@ import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { loadImportBatchResponse } from "../../../../../src/lib/import-batch";
-import { validateImportBatchRequest } from "@aktflow/contracts";
+import { validateImportBatchRequest } from "@goproceed/contracts";
 import {
   parseCsv, parseXlsx, applyMapping, validateRow, buildPreview, normalizeUnitCode,
   workspaceCapabilities, canonicalPriceBasis, PARSER_VERSION,
   type SourceRow, type RowValidation, type ContractPins, type GovernanceRole,
   type RowResolution,
-} from "@aktflow/domain";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+} from "@goproceed/domain";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
 import { adminClient } from "./pg";
-import { projectCapability } from "@aktflow/contracts";
+import { projectCapability } from "@goproceed/contracts";
 
 // The project capability vocabulary is stated in three places and derived in
 // none: the grant API's zod enum, the routes' TypeScript union, and the database

@@ -19,7 +19,7 @@
     "react-native-reanimated": "4.5.1",
     "react-native-worklets": "0.10.1",
     "@expo/metro-runtime": "57.0.8",
-    "@aktflow/tokens": "workspace:*"
+    "@goproceed/tokens": "workspace:*"
   },
   "devDependencies": {
     "@types/react": "19.2.4",

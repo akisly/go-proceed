@@ -1,6 +1,6 @@
 import { queryRoute } from "../../../src/lib/command";
-import { withTenantTx } from "@aktflow/database";
-import type { ProjectsListResponse } from "@aktflow/contracts";
+import { withTenantTx } from "@goproceed/database";
+import type { ProjectsListResponse } from "@goproceed/contracts";
 
 export const runtime = "nodejs";
 

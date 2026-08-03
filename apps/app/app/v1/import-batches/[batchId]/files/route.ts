@@ -3,9 +3,9 @@ import { requireUser } from "../../../../../src/lib/auth";
 import { idempotencyKeyFrom } from "../../../../../src/lib/request-context";
 import { HttpProblem, toProblemResponse, ok, requestIdFrom, problem } from "../../../../../src/lib/http";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
-import type { AddImportFileResponse } from "@aktflow/contracts";
-import { guardXlsxContainer } from "@aktflow/domain";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+import type { AddImportFileResponse } from "@goproceed/contracts";
+import { guardXlsxContainer } from "@goproceed/domain";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 
