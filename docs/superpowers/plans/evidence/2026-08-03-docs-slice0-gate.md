@@ -8,15 +8,15 @@
 
 ## What the green checks prove, and what they do not
 
-**This slice changed no code.** Its whole diff against `70c8107` is eighteen
+**This slice changed no code.** Its whole diff against `70c8107` is nineteen
 Markdown files — the corrected documents plus the plan, spec and this record —
-and two CSVs under `technical/states/`. Twenty files, no other kind of file at
+and two CSVs under `technical/states/`. Twenty-one files, no other kind of file at
 all; the full file list is in the Evidence section below.
 
 ```
 $ git diff --name-only 70c8107..HEAD | sed 's/.*\.//' | sort | uniq -c
    2 csv
-  18 md
+  19 md
 ```
 
 **Deliberately the tally and not `git diff --stat`.** An earlier draft pasted the
@@ -210,6 +210,7 @@ docs/04-screen-specification.md
 docs/05-design-system.md
 docs/07-technical-architecture.md
 docs/20-flow-catalog.md
+docs/22-data-api-contract.md
 docs/23-offline-media-protocol.md
 docs/27-qa-traceability.md
 docs/README.md
@@ -228,10 +229,10 @@ technical/states/transition-catalog.csv
 
 $ git diff --name-only 70c8107..HEAD | sed 's/.*\.//' | sort | uniq -c
    2 csv
-  18 md
+  19 md
 ```
 
-Twenty files: eighteen Markdown, two CSV, nothing else. No TypeScript, no
+Twenty-one files: nineteen Markdown, two CSV, nothing else. No TypeScript, no
 `package.json`, no lockfile, no `node_modules`. There is no path from this diff to
 a module-resolution error.
 
@@ -895,8 +896,23 @@ constraint is zero CI changes. The owner has separately ruled that
 `validate_package.py` is being retired, so the correction lands in slice 1 — in
 the same commit that removes the validator and wires
 `pnpm validate:canonical-docs` into CI, so the build is never red and never
-without a documentation gate. `docs/22-data-api-contract.md` has no diff in this
-slice.
+without a documentation gate.
+
+**`docs/22-data-api-contract.md` is edited by this slice after all — but not
+there.** Round 3 corrected `:103` and `:144`, which asserted an enqueued
+verification job (corrections 20 and 21). Editing the file at all was verified
+safe first: `validate_package.py` reads it at `:250` and `:1718` only, asserting
+one billing-authority string and the Pilot/GA allowlist regex, neither of which
+reaches `:103` or `:144`. The validator's own "verification job receipt" wording
+at `:1635` is an error-message string for an `openapi.yaml` `$ref` assertion, not
+a documentation assertion.
+
+**The allowlist sentence at `:130` is untouched and stays that way.** It is the
+one sentence in this file that CI reads, and correcting it is slice 1's job, in
+the commit that retires the validator. An earlier draft of this record said the
+file "has no diff in this slice", which was true when written and false once
+round 3 landed — recorded here rather than silently amended, since it is the
+fourth instance of the same lesson.
 
 **Review dates were not bulk-stamped, because that would assert a review that did
 not happen.** Nine files moved to `2026-08-03` — exactly the files this slice
