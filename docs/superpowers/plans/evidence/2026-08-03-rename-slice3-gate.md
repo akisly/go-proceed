@@ -1201,7 +1201,7 @@ Everything below is what that sentence is pointing at.
 see the drift note below, this record makes it 78. `aktflow_app`, `aktflow_app_login`,
 `aktflow_worker`, `aktflow_service`, `aktflow_service_login` — 494 matching lines under
 the standard fence, and **1,869 raw occurrences** repo-wide once this record excludes
-itself, which it must, because it names the five roles 55 times:
+itself, which it must, because it names the five roles many times over:
 
 ```
 $ R='^docs/superpowers/plans/evidence/2026-08-03-rename-slice3-gate\.md$'
@@ -1217,7 +1217,13 @@ $ tot=0; for r in aktflow_app aktflow_app_login aktflow_worker aktflow_service a
   sum: 1869
 ```
 
-Unscoped the sum is 1,924. They are excluded by a standing owner ruling: `ALTER ROLE … RENAME TO` clears an md5-hashed
+Unscoped the sum is higher by exactly the number of times this record names the roles
+— a number that moves every time the record is revised, which is why the figure above
+is scoped and this one is stated as a relationship rather than a count. An earlier
+revision of this paragraph gave both as fixed numbers, and both were stale within one
+commit. That is the ninth instance, and it was introduced by the fix for the eighth.
+
+They are excluded by a standing owner ruling: `ALTER ROLE … RENAME TO` clears an md5-hashed
 password, every connection string and CI secret must move in the same window, and the
 migration runs against an environment whose app is already connected under the old name.
 That is a deployment-ordering problem with its own rollback story, not a substitution.
@@ -1293,7 +1299,7 @@ modifications.**
 
 ## Commits
 
-**Ten, as of the commit that writes this revision**, counting from the slice's base
+**Eleven, as of the commit that writes this revision**, counting from the slice's base
 `d59fa17`. The count includes the commit that writes it, so it cannot be pasted from a
 `git log … | wc -l` run beforehand — that command returned **eight** immediately before
 the first issue of this record landed, and **nine** immediately before this revision:
@@ -1324,7 +1330,8 @@ remembered.
 | 7 | `d06f3c7` | controller — two more claims the rename falsified, both found mid-execution | 1 |
 | 8 | `3a8a8c5` | **Task 3** — root name, CSS class, and three claims this slice made false | 15 |
 | 9 | `7cdc3d0` | **Task 4** — this record, as first issued | 1 |
-| 10 | *(this commit)* | whole-branch review fix round 1 — four unscoped counts that counted the record printing them; a "284 unfenced" that was fenced; three internal contradictions; and one line added to the design pointing here | 2 |
+| 10 | `f2c9d48` | whole-branch review fix round 1 — four unscoped counts that counted the record printing them; a "284 unfenced" that was fenced; three internal contradictions; and one line added to the design pointing here | 2 |
+| 11 | *(this commit)* | the fix round's own supporting numbers, 55 and 1,924, were stale one commit later — replaced by the relationship they express, which cannot go stale. The ninth instance, introduced by the fix for the eighth | 1 |
 
 **The ordering is the safety argument.** `74ba335` renames the six libraries *and every
 importer of them in one commit*, so no commit exists where a package answers to one name
