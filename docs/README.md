@@ -4,7 +4,7 @@
 
 **Applies to:** all
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](decisions/ADR-001-product-boundary.md),
 [ADR-002](decisions/ADR-002-tenancy-parties-and-contracts.md),
@@ -108,8 +108,10 @@ marked Approved. In particular, the existing legacy `technical/openapi.yaml`,
 
 ## Current baseline
 
-The implemented foundation represented by repository migrations contains six
-tables, one API view, three functions, and two application roles. GoProceed
-v0.1 is an approved target, not the current runtime. The reproducible baseline
-and known gaps are recorded in
+The implemented foundation represented by repository migrations contains 33
+tables, one API view (`api.me_context`), 27 functions (22 in `app`, 5 in
+`public` — counting distinct schema-qualified name plus argument-type list,
+surviving all drops), and five database roles, defined by 35 migrations
+through `0035`. GoProceed v0.1 is an approved target, not the current
+runtime. The reproducible baseline and known gaps are recorded in
 [`migration/goproceed-canonical-v0.1`](../migration/goproceed-canonical-v0.1/README.md).

@@ -27,9 +27,9 @@ for the tenant-safe relational chain defined in
 
 ### Current migration-derived baseline
 
-The current runtime represented by migrations contains six tables:
-`organizations`, `legal_entities`, `memberships`, `audit_events`,
-`idempotency_records`, and `transaction_outbox`.
+The current runtime represented by migrations contains 33 tables. The v0.0
+origin slice named six: `organizations`, `legal_entities`, `memberships`,
+`audit_events`, `idempotency_records`, and `transaction_outbox`.
 
 Current strengths include parameterized SQL, outsider-negative RLS tests,
 advisory-lock idempotency, and `SKIP LOCKED` outbox claiming. Current risks
