@@ -990,7 +990,7 @@ async function scanBundleForForbiddenClaims(distDir, ctx) {
  * known, deliberate failure.
  *
  * The hard, failing gate now lives in `qa/preflight.mjs`
- * (`pnpm --filter @aktflow/demo preflight`), a separate command documented
+ * (`pnpm --filter @goproceed/demo preflight`), a separate command documented
  * in README.md §3 as a hard prerequisite before publishing. This scan stays
  * in the routine QA run for VISIBILITY only: it populates
  * `ctx.placeholderTokenOccurrences` (reported as `report.placeholderTokens`,
@@ -1113,7 +1113,7 @@ async function main() {
 
     // Fix round (I1 re-scope): same non-failing treatment as missingAssets
     // above — visible in the report, never a cause for report.ok === false.
-    // The hard, failing gate is `pnpm --filter @aktflow/demo preflight`.
+    // The hard, failing gate is `pnpm --filter @goproceed/demo preflight`.
     const placeholderTokens = [...ctx.placeholderTokenOccurrences.entries()]
       .map(([token, files]) => ({ token, files: [...files].sort() }))
       .sort((a, b) => a.token.localeCompare(b.token))
@@ -1155,7 +1155,7 @@ async function main() {
       // the built bundle — informational only, does not affect `ok`. Empty
       // once {{FORM_PROCESSOR}} is replaced, the last one left now that
       // {{CONTACT_EMAIL}} is resolved; non-empty today.
-      // `pnpm --filter @aktflow/demo preflight` is the command that actually
+      // `pnpm --filter @goproceed/demo preflight` is the command that actually
       // fails on this — see README.md §3.
       placeholderTokens,
       journey,
@@ -1188,11 +1188,11 @@ async function main() {
     )
     if (placeholderTokens.length > 0) {
       // Deliberately console.warn, not console.error — this must never
-      // affect the exit code. `pnpm --filter @aktflow/demo preflight` is
+      // affect the exit code. `pnpm --filter @goproceed/demo preflight` is
       // the command that fails on this before a real deploy (README.md §3).
       console.warn(
         `NOTE (not a failure): ${placeholderTokens.length} unreplaced placeholder token(s) still in the built bundle ` +
-          `(${placeholderTokens.map(t => t.token).join(', ')}). Run "pnpm --filter @aktflow/demo preflight" before deploying.`,
+          `(${placeholderTokens.map(t => t.token).join(', ')}). Run "pnpm --filter @goproceed/demo preflight" before deploying.`,
       )
     }
   } finally {

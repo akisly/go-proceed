@@ -1,5 +1,5 @@
 {
-  "name": "@aktflow/mobile",
+  "name": "@goproceed/mobile",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "private": true,

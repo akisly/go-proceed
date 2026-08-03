@@ -250,7 +250,7 @@ and env vars differ.
 
 - Root directory: `apps/app`
 - Framework preset: Next.js
-- Build command: `cd ../.. && pnpm turbo run build --filter=@aktflow/app`
+- Build command: `cd ../.. && pnpm turbo run build --filter=@goproceed/app`
   (or accept Vercel's monorepo auto-detection, which runs `pnpm install`
   at the repo root and `next build` in the root directory — either works
   since Turborepo's task graph builds `@goproceed/database`,
@@ -285,7 +285,7 @@ and env vars differ.
 - Root directory: `apps/landing`
 - Framework preset: Next.js
 - Build command: default (Vercel monorepo auto-detect) or
-  `cd ../.. && pnpm turbo run build --filter=@aktflow/landing`
+  `cd ../.. && pnpm turbo run build --filter=@goproceed/landing`
 - Install command: `pnpm install` (repo root)
 - Environment variables: none required — `apps/landing` is static-first
   and contains no API routes and no Supabase server client (see

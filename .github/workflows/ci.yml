@@ -70,7 +70,7 @@ jobs:
       - run: pnpm turbo run typecheck
 
       # --concurrency=1 is load-bearing, not a style choice: @goproceed/database,
-      # @goproceed/testing (the RLS negative-policy suite), and @aktflow/app's
+      # @goproceed/testing (the RLS negative-policy suite), and @goproceed/app's
       # integration tests all hit the SAME local Postgres instance and
       # truncate/reset overlapping tables. apps/app already serializes its own
       # test files via vitest's fileParallelism:false, but turbo will happily
@@ -139,11 +139,11 @@ jobs:
           await browser.close();
           "
 
-      - run: pnpm --filter @aktflow/demo typecheck
-      - run: pnpm --filter @aktflow/demo lint
-      - run: pnpm --filter @aktflow/demo test
-      - run: pnpm --filter @aktflow/demo build
-      - run: pnpm --filter @aktflow/demo qa
+      - run: pnpm --filter @goproceed/demo typecheck
+      - run: pnpm --filter @goproceed/demo lint
+      - run: pnpm --filter @goproceed/demo test
+      - run: pnpm --filter @goproceed/demo build
+      - run: pnpm --filter @goproceed/demo qa
 
       # apps/demo/qa/verify.mjs writes every generated artifact under the
       # gitignored qa-output/ (see its FINDING 1 comment). Unlike
