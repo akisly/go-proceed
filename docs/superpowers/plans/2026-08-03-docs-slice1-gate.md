@@ -403,7 +403,10 @@ python3 scripts/validate_package.py | tee /tmp/slice1-before.txt
 ```
 
 Paste the metric line into your report. After this task every metric must be
-identical except `required_artifacts`, which falls by exactly 35.
+identical except `required_artifacts`, which falls by exactly 34, from 69 to
+35. Not to 34 — the deleted comprehension holds 34 `(index, name)` pairs, and
+`documents=35` is unchanged because `docs/40-phase1-discovery-outreach.md` is on
+disk and numbered but was never in `required_files`.
 
 - [ ] **Step 2: Remove the 35 numbered documents from `required_files`**
 
@@ -545,7 +548,7 @@ diff <(tr ',' '\n' < /tmp/slice1-before.txt) <(tr ',' '\n' < /tmp/slice1-after.t
 ```
 
 Expected: `PASS`, and a diff showing exactly one changed field —
-`required_artifacts` falling from 69 to 34. `documents=35` must be unchanged,
+`required_artifacts` falling from 69 to 35. `documents=35` must be unchanged,
 because 35 numbered documents still exist; it is now counted rather than
 required. Paste the diff into your report.
 
@@ -616,7 +619,7 @@ resolves links inside the numbered layer that slices 2-7 are about to move.
 
 Evidence is a mutation check, not a green run: with docs/23 moved to
 docs/legacy/, this validator passes where the previous one failed. Every metric
-is unchanged except required_artifacts, 69 -> 34."
+is unchanged except required_artifacts, 69 -> 35."
 ```
 
 ---
@@ -844,7 +847,7 @@ It must contain:
   `eslint` reason), `pnpm typecheck` and `pnpm turbo run test --concurrency=1`
   (**NOT PROVEN — environmental**, with the `exceljs` reason and the fact that no
   task in this slice touched TypeScript).
-- The before/after metric lines, with `required_artifacts` 69 → 34 and every
+- The before/after metric lines, with `required_artifacts` 69 → 35 and every
   other metric identical.
 - **The mutation checks, in full**: the three vocabulary mutations from Task 2
   Step 5 with their failure messages, and the `docs/23` archive check from Task 3
