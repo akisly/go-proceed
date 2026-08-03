@@ -125,9 +125,16 @@ CSS-only export map.
 Three shape rules, each forced by React Native rather than by taste:
 
 - **No colour carries baked-in alpha.** Every colour is
-  `{ "hex": "#RRGGBB", "alpha": <0..1> }`. RN's `shadowOpacity` defaults to `0`
-  and multiplies with the colour's alpha, so an `rgba()` string passed as
-  `shadowColor` renders nothing at all.
+  `{ "hex": "#RRGGBB", "alpha": <0..1> }`. Holding the two numbers apart is what
+  lets each generator compose the form its own platform wants out of the same
+  source fields — an `rgba()` string for CSS, the `rgba()` string
+  `BoxShadowValue.color` takes for React Native, a bare hex wherever alpha is
+  `1` — so neither generator has to parse the other platform's composed format
+  to recover a number the source already holds. (This rule was originally
+  justified by the legacy `shadowOpacity`, which defaults to `0` and multiplies
+  with a colour's alpha, so an `rgba()` string passed as `shadowColor` rendered
+  nothing. The shadow token targets `boxShadow` now, so that reason is retired;
+  the rule itself is unchanged and stands on the composition argument above.)
 - **No shadow is a CSS string.** Shadows are arrays of numeric layers whose
   fields carry React Native's own names — `offsetX`, `offsetY`, `blurRadius`,
   `spreadDistance` — so the native generator emits `BoxShadowValue[]` verbatim
