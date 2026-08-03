@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./tokens.css": "./src/tokens.generated.css"
+    "./tokens.css": "./src/tokens.generated.css",
+    "./base.css": "./src/base.css"
   },
   "scripts": {
     "typecheck": "echo \"@aktflow/ui: no TypeScript sources yet (tokens-only package)\""

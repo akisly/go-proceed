@@ -96,6 +96,30 @@ describe("the source accounts for every documented colour", () => {
     const unexplained = Object.entries(src.color as Record<string, { ruling?: string }>)
       .filter(([, v]) => !v.ruling || v.ruling.length < 10)
       .map(([k]) => k);
+
+    // The `shadow` block mixes block-level metadata (nativeBlurDivisor and
+    // its note) with named shadow tokens. Only entries shaped like a token
+    // — an object carrying a `layers` array, the same test the generators
+    // use to tell the two apart — are checked for a ruling here; this was
+    // missing entirely until a review caught that deleting the shadow's
+    // ruling left this test green.
+    const shadowTokens = Object.entries(
+      (src.shadow ?? {}) as Record<string, { layers?: unknown; ruling?: string }>,
+    ).filter(([, v]) => v && typeof v === "object" && Array.isArray(v.layers));
+    for (const [name, v] of shadowTokens) {
+      if (!v.ruling || v.ruling.length < 10) unexplained.push(`shadow.${name}`);
+    }
+
     expect(unexplained).toEqual([]);
+  });
+
+  it("the contested list is empty, so every B0 render has been ruled", () => {
+    // B0's three contested tokens (line, blue-500, the shadow) all needed an
+    // owner at a render rather than a rule — see the ruling entries above.
+    // A review caught that nothing asserted this stayed true: refilling
+    // `contested` left the rest of this suite green.
+    const src = JSON.parse(
+      readFileSync(join(repoRoot, "packages/tokens/src/tokens.json"), "utf8"));
+    expect(src.contested).toEqual([]);
   });
 });
