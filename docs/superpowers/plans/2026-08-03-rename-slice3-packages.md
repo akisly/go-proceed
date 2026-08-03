@@ -92,7 +92,9 @@ Run a typecheck as: `cd <dir> && npx tsc --noEmit -p tsconfig.json`
 | `@aktflow/landing` | 2 | 2 | 0 |
 | `@aktflow/mobile` | 1 | 1 | 0 |
 
-Task 1's six libraries touch **64 files**; Task 2's four apps touch **12**.
+Task 1's six libraries touch **64 files** — 63 by substitution plus
+`.github/workflows/ci.yml` by hand. Task 2's four apps touch **12**, 11 by
+substitution plus `ci.yml` again.
 
 ## Two sites a test suite cannot catch
 
@@ -107,7 +109,8 @@ Task 1's six libraries touch **64 files**; Task 2's four apps touch **12**.
 | File | What changes | Task |
 |---|---|---|
 | `packages/{contracts,database,domain,testing,tokens,ui}/package.json` | `name` field | 1 |
-| 64 files importing or depending on those six | specifiers and dependency keys | 1 |
+| 63 files importing or depending on those six | specifiers and dependency keys | 1 |
+| `.github/workflows/ci.yml` | two names in one comment, by hand | 1 |
 | `pnpm-lock.yaml` | 9 `importers:` keys | 1 |
 | `apps/{app,demo,landing,mobile}/package.json` | `name` field | 2 |
 | 12 files naming those four | specifiers, `--filter` flags | 2 |
@@ -129,7 +132,8 @@ including files inside `apps/` — uses the new name. The apps' own names are st
 
 **Files:**
 - Modify: `packages/{contracts,database,domain,testing,tokens,ui}/package.json` (the `name` field)
-- Modify: 64 files that import them or declare them as dependencies
+- Modify: 63 files that import them or declare them as dependencies, plus
+  `.github/workflows/ci.yml` by hand
 - Modify: `pnpm-lock.yaml` (9 keys)
 
 **Interfaces:**
@@ -176,13 +180,21 @@ anchored to the six names**. It cannot match a role (`aktflow_app`), a domain
 cd /Users/akisliy/Downloads/GoProceed
 git ls-files \
   | grep -vE '^(docs/legacy|docs/superpowers|migration|supabase|technical|prototype)/' \
+  | grep -v '^\.github/workflows/ci\.yml$' \
   | xargs grep -lE '@aktflow/(contracts|database|domain|testing|tokens|ui)\b' 2>/dev/null \
   | tee /tmp/rename-t1-files.txt \
   | xargs sed -i '' -E 's#@aktflow/(contracts|database|domain|testing|tokens|ui)\b#@goproceed/\1#g'
 wc -l < /tmp/rename-t1-files.txt
 ```
 
-Expected: **64** files. `sed -i ''` is the BSD/macOS form; on GNU sed use `sed -i -E`.
+Expected: **63** files.
+
+`.github/workflows/ci.yml` is excluded here and edited by hand in Step 3a. Its comment
+at lines 72-73 names two of these six, so the unfenced pattern *would* have matched it
+— but that file also carries role names in connection strings, and this plan holds one
+rule about it without exception: **`ci.yml` is only ever edited by hand.** A pattern
+that is safe today is not a reason to weaken a rule that exists for the pattern that
+will not be. `sed -i ''` is the BSD/macOS form; on GNU sed use `sed -i -E`.
 Verify which you have with `sed --version 2>/dev/null | head -1` before running, and
 say in your report which form you used.
 
@@ -190,6 +202,30 @@ This deliberately excludes `supabase/`, `technical/`, `prototype/`, `docs/legacy
 `docs/superpowers/` and `migration/` — none should contain these six names, and
 excluding them means a surprise there becomes a visible discrepancy in the count
 rather than a silent edit.
+
+- [ ] **Step 3a: Edit `.github/workflows/ci.yml`'s comment by hand**
+
+Lines 72-73 read:
+
+```
+      # --concurrency=1 is load-bearing, not a style choice: @aktflow/database,
+      # @aktflow/testing (the RLS negative-policy suite), and @aktflow/app's
+```
+
+Change `@aktflow/database` and `@aktflow/testing` to `@goproceed/…`. **Leave
+`@aktflow/app` exactly as it is** — the apps are Task 2's, and this line will be
+finished there.
+
+Verify nothing else in that file moved:
+
+```bash
+git diff .github/workflows/ci.yml | grep -c '^[+-][^+-]'
+grep -n 'aktflow' .github/workflows/ci.yml
+```
+
+Expected: **4** changed lines (two removed, two added), and the remaining `aktflow`
+hits being the three role lines (22, 25, 65), the untouched `@aktflow/app` on line 73,
+and the five `--filter @aktflow/demo` steps.
 
 - [ ] **Step 4: Rename the lockfile keys — nine entries, five distinct names**
 
@@ -275,8 +311,8 @@ git diff --name-only | grep -E '^(supabase|technical|prototype|docs/legacy|migra
 git diff --stat | tail -1
 ```
 
-Expected: no output from the first two, and 64 files changed plus `pnpm-lock.yaml` in
-the third. The second command is the important one — it proves the substitution stayed
+Expected: no output from the first two, and **65** files changed in the third — 63 by
+substitution, `.github/workflows/ci.yml` by hand, and `pnpm-lock.yaml`. The second command is the important one — it proves the substitution stayed
 inside its fence.
 
 Then confirm the roles are untouched:
