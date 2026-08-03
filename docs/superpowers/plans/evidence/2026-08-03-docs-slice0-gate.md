@@ -14,29 +14,19 @@ and two CSVs under `technical/states/`. Twenty files, no other kind of file at
 all; the full file list is in the Evidence section below.
 
 ```
-$ git diff --stat 70c8107..HEAD
- README.md                                          |  17 +-
- docs/04-screen-specification.md                    |   8 +-
- docs/05-design-system.md                           |   8 +-
- docs/07-technical-architecture.md                  |   4 +-
- docs/20-flow-catalog.md                            |   2 +-
- docs/23-offline-media-protocol.md                  |   6 +-
- docs/27-qa-traceability.md                         |   2 +-
- docs/README.md                                     |  12 +-
- docs/architecture/data-model.md                    |  27 +-
- docs/architecture/files-and-storage.md             |  51 +-
- docs/architecture/jobs-events-and-audit.md         |  14 +-
- docs/architecture/system-overview.md               |  16 +-
- docs/architecture/tenancy-and-security.md          |  13 +-
- docs/delivery/version-0.0.md                       |   7 +-
- docs/domain/execution-and-evidence.md              |  30 +-
- .../plans/2026-08-03-docs-slice0-truth.md          | 639 +++++++++++++++++++++
- .../specs/2026-08-03-docs-slice0-truth-design.md   | 190 ++++++
- .../plans/evidence/2026-08-03-docs-slice0-gate.md  | 766 +++++++++++++++++++++
- technical/states/state-catalog.csv                 |   6 +-
- technical/states/transition-catalog.csv            |  19 +-
- 20 files changed, 1736 insertions(+), 101 deletions(-)
+$ git diff --name-only 70c8107..HEAD | sed 's/.*\.//' | sort | uniq -c
+   2 csv
+  18 md
 ```
+
+**Deliberately the tally and not `git diff --stat`.** An earlier draft pasted the
+full `--stat`, including `20 files changed, 1736 insertions(+)`. That number was
+true when pasted and false one commit later, because every edit to *this file* is
+inside the diff it is describing — a record that counts its own lines is stale the
+moment it is written, which is the same trap the B0 procurement record fell into
+counting its own mentions of a term. The tally above changes only if a file of a
+new kind enters the slice, which is the fact being asserted. The full file list is
+in the Evidence section, where it does not carry a self-referential number.
 
 So the test suite and `pnpm typecheck` were never the evidence for this slice.
 They are a floor: they show that nothing protected was disturbed, and they passed
@@ -294,13 +284,19 @@ four tasks had closed, by re-running Task 1's subject across the whole corpus
 rather than across Task 1's file list — see "One correction that no task's grep
 could have found".
 
+**"It said" is the text each correction replaced, which is not always the text at
+`70c8107`.** Rows 5 and 16 correct claims this slice introduced itself and then
+caught in review, so `git show 70c8107:<path>` will not find them; both are
+annotated with the commit the text entered at. Every other row's "It said" is the
+base's own text.
+
 | # | Where | It said | It says now | Measures |
 |---|---|---|---|---|
 | 1 | `files-and-storage.md` ×5, `execution-and-evidence.md` ×3, `jobs-events-and-audit.md`, `tenancy-and-security.md`, `system-overview.md`, `states/state-catalog.csv` ×3 | the upload machine runs `intent_authorized → staged → integrity_verified → scan_pending → available \| scan_blocked`, with the intermediate values as current semantics | `intent_authorized → available \| scan_blocked \| orphaned_for_purge \| expired`; the three intermediate values are named as reserved for the v0.3 resumable protocol and not written in v0.1 | **M1** |
-| 2 | `technical/states/transition-catalog.csv` | zero rows for the four transitions that fire; eight rows for transitions that cannot | four `intent_authorized →` rows present; the eight unreachable rows carry the reserved note in `guard_or_rule` rather than being deleted | **M2** |
+| 2 | `technical/states/transition-catalog.csv` | eight rows for transitions that cannot fire, and one of the four that can (`intent_authorized → expired`, already present and correct) | all four `intent_authorized →` rows present — the three missing ones added; the eight unreachable rows carry the reserved note in `guard_or_rule` rather than being deleted. Upload-intent rows: 9 → 12 | **M2** |
 | 3 | `jobs-events-and-audit.md` | "Inspection **jobs** operate only on intent-bound staged content" — a background worker | inspection runs synchronously inside the finalization command; no worker exists | **M3** |
 | 4 | `docs/README.md`, root `README.md`, `data-model.md` ×3, `tenancy-and-security.md` | "six tables, one API view, three functions, and two application roles" | 33 tables, one API view (`api.me_context`), 27 functions (22 `app`, 5 `public`), five database roles, from 35 migrations through `0035`; the six tables are reframed as the v0.0 origin slice | **M4** |
-| 5 | `data-model.md` | this inventory is corroborated by `baseline-verification.md`'s live `pg_catalog` snapshot | corroborated by `catalog-snapshots/20260731-2102.md` (`## tables (33)`, `## functions (27)`); `baseline-verification.md` is cited separately, for known gaps | **M5** |
+| 5 | `data-model.md` | this inventory is corroborated by `baseline-verification.md`'s live `pg_catalog` snapshot — *mid-slice text, introduced by this slice at `3ffa97e`; absent at `70c8107`* | corroborated by `catalog-snapshots/20260731-2102.md` (`## tables (33)`, `## functions (27)`); `baseline-verification.md` is cited separately, for known gaps | **M5** |
 | 6 | `docs/delivery/version-0.0.md:15` | "the existing six-table foundation is safe to extend" | "the foundation this gate started from — six tables, extended to seven by migration `0008` within the gate itself — is safe to…" | **M6** |
 | 7 | `docs/23-offline-media-protocol.md:36` | the server "transitions `authorized → sealed`" | "transitions `intent_authorized → available`", with the note that there is no `sealed` state and that `sealed`/`authorized` come from the superseded `technical/schema.sql` | **M7** |
 | 8 | `docs/23-offline-media-protocol.md:34` | the server persists an `authorized` upload intent | an `intent_authorized` upload intent | **M7** |
@@ -311,7 +307,7 @@ could have found".
 | 13 | `docs/07-technical-architecture.md` ×2 | "Expo SDK 56" | "Expo SDK 57" in the stack table, "Expo SDK 57.0.9" in the version-baseline sentence | **M10** |
 | 14 | `docs/05-design-system.md`, four of twelve colour rows | `ink-800 #2A2D2F`, `signal-700 #84A625`, `blue-500 #5278D8`, `muted #686E6A` | `#242424`, `#667F12`, `#3756a1`, `#666979` — the values in `packages/tokens/src/tokens.json` | **M11** |
 | 15 | `docs/04-screen-specification.md:275`, `:276`, `:323` | scheme `aktflow://`, universal links covered by AASA and `assetlinks.json`, four target routes, and a tap that opens them | the `goproceed` scheme and Expo Router exist; the universal links, both coverage files and all four routes do not — the whole mobile route table is `_layout.tsx` and `index.tsx`; the rest is named as a v0.1 target | **M12** |
-| 16 | `docs/04-screen-specification.md:421` | deep links are "live for the web `/app/...` routes today" | "a v0.1 target on both surfaces: the web workspace ships only `/login` and `/context` today, and the mobile deep-link routes in §6 do not exist yet" | **M13** |
+| 16 | `docs/04-screen-specification.md:421` | deep links are "live for the web `/app/...` routes today" — *mid-slice text, introduced by this slice at `c0da6b9`; at `70c8107` the line read only "actionable notifications with deep links;"* | "a v0.1 target on both surfaces: the web workspace ships only `/login` and `/context` today, and the mobile deep-link routes in §6 do not exist yet" | **M13** |
 | 17 | `docs/23-offline-media-protocol.md:36` | finalization "creates one verification **job**/receipt and then **waits for** detected MIME/scan" | "creates one evidence-object receipt in that same transaction, and waits for nothing further: in v0.1 content inspection runs synchronously inside the finalization command (…`finalize/route.ts`), not as a separate job, so inspection has already succeeded by the time the receipt exists and a blocked upload never produces one" | **M14** |
 
 ### The measuring commands
@@ -351,6 +347,38 @@ $ grep -n "^upload_intent.status,intent_authorized," technical/states/transition
 ```
 
 Lines 35-38 are the four that fire; line 27 is a reserved row kept with its note.
+Against the base, which is what makes the row's "It said" column checkable:
+
+```
+$ git show 70c8107:technical/states/transition-catalog.csv | grep -n "^upload_intent.status,intent_authorized,"
+27:upload_intent.status,intent_authorized,staged,bytes received on the intent-bound key,single staging attempt key; no overwrite (INV-045),…
+35:upload_intent.status,intent_authorized,expired,intent expiry,quota reservation released,docs/architecture/files-and-storage.md
+
+$ git show 70c8107:technical/states/transition-catalog.csv | grep -c '^upload_intent.status,'
+9
+$ grep -c '^upload_intent.status,' technical/states/transition-catalog.csv
+12
+```
+
+**The design document said this catalog had "zero" rows for the four transitions
+that fire. That is wrong, and the gate pass caught it.** One of the four —
+`intent_authorized → expired` — was already there and already correct; the base's
+line 35 is byte-identical to HEAD's line 38. Task 1's implementer found this,
+checked it before writing, said so in its report, and added the other three; its
+reviewer confirmed it. The false "zero" is in
+`2026-08-03-docs-slice0-truth-design.md:74`, and the first draft of this record
+copied it forward without re-deriving it — which is exactly the failure this slice
+exists to correct, committed by the document whose job is to certify the
+correction. The design is a point-in-time record and is not edited; the correction
+lives here, where the measurement is.
+
+This is the third of this record's three lessons about its own fallibility, beside
+"Three corrections that were themselves wrong" and "One correction that no task's
+grep could have found" — and the most pointed. Those two were caught by a reviewer
+reading a correction and by a grep widened past its task's file list. This one was
+caught only by re-deriving a number that a written claim had made to sound settled:
+"zero" invites no measurement, which is precisely why it survived a design, a plan,
+four tasks and the first draft of this record.
 
 **M3 — inspection is inline, not a job.**
 
@@ -820,7 +848,7 @@ nothing to stamp. A file's date moves when someone actually reviews it.
 cross-validated against each other.**
 
 ```
-$ grep -rln "sealed" technical/
+$ grep -rln "sealed" technical/ | sort
 technical/data-access-surface.csv
 technical/events.csv
 technical/openapi.yaml
@@ -872,9 +900,15 @@ prove it. This record does not predict their result.
 
 ## Commits
 
-This slice produced ten commits on `claude/docs-slice0-truth` from `main` @
-`70c8107`. Two set it up, six are the corrections — three of those six being
-review fixes, one for each of Tasks 2, 3 and 4 — and two are this record:
+`git log --oneline 70c8107..HEAD | wc -l` and the row count of the table below are
+the same number by construction. **As of this commit, 12.** Two set the slice up;
+**seven** are the corrections — four task commits plus three review fixes, one for
+each of Tasks 2, 3 and 4; and three are this record. 2 + 7 + 3 = 12.
+
+Note the shape of that total: **it includes this record's own commits, so it grows
+every time the record is revised** — the same self-referential trap that made the
+pasted `--stat` go stale. Whoever revises this next updates the table and this
+sentence together, or the two stop agreeing:
 
 | Commit | What |
 |---|---|
@@ -888,7 +922,8 @@ review fixes, one for each of Tasks 2, 3 and 4 — and two are this record:
 | `c0da6b9` | four claims a reader could disprove in a minute (Task 4), 5 files |
 | `92bb446` | Task 4 fix round 1 — the web workspace has no `/app/...` UI routes either |
 | `0231e8c` | this record, as first issued |
-| *(this commit)* | correction 17 (`docs/23:36`), its table row and its lesson; the two unproven gates reworded from FAILED to NOT PROVEN once the attempted install turned out to have installed nothing |
+| `c64c8c5` | correction 17 (`docs/23:36`), its table row and its lesson; the two unproven gates reworded from FAILED to NOT PROVEN once the attempted install turned out to have installed nothing |
+| *(this commit)* | review round 2 on the record itself — see below |
 
 Task 1 was approved without a fix round. Its reviewer independently re-derived the
 four transitions from migrations `0031`/`0035`/`0021` rather than accepting the
@@ -899,3 +934,28 @@ than quietly widening scope: Task 3 found a fifth site (`docs/23:34`, bare
 `authorized`) that the `sealed` grep could not have surfaced, and Task 1 corrected
 a "Staged bytes become `orphaned_for_purge`" rule that the brief's line list did
 not name.
+
+### Review round 2, on this record
+
+The record was reviewed by **running it** — the treatment it asks for — and four
+of its own claims did not survive that. All four were in the record, none in the
+corrected documents:
+
+- Row 2's "It said" column claimed the transition catalog had **zero** rows for
+  the four transitions that fire. One was already present and correct. Corrected
+  above, with the base-versus-HEAD commands that settle it.
+- The opening pasted `git diff --stat` no longer reproduced: it showed
+  `1736 insertions(+)` while HEAD gave `1871`, because the previous commit grew
+  this file by 135 lines. Replaced with the file-type tally, which does not
+  count its own lines.
+- The commit count read "ten" against a table of eleven rows, and its breakdown
+  named seven corrections while saying six.
+- `grep -rln "sealed" technical/` was pasted with sorted output but without the
+  `| sort` that produces it — the raw order is not stable.
+
+Rows 5 and 16 were also flagged: their "It said" text is mid-slice, so
+`git show 70c8107:<path>` misses it. Both now name the commit the text entered at.
+
+A record whose commands do not reproduce fails at the one job it has, so these are
+listed rather than quietly amended — and the first of them is the third instance
+of this slice's own thesis, recorded as such beside **M2**.
