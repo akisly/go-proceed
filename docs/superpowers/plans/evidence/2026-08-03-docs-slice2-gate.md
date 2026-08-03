@@ -228,13 +228,21 @@ reviewer compared blob hashes for **all 33** files it moved — not a sample —
 Re-run here:
 
 ```
+$ n=0; mismatch=0
 $ for name in $(git diff --name-status --diff-filter=R f3e47dd c54ae78 | awk '{print $2}' | sed 's|^docs/||'); do
     a=$(git rev-parse "f3e47dd:docs/$name"); b=$(git rev-parse "c54ae78:docs/legacy/$name")
-    n=$((n+1)); [ "$a" != "$b" ] && echo "MISMATCH $name"
+    n=$((n+1)); [ "$a" != "$b" ] && { echo "MISMATCH $name"; mismatch=$((mismatch+1)); }
   done; echo "files compared: $n"; echo "mismatches: $mismatch"
 files compared: 33
 mismatches: 0
 ```
+
+(The first issue of this record pasted a loop whose only accumulator was `n`, above an
+output line reading `mismatches: 0` that the loop could not have produced — run
+verbatim it prints an empty value. The substantive claim was true and is re-verified
+here; **the transcript was not reproducible, which in a record whose whole contract is
+"re-run this" is the defect regardless of the claim being right.** Found by the
+whole-branch review.)
 
 And `docs/05`, moved separately in Task 2, is the same blob at both ends:
 
@@ -486,6 +494,79 @@ $ git show 0787901 -- docs/legacy/README.md | grep '^+' | grep -ci 'aktflow'
 0
 ```
 
+## The index's framing was false for nine of its own rows
+
+Found by the whole-branch review, and **the most substantive defect in this slice.**
+The 34 rows are honest — generated, quoted verbatim, proven character-identical to the
+CSV above. The sentence telling the reader *how to read them* was not. As first
+committed at `0787901`, it said:
+
+> "Information rejected" is the column worth reading. A document is not here because it
+> was wrong about everything — it is here because a successor absorbed what survived
+> review, and the rest was rejected for a stated reason.
+
+Both halves are false for every row whose right-hand columns read `none | none`:
+
+```
+$ grep -c '| none | none |' docs/legacy/README.md
+9
+```
+
+**Nine of thirty-four — 26% of the table.** All nine carry disposition `defer`, and
+all nine point their Successor column at `docs/legacy/README.md`, the page the reader
+is standing on. Measured from the CSV rather than from the rendered table, so the two
+are cross-checked against each other:
+
+```
+$ python3 -c "
+import csv, collections
+rows=[r for r in csv.DictReader(open('migration/goproceed-canonical-v0.1/document-disposition.csv',encoding='utf-8'))
+      if r['source_path'].startswith('docs/') and r['source_path'][5:7].isdigit()
+      and r['disposition'] not in ('archive','keep')]
+bn=[r for r in rows if r['information_moved']=='none' and r['information_rejected']=='none']
+print('table rows:', len(rows))
+print('both columns none:', len(bn), '| dispositions:', dict(collections.Counter(r['disposition'] for r in bn)))
+print('successor is this policy:', len([r for r in rows if r['target_path']=='docs/legacy/README.md']))
+print('rows with content in at least one column:', len(rows)-len(bn))"
+table rows: 34
+both columns none: 9 | dispositions: {'defer': 9}
+successor is this policy: 9
+rows with content in at least one column: 25
+```
+
+No successor absorbed anything, and nothing was rejected — **because the decision has
+not been made.** A `defer` row is a deferral, not a verdict, and the original framing
+converted nine open questions into nine settled judgements. That matters most for
+`docs/legacy/04-screen-specification.md`, which this branch's own `TODOS.md` now
+describes as the only surviving record of the `aktflow://` deep-link contract: the
+framing said its content had been reviewed and rejected, when in fact nobody has
+looked at it yet.
+
+**The file already contained exactly the right language, applied only to the six
+`archive` documents** — "nothing was carried forward from them, and they have no
+successor beyond this policy". The fix extends the framing to distinguish three kinds
+rather than one: 25 verdicts, 9 deferrals, and the 6 unlisted `archive` documents,
+which read like the deferrals and are the opposite of them — an `archive` document
+*was* reviewed and nothing survived, which is a verdict.
+
+One trap in stating it, worth recording because the obvious phrasing is wrong:
+**disposition alone does not identify the nine.** A tenth row carries `defer` and does
+not belong with them:
+
+```
+$ python3 -c "
+import csv
+r=[x for x in csv.DictReader(open('migration/goproceed-canonical-v0.1/document-disposition.csv',encoding='utf-8'))
+   if x['source_path']=='docs/24-legal-regulatory-gates.md'][0]
+print(r['disposition'], '|', r['target_path'], '|', repr(r['information_moved']), '|', repr(r['information_rejected']))"
+defer | docs/delivery/production-readiness.md | 'gate concept referenced as external gates' | 'none'
+```
+
+`docs/24` is `defer` with a real successor and real information moved. So the new
+prose keys on the `none | none` pair and says so explicitly, rather than on the word
+`defer` — a distinction that would have produced an off-by-one in the corrected
+sentence exactly as the original produced a false one.
+
 ## No live pointer to a moved document survives
 
 Three sweeps, each wider than the last. The third is not in any task brief; it drops
@@ -505,8 +586,89 @@ $ git ls-files | grep -v '^docs/legacy/\|^docs/superpowers/\|^migration/\|^\.sup
 (no output)
 ```
 
-**Zero live references**, including under the sweep that would have caught a numbered
-path the character classes were never written to match.
+**Zero live references — under a `migration/`-excluded rule that all three sweeps share
+and none of them states.** The first issue of this record reported that as a bare
+"Zero live references", which is the exact defect this record condemns two sections
+below, where it says a count without its counting rule is the defect rather than the
+count. The rule was inherited unexamined from the plan's Task 1 Step 7, repeated in
+Task 2, and carried into the widened third sweep I wrote — so widening the *pattern*
+three times never widened the *corpus* once. **A filter shared by every sweep is
+invisible to all of them.**
+
+Dropping the exclusion finds one real casualty, which the whole-branch review caught.
+The listing is pinned to `d33880b` — the commit *before* the repointing — because run
+against the working tree it stops showing the file it is about the moment the fix
+lands:
+
+```
+$ git grep -on 'docs/[0-9][0-9]-[a-z0-9-]*\.md' d33880b -- 'migration/' \
+    | grep -v 'docs/22-data-api-contract' | cut -d: -f2 | sort -u
+migration/goproceed-canonical-v0.1/cleanup-proposal.md
+migration/goproceed-canonical-v0.1/conflict-register.md
+migration/goproceed-canonical-v0.1/document-disposition.csv
+migration/goproceed-canonical-v0.1/source-inventory.csv
+```
+
+Four files, of which **exactly one was a live pointer this slice staled**:
+`conflict-register.md:15`, conflict C-006's Evidence cell, citing
+`docs/19-organizations-roles-access.md`. That file is
+`**Status:** Active resolution ledger` and is in `validate-canonical-docs.mjs`'s
+`REQUIRED` list at `:178` — a live artifact, not preserved evidence, so the no-edit
+constraint does not reach it. **Repointed to `docs/legacy/19-organizations-roles-access.md`
+in this record's own commit**, which is why the modified-file count below is nine
+rather than the eight the first issue of this record reported.
+
+The other three are correctly left alone, and the reason is measurable rather than
+asserted:
+
+- **`document-disposition.csv` and `source-inventory.csv` are baseline snapshots.**
+  Their path columns record where each file stood *at the approved canonical head*
+  (`source_state=tracked_at_base`). The decisive test is that both still carry the
+  pre-move paths for the six documents archived on **2026-07-30** — eight days before
+  this branch — and neither contains a single `docs/legacy/` path anywhere:
+
+```
+$ grep -n 'docs/02-market-competition' migration/goproceed-canonical-v0.1/source-inventory.csv
+364:"docs/02-market-competition.md","canonical","tracked_at_base","historical","inherited_from_git","Inherited in canonical from Git base"
+$ grep -c 'docs/legacy/' migration/goproceed-canonical-v0.1/source-inventory.csv
+0
+$ awk -F, 'NR>1 && $1 ~ /^docs\// {print $1}' migration/goproceed-canonical-v0.1/document-disposition.csv | grep -c legacy
+0
+```
+
+  Had these been maintained as live pointers, somebody would have repointed those six
+  in July. They were not, because repointing them would falsify the baseline they
+  exist to record. **Editing them would be the same error as tidying an archived
+  document's internal paths** — and `document-disposition.csv` is additionally the
+  file the index quotes verbatim, so a path edited here would silently change 34 rows
+  of `docs/legacy/README.md` on the next regeneration.
+
+- **`cleanup-proposal.md` cites nothing this slice moved.** It names `docs/02`,
+  `docs/16`, `docs/29`, `docs/37`, `docs/38`, `docs/39` — the six archived on
+  2026-07-30 — and `docs/22`, whose disposition is `keep` and which did not move. It
+  is also not in `REQUIRED`.
+
+**Under the corrected rule — every tracked file except `docs/legacy/`,
+`docs/superpowers/` and `.superpowers/` — zero live references to a document this
+slice moved now remain.** Re-run after the repointing:
+
+```
+$ git ls-files | grep -v '^docs/legacy/\|^docs/superpowers/\|^\.superpowers/' \
+    | xargs grep -on 'docs/[0-9][0-9]-[a-z0-9-]*\.md' 2>/dev/null \
+    | grep -v 'docs/22-data-api-contract' \
+    | grep -v '^migration/goproceed-canonical-v0.1/\(source-inventory\|document-disposition\)\.csv:' \
+    | grep -v 'docs/\(02\|16\|29\|37\|38\|39\)-'
+(no output)
+```
+
+The two remaining exclusions are the baseline snapshots and the six documents archived
+in July — both justified above, both named explicitly rather than left to a character
+class. **The six are spelled out by alternation on purpose.** The first draft of this
+very command wrote them as `docs/0[29]-\|docs/1[6]-\|docs/3[789]-`, which does not
+match `docs/29-` at all — `0[29]` is `02` or `09` — and the sweep came back with two
+`cleanup-proposal.md` hits it should have excluded. A hand-built character class that
+is subtly wrong is the failure this record already warned about one section earlier,
+and it caught its author one section later.
 
 ## Three defects in the plan and the brief, caught during execution
 
@@ -809,14 +971,14 @@ it.
 
 ## Commits
 
-**Eight, as of the commit that writes this record**, counting from the slice's base
+**Nine, as of the commit that writes this revision**, counting from the slice's base
 `f443790`. The count includes the commit that writes it, so it cannot be pasted from a
-`git log … | wc -l` run beforehand — that command returned **seven** immediately
-before this record landed:
+`git log … | wc -l` run beforehand — that command returned **eight** immediately
+before this revision landed:
 
 ```
 $ git log --oneline f443790..HEAD | wc -l
-       7        # before this record's commit; eight after
+       8        # before this revision's commit; nine after
 ```
 
 **The counting rule, stated because the last three records in this family each went
@@ -838,7 +1000,8 @@ Rows are in `git log --reverse` order, verified rather than remembered.
 | 5 | `4b1b0bb` | **Task 2** — `docs/05` and the test that reads it, in one commit, which is debt A's ordering constraint | 4 (+7/−5) |
 | 6 | `f2188bb` | Task 2 fix round 1 — the comment the brief dictated was refuted nine lines below itself | 1 (+6/−3) |
 | 7 | `0787901` | **Task 3** — the 34-row supersession index, and the six-table claim that outlived its subject | 1 (+56/−2) |
-| 8 | *(this commit)* | **Task 4** — this record | 1 |
+| 8 | `d33880b` | **Task 4** — this record, as first issued | 1 |
+| 9 | *(this commit)* | whole-branch review round 1 — the index framing false for 9 of its own 34 rows; the one live pointer every sweep's shared `migration/` filter hid; an unreproducible pasted transcript; a self-counting listing | 3 |
 
 **The ordering is the safety argument, exactly as slice 1's was.** `c54ae78` moves
 only what nothing reads; `4b1b0bb` moves the one document a test reads *together with*
@@ -851,8 +1014,30 @@ those reviewers had built their own mutations instead of re-running the implemen
 — Task 1's compared 33 blob hashes and reproduced the `--follow` defect in a scratch
 repo; Task 3's broke a self-link where the report had broken a successor link, and
 diffed all 34 generated rows against the committed table. **That is not a
-coincidence.** The one Important finding in this slice came from the third reviewer,
-which also built its own probe.
+coincidence.** Both Important findings in this slice came from reviewers who built
+their own probes rather than re-running the implementer's.
+
+### The whole-branch review, and what it changed
+
+**Zero Critical, one Important, three Minor**, merge after fixing the Important. No
+source behaviour changed; the fixes landed in `docs/legacy/README.md`, one
+`migration/` citation, and this record.
+
+The Important is the one worth carrying forward: **Task 3 was approved with zero
+findings, and it was approved correctly.** Its 34 rows are generated, verbatim and
+link-checked, and its reviewer proved all three properties mechanically. The defect
+was in the four lines of prose *above* the table — the part no generator produced and
+no mutation could reach. **Every check in this slice pointed at the rows; the false
+sentence was in the framing, and nothing was looking there.**
+
+The three Minors share one shape with each other and with the Important: each is a
+claim about the evidence rather than a fault in the evidence. A pasted loop that
+could not print its own output. A file listing that counted the record printing it.
+A "Zero live references" resting on a `migration/` filter that every sweep inherited
+and none declared. **All three were true in substance and unreproducible or
+unfalsifiable as written**, which in a record whose only contract is "re-run this" is
+the whole failure. They are fixed above, each at the place it occurred rather than
+collected here.
 
 ### The whole diff
 
@@ -862,25 +1047,46 @@ M	.github/workflows/ci.yml
 M	TODOS.md
 M	apps/demo/src/styles/fonts.css
 M	docs/legacy/README.md
+M	migration/goproceed-canonical-v0.1/conflict-register.md
 M	packages/testing/src/token-fidelity.test.ts
 M	packages/tokens/src/tokens.json
 M	packages/ui/src/base.css
 M	scripts/validate_package.py
 $ git diff --name-status --diff-filter=R f443790..HEAD | wc -l
       34
-$ git diff --name-status f443790..HEAD -- 'docs/superpowers/'
+$ git diff --name-status f443790..HEAD -- 'docs/superpowers/' ':!docs/superpowers/plans/evidence/'
 A	docs/superpowers/plans/2026-08-03-docs-slice2-archive.md
 A	docs/superpowers/specs/2026-08-03-docs-slice2-archive-design.md
 ```
 
-**Thirty-four renames and eight modified files.** The listing is split deliberately, as
-slice 1's was: the first command's eight paths are everything this slice changed
-outside its own paperwork and its output does not move when this record is revised;
-the second command's output *gains this record* the moment it is committed, which is
-exactly why it is quarantined into its own command.
+**Thirty-four renames and nine modified files**, plus the design and the plan. The
+listing is split into three commands deliberately, and **the third one excludes its own
+directory**, which the first issue of this record failed to do:
 
-Of the eight modified files, **seven are one-line pointer repointings and one is the
-index**. Not one is a change of behaviour:
+```
+$ git diff --name-status f443790..HEAD -- 'docs/superpowers/'
+A	docs/superpowers/plans/2026-08-03-docs-slice2-archive.md
+A	docs/superpowers/plans/evidence/2026-08-03-docs-slice2-gate.md
+A	docs/superpowers/specs/2026-08-03-docs-slice2-archive-design.md
+```
+
+**Three, not two — the unfiltered form counts the record you are reading.** The first
+issue of this record pasted the two-line output, predicted in prose that the listing
+would gain the record, and then *misattributed the prediction to the wrong command* —
+it said "the second command", when the second is the rename count and the third is the
+one that moves. **A correct prediction, filed against the wrong line, is not a
+defence.** The fix is not a better caveat but a command whose output does not move:
+`':!docs/superpowers/plans/evidence/'` excludes this record and every future revision
+of it, so the block above stays true no matter how often this file is rewritten.
+
+This is the fourth distinct way a record in this family has gone stale against its own
+branch, after slice 1's three. All four share one shape: **a number or listing derived
+from a set that the act of writing it enlarges.** The defence that works is not
+prediction — slice 1 proved prediction fails, twice — it is scoping the command so the
+record is not in its own result set.
+
+Of the nine modified files, **eight are pointer repointings and one is the index**.
+Not one is a change of behaviour:
 
 - `scripts/validate_package.py` — five comments in `DOC_ONLY_TEST_REFS` plus the prose
   sentence above the block. The set's contents, the `require` below it, and every
@@ -893,13 +1099,18 @@ index**. Not one is a change of behaviour:
   `use`, no key.
 - `packages/testing/src/token-fidelity.test.ts` — the read path and its comment. The
   regex, both assertions and the literal `12` are byte-identical across the slice.
+- `migration/goproceed-canonical-v0.1/conflict-register.md` — one citation, conflict
+  C-006's Evidence cell. The only live pointer the `migration/`-excluded sweeps missed,
+  repointed in this record's own commit. No conflict row, status or resolution changed.
 - `TODOS.md` — two entries repointed, and one false authority claim corrected: the
   entry said `docs/04-screen-specification.md` "is normative by `docs/README.md`'s
   precedence", which this very commit makes false. Rewritten to keep the entry's point
   — the deep-link contract still needs deliberate handling in the rename slice —
   while replacing the authority claim with the true one.
-- `docs/legacy/README.md` — the 34-row index, and the "six-table foundation" claim
-  corrected to "33 tables across 35 migrations", re-measured here rather than trusted:
+- `docs/legacy/README.md` — the 34-row index, its framing prose (corrected in this
+  record's commit; see "The index's framing was false for nine of its own rows"), and
+  the "six-table foundation" claim corrected to "33 tables across 35 migrations",
+  re-measured here rather than trusted:
 
 ```
 $ grep -rhoiE "^[[:space:]]*create table (if not exists )?[a-z0-9_.]+" supabase/migrations/*.sql | wc -l

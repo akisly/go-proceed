@@ -68,19 +68,45 @@ copy the old assumption forward.
 
 ## What is here, and what replaced it
 
-Every numbered document in this directory was superseded by an approved disposition
-recorded in
+Every numbered document in this directory carries an approved disposition recorded in
 [`document-disposition.csv`](../../migration/goproceed-canonical-v0.1/document-disposition.csv).
 The two right-hand columns are quoted from that file verbatim rather than summarised,
 so this table and the disposition record cannot drift into disagreeing.
 
-"Information rejected" is the column worth reading. A document is not here because it
-was wrong about everything — it is here because a successor absorbed what survived
-review, and the rest was rejected for a stated reason.
+"Information rejected" is the column worth reading, and the table holds two different
+kinds of row. Read the right-hand columns to tell them apart.
+
+**Twenty-five rows record a verdict.** A document is not here because it was wrong
+about everything — it is here because a named successor absorbed what survived review,
+and the rest was rejected for a stated reason. Both right-hand columns say something.
+
+**Nine rows record a deferral, not a verdict.** Each carries disposition `defer`,
+reads `none` in *both* right-hand columns, and points its Successor column back at
+this policy — this page — because no successor document exists. Nothing was carried
+forward and nothing was rejected, because **the decision about what to keep has not
+been made yet.** These documents are non-normative by location, but their content is
+unreviewed rather than superseded, and in some cases it is the only surviving record
+of what it describes. Treat one of these rows as an open question addressed to
+whoever writes the successor, not as a settled judgement. They are:
+[`04-screen-specification.md`](./04-screen-specification.md),
+[`05-design-system.md`](./05-design-system.md),
+[`10-billing-pricing.md`](./10-billing-pricing.md),
+[`11-analytics-events.md`](./11-analytics-events.md),
+[`20-flow-catalog.md`](./20-flow-catalog.md),
+[`21-plans-entitlements-billing.md`](./21-plans-entitlements-billing.md),
+[`26-sre-operations.md`](./26-sre-operations.md),
+[`32-customer-country-adapters.md`](./32-customer-country-adapters.md) and
+[`33-support-admin-plane.md`](./33-support-admin-plane.md).
+
+Disposition alone does not identify them: a tenth row,
+[`24-legal-regulatory-gates.md`](./24-legal-regulatory-gates.md), also carries `defer`
+but names a real successor and real information that moved, so it belongs with the
+twenty-five. **The `none | none` pair is the marker, not the word `defer`.**
 
 The six documents archived on 2026-07-30 carry disposition `archive`: nothing was
-carried forward from them, and they have no successor beyond this policy. They are
-not listed below.
+carried forward from them, and they have no successor beyond this policy. That reads
+like the nine above and is not the same thing — an `archive` document was reviewed and
+nothing in it was worth keeping, which *is* a verdict. They are not listed below.
 
 | Archived document | Disposition | Successor | Information moved | Information rejected |
 |---|---|---|---|---|
