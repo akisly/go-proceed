@@ -267,7 +267,11 @@ Expected: `PASS`; `canonical documentation: OK`; and a diff showing exactly one
 changed field — `documents` falling from 35 to **2**. Any other metric that moved
 means something was disturbed — stop and report.
 
-Then prove history followed, on three files chosen to span the alphabet:
+Then prove history followed, on three files chosen to span the alphabet. **Run this
+after Step 8's commit, not here.** `git log --follow` traces rename history only
+through committed history: against a staged-but-uncommitted rename it returns nothing
+at all, whether or not the rename is correct. Post-commit is not a weaker place to run
+it — it is the only place the check means anything.
 
 ```bash
 for f in 00-product-brief 20-flow-catalog 40-phase1-discovery-outreach; do
