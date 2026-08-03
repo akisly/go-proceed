@@ -859,7 +859,7 @@ while this record sat unrevised — which is itself the point.
 
 ```
 $ grep -n "35 numbered documents\|listing 35 \`(index, name)\` pairs\|35-pair" docs/superpowers/plans/2026-08-03-docs-slice1-gate.md
-(no output — nothing remains)
+552:because 35 numbered documents still exist; it is now counted rather than
 ```
 
 The sequence: `ae2e917` corrected four sites and its message implied completeness.
@@ -930,18 +930,26 @@ $ git status --porcelain
 ?? .agents/
 ?? .gstack/
 ?? skills-lock.json
-$ git diff --name-status e00372c..HEAD
+$ git diff --name-status e00372c..HEAD -- ':!docs/superpowers/'
 M	.github/workflows/ci.yml
 M	Makefile
 M	docs/22-data-api-contract.md
-A	docs/superpowers/plans/2026-08-03-docs-slice1-gate.md
-A	docs/superpowers/specs/2026-08-03-docs-slice1-gate-design.md
 M	scripts/validate_package.py
+$ git diff --name-status e00372c..HEAD -- 'docs/superpowers/'
+A	docs/superpowers/plans/2026-08-03-docs-slice1-gate.md
+A	docs/superpowers/plans/evidence/2026-08-03-docs-slice1-gate.md
+A	docs/superpowers/plans/evidence/2026-08-03-docs-slice1-invariant-debt.md
+A	docs/superpowers/specs/2026-08-03-docs-slice1-gate-design.md
 ```
 
-No `R` status anywhere: nothing was renamed or moved. The two new files are the plan
-and the design; this record and the invariant-debt record are the only other
-additions, and they are added by the commit that writes them.
+No `R` status anywhere: nothing was renamed or moved. The listing is split
+deliberately. The first command's four paths are everything this slice changed
+outside its own paperwork, and its output does not move when this record is
+revised — the earlier single-command form pasted a six-path output that became
+eight the moment both records existed, and then read as false. The second
+command's four additions are the design, the plan, and these two records: three
+of them add themselves to their own output, which is exactly why they are
+quarantined into a separate command.
 
 **`scripts/validate_package.py` was not renamed**, and neither was the
 `package-validate` CI job. Only the module docstring changed to describe what the
@@ -1045,14 +1053,14 @@ since `80ad0da`.
 
 ## Commits
 
-**As of the commit that writes this revision, twelve.** The number counts the commit
+**As of the commit that writes this revision, thirteen.** The number counts the commit
 that writes it, so it cannot be pasted from a pre-commit `git log … | wc -l` — that
-command returned **eleven** immediately before this revision landed. Whoever revises
+command returned **twelve** immediately before this revision landed. Whoever revises
 this next updates the table and this sentence together, or the two stop agreeing.
 
 ```
 $ git log --oneline e00372c..HEAD | wc -l
-      11        # before this revision's commit; twelve after
+      12        # before this revision's commit; thirteen after
 ```
 
 **This trap has now been sprung twice on this record and three times on slice 0's.**
@@ -1079,7 +1087,8 @@ issue of this record listed `46f7d94` before `ae2e917`, which is backwards.
 | 9 | `80ad0da` | **Task 5** — the invariant-debt record and this gate record, as first issued | 2 |
 | 10 | `77e30a6` | the plan's arithmetic, pass 2 of 3 — the two sites the first issue of this record found | 1 (+2/−2) |
 | 11 | `08a2710` | the plan's arithmetic, pass 3 of 3 — the two more the whole-branch review found | 1 (+2/−2) |
-| 12 | *(this commit)* | whole-branch review round 1: a hold surviving in the test suite, the `docs/30` assertion, the unguarded `113`/`44`, a miscount, four stale claims, and a rationale that measured out vacuous | 2 |
+| 12 | `cddd297` | whole-branch review round 1: a hold surviving in the test suite, the `docs/30` assertion, the unguarded `113`/`44`, a miscount, four stale claims, and a rationale that measured out vacuous | 2 |
+| 13 | *(this commit)* | whole-branch review round 2 — three residuals of the same class the round before it was fixing: a pasted grep shown as empty that matches one line, a file listing that counted the records writing it, and a successor claim true for one of a row's two source documents | 2 |
 
 **The gate precedes every removal, which is the whole safety argument.** `22a3223`
 installs the CI gate; `8e37caa`, `b28f044` and `e7634f3` each remove something, in
@@ -1093,7 +1102,7 @@ Every commit is independently green: each task ran both validators before commit
 and the one pairing that genuinely cannot be split — removing the `docs/22:130`
 assertion and correcting the sentence — is atomic inside `e7634f3`.
 
-**Five of the twelve commits — rows 6, 7, 9's successors and this one — are fixes to
+**Six of the thirteen commits — rows 6, 7, 10, 11, 12 and this one — are fixes to
 this slice's own output**, not to the codebase: `ae2e917`, `46f7d94`, `77e30a6`,
 `08a2710`, and this revision. Every one was prompted by somebody measuring a claim
 rather than reading it. **That ratio is the honest headline of this slice**: the
@@ -1126,9 +1135,10 @@ which four are this slice's own design, plan and two records, leaving
 `docs/22-data-api-contract.md` as **the only documentation content this slice
 changed, one line of it**. No TypeScript, no `package.json`, no lockfile.
 
-**This listing includes the two files being added by the commit that writes it**, and
-is therefore stated as the post-commit state, like the commit count above. Before
-this commit the same command returns six paths. The one number in this section that
+**The unscoped form of this listing counts the record you are reading**, which is
+why the block above splits it in two. The first command's four paths are stable
+across every revision of this record; only the second moves, and it moves by
+adding the record itself. The one number in this section that
 is *not* self-referential, and therefore the one worth trusting without a caveat, is
 the validator's net delta:
 

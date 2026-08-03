@@ -109,7 +109,13 @@ docs/28-pilot-ga-delivery.md,rewrite,docs/delivery/version-0.1.md
 docs/30-validation-evidence-register.md,rewrite,docs/discovery/validated-assumptions.md
 ```
 
-Rows 2, 4, 6, 7 and 9 route their invariant to the document's own approved target.
+Rows 2, 4, 6 and 9 route their invariant to the document's own approved target.
+Row 7 does so for only one of its two sources: `docs/12`'s approved target is
+`docs/product/roadmap.md`, which is where the row sends the invariant, but
+`docs/28`'s is `docs/delivery/version-0.1.md`. Both documents carry a half of the
+same solo-delivery range, and the row consolidates them into one successor rather
+than splitting an invariant across two — a deliberate choice, recorded here
+because the CSV block above would otherwise appear to contradict it.
 Rows 1, 3 and 8 deliberately do not: `docs/01`'s MFA and evidence-delete invariants
 belong with tenancy and with the evidence domain rather than with scope, and
 `docs/18`'s money markers belong in `docs/domain/domain-model.md` rather than in the
