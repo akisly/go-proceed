@@ -1,0 +1,26 @@
+/* Base styles — NOT tokens. These two rules used to be smuggled into the
+   hand-maintained packages/ui/src/tokens.css alongside its custom-property
+   declarations. That file is gone: tokens are now generated from
+   packages/tokens/src/tokens.json (see ./tokens.generated.css) and a
+   generator's job is a flat `:root { --token: value }` block, nothing more
+   — it has no way to know that a token should also be applied to `body` or
+   to headings. These rules are the part of the old file that was never a
+   token in the first place: they apply generated custom properties to
+   selectors. They stay hand-maintained here, by their documented names
+   (docs/05-design-system.md), separate from the generated values they
+   reference.
+
+   A consumer that wants both the custom properties and this base styling
+   must import both: "@aktflow/ui/tokens.css" for the tokens,
+   "@aktflow/ui/base.css" for this. */
+
+body {
+  font-family: "Inter Variable", Inter, sans-serif;
+  color: var(--ink-950);
+  background: var(--paper);
+  font-synthesis: none;
+}
+
+h1, h2, h3, .brand, strong {
+  font-family: "Manrope Variable", Manrope, sans-serif;
+}

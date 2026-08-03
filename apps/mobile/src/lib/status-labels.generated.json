@@ -1,0 +1,8 @@
+{
+  "status.client_state.not_sent": "Не надіслано",
+  "status.client_state.sending": "Надсилання",
+  "status.client_state.awaiting_receipt": "Очікування підтвердження",
+  "status.client_state.server_confirmed": "Підтверджено сервером",
+  "status.client_state.failed": "Потрібна дія",
+  "status.client_state.quarantined": "Доступ відкликано"
+}

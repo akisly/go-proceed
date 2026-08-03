@@ -32,7 +32,13 @@
         "$TURBO_DEFAULT$",
         "../../supabase/migrations/**",
         "../../supabase/seed.sql",
-        "../../supabase/config.toml"
+        "../../supabase/config.toml",
+        "../../technical/copy-catalog.csv",
+        "../../packages/tokens/src/tokens.json",
+        "../../packages/tokens/scripts/**",
+        "../../packages/ui/src/tokens.generated.css",
+        "../../packages/tokens/src/tokens.generated.ts",
+        "../../apps/mobile/src/lib/status-labels.generated.json"
       ]
     },
     "dev": {

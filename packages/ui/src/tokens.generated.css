@@ -1,0 +1,18 @@
+/* GENERATED — do not edit. Source: packages/tokens/src/tokens.json
+   Regenerate: node packages/tokens/scripts/generate-css.mjs
+   packages/testing/src/token-fidelity.test.ts fails if this drifts. */
+:root {
+  --ink-950: #171717;
+  --ink-800: #242424;
+  --paper: #FBFBFB;
+  --white: #FFFFFF;
+  --signal-500: #C6FF34;
+  --slate-600: #484C5E;
+  --signal-700: #667F12;
+  --amber-500: #F2B84B;
+  --red-500: #E45C55;
+  --muted: #666979;
+  --line: #D9DBD5;
+  --blue-500: #3756a1;
+  --shadow: 0px 8px 30px 0px rgba(21, 23, 25, 0.07);
+}

@@ -11,7 +11,7 @@ export default function Home() {
         minHeight: "100vh",
         padding: 48,
         background: "var(--paper)",
-        color: "var(--ink)",
+        color: "var(--ink-950)",
       }}
     >
       <span

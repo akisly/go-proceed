@@ -264,3 +264,90 @@ run the same tool, so "works on my machine" stops being a category of answer.
 the Supabase platform it talks to. That is a maintenance cost, not a hidden one.
 **Not done here** because it changes CI policy for the whole repo, and `main`
 has been passing with `latest` since long before this branch.
+
+## P3 — doc 07's Expo SDK baseline is behind what v0.1-M2-B0 initialises
+
+**What:** `docs/07-technical-architecture.md:8` names "Expo SDK 56" and `:20`
+fixes it as the version baseline with the rule "Pin exact patch versions and
+image digests". `apps/mobile` was initialised with `create-expo-app` on the
+owner's instruction and resolves to Expo SDK 57.0.9.
+
+**Why it is recorded rather than fixed:** the document carries no Historical
+marker and is not under `docs/legacy`, so by `docs/README.md:25-41` it is target
+version design — precedence rank 2, normative for architecture. Editing a
+normative architecture document is not a foundations slice's call. The owner's
+instruction governs what was built; the document should catch up deliberately.
+
+**Pros of fixing:** the architecture document stops naming a version nothing
+uses, and the next reader does not have to discover the divergence the way this
+one did.
+**Cons:** it is a normative-document edit and should be made by whoever owns the
+architecture baseline, alongside a check of the Node and Next.js pins in the
+same paragraph, which may have drifted for the same reason nobody noticed.
+
+## P2 — the pilot-device inventory does not exist
+
+**What:** `docs/product/roadmap.md`, `docs/product/scope-and-boundaries.md`
+and `ADR-004` all require an actual pilot-device inventory — one supported
+iPhone and one lower-resource supported Android device, physical, confirming
+the iOS 16.4+ / Android 10+ support floor — as *entry* evidence for v0.1-M2,
+required before capture UX is frozen. No such inventory exists.
+`docs/superpowers/plans/evidence/2026-08-01-b0-procurement.md` records the
+two devices as unprocured; this entry is the standing tracker for that gap.
+
+**Why:** the requirement sits in front of capture UX, which is B1's work, but
+the roadmap only asks that the inventory confirm the support floor before
+that UX is frozen, not before B1 starts. Nothing in B1 or B2 reads a device
+inventory or blocks on one. The document that does depend on it is B3's —
+the acceptance matrix and device-install step need the physical devices
+themselves, and the inventory is how their model numbers and OS versions get
+into that matrix in the first place. So this is a prerequisite for B3, not
+for B1 or B2, and should not be read as blocking either of them.
+
+**Pros of fixing:** closes an entry-evidence gap the roadmap has carried
+open since before B0, and gives B3's acceptance matrix real device rows
+instead of placeholders.
+**Cons:** none technical — it is a purchasing/logistics task, not code.
+**Depends on:** the same two devices named in the B0 procurement record.
+Buying them is independent of the account procurement, but the iPhone's UDID
+still has to be registered under the Apple Developer Program membership
+before an internal-distribution build will install on it, so the inventory
+is complete in practice only after that account exists.
+
+## P1 — the product is renamed to GoProceed, and the aktflow identifiers have not followed
+
+**What:** the owner stated on 2026-08-03 that the product is GoProceed and that
+the `aktflow` identifiers are being replaced. `apps/mobile`'s deep-link scheme
+was corrected immediately because it had just landed. Everything else still says
+`aktflow`, measured on this branch:
+
+- **10** `package.json` files declaring `@aktflow/*` names, and **55** source
+  files importing them.
+- **46** files referencing the PostgreSQL roles `aktflow_app`,
+  `aktflow_app_login`, `aktflow_service`, `aktflow_service_login` and
+  `aktflow_worker` — migrations, RLS policies, grants, the local-credentials
+  script, CI env, and `.env.example`.
+- **58** documents and catalogs under `docs/` and `technical/`.
+- Four domains: `aktflow.app`, `aktflow.com`, `aktflow.example`, `aktflow.pilot`.
+
+**Why it is not swept here:** the database roles are the hard part and they are
+already merged. `ALTER ROLE ... RENAME TO` is not a text substitution — a role
+rename clears an md5-hashed password, every connection string and CI secret has
+to move in the same window, and the rename must land in a migration that runs
+against an environment whose app is already connecting under the old name. That
+is a deployment-ordering problem, not a find-and-replace, and it belongs in a
+slice with its own plan and its own rollback story.
+
+`docs/04-screen-specification.md` also still specifies `aktflow://` and
+`aktflow.app` universal links with four route patterns, and it is normative by
+`docs/README.md`'s precedence, so it has to be updated deliberately rather than
+contradicted silently by code.
+
+**Pros of fixing:** one name. Today a reader cannot tell whether `aktflow` is the
+old product name, a namespace that outlived it, or a separate system.
+**Cons:** the role rename touches a deployed database and cannot be done as part
+of unrelated work. The package-name and documentation halves are safe and could
+go first; the role half needs a maintenance window.
+**Suggested split:** (1) packages, imports and docs — mechanical, reviewable;
+(2) domains and the screen specification's link contract; (3) database roles,
+with its own plan.
