@@ -110,9 +110,9 @@ Outbox is observable: age, attempts, last code and dead-letter state. Background
 
 1. Client strips unsupported metadata according to policy but retains required provenance separately.
 2. Server issues short-lived scoped multipart upload.
-3. Object lands in quarantine bucket/prefix.
-4. Worker scans file type/malware, calculates SHA-256, extracts dimensions/pages, creates derivatives.
-5. Clean original moves/marks available; failed object is quarantined and user sees remediation.
+3. Object lands on a private, intent-bound staging key.
+4. Finalization verifies the received size and SHA-256 against the authorized values and inspects the content — in v0.1 synchronously inside the finalization command (`apps/app/app/v1/upload-intents/[intentId]/finalize/route.ts`), not as a separate worker. That inspection is a magic-byte check of the declared media type (`apps/app/src/lib/evidence-inspection.ts`, policy `m2a-magic-bytes-1`, whose own comment records that "v0.1 ships no anti-malware engine"). Malware scanning, dimension/page extraction and derivative generation are a later target, not current behaviour.
+5. The same transaction marks the intent `available` and creates the evidence receipt, or marks it `scan_blocked` and creates none; a blocked object is retained for a bounded diagnosis window and the user sees remediation.
 6. DB references storage key/hash; URL is generated short-lived on access.
 
 Upload limits and formats are rule/plan controlled. Large video is post-MVP unless a paid pilot proves need.

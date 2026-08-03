@@ -279,10 +279,12 @@ files is one correction applied four times — the order the slice worked in. Th
 command IDs resolve in "The measuring commands" below; each was re-run at this
 commit.
 
-Rows 1-16 are Tasks 1-4's work. **Row 17 was found by this gate pass**, after the
-four tasks had closed, by re-running Task 1's subject across the whole corpus
-rather than across Task 1's file list — see "One correction that no task's grep
-could have found".
+Rows 1-16 are Tasks 1-4's work. **Rows 17-21 were found after the four tasks had
+closed** — row 17 by this gate pass, rows 18-21 by the whole-branch review — all
+five by asking the same question of the whole corpus instead of one task's file
+list. See "One correction that no task's grep could have found"; five of the
+twenty-one corrections in this table were found that way, which is the strongest
+argument the record makes for its own method.
 
 **"It said" is the text each correction replaced, which is not always the text at
 `70c8107`.** Rows 5 and 16 correct claims this slice introduced itself and then
@@ -309,6 +311,10 @@ base's own text.
 | 15 | `docs/04-screen-specification.md:275`, `:276`, `:323` | scheme `aktflow://`, universal links covered by AASA and `assetlinks.json`, four target routes, and a tap that opens them | the `goproceed` scheme and Expo Router exist; the universal links, both coverage files and all four routes do not — the whole mobile route table is `_layout.tsx` and `index.tsx`; the rest is named as a v0.1 target | **M12** |
 | 16 | `docs/04-screen-specification.md:421` | deep links are "live for the web `/app/...` routes today" — *mid-slice text, introduced by this slice at `c0da6b9`; at `70c8107` the line read only "actionable notifications with deep links;"* | "a v0.1 target on both surfaces: the web workspace ships only `/login` and `/context` today, and the mobile deep-link routes in §6 do not exist yet" | **M13** |
 | 17 | `docs/23-offline-media-protocol.md:36` | finalization "creates one verification **job**/receipt and then **waits for** detected MIME/scan" | "creates one evidence-object receipt in that same transaction, and waits for nothing further: in v0.1 content inspection runs synchronously inside the finalization command (…`finalize/route.ts`), not as a separate job, so inspection has already succeeded by the time the receipt exists and a blocked upload never produces one" | **M14** |
+| 18 | `architecture/system-overview.md:220`, in the `### Online mobile evidence` diagram | "→ BFF/**worker** verifies bytes, hash, authorization, and inspection state" | "→ **finalization command** verifies …", with a following paragraph stating that in v0.1 this step is not a worker and citing `finalize/route.ts` | **M14** |
+| 19 | `docs/07-technical-architecture.md:113-115`, §6 Media pipeline | the superseded async model in full: object "lands in quarantine bucket/prefix", a "**Worker** scans file type/malware, calculates SHA-256, extracts dimensions/pages, creates derivatives", then "clean original moves/marks available" | the object lands on a private intent-bound staging key; finalization verifies size and SHA-256 and inspects synchronously — a magic-byte check, policy `m2a-magic-bytes-1`, whose own source says v0.1 ships no anti-malware engine; malware scanning, dimension/page extraction and derivatives are named as a later target; the same transaction writes `available` or `scan_blocked` | **M14**, **M15** |
+| 20 | `docs/22-data-api-contract.md:103` | "completion can only **seal** the persisted tuple and **enqueue one verification job**" | "completion can only finalize the persisted tuple — in v0.1 it verifies and inspects synchronously inside the finalization command and enqueues no verification job" | **M14** |
+| 21 | `docs/22-data-api-contract.md:144` | "A successful **verification job** materializes the purpose-specific row" | "A successful **finalization** materializes the purpose-specific row … in v0.1 inside the finalization command itself, not a separate verification job" | **M14** |
 
 ### The measuring commands
 
@@ -445,15 +451,22 @@ Four survivors, each scoped: two name the origin slice explicitly, one carries
 the gate's own qualifier, and the ADR records decision context and is out of
 scope by instruction.
 
-**M7 — `sealed` is gone from the live documentation.**
+**M7 — the state name `sealed` is gone from the live documentation. The verb
+`seal` is not, and one use of it is deliberately kept.**
+
+The command is widened to the whole word family, because the original grep keyed
+on `sealed` alone and so could not see `seal` at `docs/22:103` or
+`docs/09:139` — a heading that claimed more than its command measured:
 
 ```
-$ grep -rn "sealed" docs/ --include="*.md" | grep -v "docs/legacy/\|docs/superpowers/"
+$ grep -rniE "\bseal(s|ed|ing)?\b" docs/ --include="*.md" | grep -v "docs/legacy/\|docs/superpowers/"
 docs/23-offline-media-protocol.md:36:6. complete upload; … transitions `intent_authorized → available` (there is no `sealed` state: …)
+docs/09-security-compliance.md:139:- A signed offline lease proves bounded authority … Only server receipt/seal establishes trusted chronology.
 ```
 
-One survivor, and it is the note that describes `sealed` as a value that was never
-permitted. Its source, and the source of `authorized` and `cancelled`:
+Two survivors. The first is the note that describes `sealed` as a value that was
+never permitted. The second is a general security principle about who establishes
+time, kept on purpose — see "What this slice did not close". Its source, and the source of `authorized` and `cancelled`:
 
 ```
 $ grep -n "check (state in ('authorized'" technical/schema.sql
@@ -468,11 +481,24 @@ eight-value vocabulary in the migration chain. They share no member.
 
 **M8 — the four real values are genuinely terminal.** Every command that writes
 `public.upload_intents.status` gates on `status = 'intent_authorized'`:
-`app.finalize_upload_intent` (`0035:237-247`), `app.block_upload_intent`
-(`0031:132-140`), `app.orphan_upload_intent` (`0031:168-174`), and
-`expire_upload_intents` (`0021:37-48`, which sweeps only the initial state and the
-three never-written intermediates). No command can write to a row that has already
-left `intent_authorized`.
+`app.finalize_upload_intent` (`0035:54-63` — an `already` short-circuit for
+`available` at `:54`, then the `i.status <> 'intent_authorized'` conflict guard at
+`:59`), `app.block_upload_intent` (`0031:132-140`),
+`app.orphan_upload_intent` (`0031:168-174`), and `expire_upload_intents`
+(`0021:37-48`, which sweeps only the initial state and the three never-written
+intermediates). No command can write to a row that has already left
+`intent_authorized`.
+
+All four were re-run line by line in review round 3. The first cited
+`0035:237-247` until then — a range that cannot exist, since
+`0035_server_facts_are_service_only.sql` is 170 lines. It was a transposition:
+`0031` carries its own copy of the same guard at `:242`, and M8's two middle
+citations are into `0031`, so that file's line numbering was carried onto `0035`'s
+name. The claim was true and is unchanged; only the pointer was wrong. **In the
+one section of this record whose entire contract is that its pointers resolve,
+that is the worst available kind of error**, and it survived two prior review
+rounds because a plausible-looking line range invites no more checking than the
+word "zero" did.
 
 **M9 — `apps/mobile` exists.**
 
@@ -560,6 +586,22 @@ $ grep -n "insert into public.evidence_objects\|set status = 'available', finali
 115:     set status = 'available', finalized_evidence_object_id = v_evidence,
 ```
 
+**The same grep, over `docs/` — which is where the claim actually lived.** As
+first written this command searched only the code, which proved the job does not
+exist but could not find the four documents still asserting that it does. Widened:
+
+```
+$ grep -rn "verification job\|verification_job" docs/ --include="*.md" | grep -v "docs/legacy/\|docs/superpowers/"
+docs/22-data-api-contract.md:103:… enqueues no verification job;
+docs/22-data-api-contract.md:144:… not a separate verification job;
+```
+
+Two survivors, both of them corrected sentences that name the job in order to deny
+it — the same shape as M7's expected survivor. Before round 3 this returned the
+uncorrected `docs/22:103` and `:144`; `worker` phrasing at
+`architecture/system-overview.md:220` and `docs/07:113-115` carried the same model
+without using the word, and was found by reading the diagram, not by this grep.
+
 `app.finalize_upload_intent` inserts the evidence row and writes the terminal
 `available` in one function body — one transaction, no queue. Inspection runs
 *before* either, at `finalize/route.ts:217` (`await inspectContent(…)`, see
@@ -574,6 +616,20 @@ row — a receipt, with a storage key", and
 upload never produces a receipt — so the capturing device still holds the
 original". The rewrite keeps the word and names what it is, rather than dropping
 a real concept along with the two false ones beside it.
+
+**M15 — what v0.1's inspection actually is, which is what `docs/07` now says.**
+
+```
+$ grep -n "^export const INSPECTION_POLICY_VERSION\|no anti-malware" apps/app/src/lib/evidence-inspection.ts
+11:export const INSPECTION_POLICY_VERSION = "m2a-magic-bytes-1";
+38: * v0.1 ships no anti-malware engine, and this does not pretend otherwise.
+```
+
+A synchronous magic-byte sniff, named by its own policy version, with the source
+saying in its own comment that it is not a malware scanner. Nothing in `apps/` or
+`packages/` extracts dimensions or pages or builds derivatives. That is why row 19
+names those three as a later target rather than deleting them: they are real
+intent, just not current behaviour.
 
 ## The settled counts, and the rule each one answers
 
@@ -801,6 +857,22 @@ of Task 1's *file list*, while writing this record. The cheap generalisation for
 next time: when a task corrects a claim, grep the claim across the entire live
 corpus, not across the files that task was assigned.
 
+**Then that generalisation caught four more — including one six lines from an edit
+Task 1 made.** The whole-branch review found the same async model still asserted at
+`architecture/system-overview.md:220` (rows 18), `docs/07:113-115` (19) and
+`docs/22:103,:144` (20, 21). The first sits inside the diagram directly above the
+paragraph Task 1 rewrote: Task 1 corrected the prose beneath a diagram and left the
+diagram itself standing, so one file answered "does a worker verify the bytes?"
+both ways at once.
+
+**And the lesson had to be applied twice, because the first application was too
+narrow.** M14's grep ran `verification job` over `apps/ packages/ supabase/` — the
+code, proving the job does not exist — but not over `docs/`, which is where the
+false claim lived. Grepping the corpus is not enough if you grep it for the wrong
+half of the sentence. Two of the four sites did not contain the phrase at all;
+they said "worker", and were found only by reading a diagram. **A word-level grep
+finds a word; only reading finds a model.**
+
 ## What this slice did not close
 
 **The OpenAPI allowlist correction is deferred to slice 1.** The owner ruled that
@@ -889,6 +961,36 @@ tidy layer that still lied**, with every supersession banner pointing a reader a
 a document saying the mobile app does not exist. Correction came first. The moves
 are slice 1's.
 
+**`docs/09-security-compliance.md:139` keeps the word "seal", deliberately.** The
+sentence is "A signed offline lease proves bounded authority, not the time unseen
+bytes were created. Only server receipt/seal establishes trusted chronology." It
+was reviewed as a possible survivor of the dead vocabulary and **left standing**.
+
+Three reasons, in order of weight. **Its predicate is about time, not state.** The
+claim is *who establishes trusted chronology* — the client's signed lease cannot,
+the server's own act of recording can. That is a general security principle about
+time authority, and it stays true whatever the upload state machine is called.
+Compare the sentence Task 3 *did* correct, `docs/20-flow-catalog.md:60`: "only an
+object durably received and server-sealed before invalidation may finish the
+normal scan/review path". That predicate — eligibility to continue down a path —
+is a state-machine consequence, so the state name mattered there and was
+corrected. Here nothing turns on which value the row holds.
+
+**Its section is scoped to a different version.** The bullet sits under
+`## 12. v2.9 temporal and offboarding controls`, so it is not a claim about v0.1's
+shipped machine at all.
+
+**And "seal" is ordinary security English.** As a verb it means to make final and
+tamper-evident; it is not a reference to `upload_intents.state = 'sealed'`, which
+was a value in the superseded `technical/schema.sql`. "Receipt", its partner in
+that phrase, is a real and current concept (see **M14**).
+
+The counter-argument is recorded rather than dismissed: the word is a residue of
+the dead vocabulary, it sits beside a word this slice spent effort establishing as
+real, and a reader arriving from `docs/23:36`'s note could reasonably pause on it.
+If a later slice rules that the whole word family should go, this is the site to
+change, and **M7**'s widened grep is the command that finds it.
+
 **Two gates are unproven and stay unproven.** `pnpm typecheck` and
 `pnpm turbo run test --concurrency=1 --force` both stop on a declared dependency
 missing from a `node_modules` built by an older pnpm, which pnpm will only
@@ -901,9 +1003,9 @@ prove it. This record does not predict their result.
 ## Commits
 
 `git log --oneline 70c8107..HEAD | wc -l` and the row count of the table below are
-the same number by construction. **As of this commit, 12.** Two set the slice up;
+the same number by construction. **As of this commit, 13.** Two set the slice up;
 **seven** are the corrections — four task commits plus three review fixes, one for
-each of Tasks 2, 3 and 4; and three are this record. 2 + 7 + 3 = 12.
+each of Tasks 2, 3 and 4; and four are this record. 2 + 7 + 4 = 13.
 
 Note the shape of that total: **it includes this record's own commits, so it grows
 every time the record is revised** — the same self-referential trap that made the
@@ -923,7 +1025,8 @@ sentence together, or the two stop agreeing:
 | `92bb446` | Task 4 fix round 1 — the web workspace has no `/app/...` UI routes either |
 | `0231e8c` | this record, as first issued |
 | `c64c8c5` | correction 17 (`docs/23:36`), its table row and its lesson; the two unproven gates reworded from FAILED to NOT PROVEN once the attempted install turned out to have installed nothing |
-| *(this commit)* | review round 2 on the record itself — see below |
+| `802d029` | review round 2, on the record itself — four of its own claims did not reproduce |
+| *(this commit)* | review round 3 — corrections 18-21, the last four sites carrying the superseded async model, plus M8's broken pointer and M7's overclaiming heading |
 
 Task 1 was approved without a fix round. Its reviewer independently re-derived the
 four transitions from migrations `0031`/`0035`/`0021` rather than accepting the
@@ -959,3 +1062,30 @@ Rows 5 and 16 were also flagged: their "It said" text is mid-slice, so
 A record whose commands do not reproduce fails at the one job it has, so these are
 listed rather than quietly amended — and the first of them is the third instance
 of this slice's own thesis, recorded as such beside **M2**.
+
+### Review round 3, on the whole branch
+
+Zero Critical, two Important. The review re-ran twelve measuring commands and
+every self-referential claim in the record, and those reproduced. What it found:
+
+- **Four more documents still carried the superseded async upload model** —
+  corrections 18-21. One of them, `architecture/system-overview.md:220`, is inside
+  the diagram immediately above a paragraph Task 1 rewrote. Recorded above under
+  "One correction that no task's grep could have found", which is where the reason
+  they survived belongs.
+- **M8 cited `app.finalize_upload_intent` at `0035:237-247`, in a 170-line file.**
+  A transposition from `0031`, which carries the same guard at `:242`. Fixed to
+  `0035:54-63`; all four of M8's citations were then re-run line by line. In the
+  one section whose contract is that pointers resolve, a plausible-looking range
+  invites no checking — the same failure mode as "zero".
+- **M7's heading claimed more than its command measured.** "`sealed` is gone from
+  the live documentation" was true of the noun and false of the verb. Heading and
+  command both narrowed to what is actually true and actually measured.
+- **M14's grep searched the code but not `docs/`** — proving the job does not
+  exist while missing the documents asserting it does. Widened.
+- **M15 was written with a command that did not reproduce**, caught before commit:
+  the pasted output showed two lines where the command printed five. Anchored to
+  `^export const` so it prints what is shown.
+
+`docs/09-security-compliance.md:139` was ruled a keep, with reasons, under "What
+this slice did not close".

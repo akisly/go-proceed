@@ -217,11 +217,17 @@ commits. Later worker execution is causally linked to that transaction.
 mobile with current authorization
 → BFF creates bounded upload intent
 → short-lived upload to private staging key
-→ BFF/worker verifies bytes, hash, authorization, and inspection state
+→ finalization command verifies bytes, hash, authorization, and inspection state
 → transaction creates evidence identity + available receipt
 → mobile persists receipt
 → local original becomes cleanup-eligible
 ```
+
+In v0.1 that step is not a worker. Content inspection runs synchronously inside
+the finalization command
+(`apps/app/app/v1/upload-intents/[intentId]/finalize/route.ts`), not as a
+separate job over intent-bound staged content, and the same transaction that
+records the terminal state creates the evidence receipt.
 
 If authorization fails after bytes arrive, they never become evidence: the
 intent moves directly from `intent_authorized` to `orphaned_for_purge`. The
