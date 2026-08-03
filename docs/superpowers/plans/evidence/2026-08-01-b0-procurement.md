@@ -5,14 +5,38 @@
 **Plan:** [2026-08-01-goproceed-v0.1-m2-b0-foundations.md](../2026-08-01-goproceed-v0.1-m2-b0-foundations.md)
 **Spec:** [2026-08-01-goproceed-v0.1-m2-b0-foundations-design.md](../../specs/2026-08-01-goproceed-v0.1-m2-b0-foundations-design.md)
 
-## What this record is
+## The device-install step is NOT DONE
 
-`apps/mobile/eas.json` now carries the build profiles B0's exit gate needs.
-This record is the other half of that same step: what those profiles cannot
-do anything with yet, because the accounts and the devices they would build
-for and install onto do not exist. It is written down rather than left
-implicit, the same way the M2-A gate record wrote down the evidence purge
-worker that migration `0021` scheduled the marking for but nothing runs.
+`apps/mobile/eas.json` now carries the build profiles B0's exit gate needs,
+but nothing has been built or installed on a device, and nothing in this
+slice or the next can substitute for the procurement itself. It is blocked
+on the three accounts and the two devices below, in that order: the
+accounts have the longer lead time, and the devices cannot be meaningfully
+used for signed internal-distribution builds without them. This is written
+down rather than left implicit, the same way the M2-A gate record wrote
+down the evidence purge worker that migration `0021` scheduled the marking
+for but nothing runs.
+
+No EAS command has ever successfully resolved `apps/mobile/eas.json`. A
+first run, while this file still pinned a guessed `cli.version` floor of
+`>= 16.0.0`, exited 1 before contacting Expo at all — the only CLI available
+in this environment, `eas-cli@7.3.0` (global), is older than that guessed
+floor (see "Why `eas.json` no longer pins a CLI version" below). With that
+floor removed, a second run of
+`pnpm --filter @aktflow/mobile exec eas config --platform android --profile preview`
+got further: it printed "EAS project not configured" and tried to prompt
+"Would you like to automatically create an EAS project for
+@akisliy/mobile?" — then exited 1 on its own because stdin was not
+readable, without an answer being given and without creating anything. That
+prompt is exactly the boundary this task is not allowed to cross: answering
+it would create a project on Expo's servers, which requires the Expo
+account this record says does not exist. So the file has been checked by
+reading it against the documented EAS Build config schema — every key is a
+recognized, correctly-shaped member of that schema, and the JSON is
+syntactically valid — which is verification by inspection, not by a
+completed execution. The first person with an Expo account should run the
+same command and answer that prompt (or run `eas init` deliberately) before
+relying on these profiles for an actual build.
 
 ## Three accounts, not two
 
@@ -74,12 +98,18 @@ M2 — required before capture UX is frozen, not something the milestone
 produces along the way — and that inventory does not exist either, so this
 gap predates B0 and was already open when this slice started.
 
-## What is blocked
+## Why `eas.json` no longer pins a CLI version
 
-The device-install step of B0's exit gate is NOT DONE. It is blocked on the
-three accounts and the two devices, in that order: the accounts have the
-longer lead time and the devices cannot be meaningfully used for signed
-internal-distribution builds without them. No amount of code closes this —
-`eas.json` is correct and `eas config` can resolve it today, but resolving a
-config is not installing a build on a phone, and nothing in this slice or the
-next can substitute for the procurement itself.
+The first draft of `apps/mobile/eas.json` set `cli.version` to `>= 16.0.0`.
+That number was not derived from anything — not from Expo SDK 57, not from a
+build that had actually succeeded, not from any compatibility note in this
+repository. It was a guess, and the only thing it did was stop
+`eas config` from running at all: the one CLI reachable in this environment
+(`eas-cli@7.3.0`) is older than the guessed floor, so the command refused to
+even attempt resolving the profiles, and the next person to run it with
+whatever CLI they happen to have would hit the same wall for the same
+unearned reason. The `cli` block has been removed from `eas.json` entirely
+rather than replaced with a different guess. A minimum CLI version belongs
+in this file once a build has actually succeeded against SDK 57 and the
+floor reflects that evidence; until then, a guessed floor only blocks the
+checks that would produce it.
