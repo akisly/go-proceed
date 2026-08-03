@@ -40,6 +40,12 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Documentation gate. Runs before the Supabase steps, which are allowed
+      # fifteen minutes, so a documentation failure reports in about a minute
+      # rather than after a full local-stack boot. Needs no database and no
+      # build — it reads the tree.
+      - run: pnpm validate:canonical-docs
+
       - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1 branch head 2026-07-30
         with: { version: latest }
 
