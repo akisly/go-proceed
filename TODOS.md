@@ -313,3 +313,41 @@ Buying them is independent of the account procurement, but the iPhone's UDID
 still has to be registered under the Apple Developer Program membership
 before an internal-distribution build will install on it, so the inventory
 is complete in practice only after that account exists.
+
+## P1 — the product is renamed to GoProceed, and the aktflow identifiers have not followed
+
+**What:** the owner stated on 2026-08-03 that the product is GoProceed and that
+the `aktflow` identifiers are being replaced. `apps/mobile`'s deep-link scheme
+was corrected immediately because it had just landed. Everything else still says
+`aktflow`, measured on this branch:
+
+- **10** `package.json` files declaring `@aktflow/*` names, and **55** source
+  files importing them.
+- **46** files referencing the PostgreSQL roles `aktflow_app`,
+  `aktflow_app_login`, `aktflow_service`, `aktflow_service_login` and
+  `aktflow_worker` — migrations, RLS policies, grants, the local-credentials
+  script, CI env, and `.env.example`.
+- **58** documents and catalogs under `docs/` and `technical/`.
+- Four domains: `aktflow.app`, `aktflow.com`, `aktflow.example`, `aktflow.pilot`.
+
+**Why it is not swept here:** the database roles are the hard part and they are
+already merged. `ALTER ROLE ... RENAME TO` is not a text substitution — a role
+rename clears an md5-hashed password, every connection string and CI secret has
+to move in the same window, and the rename must land in a migration that runs
+against an environment whose app is already connecting under the old name. That
+is a deployment-ordering problem, not a find-and-replace, and it belongs in a
+slice with its own plan and its own rollback story.
+
+`docs/04-screen-specification.md` also still specifies `aktflow://` and
+`aktflow.app` universal links with four route patterns, and it is normative by
+`docs/README.md`'s precedence, so it has to be updated deliberately rather than
+contradicted silently by code.
+
+**Pros of fixing:** one name. Today a reader cannot tell whether `aktflow` is the
+old product name, a namespace that outlived it, or a separate system.
+**Cons:** the role rename touches a deployed database and cannot be done as part
+of unrelated work. The package-name and documentation halves are safe and could
+go first; the role half needs a maintenance window.
+**Suggested split:** (1) packages, imports and docs — mechanical, reviewable;
+(2) domains and the screen specification's link contract; (3) database roles,
+with its own plan.
