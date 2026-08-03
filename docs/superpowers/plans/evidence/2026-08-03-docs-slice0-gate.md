@@ -1019,14 +1019,18 @@ prove it. This record does not predict their result.
 ## Commits
 
 `git log --oneline 70c8107..HEAD | wc -l` and the row count of the table below are
-the same number by construction. **As of this commit, 13.** Two set the slice up;
-**seven** are the corrections — four task commits plus three review fixes, one for
-each of Tasks 2, 3 and 4; and four are this record. 2 + 7 + 4 = 13.
+the same number by construction. **As of this commit, 15.** Two set the slice up;
+**eight** are the corrections — four task commits, three review fixes (one each
+for Tasks 2, 3 and 4), and round 3's four-document fix; and five are this record.
+2 + 8 + 5 = 15.
 
-Note the shape of that total: **it includes this record's own commits, so it grows
-every time the record is revised** — the same self-referential trap that made the
-pasted `--stat` go stale. Whoever revises this next updates the table and this
-sentence together, or the two stop agreeing:
+**This number cannot be written without predicting it.** It counts the commit that
+writes it, so the value stated must be the post-commit one — get it from
+`git log … | wc -l` *before* committing and add one. Two earlier drafts got this
+wrong by pasting the pre-commit count, which is the same self-referential trap
+that made the pasted `--stat` go stale and that put `docs/22` in the file list
+after round 3 corrected it. Whoever revises this next updates the table and this
+sentence in the same commit, or the two stop agreeing:
 
 | Commit | What |
 |---|---|
@@ -1042,7 +1046,9 @@ sentence together, or the two stop agreeing:
 | `0231e8c` | this record, as first issued |
 | `c64c8c5` | correction 17 (`docs/23:36`), its table row and its lesson; the two unproven gates reworded from FAILED to NOT PROVEN once the attempted install turned out to have installed nothing |
 | `802d029` | review round 2, on the record itself — four of its own claims did not reproduce |
-| *(this commit)* | review round 3 — corrections 18-21, the last four sites carrying the superseded async model, plus M8's broken pointer and M7's overclaiming heading |
+| `917d336` | review round 3 — corrections 18-21, the last four sites carrying the superseded async model, plus M8's broken pointer, M7's overclaiming heading and M14's too-narrow grep |
+| `fd4a788` | the counts `917d336` moved: correcting `docs/22` added it to the slice diff, falsifying the record's file tally, its pasted file list, and its "`docs/22` has no diff in this slice" |
+| *(this commit)* | the commit count `fd4a788` moved, and this row |
 
 Task 1 was approved without a fix round. Its reviewer independently re-derived the
 four transitions from migrations `0031`/`0035`/`0021` rather than accepting the
