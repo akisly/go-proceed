@@ -4,7 +4,7 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-003](../decisions/ADR-003-evidence-packages-and-acceptance.md),
@@ -192,30 +192,30 @@ Server states are distinct:
 
 ```text
 intent_authorized
-  → staged
-  → integrity_verified
-  → scan_pending
   ├──→ available
-  └──→ scan_blocked
-
-staged / integrity_verified / scan_pending
-  ── failed authorization recheck ──→ orphaned_for_purge
+  ├──→ scan_blocked
+  ├──→ orphaned_for_purge
+  └──→ expired
 ```
+
+`staged`, `integrity_verified`, and `scan_pending` exist in the CHECK constraint
+(`supabase/migrations/0015`) but are reserved for the v0.3 resumable protocol;
+v0.1 writes none of them. Integrity verification and content inspection happen
+synchronously inside the finalization command and are never recorded as
+intermediate row states.
 
 State rules:
 
-1. `staged` means bytes exist only under an intent-bound uncommitted key.
-2. `integrity_verified` requires server/provider-observed size and a
-   server-verified content hash matching the intent. Client claims alone do not
-   satisfy it.
-3. `scan_pending` is inaccessible to product reads and package generation.
-4. `available` requires integrity success, a final authorization recheck,
+1. `staged`, `integrity_verified`, and `scan_pending` are reserved for the v0.3
+   resumable protocol; not written in v0.1 (supabase/migrations/0015 permits the
+   values; no code writes them).
+2. `available` requires integrity success, a final authorization recheck,
    content-policy inspection, and atomic creation/return of the evidence object
    plus receipt.
-5. `scan_blocked` is not evidence available for review or packaging. It remains
+3. `scan_blocked` is not evidence available for review or packaging. It remains
    in restricted quarantine for the documented remediation/retention period.
-6. Authorization failure before finalization produces no evidence object.
-   Staged bytes become `orphaned_for_purge`.
+4. Authorization failure before finalization produces no evidence object. The
+   intent becomes `orphaned_for_purge` directly from `intent_authorized`.
 
 Finalization rechecks current membership/project permission, assignment and
 requirement scope, workspace quota, intent expiry, and any relevant revocation or
@@ -248,10 +248,12 @@ Before availability or parsing, GoProceed applies:
 - filename/path normalization that rejects traversal and control characters;
 - malware/content inspection using a pinned scanner/policy version.
 
-Inspection fails closed. Scanner error, timeout, or unavailable status remains
-`scan_pending` or enters a named restricted failure state; it never becomes
-`available`. The inspection result, engine/policy version, time, and disposition
-are retained as provenance.
+Inspection fails closed. A rejected or unrecognised content check enters
+`scan_blocked`; it never becomes `available`. (Scanner error/timeout/unavailable
+handling for a longer-running scan, and the `scan_pending` value that would
+record it in progress, are reserved for the v0.3 resumable protocol — v0.1's
+inspection is synchronous within finalization.) The inspection result,
+engine/policy version, time, and disposition are retained as provenance.
 
 Original EXIF/GPS and document metadata are untrusted sensitive data. Their
 retention and authorized exposure must be defined before pilot use. A
@@ -269,7 +271,7 @@ publishes a contract version.
 
 ```text
 source upload
-→ staged + integrity verification + scan
+→ finalized upload (integrity verified + content inspected)
 → format-specific safe parse
 → immutable raw row/cell provenance
 → mapping and localized normalization
@@ -405,8 +407,9 @@ becomes production-visible only through an approved recovery procedure.
 - one workspace cannot issue or use a URL for another workspace's object;
 - signed URL expiry and proxied immediate revocation behave as documented;
 - storage-key overwrite and hash mutation fail;
-- staged, integrity-only, scan-pending, blocked, and orphaned bytes are not
-  package-visible;
+- blocked and orphaned bytes are not package-visible (`staged`,
+  `integrity_verified`, and `scan_pending` are reserved for v0.3 and not
+  writable in v0.1, so there is nothing to verify for them yet);
 - authorization revoked between intent creation and finalization produces no
   evidence object;
 - orphan purge completes within 24 hours and repeated failure alerts;

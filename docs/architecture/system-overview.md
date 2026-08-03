@@ -4,7 +4,7 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-003](../decisions/ADR-003-evidence-packages-and-acceptance.md),
@@ -222,10 +222,11 @@ mobile with current authorization
 → local original becomes cleanup-eligible
 ```
 
-If authorization fails after bytes arrive, the staged object is not evidence. It
-becomes inaccessible orphaned storage for bounded purge while the client
-quarantines its local original according to the approved recovery/deletion
-policy.
+If authorization fails after bytes arrive, they never become evidence: the
+intent moves directly from `intent_authorized` to `orphaned_for_purge`. The
+object becomes inaccessible orphaned storage for bounded purge while the
+client quarantines its local original according to the approved
+recovery/deletion policy.
 
 ### Frozen package and artifacts
 

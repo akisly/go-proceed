@@ -4,7 +4,7 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-002](../decisions/ADR-002-tenancy-parties-and-contracts.md),
@@ -224,8 +224,9 @@ per workload. Examples:
   results, but cannot edit contracts or decisions;
 - a renderer can read one frozen manifest and insert an artifact identity, but
   cannot change package content or submit it;
-- an upload finalizer can transition one staged intent after integrity,
-  authorization, and scan checks, but cannot review evidence;
+- an upload finalizer can transition one `intent_authorized` intent — after its
+  bytes are uploaded to the staging key — through integrity, authorization, and
+  inspection checks, but cannot review evidence;
 - a projector can read authoritative facts and replace only rebuildable
   projection rows.
 

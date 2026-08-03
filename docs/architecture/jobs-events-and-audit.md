@@ -4,7 +4,7 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-003](../decisions/ADR-003-evidence-packages-and-acceptance.md),
@@ -316,10 +316,14 @@ has not caught up.
 
 ### Evidence inspection and orphan cleanup
 
-Inspection jobs operate only on intent-bound staged content. `scan_pending`,
-`available`, `scan_blocked`, and `orphaned_for_purge` remain distinct.
-Availability is committed only after the required hash, authorization, and
-inspection checks succeed.
+In v0.1, content inspection runs synchronously inside the finalization command
+(`apps/app/app/v1/upload-intents/[intentId]/finalize/route.ts`), not as a
+separate job over intent-bound staged content. `available`, `scan_blocked`,
+and `orphaned_for_purge` are the terminal values it writes; `scan_pending`
+exists in the enum but is reserved for the v0.3 resumable protocol and is
+never written (supabase/migrations/0015 permits the value; no code writes
+it). Availability is committed only after the required hash, authorization,
+and inspection checks succeed.
 
 The bounded v0.1 orphan-purge job is an operational storage safeguard. It does
 not implement general customer-data retention or legal hold; automated

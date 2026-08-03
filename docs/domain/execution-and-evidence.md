@@ -4,7 +4,7 @@
 
 **Applies to:** v0.1
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-002](../decisions/ADR-002-tenancy-parties-and-contracts.md),
@@ -232,9 +232,12 @@ scope bundles, conflict handling, background sync, and resumable chunks.
    quota before issuing the destination.
 4. Client uploads the whole original without transformation to an uncommitted
    staging key bound to the intent.
-5. Storage/server verifies received size and content hash and records
-   `integrity_verified`; staged bytes alone are not evidence and are not
-   package-visible.
+5. Finalization verifies the received size and content hash against the
+   authorized values inside the same transaction that commits the terminal
+   state; it records no separate `integrity_verified` row — the check result is
+   consumed in-transaction and only the terminal state is written. Bytes
+   sitting under the intent-bound staging key are not evidence and are not
+   package-visible until that transaction commits `available`.
 6. Server rechecks authorization, scans/inspects according to policy, then
    atomically creates/returns the evidence identity and `available` receipt.
 7. Duplicate retry returns the same successful receipt when inputs match.
@@ -244,16 +247,25 @@ scope bundles, conflict handling, background sync, and resumable chunks.
 Server processing states are distinct:
 
 ```text
-staged → integrity_verified → scan_pending → available
-                                      └──→ scan_blocked
-staged/integrity_verified ──authorization failure──→ orphaned_for_purge
+intent_authorized
+  ├──→ available
+  ├──→ scan_blocked
+  ├──→ orphaned_for_purge
+  └──→ expired
 ```
+
+`staged`, `integrity_verified`, and `scan_pending` exist in the enum but are
+reserved for the v0.3 resumable protocol; v0.1 writes none of them
+(supabase/migrations/0015 permits the values; no code writes them).
 
 `upload_received` is not `evidence_available`. The client may clean up its
 original only after the available receipt. Scan-blocked content remains
 unavailable for packaging and follows restricted retention/remediation.
-Unauthorized/orphaned staged objects are inaccessible and purged within 24
-hours by an idempotent job; purge failures enter an operational alert queue.
+Objects orphaned by a failed authorization recheck — pinned to the
+`intent_authorized` from-state in both commands that can write it
+(`supabase/migrations/0031` and `0035`) — are inaccessible and purged within
+24 hours by an idempotent job; purge failures enter an operational alert
+queue.
 
 v0.1 does not promise background upload after the OS suspends the app or
 resumable chunk transfer.
