@@ -169,7 +169,7 @@ The release suite must include the exact contracts in `technical/test-catalog.cs
 
 - primary-screen read closure and scope-before-pagination;
 - all four occurrence strategies, canonical rule preview/publish payload and per-row atomic assignment materialization;
-- server-sealed-before-invalidation versus first-seen-after-invalidation capture, every parent invalidation and composite lease identity;
+- server-available-before-invalidation versus first-seen-after-invalidation capture, every parent invalidation and composite lease identity;
 - 0, 500, 501 and 1,000+ offboarding dependencies, stale plan, every responsibility type and project-only scope removal;
 - measured-only BOQ policy plus re-import lineage availability/double-reservation prevention;
 - evidence association correction, waiver revoke, review correction receipt plus later decision successor, and authoritative reporting-date confirm/reject;
