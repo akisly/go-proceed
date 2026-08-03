@@ -77,8 +77,10 @@ so this table and the disposition record cannot drift into disagreeing.
 kinds of row. Read the right-hand columns to tell them apart.
 
 **Twenty-five rows record a verdict.** A document is not here because it was wrong
-about everything — it is here because a named successor absorbed what survived review,
-and the rest was rejected for a stated reason. Both right-hand columns say something.
+about everything — it is here because a named successor absorbed what survived review.
+At least one right-hand column says something: twenty-four of the twenty-five record
+both what moved and what was rejected, and one — `24-legal-regulatory-gates.md` —
+records only what moved.
 
 **Nine rows record a deferral, not a verdict.** Each carries disposition `defer`,
 reads `none` in *both* right-hand columns, and points its Successor column back at

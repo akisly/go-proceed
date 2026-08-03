@@ -971,14 +971,14 @@ it.
 
 ## Commits
 
-**Nine, as of the commit that writes this revision**, counting from the slice's base
+**Ten, as of the commit that writes this revision**, counting from the slice's base
 `f443790`. The count includes the commit that writes it, so it cannot be pasted from a
-`git log … | wc -l` run beforehand — that command returned **eight** immediately
+`git log … | wc -l` run beforehand — that command returned **nine** immediately
 before this revision landed:
 
 ```
 $ git log --oneline f443790..HEAD | wc -l
-       8        # before this revision's commit; nine after
+       9        # before this revision's commit; ten after
 ```
 
 **The counting rule, stated because the last three records in this family each went
@@ -1001,7 +1001,8 @@ Rows are in `git log --reverse` order, verified rather than remembered.
 | 6 | `f2188bb` | Task 2 fix round 1 — the comment the brief dictated was refuted nine lines below itself | 1 (+6/−3) |
 | 7 | `0787901` | **Task 3** — the 34-row supersession index, and the six-table claim that outlived its subject | 1 (+56/−2) |
 | 8 | `d33880b` | **Task 4** — this record, as first issued | 1 |
-| 9 | *(this commit)* | whole-branch review round 1 — the index framing false for 9 of its own 34 rows; the one live pointer every sweep's shared `migration/` filter hid; an unreproducible pasted transcript; a self-counting listing | 3 |
+| 9 | `b2396ef` | whole-branch review round 1 — the index framing false for 9 of its own 34 rows; the one live pointer every sweep's shared `migration/` filter hid; an unreproducible pasted transcript; a self-counting listing | 3 |
+| 10 | *(this commit)* | whole-branch review round 2 — one residual clause: the verdict paragraph claimed both right-hand columns say something, true of twenty-four of its twenty-five rows and not of `24-legal-regulatory-gates.md`, whose Information rejected reads `none` | 2 |
 
 **The ordering is the safety argument, exactly as slice 1's was.** `c54ae78` moves
 only what nothing reads; `4b1b0bb` moves the one document a test reads *together with*
