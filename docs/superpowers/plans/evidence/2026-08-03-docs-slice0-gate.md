@@ -8,9 +8,10 @@
 
 ## What the green checks prove, and what they do not
 
-**This slice changed no code.** Its whole diff against `70c8107` is fifteen
-Markdown files, two CSVs under `technical/states/`, and the plan and spec
-themselves:
+**This slice changed no code.** Its whole diff against `70c8107` is eighteen
+Markdown files — the corrected documents plus the plan, spec and this record —
+and two CSVs under `technical/states/`. Twenty files, no other kind of file at
+all; the full file list is in the Evidence section below.
 
 ```
 $ git diff --stat 70c8107..HEAD
@@ -31,16 +32,25 @@ $ git diff --stat 70c8107..HEAD
  docs/domain/execution-and-evidence.md              |  30 +-
  .../plans/2026-08-03-docs-slice0-truth.md          | 639 +++++++++++++++++++++
  .../specs/2026-08-03-docs-slice0-truth-design.md   | 190 ++++++
+ .../plans/evidence/2026-08-03-docs-slice0-gate.md  | 766 +++++++++++++++++++++
  technical/states/state-catalog.csv                 |   6 +-
  technical/states/transition-catalog.csv            |  19 +-
- 19 files changed, 970 insertions(+), 101 deletions(-)
+ 20 files changed, 1736 insertions(+), 101 deletions(-)
 ```
 
-So the test suite and `pnpm typecheck` are a floor, not the evidence: they prove
-only that nothing protected was disturbed, and they passed happily over every one
-of these false claims before the slice began. **The evidence is the corrections
-table below** — every row carries the command that measures the truth, so a
-reader re-runs a command rather than trusting a diff.
+So the test suite and `pnpm typecheck` were never the evidence for this slice.
+They are a floor: they show that nothing protected was disturbed, and they passed
+happily over every one of these false claims before the slice began. A green suite
+has no opinion about whether a document tells the truth.
+
+That is a statement about what those gates can prove, not an excuse for the two of
+them that go unproven below. Both are unproven for an environmental reason, and
+the section that records them says exactly what would settle them. Even fully
+green they would not have been the argument that this slice is correct.
+
+**The evidence is the corrections table** — every row carries the command that
+measures the truth, so a reader re-runs a command rather than trusting a diff. If
+you read one section of this record, read that one.
 
 Every command in the corrections table, the counting-rules section and the
 "already correct" section was re-executed at this commit on 2026-08-03 while
@@ -56,14 +66,18 @@ stated rather than smoothed over — see the note on the `sealed` file count in
 | `node scripts/validate-canonical-docs.mjs` | **PASS** — `canonical documentation: OK` (exit 0) |
 | `python3 scripts/validate_package.py` | **PASS** — `AktFlow package validation: PASS`, `documents=35`, `required_artifacts=69` (exit 0) |
 | `make validate` | **NOT RUN** — see below |
-| `pnpm typecheck` | **FAILED**, environmental — `@aktflow/domain#typecheck`, `Cannot find module 'exceljs'` |
-| `pnpm turbo run test --concurrency=1 --force` | **FAILED**, environmental — halts at `@aktflow/domain#test`, `Cannot find package 'exceljs'` |
+| `pnpm typecheck` | **NOT PROVEN — environmental** — see below |
+| `pnpm turbo run test --concurrency=1 --force` | **NOT PROVEN — environmental** — see below |
 
-Two of five gates fail in this checkout, both on the same missing dependency, and
-neither failure is reachable from anything this slice edited. The verbatim output
-of all five is below. **A gate record that claims a green check nobody executed is
-worse than no gate record**, so the failures are recorded as failures rather than
-described as "expected" and dropped.
+Two of the five gates could not be made to produce a real result in this checkout.
+They are recorded as **NOT PROVEN**, which is neither a pass nor a failure of this
+branch: both stop on a declared dependency that is missing from the installed
+`node_modules`, for a reason that predates the branch and that no documentation
+change can reach. The verbatim output of all five is below, and the
+NOT PROVEN section states exactly what a reader must do to convert them into a
+real result. **A gate record that claims a green check nobody executed is worse
+than no gate record**, so nothing here is marked green on the strength of an
+expectation.
 
 ### `node scripts/validate-canonical-docs.mjs` — PASS
 
@@ -99,7 +113,7 @@ This row exists so that a reader comparing this record against
 [2026-08-01-b0-gate.md](2026-08-01-b0-gate.md) does not read the absence of
 `make validate` as an oversight.
 
-### `pnpm typecheck` — FAILED, environmental
+### `pnpm typecheck` — NOT PROVEN, environmental
 
 ```
 $ pnpm typecheck
@@ -120,7 +134,7 @@ fail, both on `exceljs`. The six `TS7006` errors are downstream of the same
 `TS2307` — without the package's types every callback parameter becomes an
 implicit `any`.
 
-### `pnpm turbo run test --concurrency=1 --force` — FAILED, environmental
+### `pnpm turbo run test --concurrency=1 --force` — NOT PROVEN, environmental
 
 Run with the local Supabase stack up (`supabase_db_…` healthy on `54322`) and
 with `pnpm db:local-credentials` executed first, then `APP_DB_URL` and
@@ -193,22 +207,79 @@ Every failure traces to a module that will not resolve. The two exceptions are
 placeholders (`length 0`) while the tests read `SUPABASE_URL`, which the file does
 not define at all. That is missing local configuration, not a defect.
 
-**Why this is environmental and not this slice's doing.** `exceljs@4.4.0` is
-declared at `packages/domain/package.json:13` and present in `pnpm-lock.yaml`, but
-absent from the installed tree; root `node_modules` holds five entries. The
-dependency was introduced by `314fb58` ("feat(m1): XLSX container guard and
-inert-formula parse (INV-016)"), which `git merge-base --is-ancestor` confirms is
-an ancestor of this slice's base `70c8107`. The condition therefore predates the
-branch, and this slice edited no `.ts`, no `package.json` and no lockfile.
+### Why both are NOT PROVEN rather than failing
 
-**Not repaired, on purpose.** `pnpm install --frozen-lockfile` answers with
+**The only question a reader should care about is whether this slice caused it.
+It did not, and the whole diff is the proof — every changed file is
+documentation.**
+
+```
+$ git diff --name-only 70c8107..HEAD
+README.md
+docs/04-screen-specification.md
+docs/05-design-system.md
+docs/07-technical-architecture.md
+docs/20-flow-catalog.md
+docs/23-offline-media-protocol.md
+docs/27-qa-traceability.md
+docs/README.md
+docs/architecture/data-model.md
+docs/architecture/files-and-storage.md
+docs/architecture/jobs-events-and-audit.md
+docs/architecture/system-overview.md
+docs/architecture/tenancy-and-security.md
+docs/delivery/version-0.0.md
+docs/domain/execution-and-evidence.md
+docs/superpowers/plans/2026-08-03-docs-slice0-truth.md
+docs/superpowers/plans/evidence/2026-08-03-docs-slice0-gate.md
+docs/superpowers/specs/2026-08-03-docs-slice0-truth-design.md
+technical/states/state-catalog.csv
+technical/states/transition-catalog.csv
+
+$ git diff --name-only 70c8107..HEAD | sed 's/.*\.//' | sort | uniq -c
+   2 csv
+  18 md
+```
+
+Twenty files: eighteen Markdown, two CSV, nothing else. No TypeScript, no
+`package.json`, no lockfile, no `node_modules`. There is no path from this diff to
+a module-resolution error.
+
+**The missing package.** `exceljs@4.4.0` is declared at
+`packages/domain/package.json:13` and present in `pnpm-lock.yaml`, but absent from
+the installed tree; root `node_modules` holds five entries. It was introduced by
+`314fb58` ("feat(m1): XLSX container guard and inert-formula parse (INV-016)"),
+which `git merge-base --is-ancestor` confirms is an ancestor of this slice's base
+`70c8107`. The condition predates the branch.
+
+**The root cause is a pnpm version mismatch, not a broken dependency.** The
+installed `node_modules` was built by a different pnpm version than the one now on
+`PATH`, which announces itself on every invocation:
+
+```
+[WARN] The "pnpm" field in package.json is no longer read by pnpm. The following keys were ignored: "pnpm.onlyBuiltDependencies". See https://pnpm.io/settings for the new home of each setting.
+```
+
+Reconciling that state is not an incremental install. `pnpm install
+--frozen-lockfile` stops at an interactive confirmation —
 `The modules directories will be removed and reinstalled from scratch. Proceed?` —
-a full reinstall of every workspace package, which is a larger mutation of a
-checkout that is currently running a live database than a documentation gate is
-entitled to make. It was declined; `git status` and `git diff pnpm-lock.yaml`
-confirm nothing was changed by the attempt. The failure is left recorded as
-observed. Re-running these two gates after a clean install is the way to close
-them, and this record does not claim to know their result.
+i.e. a full purge and rebuild of `node_modules` across all 11 workspace projects.
+It was declined and **no install was performed**: the command exited without
+installing, `node_modules/.pnpm` still contains no `exceljs`, and `git status` plus
+`git diff pnpm-lock.yaml` confirm the attempt changed nothing.
+
+Wiping and rebuilding every workspace package is an environment repair in a
+checkout currently running a live database. That is the owner's call, not a
+documentation slice's, so it was left alone and these two rows were left unproven
+rather than quietly made green.
+
+**What would prove them.** Run a full `pnpm install` and accept the modules purge,
+then re-run `pnpm typecheck` and `pnpm turbo run test --concurrency=1 --force`.
+Until someone does that, the honest state of these two gates is: **not known**.
+This record does not claim they pass, does not claim they fail on the branch, and
+does not predict what they will say — only that whatever they say next will be a
+fact about the checkout's `node_modules`, since the branch contains no code to
+break.
 
 ## The corrections
 
@@ -217,6 +288,11 @@ into three claims** and Task 2's six into one, because a claim repeated in four
 files is one correction applied four times — the order the slice worked in. The
 command IDs resolve in "The measuring commands" below; each was re-run at this
 commit.
+
+Rows 1-16 are Tasks 1-4's work. **Row 17 was found by this gate pass**, after the
+four tasks had closed, by re-running Task 1's subject across the whole corpus
+rather than across Task 1's file list — see "One correction that no task's grep
+could have found".
 
 | # | Where | It said | It says now | Measures |
 |---|---|---|---|---|
@@ -236,6 +312,7 @@ commit.
 | 14 | `docs/05-design-system.md`, four of twelve colour rows | `ink-800 #2A2D2F`, `signal-700 #84A625`, `blue-500 #5278D8`, `muted #686E6A` | `#242424`, `#667F12`, `#3756a1`, `#666979` — the values in `packages/tokens/src/tokens.json` | **M11** |
 | 15 | `docs/04-screen-specification.md:275`, `:276`, `:323` | scheme `aktflow://`, universal links covered by AASA and `assetlinks.json`, four target routes, and a tap that opens them | the `goproceed` scheme and Expo Router exist; the universal links, both coverage files and all four routes do not — the whole mobile route table is `_layout.tsx` and `index.tsx`; the rest is named as a v0.1 target | **M12** |
 | 16 | `docs/04-screen-specification.md:421` | deep links are "live for the web `/app/...` routes today" | "a v0.1 target on both surfaces: the web workspace ships only `/login` and `/context` today, and the mobile deep-link routes in §6 do not exist yet" | **M13** |
+| 17 | `docs/23-offline-media-protocol.md:36` | finalization "creates one verification **job**/receipt and then **waits for** detected MIME/scan" | "creates one evidence-object receipt in that same transaction, and waits for nothing further: in v0.1 content inspection runs synchronously inside the finalization command (…`finalize/route.ts`), not as a separate job, so inspection has already succeeded by the time the receipt exists and a blocked upload never produces one" | **M14** |
 
 ### The measuring commands
 
@@ -444,6 +521,32 @@ Route groups `(app)` and `(auth)` do not appear in the URL, so these resolve to
 `/context` and `/login` — nothing under a literal `/app` segment. The
 `app/v1/**/route.ts` tree is the JSON API, not UI a notification can open.
 
+**M14 — there is no verification job, and the receipt is the evidence row.**
+
+```
+$ grep -rn "verification job\|verification_job" apps/ packages/ supabase/
+(no output — no such job exists anywhere in the tree)
+
+$ grep -n "insert into public.evidence_objects\|set status = 'available', finalized_evidence_object_id" supabase/migrations/0035_server_facts_are_service_only.sql
+98:  insert into public.evidence_objects
+115:     set status = 'available', finalized_evidence_object_id = v_evidence,
+```
+
+`app.finalize_upload_intent` inserts the evidence row and writes the terminal
+`available` in one function body — one transaction, no queue. Inspection runs
+*before* either, at `finalize/route.ts:217` (`await inspectContent(…)`, see
+**M3**), so the old clause also had the order backwards: it described a receipt
+created first and a scan awaited afterwards.
+
+**"Receipt" is the one word in that clause that was accurate, and it survives.**
+The corpus is explicit that the evidence row *is* the receipt —
+`supabase/migrations/0032_evidence_requires_bytes.sql:9` calls it "an evidence
+row — a receipt, with a storage key", and
+`0027_blocked_content_retention.sql:22-23` turns on the same identity: "a blocked
+upload never produces a receipt — so the capturing device still holds the
+original". The rewrite keeps the word and names what it is, rather than dropping
+a real concept along with the two false ones beside it.
+
 ## The settled counts, and the rule each one answers
 
 Three prior surveys produced three different function counts. They were resolved
@@ -644,6 +747,32 @@ targets and state what the web workspace actually ships. See **M13**.
 The pattern across all three: the correction went one clause beyond what had been
 measured. Two of the three added a claim the brief never asked for.
 
+## One correction that no task's grep could have found
+
+Correction 17 was found by the gate pass, not by any of the four tasks — and the
+reason is worth more than the correction. **Both greps that should have caught it
+were correctly scoped, and it fell exactly between them.**
+
+- **Task 1** owned the claim. Its verification grep ran over
+  `docs/architecture/`, `docs/domain/` and `technical/states/` — the structured
+  layer, where its twelve edit sites were. It never looked at the numbered layer,
+  so it could not see `docs/23`.
+- **Task 3** owned the line. It edited this exact sentence, and its brief scoped
+  it to "state names only" — the right scope for a vocabulary task, and one that
+  reads straight past a clause containing no state name at all.
+
+Neither was careless. The gap is structural: **the slice was organised by claim,
+and verified by claim, but a single sentence can carry two claims belonging to
+two different tasks.** Task 3's edit gave the first half of that sentence this
+slice's authority while the second half went on asserting a background job and a
+wait that do not exist — leaving it, as of `92bb446`, in a worse state than it was
+found in, because a reader now had this slice's word for half of it.
+
+What caught it was re-running Task 1's *subject* against the whole corpus instead
+of Task 1's *file list*, while writing this record. The cheap generalisation for
+next time: when a task corrects a claim, grep the claim across the entire live
+corpus, not across the files that task was assigned.
+
 ## What this slice did not close
 
 **The OpenAPI allowlist correction is deferred to slice 1.** The owner ruled that
@@ -732,16 +861,20 @@ tidy layer that still lied**, with every supersession banner pointing a reader a
 a document saying the mobile app does not exist. Correction came first. The moves
 are slice 1's.
 
-**Two gates could not be run to completion in this checkout**, on a missing
-`exceljs` install that predates the branch — see the Evidence section. This record
-does not claim to know what `pnpm typecheck` and the serialized suite report after
-a clean install; it reports what they did here, today.
+**Two gates are unproven and stay unproven.** `pnpm typecheck` and
+`pnpm turbo run test --concurrency=1 --force` both stop on a declared dependency
+missing from a `node_modules` built by an older pnpm, which pnpm will only
+reconcile by purging and rebuilding all 11 workspace projects. That repair is the
+owner's call, not a documentation slice's, so it was not attempted. Closing them
+takes a full `pnpm install` accepting the modules purge, then a re-run of both —
+see the Evidence section, which records what is unproven, why, and what would
+prove it. This record does not predict their result.
 
 ## Commits
 
-This slice produced eight commits on `claude/docs-slice0-truth` from `main` @
-`70c8107`. Two set it up and six are the corrections — three of those six being
-review fixes, one for each of Tasks 2, 3 and 4:
+This slice produced ten commits on `claude/docs-slice0-truth` from `main` @
+`70c8107`. Two set it up, six are the corrections — three of those six being
+review fixes, one for each of Tasks 2, 3 and 4 — and two are this record:
 
 | Commit | What |
 |---|---|
@@ -754,6 +887,8 @@ review fixes, one for each of Tasks 2, 3 and 4:
 | `6524193` | Task 3 fix round 1 — `cancelled` is the fourth member of the dead vocabulary |
 | `c0da6b9` | four claims a reader could disprove in a minute (Task 4), 5 files |
 | `92bb446` | Task 4 fix round 1 — the web workspace has no `/app/...` UI routes either |
+| `0231e8c` | this record, as first issued |
+| *(this commit)* | correction 17 (`docs/23:36`), its table row and its lesson; the two unproven gates reworded from FAILED to NOT PROVEN once the attempted install turned out to have installed nothing |
 
 Task 1 was approved without a fix round. Its reviewer independently re-derived the
 four transitions from migrations `0031`/`0035`/`0021` rather than accepting the
