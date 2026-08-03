@@ -267,7 +267,7 @@ has been passing with `latest` since long before this branch.
 
 ## P3 — doc 07's Expo SDK baseline is behind what v0.1-M2-B0 initialises
 
-**What:** `docs/07-technical-architecture.md:8` names "Expo SDK 56" and `:20`
+**What:** `docs/legacy/07-technical-architecture.md:8` names "Expo SDK 56" and `:20`
 fixes it as the version baseline with the rule "Pin exact patch versions and
 image digests". `apps/mobile` was initialised with `create-expo-app` on the
 owner's instruction and resolves to Expo SDK 57.0.9.
@@ -338,9 +338,11 @@ against an environment whose app is already connecting under the old name. That
 is a deployment-ordering problem, not a find-and-replace, and it belongs in a
 slice with its own plan and its own rollback story.
 
-`docs/04-screen-specification.md` also still specifies `aktflow://` and
-`aktflow.app` universal links with four route patterns, and it is normative by
-`docs/README.md`'s precedence, so it has to be updated deliberately rather than
+`docs/legacy/04-screen-specification.md` also still specifies `aktflow://` and
+`aktflow.app` universal links with four route patterns. It is now archived
+under `docs/legacy/` and non-normative by `docs/README.md`'s precedence, but
+it is the only record of that link contract, so its content still has to be
+carried into the rename slice deliberately rather than left to be
 contradicted silently by code.
 
 **Pros of fixing:** one name. Today a reader cannot tell whether `aktflow` is the

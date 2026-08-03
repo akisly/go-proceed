@@ -226,7 +226,7 @@ jobs:
       #
       # This is measured, pre-existing repository behaviour, not a bug in
       # this workflow, and prototype/ is out of scope to change to fix it
-      # (see docs/40-phase1-discovery-outreach.md §A.6 for the deferred-debt
+      # (see docs/legacy/40-phase1-discovery-outreach.md §A.6 for the deferred-debt
       # record, and its A.4.19 note for why that acceptance criterion's two
       # halves cannot both be satisfied without changing prototype/). Do
       # not "fix" this by adding the assertion back.

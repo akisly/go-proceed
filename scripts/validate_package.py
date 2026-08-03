@@ -2317,15 +2317,15 @@ ARCHIVED_BACKLOG_TEST_REFS = {
 }
 # Referenced only from a numbered document at the time this validator stopped
 # sweeping that layer (measured 2026-08-03). Named individually, with the file
-# that referenced each, so the slice that rewrites docs/26 and docs/27 knows
-# precisely what to carry into their successors instead of finding a count that
-# quietly went down.
+# that referenced each, so the slice that rewrites docs/legacy/26 and
+# docs/legacy/27 knows precisely what to carry into their successors instead
+# of finding a count that quietly went down.
 DOC_ONLY_TEST_REFS = {
-    "T-ADAPTER-001",             # docs/27-qa-traceability.md
-    "T-BUSINESS-CALENDAR-001",   # docs/27-qa-traceability.md
-    "T-PILOT-ADMISSION-001",     # docs/27-qa-traceability.md
-    "T-STATE-REACHABILITY-001",  # docs/27-qa-traceability.md
-    "T-DEPLOY-SMOKE-001",        # docs/26-sre-operations.md
+    "T-ADAPTER-001",             # docs/legacy/27-qa-traceability.md
+    "T-BUSINESS-CALENDAR-001",   # docs/legacy/27-qa-traceability.md
+    "T-PILOT-ADMISSION-001",     # docs/legacy/27-qa-traceability.md
+    "T-STATE-REACHABILITY-001",  # docs/legacy/27-qa-traceability.md
+    "T-DEPLOY-SMOKE-001",        # docs/legacy/26-sre-operations.md
 }
 require(
     tests <= (global_test_refs | ARCHIVED_BACKLOG_TEST_REFS | DOC_ONLY_TEST_REFS),
