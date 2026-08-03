@@ -203,14 +203,19 @@ numbered docs/NN-*.md in METADATA_DOCS: []
 ```
 
 **Zero numbered documents.** The gate this slice installed covers the structured
-layer and nothing else. That is the reason the link sweep inside
-`validate_package.py` was deliberately kept — it is still the only check anywhere
-that resolves links inside the numbered layer, which slices 2-7 are about to move.
-Read together, the two validators cover both layers; either alone does not.
+layer and nothing else. That is why the link sweep inside `validate_package.py` was
+kept — though **not for the reason the design and the first issue of this record gave
+for it**. See "Why the kept link sweep is worth keeping, which is not what we said"
+below: the stated rationale turned out to be vacuous, and the real one is different
+and still good.
 
 ## The metric line, before and after
 
-| Metric | Base `e00372c` | HEAD `e7634f3` |
+Column headings name the *ends* of the range rather than a sha, because a record that
+labels a column with a commit id stops being true the next time anyone commits — a
+mistake the first issue of this record made here.
+
+| Metric | Base `e00372c` | Branch tip |
 |---|---|---|
 | `required_artifacts` | **69** | **35** |
 | `documents` | 35 | 35 |
@@ -437,6 +442,15 @@ the validator objecting.** A one-sided probe would only show today's validator g
 which proves nothing about what changed. Each probe below is run twice — once against
 HEAD, once against the validator as it stood before the hold came off.
 
+**Read "without the validator objecting" literally, because one document is not yet
+free.** The whole-branch review found that `docs/05-design-system.md` is still held
+by `packages/testing/src/token-fidelity.test.ts:82`, outside either validator and
+inside the test suite CI runs. Moving it passes both probes below and reds the build
+anyway. That is debt A of the
+[invariant-debt record](2026-08-03-docs-slice1-invariant-debt.md); the other 34
+numbered documents are genuinely free, and `docs/05` will be once its assertion is
+repointed in the same commit that moves it.
+
 The historical validator is executed from its git object with `__file__` bound to the
 repository's real script path (it derives `ROOT` from `__file__`), so **nothing is
 written into the repository and `scripts/validate_package.py` is never edited**. The
@@ -557,6 +571,59 @@ read.
 This probe was necessary because Task 3's own archive mutation did **not** fire the
 link sweep — nothing in the swept set linked to `docs/23` by that path, so the
 mutation could not tell a live sweep from a dead one. The probe can.
+
+#### Why the kept link sweep is worth keeping, which is not what we said
+
+Task 3 noticed that its `docs/23` move fired no link error and correctly called that
+"a fact about the current corpus's link graph, not a defect in the check". **Neither
+it nor the first issue of this record generalised past `docs/23`, and the
+generalisation is the finding.** Measured across the whole swept set:
+
+```
+$ … resolve every non-external markdown link in README.md, docs/*.md, prototype/README.md …
+--- links the kept sweep actually resolves, by source file ---
+  README.md: 21
+  docs/README.md: 5
+  TOTAL resolved by the sweep: 26
+
+--- links found INSIDE the 35 numbered documents ---
+  35 numbered documents, 0 local markdown links between them all
+
+--- is any numbered document a link TARGET anywhere in the swept set? ---
+   none — no numbered document is linked to from the swept set
+```
+
+**Zero links inside the numbered layer, and not one numbered document is a link
+target.** So the rationale the design gives at "What is kept, deliberately" — that
+this is "the only check in the repository that resolves links inside the numbered
+layer" and "the check that catches a link they break" — is true only vacuously. There
+is nothing in that layer to catch. Slices 2-7 can move all 35 numbered documents
+without this sweep having an opinion. **A safety net with nothing in it is worse than
+a known gap, because it stops people looking for the real one** — which in this slice
+turned out to be in the test suite (debt A of the invariant-debt record).
+
+**The sweep is still worth keeping, for a different reason that was checked rather
+than assumed.** It is the only check that covers root `README.md` at all, and the only
+one that covers `prototype/README.md` at all:
+
+```
+$ … METADATA_DOCS membership …
+  METADATA_DOCS contains README.md: false
+  METADATA_DOCS contains prototype/README.md: false
+  REQUIRED contains prototype/README.md: false
+```
+
+`validate-canonical-docs.mjs` filters `METADATA_DOCS` to `docs/`-prefixed paths, so
+root `README.md`'s **21** links — the most-read file in the repository, pointing into
+`docs/`, `technical/`, `decisions/` and `migration/` — and `prototype/README.md` are
+covered by nothing else. Those 21 links break when slices 2-7 move their *targets*,
+which is a real risk and the one this check actually mitigates.
+
+**The design carries the superseded rationale and is not edited** — it is a
+point-in-time record, like its `required_artifacts` arithmetic. The correction lives
+here, where the measurement is. This is the second design claim this record has had to
+correct by measuring it, and both survived review for the same reason: a plausible
+sentence about a check nobody ran the numbers on.
 
 **Mutation 8b — the orphan-test sweep**, narrowed by Task 3 and therefore the one
 most at risk of having been narrowed to nothing.
@@ -786,18 +853,30 @@ here reproduces twelve; the nearest candidate is counting `required_files`'
 `DOCS / f"{index:02d}-{name}.md"` comprehension as a twelfth, but that constructs
 paths and never reads. All eleven are gone at HEAD.
 
-**The plan still says the deleted comprehension held 35 pairs, in two places
-`ae2e917` did not reach.** The correction fixed four sites; these two survive:
+**The plan's "35 pairs" took three correction passes to clear, and is now clean.**
+This is written as history rather than as a live finding, because the finding closed
+while this record sat unrevised — which is itself the point.
 
 ```
-$ grep -n "Remove the 35 numbered documents\|listing 35 \`(index, name)\` pairs" docs/superpowers/plans/2026-08-03-docs-slice1-gate.md
-411:- [ ] **Step 2: Remove the 35 numbered documents from `required_files`**
-416:listing 35 `(index, name)` pairs from `(0, "product-brief")` to
+$ grep -n "35 numbered documents\|listing 35 \`(index, name)\` pairs\|35-pair" docs/superpowers/plans/2026-08-03-docs-slice1-gate.md
+(no output — nothing remains)
 ```
 
-Line 416 is the false one: the list holds 34 pairs, measured above. Line 411's "35
-numbered documents" is defensible as a description of the layer (35 files are on
-disk) but sits four lines above the wrong 34/35 and reads as the same claim.
+The sequence: `ae2e917` corrected four sites and its message implied completeness.
+The first issue of this record found two more (`:411`, `:416`) and recorded them as
+open. `77e30a6` fixed `:416` and claimed to have finished. The whole-branch review
+then found a **third and fourth** — the Step 2 instruction and the Task 3 commit
+message body — cleared at `08a2710`. **Four passes over one number, each believing it
+was the last.** The generalisation, now paid for four times: a correction is finished
+when a grep over the whole file returns nothing, not when the sites you knew about
+are fixed.
+
+Note what this row cost the record. The paragraph above previously asserted two live
+defects and quoted a grep proving them. Both were fixed two commits later, and the
+quoted grep — the record's own evidence — began returning nothing. **A record whose
+contract is "re-run this" is falsified by the repo moving underneath it**, and the
+only defence is to write findings against a stated commit or as history, which is what
+this revision does throughout.
 **Neither is corrected here** — this task does not edit documents. It is a residual
 of the correction at `ae2e917`, and the lesson is that a fix applied "in all four
 places" needs the grep that finds the fifth.
@@ -877,11 +956,25 @@ from the AktFlow domain API" and that clause is byte-identical to before; the
 validator still prints `AktFlow package validation`. Changing one instance here would
 leave the rename slice an inconsistency to hunt.
 
-**The eight product invariants are unguarded, not re-asserted.** They are the subject
-of [the invariant-debt record](2026-08-03-docs-slice1-invariant-debt.md), which names
-the successor document that owes each one. All eight are currently intact in their
-original documents, verified there by command. **This is the largest thing this slice
-gave up, and the debt record is the only thing standing between it and silence.**
+**Nine product invariants are unguarded, not re-asserted** — eight removed at
+`b28f044` and a ninth, on `docs/30`, removed a commit earlier at `8e37caa` with no
+comment marking its site. They are the subject of
+[the invariant-debt record](2026-08-03-docs-slice1-invariant-debt.md), which names the
+successor document that owes each one. All nine are currently intact in their original
+documents, verified there by command. **This is the largest thing this slice gave up,
+and the debt record is the only thing standing between it and silence.**
+
+**Two further debts are not removals at all**, and both are in the same record: the
+`docs/05` hold surviving in the test suite (A), and the `113`/`44` figures this slice
+corrected and then left unguarded (B). Neither appears as a deletion in this branch's
+diff, which is exactly why the first issue of this record missed both.
+
+**The design's founding premise is incomplete, and is not edited.** "Nothing can move
+while `scripts/validate_package.py` runs" named the validator as the sole obstacle;
+the test suite was a second one. The design stays as a point-in-time record, like its
+`required_artifacts` arithmetic and its link-sweep rationale — three corrections now
+live in this record rather than in it, which is the arrangement the slice chose
+deliberately and which a reader of the design alone will not see.
 
 **The `sealed` vocabulary survives under `technical/`** — eight files, listed above.
 Correcting one without the others reds the build, because `validate_package.py`
@@ -905,46 +998,88 @@ them. This record does not predict their result.
 **And CI has still not run.** That is the first section of this record and it is also
 the last item here, because it is the one thing a reader is most likely to assume.
 
-## What is left over for the final review
+## The whole-branch review, and what it changed
 
-Four minors were logged during execution, deferred rather than fixed, and none was
-introduced by this slice's changes:
+The review is in: **zero Critical, one Important, five Minor**, merge after fixing
+three documentation-only items. No code changed as a result; every fix landed in these
+two records. What it found is worth more than the verdict.
 
-- The validator's final printed line — `External/runtime evidence status: NOT PROVEN;
-  V-001..V-012 remain unvalidated by design.` — is a hardcoded string. The prose
-  assertion Task 2 removed was the last thing checking that `docs/30` agreed with it.
-  Predates the change; the change removed its last cross-check.
-- The `doc_numbers` regex narrowing, above.
-- Task 3 Step 4's replacement comment forward-references this slice's invariant-debt
-  record, which was created by Task 5. Prescribed by the plan; true as of this commit.
-- Task 4's reviewer found the new docstring's wording "slightly awkward —
-  grammatically reads as if the removed assertion 'is now' the new one" but not
-  inaccurate.
+**The Important was a hold this slice did not know it had left standing.**
+`packages/testing/src/token-fidelity.test.ts:82` reads `docs/05-design-system.md`
+unconditionally, `docs/05` is approved to move, and CI runs that suite. The design's
+founding premise — "Nothing can move while `scripts/validate_package.py` runs" — was
+therefore incomplete, and this slice retired the hold it *named* while leaving one it
+never looked for. It is now debt A in the
+[invariant-debt record](2026-08-03-docs-slice1-invariant-debt.md), proven by executing
+the disposition and watching the suite go red while both documentation gates stayed
+green. **The design is not edited; it is a point-in-time record and its premise stands
+as written, corrected here.**
+
+**Two of the five Minors were assertions this record had described as leftovers rather
+than as debt**, and both are now rows in the debt record:
+
+- The hardcoded `V-001..V-012 remain unvalidated by design.` line is not a stray
+  bullet — the prose assertion Task 2 removed at `8e37caa` was the **ninth** removed
+  content assertion, and the last thing checking that `docs/30` agreed with what the
+  validator prints on every run.
+- The `113 Pilot / 44 GA-forward` figures in the sentence Task 4 corrected lost their
+  guard in the same edit that corrected them. Measured to a precise depth — the
+  surrounding cross-checks stop a flip four files deep, and a fourth-layer coordinated
+  change passes clean while the sentence lies.
+
+**Two Minors were errors in these records themselves**: a `require` call-site miscount
+(ten for nine) and four separate claims that had gone stale against the branch. Both
+are fixed above, and the staleness is discussed where it occurred rather than
+collected here, because each instance has a different cause.
+
+**Two Minors were correctly triaged as Leave, and stay:** Task 4's docstring wording
+reads as though the removed assertion "is now" its replacement — awkward, accurate —
+and the `doc_numbers` regex now skips a malformed prefix and no longer catches a
+duplicate index. Restoring either behaviour would reinstate a shape-pin on the
+numbered layer, which is the thing this slice exists to remove. The cost is recorded
+under "What this slice deliberately did not do".
+
+One item needed no change and is noted for completeness: Task 3 Step 4's replacement
+comment forward-references the invariant-debt record. Prescribed by the plan, and true
+since `80ad0da`.
 
 ## Commits
 
-**As of the commit that writes this record, nine.** The number counts the commit that
-writes it, so it cannot be pasted from a pre-commit `git log … | wc -l` — that
-command returns eight until this file lands. Whoever revises this next updates the
-table and this sentence together, or the two stop agreeing. The same trap cost slice
-0's record three revisions.
+**As of the commit that writes this revision, twelve.** The number counts the commit
+that writes it, so it cannot be pasted from a pre-commit `git log … | wc -l` — that
+command returned **eleven** immediately before this revision landed. Whoever revises
+this next updates the table and this sentence together, or the two stop agreeing.
 
 ```
 $ git log --oneline e00372c..HEAD | wc -l
-       8        # before this record's commit; nine after
+      11        # before this revision's commit; twelve after
 ```
 
-| Commit | What | Files |
-|---|---|---|
-| `4f0f47f` | design — not a change to the validator | 1 |
-| `ecfc8b7` | plan — not a change to the validator | 1 |
-| `22a3223` | **Task 1** — the gate goes in first: `pnpm validate:canonical-docs` into the `verify` job, `validate-canonical` into the `Makefile` | 2 (+11/−2) |
-| `8e37caa` | **Task 2** — the S/F/V vocabularies become constants; the three doc reads stop being inputs | 1 (+13/−10) |
-| `b28f044` | **Task 3** — the hold comes off: `required_files`, contiguity, eight prose assertions, the test sweep | 1 (+54/−109) |
-| `46f7d94` | Task 3 fix round 1 — the docstring claimed an end state one commit early | 1 (+4/−2) |
-| `ae2e917` | controller — the plan's arithmetic corrected in four places: 69 → 35, a fall of 34 | 1 (+7/−4) |
-| `e7634f3` | **Task 4** — the deferred correction lands: the `docs/22` assertion repointed at `openapi.yaml`, and the sentence corrected, atomically | 2 (+17/−8) |
-| *(this commit)* | **Task 5** — the invariant-debt record and this gate record | 2 |
+**This trap has now been sprung twice on this record and three times on slice 0's.**
+The first issue of this record predicted it correctly and still went stale — not
+because the prediction was wrong, but because two further commits landed afterwards.
+The prediction only protects the commit that writes the number; nothing protects it
+from the branch continuing. **The count is therefore stated with the phrase "as of the
+commit that writes this revision", which stays true even once it is no longer the
+tip**, rather than as a bare "nine" that silently becomes a lie.
+
+Rows are in `git log --reverse` order, verified rather than remembered — the first
+issue of this record listed `46f7d94` before `ae2e917`, which is backwards.
+
+| # | Commit | What | Files |
+|---|---|---|---|
+| 1 | `4f0f47f` | design — not a change to the validator | 1 |
+| 2 | `ecfc8b7` | plan — not a change to the validator | 1 |
+| 3 | `22a3223` | **Task 1** — the gate goes in first: `pnpm validate:canonical-docs` into the `verify` job, `validate-canonical` into the `Makefile` | 2 (+11/−2) |
+| 4 | `8e37caa` | **Task 2** — the S/F/V vocabularies become constants; the three doc reads stop being inputs. **Also removes the ninth prose assertion**, on `docs/30`, which no comment marks | 1 (+13/−10) |
+| 5 | `b28f044` | **Task 3** — the hold comes off: `required_files`, contiguity, eight prose assertions, the test sweep | 1 (+54/−109) |
+| 6 | `ae2e917` | controller — the plan's arithmetic, pass 1 of 3: four sites, 69 → 35, a fall of 34 | 1 (+7/−4) |
+| 7 | `46f7d94` | Task 3 fix round 1 — the docstring claimed an end state one commit early | 1 (+4/−2) |
+| 8 | `e7634f3` | **Task 4** — the deferred correction lands: the `docs/22` assertion repointed at `openapi.yaml`, and the sentence corrected, atomically | 2 (+17/−8) |
+| 9 | `80ad0da` | **Task 5** — the invariant-debt record and this gate record, as first issued | 2 |
+| 10 | `77e30a6` | the plan's arithmetic, pass 2 of 3 — the two sites the first issue of this record found | 1 (+2/−2) |
+| 11 | `08a2710` | the plan's arithmetic, pass 3 of 3 — the two more the whole-branch review found | 1 (+2/−2) |
+| 12 | *(this commit)* | whole-branch review round 1: a hold surviving in the test suite, the `docs/30` assertion, the unguarded `113`/`44`, a miscount, four stale claims, and a rationale that measured out vacuous | 2 |
 
 **The gate precedes every removal, which is the whole safety argument.** `22a3223`
 installs the CI gate; `8e37caa`, `b28f044` and `e7634f3` each remove something, in
@@ -958,11 +1093,19 @@ Every commit is independently green: each task ran both validators before commit
 and the one pairing that genuinely cannot be split — removing the `docs/22:130`
 assertion and correcting the sentence — is atomic inside `e7634f3`.
 
-**Two of the eight commits are fixes to this slice's own output** (`46f7d94`,
-`ae2e917`), and both were prompted by someone measuring a claim rather than reading
-it. Two of the four tasks were approved with zero findings (Tasks 1 and 4); both of
-those reviewers had built their own mutations instead of re-running the
-implementer's.
+**Five of the twelve commits — rows 6, 7, 9's successors and this one — are fixes to
+this slice's own output**, not to the codebase: `ae2e917`, `46f7d94`, `77e30a6`,
+`08a2710`, and this revision. Every one was prompted by somebody measuring a claim
+rather than reading it. **That ratio is the honest headline of this slice**: the
+functional work is four commits, and it took five more to make the paperwork true.
+
+(The first issue of this record said "two of the eight", which was accurate when
+written and wrong two commits later — a derived count over a growing table, and the
+third distinct way this record has gone stale against its own branch. Stated as a
+fraction of the row count above, it is now re-derivable rather than remembered.)
+
+Two of the four tasks were approved with zero findings (Tasks 1 and 4); both of those
+reviewers had built their own mutations instead of re-running the implementer's.
 
 ### The whole diff, as of this commit
 
