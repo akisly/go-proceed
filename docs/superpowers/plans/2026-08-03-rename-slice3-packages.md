@@ -183,11 +183,19 @@ git ls-files \
   | grep -v '^\.github/workflows/ci\.yml$' \
   | xargs grep -lE '@aktflow/(contracts|database|domain|testing|tokens|ui)\b' 2>/dev/null \
   | tee /tmp/rename-t1-files.txt \
-  | xargs sed -i '' -E 's#@aktflow/(contracts|database|domain|testing|tokens|ui)\b#@goproceed/\1#g'
+  | xargs sed -i '' -E 's#@aktflow/(contracts|database|domain|testing|tokens|ui)[[:>:]]#@goproceed/\1#g'
 wc -l < /tmp/rename-t1-files.txt
 ```
 
 Expected: **63** files.
+
+**`\b` does not work in BSD `sed -E`.** It matches nothing, `sed` exits **0**, and the
+files are rewritten unchanged — a silent no-op that looks exactly like success. Task 1's
+implementer hit this and caught it only because the file count was checked. The macOS
+word-boundary form is `[[:>:]]`, used above. On GNU sed use `\b` with `sed -i -E`.
+Verify your substitution actually changed something before trusting its exit code:
+`git diff --stat` must be non-empty. Note `grep -E` handles `\b` correctly on both
+platforms — this trap is specific to `sed`.
 
 `.github/workflows/ci.yml` is excluded here and edited by hand in Step 3a. Its comment
 at lines 72-73 names two of these six, so the unfenced pattern *would* have matched it
@@ -392,7 +400,7 @@ git ls-files \
   | grep -v '^\.github/workflows/ci\.yml$' \
   | xargs grep -lE '@aktflow/(app|demo|landing|mobile)\b' 2>/dev/null \
   | tee /tmp/rename-t2-files.txt \
-  | xargs sed -i '' -E 's#@aktflow/(app|demo|landing|mobile)\b#@goproceed/\1#g'
+  | xargs sed -i '' -E 's#@aktflow/(app|demo|landing|mobile)[[:>:]]#@goproceed/\1#g'
 cat /tmp/rename-t2-files.txt
 ```
 
