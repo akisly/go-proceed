@@ -1007,6 +1007,22 @@ real, and a reader arriving from `docs/23:36`'s note could reasonably pause on i
 If a later slice rules that the whole word family should go, this is the site to
 change, and **M7**'s widened grep is the command that finds it.
 
+**Quarantine and scanning survive in the v2.9 target layer, and were left there.**
+The final re-review swept the live corpus for the async model beyond the four
+sites round 3 corrected, and found none as a v0.1 status claim — but it did find
+target-layer material that names quarantine or scanning without naming a worker or
+a verification job: `docs/35:117` ("quarantined until server-side type/size/malware
+checks pass"), `docs/18:99` (a `scanning` state in a capture-session machine that
+has no table in any migration), and passing mentions at `docs/05:97`,
+`docs/09:21` and `docs/25:34`. None is a statement about what v0.1 does today,
+which is this slice's contract, so none was touched. They belong to whichever
+slice rules on the v2.9 target layer as a whole.
+
+This is also why the commit table for `917d336` says "the four v0.1 status claims
+still carrying the superseded async model" rather than "the last four sites". An
+earlier wording said the latter, which the sweep disproved — the fifth instance of
+this record's own lesson, and the reason the qualifier is now in the sentence.
+
 **Two gates are unproven and stay unproven.** `pnpm typecheck` and
 `pnpm turbo run test --concurrency=1 --force` both stop on a declared dependency
 missing from a `node_modules` built by an older pnpm, which pnpm will only
@@ -1019,10 +1035,10 @@ prove it. This record does not predict their result.
 ## Commits
 
 `git log --oneline 70c8107..HEAD | wc -l` and the row count of the table below are
-the same number by construction. **As of this commit, 15.** Two set the slice up;
+the same number by construction. **As of this commit, 16.** Two set the slice up;
 **eight** are the corrections — four task commits, three review fixes (one each
-for Tasks 2, 3 and 4), and round 3's four-document fix; and five are this record.
-2 + 8 + 5 = 15.
+for Tasks 2, 3 and 4), and round 3's four-document fix; and six are this record.
+2 + 8 + 6 = 16.
 
 **This number cannot be written without predicting it.** It counts the commit that
 writes it, so the value stated must be the post-commit one — get it from
@@ -1046,9 +1062,10 @@ sentence in the same commit, or the two stop agreeing:
 | `0231e8c` | this record, as first issued |
 | `c64c8c5` | correction 17 (`docs/23:36`), its table row and its lesson; the two unproven gates reworded from FAILED to NOT PROVEN once the attempted install turned out to have installed nothing |
 | `802d029` | review round 2, on the record itself — four of its own claims did not reproduce |
-| `917d336` | review round 3 — corrections 18-21, the last four sites carrying the superseded async model, plus M8's broken pointer, M7's overclaiming heading and M14's too-narrow grep |
+| `917d336` | review round 3 — corrections 18-21, the four v0.1 status claims still carrying the superseded async model, plus M8's broken pointer, M7's overclaiming heading and M14's too-narrow grep |
 | `fd4a788` | the counts `917d336` moved: correcting `docs/22` added it to the slice diff, falsifying the record's file tally, its pasted file list, and its "`docs/22` has no diff in this slice" |
-| *(this commit)* | the commit count `fd4a788` moved, and this row |
+| `814475c` | the commit count `fd4a788` moved, and its row |
+| *(this commit)* | the final re-review's one residual: "the last four sites" was an overclaim the sweep disproved, so the qualifier moved into the sentence and the v2.9 target layer it found is now named under "What this slice did not close" |
 
 Task 1 was approved without a fix round. Its reviewer independently re-derived the
 four transitions from migrations `0031`/`0035`/`0021` rather than accepting the
