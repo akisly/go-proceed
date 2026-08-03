@@ -109,16 +109,27 @@ A D-U-N-S number is obtained through Dun & Bradstreet, separately from Apple
 and on Dun & Bradstreet's own timeline, before the Apple enrolment can even be
 submitted.
 
-Outside this slice's own documents, nothing in this repository mentions it.
-`grep -rinE 'd-u-n-s|duns'` over the whole tree returns hits in exactly three
-places, all of them written by this slice: this record, the slice's plan
-(`docs/superpowers/plans/2026-08-01-goproceed-v0.1-m2-b0-foundations.md:946,979`)
-and the slice's design spec
-(`docs/superpowers/specs/2026-08-01-goproceed-v0.1-m2-b0-foundations-design.md:208`).
-No product, architecture, ADR or operations document names it, and none of the
-three that do carries a lead time, a cost, or who would file for it. (An
-earlier draft of this record said "nothing in this repository mentions it",
-which was overbroad — the slice's own plan and spec do.)
+**The pre-existing corpus does not mention D-U-N-S at all.** `grep -rinE
+'d-u-n-s|duns'` over the whole tree matches nothing outside this slice's own
+documents: no product document, no architecture document, no ADR, no delivery
+or operations document names it. Every match is in something this slice itself
+wrote — this record, the slice's plan, its design spec (under "4. Procurement,
+recorded rather than claimed"), and its gate record — and those are excluded
+rather than counted, because a document cannot cite itself as corroboration
+for a claim about the corpus it is describing. Nothing that does mention it,
+inside this slice or out, carries a lead time, a cost, or who would file for
+it.
+
+**Why this passage states no total, and neither does the keystore section
+below.** Two earlier drafts each asserted a number of files matching this grep,
+and both were wrong the moment they were committed, for the same reason: the
+commit that asserted the number added matches in the same breath. A document
+that counts mentions of a term, and is itself one of those mentions, produces a
+figure that is stale on arrival and wrong again after the next edit. The claim
+that survives editing is the one about the corpus that predates the slice, so
+that is the only claim made here. (An even earlier draft said "nothing in this
+repository mentions it", which was overbroad in the other direction — the
+slice's own documents do.)
 
 Of everything this record lists, it is the one with the longest lead time, and
 it is upstream of the Apple account rather than a step inside it, so it is the
@@ -141,12 +152,29 @@ listing, and every installed copy's update path are unaffected. The genuinely
 unrecoverable case is the legacy one: an app that self-manages its signing key
 outside Play App Signing. Losing *that* key does end the ability to update the
 existing listing. A new app enrolling in Play App Signing, which is what this
-milestone will be doing, is not in that case. The slice's plan
-(`docs/superpowers/plans/2026-08-01-goproceed-v0.1-m2-b0-foundations.md:948,980`)
-and design spec
-(`docs/superpowers/specs/2026-08-01-goproceed-v0.1-m2-b0-foundations-design.md:213-216`)
-carry the same overstatement, inherited from this record; this correction
-supersedes them.
+milestone will be doing, is not in that case.
+
+The same overstatement, inherited from this record, is carried in three other
+places, and this correction supersedes all three. In the slice's plan,
+`docs/superpowers/plans/2026-08-01-goproceed-v0.1-m2-b0-foundations.md`, under
+Task 4 Step 3 — the bullet headed "**The unrecoverable item.**", which says the
+upload keystore "cannot be recovered if lost" — and again in the drafted commit
+message in that task's Step 5, which says the keystore "is unrecoverable if
+lost". In the slice's design spec,
+`docs/superpowers/specs/2026-08-01-goproceed-v0.1-m2-b0-foundations-design.md`,
+under the heading "4. Procurement, recorded rather than claimed", in the
+sentence about "a procurement checklist that names the long-lead items and what
+is unrecoverable if lost — the Android upload keystore". Each of those three now
+carries a correction note pointing back here; the original sentences are left
+standing, because a record edited to remove what it said stops being a record.
+
+Those three places are quoted rather than cited by line number on purpose. The
+same commit that writes this paragraph adds lines to both files that hold them,
+so any line number written here would already be wrong by the time it landed —
+which is exactly how the two earlier citations in this record (`:208` for
+D-U-N-S, `:213-216` for the keystore) came to point at unrelated text. A
+quoted heading and a quoted sentence survive edits above them; a line number
+does not.
 
 **The escrow recommendation stands, on the real risk rather than the
 overstated one.** An upload key reset is a support round trip with Google:
@@ -164,19 +192,33 @@ record does not know what either recovery process requires.
 and it covers emergency contacts, credential escrow, domain and billing
 ownership, and documented deploy and restore procedures — it does not name the
 Android upload keystore or the store credentials generally as things that
-continuity plan has to hold. (`grep -rin keystore docs technical` returns hits
-in five files, not the two an earlier draft of this record claimed. Two
-predate this slice and are the OS-level iOS Keychain / Android Keystore used
-to wrap a per-file encryption key on the device — a different mechanism
-entirely from the upload-signing keystore this section is about:
-`docs/architecture/files-and-storage.md:134` and
-`technical/database/invariant-catalog.csv:54`. The other three are this
-slice's own documents: this record, the slice's plan, and the slice's design
-spec. So the substantive point survives — no document that predates this slice
-mentions the upload-signing keystore — but "two hits" was simply the wrong
-number.) Whoever sets up the Google Play account needs to generate this key
-and place it in the same escrow the continuity section already asks for,
-before the first upload, not after.
+continuity plan has to hold.
+
+**No pre-existing document uses "keystore" in the upload-signing sense.**
+Outside this slice's own documents, `grep -rin keystore docs technical` matches
+only the two named below, and in both of them the word means the OS-level iOS
+Keychain / Android Keystore that wraps a per-file encryption key on the device
+— a different mechanism entirely from the Play upload-signing keystore this
+section is about:
+
+- `docs/architecture/files-and-storage.md:134` — the pending-originals
+  encryption design, which reaches the OS keystore "through SecureStore or a
+  vetted native" module.
+- `technical/database/invariant-catalog.csv:54` — invariant `INV-053`, whose
+  mechanism column reads "per-file key wrapped by Keychain/Keystore-bound key".
+
+Both are named here so a reader can open them and check the sense for
+themselves, which is the whole claim: neither is about signing a Play upload,
+and nothing else outside this slice mentions a keystore in any sense. The
+remaining matches are all in documents this slice wrote — this record, the
+slice's plan, its design spec, its gate record — and, as in the D-U-N-S section
+above, they are excluded rather than counted. They are this slice's own output;
+citing them here would be this record corroborating itself, and counting them
+is what made two earlier drafts of this passage state a wrong number.
+
+Whoever sets up the Google Play account needs to generate this key and place it
+in the same escrow the continuity section already asks for, before the first
+upload, not after.
 
 ## Two devices
 

@@ -253,6 +253,21 @@ names the long-lead items and what is unrecoverable if lost — the Android uplo
 keystore, which `docs/26-sre-operations.md:145-154` omits from its solo-founder
 continuity list.
 
+> **Correction, added after this spec was written. The paragraph above calls
+> the Android upload keystore unrecoverable; that is wrong.** It is left
+> standing because this spec is a record of what was designed and believed at
+> the time, and a record edited to remove what it said stops being a record.
+> Under Play App Signing the upload key is not the app's identity — it can be
+> reset through Google, leaving the app signing key, the listing and every
+> installed copy's update path intact. Only a legacy app that self-manages its
+> signing key outside Play App Signing is in the unrecoverable case, and a new
+> app is not. The escrow requirement survives on a different risk: the reset is
+> a support round trip of unknown duration during which no release can ship.
+> The correction is recorded in full in
+> [../plans/evidence/2026-08-01-b0-procurement.md](../plans/evidence/2026-08-01-b0-procurement.md),
+> section "The signing-key item — recoverable, but not on your schedule", which
+> supersedes this paragraph.
+
 B0 does **not** produce a build on a device. That step is recorded as blocked on
 procurement, in the same words the M2-A gate record used for the undeployed
 purge worker: not done, with the reason, rather than quietly absent.

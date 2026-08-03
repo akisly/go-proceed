@@ -948,6 +948,22 @@ Create `docs/superpowers/plans/evidence/2026-08-01-b0-procurement.md` containing
 - **The unrecoverable item.** The Android upload keystore cannot be recovered if
   lost. `docs/26-sre-operations.md:145-154` covers solo-founder continuity and
   does not list it or the store credentials.
+
+  > **Correction, added after this plan was written. The bullet above is wrong
+  > and is left standing as a record of what was believed at drafting time, not
+  > as an instruction to follow.** Under Play App Signing — the default and
+  > effectively required path for a new app — the upload key is not the app's
+  > identity: losing it means requesting an upload key reset from Google, and
+  > the app signing key, the listing, and every installed copy's update path
+  > survive. The genuinely unrecoverable case is the legacy one, an app that
+  > self-manages its signing key outside Play App Signing. The escrow
+  > requirement still stands, but on the release-freeze risk during the reset
+  > round trip rather than on unrecoverability. The correction is recorded in
+  > full in
+  > [evidence/2026-08-01-b0-procurement.md](evidence/2026-08-01-b0-procurement.md),
+  > section "The signing-key item — recoverable, but not on your schedule",
+  > which supersedes this bullet.
+
 - **Two devices.** One supported iPhone and one lower-resource Android, both
   physical. `docs/27-qa-traceability.md:137` says camera and offline cannot be
   signed off on an emulator. Neither device is procured and the pilot-device
@@ -983,6 +999,16 @@ which the solo-founder continuity section does not list.
 B0's device-install step is recorded NOT DONE with what it is blocked on, in the
 same words the M2-A gate record used for the undeployed purge worker."
 ```
+
+> **Correction, added after this plan was written.** The drafted commit message
+> above says the Android upload keystore "is unrecoverable if lost". That is
+> wrong for the same reason the Step 3 bullet above it is wrong — Play App
+> Signing allows an upload key to be reset, and only a legacy self-managed
+> signing key is unrecoverable. The message is left standing because it is the
+> text that was actually committed in `747e4e9`, and rewriting it here would
+> misrepresent the history it records. See
+> [evidence/2026-08-01-b0-procurement.md](evidence/2026-08-01-b0-procurement.md),
+> section "The signing-key item — recoverable, but not on your schedule".
 
 ---
 
