@@ -68,7 +68,7 @@ Non-restrictive parent changes: инвалидация lease по parent mismatc
 ## 7. Media integrity
 
 - compute SHA-256 locally and verify server-side;
-- neither multipart retry nor completion may change purpose, capture, object key, declared type, expected size, hash or retention class; an expired/cancelled/available intent cannot be reused;
+- neither multipart retry nor completion may change purpose, capture, object key, declared type, expected size, hash or retention class; an intent that has left `intent_authorized` — `available`, `scan_blocked`, `orphaned_for_purge` or `expired` — cannot be reused;
 - `import_files` and original `evidence_objects` inherit the server-selected retention class through the same-tenant upload-intent FK, so provenance and lifecycle policy do not end at a signed URL;
 - server-created evidence derivatives do not reuse an upload intent: they require a same-tenant parent and use `evidence_derivative`; original and derivative lifecycle remain independently enumerable.
 - retain original EXIF only where privacy policy permits; separately store normalized trusted/untrusted metadata;
