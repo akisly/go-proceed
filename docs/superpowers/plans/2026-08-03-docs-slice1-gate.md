@@ -408,12 +408,12 @@ identical except `required_artifacts`, which falls by exactly 34, from 69 to
 `documents=35` is unchanged because `docs/40-phase1-discovery-outreach.md` is on
 disk and numbered but was never in `required_files`.
 
-- [ ] **Step 2: Remove the 35 numbered documents from `required_files`**
+- [ ] **Step 2: Remove the numbered documents from `required_files`**
 
 In `scripts/validate_package.py`, `required_files` begins at `:98` with
 `ROOT / "README.md"` and `ROOT / "Makefile"`, then contains a generator
 comprehension `*(DOCS / f"{index:02d}-{name}.md" for index, name in [...])`
-listing 35 `(index, name)` pairs from `(0, "product-brief")` to
+listing 34 `(index, name)` pairs from `(0, "product-brief")` to
 `(36, "security-verification-profile")`, then `*(TECH / filename for filename in [...])`.
 
 **Delete the entire `*(DOCS / …)` comprehension including its 35-pair list.**
