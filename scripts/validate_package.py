@@ -5,8 +5,10 @@ Validates the technical/ machine-readable contract set (schema.sql, openapi.yaml
 and the CSV registries) internally and against each other, the OpenAPI surface's
 completeness and flow/screen ownership, the prototype's critical routes and
 evidence-loop artifacts, and cross-document links among README.md, docs/*.md and
-prototype/README.md. It no longer asserts the numbered docs/NN-*.md layer's shape,
-contents or existence: that layer is linked, not pinned.
+prototype/README.md. It no longer asserts the numbered docs/NN-*.md layer's shape
+or existence. One content assertion remains, reading docs/22-data-api-contract.md
+to check its stated OpenAPI Pilot/GA operation counts against the spec; it is
+removed in the commit that corrects that document's allowlist sentence.
 
 This validator proves internal specification consistency only. It deliberately does
 not convert unvalidated external gates or missing runtime evidence into a pass.
