@@ -1,7 +1,16 @@
 // Not decoration. This screen renders both generated artifacts, so it fails
-// visibly if either generator did not run: a missing token throws at import,
-// a missing label throws in clientStateLabel. That is the whole deliverable of
-// this slice made observable on a device.
+// visibly if either generator never ran at all: a missing token throws at
+// import, a missing label throws in clientStateLabel. That is the whole
+// deliverable of this slice made observable on a device.
+//
+// What it does NOT catch, stated so nobody assumes otherwise: a STALE
+// artifact. If technical/copy-catalog.csv changes and the label generator is
+// not re-run, this screen renders the old wording with total confidence — a
+// reviewer demonstrated exactly that. A screen can only show what an artifact
+// says, never whether it still agrees with the source it came from. That
+// comparison lives in packages/testing:
+// status-label-fidelity.test.ts for status-labels.generated.json, and
+// token-fidelity.test.ts for the two token artifacts.
 import { ScrollView, Text, View, StyleSheet } from "react-native";
 import { color } from "@aktflow/tokens";
 import { clientStateLabel, type ClientState } from "../lib/status-labels";

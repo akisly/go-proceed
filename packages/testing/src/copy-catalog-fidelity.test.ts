@@ -69,4 +69,14 @@ describe("every status the server can emit has a Ukrainian label", () => {
     const stray = [...labelled("status.upload_intent.")].filter((s) => !want.has(s));
     expect(stray).toEqual([]);
   });
+
+  it("has no label for a client_state the database forbids", () => {
+    // The same direction for `client_state`, which had no equivalent check.
+    // `client_state` is the newer of the two prefixes and the one this
+    // milestone's mobile client generates from, so a label for a state the
+    // constraint does not permit would ship into the app as a dead entry.
+    const want = new Set(permitted("client_state"));
+    const stray = [...labelled("status.client_state.")].filter((s) => !want.has(s));
+    expect(stray).toEqual([]);
+  });
 });

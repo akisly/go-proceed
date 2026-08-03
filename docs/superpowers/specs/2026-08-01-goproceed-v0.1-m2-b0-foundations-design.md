@@ -103,8 +103,11 @@ evidence:
   properties to composite through.
 - **`blue-500`** — four candidates for one role: the doc's `#5278D8` survives
   only as a focus outline, `--blue: #65719a` ships but is never used as an
-  informational status, `theme.css:157` fills that role with `#3756a1`, and
-  `--atlas-blue: #18376a` is a third.
+  informational status, `theme.css:143` fills that role with `#3756a1`, and
+  `--atlas-blue: #18376a` is a third. (This spec previously cited
+  `theme.css:157`; reading the file puts `--color-info-foreground: #3756a1;` at
+  line **143**, while 157 opens the "Evidence" comment block further down. The
+  gate record corrected the citation; this spec is now corrected to match.)
 - **The shadow ladder** — the shipped six use a different ink base than the
   document's stated intent, and a 70px blur is not the "shallow" the document
   asks for. A second implementer independently read the document and shipped its
@@ -195,9 +198,23 @@ mid-slice costs more than picking correctly once.
 Scope is deliberately one screen, and what it renders is chosen to be evidence
 rather than decoration: the six `client_state` values with their Ukrainian
 labels read from the generated copy module, each on a surface coloured from the
-generated token module. That single screen fails visibly if either generator is
-wrong, if a label is missing, or if the React Native token module did not build
-— which is exactly what B0 claims to have delivered.
+generated token module.
+
+**What that screen does and does not prove.** This spec originally said the
+screen "fails visibly if either generator is wrong, if a label is missing, or
+if the React Native token module did not build". Only the second and third of
+those are true, and a reviewer demonstrated the gap: a label that is *stale* —
+the catalog changed and the generator was not re-run — renders exactly as
+confidently as a correct one. Rendering catches an artifact that is **missing**
+(a missing token throws at import, a missing label throws in
+`clientStateLabel`); it cannot catch one that is **wrong**, because the screen
+has no access to the source it drifted from. Drift is caught by comparison
+against the source, not by display, and that is a test's job:
+`packages/testing/src/token-fidelity.test.ts` for the two token artifacts and
+`packages/testing/src/status-label-fidelity.test.ts` for the generated label
+JSON. The screen's real contribution is narrower and still worth having — it is
+what makes "the generators ran and the native module builds" observable on a
+device, which no test in this repository can assert.
 
 Nothing else. No authentication, no API calls, no camera, no navigation beyond
 the one route. Those are B1.
