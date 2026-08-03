@@ -78,9 +78,12 @@ describe("generated tokens match their source", () => {
 describe("the source accounts for every documented colour", () => {
   it("names every token the design document's table defines, or records it contested", () => {
     // docs/legacy/05-design-system.md:19-30. Parsed from the document rather than
-    // copied, so adding a row there without adding a token fails here. The document
-    // is non-normative by location, but it remains the only place the twelve colour
-    // names are written down, so this test still reads it rather than a successor.
+    // copied, so adding a row there without adding a token fails here. tokens.json
+    // is the source; this document is the specification the source is checked
+    // against — the point of this test is to catch a colour documented for humans
+    // that no token backs. It reads the legacy path because docs/05 carries
+    // disposition `defer`: no structured successor document exists yet to check
+    // the source against instead. When one does, this test should read that one.
     const doc = readFileSync(join(repoRoot, "docs/legacy/05-design-system.md"), "utf8");
     const documented = [...doc.matchAll(/^\| `([a-z0-9-]+)` \| `(#[0-9A-Fa-f]{6})` \|/gm)]
       .map((m) => m[1]!);
