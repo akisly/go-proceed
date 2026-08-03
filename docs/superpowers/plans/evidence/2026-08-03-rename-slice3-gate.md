@@ -58,7 +58,7 @@ reproduce", which contains four.
 | `python3 scripts/validate_package.py` | **PASS** — `documents=1`, all 15 metrics unchanged (exit 0) |
 | Role-strip mutation in the validator | **PASS** — neutering it reds 3 lines; restored, blob hash matches HEAD |
 | Lockfile structural proof | **PASS** — 9 keys, all declared, 0 stale, `link:` and `specifier:` sequences identical |
-| Boundary: protected strings and fenced trees | **PASS** — four tree hashes identical; no protected identifier renamed |
+| Boundary: protected strings and fenced trees | **PASS** — five tree hashes identical; no protected identifier renamed |
 | `make validate` | **NOT RUN** — `validate-prototype` shells out to `eslint`, absent here (predates this branch) |
 | `pnpm install --frozen-lockfile` | **NOT PROVEN — environmental** — settles the lockfile edit; needs a modules purge |
 | `pnpm turbo run typecheck` | **NOT PROVEN — environmental** — `exceljs` absent from the installed tree |
@@ -385,7 +385,7 @@ $ (cd packages/testing && npx tsc --noEmit -p tsconfig.json 2>&1 | grep -c "erro
 So the honest summary of the local typecheck evidence is: **one package performs a real
 resolution of a renamed import, and it does so through hand-patched module resolution.**
 
-### The three that could not run, and why that is not this slice's doing
+### The four that could not run, and why that is not this slice's doing
 
 ```
 $ ls packages/ui/tsconfig.json
@@ -410,6 +410,24 @@ stops at the import and never reaches `../domain/src/import/xlsx.ts`, where the 
 reproducing the documented baseline. **A lower error count from an earlier failure is not
 a better result**, and a reader comparing bare numbers would have drawn the opposite
 conclusion.
+
+`packages/domain` is the same shape in the other direction, and it belongs here for
+completeness — the first issue of this record omitted it, which left the one package
+whose number *rises* unexplained. It declares `exceljs` directly, so it can never be
+clean; its count moves only with module resolution:
+
+```
+                                     errors   unresolved modules
+  at d59fa17 (base)                     7     exceljs ×2
+  at 3a8a8c5, unassisted                8     exceljs ×2, @goproceed/contracts ×1
+  at 3a8a8c5, resolution restored       7     exceljs ×2
+```
+
+Base 7, assisted 7, unassisted 8 — measured, the base value in the same detached
+checkout as the rest. **The single extra error is the missing symlink, not the rename**,
+and it disappears the moment resolution is restored. Together with `packages/ui` (no
+`tsconfig.json`), `apps/mobile` (162) and `packages/database` (6), that is the complete
+account of the four packages outside the five-typecheck set.
 
 ## `apps/app` — the gap the ledger recorded as unclosable, and what actually closes it
 
@@ -627,7 +645,7 @@ AktFlow package validation: PASS (required_artifacts=35, documents=1, sql_tables
 External/runtime evidence status: NOT PROVEN; V-001..V-012 remain unvalidated by design.
 ```
 
-**Neither validator reads a package name.** Every one of the sixteen metrics is identical
+**Neither validator reads a package name.** Every one of the fifteen metrics is identical
 to slice 2's record. They are here to show this slice broke nothing, not to show it did
 anything — and the validator's own banner still reads `AktFlow package validation`,
 which is product copy this slice deliberately does not touch.
@@ -672,7 +690,7 @@ not being renamed.** The restore is proven by blob hash, not by an absence of co
 The rename's whole safety argument is that its pattern is anchored to ten literal package
 names and fenced out of six directories. Both halves are checked.
 
-### Four directories are byte-identical, by tree hash
+### Five directories are byte-identical, by tree hash
 
 Stronger than a diff filter, which can only report what it was asked about:
 
@@ -835,9 +853,16 @@ TODOS.md
 The definition sits at `theme.css:251`, where `.aktflow-app` was. The only surviving
 mention of the old class outside the planning archive is `TODOS.md:324`, prose recording
 what this slice moved — it was absent at `d59fa17` and added by Task 3, so it is a
-description of the rename, not a stranded usage. Thirteen files use the new class: the
+description of the rename, not a stranded usage. Thirteen files use the new class — the
 eleven the plan predicted, plus this slice's own plan and design, which the fence
-excludes.
+excludes — and again the count has to exclude this record, which names the class and
+would otherwise make it fourteen:
+
+```
+$ R='^docs/superpowers/plans/evidence/2026-08-03-rename-slice3-gate\.md$'
+$ git ls-files | grep -vE "$R" | xargs grep -l 'goproceed-app' | wc -l
+      13
+```
 
 ## Four counting errors in this slice's own paperwork
 
@@ -912,8 +937,26 @@ $ git ls-files | grep -vE '^(docs/legacy|docs/superpowers|migration)/' | xargs g
 
 **99 occurrences of the substring `AktFlow` across 41 files** — tracked files, excluding
 `docs/legacy/`, `docs/superpowers/` and `migration/`. **665** case-insensitively across
-every `aktflow` form under the same fence. **The rule is part of the number**; without it
-the same corpus yields 96 at the slice base, 284 unfenced, and 89 under a tokenizer.
+every `aktflow` form under the same fence. This number needs no self-exclusion: its fence
+already covers `docs/superpowers/`, which is where this record lives, and it reads 99 both
+before and after this record was committed.
+
+**The rule is part of the number.** The same corpus yields **96** at the slice base,
+**89** under the tokenizer reconstructed above, **284** with only `migration/` excluded,
+and **287** genuinely unfenced:
+
+```
+$ R='^docs/superpowers/plans/evidence/2026-08-03-rename-slice3-gate\.md$'
+$ git ls-files | grep -vE "$R" | xargs grep -oF 'AktFlow' | wc -l
+     287
+$ git ls-files | grep -vE "$R" | grep -v '^migration/' | xargs grep -oF 'AktFlow' | wc -l
+     284
+```
+
+**As first committed at `7cdc3d0` this sentence called 284 "unfenced". It is not** —
+284 is that commit's count with `migration/` excluded, and unfenced is 287. Naming a
+count without its rule is the defect this very sentence exists to condemn, and it
+mislabelled one of its own four examples. Found by the whole-branch review.
 
 The rise from 96 to 99 is not product copy appearing. It is one file:
 
@@ -1154,10 +1197,27 @@ $ sed -n '19,21p' README.md
 
 Everything below is what that sentence is pointing at.
 
-**The five PostgreSQL roles are untouched, and 77 files name them.** `aktflow_app`,
-`aktflow_app_login`, `aktflow_worker`, `aktflow_service`, `aktflow_service_login` — 494
-matching lines under the standard fence, 1,869 raw occurrences repo-wide. They are
-excluded by a standing owner ruling: `ALTER ROLE … RENAME TO` clears an md5-hashed
+**The five PostgreSQL roles are untouched, and 77 files name them** — as of `3a8a8c5`;
+see the drift note below, this record makes it 78. `aktflow_app`, `aktflow_app_login`,
+`aktflow_worker`, `aktflow_service`, `aktflow_service_login` — 494 matching lines under
+the standard fence, and **1,869 raw occurrences** repo-wide once this record excludes
+itself, which it must, because it names the five roles 55 times:
+
+```
+$ R='^docs/superpowers/plans/evidence/2026-08-03-rename-slice3-gate\.md$'
+$ tot=0; for r in aktflow_app aktflow_app_login aktflow_worker aktflow_service aktflow_service_login; do
+    n=$(git ls-files | grep -vE "$R" | xargs grep -ohE "\b$r\b" | wc -l | tr -d ' ')
+    printf "  %-24s %s\n" "$r" "$n"; tot=$((tot+n))
+  done; echo "  sum: $tot"
+  aktflow_app              1537
+  aktflow_app_login        115
+  aktflow_worker           74
+  aktflow_service          74
+  aktflow_service_login    69
+  sum: 1869
+```
+
+Unscoped the sum is 1,924. They are excluded by a standing owner ruling: `ALTER ROLE … RENAME TO` clears an md5-hashed
 password, every connection string and CI secret must move in the same window, and the
 migration runs against an environment whose app is already connected under the old name.
 That is a deployment-ordering problem with its own rollback story, not a substitution.
@@ -1182,10 +1242,13 @@ slice: no tool can verify it, and mixing it with a mechanical refactor would mea
 got the review it needs. The validator's own banner, `AktFlow package validation`, is in
 the same set.
 
-**The four domains are untouched**, and there are still exactly four:
+**The four domains are untouched**, and there are still exactly four. This record names
+all four repeatedly, so it excludes itself — unscoped the same command reports
+`11 / 38 / 13 / 13`, and the four extra hits per domain are these very paragraphs:
 
 ```
-$ git ls-files | xargs grep -ohE 'aktflow\.[a-z]+' | sort | uniq -c
+$ R='^docs/superpowers/plans/evidence/2026-08-03-rename-slice3-gate\.md$'
+$ git ls-files | grep -vE "$R" | xargs grep -ohE 'aktflow\.[a-z]+' | sort | uniq -c
    8 aktflow.app
   33 aktflow.com
   10 aktflow.example
@@ -1230,15 +1293,19 @@ modifications.**
 
 ## Commits
 
-**Nine, as of the commit that writes this record**, counting from the slice's base
+**Ten, as of the commit that writes this revision**, counting from the slice's base
 `d59fa17`. The count includes the commit that writes it, so it cannot be pasted from a
 `git log … | wc -l` run beforehand — that command returned **eight** immediately before
-this record landed:
+the first issue of this record landed, and **nine** immediately before this revision:
 
 ```
 $ git log --oneline d59fa17..HEAD | wc -l
-       8        # before this record's commit; nine after
+       9        # before this revision's commit; ten after
 ```
+
+**This is the one self-referential count in the record that did not go stale**, because
+it was written as a prediction that the table below then makes checkable. The four that
+did go stale were the ones nobody thought to treat this way.
 
 **The counting rule:** commits reachable from the tip and not from `d59fa17`, the base
 this branch was cut from — the same rule slices 1 and 2 used. The table below is the
@@ -1256,7 +1323,8 @@ remembered.
 | 6 | `e5af7b2` | **Task 2** — the four apps; `vercel.json` and six `ci.yml` sites | 12 |
 | 7 | `d06f3c7` | controller — two more claims the rename falsified, both found mid-execution | 1 |
 | 8 | `3a8a8c5` | **Task 3** — root name, CSS class, and three claims this slice made false | 15 |
-| 9 | *(this commit)* | **Task 4** — this record | 1 |
+| 9 | `7cdc3d0` | **Task 4** — this record, as first issued | 1 |
+| 10 | *(this commit)* | whole-branch review fix round 1 — four unscoped counts that counted the record printing them; a "284 unfenced" that was fenced; three internal contradictions; and one line added to the design pointing here | 2 |
 
 **The ordering is the safety argument.** `74ba335` renames the six libraries *and every
 importer of them in one commit*, so no commit exists where a package answers to one name
@@ -1267,32 +1335,101 @@ completely — `name` field, every dependency entry, every import specifier, and
 lockfile key — which is why "the apps still say `@aktflow/*`" after Task 1 is a
 consistent state rather than a broken one.**
 
-Three of the nine commits are controller corrections to the plan, all found during
+Three of the ten commits are controller corrections to the plan, all found during
 execution, none of them cosmetic: an unenforceable `ci.yml` rule, the `sed` no-op, and two
 documents the rename falsified. **A plan that produced no corrections is usually a plan
 nobody executed carefully.**
+
+### The whole-branch review, and what it changed
+
+**Zero Critical, one Important, six Minor**, approve and merge with the Important fixed.
+No source behaviour changed; the fixes landed in this record and one line of the design.
+
+The review independently reproduced the two claims this record leans hardest on. It
+enumerated the sixteen `@aktflow` symlinks itself, mirrored them, typechecked `apps/app`
+at both ends and got **two 137-error files hashing identically** — confirming the
+overturned `apps/app` ruling by construction rather than by re-reading this record. And
+it reproduced the `96 − 7 = 89` reconstruction exactly.
+
+**The Important is the one worth carrying forward, and it is this record's own.** Four
+counts here were derived from a corpus that includes this file, and one of them — the
+`git diff --shortstat` — sat two lines above the paragraph explaining that the defence
+against exactly this is to scope the command. All four are fixed at their own locations
+above rather than collected here, each now either scoped or stamped with an as-of, and
+each re-run *after* the commit that fixed it. **This record spent a section warning about
+a failure mode and then supplied four fresh instances of it**, which is the strongest
+evidence available that the warning is worth keeping.
+
+Of the six Minor, three were internal contradictions where the record disagreed with
+itself — fifteen metrics against sixteen, four tree hashes against a loop printing five,
+and a "three that could not run" section covering three of four packages. **A document
+that contradicts itself is a document where at least one number was not measured**, which
+is why they are recorded rather than quietly corrected. The remaining three were the
+`284`/`287` mislabel, the missing `packages/domain` case, and the design's lack of any
+pointer to this record.
+
+Two findings needed no change and are recorded so a later reviewer does not re-open them:
+`packages/database`'s 6 → 2 is a local module-resolution artifact and the framing above
+is correct; and Task 3's CSS substitution fence omits the `ci.yml` exclusion that Tasks 1
+and 2 carry — a real hole in the plan text that caused no harm, because `ci.yml` contains
+no `aktflow-app`. **The fences were supposed to be identical across all three tasks so
+that a file appearing in one and not another is a signal; that property held by luck
+rather than by construction in Task 3.**
 
 ### The whole diff
 
 ```
 $ git diff --name-only d59fa17..HEAD -- . ':!docs/superpowers/' | wc -l
       86
-$ git diff --shortstat d59fa17..HEAD
- 88 files changed, 1111 insertions(+), 206 deletions(-)
+$ git diff --shortstat d59fa17..HEAD -- . ':!docs/superpowers/'
+ 86 files changed, 217 insertions(+), 206 deletions(-)
 $ git diff --name-status d59fa17..HEAD -- 'docs/superpowers/' ':!docs/superpowers/plans/evidence/'
 A	docs/superpowers/plans/2026-08-03-rename-slice3-packages.md
 A	docs/superpowers/specs/2026-08-03-rename-slice3-packages-design.md
 ```
 
-**Eighty-six modified files, plus the design and the plan.** The third command
-**excludes its own directory** — `':!docs/superpowers/plans/evidence/'` keeps this record
-and every future revision of it out of its own result set. This is the fifth distinct way
-a record in this family has gone stale against its own branch, after slice 1's three and
-slice 2's one, and all five share one shape: **a number or listing derived from a set
-that the act of writing it enlarges.** The defence that works is not prediction — slice 1
-proved prediction fails, twice — it is scoping the command so the record is not in its own
-results. Where that is impossible, as with `TODOS.md`'s 77 and 71, the number carries an
-explicit as-of.
+**Eighty-six modified files, 217 insertions against 206 deletions** — the shape of a
+rename, where almost every line out returns as a line in — **plus the design and the
+plan.** All three commands exclude paperwork: the first two exclude
+`docs/superpowers/` entirely, so no edit to the design, the plan, or this record can
+move them; the third excludes only `docs/superpowers/plans/evidence/`, so it still
+reports the design and plan while keeping this record out of its own result set.
+
+**As first committed at `7cdc3d0`, the middle command was unscoped and this is the
+defect the whole-branch review called Important.** It read:
+
+```
+$ git diff --shortstat d59fa17..HEAD
+ 88 files changed, 1111 insertions(+), 206 deletions(-)
+```
+
+which was true at `3a8a8c5` and false the instant it was committed: at `7cdc3d0` the
+same command returns `89 files changed, 2429 insertions(+)` — 1111 plus this record's
+own 1318 lines. **A number that counts the file printing it, pasted two lines above a
+paragraph asserting that the defence is to scope the command.** The sentence was right
+and the command beside it was not, which is worse than either alone, because a reader
+checking the claim runs the command rather than reading the paragraph.
+
+It was not the only one. Three further counts in this record were unscoped and
+undisclosed, each now carrying an explicit exclusion of this file and each verified
+after the commit that fixes it: the four domains, the roles' raw occurrence total, and
+the count of files using the renamed CSS class. **So this record supplied four fresh
+instances of the exact failure it was written to warn about** — bringing the family
+total to at least nine, after slice 1's three and slice 2's one.
+
+All nine share one shape: **a number or listing derived from a set that the act of
+writing it enlarges.** Three defences work, in this order of preference:
+
+1. **Scope the corpus so the record cannot be in it.** `':!docs/superpowers/'` for
+   anything about the diff; an explicit exclusion of this file for anything counting
+   strings, since the whole `evidence/` directory would also drop eight prior gate
+   records and change the answer in the other direction — excluding the directory takes
+   the domain counts to `6 / 31 / 10 / 10`, which is as wrong as `11 / 38 / 13 / 13`.
+2. **Stamp an explicit as-of**, where scoping is impossible — as with `TODOS.md`'s 77
+   and 71, which are properties of the whole tree by definition.
+3. **Re-run every number after committing**, because the commit changes them again.
+   Prediction is not a defence; slice 1 proved that twice and this record proved it a
+   third time.
 
 The tree was clean before and after every probe in this record:
 

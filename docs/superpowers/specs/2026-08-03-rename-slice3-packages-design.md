@@ -3,6 +3,7 @@
 **Date:** 2026-08-03
 **Branch:** `claude/rename-slice3-packages`, from `claude/docs-slice2-archive` @ `d59fa17`
 **Slice:** the fourth of the restructure, and the first that renames rather than moves.
+**Corrections:** this is a point-in-time record of what was believed when the slice was scoped, and several of its counts were later measured to be wrong or to rest on an unstated counting rule. They are deliberately not edited here. [The gate record](../plans/evidence/2026-08-03-rename-slice3-gate.md) carries every corrected figure with the command that reproduces it, and is the authority where the two disagree.
 
 ## What this slice is, and what it deliberately is not
 
