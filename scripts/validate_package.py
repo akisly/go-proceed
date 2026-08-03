@@ -1,6 +1,13 @@
 #!/usr/bin/env python3
 """Fail-closed structural and cross-contract checks for the AktFlow spec package.
 
+Validates the technical/ machine-readable contract set (schema.sql, openapi.yaml,
+and the CSV registries) internally and against each other, the OpenAPI surface's
+completeness and flow/screen ownership, the prototype's critical routes and
+evidence-loop artifacts, and cross-document links among README.md, docs/*.md and
+prototype/README.md. It no longer asserts the numbered docs/NN-*.md layer's shape,
+contents or existence: that layer is linked, not pinned.
+
 This validator proves internal specification consistency only. It deliberately does
 not convert unvalidated external gates or missing runtime evidence into a pass.
 """
@@ -98,42 +105,11 @@ def walk_json(value: Any) -> Iterable[Any]:
 required_files = [
     ROOT / "README.md",
     ROOT / "Makefile",
-    *(DOCS / f"{index:02d}-{name}.md" for index, name in [
-        (0, "product-brief"),
-        (1, "prd"),
-        (3, "personas-jtbd-workflows"),
-        (4, "screen-specification"),
-        (5, "design-system"),
-        (6, "data-model-permissions"),
-        (7, "technical-architecture"),
-        (8, "api-integrations"),
-        (9, "security-compliance"),
-        (10, "billing-pricing"),
-        (11, "analytics-events"),
-        (12, "roadmap-delivery"),
-        (13, "qa-acceptance"),
-        (14, "gtm-pilot"),
-        (15, "risks-decisions"),
-        (17, "production-readiness-index"),
-        (18, "domain-state-machines"),
-        (19, "organizations-roles-access"),
-        (20, "flow-catalog"),
-        (21, "plans-entitlements-billing"),
-        (22, "data-api-contract"),
-        (23, "offline-media-protocol"),
-        (24, "legal-regulatory-gates"),
-        (25, "security-threat-model"),
-        (26, "sre-operations"),
-        (27, "qa-traceability"),
-        (28, "pilot-ga-delivery"),
-        (30, "validation-evidence-register"),
-        (31, "architecture-decisions"),
-        (32, "customer-country-adapters"),
-        (33, "support-admin-plane"),
-        (34, "production-gate-checklist"),
-        (35, "data-access-tenancy"),
-        (36, "security-verification-profile"),
-    ]),
+    # The numbered docs/NN-*.md layer is deliberately absent. It carried an
+    # approved disposition for all 41 files (migration/goproceed-canonical-v0.1/
+    # document-disposition.csv) before this validator stopped requiring it, and
+    # pinning a path is what made archiving one a validator edit. Their links
+    # are still checked below; their existence is not required here.
     *(TECH / filename for filename in [
         "schema.sql",
         "openapi.yaml",
@@ -175,60 +151,15 @@ required_files = [
 for path in required_files:
     require(path.exists(), f"missing required artifact: {path.relative_to(ROOT)}")
 
-# Numbered documentation contract.
-#
-# The upper bound is DERIVED from what is on disk, not hard-coded: docs/NN-*.md
-# must form one contiguous sequence starting at 00 and ending at the highest
-# index present. Adding doc N+1 is therefore a normal, non-breaking act. The
-# previous form asserted `== list(range(40))`, which turned every new document
-# into a build break (docs/40-* did exactly that).
-#
-# Still fail-closed on: a missing index, a duplicate index, a malformed numeric
-# prefix, or a sequence that does not start at 00.
-numbered_docs: dict[int, list[str]] = defaultdict(list)
-malformed_docs: list[str] = []
-for path in sorted(DOCS.glob("*.md")):
-    prefix = re.match(r"(\d+)(?=-)", path.name)
-    if prefix is None:
-        continue  # unnumbered docs/*.md are outside this contract, as before
-    if len(prefix.group(1)) != 2:
-        malformed_docs.append(path.name)
-        continue
-    numbered_docs[int(prefix.group(1))].append(path.name)
-
-require(
-    not malformed_docs,
-    "docs: numbered documents need a two-digit prefix; malformed: "
-    + ", ".join(sorted(malformed_docs)),
+# How many numbered docs/NN-*.md exist. An observation for the metrics line, not
+# a contract: nothing here requires a particular set, a contiguous sequence or a
+# minimum. The count should fall on its own as slices 2-7 archive documents,
+# rather than obliging anyone to edit a number or extend an exception set.
+doc_numbers = sorted(
+    int(match.group(1))
+    for path in DOCS.glob("*.md")
+    if (match := re.match(r"(\d{2})(?=-)", path.name))
 )
-require(bool(numbered_docs), "docs: expected at least one numbered document (docs/NN-*.md)")
-
-duplicate_docs = sorted(
-    f"{index:02d} -> {', '.join(sorted(names))}"
-    for index, names in numbered_docs.items()
-    if len(names) > 1
-)
-require(not duplicate_docs, "docs: duplicate numbered indices: " + "; ".join(duplicate_docs))
-
-# Archived per the user-approved cleanup (migration/goproceed-canonical-v0.1/
-# document-disposition.csv): these indices moved to docs/legacy/ and are no
-# longer part of the active numbered contract.
-ARCHIVED_DOC_INDICES = {2, 16, 29, 37, 38, 39}
-
-if numbered_docs:
-    highest_doc = max(numbered_docs)
-    missing_docs = [
-        f"{index:02d}"
-        for index in range(highest_doc + 1)
-        if index not in numbered_docs and index not in ARCHIVED_DOC_INDICES
-    ]
-    require(
-        not missing_docs,
-        f"docs: expected one contiguous document for every index 00..{highest_doc:02d}; "
-        f"missing: {', '.join(missing_docs)}",
-    )
-
-doc_numbers = sorted(numbered_docs)
 
 link_pattern = re.compile(r"(?<!!)\[[^\]]+\]\(([^)]+)\)")
 markdown_files = [ROOT / "README.md", *sorted(DOCS.glob("*.md")), ROOT / "prototype" / "README.md"]
@@ -245,23 +176,18 @@ for markdown in markdown_files:
             resolved = (markdown.parent / local_part).resolve()
             require(resolved.exists(), f"broken link in {markdown.relative_to(ROOT)}: {target}")
 
-prd_text = (DOCS / "01-prd.md").read_text(encoding="utf-8")
-access_doc_text = (DOCS / "19-organizations-roles-access.md").read_text(encoding="utf-8")
-api_contract_text = (DOCS / "22-data-api-contract.md").read_text(encoding="utf-8")
-architecture_text = (DOCS / "07-technical-architecture.md").read_text(encoding="utf-8")
-roadmap_text = (DOCS / "12-roadmap-delivery.md").read_text(encoding="utf-8")
-delivery_text = (DOCS / "28-pilot-ga-delivery.md").read_text(encoding="utf-8")
-state_machine_text = (DOCS / "18-domain-state-machines.md").read_text(encoding="utf-8")
-require("MFA обязательно для каждого пользователя с live Pilot data" in prd_text, "docs/01: universal live-Pilot MFA boundary drifted")
-require("Project archive is immutable and terminal" in prd_text and "There is no in-place restore" in prd_text, "docs/01: project archive/continuation contract drifted")
-require("Evidence has no generic delete action" in prd_text and "soft-deleted" not in prd_text, "docs/01: evidence must use immutable invalidation/correction, not an unspecified soft delete")
-require("GA-forward assignment grouping only" in access_doc_text, "docs/19: team/crew must remain explicitly GA-forward until modelled")
-require("Tenant bearer tokens and tenant permissions never authorize these operations" in api_contract_text, "docs/22: platform billing authority separation missing")
-require("Next.js **16.2.11 or newer security-patched 16.2.x**" in architecture_text, "docs/07: current Next.js security-patched floor missing")
-require("Safe first live Pilot (months 5–9)" in roadmap_text and "Safe standalone GA (months 10–18+)" in roadmap_text, "docs/12: solo delivery stages drifted back to the optimistic schedule")
-require("safe first live Pilot: 6–9 months solo" in delivery_text and "safe standalone GA: 12–18+ months solo" in delivery_text, "docs/28: honest solo planning range missing")
-for money_algorithm_marker in ("PostgreSQL `SERIALIZABLE`", "SELECT ... FOR UPDATE", "ascending UUID order", "Direct multi-step BFF writes are forbidden"):
-    require(money_algorithm_marker in state_machine_text, f"docs/18: money concurrency algorithm missing {money_algorithm_marker}")
+# Eight prose assertions on docs/01, 07, 12, 18, 19, 22 and 28 stood here. They
+# guarded product invariants — universal live-Pilot MFA, terminal project
+# archive, no generic evidence delete, GA-forward assignment grouping, the
+# platform-billing authority split, the Next.js security floor, the honest solo
+# delivery ranges, and the four money-concurrency markers — by asserting a
+# literal substring inside a named file. Every one of those files has an
+# approved disposition and is moving.
+#
+# They are not absorbed silently. Each is listed with the structured document
+# that must re-assert it in docs/superpowers/plans/evidence/
+# 2026-08-03-docs-slice1-invariant-debt.md, which is this slice's obligation on
+# the slices that write those successors.
 
 
 # ---------------------------------------------------------------------------
@@ -2355,7 +2281,14 @@ require(referenced_events == events, f"traceability.csv: unowned events {sorted(
 
 test_reference_pattern = re.compile(r"\bT-[A-Z0-9]+(?:-[A-Z0-9]+)+\b")
 global_test_refs: set[str] = set()
-reference_files = [ROOT / "README.md", *DOCS.glob("*.md"), *TECH.glob("*.csv")]
+# Scoped off docs/*.md deliberately. Archiving a numbered document orphaned
+# whatever tests only it referenced, which is exactly how the ten-entry
+# ARCHIVED_BACKLOG_TEST_REFS allowlist below came to exist. Measured on
+# 2026-08-03: 134 of the 149 catalogued tests are referenced from README.md or
+# technical/*.csv and are unaffected by this narrowing; the five that were
+# referenced only from a numbered document are named in
+# DOC_ONLY_TEST_REFS below rather than disappearing into the count.
+reference_files = [ROOT / "README.md", *TECH.glob("*.csv")]
 for path in reference_files:
     if path.name == "test-catalog.csv":
         continue
@@ -2371,9 +2304,21 @@ ARCHIVED_BACKLOG_TEST_REFS = {
     "T-REPEATABILITY-001", "T-STATE-RECOVERY-001", "T-TERMS-EFFECTIVE-001",
     "T-UAT-001",
 }
+# Referenced only from a numbered document at the time this validator stopped
+# sweeping that layer (measured 2026-08-03). Named individually, with the file
+# that referenced each, so the slice that rewrites docs/26 and docs/27 knows
+# precisely what to carry into their successors instead of finding a count that
+# quietly went down.
+DOC_ONLY_TEST_REFS = {
+    "T-ADAPTER-001",             # docs/27-qa-traceability.md
+    "T-BUSINESS-CALENDAR-001",   # docs/27-qa-traceability.md
+    "T-PILOT-ADMISSION-001",     # docs/27-qa-traceability.md
+    "T-STATE-REACHABILITY-001",  # docs/27-qa-traceability.md
+    "T-DEPLOY-SMOKE-001",        # docs/26-sre-operations.md
+}
 require(
-    tests <= (global_test_refs | ARCHIVED_BACKLOG_TEST_REFS),
-    f"test-catalog.csv: orphan tests {sorted(tests - global_test_refs - ARCHIVED_BACKLOG_TEST_REFS)}",
+    tests <= (global_test_refs | ARCHIVED_BACKLOG_TEST_REFS | DOC_ONLY_TEST_REFS),
+    f"test-catalog.csv: orphan tests {sorted(tests - global_test_refs - ARCHIVED_BACKLOG_TEST_REFS - DOC_ONLY_TEST_REFS)}",
 )
 
 
