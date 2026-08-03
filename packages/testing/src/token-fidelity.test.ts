@@ -97,12 +97,14 @@ describe("the source accounts for every documented colour", () => {
       .filter(([, v]) => !v.ruling || v.ruling.length < 10)
       .map(([k]) => k);
 
-    // The `shadow` block mixes block-level metadata (nativeBlurDivisor and
-    // its note) with named shadow tokens. Only entries shaped like a token
-    // — an object carrying a `layers` array, the same test the generators
-    // use to tell the two apart — are checked for a ruling here; this was
-    // missing entirely until a review caught that deleting the shadow's
-    // ruling left this test green.
+    // Only entries shaped like a token — an object carrying a `layers`
+    // array, the same test `packages/tokens/scripts/lib/source.mjs` uses in
+    // both generators — are checked for a ruling here, so block-level
+    // metadata in the `shadow` block is not mistaken for a token. The block
+    // carries none today: `nativeBlurDivisor` and its note were removed when
+    // the token moved to React Native's `boxShadow`. Checking the shadow's
+    // ruling at all was missing entirely until a review caught that deleting
+    // it left this test green.
     const shadowTokens = Object.entries(
       (src.shadow ?? {}) as Record<string, { layers?: unknown; ruling?: string }>,
     ).filter(([, v]) => v && typeof v === "object" && Array.isArray(v.layers));

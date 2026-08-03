@@ -1,23 +1,18 @@
-// Emits the React Native half. RN has no cascade, no var(), and no CSS custom
-// properties — tokens must arrive as a plain object of strings. Alpha is kept
-// separately in colorRaw because RN's shadowOpacity multiplies with a colour's
-// alpha, so a shadow consumer needs the two apart.
+// Emits the React Native half. RN has no cascade, no var() and no CSS custom
+// properties — tokens must arrive as a plain object. Alpha is kept separately
+// in colorRaw so a consumer that needs the two apart (compositing a translucent
+// fill, say) has them; the shadow no longer needs that, because its colour is
+// composed here into the rgba() string BoxShadowValue.color takes.
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+import { rgba, shadowTokens } from "./lib/source.mjs";
 
 const root = join(import.meta.dirname, "..", "..", "..");
 const src = JSON.parse(readFileSync(join(root, "packages/tokens/src/tokens.json"), "utf8"));
 const outDir = process.env.TOKENS_OUT_DIR ?? join(root, "packages/tokens/src");
 
 const names = Object.keys(src.color);
-
-// The `shadow` block carries block-level metadata (nativeBlurDivisor and its
-// note) alongside named shadow tokens — filter those out rather than assume
-// the block holds nothing but tokens.
-const shadowBlock = src.shadow ?? {};
-const shadowNames = Object.entries(shadowBlock)
-  .filter(([, v]) => v && typeof v === "object" && Array.isArray(v.layers))
-  .map(([n]) => n);
+const shadows = shadowTokens(src.shadow);
 
 const out = [
   "// GENERATED — do not edit. Source: packages/tokens/src/tokens.json",
@@ -35,26 +30,36 @@ const out = [
   ...names.map((n) => `  ${JSON.stringify(n)}: ${JSON.stringify(src.color[n].hex)},`),
   "};",
   "",
-  // No CSS strings: elevation encodes offset, blur and opacity in one scalar
-  // and cannot be derived from them, so androidElevation is hand-authored in
-  // the source, not computed here. shadowRadius for RN's shadow* props is
-  // left to the consumer: blurRadius / nativeBlurDivisor.
-  `export type ShadowName = ${shadowNames.length ? shadowNames.map((n) => JSON.stringify(n)).join(" | ") : "never"};`,
+  `export type ShadowName = ${shadows.length ? shadows.map(([n]) => JSON.stringify(n)).join(" | ") : "never"};`,
   "",
-  "export type ShadowLayer = {",
-  "  offsetX: number; offsetY: number; blurRadius: number; spreadRadius: number;",
-  "  color: { hex: string; alpha: number };",
+  "/**",
+  " * Structurally React Native's own `BoxShadowValue`",
+  " * (react-native@0.86.2, Libraries/StyleSheet/StyleSheetTypes.d.ts:343-350),",
+  " * declared here rather than imported so @aktflow/tokens stays free of a",
+  " * react-native dependency and keeps working in the web build. RN's version",
+  " * makes `color`, `blurRadius` and `spreadDistance` optional and allows",
+  " * strings for the numbers, so this narrower shape is assignable to it, and",
+  " * `BoxShadowValue[]` is assignable to `ViewStyle[\"boxShadow\"]`",
+  " * (`ReadonlyArray<BoxShadowValue> | string`, same file at :516).",
+  " */",
+  "export type BoxShadowValue = {",
+  "  offsetX: number;",
+  "  offsetY: number;",
+  "  blurRadius: number;",
+  "  spreadDistance: number;",
+  "  color: string;",
   "};",
   "",
-  `export const nativeBlurDivisor = ${JSON.stringify(shadowBlock.nativeBlurDivisor ?? null)};`,
-  "",
-  "export const shadow: Record<ShadowName, { layers: ShadowLayer[]; androidElevation: number }> = {",
-  ...shadowNames.map((n) => {
-    const t = shadowBlock[n];
+  "/** Pass straight to a View's `boxShadow` style prop — CSS box-shadow",
+  "  * semantics on both iOS and Android, so nothing here is approximated per",
+  "  * platform. */",
+  "export const shadow: Record<ShadowName, BoxShadowValue[]> = {",
+  ...shadows.map(([n, t]) => {
     const layers = t.layers.map((l) =>
-      `{ offsetX: ${l.offsetX}, offsetY: ${l.offsetY}, blurRadius: ${l.blurRadius}, spreadRadius: ${l.spreadRadius}, color: { hex: ${JSON.stringify(l.color.hex)}, alpha: ${l.color.alpha} } }`
+      `{ offsetX: ${l.offsetX}, offsetY: ${l.offsetY}, blurRadius: ${l.blurRadius}, ` +
+      `spreadDistance: ${l.spreadDistance}, color: ${JSON.stringify(rgba(l.color))} }`
     ).join(", ");
-    return `  ${JSON.stringify(n)}: { layers: [${layers}], androidElevation: ${t.androidElevation} },`;
+    return `  ${JSON.stringify(n)}: [${layers}],`;
   }),
   "};",
   "",

@@ -36,13 +36,27 @@ export const color: Record<ColorName, string> = {
 
 export type ShadowName = "shadow";
 
-export type ShadowLayer = {
-  offsetX: number; offsetY: number; blurRadius: number; spreadRadius: number;
-  color: { hex: string; alpha: number };
+/**
+ * Structurally React Native's own `BoxShadowValue`
+ * (react-native@0.86.2, Libraries/StyleSheet/StyleSheetTypes.d.ts:343-350),
+ * declared here rather than imported so @aktflow/tokens stays free of a
+ * react-native dependency and keeps working in the web build. RN's version
+ * makes `color`, `blurRadius` and `spreadDistance` optional and allows
+ * strings for the numbers, so this narrower shape is assignable to it, and
+ * `BoxShadowValue[]` is assignable to `ViewStyle["boxShadow"]`
+ * (`ReadonlyArray<BoxShadowValue> | string`, same file at :516).
+ */
+export type BoxShadowValue = {
+  offsetX: number;
+  offsetY: number;
+  blurRadius: number;
+  spreadDistance: number;
+  color: string;
 };
 
-export const nativeBlurDivisor = 2;
-
-export const shadow: Record<ShadowName, { layers: ShadowLayer[]; androidElevation: number }> = {
-  "shadow": { layers: [{ offsetX: 0, offsetY: 8, blurRadius: 30, spreadRadius: 0, color: { hex: "#151719", alpha: 0.07 } }], androidElevation: 3 },
+/** Pass straight to a View's `boxShadow` style prop — CSS box-shadow
+  * semantics on both iOS and Android, so nothing here is approximated per
+  * platform. */
+export const shadow: Record<ShadowName, BoxShadowValue[]> = {
+  "shadow": [{ offsetX: 0, offsetY: 8, blurRadius: 30, spreadDistance: 0, color: "rgba(21, 23, 25, 0.07)" }],
 };

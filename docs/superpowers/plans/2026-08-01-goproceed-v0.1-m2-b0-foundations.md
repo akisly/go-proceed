@@ -1030,15 +1030,27 @@ Add the ruled values to `packages/tokens/src/tokens.json` — `blue-500` and
 `contested` array. Each entry carries a `ruling` string naming who decided and
 on what evidence, in the same form as Task 1's entries.
 
-For shadows the shape is fixed by React Native and is not negotiable: an array
-of numeric layers plus a hand-authored `androidElevation`, because elevation
-encodes offset, blur and opacity in one scalar and cannot be derived from them.
-Add `nativeBlurDivisor: 2` at the shadow block's top level, with a comment that
-CSS blur radius is roughly twice RN's `shadowRadius` sigma and that this
-approximation is deliberately reviewable rather than hidden inside a generator.
+For shadows the shape is fixed by React Native: an array of numeric layers using
+RN's own field names — `offsetX`, `offsetY`, `blurRadius`, `spreadDistance` —
+with each layer's colour split into `{hex, alpha}` like every other colour. The
+native target is `boxShadow`, which `react-native@0.86.2` (the version
+`apps/mobile` pins through Expo SDK 57.0.9) declares on `ViewStyle` as
+`ReadonlyArray<BoxShadowValue> | string | undefined`
+(`Libraries/StyleSheet/StyleSheetTypes.d.ts:516`, with `BoxShadowValue` at
+`:343-350`), and which carries CSS box-shadow semantics on both platforms.
 
-Extend `generate-native.mjs` to emit the shadow block, and `generate-css.mjs` to
-emit `--shadow-*` custom properties.
+So no `androidElevation` and no blur divisor in the source. The first exists
+only for the legacy API's single Android scalar, which encodes offset, blur and
+opacity together and cannot be derived from them; the second only because the
+legacy `shadowRadius` is roughly half the CSS blur radius. `boxShadow` needs
+neither — it renders the shadow itself on Android, and its `blurRadius` *is* CSS
+blur. An approximation removed beats an approximation reviewed.
+
+Extend `generate-native.mjs` to emit `shadow` as
+`Record<ShadowName, BoxShadowValue[]>`, composing each layer's colour into an
+`rgba()` string with the same helper `generate-css.mjs` uses rather than a
+second copy of the arithmetic, and `generate-css.mjs` to emit `--shadow*` custom
+properties.
 
 - [ ] **Step 3: Replace the hand-maintained stylesheet**
 
@@ -1108,7 +1120,8 @@ anyone checks they were applied as decided."
 scope — Task 1 (colour) and Task 5 (shadow, after its ruling). The ruling rule
 — encoded as the `ruling` field on every entry, Task 1 Step 3. The three pixel
 rulings — Task 5, scheduled rather than discovered. RN shape rules (split alpha,
-numeric shadow layers, declared blur divisor) — Task 1 Step 5 and Task 5 Step 2.
+numeric shadow layers named as `BoxShadowValue` names them, no per-platform
+approximation in the source) — Task 1 Step 5 and Task 5 Step 2.
 The guard and its honest limits — Task 1 Step 1's docstring and Task 5 Step 5.
 Copy catalog reconciliation and its guard — Task 2. Expo scaffold with pinned
 SDK — Task 3. `eas.json` and procurement recorded-blocked — Task 4. Exit gate —

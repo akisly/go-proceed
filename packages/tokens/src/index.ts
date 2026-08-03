@@ -3,5 +3,5 @@
 // change shape.
 export { color, colorRaw, type ColorName } from "./tokens.generated";
 export {
-  shadow, nativeBlurDivisor, type ShadowName, type ShadowLayer,
+  shadow, type ShadowName, type BoxShadowValue,
 } from "./tokens.generated";

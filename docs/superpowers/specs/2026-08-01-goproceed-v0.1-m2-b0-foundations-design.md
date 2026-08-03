@@ -128,12 +128,26 @@ Three shape rules, each forced by React Native rather than by taste:
   `{ "hex": "#RRGGBB", "alpha": <0..1> }`. RN's `shadowOpacity` defaults to `0`
   and multiplies with the colour's alpha, so an `rgba()` string passed as
   `shadowColor` renders nothing at all.
-- **No shadow is a CSS string.** Shadows are arrays of numeric layers with an
-  explicitly authored `androidElevation`, because elevation encodes offset, blur
-  and opacity in one scalar and cannot be derived from them.
-- **The blur conversion is declared, not hidden.** CSS blur radius is roughly
-  twice RN's `shadowRadius` sigma; that approximation is a reviewable field in
-  the source, not a constant inside a generator.
+- **No shadow is a CSS string.** Shadows are arrays of numeric layers whose
+  fields carry React Native's own names — `offsetX`, `offsetY`, `blurRadius`,
+  `spreadDistance` — so the native generator emits `BoxShadowValue[]` verbatim
+  and the CSS generator composes the same four numbers into a `box-shadow`
+  string. The target is RN's `boxShadow`: `react-native@0.86.2` (the version
+  `apps/mobile` pins through Expo SDK 57.0.9) declares
+  `boxShadow?: ReadonlyArray<BoxShadowValue> | string | undefined` on `ViewStyle`
+  at `Libraries/StyleSheet/StyleSheetTypes.d.ts:516`, with `BoxShadowValue` at
+  `:343-350`.
+- **No approximation is carried that the platform now does itself.**
+  `boxShadow` takes CSS box-shadow semantics on both iOS and Android, so the
+  source carries neither a hand-authored `androidElevation` — the legacy API's
+  single Android scalar, which encodes offset, blur and opacity together and
+  cannot be derived from them — nor a `nativeBlurDivisor`, since the legacy
+  `shadowRadius` is roughly half the CSS blur radius while
+  `BoxShadowValue.blurRadius` *is* CSS blur. Both were here as deliberately
+  reviewable approximations rather than constants hidden in a generator;
+  removing an approximation is strictly better than reviewing one forever. The
+  retired `androidElevation: 3` and the Material reasoning that produced it stay
+  recorded in `docs/superpowers/plans/evidence/2026-08-01-b0-gate.md`.
 
 **The guard.** `packages/testing/src/error-catalog-fidelity.test.ts` is this
 repository's working precedent: it fails when a route emits a problem code the
