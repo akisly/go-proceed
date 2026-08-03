@@ -562,6 +562,50 @@ Read the surrounding lines first and match the file's voice. **Do not** rewrite 
 neighbouring claim; this is one sentence. Say in your report exactly what you wrote and
 why you judged it true.
 
+- [ ] **Step 3a: Two more claims this slice falsified**
+
+Task 2's implementer found both and correctly left them rather than scope-creep. Both
+are the same class as Step 3's sentence: text that this slice makes wrong.
+
+**`TODOS.md`, the P1 rename entry.** It says "Everything else still says `aktflow`" and
+lists "**10** `package.json` files declaring `@aktflow/*` names, and **55** source
+files importing them." After Tasks 1 and 2 that is zero and zero. Rewrite the entry so
+it describes what is actually left — the five PostgreSQL roles, the product copy, the
+domains and the env vars — and remove the package-identifier bullet. **Measure the
+remaining counts yourself** rather than editing the numbers by arithmetic; the entry's
+other bullets may also have drifted.
+
+**`scripts/validate-canonical-docs.mjs:39`.** The branding check strips two patterns
+before testing a line:
+
+```js
+    const stripped = line.replace(/@aktflow\/[\w-]+/g, "").replace(/aktflow_[\w]+/g, "");
+```
+
+The first strip is now dead: no branding-checked document contains an `@aktflow/`
+identifier. The second is still live and still needed — `docs/architecture/data-model.md`
+names the PostgreSQL roles, which are not being renamed. **Remove the first strip only,
+keep the second**, and correct the comment three lines above it, which claims both
+kinds are "handled by the v0.0 rename gate".
+
+Prove the change is safe rather than assuming — the validator must still pass, and the
+role strip must still be doing work:
+
+```bash
+node scripts/validate-canonical-docs.mjs
+node -e "
+const {brandingViolations} = await import('./scripts/validate-canonical-docs.mjs');
+" 2>/dev/null || true
+node --input-type=module -e "
+import {readFileSync} from 'node:fs';
+const src = readFileSync('docs/architecture/data-model.md','utf8');
+console.log('role-bearing lines still stripped:', src.split('\n').filter(l=>/aktflow_[\w]+/.test(l)).length);
+"
+```
+
+Expected: `canonical documentation: OK`, and a non-zero count of role-bearing lines —
+which is why the second strip stays.
+
 - [ ] **Step 4: Verify**
 
 ```bash
