@@ -16,7 +16,7 @@ import { cn } from '@/lib/utils'
  * destructive action does.
  *
  * NO FOCUS RING EITHER. `src/styles/theme.css` gives every focusable element
- * inside `.aktflow-app` one focus treatment — Slate outline plus a Lime halo,
+ * inside `.goproceed-app` one focus treatment — Slate outline plus a Lime halo,
  * matching the public routes. Restating it per variant is how two focus styles
  * end up disagreeing.
  */

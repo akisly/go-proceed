@@ -228,7 +228,7 @@ export default function AppShell() {
 
   return (
     <TooltipProvider>
-      <div className="aktflow-app grid min-h-screen grid-cols-1 bg-background md:grid-cols-[68px_1fr] wide:grid-cols-[240px_1fr]">
+      <div className="goproceed-app grid min-h-screen grid-cols-1 bg-background md:grid-cols-[68px_1fr] wide:grid-cols-[240px_1fr]">
         <a className="skip-link" href="#main-content" inert={isNarrow && open}>
           До основного вмісту
         </a>

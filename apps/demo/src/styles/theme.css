@@ -238,17 +238,17 @@
 /* ===========================================================================
  * Internal shell scope.
  *
- * Everything below applies only inside `.aktflow-app`, so the public routes
+ * Everything below applies only inside `.goproceed-app`, so the public routes
  * are untouched by the new system even though both stylesheets are loaded.
  *
  * IN `base`, NOT UNLAYERED. Unlayered wins over every layer, so leaving these
  * rules bare would make them beat the utilities that are supposed to override
- * them — `.aktflow-app :is(h1,h2,h3,h4,p,...) { margin: 0 }` would silently
+ * them — `.goproceed-app :is(h1,h2,h3,h4,p,...) { margin: 0 }` would silently
  * defeat every `mb-*` in the app. Sitting in `base` puts them exactly where
  * they belong: above the frozen `legacy` sheet, below every utility.
  * ========================================================================= */
 @layer base {
-  .aktflow-app {
+  .goproceed-app {
     background: var(--color-background);
     color: var(--color-foreground);
     font-family: var(--font-sans);
@@ -288,48 +288,48 @@
    *   table         Required for the register's shared column geometry.
    *   svg           Inline SVG sits on the text baseline and adds a phantom
    *                 descender under every icon. */
-  .aktflow-app *,
-  .aktflow-app *::before,
-  .aktflow-app *::after {
+  .goproceed-app *,
+  .goproceed-app *::before,
+  .goproceed-app *::after {
     border-color: var(--color-border);
   }
 
-  .aktflow-app :is(h1, h2, h3, h4, p, ul, ol, dl, dd, figure) {
+  .goproceed-app :is(h1, h2, h3, h4, p, ul, ol, dl, dd, figure) {
     margin: 0;
   }
 
-  .aktflow-app :is(ul, ol) {
+  .goproceed-app :is(ul, ol) {
     padding: 0;
     list-style: none;
   }
 
-  .aktflow-app textarea {
+  .goproceed-app textarea {
     font: inherit;
   }
 
-  .aktflow-app table {
+  .goproceed-app table {
     border-collapse: collapse;
     border-spacing: 0;
   }
 
-  .aktflow-app svg {
+  .goproceed-app svg {
     display: block;
     flex-shrink: 0;
   }
 
-  .aktflow-app :is(p, li) {
+  .goproceed-app :is(p, li) {
     text-wrap: pretty;
   }
 
   /* Every figure in this product is money or a count. Tabular by default here,
      rather than remembered per component. */
-  .aktflow-app [data-numeric],
-  .aktflow-app [data-money],
-  .aktflow-app table {
+  .goproceed-app [data-numeric],
+  .goproceed-app [data-money],
+  .goproceed-app table {
     font-variant-numeric: tabular-nums;
   }
 
-  .aktflow-app :is(h1, h2, h3) {
+  .goproceed-app :is(h1, h2, h3) {
     font-family: var(--font-display);
     letter-spacing: -0.015em;
     text-wrap: balance;
@@ -337,7 +337,7 @@
 
   /* Focus is a visible contract, not a nicety. Slate ring + Lime halo, matching
      the treatment already used on the public routes so the two never disagree. */
-  .aktflow-app :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+  .goproceed-app :is(a, button, input, select, textarea, [tabindex]):focus-visible {
     outline: 2px solid var(--color-foreground-secondary);
     outline-offset: 2px;
     box-shadow: 0 0 0 5px rgba(198, 255, 52, 0.34);
@@ -350,9 +350,9 @@
  * accessibility preference and has to beat everything, including anything
  * legacy declares, so it stays unlayered. */
 @media (prefers-reduced-motion: reduce) {
-  .aktflow-app *,
-  .aktflow-app *::before,
-  .aktflow-app *::after {
+  .goproceed-app *,
+  .goproceed-app *::before,
+  .goproceed-app *::after {
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
   }

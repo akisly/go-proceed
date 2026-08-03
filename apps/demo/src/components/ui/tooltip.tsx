@@ -47,7 +47,7 @@ function TooltipContent({
         className={cn(
           // `font-sans` and `motion-reduce:` are stated here rather than
           // inherited: Radix portals this to document.body, which is OUTSIDE
-          // `.aktflow-app`, so neither the shell's font nor its reduced-motion
+          // `.goproceed-app`, so neither the shell's font nor its reduced-motion
           // block reaches it. Anything that portals has to carry its own.
           'z-50 rounded-control bg-carbon px-2 py-1 font-sans text-meta font-medium text-surface shadow-raised',
           // Origin-aware: the chip grows out of the icon it belongs to, not out

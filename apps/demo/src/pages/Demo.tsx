@@ -198,7 +198,7 @@ export default function Demo() {
   }, [])
 
   return (
-    <div className="aktflow-app flex min-h-screen flex-col">
+    <div className="goproceed-app flex min-h-screen flex-col">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-[900px] items-center gap-4 px-5 py-3">
           <Link className="brand" to="/" aria-label="AktFlow — головна">

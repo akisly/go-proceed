@@ -13,7 +13,7 @@ import { cn } from '@/lib/utils'
  * rather than a phrase, and `resize-y` leaves the visitor in control past that.
  *
  * No focus ring here: `theme.css` gives every focusable element inside
- * `.aktflow-app` the same treatment.
+ * `.goproceed-app` the same treatment.
  */
 function Textarea({ className, ...props }: ComponentProps<'textarea'>) {
   return (

@@ -90,7 +90,7 @@ element under 12px there, and a register read all day should not carry 11px.
 
 ### Density — decided once, in the base layer
 
-`.aktflow-app` sets `font-size: 15px` below 768px and `13px` at and above it.
+`.goproceed-app` sets `font-size: 15px` below 768px and `13px` at and above it.
 Anything that is just "text" **inherits**. Explicit `text-*` utilities are for
 deliberate steps away from the body — a heading, an eyebrow, the focal figure —
 **never** for restating the default at a second breakpoint. If you find yourself
@@ -198,7 +198,7 @@ No `destructive` variant: nothing under `/app/**` deletes anything, so it could
 only ever be used by being reached for wrongly.
 
 No focus ring in the variants: `theme.css` gives every focusable element inside
-`.aktflow-app` one treatment (Slate outline + Lime halo), matching the public
+`.goproceed-app` one treatment (Slate outline + Lime halo), matching the public
 routes so the two cannot disagree.
 
 Sizes carry **two numbers**, and the small one is never below 44px:
@@ -327,7 +327,7 @@ hand-rolled `h-px bg-border` is either always announced or never announced.
    the `font-size`, `font-family`, `rounded` and `shadow` groups. Extend it when
    the theme gains a namespace.
 
-4. **Radix portals escape `.aktflow-app`.** Portalled content gets none of the
+4. **Radix portals escape `.goproceed-app`.** Portalled content gets none of the
    shell's base layer — no font, no reduced-motion block, no focus ring. Anything
    that portals must carry `font-sans` and `motion-reduce:` itself.
 
@@ -376,7 +376,7 @@ hand-rolled `h-px bg-border` is either always announced or never announced.
 |---|---|---|
 | `src/styles.css` | the approved design system | **never** — byte-identical to `prototype/src/styles.css`, test-enforced |
 | `src/styles/demo.css` | public routes only (`/`, `/pilot`, `/roadmap`, `/legal/*`, `/demo`) | yes, for public routes |
-| `src/styles/theme.css` | tokens, layer order, the `.aktflow-app` base | yes |
+| `src/styles/theme.css` | tokens, layer order, the `.goproceed-app` base | yes |
 | Tailwind utilities | everything under `/app/**` | — |
 
 `/app/**` has **no** hand-written CSS. If an internal component needs a rule that

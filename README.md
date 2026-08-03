@@ -16,8 +16,9 @@ external decision → partial acceptance and derived value at risk.
 
 ## Actual state (do not overclaim)
 
-- **Product name is GoProceed.** `AktFlow` survives only as legacy history and
-  in not-yet-renamed runtime identifiers (a v0.0 item).
+- **Product name is GoProceed.** The workspace package identifiers now say
+  `@goproceed/*`; the five PostgreSQL roles and the user-visible `AktFlow`
+  copy have not moved, and each is its own later slice.
 - **The runtime today is a 33-table foundation**, defined by 35
   `supabase/migrations/` through `0035`. Its v0.0 origin slice named six
   tables (`organizations`, `legal_entities`, `memberships`, `audit_events`,

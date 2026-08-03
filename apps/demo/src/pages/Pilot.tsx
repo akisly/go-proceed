@@ -381,7 +381,7 @@ export default function Pilot() {
 
   if (submitState.phase === 'sent') {
     return (
-      <div className="aktflow-app flex min-h-screen flex-col">
+      <div className="goproceed-app flex min-h-screen flex-col">
         <PilotHeader />
         <main className="mx-auto flex w-full max-w-[720px] flex-1 flex-col items-center px-5 py-16 text-center">
           <span
@@ -410,7 +410,7 @@ export default function Pilot() {
   }
 
   return (
-    <div className="aktflow-app flex min-h-screen flex-col">
+    <div className="goproceed-app flex min-h-screen flex-col">
       <PilotHeader />
 
       {/*
