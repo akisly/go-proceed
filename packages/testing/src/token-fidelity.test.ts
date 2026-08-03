@@ -77,9 +77,11 @@ describe("generated tokens match their source", () => {
 
 describe("the source accounts for every documented colour", () => {
   it("names every token the design document's table defines, or records it contested", () => {
-    // docs/05-design-system.md:19-30. Parsed from the document rather than
-    // copied, so adding a row there without adding a token fails here.
-    const doc = readFileSync(join(repoRoot, "docs/05-design-system.md"), "utf8");
+    // docs/legacy/05-design-system.md:19-30. Parsed from the document rather than
+    // copied, so adding a row there without adding a token fails here. The document
+    // is non-normative by location, but it remains the only place the twelve colour
+    // names are written down, so this test still reads it rather than a successor.
+    const doc = readFileSync(join(repoRoot, "docs/legacy/05-design-system.md"), "utf8");
     const documented = [...doc.matchAll(/^\| `([a-z0-9-]+)` \| `(#[0-9A-Fa-f]{6})` \|/gm)]
       .map((m) => m[1]!);
     expect(documented.length).toBe(12);
