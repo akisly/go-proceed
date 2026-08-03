@@ -46,8 +46,10 @@ helpers and trigger functions); five roles — `aktflow_app`,
 `aktflow_service`, `aktflow_service_login` (`0034:25,28`); and optional
 `pg_cron` scheduling. This inventory is derived from migrations, and is
 independently corroborated by the live `pg_catalog` snapshot in
-[baseline verification](../../migration/goproceed-canonical-v0.1/baseline-verification.md),
-which also records the known gaps.
+[`catalog-snapshots/20260731-2102.md`](../../migration/goproceed-canonical-v0.1/catalog-snapshots/20260731-2102.md)
+(`## tables (33)`, `## functions (27)`). The verified baseline and its known
+gaps are recorded separately in
+[baseline verification](../../migration/goproceed-canonical-v0.1/baseline-verification.md).
 
 The baseline is not the v0.1 model. In particular, only three baseline tables
 currently have RLS; audit/idempotency access and outbox writes are not yet

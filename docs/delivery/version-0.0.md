@@ -4,7 +4,7 @@
 
 **Applies to:** v0.0
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-004](../decisions/ADR-004-roadmap-demo-and-documentation.md)
@@ -12,8 +12,9 @@
 ## Outcome
 
 One authoritative GoProceed package describes the actual runtime separately
-from the approved v0.1 target, and the existing six-table foundation is safe to
-extend. The recorded starting point is
+from the approved v0.1 target, and the foundation this gate started from —
+six tables, extended to seven by migration `0008` within the gate itself —
+is safe to extend. The recorded starting point is
 [baseline verification](../../migration/goproceed-canonical-v0.1/baseline-verification.md):
 143/165 tests passing, 22 failures dominated by the unavailable local database,
 three demo suites broken by a missing `@/lib/utils` import, and an unresolved

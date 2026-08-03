@@ -4,7 +4,7 @@
 
 **Applies to:** all
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](docs/decisions/ADR-001-product-boundary.md),
 [ADR-004](docs/decisions/ADR-004-roadmap-demo-and-documentation.md)
