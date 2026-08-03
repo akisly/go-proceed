@@ -418,7 +418,7 @@ Each workspace route exposes:
 - exact dossier/file label;
 - current process chain;
 - one optional next logical hand-off;
-- actionable notifications with deep links (live for the web `/app/...` routes today; the mobile deep-link routes in §6 remain a v0.1 target);
+- actionable notifications with deep links (a v0.1 target on both surfaces: the web workspace ships only `/login` and `/context` today, and the mobile deep-link routes in §6 do not exist yet);
 - a bounded project-context switcher;
 - support contact.
 
