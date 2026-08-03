@@ -416,7 +416,7 @@ comprehension `*(DOCS / f"{index:02d}-{name}.md" for index, name in [...])`
 listing 34 `(index, name)` pairs from `(0, "product-brief")` to
 `(36, "security-verification-profile")`, then `*(TECH / filename for filename in [...])`.
 
-**Delete the entire `*(DOCS / …)` comprehension including its 35-pair list.**
+**Delete the entire `*(DOCS / …)` comprehension including its 34-pair list.**
 Keep `README.md`, `Makefile`, and every `TECH /` entry and anything after them
 exactly as they are.
 
@@ -600,7 +600,7 @@ Expected: `canonical documentation: OK`.
 git add scripts/validate_package.py
 git commit -m "refactor(validate): stop requiring the numbered layer to stand still
 
-Four mechanisms held docs/NN-*.md in place: required_files pinned all 35 at exact
+Four mechanisms held docs/NN-*.md in place: required_files pinned 34 of them at
 paths; a contiguity contract required indices 00..36 with a hand-maintained
 six-entry archive exception; eight assertions required literal substrings inside
 seven of them; and the global test-reference sweep read the whole layer, so
