@@ -2,6 +2,36 @@ name: ci
 on:
   push: { branches: [main] }
   pull_request: {}
+# ACTION MAJORS DECLARE THE node24 RUNTIME.
+#
+# GitHub is retiring the Node 20 runtime that executes JavaScript actions. Every
+# action below previously declared `using: node20` in its own action.yml, so runs
+# annotated: "Node.js 20 is deprecated ... being forced to run on Node.js 24".
+#
+# This was never about the Node this project uses — .nvmrc is 24 and the jobs
+# already pin node-version 24. It is only about the runtime the actions
+# themselves execute on.
+#
+# Verified per pin rather than assumed, by reading `runs.using` out of each
+# action.yml at the exact commit pinned below. GitHub's annotation named only
+# four actions; setup-python and upload-artifact were node20 too and are fixed
+# here as well.
+#
+#   actions/checkout        v4 -> v7.0.1    node20 -> node24
+#   actions/setup-node      v4 -> v7.0.0    node20 -> node24
+#   actions/setup-python    v5 -> v7.0.0    node20 -> node24
+#   actions/upload-artifact v4 -> v7.0.1    node20 -> node24
+#   pnpm/action-setup       v4 -> v6.0.10   node20 -> node24
+#   supabase/setup-cli      v1 -> v3.0.0    node20 -> composite
+#
+# supabase/setup-cli is the one substantive rewrite: v3 is a composite action,
+# which runs no Node at all and so leaves this deprecation entirely. Its
+# `version` input still accepts `latest`, which is all this workflow passes. If
+# `verify` fails at "supabase start", suspect that upgrade first.
+#
+# Pins stay SHA-based, not tags, for the same reason as the permissions block
+# below: a moved tag is a supply-chain vector. The trailing comment is the tag
+# the SHA belonged to when it was pinned, not a resolution instruction.
 # Least privilege: nothing here writes to the repo; a hijacked third-party
 # action must not inherit a write-capable GITHUB_TOKEN.
 permissions:
@@ -30,12 +60,12 @@ jobs:
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
       NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with: { version: 9.12.0 }
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
 
       - run: pnpm install --frozen-lockfile
@@ -46,7 +76,7 @@ jobs:
       # build — it reads the tree.
       - run: pnpm validate:canonical-docs
 
-      - uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1 branch head 2026-07-30
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
         with: { version: latest }
 
       # Cold runners pull the full local Postgres/GoTrue/Kong image set on
@@ -89,12 +119,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
         with: { version: 9.12.0 }
 
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
@@ -159,7 +189,7 @@ jobs:
 
       - name: Upload QA artifacts
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: demo-qa-output
           path: apps/demo/qa-output/
@@ -172,9 +202,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with: { python-version: '3.12' }
 
       # NPM, NOT PNPM — and no pnpm/action-setup at all.
@@ -198,7 +228,7 @@ jobs:
       #
       # The other two jobs both run `pnpm install --frozen-lockfile`, so their
       # `cache: pnpm` is correct and is left alone.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version-file: .nvmrc
           cache: npm
