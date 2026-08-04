@@ -49,7 +49,7 @@ describe('GA-gated states', () => {
  * `src/data/contact.ts` — but `{{FORM_PROCESSOR}}` has not, so the reasoning
  * still holds and the check stays out of this suite.) It now lives in
  * `qa/preflight.mjs`
- * (`pnpm --filter @aktflow/demo preflight`), a separate, explicit,
+ * (`pnpm --filter @goproceed/demo preflight`), a separate, explicit,
  * deploy-time gate documented as a hard prerequisite in README.md §3 — not
  * part of the default test/CI suite. `qa/verify.mjs`'s bundle scan still
  * *reports* any surviving tokens (non-failing, alongside `missingAssets`) so

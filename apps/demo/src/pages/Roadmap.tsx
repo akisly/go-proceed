@@ -79,7 +79,7 @@ const CONCEPTUAL: readonly {
  */
 export default function Roadmap() {
   return (
-    <div className="aktflow-app min-h-screen">
+    <div className="goproceed-app min-h-screen">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-[1240px] items-center gap-4 px-5 py-3 md:px-8">
           <Link className="brand" to="/" aria-label="AktFlow — головна">

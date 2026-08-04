@@ -1,10 +1,10 @@
 import { HttpProblem } from "./http";
-import { problem } from "@aktflow/contracts";
-import type { Tx } from "@aktflow/database";
+import { problem } from "@goproceed/contracts";
+import type { Tx } from "@goproceed/database";
 import {
   workspaceCapabilities,
   type GovernanceRole, type WorkspaceCapability, type ProjectCapability,
-} from "@aktflow/domain";
+} from "@goproceed/domain";
 
 export interface ActiveMembership { memberId: string; role: GovernanceRole }
 

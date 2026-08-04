@@ -1,5 +1,5 @@
 {
-  "name": "@aktflow/domain",
+  "name": "@goproceed/domain",
   "version": "0.0.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -9,7 +9,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@aktflow/contracts": "workspace:*",
+    "@goproceed/contracts": "workspace:*",
     "exceljs": "4.4.0"
   }
 }

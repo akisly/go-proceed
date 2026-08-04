@@ -4,7 +4,7 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-003](../decisions/ADR-003-evidence-packages-and-acceptance.md),
@@ -35,8 +35,9 @@ operation, and a general integration platform are outside this boundary.
 - `apps/demo` and `prototype/` physically exist as legacy/reference design
   material. They are not canonical v0.1 runtime surfaces and must not be treated
   as deployable product closure.
-- `apps/mobile` does not yet physically exist. It is an approved target that must
-  be created and verified before the v0.1 mobile milestone can close.
+- `apps/mobile` exists as a committed pnpm workspace (22 tracked files, Expo
+  SDK 57.0.9, expo-router). The v0.1 mobile milestone remains open on
+  functionality, not on existence.
 - Supabase foundation assets and database packages exist, but their presence
   does not prove that the canonical domain, security, worker, storage, or
   recovery behavior is complete.
@@ -216,16 +217,23 @@ commits. Later worker execution is causally linked to that transaction.
 mobile with current authorization
 → BFF creates bounded upload intent
 → short-lived upload to private staging key
-→ BFF/worker verifies bytes, hash, authorization, and inspection state
+→ finalization command verifies bytes, hash, authorization, and inspection state
 → transaction creates evidence identity + available receipt
 → mobile persists receipt
 → local original becomes cleanup-eligible
 ```
 
-If authorization fails after bytes arrive, the staged object is not evidence. It
-becomes inaccessible orphaned storage for bounded purge while the client
-quarantines its local original according to the approved recovery/deletion
-policy.
+In v0.1 that step is not a worker. Content inspection runs synchronously inside
+the finalization command
+(`apps/app/app/v1/upload-intents/[intentId]/finalize/route.ts`), not as a
+separate job over intent-bound staged content, and the same transaction that
+records the terminal state creates the evidence receipt.
+
+If authorization fails after bytes arrive, they never become evidence: the
+intent moves directly from `intent_authorized` to `orphaned_for_purge`. The
+object becomes inaccessible orphaned storage for bounded purge while the
+client quarantines its local original according to the approved
+recovery/deletion policy.
 
 ### Frozen package and artifacts
 

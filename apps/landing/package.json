@@ -1,5 +1,5 @@
 {
-  "name": "@aktflow/landing",
+  "name": "@goproceed/landing",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
     "next": "16.2.11",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "@aktflow/ui": "workspace:*",
+    "@goproceed/ui": "workspace:*",
     "@fontsource-variable/inter": "5.3.0",
     "@fontsource-variable/manrope": "5.3.0"
   },

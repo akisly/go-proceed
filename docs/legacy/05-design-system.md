@@ -17,17 +17,17 @@ Three qualities:
 | Token | Value | Use |
 |---|---:|---|
 | `ink-950` | `#171717` | primary ink/sidebar (Evidence Atlas Carbon) |
-| `ink-800` | `#2A2D2F` | secondary surfaces |
+| `ink-800` | `#242424` | secondary surfaces |
 | `paper` | `#FBFBFB` | app background (Evidence Atlas Paper) |
 | `white` | `#FFFFFF` | cards |
 | `signal-500` | `#C6FF34` | brand/action/readiness (Evidence Atlas Lime) |
 | `slate-600` | `#484C5E` | structural surfaces/dividers (Evidence Atlas Slate) |
-| `signal-700` | `#84A625` | accessible text/accent |
+| `signal-700` | `#667F12` | accessible text/accent |
 | `amber-500` | `#F2B84B` | warning/at risk |
 | `red-500` | `#E45C55` | blocked/destructive |
-| `blue-500` | `#5278D8` | informational/submitted |
+| `blue-500` | `#3756a1` | informational/submitted |
 | `line` | `#D9DBD5` | borders |
-| `muted` | `#686E6A` | secondary text |
+| `muted` | `#666979` | secondary text |
 
 Signal lime is not body text on white. Ready state always combines icon/label/color.
 

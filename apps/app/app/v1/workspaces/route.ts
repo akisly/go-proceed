@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../src/lib/command";
-import { createWorkspaceRequest, type CreateWorkspaceResponse } from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@aktflow/database";
+import { createWorkspaceRequest, type CreateWorkspaceResponse } from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
 
 export const runtime = "nodejs"; // node-postgres + node:crypto require the Node runtime
 

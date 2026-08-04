@@ -36,6 +36,6 @@
  * resolved rather than bypassed.
  *
  * The FORM_PROCESSOR token (src/pages/Legal.tsx) remains genuinely unresolved,
- * so `pnpm --filter @aktflow/demo preflight` still exits 1. See README.md §3.
+ * so `pnpm --filter @goproceed/demo preflight` still exits 1. See README.md §3.
  */
 export const CONTACT_EMAIL = 'akisliy2306@gmail.com'

@@ -4,7 +4,7 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-002](../decisions/ADR-002-tenancy-parties-and-contracts.md),
@@ -23,9 +23,10 @@ weakening the domain rules.
 
 ## Current baseline versus approved target
 
-### Migration-derived six-table baseline
+### v0.0 origin slice: six tables (migrations 0001-0002)
 
-The current migration chain creates exactly six application tables:
+Migrations `0001`-`0002` created exactly six application tables, the v0.0
+origin slice:
 
 | Current physical table | Current purpose | v0.0 consequence |
 |---|---|---|
@@ -36,11 +37,18 @@ The current migration chain creates exactly six application tables:
 | `idempotency_records` | Command replay records | Require tenant binding, bounded keys, expiry, and a coherent replay lifecycle |
 | `transaction_outbox` | Durable event intents | Require tenant binding, real claim/retry/error/backoff/dead-letter behavior |
 
-The baseline also creates `api.me_context`; functions `app.current_actor`,
-`app.org_has_members`, and `public.drain_outbox`; two legacy-named application
-roles; and optional `pg_cron` scheduling. This inventory is derived from
-migrations, not a live `pg_catalog` snapshot. The verified baseline and its
-known gaps are recorded in
+The migration chain has since grown the baseline to 33 tables across 35
+migrations (through `0035`). It also creates `api.me_context`; 27 functions
+(22 in `app`, 5 in `public` — counting distinct schema-qualified name plus
+argument-type list, surviving all drops, including `SECURITY DEFINER`
+helpers and trigger functions); five roles — `aktflow_app`,
+`aktflow_app_login` (`0003:8,11`), `aktflow_worker` (`0008:35`),
+`aktflow_service`, `aktflow_service_login` (`0034:25,28`); and optional
+`pg_cron` scheduling. This inventory is derived from migrations, and is
+independently corroborated by the live `pg_catalog` snapshot in
+[`catalog-snapshots/20260731-2102.md`](../../migration/goproceed-canonical-v0.1/catalog-snapshots/20260731-2102.md)
+(`## tables (33)`, `## functions (27)`). The verified baseline and its known
+gaps are recorded separately in
 [baseline verification](../../migration/goproceed-canonical-v0.1/baseline-verification.md).
 
 The baseline is not the v0.1 model. In particular, only three baseline tables
@@ -407,7 +415,8 @@ by this command.
 
 ## Additive migration rules
 
-The six-table baseline is hardened and evolved additively:
+The v0.0 origin slice's six tables were hardened and evolved additively into
+the current 33-table baseline, following these rules:
 
 1. create new target tables/columns/constraints without renaming or dropping
    baseline objects;

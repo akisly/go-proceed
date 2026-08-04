@@ -1,6 +1,9 @@
-.PHONY: validate validate-contracts validate-prototype validate-qa
+.PHONY: validate validate-canonical validate-contracts validate-prototype validate-qa
 
-validate: validate-prototype validate-qa validate-contracts
+validate: validate-canonical validate-prototype validate-qa validate-contracts
+
+validate-canonical:
+	node scripts/validate-canonical-docs.mjs
 
 validate-contracts:
 	python3 scripts/validate_package.py

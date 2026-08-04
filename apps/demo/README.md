@@ -3,7 +3,7 @@
 Static Vite SPA. Public, Ukrainian-language, unauthenticated discovery demo
 for cold/warm outreach (see
 `.superpowers/sdd/2026-07-26-p0a-child-a-discovery-prototype/`). No backend,
-no Supabase client, no server-rendered routes — `pnpm --filter @aktflow/demo
+no Supabase client, no server-rendered routes — `pnpm --filter @goproceed/demo
 build` produces a fully static `dist/` that any static host can serve.
 
 This file is **not** a record that the site has been deployed. Nothing in
@@ -27,7 +27,7 @@ Project settings (same pattern as the two existing projects in
   Vercel framework preset the way Next.js is; `vercel.json` in this
   directory carries the build/output/rewrite configuration explicitly
   instead of relying on preset auto-detection)
-- **Build command:** `cd ../.. && pnpm turbo run build --filter=@aktflow/demo`
+- **Build command:** `cd ../.. && pnpm turbo run build --filter=@goproceed/demo`
   (set in `vercel.json`; Vercel's monorepo auto-detect would also work, but
   the explicit form matches `infra/README-staging.md`'s existing two
   projects and removes any ambiguity about which workspace gets built)
@@ -106,7 +106,7 @@ mailbox someone actually reads", since the whole point of publishing it is that
 a deletion request sent there arrives somewhere. See the comment in
 `contact.ts`.
 
-**Hard prerequisite: `pnpm --filter @aktflow/demo preflight` must exit `0`
+**Hard prerequisite: `pnpm --filter @goproceed/demo preflight` must exit `0`
 before this site is published.** It mechanically scans `src/` for the
 literal `{{TOKEN}}` pattern and fails, naming every unreplaced token and the
 file(s) it lives in, if any row of the table above is still a placeholder —
@@ -198,9 +198,9 @@ every asset path actually present in `apps/demo/dist/` does not match it
 ## 5. Local verification before any deploy
 
 ```bash
-pnpm --filter @aktflow/demo build      # -> apps/demo/dist
-pnpm --filter @aktflow/demo qa         # headless-Chrome route/redirect/claim crawl against dist
-pnpm --filter @aktflow/demo preflight  # REQUIRED before publishing — see §3; not part of build/qa
+pnpm --filter @goproceed/demo build      # -> apps/demo/dist
+pnpm --filter @goproceed/demo qa         # headless-Chrome route/redirect/claim crawl against dist
+pnpm --filter @goproceed/demo preflight  # REQUIRED before publishing — see §3; not part of build/qa
 ```
 
 `apps/demo/qa/verify.mjs` serves `dist/` locally with the same

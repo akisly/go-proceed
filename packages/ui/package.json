@@ -1,5 +1,5 @@
 {
-  "name": "@aktflow/ui",
+  "name": "@goproceed/ui",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -8,6 +8,6 @@
     "./base.css": "./src/base.css"
   },
   "scripts": {
-    "typecheck": "echo \"@aktflow/ui: no TypeScript sources yet (tokens-only package)\""
+    "typecheck": "echo \"@goproceed/ui: no TypeScript sources yet (tokens-only package)\""
   }
 }

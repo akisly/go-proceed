@@ -74,7 +74,7 @@ export default function Landing() {
   const [menuOpen, setMenuOpen] = useState(false)
 
   return (
-    <div className="aktflow-app">
+    <div className="goproceed-app">
       <header
         data-site-header
         className="sticky top-strip z-30 border-b border-border bg-surface/90 backdrop-blur"

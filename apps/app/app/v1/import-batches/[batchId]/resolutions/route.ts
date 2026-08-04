@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { createResolutionRequest, type CreateResolutionResponse } from "@aktflow/contracts";
-import { RESOLVABLE_CODES } from "@aktflow/domain";
-import { withTenantTx, withIdempotency, recordAudit } from "@aktflow/database";
+import { createResolutionRequest, type CreateResolutionResponse } from "@goproceed/contracts";
+import { RESOLVABLE_CODES } from "@goproceed/domain";
+import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

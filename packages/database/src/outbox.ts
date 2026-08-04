@@ -1,5 +1,5 @@
 import type { Tx, TenantContext } from "./tx";
-import type { OutboxIntent } from "@aktflow/domain";
+import type { OutboxIntent } from "@goproceed/domain";
 
 export interface EnqueueOutboxOpts {
   // See RecordAuditOpts.organizationId in audit.ts: bootstrap commands create

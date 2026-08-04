@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireWorkspaceCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { createProjectRequest, type CreateProjectResponse } from "@aktflow/contracts";
-import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@aktflow/database";
+import { createProjectRequest, type CreateProjectResponse } from "@goproceed/contracts";
+import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

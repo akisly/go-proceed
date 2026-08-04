@@ -1,5 +1,5 @@
-import type { Tx } from "@aktflow/database";
-import type { ImportBatchResponse } from "@aktflow/contracts";
+import type { Tx } from "@goproceed/database";
+import type { ImportBatchResponse } from "@goproceed/contracts";
 
 /** Assemble the shared ImportBatchResponse (used by batch GET and validate). */
 export async function loadImportBatchResponse(

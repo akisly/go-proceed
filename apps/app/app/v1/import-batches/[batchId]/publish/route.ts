@@ -2,9 +2,9 @@ import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { publishImportBatchRequest, type PublishImportBatchResponse } from "@aktflow/contracts";
-import { matchLineage, decimalText, canonicalPriceBasis, type TaxMode } from "@aktflow/domain";
-import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@aktflow/database";
+import { publishImportBatchRequest, type PublishImportBatchResponse } from "@goproceed/contracts";
+import { matchLineage, decimalText, canonicalPriceBasis, type TaxMode } from "@goproceed/domain";
+import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

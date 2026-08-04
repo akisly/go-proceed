@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { requireUser } from "./auth";
 import { idempotencyKeyFrom } from "./request-context";
 import { HttpProblem, toProblemResponse, ok, requestIdFrom } from "./http";
-import { problem } from "@aktflow/contracts";
+import { problem } from "@goproceed/contracts";
 
 export interface CommandArgs<T> {
   req: Request;

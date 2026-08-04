@@ -11,7 +11,7 @@ import { PLACEHOLDER_TOKEN_PATTERN_GLOBAL } from './placeholder-tokens.mjs'
  * suite that is red by design trains everyone to ignore red and buries
  * genuine regressions behind a known, deliberate failure.
  *
- * Instead, `pnpm --filter @aktflow/demo preflight` is a separate, explicit
+ * Instead, `pnpm --filter @goproceed/demo preflight` is a separate, explicit
  * command that MUST be run — and MUST exit 0 — before `apps/demo` is
  * published. The one currently-unresolved token ({{FORM_PROCESSOR}}; its
  * former companion {{CONTACT_EMAIL}} is resolved, see src/data/contact.ts) is

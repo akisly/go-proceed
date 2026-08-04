@@ -272,8 +272,8 @@ Items: queued, uploading, server-confirmed, failed, conflict, quarantined (autho
 
 - **Жесты**: pull-to-refresh на Today/Sync только запрашивает статус (не отправляет команды); swipe-left на карточке задания — быстрый «Почати фіксацію»; long-press на доказательстве — просмотр метаданных/оригинала; pinch-zoom в evidence viewer; haptic-подтверждение на сохранении локального receipt и на server-confirmed. Деструктивных swipe-действий нет.
 - **Разрешения ОС**: камера и микрофон — priming-экран с объяснением до системного запроса; при отказе — экран «Дозвольте доступ до камери, щоб фіксувати роботу» с кнопкой в системные настройки; фиксация без камеры невозможна и это явно сказано. Геолокация — по политике doc 23 §8 не блокирует фиксацию; при отказе пишется reason, а не блок. Уведомления в Pilot не запрашиваются (pull-only).
-- **Deep links**: схема `aktflow://` + universal/app links (`aktflow.app/...`), покрытые AASA (iOS) и assetlinks.json (Android). Целевые маршруты: `assignment/{id}`, `occurrence/{id}`, `capture/{assignmentId}`, `invite/{token}`. Открытие ссылки на объект вне scope пользователя ведёт на экран «нет доступа», не на пустой объект. Filter-context сохраняется в диплинке.
-- **Push**: в Pilot поле работает pull-only, push намеренно GA-gated (реестр doc 37). Контракт на GA: payload несёт только `type` + object ID + tenant, без содержимого; тап открывает соответствующий deep link после проверки доступа; регистрация токена APNs/FCM привязана к membership и инвалидируется при revoke.
+- **Deep links**: сегодня зарегистрирована схема `goproceed` (`apps/mobile/app.json`) и включён Expo Router с typed routes — механизм диплинкинга существует. Universal/app links (`aktflow.app/...`), покрытие AASA (iOS) и assetlinks.json (Android) не существуют — таких файлов в репозитории нет; целевые маршруты `assignment/{id}`, `occurrence/{id}`, `capture/{assignmentId}`, `invite/{token}` тоже не существуют — весь маршрутный стол мобильного клиента сегодня это `_layout.tsx` и `index.tsx`. Всё перечисленное — цель v0.1. Когда маршруты появятся: открытие ссылки на объект вне scope пользователя должно вести на экран «нет доступа», не на пустой объект, а filter-context должен сохраняться в диплинке.
+- **Push**: в Pilot поле работает pull-only, push намеренно GA-gated (реестр doc 37). Контракт на GA: payload несёт только `type` + object ID + tenant, без содержимого; тап должен открывать соответствующий deep link после проверки доступа — это зависит от целевых маршрутов диплинкинга v0.1 (см. выше), которые пока не реализованы; регистрация токена APNs/FCM привязана к membership и инвалидируется при revoke.
 - **Устойчивость приложения**: kill/restart во время загрузки возобновляет resumable upload с последней части; обновление приложения не теряет несинхронизированный outbox; устаревшая версия уходит в safe mode по `X-Min-Client-Version` (doc 23 §9).
 
 ## 7. External reviewer
@@ -320,7 +320,7 @@ Closure maps to `A-004/requestOrganizationClosure`: export is offered first, org
 
 ## 9. Notification center
 
-Events are grouped by work/package, not one row per technical event. Tabs: requires action, updates, system. `A-066/markNotificationsRead` records only own-recipient read timestamps and is safe to retry. `A-064/updateNotificationPreferences` uses ETag/version; mandatory classes cannot be disabled and email/push/SMS remain visibly unavailable until their GA/provider gates. Deep links preserve filter context.
+Events are grouped by work/package, not one row per technical event. Tabs: requires action, updates, system. `A-066/markNotificationsRead` records only own-recipient read timestamps and is safe to retry. `A-064/updateNotificationPreferences` uses ETag/version; mandatory classes cannot be disabled and email/push/SMS remain visibly unavailable until their GA/provider gates. Deep link filter-context preservation is a v0.1 target: the mobile route table it depends on (§6 Native interaction contract) is not yet built — only `_layout.tsx` and `index.tsx` exist today.
 
 Distributed inbox norm: единого кросс-объектного inbox в Pilot нет намеренно — actionable-работа распределена по четырём поверхностям с одинаковой семантикой владения/срока: notification center (S-этот раздел), attention rail S10, полевой Today S24 и review-очередь S16. Каждая поверхность показывает only-my-actionable фильтр; unified prioritized inbox — GA-кандидат в реестре doc 37 и вводится только по evidence спроса.
 
@@ -418,7 +418,7 @@ Each workspace route exposes:
 - exact dossier/file label;
 - current process chain;
 - one optional next logical hand-off;
-- actionable notifications with deep links;
+- actionable notifications with deep links (a v0.1 target on both surfaces: the web workspace ships only `/login` and `/context` today, and the mobile deep-link routes in §6 do not exist yet);
 - a bounded project-context switcher;
 - support contact.
 

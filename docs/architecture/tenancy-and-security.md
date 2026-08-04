@@ -4,7 +4,7 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-002](../decisions/ADR-002-tenancy-parties-and-contracts.md),
@@ -27,9 +27,9 @@ for the tenant-safe relational chain defined in
 
 ### Current migration-derived baseline
 
-The current runtime represented by migrations contains six tables:
-`organizations`, `legal_entities`, `memberships`, `audit_events`,
-`idempotency_records`, and `transaction_outbox`.
+The current runtime represented by migrations contains 33 tables. The v0.0
+origin slice named six: `organizations`, `legal_entities`, `memberships`,
+`audit_events`, `idempotency_records`, and `transaction_outbox`.
 
 Current strengths include parameterized SQL, outsider-negative RLS tests,
 advisory-lock idempotency, and `SKIP LOCKED` outbox claiming. Current risks
@@ -224,8 +224,9 @@ per workload. Examples:
   results, but cannot edit contracts or decisions;
 - a renderer can read one frozen manifest and insert an artifact identity, but
   cannot change package content or submit it;
-- an upload finalizer can transition one staged intent after integrity,
-  authorization, and scan checks, but cannot review evidence;
+- an upload finalizer can transition one `intent_authorized` intent — after its
+  bytes are uploaded to the staging key — through integrity, authorization, and
+  inspection checks, but cannot review evidence;
 - a projector can read authoritative facts and replace only rebuildable
   projection rows.
 

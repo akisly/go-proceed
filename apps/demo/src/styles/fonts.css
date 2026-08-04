@@ -1,5 +1,5 @@
 /**
- * A.3.8 item 14 (docs/40-phase1-discovery-outreach.md:879): "Fonts subset to
+ * A.3.8 item 14 (docs/legacy/40-phase1-discovery-outreach.md:879): "Fonts subset to
  * cyrillic+latin. Full `@fontsource-variable/*` imports are a failure."
  *
  * main.tsx used to do exactly that — `import '@fontsource-variable/inter'`

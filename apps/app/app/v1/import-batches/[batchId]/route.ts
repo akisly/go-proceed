@@ -2,7 +2,7 @@ import { queryRoute } from "../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../src/lib/http";
 import { loadImportBatchResponse } from "../../../../src/lib/import-batch";
-import { withTenantTx } from "@aktflow/database";
+import { withTenantTx } from "@goproceed/database";
 
 export const runtime = "nodejs";
 

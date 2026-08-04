@@ -100,7 +100,7 @@ Files:
 - private storage key, hash, byte size, MIME detected/declared, scan state, retention class;
 - every client upload first persists one immutable purpose/project/subject/key/type/size/hash/expiry/retention-class intent; the server selects the class from purpose and policy version, never from client input;
 - verified evidence/import rows must inherit that class through the same composite upload-intent FK; generated manifests/artifacts and temporary exports carry their own explicit class plus hash, byte size and MIME, including nullable all-or-none storage tuples;
-- evidence uses scoped work item + stable capture client operation rather than a not-yet-created server session; completion can only seal the persisted tuple and enqueue one verification job;
+- evidence uses scoped work item + stable capture client operation rather than a not-yet-created server session; completion can only finalize the persisted tuple — in v0.1 it verifies and inspects synchronously inside the finalization command and enqueues no verification job;
 - original and derivative relationships;
 - no public permanent URLs.
 
@@ -127,7 +127,7 @@ Pilot-контракт единиц: полевая фиксация всегд�
 
 ## 5. API surface by domain
 
-`technical/openapi.yaml` v2.9 is the exact allowlist: 113 Pilot and 44 GA-forward operations at this revision. An endpoint name in prose is not authorization to implement it. Supabase owns sign-in/session primitives; therefore `/me` and raw session/token operations are intentionally absent from the AktFlow domain API.
+`technical/openapi/scope-v0.1.csv` is the exact v0.1 allowlist: 51 operations. `technical/openapi.yaml` v2.9 is the wider target surface — 157 operations, 113 Pilot and 44 GA-forward at this revision — and is not authorization to implement anything in v0.1. An endpoint name in prose is not authorization to implement it either. Supabase owns sign-in/session primitives; therefore `/me` and raw session/token operations are intentionally absent from the AktFlow domain API.
 
 ### Public acquisition
 
@@ -141,7 +141,7 @@ Pilot: organizations, membership list/update, invitation create/accept/reissue/r
 
 Projects/locations, work list/assignment plus audited single-item create, private uploads, estimate-import dry-run/row results/confirm and safe async job status. Counterparty/contract persistence is reached through the confirmed import command in Pilot rather than exposed as generic CRUD.
 
-`uploadId` always identifies `upload_intents.id`, never a provider multipart handle or an `import_files`/`evidence_objects` row. A successful verification job materializes the purpose-specific row with a same-tenant FK back to that intent; estimate import and capture submit continue with the original `uploadId`, so clients do not translate provider IDs.
+`uploadId` always identifies `upload_intents.id`, never a provider multipart handle or an `import_files`/`evidence_objects` row. A successful finalization materializes the purpose-specific row with a same-tenant FK back to that intent — in v0.1 inside the finalization command itself, not a separate verification job; estimate import and capture submit continue with the original `uploadId`, so clients do not translate provider IDs.
 
 ### Execution
 

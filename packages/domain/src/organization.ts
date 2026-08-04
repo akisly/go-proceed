@@ -1,4 +1,4 @@
-import type { CreateOrganizationRequest } from "@aktflow/contracts";
+import type { CreateOrganizationRequest } from "@goproceed/contracts";
 
 export interface OrganizationRow {
   id: string; legal_name: string; display_name: string; edrpou: string | null;

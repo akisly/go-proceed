@@ -267,7 +267,7 @@ has been passing with `latest` since long before this branch.
 
 ## P3 — doc 07's Expo SDK baseline is behind what v0.1-M2-B0 initialises
 
-**What:** `docs/07-technical-architecture.md:8` names "Expo SDK 56" and `:20`
+**What:** `docs/legacy/07-technical-architecture.md:8` names "Expo SDK 56" and `:20`
 fixes it as the version baseline with the rule "Pin exact patch versions and
 image digests". `apps/mobile` was initialised with `create-expo-app` on the
 owner's instruction and resolves to Expo SDK 57.0.9.
@@ -314,21 +314,30 @@ still has to be registered under the Apple Developer Program membership
 before an internal-distribution build will install on it, so the inventory
 is complete in practice only after that account exists.
 
-## P1 — the product is renamed to GoProceed, and the aktflow identifiers have not followed
+## P1 — the product is renamed to GoProceed, and the runtime and copy identifiers have not followed
 
 **What:** the owner stated on 2026-08-03 that the product is GoProceed and that
 the `aktflow` identifiers are being replaced. `apps/mobile`'s deep-link scheme
-was corrected immediately because it had just landed. Everything else still says
-`aktflow`, measured on this branch:
+was corrected immediately because it had just landed. A three-task rename
+slice on 2026-08-03 then moved every workspace package identifier
+(`@aktflow/*` → `@goproceed/*`, 10 `package.json` files and the source files
+importing them), the root `package.json` name, and the `aktflow-app` CSS
+class. What is left, measured on this branch:
 
-- **10** `package.json` files declaring `@aktflow/*` names, and **55** source
-  files importing them.
-- **46** files referencing the PostgreSQL roles `aktflow_app`,
+- **77** files referencing the five PostgreSQL roles `aktflow_app`,
   `aktflow_app_login`, `aktflow_service`, `aktflow_service_login` and
   `aktflow_worker` — migrations, RLS policies, grants, the local-credentials
   script, CI env, and `.env.example`.
-- **58** documents and catalogs under `docs/` and `technical/`.
+- **71** documents and catalogs under `docs/` and `technical/` still mention
+  `aktflow` in some form (up from the 58 last recorded here — three
+  intervening docs slices moved documents into `docs/legacy/`, which grew
+  this count rather than shrinking it).
+- The user-visible product copy is untouched: every on-screen `AktFlow`
+  string, e.g. `apps/app/app/(auth)/login/page.tsx`'s
+  `<h1>AktFlow — вхід</h1>` and `apps/demo/index.html`'s `<title>AktFlow —
+  демонстраційний прототип</title>`.
 - Four domains: `aktflow.app`, `aktflow.com`, `aktflow.example`, `aktflow.pilot`.
+- Two env vars: `AKTFLOW_CHROME_PATH`, `AKTFLOW_BASE_URL`.
 
 **Why it is not swept here:** the database roles are the hard part and they are
 already merged. `ALTER ROLE ... RENAME TO` is not a text substitution — a role
@@ -338,16 +347,18 @@ against an environment whose app is already connecting under the old name. That
 is a deployment-ordering problem, not a find-and-replace, and it belongs in a
 slice with its own plan and its own rollback story.
 
-`docs/04-screen-specification.md` also still specifies `aktflow://` and
-`aktflow.app` universal links with four route patterns, and it is normative by
-`docs/README.md`'s precedence, so it has to be updated deliberately rather than
+`docs/legacy/04-screen-specification.md` also still specifies `aktflow://` and
+`aktflow.app` universal links with four route patterns. It is now archived
+under `docs/legacy/` and non-normative by `docs/README.md`'s precedence, but
+it is the only record of that link contract, so its content still has to be
+carried into the rename slice deliberately rather than left to be
 contradicted silently by code.
 
 **Pros of fixing:** one name. Today a reader cannot tell whether `aktflow` is the
 old product name, a namespace that outlived it, or a separate system.
 **Cons:** the role rename touches a deployed database and cannot be done as part
-of unrelated work. The package-name and documentation halves are safe and could
-go first; the role half needs a maintenance window.
-**Suggested split:** (1) packages, imports and docs — mechanical, reviewable;
-(2) domains and the screen specification's link contract; (3) database roles,
-with its own plan.
+of unrelated work. The product-copy rewrite is mechanical but wide and worth
+its own review pass rather than folding into a database change.
+**Suggested split:** (1) packages, imports and the workspace root — done, see
+the 2026-08-03 rename slice; (2) product copy, domains, env vars and the
+screen specification's link contract; (3) database roles, with its own plan.

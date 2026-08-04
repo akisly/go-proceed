@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils'
  *
  * 44px tall below md and 36px from md up, matching Button — the phone floor is
  * WCAG 2.5.5, not a preference. No focus ring here either: `theme.css` gives
- * every focusable element inside `.aktflow-app` the same treatment.
+ * every focusable element inside `.goproceed-app` the same treatment.
  *
  * The frozen sheet has two `outline: 0` rules (`.search-box input`,
  * `.quantity-input input`) that used to strip that ring; they live in the

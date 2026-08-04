@@ -4,7 +4,7 @@
 
 **Applies to:** all
 
-**Last reviewed:** 2026-07-30
+**Last reviewed:** 2026-08-03
 
 **Related decisions:** [ADR-001](docs/decisions/ADR-001-product-boundary.md),
 [ADR-004](docs/decisions/ADR-004-roadmap-demo-and-documentation.md)
@@ -16,13 +16,17 @@ external decision → partial acceptance and derived value at risk.
 
 ## Actual state (do not overclaim)
 
-- **Product name is GoProceed.** `AktFlow` survives only as legacy history and
-  in not-yet-renamed runtime identifiers (a v0.0 item).
-- **The runtime today is a six-table foundation** (`organizations`,
-  `legal_entities`, `memberships`, `audit_events`, `idempotency_records`,
-  `transaction_outbox`) plus one API view, three functions, and two
-  application roles, defined by `supabase/migrations/`. Nothing of the v0.1
-  domain is implemented yet.
+- **Product name is GoProceed.** The workspace package identifiers now say
+  `@goproceed/*`; the five PostgreSQL roles and the user-visible `AktFlow`
+  copy have not moved, and each is its own later slice.
+- **The runtime today is a 33-table foundation**, defined by 35
+  `supabase/migrations/` through `0035`. Its v0.0 origin slice named six
+  tables (`organizations`, `legal_entities`, `memberships`, `audit_events`,
+  `idempotency_records`, `transaction_outbox`); the chain has since grown
+  additively to add one API view (`api.me_context`), 27 functions (22 in
+  `app`, 5 in `public`; counting distinct schema-qualified name plus
+  argument-type list, surviving all drops), and five database roles.
+  Nothing of the v0.1 domain is implemented yet.
 - **The baseline is not green.** As recorded in
   [baseline verification](migration/goproceed-canonical-v0.1/baseline-verification.md):
   143/165 tests passed; failures are dominated by the unavailable local
@@ -62,7 +66,7 @@ pnpm validate:canonical-docs
 - `apps/app` — the web product and BFF; the durable isolated `/demo` arrives
   inside it in v0.2.
 - `apps/mobile` — approved Expo/React Native iOS/Android field client;
-  online-only in v0.1, full offline in v0.3. Not yet created.
+  online-only in v0.1, full offline in v0.3.
 - `apps/demo`, `prototype/` — legacy reference material, not product surfaces.
 
 ## Next executable milestone

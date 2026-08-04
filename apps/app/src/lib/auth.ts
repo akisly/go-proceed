@@ -1,4 +1,4 @@
-import { problem } from "@aktflow/contracts";
+import { problem } from "@goproceed/contracts";
 import { HttpProblem } from "./http";
 import { supabaseAnon, supabaseServer } from "./supabase-server";
 

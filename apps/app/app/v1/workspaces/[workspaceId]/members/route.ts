@@ -1,8 +1,8 @@
 import { queryRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { withTenantTx } from "@aktflow/database";
-import type { MembersListResponse } from "@aktflow/contracts";
+import { withTenantTx } from "@goproceed/database";
+import type { MembersListResponse } from "@goproceed/contracts";
 
 export const runtime = "nodejs";
 

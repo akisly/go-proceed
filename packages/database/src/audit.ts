@@ -1,6 +1,6 @@
 import type { Tx } from "./tx";
 import type { TenantContext } from "./tx";
-import type { AuditIntent } from "@aktflow/domain";
+import type { AuditIntent } from "@goproceed/domain";
 
 export interface RecordAuditOpts {
   objectVersion?: number;

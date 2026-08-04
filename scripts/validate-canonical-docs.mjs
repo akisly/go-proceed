@@ -29,14 +29,15 @@ export function missingMetadata(markdown) {
 }
 
 // AktFlow may appear only on lines that are explicitly historical/legacy
-// context (docs/legacy/README.md policy). Code identifiers (@aktflow/...,
-// aktflow_app) are runtime names handled by the v0.0 rename gate, not doc
-// branding — they are ignored here.
+// context (docs/legacy/README.md policy). The PostgreSQL role identifiers
+// (aktflow_app, aktflow_app_login, aktflow_worker, aktflow_service,
+// aktflow_service_login) are runtime names, not doc branding, and are not
+// being renamed — they are ignored here.
 const LEGACY_CONTEXT = /legacy|historic|supersede|era|migration|former|old /i;
 export function brandingViolations(markdown) {
   const bad = [];
   markdown.split("\n").forEach((line, i) => {
-    const stripped = line.replace(/@aktflow\/[\w-]+/g, "").replace(/aktflow_[\w]+/g, "");
+    const stripped = line.replace(/aktflow_[\w]+/g, "");
     if (/AktFlow/i.test(stripped) && !LEGACY_CONTEXT.test(line)) bad.push(i + 1);
   });
   return bad;

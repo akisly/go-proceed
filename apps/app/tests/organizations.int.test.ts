@@ -12,8 +12,8 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: A }) }))
 // inserted, but before commit) and verify the whole transaction rolls back.
 // Toggled per-test via forceOutboxFailure; real enqueueOutbox otherwise.
 const state = { forceOutboxFailure: false };
-vi.mock("@aktflow/database", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@aktflow/database")>();
+vi.mock("@goproceed/database", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@goproceed/database")>();
   return {
     ...actual,
     enqueueOutbox: async (...args: Parameters<typeof actual.enqueueOutbox>) => {
