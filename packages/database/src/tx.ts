@@ -2,10 +2,23 @@ import type { PoolClient } from "pg";
 import { getPool, getServicePool } from "./pool";
 
 export interface TenantContext {
+  /**
+   * The Supabase user id, or "" on the EXTERNAL plane, where there is no
+   * account at all. `app.current_actor()` is `nullif(...,'')::uuid`, so ""
+   * resolves to SQL NULL and every member policy in this database — all of
+   * which key off it — denies every row.
+   */
   actorUserId: string;
   organizationId: string | null;
   requestId: string;
   membershipVersion?: number;
+  /**
+   * v0.1-M5. The external session this transaction acts as, or undefined.
+   * Set ONLY by `withExternalTx`; `withTenantTx` and `withServiceTx` always
+   * clear it, and GUCs are transaction-local so nothing survives into the
+   * pooled connection.
+   */
+  externalSessionId?: string | null;
 }
 export interface Tx { query: PoolClient["query"] }
 
@@ -25,6 +38,13 @@ async function runTx<T>(
     await client.query("select set_config('app.request_id', $1, true)", [ctx.requestId]);
     await client.query("select set_config('app.membership_version', $1, true)",
       [ctx.membershipVersion != null ? String(ctx.membershipVersion) : ""]);
+    // SET UNCONDITIONALLY, INCLUDING TO "". Every path through this function
+    // writes this GUC, so a member transaction cannot inherit an external
+    // session from anywhere — not from a caller that reused a context object,
+    // not from a pooled connection, not from a future overload. `set_config`
+    // with is_local = true is rolled back with the transaction regardless.
+    await client.query("select set_config('app.external_session_id', $1, true)",
+      [ctx.externalSessionId ?? ""]);
     const result = await fn({ query: client.query.bind(client) });
     await client.query("commit");
     return result;
@@ -44,7 +64,81 @@ async function runTx<T>(
 export async function withTenantTx<T>(
   ctx: TenantContext, fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  return runTx(getPool(), "aktflow_app", ctx, fn);
+  // The external session is CLEARED here rather than passed through, whatever
+  // the caller put in the context. A member transaction is a member
+  // transaction.
+  return runTx(getPool(), "aktflow_app", { ...ctx, externalSessionId: null }, fn);
+}
+
+/**
+ * A transaction on the EXTERNAL plane (v0.1-M5).
+ *
+ * Same pool, same `aktflow_app` role, same `NOBYPASSRLS` posture — and a
+ * different subject. `app.actor_user_id` is forced to "" and
+ * `app.external_session_id` carries the session, so:
+ *
+ *   * every member policy in this database evaluates
+ *     `m.user_id = app.current_actor()` against NULL and matches nothing;
+ *   * the SIXTEEN external policies migration 0049 §10 adds, over TEN tables,
+ *     read an external subject function — ten of them
+ *     `app.external_session_occurrence()`, which resolves ONE occurrence for a
+ *     live session and NULL for an expired, revoked or replaced one.
+ *
+ * (The count said «nine» until 2026-08-08, matching nothing: not the sixteen
+ * policies, not the ten tables, not the eight of those ten that are readable
+ * from this plane. It had never been counted against the migration. The test
+ * named below now counts it from `pg_policies` on every run, so the number in
+ * this comment cannot drift again without a red suite.)
+ *
+ * There is no third database role and that is a decision, not an omission. A
+ * separate login would need a credential in the secret manager, a third pool, a
+ * third entry in `scripts/set-local-app-password.mjs` and a CI change, and it
+ * would buy nothing that the empty actor GUC does not already buy: with no
+ * actor, `aktflow_app`'s grants reach no row on any table that has no external
+ * policy, because RLS with no matching policy denies. The residual risk it does
+ * NOT close is a table gaining a permissive policy that reads neither subject —
+ * `packages/testing/src/m5-external-rls.test.ts` is where that is caught, by
+ * sweeping every base table from an external session and asserting the reachable
+ * set. That file EXISTS as of 2026-08-08; between M5 and that date this
+ * paragraph named a mitigation that had not been written, which is the worst
+ * shape a security note can take, because it reads as coverage.
+ *
+ * `app.current_external_session()` additionally returns NULL whenever an actor
+ * GUC is set, so a transaction that somehow carried both collapses towards the
+ * MEMBER plane — the one that requires a real active membership to see anything
+ * — rather than towards the anonymous one.
+ */
+export async function withExternalTx<T>(
+  ctx: Omit<TenantContext, "actorUserId" | "membershipVersion"> & { externalSessionId: string },
+  fn: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  // `membershipVersion` is OMITTED, not set to undefined: with
+  // `exactOptionalPropertyTypes` the two are different types, and the external
+  // plane has no membership to carry a version of. `Omit` already removed it
+  // from `ctx`, so spreading and adding nothing is the accurate expression —
+  // writing `membershipVersion: undefined` claimed a key this plane does not
+  // have.
+  return runTx(getPool(), "aktflow_app", { ...ctx, actorUserId: "" }, fn);
+}
+
+/**
+ * A transaction with NEITHER subject, for the two subject-less steps of the
+ * external protocol: the token exchange (there is no session yet) and the
+ * cookie resolution (the session is what we are looking up).
+ *
+ * It can reach exactly two things: `app.exchange_external_grant` and
+ * `app.resolve_external_session`, both `SECURITY DEFINER`, both bounded to one
+ * lookup by a 256-bit keyed verifier, both granted to `aktflow_app` alone
+ * (migration 0049 §7). Every table policy denies it, which is the point: an
+ * anonymous transaction that could read a table would be the hole this whole
+ * plane exists to avoid.
+ */
+export async function withAnonymousTx<T>(
+  ctx: { requestId: string }, fn: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  return runTx(getPool(), "aktflow_app",
+    { actorUserId: "", organizationId: null, requestId: ctx.requestId,
+      externalSessionId: null }, fn);
 }
 
 /**
@@ -62,7 +156,8 @@ export async function withTenantTx<T>(
 export async function withServiceTx<T>(
   ctx: TenantContext, fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  return runTx(getServicePool(), "aktflow_service", ctx, fn, async (client) => {
+  return runTx(getServicePool(), "aktflow_service",
+    { ...ctx, externalSessionId: null }, fn, async (client) => {
     // Checked on every service transaction, because the boundary is a property
     // of the CONNECTION and nothing in the database can tell us it was wired
     // correctly. The guard in migration 0035 asks pg_has_role(session_user,

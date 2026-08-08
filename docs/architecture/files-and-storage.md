@@ -2,13 +2,16 @@
 
 **Status:** Approved
 
-**Applies to:** v0.0 and v0.1
+**Applies to:** v0.0, v0.1 and v0.3
 
-**Last reviewed:** 2026-08-03
+**Last reviewed:** 2026-08-06
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-003](../decisions/ADR-003-evidence-packages-and-acceptance.md),
-[ADR-004](../decisions/ADR-004-roadmap-demo-and-documentation.md)
+[ADR-004](../decisions/ADR-004-roadmap-demo-and-documentation.md),
+[ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md),
+[ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md),
+[ADR-007](../decisions/ADR-007-pilot-field-client.md)
 
 ## Purpose and boundary
 
@@ -21,19 +24,39 @@ receipts. Private object storage owns bytes addressed by opaque immutable keys.
 An object existing in storage does not make it evidence, an import, or a package
 artifact. The corresponding relational fact and lifecycle gate must also exist.
 
+Two client and scope decisions govern the version markers below.
+[ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) re-cuts v0.1 to six pilot
+steps and moves package versions, package artifacts, claim segments and the
+allocation ledger to **v0.2**; the artifact this document's export rules apply
+to in v0.1 is the frozen **statutory act version**, pinned by the stage closure
+(ADR-006 decision 4.5). [ADR-007](../decisions/ADR-007-pilot-field-client.md)
+makes the v0.1 field client a PWA served from `apps/app` and takes `apps/mobile`
+off the v0.1 path, which is why the local-encryption section below is marked
+v0.3. Storage rules are unchanged in kind by either decision; each is stated
+against the version it lands in.
+
 v0.1 supports:
 
-- whole-file online evidence upload from `apps/mobile`;
-- controlled XLSX and CSV contract-baseline import;
-- immutable evidence originals, derivatives, import sources, and package
-  artifacts;
-- deterministic PDF, XLSX, ZIP, and manifest package output;
+- whole-file online evidence upload from the `apps/app` PWA field client
+  ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 1);
+- the controlled XLSX and CSV contract-baseline import already built, **frozen
+  as it stands** — no extension of mapping, unit inference, or number-format
+  handling is v0.1 work until one real sanitized customer file exists
+  ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 6);
+- immutable evidence originals, derivatives, and import sources;
 - manual retention, export, deletion, and restore controls required before real
   pilot data.
 
+Immutable package artifacts and deterministic PDF/XLSX/ZIP/manifest **package**
+output are **v0.2** with packages themselves
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 5). What v0.1
+renders and freezes instead is one statutory act version under the same
+immutability and manifest discipline.
+
 v0.1 does not support resumable chunk upload, offline task authorization,
-background offline synchronization, authoritative PDF baseline extraction, or an
-automated legal-hold/retention engine.
+background offline synchronization, a durable local pending original, an
+authoritative PDF baseline extraction, or an automated legal-hold/retention
+engine.
 
 ## Storage authority and object identity
 
@@ -49,8 +72,8 @@ Every stored object has:
 - validated media type and untrusted original filename;
 - storage provider, region, and creation time;
 - actor or service principal that caused storage;
-- source command, upload intent, import file, evidence object, derivative, or
-  package artifact identity;
+- source command, upload intent, import file, evidence object, derivative,
+  rendered act version, or — from v0.2 — package artifact identity;
 - retention class and deletion/tombstone state.
 
 Storage keys and content hashes are immutable after a domain object becomes
@@ -74,16 +97,17 @@ them:
 
 | Class | Examples | Access rule |
 |---|---|---|
-| Upload staging | Uncommitted mobile/import bytes | Write only to one intent-bound key; no domain reads |
+| Upload staging | Uncommitted field-client/import bytes | Write only to one intent-bound key; no domain reads |
 | Evidence originals | Available original photos, files, and forms | Exact workspace/project/evidence authorization |
 | Evidence derivatives | Thumbnails, previews, annotations, redactions | Same or narrower scope than the source |
 | Import sources | Original XLSX/CSV and immutable parser inputs | Authorized contract-import roles only |
-| Package artifacts | Frozen PDF/XLSX/ZIP/manifest output | Exact package-version and grant/session scope |
+| Rendered act versions (v0.1) | Frozen statutory act version output | Exact act-version and grant/session scope |
+| Package artifacts (v0.2) | Frozen PDF/XLSX/ZIP/manifest package output | Exact package-version and grant/session scope |
 | Restricted quarantine | Scan-blocked or orphaned bytes awaiting purge/remediation | No ordinary product download |
 
 Provider credentials are held only by narrowly scoped server/worker identities.
-The browser and mobile client never receive bucket-wide credentials or list
-permission.
+No client — web, the v0.1 PWA field client, or the v0.3 native client — ever
+receives bucket-wide credentials or list permission.
 
 ### Downloads and signed URLs
 
@@ -110,13 +134,20 @@ Expired URLs are not refreshed without a new authorization check. Logs record
 the domain object and authorization result, never the signed URL or raw storage
 key.
 
-## Expo pending-original protection
+## Expo pending-original protection — v0.3
 
-`apps/mobile` is the Expo/React Native iOS/Android field client. v0.1 capture is
-online-authorized, but a connection or process interruption must not lose the
-original selected while authorization was current.
+`apps/mobile` is the Expo/React Native iOS/Android client and is **not the v0.1
+field client** ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decisions 2
+and 8). Everything in this section is a v0.3 obligation and none of it is
+claimed for the v0.1 PWA, which has no Keychain/Keystore-bound wrapping key, no
+storage the OS will not reclaim, and therefore no durable pending original and
+no seven-day warned quarantine.
 
-### Local encryption
+The v0.3 obligation itself is unchanged: capture is online-authorized, and a
+connection or process interruption must not lose the original selected while
+authorization was current.
+
+### Local encryption — v0.3
 
 Expo SecureStore is used only for small secrets or wrapping keys. Evidence bytes
 must not be placed in SecureStore, and Expo FileSystem storage must not be
@@ -140,10 +171,11 @@ Another signed-in identity must not enumerate, decrypt, preview, upload, export,
 or delete the pending original without the explicit recovery/deletion flow.
 Sensitive plaintext and keys are removed from memory as soon as practical.
 
-### Local states
+### Local states — v0.3
 
-The client persists the original, expected hash/size, upload-intent identity,
-attempt state, and last receipt check across an ordinary app/process restart.
+The native client persists the original, expected hash/size, upload-intent
+identity, attempt state, and last receipt check across an ordinary app/process
+restart. The v0.1 PWA persists none of it.
 
 ```text
 not_sent → sending → awaiting_receipt → server_confirmed
@@ -161,16 +193,59 @@ quarantined
 
 Only reauthentication as the same subject in the same workspace can restore an
 upload. Account switching keeps the item hidden and quarantined. Permanently
-revoked scope cannot be uploaded or exported by GoProceed in v0.1.
+revoked scope cannot be uploaded or exported by GoProceed in **v0.3**; the v0.1
+PWA discards the in-memory original on logout, revocation or account switch and
+says so.
 
-The app may delete local ciphertext only after it has persisted an `available`
-server receipt whose content identity, size, and hash match the local original,
-or after an explicit warned user deletion. Deletion retains only the minimum
-non-content metadata required to explain the outcome. Merely sending bytes or
-receiving a storage response is not cleanup authorization.
+The native app may delete local ciphertext only after it has persisted an
+`available` server receipt whose content identity, size, and hash match the
+local original, or after an explicit warned user deletion. Deletion retains only
+the minimum non-content metadata required to explain the outcome. Merely sending
+bytes or receiving a storage response is not cleanup authorization.
 
-No new capture begins when current server authorization cannot be checked. This
-restart-safe pending queue is not the v0.3 offline outbox.
+No new capture begins when current server authorization cannot be checked. That
+rule binds both clients. The restart-safe pending queue above binds only the
+v0.3 native client, and it is not the v0.3 offline outbox either.
+
+## The v0.1 PWA holds no local tier
+
+The v0.1 field client is a browser page on the product origin
+([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 1). It has no
+Keychain/Keystore-bound wrapping key: a non-extractable Web Crypto key in
+IndexedDB is bound to the **origin**, not to a secure element, so it is evicted
+together with the ciphertext it was protecting rather than outliving it. Safari
+evicts script-writable site storage after roughly seven days of non-use, and a
+discarded tab takes an in-memory original with it. The eviction window is the
+same order of magnitude as the native seven-day warned quarantine, so a
+quarantined original could disappear before the warning it was promised.
+
+Three invariants therefore **do not hold on this path and are not claimed for
+it**: INV-013 (upload failure does not delete the original; local cleanup
+requires a persisted `available` receipt with a matching hash), INV-014 (an
+ordinary restart does not lose a pending capture), and INV-053 (pending
+originals are envelope-encrypted and inaccessible to another identity; logout or
+revocation quarantines rather than deletes). They are the native client's
+invariants and are v0.3 obligations. They may not be re-scoped back onto the
+browser path by a catalog edit; doing so needs an ADR
+([ADR-007](../decisions/ADR-007-pilot-field-client.md) replacement rule 2).
+`quarantined` and `expired_purged` are native-client states for the same reason.
+
+What v0.1 claims in their place is weaker and testable:
+
+- **no success before the receipt.** `upload_received` is not
+  `evidence_available`, and no screen shows a photo as recorded until the
+  `available` receipt is persisted;
+- **upload immediately**, with no durable local queue and no queue affordance
+  the client cannot honour;
+- **warn rather than silently lose bytes.** If an upload cannot complete, or the
+  page is about to be left with an in-flight or unsent original, the user is
+  told plainly that GoProceed has not saved the photo and that it must be
+  retaken or kept by them. A silent loss is the one outcome this client must not
+  produce.
+
+**This is a real reduction in what the product guarantees a foreman**, accepted
+for the pilot because the alternative is a client nobody can install. No
+retention schedule, storage rule, or positioning sentence may round it off.
 
 ## Whole-upload intent and server lifecycle
 
@@ -260,11 +335,36 @@ retention and authorized exposure must be defined before pilot use. A
 privacy-safe preview or redaction is a derivative with its own hash and key; it
 does not overwrite the original.
 
+Metadata is untrusted in a second sense after
+[ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 5: a browser may
+strip or re-encode image metadata before the page ever sees the bytes, so its
+presence, absence, or integrity supports **no** inference about where a photo
+came from. Verified capture-time GPS, tamper-evident provenance, and a
+camera-versus-gallery distinction are withdrawn from v0.1 and may not be
+reasserted by a storage rule, a derivative, or a manifest field. What a stored
+original may carry is a client-computed content hash verified at finalization, a
+server receipt time, and a device-claimed capture time explicitly labelled
+untrusted.
+
 Download responses use the validated media type, safe `Content-Disposition`,
 `X-Content-Type-Options: nosniff`, and a restrictive content security policy for
 any in-browser preview.
 
 ## Contract-baseline import pipeline
+
+**This pipeline is frozen as built, not extended in v0.1**
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 6). No migration
+drops its tables, no code path is removed, and an object created by import
+continues to work; what stops is further work on column mapping, unit inference
+and number-format handling, because the schema was specified against no real
+file and the project holds **zero customer documents**. One real sanitized
+кошторис, АВР, or interim-works file from a named company unfreezes it. The
+rules below describe the pipeline that exists and continue to bind it.
+
+v0.1's own path to a published baseline is the manually entered work line, and
+`contract_versions.publish` refuses a version with no bound rule-version set
+(ADR-006 decision 3) — a refusal the import pipeline does not carry and must not
+be read as satisfying.
 
 The import pipeline is draft-producing until an authorized user explicitly
 publishes a contract version.
@@ -347,11 +447,19 @@ new acceptance/security tests.
 
 ## Export and generated artifacts
 
-Package artifacts are generated only from one frozen package-version manifest.
+A generated artifact is produced only from one frozen manifest. **In v0.1 that
+manifest belongs to a statutory act version, pinned by the stage closure that
+produced it** ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision
+4.5); package artifacts and their package-version manifest arrive with packages
+in **v0.2** (decision 5). The discipline is identical in both and is stated once
+here.
+
 The manifest pins every source identity/hash, template version/hash, renderer
 version/configuration, author, and generation command. Repeating the same
 generation identity returns/verifies the same artifact; a changed renderer or
-template creates a new artifact key.
+template creates a new artifact key. An act version is assembled only from
+already-recorded facts, and no rendered surface carries a free-text quantity
+field.
 
 CSV/XLSX export treats every user-controlled value as hostile spreadsheet input.
 For CSV cells beginning, after leading whitespace/control characters, with
@@ -369,9 +477,10 @@ has bounded file count, total bytes, runtime, and workspace quota.
 
 No real pilot data enters GoProceed until the following are approved and tested:
 
-- a versioned retention schedule for originals, derivatives, imports, package
-  artifacts, scan-blocked content, staging data, local quarantine, audit-safe
-  deletion metadata, and backups;
+- a versioned retention schedule for originals, derivatives, imports, rendered
+  act versions, scan-blocked content, staging data, audit-safe deletion
+  metadata, and backups — plus package artifacts and the native client's local
+  quarantine when each arrives, in v0.2 and v0.3 respectively;
 - a privacy notice and explicit policy for EXIF/GPS, contacts, filenames, and
   security telemetry;
 - a workspace export that reproduces authorized originals and artifacts with a
@@ -382,11 +491,13 @@ No real pilot data enters GoProceed until the following are approved and tested:
 - encrypted backup policy with access separation, retention, and deletion
   behavior;
 - a successful restore exercise that verifies relational rows, object bytes,
-  hashes, tenant boundaries, and package/evidence links.
+  hashes, tenant boundaries, and evidence/act links.
 
-Staging/orphan purge and the seven-day local quarantine use the fixed bounds
-defined above. Other durations are not invented by implementation; they must be
-declared in the approved retention schedule before pilot admission.
+Staging/orphan purge uses the fixed 24-hour bound defined above; the seven-day
+local quarantine is a **v0.3** bound that binds the native client only, and no
+v0.1 surface may offer or imply it. Other durations are not invented by
+implementation; they must be declared in the approved retention schedule before
+pilot admission.
 
 Deletion never overwrites an immutable object under the same key. The authorized
 workflow removes inaccessible bytes and derivatives from all active storage
@@ -413,10 +524,6 @@ becomes production-visible only through an approved recovery procedure.
 - authorization revoked between intent creation and finalization produces no
   evidence object;
 - orphan purge completes within 24 hours and repeated failure alerts;
-- an app restart preserves encrypted pending bytes and retry state;
-- another account/workspace cannot enumerate or decrypt local pending content;
-- logout/revocation quarantines rather than silently deleting the original;
-- cleanup requires the matching `available` receipt;
 - MIME spoofing, quota breach, malware, oversized images, parser exhaustion,
   path traversal, and ZIP-bomb fixtures fail closed;
 - XLSX formulas/macros/external links are never executed;
@@ -424,3 +531,22 @@ becomes production-visible only through an approved recovery procedure.
 - PDF extraction cannot publish authoritative contract data;
 - export manifests and restored objects reproduce expected hashes;
 - deletion followed by restore does not make deleted content reachable.
+
+For the **v0.1 PWA field client**, verification proves the weaker claim rather
+than the withdrawn one:
+
+- no screen marks a photo recorded before the `available` receipt is persisted;
+- every failed or abandoned in-flight upload raises an explicit unsaved-photo
+  warning, and a discarded tab or evicted storage surfaces the loss rather than
+  hiding it;
+- the client offers no durable local queue affordance and no quarantine ladder;
+- the client uploads the file bytes unmodified and never draws a photo to a
+  canvas before upload;
+- no capture is recorded with an origin value asserting a native camera session.
+
+For the **v0.3 native client**, and for no earlier version:
+
+- an app restart preserves encrypted pending bytes and retry state;
+- another account/workspace cannot enumerate or decrypt local pending content;
+- logout/revocation quarantines rather than silently deleting the original;
+- cleanup requires the matching `available` receipt.

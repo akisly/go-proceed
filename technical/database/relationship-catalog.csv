@@ -21,22 +21,28 @@ contract_versions,sourced_from,import_batches,N:1,no,workspace_id+import_batch_i
 work_items,belongs_to,contract_versions,N:1,yes,workspace_id+project_id+contract_id+contract_version_id -> contract_versions(workspace_id+project_id+contract_id+id),restrict,INV-015
 work_items,measured_in,unit_definitions,N:1,yes,workspace_id+unit_id -> unit_definitions(workspace_id+id),restrict,INV-001
 work_items,supersedes,work_items,N:1,no,workspace_id+predecessor_work_item_id -> work_items(workspace_id+id) lineage only,restrict,INV-015
+work_items,typed_as,requirement_rule_versions,N:M,no,workspace_id+work_type_key ~ requirement_rule_versions(workspace_id+work_type_key) — NOT A FOREIGN KEY AND NOT ONE BY MISTAKE: many rule versions share one work_type_key so there is no candidate key to reference; matching by key IS the requirement-rule predicate (ADR-006 decision 4.2) and a rule version retired or unbound must not drag a line with it (INV-067). Enforced instead as a WRITE-TIME REFUSAL — app.work_type_key_is_bindable + work_items_work_type_guard (migration 0050) refuse a non-null key naming no rule version this workspace can bind — and as a PUBLISH-TIME DISCLOSURE: contract_versions.publish reports by position every typed line no BOUND rule version matches and refuses only when not one typed line matches any of them. work_items.work_type_key is nullable and a null key matches nothing and is reported as work_type_unresolved,none,INV-072
 locations,belongs_to,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-001
 import_batches,targets,contracts,N:1,yes,workspace_id+project_id+contract_id -> contracts(workspace_id+project_id+id),restrict,INV-016
 import_files,belongs_to,import_batches,N:1,yes,workspace_id+import_batch_id -> import_batches(workspace_id+id),restrict,INV-016
 import_row_results,belongs_to,import_files,N:1,yes,workspace_id+import_file_id -> import_files(workspace_id+id),restrict,INV-016
 source_amount_resolutions,resolves,import_row_results,N:1,yes,workspace_id+import_row_result_id -> import_row_results(workspace_id+id),restrict,INV-054
 work_assignments,derives_from,work_items,N:1,yes,workspace_id+project_id+contract_id+contract_version_id+work_item_id -> work_items full chain candidate key,restrict,INV-003
-work_assignments,located_at,locations,N:1,no,workspace_id+project_id+location_id -> locations(workspace_id+project_id+id),restrict,INV-001
+work_assignments,located_at,locations,N:1,no,workspace_id+project_id+location_id -> locations(workspace_id+project_id+id); deployed and optional — no v0.1 command sets it and no v0.1 predicate reads it (ADR-006 decision 4.2),restrict,INV-001
 work_assignments,performed_by,parties,N:1,no,workspace_id+performer_party_id -> parties(workspace_id+id),restrict,INV-001
 work_assignments,assigned_to,memberships,N:1,no,workspace_id+assignee_member_id -> memberships(workspace_id+id),restrict,INV-001
-work_assignments,pins,requirement_template_versions,N:1,no,workspace_id+requirement_template_version_id -> requirement_template_versions(workspace_id+id),restrict,INV-015
+work_stages,scopes,work_assignments,N:1,yes,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id),restrict,INV-061
+work_stages,located_at,locations,N:1,no,workspace_id+project_id+location_id -> locations(workspace_id+project_id+id); NOT a v0.1 relationship — the v0.1 closable unit is one assignment and one stage and the location argument arrives with locations in v0.2 (ADR-006 decision 4.2),restrict,INV-001
+stage_closures,closes,work_stages,N:1,yes,workspace_id+project_id+work_stage_id -> work_stages(workspace_id+project_id+id),restrict,INV-061
+unevidenced_closures,closes,work_stages,N:1,yes,workspace_id+project_id+work_stage_id -> work_stages(workspace_id+project_id+id),restrict,INV-064
+unevidenced_closure_clearances,clears,unevidenced_closures,N:1,yes,workspace_id+unevidenced_closure_id -> unevidenced_closures(workspace_id+id),restrict,INV-064
+unevidenced_closure_clearances,names_substitute,evidence_objects,N:1,no,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-064
 progress_entries,records_for,work_assignments,N:1,yes,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id),restrict,INV-023
 progress_entries,adjusts,progress_entries,N:1,no,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id) root must be non-adjustment,restrict,INV-023
 progress_allocation_heads,serializes,progress_entries,1:1,yes,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id) unique head per root,restrict,INV-025
 valuation_allocations,splits_pool_of,work_items,N:1,yes,workspace_id+work_item_id -> work_items(workspace_id+id),restrict,INV-055
 valuation_allocations,follows,progress_entries,N:1,no,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id),restrict,INV-055
-capture_events,attempts,upload_intents,N:1,no,workspace_id+upload_intent_id -> upload_intents(workspace_id+id),restrict,INV-014
+capture_events,attempts,upload_intents,N:1,no,workspace_id+upload_intent_id -> upload_intents(workspace_id+id); INV-014 is a native-client invariant and a v0.3 obligation (ADR-007 Cost 2) — the v0.1 PWA path claims INV-081 instead,restrict,INV-014
 upload_intents,scopes,work_assignments,N:1,yes,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id),restrict,INV-047
 upload_intents,satisfies,requirement_occurrences,N:1,no,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-047
 evidence_objects,finalized_from,upload_intents,N:1,no,workspace_id+upload_intent_id -> upload_intents(workspace_id+id),restrict,INV-046
@@ -44,11 +50,28 @@ evidence_objects,derived_from,evidence_objects,N:1,no,workspace_id+source_eviden
 evidence_requirement_links,links,evidence_objects,N:1,yes,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-001
 evidence_requirement_links,links,requirement_occurrences,N:1,yes,workspace_id+project_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+project_id+id),restrict,INV-001
 requirement_occurrences,obliges,work_assignments,N:1,yes,workspace_id+project_id+work_assignment_id -> work_assignments(workspace_id+project_id+id),restrict,INV-001
-requirement_occurrences,pins,requirement_template_versions,N:1,yes,workspace_id+requirement_template_version_id -> requirement_template_versions(workspace_id+id),restrict,INV-015
-requirement_occurrences,located_at,locations,N:1,no,workspace_id+project_id+location_id -> locations(workspace_id+project_id+id),restrict,INV-001
+requirement_occurrences,obliges,work_stages,N:1,no,workspace_id+project_id+work_stage_id -> work_stages(workspace_id+project_id+id),restrict,INV-061
+requirement_occurrences,pins,requirement_rule_versions,N:1,yes,workspace_id+rule_version_id -> requirement_rule_versions(workspace_id+id) version identity never a live rule,restrict,INV-066
+requirement_occurrences,pins,requirement_template_versions,N:1,no,workspace_id+requirement_template_version_id -> requirement_template_versions(workspace_id+id); RETIRED MODEL — ADR-005 decision 2 retires the one-template-per-assignment model and work_assignments.requirement_template_version_id is retired by a new migration in v0.1-M2 (version-0.1.md §v0.1-M2). Retained for deployed lineage only and never written by a v0.1 command,restrict,INV-015
+requirement_occurrences,located_at,locations,N:1,no,workspace_id+project_id+location_id -> locations(workspace_id+project_id+id); NOT a v0.1 relationship — the v0.1 rule predicate is (work type; stage) and an occurrence carries a quantity scope without a location node (ADR-006 decision 4.2),restrict,INV-001
+requirement_rules,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
+requirement_rule_versions,versions,requirement_rules,N:1,yes,workspace_id+requirement_rule_id -> requirement_rules(workspace_id+id),restrict,INV-067
+requirement_rule_versions,cites,requirement_library_items,N:1,no,workspace_id+requirement_library_item_id -> requirement_library_items(workspace_id+id),restrict,INV-073
+requirement_library_items,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-073
+contract_version_rule_bindings,pins,contract_versions,N:1,yes,workspace_id+project_id+contract_id+contract_version_id -> contract_versions(workspace_id+project_id+contract_id+id),restrict,INV-015
+contract_version_rule_bindings,binds,requirement_rule_versions,N:1,yes,workspace_id+requirement_rule_version_id -> requirement_rule_versions(workspace_id+id),restrict,INV-067
+requirement_notices,notifies_for,requirement_occurrences,N:1,yes,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-068
+requirement_notices,addressed_to,party_contacts,N:1,no,workspace_id+recipient_contact_id -> party_contacts(workspace_id+id),restrict,INV-001
+notice_attendance_outcomes,records_for,requirement_notices,N:1,yes,workspace_id+requirement_notice_id -> requirement_notices(workspace_id+id),restrict,INV-068
+notice_attendance_outcomes,carries_decision,requirement_evidence_decisions,N:1,no,workspace_id+requirement_evidence_decision_id -> requirement_evidence_decisions(workspace_id+id); required exactly when outcome is attended and forbidden when not_attended,restrict,INV-068
+notice_attendance_outcomes,supersedes,notice_attendance_outcomes,N:1,no,workspace_id+predecessor_outcome_id unique -> notice_attendance_outcomes(workspace_id+id),restrict,INV-035
+requirement_evidence_decisions,decides,requirement_occurrences,N:1,yes,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-061
+requirement_evidence_decisions,supersedes,requirement_evidence_decisions,N:1,no,workspace_id+superseded_decision_id unique -> requirement_evidence_decisions(workspace_id+id),restrict,INV-035
+requirement_evidence_decisions,via_session,external_sessions,N:1,no,workspace_id+external_session_id -> external_sessions(workspace_id+id) external approver_role only,restrict,INV-074
+requirement_evidence_decisions,recorded_in,external_decision_batches,N:1,no,"workspace_id+decision_batch_id -> external_decision_batches(workspace_id+id); required exactly when the decision was submitted through an external session and forbidden for an internal decision (schema-v0.1.sql:1278-1283). RESOLVED 2026-08-06 by the owner: external_decision_batches enters v0.1-M5, so the receipt this relation requires exists in v0.1.",restrict,INV-007
 requirement_exceptions,excepts,requirement_occurrences,N:1,yes,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-035
 requirement_exceptions,supersedes,requirement_exceptions,N:1,no,workspace_id+predecessor_exception_id unique -> requirement_exceptions(workspace_id+id),restrict,INV-035
-requirement_exception_heads,serializes,requirement_occurrences,1:1,yes,workspace_id+requirement_occurrence_id+exception_scope unique head,restrict,INV-035
+requirement_exception_heads,serializes,requirement_occurrences,1:1,yes,"workspace_id+requirement_occurrence_id+exception_scope unique head. RESOLVED 2026-08-06 by the owner: this head enters v0.1-M3, so the v0.1 lineage it serialises is enforceable in v0.1.",restrict,INV-035
 requirement_exception_heads,points_at,requirement_exceptions,N:1,no,workspace_id+current_exception_id -> requirement_exceptions(workspace_id+id),restrict,INV-035
 review_target_sets,reviews,requirement_occurrences,N:1,yes,workspace_id+project_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+project_id+id),restrict,INV-036
 review_target_items,belongs_to,review_target_sets,N:1,yes,workspace_id+review_target_set_id -> review_target_sets(workspace_id+id),restrict,INV-036
@@ -56,6 +79,8 @@ review_target_items,names,evidence_objects,N:1,no,workspace_id+evidence_object_i
 review_target_items,names,evidence_requirement_links,N:1,no,workspace_id+evidence_requirement_link_id -> evidence_requirement_links(workspace_id+id),restrict,INV-036
 internal_review_decisions,decides,review_target_sets,N:1,yes,workspace_id+review_target_set_id -> review_target_sets(workspace_id+id),restrict,INV-035
 internal_review_decisions,supersedes,internal_review_decisions,N:1,no,workspace_id+superseded_decision_id unique -> internal_review_decisions(workspace_id+id),restrict,INV-035
+requirement_evidence_decision_heads,serializes,requirement_occurrences,1:1,yes,"workspace_id+requirement_occurrence_id+approver_role unique head. RESOLVED 2026-08-06 by the owner: this head enters v0.1-M3, so the v0.1 lineage it serialises is enforceable in v0.1.",restrict,INV-035
+requirement_evidence_decision_heads,points_at,requirement_evidence_decisions,N:1,no,workspace_id+current_decision_id -> requirement_evidence_decisions(workspace_id+id),restrict,INV-035
 internal_review_heads,serializes,review_target_sets,1:1,yes,workspace_id+review_target_set_id unique head,restrict,INV-035
 internal_review_heads,points_at,internal_review_decisions,N:1,no,workspace_id+current_decision_id -> internal_review_decisions(workspace_id+id),restrict,INV-035
 packages,belongs_to,contracts,N:1,yes,workspace_id+project_id+contract_id -> contracts(workspace_id+project_id+id),restrict,INV-003
@@ -82,30 +107,37 @@ progress_claim_allocations,releases,progress_claim_allocations,N:1,no,workspace_
 package_evidence_sources,pins,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-003
 package_evidence_sources,pins,evidence_objects,N:1,yes,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-003
 package_artifacts,generated_from,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-045
+package_version_statutory_acts,pins,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-015
+package_version_statutory_acts,pins,statutory_act_versions,N:1,yes,workspace_id+statutory_act_version_id -> statutory_act_versions(workspace_id+id); the pair is the M:N link — one package version carries one act per closed concealed stage it covers,restrict,INV-015
+statutory_acts,produced_by,stage_closures,N:1,yes,workspace_id+stage_closure_id -> stage_closures(workspace_id+id),restrict,INV-073
+statutory_act_versions,versions,statutory_acts,N:1,yes,workspace_id+statutory_act_id -> statutory_acts(workspace_id+id),restrict,INV-015
+statutory_act_versions,composed_from,progress_entries,N:1,no,workspace_id+root_progress_entry_id -> progress_entries(workspace_id+id) already-recorded facts only,restrict,INV-073
 package_approval_requirements,pinned_to,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-034
 package_approval_requirements,addressed_to,party_contacts,N:1,no,workspace_id+recipient_contact_id -> party_contacts(workspace_id+id),restrict,INV-001
 package_submissions,submits,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-015
-external_access_grants,scopes,package_versions,N:1,yes,workspace_id+project_id+contract_id+package_id+package_version_id -> package_versions chain,restrict,INV-009
+external_access_grants,scopes,package_versions,N:1,no,workspace_id+project_id+contract_id+package_id+package_version_id -> package_versions chain; exactly one scope kind per grant,restrict,INV-074
+external_access_grants,scopes_occurrence,requirement_occurrences,N:1,no,workspace_id+project_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+project_id+id); exactly one scope kind per grant,restrict,INV-074
 external_access_grants,addressed_to,party_contacts,N:1,no,workspace_id+recipient_contact_id -> party_contacts(workspace_id+id),restrict,INV-001
 external_access_grants,reissues,external_access_grants,N:1,no,workspace_id+replaced_grant_id -> external_access_grants(workspace_id+id),restrict,INV-009
 external_sessions,issued_from,external_access_grants,N:1,yes,workspace_id+external_access_grant_id -> external_access_grants(workspace_id+id),restrict,INV-057
-external_decision_batches,decides_on,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id),restrict,INV-041
+external_decision_batches,decides_on,package_versions,N:1,no,workspace_id+package_version_id -> package_versions(workspace_id+id); exclusive arc with decides_on requirement_occurrences — exactly one scope kind per batch matching its grant (INV-074),restrict,INV-041
+external_decision_batches,decides_on,requirement_occurrences,N:1,no,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id); exclusive arc with decides_on package_versions,restrict,INV-074
 external_decision_batches,via_session,external_sessions,N:1,yes,workspace_id+external_session_id -> external_sessions(workspace_id+id),restrict,INV-009
 external_decision_batches,via_grant,external_access_grants,N:1,yes,workspace_id+external_access_grant_id -> external_access_grants(workspace_id+id),restrict,INV-009
-external_quantity_decisions,recorded_in,external_decision_batches,N:1,yes,workspace_id+decision_batch_id -> external_decision_batches(workspace_id+id),restrict,INV-028
-external_quantity_decisions,fulfils,package_approval_requirements,N:1,yes,workspace_id+package_version_id+approval_requirement_id -> package_approval_requirements chain,restrict,INV-028
-external_quantity_decisions,targets,package_line_claim_segments,N:1,yes,workspace_id+package_version_id+package_line_id+claim_segment_id -> package_line_claim_segments chain,restrict,INV-028
+external_commercial_decisions,recorded_in,external_decision_batches,N:1,yes,workspace_id+decision_batch_id -> external_decision_batches(workspace_id+id),restrict,INV-028
+external_commercial_decisions,fulfils,package_approval_requirements,N:1,yes,workspace_id+package_version_id+approval_requirement_id -> package_approval_requirements chain,restrict,INV-028
+external_commercial_decisions,targets,package_line_claim_segments,N:1,yes,workspace_id+package_version_id+package_line_id+claim_segment_id -> package_line_claim_segments chain,restrict,INV-028
 external_evidence_decisions,recorded_in,external_decision_batches,N:1,yes,workspace_id+decision_batch_id -> external_decision_batches(workspace_id+id),restrict,INV-028
 external_evidence_decisions,fulfils,package_approval_requirements,N:1,yes,workspace_id+package_version_id+approval_requirement_id -> package_approval_requirements chain,restrict,INV-028
 external_evidence_decisions,targets_evidence,evidence_objects,N:1,yes,workspace_id+evidence_object_id -> evidence_objects(workspace_id+id),restrict,INV-032
 external_evidence_decisions,targets_occurrence,requirement_occurrences,N:1,yes,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-032
 external_decision_issues,recorded_in,external_decision_batches,N:1,yes,workspace_id+decision_batch_id -> external_decision_batches(workspace_id+id),restrict,INV-028
-external_decision_coverage,extends,external_quantity_decisions,N:1,yes,workspace_id+quantity_decision_id -> external_quantity_decisions(workspace_id+id),restrict,INV-006
+external_decision_coverage,extends,external_commercial_decisions,N:1,yes,workspace_id+commercial_decision_id -> external_commercial_decisions(workspace_id+id),restrict,INV-006
 external_decision_coverage,covers,package_line_claim_segments,N:1,yes,workspace_id+descendant_segment_id -> package_line_claim_segments(workspace_id+id),restrict,INV-006
 prior_acceptance_references,belongs_to,package_versions,N:1,yes,workspace_id+package_version_id -> package_versions(workspace_id+id) successor version,restrict,INV-008
 prior_acceptance_references,for_segment,package_line_claim_segments,N:1,yes,workspace_id+package_version_id+claim_segment_id -> successor segment chain,restrict,INV-030
 prior_acceptance_references,for_requirement,package_approval_requirements,N:1,yes,workspace_id+package_version_id+approval_requirement_id -> successor requirement chain,restrict,INV-030
-prior_acceptance_references,references,external_quantity_decisions,N:1,yes,workspace_id+original_quantity_decision_id -> external_quantity_decisions(workspace_id+id) same workspace project contract package series,restrict,INV-008
+prior_acceptance_references,references,external_commercial_decisions,N:1,yes,workspace_id+original_commercial_decision_id -> external_commercial_decisions(workspace_id+id) same workspace project contract package series,restrict,INV-008
 audit_events,scopes,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-043
 idempotency_records,scopes,workspaces,N:1,no,workspace_id -> workspaces(id) null only for pre-workspace bootstrap,restrict,INV-048
 transaction_outbox,scopes,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-042

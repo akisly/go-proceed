@@ -45,6 +45,43 @@ export async function asActor<T extends QueryResultRow = QueryResultRow>(
   finally { await c.end(); }
 }
 
+/**
+ * Runs as an EXTERNAL SESSION rather than as a member (v0.1-M5).
+ *
+ * Same role and same pool as `asActor` — there is no third database role, by the
+ * decision recorded on `withExternalTx` in `@goproceed/database` — and a
+ * DIFFERENT subject: the actor GUC is "" so `app.current_actor()` is NULL and
+ * every member policy in this database matches nothing, and
+ * `app.external_session_id` carries the session so the nine external policies of
+ * migration 0049 §10 resolve.
+ *
+ * `organizationId` is set for symmetry with `asActor` and is NOT what authorizes
+ * anything: the external policies read `app.external_session_occurrence()`,
+ * which resolves through the session's own grant.
+ */
+export async function asExternalSession<T extends QueryResultRow = QueryResultRow>(
+  externalSessionId: string, organizationId: string | null,
+  fn: (c: Client) => Promise<QueryResult<T>> | Promise<void>,
+): Promise<QueryResult<T>> {
+  const c = appClient();
+  await c.connect();
+  try {
+    await c.query("begin");
+    await c.query("set local role aktflow_app");
+    // EXPLICITLY EMPTY, not omitted. A session that inherited an actor would be
+    // a member transaction wearing a session id, and
+    // `app.current_external_session()` would return NULL for it — which is the
+    // database's own collapse rule and is exactly what this line exercises.
+    await c.query("select set_config('app.actor_user_id', '', true)");
+    await c.query("select set_config('app.organization_id', $1, true)", [organizationId ?? ""]);
+    await c.query("select set_config('app.external_session_id', $1, true)", [externalSessionId]);
+    const res = await fn(c);
+    await c.query("commit");
+    return (res ?? { rows: [], rowCount: 0 }) as QueryResult<T>;
+  } catch (e) { await c.query("rollback"); throw e; }
+  finally { await c.end(); }
+}
+
 /** Runs as the server rather than as a member. Same shape as asActor. */
 export async function asService<T extends QueryResultRow = QueryResultRow>(
   actorUserId: string, organizationId: string | null,

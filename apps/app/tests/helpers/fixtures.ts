@@ -104,6 +104,85 @@ export async function getBatch(batchId: string): Promise<Response> {
   return GET(new Request("http://x"), { params: Promise.resolve({ batchId }) });
 }
 
+/**
+ * One published rule version, for a baseline that has to be bound before it can
+ * be published.
+ *
+ * WHY EVERY IMPORT FIXTURE NOW NEEDS THIS. `import_batches.publish` refuses a
+ * publication carrying no rule-version set (INV-083) — the same refusal
+ * `contract_versions.publish` has always made — so an unbound published
+ * baseline is a state the product can no longer produce, and a fixture that
+ * still produced one would be building a state no user can reach and testing
+ * every later assertion against it.
+ *
+ * IT DRIVES THE PRODUCT'S OWN PATH and inserts nothing directly: the library
+ * row it cites is the one `workspaces.create` seeded, and the version is
+ * published by the route. A fixture that inserted either would pass on a
+ * deployment where neither works, which is exactly the failure the twelve
+ * missing library rows were.
+ *
+ * NO EXTRA GRANT. `requirement_rule_versions.publish` is governed by
+ * `requirement_rules.manage`, a workspace capability that maps to the owner
+ * role, and every caller of this helper created the workspace. The BINDING is
+ * admitted by `cvrb_insert` under `imports.publish` (0041:785-787), which
+ * `baselineFixture` already grants — so the estimator persona reaches the whole
+ * path without a separate grant on this route. (On the MANUAL route it does
+ * not: `rule_bindings.manage` is in no responsibility preset — M1 review
+ * finding 8 — and that gap is untouched here.)
+ *
+ * The shape is the only one v0.1 can publish: a `hold` that blocks stage
+ * closure, timed before concealment. INV-082 refuses every other intervention
+ * type and every other blocking scope.
+ *
+ * CORRECTED BY THE v0.1-M5 SLICE: this comment used to say «naming an internal
+ * approver … INV-085 refuse[s] everything else», and that half is no longer
+ * true. `occurrence_grants.issue` shipped, so
+ * `requirement_rule_versions.publish` accepts `approverIsExternal: true` on a
+ * `hold` — pass it through `over` to build the obligation an external технагляд
+ * can be granted. The default stays `false`, so every existing caller is
+ * unaffected.
+ */
+export async function publishBindableRuleVersion(
+  workspaceId: string, over: Record<string, unknown> = {},
+): Promise<{ ruleVersionId: string; requirementRuleId: string; stageKey: string }> {
+  const lib = await q<{ id: string }>(
+    `select id from public.requirement_library_items
+      where workspace_id = $1 and position_code = 'Н.15' and item_no = 1`, [workspaceId]);
+  if (lib.length !== 1) {
+    // Names the cause rather than letting the publication fail with a 422 about
+    // an id the caller never chose: this is what an unseeded library looks like
+    // from inside a fixture.
+    throw new Error(
+      `publishBindableRuleVersion: workspace ${workspaceId} holds ${lib.length} Н.15/1 library rows, not 1`
+      + " — workspaces.create is what seeds them");
+  }
+  const { POST } = await import(
+    "../../app/v1/workspaces/[workspaceId]/requirement-rule-versions/route");
+  const res = await POST(jsonReq("http://x", {
+    workTypeKey: "montazh-elektrotekhnichnykh-ustanovok",
+    stageKey: "prykhovani-roboty",
+    interventionType: "hold",
+    blockingScope: "blocks_stage_closure",
+    timing: "before_concealment",
+    evidenceKind: "photo",
+    performerRole: "foreman",
+    approverRole: "technical_supervisor",
+    allowedMedia: { mimeTypes: ["image/jpeg"], maxByteSize: 5 * 1024 * 1024 },
+    requirementLibraryItemId: lib[0]!.id,
+    ...over,
+  }), { params: Promise.resolve({ workspaceId }) });
+  if (res.status !== 201) {
+    throw new Error(
+      `publishBindableRuleVersion: publish returned ${res.status} ${await res.text()}`);
+  }
+  const body = await res.json();
+  return {
+    ruleVersionId: body.ruleVersionId as string,
+    requirementRuleId: body.requirementRuleId as string,
+    stageKey: body.stageKey as string,
+  };
+}
+
 /** Minimal hand-crafted ZIP (for IMPORT_FILE_UNSUPPORTED fixtures). */
 export function craftZip(entries: { name: string; data: Buffer; declaredUncompressed?: number }[]): Uint8Array {
   const chunks: Buffer[] = [];
@@ -147,6 +226,11 @@ export interface PublishedBaselineFixture extends BaselineFixture {
   contractVersionId: string;
   /** Work items of the published version, in position order. */
   workItems: { id: string; workCode: string | null; unitCode: string }[];
+  /**
+   * The rule version the baseline was published against. Not optional: INV-083
+   * means a published baseline always has at least one, on either route.
+   */
+  ruleVersionId: string;
 }
 
 /**
@@ -186,9 +270,11 @@ export async function publishedBaselineFixture(
   }), { params: Promise.resolve({ batchId }) });
 
   const view = await (await getBatch(batchId)).json();
+  const { ruleVersionId } = await publishBindableRuleVersion(fx.workspaceId);
   const { POST: publish } = await import("../../app/v1/import-batches/[batchId]/publish/route");
   const res = await publish(jsonReq("http://x", {
     expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+    ruleVersionIds: [ruleVersionId],
   }), { params: Promise.resolve({ batchId }) });
   if (res.status !== 201) {
     throw new Error(`publishedBaselineFixture: publish returned ${res.status} ${await res.text()}`);
@@ -201,7 +287,7 @@ export async function publishedBaselineFixture(
     [fx.workspaceId, contractVersionId]);
 
   return {
-    ...fx, contractVersionId,
+    ...fx, contractVersionId, ruleVersionId,
     workItems: workItems.map((w) => ({ id: w.id, workCode: w.work_code, unitCode: w.unit_code })),
   };
 }
@@ -292,9 +378,11 @@ export async function matrixFixture(
   }
 
   const view = await (await getBatch(batchId)).json();
+  const { ruleVersionId } = await publishBindableRuleVersion(fx.workspaceId);
   const { POST: publish } = await import("../../app/v1/import-batches/[batchId]/publish/route");
   const res = await publish(jsonReq("http://x", {
     expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+    ruleVersionIds: [ruleVersionId],
   }), { params: Promise.resolve({ batchId }) });
   if (res.status !== 201) {
     throw new Error(`matrixFixture: publish returned ${res.status} ${await res.text()}`);
@@ -317,6 +405,7 @@ export async function matrixFixture(
   return {
     ...fx,
     contractVersionId,
+    ruleVersionId,
     workItems: items.map((w) => ({ id: w.id, workCode: w.work_code, unitCode: w.unit_code })),
     bySourceKey: Object.fromEntries(items.map((w) => [w.source_key, {
       id: w.id,

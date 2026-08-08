@@ -49,14 +49,46 @@ export async function requirePartyEditCapability(
     own.rows.length > 0 ? "own_legal_profiles.manage" : "parties.manage");
 }
 
+/**
+ * WHAT `project.admin` IMPLIES, AND WHY THE LIST IS EXACTLY THESE TWO.
+ *
+ * Plan decision 6: `project.admin` implies the READS and never the actions.
+ * `contracts.edit`, `imports.manage`, `imports.publish`, `assignments.manage`,
+ * `progress.record`, `stage_closures.close` and the two decide capabilities stay
+ * explicit — an admin who can hand out project access is not thereby the person
+ * who closes a stage or accepts evidence.
+ *
+ * `readiness.view` ADDED 2026-08-08 (M3 pre-landing review finding 5, raised to
+ * HIGH by the v0.1 final review). Until this date the map named `project.view`
+ * alone, so `readiness.get`, `blocked_reasons.get` and `blocked_value.get`
+ * demanded a LITERAL `readiness.view` grant while the two policies those routes
+ * are written against — `rp_select` and `br_select`, migration
+ * 0045:1640-1642 and :1652-1654 — both read
+ * `array['readiness.view','project.admin']`, and 0045:1556-1560 states the
+ * intention in terms: «project.admin is admitted alongside it so the pilot is
+ * not locked out of its own money screen». The route was therefore STRICTER than
+ * the database it claimed to match: a project admin holding no hand-issued
+ * `readiness.view` was refused the two money reads by the command layer while
+ * every policy behind them would have answered. A route laxer than a policy
+ * turns a 403 into a 500; a route stricter than a policy denies a read the
+ * database would have allowed, and this one denied it to the only persona
+ * `responsibility-presets.csv` gives `project.admin` to (`project_manager`).
+ *
+ * THIS DOES NOT CLOSE THE PRESET GAP AND MUST NOT BE READ AS CLOSING IT.
+ * `readiness.view` is still in no `maps_to_capabilities` column of
+ * `technical/permissions/responsibility-presets.csv` (0045 §11 item 2), so a
+ * member who is not a project admin still needs a hand-issued grant to read the
+ * blocked money. What changed is only that the pilot owner is no longer locked
+ * out of a screen the database was already willing to show them.
+ */
+const IMPLIED_BY_PROJECT_ADMIN: readonly ProjectCapability[] = ["project.view", "readiness.view"];
+
 export async function requireProjectCapability(
   tx: Tx, requestId: string,
   args: { workspaceId: string; projectId: string; memberId: string; capability: ProjectCapability },
 ): Promise<void> {
-  // Plan decision 6: project.admin implies ONLY project.view; action
-  // capabilities (contracts.edit, imports.manage, imports.publish) stay explicit.
-  const caps = args.capability === "project.view"
-    ? ["project.view", "project.admin"] : [args.capability];
+  const caps: ProjectCapability[] = IMPLIED_BY_PROJECT_ADMIN.includes(args.capability)
+    ? [args.capability, "project.admin"] : [args.capability];
   const r = await tx.query(
     `select 1 from public.project_access_grants
       where workspace_id = $1 and project_id = $2 and member_id = $3

@@ -4,11 +4,14 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-08-03
+**Last reviewed:** 2026-08-06
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-002](../decisions/ADR-002-tenancy-parties-and-contracts.md),
-[ADR-003](../decisions/ADR-003-evidence-packages-and-acceptance.md)
+[ADR-003](../decisions/ADR-003-evidence-packages-and-acceptance.md),
+[ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md),
+[ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md),
+[ADR-007](../decisions/ADR-007-pilot-field-client.md)
 
 ## Purpose and security boundary
 
@@ -17,55 +20,97 @@ database grants/RLS, least-privilege service access, and protected external-link
 security for v0.0 and v0.1.
 
 A workspace is the tenant and governance boundary. A project is the ordinary
-application-visibility boundary. A contract, package version, approval
-requirement, claim segment, and evidence target progressively narrow the
-command scope. No application check, JWT claim, or RLS policy may substitute
-for the tenant-safe relational chain defined in
-[data-model architecture](data-model.md).
+application-visibility boundary. A contract, requirement occurrence, and
+evidence target progressively narrow the command scope in v0.1; a package
+version, approval requirement, and claim segment narrow it further from **v0.2**
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 5). No
+application check, JWT claim, or RLS policy may substitute for the tenant-safe
+relational chain defined in [data-model architecture](data-model.md).
 
-## Current baseline versus approved security target
+**Two decisions set the version markers below.**
+[ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) moves packages, claim
+segments, internal review, the statutory notice apparatus, `commercial_decision`
+and the closure-without-evidence bypass to v0.2; where a control below names one
+of them and carries no marker, it is a v0.2 control by that fact alone.
+[ADR-007](../decisions/ADR-007-pilot-field-client.md) makes the v0.1 field
+client a PWA served from `apps/app` — the same origin, the same member session,
+and the same BFF authorization boundary as the web product, so it adds no actor
+plane, no grant, and no policy shape to this document. It does subtract one
+thing: the client-held encrypted pending original, which is a v0.3 native
+obligation and is not a v0.1 security control (see
+[files-and-storage.md](files-and-storage.md)).
 
-### Current migration-derived baseline
+## Implementation status
 
-The current runtime represented by migrations contains 33 tables. The v0.0
-origin slice named six: `organizations`, `legal_entities`, `memberships`,
-`audit_events`, `idempotency_records`, and `transaction_outbox`.
+### What the database actually is
 
-Current strengths include parameterized SQL, outsider-negative RLS tests,
-advisory-lock idempotency, and `SKIP LOCKED` outbox claiming. Current risks
-remain implementation blockers:
+The migration chain in this repository runs to `0040`. It defines 33 application
+tables, one API view (`api.me_context`), 27 functions, and five application
+roles — `aktflow_app` and `aktflow_app_login` (`0003:8,11`), `aktflow_worker`
+(`0008:35`), `aktflow_service` and `aktflow_service_login` (`0034:25,28`).
+Migrations `0036`-`0040` add no table, no function, and no role: they retire a
+schedule, close an RLS gap, name a principal for the purge functions, withdraw an
+inert grant, and add one composite foreign key with its index.
 
-- RLS protects only organizations, legal entities, and memberships;
-- audit/idempotency access and outbox insertion are not tenant-safe;
-- legal-entity creation is not capability-aware;
-- first-owner bootstrap is not safely serialized between actors;
-- audit is not enforced append-only;
-- future object privileges are not deny-by-default;
-- the existing app/login roles and outbox drain are a foundation slice, not the
-  approved final BFF/worker model;
-- no live catalog snapshot has verified staging/production drift.
+**Approved is not deployed.** Everything ADR-005 introduces — requirement rules
+and rule versions, requirement occurrences, work stages, stage closures,
+unevidenced closures and their clearances, witness notices, occurrence evidence
+decisions, blocked reasons, and statutory acts — has no table. Neither does
+internal review, packages, claim segments, external access grants, external
+sessions, decision batches, acceptance, or value at risk. Milestones M3-M6 exist
+as design in this directory and in `technical/`, and nowhere else. Every control
+below that is marked target describes what a future migration must do.
 
-The exact evidence is in
-[baseline verification](../../migration/goproceed-canonical-v0.1/baseline-verification.md).
-This document does not treat target controls as implemented until migrations,
-catalog inspection, and security tests prove them.
+No test result is claimed anywhere in this document. `node_modules` is absent
+from this worktree, so nothing in it has been executed to produce a number.
 
-### Approved target
+### The v0.0 control set, proved per control
 
-Before domain expansion, v0.0 must:
+Earlier revisions of this section listed the first six controls below as open
+implementation blockers. That list was inherited from
+[baseline verification](../../migration/goproceed-canonical-v0.1/baseline-verification.md)
+§"Confirmed runtime risks", which was written against migrations `0001`-`0005`
+and never updated. It was already wrong when `0009` landed, and it is retracted
+here — the defect is finding 7 of the
+[package review](../delivery/package-review-2026-08-04.md). Each row now cites
+the migration text that decides it.
 
-- make all six baseline tables tenant-safe or remove their exposure;
-- serialize owner bootstrap;
-- remove legal identity from workspace authority through an additive party
-  migration;
-- replace mixed membership job titles with four governance roles;
-- revoke unsafe existing and future grants;
-- make audit append-only and outbox/idempotency tenant-bound;
-- establish reviewed BFF and worker roles with no browser-accessible secrets.
+| # | Control | Status | Evidence |
+|---|---|---|---|
+| 1 | RLS enabled on all six origin tables | **Delivered** | `0004:3-5` (organizations, legal_entities, memberships); `0006:23-25` (audit_events, idempotency_records, transaction_outbox) |
+| 2 | Audit, idempotency, and outbox access tenant-bound | **Delivered** | `0006:29` revokes `select` on audit outright; `0006:30-35` binds audit INSERT to an active membership; `0006:39-45` binds outbox INSERT and forbids a NULL org; `0006:50-59` scopes idempotency to `user:<actor>` |
+| 3 | Legal-entity creation capability-aware | **Delivered** | `0006:64-71` drops the any-active-member policy of `0004:26` and requires `role in ('owner','admin')` |
+| 4 | First-owner bootstrap serialized between actors | **Delivered** | `0006:78-83` — `app.org_has_members` takes `pg_advisory_xact_lock` *before* the membership check, so the losing claim waits for the winner's commit instead of racing past it under READ COMMITTED |
+| 5 | Audit enforced append-only | **Delivered** | `0006:10-19` — `app.reject_mutation` on a `BEFORE UPDATE OR DELETE` trigger, which fires for the table owner too, so a widened grant alone cannot rewrite history |
+| 6 | Future object privileges deny-by-default | **Delivered, with one residual the runner cannot close** | `0009:8` revokes `CREATE` on `public`; `0009:28-62` discovers every creator role from `pg_default_acl` rather than assuming one, and revokes tables, sequences, and functions from `anon`/`authenticated`, plus a **global**-scope function revoke because a schema-scoped one cannot subtract the built-in PUBLIC execute (`0009:16-20`). The residual is `supabase_admin`, documented at `0009:21-27` — see Current risks |
+| 7 | Reviewed BFF, worker, and service roles with no browser-reachable secret | **Partial** | `aktflow_app`/`aktflow_app_login` (`0003:8,11`) and `aktflow_service`/`aktflow_service_login` (`0034:25,28`) exist with `NOLOGIN`/`NOINHERIT` separation. `aktflow_worker` (`0008:35`) still has **no login role**, so no worker workload has a credential |
+| 8 | Live catalog comparison proving no staging/production drift | **Not delivered** | The newest snapshot, `catalog-snapshots/20260731-2102.md`, was taken against `127.0.0.1` and predates `0034`: its `## roles (6)` block contains no `aktflow_service` |
 
-v0.1 then adds project access, project responsibilities, protected external
-capabilities, and exact package/decision scopes under the same deny-by-default
-model.
+The `0009` design note is worth keeping visible because it is the kind of thing a
+later migration will get wrong: a schema-scoped `ALTER DEFAULT PRIVILEGES …
+REVOKE` can only subtract privileges the per-schema entry would itself add, and
+can never remove the built-in global PUBLIC execute on functions. Any future
+default-privilege work repeats both the global-scope revoke and the
+`pg_default_acl` discovery loop.
+
+### Controls added after the origin slice
+
+| Control | Status | Evidence |
+|---|---|---|
+| RLS on every application table | **Delivered** | 33 `enable row level security` statements across the chain; `0037:37` was the last, on `outbox_dead_letters` — the only table that had been left out, tenant-owned, and readable by a `nobypassrls` role (`0037:9-12`) |
+| Dead letters unreadable by the worker role | **Delivered** | `0037:42` withdraws the `0008:40` grant as well as enabling RLS, so a future policy cannot silently reopen the path |
+| Outbox drain cannot defeat the lease protocol | **Delivered** | `0036:40` unschedules the 30-second job; `0036:53` revokes `execute` on `public.drain_outbox(int)` from `service_role`, leaving only a superuser session able to call it |
+| Purge functions reachable by a non-superuser principal | **Delivered** | `0038:42-45` strips the direct `anon`/`authenticated` execute that `0021:108-111` left in place; `0038:47-50` grants the four functions to `aktflow_worker` and `service_role` — deliberately not to `aktflow_app` (cross-tenant system action) and not to `aktflow_service` (upload finalization only) |
+| No false UPDATE affordance on `organizations` | **Delivered** | `0039:31` withdraws the `0003:57` grant that RLS had made inert since `0004` created only `org_select` and `org_insert` |
+| `audit_events.project_id` is tenant-safe | **Delivered** | `0040:81-89` — composite FK `(organization_id, project_id) → projects (workspace_id, id)`, `MATCH SIMPLE` so the NULL-project majority stays legal, `NO ACTION` because a referential action would have to UPDATE or DELETE an append-only row and would fail at run time instead of review time |
+| Service principal separated from the application principal | **Delivered** | `0034:32-33` makes `aktflow_service` a member of `aktflow_app` and `aktflow_service_login` a member of `aktflow_service`, so SQL injected into an ordinary route runs on a connection that cannot reach the service role; `0035:150` and `0035:167-170` make server-observed facts service-only |
+
+### What v0.0 still owes
+
+The earlier "before domain expansion, v0.0 must" list is superseded by the two
+tables above: six of its seven items are delivered and domain expansion happened
+anyway across `0010`-`0035`. What remains open from that list is the staging
+verification in item 8, and the roles gap in item 7. Both are in Current risks.
 
 ## Actor and authority planes
 
@@ -108,7 +153,17 @@ responsibility title.
 
 `project_responsibility_assignments` record operational accountability such as
 progress recorder, evidence recorder/custodian, requirement owner, package
-compiler, internal verifier, submitter, or acceptance liaison.
+compiler, internal verifier, submitter, or acceptance liaison. ADR-005 adds the
+stage closer, the bypass author, and the clearance author to that vocabulary.
+**In v0.1 only the stage closer of those three is reachable**: the bypass and
+its clearance move to v0.2 with packages, because the bypass's price is package
+ineligibility and v0.1 has no packages
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 4 — "there is no
+bypass in v0.1"). The package compiler, the submitter and the acceptance liaison
+are v0.2 responsibilities for the same reason. The internal verifier stays in
+v0.1, but only for the evidence decision on one occurrence; the internal
+**review** apparatus it is named for — target sets, review heads, and their part
+in package eligibility — is v0.2.
 
 A responsibility:
 
@@ -120,7 +175,19 @@ A responsibility:
 
 One member may hold multiple responsibilities in v0.1. Separation-of-duties
 conflicts produce an explicit warning/fact; they do not silently grant or deny a
-different capability.
+different capability. **That warning is v0.2**
+([scope-and-boundaries.md](../product/scope-and-boundaries.md)), because it
+warns about self-review and the internal review it protects moves to v0.2. The
+consequence is stated rather than smoothed over: **until it ships, nothing warns
+an authorised actor who waives their own requirement**, and the attributed
+visibility of the exception is the only thing carrying that weight in v0.1.
+
+Two ADR-005 separations are hard refusals rather than warnings: the actor who
+captured the evidence may not be the actor who accepts it — **v0.1**, and the
+one that matters most in a version whose only warning is deferred — and the
+actor who recorded an unevidenced closure may not be the actor who clears it —
+**v0.2**, with the bypass (`technical/permissions/capabilities.csv`,
+`evidence_decisions.decide` and `unevidenced_closures.clear`).
 
 ### External capability
 
@@ -128,32 +195,97 @@ An external reviewer is not a workspace member. External authority comes only
 from one active `external_access_grant` exchanged into one revocable
 `external_session`.
 
+ADR-005 decision 9 adds a **second scope kind**. A grant targets exactly one of:
+
+- **one requirement occurrence** — **the only kind v0.1 issues** — so an external
+  `hold` approver, typically технагляд, can decide *before any package version
+  exists*. Without it the model is circular: eligibility would wait for a
+  decision that only becomes reachable after freeze;
+- **one package version** — **v0.2**, the ADR-003 scope, for commercial and
+  evidence decisions on packaged scope. v0.1 has no package versions, so no v0.1
+  grant, session, or route may target one
+  ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 5).
+
+The scope kind is part of the grant's key from the first migration, so adding
+the package kind in v0.2 is additive and reinterprets no v0.1 grant. A grant is
+bound to one scope kind and never both, and never reaches the other.
+Everything else about the protocol is unchanged: hashed token, fragment-only
+delivery, POST exchange for a short-lived session, no account, GET never
+consumes.
+
 The capability is bounded to:
 
-- one workspace/project/contract/package/version chain;
+- one workspace/project/contract chain, terminating in either one
+  package/version or one requirement occurrence;
 - one recipient/contact claim;
 - exact view/decision permissions;
-- pinned approval requirements and target scope;
+- pinned approval requirements and target scope, or the pinned
+  `rule_version_id` and acceptance criterion of the occurrence;
 - grant expiry and revocation version;
-- package review epoch.
+- package review epoch, for package-scoped grants.
 
 It grants no workspace navigation, project discovery, arbitrary storage
-listing, or access to another package/version.
+listing, access to another package/version, or access to a sibling occurrence on
+the same assignment.
 
 ### Service principals
 
-System actors have named, narrow purposes. v0.1 distinguishes at least:
+System actors have named, narrow purposes. v0.1 distinguishes at least the six
+below. The right-hand column is deliberately blunt about which of them has a
+database principal today, because a service capability listed in
+`technical/permissions/capabilities.csv` is a target contract, not a deployed
+identity.
 
-- BFF command/query execution;
-- upload finalization and integrity/scan state;
-- artifact rendering;
-- outbox/job claiming and delivery;
-- projection rebuilding;
-- scheduled maintenance explicitly approved for v0.1.
+| Service purpose | Database principal today |
+|---|---|
+| BFF command/query execution | `aktflow_app` via `aktflow_app_login` (`0003:8,11,14`) |
+| Upload finalization and integrity/scan state | `aktflow_service` via `aktflow_service_login` (`0034:25,28,32-33`); execute on `app.finalize_upload_intent` is service-only (`0035:167-170`) |
+| Outbox/job claiming and delivery | **None.** `aktflow_worker` exists (`0008:35`) with no login role, and the outbox has no consumer at all — see Current risks |
+| Storage byte purge | Function-level only. `0038:47-50` grants the four purge functions to `aktflow_worker` and `service_role`; the byte-deleting half is wired to no runtime |
+| Artifact rendering | **None.** No table to render from, no role, no grant |
+| Projection rebuilding | **None.** No projection table exists |
+| Scheduled maintenance | **None named.** Two `pg_cron` jobs remain — `idempotency-purge` (`0007:45`) and `upload-intent-expiry` (`0021:132`) — and both run as the scheduling superuser, not as an application principal |
 
-A service identity is not a generic administrator. Every service command
-records its service principal plus the originating user/external command when
-one exists.
+A service identity is not a generic administrator. Every service command records
+its service principal plus the originating user/external command when one
+exists. When a worker principal is finally created, its login role, its grants,
+and its RLS posture arrive in one migration, with the negative tests that prove
+it cannot perform another worker's or the BFF's capability.
+
+## The readiness gate is not an authorization plane
+
+ADR-005 makes readiness a precondition of two commands: recorded stage closure
+and package freeze. **v0.1 ships the first and not the second** — package freeze
+and `is_package_eligible` move to v0.2 with packages
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 5) — and the
+rules below bind both, stated once. This is the one place where a security
+document has to be explicit about a boundary that is easy to blur, because
+implementing the gate as a permission check would be both wrong and
+unauditable.
+
+- **A gate refusal is a business refusal, not an authorization denial.** The
+  actor is authorized; the facts are not sufficient. It carries a named problem
+  code and a `blocked_reason` object naming the requirement, the missing
+  evidence, the owed `approver_role`, and the money — never a generic 403.
+- **An ineligibility refusal is distinct from a stale-source conflict.**
+  Reporting one as the other turns a fixable evidence gap into an apparent
+  concurrency error
+  ([packages-and-acceptance.md](../domain/packages-and-acceptance.md)).
+- **Capabilities never encode the gate's outcome.** `stage_closures.close`
+  authorizes attempting a closure; `can_close_stage(s)` decides whether it
+  succeeds. `stage_closures.bypass` is a *separate* capability precisely so that
+  recording a closure without evidence is an attributed act by someone who holds
+  the authority to take it, rather than a fallback branch inside the ordinary
+  command. **That capability is v0.2 with the bypass itself.** v0.1's only
+  attributed escape is the ADR-005 exception — `waiver` or `accept_risk` by an
+  authorised actor, visible afterwards, with `not_applicable` still refused on a
+  `hold`. No v0.1 command may offer a second way past a false
+  `can_close_stage`.
+- **The gate never refuses to record a fact.** Recording performed quantity,
+  capturing evidence, and recording that a stage was in fact covered are always
+  permitted (ADR-005 decision 1 sub-rule). Authorization checks on those commands
+  are unchanged, and no RLS policy may be written that makes an inconvenient
+  reality unrecordable.
 
 ## Capability evaluation
 
@@ -169,27 +301,48 @@ A member command evaluates in this order:
 4. resolve explicit active project access for project-scoped work;
 5. check the required active project responsibility, if the command requires
    one;
-6. load the resource through the complete workspace/project/contract/package
-   composite key;
-7. validate lifecycle/head version, command idempotency, and business invariant;
+6. load the resource through the complete
+   workspace/project/contract/assignment/occurrence composite key, or — from
+   v0.2 — the workspace/project/contract/package key for package-scoped work;
+7. validate lifecycle/head version, command idempotency, business invariant,
+   and — for stage closure, and from v0.2 for package freeze — the ADR-005
+   eligibility predicate;
 8. commit domain facts, audit, idempotency, and outbox together.
 
+Steps 1-6 decide *who*. Step 7 decides *whether the facts allow it*. A failure
+at step 7 is never reported as a failure at steps 1-6.
+
 The client never supplies a trusted `workspace_id`, governance role,
-responsibility, recipient, package scope, or price/acceptance authority. It
-supplies an identifier/request; the server resolves authority from current
-facts and validates the complete relational chain.
+responsibility, recipient, package scope, rule version, blocking scope, notice
+period, or price/acceptance authority. It supplies an identifier/request; the
+server resolves authority from current facts and validates the complete
+relational chain. `earliest_proceed_at` on a witness notice is server-computed
+for the same reason, in **v0.2**, where the witness notice lands.
+
+**The v0.1 field client is a browser page and changes none of this.** The PWA of
+[ADR-007](../decisions/ADR-007-pilot-field-client.md) is an authenticated member
+surface on the product origin, evaluated through steps 1-8 exactly as the web
+product is. Two consequences bind here rather than in the UI: nothing in the
+capture path may be trusted because it claims a camera — an origin label, a
+device time, or an EXIF block is client-supplied metadata and is stored as such
+— and the client holds no credential, no local decryption key, and no durable
+pending original that a security control could rest on.
 
 An external command follows the same last three steps but replaces membership
-and responsibility with current grant/session capability and exact approval
-scope.
+and responsibility with current grant/session capability and exact approval or
+occurrence scope.
 
 ## Database access roles
 
-### Browser and mobile
+### Browser, field client, and native
 
 No service-role key, database password, HMAC key, or worker credential may
-enter browser/mobile code, public environment variables, source maps, logs, or
-analytics.
+enter browser code, the v0.1 PWA field client, a v0.3 native build, public
+environment variables, source maps, logs, or analytics. The field client is a
+route set inside `apps/app` on the same origin, so it inherits this rule rather
+than needing its own: any service worker or cached asset it ships is client code
+on the product origin, receives no service credential, and must not cache
+evidence originals or authenticated domain responses.
 
 Authenticated clients call reviewed BFF/API routes. If a Supabase Data API
 query is intentionally exposed, it is limited to reviewed `api` views/functions
@@ -215,6 +368,20 @@ The BFF does not use Supabase `service_role` for routine member commands.
 `service_role` bypasses RLS and therefore cannot be the ordinary application
 authorization plane.
 
+### The service principal
+
+`aktflow_service` is the server's own identity: everything `aktflow_app` can do,
+plus the right to record what the server itself observed. It is reached through
+its own login role, and `aktflow_app_login` is a member of `aktflow_app` and
+nothing else, so injected SQL on an ordinary route cannot issue the `SET LOCAL
+ROLE` that would reach it (`0034:6-17`).
+
+The membership edge is a deliberate least-privilege deviation, reasoned in the
+migration and recorded as open: because `aktflow_service` inherits from
+`aktflow_app`, it also inherits `select` on `evidence_objects` (`0016:160-162`),
+which is wider than the "cannot review evidence" rule stated for an upload
+finalizer below. This is tracked in `TODOS.md`, not silently accepted.
+
 ### Workers
 
 Workers use separate `NOLOGIN` capability roles and separate login credentials
@@ -228,11 +395,26 @@ per workload. Examples:
   bytes are uploaded to the staging key — through integrity, authorization, and
   inspection checks, but cannot review evidence;
 - a projector can read authoritative facts and replace only rebuildable
-  projection rows.
+  projection rows;
+- a purge worker can claim, complete, and fail an upload purge, and can delete
+  the corresponding bytes, but reads no domain content.
 
-Use `FOR UPDATE SKIP LOCKED` only for queue/job claiming. It does not authorize
-the claimed payload. Every worker revalidates workspace and object scope before
-effect.
+Use `FOR UPDATE SKIP LOCKED` only for queue/job claiming (`0008:42-58`). It does
+not authorize the claimed payload. Every worker revalidates workspace and object
+scope before effect.
+
+Two rules that `0036` and `0037` turned from principle into migration text, and
+that the next worker migration must not undo:
+
+- **a bookkeeping sweep is not a consumer.** `public.drain_outbox` marked rows
+  processed with no lease check and no topic filter, so it could settle a row a
+  correct consumer held a live lease on. It is retired, not deleted
+  (`0036:20-23,55-62`);
+- **a policy that reads as access but returns nothing is worse than no policy.**
+  Every policy family in this database keys off `app.current_actor()`, a
+  per-request GUC a background worker never sets. `0037:20-27` enables RLS on
+  `outbox_dead_letters` with **no** policy for exactly that reason: a worker that
+  needs dead letters needs a principal and a policy designed together.
 
 ### Privileged functions
 
@@ -246,49 +428,63 @@ effect.
   service roles;
 - be covered by outsider, cross-tenant, and wrong-scope tests.
 
+The fifth rule needs the emphasis `0038` gave it: revoking from `PUBLIC` does
+**not** strip the direct `EXECUTE` the local Supabase stack grants to `anon` and
+`authenticated` at function-creation time. `0021:108-111` revoked from `PUBLIC`
+only, and all four purge functions stayed browser-reachable until `0038:42-45`.
+Every new function revokes from `public, anon, authenticated` explicitly.
+
 ## Grants and exposed schemas
 
 Postgres grants decide which objects a role can reach; RLS decides which rows
 that role can reach. Both layers are mandatory for every exposed object.
 
-Target migrations:
+Rules, with their delivery state:
 
-1. revoke `CREATE` on application schemas from `PUBLIC`;
-2. revoke existing broad grants from `PUBLIC`, `anon`, `authenticated`, and
-   `service_role`;
-3. alter default privileges for every migration owner so future tables,
-   sequences, and functions receive no automatic application-role grants;
-4. expose only the reviewed `api` schema when compatibility permits;
-5. grant object/operation-specific privileges in the same migration that adds
-   its RLS policies;
-6. fail CI if a new exposed object lacks an owner, explicit grant decision, RLS
-   decision, and security test.
+| # | Rule | State |
+|---|---|---|
+| 1 | Revoke `CREATE` on application schemas from `PUBLIC` | Delivered (`0009:8`) |
+| 2 | Revoke existing broad grants from `PUBLIC`, `anon`, `authenticated` | Delivered per slice (`0003:51-54`, `0008:25`, `0038:42-45`) |
+| 3 | Alter default privileges for every migration owner discovered from the catalog | Delivered for every role the runner can alter (`0009:28-62`); `supabase_admin` residual remains |
+| 4 | Expose only the reviewed `api` schema when compatibility permits | Target. One view exists (`api.me_context`); the exposed-schema list is not narrowed |
+| 5 | Grant object/operation-specific privileges in the same migration that adds its RLS policies | Practice since `0011`/`0013`/`0016`; `0039` exists because `0003` granted UPDATE in a migration that added no policy |
+| 6 | Fail CI if a new exposed object lacks an owner, grant decision, RLS decision, and security test | Target |
+| 7 | Never grant a table-wide UPDATE ahead of the policy and capability that scope it | Delivered as doctrine by `0039:20-25`: a settings command adds a column-scoped grant, an owner/admin policy, and its capability in one migration — never the policy alone |
 
 Conceptual default:
 
 ```sql
 revoke create on schema public from public;
 revoke all on all tables in schema public
-  from public, anon, authenticated, service_role;
+  from public, anon, authenticated;
 revoke all on all sequences in schema public
-  from public, anon, authenticated, service_role;
+  from public, anon, authenticated;
 revoke execute on all functions in schema public
-  from public, anon, authenticated, service_role;
+  from public, anon, authenticated;
 
 alter default privileges for role <migration_owner> in schema public
-  revoke select, insert, update, delete on tables
-  from anon, authenticated, service_role;
+  revoke all on tables from anon, authenticated;
 alter default privileges for role <migration_owner> in schema public
-  revoke usage, select on sequences
-  from anon, authenticated, service_role;
+  revoke all on sequences from anon, authenticated;
 alter default privileges for role <migration_owner> in schema public
-  revoke execute on functions
-  from public, anon, authenticated, service_role;
+  revoke all on functions from public, anon, authenticated;
+-- global scope, not IN SCHEMA: the only way to drop the built-in PUBLIC
+-- execute on this creator's future functions
+alter default privileges for role <migration_owner>
+  revoke execute on functions from public, anon, authenticated;
 ```
 
 Replace `<migration_owner>` with every actual creator role discovered from
 `pg_class`/`pg_default_acl`; copying the example without catalog verification is
-not sufficient.
+not sufficient, which is why `0009:31-36` iterates the catalog instead of naming
+a role.
+
+`service_role` is deliberately absent from the statements above.
+`0009:4-6` left it with its defaults: it is server-side only, RLS-bypassing by
+design, and Supabase platform tooling depends on it. Narrowing it is a separate
+reviewed change, and `0036:53` and `0038:47` show the granularity that change
+should have — withdraw or grant one function at a time, with the reason in the
+migration.
 
 ## Row Level Security
 
@@ -299,6 +495,19 @@ Enable ROW LEVEL SECURITY on every tenant table or view reachable by
 Force RLS for application-owned tables when the table owner could otherwise
 execute application traffic. Provider/service roles that bypass RLS remain
 outside ordinary request paths.
+
+Current state: **all 33 application tables have RLS enabled**, and **none has it
+forced**. `0037:29-31` states the reason forcing is not applied: several write
+paths, `app.fail_outbox` among them, insert as the table owner inside a
+`SECURITY DEFINER` function, and forcing RLS on the owner would break the write
+path the table exists for. Forcing therefore cannot be switched on globally as a
+hardening sweep — it is a per-table decision that has to be taken together with
+the definer functions that write that table.
+
+RLS with **no** policy is a legitimate posture, not an omission: it denies every
+row to every non-owner, which is correct for a table the application must not
+read at all (`0037:20-27`). A migration that adds RLS with no policy says so in
+a table comment, so the next reader does not "fix" it.
 
 An exposed view must either:
 
@@ -349,7 +558,32 @@ illustrative `is_current` field if currentness is projected differently.
 
 RLS is defense in depth, not relational integrity. A row that passes RLS must
 still satisfy tenant-safe composite FKs, uniqueness, checks, and serialized
-command invariants.
+command invariants. `0040` is the worked example: `audit_events.project_id` sat
+behind correct RLS for thirty-eight migrations and could still name a project in
+another tenant, because no constraint said otherwise.
+
+### RLS for the readiness-gate tables
+
+When the ADR-005 tables are written, three policy shapes are already decided.
+The v0.1 set of those tables is requirement occurrences, requirement exceptions,
+occurrence evidence decisions, work stages, stage closures, `blocked_reasons`
+and `readiness_projection`; notices, attendance outcomes, unevidenced closures
+and clearances arrive with the rest of their apparatus in v0.2, and the shapes
+below are written once for both.
+
+- **occurrences, closures, and — from v0.2 — notices and bypasses are
+  project-scoped reads** under the same `app.has_project_capability` pattern as
+  evidence (`0016:160-164`). A member who cannot see the project cannot see what
+  is blocking it;
+- **an occurrence-scoped external session sees exactly one occurrence.** The
+  policy resolves the grant's occurrence identity and nothing wider — not the
+  assignment, not sibling occurrences, not the work item's other stages;
+- **append-only gate facts get the `0006:10-19` treatment**: a `BEFORE UPDATE OR
+  DELETE` trigger that raises for the table owner too. Stage closures,
+  requirement exceptions and occurrence evidence decisions are append-only in
+  v0.1; unevidenced closures, clearances, notices and attendance outcomes join
+  them in v0.2. A grant widened by accident must not be able to rewrite any of
+  them.
 
 ### Storage RLS
 
@@ -360,12 +594,15 @@ resolves to a currently authorized workspace/object.
 
 - Clients never list a whole tenant bucket.
 - Upload intent authorizes only one immutable staging key.
-- `upsert`/overwrite is not granted for originals or artifacts.
+- `upsert`/overwrite is not granted for originals or artifacts, including
+  rendered statutory act versions.
 - Staged content is not evidence and is not package-visible.
 - Available-object download uses a short-lived signed URL or same-origin
   authorized stream after current access revalidation.
-- External sessions receive only exact package artifact/evidence access; they
-  do not receive a Storage credential or general `storage.objects` grant.
+- External sessions receive only exact package artifact/evidence access, or —
+  for an occurrence-scoped grant — only the evidence objects linked to that one
+  occurrence. They do not receive a Storage credential or general
+  `storage.objects` grant.
 - Storage policies repeat the relevant subject/scope check because Data API
   pre-request hooks do not protect Storage.
 
@@ -373,8 +610,11 @@ resolves to a currently authorized workspace/object.
 
 ### Grant creation
 
-An authorized submitter creates one `bearer_email_link` grant for one recipient,
-package version, permission set, and exact approval scope.
+An authorized submitter creates one `bearer_email_link` grant for one recipient
+and one scope — in **v0.1** a single requirement occurrence with its pinned rule
+version and acceptance criterion, and from **v0.2** additionally a package
+version with its permission set and exact approval scope. Every step below binds
+both kinds identically; only the target differs.
 
 1. Generate 256 random bits with a cryptographically secure random generator.
 2. Encode the raw token as base64url without padding.
@@ -384,12 +624,14 @@ package version, permission set, and exact approval scope.
 6. Emit the raw token once; never persist it in application/audit/outbox
    payloads.
 7. Expire the initial link after seven days or package supersession, whichever
-   occurs first.
+   occurs first. An occurrence-scoped grant has no package to be superseded by;
+   it expires on its own timer and on revocation, and additionally when the
+   occurrence's rule-version binding is replaced by a successor contract version.
 
-The grant stores workspace/project/contract/package/version identity,
-recipient/contact, permissions, expiry, state, revocation version, reissue
-lineage, and package review epoch. Reissue atomically revokes the old grant and
-all sessions issued from it.
+The grant stores workspace/project/contract identity, its single scope kind and
+target, recipient/contact, permissions, expiry, state, revocation version,
+reissue lineage, and — for package scope — the package review epoch. Reissue
+atomically revokes the old grant and all sessions issued from it.
 
 The authorizing transaction commits the grant, HMAC verifier, audit event, and
 only token-free operational facts. After commit, the same BFF command holds the
@@ -421,11 +663,13 @@ The exchange endpoint:
 - suppresses/redacts request bodies in access logs, traces, analytics, error
   serialization, replay tools, and support tooling;
 - locks the grant, verifies HMAC/key ID, active state, expiry, recipient scope,
-  exact package version, revocation version, and review epoch;
+  scope kind, exact package version or occurrence identity, revocation version,
+  and review epoch where one applies;
 - atomically marks the raw-token exchange consumed and creates one session;
 - lets one concurrent exchange win and returns a generic invalid-link response
   to every replay;
-- never reveals whether a recipient, package, workspace, or grant exists.
+- never reveals whether a recipient, package, occurrence, workspace, or grant
+  exists.
 
 ### External session cookie
 
@@ -442,13 +686,13 @@ SameSite=Lax
 
 The `__Host-` cookie has no `Domain` attribute. The session expires after 30
 minutes idle and 12 hours absolute. Rotate its identifier after
-privilege/scope revalidation. Store grant revocation version and package review
-epoch with the session.
+privilege/scope revalidation. Store grant revocation version and, for
+package-scoped sessions, the package review epoch with the session.
 
-Every request checks session expiry, grant state/version, package epoch, and
-exact view permission. Package-head advance or reissue increments/revokes the
-relevant epoch/version and invalidates old sessions before old-version work can
-commit.
+Every request checks session expiry, grant state/version, scope kind, package
+epoch where one applies, and exact view permission. Package-head advance or
+reissue increments/revokes the relevant epoch/version and invalidates old
+sessions before old-version work can commit.
 
 ### Decision submission
 
@@ -457,13 +701,18 @@ Cookie `SameSite` is not the CSRF defense. Every state-changing endpoint also:
 - requires a session-bound synchronizer CSRF token;
 - validates `Origin`/same-origin request context;
 - rejects unsafe content types and missing CSRF state;
-- rechecks grant/session, package version/epoch, approval requirement, target
-  scope, terminal decision uniqueness, and idempotency while holding the
-  required decision/partition serialization lock.
+- rechecks grant/session, package version/epoch or occurrence identity, approval
+  requirement, target scope, terminal decision uniqueness, and idempotency while
+  holding the required decision/partition serialization lock.
 
 The same idempotency key and request hash returns the same receipt. Reusing the
 key with a different request fails. A different key cannot override a terminal
 same-version decision.
+
+An occurrence-scoped session submits an `evidence_decision` and nothing else. It
+cannot submit a `commercial_decision`, because it has no priced scope in view,
+and an accepting evidence decision moves no money on its own (ADR-005
+decision 9).
 
 ### Browser policy
 
@@ -495,16 +744,30 @@ verified legal identity, regulated/qualified signature, or authority outside
 the pinned grant. Reviewer name, company, and title are self-declared claims
 and are displayed/exported as such.
 
+v0.1 ships `LINK_CONFIRMATION` — email link, IP, server time — and states plainly
+in the UI and on any printed page that it **is not an electronic signature**
+(ADR-005 assumption d). Qualified electronic signature remains deferred to v0.2;
+no surface may present a link confirmation as a qualified signature.
+
 ## Audit, secrets, and incident controls
 
 - Secrets live in a managed per-environment store and rotate independently.
+  No migration plants a credential: `0003` and `0034:19-22` set no password, and
+  local/CI passwords come from a script, never from `seed.sql`.
 - Development seed credentials cannot be applied to preview/staging/production.
 - HMAC keys and session-verifier keys carry key IDs and rotation runbooks.
 - Audit records actor kind (`member`, `external`, `service`, `worker`), subject
   or grant/session identity, workspace, request/command, object, result, reason,
   and timestamp without bearer/session/CSRF secrets.
+- An audited project reference is tenant-safe by constraint, not by convention
+  (`0040:81-89`). Audit rows that carry no project remain legal under `MATCH
+  SIMPLE`, which is why the constraint could be added to an append-only table
+  with existing history.
 - Security telemetry is access-restricted and retention-bounded before pilot.
-- Audit is append-only, but business reconstruction uses domain facts.
+- Audit is append-only, but business reconstruction uses domain facts. This is
+  sharper under ADR-005: a stage closure, a bypass, and a clearance are **domain
+  facts with their own tables**, not audit entries. An audit row must never be
+  the only record that a gate was bypassed.
 - Revocation, suspicious exchange, repeated CSRF failure, cross-tenant denial,
   and privileged-function denial create security/audit signals without
   disclosing sensitive row contents.
@@ -512,6 +775,62 @@ and are displayed/exported as such.
 v0.1 has no implicit support-operator tenant access. Any later support plane
 requires a separate approved design, explicit tenant grant, expiry, reason,
 audit, and non-bypass implementation.
+
+## Current risks
+
+These are the open items as of this revision. Each cites the file that decides
+it. None of them is a stale pre-`0006` bullet; the controls those bullets
+described are proved delivered in Implementation status above.
+
+1. **The `supabase_admin` default-ACL residual cannot be closed by a
+   migration.** `0009:21-27` records why: the migration runner (`postgres`) is
+   not a superuser on Supabase and cannot alter another role's default
+   privileges. The most recent snapshot shows the shape exactly — `postgres`'s
+   three `public`-schema entries carry no `anon`/`authenticated`, while
+   `supabase_admin`'s three still grant both on tables, sequences, and functions
+   (`catalog-snapshots/20260731-2102.md`, `## default_acls (31)`). The exposure
+   is conditional: it applies only to objects `supabase_admin` itself creates in
+   `public`, and user migrations never run as `supabase_admin`. The control is
+   detection, not prevention — the catalog-snapshot procedure
+   (`scripts/snapshot-db-catalog.mjs`) must run on every environment, and a
+   change in those three rows is an incident.
+2. **The outbox has no consumer.** `0036:40` unscheduled the drain and `0036:53`
+   revoked its last non-superuser grant, which removed a mechanism that could
+   settle a leased row it did not own. Nothing replaced it. `app.claim_outbox` /
+   `app.complete_outbox` / `app.fail_outbox` (`0008:42-58`, `:60`) are the real
+   protocol and have no deployed caller, so committed outbox rows stay `pending`
+   indefinitely and every effect that depends on them — notification, delivery,
+   projection refresh — does not happen. `0036:60-62` says so in the function
+   comment rather than leaving it to be discovered.
+3. **Three service purposes have no principal at all.** Artifact rendering,
+   projection rebuilding, and scheduled maintenance are named in
+   `technical/permissions/capabilities.csv` as `service.artifact_render`,
+   `service.projection_rebuild`, and the two purge/expiry sweeps, and none has a
+   database role, a login credential, or a runtime. The two surviving `pg_cron`
+   jobs (`0007:45`, `0021:132`) execute as the scheduling superuser. Until a
+   principal exists, "the worker cannot do X" is a statement about a worker that
+   does not exist.
+4. **Catalog snapshots cover the local stack only, so staging and production
+   drift is unverified.** Every snapshot in
+   `migration/goproceed-canonical-v0.1/catalog-snapshots/` records
+   `Source host: 127.0.0.1`, and the newest (`20260731-2102.md`) predates
+   `0034` — its `## roles (6)` block has no `aktflow_service`, its
+   `outbox_dead_letters` row still reads `"rowsecurity": false`, and its
+   `## cron_jobs (3)` block still lists `outbox-drain`. No snapshot in the
+   repository corroborates `0034`-`0040` anywhere. Grants, policies, default
+   ACLs, and cron presence on a hosted environment are unproven.
+5. **The purge worker's byte-deleting half is wired to no runtime.**
+   `0038:29-32` is explicit that granting the four functions does not make the
+   purge work: marking an intent expired is scheduled, but deleting the bytes
+   needs storage credentials and a runner that does not exist. Storage is
+   therefore never reclaimed, and `0038`'s improvement is that a future runner
+   need not be a superuser — not that one runs.
+
+Two further open deviations are recorded in `TODOS.md` rather than here because
+they are single-line fixes with a decided remedy: `service_role` holds `TRUNCATE`
+on `outbox_dead_letters`, which neither the append-only trigger nor RLS gates;
+and `aktflow_service` inherits `select` on `evidence_objects` through
+`aktflow_app`, which is wider than the upload-finalizer rule stated above.
 
 ## Required security tests and gates
 
@@ -524,10 +843,15 @@ negative tests for:
 - responsibility without visibility, and visibility without required
   responsibility;
 - expired/revoked project access and responsibility;
-- cross-workspace/project/contract/package composite-reference injection;
-- direct table/function access outside the grant allowlist;
+- cross-workspace/project/contract/package/occurrence composite-reference
+  injection;
+- direct table/function access outside the grant allowlist, including the
+  `anon`/`authenticated` direct-execute path that `revoke … from public` does
+  not cover;
 - RLS `SELECT`, `INSERT`, `UPDATE`, and delete-denial behavior;
-- table-owner/application-role behavior under forced RLS where applicable;
+- table-owner/application-role behavior under forced RLS where applicable, and
+  the owner-write path through `SECURITY DEFINER` where RLS is enabled with no
+  policy;
 - security-definer `search_path`, direct-execute, and wrong-scope denial;
 - worker inability to perform another worker/BFF capability;
 - storage listing, overwrite, staging-read, and cross-tenant denial;
@@ -538,6 +862,35 @@ negative tests for:
 - terminal decision/idempotency race and old-version commit denial;
 - default-privilege checks proving a newly created table/function/sequence is
   inaccessible until explicitly granted.
+
+ADR-005 adds these, all of them negative tests about a refusal rather than about
+a permission. **v0.1:**
+
+- an occurrence-scoped grant cannot read or decide on any package version;
+- an occurrence-scoped session cannot reach a sibling occurrence on the same
+  assignment, the assignment, or the work item;
+- an occurrence-scoped session cannot submit a `commercial_decision`;
+- an authorized actor is refused stage closure when `can_close_stage` is false,
+  and the refusal carries the requirement, the missing evidence, the owed role,
+  and the money — not a generic authorization error;
+- recording performed quantity, capturing evidence, and recording that a stage
+  was covered all succeed while the same scope is blocked;
+- a `not_applicable` exception on a `hold` occurrence is refused by the command,
+  while `waiver` and `accept_risk` by an authorised actor succeed and stay
+  visible;
+- the actor who captured an evidence object cannot be the actor who accepts it.
+
+**v0.2**, with the objects they exercise:
+
+- a package-scoped grant cannot decide on an occurrence;
+- an authorized actor is refused package freeze for ineligible scope, and the
+  refusal is distinguishable from a stale-source conflict;
+- an unevidenced closure is recordable, its frozen unmet set does not change when
+  the occurrences are later satisfied, and no update or delete can remove it;
+- a clearance by the actor who authored the bypass is refused.
+
+A test written against the v0.2 shape of a v0.1 command does not prove the v0.1
+refusal; it pins the wrong one and passes.
 
 Pilot data is blocked until privacy notice, telemetry/retention choices,
 export/manual deletion, backup/restore verification, external-link assurance
@@ -554,3 +907,5 @@ copy, and incident handling are approved and tested.
   — `storage.objects` RLS and operation-specific policies.
 - [PostgreSQL: Row security policies](https://www.postgresql.org/docs/current/ddl-rowsecurity.html)
 - [PostgreSQL: Roles and privileges](https://www.postgresql.org/docs/current/user-manag.html)
+- [PostgreSQL: ALTER DEFAULT PRIVILEGES](https://www.postgresql.org/docs/current/sql-alterdefaultprivileges.html)
+  — schema-scoped versus global scope, and what a non-superuser may alter.

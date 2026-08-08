@@ -1,17 +1,36 @@
 -- =============================================================================
 -- GoProceed v0.1 TARGET DESIGN DDL
--- Status: Approved target design. Applies to: v0.1. Last reviewed: 2026-07-30.
+-- Status: Approved target design. Applies to: v0.1. Last reviewed: 2026-08-06.
 --
 -- THIS FILE IS NOT A MIGRATION. Applied migrations under supabase/migrations/
 -- remain the only truth for the actual database. This file is the reviewed
 -- target contract that v0.0/v0.1 migrations must implement additively
 -- (docs/architecture/data-model.md "Additive migration rules").
 --
+-- NOTHING BELOW IS DEPLOYED BY BEING WRITTEN HERE. The runtime on this branch
+-- is 33 tables plus migrations 0036-0040. Every object introduced by ADR-005 --
+-- requirement rules and their versions, the shipped library, contract-version
+-- rule bindings, work stages, stage closures, unevidenced closures and their
+-- clearances, witness notices, attendance outcomes, occurrence evidence
+-- decisions, blocked reasons, and statutory acts -- has NO table in any applied
+-- migration. v0.1-M3 through v0.1-M6 have no tables at all.
+--
 -- Sources of every rule here:
 --   docs/domain/domain-model.md, execution-and-evidence.md,
 --   packages-and-acceptance.md, value-at-risk.md, glossary.md
 --   docs/architecture/data-model.md, tenancy-and-security.md,
 --   files-and-storage.md, jobs-events-and-audit.md
+--   docs/decisions/ADR-005-readiness-gate-and-hidden-works.md (the gate),
+--   docs/decisions/ADR-006-pilot-shaped-v0.1.md (which of the objects below
+--   v0.1 actually builds -- this file is the whole target design and 63 of its
+--   86 tables are not v0.1 work; read the version of a table from
+--   entity-catalog.csv status_version, never from its presence here),
+--   docs/decisions/ADR-007-pilot-field-client.md (the v0.1 field client is a
+--   PWA: capture is online-only, a pending original is not durable, and
+--   capture_origin carries origin_not_distinguished) and
+--   docs/product/hidden-works-content-rules.md (every regulatory string; no
+--   norm, clause, form field, or Додаток Н item may be asserted here that is
+--   not on that document's allow-list)
 --   technical/database/entity-catalog.csv, relationship-catalog.csv,
 --   invariant-catalog.csv (INV-xxx references below)
 --
@@ -28,6 +47,12 @@
 --     still allow the draft->published/frozen lifecycle transition;
 --   * on delete: restrict everywhere. Draft deletion is a serialized command
 --     that removes children first; business history is never erased by cascade.
+--   * ADR-005 vocabularies (intervention_type, blocking_scope, timing,
+--     evidence_kind, blocked-reason codes, act form) are closed identifier sets
+--     declared as text + CHECK, like the existing draft/published status
+--     columns. An unknown value denies (INV-052);
+--   * where a constraint can make an invalid combination unrepresentable, it
+--     does. The gate is not a set of rules the commands remember to apply.
 -- =============================================================================
 
 create extension if not exists pgcrypto;
@@ -60,7 +85,16 @@ create type import_row_status       as enum ('valid','warning','blocked');
 create type assignment_status       as enum ('draft','active','paused','completed','cancelled');
 create type progress_entry_kind     as enum ('root','adjustment');
 create type upload_intent_status    as enum ('intent_authorized','staged','integrity_verified','scan_pending','available','scan_blocked','orphaned_for_purge','expired');
-create type capture_origin          as enum ('native_camera','photo_picker','file_picker','form','import','generated_derivative');
+-- origin_not_distinguished added 2026-08-06 for ADR-007 decision 5: the v0.1
+-- field client is a browser page, which has no camera-session identity and may
+-- be handed bytes the browser stripped or transcoded, so a PWA capture cannot
+-- be recorded as native_camera and must carry a value that says the origin is
+-- not distinguished (INV-086; state-catalog.csv capture.origin_method).
+-- This is the target design. The DEPLOYED check at
+-- supabase/migrations/0015_execution_evidence_module.sql and
+-- packages/contracts/src/uploads.ts still carry the six-value set, and until
+-- both carry this value no PWA capture may be recorded at all.
+create type capture_origin          as enum ('native_camera','photo_picker','file_picker','form','import','generated_derivative','origin_not_distinguished');
 create type evidence_relation       as enum ('original','derivative','correction');
 create type capture_time_trust      as enum ('device_claimed','server_estimated','unknown');
 create type inspection_status       as enum ('passed','not_required');
@@ -236,6 +270,17 @@ create table public.party_contacts (
   role_title text,
   email text,
   phone text,
+  -- ПКМУ № 903, п. 3: the технагляд's person holds a кваліфікаційний
+  -- сертифікат. That is a fact about the participant, and it is held here, on
+  -- the participant record. It is NOT an act column and NOT a form field:
+  -- whether Додаток В has a slot for серія/номер is not established, so
+  -- nothing here is printed into the act until
+  -- docs/product/hidden-works-content-rules.md allow-lists that field against
+  -- the В.1/В.2 field list. Both columns are optional — no constraint may make
+  -- an unestablished form field mandatory. Prohibition E bans the adjacent
+  -- «ким видана», so there is no issuer column.
+  qualification_certificate_series text,
+  qualification_certificate_number text,
   version bigint not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
@@ -497,6 +542,24 @@ create table public.work_items (
   source_key text,
   work_code text,
   description text not null,
+  -- predicate side, LEFT-HAND. The right-hand side is
+  -- requirement_rule_versions.work_type_key below; ADR-006 decision 1 step 1 is
+  -- what puts it here («ПТВ enters the work lines by hand, picks a work type,
+  -- and the requirements load»). Added by migration 0050.
+  --
+  -- NULLABLE, AND NULL IS NOT AN ERROR: every line the frozen importer wrote
+  -- carries NULL, matches no rule, and is DISCLOSED as `work_type_unresolved`
+  -- rather than refused. NO FOREIGN KEY AND NO VOCABULARY TABLE — the set of
+  -- work types has no owning entity in v0.1 (glossary.md:109 calls giving it one
+  -- a scope decision an ADR must make) and many rule versions share one key, so
+  -- there is no candidate key to reference. What replaces the FK is a write-time
+  -- refusal (app.work_type_key_is_bindable + work_items_work_type_guard: a
+  -- non-null key must name a rule version this workspace can bind) and a
+  -- publish-time disclosure in contract_versions.publish. The shape check is
+  -- STRICTER than the rule side's `length(btrim(...)) > 0` on purpose: both
+  -- comparisons that matter are exact string equality, and normalising on one
+  -- side only is how two comparisons come to disagree.
+  work_type_key text,
   section text,
   unit_id uuid not null,
   contract_quantity numeric(20,6) not null check (contract_quantity >= 0),
@@ -540,7 +603,10 @@ create table public.work_items (
   -- coupled money (INV-037): all three present or all three absent
   check ((pool_net_minor_units is null and pool_tax_minor_units is null and pool_gross_minor_units is null)
       or (pool_gross_minor_units = pool_net_minor_units + pool_tax_minor_units)),
-  check (tax_mode <> 'unknown' or pool_gross_minor_units is null)
+  check (tax_mode <> 'unknown' or pool_gross_minor_units is null),
+  -- the work type is stored exactly as it will be compared (migration 0050)
+  check (work_type_key is null
+      or (work_type_key = btrim(work_type_key) and length(work_type_key) > 0))
 );
 
 create table public.source_amount_resolutions (
@@ -567,7 +633,7 @@ comment on table public.source_amount_resolutions is
   'INV-054: a source amount vs quantity*price mismatch outside pinned tolerance blocks publication until this explicit fact exists. Original values are retained.';
 
 -- =============================================================================
--- 3. EXECUTION: ASSIGNMENTS, PROGRESS, ALLOCATION HEADS, VALUATION LINEAGE
+-- 3. EXECUTION: ASSIGNMENTS, STAGES, PROGRESS, ALLOCATION HEADS, VALUATION
 -- =============================================================================
 
 create table public.work_assignments (
@@ -582,7 +648,13 @@ create table public.work_assignments (
   assignee_member_id uuid,
   planned_quantity numeric(20,6) check (planned_quantity is null or planned_quantity > 0),
   due_date date,
-  requirement_template_version_id uuid,
+  -- ADR-005 decision 2 RETIRES work_assignments.requirement_template_version_id
+  -- (present in the runtime at supabase/migrations/0015:85). One optional
+  -- template pinned to an assignment cannot express an ordered set, cannot vary
+  -- by stage or location, and is absent by default, which is the same as having
+  -- no gate. Obligations now arrive as requirement_occurrences materialised
+  -- from the rule versions bound to the published contract version. Removing
+  -- the deployed column is a migration concern; the target shape has no column.
   status assignment_status not null default 'active',
   version bigint not null default 1,
   created_at timestamptz not null default now(),
@@ -597,6 +669,50 @@ create table public.work_assignments (
   foreign key (workspace_id, performer_party_id) references public.parties (workspace_id, id),
   foreign key (workspace_id, assignee_member_id) references public.memberships (workspace_id, id)
 );
+
+create table public.work_stages (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  contract_id uuid not null,
+  contract_version_id uuid not null,
+  work_assignment_id uuid not null,
+  location_id uuid,
+  stage_key text not null,            -- from the vocabulary pinned by the contract-version rule bindings
+  is_concealed boolean not null default false,
+  status text not null default 'open'
+    check (status in ('open','closed','closed_without_evidence')),
+  version bigint not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, project_id, id),
+  -- the concealed flag is part of the stage identity a child may pin, so an
+  -- occurrence timed before_concealment cannot attach to a stage that is not
+  -- concealed (execution-and-evidence.md "Timing")
+  unique (workspace_id, project_id, id, is_concealed),
+  -- and so is the status: a stage_closures row may only reference a stage whose
+  -- status is 'closed', an unevidenced_closures row only one whose status is
+  -- 'closed_without_evidence'. Since a stage has exactly one status, the two
+  -- kinds of closure are mutually exclusive per stage RELATIONALLY, not by
+  -- convention. It also means that once either closure exists the status can
+  -- never move again (on delete/update restrict), which is what "ADR-005
+  -- defines no reopen" has to mean in a schema.
+  unique (workspace_id, project_id, id, status),
+  foreign key (workspace_id, project_id, work_assignment_id)
+    references public.work_assignments (workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, location_id)
+    references public.locations (workspace_id, project_id, id)
+);
+comment on table public.work_stages is
+  'The closable unit: one assignment, one location node, one stage from the vocabulary the published contract version pins, flagged concealed or not. status is a stored lifecycle column (technical/states/state-catalog.csv work_stage.status); the closure FACTS are stage_closures and unevidenced_closures and they are what may be relied on. The stage vocabulary is NOT checked relationally: a stage with no bound rule and therefore no occurrence is legal and is exactly what the bulk-instantiation dry run must disclose as an uncovered line (INV-072).';
+-- One assignment + one location node + one stage key is ONE stage. Without
+-- this, "close the same stage twice" is reachable through duplicate stage
+-- identities instead of duplicate closures.
+create unique index work_stages_closable_unit_uniq
+  on public.work_stages (workspace_id, work_assignment_id,
+    coalesce(location_id, '00000000-0000-0000-0000-000000000000'::uuid), stage_key);
 
 create table public.progress_entries (
   id uuid not null default gen_random_uuid(),
@@ -781,8 +897,175 @@ alter table public.upload_intents
   references public.evidence_objects (workspace_id, id);
 
 -- =============================================================================
--- 5. REQUIREMENTS AND INTERNAL REVIEW
+-- 5. REQUIREMENTS: RULES, LIBRARY, BINDINGS, OCCURRENCES, INTERNAL REVIEW
 -- =============================================================================
+-- ADR-005 decision 2: requirements are known in advance and are bound to the
+-- work, not to a person or a visit. A rule is a predicate over (work type,
+-- location node, stage) yielding an ORDERED set of requirements; each member of
+-- that set is one immutable published rule version carrying its own ordinal.
+-- The set bound to a baseline is therefore the set of rule versions the
+-- published contract version pins, ordered by (rule, ordinal).
+
+create table public.requirement_library_items (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  source_standard text not null,
+  position_code text not null check (position_code in ('Н.14','Н.15')),
+  position_title_uk text not null,
+  item_no int not null check (item_no >= 1),
+  item_text_uk text not null,
+  -- Додаток Н is довідковий. There is no value that records it as mandatory or
+  -- as an «орієнтовний перелік» (hidden-works-content-rules.md B and C).
+  normative_character text not null default 'dovidkovyi'
+    check (normative_character = 'dovidkovyi'),
+  -- INV-073: verification tag and source are NOT NULL, so an unsourced
+  -- regulatory string cannot be stored and therefore cannot be rendered.
+  verification text not null check (verification in ('VERIFIED_PRIMARY','VERIFIED_SECONDARY')),
+  source_citation text not null,
+  -- Neither ДБН А.3.1-5:2016 nor ДСТУ 9258:2023 says which position takes which
+  -- act form. The mapping is the product's assumption and there is no value
+  -- that records it as a norm reference (hidden-works-content-rules.md G).
+  act_form_assumption text check (act_form_assumption in ('dodatok_v','dodatok_g')),
+  act_form_basis text not null default 'product_assumption'
+    check (act_form_basis = 'product_assumption'),
+  created_at timestamptz not null default now(),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, source_standard, position_code, item_no),
+  -- Н.14 has exactly five items and Н.15 exactly seven. An eighth line in Н.15
+  -- is unrepresentable, not merely forbidden by review
+  -- (hidden-works-content-rules.md A).
+  check ((position_code = 'Н.14' and item_no <= 5)
+      or (position_code = 'Н.15' and item_no <= 7))
+);
+comment on table public.requirement_library_items is
+  'Shipped regulatory reference content: the twelve VERIFIED_PRIMARY items of Додаток Н positions Н.14 and Н.15 (technical/requirements/dbn-a31-5-2016-dodatok-n.csv). Content is a repository change under hidden-works-content-rules.md, never a runtime command. Anything outside those two positions belongs to a separate non-normative block and never to this table. NOTE: entity-catalog.csv and relationship-catalog.csv scope these rows to a workspace; domain-model.md calls them workspace-independent reference rows. The catalogs win on shape (tenant-safe FKs, INV-001); the document wins on substance, and a rule version COPIES the quoted text, its verification tag, and its source into its own immutable content so no tenant obligation depends on a shared row.';
+-- EXTERNAL GATE: adding a position beyond Н.14/Н.15 requires the same
+-- primary-source verification that produced these twelve rows (ADR-005
+-- assumption c). It is a content-sourcing programme, not a schema change.
+
+create table public.requirement_rules (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  rule_key text not null,
+  display_name text not null,
+  status text not null default 'active' check (status in ('active','archived')),
+  version bigint not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, rule_key)
+);
+comment on table public.requirement_rules is
+  'Stable identity and naming only. All agreed content lives in immutable published rule versions; archiving a rule never changes an existing obligation, because an occurrence pins a version identity (INV-067).';
+
+create table public.requirement_rule_versions (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  requirement_rule_id uuid not null,
+  version_no int not null check (version_no >= 1),
+  ordinal int not null check (ordinal >= 1),  -- position inside the rule's ordered set
+  status text not null default 'draft' check (status in ('draft','published','retired')),
+  -- predicate side. Rules are workspace-scoped and never project-scoped, so the
+  -- location node is a predicate over the node, not an FK into one project tree.
+  work_type_key text not null,
+  location_predicate jsonb not null default '{}',
+  stage_key text not null,
+  -- requirement side (domain-model.md "Requirement rules and library")
+  intervention_type text not null check (intervention_type in ('hold','witness','review')),
+  blocking_scope text not null
+    check (blocking_scope in ('none','blocks_stage_closure','blocks_package_inclusion','blocks_both')),
+  timing text not null
+    check (timing in ('before_work','during','before_concealment','after','before_package')),
+  evidence_kind text not null check (evidence_kind in ('photo','measurement','document','checkbox')),
+  acceptance_criterion text not null,
+  performer_role text not null,
+  approver_role text not null,
+  approver_is_external boolean not null default false,
+  min_evidence_count int not null default 1 check (min_evidence_count >= 1),
+  max_evidence_count int check (max_evidence_count is null or max_evidence_count >= min_evidence_count),
+  allowed_media jsonb not null default '[]',
+  form_schema jsonb,
+  exception_policy jsonb not null default '{}',
+  -- the normative citation is COPIED into this immutable content, with its
+  -- verification tag and source, and is never a live reference (INV-073)
+  norm_ref text,
+  norm_ref_verification text
+    check (norm_ref_verification in ('VERIFIED_PRIMARY','VERIFIED_SECONDARY')),
+  norm_ref_source text,
+  requirement_library_item_id uuid,   -- provenance of the copied text, not its authority
+  rule_version_hash bytea,
+  published_at timestamptz,
+  published_by_member_id uuid,
+  retired_at timestamptz,
+  retired_by_member_id uuid,
+  created_at timestamptz not null default now(),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, requirement_rule_id, id),
+  unique (workspace_id, requirement_rule_id, version_no),
+  unique (workspace_id, id, stage_key),          -- the binding pins the stage with the version
+  unique (workspace_id, id, intervention_type),
+  foreign key (workspace_id, requirement_rule_id) references public.requirement_rules (workspace_id, id),
+  foreign key (workspace_id, requirement_library_item_id)
+    references public.requirement_library_items (workspace_id, id),
+  foreign key (workspace_id, published_by_member_id) references public.memberships (workspace_id, id),
+  foreign key (workspace_id, retired_by_member_id)  references public.memberships (workspace_id, id),
+  -- INV-066 / ADR-005 decision 4: a hold admits blocks_both ONLY, and witness
+  -- and review admit exactly the scopes the decision permits. An impermissible
+  -- combination is not rejected at read time; it cannot be stored.
+  check (intervention_type <> 'hold'    or blocking_scope = 'blocks_both'),
+  check (intervention_type <> 'witness' or blocking_scope in ('none','blocks_stage_closure','blocks_both')),
+  check (intervention_type <> 'review'  or blocking_scope in ('none','blocks_package_inclusion','blocks_both')),
+  -- INV-073: a normative string without BOTH a verification tag and a source is
+  -- unrepresentable, so a contributor cannot introduce one by editing a template
+  check (norm_ref is null or (norm_ref_verification is not null and norm_ref_source is not null)),
+  check (status = 'draft' or (rule_version_hash is not null and published_at is not null)),
+  check (status <> 'retired' or retired_at is not null)
+);
+comment on table public.requirement_rule_versions is
+  'Publish/retire only, never updated (INV-067): no UPDATE grant, plus the frozen-content guard below. Retirement stops future binding and changes nothing about an occurrence that already pinned this identity. severity as a free axis is retired (ADR-005 decision 4): a requirement''s consequence is blocking_scope, and one column says so.';
+create index requirement_rule_versions_predicate_idx
+  on public.requirement_rule_versions (workspace_id, work_type_key, stage_key)
+  where status = 'published';
+
+-- Module: contract_baseline (entity-catalog.csv). Declared here because it
+-- references the rule versions above; ADR-002's publication discipline is
+-- unchanged and the binding is pinned in the same act that pins party,
+-- currency, tax, terms, and approval policy.
+create table public.contract_version_rule_bindings (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  contract_id uuid not null,
+  contract_version_id uuid not null,
+  requirement_rule_id uuid not null,
+  requirement_rule_version_id uuid not null,
+  stage_key text not null,            -- carried from the pinned version: the baseline's stage vocabulary
+  bound_at timestamptz not null default now(),
+  bound_by_member_id uuid not null,
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, project_id, contract_id, contract_version_id, id),
+  -- one rule contributes AT MOST ONE version to a baseline. Two versions of the
+  -- same rule inside one published contract version would make "what was
+  -- agreed" ambiguous, and reproducibility is the whole point of the binding.
+  unique (workspace_id, contract_version_id, requirement_rule_id),
+  unique (workspace_id, contract_version_id, requirement_rule_version_id),
+  foreign key (workspace_id, project_id, contract_id, contract_version_id)
+    references public.contract_versions (workspace_id, project_id, contract_id, id),
+  foreign key (workspace_id, requirement_rule_id, requirement_rule_version_id)
+    references public.requirement_rule_versions (workspace_id, requirement_rule_id, id),
+  -- the binding cannot misreport the stage its rule version names
+  foreign key (workspace_id, requirement_rule_version_id, stage_key)
+    references public.requirement_rule_versions (workspace_id, id, stage_key),
+  foreign key (workspace_id, bound_by_member_id) references public.memberships (workspace_id, id)
+);
+comment on table public.contract_version_rule_bindings is
+  'Pins the exact rule-version set to a published contract version at baseline publication (ADR-005 decision 2). A rule published after that baseline does not retroactively enter it. The set of stage_key values bound to a contract version IS that version''s stage vocabulary.';
+create index contract_version_rule_bindings_stage_idx
+  on public.contract_version_rule_bindings (workspace_id, contract_version_id, stage_key);
 
 create table public.requirement_template_versions (
   id uuid not null default gen_random_uuid(),
@@ -817,7 +1100,28 @@ create table public.requirement_occurrences (
   project_id uuid not null,
   contract_id uuid not null,
   work_assignment_id uuid not null,
-  requirement_template_version_id uuid not null,
+  work_stage_id uuid,                 -- the closable unit this obligation is evaluated over
+  stage_is_concealed boolean,         -- pinned with the stage so timing is checkable here
+  rule_version_id uuid not null,      -- pinned identity, never a live rule (INV-067)
+  requirement_template_version_id uuid, -- v0.1-M2 lineage only; no longer the source of an obligation
+  ordinal int not null default 1 check (ordinal >= 1),
+  -- materialised from the rule version at assignment creation (INV-066).
+  -- Stored values, never a severity word interpreted at read time.
+  intervention_type text not null check (intervention_type in ('hold','witness','review')),
+  blocking_scope text not null
+    check (blocking_scope in ('none','blocks_stage_closure','blocks_package_inclusion','blocks_both')),
+  timing text not null
+    check (timing in ('before_work','during','before_concealment','after','before_package')),
+  evidence_kind text not null check (evidence_kind in ('photo','measurement','document','checkbox')),
+  acceptance_criterion text not null,
+  norm_ref text,
+  norm_ref_verification text
+    check (norm_ref_verification in ('VERIFIED_PRIMARY','VERIFIED_SECONDARY')),
+  norm_ref_source text,
+  performer_role text not null,
+  approver_role text not null,
+  approver_is_external boolean not null default false,
+  min_evidence_count int not null default 1 check (min_evidence_count >= 1),
   location_id uuid,
   quantity_scope jsonb not null default '{}', -- exact quantity/location scope of the obligation
   created_by_member_id uuid not null,
@@ -825,14 +1129,34 @@ create table public.requirement_occurrences (
   primary key (id),
   unique (workspace_id, id),
   unique (workspace_id, project_id, id),
+  -- children pin the axis they are only allowed to touch: a notice may exist
+  -- only for a witness, an exception kind is coupled to the type, and a
+  -- decision may only be made in the role the occurrence names.
+  unique (workspace_id, id, intervention_type),
+  unique (workspace_id, id, approver_role),
   foreign key (workspace_id, project_id, work_assignment_id)
     references public.work_assignments (workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, work_stage_id, stage_is_concealed)
+    references public.work_stages (workspace_id, project_id, id, is_concealed),
+  foreign key (workspace_id, rule_version_id)
+    references public.requirement_rule_versions (workspace_id, id),
   foreign key (workspace_id, requirement_template_version_id)
     references public.requirement_template_versions (workspace_id, id),
   foreign key (workspace_id, project_id, location_id)
     references public.locations (workspace_id, project_id, id),
-  foreign key (workspace_id, created_by_member_id) references public.memberships (workspace_id, id)
+  foreign key (workspace_id, created_by_member_id) references public.memberships (workspace_id, id),
+  -- INV-066: the copied scope obeys the same rule as the published version
+  check (intervention_type <> 'hold' or blocking_scope = 'blocks_both'),
+  check ((work_stage_id is null) = (stage_is_concealed is null)),
+  -- a requirement that must precede a covering that never happens is
+  -- unreachable (execution-and-evidence.md "Timing", decision 2). `is true`
+  -- rather than a bare column reference, so an occurrence with no stage at all
+  -- cannot slip through on a NULL.
+  check (timing <> 'before_concealment' or stage_is_concealed is true),
+  check (norm_ref is null or (norm_ref_verification is not null and norm_ref_source is not null))
 );
+comment on table public.requirement_occurrences is
+  'Materialised when the assignment is created, with no evidence yet linked (projection requirement_occurrence.review = occurrence; deliberately no status column here), and visible in the field client BEFORE work starts (ADR-005 decision 2). A placeholder that appears only after the work is covered is not advance notice. Satisfaction is a projection over decisions, notices, attendance outcomes, review heads, and exception heads; it is never a column here.';
 
 alter table public.upload_intents
   add constraint upload_intents_occurrence_fkey
@@ -864,6 +1188,7 @@ create table public.requirement_exceptions (
   id uuid not null default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id),
   requirement_occurrence_id uuid not null,
+  occurrence_intervention_type text not null, -- pinned from the occurrence, not restated
   exception_scope text not null default 'occurrence' check (exception_scope = 'occurrence'), -- v0.1: whole occurrence only
   action exception_action not null,
   authority_member_id uuid not null,
@@ -873,12 +1198,20 @@ create table public.requirement_exceptions (
   primary key (id),
   unique (workspace_id, id),
   unique (workspace_id, predecessor_exception_id), -- INV-035: no forks from one predecessor
-  foreign key (workspace_id, requirement_occurrence_id)
-    references public.requirement_occurrences (workspace_id, id),
+  foreign key (workspace_id, requirement_occurrence_id, occurrence_intervention_type)
+    references public.requirement_occurrences (workspace_id, id, intervention_type),
   foreign key (workspace_id, predecessor_exception_id)
     references public.requirement_exceptions (workspace_id, id),
-  foreign key (workspace_id, authority_member_id) references public.memberships (workspace_id, id)
+  foreign key (workspace_id, authority_member_id) references public.memberships (workspace_id, id),
+  -- INV-063 / ADR-005 decision 3: a hold occurrence can NEVER carry a
+  -- not_applicable exception. waiver and accept_risk stay available to an
+  -- authorised actor and stay visible -- an exception that hides itself is
+  -- worse than no exception -- but the exception that asserts the obligation
+  -- never existed cannot be written against a hold at all.
+  check (action <> 'not_applicable' or occurrence_intervention_type <> 'hold')
 );
+comment on table public.requirement_exceptions is
+  'Append-only. The hold/not_applicable prohibition is a table CHECK over the intervention type pinned from the occurrence (INV-063 enforcement), so it holds regardless of which command, role, or UI affordance is involved.';
 
 create table public.requirement_exception_heads (
   workspace_id uuid not null references public.workspaces(id),
@@ -892,6 +1225,149 @@ create table public.requirement_exception_heads (
     references public.requirement_occurrences (workspace_id, id),
   foreign key (workspace_id, current_exception_id) references public.requirement_exceptions (workspace_id, id)
 );
+
+create table public.requirement_notices (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  requirement_occurrence_id uuid not null,
+  -- only a witness occurrence can be noticed: the type is pinned from the
+  -- occurrence and checked here, so a notice against a hold is unrepresentable
+  occurrence_intervention_type text not null check (occurrence_intervention_type = 'witness'),
+  notice_no int not null default 1 check (notice_no >= 1),
+  recipient_contact_id uuid,
+  recipients jsonb not null default '[]', -- party contacts with the delivery channel used
+  sent_by_member_id uuid not null,
+  sent_at timestamptz not null default now(),   -- SERVER time; never a client-claimed value
+  required_notice interval not null check (required_notice > interval '0'),
+  earliest_proceed_at timestamptz not null,
+  -- v0.1 records a calendar duration configured as a workspace setting. There
+  -- is no value here that labels it as the five-working-day примітка of
+  -- Додаток В/Г: the Ukrainian working-day calendar is v0.2, and calendar days
+  -- and робочі дні produce different dates (ADR-005 decision 3, INV-068).
+  notice_duration_basis text not null default 'workspace_setting_calendar'
+    check (notice_duration_basis = 'workspace_setting_calendar'),
+  idempotency_key text not null,
+  request_hash text not null check (request_hash ~ '^[0-9a-f]{64}$'),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, id, earliest_proceed_at), -- an outcome pins the deadline it was recorded against
+  unique (workspace_id, requirement_occurrence_id, notice_no),
+  unique (workspace_id, requirement_occurrence_id, idempotency_key),
+  foreign key (workspace_id, requirement_occurrence_id, occurrence_intervention_type)
+    references public.requirement_occurrences (workspace_id, id, intervention_type),
+  foreign key (workspace_id, recipient_contact_id) references public.party_contacts (workspace_id, id),
+  foreign key (workspace_id, sent_by_member_id) references public.memberships (workspace_id, id),
+  -- a notice addressed to nobody is not a notice
+  check (jsonb_typeof(recipients) = 'array' and jsonb_array_length(recipients) >= 1),
+  check (earliest_proceed_at > sent_at)
+);
+comment on table public.requirement_notices is
+  'Append-only witness notification event. earliest_proceed_at is SERVER-computed as sent_at + required_notice and is never client-supplied (INV-068). It is a stored column rather than GENERATED ALWAYS because timestamptz + interval is only STABLE in PostgreSQL and a generated column requires an immutable expression; what the schema can still guarantee is that the deadline is strictly after the server sent_at, that the row is append-only, and that no client role holds INSERT or UPDATE on it -- the equality itself is asserted by the notice command. requirement_notice.status (sent / period_elapsed / attended / not_attended) in technical/states/state-catalog.csv is DERIVED here -- from the server clock against earliest_proceed_at and from notice_attendance_outcomes -- because entity-catalog.csv makes this table an append-only fact with immutable content, and a stored status column would have to be updated in place.';
+
+create table public.requirement_evidence_decisions (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  requirement_occurrence_id uuid not null,
+  approver_role text not null,        -- pinned from the occurrence, never typed into the decision
+  outcome decision_outcome not null,
+  decided_by_member_id uuid,
+  external_session_id uuid,           -- FK added after public.external_sessions (section 7)
+  external_access_grant_id uuid,      -- FK added after public.external_access_grants (section 7)
+  decision_batch_id uuid,             -- the receipt; FK added after public.external_decision_batches (section 7)
+  assurance_label text,
+  reason text,
+  issues jsonb not null default '[]',
+  superseded_decision_id uuid,
+  idempotency_key text not null,
+  decided_at timestamptz not null default now(),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, superseded_decision_id),  -- INV-035: no forks
+  unique (workspace_id, requirement_occurrence_id, idempotency_key),
+  -- the decision can only exist in the role the occurrence names, which is what
+  -- satisfied(o) quantifies over for a hold (INV-061)
+  foreign key (workspace_id, requirement_occurrence_id, approver_role)
+    references public.requirement_occurrences (workspace_id, id, approver_role),
+  foreign key (workspace_id, decided_by_member_id) references public.memberships (workspace_id, id),
+  foreign key (workspace_id, superseded_decision_id)
+    references public.requirement_evidence_decisions (workspace_id, id),
+  -- exactly one deciding authority: an internal member, or an occurrence-scoped
+  -- external session together with the grant it was exchanged from. Never both,
+  -- never neither, and never a session without its grant.
+  check ((decided_by_member_id is not null
+            and external_session_id is null and external_access_grant_id is null
+            and decision_batch_id is null)
+      or (external_session_id is not null and external_access_grant_id is not null
+            and decision_batch_id is not null
+            and decided_by_member_id is null)),
+  -- v0.1 external assurance is LINK_CONFIRMATION -- email link, IP, server time
+  -- -- and is NOT an electronic signature. КЕП assurance levels are v0.2
+  -- (ADR-005 assumption d), so no other value and no absent value is storable.
+  check ((external_session_id is null and assurance_label is null)
+      or (external_session_id is not null and assurance_label = 'LINK_CONFIRMATION'))
+);
+comment on table public.requirement_evidence_decisions is
+  'Append-only accept/return on ONE occurrence (INV-075). Governs package eligibility and never money: there is no path from this outcome to a quantity or a valuation row, and a commercial decision never releases an evidence block. INV-069 (no member decides their own capture or progress) compares actor identity against every target item and is enforced by the decision command, not by a constraint on this row.';
+
+-- The head the eligibility predicate needs. packages-and-acceptance.md
+-- "Occurrence-scoped evidence decisions" requires exactly one head per
+-- (workspace, requirement_occurrence, approver_role): a submit locks it,
+-- supplies its expected version, references the prior head decision, and
+-- advances it in the same transaction. Without this table the no-fork
+-- constraint on requirement_evidence_decisions stops two SUCCESSORS from one
+-- predecessor but not two independent ROOT decisions on one occurrence and
+-- role, which is the case the predicate cannot resolve. Same shape as
+-- internal_review_heads and requirement_exception_heads (INV-035).
+create table public.requirement_evidence_decision_heads (
+  workspace_id uuid not null references public.workspaces(id),
+  requirement_occurrence_id uuid not null,
+  approver_role text not null,
+  current_decision_id uuid,
+  version bigint not null default 1,
+  updated_at timestamptz not null default now(),
+  primary key (workspace_id, requirement_occurrence_id, approver_role),
+  foreign key (workspace_id, requirement_occurrence_id, approver_role)
+    references public.requirement_occurrences (workspace_id, id, approver_role),
+  foreign key (workspace_id, current_decision_id)
+    references public.requirement_evidence_decisions (workspace_id, id)
+);
+
+create table public.notice_attendance_outcomes (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  requirement_notice_id uuid not null,
+  notice_earliest_proceed_at timestamptz not null, -- pinned from the notice, not recomputed
+  outcome_no int not null default 1 check (outcome_no >= 1),
+  outcome text not null check (outcome in ('attended','not_attended')),
+  attendee_claims jsonb not null default '{}',    -- self-declared; labeled, never identity proof
+  requirement_evidence_decision_id uuid,
+  recorded_by_member_id uuid not null,
+  recorded_at timestamptz not null default now(),
+  predecessor_outcome_id uuid,
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, requirement_notice_id, outcome_no),
+  unique (workspace_id, predecessor_outcome_id),  -- INV-035: no forks
+  foreign key (workspace_id, requirement_notice_id, notice_earliest_proceed_at)
+    references public.requirement_notices (workspace_id, id, earliest_proceed_at),
+  foreign key (workspace_id, requirement_evidence_decision_id)
+    references public.requirement_evidence_decisions (workspace_id, id),
+  foreign key (workspace_id, recorded_by_member_id) references public.memberships (workspace_id, id),
+  foreign key (workspace_id, predecessor_outcome_id)
+    references public.notice_attendance_outcomes (workspace_id, id),
+  check ((outcome_no = 1) = (predecessor_outcome_id is null)),
+  -- recorded non-attendance is appendable only at or after the server-computed
+  -- deadline the row carries from its notice (INV-068; execution-and-evidence.md
+  -- decision 6). Before that instant there is nothing to record.
+  check (outcome <> 'not_attended' or recorded_at >= notice_earliest_proceed_at),
+  -- attendance carries the decision the attendee made; non-attendance cannot
+  check ((outcome = 'attended') = (requirement_evidence_decision_id is not null))
+);
+comment on table public.notice_attendance_outcomes is
+  'Append-only. Recorded non-attendance after the period is a POSITIVE fact and evidence of process in favour of the performer, not a silent pass. The link to the decision the attendee made is declared in relationship-catalog.csv as notice_attendance_outcomes carries_decision requirement_evidence_decisions (added 2026-08-06); it is required by the witness release condition in ADR-005 decision 3 and by the state-catalog projections requirement_notice.status sent/period_elapsed -> attended.';
 
 create table public.review_target_sets (
   id uuid not null default gen_random_uuid(),
@@ -960,6 +1436,250 @@ create table public.internal_review_heads (
   foreign key (workspace_id, review_target_set_id) references public.review_target_sets (workspace_id, id),
   foreign key (workspace_id, current_decision_id) references public.internal_review_decisions (workspace_id, id)
 );
+
+-- =============================================================================
+-- 5A. STAGE CLOSURE, THE BYPASS AND ITS CLEARANCE, AND THE STATUTORY ACT
+-- =============================================================================
+-- ADR-005 decision 1: the gate blocks exactly two recorded acts -- the recorded
+-- CLOSURE of a hidden or covered stage, and the ELIGIBILITY of performed
+-- quantity to enter a package version. It never refuses to record a fact
+-- (INV-065): nothing in this section appears as a precondition on
+-- progress.record, progress.adjust, upload_intents.*, or evidence_links.create.
+
+create table public.stage_closures (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  contract_id uuid not null,
+  work_stage_id uuid not null,
+  stage_status text not null default 'closed' check (stage_status = 'closed'),
+  closure_no int not null default 1 check (closure_no >= 1),
+  predecessor_closure_id uuid,
+  correction_reason text,
+  closed_by_member_id uuid not null,
+  closed_at timestamptz not null default now(),   -- server time
+  claimed_covered_at timestamptz,                 -- untrusted, like claimed capture time
+  claimed_covered_tz_offset text,
+  claimed_time_trust capture_time_trust not null default 'device_claimed',
+  can_close_stage_result boolean not null,
+  -- the EXACT occurrence set the predicate quantified over, frozen into the
+  -- fact so the closure can be re-defended years later without asking the
+  -- runtime what the requirements were at the time
+  evaluated_occurrence_ids jsonb not null default '[]',
+  evaluated_occurrence_count int not null check (evaluated_occurrence_count >= 0),
+  evaluated_occurrence_set_hash bytea not null,
+  relied_on_decision_ids jsonb not null default '[]',       -- accepting evidence decisions
+  relied_on_notice_outcome_ids jsonb not null default '[]', -- notice + attendance facts for witnesses
+  idempotency_key text not null,
+  request_hash text not null check (request_hash ~ '^[0-9a-f]{64}$'),
+  primary key (id),
+  unique (workspace_id, id),
+  -- DOUBLE-CLOSING ONE STAGE IS UNREPRESENTABLE, as the AktFlow-era
+  -- concealment_events guaranteed: exactly one root closure per stage, and no
+  -- two successors from one predecessor, so the lineage is a chain with a
+  -- single current head. A mistaken closure is corrected by appending a
+  -- superseding closure; only after that correction may a new closure exist.
+  unique (workspace_id, work_stage_id, closure_no),
+  unique (workspace_id, predecessor_closure_id),
+  unique (workspace_id, work_stage_id, idempotency_key),
+  -- targets the stage AND its status, so this row can only exist against a
+  -- stage recorded closed -- never against one closed by bypass
+  foreign key (workspace_id, project_id, work_stage_id, stage_status)
+    references public.work_stages (workspace_id, project_id, id, status),
+  foreign key (workspace_id, predecessor_closure_id) references public.stage_closures (workspace_id, id),
+  foreign key (workspace_id, closed_by_member_id) references public.memberships (workspace_id, id),
+  check ((closure_no = 1) = (predecessor_closure_id is null)),
+  check (predecessor_closure_id is null or correction_reason is not null),
+  -- a SATISFIED closure is the only thing this table can record. The predicate
+  -- result is not a reported field, it is the table's precondition (INV-061);
+  -- the unsatisfied case is an unevidenced_closures row and nothing else.
+  check (can_close_stage_result),
+  check (jsonb_typeof(evaluated_occurrence_ids) = 'array'
+     and jsonb_array_length(evaluated_occurrence_ids) = evaluated_occurrence_count),
+  check (jsonb_typeof(relied_on_decision_ids) = 'array'),
+  check (jsonb_typeof(relied_on_notice_outcome_ids) = 'array')
+);
+comment on table public.stage_closures is
+  'Append-only fact that a stage was recorded closed with can_close_stage satisfied (INV-061). Closing does not by itself satisfy occurrences, allocate money, or make scope eligible: it records that the physical opportunity to inspect has passed. A refused closure returns the blocked_reason objects naming the requirement, the missing evidence, the owed role, and the money -- never a bare status word. evaluated_occurrence_count MAY be zero: a stage with no applicable blocking occurrence closes vacuously, which is correct behaviour and exactly why the bulk-instantiation dry run has to print uncovered lines (INV-072). Coverage is the gate; this fact only records what coverage produced.';
+create index stage_closures_stage_idx
+  on public.stage_closures (workspace_id, work_stage_id, closure_no);
+
+create table public.unevidenced_closures (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  contract_id uuid not null,
+  work_stage_id uuid not null,
+  stage_status text not null default 'closed_without_evidence'
+    check (stage_status = 'closed_without_evidence'),
+  closed_by_member_id uuid not null,
+  -- every one of these is MANDATORY: a bypass with no named authority, no
+  -- structured reason, no free text, or no expected remedy cannot be written
+  claimed_authority text not null check (length(btrim(claimed_authority)) > 0),
+  reason_code text not null check (length(btrim(reason_code)) > 0),
+  reason_text text not null check (length(btrim(reason_text)) > 0),
+  expected_remedy text not null check (length(btrim(expected_remedy)) > 0),
+  -- the exact unmet occurrence set AT THAT MOMENT, frozen and never recomputed;
+  -- later satisfaction does not rewrite what was unmet at bypass time (INV-064)
+  unmet_occurrence_ids jsonb not null,
+  unmet_occurrence_count int not null check (unmet_occurrence_count >= 1),
+  unmet_occurrence_set_hash bytea not null,
+  -- the code every covering claim segment carries until a clearance exists
+  blocked_reason_code text not null default 'CLOSED_WITHOUT_ACT'
+    check (blocked_reason_code = 'CLOSED_WITHOUT_ACT'),
+  closed_at timestamptz not null default now(),
+  claimed_covered_at timestamptz,
+  claimed_time_trust capture_time_trust not null default 'device_claimed',
+  idempotency_key text not null,
+  request_hash text not null check (request_hash ~ '^[0-9a-f]{64}$'),
+  primary key (id),
+  unique (workspace_id, id),
+  -- one bypass per stage. The fact is never edited, never superseded, and never
+  -- deleted, so there is no second row to record.
+  unique (workspace_id, work_stage_id),
+  -- lets a clearance prove relationally that it was appended by a DIFFERENT
+  -- member than the one who took the bypass
+  unique (workspace_id, id, closed_by_member_id),
+  -- targets the stage AND its status: a stage cannot carry both an ordinary
+  -- closure and a bypass, because it has exactly one status to satisfy
+  foreign key (workspace_id, project_id, work_stage_id, stage_status)
+    references public.work_stages (workspace_id, project_id, id, status),
+  foreign key (workspace_id, closed_by_member_id) references public.memberships (workspace_id, id),
+  -- a bypass that claims nothing was unmet is not a bypass, it is an ordinary
+  -- closure, and that path is stage_closures
+  check (jsonb_typeof(unmet_occurrence_ids) = 'array'
+     and jsonb_array_length(unmet_occurrence_ids) = unmet_occurrence_count)
+);
+comment on table public.unevidenced_closures is
+  'Append-only bypass fact (ADR-005 decision 5). Reality is recorded -- the stage is closed -- and nothing is satisfied: the occurrences stay unsatisfied and every claim segment covering the scope is ineligible for ANY package version under code CLOSED_WITHOUT_ACT until an internal reviewer appends a clearance. The bypass prints in the frozen manifest as a named appendix with its value by currency, cleared or not. The price of a bypass is that the money waits; there is no path whose only consequence is escalation. reason_code is a closed identifier versioned with the command; the vocabulary is not invented here. unevidenced_closure.status (open / cleared) in state-catalog.csv is DERIVED from the existence of a current clearance, because this row is append-only with immutable content (entity-catalog.csv) and a stored status would have to be updated in place.';
+
+create table public.unevidenced_closure_clearances (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  contract_id uuid not null,
+  unevidenced_closure_id uuid not null,
+  bypassing_member_id uuid not null,  -- pinned from the bypass, not restated by the clearing actor
+  cleared_by_member_id uuid not null,
+  clearance_no int not null default 1 check (clearance_no >= 1),
+  predecessor_clearance_id uuid,
+  substitute_evidence_object_id uuid,
+  substitute_evidence_reference text,
+  reason text not null check (length(btrim(reason)) > 0),
+  cleared_at timestamptz not null default now(),
+  idempotency_key text not null,
+  request_hash text not null check (request_hash ~ '^[0-9a-f]{64}$'),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, unevidenced_closure_id, clearance_no),
+  unique (workspace_id, predecessor_clearance_id),  -- INV-035: no forks
+  unique (workspace_id, unevidenced_closure_id, idempotency_key),
+  foreign key (workspace_id, unevidenced_closure_id, bypassing_member_id)
+    references public.unevidenced_closures (workspace_id, id, closed_by_member_id),
+  foreign key (workspace_id, cleared_by_member_id) references public.memberships (workspace_id, id),
+  foreign key (workspace_id, substitute_evidence_object_id)
+    references public.evidence_objects (workspace_id, id),
+  foreign key (workspace_id, predecessor_clearance_id)
+    references public.unevidenced_closure_clearances (workspace_id, id),
+  check ((clearance_no = 1) = (predecessor_clearance_id is null)),
+  -- INV-069: self-clearance is UNREPRESENTABLE, not merely refused -- the row
+  -- carries the bypassing actor through a composite FK and cannot equal it
+  check (cleared_by_member_id <> bypassing_member_id),
+  -- a clearance NAMES substitute evidence: an evidence object, or an explicit
+  -- external reference. A clearance that names nothing is not a clearance.
+  check (substitute_evidence_object_id is not null
+      or length(btrim(coalesce(substitute_evidence_reference, ''))) > 0)
+);
+comment on table public.unevidenced_closure_clearances is
+  'Append-only internal-reviewer fact restoring package eligibility (INV-064/INV-069). It never deletes, edits, or hides the bypass, and no clearance is implied by later evidence arriving on its own.';
+
+create table public.statutory_acts (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  contract_id uuid not null,
+  work_stage_id uuid not null,
+  stage_closure_id uuid not null,
+  act_form text not null check (act_form in ('dodatok_v','dodatok_g')),
+  -- no source establishes which Додаток Н position takes which form; the
+  -- mapping is recorded as the product's assumption and can never be stored as
+  -- a norm reference (hidden-works-content-rules.md G)
+  act_form_basis text not null default 'product_assumption'
+    check (act_form_basis in ('product_assumption','user_selected')),
+  version bigint not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, project_id, id),
+  unique (workspace_id, stage_closure_id),  -- one act identity per closure
+  foreign key (workspace_id, project_id, work_stage_id)
+    references public.work_stages (workspace_id, project_id, id),
+  foreign key (workspace_id, stage_closure_id) references public.stage_closures (workspace_id, id)
+);
+comment on table public.statutory_acts is
+  'By-product of a SATISFIED stage closure only: the FK targets stage_closures, so there is no relational path from an unevidenced closure to an act (ADR-005 decision 10). form dodatok_v is the concealed-works act titled «АКТ НА ЗАКРИТТЯ ПРИХОВАНИХ РОБІТ»; form dodatok_g covers responsible structures and is a separate template. Every field of either form comes from the render template under hidden-works-content-rules.md; this schema names no field of Додаток В and adds none.';
+
+create table public.statutory_act_versions (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  statutory_act_id uuid not null,
+  version_no int not null check (version_no >= 1),
+  status text not null default 'draft' check (status in ('draft','frozen')),
+  form_template_version text not null,
+  -- the form citation is a normative string and obeys the same rule as every
+  -- other one: tag and source are NOT NULL, so an unsourced act is unrenderable
+  -- because it is unstorable (INV-073)
+  form_citation text not null,
+  form_citation_verification text not null
+    check (form_citation_verification in ('VERIFIED_PRIMARY','VERIFIED_SECONDARY')),
+  form_citation_source text not null,
+  -- quantity comes from a progress entry ALREADY recorded against the line,
+  -- with a share selector. There is no column a human can type a quantity into.
+  root_progress_entry_id uuid,
+  source_quantity_share numeric(9,6)
+    check (source_quantity_share is null
+        or (source_quantity_share > 0 and source_quantity_share <= 1)),
+  printed_quantity numeric(20,6),
+  printed_unit_id uuid,
+  -- exactly three typed signatory slots per п. 8.4.3.5. There is no fourth
+  -- slot, and no column for a field Додаток В does not have
+  -- (hidden-works-content-rules.md E). The технагляд's кваліфікаційний
+  -- сертифікат lives on the participant record (party_contacts), NOT here:
+  -- whether Додаток В has a field for its серія and номер is not established,
+  -- so this table stores nothing to print for it until
+  -- hidden-works-content-rules.md allow-lists that field against В.1/В.2.
+  builder_signatory jsonb,
+  technical_supervision_signatory jsonb,
+  designer_supervision_signatory jsonb,
+  renderer_version text,
+  content_hash bytea,
+  frozen_at timestamptz,
+  frozen_by_member_id uuid,
+  draft_version bigint not null default 1,  -- optimistic concurrency for the draft only
+  created_at timestamptz not null default now(),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, statutory_act_id, version_no),
+  foreign key (workspace_id, statutory_act_id) references public.statutory_acts (workspace_id, id),
+  foreign key (workspace_id, root_progress_entry_id) references public.progress_entries (workspace_id, id),
+  foreign key (workspace_id, printed_unit_id) references public.unit_definitions (workspace_id, id),
+  foreign key (workspace_id, frozen_by_member_id) references public.memberships (workspace_id, id),
+  -- INV-073: a printed quantity exists ONLY as a share of a recorded progress
+  -- entry, in that entry's canonical unit. A quantity a human types into an act
+  -- is literature, and this constraint is why one cannot be stored.
+  check ((root_progress_entry_id is null and source_quantity_share is null
+          and printed_quantity is null and printed_unit_id is null)
+      or (root_progress_entry_id is not null and source_quantity_share is not null
+          and printed_quantity is not null and printed_quantity > 0
+          and printed_unit_id is not null)),
+  check (status = 'draft'
+      or (builder_signatory is not null and technical_supervision_signatory is not null)),
+  check (status = 'draft' or (frozen_at is not null and content_hash is not null))
+);
+comment on table public.statutory_act_versions is
+  'Immutable once frozen (INV-015), pinned by the package version that carries it, and assembled ONLY from already-recorded facts. Corrections re-assemble a successor version from newly recorded facts; nothing is edited in place. Every regulatory string it renders carries its verification tag and source in the data, not in the template.';
 
 -- =============================================================================
 -- 6. PACKAGES: TEMPLATES, VERSIONS, HEADS, LINES, SEGMENTS, ALLOCATION LEDGER
@@ -1037,7 +1757,24 @@ create table public.package_versions (
   check (status = 'draft' or (frozen_at is not null and source_manifest_hash is not null))
 );
 comment on table public.package_versions is
-  'Freeze validates all sources and atomically records the immutable snapshot (INV-015, INV-034). Submitted/ActiveForReview/Superseded/Completed are projections, never columns here.';
+  'Freeze validates all sources, REFUSES ineligible scope (INV-062), and atomically records the immutable snapshot (INV-015, INV-034). Submitted/ActiveForReview/Superseded/Completed are projections, never columns here. The act versions this package version carries are pinned through package_version_statutory_acts, not through a column: a package version covering several closed concealed stages carries several acts, which is what packages-and-acceptance.md "Frozen snapshot" has always said. The single statutory_act_version_id column and the N:1 row in relationship-catalog.csv were the disagreement; both were corrected on 2026-08-06 in the documents favour.';
+
+-- M:N, because a package version covering several closed concealed stages
+-- carries one act per stage. Append-only and pinned at freeze with the rest of
+-- the snapshot (INV-015): the set a frozen version carries never changes.
+create table public.package_version_statutory_acts (
+  workspace_id uuid not null references public.workspaces(id),
+  package_version_id uuid not null,
+  statutory_act_version_id uuid not null,
+  pinned_at timestamptz not null default now(),
+  primary key (workspace_id, package_version_id, statutory_act_version_id),
+  foreign key (workspace_id, package_version_id)
+    references public.package_versions (workspace_id, id),
+  foreign key (workspace_id, statutory_act_version_id)
+    references public.statutory_act_versions (workspace_id, id)
+);
+comment on table public.package_version_statutory_acts is
+  'Pins the act versions one frozen package version carries. Append-only: a frozen version never gains or loses an act, and a correction freezes a successor package version with its own set (INV-015).';
 
 create table public.package_scope_heads (
   workspace_id uuid not null references public.workspaces(id),
@@ -1294,8 +2031,15 @@ create table public.external_access_grants (
   workspace_id uuid not null references public.workspaces(id),
   project_id uuid not null,
   contract_id uuid not null,
-  package_id uuid not null,
-  package_version_id uuid not null,
+  -- exactly one scope kind per grant (INV-074). ADR-005 decision 9 adds the
+  -- requirement-occurrence scope so an external hold approver can decide BEFORE
+  -- any package version exists; without it eligibility would wait for a
+  -- decision that only exists after freeze, which is circular.
+  scope_kind text not null default 'package_version'
+    check (scope_kind in ('package_version','requirement_occurrence')),
+  package_id uuid,
+  package_version_id uuid,
+  requirement_occurrence_id uuid,
   credential_type grant_credential_type not null default 'bearer_email_link',
   token_hmac bytea not null,          -- HMAC-SHA-256(server_key, raw_token); raw token NEVER stored (INV-044)
   hmac_key_id text not null,
@@ -1306,7 +2050,7 @@ create table public.external_access_grants (
   expires_at timestamptz not null,    -- initial link: 7 days or package supersession, whichever first
   exchange_consumed_at timestamptz,   -- INV-057: single-use atomic exchange marker
   revocation_version bigint not null default 0,
-  review_epoch_at_issue bigint not null,
+  review_epoch_at_issue bigint,       -- package-version scope only; an occurrence has no review epoch
   replaced_grant_id uuid,
   issued_by_member_id uuid not null,
   issued_at timestamptz not null default now(),
@@ -1316,18 +2060,30 @@ create table public.external_access_grants (
   unique (hmac_key_id, token_hmac),
   foreign key (workspace_id, project_id, contract_id, package_id, package_version_id)
     references public.package_versions (workspace_id, project_id, contract_id, package_id, id),
+  foreign key (workspace_id, project_id, requirement_occurrence_id)
+    references public.requirement_occurrences (workspace_id, project_id, id),
   foreign key (workspace_id, recipient_contact_id) references public.party_contacts (workspace_id, id),
   foreign key (workspace_id, replaced_grant_id) references public.external_access_grants (workspace_id, id),
-  foreign key (workspace_id, issued_by_member_id) references public.memberships (workspace_id, id)
+  foreign key (workspace_id, issued_by_member_id) references public.memberships (workspace_id, id),
+  -- an occurrence grant confers NO package-version access and vice versa: the
+  -- other scope's columns are null, so there is nothing for a mismatch to read
+  check ((scope_kind = 'package_version'
+            and package_id is not null and package_version_id is not null
+            and requirement_occurrence_id is null and review_epoch_at_issue is not null)
+      or (scope_kind = 'requirement_occurrence'
+            and requirement_occurrence_id is not null
+            and package_id is null and package_version_id is null
+            and review_epoch_at_issue is null))
 );
 comment on table public.external_access_grants is
-  'bearer_email_link assurance: proves link possession, not identity (tenancy-and-security.md). 256-bit token, base64url, fragment-only delivery; deliberate POST exchange; GET prefetch never consumes (INV-010). Reissue revokes old grant + sessions. One-time post-commit provider send; crash => revoke-and-reissue (INV-044).';
+  'bearer_email_link assurance: proves link possession, not identity (tenancy-and-security.md). 256-bit token, base64url, fragment-only delivery; deliberate POST exchange; GET prefetch never consumes (INV-010). Reissue revokes old grant + sessions. One-time post-commit provider send; crash => revoke-and-reissue (INV-044). ADR-005 changes the scope KIND only: the token, delivery, exchange, expiry, revocation, and workspace/project/contract boundaries are unchanged (INV-074).';
 
 create table public.external_sessions (
   id uuid not null default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id),
   external_access_grant_id uuid not null,
-  package_version_id uuid not null,
+  package_version_id uuid,            -- null for an occurrence-scoped grant (INV-074)
+  requirement_occurrence_id uuid,
   session_verifier bytea not null,    -- server-side verifier of the opaque cookie value
   verifier_key_id text not null,
   status session_status not null default 'active',
@@ -1337,27 +2093,55 @@ create table public.external_sessions (
   absolute_expires_at timestamptz not null,  -- 12 hours absolute
   rotated_from_session_id uuid,
   grant_revocation_version bigint not null,
-  review_epoch bigint not null,
+  review_epoch bigint,                -- package-version scope only
   primary key (id),
   unique (workspace_id, id),
   unique (verifier_key_id, session_verifier),
   foreign key (workspace_id, external_access_grant_id)
     references public.external_access_grants (workspace_id, id),
   foreign key (workspace_id, package_version_id) references public.package_versions (workspace_id, id),
-  foreign key (workspace_id, rotated_from_session_id) references public.external_sessions (workspace_id, id)
+  foreign key (workspace_id, requirement_occurrence_id)
+    references public.requirement_occurrences (workspace_id, id),
+  foreign key (workspace_id, rotated_from_session_id) references public.external_sessions (workspace_id, id),
+  -- the session inherits the grant's single scope kind and fails closed on any
+  -- mismatch; the review epoch exists only where a package review does
+  check ((package_version_id is not null and requirement_occurrence_id is null
+            and review_epoch is not null)
+      or (requirement_occurrence_id is not null and package_version_id is null
+            and review_epoch is null))
 );
 comment on table public.external_sessions is
-  'Cookie: __Host- prefix, Path=/, Secure, HttpOnly, SameSite=Lax, no Domain. CSRF is a session-bound synchronizer token + origin checks; SameSite is NOT the defense (INV-058). Session carries grant revocation version + review epoch (INV-041/INV-056).';
+  'Cookie: __Host- prefix, Path=/, Secure, HttpOnly, SameSite=Lax, no Domain. CSRF is a session-bound synchronizer token + origin checks; SameSite is NOT the defense (INV-058). Session carries grant revocation version + review epoch (INV-041/INV-056) and exactly one scope kind (INV-074).';
+
+-- Deferred FKs for the occurrence evidence decision (section 5): the deciding
+-- authority is an internal member OR an occurrence-scoped external session.
+alter table public.requirement_evidence_decisions
+  add constraint requirement_evidence_decisions_session_fkey
+  foreign key (workspace_id, external_session_id)
+  references public.external_sessions (workspace_id, id);
+alter table public.requirement_evidence_decisions
+  add constraint requirement_evidence_decisions_grant_fkey
+  foreign key (workspace_id, external_access_grant_id)
+  references public.external_access_grants (workspace_id, id);
 -- EXTERNAL GATE: source-network security telemetry retention is bounded by the
 -- approved privacy/retention schedule before pilot; not defaulted here.
 
+-- ONE receipt object for both grant scope kinds. packages-and-acceptance.md
+-- "Decision submission" says a batch records "grant scope: package version, or
+-- requirement occurrence", and an occurrence-scoped submit precedes every
+-- package version -- so a NOT NULL package_version_id would leave half the
+-- external plane with no receipt, no confirmation-text version and no
+-- idempotency record, and roadmap.md's M5 exit gate ("the reviewer receives an
+-- immutable decision receipt") would be unmeetable for it. Exclusive arc
+-- instead: exactly one scope kind per batch, matching the grant (INV-074).
 create table public.external_decision_batches (
   id uuid not null default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id),
   project_id uuid not null,
-  contract_id uuid not null,
-  package_id uuid not null,
-  package_version_id uuid not null,
+  contract_id uuid,                    -- null on an occurrence-scoped batch
+  package_id uuid,                     -- null on an occurrence-scoped batch
+  package_version_id uuid,             -- null on an occurrence-scoped batch
+  requirement_occurrence_id uuid,      -- null on a package-scoped batch
   external_access_grant_id uuid not null,
   external_session_id uuid not null,
   reviewer_claims jsonb not null default '{}', -- self-declared name/company/title; labeled, never identity proof
@@ -1371,14 +2155,29 @@ create table public.external_decision_batches (
   primary key (id),
   unique (workspace_id, id),
   unique (workspace_id, external_access_grant_id, idempotency_key), -- INV-007
+  -- exactly one scope kind, and it must be the kind its grant carries (INV-074)
+  check ((package_version_id is not null and contract_id is not null
+            and package_id is not null and requirement_occurrence_id is null)
+      or (requirement_occurrence_id is not null and package_version_id is null
+            and contract_id is null and package_id is null)),
   foreign key (workspace_id, project_id, contract_id, package_id, package_version_id)
     references public.package_versions (workspace_id, project_id, contract_id, package_id, id),
+  foreign key (workspace_id, requirement_occurrence_id)
+    references public.requirement_occurrences (workspace_id, id),
   foreign key (workspace_id, external_access_grant_id)
     references public.external_access_grants (workspace_id, id),
   foreign key (workspace_id, external_session_id) references public.external_sessions (workspace_id, id)
 );
 
-create table public.external_quantity_decisions (
+-- the receipt link for an occurrence-scoped external evidence decision: the
+-- batch is what carries the confirmation-text version, the idempotency record
+-- and the receipt hash, so an externally submitted decision must name one
+alter table public.requirement_evidence_decisions
+  add constraint requirement_evidence_decisions_batch_fkey
+  foreign key (workspace_id, decision_batch_id)
+  references public.external_decision_batches (workspace_id, id);
+
+create table public.external_commercial_decisions (
   id uuid not null default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id),
   package_version_id uuid not null,
@@ -1390,7 +2189,7 @@ create table public.external_quantity_decisions (
   reason text,
   primary key (id),
   unique (workspace_id, id),
-  -- INV-028: at most one terminal decision per complete quantity target tuple
+  -- INV-028: at most one terminal decision per complete commercial target tuple
   unique (workspace_id, package_version_id, approval_requirement_id, claim_segment_id),
   foreign key (workspace_id, decision_batch_id) references public.external_decision_batches (workspace_id, id),
   foreign key (workspace_id, package_version_id, approval_requirement_id)
@@ -1398,8 +2197,8 @@ create table public.external_quantity_decisions (
   foreign key (workspace_id, package_version_id, package_line_id, claim_segment_id)
     references public.package_line_claim_segments (workspace_id, package_version_id, package_line_id, id)
 );
-comment on table public.external_quantity_decisions is
-  'Terminal quantity outcome for (requirement, exact claim segment). Commit rechecks grant/session/epoch/CSRF/idempotency under the shared lineage head lock (INV-009/INV-029/INV-041). DECISION_ALREADY_FINAL on override attempts. v0.1 never reverses accepted quantity (INV-026).';
+comment on table public.external_commercial_decisions is
+  'Terminal commercial outcome for (requirement, exact claim segment). Commit rechecks grant/session/epoch/CSRF/idempotency under the shared lineage head lock (INV-009/INV-029/INV-041). DECISION_ALREADY_FINAL on override attempts. v0.1 never reverses accepted quantity (INV-026).';
 
 create table public.external_evidence_decisions (
   id uuid not null default gen_random_uuid(),
@@ -1423,7 +2222,7 @@ create table public.external_evidence_decisions (
     references public.requirement_occurrences (workspace_id, id)
 );
 comment on table public.external_evidence_decisions is
-  'Separate from quantity decisions BY DESIGN (INV-032): an evidence return never changes quantity or money; after monetary acceptance it creates a visible compliance exception instead.';
+  'Separate from commercial decisions BY DESIGN (INV-032): an evidence return never changes quantity or money; after monetary acceptance it creates a visible compliance exception instead.';
 
 create table public.external_decision_issues (
   id uuid not null default gen_random_uuid(),
@@ -1432,14 +2231,14 @@ create table public.external_decision_issues (
   severity issue_severity not null,
   code text not null,
   description text,
-  quantity_decision_id uuid,
+  commercial_decision_id uuid,
   evidence_decision_id uuid,
   claim_segment_id uuid,
   evidence_object_id uuid,
   primary key (id),
   unique (workspace_id, id),
   foreign key (workspace_id, decision_batch_id) references public.external_decision_batches (workspace_id, id),
-  foreign key (workspace_id, quantity_decision_id) references public.external_quantity_decisions (workspace_id, id),
+  foreign key (workspace_id, commercial_decision_id) references public.external_commercial_decisions (workspace_id, id),
   foreign key (workspace_id, evidence_decision_id) references public.external_evidence_decisions (workspace_id, id),
   foreign key (workspace_id, claim_segment_id) references public.package_line_claim_segments (workspace_id, id),
   foreign key (workspace_id, evidence_object_id) references public.evidence_objects (workspace_id, id)
@@ -1448,14 +2247,14 @@ create table public.external_decision_issues (
 create table public.external_decision_coverage (
   id uuid not null default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id),
-  quantity_decision_id uuid not null,
+  commercial_decision_id uuid not null,
   descendant_segment_id uuid not null,
   created_at timestamptz not null default now(),
   primary key (id),
   unique (workspace_id, id),
-  unique (workspace_id, quantity_decision_id, descendant_segment_id),
-  foreign key (workspace_id, quantity_decision_id)
-    references public.external_quantity_decisions (workspace_id, id),
+  unique (workspace_id, commercial_decision_id, descendant_segment_id),
+  foreign key (workspace_id, commercial_decision_id)
+    references public.external_commercial_decisions (workspace_id, id),
   foreign key (workspace_id, descendant_segment_id)
     references public.package_line_claim_segments (workspace_id, id)
 );
@@ -1473,7 +2272,7 @@ create table public.prior_acceptance_references (
   approval_requirement_id uuid not null, -- successor requirement (prior acceptance is requirement-specific)
   original_package_version_id uuid not null,
   original_claim_segment_id uuid not null,
-  original_quantity_decision_id uuid not null,
+  original_commercial_decision_id uuid not null,
   approval_scope_hash bytea not null,
   created_at timestamptz not null default now(),
   primary key (id),
@@ -1490,8 +2289,8 @@ create table public.prior_acceptance_references (
     references public.package_versions (workspace_id, project_id, contract_id, package_id, id),
   foreign key (workspace_id, original_claim_segment_id)
     references public.package_line_claim_segments (workspace_id, id),
-  foreign key (workspace_id, original_quantity_decision_id)
-    references public.external_quantity_decisions (workspace_id, id)
+  foreign key (workspace_id, original_commercial_decision_id)
+    references public.external_commercial_decisions (workspace_id, id)
 );
 comment on table public.prior_acceptance_references is
   'INV-008/INV-030: points at the original decision; NEVER a copied decision row. Valid only when claim-scope lineage, source allocations, AND approval_scope_hash match; hash match is necessary but not sufficient. One approver''s reference can never satisfy another required approver.';
@@ -1711,6 +2510,58 @@ create table public.readiness_projection (
   primary key (workspace_id, scope_kind, scope_ref)
 );
 
+comment on table public.readiness_projection is
+  'Rebuildable projection AND a precondition (ADR-005 decision 7): stage closure and package freeze read it, and neither may be satisfied by a manual override. Becoming a precondition does not make it a status column -- there is no writable readiness anywhere in this schema.';
+
+create table public.blocked_reasons (
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  contract_id uuid not null,
+  work_assignment_id uuid not null,   -- INV-070: the deduplication key for value
+  requirement_occurrence_id uuid not null,
+  rule_version_id uuid,               -- what was agreed, and in which version
+  -- closed, versioned vocabulary (ADR-005 decision 6). An unknown code is a
+  -- projection error, never a free label, so it cannot be stored.
+  code text not null check (code in (
+    'ACT_NOT_SIGNED',
+    'TEST_REPORT_MISSING',
+    'MATERIAL_CERTIFICATE_MISSING',
+    'SUPERVISION_SIGNATURE_MISSING',
+    'CUSTOMER_MOTIVATED_REFUSAL',
+    'NOTICE_PERIOD_NOT_ELAPSED',
+    'CLOSED_WITHOUT_ACT')),
+  code_vocabulary_version text not null,
+  missing_evidence jsonb not null default '[]', -- by evidence_kind and acceptance_criterion
+  awaiting_approver_role text,                  -- who owes the decision
+  since timestamptz not null,                   -- server time the block began
+  currency char(3),
+  net_minor_units bigint,
+  tax_minor_units bigint,
+  gross_minor_units bigint,
+  unvalued_quantity numeric(20,6),
+  source_watermark text not null,
+  algorithm_version text not null,
+  calculated_at timestamptz not null default now(),
+  stale boolean not null default false,
+  primary key (workspace_id, requirement_occurrence_id, code),
+  check (jsonb_typeof(missing_evidence) = 'array'),
+  -- coupled money (INV-037) per currency; there is no cross-currency total
+  -- anywhere (INV-012). All three components present or all three absent, and
+  -- a valued row always names its currency.
+  check ((net_minor_units is null and tax_minor_units is null and gross_minor_units is null)
+      or (currency is not null
+          and net_minor_units is not null and tax_minor_units is not null
+          and gross_minor_units = net_minor_units + tax_minor_units)),
+  -- every refusal names the money: either a valued amount, or the quantity of
+  -- scope whose price state is missing. Missing price is unvalued, never zero
+  -- (INV-038).
+  check (net_minor_units is not null or unvalued_quantity is not null)
+);
+comment on table public.blocked_reasons is
+  'The structured block object of ADR-005 decision 6, not a UI state. Rebuildable from occurrences, evidence, closures, and decisions. Blocked VALUE is attributed once per work_assignment_id: several unmet occurrences on one work reference the same assignment-scoped value and the projection sums DISTINCT assignments per currency (INV-070), so three missing requirements on one work cannot report three times the money. CLOSED_WITHOUT_ACT is a code inside evidence_blocked; no eighth value-at-risk state exists for the bypass (ADR-005 decision 8).';
+create index blocked_reasons_assignment_idx
+  on public.blocked_reasons (workspace_id, work_assignment_id, currency);
+
 create table public.package_review_status_projection (
   workspace_id uuid not null references public.workspaces(id),
   package_id uuid not null,
@@ -1770,6 +2621,16 @@ create view api.readiness with (security_invoker = true) as
          ready, blocking, source_watermark, algorithm_version, calculated_at, stale
   from public.readiness_projection;
 
+create view api.blocked_reasons with (security_invoker = true) as
+  select workspace_id, project_id, contract_id, work_assignment_id,
+         requirement_occurrence_id, rule_version_id, code, code_vocabulary_version,
+         missing_evidence, awaiting_approver_role, since, currency,
+         net_minor_units   as blocked_value_net_minor_units,
+         tax_minor_units   as blocked_value_tax_minor_units,
+         gross_minor_units as blocked_value_gross_minor_units,
+         unvalued_quantity, source_watermark, algorithm_version, calculated_at, stale
+  from public.blocked_reasons;
+
 create view api.acceptance with (security_invoker = true) as
   select workspace_id, project_id, contract_id, claim_segment_id, workflow_state,
          quantity, net_minor_units, tax_minor_units, gross_minor_units, currency,
@@ -1819,16 +2680,44 @@ begin
   raise exception 'design interface: implemented by v0.1 migrations';
 end $$;
 
+create or replace function app_private.close_work_stage(
+  p_workspace uuid, p_work_stage uuid, p_expected_stage_version bigint,
+  p_idempotency_key text, p_request_hash text) returns uuid
+language plpgsql as $$
+begin
+  -- Interface (INV-061/INV-064/INV-065/INV-069): locks the stage row, evaluates
+  -- can_close_stage(s) over every applicable occurrence whose blocking_scope is
+  -- blocks_stage_closure or blocks_both, and either appends ONE stage_closures
+  -- row freezing the exact evaluated occurrence set and the decisions relied
+  -- on, or refuses with the per-occurrence blocked_reason objects -- the
+  -- requirement, the missing evidence, the owed role, and the money -- never a
+  -- bare status word. The unsatisfied path is unevidenced_closures and is a
+  -- DIFFERENT command with a different capability (stage_closures.bypass); the
+  -- two are mutually exclusive per stage and the stage row lock is what makes
+  -- them so. A concealed stage additionally drafts its statutory act from
+  -- already-recorded facts. Recording progress or evidence is never refused by
+  -- this path or any other (INV-065).
+  raise exception 'design interface: implemented by v0.1 migrations';
+end $$;
+
 create or replace function app_private.freeze_package_version(
   p_workspace uuid, p_package_version uuid, p_expected_draft_version bigint) returns void
 language plpgsql as $$
 begin
-  -- Interface (INV-015/INV-034/INV-027): validates all sources, requires every
-  -- claim segment covered by a required quantity approval requirement, records
-  -- the immutable snapshot + source manifest hash atomically; the FIRST freeze
-  -- locks an empty package_scope_head and installs current_prepared with
-  -- activated allocations; later freezes create candidates with no balance or
-  -- VaR effect until head advance. Stale sources => freeze fails.
+  -- Interface (INV-015/INV-034/INV-027/INV-062): validates all sources, requires
+  -- every claim segment covered by a required commercial approval requirement,
+  -- and REFUSES ineligible scope instead of filtering it out -- is_package_
+  -- eligible is evaluated for every included segment inside the commit, and a
+  -- failure returns PACKAGE_SCOPE_INELIGIBLE with a per-segment blocked_reason
+  -- list plus the sums included and excluded by currency. That refusal is
+  -- NAMED DISTINCTLY from a stale-source conflict: the remedies differ, and
+  -- telling a user to refresh their draft when they need a supervisor's
+  -- signature is a support cost. On success it records the immutable snapshot +
+  -- source manifest hash atomically, including the excluded-scope and
+  -- unevidenced-closure appendices; the FIRST freeze locks an empty
+  -- package_scope_head and installs current_prepared with activated
+  -- allocations; later freezes create candidates with no balance or VaR effect
+  -- until head advance. Stale sources => freeze fails.
   raise exception 'design interface: implemented by v0.1 migrations';
 end $$;
 
@@ -1891,6 +2780,22 @@ create trigger source_amount_resolutions_append_only before update or delete on 
   for each row execute function app_private.reject_mutation();
 create trigger requirement_exceptions_append_only before update or delete on public.requirement_exceptions
   for each row execute function app_private.reject_mutation();
+create trigger requirement_notices_append_only before update or delete on public.requirement_notices
+  for each row execute function app_private.reject_mutation();
+create trigger notice_attendance_outcomes_append_only before update or delete on public.notice_attendance_outcomes
+  for each row execute function app_private.reject_mutation();
+create trigger requirement_evidence_decisions_append_only before update or delete on public.requirement_evidence_decisions
+  for each row execute function app_private.reject_mutation();
+create trigger stage_closures_append_only before update or delete on public.stage_closures
+  for each row execute function app_private.reject_mutation();
+-- INV-064 layer 2: the bypass fact is never deleted, edited, or superseded in
+-- place. A clearance is a separate row and does not touch this one.
+create trigger unevidenced_closures_append_only before update or delete on public.unevidenced_closures
+  for each row execute function app_private.reject_mutation();
+create trigger unevidenced_closure_clearances_append_only before update or delete on public.unevidenced_closure_clearances
+  for each row execute function app_private.reject_mutation();
+create trigger requirement_library_items_append_only before update or delete on public.requirement_library_items
+  for each row execute function app_private.reject_mutation();
 create trigger review_target_sets_append_only before update or delete on public.review_target_sets
   for each row execute function app_private.reject_mutation();
 create trigger review_target_items_append_only before update or delete on public.review_target_items
@@ -1911,7 +2816,7 @@ create trigger package_submissions_append_only before update or delete on public
   for each row execute function app_private.reject_mutation();
 create trigger external_decision_batches_append_only before update or delete on public.external_decision_batches
   for each row execute function app_private.reject_mutation();
-create trigger external_quantity_decisions_append_only before update or delete on public.external_quantity_decisions
+create trigger external_commercial_decisions_append_only before update or delete on public.external_commercial_decisions
   for each row execute function app_private.reject_mutation();
 create trigger external_evidence_decisions_append_only before update or delete on public.external_evidence_decisions
   for each row execute function app_private.reject_mutation();
@@ -1931,6 +2836,10 @@ create trigger dead_letters_append_only before update or delete on public.dead_l
 -- Frozen/published-content guards (migrations implement the exact column
 -- allowlist: lifecycle transitions allowed, content mutation rejected):
 --   contract_versions, work_items, requirement_template_versions,
+--   requirement_rule_versions (INV-067: publish/retire are the ONLY lifecycle
+--     transitions; no content column is ever writable after publication),
+--   contract_version_rule_bindings (immutable once its contract version is
+--     published), statutory_act_versions (draft -> frozen only),
 --   package_template_versions, package_versions, package_lines,
 --   package_line_claim_segments (content columns; is_partitioned is lifecycle).
 
@@ -1964,6 +2873,7 @@ alter table public.import_files enable row level security;
 alter table public.import_row_results enable row level security;
 alter table public.source_amount_resolutions enable row level security;
 alter table public.work_assignments enable row level security;
+alter table public.work_stages enable row level security;
 alter table public.progress_entries enable row level security;
 alter table public.progress_allocation_heads enable row level security;
 alter table public.valuation_allocations enable row level security;
@@ -1971,10 +2881,22 @@ alter table public.upload_intents enable row level security;
 alter table public.capture_events enable row level security;
 alter table public.evidence_objects enable row level security;
 alter table public.evidence_requirement_links enable row level security;
+alter table public.requirement_library_items enable row level security;
+alter table public.requirement_rules enable row level security;
+alter table public.requirement_rule_versions enable row level security;
+alter table public.contract_version_rule_bindings enable row level security;
 alter table public.requirement_template_versions enable row level security;
 alter table public.requirement_occurrences enable row level security;
 alter table public.requirement_exceptions enable row level security;
 alter table public.requirement_exception_heads enable row level security;
+alter table public.requirement_notices enable row level security;
+alter table public.notice_attendance_outcomes enable row level security;
+alter table public.requirement_evidence_decisions enable row level security;
+alter table public.stage_closures enable row level security;
+alter table public.unevidenced_closures enable row level security;
+alter table public.unevidenced_closure_clearances enable row level security;
+alter table public.statutory_acts enable row level security;
+alter table public.statutory_act_versions enable row level security;
 alter table public.review_target_sets enable row level security;
 alter table public.review_target_items enable row level security;
 alter table public.internal_review_decisions enable row level security;
@@ -1996,7 +2918,7 @@ alter table public.package_submissions enable row level security;
 alter table public.external_access_grants enable row level security;
 alter table public.external_sessions enable row level security;
 alter table public.external_decision_batches enable row level security;
-alter table public.external_quantity_decisions enable row level security;
+alter table public.external_commercial_decisions enable row level security;
 alter table public.external_evidence_decisions enable row level security;
 alter table public.external_decision_issues enable row level security;
 alter table public.external_decision_coverage enable row level security;
@@ -2010,6 +2932,7 @@ alter table public.dead_letters enable row level security;
 alter table public.notifications enable row level security;
 alter table public.message_deliveries enable row level security;
 alter table public.readiness_projection enable row level security;
+alter table public.blocked_reasons enable row level security;
 alter table public.package_review_status_projection enable row level security;
 alter table public.acceptance_projection enable row level security;
 alter table public.value_at_risk_projection enable row level security;
