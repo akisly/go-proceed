@@ -60,12 +60,13 @@ import { DODATOK_V_TEMPLATE, FORM_CITATION_TEXT } from "../src/lib/statutory-act
  * because what must survive a rewrite of these routes is a key, a CHECK or a
  * trigger and not a branch in a handler.
  *
- * WHY `materialiseFor` IS HERE AGAIN. Unchanged from m3-refusal.int.test.ts: no
- * work line carries a work type, so `assignments.create` materialises nothing
- * and a fixture that used the route would build an EMPTY stage — which closes
- * vacuously and produces an act with no decision block at all, making every
- * Додаток Н assertion below vacuous too. The precondition throws an explicit
- * Error rather than an `expect` for that file's reason.
+ * THE ROUTE BUILDS THE FIXTURE NOW. This file used to hand-write the obligation
+ * set, because no work line carried a work type and `assignments.create`
+ * therefore materialised nothing — a fixture built through the route would have
+ * produced an EMPTY stage, which closes vacuously and yields an act with no
+ * decision block, making every Додаток Н assertion below vacuous too. The line
+ * carries WORK_TYPE now, so the route materialises the pair and
+ * `materialisedFor` only reads what it wrote.
  */
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"; // composer, owner of workspace A
@@ -265,7 +266,12 @@ async function baseline(): Promise<Fx> {
   const draft = await createDraft(base.contractId);
   const contractVersionId = (await draft.json()).contractVersionId as string;
   const line = await addLine(contractVersionId, {
-    sourceKey: "1.1", description: "Приклад-прокладання кабелю в штробі",
+    // WORK_TYPE, matching the two rule versions published above. Since
+    // migration 0050 the line's work type is what a bound rule has to
+    // intersect, so without it `publishVersion` below answers 409
+    // RULE_BINDING_REQUIRED and this fixture never returns.
+    sourceKey: "1.1", workTypeKey: WORK_TYPE,
+    description: "Приклад-прокладання кабелю в штробі",
     unitCode: "м", contractQuantity: "10",
     unitPriceState: "known", unitPrice: "100.00",
   });
@@ -285,8 +291,7 @@ async function baseline(): Promise<Fx> {
   if (asg.status !== 201) throw new Error(`assignments.create ${asg.status} ${await asg.text()}`);
   const assignmentId = (await asg.json()).assignmentId as string;
 
-  const { workStageId, occurrenceIds } = await materialiseFor(
-    base, contractVersionId, assignmentId);
+  const { workStageId, occurrenceIds } = await materialisedFor(base, assignmentId);
 
   // 1. decide, while nobody has recorded progress on this assignment (INV-069)
   const { POST: decide } = await import(
@@ -344,35 +349,35 @@ async function baseline(): Promise<Fx> {
   };
 }
 
-/** Writes the obligation set `assignments.create` cannot write yet. */
-async function materialiseFor(
-  base: BaselineFixture, contractVersionId: string, assignmentId: string,
+/**
+ * Reads the obligation set `assignments.create` now writes for itself.
+ *
+ * THIS USED TO WRITE IT. `materialiseFor` hand-built the occurrences because no
+ * work line carried a work type, so the route materialised nothing and a
+ * fixture that used it would have built an EMPTY stage — one that closes
+ * vacuously and produces an act with no decision block, making every Додаток Н
+ * assertion below vacuous too. It guarded itself with a precondition that threw
+ * the moment the route started doing the work, and named the remedy: delete it
+ * and let the route build the fixture. The line above now carries WORK_TYPE, the
+ * precondition fired, and this is that deletion.
+ *
+ * The count is still asserted here, for the reason the old helper asserted it:
+ * an act composed over one obligation instead of two would satisfy most of this
+ * file while testing half of it.
+ */
+async function materialisedFor(
+  base: BaselineFixture, assignmentId: string,
 ): Promise<{ workStageId: string; occurrenceIds: string[] }> {
-  return withTenantTx({ actorUserId: A, organizationId: null, requestId: randomUUID() },
-    async (tx) => {
-      const existing = await tx.query(
-        `select count(*)::int as n from public.requirement_occurrences
-          where workspace_id = $1 and work_assignment_id = $2`,
-        [base.workspaceId, assignmentId]);
-      if (existing.rows[0].n > 0) {
-        throw new Error(
-          "m4-act: assignments.create has already materialised this assignment's "
-          + "obligation set. The carrier has existed since migration 0050; reaching "
-          + "this means this fixture's line acquired a work type: delete "
-          + "materialiseFor and let the route build the fixture.");
-      }
-      const bound = (await tx.query(BOUND_RULE_VERSIONS_SQL,
-        [base.workspaceId, contractVersionId])).rows.map(boundRuleVersion);
-      const plan = planForWorkType(WORK_TYPE, bound);
-      if (plan.occurrences.length !== 2) {
-        throw new Error(`m4-act: expected 2 planned occurrences, got ${plan.occurrences.length}`);
-      }
-      const written = await materialiseOccurrences(tx, {
-        workspaceId: base.workspaceId, projectId: base.projectId, contractId: base.contractId,
-        contractVersionId, assignmentId, memberId: base.memberId,
-      }, plan);
-      return { workStageId: written.stageIds[0]!, occurrenceIds: written.occurrenceIds };
-    });
+  const rows = await q<{ id: string; work_stage_id: string }>(
+    `select id, work_stage_id from public.requirement_occurrences
+      where workspace_id = $1 and work_assignment_id = $2
+      order by id`, [base.workspaceId, assignmentId]);
+  if (rows.length !== 2) {
+    throw new Error(`m4-act: expected 2 materialised occurrences, got ${rows.length}`);
+  }
+  const stage = rows[0]!.work_stage_id;
+  if (stage === null) throw new Error("m4-act: the materialised occurrence carries no stage");
+  return { workStageId: stage, occurrenceIds: rows.map((r) => r.id) };
 }
 
 // ── assertions' helpers ─────────────────────────────────────────────────────

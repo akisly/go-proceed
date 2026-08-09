@@ -134,7 +134,8 @@ async function baseline(): Promise<Fx> {
   const draft = await createDraft(base.contractId);
   const contractVersionId = (await draft.json()).contractVersionId as string;
   const line = await addLine(contractVersionId, {
-    sourceKey: "1.1", description: "Приклад-прокладання кабелю в штробі",
+    sourceKey: "1.1", workTypeKey: WORK_TYPE,
+    description: "Приклад-прокладання кабелю в штробі",
     unitCode: "м", contractQuantity: "10",
     unitPriceState: "known", unitPrice: "100.00",
   });
@@ -154,49 +155,37 @@ async function baseline(): Promise<Fx> {
   if (asg.status !== 201) throw new Error(`assignments.create ${asg.status} ${await asg.text()}`);
   const assignmentId = (await asg.json()).assignmentId as string;
 
-  const { workStageId, occurrenceIds } = await materialiseFor(
-    base, contractVersionId, assignmentId);
+  const { workStageId, occurrenceIds } = await materialisedFor(base, assignmentId);
 
   return { ...base, contractVersionId, workItemId, assignmentId, workStageId, occurrenceIds };
 }
 
 /**
- * Writes the obligation set `assignments.create` cannot write yet.
+ * Reads the obligation set `assignments.create` writes for itself.
  *
- * THE PRECONDITION IS AN Error AND NOT AN expect, for the reason
- * `m2-materialisation.int.test.ts` gives about its own copy: «the route
- * materialised nothing» is a precondition of this harness and never a
- * requirement of the product.
+ * THE REWRITE THE HEADER OWED IS TAKEN. `materialiseFor` hand-wrote these rows
+ * because the fixture's line carried no work type, and it guarded itself with
+ * an Error that would fire the moment the route began doing the work. The line
+ * carries WORK_TYPE now, so the route materialises the pair and this reads it.
+ *
+ * The pair is still asserted: a refusal proven over ONE unmet obligation would
+ * pass while saying nothing about the additive partition this file is for.
  */
-async function materialiseFor(
-  base: BaselineFixture, contractVersionId: string, assignmentId: string,
+async function materialisedFor(
+  base: BaselineFixture, assignmentId: string,
 ): Promise<{ workStageId: string; occurrenceIds: string[] }> {
-  return withTenantTx({ actorUserId: A, organizationId: null, requestId: crypto.randomUUID() },
-    async (tx) => {
-      const existing = await tx.query(
-        `select count(*)::int as n from public.requirement_occurrences
-          where workspace_id = $1 and work_assignment_id = $2`,
-        [base.workspaceId, assignmentId]);
-      if (existing.rows[0].n > 0) {
-        throw new Error(
-          "m3-refusal: assignments.create has already materialised this assignment's "
-          + "obligation set, so this harness would double-write it. The carrier has "
-          + "existed since migration 0050; reaching this means the fixture's line "
-          + "acquired a work type. That is the rewrite the header names: delete "
-          + "materialiseFor and let the route build the fixture.");
-      }
-      const bound = (await tx.query(BOUND_RULE_VERSIONS_SQL,
-        [base.workspaceId, contractVersionId])).rows.map(boundRuleVersion);
-      const plan = planForWorkType(WORK_TYPE, bound);
-      if (plan.occurrences.length !== 2) {
-        throw new Error(`m3-refusal: expected 2 planned occurrences, got ${plan.occurrences.length}`);
-      }
-      const written = await materialiseOccurrences(tx, {
-        workspaceId: base.workspaceId, projectId: base.projectId, contractId: base.contractId,
-        contractVersionId, assignmentId, memberId: base.memberId,
-      }, plan);
-      return { workStageId: written.stageIds[0]!, occurrenceIds: written.occurrenceIds };
-    });
+  const rows = await q<{ id: string; work_stage_id: string | null }>(
+    `select id, work_stage_id from public.requirement_occurrences
+      where workspace_id = $1 and work_assignment_id = $2
+      order by id`, [base.workspaceId, assignmentId]);
+  if (rows.length !== 2) {
+    throw new Error(`m3-refusal: expected 2 materialised occurrences, got ${rows.length}`);
+  }
+  const stage = rows[0]!.work_stage_id;
+  if (stage === null) {
+    throw new Error("m3-refusal: the materialised occurrence carries no stage");
+  }
+  return { workStageId: stage, occurrenceIds: rows.map((r) => r.id) };
 }
 
 async function closeStage(stageId: string, expectedVersion = 1): Promise<Response> {

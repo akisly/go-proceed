@@ -78,19 +78,44 @@ export interface BaselineFixture {
  * legal+own profile → customer party → contract. Caller must have mocked auth
  * as the creating user already.
  */
+/**
+ * Reads a route's JSON, and refuses to continue past a route that failed.
+ *
+ * WITHOUT THIS THE FIXTURE LIED ABOUT WHERE IT BROKE. Every step below used to
+ * be `(await res.json()).someId as string`, which on a non-2xx quietly yields
+ * `undefined` — so a workspace that failed to be created produced
+ * `workspaceId === undefined`, the memberships lookup two lines later matched
+ * nothing, and the suite died on `TypeError: Cannot read properties of
+ * undefined (reading 'id')` pointing at a query that was never the problem.
+ * That TypeError is what all 39 cases in m4-act reported. The real refusal —
+ * with its status and its catalogued body — is what a reader needs.
+ */
+async function step<T = Record<string, unknown>>(
+  what: string, res: Response,
+): Promise<T> {
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`baselineFixture: ${what} returned ${res.status} ${await res.text()}`);
+  }
+  return await res.json() as T;
+}
+
 export async function baselineFixture(userId: string, over: {
   contractBody?: Record<string, unknown>;
 } = {}): Promise<BaselineFixture> {
   const { POST: createW } = await import("../../app/v1/workspaces/route");
   const w = await createW(jsonReq("http://x/v1/workspaces", { displayName: "Приклад-Фікстура" }), { params: Promise.resolve({}) });
-  const workspaceId = (await w.json()).workspaceId as string;
+  const workspaceId = (await step<{ workspaceId: string }>("workspaces.create", w)).workspaceId;
 
   const { POST: createP } = await import("../../app/v1/workspaces/[workspaceId]/projects/route");
   const p = await createP(jsonReq("http://x", { name: "Приклад-Обʼєкт" }), { params: Promise.resolve({ workspaceId }) });
-  const projectId = (await p.json()).projectId as string;
+  const projectId = (await step<{ projectId: string }>("projects.create", p)).projectId;
 
   const me = await q<{ id: string }>(
     "select id from public.memberships where organization_id=$1 and user_id=$2", [workspaceId, userId]);
+  if (me.length === 0) {
+    throw new Error(
+      `baselineFixture: no membership for user ${userId} in workspace ${workspaceId}`);
+  }
   const memberId = me[0]!.id;
   const { POST: grant } = await import("../../app/v1/projects/[projectId]/access-grants/route");
   await grant(jsonReq("http://x", { memberId, capabilities: ["contracts.edit", "imports.manage", "imports.publish"] }),
@@ -98,7 +123,7 @@ export async function baselineFixture(userId: string, over: {
 
   const { POST: createParty } = await import("../../app/v1/workspaces/[workspaceId]/parties/route");
   const own = await createParty(jsonReq("http://x", { displayName: "Приклад-Власна" }), { params: Promise.resolve({ workspaceId }) });
-  const ownPartyId = (await own.json()).partyId as string;
+  const ownPartyId = (await step<{ partyId: string }>("parties.create (own)", own)).partyId;
   const { PUT: putLegal } = await import("../../app/v1/parties/[partyId]/legal-profile/route");
   await putLegal(jsonReq("http://x", { officialName: "ТОВ Приклад-Власна", edrpou: "12345678" }, "PUT"),
     { params: Promise.resolve({ partyId: ownPartyId }) });
@@ -106,7 +131,8 @@ export async function baselineFixture(userId: string, over: {
   await createOwn(jsonReq("http://x", {}), { params: Promise.resolve({ partyId: ownPartyId }) });
 
   const cust = await createParty(jsonReq("http://x", { displayName: "Приклад-Замовник" }), { params: Promise.resolve({ workspaceId }) });
-  const customerPartyId = (await cust.json()).partyId as string;
+  const customerPartyId =
+    (await step<{ partyId: string }>("parties.create (customer)", cust)).partyId;
 
   const { POST: createContract } = await import("../../app/v1/projects/[projectId]/contracts/route");
   const c = await createContract(jsonReq("http://x", {
@@ -114,7 +140,7 @@ export async function baselineFixture(userId: string, over: {
     currency: "UAH", taxMode: "exclusive", taxRateBps: 2000,
     ...over.contractBody,
   }), { params: Promise.resolve({ projectId }) });
-  const contractId = (await c.json()).contractId as string;
+  const contractId = (await step<{ contractId: string }>("contracts.create", c)).contractId;
 
   return { workspaceId, projectId, ownPartyId, customerPartyId, contractId, memberId };
 }
