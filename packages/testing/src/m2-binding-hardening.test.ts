@@ -583,7 +583,18 @@ describe("a valuation allocation is bound to the fact it values", () => {
   });
 
   it("accepts an allocation that matches its fact exactly", async () => {
-    expect(await sqlstate(() => insertAllocation({}))).toBeNull();
+    // `quantity` is pinned to 7 by the composite key into the progress fact —
+    // that is what the first case in this block proves — so what a positive
+    // control gets to choose here is `funded_quantity`, and 0048 §3 made that
+    // choice narrower than it was when this control was written.
+    //
+    // The lineage is a root of 7 and an adjustment of -2, so its effective
+    // quantity is 5. `app.assert_funded_within_lineage()` refuses a lineage
+    // funded beyond that, and the old default funded the full 7 — an allocation
+    // paying for two units of work the lineage no longer claims. It was right to
+    // refuse it. Funding 5 is the ceiling, and a ceiling is the strongest
+    // positive control available: one more would be red.
+    expect(await sqlstate(() => insertAllocation({ funded_quantity: 5 }))).toBeNull();
   });
 
   it("requires progress.adjust to value an adjustment, not progress.record", async () => {
@@ -883,6 +894,31 @@ describe("an allocation's root is the root of the fact it values", () => {
           quantity, recorded_by_member_id)
        values ($1,$2,$3,$4,'root',9,$5) returning id`,
       [a.workspaceId, a.projectId, assignmentA, a.workItemId, a.memberId]);
+
+    // THE ROOT IS CARVED FIRST, AND THE ORDER IS THE POINT. This case used to
+    // record both progress entries and then value only the adjustment, which
+    // left the lineage holding -3 of funded quantity and nothing positive
+    // behind it. `app.assert_funded_within_lineage()` (0048 §3) refuses exactly
+    // that — «a lineage cannot hand back money it never received» — and was
+    // right to: a negative-only lineage is a refund of a payment that never
+    // happened.
+    //
+    // The sequence below is the one the product actually performs. The root is
+    // recorded and carved for its full 9 while it is the whole lineage; the
+    // adjustment of -3 is then recorded and carved, leaving the lineage funded
+    // for 6 against an effective quantity of 6. Both allocations land, and the
+    // second one is the one this case is about.
+    expect(await sqlstate(() => c.query(
+      `insert into public.valuation_allocations
+         (workspace_id, project_id, contract_id, work_item_id, progress_entry_id,
+          root_progress_entry_id, lineage_key, quantity, funded_quantity,
+          net_minor_units, tax_minor_units, gross_minor_units)
+       values ($1,$2,$3,$4,$5,$5,$6,9,9,30,6,36)`,
+      [a.workspaceId, a.projectId, a.contractId, a.workItemId,
+       root.rows[0].id, `probe:${crypto.randomUUID()}`])),
+      "the root's own carve must land before an adjustment can draw against it")
+      .toBeNull();
+
     const adj = await c.query(
       `insert into public.progress_entries
          (workspace_id, project_id, work_assignment_id, work_item_id, entry_kind,

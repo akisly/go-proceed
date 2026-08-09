@@ -40,6 +40,20 @@ function permitted(column: string): string[] {
   return [...m[1]!.matchAll(/'([a-z_]+)'/g)].map((x) => x[1]!);
 }
 
+/**
+ * The states one state machine declares, from `technical/states/state-catalog.csv`.
+ *
+ * Only the first two fields are read, and both are identifiers containing no
+ * comma and no quote, so the naive split is safe here in a way it would not be
+ * for `description` — which does carry both.
+ */
+function declaredStates(machine: string): Set<string> {
+  const csv = readFileSync(join(repoRoot, "technical/states/state-catalog.csv"), "utf8");
+  return new Set(csv.split("\n")
+    .filter((l) => l.startsWith(`${machine},`))
+    .map((l) => l.split(",")[1]!));
+}
+
 function labelled(prefix: string): Set<string> {
   const csv = readFileSync(join(repoRoot, "technical/copy-catalog.csv"), "utf8");
   return new Set(csv.split("\n")
@@ -70,12 +84,32 @@ describe("every status the server can emit has a Ukrainian label", () => {
     expect(stray).toEqual([]);
   });
 
-  it("has no label for a client_state the database forbids", () => {
-    // The same direction for `client_state`, which had no equivalent check.
-    // `client_state` is the newer of the two prefixes and the one this
-    // milestone's mobile client generates from, so a label for a state the
-    // constraint does not permit would ship into the app as a dead entry.
-    const want = new Set(permitted("client_state"));
+  it("has no label for a client_state no state machine declares", () => {
+    // The same direction for `client_state`, against a different authority.
+    //
+    // This assertion used to read the `capture_events.client_state` CHECK, on
+    // the reasoning that a label for a state the column cannot hold would ship
+    // as a dead entry. That stopped being true on 2026-08-06. ADR-007 decision
+    // 6 named `discarded` — explicit warned user deletion — as one of the six
+    // client states the v0.1 PWA path actually reaches, and added its label;
+    // the CHECK, written in migration 0015, does not list it. So the label is
+    // live and the column is silent about it, and the old assertion failed a
+    // catalog that was right.
+    //
+    // The two are not the same vocabulary and v0.1 is where they part. These
+    // labels are rendered by the field client from its OWN local state machine
+    // — `mobile_pending_original`, whose eight states state-catalog.csv:38-45
+    // declares — while `capture_events` is capture telemetry that
+    // scope-and-boundaries.md defers to v0.2 and no v0.1 step writes. Anchoring
+    // to the state catalog is therefore the anchor that matches what the labels
+    // are for, and it keeps the teeth that motivated this test: `sealed` and
+    // `cancelled` were labelled for years while existing in no state machine
+    // either, and would still fail here.
+    //
+    // The other direction still holds and is still checked above: every value
+    // the CHECK permits has a label.
+    const want = declaredStates("mobile_pending_original");
+    expect(want.size).toBe(8);
     const stray = [...labelled("status.client_state.")].filter((s) => !want.has(s));
     expect(stray).toEqual([]);
   });

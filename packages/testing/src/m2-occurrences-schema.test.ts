@@ -341,24 +341,51 @@ describe("both tables are append-only", () => {
     await purgeOccurrences(WS_A);
   });
 
-  it("refuses every UPDATE on a stage, and keeps the trigger M3 must REPLACE", async () => {
-    // M3 opens open -> closed by replacing this trigger with a guard in ONE
-    // statement, the way 0042 replaced contract_versions_immutable. An
-    // append-only table quietly losing its guard is a failure this repository
-    // has already had once (0042:59-65), so the trigger is asserted by name as
-    // well as by behaviour: a drop that forgets its replacement fails here.
+  it("has had work_stages_immutable REPLACED, not dropped, and still refuses a status flip", async () => {
+    // M3 HAS NOW HAPPENED, AND THIS CASE IS WHAT IT LOOKS LIKE AFTERWARDS. It
+    // used to require the trigger `work_stages_immutable` to be present and the
+    // refusal to say «immutable». Migration 0045 §6 drops that trigger and
+    // creates `work_stages_guard` in the same statement — the replacement this
+    // case was written to demand — so on the applied chain the old name is gone
+    // and asserting it asserted the absence of M3.
+    //
+    // An append-only table quietly losing its guard is a failure this repository
+    // has already had once (0042:59-65), so the pairing is still checked by
+    // name: the old trigger must be ABSENT and the new one PRESENT. A drop that
+    // forgets its replacement leaves both counts at zero and fails here.
+    const t = await c.query<{ tgname: string }>(
+      `select tg.tgname from pg_trigger tg
+         join pg_class cl on cl.oid = tg.tgrelid
+        where cl.relname = 'work_stages' and not tg.tgisinternal
+          and tg.tgname in ('work_stages_immutable', 'work_stages_guard')`);
+    expect(t.rows.map((r) => r.tgname)).toEqual(["work_stages_guard"]);
+
+    // AND THE DOOR IS STILL SHUT, which is the part that actually matters and
+    // the part the old assertion did not reach. Both halves are attempted: the
+    // bare flip the guard refuses for not advancing the version, and the
+    // well-formed flip that gets past the guard and is then refused by
+    // `work_stages_closure_fact_required` for having no closure behind it.
+    // Asserting only the first would pass against a database where a status
+    // word alone closes a stage, which is the whole of the ADR-005 gate.
     expect(await raised(() => c.query(
       `update public.work_stages set status = 'closed' where id = $1`, [wa.stageId])))
-      .toMatch(/immutable/);
-    const t = await c.query<{ n: number }>(
-      `select count(*)::int as n from pg_trigger tg
-         join pg_class cl on cl.oid = tg.tgrelid
-        where cl.relname = 'work_stages' and tg.tgname = 'work_stages_immutable'
-          and not tg.tgisinternal`);
-    expect(t.rows[0]!.n).toBe(1);
+      .toMatch(/must advance its version exactly once/);
+    expect(await raised(() => c.query(
+      `update public.work_stages set status = 'closed', version = version + 1
+        where id = $1`, [wa.stageId])))
+      .toMatch(/recorded closed with no stage_closures fact behind it/);
   });
 
-  it("gives the application role SELECT and INSERT and nothing else", async () => {
+  it("gives the application role SELECT and INSERT, and UPDATE on stages alone", async () => {
+    // The fifth grant is M3's and is deliberate: 0045:1466 gives aktflow_app
+    // UPDATE on work_stages because the closure command has to move one status
+    // from open to closed. It is not a widening of what the app may DO — that
+    // is `app.guard_work_stage()`, asserted above, which admits that one
+    // transition and refuses every other update and every delete.
+    //
+    // requirement_occurrences stays at SELECT and INSERT, and DELETE appears
+    // nowhere. Listing the grants exactly, rather than counting them, is what
+    // makes a sixth one fail here whatever it is.
     const g = await c.query<{ table_name: string; privilege_type: string }>(
       `select distinct table_name, privilege_type
          from information_schema.role_table_grants
@@ -367,7 +394,7 @@ describe("both tables are append-only", () => {
         order by table_name, privilege_type`);
     expect(g.rows.map((r) => `${r.table_name}:${r.privilege_type}`)).toEqual([
       "requirement_occurrences:INSERT", "requirement_occurrences:SELECT",
-      "work_stages:INSERT", "work_stages:SELECT",
+      "work_stages:INSERT", "work_stages:SELECT", "work_stages:UPDATE",
     ]);
   });
 

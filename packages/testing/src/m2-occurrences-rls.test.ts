@@ -286,15 +286,33 @@ describe("requirement_occurrences — tenant isolation and the foreman's read", 
       expect(rows.rows[0]!.n).toBe(0);
     });
 
-  it("gives the app role no UPDATE and no DELETE to attempt in the first place", async () => {
+  it("gives the app role no DELETE anywhere, and UPDATE only where a guard confines it", async () => {
     // The append-only trigger is the second layer; this is the first. A test
     // that only asserted the trigger would keep passing if a later migration
-    // granted UPDATE and someone removed the trigger in the same change.
-    const g = await c.query<{ n: number }>(
-      `select count(*)::int as n from information_schema.role_table_grants
+    // granted UPDATE and someone removed the trigger in the same change — so
+    // the two are asserted TOGETHER here, which is also why this case could not
+    // simply be relaxed when M3 arrived.
+    //
+    // M3 arrived. 0045:1466 grants UPDATE on work_stages so the closure command
+    // can move one status open -> closed, and 0045 §6 creates
+    // `work_stages_guard` in the same migration to be the thing that confines
+    // it. requirement_occurrences got neither and still has neither.
+    const g = await c.query<{ table_name: string; privilege_type: string }>(
+      `select distinct table_name, privilege_type
+         from information_schema.role_table_grants
         where grantee = 'aktflow_app' and table_schema = 'public'
           and table_name in ('work_stages','requirement_occurrences')
-          and privilege_type in ('UPDATE','DELETE')`);
-    expect(g.rows[0]!.n).toBe(0);
+          and privilege_type in ('UPDATE','DELETE')
+        order by table_name, privilege_type`);
+    expect(g.rows.map((r) => `${r.table_name}:${r.privilege_type}`))
+      .toEqual(["work_stages:UPDATE"]);
+
+    const guard = await c.query<{ n: number }>(
+      `select count(*)::int as n from pg_trigger tg
+         join pg_class cl on cl.oid = tg.tgrelid
+        where cl.relname = 'work_stages' and not tg.tgisinternal
+          and tg.tgname = 'work_stages_guard'`);
+    expect(guard.rows[0]!.n, "UPDATE is granted; the guard that confines it must exist")
+      .toBe(1);
   });
 });

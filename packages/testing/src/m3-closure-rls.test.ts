@@ -523,10 +523,19 @@ describe("stage_closures and their frozen set", () => {
     expect(rows.rows.map((r) => r.status)).toEqual(["open"]);
 
     // `resetClosureFacts` reopens stages rather than deleting them, so this row
-    // would otherwise outlive the case that created it.
-    await c.query(
-      `delete from public.work_stages where workspace_id = $1 and stage_key = $2`,
-      [WS_A, "prykhovani-roboty-rls-born"]);
+    // would otherwise outlive the case that created it. `disable trigger user`
+    // is not optional here: app.guard_work_stage() refuses EVERY delete on this
+    // table, for the owner too, and says so — «a closure is a fact and the stage
+    // is its subject». It suppresses that guard and not referential integrity,
+    // so a stage something else still cites would still refuse to go.
+    await c.query(`alter table public.work_stages disable trigger user`);
+    try {
+      await c.query(
+        `delete from public.work_stages where workspace_id = $1 and stage_key = $2`,
+        [WS_A, "prykhovani-roboty-rls-born"]);
+    } finally {
+      await c.query(`alter table public.work_stages enable trigger user`);
+    }
   });
 
   it("refuses a closure insert carrying another workspace's ids", async () => {

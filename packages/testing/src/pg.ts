@@ -101,6 +101,66 @@ export async function asService<T extends QueryResultRow = QueryResultRow>(
   finally { await c.end(); }
 }
 
+/**
+ * Deletes every row belonging to the named workspaces, across every
+ * tenant-scoped table there is, and then the workspaces themselves.
+ *
+ * WHY THERE IS NO TABLE LIST HERE. The two fixtures that used to do this each
+ * carried a hand-written dependency order, one of them warning in a comment
+ * that "a table absent from this list is a 23503 on the day a suite first
+ * writes it, three suites downstream from the one that caused it". That day
+ * arrived four times, and on 2026-08-08 the list was still seven tables short
+ * — capture_events, evidence_objects, idempotency_records, legal_entities,
+ * outbox_dead_letters, requirement_template_versions, upload_intents — and
+ * carried four order violations that no suite had reached yet. The missing
+ * upload_intents took m5-external-rls's teardown down with a 23503 on
+ * requirement_occurrences and left its rows behind, which is what turned two
+ * real failures in m5-external-schema into forty.
+ *
+ * A correct order could not have been written by hand anyway:
+ * contract_versions <-> import_batches and evidence_objects <-> upload_intents
+ * are FK cycles, so no topological sort of these tables exists.
+ *
+ * `session_replication_role = 'replica'` removes the question. It suppresses
+ * user triggers — app.reject_mutation() and the append-only guards, which is
+ * what the old `disable trigger user` dance was for — AND referential-integrity
+ * triggers, which is what the ordering was for. The tables are then read from
+ * the catalog, so a table a future migration adds is covered the day it exists
+ * rather than the day a suite first writes to it.
+ *
+ * Requires a superuser connection (`adminClient()`). The GUC is restored in a
+ * finally, so a shared client is never left in replica mode.
+ */
+export async function dropWorkspaces(
+  c: Client, workspaceIds: readonly string[],
+): Promise<void> {
+  const ids = [...workspaceIds];
+  // Some tables name the tenant column organization_id rather than workspace_id;
+  // reading both from the catalog is what makes a guess-then-catch loop
+  // unnecessary. `organizations` is excluded here and deleted last, by its own
+  // primary key.
+  const scoped = await c.query<{ table_name: string; column_name: string }>(
+    `select c.table_name, c.column_name
+       from information_schema.columns c
+       join information_schema.tables t
+         on t.table_schema = c.table_schema and t.table_name = c.table_name
+      where c.table_schema = 'public'
+        and t.table_type = 'BASE TABLE'
+        and c.column_name in ('workspace_id', 'organization_id')
+        and c.table_name <> 'organizations'
+      order by c.table_name, c.column_name`);
+  await c.query("set session_replication_role = replica");
+  try {
+    for (const { table_name, column_name } of scoped.rows) {
+      await c.query(
+        `delete from public.${table_name} where ${column_name} = any($1::uuid[])`, [ids]);
+    }
+    await c.query("delete from public.organizations where id = any($1::uuid[])", [ids]);
+  } finally {
+    await c.query("set session_replication_role = origin");
+  }
+}
+
 export async function resetDb(): Promise<void> {
   // Use the installed supabase CLI directly: `pnpm dlx supabase` re-downloads
   // the CLI on every reset (CI runners tripped the 120s test timeout on that

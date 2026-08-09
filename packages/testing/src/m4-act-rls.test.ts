@@ -77,6 +77,34 @@ async function asMember(
   } finally { await client.end(); }
 }
 
+/**
+ * The same attempt as `asMember`, reporting the MESSAGE rather than the
+ * SQLSTATE.
+ *
+ * Needed because two of the four act tables are refused by a trigger rather
+ * than by a policy, and every trigger refusal in this schema is P0001 — a code
+ * that would be satisfied by any raise at all, including one about something
+ * else entirely.
+ */
+async function asMemberMessage(
+  userId: string, organizationId: string, sql: string, params: unknown[],
+): Promise<string> {
+  const client = appClient();
+  await client.connect();
+  try {
+    await client.query("begin");
+    await client.query("set local role aktflow_app");
+    await client.query("select set_config('app.actor_user_id', $1, true)", [userId]);
+    await client.query("select set_config('app.organization_id', $1, true)", [organizationId]);
+    await client.query(sql, params);
+    await client.query("commit");
+    return "";
+  } catch (e) {
+    await client.query("rollback").catch(() => undefined);
+    return (e as { message?: string }).message ?? "unknown";
+  } finally { await client.end(); }
+}
+
 /** Rows one member can SELECT from a table, by workspace. */
 async function visible(
   userId: string, organizationId: string, table: string, workspaceId: string,
@@ -157,6 +185,15 @@ describe("INV-001/INV-002 — an act is invisible across a tenant boundary", () 
     // The `with check` half. Without it a foreign tenant could write rows they
     // could never read — which is worse than reading them, because it is a
     // forgery nobody can see.
+    //
+    // WHICH LAYER ANSWERS IS NAMED WHERE IT IS NOT 42501, the convention
+    // m1-rules-schema.test.ts:27-31 sets for exactly this shape. The two content
+    // tables carry `app.guard_statutory_act_content()` as a BEFORE INSERT
+    // trigger, and it reads `statutory_act_versions` under the INSERTING role —
+    // so RLS hides A's version from B, the guard finds no row, and it raises
+    // «not visible in this workspace» before the policy's WITH CHECK is ever
+    // evaluated. That is still a refusal and still fails closed; asserting
+    // 42501 there asserted an ordering the schema does not have.
     expect(await asMember(USER_B, WS_B, ACT_INSERT, actParams(a))).toBe("42501");
 
     const actId = await insertAct(c, a);
@@ -164,10 +201,40 @@ describe("INV-001/INV-002 — an act is invisible across a tenant boundary", () 
       versionParams(a, { statutoryActId: actId }))).toBe("42501");
 
     const versionId = await insertVersion(c, a, { statutoryActId: actId });
-    expect(await asMember(USER_B, WS_B, QUANTITY_INSERT,
-      quantityParams(a, { versionId }))).toBe("42501");
-    expect(await asMember(USER_B, WS_B, SIGNATORY_INSERT,
-      signatoryParams(a, { versionId, slot: "builder" }))).toBe("42501");
+    expect(await asMemberMessage(USER_B, WS_B, QUANTITY_INSERT,
+      quantityParams(a, { versionId })), "quantities")
+      .toMatch(/is not visible in this workspace/);
+    expect(await asMemberMessage(USER_B, WS_B, SIGNATORY_INSERT,
+      signatoryParams(a, { versionId, slot: "builder" })), "signatories")
+      .toMatch(/is not visible in this workspace/);
+  });
+
+  it("refuses B those same two inserts by POLICY, with the trigger out of the way", async () => {
+    // THE HALF THE CASE ABOVE CANNOT REACH. A trigger that answers first can
+    // hide a missing policy for years — m1-rules-schema.test.ts:28-30 says so in
+    // terms — and here it would hide the `with check` on the two tables where a
+    // forged quantity or a forged signatory is the actual damage.
+    //
+    // So the guard is suspended and the same two inserts are attempted again.
+    // What answers now can only be the policy, and it must still be 42501.
+    const actId = await insertAct(c, a);
+    const versionId = await insertVersion(c, a, { statutoryActId: actId });
+    const guarded = ["statutory_act_version_quantities",
+                     "statutory_act_version_signatories"] as const;
+    for (const t of guarded) {
+      await c.query(`alter table public.${t} disable trigger user`);
+    }
+    try {
+      expect(await asMember(USER_B, WS_B, QUANTITY_INSERT,
+        quantityParams(a, { versionId })), "quantities, policy only").toBe("42501");
+      expect(await asMember(USER_B, WS_B, SIGNATORY_INSERT,
+        signatoryParams(a, { versionId, slot: "builder" })), "signatories, policy only")
+        .toBe("42501");
+    } finally {
+      for (const t of guarded) {
+        await c.query(`alter table public.${t} enable trigger user`);
+      }
+    }
   });
 
   it("refuses B an UPDATE of A's draft version", async () => {

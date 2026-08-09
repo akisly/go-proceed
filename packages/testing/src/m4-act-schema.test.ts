@@ -697,12 +697,49 @@ describe("the version lineage is contiguous, unforked and single-drafted", () =>
   it("REFUSES a successor of a version that is still a draft", async () => {
     const actId = await insertAct(c, a);
     const draft = await insertVersion(c, a, { statutoryActId: actId });
-    // The chain foreign key pins the predecessor's status to 'frozen', so a
-    // successor cannot be opened behind a version still being edited.
-    expect(await sqlstate(() => c.query(VERSION_INSERT, versionParams(a, {
+    const successor = versionParams(a, {
       statutoryActId: actId, versionNo: 2, predecessorVersionId: draft,
       predecessorVersionNo: 1, predecessorStatus: "frozen",
-      correctionReason: "Приклад-виправлення" })))).toBe("23503");
+      correctionReason: "Приклад-виправлення" });
+
+    // WHICH LAYER ANSWERS, AND WHY IT CANNOT BE THE FOREIGN KEY THIS CASE USED
+    // TO NAME. The chain foreign key does pin the predecessor's status to
+    // 'frozen' — that part of the old comment was right — but it is unreachable
+    // by this route, and not by accident:
+    //
+    //   * `statutory_act_versions_chain_check` forces predecessor_status =
+    //     'frozen' for every version_no > 1, so a successor cannot even CLAIM a
+    //     draft predecessor; and
+    //   * a predecessor that is still a draft means the act HAS an open draft,
+    //     so the new row — itself born draft — collides with
+    //     `statutory_act_versions_single_draft_uniq` first.
+    //
+    // Postgres inserts index entries during the row insert and checks foreign
+    // keys as after-row triggers, so the partial unique index always answers
+    // before the chain key. The refusal is real either way; 23503 was the wrong
+    // name for it.
+    expect(await sqlstate(() => c.query(VERSION_INSERT, successor))).toBe("23505");
+
+    // AND THE FOREIGN KEY IS STILL THERE. Asserting only the index above would
+    // pass against a database that had lost the chain key entirely, which is
+    // the failure mode m1-rules-schema.test.ts:28-30 warns about — one layer
+    // hiding the absence of another. The index is dropped inside a transaction
+    // that is then rolled back, so the same insert reaches the key it could not
+    // reach a moment ago and the schema is unchanged afterwards.
+    await c.query("begin");
+    try {
+      await c.query("drop index public.statutory_act_versions_single_draft_uniq");
+      expect(await sqlstate(() => c.query(VERSION_INSERT, successor)),
+        "with the single-draft index out of the way, the chain key must answer")
+        .toBe("23503");
+    } finally {
+      await c.query("rollback");
+    }
+
+    const restored = await c.query<{ n: number }>(
+      `select count(*)::int as n from pg_class
+        where relname = 'statutory_act_versions_single_draft_uniq'`);
+    expect(restored.rows[0]!.n, "the rollback must put the index back").toBe(1);
   });
 
   it("REFUSES a correction that gives no reason", async () => {

@@ -92,19 +92,34 @@ interface GrantSeed {
   decideRole?: string | null;
   decidesEvidence?: boolean | null;
   expiresInDays?: number;
+  issuedDaysAgo?: number;
   hmacKeyId?: string;
   tokenSeed?: string;
   status?: string;
 }
 
+/**
+ * `issuedDaysAgo` is to the grant what `createdMinutesAgo` is to the session,
+ * and it exists for the same reason.
+ *
+ * `external_access_grants_expiry_check` requires expires_at > issued_at, so
+ * `expiresInDays: -1` does not produce an expired grant — it produces a refused
+ * insert. Both timestamps are therefore anchored to one base,
+ * `now() - issuedDaysAgo`, and the lifetime runs forward from it: a grant issued
+ * eight days ago with a seven-day life expired yesterday, which is what
+ * `app.external_session_scope()`'s `g.expires_at > now()` limb is being asked
+ * about. With the default of 0 the row is what this fixture always produced.
+ */
 const GRANT_INSERT = `
   insert into public.external_access_grants
     (workspace_id, project_id, contract_id, scope_kind, requirement_occurrence_id,
      token_hmac, hmac_key_id, recipient_email, recipient_role, permissions,
-     expires_at, issued_by_member_id, decide_role, decides_evidence, status)
+     issued_at, expires_at, issued_by_member_id, decide_role, decides_evidence, status)
   values ($1::uuid,$2::uuid,$3::uuid,'requirement_occurrence',$4::uuid,
           $5::bytea,$6::text,$7::text,$8::text,$9::jsonb,
-          now() + make_interval(days => $10::int),$11::uuid,$12::text,$13::boolean,$14::text)
+          now() - make_interval(days => $15::int),
+          now() - make_interval(days => $15::int) + make_interval(days => $10::int),
+          $11::uuid,$12::text,$13::boolean,$14::text)
   returning id`;
 
 function grantParams(w: ClosureWorld, o: GrantSeed = {}): unknown[] {
@@ -134,6 +149,7 @@ function grantParams(w: ClosureWorld, o: GrantSeed = {}): unknown[] {
     o.decideRole === undefined ? (decides ? role : null) : o.decideRole,
     decides,
     o.status ?? "active",
+    o.issuedDaysAgo ?? 0,
   ];
 }
 
@@ -142,14 +158,37 @@ async function insertGrant(w: ClosureWorld, o: GrantSeed = {}): Promise<string> 
   return r.rows[0]!.id;
 }
 
+/**
+ * `createdMinutesAgo` is what makes an EXPIRED session expressible.
+ *
+ * The obvious way to write one is a negative idle window, and it does not work:
+ * `external_sessions_ttl_check` requires idle_expires_at > created_at, so a
+ * session cannot be BORN already idle-expired. The constraint is right — a
+ * sliding window that starts behind its own start is not a window — and the
+ * fixture, not the schema, was wrong to express expiry that way.
+ *
+ * Every timestamp is therefore anchored to one base, `now() - createdMinutesAgo`,
+ * and the windows are measured forward from it exactly as they are in life. A
+ * session created two hours ago with a thirty-minute idle window is idle-expired
+ * and still inside its twelve-hour ceiling, which is the state
+ * `app.external_session_scope()` is being asked about: it reads
+ * idle_expires_at and absolute_expires_at against now() and never reads
+ * last_seen_at.
+ *
+ * With the default of 0 the emitted row is identical to the one this fixture
+ * produced before the base existed.
+ */
 const SESSION_INSERT = `
   insert into public.external_sessions
     (workspace_id, external_access_grant_id, requirement_occurrence_id,
      session_verifier, csrf_verifier, verifier_key_id,
-     idle_expires_at, absolute_expires_at, grant_revocation_version,
-     rotated_from_session_id, status)
+     created_at, last_seen_at, idle_expires_at, absolute_expires_at,
+     grant_revocation_version, rotated_from_session_id, status)
   values ($1::uuid,$2::uuid,$3::uuid,$4::bytea,$5::bytea,$6::text,
-          now() + make_interval(mins => $7::int), now() + make_interval(hours => $8::int),
+          now() - make_interval(mins => $12::int),
+          now() - make_interval(mins => $12::int),
+          now() - make_interval(mins => $12::int) + make_interval(mins => $7::int),
+          now() - make_interval(mins => $12::int) + make_interval(hours => $8::int),
           $9::bigint,$10::uuid,$11::text)
   returning id`;
 
@@ -157,7 +196,7 @@ async function insertSession(
   w: ClosureWorld, grantId: string, o: {
     occurrenceId?: string; idleMinutes?: number; absoluteHours?: number;
     revocationVersion?: number; rotatedFrom?: string | null; status?: string;
-    seed?: string; workspaceId?: string;
+    seed?: string; workspaceId?: string; createdMinutesAgo?: number;
   } = {},
 ): Promise<string> {
   const r = await c.query<{ id: string }>(SESSION_INSERT, [
@@ -165,6 +204,7 @@ async function insertSession(
     verifier(o.seed ?? `s-${randomUUID()}`), verifier(`c-${o.seed ?? randomUUID()}`),
     "s1", o.idleMinutes ?? 30, o.absoluteHours ?? 12,
     o.revocationVersion ?? 0, o.rotatedFrom ?? null, o.status ?? "active",
+    o.createdMinutesAgo ?? 0,
   ]);
   return r.rows[0]!.id;
 }
@@ -344,7 +384,7 @@ describe("INV-056 — the scope never widens, and it is a KEY at every hop", () 
     // workspace. Everything about it resolves; only the grant's own occurrence
     // column says no.
     const e = await refused(() => c.query(SESSION_INSERT, [
-      WS_A, g, wa.blockingB, verifier("s"), verifier("c"), "s1", 30, 12, 0, null, "active",
+      WS_A, g, wa.blockingB, verifier("s"), verifier("c"), "s1", 30, 12, 0, null, "active", 0,
     ]));
     expect(e.code).toBe("23503");
     expect(e.message).toContain("external_sessions_grant_scope_fkey");
@@ -505,7 +545,7 @@ describe("INV-057 — the exchange is single-use, and a second one is UNSTORABLE
     // exchange-born session collides even if a future command forgot to look at
     // `exchange_consumed_at`.
     const e = await refused(() => c.query(SESSION_INSERT, [
-      WS_A, g, wa.blockingA, verifier("second"), verifier("c2"), "s1", 30, 12, 0, null, "active",
+      WS_A, g, wa.blockingA, verifier("second"), verifier("c2"), "s1", 30, 12, 0, null, "active", 0,
     ]));
     expect(e.code).toBe("23505");
     expect(e.message).toContain("external_sessions_one_exchange_key");
@@ -519,7 +559,7 @@ describe("INV-057 — the exchange is single-use, and a second one is UNSTORABLE
     // Two successors of one predecessor would be two live sessions after one
     // rotation, which is what `external_sessions_rotation_key` refuses.
     const e = await refused(() => c.query(SESSION_INSERT, [
-      WS_A, g, wa.blockingA, verifier("r4"), verifier("c4"), "s1", 30, 12, 0, s1, "active",
+      WS_A, g, wa.blockingA, verifier("r4"), verifier("c4"), "s1", 30, 12, 0, s1, "active", 0,
     ]));
     expect(e.code).toBe("23505");
   });
@@ -716,12 +756,20 @@ describe("the external plane sees exactly one occurrence, and nothing else", () 
 
   it("an expired session resolves nothing, and so does an expired grant", async () => {
     const g1 = await insertGrant(wa, { tokenSeed: "e1" });
-    const idle = await insertSession(wa, g1, { seed: "idle", idleMinutes: -1 });
+    // Created two hours ago with the ordinary thirty-minute window: idle-expired
+    // ninety minutes ago, and still well inside its twelve-hour ceiling, so what
+    // this half proves is the IDLE limb of the resolver and not the absolute one.
+    const idle = await insertSession(wa, g1,
+      { seed: "idle", createdMinutesAgo: 120, idleMinutes: 30 });
     const r1 = await asExternalSession<{ n: number }>(idle, WS_A, (x) =>
       x.query("select count(*)::int as n from public.requirement_occurrences"));
     expect(r1.rows[0]!.n).toBe(0);
 
-    const g2 = await insertGrant(wa, { tokenSeed: "e2", expiresInDays: -1 });
+    // Issued eight days ago with the ordinary seven-day life: expired yesterday.
+    // The session on it is brand new and perfectly valid, so the only thing that
+    // can be answering below is the grant's own expiry limb.
+    const g2 = await insertGrant(wa,
+      { tokenSeed: "e2", issuedDaysAgo: 8, expiresInDays: 7 });
     const live = await insertSession(wa, g2, { seed: "live" });
     const r2 = await asExternalSession<{ n: number }>(live, WS_A, (x) =>
       x.query("select count(*)::int as n from public.requirement_occurrences"));
@@ -753,12 +801,38 @@ describe("the external plane sees exactly one occurrence, and nothing else", () 
       await x.query("set local role aktflow_app");
       await x.query("select set_config('app.actor_user_id', $1, true)", [USER_B]);
       await x.query("select set_config('app.external_session_id', $1, true)", [s]);
-      const r = await x.query<{ n: number }>(
-        "select count(*)::int as n from public.requirement_occurrences");
-      expect(r.rows[0]!.n).toBe(0);
+      // WHAT THIS COUNTS, AND WHY IT IS NOT A BARE count(*). The assertion here
+      // used to be that the transaction sees NO requirement occurrence at all,
+      // and it saw four. The four are USER_B's OWN, in WS_B, seen by a member
+      // who is entitled to them — so the old assertion was not measuring the
+      // collapse, it was measuring the member plane working, and calling it a
+      // leak. The claim is about WS_A, the workspace the session was granted in.
+      const byWorkspace = await x.query<{ workspace_id: string; n: number }>(
+        `select workspace_id::text as workspace_id, count(*)::int as n
+           from public.requirement_occurrences group by workspace_id`);
+      const seen = new Map(byWorkspace.rows.map((r) => [r.workspace_id, r.n]));
+
+      // THE CLAIM. The session names an occurrence in WS_A and the actor is a
+      // stranger there, so the whole of WS_A goes dark — including the one
+      // occurrence the session would otherwise resolve.
+      expect(seen.get(WS_A) ?? 0, "WS_A must be invisible: the session collapsed")
+        .toBe(0);
+      const granted = await x.query<{ n: number }>(
+        "select count(*)::int as n from public.requirement_occurrences where id = $1",
+        [wa.blockingA]);
+      expect(granted.rows[0]!.n, "the granted occurrence itself").toBe(0);
+
+      // AND THE POSITIVE CONTROL, which is what makes the two lines above mean
+      // something. Without it this case would also pass against a transaction
+      // that could see nothing whatsoever — a broken connection, a role with no
+      // grants, a policy that denies everyone. USER_B is a real member of WS_B
+      // and still sees WS_B, so the transaction is live and reading: the
+      // collapse is TOWARDS the plane that needs an identity, not into nothing.
+      expect(seen.get(WS_B) ?? 0, "USER_B's own workspace stays visible")
+        .toBeGreaterThan(0);
+
       const who = await x.query<{ v: string | null }>(
         "select app.current_external_session()::text as v");
-      // The collapse is TOWARDS the plane that needs an identity.
       expect(who.rows[0]!.v).toBeNull();
       await x.query("commit");
     } finally { await x.end(); }

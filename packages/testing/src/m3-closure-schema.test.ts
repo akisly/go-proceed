@@ -481,7 +481,16 @@ describe("a stage recorded closed always has a closure fact behind it", () => {
     // does not delete them, and the world's other assertions count stages of the
     // ASSIGNMENT nowhere. Removed here so the fixture stays the one
     // `seedClosureWorld` describes.
-    await c.query(`delete from public.work_stages where id = $1`, [open.rows[0]!.id]);
+    // `disable trigger user` is not optional: app.guard_work_stage() refuses
+    // EVERY delete on this table, the owner's included — which is the case
+    // asserted at :422 — so the cleanup has to suppress the same guard the rest
+    // of this file is here to prove works.
+    await c.query(`alter table public.work_stages disable trigger user`);
+    try {
+      await c.query(`delete from public.work_stages where id = $1`, [open.rows[0]!.id]);
+    } finally {
+      await c.query(`alter table public.work_stages enable trigger user`);
+    }
   });
 
   it("refuses a closure against a stage still recorded open", async () => {
@@ -793,12 +802,20 @@ describe("the decision lineage carries the same guarantees", () => {
     expect(message).toMatch(/requirement_evidence_decisions_authority_check/);
   });
 
-  it("refuses an EXTERNAL decision while v0.1 has no external tables", async () => {
-    // The three external columns are built and shut. Without
-    // requirement_evidence_decisions_v01_internal_only_check a v0.1 decision
-    // could be stored naming three invented uuids and no member — an
-    // unattributable acceptance of a hidden-works obligation. M5 drops exactly
-    // this constraint in the same statement that adds their foreign keys.
+  it("refuses an INVENTED external decision, now that the external tables exist", async () => {
+    // WHAT THIS CASE USED TO SAY, AND WHY IT NO LONGER SAYS IT. When M3 was
+    // written the three external columns were built and shut by
+    // requirement_evidence_decisions_v01_internal_only_check, and this case
+    // named that constraint. Migration 0049 §6 drops it in the same statement
+    // that adds the five external foreign keys, exactly as 0045:717 promised —
+    // so on the applied chain the constraint is gone and asserting its name
+    // asserted the absence of M5.
+    //
+    // The GUARANTEE is unchanged and is what is asserted instead: a decision
+    // naming three invented uuids and no member — an unattributable acceptance
+    // of a hidden-works obligation — is still unstorable. It is now the session
+    // key that refuses it rather than a CHECK, which is the stronger answer,
+    // because it holds against a well-formed external decision too.
     const message = await raised(() => c.query(DECISION_INSERT,
       decisionParams(wa, {
         occurrenceId: wa.blockingA, outcome: "accepted", decidedByMemberId: null,
@@ -807,7 +824,7 @@ describe("the decision lineage carries the same guarantees", () => {
         decisionBatchId: crypto.randomUUID(),
         assuranceLabel: "LINK_CONFIRMATION",
       })));
-    expect(message).toMatch(/requirement_evidence_decisions_v01_internal_only_check/);
+    expect(message).toMatch(/requirement_evidence_decisions_session(_scope)?_fkey/);
   });
 
   it("refuses a head that misreports the outcome it points at", async () => {

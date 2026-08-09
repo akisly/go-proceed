@@ -1,4 +1,5 @@
 import type { Client } from "pg";
+import { dropWorkspaces } from "./pg";
 import { readDodatokN, DODATOK_N_SOURCE_STANDARD } from "./dodatok-n";
 
 /**
@@ -338,92 +339,19 @@ export async function seedRuleVersion(
 }
 
 /**
- * Removes only the workspaces a suite owns, in dependency order — the scoped
- * shape m2-fixture.ts:182-189 argues for. A blanket
+ * Removes only the workspaces a suite owns. A blanket
  * `truncate public.organizations cascade` destroys state the neighbouring
- * suites depend on.
+ * suites depend on, which is the point m2-fixture.ts:182-189 argues.
  *
- * `disable trigger user` is what makes the append-only tables deletable by
- * their owner: it suppresses app.reject_mutation() and the two guards, and it
- * does NOT suppress referential integrity, which is why the order still
- * matters.
+ * The dependency-ordered table list this function used to carry is gone, and
+ * `dropWorkspaces` in ./pg.ts records why in full: the list was seven tables
+ * short and four order violations wrong on 2026-08-08, and two of the tables
+ * involved sit in FK cycles that no hand-written order could have satisfied.
  */
 export async function dropRulesWorkspaces(
   c: Client, workspaceIds: readonly string[],
 ): Promise<void> {
-  const ids = [...workspaceIds];
-  const tables = [
-    // The eight tables migration 0045 adds, ahead of the occurrences and stages
-    // they all point at. Both projections come first because blocked_reasons has
-    // a composite key into requirement_occurrences; the frozen set comes before
-    // the closures it names, and each lineage's head before its facts.
-    //
-    // The four tables migration 0047 adds, ahead of everything they cite: the
-    // two content tables before the version, the version before the act, and the
-    // act before the stage closure and the progress entries it resolves against.
-    "statutory_act_version_signatories", "statutory_act_version_quantities",
-    "statutory_act_versions", "statutory_acts",
-    // THE DAY NAMED IN THE PREVIOUS REVISION OF THIS COMMENT HAS ARRIVED.
-    // public.valuation_allocations gained a foreign key into public.stage_closures
-    // in migration 0046, and it was left out of this list because no suite using
-    // this helper recorded progress. The M4 suites do: an act prints a share of a
-    // ROOT PROGRESS ENTRY, so one has to exist, and a closure that admits it
-    // carves an allocation that names the closure. Allocations therefore come out
-    // before the closures, and the entries before the assignment and the line.
-    "valuation_allocations", "progress_allocation_heads", "progress_entries",
-    "blocked_reasons", "readiness_projection",
-    "stage_closure_occurrences", "stage_closures",
-    "requirement_evidence_decision_heads", "requirement_evidence_decisions",
-    "requirement_exception_heads", "requirement_exceptions",
-    // The three tables migration 0049 adds, in the only order their own keys
-    // permit: a decision names a BATCH, a batch names a SESSION and a GRANT, a
-    // session names a GRANT, and a grant names a REQUIREMENT OCCURRENCE. The
-    // decisions above must therefore already be gone, and the occurrences below
-    // must not be yet. Same lesson as the valuation_allocations line: a table
-    // absent from this list is a 23503 on the day a suite first writes it, three
-    // suites downstream from the one that caused it.
-    "external_decision_batches", "external_sessions", "external_access_grants",
-    // The two tables migration 0043 adds, and the assignment they hang off,
-    // ahead of the bindings: requirement_occurrences_from_binding_fkey points at
-    // contract_version_rule_bindings, so deleting the bindings first raises
-    // 23503 — and `disable trigger user` does not suppress referential
-    // integrity, which is why the ORDER and not the trigger state is what makes
-    // this work.
-    "requirement_occurrences", "work_stages", "work_assignments",
-    // The three tables migration 0041 adds, before everything they cite.
-    "contract_version_rule_bindings", "requirement_rule_versions",
-    "requirement_library_items",
-    "work_items", "contract_versions", "import_row_results", "import_files",
-    "import_batches", "source_amount_resolutions", "contracts",
-    "project_responsibility_assignments", "project_access_grants", "project_parties",
-    // audit_events must precede projects: 0040 gave it a tenant-safe composite
-    // FK to projects with NO ACTION, so deleting a still-cited project raises
-    // 23503 and `disable trigger user` does not help.
-    "audit_events", "projects",
-    "locations", "unit_definitions",
-    "own_legal_entity_profiles", "party_legal_profiles", "party_contacts",
-    "parties", "invitations", "memberships",
-    "transaction_outbox",
-  ];
-  // Resolve the tenant column from the catalog rather than guessing: some M1
-  // tables name it organization_id, and a guess-then-catch loop turns a missing
-  // column into an unrelated failure three suites downstream.
-  const cols = await c.query<{ table_name: string; column_name: string }>(
-    `select table_name, column_name from information_schema.columns
-      where table_schema = 'public' and table_name = any($1::text[])
-        and column_name in ('workspace_id','organization_id')`, [tables]);
-  const tenantColumn = new Map(cols.rows.map((r) => [r.table_name, r.column_name]));
-
-  for (const table of tables) {
-    const col = tenantColumn.get(table);
-    if (!col) continue;
-    await c.query(`alter table public.${table} disable trigger user`).catch(() => undefined);
-    await c.query(`delete from public.${table} where ${col} = any($1::uuid[])`, [ids])
-      .finally(async () => {
-        await c.query(`alter table public.${table} enable trigger user`).catch(() => undefined);
-      });
-  }
-  await c.query(`delete from public.organizations where id = any($1::uuid[])`, [ids]);
+  await dropWorkspaces(c, workspaceIds);
 }
 
 /** Runs SQL and reports the SQLSTATE, or null when it succeeded. */
