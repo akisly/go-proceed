@@ -66,7 +66,11 @@ const TYPED_LINE = {
 let fx: BaselineFixture;
 let library: Map<string, string>;
 
-interface Draft { versionId: string; versionNo: number; workItemId: string }
+interface Draft {
+  versionId: string; versionNo: number; workItemId: string;
+  /** The rule version published so the line could name a work type at all. */
+  ruleVersionId: string;
+}
 
 async function publishedRuleVersionId(over: Record<string, unknown> = {}): Promise<string> {
   const item = library.get("Н.15/1");
@@ -78,24 +82,41 @@ async function publishedRuleVersionId(over: Record<string, unknown> = {}): Promi
   return (await res.json()).ruleVersionId as string;
 }
 
-async function draftWithLine(): Promise<Draft> {
+/**
+ * THE RULE VERSION IS PUBLISHED FIRST, and the order is not cosmetic.
+ * `requireBindableWorkType` (manual-baseline.ts:101-118) refuses a line whose
+ * work type names no rule version published in this workspace YET, so a typed
+ * line added before any rule version exists comes back 422 rather than 201.
+ * The id is carried on the Draft so `publishedVersion` binds THIS version
+ * rather than publishing a second one and turning every caller into an
+ * unintended lineage-mate test.
+ */
+async function draftWithLine(o: { typed?: boolean } = {}): Promise<Draft> {
+  const ruleVersionId = await publishedRuleVersionId();
   const created = await createDraft(fx.contractId);
   if (created.status !== 201) {
     throw new Error(`contract_versions.create returned ${created.status} ${await created.text()}`);
   }
   const { contractVersionId, versionNo } = await created.json();
-  const line = await addLine(contractVersionId, TYPED_LINE);
+  // UNTYPED BY DEFAULT. «records WHETHER the line was classified» asserts
+  // workTypeKeyPresent: false on the audit row, and only a line that genuinely
+  // carries no work type can produce it. Typed is opt-in, for the callers that
+  // go on to publish.
+  const line = await addLine(contractVersionId, o.typed === true ? TYPED_LINE : LINE);
   if (line.status !== 201) {
     throw new Error(`work_items.create returned ${line.status} ${await line.text()}`);
   }
   const body = await line.json();
-  return { versionId: contractVersionId, versionNo, workItemId: body.workItem.workItemId };
+  return {
+    versionId: contractVersionId, versionNo, ruleVersionId,
+    workItemId: body.workItem.workItemId,
+  };
 }
 
 /** A draft carried all the way to `published` through the real route set. */
 async function publishedVersion(): Promise<Draft> {
-  const draft = await draftWithLine();
-  const bound = await bindRules(draft.versionId, [await publishedRuleVersionId()]);
+  const draft = await draftWithLine({ typed: true });
+  const bound = await bindRules(draft.versionId, [draft.ruleVersionId]);
   if (bound.status !== 201) {
     throw new Error(`bind_rules returned ${bound.status} ${await bound.text()}`);
   }
@@ -388,6 +409,7 @@ describe("work_items.remove succeeds on a draft", () => {
     // that the two are indistinguishable, and an act numbered 1, 2, 4 is
     // distinguishable at a glance.
     const { contractVersionId, versionNo } = await (await createDraft(fx.contractId)).json();
+    const ruleVersionId = await publishedRuleVersionId();
     const one = await (await addLine(contractVersionId, TYPED_LINE)).json();
     await addLine(contractVersionId, { ...TYPED_LINE, sourceKey: "1.2" });
     await addLine(contractVersionId, { ...TYPED_LINE, sourceKey: "1.3" });
@@ -398,7 +420,7 @@ describe("work_items.remove succeeds on a draft", () => {
       [contractVersionId]);
     expect(gapped.map((r) => r.position)).toEqual([2, 3]);
 
-    await bindRules(contractVersionId, [await publishedRuleVersionId()]);
+    await bindRules(contractVersionId, [ruleVersionId]);
     const view = await (await getVersion(fx.contractId, versionNo)).json();
     expect((await publishVersion(contractVersionId, manifestOf(view))).status).toBe(201);
 
