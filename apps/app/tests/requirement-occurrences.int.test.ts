@@ -72,6 +72,13 @@ const CAPS = ["assignments.manage", "evidence.record", "rule_bindings.manage",
 
 const LINE = {
   sourceKey: "1.1",
+  // The work type is not decoration and not optional. Since migration 0050 it is
+  // the LEFT-HAND SIDE of the materialisation predicate — the line's work type
+  // against the bound rule version's — and `ruleVersionBody` binds
+  // `montazh-elektrotekhnichnykh-ustanovok`. A line without one intersects
+  // nothing, so the baseline publishes 409 RULE_BINDING_REQUIRED and every case
+  // below dies in its fixture rather than at its assertion.
+  workTypeKey: "montazh-elektrotekhnichnykh-ustanovok",
   description: "Приклад-улаштування прокладки кабелю",
   unitCode: "м",
   contractQuantity: "10",
