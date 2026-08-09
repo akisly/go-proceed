@@ -107,6 +107,15 @@ interface Fx extends BaselineFixture {
   workStageId: string;
   stageClosureId: string;
   occurrenceIds: string[];
+  /**
+   * An assignment on an UNTYPED line of the same baseline.
+   *
+   * Migration 0051 §1 admits any stage key where the line implies none, and the
+   * covered line's baseline implies exactly {prykhovani-roboty}. The two cases
+   * that need an ad-hoc stage — one still open, one closed and not concealed —
+   * build it here.
+   */
+  uncoveredAssignmentId: string;
   /** The two library rows the two obligations cite, keyed «Н.15/1», «Н.15/2». */
   libraryKeys: string[];
   progressEntryId: string;
@@ -278,6 +287,18 @@ async function baseline(): Promise<Fx> {
   if (line.status !== 201) throw new Error(`addLine ${line.status} ${await line.text()}`);
   const workItemId = (await line.json()).workItem.workItemId as string;
 
+  // A SECOND LINE, DELIBERATELY UNTYPED. Publication refuses only TOTAL
+  // disjointness, so this rides along; its assignment implies no stage
+  // vocabulary and is therefore the only place a stage may still be made by
+  // hand.
+  const spare = await addLine(contractVersionId, {
+    sourceKey: "1.2", description: "Приклад-позиція без виду робіт",
+    unitCode: "м", contractQuantity: "10",
+    unitPriceState: "known", unitPrice: "100.00",
+  });
+  if (spare.status !== 201) throw new Error(`addLine ${spare.status} ${await spare.text()}`);
+  const spareWorkItemId = (await spare.json()).workItem.workItemId as string;
+
   const bind = await bindRules(contractVersionId, ruleIds);
   if (bind.status !== 201) throw new Error(`bindRules ${bind.status} ${await bind.text()}`);
   const view = await (await getVersion(base.contractId, 1)).json();
@@ -292,6 +313,13 @@ async function baseline(): Promise<Fx> {
   const assignmentId = (await asg.json()).assignmentId as string;
 
   const { workStageId, occurrenceIds } = await materialisedFor(base, assignmentId);
+
+  const spareAsg = await createAssignment(jsonReq("http://x", { workItemId: spareWorkItemId }),
+    params({ contractId: base.contractId }));
+  if (spareAsg.status !== 201) {
+    throw new Error(`assignments.create (uncovered) ${spareAsg.status} ${await spareAsg.text()}`);
+  }
+  const uncoveredAssignmentId = (await spareAsg.json()).assignmentId as string;
 
   // 1. decide, while nobody has recorded progress on this assignment (INV-069)
   const { POST: decide } = await import(
@@ -339,7 +367,7 @@ async function baseline(): Promise<Fx> {
 
   return {
     ...base, contractVersionId, workItemId, assignmentId, workStageId, stageClosureId,
-    occurrenceIds, libraryKeys, progressEntryId,
+    occurrenceIds, libraryKeys, progressEntryId, uncoveredAssignmentId,
     builderPartyId: builder.partyId,
     builderProjectPartyId: builder.projectPartyId,
     builderContactId: builder.contactId,
@@ -417,7 +445,9 @@ beforeEach(async () => {
 
 describe("statutory_acts.compose — the act is a by-product of closure", () => {
   it("REFUSES a stage that is still open, and names what to do", async () => {
-    const created = await createStage(fx.assignmentId, "montazhni-roboty-m4", true);
+    // The UNCOVERED assignment: work_stages.create refuses a stage key the
+    // baseline does not imply, and this one implies none (0051 §1).
+    const created = await createStage(fx.uncoveredAssignmentId, "montazhni-roboty-m4", true);
     expect(created.status, await created.clone().text()).toBe(201);
     const openStageId = (await created.json()).workStageId as string;
 
@@ -448,7 +478,8 @@ describe("statutory_acts.compose — the act is a by-product of closure", () => 
     // (allow-list item 7; `statutory_acts_concealment_check`). A stage created
     // by hand carries no obligation, so it closes vacuously — which is exactly
     // the case that would slip past a check written only against the status.
-    const created = await createStage(fx.assignmentId, "vidkryti-roboty-m4", false);
+    // The UNCOVERED assignment, for the reason given on the case above.
+    const created = await createStage(fx.uncoveredAssignmentId, "vidkryti-roboty-m4", false);
     expect(created.status, await created.clone().text()).toBe(201);
     const stageId = (await created.json()).workStageId as string;
     const closed = await closeStage(stageId);

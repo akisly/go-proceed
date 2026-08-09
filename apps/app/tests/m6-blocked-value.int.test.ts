@@ -83,7 +83,12 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
  */
 const M6_PRESET_GAP = ["readiness.view"] as const;
 const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign",
-              "progress.record", "evidence.record", "evidence_decisions.decide",
+              // `progress.adjust` is implied by nothing: IMPLIED_BY_PROJECT_ADMIN
+              // (src/lib/authz.ts:84) is exactly project.view and readiness.view, so the
+              // one case here that corrects a lineage was refused 403 before it could
+              // assert the arithmetic ADR-008 is about.
+              "progress.record", "progress.adjust", "evidence.record",
+              "evidence_decisions.decide",
               "stage_closures.close", "requirement_exceptions.decide",
               ...M6_PRESET_GAP] as const;
 
@@ -133,7 +138,11 @@ async function baseline(lines: LineSpec[] = [{
   sourceKey: "1.1", description: "Приклад-прокладання кабелю в штробі",
   contractQuantity: "10", unitPriceState: "known", unitPrice: "100.00",
 }]): Promise<Fx & { workItemIds: string[] }> {
-  const base = await baselineFixture(A);
+  // `current`, not A. The auth mock resolves `current` at call time, so a case
+  // that switches actors and then builds a world got a workspace owned by the new
+  // actor and a membership lookup for the old one — which found nothing and threw
+  // out of the fixture before the case could assert anything.
+  const base = await baselineFixture(current);
   await grant(base.projectId, base.memberId);
   const library = await seedRequirementLibrary(base.workspaceId);
 
@@ -619,7 +628,11 @@ describe("the money rules, end to end", () => {
     const draft = await createDraft(contractId);
     const cvId = (await draft.json()).contractVersionId as string;
     const line = await addLine(cvId, {
-      sourceKey: "2.1", description: "Приклад-друга лінія", unitCode: "м",
+      // The shared `baseline()` helper types its lines; this second-currency
+      // contract is built inline and was missed. Untyped, it intersects no bound
+      // rule and the publish below answers 409 RULE_BINDING_REQUIRED, not 201.
+      sourceKey: "2.1", workTypeKey: WORK_TYPE,
+      description: "Приклад-друга лінія", unitCode: "м",
       contractQuantity: "10", unitPriceState: "known", unitPrice: "50.00",
     });
     expect(line.status, await line.clone().text()).toBe(201);
@@ -740,10 +753,24 @@ describe("who may read the blocked money", () => {
               where project_id = $1 and capability in ('project.view', 'project.admin')`,
       [fx.projectId]);
     const res = await blockedValueRes(fx.projectId);
-    // A 403 and not an empty screen: computing from the authoritative facts
-    // means reading tables `readiness.view` does not govern, and an actor
-    // without `project.view` would otherwise be handed a total of ZERO.
-    expect(res.status).toBe(403);
+    // NOT AN EMPTY SCREEN, AND NOT A TOTAL OF ZERO — which is the whole of what
+    // this case defends. It asserted 403, and the refusal is a 404: the route's
+    // first statement is `select workspace_id from public.projects where id = $1`
+    // (blocked-value/route.ts:68-70), `projects_select` (0011:121-122) admits
+    // only project.view/project.admin, and aktflow_app does not bypass RLS. With
+    // both revoked the project row is invisible, so the route answers «not
+    // found» and never reaches its own `project.view` check.
+    //
+    // The asymmetry with the case above is real and coherent: an actor who can
+    // SEE the project but lacks the specific capability gets 403
+    // SCOPE_PROJECT_DENIED; an actor who cannot see it at all gets 404. Both
+    // refuse, and neither hands back a zero.
+    //
+    // The alternative — reading the project through a definer path so the route
+    // could 403 — would widen a read to obtain a nicer status code, and the RLS
+    // is not QA's to change (CLAUDE.md).
+    expect(res.status).toBe(404);
+    expect((await res.json()).code).toBe("RESOURCE_NOT_FOUND");
   });
 
   it("is invisible to another workspace's owner — no oracle", async () => {

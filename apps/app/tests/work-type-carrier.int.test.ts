@@ -379,9 +379,18 @@ describe("the gate finally fires", () => {
   it("still materialises nothing for an untyped line, and still says why", async () => {
     const electric = await newRuleVersion({ workTypeKey: ELECTRIC });
     const draft = await newDraft();
-    const created = await line(draft.versionId, { sourceKey: "1.1" });
+    // THE UNTYPED LINE TRAVELS WITH A COVERED ONE, and it has to. A baseline
+    // whose lines are ALL untyped intersects the bound set nowhere and
+    // contract_versions.publish refuses it 409 RULE_BINDING_REQUIRED — the case
+    // directly above this one asserts exactly that. With no published version,
+    // assignments.create answered 422 and this case never reached the coverage
+    // it is named for. One covered line is also the only shape a real baseline
+    // takes: a version exists to carry obligations, and an unclassified line
+    // rides along inside it.
+    await line(draft.versionId, { workTypeKey: ELECTRIC, sourceKey: "1.1" });
+    const created = await line(draft.versionId, { sourceKey: "1.2" });
     await bindRules(draft.versionId, [electric]);
-    await publish(draft.versionId, draft.versionNo);
+    expect((await publish(draft.versionId, draft.versionNo)).status).toBe(201);
 
     const res = await createAssignment(created.body.workItem.workItemId);
 

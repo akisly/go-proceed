@@ -98,6 +98,15 @@ interface Fx extends BaselineFixture {
   workStageId: string;
   /** Both occurrences of the stage, in materialisation order. */
   occurrenceIds: string[];
+  /**
+   * An assignment on an UNTYPED line of the same baseline.
+   *
+   * Migration 0051 §1 admits any stage key on an assignment whose line implies
+   * none — `not exists (implied) or k in implied` — and that is the only place a
+   * hand-made stage can still be created now that the covered line's baseline
+   * implies exactly {prykhovani-roboty}.
+   */
+  uncoveredAssignmentId: string;
 }
 
 async function grant(projectId: string, memberId: string): Promise<void> {
@@ -142,6 +151,17 @@ async function baseline(): Promise<Fx> {
   if (line.status !== 201) throw new Error(`addLine ${line.status} ${await line.text()}`);
   const workItemId = (await line.json()).workItem.workItemId as string;
 
+  // A SECOND LINE, DELIBERATELY UNTYPED. Publication still succeeds — it
+  // refuses only TOTAL disjointness — and this line's assignment implies no
+  // stage vocabulary, which is what lets a case below create a stage by hand.
+  const spare = await addLine(contractVersionId, {
+    sourceKey: "1.2", description: "Приклад-позиція без виду робіт",
+    unitCode: "м", contractQuantity: "10",
+    unitPriceState: "known", unitPrice: "100.00",
+  });
+  if (spare.status !== 201) throw new Error(`addLine ${spare.status} ${await spare.text()}`);
+  const spareWorkItemId = (await spare.json()).workItem.workItemId as string;
+
   const bind = await bindRules(contractVersionId, ruleIds);
   if (bind.status !== 201) throw new Error(`bindRules ${bind.status} ${await bind.text()}`);
   const view = await (await getVersion(base.contractId, 1)).json();
@@ -157,7 +177,17 @@ async function baseline(): Promise<Fx> {
 
   const { workStageId, occurrenceIds } = await materialisedFor(base, assignmentId);
 
-  return { ...base, contractVersionId, workItemId, assignmentId, workStageId, occurrenceIds };
+  const spareAsg = await createAssignment(jsonReq("http://x", { workItemId: spareWorkItemId }),
+    { params: Promise.resolve({ contractId: base.contractId }) });
+  if (spareAsg.status !== 201) {
+    throw new Error(`assignments.create (uncovered) ${spareAsg.status} ${await spareAsg.text()}`);
+  }
+  const uncoveredAssignmentId = (await spareAsg.json()).assignmentId as string;
+
+  return {
+    ...base, contractVersionId, workItemId, assignmentId, workStageId, occurrenceIds,
+    uncoveredAssignmentId,
+  };
 }
 
 /**
@@ -699,8 +729,17 @@ describe("the money reads and the project admin", () => {
     const { GET } = await import("../app/v1/projects/[projectId]/readiness/route");
     const res = await GET(new Request("http://x"),
       { params: Promise.resolve({ projectId: fx.projectId }) });
-    expect(res.status).toBe(403);
-    expect((await res.json()).code).toBe("SCOPE_PROJECT_DENIED");
+    // A 404, AND IT IS THE STRICTER ANSWER. The route resolves the project
+    // before it authorizes — `select workspace_id from public.projects where
+    // id = $1` — and `projects_select` (0011:121) admits only project.view or
+    // project.admin, which C holds neither of. So the row is invisible, the
+    // route answers «no such project», and its own capability check is never
+    // reached. A grantless member is not even told the project exists.
+    expect(res.status).toBe(404);
+    const denied = await res.json();
+    expect(denied.code).toBe("RESOURCE_NOT_FOUND");
+    // And the refusal is not an oracle about the contents it withheld.
+    expect(JSON.stringify(denied)).not.toContain(fx.workStageId);
   });
 
   it("does not let a project.admin close a stage", async () => {
@@ -988,9 +1027,14 @@ describe("ADR-008 — the carve happens at admission, and a refusal carves nothi
 describe("work_stages.create", () => {
   it("creates an EMPTY stage and says so", async () => {
     const { POST } = await import("../app/v1/assignments/[assignmentId]/stages/route");
+    // ON THE UNCOVERED ASSIGNMENT. Migration 0051 §2's guard refuses a stage key
+    // the baseline does not imply — «закриття такого етапу нічого не
+    // підтверджує» — and the covered line's baseline implies only
+    // `prykhovani-roboty`. §1 still admits any key where nothing is implied,
+    // which is exactly the hand-made empty stage this case is about.
     const res = await POST(jsonReq("http://x",
       { stageKey: "montazhni-roboty", isConcealed: false }),
-      { params: Promise.resolve({ assignmentId: fx.assignmentId }) });
+      { params: Promise.resolve({ assignmentId: fx.uncoveredAssignmentId }) });
     expect(res.status, await res.clone().text()).toBe(201);
     const body = await res.json();
     expect(body.status).toBe("open");

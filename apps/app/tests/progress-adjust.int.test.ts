@@ -567,10 +567,26 @@ describe("progress.adjust — money", () => {
     const stored = await q<{
       progress_entry_id: string; quantity: string; funded_quantity: string;
       gross_minor_units: string; admitted_by_closure_id: string | null;
-    }>(`select progress_entry_id, quantity::text, funded_quantity::text,
-               gross_minor_units::text, admitted_by_closure_id
-          from public.valuation_allocations
-         where workspace_id = $1 order by created_at, id`, [spare.workspaceId]);
+    // ORDERED BY THE PROGRESS ENTRY, NOT BY THE ALLOCATION'S OWN created_at.
+    // This is the only case in the file whose closure admits TWO entries, so it
+    // is the only one where two allocations are written inside ONE transaction
+    // — by the loop in admission.ts, under the single tx the closure route
+    // opens. `created_at` defaults to `now()`, which is TRANSACTION time, so
+    // both rows carry the same instant and `order by created_at, id` fell
+    // through to a uuid, which is random. The assertion below then compared a
+    // fixed pair against an order that was decided by chance.
+    //
+    // The entries themselves are recorded in two separate HTTP transactions, so
+    // their order is real. This is also the order `pendingEntries` establishes,
+    // which is the order the allocations were carved in.
+    }>(`select va.progress_entry_id, va.quantity::text, va.funded_quantity::text,
+               va.gross_minor_units::text, va.admitted_by_closure_id
+          from public.valuation_allocations va
+          join public.progress_entries p
+            on p.workspace_id = va.workspace_id and p.id = va.progress_entry_id
+         where va.workspace_id = $1
+         order by p.recorded_at, case p.entry_kind when 'root' then 0 else 1 end, p.id`,
+      [spare.workspaceId]);
 
     // Two rows, because a lineage is admitted AS ITS ENTRIES:
     // `valuation_allocations_progress_fact_fkey` (migration 0025) pins an
