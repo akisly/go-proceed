@@ -52,6 +52,19 @@ const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
+const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
+
+/**
+ * UNTYPED, AND THAT IS THE ORDER THIS FILE WORKS IN. `requireBindableWorkType`
+ * refuses a line whose work type names no rule version PUBLISHED IN THIS
+ * WORKSPACE YET (manual-baseline.ts:101-118), and most cases here add their
+ * lines before they publish anything. A blanket work type on this constant
+ * turns every one of them into a 422 at work_items.create, which is how it was
+ * first written and what nineteen red cases said about it.
+ *
+ * `TYPED_LINE` below is for the cases that publish the baseline, and they reach
+ * for it only after a rule version carrying WORK_TYPE exists.
+ */
 const LINE = {
   sourceKey: "1.1",
   description: "Улаштування прокладки кабелю",
@@ -60,6 +73,9 @@ const LINE = {
   unitPriceState: "known" as const,
   unitPrice: "199.99",
 };
+
+/** The same line, once a rule version carrying WORK_TYPE has been published. */
+const TYPED_LINE = { ...LINE, workTypeKey: WORK_TYPE };
 
 let fx: BaselineFixture;
 let library: Map<string, string>;
@@ -81,14 +97,17 @@ async function newRuleVersion(over: Record<string, unknown> = {}): Promise<{
   };
 }
 
-async function draftWithLines(count = 1): Promise<{ versionId: string; versionNo: number }> {
+async function draftWithLines(
+  count = 1, o: { typed?: boolean } = {},
+): Promise<{ versionId: string; versionNo: number }> {
   const created = await createDraft(fx.contractId);
   if (created.status !== 201) {
     throw new Error(`contract_versions.create returned ${created.status} ${await created.text()}`);
   }
   const { contractVersionId, versionNo } = await created.json();
+  const base = o.typed === true ? TYPED_LINE : LINE;
   for (let i = 1; i <= count; i += 1) {
-    const res = await addLine(contractVersionId, { ...LINE, sourceKey: `1.${i}` });
+    const res = await addLine(contractVersionId, { ...base, sourceKey: `1.${i}` });
     if (res.status !== 201) {
       throw new Error(`work_items.create returned ${res.status} ${await res.text()}`);
     }
@@ -334,9 +353,13 @@ describe("a bind lands whole or not at all", () => {
 
 describe("publication fixes the bound set, and fixes it atomically", () => {
   it("publishes with exactly the set that was bound", async () => {
-    const draft = await draftWithLines(2);
+    // The rule versions are published BEFORE the lines, which is the order the
+    // product requires and the order this case needs: a line may only name a
+    // work type some published rule version already carries, and publication
+    // then needs at least one line the bound set can reach.
     const one = await newRuleVersion({ stageKey: "prykhovani-roboty" });
     const two = await newRuleVersion({ stageKey: "zakryttia-kabeliv" });
+    const draft = await draftWithLines(2, { typed: true });
     await bindRules(draft.versionId, [one.ruleVersionId, two.ruleVersionId]);
 
     const view = await (await getVersion(fx.contractId, draft.versionNo)).json();
@@ -363,8 +386,8 @@ describe("publication fixes the bound set, and fixes it atomically", () => {
   });
 
   it("admits no further binding once published — route and database (INV-080)", async () => {
-    const draft = await draftWithLines();
     const bound = await newRuleVersion();
+    const draft = await draftWithLines(1, { typed: true });
     await bindRules(draft.versionId, [bound.ruleVersionId]);
     const view = await (await getVersion(fx.contractId, draft.versionNo)).json();
     expect((await publishVersion(draft.versionId, manifestOf(view))).status).toBe(201);
@@ -393,14 +416,14 @@ describe("publication fixes the bound set, and fixes it atomically", () => {
     // The draft is deliberately GAPPED: publication renumbers 1..N as its first
     // write, so if the transaction were not atomic the positions would come out
     // renumbered even though the version stayed a draft.
-    const draft = await draftWithLines(3);
+    const one = await newRuleVersion({ stageKey: "prykhovani-roboty" });
+    const two = await newRuleVersion({ stageKey: "zakryttia-kabeliv" });
+    const draft = await draftWithLines(3, { typed: true });
     const lines = await q<{ id: string; position: number }>(
       `select id, position from public.work_items where contract_version_id = $1
         order by position`, [draft.versionId]);
     expect((await removeLine(lines[0]!.id)).status).toBe(200);
 
-    const one = await newRuleVersion({ stageKey: "prykhovani-roboty" });
-    const two = await newRuleVersion({ stageKey: "zakryttia-kabeliv" });
     await bindRules(draft.versionId, [one.ruleVersionId, two.ruleVersionId]);
 
     const view = await (await getVersion(fx.contractId, draft.versionNo)).json();
@@ -431,8 +454,8 @@ describe("publication fixes the bound set, and fixes it atomically", () => {
   it("publishes cleanly once the induced failure is gone, from the same draft", async () => {
     // Proves the rollback above left the draft usable rather than wedged, and
     // that the bindings it kept are the ones the eventual publication pins.
-    const draft = await draftWithLines(2);
     const one = await newRuleVersion();
+    const draft = await draftWithLines(2, { typed: true });
     await bindRules(draft.versionId, [one.ruleVersionId]);
     const view = await (await getVersion(fx.contractId, draft.versionNo)).json();
 
@@ -446,13 +469,17 @@ describe("publication fixes the bound set, and fixes it atomically", () => {
   });
 
   it("refuses a stale line set and publishes nothing (the guard before the writes)", async () => {
-    const draft = await draftWithLines();
     const one = await newRuleVersion();
+    const draft = await draftWithLines(1, { typed: true });
     await bindRules(draft.versionId, [one.ruleVersionId]);
     const stale = manifestOf(await (await getVersion(fx.contractId, draft.versionNo)).json());
 
     // Another typist corrects a line between review and publication.
-    expect((await addLine(draft.versionId, { ...LINE, sourceKey: "1.9" })).status).toBe(201);
+    // TYPED_LINE, because the publication at the end of this case must succeed:
+    // an untyped extra line would leave the set intersecting nothing once the
+    // manifest is refreshed, and the 201 below would be a 409 for a reason this
+    // case is not about.
+    expect((await addLine(draft.versionId, { ...TYPED_LINE, sourceKey: "1.9" })).status).toBe(201);
 
     const res = await publishVersion(draft.versionId, stale);
     expect(res.status).toBe(409);
@@ -467,8 +494,8 @@ describe("publication fixes the bound set, and fixes it atomically", () => {
   });
 
   it("refuses a second publication of the same version", async () => {
-    const draft = await draftWithLines();
     const one = await newRuleVersion();
+    const draft = await draftWithLines(1, { typed: true });
     await bindRules(draft.versionId, [one.ruleVersionId]);
     const view = await (await getVersion(fx.contractId, draft.versionNo)).json();
     const hash = manifestOf(view);
@@ -500,8 +527,11 @@ describe("INV-088 — publication order and version_no order agree", () => {
    * held.
    */
   async function boundDraft(): Promise<{ versionId: string; versionNo: number }> {
-    const draft = await draftWithLines();
+    // Rule version first, then a TYPED line: these drafts are all meant to be
+    // publishable, and a draft whose lines reach no bound rule is refused for
+    // the no-overlap reason long before INV-088's ordering is consulted.
     const rv = await newRuleVersion();
+    const draft = await draftWithLines(1, { typed: true });
     const bound = await bindRules(draft.versionId, [rv.ruleVersionId]);
     if (bound.status !== 201) {
       throw new Error(`bind_rules returned ${bound.status} ${await bound.text()}`);

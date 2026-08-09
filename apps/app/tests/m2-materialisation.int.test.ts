@@ -77,11 +77,21 @@ const WT_MASONRY = "muruvannia";
 const STAGE_CONCEALED = "prykhovani-roboty";
 const STAGE_OPEN = "montazhni-roboty";
 
+// The two lines carry the two work types this suite binds rules for, and they
+// carry the ones their descriptions already implied. Since migration 0050 the
+// work type is the LEFT-HAND SIDE of the materialisation predicate, so a line
+// without one intersects no binding: the baseline publishes 409
+// RULE_BINDING_REQUIRED and every case here dies in its fixture. Giving both
+// lines WT_ELECTRIC would publish, and would quietly destroy the case that
+// matters most in this file — «the masonry rule is bound to this very baseline
+// and must not appear» has nothing to say when nothing is masonry.
 const LINES = [
-  { sourceKey: "1.1", description: "Приклад-прокладання кабелю в штробі",
+  { sourceKey: "1.1", workTypeKey: WT_ELECTRIC,
+    description: "Приклад-прокладання кабелю в штробі",
     unitCode: "м", contractQuantity: "10", unitPriceState: "known" as const,
     unitPrice: "100.00" },
-  { sourceKey: "1.2", description: "Приклад-мурування перегородки",
+  { sourceKey: "1.2", workTypeKey: WT_MASONRY,
+    description: "Приклад-мурування перегородки",
     unitCode: "м2", contractQuantity: "20", unitPriceState: "known" as const,
     unitPrice: "250.00" },
 ];

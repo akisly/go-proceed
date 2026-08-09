@@ -8,17 +8,52 @@ export async function q<T extends Record<string, unknown> = Record<string, unkno
 ): Promise<T[]> {
   const c = new Client({ connectionString: ADMIN_URL });
   await c.connect();
-  const r = await c.query(sql, p);
-  await c.end();
-  return r.rows as T[];
+  // try/finally for the reason spelled out on truncateAll: a query that throws
+  // must not leave its connection open, and every helper here opens its own.
+  try {
+    const r = await c.query(sql, p);
+    return r.rows as T[];
+  } finally {
+    await c.end().catch(() => undefined);
+  }
 }
 
+/**
+ * Empties the world between cases.
+ *
+ * THE CONNECTION IS CLOSED EVEN WHEN THE TRUNCATE FAILS, and that is not
+ * housekeeping. `truncate ... cascade` takes ACCESS EXCLUSIVE on organizations
+ * and on everything that cascades from it. Written without a finally, a single
+ * failed truncate leaked a CONNECTED client still holding — or still queued
+ * for — those locks, and nothing ever closed it: the next file's truncate then
+ * queued behind a client no test owned any more. That is the shape of the
+ * `deadlock detected` this helper raised in m3-refusal, and of the empty
+ * `memberships` lookup that crashed baselineFixture two files later, because a
+ * beforeEach that throws leaves the suite running against a half-emptied
+ * database.
+ *
+ * `lock_timeout` turns the remaining lock contention from a deadlock into a
+ * named, fast failure. A test suite that cannot get the lock in five seconds
+ * has a leak somewhere else, and should say so rather than hang.
+ */
 export async function truncateAll(): Promise<void> {
   const c = new Client({ connectionString: ADMIN_URL });
   await c.connect();
-  await c.query("truncate public.organizations cascade");
-  await c.query("truncate public.audit_events, public.transaction_outbox, public.idempotency_records cascade");
-  await c.end();
+  try {
+    await c.query("set lock_timeout = '5s'");
+    // ONE STATEMENT, NOT TWO, and that is the other half of the deadlock. As two
+    // statements this took ACCESS EXCLUSIVE on organizations and everything
+    // cascading from it, COMMITTED, and only then reached for audit_events — so
+    // an application transaction holding audit_events and waiting on
+    // organizations closed the cycle. A single TRUNCATE acquires every one of
+    // these locks together, so there is no window in which this helper holds one
+    // and wants another.
+    await c.query(`truncate
+      public.organizations, public.audit_events,
+      public.transaction_outbox, public.idempotency_records cascade`);
+  } finally {
+    await c.end().catch(() => undefined);
+  }
 }
 
 export const jsonReq = (url: string, body: unknown, method = "POST"): Request =>

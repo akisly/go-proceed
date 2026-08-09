@@ -47,6 +47,22 @@ const LINE = {
   unitPrice: "199.99",
 };
 
+/**
+ * The same line, carrying the work type the bound rule version carries.
+ *
+ * Since migration 0050 the work type is the left-hand side of the
+ * materialisation predicate, so a baseline whose lines have none intersects no
+ * binding and `contract_versions.publish` answers 409 RULE_BINDING_REQUIRED.
+ * Every path in this file that actually PUBLISHES needs this one.
+ *
+ * Bare `LINE` is kept, and deliberately: the audit cases below assert
+ * `workTypeKeyPresent: false` on work_items.create, and they can only do that
+ * with a line that genuinely carries no work type.
+ */
+const TYPED_LINE = {
+  ...LINE, workTypeKey: "montazh-elektrotekhnichnykh-ustanovok",
+};
+
 let fx: BaselineFixture;
 let library: Map<string, string>;
 
@@ -68,7 +84,7 @@ async function draftWithLine(): Promise<Draft> {
     throw new Error(`contract_versions.create returned ${created.status} ${await created.text()}`);
   }
   const { contractVersionId, versionNo } = await created.json();
-  const line = await addLine(contractVersionId, LINE);
+  const line = await addLine(contractVersionId, TYPED_LINE);
   if (line.status !== 201) {
     throw new Error(`work_items.create returned ${line.status} ${await line.text()}`);
   }
@@ -372,9 +388,9 @@ describe("work_items.remove succeeds on a draft", () => {
     // that the two are indistinguishable, and an act numbered 1, 2, 4 is
     // distinguishable at a glance.
     const { contractVersionId, versionNo } = await (await createDraft(fx.contractId)).json();
-    const one = await (await addLine(contractVersionId, LINE)).json();
-    await addLine(contractVersionId, { ...LINE, sourceKey: "1.2" });
-    await addLine(contractVersionId, { ...LINE, sourceKey: "1.3" });
+    const one = await (await addLine(contractVersionId, TYPED_LINE)).json();
+    await addLine(contractVersionId, { ...TYPED_LINE, sourceKey: "1.2" });
+    await addLine(contractVersionId, { ...TYPED_LINE, sourceKey: "1.3" });
     await removeLine(one.workItem.workItemId);
 
     const gapped = await q<{ position: number }>(

@@ -324,9 +324,17 @@ describe("the words the reviewer submits under", () => {
   });
 
   it("binds the version id to a digest of the exact wording", () => {
+    // THE SEPARATOR IS NUL, AND IT MATTERS. This assertion joined on "\n" while
+    // external-link.ts joins on "\0", so it recomputed a different digest and
+    // called the implementation stale. NUL is the right one and the test was
+    // wrong to expect otherwise: EXTERNAL_CONFIRMATION_TEXT is multi-sentence
+    // prose that may legitimately carry a newline, and a newline separator over
+    // strings that can contain newlines is ambiguous — wording could move across
+    // a boundary and leave the digest unchanged, which is the one thing this id
+    // exists to prevent. None of the three strings can contain a NUL.
     const expected = createHash("sha256")
       .update([EXTERNAL_CONFIRMATION_TEXT, EXTERNAL_LEVEL_STATEMENT,
-               EXTERNAL_NOT_A_SIGNATURE].join("\n"), "utf8")
+               EXTERNAL_NOT_A_SIGNATURE].join("\0"), "utf8")
       .digest("hex").slice(0, 12);
     expect(EXTERNAL_CONFIRMATION_TEXT_VERSION).toBe(`external-occurrence-decision/1+${expected}`);
     // THE PROPERTY THIS EXISTS FOR: change any of the three strings and the id
@@ -335,7 +343,7 @@ describe("the words the reviewer submits under", () => {
     // have let both claim the same confirmation.
     const drifted = createHash("sha256")
       .update([EXTERNAL_CONFIRMATION_TEXT + ".", EXTERNAL_LEVEL_STATEMENT,
-               EXTERNAL_NOT_A_SIGNATURE].join("\n"), "utf8")
+               EXTERNAL_NOT_A_SIGNATURE].join("\0"), "utf8")
       .digest("hex").slice(0, 12);
     expect(drifted).not.toBe(expected);
   });

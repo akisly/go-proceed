@@ -138,7 +138,11 @@ async function baseline(): Promise<Fx> {
   const draft = await createDraft(base.contractId);
   const contractVersionId = (await draft.json()).contractVersionId as string;
   const line = await addLine(contractVersionId, {
-    sourceKey: "1.1", description: "Приклад-прокладання кабелю в штробі",
+    // WORK_TYPE, not omitted: since 0050 the line's work type is the left-hand
+    // side of the materialisation predicate, and the rule bound below carries
+    // WORK_TYPE. A line without one intersects nothing and the publish 409s.
+    sourceKey: "1.1", workTypeKey: WORK_TYPE,
+    description: "Приклад-прокладання кабелю в штробі",
     unitCode: "м", contractQuantity: "10",
     unitPriceState: "known", unitPrice: "100.00",
   });

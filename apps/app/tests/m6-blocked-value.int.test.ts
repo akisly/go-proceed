@@ -118,6 +118,8 @@ interface LineSpec {
   unitPriceState: "known" | "zero" | "missing";
   unitPrice?: string;
   unitCode?: string;
+  /** Defaults to WORK_TYPE, which is the type the two bound rules carry. */
+  workTypeKey?: string;
 }
 
 /**
@@ -151,6 +153,11 @@ async function baseline(lines: LineSpec[] = [{
   for (const spec of lines) {
     const line = await addLine(contractVersionId, {
       sourceKey: spec.sourceKey, description: spec.description,
+      // Since 0050 a line with no work type intersects no binding, so the
+      // publish below would 409 RULE_BINDING_REQUIRED and every case in this
+      // file would die in its fixture. The default matches the two rules bound
+      // above; a spec may still override it to build a non-matching line.
+      workTypeKey: spec.workTypeKey ?? WORK_TYPE,
       unitCode: spec.unitCode ?? "м", contractQuantity: spec.contractQuantity,
       unitPriceState: spec.unitPriceState,
       ...(spec.unitPrice === undefined ? {} : { unitPrice: spec.unitPrice }),
