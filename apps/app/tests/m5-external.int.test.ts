@@ -381,7 +381,12 @@ describe("occurrence_grants.issue — INV-044", () => {
     expect(res.status).toBe(404);
     const absent = await issue(crypto.randomUUID());
     expect(absent.status).toBe(404);
-    expect(await res.text()).toBe(await absent.text());
+    // Envelope, not bytes: `requestId` is minted per request and is the one
+    // field that must differ. Everything an oracle could be built from is still
+    // compared.
+    const [foreign, missing] = [await res.json(), await absent.json()];
+    expect(foreign.code).toBe("RESOURCE_NOT_FOUND");
+    expect({ ...foreign, requestId: null }).toEqual({ ...missing, requestId: null });
   });
 });
 
@@ -461,13 +466,25 @@ describe("external.exchange — INV-057", () => {
 
     const replay = await exchange(token);
     expect(replay.status).toBe(404);
-    expect((await replay.json()).code).toBe("EXTERNAL_SHARE_INVALID");
-    // A token that never existed produces a BYTE-IDENTICAL response. «never
-    // reveals whether a recipient, package, occurrence, workspace, or grant
-    // exists».
     const never = await exchange("z".repeat(43));
     expect(never.status).toBe(404);
-    expect(await replay.text()).toBe(await never.text());
+
+    // ONE READ PER RESPONSE. A WHATWG Response body is a one-shot stream, and
+    // this case consumed `replay` twice — .json() here and .text() below — which
+    // threw «Body is unusable» before it compared anything.
+    //
+    // AND THE COMPARISON IS ON THE ENVELOPE, NOT THE BYTES. Every problem
+    // document carries a per-request `requestId` (problem.ts), minted fresh by
+    // `requestIdFrom` when the caller sends no X-Request-Id — and `exchange()`
+    // sends none. Two separate requests can therefore never be byte-identical,
+    // and demanding it would fail on the one field that is SUPPOSED to differ.
+    // Everything that could leak — code, detail, fieldErrors, retryable,
+    // userAction — is still compared for equality, which is the anti-oracle
+    // claim: «never reveals whether a recipient, package, occurrence, workspace,
+    // or grant exists». Same idiom this file already uses further down.
+    const [consumed, unknown] = [await replay.json(), await never.json()];
+    expect(consumed.code).toBe("EXTERNAL_SHARE_INVALID");
+    expect({ ...consumed, requestId: null }).toEqual({ ...unknown, requestId: null });
 
     expect(await q("select 1 from public.external_sessions")).toHaveLength(1);
   });

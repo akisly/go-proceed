@@ -240,9 +240,14 @@ describe("admission — several entries admitted by one closure", () => {
     expect(BigInt(closure.admission.grossMinorUnits)).toBe(BigInt(item.gross));
 
     const rows = await q<{ progress_entry_id: string; gross_minor_units: string }>(
-      `select progress_entry_id, gross_minor_units::text
-         from public.valuation_allocations where workspace_id = $1
-        order by created_at, id`, [fx.workspaceId]);
+      // See allocationsOf: one closure's allocations share a created_at, so the
+      // entry's own recording order is the only real one.
+      `select va.progress_entry_id, va.gross_minor_units::text
+         from public.valuation_allocations va
+         join public.progress_entries p
+           on p.workspace_id = va.workspace_id and p.id = va.progress_entry_id
+        where va.workspace_id = $1
+        order by p.recorded_at, case p.entry_kind when 'root' then 0 else 1 end, p.id`, [fx.workspaceId]);
     expect(rows.map((r) => r.progress_entry_id)).toEqual(entryIds);
     // 4 of 10 units drew 40% of the pool and 6 drew the remaining 60%. Neither
     // took all of it, which is the whole point.
@@ -311,13 +316,24 @@ async function adjust(entryId: string, quantity: string): Promise<Response> {
 
 /** Every allocation of one workspace, oldest first, with the figures that matter. */
 async function allocationsOf(workspaceId: string) {
+  // ORDERED BY THE PROGRESS ENTRY, NOT BY THE ALLOCATION'S OWN created_at.
+  // ADR-008 moved the carve INTO the closure transaction, so every allocation a
+  // closure writes shares one `now()` — `created_at` defaults to it and it is
+  // transaction time. `order by created_at, id` therefore fell through to a
+  // random uuid, and the ordered comparisons below were being decided by chance.
+  //
+  // The entries are recorded in separate HTTP transactions, so THEIR order is
+  // real, and it is the order `pendingEntries` walks when it carves.
   return q<{
     quantity: string; funded_quantity: string;
     net_minor_units: string; tax_minor_units: string; gross_minor_units: string;
-  }>(`select quantity::text, funded_quantity::text, net_minor_units::text,
-             tax_minor_units::text, gross_minor_units::text
-        from public.valuation_allocations
-       where workspace_id = $1 order by created_at, id`, [workspaceId]);
+  }>(`select va.quantity::text, va.funded_quantity::text, va.net_minor_units::text,
+             va.tax_minor_units::text, va.gross_minor_units::text
+        from public.valuation_allocations va
+        join public.progress_entries p
+          on p.workspace_id = va.workspace_id and p.id = va.progress_entry_id
+       where va.workspace_id = $1
+       order by p.recorded_at, case p.entry_kind when 'root' then 0 else 1 end, p.id`, [workspaceId]);
 }
 
 describe("admission — a lineage corrected before it was admitted", () => {

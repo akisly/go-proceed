@@ -102,9 +102,19 @@ const DECIDING = { "external.view_scope": true, "external.decide_evidence": true
  *             membership or a capability from it. All of them return NULL or
  *             false when the actor GUC is "", which is what the external plane
  *             and the anonymous plane both set it to.
- *   external — the five migration 0049 §7 adds. All of them return NULL when
- *             the session GUC is empty, when an actor GUC is present, or when
- *             the session behind it is expired, revoked or replaced.
+ *   external — the five migration 0049 §7 adds, and the lineage walker 0055
+ *             adds beside them. All of them return NULL — or, for the walker,
+ *             the empty set — when the session GUC is empty, when an actor GUC
+ *             is present, or when the session behind it is expired, revoked or
+ *             replaced.
+ *
+ * `app.external_session_lineage()` was added here after reading it, which is the
+ * remedy this file's own header prescribes for a wrapper it does not yet know.
+ * It is subject-bound in the only way that matters: the anchor of its recursive
+ * term is `where s.id = app.current_external_session()`, so with no session the
+ * CTE has no starting row and the set is empty — a policy naming it matches
+ * nothing. It walks `rotated_from_session_id` upwards only, so it can never
+ * reach a session the caller did not descend from.
  */
 const SUBJECT_PREDICATES = [
   "app.current_actor",
@@ -116,6 +126,7 @@ const SUBJECT_PREDICATES = [
   "app.external_session_occurrence",
   "app.external_session_workspace",
   "app.external_session_may_decide",
+  "app.external_session_lineage",
 ] as const;
 
 /**
