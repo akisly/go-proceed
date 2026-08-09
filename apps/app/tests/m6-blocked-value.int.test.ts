@@ -173,7 +173,7 @@ async function baseline(lines: LineSpec[] = [{
   if (pub.status !== 201) throw new Error(`publishVersion ${pub.status} ${await pub.text()}`);
 
   const assignmentId = await assign(base.contractId, workItemIds[0]!);
-  const written = await materialiseFor(base, contractVersionId, assignmentId);
+  const written = await materialisedFor(base, assignmentId);
 
   return {
     ...base, contractVersionId, workItemId: workItemIds[0]!, workItemIds, assignmentId,
@@ -192,35 +192,29 @@ async function assign(contractId: string, workItemId: string,
 }
 
 /**
- * Writes the obligation set `assignments.create` cannot write yet. THE
- * PRECONDITION IS AN Error AND NOT AN expect: «the route materialised nothing»
- * is a precondition of this harness and never a requirement of the product.
+ * Reads the obligation set `assignments.create` writes for itself.
+ *
+ * `materialiseFor` hand-wrote it while no work line could carry a work type,
+ * and guarded itself with an Error naming the remedy for the day one could:
+ * delete the harness and let the route build the fixture. The lines carry
+ * WORK_TYPE now, so this reads what the route wrote.
  */
-async function materialiseFor(
-  base: BaselineFixture, contractVersionId: string, assignmentId: string,
+async function materialisedFor(
+  base: BaselineFixture, assignmentId: string,
 ): Promise<{ stageIds: string[]; occurrenceIds: string[] }> {
-  return withTenantTx(
-    { actorUserId: A, organizationId: null, requestId: crypto.randomUUID() },
-    async (tx) => {
-      const existing = await tx.query(
-        `select count(*)::int as n from public.requirement_occurrences
-          where workspace_id = $1 and work_assignment_id = $2`,
-        [base.workspaceId, assignmentId]);
-      if (existing.rows[0].n > 0) {
-        throw new Error(
-          "m6-blocked-value: assignments.create has already materialised this "
-          + "assignment's obligation set. The carrier has existed since migration 0050; "
-          + "reaching this means this fixture's line acquired a work type: delete this "
-          + "harness and let the route build the fixture.");
-      }
-      const bound = (await tx.query(BOUND_RULE_VERSIONS_SQL,
-        [base.workspaceId, contractVersionId])).rows.map(boundRuleVersion);
-      const plan = planForWorkType(WORK_TYPE, bound);
-      return materialiseOccurrences(tx, {
-        workspaceId: base.workspaceId, projectId: base.projectId, contractId: base.contractId,
-        contractVersionId, assignmentId, memberId: base.memberId,
-      }, plan);
-    });
+  const rows = await q<{ id: string; work_stage_id: string | null }>(
+    `select id, work_stage_id from public.requirement_occurrences
+      where workspace_id = $1 and work_assignment_id = $2
+      order by id`, [base.workspaceId, assignmentId]);
+  if (rows.length === 0) {
+    throw new Error("m6-blocked-value: assignments.create materialised nothing");
+  }
+  const stageIds = [...new Set(rows.map((r) => r.work_stage_id).filter(
+    (s): s is string => s !== null))];
+  if (stageIds.length === 0) {
+    throw new Error("m6-blocked-value: the materialised occurrences carry no stage");
+  }
+  return { stageIds, occurrenceIds: rows.map((r) => r.id) };
 }
 
 async function decide(occurrenceId: string, body: Record<string, unknown>): Promise<Response> {
@@ -640,7 +634,7 @@ describe("the money rules, end to end", () => {
     expect((await publishVersion(cvId, manifestOf(view))).status).toBe(201);
 
     const assignmentId = await assign(contractId, workItemId);
-    await materialiseFor(fx, cvId, assignmentId);
+    await materialisedFor(fx, assignmentId);
 
     const body = await blockedValue(fx.projectId);
     expect(body.totalsByCurrency.map((t: any) => t.currency)).toEqual(["EUR", "UAH"]);

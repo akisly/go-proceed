@@ -199,47 +199,22 @@ async function boundRules() {
 }
 
 /**
- * Materialises the plan for a SUPPLIED work type onto an assignment, and returns
- * the plan it wrote.
+ * The plan `assignments.create` materialised from, computed WITHOUT writing.
  *
- * WHY THE PLAN IS SUPPLIED AND NOT COMPUTED FROM THE LINE. The line has no work
- * type to compute from; a helper that used `planMaterialisation` would write
- * nothing and every assertion downstream would pass vacuously — the exact
- * failure INV-072 is about, reproduced inside a test file.
- *
- * THE PRECONDITION BELOW IS THE ONE LINE THE WORK-TYPE SLICE MUST DELETE. On the
- * day `assignments.create` can materialise, it will already have written this
- * assignment's set and writing it again would collide on
- * `requirement_occurrences_materialisation_uniq`. The failure is deliberately an
- * explicit Error and not an `expect`, because «the route materialised nothing»
- * is a precondition of this harness and never a requirement of the product.
+ * The harness that stood here wrote the occurrences itself and returned the
+ * plan it used, because no work line could carry a work type. It named its own
+ * deletion: on the day the route materialises, writing again would collide on
+ * `requirement_occurrences_materialisation_uniq`, and what the suite should do
+ * instead is assert the ROUTE's rows against the plan. The lines carry their
+ * work types now, so that is what this does — it plans, and the caller compares
+ * the plan with what the route actually stored.
  */
-async function materialiseFor(
-  assignmentId: string, workTypeKey: string,
-): Promise<MaterialisationPlan> {
+async function planFor(workTypeKey: string): Promise<MaterialisationPlan> {
   return withTenantTx({ actorUserId: A, organizationId: null, requestId: crypto.randomUUID() },
     async (tx) => {
-      const existing = await tx.query(
-        `select count(*)::int as n from public.requirement_occurrences
-          where workspace_id = $1 and work_assignment_id = $2`,
-        [fx.workspaceId, assignmentId]);
-      if (existing.rows[0].n > 0) {
-        throw new Error(
-          "m2-materialisation: assignments.create has already materialised this "
-          + "assignment's obligation set, so this harness cannot write it a second "
-          + "time. The carrier has existed since migration 0050; reaching this means "
-          + "this fixture's line acquired a work type. That is the rewrite the header "
-          + "names: delete materialiseFor and assert the ROUTE's rows against "
-          + "planMaterialisation instead.");
-      }
       const bound = (await tx.query(BOUND_RULE_VERSIONS_SQL,
         [fx.workspaceId, fx.contractVersionId])).rows.map(boundRuleVersion);
-      const plan = planForWorkType(workTypeKey, bound);
-      await materialiseOccurrences(tx, {
-        workspaceId: fx.workspaceId, projectId: fx.projectId, contractId: fx.contractId,
-        contractVersionId: fx.contractVersionId, assignmentId, memberId: fx.memberId,
-      }, plan);
-      return plan;
+      return planForWorkType(workTypeKey, bound);
     });
 }
 
@@ -297,7 +272,7 @@ describe("the obligation set is exactly what the bindings imply", () => {
   it("writes one row per planned occurrence and not one more", async () => {
     const created = await createAssignment(fx.workItemIds[0]!);
     expect(created.status).toBe(201);
-    const plan = await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+    const plan = await planFor(WT_ELECTRIC);
 
     const stored = await q<{ rule_version_id: string }>(
       `select rule_version_id from public.requirement_occurrences
@@ -316,7 +291,7 @@ describe("the obligation set is exactly what the bindings imply", () => {
     // whole workspace, because an occurrence that escaped through some other
     // command would still be an occurrence pinning nothing agreed.
     const created = await createAssignment(fx.workItemIds[0]!);
-    await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+    await planFor(WT_ELECTRIC);
 
     const orphans = await q<{ n: number }>(
       `select count(*)::int as n
@@ -337,7 +312,7 @@ describe("the obligation set is exactly what the bindings imply", () => {
     // a writer that paired columns correctly for the first occurrence and
     // shifted them for the second would pass the narrower test.
     const created = await createAssignment(fx.workItemIds[0]!);
-    await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+    await planFor(WT_ELECTRIC);
 
     const mismatches = await q<{ mismatch: string }>(
       `select unnest(array_remove(array[
@@ -373,7 +348,7 @@ describe("the obligation set is exactly what the bindings imply", () => {
       // command asks anyone — and the derivation is that any rule timed
       // before_concealment conceals its stage.
       const created = await createAssignment(fx.workItemIds[0]!);
-      await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+      await planFor(WT_ELECTRIC);
 
       const stages = await q<{ stage_key: string; is_concealed: boolean }>(
         `select stage_key, is_concealed from public.work_stages
@@ -388,7 +363,7 @@ describe("the obligation set is exactly what the bindings imply", () => {
 
   it("attaches every occurrence to a stage of its OWN assignment", async () => {
     const created = await createAssignment(fx.workItemIds[0]!);
-    await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+    await planFor(WT_ELECTRIC);
     const strays = await q<{ n: number }>(
       `select count(*)::int as n
          from public.requirement_occurrences o
@@ -442,7 +417,7 @@ describe("the obligation set is exactly what the bindings imply", () => {
     expect(created.status).toBe(201);
 
     // Masonry is what THIS baseline bound, and it materialises.
-    const plan = await materialiseFor(created.body.assignmentId, WT_MASONRY);
+    const plan = await planFor(WT_MASONRY);
     expect(plan.occurrences.map((o) => o.rule.ruleVersionId)).toEqual([fx.masonryRuleId]);
 
     // The electric rule is bound to baseline 1 and not to this one. Writing it
@@ -607,7 +582,7 @@ describe("the v0.1 hold, and the command that refuses every other shape", () => 
     // scopes on purpose (contradiction 6), so this assertion is about the
     // command's refusal and not about the column's vocabulary.
     const created = await createAssignment(fx.workItemIds[0]!);
-    await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+    await planFor(WT_ELECTRIC);
     const shapes = await q<{ intervention_type: string; blocking_scope: string }>(
       `select distinct intervention_type, blocking_scope
          from public.requirement_occurrences where workspace_id = $1`,
@@ -654,7 +629,7 @@ describe("the upload gate reads the occurrence and never widens when it has one"
     // would pass every media-type test ever written and still accept ten times
     // what the requirement permits.
     const created = await createAssignment(fx.workItemIds[0]!);
-    await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+    await planFor(WT_ELECTRIC);
     const occurrenceId = await occurrenceOf(created.body.assignmentId);
 
     const tooBig = await intent(created.body.assignmentId, {
@@ -691,7 +666,7 @@ describe("the upload gate reads the occurrence and never widens when it has one"
       { params: Promise.resolve({ contractId: fx.contractId }) });
     const created = await res.json();
     expect(created.requirementOccurrences.usedRetiredTemplatePin).toBe(true);
-    await materialiseFor(created.assignmentId, WT_ELECTRIC);
+    await planFor(WT_ELECTRIC);
     const occurrenceId = await occurrenceOf(created.assignmentId);
 
     // image/png is what the TEMPLATE allows and what the occurrence does not.
@@ -710,15 +685,17 @@ describe("the upload gate reads the occurrence and never widens when it has one"
       // 50 MB of anything. Asserted over the audit rows, because that is where
       // «the gate was the fallback» is provable after the fact.
       const created = await createAssignment(fx.workItemIds[0]!);
-      await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+      await planFor(WT_ELECTRIC);
       const occurrenceId = await occurrenceOf(created.body.assignmentId);
       await intent(created.body.assignmentId, { ...VALID, requirementOccurrenceId: occurrenceId });
       await intent(created.body.assignmentId, VALID);
 
       const audit = await q<{ details: any }>(
+        // `occurred_at`, not `created_at`: public.audit_events has never had a
+        // created_at column, so this query raised rather than ordering anything.
         `select details from public.audit_events
           where organization_id = $1 and action = 'upload_intent.authorized'
-          order by created_at`, [fx.workspaceId]);
+          order by occurred_at`, [fx.workspaceId]);
       expect(audit.length).toBeGreaterThanOrEqual(2);
       for (const row of audit) {
         if (row.details.requirementOccurrenceId) {
@@ -729,7 +706,7 @@ describe("the upload gate reads the occurrence and never widens when it has one"
 
   it("binds the stored intent to the obligation it was captured against", async () => {
     const created = await createAssignment(fx.workItemIds[0]!);
-    await materialiseFor(created.body.assignmentId, WT_ELECTRIC);
+    await planFor(WT_ELECTRIC);
     const occurrenceId = await occurrenceOf(created.body.assignmentId);
     const res = await intent(created.body.assignmentId,
       { ...VALID, requirementOccurrenceId: occurrenceId });

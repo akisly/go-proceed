@@ -162,32 +162,26 @@ async function baseline(): Promise<Fx> {
   if (asg.status !== 201) throw new Error(`assignments.create ${asg.status} ${await asg.text()}`);
   const assignmentId = (await asg.json()).assignmentId as string;
 
-  const written = await withTenantTx(
-    { actorUserId: A, organizationId: null, requestId: crypto.randomUUID() },
-    async (tx) => {
-      const existing = await tx.query(
-        `select count(*)::int as n from public.requirement_occurrences
-          where workspace_id = $1 and work_assignment_id = $2`,
-        [base.workspaceId, assignmentId]);
-      if (existing.rows[0].n > 0) {
-        throw new Error(
-          "m5-external: assignments.create has already materialised this assignment's "
-          + "obligation set. The carrier has existed since migration 0050; reaching "
-          + "this means this fixture's line acquired a work type: delete this harness "
-          + "and let the route build the fixture.");
-      }
-      const bound = (await tx.query(BOUND_RULE_VERSIONS_SQL,
-        [base.workspaceId, contractVersionId])).rows.map(boundRuleVersion);
-      const plan = planForWorkType(WORK_TYPE, bound);
-      return materialiseOccurrences(tx, {
-        workspaceId: base.workspaceId, projectId: base.projectId, contractId: base.contractId,
-        contractVersionId, assignmentId, memberId: base.memberId,
-      }, plan);
-    });
+  // THE ROUTE BUILDS THIS NOW. What stood here hand-wrote the obligation set,
+  // because no work line could carry a work type and assignments.create
+  // therefore materialised nothing; it guarded itself with an Error naming the
+  // remedy for the day one could. The line above carries WORK_TYPE, so the
+  // route materialises the occurrence and this reads it.
+  const written = await q<{ id: string; work_stage_id: string | null }>(
+    `select id, work_stage_id from public.requirement_occurrences
+      where workspace_id = $1 and work_assignment_id = $2
+      order by id`, [base.workspaceId, assignmentId]);
+  if (written.length === 0) {
+    throw new Error("m5-external: assignments.create materialised nothing");
+  }
+  const stageId = written[0]!.work_stage_id;
+  if (stageId === null) {
+    throw new Error("m5-external: the materialised occurrence carries no stage");
+  }
 
   return {
     ...base, contractVersionId, workItemId, assignmentId,
-    workStageId: written.stageIds[0]!, occurrenceId: written.occurrenceIds[0]!,
+    workStageId: stageId, occurrenceId: written[0]!.id,
   };
 }
 
