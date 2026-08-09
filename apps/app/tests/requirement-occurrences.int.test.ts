@@ -154,18 +154,42 @@ async function boundBaseline(): Promise<Fx> {
 }
 
 /**
- * Materialises ONE named rule version onto an assignment, with the plan supplied
- * by the test.
+ * The occurrence `assignments.create` materialised for one bound rule version.
  *
- * Not `planMaterialisation`: this fixture's lines are untyped (see the header),
- * so a helper that used it would match nothing, materialise nothing, and every
- * assertion downstream of it would pass vacuously — the exact failure mode
- * INV-072 is about, reproduced in a test file. What this exercises is the
- * WRITER: the INSERT, its column pairing, the RLS insert policy and every
- * foreign key of migration 0043 §4.
+ * THIS USED TO DO THE WRITING. It called `materialiseOccurrences` directly
+ * because the fixture's line carried no work type, so the route materialised
+ * nothing and there was nothing to read. The line carries one now, the route
+ * writes the stage and the occurrence, and a second write collides on
+ * `work_stages_closable_unit_uniq` — which is what all eleven of this file's
+ * failures were.
+ *
+ * The writer's own coverage is not lost by reading instead: the INSERT, its
+ * column pairing, the RLS insert policy and the foreign keys of migration 0043
+ * §4 are all exercised by `assignments.create` performing them for real, which
+ * is a stronger exercise than a test calling the writer directly.
  */
-async function materialiseOne(assignmentId: string, ruleVersionId: string): Promise<string> {
-  const written = await withTenantTx(
+async function materialisedOne(assignmentId: string, ruleVersionId: string): Promise<string> {
+  const rows = await q<{ id: string }>(
+    `select id from public.requirement_occurrences
+      where workspace_id = $1 and work_assignment_id = $2 and rule_version_id = $3`,
+    [fx.workspaceId, assignmentId, ruleVersionId]);
+  if (rows.length !== 1) {
+    throw new Error(
+      `requirement-occurrences: expected exactly one occurrence for rule version `
+      + `${ruleVersionId}, got ${rows.length}`);
+  }
+  return rows[0]!.id;
+}
+
+/**
+ * Calls the writer DIRECTLY, which one case still needs.
+ *
+ * `assignments.create` cannot demonstrate that a SECOND materialisation of the
+ * same rule collides — it only ever runs once per assignment — so
+ * requirement_occurrences_materialisation_uniq is provoked here by hand.
+ */
+async function writeOne(assignmentId: string, ruleVersionId: string): Promise<void> {
+  await withTenantTx(
     { actorUserId: A, organizationId: null, requestId: crypto.randomUUID() },
     async (tx) => {
       const bound = (await tx.query(BOUND_RULE_VERSIONS_SQL,
@@ -176,15 +200,11 @@ async function materialiseOne(assignmentId: string, ruleVersionId: string): Prom
         workspaceId: fx.workspaceId, projectId: fx.projectId, contractId: fx.contractId,
         contractVersionId: fx.contractVersionId, assignmentId, memberId: fx.memberId,
       }, {
-        // Concealed because `ruleVersionBody` times the requirement
-        // `before_concealment`, and migration 0043's CHECK makes that timing
-        // unstorable on a stage that is not concealed.
         stages: [{ stageKey: rule.stageKey, isConcealed: true }],
         occurrences: [{ stageKey: rule.stageKey, rule }],
         coverage: "covered", workTypeKey: rule.workTypeKey,
       });
     });
-  return written.occurrenceIds[0]!;
 }
 
 async function createAssignment(fx: Fx): Promise<{ status: number; body: any }> {
@@ -278,7 +298,7 @@ describe("the materialisation writer copies every pinned field", () => {
    */
   it("stores each column equal to the pinned rule version's own value", async () => {
     const created = await createAssignment(fx);
-    const occurrenceId = await materialiseOne(created.body.assignmentId, fx.photoRuleVersionId);
+    const occurrenceId = await materialisedOne(created.body.assignmentId, fx.photoRuleVersionId);
 
     const compared = await q<{ mismatches: string[] }>(
       `select array_remove(array[
@@ -311,7 +331,7 @@ describe("the materialisation writer copies every pinned field", () => {
     // (requirement_occurrences_norm_ref_sourced_check) makes a bare norm_ref
     // unstorable, and this is the writer proving it never tries.
     const created = await createAssignment(fx);
-    const occurrenceId = await materialiseOne(created.body.assignmentId, fx.photoRuleVersionId);
+    const occurrenceId = await materialisedOne(created.body.assignmentId, fx.photoRuleVersionId);
     const row = await q<{ norm_ref: string | null; v: string | null; s: string | null }>(
       `select norm_ref, norm_ref_verification as v, norm_ref_source as s
          from public.requirement_occurrences where workspace_id = $1 and id = $2`,
@@ -327,7 +347,7 @@ describe("the materialisation writer copies every pinned field", () => {
     // (ADR-006 decision 4.2). A v0.1 command that wrote either would make v0.2 a
     // reinterpretation of v0.1 rows rather than an addition to them.
     const created = await createAssignment(fx);
-    const occurrenceId = await materialiseOne(created.body.assignmentId, fx.photoRuleVersionId);
+    const occurrenceId = await materialisedOne(created.body.assignmentId, fx.photoRuleVersionId);
     const rows = await q<{ location_id: string | null; quantity_scope: unknown }>(
       `select location_id, quantity_scope from public.requirement_occurrences
         where workspace_id = $1 and id = $2`, [fx.workspaceId, occurrenceId]);
@@ -339,9 +359,15 @@ describe("the materialisation writer copies every pinned field", () => {
     // requirement_occurrences_materialisation_uniq. A second run must COLLIDE
     // rather than double every requirement the foreman is shown, with no way to
     // tell the copies apart.
+    //
+    // `assignments.create` has already made the FIRST one — this file's line is
+    // typed now — so the collision is provoked by asking the writer to make it
+    // again, which is the only half of this the route cannot demonstrate about
+    // itself.
     const created = await createAssignment(fx);
-    await materialiseOne(created.body.assignmentId, fx.photoRuleVersionId);
-    await expect(materialiseOne(created.body.assignmentId, fx.photoRuleVersionId))
+    const occurrenceId = await materialisedOne(created.body.assignmentId, fx.photoRuleVersionId);
+    expect(occurrenceId).toBeTruthy();
+    await expect(writeOne(created.body.assignmentId, fx.photoRuleVersionId))
       .rejects.toThrow();
   });
 
@@ -402,11 +428,20 @@ describe("requirement_occurrences.list", () => {
     // listRequirementOccurrencesResponse at the boundary, so a citation without
     // its tag and source would have thrown before reaching here.
     const created = await createAssignment(fx);
-    await materialiseOne(created.body.assignmentId, fx.photoRuleVersionId);
+    const photoOccurrenceId =
+      await materialisedOne(created.body.assignmentId, fx.photoRuleVersionId);
     const listed = await listOccurrences(created.body.assignmentId);
     expect(listed.status).toBe(200);
-    expect(listed.body.occurrences).toHaveLength(1);
-    const o = listed.body.occurrences[0];
+    // TWO, and both are right. This baseline binds a `photo` rule and a
+    // `checkbox` rule, and both carry the line's work type, so
+    // `assignments.create` materialises both. The one is asserted BY ITS RULE
+    // VERSION rather than by position: the length used to be 1 only because the
+    // harness hand-wrote a single occurrence, and asserting `[0]` would now
+    // assert whichever of the two sorted first.
+    expect(listed.body.occurrences).toHaveLength(2);
+    const o = listed.body.occurrences.find(
+      (x: { occurrenceId: string }) => x.occurrenceId === photoOccurrenceId);
+    expect(o, "the photo obligation must be in the list").toBeDefined();
     expect(o.acceptanceCriterion.length).toBeGreaterThan(0);
     expect(o.blockingScope).toBe("blocks_stage_closure");
     expect(o.stage.isConcealed).toBe(true);
@@ -516,9 +551,13 @@ describe("requirement_occurrences.dry_run", () => {
     // Both identifiers are in the path so this cross-check is possible; with a
     // version-only path it would have been a cross-project read that passed
     // every capability check the route can make.
+    // `created_by` is NOT NULL on public.projects and references auth.users —
+    // NOT memberships (0010:145) — so this insert raised rather than making a
+    // project, and the 404 under test was never reached. A is the user this
+    // suite acts as and the one the route would have recorded.
     const other = await q<{ id: string }>(
-      `insert into public.projects (workspace_id, name) values ($1, 'Приклад-Інший')
-       returning id`, [fx.workspaceId]);
+      `insert into public.projects (workspace_id, name, created_by)
+       values ($1, 'Приклад-Інший', $2) returning id`, [fx.workspaceId, A]);
     const run = await dryRun(other[0]!.id, fx.contractVersionId);
     expect(run.status).toBe(404);
   });
@@ -547,7 +586,7 @@ describe("the upload gate reads the occurrence, and never widens when it cannot"
     // image/png, image/heic and application/pdf. This is the whole difference
     // between a gate specific to the requirement and 50 MB of anything.
     const created = await createAssignment(fx);
-    const occurrenceId = await materialiseOne(created.body.assignmentId, fx.photoRuleVersionId);
+    const occurrenceId = await materialisedOne(created.body.assignmentId, fx.photoRuleVersionId);
     const res = await intent(created.body.assignmentId, {
       ...VALID, claimedMediaType: "application/pdf", requirementOccurrenceId: occurrenceId,
     });
@@ -556,7 +595,7 @@ describe("the upload gate reads the occurrence, and never widens when it cannot"
 
   it("accepts the type the pinned rule version allows and stores the binding", async () => {
     const created = await createAssignment(fx);
-    const occurrenceId = await materialiseOne(created.body.assignmentId, fx.photoRuleVersionId);
+    const occurrenceId = await materialisedOne(created.body.assignmentId, fx.photoRuleVersionId);
     const res = await intent(created.body.assignmentId,
       { ...VALID, requirementOccurrenceId: occurrenceId });
     expect(res.status).toBe(201);
@@ -573,7 +612,7 @@ describe("the upload gate reads the occurrence, and never widens when it cannot"
     // «The gate was the fallback» must be provable after the fact; it is the one
     // thing about this route worth being able to reconstruct later.
     const created = await createAssignment(fx);
-    const occurrenceId = await materialiseOne(created.body.assignmentId, fx.photoRuleVersionId);
+    const occurrenceId = await materialisedOne(created.body.assignmentId, fx.photoRuleVersionId);
     await intent(created.body.assignmentId, { ...VALID, requirementOccurrenceId: occurrenceId });
     const audit = await q<{ details: any }>(
       `select details from public.audit_events
@@ -585,7 +624,7 @@ describe("the upload gate reads the occurrence, and never widens when it cannot"
   it("refuses an occurrence belonging to another assignment", async () => {
     const first = await createAssignment(fx);
     const second = await createAssignment(fx);
-    const occurrenceId = await materialiseOne(first.body.assignmentId, fx.photoRuleVersionId);
+    const occurrenceId = await materialisedOne(first.body.assignmentId, fx.photoRuleVersionId);
     const res = await intent(second.body.assignmentId,
       { ...VALID, requirementOccurrenceId: occurrenceId });
     // Refused in the route with a field error rather than at INSERT with a
@@ -598,7 +637,7 @@ describe("the upload gate reads the occurrence, and never widens when it cannot"
     // keeps its '[]' default. The gate must REFUSE rather than fall back to
     // 50 MB — a gate that opens when its policy cannot be read is not a gate.
     const created = await createAssignment(fx);
-    const occurrenceId = await materialiseOne(
+    const occurrenceId = await materialisedOne(
       created.body.assignmentId, fx.checkboxRuleVersionId);
     const res = await intent(created.body.assignmentId,
       { ...VALID, requirementOccurrenceId: occurrenceId });
