@@ -82,6 +82,19 @@ export function toProblemResponse(err: unknown, requestId: string): Response {
   // catalog code — do not invent additional off-catalog variants. userAction
   // uses the real catalog token "retry_later" (matches retryable: true) rather
   // than free-text prose.
+  // AND IT IS LOGGED, because until 2026-08-09 it was not. An unmapped failure
+  // reached the caller as this constant and left NOTHING behind — no message, no
+  // SQLSTATE, no stack — so the only way to learn what had gone wrong was to
+  // reproduce it. That is what an INTERNAL_ERROR is least able to afford: by
+  // definition nobody anticipated it. The 42702 that made every external link
+  // exchange fail was invisible from the response for exactly this reason and
+  // had to be found by calling the function by hand.
+  //
+  // The request id ties the log line to the response the caller was given. The
+  // error itself goes to the log and NEVER into the body: `problem()`'s detail
+  // is user-facing copy and a raw driver message there would leak schema names,
+  // and in the external plane it would leak them to an unauthenticated reader.
+  console.error("[INTERNAL_ERROR]", requestId, err);
   return jsonProblem(
     500,
     problem("INTERNAL_ERROR", "Внутрішня помилка.", { requestId, retryable: true, userAction: "retry_later" }),
