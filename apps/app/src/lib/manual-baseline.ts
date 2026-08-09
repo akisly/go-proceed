@@ -468,6 +468,50 @@ export const notFoundWorkItem = (requestId: string): HttpProblem =>
   new HttpProblem(404, problem("RESOURCE_NOT_FOUND", "Позицію робіт не знайдено.",
     { requestId, retryable: false, userAction: "return_to_list" }));
 
+/**
+ * Classifies a row-locking read of a contract version that came back EMPTY, and
+ * always throws.
+ *
+ * WHY AN EMPTY LOCK IS NOT AN ABSENT ROW. `cv_update`
+ * (0042:395-398) is `using (status = 'draft' and ...)`, and PostgreSQL applies
+ * an UPDATE policy's USING expression to every row-LOCKING read as well as to
+ * UPDATE itself — CREATE POLICY, «Policies Applied by Command Type»: SELECT FOR
+ * UPDATE/SHARE requires the UPDATE USING too. So the instant a version becomes
+ * `published` it disappears from `select ... for update` for aktflow_app, while
+ * remaining perfectly visible to a plain SELECT under `cv_select`.
+ *
+ * Every route that re-read the version with `for update` to check its state was
+ * therefore blind to the one state it was checking for. `requireDraft`'s
+ * catalogued 409 VERSION_CONFLICT — «Версію договору вже опубліковано» — was
+ * unreachable dead code on those paths: work_items.create answered 404, and
+ * work_items.update/.remove read `rows[0].status` off an empty result and
+ * answered 500. A caller who had just published a version and edited it once
+ * more was told the version did not exist, or that the server had broken.
+ *
+ * A PLAIN RE-READ IS SAFE HERE, and does not reintroduce a race.
+ * `app.guard_contract_version()` (0042:257-265) admits only draft -> published,
+ * so the status is monotonic: a row that has left `draft` never returns to it,
+ * and a second read can only confirm the transition that hid it. Nothing is
+ * mutated on the strength of this read — it decides which REFUSAL to send.
+ *
+ * The RLS is not touched. CLAUDE.md is explicit that QA must not modify auth,
+ * RLS, grants or migrations, and `cv_update` is right on its own terms: a
+ * published version must not be lockable for update. What was wrong is routes
+ * treating «could not lock» as «does not exist».
+ */
+export async function refuseUnlockableVersion(
+  tx: Tx, requestId: string, workspaceId: string, versionId: string,
+): Promise<never> {
+  const seen = await tx.query(
+    `select status from public.contract_versions
+      where workspace_id = $1 and id = $2`, [workspaceId, versionId]);
+  // requireDraft returns for a draft and throws 409 for anything else. Falling
+  // through means the row is visible AND still a draft, so the lock was lost to
+  // something other than status; 404 stays the conservative answer.
+  if (seen.rows.length > 0) requireDraft(requestId, seen.rows[0].status as string);
+  throw notFoundVersion(requestId);
+}
+
 export const notFoundVersion = (requestId: string): HttpProblem =>
   new HttpProblem(404, problem("RESOURCE_NOT_FOUND", "Версію договору не знайдено.",
     { requestId, retryable: false, userAction: "return_to_list" }));

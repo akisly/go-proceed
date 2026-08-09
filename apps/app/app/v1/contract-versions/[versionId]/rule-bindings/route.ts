@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import {
-  notFoundVersion, requireDraft, validationFailed,
+  notFoundVersion, requireDraft, validationFailed, refuseUnlockableVersion,
 } from "../../../../../src/lib/manual-baseline";
 import {
   bindContractVersionRulesRequest,
@@ -72,7 +72,12 @@ export const POST = commandRoute(bindContractVersionRulesRequest, async (a) => {
       const locked = await tx.query(
         `select status from public.contract_versions
           where workspace_id = $1 and id = $2 for update`, [workspaceId, versionId]);
-      if (locked.rows.length === 0) throw notFoundVersion(a.requestId);
+      // An empty lock is not an absent version: cv_update's USING hides a
+      // PUBLISHED row from `for update`, which is exactly the state this refusal
+      // is about. See refuseUnlockableVersion.
+      if (locked.rows.length === 0) {
+        await refuseUnlockableVersion(tx, a.requestId, workspaceId, versionId);
+      }
       requireDraft(a.requestId, locked.rows[0].status);
 
       // A caller that repeats an id in one call means it once. Deduplicating

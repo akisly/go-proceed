@@ -2,7 +2,7 @@ import { commandRoute } from "../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../src/lib/authz";
 import {
   deriveLine, locateWorkItem, notFoundWorkItem, pinsFrom, requireBindableWorkType,
-  requireDraft, resolveUnit, validationFailed, workItemView, type ResolvedUnit,
+  requireDraft, resolveUnit, validationFailed, workItemView, type ResolvedUnit, refuseUnlockableVersion,
 } from "../../../../src/lib/manual-baseline";
 import {
   updateWorkItemRequest, removeWorkItemRequest,
@@ -94,6 +94,12 @@ export const PATCH = commandRoute(updateWorkItemRequest, async (a) => {
            from public.contract_versions
           where workspace_id = $1 and id = $2 for update`,
         [at.workspaceId, at.contractVersionId]);
+      // `v.rows[0].status` off an EMPTY result was a TypeError and a 500. The
+      // lock comes back empty for a published version, which is precisely the
+      // case requireDraft exists to refuse. See refuseUnlockableVersion.
+      if (v.rows.length === 0) {
+        await refuseUnlockableVersion(tx, a.requestId, at.workspaceId, at.contractVersionId);
+      }
       const version = v.rows[0];
       requireDraft(a.requestId, version.status);
 
@@ -264,6 +270,9 @@ export const DELETE = commandRoute(removeWorkItemRequest, async (a) => {
         `select status from public.contract_versions
           where workspace_id = $1 and id = $2 for update`,
         [at.workspaceId, at.contractVersionId]);
+      if (v.rows.length === 0) {
+        await refuseUnlockableVersion(tx, a.requestId, at.workspaceId, at.contractVersionId);
+      }
       requireDraft(a.requestId, v.rows[0].status);
 
       // Positions are NOT closed up here. Renumbering a permutation inside

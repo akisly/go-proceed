@@ -3,7 +3,7 @@ import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import {
   deriveLine, notFoundVersion, pinsFrom, requireBindableWorkType, requireDraft,
-  resolveUnit, validationFailed, workItemView,
+  resolveUnit, validationFailed, workItemView, refuseUnlockableVersion,
 } from "../../../../../src/lib/manual-baseline";
 import { createWorkItemRequest, type CreateWorkItemResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
@@ -60,7 +60,11 @@ export const POST = commandRoute(createWorkItemRequest, async (a) => {
            from public.contract_versions
           where workspace_id = $1 and id = $2 for update`,
         [workspaceId, versionId]);
-      if (locked.rows.length === 0) throw notFoundVersion(a.requestId);
+      // An empty lock is not an absent version — cv_update's USING hides a
+      // published row from `for update`. See refuseUnlockableVersion.
+      if (locked.rows.length === 0) {
+        await refuseUnlockableVersion(tx, a.requestId, workspaceId, versionId);
+      }
       const version = locked.rows[0];
       requireDraft(a.requestId, version.status);
 

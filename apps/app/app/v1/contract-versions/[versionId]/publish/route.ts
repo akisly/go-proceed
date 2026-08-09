@@ -2,7 +2,7 @@ import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
-  lineManifestHash, notFoundVersion, pinsFrom, requireDraft, validationFailed, workItemView,
+  lineManifestHash, notFoundVersion, pinsFrom, requireDraft, validationFailed, workItemView, refuseUnlockableVersion,
 } from "../../../../../src/lib/manual-baseline";
 import {
   publishContractVersionRequest, type PublishContractVersionResponse,
@@ -118,7 +118,13 @@ export const POST = commandRoute(publishContractVersionRequest, async (a) => {
            from public.contract_versions
           where workspace_id = $1 and id = $2 for update`,
         [workspaceId, versionId]);
-      if (locked.rows.length === 0) throw notFoundVersion(a.requestId);
+      // An empty lock is not an absent version: a second publication of the
+      // same version finds the row hidden from `for update` by cv_update's
+      // USING, and 409 VERSION_CONFLICT is the catalogued answer for it. See
+      // refuseUnlockableVersion.
+      if (locked.rows.length === 0) {
+        await refuseUnlockableVersion(tx, a.requestId, workspaceId, versionId);
+      }
       const version = locked.rows[0];
       requireDraft(a.requestId, version.status);
 
