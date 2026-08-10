@@ -7,30 +7,46 @@ import { FIELD_LABEL, FIELDS, REQUIRED_FIELDS } from '../pilot/draft'
 
 /**
  * ============================================================================
- * LAUNCH BLOCKER — ONE PLACEHOLDER TOKEN BELOW IS NOT A REAL VALUE.
+ * THE FORM_PROCESSOR TOKEN IS GONE, AND THE DISCLOSURE IS NOT.
  * ============================================================================
- * {{FORM_PROCESSOR}} is the third-party form-handling service (see
- * `PILOT_ENDPOINT` / `VITE_PILOT_ENDPOINT` in src/pages/Pilot.tsx) that would
- * receive submitted field values IF one is ever configured for this build. No
- * such service has been authorised. Both occurrences below are rendered as
- * visible text on /legal/privacy, and before this site is published each MUST
- * either be replaced with the real service name or have the sentence
- * containing it removed. Naming the wrong service, or leaving this unreplaced
- * while an endpoint is live, would misdescribe who actually receives the data
- * — exactly the failure this disclosure exists to prevent.
+ * This file used to define a `FORM_PROCESSOR` placeholder and render it four
+ * times as visible text on /legal/privacy — inside `<code>`, in the sentences
+ * naming who processes a visitor's data. It was a LAUNCH BLOCKER by this
+ * comment's own former wording: «the site must not go live with this token
+ * unreplaced», because naming the wrong processor, or naming a literal
+ * placeholder, misdescribes who receives the data — exactly the failure this
+ * page exists to prevent.
  *
- * The site must not go live with this token unreplaced.
+ * RESOLVED 2026-08-10 by the owner's decision, the way that blocker's own text
+ * offered: the sentences no longer NAME a service. They could not. There is no
+ * form-handling service to name — `VITE_PILOT_ENDPOINT` is unset, so
+ * `submitPilotDraft` short-circuits to `mailto` and answers arrive as email
+ * (src/pages/Pilot.tsx). A name invented to satisfy a linter would have been a
+ * false statement about a data processor.
  *
- * The CONTACT_EMAIL token, which used to sit alongside it here, is RESOLVED:
- * it is now a real monitored mailbox, defined once in src/data/contact.ts and
- * shared with /pilot so the address this page tells people to write to and the
- * address their answers were actually sent to cannot drift apart. See that
- * file for what "resolved" had to mean before the token could be replaced —
- * and note that it is named there and here without its `{{ }}` braces on
- * purpose, since qa/preflight.mjs matches that syntax in comments too and
- * would otherwise report this file as still carrying it.
+ * WHAT WAS NOT REMOVED: the disclosure itself. All three submission states are
+ * still described below, including the two that involve a third-party
+ * processor, because a visitor is entitled to know what WOULD happen. They are
+ * described as «цей сторонній сервіс» — a role, which is true — rather than by
+ * a name this deployment does not have.
+ *
+ * ============================================================================
+ * IF A PROCESSOR IS EVER CONFIGURED, THIS PAGE MUST NAME IT.
+ * ============================================================================
+ * The moment `VITE_PILOT_ENDPOINT` is set, «цей сторонній сервіс» stops being
+ * sufficient: a live endpoint with an unnamed processor is the same
+ * misdescription the token was blocking, wearing different clothes. That is not
+ * left to this comment — `tests/claims.test.ts` fails the build when an
+ * endpoint is configured and no processor is named here.
+ *
+ * The CONTACT_EMAIL token, which used to sit alongside FORM_PROCESSOR, was
+ * resolved earlier and the same way: it is a real monitored mailbox, defined
+ * once in src/data/contact.ts and shared with /pilot so the address this page
+ * tells people to write to and the address their answers were actually sent to
+ * cannot drift apart. Both are named in prose WITHOUT their `{{ }}` braces on
+ * purpose, since qa/preflight.mjs matches that syntax in comments too and would
+ * otherwise report this file as still carrying them.
  */
-const FORM_PROCESSOR = '{{FORM_PROCESSOR}}'
 
 /**
  * The exact localStorage key Task 13's `apps/demo/src/pilot/draft.ts` writes
@@ -111,11 +127,10 @@ function PrivacyDocument() {
           /pilot.
         </li>
         <li>
-          <strong>Якщо сервіс обробки форм налаштовано (<code>{FORM_PROCESSOR}</code>) і надсилання пройшло
-          успішно.</strong> Усі дев’ять значень полів форми передаються цьому сторонньому сервісу — з цього
-          моменту саме <code>{FORM_PROCESSOR}</code> отримує та обробляє ці дані від нашого імені (виступає
-          обробником для цього надсилання), а не ми. Термін і умови зберігання визначає цей сторонній сервіс за
-          власною політикою, а не цей сайт. Локальна чернетка одразу видаляється.
+          <strong>Якщо сервіс обробки форм налаштовано і надсилання пройшло успішно.</strong> Усі дев’ять значень
+          полів форми передаються цьому сторонньому сервісу — з цього моменту саме він отримує та обробляє ці дані
+          від нашого імені (виступає обробником для цього надсилання), а не ми. Термін і умови зберігання визначає
+          цей сторонній сервіс за власною політикою, а не цей сайт. Локальна чернетка одразу видаляється.
         </li>
         <li>
           <strong>Якщо сервіс обробки форм налаштовано, але надсилання не вдалося.</strong> Дані до стороннього
@@ -132,9 +147,8 @@ function PrivacyDocument() {
         листі від нас, найпростіше — відповісти просто на той самий лист.
       </p>
       <p>
-        Якщо ж форма пройшла через сервіс обробки форм (<code>{FORM_PROCESSOR}</code>), запис про це надсилання
-        існує в тому сторонньому сервісі, а не в нас: напишіть на <code>{CONTACT_EMAIL}</code>, і ми передамо
-        ваше прохання про видалення до <code>{FORM_PROCESSOR}</code>.
+        Якщо ж форма пройшла через сервіс обробки форм, запис про це надсилання існує в тому сторонньому сервісі,
+        а не в нас: напишіть на <code>{CONTACT_EMAIL}</code>, і ми передамо ваше прохання про видалення до нього.
       </p>
 
       <h2>Аналітика й стеження</h2>

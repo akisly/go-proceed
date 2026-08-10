@@ -172,6 +172,30 @@ jobs:
       - run: pnpm --filter @goproceed/demo typecheck
       - run: pnpm --filter @goproceed/demo lint
       - run: pnpm --filter @goproceed/demo test
+
+      # THE DEPLOY-TIME PLACEHOLDER GATE, ON THE PATH THAT ACTUALLY PUBLISHES.
+      #
+      # `qa/preflight.mjs` exits 1 on any unreplaced `{{TOKEN}}` in apps/demo/src.
+      # It existed and was run by NOBODY: this job ran typecheck, lint, test,
+      # build and qa, and `qa`'s own scan of the same tokens is report-only and
+      # does not fail. Vercel deploys on every PR, so "run it before publishing"
+      # meant "run it before something that happens automatically" — which is to
+      # say it was never run at all. /legal/privacy shipped `{{FORM_PROCESSOR}}`
+      # twice, inside <code>, in the sentences naming who processes a visitor's
+      # personal data.
+      #
+      # IT IS GREEN, AND THAT IS THE PRECONDITION FOR ADDING IT. preflight.mjs's
+      # own header refuses to be part of a default suite while a token is
+      # genuinely unresolved, and it is right: «a suite that is red by design
+      # trains everyone to ignore red and buries genuine regressions behind a
+      # known, deliberate failure». So the token was resolved FIRST — the
+      # disclosure no longer names a service, because there is none to name (see
+      # src/pages/Legal.tsx) — and this line is what now stops the NEXT one.
+      #
+      # It runs before `build`, because it needs no build: it reads src/, so a
+      # placeholder failure reports in seconds rather than after a bundle.
+      - run: pnpm --filter @goproceed/demo preflight
+
       - run: pnpm --filter @goproceed/demo build
       - run: pnpm --filter @goproceed/demo qa
 
