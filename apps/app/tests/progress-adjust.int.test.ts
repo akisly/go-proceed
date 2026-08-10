@@ -721,6 +721,87 @@ describe("progress.adjust — money", () => {
   });
 });
 
+describe("the pool a line holds is the share its effective quantity bought", () => {
+  /**
+   * THE P0 AT TODOS.md:585, EXECUTED. It was left open deliberately: «this
+   * should be settled against a running database rather than by static
+   * reading», because it is not a crash and no constraint reports it. The line
+   * is simply worth less than it should be, and the number that says so exists
+   * nowhere.
+   *
+   * `record 4` → admit (funded 4, 40 % of the pool) → `+6` waits → `+5` waits →
+   * `-8` returns all four funded units → close a second stage, which admits the
+   * two waiting increases. The lineage settles at an effective 7 of a ten-unit
+   * line, so it must hold 70 % of the pool. It held 65 %: money reached zero
+   * while the summed MEASURED quantity of admitted entries reached −4, the carve
+   * denominator read the clamped 0, six units were bought out of the whole pool
+   * at 6/10, and the seventh drew 1/8 of the 40 % that remained.
+   *
+   * ASSERTED AGAINST A CONTROL, for the reason the over-contract case above
+   * gives: gross is built from independently carved net and tax, so
+   * `pool * 7 / 10` is NOT the money seven units buy — it is 167991 where the
+   * carve lands on 167992, and re-deriving the largest-remainder tie-break
+   * inside a test is how it gets derived wrongly. The control is a lineage that
+   * simply MEASURED 7 on the same line, which is what «the share its effective
+   * quantity bought» means, and the sequence has to land on the same money.
+   */
+  it("does not strand a remainder when an over-removal parts quantity from money", async () => {
+    // ITS OWN WORLD. The shared fixture has already recorded 10 and admitted it,
+    // and this sequence needs a line whose first admission is the 4.
+    const own = await matrixFixture(A, {
+      taxMode: "exclusive", taxRateBps: 2000, rows: [PRICED], capabilities: CAPS,
+    });
+    const item = own.bySourceKey["1.1"]!;
+    const pool = BigInt(item.gross);
+    const asg = await assign(own, item.id);
+
+    const root = (await (await record(asg, "4")).json()).progressEntryId as string;
+    await admit(asg);
+    const admitted = await lineageTotals(own.workspaceId, root);
+    expect(admitted.funded).toBe(4);
+    expect(admitted.gross).toBe(pool * 4n / 10n);
+
+    // Both increases wait: ADR-008 forbids a positive carve against an admitted
+    // root outside a closure.
+    expect((await (await adjust(root, "6")).json()).admitted).toBe(false);
+    expect((await (await adjust(root, "5")).json()).admitted).toBe(false);
+
+    // The removal exceeds the lineage's ADMITTED quantity, which is what parts
+    // the two figures: it hands back every funded unit.
+    const down = await adjust(root, "-8");
+    expect(down.status, await down.clone().text()).toBe(201);
+    expect((await down.json()).effectiveRootQuantity).toBe("7.000000");
+    const emptied = await lineageTotals(own.workspaceId, root);
+    expect(emptied.funded).toBe(0);
+    expect(emptied.gross).toBe(0n);
+
+    const second = await closeSecondStage(asg);
+    expect(second.status, await second.clone().text()).toBe(201);
+
+    const settled = await lineageTotals(own.workspaceId, root);
+    expect(settled.funded).toBe(7);
+
+    // THE CONTROL: the same line, measured 7 once and admitted once.
+    const control = await matrixFixture(A, {
+      taxMode: "exclusive", taxRateBps: 2000, rows: [PRICED], capabilities: CAPS,
+    });
+    const controlItem = control.bySourceKey["1.1"]!;
+    const controlAsg = await assign(control, controlItem.id);
+    const controlRoot =
+      (await (await record(controlAsg, "7")).json()).progressEntryId as string;
+    await admit(controlAsg);
+    const plain = await lineageTotals(control.workspaceId, controlRoot);
+    expect(plain.funded).toBe(7);
+
+    // The whole finding, in one line: the corrected lineage holds what seven
+    // units of this line cost. It held 65 % of the pool where the control holds
+    // 70 %, and nothing anywhere reported the difference.
+    expect(settled.gross).toBe(plain.gross);
+    expect(settled.gross).toBeGreaterThan(pool * 69n / 100n);
+    expect(settled.gross).toBeLessThan(pool * 71n / 100n);
+  }, 120_000);
+});
+
 describe("progress.adjust — invariants", () => {
   it("refuses an adjustment whose target is itself an adjustment (INV-023)", async () => {
     const adjustmentId = (await (await adjust(rootId, "-1")).json()).adjustmentEntryId;

@@ -503,3 +503,73 @@ describe("admission — the rule this route chose, stated as a test", () => {
     expect(none[0]!.n).toBe("0");
   });
 });
+
+describe("the pool is offered again when the root that held it gives it back", () => {
+  /**
+   * THE P1 AT TODOS.md:238, and the owner's decision of 2026-08-10 on it:
+   * admission is a STANDING CLAIM rather than a one-shot event.
+   *
+   * The work-item pool goes to whoever is admitted first. Root A takes all of
+   * it; root B is admitted into nothing; A then corrects its quantity away and
+   * returns everything. The line has measured its full contract quantity, every
+   * unit is within contract and priced, and the pool used to sit ENTIRELY IDLE
+   * — B could never be funded for that work again, because its entry already
+   * held an allocation of zero and `pendingEntries` only offers entries holding
+   * none. Its admission had been spent on a carve that bought nothing.
+   *
+   * B's own closure is what funds it. A's correction still writes nothing
+   * outside A's lineage, which is what the engineering review's D1 finding
+   * required and what ruled out redistributing from the corrector.
+   */
+  it("re-offers an exhausted pool to a root whose closure comes back for it", async () => {
+    const fx = await matrixFixture(A, {
+      taxMode: "exempt", rows: ["1.1;Мурування;м2;4;100,00;400,00"], capabilities: CAPS,
+    });
+    const item = fx.bySourceKey["1.1"]!;
+    const pool = BigInt(item.gross);
+    const asgA = await assign(fx, item.id);
+    const asgB = await assign(fx, item.id);
+
+    const allocatedOnLine = async (): Promise<bigint> => {
+      const r = await q<{ g: string }>(
+        `select coalesce(sum(gross_minor_units),0)::text g
+           from public.valuation_allocations
+          where workspace_id = $1 and work_item_id = $2`, [fx.workspaceId, item.id]);
+      return BigInt(r[0]!.g);
+    };
+    // Counted for ONE root, because that is the claim: A legitimately holds two
+    // rows by the end (its root and its correction), and what this case is about
+    // is whether B spent its single slot on a carve that bought nothing.
+    const rowsForRoot = async (rootId: string): Promise<number> => {
+      const r = await q<{ n: string }>(
+        `select count(*)::text n from public.valuation_allocations
+          where workspace_id = $1 and root_progress_entry_id = $2`, [fx.workspaceId, rootId]);
+      return Number(r[0]!.n);
+    };
+
+    const rootA = (await (await record(asgA, "4")).json()).progressEntryId as string;
+    expect((await close(await createStage(asgA))).status).toBe(201);
+    expect(await allocatedOnLine()).toBe(pool);
+
+    // B is admitted into an exhausted pool. IT WRITES NO ROW: its claim stands.
+    const rootB = (await (await record(asgB, "4")).json()).progressEntryId as string;
+    const bFirst = await close(await createStage(asgB));
+    expect(bFirst.status, await bFirst.clone().text()).toBe(201);
+    expect((await bFirst.json()).admission.admittedProgressEntryCount).toBe(0);
+    expect(await rowsForRoot(rootB), "B must not spend its one allocation slot on a carve of zero")
+      .toBe(0);
+
+    // A gives it all back. Nothing here writes for B.
+    expect((await adjust(rootA, "-4")).status).toBe(201);
+    expect(await allocatedOnLine()).toBe(0n);
+
+    // B comes back for it, through its OWN closure.
+    const bSecond = await close(await createStage2(asgB));
+    expect(bSecond.status, await bSecond.clone().text()).toBe(201);
+    expect((await bSecond.json()).admission.admittedProgressEntryCount).toBe(1);
+    expect(await allocatedOnLine(), "the pool must not sit idle against work within contract")
+      .toBe(pool);
+    // One row, written by the closure that could finally pay for it.
+    expect(await rowsForRoot(rootB)).toBe(1);
+  }, 180_000);
+});

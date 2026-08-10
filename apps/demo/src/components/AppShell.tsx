@@ -273,13 +273,13 @@ export default function AppShell() {
           <div className="mb-6 flex items-center justify-between gap-2 md:mb-8 md:justify-center wide:justify-between">
             <Link
               to="/"
-              aria-label="AktFlow — головна"
+              aria-label="GoProceed — головна"
               className="brand brand--light flex min-h-11 items-center gap-2.5 rounded-control px-1 wide:px-3 md:px-0"
             >
               <span className="brand__mark">
                 <span />
               </span>
-              <span className="md:sr-only wide:not-sr-only">AktFlow</span>
+              <span className="md:sr-only wide:not-sr-only">GoProceed</span>
             </Link>
             <Button
               ref={closeRef}
@@ -358,11 +358,11 @@ export default function AppShell() {
             >
               <Menu size={20} aria-hidden="true" />
             </Button>
-            <Link className="brand flex min-h-11 items-center gap-2.5" to="/" aria-label="AktFlow — головна">
+            <Link className="brand flex min-h-11 items-center gap-2.5" to="/" aria-label="GoProceed — головна">
               <span className="brand__mark">
                 <span />
               </span>
-              <span>AktFlow</span>
+              <span>GoProceed</span>
             </Link>
           </header>
 
@@ -393,7 +393,7 @@ export default function AppShell() {
                 same 1240px measure as <main>, so the two align rather than the
                 footer running wider than everything it closes off. */}
             <div className="mx-auto flex w-full max-w-[1240px] flex-wrap items-center gap-x-6 gap-y-1 px-4 py-4 text-foreground-muted md:px-6 wide:px-8">
-              <span>AktFlow — демонстраційний прототип.</span>
+              <span>GoProceed — демонстраційний прототип.</span>
               {/* min-w-11 alongside min-h-11: WCAG 2.5.5 is 44px in BOTH
                   directions, and «Умови» measures ~46px of text — close enough
                   to the floor that a font or weight change would silently drop

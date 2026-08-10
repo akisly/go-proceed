@@ -235,7 +235,7 @@ zero-priced row — and rows priced at zero are ordinary, being work bundled int
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
 
-## P1 — valuation funding is first-come and is never redistributed
+## P1 (CLOSED 2026-08-10) — valuation funding was first-come and was never re-offered
 
 **What:** the work-item pool is claimed by whichever root records first. When
 that root later withdraws, the freed money is not offered to roots whose
@@ -268,9 +268,72 @@ narrows the window, because only **admitted** quantity competes for the pool and
 admission is a deliberate authorised act rather than a side effect of
 measurement. The minimal case above survives the narrowing — it needs A and B
 each to reach an admission — and the analysis still owes a re-run against the new
-ordering. Read it together with the P0 opened below: on the third write path the
-narrowing does not hold at all, so today the window is exactly as wide as it was
-for any root that has been admitted once.
+ordering.
+
+**2026-08-10 — THE RE-RUN THIS ENTRY OWED, EXECUTED.** Against the applied chain,
+after the P0 denominator fix, on a line of contract quantity 4 and a pool of
+40 000 minor units, two assignments on one work item:
+
+| step | allocated | root A | root B |
+|---|---|---|---|
+| A records 4, admits | 40 000 / 40 000 | 40 000, funded 4 | — |
+| B records 4, admits | 40 000 / 40 000 | 40 000, funded 4 | **0, funded 0** |
+| A corrects −4 | **0 / 40 000** | 0, funded 0 | 0, funded 0 |
+| B closes a second stage | **0 / 40 000** | 0, funded 0 | 0, funded 0 |
+
+The line has measured 4 of its 4 contracted units, every unit is within contract
+and priced, and the pool is **entirely idle**. So the case survives ADR-008
+intact.
+
+**AND IT IS WORSE THAN THIS ENTRY DESCRIBED.** «Not redistributed» understates
+it: B's admission is SPENT. Its root already holds an allocation — of zero — so
+B has no pending entry left, and the last row above is the finding. A later
+closure on B does not reopen anything. Once a root is admitted into an exhausted
+pool it can never be funded for that work again, by any action on B.
+
+**CLOSED 2026-08-10 BY THE OWNER'S DECISION: admission is a STANDING CLAIM, not
+a one-shot event.** The second candidate below is the one taken.
+
+**What changed, and it is four lines.** `appendValuationAllocation` writes NO
+ROW for a valued, positive entry whose carve funded nothing and moved no money;
+`admitClosedStageQuantity` skips it instead of counting it. The entry therefore
+keeps its one allocation slot, stays pending, and the assignment's next closure
+offers it to a pool that may by then have room. Verified on the minimal case:
+B's first closure now admits 0 and writes nothing, A's correction returns the
+pool, and B's SECOND closure funds it — 40 000 of 40 000, one row for B's root.
+
+**Why this shape rather than a successor allocation.** A second row per entry
+would have meant dropping `unique (workspace_id, progress_entry_id)`, and
+migration `0046:150-152` rests on exactly that key: «no entry is ever admitted
+twice, so the failure is early admission, never double admission». This does the
+opposite of weakening it — an entry that funded nothing has not been admitted at
+all, so the slot it never took is still there. No migration, no schema change.
+
+**D1 is satisfied.** A's correction still writes nothing outside A's lineage. It
+is B's OWN closure that funds B, which is what made this address available where
+«a correction on one root writes allocations for other roots» was not.
+
+**Three narrowings, each load-bearing.** An UNVALUED entry still writes its row —
+its zero means «this line has no price», which the M6 read is entitled to see,
+not «no room». A NEGATIVE entry always settles: a removal that returns nothing
+has still done its work, and leaving it pending would re-offer it forever. And
+both money and funded quantity must be zero — a partial carve is a real
+admission of the part it paid for.
+
+**Covered by** `apps/app/tests/admission-valuation.int.test.ts` §"the pool is
+offered again when the root that held it gives it back", verified to fail
+without the change.
+
+**A SECOND CANDIDATE DESIGN, which this re-run is what suggests — and which is
+the one taken above.** The entry
+frames the fix as «a correction on one root writes allocations for OTHER roots»
+and rejects it on the engineering review's D1 finding. B's own closure is a
+second address for the same repair: an admission could top up roots whose
+admitted quantity is not yet funded and for which headroom now exists, writing
+only inside the lineage whose closure is running. A's correction would still
+touch nothing but A. That keeps D1 satisfied and changes something else instead
+— whether admission is a one-shot event per entry or a standing claim — which is
+the decision to take, and it is a decision rather than a patch.
 
 ## P3 — the two retention figures v0.1-M2-A had to choose are defaults, not policy
 
@@ -518,15 +581,18 @@ class. What is left, measured on this branch:
   landed: the working-tree figures read 12/37/108 before it and 13/38/110 after.
   They are measurements of a moving uncommitted tree — re-run the command rather
   than quoting these.)*
-- The user-visible product copy is untouched: every on-screen `AktFlow`
-  string, e.g. `apps/app/app/(auth)/login/page.tsx`'s
-  `<h1>AktFlow — вхід</h1>` and `apps/demo/index.html`'s `<title>AktFlow —
-  демонстраційний прототип</title>`.
+- ~~The user-visible product copy is untouched~~ — **DONE 2026-08-10.** All 26
+  on-screen `AktFlow` strings across 11 files now read `GoProceed`: the login
+  heading, the demo shell's brand and every page header, the demo `<title>`, the
+  pilot page's prose and its mailto subject, and the landing page's title and
+  meta description. No test asserted any of them, so nothing had to be inverted;
+  the whole workspace stays green. This is the half a pilot customer can see,
+  and it was the cheap half.
 - Four domains: `aktflow.app`, `aktflow.com`, `aktflow.example`, `aktflow.pilot`.
 - Two env vars: `AKTFLOW_CHROME_PATH`, `AKTFLOW_BASE_URL`.
 
-**Why it is not swept here:** the database roles are the hard part and they are
-already merged. `ALTER ROLE ... RENAME TO` is not a text substitution — a role
+**Why the ROLES are still not swept here, and this is unchanged:** the database
+roles are the hard part and they are already merged. `ALTER ROLE ... RENAME TO` is not a text substitution — a role
 rename clears an md5-hashed password, every connection string and CI secret has
 to move in the same window, and the rename must land in a migration that runs
 against an environment whose app is already connecting under the old name. That
@@ -582,10 +648,43 @@ standing per-milestone owed list lives in
 [`docs/superpowers/plans/2026-08-06-v0.1-implementation-progress.md`](docs/superpowers/plans/2026-08-06-v0.1-implementation-progress.md)
 §5; only the repo-level items are repeated here.
 
-### P0 — the pool strands silently once an over-removal parts quantity from money
+### P0 (CLOSED 2026-08-10) — the pool stranded once an over-removal parted quantity from money
 
-**OPEN. Found 2026-08-08 by the arithmetic verifier, after the lineage-ceiling fix
-closed the crash it was looking for. It is the residual, not a regression.**
+**CLOSED 2026-08-10, AND EXECUTED RATHER THAN DERIVED — which is what this entry
+asked for.** The sequence below was run against the local stack and reproduced
+exactly as written: seven units of a ten-unit line settled holding **65 %** of
+the pool where the control — a lineage that simply measured 7 — holds **70 %**.
+5 % stranded, silently.
+
+**The decision this needed.** The entry ends «closing it means deciding which of
+[admitted quantity and allocated money] the carve denominator is answerable to».
+It is answerable to the MONEY. The denominator exists to keep
+`unallocated / remaining` equal to the line's unit price, and that holds only
+while the money already carved corresponds to the quantity being subtracted.
+`work_item_allocated` sums money, which follows `funded_quantity`;
+`work_item_performed` summed the entries' own `quantity`, which follows what was
+MEASURED. Two figures, two sets, and an over-removal parts them.
+
+**The change** is one subquery in `apps/app/src/lib/valuation-writer.ts`:
+`work_item_performed` now sums `funded_quantity` over the same
+`valuation_allocations` rows `work_item_allocated` sums the money of. The unit
+price is then constant by construction rather than by coincidence. In every
+ordinary state the two readings are identical — an admitted entry funds its own
+quantity — and they differ exactly where a unit was admitted and NOT funded: the
+over-contract remainder and the lineage ceiling, where the outcomes already
+agreed, and the parted case, which is the defect. No migration; the lineage
+ceiling and `0048` §3 are untouched and remain the backstop.
+
+**Covered by** `apps/app/tests/progress-adjust.int.test.ts` §"the pool a line
+holds is the share its effective quantity bought", which asserts against a
+control rather than a computed figure — `pool * 7 / 10` is 167991 where the
+carve lands on 167992, because gross is built from independently carved net and
+tax. Verified to FAIL on the old denominator (155993) and pass on the new one.
+
+The original entry follows, because it is the reasoning the fix rests on.
+
+**WAS: OPEN. Found 2026-08-08 by the arithmetic verifier, after the lineage-ceiling
+fix closed the crash it was looking for. It is the residual, not a regression.**
 
 **What.** `work_item_performed` sums admitted **quantity**; `work_item_allocated`
 sums **money**. While every removal is smaller than what the lineage has funded,

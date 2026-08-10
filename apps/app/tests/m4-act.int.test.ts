@@ -14,7 +14,8 @@ import {
 } from "../src/lib/requirement-materialisation";
 import { materialiseOccurrences } from "../src/lib/occurrence-writer";
 import { citationOf } from "../src/lib/requirement-content";
-import { DODATOK_V_TEMPLATE, FORM_CITATION_TEXT } from "../src/lib/statutory-act-form";
+import { DODATOK_V_TEMPLATE, FORM_CITATION_TEXT, DBN_RETRIEVAL_RECORD,
+} from "../src/lib/statutory-act-form";
 
 /**
  * NOTHING IN THIS FILE HAS BEEN EXECUTED. No node_modules, no database, no
@@ -43,11 +44,18 @@ import { DODATOK_V_TEMPLATE, FORM_CITATION_TEXT } from "../src/lib/statutory-act
  *   the thing somebody copies into the template.
  *
  *   «render twice and diff the bytes» — there is no render. `statutory_acts.render`
- *   refuses with `dodatok_v_field_list_not_committed` and
- *   `dbn_retrieval_record_absent`, and `statutory_act_versions.freeze` refuses
- *   with it because `content_hash` is the digest OF the render. Both refusals
- *   are ASSERTED here, with their blocker codes, so the day the two artifacts
- *   land these tests fail and are replaced by the positive halves. A suite that
+ *   refuses with `dbn_retrieval_record_absent`, and `statutory_act_versions.freeze`
+ *   refuses with it because `content_hash` is the digest OF the render. That
+ *   refusal is ASSERTED here, with its blocker code, so the day the last
+ *   artifact lands these tests fail and are replaced by the positive halves.
+ *
+ *   ONE OF THE TWO ARTIFACTS LANDED ON 2026-08-10 and these cases failed exactly
+ *   as this paragraph promised they would. The field list is committed under
+ *   technical/requirements/dbn-a31-5-2016-dodatok-v.csv, machine-transcribed from
+ *   the official file and verified byte-for-byte, so
+ *   `dodatok_v_field_list_not_committed` is gone and its ABSENCE is now asserted
+ *   below. What is still missing is the retrieval record: the URL the file was
+ *   downloaded from and the date. A suite that
  *   quietly skipped them would let M4 look finished.
  *
  * WHAT IS THEREFORE PROVED HERE: the refusal from an unclosed stage; that the
@@ -834,7 +842,8 @@ describe("v0.1 renders nothing, and the refusal is the honest answer", () => {
     expect(problem.code).toBe("PACKAGE_BLOCKED");
     expect(problem.userAction).toBe("resolve_listed_blockers");
     const codes = problem.details.blockers.map((b: { code: string }) => b.code);
-    expect(codes).toContain("dodatok_v_field_list_not_committed");
+    // ONE BLOCKER, NOT TWO, SINCE 2026-08-10. The owner supplied the official ДБН file and confirmed the edition; the В.1/В.2 field list is committed under technical/requirements/ and DODATOK_V_TEMPLATE.fieldList is populated from it, so `dodatok_v_field_list_not_committed` is gone. `dbn_retrieval_record_absent` remains — a hash proves two people hold the same bytes and says nothing about where they came from — and it alone still refuses the render and the freeze. Its ABSENCE is asserted rather than merely dropped, so this case cannot pass by agreeing with a future regression that brings it back.
+    expect(codes).not.toContain("dodatok_v_field_list_not_committed");
     expect(codes).toContain("dbn_retrieval_record_absent");
     expect(problem.details.blockerCount).toBe(problem.details.blockers.length);
     for (const b of problem.details.blockers) {
@@ -865,8 +874,13 @@ describe("v0.1 renders nothing, and the refusal is the honest answer", () => {
     expect(res.status).toBe(422);
     const problem = await res.json();
     expect(problem.code).toBe("PACKAGE_BLOCKED");
-    expect(problem.details.blockers.map((b: { code: string }) => b.code))
-      .toContain("dodatok_v_field_list_not_committed");
+    // The field list landed on 2026-08-10; the retrieval record has not, and it
+    // is enough on its own to keep the freeze refusing. Asserting the absence of
+    // the closed blocker as well, so a regression that reopened it would show
+    // here rather than pass.
+    const freezeCodes = problem.details.blockers.map((b: { code: string }) => b.code);
+    expect(freezeCodes).not.toContain("dodatok_v_field_list_not_committed");
+    expect(freezeCodes).toContain("dbn_retrieval_record_absent");
 
     const row = await q<{ status: string; draft_version: string; content_hash: string | null }>(
       `select status, draft_version::text, content_hash
@@ -881,14 +895,23 @@ describe("v0.1 renders nothing, and the refusal is the honest answer", () => {
     expect(outbox).toEqual([]);
   });
 
-  it("means M4 composes and freezes NOTHING end to end, and this is where that is recorded", () => {
-    // Not an assertion about the product — a marker on the milestone. The two
-    // artifacts are `technical/requirements/`'s В.1/В.2 field list and the ДБН
-    // retrieval record (M0 gate 10). Both blockers are DERIVED from their
-    // absence, so when they land the three tests above fail, and the positive
-    // halves — «render twice and diff the bytes», «check the render field by
-    // field against the В.1/В.2 list» — are what replaces them.
-    expect(DODATOK_V_TEMPLATE.fieldList).toBeNull();
+  it("means M4 composes and freezes NOTHING end to end, and ONE artifact now remains", () => {
+    // Not an assertion about the product — a marker on the milestone, and it
+    // moved on 2026-08-10. The two artifacts were `technical/requirements/`'s
+    // В.1/В.2 field list and the ДБН retrieval record (M0 gate 10). THE FIRST
+    // HAS LANDED: the owner supplied the official file and confirmed the
+    // edition, all 51 lines are committed and machine-verified, and the
+    // template carries them.
+    //
+    // The marker stays because the milestone has not. `DBN_RETRIEVAL_RECORD` is
+    // still null — the URL and the retrieval date were never recorded — and
+    // while it is, every VERIFIED_PRIMARY string is refused a customer-facing
+    // render. So M4 still composes and freezes nothing end to end, for one
+    // reason instead of two, and the positive halves the paragraph above names
+    // are still owed.
+    expect(DODATOK_V_TEMPLATE.fieldList).not.toBeNull();
+    expect(DODATOK_V_TEMPLATE.fieldList!.length).toBe(51);
+    expect(DBN_RETRIEVAL_RECORD).toBeNull();
   });
 });
 

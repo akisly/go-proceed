@@ -18,7 +18,7 @@ export default function Home() {
         className="brand"
         style={{ display: "inline-flex", alignItems: "center", gap: 10 }}
       >
-        AktFlow
+        GoProceed
       </span>
       <h1 style={{ maxWidth: 660, fontSize: "clamp(40px, 5vw, 64px)", letterSpacing: "-2px", marginTop: 24 }}>
         Evidence-to-payment operating layer

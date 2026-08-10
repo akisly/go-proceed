@@ -82,11 +82,11 @@ export default function Roadmap() {
     <div className="goproceed-app min-h-screen">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-[1240px] items-center gap-4 px-5 py-3 md:px-8">
-          <Link className="brand" to="/" aria-label="AktFlow — головна">
+          <Link className="brand" to="/" aria-label="GoProceed — головна">
             <span className="brand__mark">
               <span />
             </span>
-            <span>AktFlow</span>
+            <span>GoProceed</span>
           </Link>
           <Button asChild variant="ghost" size="sm" className="ml-auto">
             <Link to="/app">

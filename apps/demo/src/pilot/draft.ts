@@ -113,7 +113,7 @@ export function draftAsPlainText(draft: PilotDraft): string {
 
 export function buildMailto(to: string, draft: PilotDraft): string {
   const body = FIELDS.map(field => `${FIELD_LABEL[field]}:\n${draft[field]}`).join('\n\n')
-  const subject = `AktFlow · ${draft.company}`
+  const subject = `GoProceed · ${draft.company}`
   return `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
 }
 

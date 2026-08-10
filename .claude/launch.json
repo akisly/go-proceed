@@ -1,0 +1,32 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "app",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@goproceed/app",
+        "exec",
+        "next",
+        "dev"
+      ],
+      "port": 3000,
+      "autoPort": true
+    },
+    {
+      "name": "demo",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": [
+        "--filter",
+        "@goproceed/demo",
+        "exec",
+        "vite",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5173,
+      "autoPort": true
+    }
+  ]
+}

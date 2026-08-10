@@ -25,6 +25,11 @@ export interface AllocationOutcome {
   tax: bigint | null;
   gross: bigint | null;
   reason: string | null;
+  /**
+   * True when NO ROW WAS WRITTEN and the entry is still waiting for a pool that
+   * can pay it. See «a valued entry that funds nothing keeps its claim» below.
+   */
+  deferred?: true;
 }
 
 export interface ValuationWriterArgs {
@@ -150,10 +155,40 @@ export async function appendValuationAllocation(
     //
     // `work_item_performed` is the figure `sliceAllocation` turns into
     // `remainingQty = contractQuantity - workItemPerformed`, i.e. how much of the
-    // line is still available to draw money. Before ADR-008 every progress entry
-    // had an allocation the moment it existed, so «all entries but this one» and
-    // «all ADMITTED entries but this one» were the same set and the predicate
-    // below is a no-op on every row written to date.
+    // line is still available to draw money.
+    //
+    // IT SUMS `funded_quantity`, AND UNTIL 2026-08-10 IT SUMMED THE MEASURED
+    // QUANTITY OF ADMITTED ENTRIES. That is the P0 recorded at TODOS.md:585, and
+    // it was settled by running the sequence rather than by reading it.
+    //
+    // The denominator's job is to make `unallocated / remaining` equal the
+    // line's unit price, so that the n-th unit costs what the first one did.
+    // That holds only while the money already carved corresponds to the
+    // quantity the denominator subtracts — and the two figures came from
+    // different sets. `work_item_allocated` sums MONEY, which follows
+    // `funded_quantity`; `work_item_performed` summed the entries' own
+    // `quantity`, which follows what was MEASURED. An over-removal parts them:
+    // `record 4` → admit (funded 4, 40 % of the pool) → `+6` and `+5` wait →
+    // `-8` returns all four funded units, so money reaches 0 while the summed
+    // measured quantity reaches −4. The clamp in `sliceAllocation` then read it
+    // as 0, the next admission carved 6 units out of the WHOLE pool at 6/10, the
+    // unit after it drew 1/8 of the 40 % that was left, and seven units of a
+    // ten-unit line settled holding 65 % instead of 70 %. Nothing raised: no
+    // constraint compares funded quantity to money, and the line was simply
+    // worth less than it should be.
+    //
+    // Summing `funded_quantity` makes the two figures the same rows of the same
+    // table, so the unit price is constant by construction. In every ordinary
+    // state the numbers are identical — an admitted entry funds its own quantity
+    // — and they differ exactly where a unit was admitted and NOT funded: the
+    // over-contract remainder, the lineage ceiling, and the parted case above.
+    // For the first two the outcomes already agreed (both drive `remainingQty`
+    // to zero); the third is the defect.
+    //
+    // Before ADR-008 every progress entry had an allocation the moment it
+    // existed, so «all entries but this one», «all ADMITTED entries but this
+    // one» and «what those entries were funded for» were one set, and this
+    // figure is unchanged on every row written before that date.
     //
     // They stop being the same set the moment recording no longer carves. A
     // closure that admits several entries of one line must reproduce the state
@@ -181,9 +216,11 @@ export async function appendValuationAllocation(
     //
     // THE ROOT IS READ AS TWO QUANTITIES, AND UNTIL 2026-08-08 IT WAS READ AS
     // ONE. `root_quantity` counts every entry of the lineage;
-    // `root_admitted_quantity` counts only the entries that hold an allocation,
-    // by the same `exists` predicate as `work_item_performed` above and for the
-    // same reason.
+    // `root_admitted_quantity` counts only the entries that hold an allocation.
+    // It keeps the `exists` predicate that `work_item_performed` used to share,
+    // and it is right to: this one measures how much of the LINEAGE has been put
+    // to the pool, which is a question about admission, where the denominator
+    // above asks what the money already carved has paid for.
     //
     // What this comment said before, and why it was right and incomplete: it
     // said `root_quantity` is DELIBERATELY NOT filtered, because it feeds the
@@ -211,12 +248,9 @@ export async function appendValuationAllocation(
     // `sliceAllocation`'s negative branch carries the sequence.
     const totals = await tx.query(
       `select
-         coalesce((select sum(p.quantity) from public.progress_entries p
-                    where p.workspace_id = $1 and p.work_item_id = $2
-                      and p.id <> $4
-                      and exists (select 1 from public.valuation_allocations va
-                                   where va.workspace_id = p.workspace_id
-                                     and va.progress_entry_id = p.id)), 0)::text
+         coalesce((select sum(va.funded_quantity) from public.valuation_allocations va
+                    where va.workspace_id = $1 and va.work_item_id = $2
+                      and va.progress_entry_id <> $4), 0)::text
            as work_item_performed,
          coalesce((select sum(v.net_minor_units) from public.valuation_allocations v
                     where v.workspace_id = $1 and v.work_item_id = $2), 0)::text
@@ -270,6 +304,49 @@ export async function appendValuationAllocation(
     const result = sliceAllocation(item, state, args.deltaQuantity);
     slice = result.amounts;
     fundedQuantity = result.fundedQuantity;
+  }
+
+  // A VALUED, POSITIVE ENTRY THAT FUNDED NOTHING KEEPS ITS CLAIM — the owner's
+  // decision of 2026-08-10 on the P1 at TODOS.md:238, «admission is a standing
+  // claim rather than a one-shot event».
+  //
+  // WHAT WENT WRONG WITHOUT IT. The work-item pool is claimed by whoever is
+  // admitted first. On a line of contract quantity 4: root A records 4 and its
+  // closure takes the whole pool; root B records 4 and ITS closure carves
+  // nothing, because nothing is left — and wrote a row saying so. A then
+  // corrects its 4 away and returns everything. The line has now measured 4 of
+  // its 4 contracted units, every unit is within contract and priced, and the
+  // pool sits entirely idle. B can never be funded for that work again by any
+  // later action on B, because its entry already holds an allocation and
+  // `pendingEntries` only ever offers entries that hold none. Its admission was
+  // spent on a carve that bought nothing.
+  //
+  // Writing no row is the whole of the repair, and it needs no schema change:
+  // the entry simply stays pending, and the assignment's next closure offers it
+  // to a pool that may by then have room. The claim is standing rather than
+  // one-shot, and it is B's OWN closure that funds it — A's correction still
+  // writes nothing outside A, which is what the engineering review's D1 finding
+  // required and what ruled out the redistribute-from-the-corrector design.
+  //
+  // NOR DOES IT WEAKEN THE KEY THAT MATTERS. `unique (workspace_id,
+  // progress_entry_id)` is what migration 0046 relies on for «no entry is ever
+  // admitted twice, so the failure is early admission, never double admission».
+  // A second allocation row per entry would have removed exactly that, and this
+  // does the opposite: an entry that funded nothing has not been admitted at
+  // all, so the slot it never took is still there for the closure that can pay.
+  //
+  // THE THREE NARROWINGS ARE EACH LOAD-BEARING:
+  //   * `reason === null` — an UNVALUED entry must still write its row. Its zero
+  //     is not «no room», it is «this line has no price», and that is a fact
+  //     about the admission which the M6 read is entitled to see.
+  //   * `deltaQuantity > 0n` — a correction settles when it is applied. A
+  //     removal that returns nothing has still done its work, and leaving it
+  //     pending would re-offer it to every later closure.
+  //   * money AND funded quantity both zero — a partial carve is a real
+  //     admission of the part it paid for.
+  if (reason === null && args.deltaQuantity > 0n && fundedQuantity === 0n
+      && slice.net === 0n && slice.tax === 0n && slice.gross === 0n) {
+    return { valued: true, net: 0n, tax: 0n, gross: 0n, reason: null, deferred: true };
   }
 
   await tx.query(
