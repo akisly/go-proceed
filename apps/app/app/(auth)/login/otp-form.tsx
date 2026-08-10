@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "../../../src/lib/supabase-browser";
+import { safeNext } from "../../../src/lib/safe-next";
 import { Button } from "../../../src/ui/button";
 
 type Phase = "email" | "code";
@@ -13,27 +14,13 @@ type OtpFormProps = {
    * Raw, attacker-controlled query-string text — NOT validated by
    * `page.tsx`. It is passed through unchanged and only inspected here, at
    * `verifyCode`, which is the one place a bad value could actually do
-   * damage (`router.replace`). See `sanitizeNext` below.
+   * damage (`router.replace`). See `safe-next.ts`'s `safeNext` — the guard
+   * itself lives in its own module (not inline here) so it can be unit
+   * tested with `vitest` under plain Node, with no DOM and no `window` at
+   * module scope.
    */
   next: string | undefined;
 };
-
-/**
- * `next` may be `/login?next=https://evil.example` or
- * `/login?next=//evil.example` (a scheme-relative URL — a browser treats a
- * leading `//` as "same scheme, different host", so this is an off-origin
- * redirect too, not a typo) sent to a foreman in a crafted link. Once they
- * type a real one-time code into THIS page, they trust wherever it sends
- * them next — so the only acceptable `next` is a same-origin, root-relative
- * path: exactly one leading slash, and not a second one right after it.
- * Anything else, including no value at all, falls back to `/`.
- */
-function sanitizeNext(next: string | undefined): string {
-  if (!next) return "/";
-  if (!next.startsWith("/")) return "/";
-  if (next.startsWith("//")) return "/";
-  return next;
-}
 
 /**
  * Two phases, one component, no route change between them: `email` ->
@@ -106,8 +93,12 @@ export function OtpForm({ next }: OtpFormProps) {
     }
 
     // `.replace`, not `.push`: the one-time code just spent should not sit
-    // one back-button press away from a resubmit attempt.
-    router.replace(sanitizeNext(next));
+    // one back-button press away from a resubmit attempt. `window.location.origin`
+    // (not a hardcoded string) is what `safeNext` resolves the candidate
+    // against, so this stays correct on whatever host/scheme/port the app is
+    // actually running under — localhost in dev, the real domain in
+    // staging/prod — rather than assuming one.
+    router.replace(safeNext(next, window.location.origin));
   }
 
   if (phase === "code") {

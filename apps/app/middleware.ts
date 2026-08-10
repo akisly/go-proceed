@@ -81,9 +81,12 @@ export async function middleware(request: NextRequest) {
     // routed, never attacker-supplied text. The open-redirect risk is on
     // the OTHER end of this query param — a `next` value typed into a
     // crafted link and never actually navigated to by this middleware — and
-    // `otp-form.tsx`'s `sanitizeNext` is what guards that end, at the one
-    // point (`router.replace`) where an unvalidated value would actually
-    // send someone off this origin.
+    // `src/lib/safe-next.ts`'s `safeNext` is what guards that end, at the
+    // one point (`router.replace` in `otp-form.tsx`) where an unvalidated
+    // value would actually send someone off this origin. (Fix-round-1,
+    // task 5: the first version of that guard was prefix matching and
+    // missed a backslash-based bypass; see `safe-next.ts` for the full
+    // story and `safe-next.test.ts` for the regression coverage.)
     url.search = `?next=${encodeURIComponent(pathname + search)}`;
     return NextResponse.redirect(url);
   }
@@ -98,28 +101,44 @@ export const config = {
    * fails silently — a bad matcher does not throw, it just quietly starts
    * (or stops) intercepting paths it shouldn't.
    *
-   *  - `v1`, `external`: MUST NOT be matched. Both answer an unauthenticated
-   *    request with a 401 `application/problem+json` body carrying
-   *    `userAction: "sign_in"` (`requireUser` in src/lib/auth.ts) — a
-   *    machine-readable contract that curl, the mobile client, and the
-   *    external review shell (which deliberately has no account of its own —
-   *    see src/lib/external-session.ts) all depend on. If middleware ever
+   *  - `v1`, `external`, `_next`: MUST NOT be matched. Both `/v1` and
+   *    `/external` answer an unauthenticated request with a 401
+   *    `application/problem+json` body carrying `userAction: "sign_in"`
+   *    (`requireUser` in src/lib/auth.ts) — a machine-readable contract that
+   *    curl, the mobile client, and the external review shell (which
+   *    deliberately has no account of its own — see
+   *    src/lib/external-session.ts) all depend on. If middleware ever
    *    matched these, an unauthenticated API call would come back as a 302
    *    to an HTML login page instead of that JSON document: no type error,
    *    no lint failure, just every API client's error handling receiving
-   *    HTML where it parsed JSON a moment ago.
-   *  - `_next`: Next's own build assets and internal RSC/prefetch traffic.
-   *    Running an Auth `getUser()` network round trip for every script chunk
-   *    is pure latency with no security benefit — none of it is session-
-   *    gated data.
+   *    HTML where it parsed JSON a moment ago. `_next` is Next's own build
+   *    assets and internal RSC/prefetch traffic — running an Auth
+   *    `getUser()` round trip for every script chunk is pure latency with no
+   *    security benefit, none of it is session-gated data.
    *  - `favicon.ico`, `manifest.webmanifest`, and common static-asset
    *    extensions: public, unauthenticated files (the manifest is named
    *    explicitly per the task brief). The manifest in particular is fetched
    *    by the browser's install-prompt machinery, which does not forward
    *    cookies the way a normal navigation does — redirecting it to `/login`
    *    would break "Add to Home Screen" without protecting anything.
+   *
+   * FIX-ROUND-1, task 5: `v1`, `external` and `_next` are now anchored to a
+   * path-SEGMENT boundary — `(?:v1|external|_next)(?:/|$)` — rather than
+   * being bare literal prefixes. A bare `v1|external|_next` alternative
+   * matches as a PREFIX: it would just as happily swallow a future page
+   * literally named `/v1beta-pilot`, `/external-faq` or `/_nextgen` as it
+   * matches `/v1/...` today. Nothing in this codebase is named that yet, so
+   * the bug has no symptom right now — which is exactly what makes it worth
+   * the extra characters: a route added a year from now that happens to
+   * start with one of these words would silently fall into the exclude
+   * branch and serve with NO auth gate, NO error, and NO lint failure to
+   * catch it. `(?:/|$)` requires the segment to be either followed by a `/`
+   * (a real subpath, e.g. `/v1/me/context`) or be the entire remaining path
+   * (a bare `/v1`) — so it means "this segment", not "starts with these
+   * letters". `favicon.ico` and `manifest.webmanifest` get the equivalent
+   * treatment via a trailing `$`, since they name exact files, not prefixes.
    */
   matcher: [
-    "/((?!v1|external|_next|favicon\\.ico|manifest\\.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|json)$).*)",
+    "/((?!(?:v1|external|_next)(?:/|$)|favicon\\.ico$|manifest\\.webmanifest$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|json)$).*)",
   ],
 };

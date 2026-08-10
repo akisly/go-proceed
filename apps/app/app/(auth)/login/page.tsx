@@ -14,8 +14,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   // plain string is treated as absent. This value is still fully untrusted
   // attacker-controlled text either way — it is handed to `OtpForm` as-is,
   // and validated once, at the point it is actually used to navigate. See
-  // `sanitizeNext` in otp-form.tsx for why validation lives there and not
-  // here.
+  // `safeNext` in src/lib/safe-next.ts for why validation lives there (a
+  // pure, unit-testable module) and not here.
   const next = typeof rawNext === "string" ? rawNext : undefined;
 
   return (
