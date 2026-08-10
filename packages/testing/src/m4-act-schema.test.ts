@@ -784,6 +784,51 @@ describe("the version lineage is contiguous, unforked and single-drafted", () =>
     ).toContain("statutory_act_versions_frozen_complete_check");
   });
 
+  it("REFUSES a frozen act with no pinned project name, and a draft that has one", async () => {
+    // MIGRATION 0056. `public.projects` takes an UPDATE from any project.admin
+    // at any time — no trigger, no status, no terminal state — so a frozen act
+    // that read its project's name LIVE would be destroyed by an ordinary
+    // rename: `content_hash` was pinned over the old string and the render
+    // refuses with `frozen_content_hash_divergence` for ever after. The column
+    // is the fix and this pair of CHECKs is what makes it unavoidable, in both
+    // directions.
+    const actId = await insertAct(c, a);
+    const frozenSeed = {
+      statutoryActId: actId, status: "frozen", frozenAt: "2026-08-06T10:00:00Z",
+      frozenByMemberId: a.rules.memberId, contentHash: HEX64, rendererVersion: "r",
+      formTemplateHash: HEX64,
+    } as const;
+
+    // A frozen act with every other freeze fact and no pinned name.
+    expect(await raised(() => c.query(VERSION_INSERT, versionParams(a, {
+      ...frozenSeed, frozenProjectName: null }))))
+      .toContain("statutory_act_versions_frozen_complete_check");
+    // …and one with the name but no version behind it: a frozen string whose
+    // provenance is missing is a claim with no record.
+    expect(await raised(() => c.query(VERSION_INSERT, versionParams(a, {
+      ...frozenSeed, sourceProjectVersion: null }))))
+      .toContain("statutory_act_versions_frozen_complete_check");
+
+    // THE OTHER DIRECTION. A draft carrying a pinned name would read as frozen
+    // to anything that trusts the columns rather than the status — the same
+    // failure `content_hash` on a draft would be.
+    expect(await raised(() => c.query(VERSION_INSERT, versionParams(a, {
+      statutoryActId: actId, frozenProjectName: "Приклад-передчасно зафіксований" }))))
+      .toContain("statutory_act_versions_draft_clean_check");
+    expect(await raised(() => c.query(VERSION_INSERT, versionParams(a, {
+      statutoryActId: actId, sourceProjectVersion: 1 }))))
+      .toContain("statutory_act_versions_draft_clean_check");
+    expect(await raised(() => c.query(VERSION_INSERT, versionParams(a, {
+      statutoryActId: actId, frozenProjectAddress: "Приклад-адреса" }))))
+      .toContain("statutory_act_versions_draft_clean_check");
+
+    // AN ADDRESS IS NOT REQUIRED OF A FROZEN ACT, and that is deliberate:
+    // `public.projects.address` is nullable, so an absent address is a fact
+    // about the project and not an incomplete freeze.
+    expect(await sqlstate(() => c.query(VERSION_INSERT, versionParams(a, {
+      ...frozenSeed, frozenProjectAddress: null })))).toBeNull();
+  });
+
   it("REFUSES a content hash or a template hash that is not 64 lowercase hex", async () => {
     const actId = await insertAct(c, a);
     for (const bad of ["ZZ", "A".repeat(64), `${HEX64}0`]) {

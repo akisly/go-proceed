@@ -65,7 +65,10 @@ export const DODATOK_V_FIELDS: readonly FormFieldDefinition[] = [
     ordinal: 6,
     section: "В.1",
     caption: "_________________________________________________________________________________________ ",
-    binding: { kind: "static" },
+    // The ruled line, whose hint on the next row is «(найменування робіт)». The
+    // VALUE goes on the rule and the hint stays static — the arrangement
+    // ordinals 19/20 and 22/23 already use.
+    binding: { kind: "recorded_fact", fact: "work_item_description" },
     verification: "VERIFIED_PRIMARY",
     source: SOURCE,
   },
@@ -83,7 +86,9 @@ export const DODATOK_V_FIELDS: readonly FormFieldDefinition[] = [
     ordinal: 8,
     section: "В.1",
     caption: "виконаних в ________________________________________________________________________________  ",
-    binding: { kind: "static" },
+    // Hinted by ordinal 9 as «(найменування і місце розташування об'єкта
+    // будівництва)», so the binding answers both halves.
+    binding: { kind: "recorded_fact", fact: "construction_object" },
     verification: "VERIFIED_PRIMARY",
     source: SOURCE,
   },

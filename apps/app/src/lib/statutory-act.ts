@@ -169,12 +169,43 @@ export async function locateActVersion(
 export async function loadActVersionView(
   tx: Tx, workspaceId: string, statutoryActVersionId: string,
 ): Promise<StatutoryActVersionView | null> {
+  // THE TWO NAMES ДОДАТОК В ASKS FOR, joined here and nowhere else.
+  //
+  // `wi.description` LIVE. A line an act can name belongs to a published
+  // contract version and `app.guard_work_item()` (0042 §3) raises on every
+  // update of one, which is the same guarantee 0047:421-437 pins the unit
+  // columns with and the same one `w.unit_code` below already rides on. Nothing
+  // freezes it because nothing can move it.
+  //
+  // `p.name` / `p.address` ONLY WHILE THE ACT IS A DRAFT. `projects_update`
+  // (0011:125-127) lets any `project.admin` rename a project at any time, so a
+  // frozen act reads its own pinned copy (migration 0056) and a live read would
+  // turn an ordinary rename into `frozen_content_hash_divergence` on every act
+  // ever frozen under that project. The freeze writes exactly the strings it
+  // rendered, so the switch is invisible to the document.
+  //
+  // BRANCHED ON `status`, NOT ON `coalesce`. `frozen_project_address` is
+  // legitimately NULL on a frozen act whose project had no address, and a
+  // coalesce would then fall through to the LIVE column — so adding an address
+  // afterwards would start printing it into a document that was frozen without
+  // one. `status` is the only thing that says which copy is authoritative.
   const v = await tx.query(
     `select v.*, a.work_stage_id, a.stage_closure_id,
-            a.stage_is_concealed, a.act_form, a.act_form_basis
+            a.stage_is_concealed, a.act_form, a.act_form_basis,
+            wi.description as work_item_description,
+            case when v.status = 'frozen' then v.frozen_project_name
+                 else p.name end as project_name,
+            case when v.status = 'frozen' then v.frozen_project_address
+                 else p.address end as project_address,
+            case when v.status = 'frozen' then v.source_project_version
+                 else p.version end as source_project_version
        from public.statutory_act_versions v
        join public.statutory_acts a
          on a.workspace_id = v.workspace_id and a.id = v.statutory_act_id
+       join public.work_items wi
+         on wi.workspace_id = v.workspace_id and wi.id = v.work_item_id
+       join public.projects p
+         on p.workspace_id = v.workspace_id and p.id = v.project_id
       where v.workspace_id = $1 and v.id = $2`,
     [workspaceId, statutoryActVersionId]);
   if (v.rows.length === 0) return null;
@@ -288,6 +319,10 @@ export async function loadActVersionView(
     workStageId: r.work_stage_id,
     stageClosureId: r.stage_closure_id,
     stageIsConcealed: r.stage_is_concealed,
+    workItemDescription: r.work_item_description,
+    projectName: r.project_name,
+    projectAddress: r.project_address,
+    sourceProjectVersion: Number(r.source_project_version),
     actForm: r.act_form,
     actFormBasis: r.act_form_basis,
     versionNo: Number(r.version_no),

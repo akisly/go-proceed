@@ -65,6 +65,16 @@ export const FORM_CITATION_SOURCE =
 /** A date that is not in the future — `app.guard_statutory_act_version()` checks. */
 export const REGISTRY_CHECKED_ON = "2026-08-01";
 
+/**
+ * What a frozen row carries in `frozen_project_name` (migration 0056). It does
+ * NOT have to match the seeded project's real name: what these suites assert is
+ * that the column is required on a frozen row and refused on a draft, and a
+ * value that matched would quietly make a wrong copy look right. The «Приклад-»
+ * prefix is this repository's marker for a name no reader may mistake for a real
+ * Ukrainian object.
+ */
+export const FROZEN_PROJECT_NAME = "Приклад-об'єкт, зафіксований при freeze";
+
 export interface ActWorld {
   rules: RulesFixture;
   closure: ClosureWorld;
@@ -251,6 +261,16 @@ export interface VersionSeed {
   contentHash?: string | null;
   frozenAt?: string | null;
   frozenByMemberId?: string | null;
+  /**
+   * Migration 0056's three. They default BY STATUS rather than to `null`,
+   * because that is what the freeze does: a draft carries none of them
+   * (`statutory_act_versions_draft_clean_check`) and a frozen row carries the
+   * name and the version (`..._frozen_complete_check`). Pass an explicit `null`
+   * to seed the shape either constraint is supposed to refuse.
+   */
+  frozenProjectName?: string | null;
+  frozenProjectAddress?: string | null;
+  sourceProjectVersion?: number | null;
   draftVersion?: number;
   idempotencyKey?: string;
   workspaceId?: string;
@@ -265,13 +285,15 @@ export const VERSION_INSERT = `
      form_template_key, form_template_version, form_template_hash,
      form_citation, form_citation_verification, form_citation_source,
      registry_checked_on, renderer_version, content_hash, frozen_at, frozen_by_member_id,
+     frozen_project_name, frozen_project_address, source_project_version,
      composed_by_member_id, draft_version, idempotency_key, request_hash)
   values ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6::uuid,$7::uuid,$8::integer,$9::text,
           $10::uuid,$11::integer,$12::text,$13::text,
           $14::text,$15::text,$16::text,
           $17::text,$18::text,$19::text,
           $20::date,$21::text,$22::text,$23::timestamptz,$24::uuid,
-          $25::uuid,$26::bigint,$27::text,$28::text)
+          $25::text,$26::text,$27::bigint,
+          $28::uuid,$29::bigint,$30::text,$31::text)
   returning id`;
 
 export function versionParams(a: ActWorld, o: VersionSeed): unknown[] {
@@ -301,6 +323,15 @@ export function versionParams(a: ActWorld, o: VersionSeed): unknown[] {
     o.contentHash ?? null,
     o.frozenAt ?? null,
     o.frozenByMemberId ?? null,
+    // BY STATUS, not `?? null` — see VersionSeed. `frozen_project_address` is
+    // nullable in BOTH states, because `public.projects.address` is.
+    o.frozenProjectName === undefined
+      ? ((o.status ?? "draft") === "frozen" ? FROZEN_PROJECT_NAME : null)
+      : o.frozenProjectName,
+    o.frozenProjectAddress ?? null,
+    o.sourceProjectVersion === undefined
+      ? ((o.status ?? "draft") === "frozen" ? 1 : null)
+      : o.sourceProjectVersion,
     f.memberId,
     o.draftVersion ?? 1,
     o.idempotencyKey ?? randomUUID(),
@@ -452,6 +483,9 @@ export interface FreezeAttempt {
   contentHash?: string;
   rendererVersion?: string;
   formTemplateHash?: string;
+  /** Migration 0056's pair, required of a frozen row beside the other five. */
+  frozenProjectName?: string;
+  sourceProjectVersion?: number;
   expectedDraftVersion?: number;
   /** Whose capability the deferred definer trigger resolves at COMMIT. */
   actorUserId?: string;
@@ -487,17 +521,26 @@ export async function attemptFreeze(
     await c.query("begin");
     await c.query("select set_config('app.actor_user_id', $1, true)",
       [o.actorUserId ?? f.userId]);
+    // `frozen_project_name` and `source_project_version` join the set migration
+    // 0056 added to `statutory_act_versions_frozen_complete_check`, so a freeze
+    // path that does not pin them is refused — here exactly as in the route.
+    // That refusal is the point of the column: `public.projects` takes an UPDATE
+    // from any project.admin at any time, and a frozen act that read the name
+    // live would be destroyed by an ordinary rename.
     const r = await c.query(
       `update public.statutory_act_versions
           set status = 'frozen', frozen_at = now(), frozen_by_member_id = $3,
               content_hash = $4, renderer_version = $5, form_template_hash = $6,
+              frozen_project_name = $8, source_project_version = $9,
               draft_version = draft_version + 1
         where workspace_id = $1 and id = $2 and status = 'draft' and draft_version = $7`,
       [o.workspaceId ?? f.workspaceId, o.versionId, f.memberId,
        o.contentHash ?? contentHashOf(o.versionId),
        o.rendererVersion ?? "statutory-act-render/1",
        o.formTemplateHash ?? HEX64,
-       o.expectedDraftVersion ?? 1]);
+       o.expectedDraftVersion ?? 1,
+       o.frozenProjectName ?? FROZEN_PROJECT_NAME,
+       o.sourceProjectVersion ?? 1]);
     await c.query("commit");
     return { error: null, sqlstate: null, updated: r.rowCount ?? 0 };
   } catch (e) {

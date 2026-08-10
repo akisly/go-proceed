@@ -308,6 +308,41 @@ export const statutoryActVersionView = z.object({
   stageClosureId: z.string().uuid(),
   stageIsConcealed: z.boolean(),
 
+  /**
+   * THE TWO NAMES ДОДАТОК В's FIRST PAGE ASKS FOR, and the only fields on this
+   * view that are not ids, quantities or provenance. Added 2026-08-10: the view
+   * carried ids only, so ordinals 6 and 8 — «(найменування робіт)» and
+   * «(найменування і місце розташування об'єкта будівництва)» — printed blank
+   * while both facts sat in the database.
+   *
+   * THEY REACH THIS VIEW BY TWO DIFFERENT ROUTES, and the difference is not
+   * cosmetic. `workItemDescription` is READ LIVE off `public.work_items`, which
+   * is safe because a line an act can name belongs to a PUBLISHED contract
+   * version and `app.guard_work_item()` refuses every update to one — the same
+   * chain `unit_code` already travels on the quantity lines. `projectName` and
+   * `projectAddress` are read off the act's own FROZEN COLUMNS once it is frozen
+   * (migration 0056) and live only while it is still a draft, because
+   * `public.projects` takes an UPDATE from any `project.admin` at any time and a
+   * live read would make renaming a project break `content_hash` on every act
+   * ever frozen under it.
+   */
+  workItemDescription: z.string().min(1),
+  projectName: z.string().min(1),
+  projectAddress: z.string().nullable(),
+  /**
+   * `public.projects.version` the two strings above were read at — the act's own
+   * pinned copy once frozen, the project's current version while it is a draft.
+   * Same provenance `sourcePartyVersion` carries for a frozen organisation name.
+   *
+   * NOT NULLABLE, AND THAT IS LOAD-BEARING RATHER THAN TIDY. The freeze renders
+   * THE DRAFT'S VIEW (`renderForFreeze` flips the status and changes nothing
+   * else) and hashes it, then pins this number. A draft that reported no version
+   * would render a provenance without one, and the very next render — off the
+   * frozen row, which does have one — would produce different bytes and fail
+   * `frozen_content_hash_divergence` on an act nobody touched.
+   */
+  sourceProjectVersion: z.number().int().min(1),
+
   /** v0.1 stores and renders `dodatok_v` only; `statutory_acts_v01_form_v_only_check`. */
   actForm: z.enum(["dodatok_v", "dodatok_g"]),
   /**
