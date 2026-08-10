@@ -136,17 +136,45 @@ const TITLE_N15 = "Монтаж електротехнічних установ�
 /**
  * Provenance, verbatim from the CSV's `source` column.
  *
- * It says in its own words what hidden-works-content-rules.md §"Open items"
- * says at length: the VERIFIED_PRIMARY tag on every one of these rows rests on
- * ONE download of the official ДБН file that no reviewer can reopen — no URL,
- * no retrieval date and no hash were recorded — and the independence of any
- * further copies is not established. A re-fetch that does not reproduce the
- * same bytes must downgrade every row it touches to VERIFIED_SECONDARY. The
- * string travels into public.requirement_library_items.source_citation and
- * from there into every rule version that quotes one of these items, so the
- * caveat reaches the act rather than staying in a design document.
+ * IT USED TO SAY «URL/дата/хеш не збережені», AND THAT STOPPED BEING TRUE ON
+ * 2026-08-10. The clause was accurate for as long as it stood: the audit behind
+ * these twelve rows downloaded the official ДБН file once, retained nothing, and
+ * recorded neither URL nor date nor hash, so the VERIFIED_PRIMARY tag rested on
+ * a fetch no reviewer could reopen. hidden-works-content-rules.md §"Open items"
+ * said the same at length and this string pointed at it.
+ *
+ * Both halves of that gap are now closed, and by the SAME FILE these rows were
+ * transcribed from — identified by content and not by name: 636 603 bytes, the
+ * byte count the audit itself recorded, and
+ * `sha256=4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3`.
+ * The owner supplied the URL, the file was fetched from it, and the digest was
+ * computed independently of anything already written down. The condition this
+ * comment used to name — «a re-fetch that does not reproduce the same bytes must
+ * downgrade every row it touches to VERIFIED_SECONDARY» — was tested and did not
+ * fire. The tag is on firmer ground than when it was written, not weaker.
+ *
+ * WHY THE CORRECTION HAD TO REACH THIS STRING AND NOT ONLY THE DESIGN DOCUMENT.
+ * It travels into `public.requirement_library_items.source_citation`, from there
+ * into every rule version that quotes one of these items, and from there into
+ * `requirement_occurrences.norm_ref_source`, which `renderStatutoryAct` prints
+ * inside every decision block. Until the render started working the sentence was
+ * only ever read in a CSV. It is now printed in a document a client's lawyer
+ * reads, which is exactly the reach the old comment claimed for the caveat and
+ * is why the correction cannot stop at the design document either.
+ *
+ * ROWS ALREADY WRITTEN KEEP THE OLD STRING, AND THAT IS THE SCHEMA'S DECISION
+ * RATHER THAN A CHOICE MADE HERE. `requirement_library_items_immutable`
+ * (0041:618) and `requirement_occurrences_immutable` (0043:986) reject every
+ * update, so there is no backfill to perform and none to argue about. It is also
+ * the right answer twice over: a citation records what was cited, and a frozen
+ * act's `content_hash` was computed over the string its occurrence carried — a
+ * backfill would have broken every act ever frozen, which is the failure
+ * migration 0056 exists to prevent on the project's name.
+ *
+ * The independence caveat is not derived and is unchanged, because it is still
+ * true: one fetch reproduced is not two independent sources agreeing.
  */
-const SOURCE_SINGLE_FETCH = "ДБН А.3.1-5:2016 Додаток Н; офіційний файл e-construction.gov.ua (одне завантаження, URL/дата/хеш не збережені — див. hidden-works-content-rules.md, Open items); незалежність будь-яких додаткових копій не встановлена";
+const SOURCE_SINGLE_FETCH = "ДБН А.3.1-5:2016 Додаток Н; офіційний файл e-construction.gov.ua, https://e-construction.gov.ua/laws_detail/3879707932224390963, завантажено 2026-08-10, sha256=4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3; незалежність будь-яких додаткових копій не встановлена";
 
 /**
  * The twelve items of Додаток Н positions Н.14 and Н.15, verbatim.

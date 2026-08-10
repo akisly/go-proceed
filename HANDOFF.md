@@ -102,6 +102,22 @@ The frozen arc had no end-to-end cover when it was written, because no act could
 freeze. It has one now: «SURVIVES a rename once frozen» freezes an act, renames
 the project, and asserts the document is byte-identical.
 
+### Додаток Н's provenance line, corrected after the merge
+
+Closing the render made a stale sentence customer-facing: every row of the
+Додаток Н CSV said «URL/дата/хеш не збережені», which is the `norm_ref_source`
+printed inside every decision block. All 12 rows and the constant generated from
+them now carry the URL, the date and the hash instead.
+
+**Rows already written keep the old string, and the schema decided that, not
+this work.** `requirement_library_items_immutable` and
+`requirement_occurrences_immutable` reject every update, so there was no backfill
+to perform — and it is the right answer twice over: a citation records what was
+cited, and an occurrence's `norm_ref_source` is inside the `content_hash` of
+every frozen act, so a backfill would have broken every act ever frozen. That is
+migration 0056's failure mode arriving from a second direction, and the tables
+were already armed against it.
+
 ### The privacy page no longer names a service that does not exist
 
 `/legal/privacy` rendered `{{FORM_PROCESSOR}}` four times, inside `<code>`, in
@@ -156,15 +172,6 @@ instead, or just wait.
 ## 5. Do this next
 
 **In the order I would take them.**
-
-0. **One owner decision, five minutes, and it is now customer-facing.** Every row
-   of the Додаток Н CSV carries «URL/дата/хеш не збережені» in its `source`, and
-   that clause stopped being true today. It is the `norm_ref_source` printed
-   inside every decision block, so **the act now prints a line telling a reader
-   the source of its own citation was not recorded, when it was.** It errs
-   conservatively — it understates — which is why it is not a P0. It is not fixed
-   here because the `source` column of a committed regulatory file is content
-   under §"Change control", not code. TODOS.md carries the exact edit.
 
 1. **The PWA.** ADR-007, approved and unbuilt. Nothing else is close in value —
    it is what stands between the owner and a pilot anyone can hold. `apps/app`

@@ -1006,10 +1006,39 @@ once frozen», both of which fail without the fix.
 stopped refusing is hiding whatever is behind it. Two blockers stood in front of
 this for the whole milestone.
 
-### P1 (OPENED 2026-08-10, NOT FIXED) — Додаток Н now prints a provenance line that is false
+### P1 (CLOSED 2026-08-10) — Додаток Н printed a provenance line that was false
 
-**Opened by closing the render, and it needs an owner decision rather than a
-commit.** Every row of `technical/requirements/dbn-a31-5-2016-dodatok-n.csv`
+**Closed on the owner's instruction, the same day it was opened.** All 12 rows of
+`technical/requirements/dbn-a31-5-2016-dodatok-n.csv` and the `SOURCE_SINGLE_FETCH`
+constant generated from them now carry the recorded record — the URL, `2026-08-10`
+and `sha256=4592eda…` — in place of «одне завантаження, URL/дата/хеш не збережені».
+The two are byte-identical (364 bytes) and `requirement-library-fidelity` re-checks
+them every run. Only the parenthetical moved; the independence caveat is unchanged,
+because reproducing one fetch is still not two independent sources agreeing.
+
+**THE BACKFILL QUESTION THIS ENTRY RAISED WAS ALREADY ANSWERED BY THE SCHEMA, and
+that is worth more than the edit.** `requirement_library_items_immutable`
+(0041:618) and `requirement_occurrences_immutable` (0043:986) reject every update
+and every delete, so rows already written keep the string they were written with
+and there is no backfill to perform. It is the right answer twice over:
+
+- a citation records **what was cited**, not what the citing system later learned
+  about its own record-keeping;
+- an occurrence's `norm_ref_source` is read LIVE by `renderStatutoryAct` and is
+  inside the `content_hash` of every frozen act. **A backfill would have broken
+  every act ever frozen** — precisely the failure migration 0056 was written to
+  prevent for the project's name, arriving from a second direction. Had these
+  tables been mutable, the obvious fix would have been the destructive one.
+
+**What the tag rests on is stronger than when it was written.** `dodatok-n.ts`'s
+own comment named the condition — «a re-fetch that does not reproduce the same
+bytes must downgrade every row it touches to VERIFIED_SECONDARY». The re-fetch was
+performed and reproduced the bytes exactly, so VERIFIED_PRIMARY stands, checked.
+
+**Original entry, kept because it is the record of what was wrong**
+
+**Opened by closing the render.** Every row of
+`technical/requirements/dbn-a31-5-2016-dodatok-n.csv`
 carries this as its `source`, and `apps/app/src/lib/dodatok-n.ts` is generated
 from it and byte-verified against it:
 
@@ -1046,6 +1075,40 @@ re-verify. Then decide whether already-materialised occurrences are backfilled o
 left carrying the string that was true when they were written. **Leaving them is
 defensible** and is what INV-073's «the source it was read from» arguably asks
 for; that is the actual question.
+
+### P2 (OPEN, UNREPRODUCED) — vertical-m1 steps 7 and 8 went red once and would not do it again
+
+**Recorded because it was a real red and I could not explain it, not because I
+know what it is.** During one full `pnpm turbo run test --concurrency=1` on
+2026-08-10:
+
+```
+× v0.1-M1 vertical … > 7. reimport publishes v2 with diff {added 1, removed 1,
+                          changed 2, unchanged 5} and lineage        47ms
+× v0.1-M1 vertical … > 8. published immutability: v1 identical after v2 …  9ms
+```
+
+**Not the shared-Postgres artefact.** That one produces lock waits with absurd
+durations; these failed in 47ms and 9ms, which is an assertion or an early
+non-200, not a wait. Step 8 reads `v1Snapshot`, which step 7 assigns, so 8 is
+almost certainly a cascade of 7 and there is really one failure here.
+
+**It did not reproduce.** `vertical-m1.int.test.ts` alone: 9 of 9. A clean full
+`apps/app` run afterwards: 45 files, 678 of 678. The same suite had passed 672
+earlier the same day before any of that session's changes.
+
+**It is not the Додаток Н provenance edit that was in the tree when it fired.**
+That change is one string constant on twelve regulatory citations; there is no
+path from it to an import diff's `{added, removed, changed, unchanged}` counts or
+to a `predecessorWorkItemId`. Said as a reasoned claim, not a measurement.
+
+**The hypothesis worth testing first:** the failing run had `@goproceed/app`
+executing after `@goproceed/testing`, which drives its own workspaces through
+`seedRulesWorld` / `dropRulesWorkspaces`; the passing runs had `apps/app` alone.
+Cross-PACKAGE residue would look exactly like this — a vertical that depends on
+its own earlier steps failing at a step that reads state. If it recurs, capture
+the assertion text before re-running: this entry exists because that output
+scrolled past and the run could not be repeated.
 
 ### P2 — a hand-typed zero-priced line and an imported one store different provenance
 
