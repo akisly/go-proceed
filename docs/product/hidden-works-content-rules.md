@@ -53,10 +53,25 @@
 > 51 printed lines of Додаток В, machine-transcribed from that file and verified
 > byte-for-byte against it.
 >
-> **STILL OPEN:** the URL it was downloaded from and the date. Until both are
-> recorded, `DBN_RETRIEVAL_RECORD` stays null and no `VERIFIED_PRIMARY` string
-> reaches a customer-facing render. A hash proves two people hold the same
-> bytes; it does not say where the bytes came from.
+> **CLOSED 2026-08-10.** The owner supplied the URL, and the fetch was
+> REPRODUCED rather than recorded on trust: the file was downloaded from that
+> URL and hashed independently of everything written above. It is 636 603 bytes
+> — the byte count this audit recorded before any of it — and its SHA-256 is
+> `4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3`,
+> character for character the digest the Додаток В transcription was verified
+> against. A reviewer can now repeat that: fetch, hash, compare. The sentence
+> this bullet opened with — «that download was a single fetch no reviewer could
+> reproduce» — has stopped being true.
+>
+> `DBN_RETRIEVAL_RECORD` (`apps/app/src/lib/statutory-act-form.ts`) carries the
+> three fields, and `VERIFIED_PRIMARY` strings now reach a customer-facing
+> render. The record's `url` is the durable `laws_detail` page and not the
+> signed `files-token` link the bytes came from, because a link that expires
+> would leave the tag asserted again; both are named in the code.
+>
+> **What is still NOT established, and the provenance string still says so:**
+> one fetch reproduced is not two independent sources agreeing. «незалежність
+> будь-яких додаткових копій не встановлена» stays.
 >
 > The verified list content lives in
 > [`technical/requirements/dbn-a31-5-2016-dodatok-n.csv`](../../technical/requirements/dbn-a31-5-2016-dodatok-n.csv).

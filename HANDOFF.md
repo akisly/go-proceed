@@ -1,21 +1,29 @@
-# Handoff — GoProceed, 2026-08-10
+# Handoff — GoProceed, 2026-08-10 (second session of the day)
 
-Written at the end of the session that followed the v0.1 build. Meant to be read
-cold: everything needed to continue is here or linked from here.
+Written to be read cold. The previous handoff is the section «What the last
+session left» below, compressed; everything else is new.
 
-**Branch:** `claude/p0-stranded-pool` → open as [PR #10](https://github.com/akisly/go-proceed/pull/10), 6 commits.
-**Base:** `main`, which now contains the whole v0.1 build (PR #9, merged by the owner).
+**Branch:** `claude/handoff-continuation-9607a0`, working tree not yet committed
+at the time of writing.
+**Base:** the merge of PR #11.
 
 ---
 
 ## 1. The one-paragraph version
 
-The previous session shipped v0.1 as a **complete, tested backend with no front
-end**. This session made CI green for the first time, found four genuine product
-defects in code that had never executed, closed both money P0/P1s against a
-running database, and transcribed Додаток В from the official standard. What has
-not changed: **a customer still cannot click through the pilot**, because the
-field client from ADR-007 was approved and never built.
+The previous session left four next steps. **All four are done, and the third
+one turned out to be the milestone.** The owner supplied the ДБН download URL;
+the file was re-fetched from it and hashed independently, which closed the last
+of M4's two render blockers. **`statutory_acts.render` now returns a document,
+`statutory_act_versions.freeze` succeeds, and the act renders twice to identical
+bytes** — the acceptance walk of `docs/delivery/version-0.1.md` §v0.1-M4 is
+performable end to end for the first time. Making it work immediately exposed a
+P0 that had been sitting behind the refusal for the whole of v0.1: **every act
+would have frozen successfully and then been permanently unrenderable.**
+
+What has not changed: **a customer still cannot click through the pilot.** The
+field client from ADR-007 is still approved and still not built. That is now the
+single largest item, with nothing ahead of it.
 
 ---
 
@@ -23,88 +31,125 @@ field client from ADR-007 was approved and never built.
 
 | File | Why |
 |---|---|
-| `TODOS.md` | Everything open. Two P1s were added on 2026-08-10 and are the shortest path to a pilot. |
+| `TODOS.md` | Everything open. Four entries moved to CLOSED today; one new P0 was opened and closed. |
+| `docs/decisions/ADR-007-pilot-field-client.md` | The PWA. **Approved, and not built.** This is the next thing. |
+| `docs/product/hidden-works-content-rules.md` | Approved, and restricts at every level including over ADRs. Its §"Open items" first bullet closed today. |
 | `docs/decisions/ADR-006-pilot-shaped-v0.1.md` | v0.1 = six steps. Decision 4 is the table set. |
-| `docs/decisions/ADR-007-pilot-field-client.md` | The PWA. **Approved, and not built.** |
-| `docs/product/hidden-works-content-rules.md` | Approved, and restricts at every level including over ADRs. Its "Open items" moved on 2026-08-10. |
-| `docs/decisions/ADR-005-readiness-gate-and-hidden-works.md` | The product thesis as a decision. |
 
 ---
 
-## 3. State, measured rather than asserted
+## 3. What this session changed
 
-On a **clean single run** (`supabase db reset`, then one `pnpm turbo run test --concurrency=1`):
+### M4 prints — both blockers closed, and neither was closed by code
 
-- **6 of 6 packages green.** `apps/app` 45 files, `packages/testing` 454 tests,
-  demo 16, domain 10, contracts 4, database 2.
+TODOS.md's BLOCKER entry carried its own rule: «no slice may close this item with
+code, and any change that makes the render succeed without the artifact below is
+a regression, not a fix». That held to the end.
+
+- `dodatok_v_field_list_not_committed` closed in the morning (previous session):
+  all 51 lines of В.1/В.2 machine-transcribed and byte-verified.
+- `dbn_retrieval_record_absent` closed this session. The owner supplied
+  `https://e-construction.gov.ua/laws_detail/3879707932224390963` and a direct
+  download link. **The bytes were fetched and hashed independently of everything
+  the repository had already written down**: 636 603 bytes and
+  `sha256=4592eda…`, matching the digest the transcription had been verified
+  against. The fetch that «no reviewer could reproduce» has been reproduced.
+
+`DBN_RETRIEVAL_RECORD.url` is the durable `laws_detail` page, **not** the
+`files-token` link the bytes actually came from — a signed token link expires,
+and a record that stops resolving leaves the tag asserted again, which is the
+exact failure the field exists to end. Both URLs are named in the code.
+
+**Neither refusal was deleted.** Both are still derived from the absence of their
+datum, so setting the record back to `null` makes the render refuse again with no
+other edit. The suites assert the ABSENCE of the two closed codes.
+
+### The P0 that was hiding behind the refusal
+
+**Every act would have frozen and then been permanently unrenderable.** The
+freeze rendered the DRAFT view — where `frozen_at` is still null — hashed it into
+`content_hash`, and only then wrote `frozen_at = now()`. Додаток В's act date
+binds to `frozenAt ?? composedAt` and carries the column it came from in its
+provenance, so the hashed document was dated `…composed_at` and the stored row
+`…frozen_at`. The next render produced different bytes and refused with
+`frozen_content_hash_divergence` — naming nothing, because renderer version and
+template hash both matched.
+
+INV-015 makes `frozen` terminal, so there is no correction except a successor
+version, which would have done the same thing. Found within minutes of the render
+first working, by the acceptance walk's own «render twice and diff the bytes».
+The freeze now reads `select now()` before rendering and passes that same value
+to the UPDATE.
+
+### The act names the works and the object
+
+Ordinals 6 and 8 of Додаток В printed blank while both facts sat in the database.
+**Ten blank fields are now eight.** It was not the two read-only view fields the
+last handoff predicted:
+
+- `work_items.description` **is** read live, and safely — a line an act can name
+  belongs to a published contract version and `app.guard_work_item()` refuses
+  every update to one. Same chain `unit_code` already rides on.
+- `projects.name`/`address` **cannot be**. `projects_update` admits any
+  `project.admin` at any time, with no trigger and no terminal state. A live read
+  would mean that renaming a project destroys every act ever frozen under it.
+  Migration **0056** pins them at the freeze, the way a signatory's organisation
+  name already is, and `loadActVersionView` branches on `status` rather than
+  coalescing — a coalesce would let an address added later start printing into an
+  act frozen without one.
+
+The frozen arc had no end-to-end cover when it was written, because no act could
+freeze. It has one now: «SURVIVES a rename once frozen» freezes an act, renames
+the project, and asserts the document is byte-identical.
+
+### The privacy page no longer names a service that does not exist
+
+`/legal/privacy` rendered `{{FORM_PROCESSOR}}` four times, inside `<code>`, in
+the sentences naming who processes a visitor's data. The owner chose removal over
+a red CI. The three submission states are still disclosed; the third-party one is
+described by its ROLE, which is true, rather than by a name this deployment does
+not have.
+
+**Only then** did `preflight` go into CI — before `build` in demo-qa. That order
+is the point: added while the token was live, the gate would have been
+permanently red, which `preflight.mjs`'s own header argues against in terms.
+
+A new hole opened where the old one closed and is covered: setting
+`VITE_PILOT_ENDPOINT` would send nine field values to an unnamed processor.
+`apps/demo/tests/claims.test.ts` asserts the implication and exercises the
+predicate against both sides.
+
+---
+
+## 4. State, measured rather than asserted
+
+On a clean run (`supabase db reset`, `pnpm db:local-credentials`, then ONE
+`pnpm turbo run test --concurrency=1`):
+
+- **6 of 6 packages green, 1482 tests.** contracts 104, demo 137, testing 455,
+  domain 101, database 7, app 678 across 45 files.
 - `pnpm turbo run typecheck` — 10 of 10.
+- `pnpm turbo run build` — 3 of 3.
 - `node scripts/validate-canonical-docs.mjs` — exit 0.
-- 55 migrations apply in sequence.
+- `pnpm --filter @goproceed/demo preflight` — exit 0, and now in CI.
+- **56 migrations** apply in sequence.
 
-**One trap, and it cost this session an hour.** These suites share ONE local
-Postgres. `--concurrency=1` orders tasks *within* one turbo run and does nothing
-between two. Running a second full suite while the first is still going produces
-`deadlock detected`, hook timeouts and a red result that is an artefact. If you
-see failures in `concurrency`, `progress-record` or `progress-adjust`, check for
-a stray run before believing them.
+**The trap the last handoff named is real, I hit it, and it is worse than
+described.** These suites share ONE local Postgres, and it is not only a second
+TEST RUN that breaks them — **any query at all against that database while a
+suite is running will do it.** I lost two runs to `deadlock detected` and «Hook
+timed out in 10000ms» by doing nothing more than
+`select count(*) from public.organizations` in another shell to check whether the
+suite was progressing. `truncateAll` takes ACCESS EXCLUSIVE on every table
+between test files; a queued ACCESS EXCLUSIVE blocks every reader behind it, and
+the hook budget is ten seconds.
 
----
-
-## 4. What this session changed
-
-### CI, 199 red → 0
-
-CI's own run-by-run counts: **199 → 147 → 45 → 36 → 22 → 15 → 6 → 0**. The
-reported failure was 54 tests in `packages/testing`; fixing it let CI reach
-`apps/app`'s 37 integration files, **which had never executed once**.
-
-The large causes were not many:
-
-- A teardown whose hand-written FK order was seven tables short and had four
-  latent order violations. 37 of the first 54 were downstream of it. Its own
-  comment had predicted exactly this. Replaced by a catalog-driven delete under
-  `session_replication_role = 'replica'` (`packages/testing/src/pg.ts`).
-- **52 CHECK constraints** where one-argument `btrim` strips spaces only, so a
-  tab or a pasted U+00A0 passed as a source citation. Migration `0052`.
-- Four hand-written `materialiseFor` harnesses that each guarded themselves with
-  an error naming their own deletion. The guards fired; the rewrites were taken.
-
-### Four product defects, all in never-executed code
-
-1. **`exchange_external_grant` raised 42702 on every call** (`0053`). `RETURNS
-   TABLE` made `token_hmac` a variable and the scan read it unqualified. No
-   external link could be exchanged, ever.
-2. **A session could mint its successor and not read it back** (`0054`). RLS
-   applies the SELECT policy to `RETURNING`. No decision could be submitted.
-3. **A version that could not be LOCKED was reported as not existing.**
-   `cv_update`'s `USING (status = 'draft')` applies to `SELECT … FOR UPDATE`, so
-   `requireDraft`'s catalogued 409 was dead code in four routes; three answered
-   404 and two threw 500. Fixed in the routes — the RLS is right and is not QA's
-   to change.
-4. **INV-007 did not survive a rotation** (`0055`). A reviewer who retried a
-   submit got 409 instead of the receipt they had already earned.
-
-(1) and (2) together meant the технагляд flow did not work end to end. None was
-findable by reading: all four are valid SQL that deploys and fails only when run.
-
-### Money: both open items closed against a running database
-
-- **P0, the stranded pool.** `record 4 / admit / +6 / +5 / −8 / close` settled at
-  65 % of the pool where 70 % was owed. The carve denominator summed *measured*
-  admitted quantity while the money followed *funded* quantity; an over-removal
-  parts them. The denominator now answers to the money. One subquery.
-- **P1, first-come funding.** Re-run as the entry demanded: the pool sat entirely
-  idle with work fully within contract. Owner chose *admission is a standing
-  claim*; an entry that funded nothing no longer spends its allocation slot, so a
-  later closure can pay it. No migration — and it does not weaken
-  `unique (workspace_id, progress_entry_id)`, which `0046` relies on.
-
-Both are covered, and **both covers were verified to fail without the fix**.
-
-### Додаток В
-
-The owner supplied the official ДБН file. All 51 lines of В.1/В.2 are committed,
-machine-transcribed, byte-verified. See `TODOS.md` §"M4 prints nothing".
+The failures land in `purge worker`, `progress.adjust`, `upload_intents` and
+`import_batches` — areas unrelated to whatever you changed — with absurd
+durations, single tests reporting seventeen minutes. **Before believing a red
+apps/app run: check that nothing else touched the database, then re-run.** Do not
+probe the database to see how far along it is. Read the vitest output file
+instead, or just wait.
 
 ---
 
@@ -112,62 +157,75 @@ machine-transcribed, byte-verified. See `TODOS.md` §"M4 prints nothing".
 
 **In the order I would take them.**
 
-1. **Two strings finish the act.** `DBN_RETRIEVAL_RECORD` needs the URL the ДБН
-   file came from and the date. The hash is recorded. Then M4 prints.
-2. **`preflight` into CI** — one line, stops `{{FORM_PROCESSOR}}` reaching a live
-   privacy page. `TODOS.md` P1.
-3. **Widen `StatutoryActVersionView`** by `work_items.description` and
-   `projects.name`: ten blank fields on the act become eight.
-4. **The PWA.** This is the big one and it is what stands between the owner and a
-   pilot anyone can hold. Nothing below matters as much.
+0. **One owner decision, five minutes, and it is now customer-facing.** Every row
+   of the Додаток Н CSV carries «URL/дата/хеш не збережені» in its `source`, and
+   that clause stopped being true today. It is the `norm_ref_source` printed
+   inside every decision block, so **the act now prints a line telling a reader
+   the source of its own citation was not recorded, when it was.** It errs
+   conservatively — it understates — which is why it is not a P0. It is not fixed
+   here because the `source` column of a committed regulatory file is content
+   under §"Change control", not code. TODOS.md carries the exact edit.
+
+1. **The PWA.** ADR-007, approved and unbuilt. Nothing else is close in value —
+   it is what stands between the owner and a pilot anyone can hold. `apps/app`
+   still has exactly two stub pages, no manifest, no service worker, no
+   `public/`.
+2. **The six capabilities in no responsibility preset.** `stage_closures.close`,
+   `evidence_decisions.decide`, `requirement_exceptions.decide`,
+   `progress.adjust`, `readiness.view`, `statutory_acts.compose`. M3–M6 works in
+   tests and for no real persona. This is an owner decision, not a code change —
+   the open question is which responsibility owns stage closure.
+3. **The eight fields Додаток В still prints blank.** проектна документація,
+   матеріали з сертифікатами, відхилення, дати початку/закінчення. Unlike the two
+   closed today, **no column anywhere in the data model holds any of them**, so
+   each is a schema decision and not a wiring one. The owner's standing decision
+   of 2026-08-10 is «fill what the product knows, leave the rest for the hand
+   that signs», so this is optional rather than owed.
+4. **The two headline measures.** First-time acceptance rate and days-to-signature
+   are defined over claim segments, package versions and `commercial_decision`,
+   all v0.2. M6 cannot close without them.
 
 ---
 
-## 6. What a customer can touch today, and it is very little
+## 6. What a customer can touch today
 
-Walked by hand on 2026-08-10 with both servers running.
+Unchanged from the last handoff except step 4, and the change there is real.
 
 | ADR-006 step | Screen |
 |---|---|
 | 1. The object, lines by hand | none |
 | 2. The phone, field client | **none — no PWA exists** |
 | 3. The refusal | none (enforced in DB and routes) |
-| 4. The act | composer only; freeze always refuses |
-| 5. The link | **the one real screen** |
+| 4. The act | composer only — but the act now FREEZES and RENDERS through the API |
+| 5. The link | the one real screen |
 | 6. The money | none |
 
-`apps/app` has exactly two pages and both are stubs: `/login` says «UI-форма — у
-наступному слайсі», `/context` says the list «завантажується через
-/v1/me/context» and loads nothing. No manifest, no service worker, no `public/`.
-
-`apps/demo` is 2482 lines across nine pages with a five-step walkthrough and
-**no API calls at all** — a static prototype, honest about itself. Its own QA
-passes (10 routes, 18 redirects, 5-step journey, focus trap) *after* `build`; run
-`build` first or it fails on a missing `dist`.
-
-`.claude/launch.json` has both servers wired with `autoPort`, so
-`preview_start` works without fighting whatever holds 3000 or 5173.
+The act is a document behind an API and not behind a screen. That is a real
+change from «M4 ships a composer and no document», and it is not yet something a
+customer can click.
 
 ---
 
-## 7. Habits this codebase rewards, learned the hard way here
+## 7. Habits this codebase rewards
 
-- **A guard that fires is doing its job.** Four guards in the act suite were
-  written to fail on the day Додаток В landed, and said so in their comments.
-  When one fires, read what it was written to protect before changing it — and
-  assert the ABSENCE of the closed condition rather than deleting the check.
-- **Never bend a test to green.** Two suites ordered money allocations by
-  `created_at`, which ADR-008 made meaningless when it moved the carve into the
-  closure transaction: every row a closure writes shares one `now()`, so the sort
-  fell through to a random uuid. The assertions had been passing by luck.
-- **Verify the fix fails without itself.** Both money fixes were checked by
-  reverting the change and watching the new test go red.
-- **Do not compute an expectation the product computes.** `pool * 7 / 10` is
-  167991 where the carve lands on 167992, because gross is built from
-  independently carved net and tax. Assert against a control instead.
-- **Regulatory content is generated, never typed.** `dodatok-v.ts` comes out of
-  the CSV and is re-compared every run. The captions mix two apostrophes and
-  carry a missing space that its neighbour two lines below has.
+Carried forward, with one added at the top by today.
+
+- **A refusal that has never stopped refusing is hiding whatever is behind it.**
+  Two blockers stood in front of the freeze's date bug for the whole milestone.
+  When a long-standing refusal is about to be closed, expect the code behind it
+  to have never executed, and write the positive assertions before believing it.
+- **A guard that fires is doing its job.** Several tests here were written to fail
+  on the day the retrieval record landed, and said so in their comments. Assert
+  the ABSENCE of the closed condition rather than deleting the check.
+- **Never bend a test to green.**
+- **Verify the fix fails without itself.** Migration 0056's constraints were
+  checked by reverting them on the live database and watching the new schema test
+  go red.
+- **Do not compute an expectation the product computes.**
+- **Regulatory content is generated, never typed.**
+- **A provenance string maintained in step with a record will one day contradict
+  it.** `DBN_SINGLE_FETCH_SOURCE` said «URL/дата/хеш не збережені» and became
+  false the moment the record landed. It is derived from the record now.
 
 ---
 
@@ -182,18 +240,7 @@ founder-reported and, by that document's own rule, moves nothing.
 The whole build rests on the owner's instruction, not on customer evidence.
 ADR-006's authority note says so, and it should stay saying so.
 
----
-
-## 9. Owner decisions still outstanding
-
-1. **Six capabilities are in no responsibility preset** — `stage_closures.close`,
-   `evidence_decisions.decide`, `requirement_exceptions.decide`,
-   `progress.adjust`, `readiness.view`, `statutory_acts.compose`. Verified by
-   reading `maps_to_capabilities`: not one appears. M3–M6 works in tests and for
-   no real persona. The question is which responsibility owns stage closure —
-   `internal_verifier` or `foreman`.
-2. **The two headline measures have no v0.1 definition.** First-time acceptance
-   rate and days-to-signature are defined over claim segments, package versions
-   and `commercial_decision`, all v0.2. M6 cannot close without them.
-3. **The owning entity for work type** still needs an ADR. The carrier was
-   settled as a column (`0050`).
+**M4 shipping a document does not change this.** A document nobody outside this
+repository has read is not evidence that the document is the right one — entry
+evidence «one signed акт на закриття прихованих робіт from the target workflow,
+sanitized» is still owed and still absent (`version-0.1.md` §v0.1-M4).
