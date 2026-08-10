@@ -122,38 +122,84 @@ export const RENDERER_VERSION = "statutory-act-render/1";
 // ───────────────────────────────────────────────────────────────────────────
 
 /**
- * The provenance every `VERIFIED_PRIMARY` tag in this repository rests on: one
- * download of the official ДБН file that no reviewer can reopen.
- * hidden-works-content-rules.md §"Open items" records that all that survives of
- * it is a host name and a byte count — no URL, no retrieval date, no hash — and
- * that «a source no reviewer can reopen leaves the tag asserted and the source
- * gone». The string is the one `technical/requirements/dbn-a31-5-2016-dodatok-n.csv`
- * already carries on every row, so the act cites its provenance in the same
- * words the requirement library does.
- */
-const DBN_SINGLE_FETCH_SOURCE =
-  "ДБН А.3.1-5:2016; офіційний файл e-construction.gov.ua " +
-  "(одне завантаження, URL/дата/хеш не збережені — див. hidden-works-content-rules.md, " +
-  "Open items); незалежність будь-яких додаткових копій не встановлена";
-
-/**
  * The retrieval record M0 gate 10 owes: the exact URL, the retrieval date and a
- * SHA-256 of the bytes, committed under `technical/requirements/`
- * (hidden-works-content-rules.md §"Open items", first bullet).
+ * SHA-256 of the bytes (hidden-works-content-rules.md §"Open items", first
+ * bullet).
  *
  * ALL THREE FIELDS ARE REQUIRED BY THE TYPE, so a half-filled record is a
- * compile error rather than a weaker record that still renders. It is `null`
- * because no such file exists, and while it is null every `VERIFIED_PRIMARY`
- * string is refused a customer-facing render — which is the plan's own sentence,
- * `docs/superpowers/plans/2026-08-06-v0.1-implementation.md:265`, not a rule
- * this file adds.
+ * compile error rather than a weaker record that still renders.
  */
 export interface DbnRetrievalRecord {
   url: string;
   retrievedOn: string;
   sha256: string;
 }
-export const DBN_RETRIEVAL_RECORD: DbnRetrievalRecord | null = null;
+
+/**
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LANDED 2026-08-10, AND THE BYTES WERE RE-FETCHED RATHER THAN TAKEN ON TRUST
+ *
+ * This was `null` for the whole of v0.1, and while it was null every
+ * `VERIFIED_PRIMARY` string was refused a customer-facing render — the plan's
+ * own sentence (`docs/superpowers/plans/2026-08-06-v0.1-implementation.md:265`),
+ * not a rule this file added. It was the LAST of M4's two blockers.
+ *
+ * WHAT THE HASH DID AND DID NOT PROVE, because this record exists for the
+ * difference. §"Open items" recorded a fetch «no reviewer could reproduce»: the
+ * file was not retained and no URL, date or hash was kept. On 2026-08-10 the
+ * owner supplied the file and its sha256 was recorded — which proves two people
+ * hold the same bytes and says NOTHING about where the bytes came from. That is
+ * why a hash alone did not close this and the URL had to arrive separately.
+ *
+ * NOW IT IS REPRODUCIBLE. The owner supplied the download URL below; the file
+ * was fetched from it and hashed independently of anything this repository had
+ * already written down. It is 636 603 bytes — the byte count the adversarial
+ * audit recorded before any of this — and its SHA-256 is the value below,
+ * matching character for character the hash the Додаток В transcription was
+ * verified against. A reviewer can now repeat that: fetch, hash, compare.
+ *
+ * `url` IS THE STABLE PAGE, NOT THE BYTES' OWN LINK, and that is deliberate.
+ * The file itself was fetched from
+ * `https://e-construction.gov.ua/files-token/c7fb685e91deb04c43a13f9a6cf628a1`,
+ * and a `files-token` link is by its shape a signed, expiring one. Recording it
+ * here would produce a record that stops resolving and leaves the tag asserted
+ * again — the exact failure this field exists to prevent. The laws_detail page
+ * below is the durable entry point a reviewer can reopen and reach the file
+ * from. Both are named here so neither is lost.
+ */
+export const DBN_RETRIEVAL: DbnRetrievalRecord = {
+  url: "https://e-construction.gov.ua/laws_detail/3879707932224390963",
+  retrievedOn: "2026-08-10",
+  sha256: "4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3",
+};
+
+/**
+ * THE TYPE STAYS NULLABLE AND THE BLOCKER STAYS IN `renderStatutoryAct`. The
+ * refusal is DERIVED from the absence of this datum, never declared, so setting
+ * it back to `null` — because the URL rotted, or because a new edition arrives
+ * unverified — makes the render refuse again with no other edit. A blocker
+ * deleted on the day it stopped firing could not do that.
+ */
+export const DBN_RETRIEVAL_RECORD: DbnRetrievalRecord | null = DBN_RETRIEVAL;
+
+/**
+ * The provenance every `VERIFIED_PRIMARY` tag in this repository rests on.
+ *
+ * BUILT FROM THE RECORD ABOVE, NOT TYPED BESIDE IT. Until 2026-08-10 this
+ * string said «URL/дата/хеш не збережені», which was true and is now false; a
+ * provenance string that has to be edited in step with a record is a provenance
+ * string that will one day contradict it. Deriving it means the citation a
+ * customer reads and the record a reviewer re-fetches cannot disagree.
+ *
+ * The independence caveat is NOT derived and is kept verbatim, because it is
+ * still true: one fetch was reproduced, which is not the same as two
+ * independent sources agreeing.
+ */
+const DBN_SINGLE_FETCH_SOURCE =
+  "ДБН А.3.1-5:2016; офіційний файл e-construction.gov.ua, " +
+  `${DBN_RETRIEVAL.url}, завантажено ${DBN_RETRIEVAL.retrievedOn}, ` +
+  `sha256=${DBN_RETRIEVAL.sha256}; ` +
+  "незалежність будь-яких додаткових копій не встановлена";
 
 /**
  * WHAT FILLS A FIELD. The binding is the join between the form and this
@@ -183,13 +229,19 @@ export type FormFieldBinding =
    * field here is therefore a compile error until `blocksFor` learns to answer
    * it — which is the same arrangement that keeps captions out of this file.
    *
-   * It is short because `StatutoryActVersionView` is. The view carries ids, not
-   * names: `work_items.description` and `projects.name` are in the database and
-   * NOT on the view, so «найменування робіт» and «найменування і місце
-   * розташування об'єкта будівництва» stay `static` and print blank. Widening
-   * the view is a separate, named step; guessing them here is not available.
+   * WIDENED 2026-08-10, which was the separate named step this comment used to
+   * defer to. `work_items.description` and `projects.name` were in the database
+   * and not on the view, so «найменування робіт» and «найменування і місце
+   * розташування об'єкта будівництва» printed blank; migration 0056 and
+   * `loadActVersionView` put all three on the view and the two fields now bind.
+   * The set is still closed, and the remaining blanks of Додаток В stay blank
+   * because NO COLUMN ANYWHERE HOLDS THEM — проектна документація, матеріали з
+   * сертифікатами, відхилення, дати початку і закінчення — not because they are
+   * unreachable from here. Guessing one is still not available.
    */
-  | { kind: "recorded_fact"; fact: "act_date" | "builder_organisation_name" };
+  | { kind: "recorded_fact";
+      fact: "act_date" | "builder_organisation_name"
+          | "work_item_description" | "construction_object" };
 
 /**
  * One entry of the В.1/В.2 field list, if it is ever committed. The shape is
@@ -676,6 +728,36 @@ export function renderStatutoryAct(
             if (b === undefined) return [];
             return [fact(`${f.fieldId}.value`, b.frozenOrganizationName,
               "statutory_act_version_signatories.frozen_organization_name")];
+          }
+          case "work_item_description":
+            // «(найменування робіт)». The contract line the act is FOR, read
+            // live off `public.work_items` — a line an act can name belongs to a
+            // published contract version and cannot be edited again, which is
+            // the guarantee `unit_code` on the quantity lines already rides on.
+            return [fact(`${f.fieldId}.value`, version.workItemDescription,
+              `work_items.description#${version.workItemId}`)];
+
+          case "construction_object": {
+            // «(найменування і місце розташування об'єкта будівництва)» — the
+            // caption asks for TWO things, so two blocks rather than one string
+            // joined by a separator this renderer would have had to invent. The
+            // address is absent from many projects and prints nothing when it
+            // is: the caption still prints, and the form does not pretend the
+            // field was fully answered.
+            //
+            // The provenance carries the project version these were read at, the
+            // way a signatory's does. It is never absent — see the view's own
+            // note: a draft that reported no version would render a provenance
+            // the frozen row then contradicts, and the act would diverge from
+            // its own hash without anybody touching it.
+            const at = `@v${version.sourceProjectVersion}`;
+            const blocks = [fact(`${f.fieldId}.name`, version.projectName,
+              `projects.name#${version.projectId}${at}`)];
+            if (version.projectAddress !== null) {
+              blocks.push(fact(`${f.fieldId}.address`, version.projectAddress,
+                `projects.address#${version.projectId}${at}`));
+            }
+            return blocks;
           }
         }
       }

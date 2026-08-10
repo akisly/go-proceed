@@ -76,6 +76,11 @@ describe("the generated Додаток В field list is the committed CSV's own 
       .filter((f) => f.binding.kind !== "static")
       .map((f) => `${f.ordinal}:${f.binding.kind}`);
     expect(bound).toEqual([
+      // 6 and 8 joined the list on 2026-08-10, when the view was widened by
+      // `work_items.description` and `public.projects.name`/`address`. They are
+      // the two RULED LINES of the title block; their hints on 7 and 9 stay
+      // static, which is the arrangement 19/20 and 22/23 already use.
+      "6:recorded_fact", "8:recorded_fact",
       "10:recorded_fact", "11:signatory", "14:signatory", "16:signatory",
       "19:recorded_fact", "22:quantity_lines", "36:decision_blocks",
       "45:signatory", "47:signatory", "49:signatory",

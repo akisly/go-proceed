@@ -14,7 +14,7 @@ import {
 } from "../src/lib/requirement-materialisation";
 import { materialiseOccurrences } from "../src/lib/occurrence-writer";
 import { citationOf } from "../src/lib/requirement-content";
-import { DODATOK_V_TEMPLATE, FORM_CITATION_TEXT, DBN_RETRIEVAL_RECORD,
+import { DODATOK_V_TEMPLATE, FORM_CITATION_TEXT, DBN_RETRIEVAL_RECORD, RENDERER_VERSION,
 } from "../src/lib/statutory-act-form";
 
 /**
@@ -797,6 +797,116 @@ describe("the act carries no free-text quantity (INV-073)", () => {
   });
 });
 
+describe("the act names the works and the object, which it could not do before", () => {
+  /**
+   * ORDINALS 6 AND 8 OF ДОДАТОК В. Both facts were in this database and neither
+   * reached the renderer, because `StatutoryActVersionView` carried ids and not
+   * names — `statutory-act-form.ts` said so in terms and deferred the widening
+   * to a separate step. This is that step's route half. Ten blank fields on the
+   * act become eight; the other eight stay blank because NO COLUMN ANYWHERE
+   * holds проектна документація, матеріали, відхилення or the two dates.
+   */
+  it("carries the line's own description and the project's own name", async () => {
+    const actVersionId = await composeOnce(fx);
+    const view = await (await getAct(actVersionId)).json();
+
+    // Read back out of the tables rather than compared to a literal: what is
+    // asserted is that the view reproduces the RECORD, not that a fixture and a
+    // test agree on a string.
+    const [line] = await q<{ description: string }>(
+      "select description from public.work_items where workspace_id=$1 and id=$2",
+      [fx.workspaceId, fx.workItemId]);
+    const [project] = await q<{ name: string; address: string | null; version: string }>(
+      "select name, address, version from public.projects where workspace_id=$1 and id=$2",
+      [fx.workspaceId, fx.projectId]);
+
+    expect(view.workItemDescription).toBe(line!.description);
+    expect(view.projectName).toBe(project!.name);
+    expect(view.projectAddress).toBe(project!.address);
+    expect(view.sourceProjectVersion).toBe(Number(project!.version));
+    // The view is `.strict()` and `loadActVersionView` re-parses before
+    // responding, so a widening that forgot to map a column would 500 rather
+    // than answer a null. Asserted, because that is the whole safety of adding
+    // a field to a contract this project re-parses on the way out.
+    expect(statutoryActVersionView.safeParse(view).success).toBe(true);
+  });
+
+  it("has no PINNED project name while it is a draft — a draft is not a document", async () => {
+    const actVersionId = await composeOnce(fx);
+    // `statutory_act_versions_draft_clean_check`: a draft carries none of the
+    // freeze facts, and migration 0056's three joined that list.
+    const [row] = await q<{
+      n: string | null; a: string | null; v: string | null;
+    }>(`select frozen_project_name n, frozen_project_address a,
+               source_project_version::text v
+          from public.statutory_act_versions where workspace_id=$1 and id=$2`,
+      [fx.workspaceId, actVersionId]);
+    expect(row).toEqual({ n: null, a: null, v: null });
+  });
+
+  it("follows a rename while it is a draft, and would not once it is frozen", async () => {
+    const actVersionId = await composeOnce(fx);
+    const before = await (await getAct(actVersionId)).json();
+
+    // A rename is ORDINARY: `projects_update` (0011:125-127) admits any
+    // project.admin, with no guard and no terminal state. This is the event the
+    // frozen columns exist for.
+    await q(`update public.projects set name = $3, address = $4, version = version + 1
+              where workspace_id = $1 and id = $2`,
+      [fx.workspaceId, fx.projectId, "Приклад-перейменований обʼєкт", "Приклад-нова адреса"]);
+
+    const after = await (await getAct(actVersionId)).json();
+    expect(after.projectName).toBe("Приклад-перейменований обʼєкт");
+    expect(after.projectAddress).toBe("Приклад-нова адреса");
+    expect(after.sourceProjectVersion).toBe(before.sourceProjectVersion + 1);
+
+    // Nothing was pinned, because nothing was frozen.
+    const [row] = await q<{ n: string | null }>(
+      `select frozen_project_name n from public.statutory_act_versions
+        where workspace_id=$1 and id=$2`, [fx.workspaceId, actVersionId]);
+    expect(row!.n).toBeNull();
+  });
+
+  it("SURVIVES a rename once frozen — the document does not follow the project", async () => {
+    // THE WHOLE REASON MIGRATION 0056 EXISTS, and until the retrieval record
+    // landed this arc could not be exercised at all, because no act could
+    // freeze. Renaming a project is ordinary administration: `projects_update`
+    // (0011:125-127) admits any project.admin, with no guard and no terminal
+    // state. If the act read the name live, `content_hash` — pinned over the OLD
+    // string — would stop matching, and `statutory_acts.render` would answer
+    // `frozen_content_hash_divergence` for ever after. An admin fixing a typo
+    // would silently destroy every act ever frozen under that project.
+    const actVersionId = await composeOnce(fx);
+    const [before] = await q<{ name: string }>(
+      "select name from public.projects where workspace_id=$1 and id=$2",
+      [fx.workspaceId, fx.projectId]);
+
+    expect((await freezeAct(actVersionId, 1)).status).toBe(200);
+    const frozenDoc = await (await renderAct(actVersionId)).text();
+
+    await q(`update public.projects set name = $3, address = $4, version = version + 1
+              where workspace_id = $1 and id = $2`,
+      [fx.workspaceId, fx.projectId, "Приклад-обʼєкт після перейменування",
+       "Приклад-адреса, додана пізніше"]);
+
+    // THE VIEW does not move…
+    const view = await (await getAct(actVersionId)).json();
+    expect(view.projectName).toBe(before!.name);
+    // …including the address, which the project did NOT have at the freeze and
+    // has now. This is why `loadActVersionView` branches on `status` instead of
+    // coalescing: a coalesce would fall through the frozen NULL to the live
+    // column and start printing an address into a document frozen without one.
+    expect(view.projectAddress).toBeNull();
+
+    // …AND THE DOCUMENT IS BYTE-IDENTICAL, which is the assertion that matters:
+    // a 200 with the same bytes means the stored hash still re-derives.
+    const after = await renderAct(actVersionId);
+    expect(after.status, await after.clone().text()).toBe(200);
+    expect(Buffer.from(await after.text(), "utf-8")
+      .equals(Buffer.from(frozenDoc, "utf-8"))).toBe(true);
+  });
+});
+
 describe("a normative string travels with its tag and its source, or not at all", () => {
   it("carries the form citation as one object of three", async () => {
     const actVersionId = await composeOnce(fx);
@@ -829,8 +939,22 @@ describe("a normative string travels with its tag and its source, or not at all"
   });
 });
 
-describe("v0.1 renders nothing, and the refusal is the honest answer", () => {
-  it("REFUSES the render, naming the two artifacts this repository does not hold", async () => {
+describe("M4 goes end to end: the act freezes, renders, and re-renders identically", () => {
+  /**
+   * THIS BLOCK USED TO ASSERT THAT NONE OF THIS WAS POSSIBLE, and it was right
+   * to. `statutory_acts.render` refused for the whole of v0.1 on two blockers,
+   * both DERIVED from artifacts this repository did not hold: the В.1/В.2 field
+   * list, and the ДБН retrieval record. Both landed on 2026-08-10 — the second
+   * one last, when the owner supplied the download URL and the file was
+   * re-fetched from it and hashed independently, matching the digest the
+   * transcription had been verified against.
+   *
+   * The refusals were not deleted. Every one of them is still computed from the
+   * absence of its datum, and the two that no longer fire are asserted ABSENT
+   * below rather than dropped, so a regression that brings either back fails
+   * here instead of quietly restoring «M4 ships a composer and no document».
+   */
+  it("REFUSES a DRAFT render — and on that ground alone, now the other two are closed", async () => {
     const actVersionId = await composeOnce(fx);
     const res = await renderAct(actVersionId);
     expect(res.status).toBe(422);
@@ -842,9 +966,11 @@ describe("v0.1 renders nothing, and the refusal is the honest answer", () => {
     expect(problem.code).toBe("PACKAGE_BLOCKED");
     expect(problem.userAction).toBe("resolve_listed_blockers");
     const codes = problem.details.blockers.map((b: { code: string }) => b.code);
-    // ONE BLOCKER, NOT TWO, SINCE 2026-08-10. The owner supplied the official ДБН file and confirmed the edition; the В.1/В.2 field list is committed under technical/requirements/ and DODATOK_V_TEMPLATE.fieldList is populated from it, so `dodatok_v_field_list_not_committed` is gone. `dbn_retrieval_record_absent` remains — a hash proves two people hold the same bytes and says nothing about where they came from — and it alone still refuses the render and the freeze. Its ABSENCE is asserted rather than merely dropped, so this case cannot pass by agreeing with a future regression that brings it back.
+    // A draft is not a document to hand over — that refusal is a JUDGEMENT this
+    // route records, not a missing artifact, and it survives the milestone.
+    expect(codes).toEqual(["act_version_not_frozen"]);
     expect(codes).not.toContain("dodatok_v_field_list_not_committed");
-    expect(codes).toContain("dbn_retrieval_record_absent");
+    expect(codes).not.toContain("dbn_retrieval_record_absent");
     expect(problem.details.blockerCount).toBe(problem.details.blockers.length);
     for (const b of problem.details.blockers) {
       expect(b.detail.trim().length).toBeGreaterThan(0);
@@ -865,53 +991,120 @@ describe("v0.1 renders nothing, and the refusal is the honest answer", () => {
     for (const row of CSV) expect(payload).not.toContain(row.itemTextUk);
   });
 
-  it("REFUSES the freeze with the same blockers, and leaves the draft a draft", async () => {
-    // `content_hash` is the digest OF THE RENDER. Freezing anyway would pin a
-    // hash of a document that does not exist — the artifact INV-015's «a
-    // rendered act that cannot be re-derived from its own record» prevents.
+  it("FREEZES, and the row gains its five freeze facts and the pinned project", async () => {
+    // `content_hash` is the digest OF THE RENDER, so an act that cannot be
+    // rendered cannot be frozen — that is why this refused for the whole of
+    // v0.1 and why it now succeeds. INV-015's «a rendered act that cannot be
+    // re-derived from its own record» is what the hash exists to prevent.
     const actVersionId = await composeOnce(fx);
     const res = await freezeAct(actVersionId, 1);
-    expect(res.status).toBe(422);
-    const problem = await res.json();
-    expect(problem.code).toBe("PACKAGE_BLOCKED");
-    // The field list landed on 2026-08-10; the retrieval record has not, and it
-    // is enough on its own to keep the freeze refusing. Asserting the absence of
-    // the closed blocker as well, so a regression that reopened it would show
-    // here rather than pass.
-    const freezeCodes = problem.details.blockers.map((b: { code: string }) => b.code);
-    expect(freezeCodes).not.toContain("dodatok_v_field_list_not_committed");
-    expect(freezeCodes).toContain("dbn_retrieval_record_absent");
+    expect(res.status, await res.clone().text()).toBe(200);
 
-    const row = await q<{ status: string; draft_version: string; content_hash: string | null }>(
-      `select status, draft_version::text, content_hash
-         from public.statutory_act_versions where id = $1`, [actVersionId]);
-    expect(row[0]!.status).toBe("draft");
-    expect(row[0]!.draft_version).toBe("1");
-    expect(row[0]!.content_hash).toBeNull();
+    const row = await q<{
+      status: string; draft_version: string; content_hash: string | null;
+      renderer_version: string | null; form_template_hash: string | null;
+      frozen_at: Date | null; frozen_by_member_id: string | null;
+      frozen_project_name: string | null; source_project_version: string | null;
+    }>(`select status, draft_version::text, content_hash, renderer_version,
+               form_template_hash, frozen_at, frozen_by_member_id,
+               frozen_project_name, source_project_version::text
+          from public.statutory_act_versions where id = $1`, [actVersionId]);
+    const r = row[0]!;
+    expect(r.status).toBe("frozen");
+    expect(r.draft_version).toBe("2");
+    expect(r.content_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(r.renderer_version).toBe(RENDERER_VERSION);
+    expect(r.form_template_hash).toMatch(/^[0-9a-f]{64}$/);
+    expect(r.frozen_at).not.toBeNull();
+    expect(r.frozen_by_member_id).not.toBeNull();
+
+    // MIGRATION 0056. The freeze pins the project's name from the view it just
+    // rendered — `statutory_act_versions_frozen_complete_check` makes a freeze
+    // that skips it unstorable.
+    const [project] = await q<{ name: string; version: string }>(
+      "select name, version from public.projects where workspace_id=$1 and id=$2",
+      [fx.workspaceId, fx.projectId]);
+    expect(r.frozen_project_name).toBe(project!.name);
+    expect(r.source_project_version).toBe(project!.version);
+
+    // event-catalog.csv:28 — the one act event this product has.
     const outbox = await q<{ topic: string }>(
       `select topic from public.transaction_outbox
         where organization_id = $1 and topic = 'statutory_act_version.frozen'`,
       [fx.workspaceId]);
-    expect(outbox).toEqual([]);
+    expect(outbox).toHaveLength(1);
   });
 
-  it("means M4 composes and freezes NOTHING end to end, and ONE artifact now remains", () => {
-    // Not an assertion about the product — a marker on the milestone, and it
-    // moved on 2026-08-10. The two artifacts were `technical/requirements/`'s
-    // В.1/В.2 field list and the ДБН retrieval record (M0 gate 10). THE FIRST
-    // HAS LANDED: the owner supplied the official file and confirmed the
-    // edition, all 51 lines are committed and machine-verified, and the
-    // template carries them.
+  it("renders twice and the bytes are identical — INV-015's determinism clause", async () => {
+    // version-0.1.md §v0.1-M4's acceptance walk, step 4, performed for the first
+    // time. The document carries no clock — no renderedAt, no now() — and every
+    // read behind it is explicitly ordered, because `order by created_at` over
+    // rows written in one transaction is not an order.
+    const actVersionId = await composeOnce(fx);
+    expect((await freezeAct(actVersionId, 1)).status).toBe(200);
+
+    const first = await renderAct(actVersionId);
+    expect(first.status).toBe(200);
+    const a = await first.text();
+    const b = await (await renderAct(actVersionId)).text();
+    expect(Buffer.from(b, "utf-8").equals(Buffer.from(a, "utf-8"))).toBe(true);
+
+    // AND THE STORED HASH AGREES WITH THE RENDERED ONE. The route refuses with
+    // `frozen_content_hash_divergence` when they part; that it does not is the
+    // whole of «a frozen act can be re-derived from its own record».
+    const doc = JSON.parse(a);
+    const [stored] = await q<{ content_hash: string }>(
+      "select content_hash from public.statutory_act_versions where id = $1", [actVersionId]);
+    expect(doc.contentHash).toBe(stored!.content_hash);
+  });
+
+  it("lays the document out against the committed В.1/В.2 list and adds nothing", async () => {
+    // Acceptance walk step 6, also performed for the first time. The field list
+    // IS the layout: every caption comes from the committed CSV, so a caption in
+    // the document that is not in the list is a caption somebody typed.
+    const actVersionId = await composeOnce(fx);
+    expect((await freezeAct(actVersionId, 1)).status).toBe(200);
+    const doc = await (await renderAct(actVersionId)).json();
+
+    expect(doc.sections.map((s: { sectionId: string }) => s.sectionId)).toEqual(["В.1", "В.2"]);
+    const fields = doc.sections.flatMap((s: { fields: unknown[] }) => s.fields);
+    expect(fields).toHaveLength(51);
+
+    const committed = [...DODATOK_V_TEMPLATE.fieldList!].sort((x, y) => x.ordinal - y.ordinal);
+    for (const [i, f] of fields.entries()) {
+      const want = committed[i]!;
+      expect(f.fieldId).toBe(want.fieldId);
+      // BYTE-IDENTICAL, not `toBe` on decoded strings: two apostrophes, a
+      // missing space in «посада,номер», and trailing spaces from the PDF's own
+      // text layer all survive a careless normalise in a way `toBe` can miss.
+      expect(Buffer.from(f.caption.text, "utf-8")
+        .equals(Buffer.from(want.caption, "utf-8")), `caption ${want.ordinal}`).toBe(true);
+    }
+    // Prohibition F's three quirks reached the DOCUMENT, not just the CSV.
+    const captions = fields.map((f: { caption: { text: string } }) => f.caption.text);
+    expect(captions.some((c: string) => c.includes("посада,номер"))).toBe(true);
+    expect(captions.some((c: string) => c.includes("посада, номер"))).toBe(true);
+    expect(captions.some((c: string) => c.includes("На основі викладеного"))).toBe(true);
+  });
+
+  it("means M4 composes, freezes AND renders end to end — both artifacts landed", () => {
+    // Not an assertion about the product — the marker this suite has carried
+    // since it was written, flipped. Both artifacts are here:
     //
-    // The marker stays because the milestone has not. `DBN_RETRIEVAL_RECORD` is
-    // still null — the URL and the retrieval date were never recorded — and
-    // while it is, every VERIFIED_PRIMARY string is refused a customer-facing
-    // render. So M4 still composes and freezes nothing end to end, for one
-    // reason instead of two, and the positive halves the paragraph above names
-    // are still owed.
+    //   the В.1/В.2 field list, committed under technical/requirements/ and
+    //   machine-transcribed from the official file;
+    //
+    //   the ДБН retrieval record — the URL, the date and the hash — with the
+    //   bytes re-fetched from that URL and hashed independently to check it.
+    //
+    // «M4 ships a composer and no document» was true for the whole of v0.1 and
+    // is no longer. TODOS.md's BLOCKER entry and this marker move together.
     expect(DODATOK_V_TEMPLATE.fieldList).not.toBeNull();
     expect(DODATOK_V_TEMPLATE.fieldList!.length).toBe(51);
-    expect(DBN_RETRIEVAL_RECORD).toBeNull();
+    expect(DBN_RETRIEVAL_RECORD).not.toBeNull();
+    expect(DBN_RETRIEVAL_RECORD!.url.length).toBeGreaterThan(0);
+    expect(DBN_RETRIEVAL_RECORD!.retrievedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    expect(DBN_RETRIEVAL_RECORD!.sha256).toMatch(/^[0-9a-f]{64}$/);
   });
 });
 

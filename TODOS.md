@@ -335,7 +335,27 @@ touch nothing but A. That keeps D1 satisfied and changes something else instead
 — whether admission is a one-shot event per entry or a standing claim — which is
 the decision to take, and it is a decision rather than a patch.
 
-## P1 — M4 prints nothing: the ДБН retrieval record is the last blocker
+## P1 (CLOSED 2026-08-10) — M4 prints. The ДБН retrieval record landed.
+
+**CLOSED the same day it was half-closed.** The owner supplied the download URL;
+the file was re-fetched from it and hashed independently — 636 603 bytes,
+`sha256=4592eda…`, matching the digest the Додаток В transcription had already
+been verified against. `DBN_RETRIEVAL_RECORD` carries the URL, the date and the
+hash, and `statutory_acts.render` returns a document.
+
+`url` records the durable `laws_detail` page rather than the
+`files-token` link the bytes actually came from: a signed token link expires, and
+a record that stops resolving leaves the tag asserted again — the exact failure
+this field exists to end. Both URLs are named in the code so neither is lost.
+
+**The provenance string is now DERIVED from the record.** It used to say
+«URL/дата/хеш не збережені», which was true and became false the moment the
+record landed; a sentence maintained in step with a record is a sentence that
+will one day contradict it. The independence caveat is not derived and stays
+verbatim, because it is still true: reproducing one fetch is not two independent
+sources agreeing.
+
+**Original entry, kept because it is the record of the blocker**
 
 **HALF CLOSED 2026-08-10.** `statutory_act_versions.freeze` still ALWAYS refuses
 and M4 still ships a composer and no document — but for ONE reason now instead
@@ -373,13 +393,60 @@ design: проектна документація, матеріали з сер�
 початку/закінчення — none of those facts exist in the data model at all (no
 column anywhere matches material, certificate or deviation).
 
-**Two of the blanks are cheaper than the rest.** «Найменування робіт» and
-«об'єкт будівництва» ARE in the database — `work_items.description`,
-`projects.name` — and simply never reach the renderer:
-`StatutoryActVersionView` carries ids, not names. Widening it by two read-only
-fields turns ten blanks into eight, and is its own small step.
+**Two of the blanks are cheaper than the rest — CLOSED 2026-08-10.**
+«Найменування робіт» and «об'єкт будівництва» ARE in the database —
+`work_items.description`, `projects.name` — and never reached the renderer,
+because `StatutoryActVersionView` carried ids and not names. The view is widened
+and ordinals 6 and 8 are bound; **ten blanks are now eight.** The remaining eight
+stay blank because no column anywhere holds them.
 
-## P1 — apps/demo can be published with an unreplaced placeholder, and CI does not stop it
+It was not two read-only fields, and the reason is worth keeping. `projects` takes
+an UPDATE from any `project.admin` at any time (`projects_update`, 0011:125-127) —
+no trigger, no status, no terminal state. An act that read its project's name LIVE
+would be destroyed by an ordinary rename: `content_hash` was pinned over the old
+string, so `statutory_acts.render` would answer `frozen_content_hash_divergence`
+for ever after. So the name, the address and the source version are PINNED at the
+freeze (migration 0056), the way a signatory's organisation name already is, and
+`loadActVersionView` branches on `status` rather than coalescing — a coalesce would
+let an address added later start printing into an act frozen without one.
+
+`work_items.description` needed no column and is read live: a line an act can name
+belongs to a PUBLISHED contract version, and `app.guard_work_item()` refuses every
+update to one. That is the same chain `unit_code` already rides on (0047:421-437).
+
+Covered at three levels: the two CHECKs from the table owner in
+`packages/testing/src/m4-act-schema.test.ts` (verified to fail without 0056), the
+widened view and the draft-follows-a-rename arc in `apps/app/tests/m4-act.int.test.ts`,
+and the binding map in `dodatok-v-fidelity.test.ts`. **The frozen arc has no
+end-to-end cover and cannot have one until the retrieval record lands**, because
+the freeze still refuses — that gap is recorded in the test that stops at it.
+
+## P1 (CLOSED 2026-08-10) — apps/demo could be published with an unreplaced placeholder
+
+**Closed both halves, in the order that mattered.** The owner chose to remove the
+naming rather than turn CI red: /legal/privacy no longer names a form-handling
+service, because there is none to name — `VITE_PILOT_ENDPOINT` is unset and
+`submitPilotDraft` short-circuits to `mailto`. All three submission states are
+still disclosed, including the two involving a third party; that party is
+described by its ROLE («цей сторонній сервіс»), which is true, instead of by a
+name this deployment does not have. Inventing one would have been a false
+statement about a data processor on the page that exists to prevent exactly that.
+
+**Only then did `preflight` go into CI**, before `build` in the demo-qa job. That
+order is the whole point and preflight.mjs's own header argues it: «a suite that
+is red by design trains everyone to ignore red». Added while the token was still
+live, the gate would have been permanently red and would have taught people to
+ignore it. It is green now, and what it stops is the NEXT token.
+
+**A new hole opened where the old one closed, and it is covered.** Removing the
+name means that setting `VITE_PILOT_ENDPOINT` would start sending nine field
+values to an unnamed processor — the same misdescription in different clothes,
+and one nobody would notice because the thing preflight watched is gone.
+`apps/demo/tests/claims.test.ts` now asserts the implication (an endpoint implies
+a named processor) and exercises the predicate against both sides, so it cannot
+decay into a check that passes by matching nothing.
+
+**Original entry, kept because it is the record of what was wrong**
 
 **Found 2026-08-10 while walking the pilot path by hand.**
 `/legal/privacy` renders the literal `{{FORM_PROCESSOR}}` twice, inside `<code>`,
@@ -903,6 +970,83 @@ to the service principal.
 should not land on the same persona as `evidence_decisions.decide` without
 someone thinking about separation of duties first.
 
+### P0 (CLOSED 2026-08-10) — every act would freeze successfully and then be permanently unrenderable
+
+**Found within minutes of the render first working**, by the acceptance walk's own
+step 4 — «render twice and diff the bytes». It could not have been found before:
+the render refused for the whole of v0.1, so this code had never executed.
+
+**What was wrong.** `statutory_act_versions.freeze` loaded the DRAFT view, rendered
+it through `renderForFreeze` (which flips `status` and changes nothing else),
+hashed that document into `content_hash`, and only THEN wrote `frozen_at = now()`.
+Додаток В's act date binds to `frozenAt ?? composedAt` and carries the column it
+came from in its provenance. So the hashed document was dated
+`statutory_act_versions.composed_at` and the stored row was dated `…frozen_at`.
+The very next `statutory_acts.render` read the frozen row, produced different
+bytes and refused with `frozen_content_hash_divergence`.
+
+**Every act. On every input. Permanently** — INV-015 makes `frozen` terminal, so
+there is no correction except a successor version, which would do the same thing.
+And the refusal named NOTHING: it reports which of renderer version, template hash
+or content moved, and the first two matched, so the message pointed at content
+with no indication of what in it had changed.
+
+**Fix.** The freeze reads `select now()` before rendering, puts it on the view it
+renders, and passes that same value to the UPDATE. `now()` is the transaction's
+timestamp in PostgreSQL and does not advance inside one, so this is the same
+instant `now()` in the UPDATE would have written — it is passed explicitly all the
+same, so the value that goes into the hash and the value that goes into the column
+are one value rather than two that happen to agree. The frozen project name
+(migration 0056) is pinned from the rendered view for the same reason.
+
+**Covered by** «renders twice and the bytes are identical» and «SURVIVES a rename
+once frozen», both of which fail without the fix.
+
+**The lesson is the one this codebase keeps relearning:** a refusal that has never
+stopped refusing is hiding whatever is behind it. Two blockers stood in front of
+this for the whole milestone.
+
+### P1 (OPENED 2026-08-10, NOT FIXED) — Додаток Н now prints a provenance line that is false
+
+**Opened by closing the render, and it needs an owner decision rather than a
+commit.** Every row of `technical/requirements/dbn-a31-5-2016-dodatok-n.csv`
+carries this as its `source`, and `apps/app/src/lib/dodatok-n.ts` is generated
+from it and byte-verified against it:
+
+> ДБН А.3.1-5:2016 Додаток Н; офіційний файл e-construction.gov.ua (одне
+> завантаження, **URL/дата/хеш не збережені** — див. hidden-works-content-rules.md,
+> Open items); незалежність будь-яких додаткових копій не встановлена
+
+**The bolded clause stopped being true today**, and the pointer beside it now
+leads to a bullet that says the opposite: §"Open items" records the URL, the
+retrieval date and the hash, with the bytes re-fetched and re-hashed.
+
+**Why it matters more than it did yesterday.** That string is the `norm_ref_source`
+on every requirement occurrence, and `renderStatutoryAct` prints it inside each
+decision block as a `normative` provenance. Until today the render refused, so the
+sentence was only ever read in a CSV. **It now reaches a customer-facing
+document** — an act that tells a reader the source of its own regulatory citation
+was not recorded, when it was.
+
+**It errs conservatively**, which is why this is P1 and not P0: it UNDERSTATES the
+provenance. Nothing is overclaimed and no tag is stronger than its evidence.
+
+**Not fixed here, deliberately.** The `source` column of a committed regulatory
+content file is content under `hidden-works-content-rules.md` §"Change control",
+not code — the same rule that kept this session from inventing a ДБН caption. The
+Додаток В file was regenerated by its owner-supplied source; this one would be
+edited on a maintainer's judgement, and 12 rows of an Approved artifact plus every
+`requirement_library_items.source_citation` already seeded from them is not a
+change to make silently.
+
+**Fix, when the owner says so:** replace the parenthetical in the CSV's `source`
+column with the recorded record — the URL, `2026-08-10`, and `sha256=4592eda…` —
+regenerate `dodatok-n.ts`, and let `requirement-library-fidelity.int.test.ts`
+re-verify. Then decide whether already-materialised occurrences are backfilled or
+left carrying the string that was true when they were written. **Leaving them is
+defensible** and is what INV-073's «the source it was read from» arguably asks
+for; that is the actual question.
+
 ### P2 — a hand-typed zero-priced line and an imported one store different provenance
 
 **What:** `apps/app/src/lib/manual-baseline.ts` writes
@@ -921,7 +1065,40 @@ on a row shape the entry above records as ordinary rather than exotic.
 **Fix:** `priceBasis: derivedMinor === null ? null : pins.priceBasis`, and correct
 the comment whichever way the decision goes.
 
-### BLOCKER (not a defect) — M4 ships a composer and no document, and no code can change that
+### BLOCKER — CLOSED 2026-08-10. M4 composes, freezes and renders end to end.
+
+**Both artifacts landed on the same day, and neither was code.** This entry's own
+rule — «no slice may close this item with code, and any change that makes the
+render succeed without the artifact below is a regression, not a fix» — held to
+the end: what closed it was the owner supplying the official ДБН file (morning)
+and then the URL it was downloaded from (afternoon).
+
+- `dodatok_v_field_list_not_committed` — all 51 lines of В.1/В.2 are in
+  `technical/requirements/dbn-a31-5-2016-dodatok-v.csv`, machine-transcribed from
+  the official file and re-verified byte-for-byte on every run.
+- `dbn_retrieval_record_absent` — `DBN_RETRIEVAL_RECORD` carries the URL, the date
+  and the hash. **The bytes were re-fetched from that URL and hashed
+  independently**: 636 603 bytes and `sha256=4592eda…`, matching the digest the
+  transcription had been verified against. The record is now reproducible rather
+  than asserted, which is the entire distinction it exists for — a hash proves two
+  people hold the same bytes and says nothing about where they came from.
+
+**Neither refusal was deleted.** Both are still computed from the absence of their
+datum, so setting `DBN_RETRIEVAL_RECORD` back to `null` makes the render refuse
+again with no other edit. The suites assert the ABSENCE of the two closed codes
+rather than dropping them, so a regression that reopens either fails loudly.
+
+**The acceptance walk is complete.** Its two unperformable steps — «render twice
+and diff the bytes» and «check the render field by field against the В.1/В.2
+list» — are now both performed in `apps/app/tests/m4-act.int.test.ts`, the second
+comparing all 51 captions with `Buffer.equals` and asserting prohibition F's
+quirks survived into the document itself.
+
+**AND MAKING THE RENDER WORK IMMEDIATELY FOUND A P0 IN THE FREEZE.** See the
+entry below. It could not have been found by reading, and no suite could have
+caught it while the render refused.
+
+**Original entry, kept because it is the record of what was blocked**
 
 **What:** `DODATOK_V_TEMPLATE.fieldList` is `null`
 (`apps/app/src/lib/statutory-act-form.ts:205`). `renderStatutoryAct` pushes the

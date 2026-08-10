@@ -125,8 +125,32 @@ export const POST = commandRoute(freezeStatutoryActVersionRequest, async (a) => 
           `Чернетку акта змінено (поточна версія ${draftVersion}); оновіть дані та повторіть спробу.`);
       }
 
-      const view = await loadActVersionView(tx, workspaceId, actVersionId);
-      if (!view) throw notFound;
+      const draftView = await loadActVersionView(tx, workspaceId, actVersionId);
+      if (!draftView) throw notFound;
+
+      // THE FREEZE TIME IS READ BEFORE THE RENDER, NOT WRITTEN AFTER IT.
+      //
+      // Додаток В's act date binds to `frozenAt ?? composedAt`, and it carries
+      // the column it came from in its provenance. Rendering the draft — where
+      // `frozen_at` is still null — and only then writing `frozen_at = now()`
+      // hashes a document whose date is `statutory_act_versions.composed_at`
+      // and stores one whose date is `…frozen_at`. The very next call to
+      // `statutory_acts.render` reads the frozen row, produces different bytes
+      // and refuses with `frozen_content_hash_divergence`: EVERY act would
+      // freeze successfully and then be permanently unrenderable, with the
+      // renderer version and the template hash both matching so the refusal
+      // names nothing that moved. Found the day the render first succeeded, by
+      // the acceptance walk's «render twice and diff the bytes».
+      //
+      // `now()` is the TRANSACTION's timestamp in PostgreSQL and does not
+      // advance inside one, so this is the same instant the UPDATE would have
+      // written. It is passed to the UPDATE explicitly all the same, for the
+      // reason the project name below is: the value that goes into the hash and
+      // the value that goes into the column must be one value, not two that
+      // happen to agree.
+      const clock = await tx.query("select now() as frozen_at");
+      const frozenAt = new Date(clock.rows[0].frozen_at).toISOString();
+      const view = { ...draftView, frozenAt };
 
       const template = findFormTemplate(view.formTemplateKey, view.formTemplateVersion);
       const rendered = renderForFreeze(view, template);
@@ -161,15 +185,33 @@ export const POST = commandRoute(freezeStatutoryActVersionRequest, async (a) => 
       // = $N` makes the update itself the concurrency check even though the row
       // is already locked — a guard that depends on a lock taken earlier in the
       // same function stops holding when somebody moves the lock.
+      // THE PROJECT'S NAME IS PINNED FROM THE VIEW THAT WAS JUST RENDERED, not
+      // re-selected from `public.projects` (migration 0056). Re-reading it here
+      // would open a window — however small — in which the string that goes into
+      // `content_hash` and the string that goes into the column are not the same
+      // string, and the divergence would only surface as a render refusal months
+      // later. `view.projectName` IS the value the hash above was taken over.
+      //
+      // `sourceProjectVersion` is non-null on a draft (`public.projects.version`
+      // is NOT NULL and the view branches on status), which is what
+      // `statutory_act_versions_frozen_complete_check` requires beside the name.
       const frozen = await tx.query(
         `update public.statutory_act_versions
-            set status = 'frozen', frozen_at = now(), frozen_by_member_id = $3,
+            set status = 'frozen', frozen_at = $11, frozen_by_member_id = $3,
                 content_hash = $4, renderer_version = $5, form_template_hash = $6,
+                frozen_project_name = $8, frozen_project_address = $9,
+                source_project_version = $10,
                 draft_version = draft_version + 1
           where workspace_id = $1 and id = $2 and status = 'draft' and draft_version = $7
           returning frozen_at, draft_version`,
         [workspaceId, actVersionId, m.memberId, rendered.document.contentHash,
-         RENDERER_VERSION, rendered.document.formTemplateHash, draftVersion]);
+         RENDERER_VERSION, rendered.document.formTemplateHash, draftVersion,
+         view.projectName, view.projectAddress, view.sourceProjectVersion,
+         // The instant the document above was dated with. See the note beside
+         // the read: `frozen_at = now()` here would be the same value today and
+         // would stop being the same value the moment anything between the read
+         // and this statement opened a new transaction.
+         frozenAt]);
       if (frozen.rows.length === 0) {
         throw conflict("Версію акта щойно змінено; оновіть дані та повторіть спробу.");
       }

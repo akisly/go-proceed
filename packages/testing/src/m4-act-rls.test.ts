@@ -6,7 +6,7 @@ import {
 } from "./m1-rules-fixture";
 import { seedClosureWorld, type ClosureWorld } from "./m3-closure-fixture";
 import {
-  ACT_INSERT, QUANTITY_INSERT, SIGNATORY_INSERT, VERSION_INSERT,
+  ACT_INSERT, FROZEN_PROJECT_NAME, QUANTITY_INSERT, SIGNATORY_INSERT, VERSION_INSERT,
   actParams, insertAct, insertVersion, quantityParams, resetActFacts, seedActWorld,
   seedDraftAct, signatoryParams, versionParams, type ActWorld,
 } from "./m4-act-fixture";
@@ -323,9 +323,10 @@ describe("sav_update names the state it may act on", () => {
       `update public.statutory_act_versions
           set status = 'frozen', frozen_at = now(), frozen_by_member_id = $2,
               content_hash = $3, renderer_version = 'statutory-act-render/1',
-              form_template_hash = $3, draft_version = draft_version + 1
+              form_template_hash = $3, draft_version = draft_version + 1,
+              frozen_project_name = $4, source_project_version = 1
         where id = $1 and status = 'draft'`,
-      [versionId, fa.memberId, "a".repeat(64)]);
+      [versionId, fa.memberId, "a".repeat(64), FROZEN_PROJECT_NAME]);
     await c.query("commit");
 
     expect(await asMember(USER_A, WS_A,
@@ -347,9 +348,10 @@ describe("sav_update names the state it may act on", () => {
       `update public.statutory_act_versions
           set status = 'frozen', frozen_at = now(), frozen_by_member_id = $2,
               content_hash = $3, renderer_version = 'statutory-act-render/1',
-              form_template_hash = $3, draft_version = draft_version + 1
+              form_template_hash = $3, draft_version = draft_version + 1,
+              frozen_project_name = $4, source_project_version = 1
         where id = $1 and status = 'draft' and draft_version = 1`,
-      [versionId, fa.memberId, "b".repeat(64)])).toBeNull();
+      [versionId, fa.memberId, "b".repeat(64), FROZEN_PROJECT_NAME])).toBeNull();
     const row = await c.query<{ status: string }>(
       `select status from public.statutory_act_versions where id = $1`, [versionId]);
     expect(row.rows[0]!.status).toBe("frozen");

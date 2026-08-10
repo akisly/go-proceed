@@ -46,6 +46,12 @@ function draftView(overrides: Partial<StatutoryActVersionView> = {}): StatutoryA
     workStageId: "00000000-0000-4000-8000-000000000007",
     stageClosureId: "00000000-0000-4000-8000-000000000008",
     stageIsConcealed: true,
+    // Транзитивно синтетичні. «Приклад-» is this repository's marker for a name
+    // that must never be mistaken for a real Ukrainian project or contractor.
+    workItemDescription: "Приклад-улаштування гідроізоляції фундаменту",
+    projectName: "Приклад-об'єкт «Житловий будинок»",
+    projectAddress: "Приклад-адреса, вул. Тестова, 1",
+    sourceProjectVersion: 1,
     actForm: "dodatok_v",
     actFormBasis: "product_assumption",
     versionNo: 1,
@@ -73,8 +79,8 @@ function draftView(overrides: Partial<StatutoryActVersionView> = {}): StatutoryA
   };
 }
 
-describe("the В.1/В.2 field list is not committed, and the render says so", () => {
-  it("keeps the template's field list null until a sourced list is committed", () => {
+describe("both blockers are closed, and the act renders", () => {
+  it("keeps every field list entry sourced, whatever the list contains", () => {
     // The standing guard. If a future contributor populates `fieldList`, this
     // test stops failing on the null and starts enforcing the real rule: EVERY
     // entry carries a verification tag and a non-empty source. A field list
@@ -92,37 +98,143 @@ describe("the В.1/В.2 field list is not committed, and the render says so", ()
     }
   });
 
-  it("refuses to render — for the retrieval record ONLY, now the field list is committed", () => {
-    // THE FIELD-LIST BLOCKER IS GONE, and its absence is the assertion. On
-    // 2026-08-10 the owner supplied the official ДБН file and confirmed the
-    // edition; all 51 lines of В.1/В.2 are in
-    // technical/requirements/dbn-a31-5-2016-dodatok-v.csv, machine-transcribed
-    // and verified byte-for-byte, and DODATOK_V_TEMPLATE.fieldList is populated
-    // from them. This case used to demand BOTH blockers and would now hide the
-    // change by passing on the one that remains.
+  it("RENDERS — both blockers are gone, and their absence is the assertion", () => {
+    // THE MILESTONE, AS AN ASSERTION. This case demanded a refusal for the whole
+    // of v0.1 and it was right to: the render was blocked twice over, and both
+    // blockers were derived from data this repository did not hold.
     //
-    // What remains is `dbn_retrieval_record_absent`, and it is not a formality:
-    // a hash proves two people hold the same bytes, and says nothing about
-    // where the bytes came from. Until the URL and the retrieval date are
-    // recorded, no VERIFIED_PRIMARY string reaches a customer-facing render —
-    // so the act still cannot be printed, for one reason instead of two.
+    //   `dodatok_v_field_list_not_committed` closed on 2026-08-10 morning — the
+    //   owner supplied the official ДБН file and all 51 lines of В.1/В.2 are in
+    //   technical/requirements/dbn-a31-5-2016-dodatok-v.csv, machine-transcribed
+    //   and verified byte-for-byte.
+    //
+    //   `dbn_retrieval_record_absent` closed the same day — the owner supplied
+    //   the URL, the file was re-fetched from it and hashed independently, and
+    //   the digest matched the one the transcription was verified against.
+    //
+    // Neither is asserted as «gone» by name only: the render is required to
+    // SUCCEED, which is the thing the two blockers were preventing and the thing
+    // a future regression would take away.
     const out = renderStatutoryAct(
       draftView({ status: "frozen" }), findFormTemplate("dodatok-v", "0.1.0"));
-    expect(out.ok).toBe(false);
-    if (out.ok) return;
-    const codes = out.blockers.map((b) => b.code).sort();
-    expect(codes).not.toContain("dodatok_v_field_list_not_committed");
-    expect(codes).toContain("dbn_retrieval_record_absent");
-    // Every blocker says what closes it. A refusal a reader cannot act on is the
-    // bare status word ADR-005 decision 6 exists to prevent.
-    for (const b of out.blockers) {
-      expect(b.detail.trim().length).toBeGreaterThan(0);
-      expect(b.closedBy.trim().length).toBeGreaterThan(0);
+    expect(out.ok, out.ok ? "" : out.blockers.map((b) => b.code).join(", ")).toBe(true);
+    if (!out.ok) return;
+
+    // Both sections of the form, in the standard's order, with every field of
+    // the committed list and not one more. `fieldList` is the whole layout, so
+    // this is also the assertion that no caption was invented in the renderer.
+    expect(out.document.sections.map((s) => s.sectionId)).toEqual(["В.1", "В.2"]);
+    const rendered = out.document.sections.flatMap((s) => s.fields);
+    expect(rendered).toHaveLength(DODATOK_V_TEMPLATE.fieldList!.length);
+    expect(rendered.map((f) => f.fieldId))
+      .toEqual([...DODATOK_V_TEMPLATE.fieldList!]
+        .sort((x, y) => x.ordinal - y.ordinal).map((f) => f.fieldId));
+
+    // A DOCUMENT, NOT A ROW: it carries a content hash over its own bytes, and
+    // rendering twice produces the same one. INV-015's determinism clause is a
+    // property of this function over frozen inputs, so it is checked here where
+    // the inputs are fixed rather than only through a route.
+    expect(out.document.contentHash).toMatch(/^[0-9a-f]{64}$/);
+    const again = renderStatutoryAct(
+      draftView({ status: "frozen" }), findFormTemplate("dodatok-v", "0.1.0"));
+    expect(again.ok).toBe(true);
+    if (again.ok) expect(again.document).toEqual(out.document);
+  });
+
+  it("prints the works and the object under the captions that ask for them", () => {
+    // ORDINALS 6 AND 8, the two blanks the widened view closed. Asserted through
+    // the RENDER rather than through the view, because a bound field that
+    // resolves to nothing still prints its caption and would look identical to
+    // an unbound one in the view.
+    const out = renderStatutoryAct(
+      draftView({ status: "frozen" }), findFormTemplate("dodatok-v", "0.1.0"));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    const byId = new Map(out.document.sections.flatMap((s) => s.fields)
+      .map((f) => [f.fieldId, f]));
+
+    const works = byId.get("v.В1.6")!;
+    expect(works.blocks.map((b) => b.text))
+      .toEqual(["Приклад-улаштування гідроізоляції фундаменту"]);
+    // Every block carries a provenance IN THE DATA. A recorded fact names the
+    // column it came from, so a reader can go and check it.
+    expect(works.blocks[0]!.provenance).toEqual({
+      kind: "recorded_fact",
+      factRef: "work_items.description#00000000-0000-4000-8000-000000000006",
+    });
+
+    // The caption asks for two things and both are answered, as two blocks —
+    // no separator this renderer would have had to invent.
+    const object = byId.get("v.В1.8")!;
+    expect(object.blocks.map((b) => b.text)).toEqual([
+      "Приклад-об'єкт «Житловий будинок»",
+      "Приклад-адреса, вул. Тестова, 1",
+    ]);
+    // The project version travels in the provenance, so a reviewer knows which
+    // revision of the project record the frozen strings were taken at.
+    for (const b of object.blocks) {
+      expect(b.provenance).toMatchObject({ kind: "recorded_fact" });
+      expect((b.provenance as { factRef: string }).factRef).toContain("@v1");
     }
   });
 
-  it("carries no ДБН retrieval record, so no VERIFIED_PRIMARY string is customer-facing", () => {
-    expect(DBN_RETRIEVAL_RECORD).toBeNull();
+  it("prints the object's name alone when the project has no recorded address", () => {
+    // `public.projects.address` is nullable, so this is an ordinary project and
+    // not a degenerate one. The caption still prints; the form does not pretend
+    // the field was fully answered, which is the rule an unfilled signatory slot
+    // already follows.
+    const out = renderStatutoryAct(
+      draftView({ status: "frozen", projectAddress: null }),
+      findFormTemplate("dodatok-v", "0.1.0"));
+    expect(out.ok).toBe(true);
+    if (!out.ok) return;
+    const object = out.document.sections.flatMap((s) => s.fields)
+      .find((f) => f.fieldId === "v.В1.8")!;
+    expect(object.blocks.map((b) => b.text)).toEqual(["Приклад-об'єкт «Житловий будинок»"]);
+    // THE FORM IS UNCHANGED BY A MISSING FACT. The value sits on the ruled line
+    // (ordinal 8) and the parenthesised hint that names what belongs there is
+    // its own field on the next line (ordinal 9) — that split is the standard's,
+    // not the renderer's. Both still print, and the hint still asks for the
+    // address nobody recorded.
+    const hint = out.document.sections.flatMap((s) => s.fields)
+      .find((f) => f.fieldId === "v.В1.9")!;
+    expect(hint.caption.text).toContain("місце розташування");
+    expect(hint.blocks).toEqual([]);
+  });
+
+  it("carries a ДБН retrieval record whose three fields are all present", () => {
+    // WAS `expect(DBN_RETRIEVAL_RECORD).toBeNull()` for the whole of v0.1. The
+    // record is what turns VERIFIED_PRIMARY from an assertion into something a
+    // reviewer can re-derive, so each field is checked for what it has to BE and
+    // not merely for being non-empty.
+    expect(DBN_RETRIEVAL_RECORD).not.toBeNull();
+    const r = DBN_RETRIEVAL_RECORD!;
+    // A durable page, not a signed `files-token` link — one that expires leaves
+    // the tag asserted again, which is the failure this record exists to end.
+    expect(r.url).toMatch(/^https:\/\/e-construction\.gov\.ua\//);
+    expect(r.url).not.toContain("files-token");
+    expect(r.retrievedOn).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+    // The digest of the bytes the Додаток В transcription was verified against.
+    // If these two ever part, one of them is describing a different file.
+    expect(r.sha256).toBe(
+      "4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3");
+    expect(DODATOK_V_TEMPLATE.fieldList![0]!.source).toContain(r.sha256);
+  });
+
+  it("cites the record it rests on, rather than a sentence typed beside it", () => {
+    // The provenance string used to say «URL/дата/хеш не збережені». It was true
+    // and is now false, and a string edited in step with a record is a string
+    // that will one day contradict it — so it is DERIVED from the record. This
+    // asserts the derivation, which is what stops the two drifting.
+    const r = DBN_RETRIEVAL_RECORD!;
+    const source = DODATOK_V_TEMPLATE.title.source;
+    expect(source).toContain(r.url);
+    expect(source).toContain(r.retrievedOn);
+    expect(source).toContain(r.sha256);
+    expect(source).not.toContain("не збережені");
+    // The independence caveat is NOT derived and must survive: reproducing one
+    // fetch is not two independent sources agreeing.
+    expect(source).toContain("незалежність будь-яких додаткових копій не встановлена");
   });
 
   it("refuses a draft: an unfrozen act is not a document to hand over", () => {
