@@ -31,12 +31,22 @@
  * diverges defeats the point of porting rather than reinventing.
  *
  * `.goproceed-app` SCOPING: the base-layer resets and the app font below only
- * apply inside an element carrying the `goproceed-app` class — apps/demo
- * applies it per-page (see e.g. AppShell.tsx), not globally on `<body>`.
- * apps/app/app/layout.tsx does not add it either, for the same reason: no
- * screen exists yet for it to scope. Whichever task builds the first real
- * screen (the app shell / sign-in) must put `goproceed-app` on its root
- * element, or none of the rules below take effect.
+ * apply inside an element carrying the `goproceed-app` class. apps/demo
+ * applies it per-page (see e.g. AppShell.tsx) rather than on `<body>`,
+ * because it also serves public marketing routes that must stay on the
+ * frozen legacy stylesheet and never see this theme. apps/app has no such
+ * routes — every screen is the field client — so `apps/app/app/layout.tsx`
+ * puts the class on `<body>` once, for the whole app. Do not also add it on
+ * a per-screen root element; it would be redundant, not additive.
+ *
+ * DECISION, 2026-08-11: `--font-display` below deliberately does NOT match
+ * apps/demo. apps/demo sets it to Manrope Variable; apps/app targets the
+ * same Inter stack `--font-sans` uses, and does not install
+ * `@fontsource-variable/manrope` at all. One typeface loads faster on a
+ * construction site's mobile connection, and that is what this client is
+ * for — owner decision, not an oversight. If apps/demo's `--font-display`
+ * changes, this is the one token this file does NOT mirror; everything else
+ * in "bring the change here too" above still applies.
  * ========================================================================= */
 
 @layer theme, base, components, utilities;
@@ -139,8 +149,12 @@
   --color-evidence-blocking: #e45c55;
 
   /* ---- Type ------------------------------------------------------------ */
-  /* Manrope carries display weight, Inter carries data. Unchanged from doc 05. */
-  --font-display: 'Manrope Variable', system-ui, sans-serif;
+  /* doc 05 pairs Manrope for display weight with Inter for data — apps/demo
+     keeps that pairing. apps/app deliberately does not: see the DECISION note
+     in this file's header (2026-08-11, owner call). One typeface, Inter, for
+     both display and data here, so a second variable font family is never on
+     the wire for a foreman's mobile connection. */
+  --font-display: 'Inter Variable', system-ui, sans-serif;
   --font-sans: 'Inter Variable', system-ui, sans-serif;
 
   /* 1.2 minor third from a 13px data base — a register is read, not browsed. */
