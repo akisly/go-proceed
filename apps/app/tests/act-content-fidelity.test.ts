@@ -217,12 +217,28 @@ describe("the allow-list's own words", () => {
     expectSameBytes(FORM_CITATION_TEXT, attribution as string);
   });
 
-  it("licenses the В.1/В.2 field list that this repository does not contain", () => {
-    // Item 3 LICENSES the fields; it does not supply them, and nothing here
-    // does. The assertion is on the document's wording, so that if item 3 is
-    // ever narrowed the renderer's refusal stops being the right refusal.
+  it("licenses the В.1/В.2 field list, and the repository now carries it", () => {
+    // Item 3 LICENSES the fields. Until 2026-08-10 nothing supplied them and
+    // this case asserted the null; the owner then supplied the official ДБН
+    // file and confirmed the edition, and all 51 lines are committed under
+    // technical/requirements/dbn-a31-5-2016-dodatok-v.csv.
+    //
+    // The assertion on item 3's wording STAYS, and is the reason this case is
+    // here: if item 3 is ever narrowed, the licence stops covering what the
+    // template now prints, and that must fail somewhere. The other half moves
+    // from «the list is absent» to «the list is what the licence describes».
     expect(allowListItem(3)).toContain("every field of В.1 and В.2");
-    expect(DODATOK_V_TEMPLATE.fieldList).toBeNull();
+    const list = DODATOK_V_TEMPLATE.fieldList;
+    expect(list).not.toBeNull();
+    expect(list!.length).toBe(51);
+    expect(new Set(list!.map((f) => f.section))).toEqual(new Set(["В.1", "В.2"]));
+    // Every caption is licensed content, so every one carries its tag and where
+    // it came from. Byte fidelity against the CSV is dodatok-v-fidelity.test.ts.
+    for (const f of list!) {
+      expect(f.verification).toBe("VERIFIED_PRIMARY");
+      expect(f.source).toContain("ДБН А.3.1-5:2016");
+      expect(f.source).toContain("sha256=");
+    }
   });
 });
 

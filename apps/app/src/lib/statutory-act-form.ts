@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+import { DODATOK_V_FIELDS } from "./dodatok-v";
 import {
   renderedStatutoryAct,
   type ActRenderBlocker, type AssuranceLevel, type RenderBlock,
@@ -170,7 +171,25 @@ export type FormFieldBinding =
   | { kind: "static" }
   | { kind: "quantity_lines" }
   | { kind: "decision_blocks" }
-  | { kind: "signatory"; slot: "builder" | "technical_supervision" | "designer_supervision" };
+  | { kind: "signatory"; slot: "builder" | "technical_supervision" | "designer_supervision" }
+  /**
+   * A single value this database holds, named by WHAT IT IS rather than by a
+   * column, and resolved by `blocksFor` below.
+   *
+   * ADDED 2026-08-10, when the field list arrived and the other four kinds
+   * turned out to reach about a third of Додаток В. The set is CLOSED on
+   * purpose: a `factRef: string` would let a field name a fact the renderer
+   * cannot resolve, and it would print blank while looking bound. Adding a
+   * field here is therefore a compile error until `blocksFor` learns to answer
+   * it — which is the same arrangement that keeps captions out of this file.
+   *
+   * It is short because `StatutoryActVersionView` is. The view carries ids, not
+   * names: `work_items.description` and `projects.name` are in the database and
+   * NOT on the view, so «найменування робіт» and «найменування і місце
+   * розташування об'єкта будівництва» stay `static` and print blank. Widening
+   * the view is a separate, named step; guessing them here is not available.
+   */
+  | { kind: "recorded_fact"; fact: "act_date" | "builder_organisation_name" };
 
 /**
  * One entry of the В.1/В.2 field list, if it is ever committed. The shape is
@@ -228,7 +247,11 @@ export const DODATOK_V_TEMPLATE: FormTemplate = {
     verification: "VERIFIED_PRIMARY",
     source: DBN_SINGLE_FETCH_SOURCE,
   },
-  fieldList: null,
+  // The 51 printed lines of В.1 and В.2, generated out of
+  // technical/requirements/dbn-a31-5-2016-dodatok-v.csv and compared back
+  // against it byte for byte. No caption is written in THIS file, which is the
+  // arrangement the header describes and the one Додаток Н already uses.
+  fieldList: DODATOK_V_FIELDS,
 };
 
 const TEMPLATES: readonly FormTemplate[] = [DODATOK_V_TEMPLATE];
@@ -623,6 +646,38 @@ export function renderStatutoryAct(
             RULE_REQUIRED_DISCLAIMERS, true));
         }
         return out;
+      }
+
+      case "recorded_fact": {
+        // ONE VALUE, NAMED BY WHAT IT IS. An unresolvable value prints nothing
+        // rather than an empty string, for the same reason an unfilled
+        // signatory slot does: the caption still prints, and the form does not
+        // pretend the field was answered.
+        switch (f.binding.fact) {
+          case "act_date": {
+            // The act's own date. `frozenAt` once it is a document, `composedAt`
+            // while it is still a draft — a draft render is what the composer
+            // shows back, and dating it with the freeze that has not happened
+            // would be a lie about the document's age.
+            const iso = version.frozenAt ?? version.composedAt;
+            const day = iso.slice(0, 10);
+            return [fact(`${f.fieldId}.value`, day,
+              version.frozenAt === null
+                ? "statutory_act_versions.composed_at"
+                : "statutory_act_versions.frozen_at")];
+          }
+          case "builder_organisation_name": {
+            // Read off the BUILDER SIGNATORY's frozen organisation name, which
+            // is the only place the view carries an organisation at all — and
+            // the right place: the form asks whose works were inspected, and
+            // that is the party who signs for them. Frozen at composition, so
+            // a later rename of the party does not rewrite a printed act.
+            const b = version.signatories.find((x) => x.slot === "builder");
+            if (b === undefined) return [];
+            return [fact(`${f.fieldId}.value`, b.frozenOrganizationName,
+              "statutory_act_version_signatories.frozen_organization_name")];
+          }
+        }
       }
 
       case "signatory": {

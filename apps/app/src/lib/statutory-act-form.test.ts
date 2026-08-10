@@ -92,13 +92,26 @@ describe("the В.1/В.2 field list is not committed, and the render says so", ()
     }
   });
 
-  it("refuses to render, naming the absent field list and the absent retrieval record", () => {
+  it("refuses to render — for the retrieval record ONLY, now the field list is committed", () => {
+    // THE FIELD-LIST BLOCKER IS GONE, and its absence is the assertion. On
+    // 2026-08-10 the owner supplied the official ДБН file and confirmed the
+    // edition; all 51 lines of В.1/В.2 are in
+    // technical/requirements/dbn-a31-5-2016-dodatok-v.csv, machine-transcribed
+    // and verified byte-for-byte, and DODATOK_V_TEMPLATE.fieldList is populated
+    // from them. This case used to demand BOTH blockers and would now hide the
+    // change by passing on the one that remains.
+    //
+    // What remains is `dbn_retrieval_record_absent`, and it is not a formality:
+    // a hash proves two people hold the same bytes, and says nothing about
+    // where the bytes came from. Until the URL and the retrieval date are
+    // recorded, no VERIFIED_PRIMARY string reaches a customer-facing render —
+    // so the act still cannot be printed, for one reason instead of two.
     const out = renderStatutoryAct(
       draftView({ status: "frozen" }), findFormTemplate("dodatok-v", "0.1.0"));
     expect(out.ok).toBe(false);
     if (out.ok) return;
     const codes = out.blockers.map((b) => b.code).sort();
-    expect(codes).toContain("dodatok_v_field_list_not_committed");
+    expect(codes).not.toContain("dodatok_v_field_list_not_committed");
     expect(codes).toContain("dbn_retrieval_record_absent");
     // Every blocker says what closes it. A refusal a reader cannot act on is the
     // bare status word ADR-005 decision 6 exists to prevent.
