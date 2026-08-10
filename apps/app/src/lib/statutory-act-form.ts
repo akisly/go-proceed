@@ -14,10 +14,23 @@ import {
  *
  * hidden-works-content-rules.md allow-list item 3 licenses «the Додаток В form —
  * every field of В.1 and В.2, in the standard's order». It licenses the product
- * to print them. It does not supply them, and NOTHING IN THIS REPOSITORY DOES:
- * `technical/requirements/` holds `dbn-a31-5-2016-dodatok-n.csv` and nothing
- * else, and docs/delivery/test-strategy.md:139-152 says so in terms and adds the
- * rule that closes the only remaining door —
+ * to print them.
+ *
+ * SINCE 2026-08-10 THE REPOSITORY HAS THEM. The owner supplied the official ДБН
+ * file and confirmed the edition; `technical/requirements/dbn-a31-5-2016-dodatok-v.csv`
+ * carries all 51 printed lines of В.1 and В.2 in the standard's order,
+ * transcribed BY MACHINE from that file and verified byte-for-byte against it,
+ * every row tagged VERIFIED_PRIMARY and carrying the file's sha256.
+ *
+ * WHAT IS STILL MISSING IS NOT THE CAPTIONS. `fieldList` below stays `null` for
+ * two remaining reasons, both named at the bottom of this comment: the BINDINGS
+ * (which caption a fact prints under) are a decision nobody has taken, and
+ * `DBN_RETRIEVAL_RECORD` still lacks the URL and the retrieval date. Either one
+ * alone keeps the render refusing.
+ *
+ * The rule that closed the door while the captions were absent is kept verbatim,
+ * because it is why the CSV was generated rather than typed —
+ * docs/delivery/test-strategy.md:139-152 —
  *
  *     «no test may substitute a field list typed from memory. That substitution
  *      is precisely the fabrication class the adversarial audit behind
@@ -26,8 +39,13 @@ import {
  *
  * A RENDERER IS WORSE THAN A FIXTURE. A caption typed from memory into this file
  * would be printed onto a document an engineer's client's lawyer reads, and it
- * would look decided. So this file contains NO field of Додаток В, NO caption of
- * one, and NO order for them. `DODATOK_V_TEMPLATE.fieldList` is `null`, and
+ * would look decided. So this file still contains NO field of Додаток В, NO
+ * caption of one, and NO order for them — they live in the CSV, and the
+ * transcription was performed by a script reading the PDF's own text layer, so
+ * no caption passed through anyone's hands. The same reasoning now applies to
+ * the BINDINGS: putting the quantity table under «3. При виконанні робіт
+ * застосовані» instead of «1. До закриття пред\'явлені такі роботи» would be a
+ * wrong document that looks decided, so no binding is guessed here either. `DODATOK_V_TEMPLATE.fieldList` is `null`, and
  * while it is null the render REFUSES with
  * `dodatok_v_field_list_not_committed` and names the file that closes it.
  *

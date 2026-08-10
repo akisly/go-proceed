@@ -37,12 +37,26 @@
 > adversarial fabrication audit established what is verifiable. The audit
 > downloaded the official ДБН file from the state portal
 > (`e-construction.gov.ua`, 636 603 bytes) and checked every load-bearing claim
-> character by character. **That download is a single fetch that no reviewer
-> can reproduce**: the file is not retained in this repository, no URL, date or
-> hash of it was recorded, and `technical/requirements/` holds only the derived
-> CSV. Read every `VERIFIED_PRIMARY` tag below and in that CSV as resting on
-> that one unreproduced fetch — see Open items. This document is the standing
-> rule set that came out of it.
+> character by character. That download was a single fetch no reviewer could
+> reproduce: the file was not retained, and no URL, date or hash of it was
+> recorded.
+>
+> **PARTLY CLOSED 2026-08-10.** The owner supplied the file and confirmed the
+> edition is the current one. It is the same fetch, and that is now checkable
+> rather than asserted: 636 603 bytes exactly, and
+> `sha256=4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3`.
+> Three byte-level quirks this document's prohibition F protects were found in
+> it — `посада,номер` without its space, `На основі викладеного`, and the
+> `Притітка` typo (page 51, in the note under Додаток Н's electrical list, not
+> in Додаток В) — so the file is identified by its content and not only by its
+> length. `technical/requirements/dbn-a31-5-2016-dodatok-v.csv` now carries all
+> 51 printed lines of Додаток В, machine-transcribed from that file and verified
+> byte-for-byte against it.
+>
+> **STILL OPEN:** the URL it was downloaded from and the date. Until both are
+> recorded, `DBN_RETRIEVAL_RECORD` stays null and no `VERIFIED_PRIMARY` string
+> reaches a customer-facing render. A hash proves two people hold the same
+> bytes; it does not say where the bytes came from.
 >
 > The verified list content lives in
 > [`technical/requirements/dbn-a31-5-2016-dodatok-n.csv`](../../technical/requirements/dbn-a31-5-2016-dodatok-n.csv).
