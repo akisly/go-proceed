@@ -235,7 +235,7 @@ zero-priced row — and rows priced at zero are ordinary, being work bundled int
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
 
-## P1 — valuation funding is first-come and is never redistributed
+## P1 (CLOSED 2026-08-10) — valuation funding was first-come and was never re-offered
 
 **What:** the work-item pool is claimed by whichever root records first. When
 that root later withdraws, the freed money is not offered to roots whose
@@ -291,7 +291,41 @@ B has no pending entry left, and the last row above is the finding. A later
 closure on B does not reopen anything. Once a root is admitted into an exhausted
 pool it can never be funded for that work again, by any action on B.
 
-**A SECOND CANDIDATE DESIGN, which this re-run is what suggests.** The entry
+**CLOSED 2026-08-10 BY THE OWNER'S DECISION: admission is a STANDING CLAIM, not
+a one-shot event.** The second candidate below is the one taken.
+
+**What changed, and it is four lines.** `appendValuationAllocation` writes NO
+ROW for a valued, positive entry whose carve funded nothing and moved no money;
+`admitClosedStageQuantity` skips it instead of counting it. The entry therefore
+keeps its one allocation slot, stays pending, and the assignment's next closure
+offers it to a pool that may by then have room. Verified on the minimal case:
+B's first closure now admits 0 and writes nothing, A's correction returns the
+pool, and B's SECOND closure funds it — 40 000 of 40 000, one row for B's root.
+
+**Why this shape rather than a successor allocation.** A second row per entry
+would have meant dropping `unique (workspace_id, progress_entry_id)`, and
+migration `0046:150-152` rests on exactly that key: «no entry is ever admitted
+twice, so the failure is early admission, never double admission». This does the
+opposite of weakening it — an entry that funded nothing has not been admitted at
+all, so the slot it never took is still there. No migration, no schema change.
+
+**D1 is satisfied.** A's correction still writes nothing outside A's lineage. It
+is B's OWN closure that funds B, which is what made this address available where
+«a correction on one root writes allocations for other roots» was not.
+
+**Three narrowings, each load-bearing.** An UNVALUED entry still writes its row —
+its zero means «this line has no price», which the M6 read is entitled to see,
+not «no room». A NEGATIVE entry always settles: a removal that returns nothing
+has still done its work, and leaving it pending would re-offer it forever. And
+both money and funded quantity must be zero — a partial carve is a real
+admission of the part it paid for.
+
+**Covered by** `apps/app/tests/admission-valuation.int.test.ts` §"the pool is
+offered again when the root that held it gives it back", verified to fail
+without the change.
+
+**A SECOND CANDIDATE DESIGN, which this re-run is what suggests — and which is
+the one taken above.** The entry
 frames the fix as «a correction on one root writes allocations for OTHER roots»
 and rejects it on the engineering review's D1 finding. B's own closure is a
 second address for the same repair: an admission could top up roots whose

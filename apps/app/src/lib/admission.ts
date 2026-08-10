@@ -495,6 +495,13 @@ export async function admitClosedStageQuantity(
         workAssignmentId: args.workAssignmentId,
       },
     });
+    // A DEFERRED ENTRY WAS NOT ADMITTED, so it is not on the receipt and it does
+    // not count. `appendValuationAllocation` wrote no row for it: the pool had
+    // nothing left to sell it, and it keeps its claim for a later closure rather
+    // than spending its one allocation slot on a carve of zero. Owner decision
+    // of 2026-08-10 on the P1 at TODOS.md:238; the writer carries the reasoning.
+    if (outcome.deferred === true) continue;
+
     ids.push(entry.id);
     if (outcome.valued) {
       valued = true;
