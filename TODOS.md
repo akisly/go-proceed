@@ -268,9 +268,38 @@ narrows the window, because only **admitted** quantity competes for the pool and
 admission is a deliberate authorised act rather than a side effect of
 measurement. The minimal case above survives the narrowing — it needs A and B
 each to reach an admission — and the analysis still owes a re-run against the new
-ordering. Read it together with the P0 opened below: on the third write path the
-narrowing does not hold at all, so today the window is exactly as wide as it was
-for any root that has been admitted once.
+ordering.
+
+**2026-08-10 — THE RE-RUN THIS ENTRY OWED, EXECUTED.** Against the applied chain,
+after the P0 denominator fix, on a line of contract quantity 4 and a pool of
+40 000 minor units, two assignments on one work item:
+
+| step | allocated | root A | root B |
+|---|---|---|---|
+| A records 4, admits | 40 000 / 40 000 | 40 000, funded 4 | — |
+| B records 4, admits | 40 000 / 40 000 | 40 000, funded 4 | **0, funded 0** |
+| A corrects −4 | **0 / 40 000** | 0, funded 0 | 0, funded 0 |
+| B closes a second stage | **0 / 40 000** | 0, funded 0 | 0, funded 0 |
+
+The line has measured 4 of its 4 contracted units, every unit is within contract
+and priced, and the pool is **entirely idle**. So the case survives ADR-008
+intact.
+
+**AND IT IS WORSE THAN THIS ENTRY DESCRIBED.** «Not redistributed» understates
+it: B's admission is SPENT. Its root already holds an allocation — of zero — so
+B has no pending entry left, and the last row above is the finding. A later
+closure on B does not reopen anything. Once a root is admitted into an exhausted
+pool it can never be funded for that work again, by any action on B.
+
+**A SECOND CANDIDATE DESIGN, which this re-run is what suggests.** The entry
+frames the fix as «a correction on one root writes allocations for OTHER roots»
+and rejects it on the engineering review's D1 finding. B's own closure is a
+second address for the same repair: an admission could top up roots whose
+admitted quantity is not yet funded and for which headroom now exists, writing
+only inside the lineage whose closure is running. A's correction would still
+touch nothing but A. That keeps D1 satisfied and changes something else instead
+— whether admission is a one-shot event per entry or a standing claim — which is
+the decision to take, and it is a decision rather than a patch.
 
 ## P3 — the two retention figures v0.1-M2-A had to choose are defaults, not policy
 
@@ -518,15 +547,18 @@ class. What is left, measured on this branch:
   landed: the working-tree figures read 12/37/108 before it and 13/38/110 after.
   They are measurements of a moving uncommitted tree — re-run the command rather
   than quoting these.)*
-- The user-visible product copy is untouched: every on-screen `AktFlow`
-  string, e.g. `apps/app/app/(auth)/login/page.tsx`'s
-  `<h1>AktFlow — вхід</h1>` and `apps/demo/index.html`'s `<title>AktFlow —
-  демонстраційний прототип</title>`.
+- ~~The user-visible product copy is untouched~~ — **DONE 2026-08-10.** All 26
+  on-screen `AktFlow` strings across 11 files now read `GoProceed`: the login
+  heading, the demo shell's brand and every page header, the demo `<title>`, the
+  pilot page's prose and its mailto subject, and the landing page's title and
+  meta description. No test asserted any of them, so nothing had to be inverted;
+  the whole workspace stays green. This is the half a pilot customer can see,
+  and it was the cheap half.
 - Four domains: `aktflow.app`, `aktflow.com`, `aktflow.example`, `aktflow.pilot`.
 - Two env vars: `AKTFLOW_CHROME_PATH`, `AKTFLOW_BASE_URL`.
 
-**Why it is not swept here:** the database roles are the hard part and they are
-already merged. `ALTER ROLE ... RENAME TO` is not a text substitution — a role
+**Why the ROLES are still not swept here, and this is unchanged:** the database
+roles are the hard part and they are already merged. `ALTER ROLE ... RENAME TO` is not a text substitution — a role
 rename clears an md5-hashed password, every connection string and CI secret has
 to move in the same window, and the rename must land in a migration that runs
 against an environment whose app is already connecting under the old name. That

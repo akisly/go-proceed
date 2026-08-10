@@ -201,11 +201,11 @@ export default function Demo() {
     <div className="goproceed-app flex min-h-screen flex-col">
       <header className="border-b border-border">
         <div className="mx-auto flex w-full max-w-[900px] items-center gap-4 px-5 py-3">
-          <Link className="brand" to="/" aria-label="AktFlow — головна">
+          <Link className="brand" to="/" aria-label="GoProceed — головна">
             <span className="brand__mark">
               <span />
             </span>
-            <span>AktFlow</span>
+            <span>GoProceed</span>
           </Link>
           <Button asChild variant="ghost" size="sm" className="ml-auto">
             <Link to="/app">Подивитись усе</Link>

@@ -134,11 +134,11 @@ function PilotHeader() {
   return (
     <header className="border-b border-border">
       <div className="mx-auto flex w-full max-w-[720px] items-center gap-4 px-5 py-3">
-        <Link className="brand" to="/" aria-label="AktFlow — головна">
+        <Link className="brand" to="/" aria-label="GoProceed — головна">
           <span className="brand__mark">
             <span />
           </span>
-          <span>AktFlow</span>
+          <span>GoProceed</span>
         </Link>
         <Button asChild variant="ghost" size="sm" className="ml-auto">
           <Link to="/">
@@ -428,7 +428,7 @@ export default function Pilot() {
             />
             <p className="max-w-[62ch] text-foreground-secondary">
               Це не форма реєстрації в продукт — кілька запитань про ваш поточний процес, щоб зрозуміти, чи підійде
-              AktFlow вашим об’єктам. Обов’язкові лише «Компанія» і «Email»; решта — за бажанням, і чим детальніше
+              GoProceed вашим об’єктам. Обов’язкові лише «Компанія» і «Email»; решта — за бажанням, і чим детальніше
               ви опишете свій процес, тим краще я його зрозумію.
             </p>
             {/*
@@ -448,7 +448,7 @@ export default function Pilot() {
               Це займе близько 10 хвилин. Я прочитаю відповіді особисто — не бот і не відділ продажів — і відповім
               протягом 2 робочих днів на вказаний email. Дзвонити не буду.
               <br />
-              <span className="text-foreground-muted">— Олександр, автор AktFlow</span>
+              <span className="text-foreground-muted">— Олександр, автор GoProceed</span>
             </p>
           </div>
 

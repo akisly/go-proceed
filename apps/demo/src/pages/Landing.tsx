@@ -80,11 +80,11 @@ export default function Landing() {
         className="sticky top-strip z-30 border-b border-border bg-surface/90 backdrop-blur"
       >
         <div className="mx-auto flex w-full max-w-[1240px] items-center gap-4 px-5 py-3 md:px-8">
-          <Link className="brand" to="/" aria-label="AktFlow — головна">
+          <Link className="brand" to="/" aria-label="GoProceed — головна">
             <span className="brand__mark">
               <span />
             </span>
-            <span>AktFlow</span>
+            <span>GoProceed</span>
           </Link>
 
           <nav
@@ -139,7 +139,7 @@ export default function Landing() {
                 Виконані роботи мають ставати оплатою.
               </h1>
               <p className="mt-5 max-w-[54ch] text-body text-foreground-secondary md:text-h3">
-                AktFlow пов’язує кожну позицію робіт із вимогами до доказів і станом готовності до подання — щоб було
+                GoProceed пов’язує кожну позицію робіт із вимогами до доказів і станом готовності до подання — щоб було
                 видно, що саме блокує подання акта виконаних робіт, ще до самого подання.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
@@ -215,7 +215,7 @@ export default function Landing() {
                 Розкажіть, як влаштовано закриття періоду у вас.
               </h2>
               <p className="mt-4 max-w-[58ch] text-body text-rail-muted">
-                Це не форма реєстрації в продукт — кілька запитань про ваш процес, щоб зрозуміти, чи підійде AktFlow
+                Це не форма реєстрації в продукт — кілька запитань про ваш процес, щоб зрозуміти, чи підійде GoProceed
                 вашим об’єктам, перш ніж щось будувати далі.
               </p>
             </div>
@@ -230,11 +230,11 @@ export default function Landing() {
 
       <footer className="border-t border-border">
         <div className="mx-auto flex w-full max-w-[1240px] flex-wrap items-center gap-x-8 gap-y-3 px-5 py-8 md:px-8">
-          <Link className="brand" to="/" aria-label="AktFlow — головна">
+          <Link className="brand" to="/" aria-label="GoProceed — головна">
             <span className="brand__mark">
               <span />
             </span>
-            <span>AktFlow</span>
+            <span>GoProceed</span>
           </Link>
           <p className="text-foreground-muted">
             Демонстраційний прототип для спеціалізованих електромонтажних підрядників.
