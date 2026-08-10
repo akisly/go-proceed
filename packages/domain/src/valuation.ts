@@ -223,21 +223,27 @@ export function sliceAllocation(
     // performed and unfunded: over-contract exposure is INV-039's concern in
     // M6, not a second pool here.
     //
-    // A LINE HAS NEVER PERFORMED LESS THAN NOTHING, AND UNTIL 2026-08-08 THIS
-    // TOOK `workItemPerformed` ON TRUST. That figure sums the QUANTITIES of the
-    // line's admitted entries, and a removal takes away more quantity than
-    // funding whenever the lineage was funded for less than it measured — the
-    // `record 4 / admit / +6 / −8` sequence leaves the line reading −4 admitted
-    // against an untouched pool. Unclamped, `remainingQty` then reads 14 on a
-    // ten-unit line, and it is the DENOMINATOR the carve divides the unallocated
-    // pool by: a denominator above the contract quantity claims the remaining
-    // pool buys more units than the contract has, and under-prices every unit
-    // carved against it (the same 2 units draw 2/14 of the pool where 2/10 is
-    // the line's own proportion). It also raises the per-entry funding cap above
-    // the contract quantity, so a single admission could store
-    // `funded_quantity` 14 on a ten-unit line. The clamp is at the point of USE
-    // rather than on the read, because the read is a faithful sum and it is this
-    // subtraction that is only meaningful for a non-negative one.
+    // A LINE HAS NEVER PERFORMED LESS THAN NOTHING, AND THE CLAMP BELOW USED TO
+    // BE LOAD-BEARING. `workItemPerformed` summed the QUANTITIES of the line's
+    // admitted entries, and an over-removal took away more quantity than
+    // funding: `record 4 / admit / +6 / −8` left the line reading −4 admitted
+    // against a pool it had returned in full. Unclamped, `remainingQty` read 14
+    // on a ten-unit line and under-priced every unit carved against it.
+    //
+    // The clamp made that read 0, which stopped the absurd denominator and did
+    // NOT restore the unit price — it is the P0 at TODOS.md:585, and closing it
+    // meant deciding which quantity this denominator answers to. It answers to
+    // the money: since 2026-08-10 `work_item_performed` sums `funded_quantity`
+    // over the same allocations `workItemAllocated` sums the money of
+    // (`valuation-writer.ts`), so `unallocated / remaining` is the line's unit
+    // price by construction rather than by coincidence.
+    //
+    // The clamp stays, and is now a guard rather than a correction. Per lineage
+    // the negative branch returns at most what the lineage holds, so a funded
+    // sum cannot go below zero; but the figure is read MID-TRANSACTION, before
+    // `app.assert_funded_within_lineage()` has had its deferred say, and a
+    // subtraction that is only meaningful for a non-negative operand should say
+    // so at the point of use.
     const performed = state.workItemPerformed > 0n ? state.workItemPerformed : 0n;
     const remainingQty = w.contractQuantity - performed;
     if (remainingQty <= 0n) return { amounts: ZERO, fundedQuantity: 0n };

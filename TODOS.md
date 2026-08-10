@@ -582,10 +582,43 @@ standing per-milestone owed list lives in
 [`docs/superpowers/plans/2026-08-06-v0.1-implementation-progress.md`](docs/superpowers/plans/2026-08-06-v0.1-implementation-progress.md)
 §5; only the repo-level items are repeated here.
 
-### P0 — the pool strands silently once an over-removal parts quantity from money
+### P0 (CLOSED 2026-08-10) — the pool stranded once an over-removal parted quantity from money
 
-**OPEN. Found 2026-08-08 by the arithmetic verifier, after the lineage-ceiling fix
-closed the crash it was looking for. It is the residual, not a regression.**
+**CLOSED 2026-08-10, AND EXECUTED RATHER THAN DERIVED — which is what this entry
+asked for.** The sequence below was run against the local stack and reproduced
+exactly as written: seven units of a ten-unit line settled holding **65 %** of
+the pool where the control — a lineage that simply measured 7 — holds **70 %**.
+5 % stranded, silently.
+
+**The decision this needed.** The entry ends «closing it means deciding which of
+[admitted quantity and allocated money] the carve denominator is answerable to».
+It is answerable to the MONEY. The denominator exists to keep
+`unallocated / remaining` equal to the line's unit price, and that holds only
+while the money already carved corresponds to the quantity being subtracted.
+`work_item_allocated` sums money, which follows `funded_quantity`;
+`work_item_performed` summed the entries' own `quantity`, which follows what was
+MEASURED. Two figures, two sets, and an over-removal parts them.
+
+**The change** is one subquery in `apps/app/src/lib/valuation-writer.ts`:
+`work_item_performed` now sums `funded_quantity` over the same
+`valuation_allocations` rows `work_item_allocated` sums the money of. The unit
+price is then constant by construction rather than by coincidence. In every
+ordinary state the two readings are identical — an admitted entry funds its own
+quantity — and they differ exactly where a unit was admitted and NOT funded: the
+over-contract remainder and the lineage ceiling, where the outcomes already
+agreed, and the parted case, which is the defect. No migration; the lineage
+ceiling and `0048` §3 are untouched and remain the backstop.
+
+**Covered by** `apps/app/tests/progress-adjust.int.test.ts` §"the pool a line
+holds is the share its effective quantity bought", which asserts against a
+control rather than a computed figure — `pool * 7 / 10` is 167991 where the
+carve lands on 167992, because gross is built from independently carved net and
+tax. Verified to FAIL on the old denominator (155993) and pass on the new one.
+
+The original entry follows, because it is the reasoning the fix rests on.
+
+**WAS: OPEN. Found 2026-08-08 by the arithmetic verifier, after the lineage-ceiling
+fix closed the crash it was looking for. It is the residual, not a regression.**
 
 **What.** `work_item_performed` sums admitted **quantity**; `work_item_allocated`
 sums **money**. While every removal is smaller than what the lineage has funded,
