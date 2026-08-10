@@ -20,6 +20,17 @@ async function listAssignments(projectId = fx.projectId): Promise<Response> {
   return GET(new Request("http://x"), { params: Promise.resolve({ projectId }) });
 }
 
+async function listMine(projectId = fx.projectId): Promise<Response> {
+  const { GET } = await import("../app/v1/projects/[projectId]/assignments/route");
+  return GET(new Request("http://x?assignee=me"), { params: Promise.resolve({ projectId }) });
+}
+
+async function listAssignee(value: string, projectId = fx.projectId): Promise<Response> {
+  const { GET } = await import("../app/v1/projects/[projectId]/assignments/route");
+  return GET(new Request(`http://x?assignee=${encodeURIComponent(value)}`),
+    { params: Promise.resolve({ projectId }) });
+}
+
 async function publishedTemplate(): Promise<string> {
   const { POST: create } = await import(
     "../app/v1/workspaces/[workspaceId]/requirement-templates/route");
@@ -212,5 +223,40 @@ describe("assignments.list", () => {
     current = B;
     const res = await listAssignments();
     expect([403, 404]).toContain(res.status);
+  });
+});
+
+describe("assignments.list answers «which are mine» — the field client's entry", () => {
+  it("returns assigneeMemberId, which was accepted at creation and never read back", async () => {
+    const created = await createAssignment({
+      workItemId: fx.workItems[0]!.id, assigneeMemberId: fx.memberId, plannedQuantity: "1",
+    });
+    expect(created.status).toBe(201);
+    // Read the body ONCE, before the find. An `await` inside a `.find()`
+    // predicate does not do what it looks like — the callback is synchronous and
+    // returns a Promise, which is always truthy, so `.find()` matches the first
+    // element whatever the comparison says.
+    const { assignmentId } = await created.json();
+    const body = await (await listAssignments()).json();
+    const row = body.assignments.find(
+      (x: { assignmentId: string }) => x.assignmentId === assignmentId);
+    expect(row.assigneeMemberId).toBe(fx.memberId);
+  });
+
+  it("filters to the caller's own with ?assignee=me", async () => {
+    await createAssignment({
+      workItemId: fx.workItems[0]!.id, assigneeMemberId: fx.memberId, plannedQuantity: "1",
+    });
+    const res = await listMine();
+    expect(res.status).toBe(200);
+    const { assignments } = await res.json();
+    expect(assignments.length).toBeGreaterThan(0);
+    for (const a of assignments) expect(a.assigneeMemberId).toBe(fx.memberId);
+  });
+
+  it("refuses any assignee value other than me — a member id on the wire is not a filter", async () => {
+    const res = await listAssignee(fx.memberId);
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe("VALIDATION_FAILED");
   });
 });

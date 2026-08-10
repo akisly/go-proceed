@@ -91,5 +91,12 @@ export interface AssignmentSummary {
   status: string;
   /** Deployed lineage. Read for rows that carry one; never written by new work. */
   requirementTemplateVersionId: string | null;
+  /**
+   * ADDED 2026-08-10. Accepted by `createAssignmentRequest` since M2 and never
+   * returned, which made «my assignments» uncomputable and left the field client
+   * with no entry point at all. Nullable because an assignment need not have an
+   * assignee.
+   */
+  assigneeMemberId: string | null;
 }
 export interface ListAssignmentsResponse { assignments: AssignmentSummary[] }
