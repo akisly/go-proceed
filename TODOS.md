@@ -335,6 +335,71 @@ touch nothing but A. That keeps D1 satisfied and changes something else instead
 — whether admission is a one-shot event per entry or a standing claim — which is
 the decision to take, and it is a decision rather than a patch.
 
+## P1 — M4 prints nothing: the ДБН retrieval record is the last blocker
+
+**HALF CLOSED 2026-08-10.** `statutory_act_versions.freeze` still ALWAYS refuses
+and M4 still ships a composer and no document — but for ONE reason now instead
+of two.
+
+**Closed.** `dodatok_v_field_list_not_committed`. The owner supplied the official
+ДБН А.3.1-5:2016 file and confirmed the edition is current. It is the same file
+the 2026 audit used, identified by content and not by name: 636 603 bytes and
+`sha256=4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3`, with
+the three byte-level quirks prohibition F protects all present — `посада,номер`
+without its space against `посада, номер` with it two lines below,
+`На основі викладеного`, and the `Притітка` typo (p. 51, under Додаток Н's
+electrical list, NOT in Додаток В). The forms also mix apostrophes: U+0027 in
+`обов'язковий`, U+2019 in `ім’я`.
+
+All 51 printed lines of В.1 «Форма першої сторінки» and В.2 «Форма останньої
+сторінки» are in `technical/requirements/dbn-a31-5-2016-dodatok-v.csv`,
+machine-transcribed and verified byte-for-byte;
+`apps/app/src/lib/dodatok-v.ts` is generated from it and
+`dodatok-v-fidelity.test.ts` re-checks the two with `Buffer.equals` every run.
+Додаток В is **обов'язковий**, and the В.1/В.2 split the docs assumed is real.
+
+**Still open — and it is two strings.** `DBN_RETRIEVAL_RECORD` needs the URL the
+file was downloaded from and the retrieval date. The hash is already recorded. A
+hash proves two people hold the same bytes; it says nothing about where they came
+from, and while the record is null no `VERIFIED_PRIMARY` string reaches a
+customer-facing render.
+
+**And when it lands, the act prints with TEN blank fields.** That is the owner's
+decision of 2026-08-10 — fill what the product knows, leave the rest for the hand
+that signs — not an oversight. Ten of 51 lines are bound: the act date, three
+representatives in В.1, the builder's organisation, the works presented for
+closure (`quantity_lines`), the decision block, and three names in В.2. Blank by
+design: проектна документація, матеріали з сертифікатами, відхилення, дати
+початку/закінчення — none of those facts exist in the data model at all (no
+column anywhere matches material, certificate or deviation).
+
+**Two of the blanks are cheaper than the rest.** «Найменування робіт» and
+«об'єкт будівництва» ARE in the database — `work_items.description`,
+`projects.name` — and simply never reach the renderer:
+`StatutoryActVersionView` carries ids, not names. Widening it by two read-only
+fields turns ten blanks into eight, and is its own small step.
+
+## P1 — apps/demo can be published with an unreplaced placeholder, and CI does not stop it
+
+**Found 2026-08-10 while walking the pilot path by hand.**
+`/legal/privacy` renders the literal `{{FORM_PROCESSOR}}` twice, inside `<code>`,
+in the sentence naming who processes a visitor's data. `src/pages/Legal.tsx`'s own
+header calls this a LAUNCH BLOCKER — «the site must not go live with this token
+unreplaced» — and `pnpm --filter @goproceed/demo preflight` exits 1 for exactly
+this reason.
+
+**The gate exists and is not on the path that publishes.** `.github/workflows/ci.yml`
+runs typecheck, lint, test, build and `qa` for demo-qa; `preflight` is run by
+nobody, and `qa`'s own scan of the token is report-only and does not fail. Vercel
+deploys on every PR.
+
+**Not a data-loss bug.** `VITE_PILOT_ENDPOINT` is unset, so `submitPilotDraft`
+short-circuits to `mailto` and submissions arrive as email; the defect is the
+disclosure text, which is the worst page to carry a placeholder.
+
+**Fix:** add `pnpm --filter @goproceed/demo preflight` to the demo-qa job, or
+remove the sentence. One line either way.
+
 ## P3 — the two retention figures v0.1-M2-A had to choose are defaults, not policy
 
 **What:** `organizations.evidence_quota_bytes` (NULL, meaning unlimited) and
