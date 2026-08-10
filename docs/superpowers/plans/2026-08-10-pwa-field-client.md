@@ -207,9 +207,14 @@ describe("assignments.list answers «which are mine» — the field client's ent
       workItemId: fx.workItemId, assigneeMemberId: fx.memberId, plannedQuantity: "1",
     });
     expect(created.status).toBe(201);
+    // Read the body ONCE, before the find. An `await` inside a `.find()`
+    // predicate does not do what it looks like — the callback is synchronous and
+    // returns a Promise, which is always truthy, so `.find()` matches the first
+    // element whatever the comparison says.
+    const { assignmentId } = await created.json();
     const body = await (await listAssignments()).json();
     const row = body.assignments.find(
-      (x: { assignmentId: string }) => x.assignmentId === (await created.clone().json()).assignmentId);
+      (x: { assignmentId: string }) => x.assignmentId === assignmentId);
     expect(row.assigneeMemberId).toBe(fx.memberId);
   });
 
@@ -807,9 +812,19 @@ Run: `cd apps/app && pnpm vitest run tests/field-obligations.int.test.ts`
 
 - [ ] **Step 3: Implement**
 
-The page renders, per obligation: `acceptanceCriterion` verbatim; `normRef.text` with its tag and source beneath it; `evidenceKind`; `minEvidenceCount`..`maxEvidenceCount`; `allowedMedia.mimeTypes`. Then the disclaimer, **never collapsed**, verbatim from `hidden-works-content-rules.md`:
+The page renders, per obligation: `acceptanceCriterion` verbatim; `normRef.text` with its tag and source beneath it; `evidenceKind`; `minEvidenceCount`..`maxEvidenceCount`; `allowedMedia.mimeTypes`. Then the disclaimer, **never collapsed**.
 
-> Наведений перелік — це **довідковий Додаток Н** ДБН А.3.1-5:2016 (позиція Н.15 «Монтаж електротехнічних установок» / Н.14 «Внутрішні санітарно-технічні роботи»), відтворений дослівно. **Обов'язковий перелік прихованих робіт для вашого об'єкта визначає робоча документація** (п. 8.4.3.3 ДБН А.3.1-5:2016). Цей перелік її не замінює. За потреби такими актами оформлюють й інші види робіт.
+**IMPORT THE DISCLAIMER, DO NOT TYPE IT.** `apps/app/src/lib/statutory-act-form.ts:363` already
+exports `DOVIDKOVYI_DISCLAIMER_TEXT`, transcribed from
+`hidden-works-content-rules.md` §"Required disclaimers" and used by the act renderer:
+
+```ts
+import { DOVIDKOVYI_DISCLAIMER_TEXT } from "../../../../src/lib/statutory-act-form";
+```
+
+A second copy of a mandated regulatory disclaimer is two strings that can drift, and the one that
+drifts is the one nobody is looking at. Assert in the Task 8 test that the rendered text is
+byte-identical to that constant.
 
 And **no satisfaction indicator of any kind.**
 
