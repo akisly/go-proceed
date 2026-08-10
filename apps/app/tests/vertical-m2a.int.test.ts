@@ -12,13 +12,26 @@ import { drainEvidencePurge } from "../src/lib/evidence-purge";
  * cannot run here. What this proves is the server half — a published template,
  * an assignment pinned to it, money that reconciles through a correction, and an
  * evidence receipt that survives replay and refuses a revoked actor.
+ *
+ * THE STEP ORDER CHANGED WITH ADR-008, AND THAT IS THE POINT OF THE CHANGE.
+ * Step 3 was titled «records progress and carves a reconciling exposure slice»
+ * and ADR-008 §Consequences names it as one of three assertions that must MOVE
+ * rather than be rewritten: money was carved at step 3 and evidence uploaded at
+ * step 4, which is the inverted ordering the whole decision exists to correct.
+ * Recording now carves nothing; a new step 3b admits the quantity at the stage
+ * closure, which is the v0.1 admission event. Step 7 — «returns money to the pool
+ * on a negative correction» — is unchanged and now runs against money that was
+ * admitted rather than money that appeared with the measurement.
  */
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
-const CAPS = ["assignments.manage", "progress.record", "progress.adjust", "evidence.record"] as const;
+// `stage_closures.close` is granted by hand: it is in no row of
+// responsibility-presets.csv (the M3 preset gap, migration 0045 §11 item 2).
+const CAPS = ["assignments.manage", "progress.record", "progress.adjust", "evidence.record",
+              "stage_closures.close"] as const;
 const PRICED = "1.1;Мурування;м2;10;199,99;1 999,90";
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
 const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
@@ -95,20 +108,57 @@ describe("v0.1-M2-A vertical scenario", () => {
     expect(rows[0]!.contract_version_id).toBe(fx.contractVersionId);
   });
 
-  it("3. records progress and carves a reconciling exposure slice", async () => {
+  it("3. records progress, and the money does not move (ADR-008)", async () => {
     const res = await post(
       await import("../app/v1/assignments/[assignmentId]/progress/route"),
       { quantity: "6" }, { assignmentId });
     expect(res.status).toBe(201);
     const body = await res.json();
     rootEntryId = body.progressEntryId;
-    expect(body.allocation.valued).toBe(true);
 
+    // «A quantity without its proof is not yet a claim.» Performed quantity is
+    // recorded and UNVALUED until it is admitted (INV-089).
+    expect(body.admitted).toBe(false);
+    const { allocated } = await poolTotals();
+    expect(BigInt(allocated.gross)).toBe(0n);
+  });
+
+  it("3b. admits the recorded quantity at the stage closure", async () => {
+    // The v0.1 admission event. This assignment carries no obligation — the work
+    // line has no work type, so `assignments.create` materialised nothing — so
+    // the stage is created by hand and closes VACUOUSLY. That is a real v0.1
+    // state and the closure receipt says so, which is what stops a vacuous close
+    // being read as a proved one (INV-072).
+    const stage = await post(
+      await import("../app/v1/assignments/[assignmentId]/stages/route"),
+      { stageKey: "prykhovani-roboty", isConcealed: true }, { assignmentId });
+    expect(stage.status, await stage.clone().text()).toBe(201);
+    const workStageId = (await stage.json()).workStageId as string;
+
+    const closed = await post(
+      await import("../app/v1/stages/[stageId]/closures/route"),
+      { expectedVersion: 1 }, { stageId: workStageId });
+    expect(closed.status, await closed.clone().text()).toBe(201);
+    const closure = await closed.json();
+    expect(closure.vacuous).toBe(true);
+    expect(closure.admission.admittedProgressEntryCount).toBe(1);
+    expect(closure.admission.valued).toBe(true);
+
+    // The money reconciles exactly as it used to, one step later.
     const { allocated, unperformed, pool } = await poolTotals();
     expect(BigInt(allocated.gross)).toBe(BigInt(allocated.net) + BigInt(allocated.tax));
     expect(unperformed.gross).toBe(unperformed.net + unperformed.tax);
     expect(BigInt(allocated.gross) + unperformed.gross).toBe(BigInt(pool.gross));
     expect(unperformed.net).toBeGreaterThan(0n);   // 6 of 10 performed
+
+    // INV-089: the allocation names the admission that carved it, and the
+    // assignment whose stage was closed.
+    const rows = await q<{ closure: string | null; assignment: string | null }>(
+      `select admitted_by_closure_id closure, admitted_work_assignment_id assignment
+         from public.valuation_allocations where workspace_id = $1`, [fx.workspaceId]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.closure).toBe(closure.stageClosureId);
+    expect(rows[0]!.assignment).toBe(assignmentId);
   });
 
   it("4. authorizes, stages and finalizes an evidence upload", async () => {

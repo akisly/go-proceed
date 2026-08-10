@@ -6,10 +6,35 @@
 //   3. active AktFlow branding appears only in legacy/history context;
 //   4. relative doc links resolve;
 //   5. technical/migration CSVs are well-shaped; dispositions are unique and known;
-//   6. catalog/SQL coherence: entity catalog <-> design DDL, invariant refs.
+//   6. catalog/SQL coherence: entity catalog <-> design DDL, invariant refs;
+//   7. no deployed table is tagged to a future version;
+//   8. every table ADR-006 decision 4 builds in v0.1 still carries a v0.1 marker;
+//   9. capability <-> route-set coherence;
+//  10. event-producer <-> route-set coherence;
+//  11. ADR-006 decision 4's and roadmap.md's milestone tables enumerate exactly
+//      the transcribed build list, and no fully-built milestone (M3-M6) carries
+//      a catalog row the list forgot;
+//  12. the transcribed list is the size the package states in prose;
+//  13. version-0.1.md's per-milestone `v0.1 tables` and `already in the
+//      runtime` counts are the ones the list projects through the catalog and
+//      the migration FILES. Read `deployedTables` before trusting the word
+//      "runtime" here: since 2026-08-06 ten migration files exist that have
+//      never been executed, so this guard answers "is the DDL written" and NOT
+//      "does the table exist". version-0.1.md carries the applied-only counts
+//      in prose beneath the table this guard checks.
+// Guards 11-13 were added on 2026-08-06 after the final audit: three tables
+// moved into v0.1 that day, four copies of the build list were edited by four
+// hands, three of them ended up disagreeing, and this file passed anyway
+// because guard 8 held its own private copy of the list and ran one way only.
+// Guards 7-10 were added on 2026-08-06 after the ADR-006/ADR-007 re-cut audit
+// found the same three shapes in three separate catalogs: a v0.2 marker on a
+// table that exists in an applied migration, a v0.1 capability naming a v0.2
+// operation (or an operation id that was renamed out of both scope CSVs), and a
+// v0.1 event whose only producer had moved to v0.2. Each is invisible to a
+// human reader of one row and mechanical to catch across files.
 // Exits non-zero with every failure listed in one run.
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -105,6 +130,345 @@ export function dispositionErrors(text) {
   return errs;
 }
 
+// Per-milestone operation counts, from the CSV that docs/README.md precedence
+// level 3 makes the v0.1 route-set authority.
+export function scopeMilestoneCounts(text) {
+  const rows = parseCsv(text);
+  const col = rows[0].indexOf("milestone");
+  const counts = new Map();
+  if (col === -1) return counts;
+  for (const r of rows.slice(1)) {
+    if (r.length <= col) continue;
+    counts.set(r[col], (counts.get(r[col]) ?? 0) + 1);
+  }
+  return counts;
+}
+
+// Counts a prose document states about a milestone. Digits and spelled-out
+// numbers both count; anything else in the slot ("the seven-odd", "the
+// remaining") is reported as unparseable rather than silently skipped, because
+// a count the guard cannot read is a count nothing checks.
+const NUMBER_WORDS = new Map(Object.entries({
+  one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+  nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+  fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+  twenty: 20, "twenty-one": 21, "twenty-two": 22, "twenty-three": 23,
+  "twenty-four": 24, "twenty-five": 25, "twenty-six": 26, "twenty-seven": 27,
+  "twenty-eight": 28, "twenty-nine": 29, thirty: 30,
+}));
+
+export function statedOperationCounts(markdown) {
+  const stated = [];
+  const push = (milestone, token) => {
+    const n = /^\d+$/.test(token) ? Number(token) : NUMBER_WORDS.get(token.toLowerCase());
+    stated.push({ milestone, token, count: n === undefined ? null : n });
+  };
+  // Prose: "the 14 `v0.1-M2` operations" / "the two `v0.1-M6` operations".
+  const prose = /\bthe ([A-Za-z-]+|\d+) `(v0\.1-M\d)` (?:operations|queries)\b/g;
+  let m;
+  while ((m = prose.exec(markdown)) !== null) push(m[2], m[1]);
+  // Table: "| `v0.1-M2` | 14 |".
+  const table = /^\|\s*`(v0\.1-M\d)`\s*\|\s*(\d+)\s*\|/gm;
+  while ((m = table.exec(markdown)) !== null) push(m[1], m[2]);
+  return stated;
+}
+
+// Fails in both directions: a stated count the CSV contradicts (or names a
+// milestone the CSV has no rows for), and a milestone in the CSV that the
+// document never states a count for.
+export function operationCountErrors(markdown, scopeCsv, docName) {
+  const errs = [];
+  const actual = scopeMilestoneCounts(scopeCsv);
+  const stated = statedOperationCounts(markdown);
+  for (const s of stated) {
+    if (s.count === null) {
+      errs.push(`${docName}: unreadable operation count '${s.token}' for ${s.milestone}`);
+    } else if (!actual.has(s.milestone)) {
+      errs.push(`${docName}: states ${s.count} ${s.milestone} operations; scope-v0.1.csv has no ${s.milestone} rows`);
+    } else if (actual.get(s.milestone) !== s.count) {
+      errs.push(`${docName}: states ${s.count} ${s.milestone} operations; scope-v0.1.csv has ${actual.get(s.milestone)}`);
+    }
+  }
+  const seen = new Set(stated.map((s) => s.milestone));
+  for (const [milestone, count] of actual) {
+    if (!seen.has(milestone)) {
+      errs.push(`${docName}: states no operation count for ${milestone}, which has ${count} row(s) in scope-v0.1.csv`);
+    }
+  }
+  return errs;
+}
+
+// --------------------------------------------------------------------------
+// Cross-catalog coherence (guards 7-9)
+// --------------------------------------------------------------------------
+
+/**
+ * Table names a migration FILE creates.
+ *
+ * NAME CORRECTED IN INTENT 2026-08-08 (the identifier stays `deployedTables`
+ * because three guards and the self-test call it). This reads every `.sql` under
+ * `supabase/migrations/`, applied or not, so what it answers is «is the DDL
+ * WRITTEN», not «does the table exist». Until 2026-08-06 the two were the same
+ * question: every migration in the tree had run. They are not the same now —
+ * `0041`–`0050` are ten files that have never been executed anywhere — and the
+ * gap is exactly seventeen of the twenty-six tables in ADR006_V01_BUILD_LIST.
+ *
+ * Guard 7 is unaffected and stays right for the stronger reason: a marker saying
+ * a table arrives in v0.2 while a committed migration file creates it is false
+ * whether or not that file has run.
+ *
+ * Guard 13's `already` column inherits the same meaning, and
+ * `docs/delivery/version-0.1.md` now says so beneath the table it checks, with
+ * the applied-only counts written out beside it.
+ */
+export function deployedTables(sqlTexts) {
+  const found = new Set();
+  for (const sql of sqlTexts) {
+    for (const m of sql.matchAll(/create table (?:if not exists )?public\.(\w+)/g)) found.add(m[1]);
+  }
+  return found;
+}
+
+// A `status_version` naming a version later than v0.1. Applied migrations are
+// precedence level 1 in docs/README.md, so a marker that says a deployed table
+// arrives later is false about the world, whatever the build plan says. The
+// deferral is of the WORK, and the entity catalog records that in `purpose`.
+const FUTURE_VERSIONS = new Set(["v0.2", "v0.3"]);
+export function futureVersionOnDeployedTableErrors(entityCsv, deployed) {
+  const rows = parseCsv(entityCsv);
+  const ent = rows[0].indexOf("entity");
+  const ver = rows[0].indexOf("status_version");
+  if (ent === -1 || ver === -1) return ["entity-catalog.csv: missing entity or status_version column"];
+  return rows.slice(1).flatMap((r) => (FUTURE_VERSIONS.has(r[ver]) && deployed.has(r[ent])
+    ? [`entity-catalog.csv: ${r[ent]} is tagged ${r[ver]} but an applied migration creates it`]
+    : []));
+}
+
+// ADR-006 decision 4's build list, transcribed, as amended by the owner on
+// 2026-08-06 (amendment note in decision 4): `requirement_exception_heads` and
+// `requirement_evidence_decision_heads` entered v0.1-M3 and
+// `external_decision_batches` entered v0.1-M5, moving the list from 23 to 26
+// and the new build from 14 to 17.
+//
+// The entity catalog is an inventory and legitimately carries more v0.1 rows
+// than this — every table already deployed in an applied migration keeps its
+// marker even when no numbered step extends it (version-0.1.md §"Operations and
+// tables per milestone"). That is why the catalog check below runs one way for
+// M1 and M2. M3 through M6 build every table they mark, so for those the check
+// runs both ways: guard 11 catches a row the catalog carries at v0.1-M3..M6
+// that this list forgot.
+const ADR006_V01_BUILD_LIST = [
+  "parties", "projects", "contracts", "contract_versions", "work_items",
+  "requirement_rule_versions", "requirement_library_items", "contract_version_rule_bindings",
+  "work_assignments", "requirement_occurrences", "progress_entries", "upload_intents", "evidence_objects",
+  "work_stages", "stage_closures", "requirement_evidence_decisions", "requirement_exceptions",
+  "requirement_exception_heads", "requirement_evidence_decision_heads",
+  "readiness_projection", "blocked_reasons",
+  "statutory_acts", "statutory_act_versions",
+  "external_access_grants", "external_sessions", "external_decision_batches",
+];
+// The size the four documents state in prose. Pinned here so that editing the
+// array without editing the documents (or the reverse) is a failure and not a
+// silent 23-versus-26 disagreement, which is what happened on 2026-08-06.
+const ADR006_V01_BUILD_TOTAL = 26;
+// Milestones that build every table they mark. M1 and M2 also carry
+// deployed-but-not-extended rows, so only these are checked in both directions.
+const FULLY_BUILT_MILESTONES = new Set(["v0.1-M3", "v0.1-M4", "v0.1-M5", "v0.1-M6"]);
+
+export function buildListErrors(entityCsv, buildList) {
+  const rows = parseCsv(entityCsv);
+  const ent = rows[0].indexOf("entity");
+  const ver = rows[0].indexOf("status_version");
+  if (ent === -1 || ver === -1) return ["entity-catalog.csv: missing entity or status_version column"];
+  const versionOf = new Map(rows.slice(1).map((r) => [r[ent], r[ver]]));
+  const listed = new Set(buildList);
+  const errs = buildList.flatMap((t) => {
+    if (!versionOf.has(t)) return [`entity-catalog.csv: ADR-006 decision 4 builds ${t} in v0.1 and the catalog has no row for it`];
+    const v = versionOf.get(t);
+    return v.startsWith("v0.1") ? [] : [`entity-catalog.csv: ADR-006 decision 4 builds ${t} in v0.1 but the catalog marks it ${v}`];
+  });
+  for (const [t, v] of versionOf) {
+    if (FULLY_BUILT_MILESTONES.has(v) && !listed.has(t)) {
+      errs.push(`entity-catalog.csv: ${t} is marked ${v} but the transcribed ADR-006 decision 4 build list does not name it`);
+    }
+  }
+  return errs;
+}
+
+// --------------------------------------------------------------------------
+// Guards 11-13: the build list is transcribed in four places — the array
+// above, ADR-006 decision 4's own milestone table, roadmap.md's milestone
+// table, and version-0.1.md's `v0.1 tables` column. On 2026-08-06 three tables
+// moved into v0.1; the array, the ADR's table and version-0.1.md's slices were
+// each updated by a different hand and disagreed for a day, and nothing failed
+// because guard 8 held its own private copy and ran one way. These guards make
+// every copy answerable to the same 26 names.
+// --------------------------------------------------------------------------
+
+function splitTableRow(line) {
+  return line.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim());
+}
+
+/**
+ * Rows of the first markdown table whose header cells start with `headerCells`.
+ * Returns null when no such table exists, so a renamed heading is a failure
+ * rather than a guard that quietly checks nothing.
+ */
+export function markdownTableRows(markdown, headerCells) {
+  const lines = markdown.split("\n");
+  for (let i = 0; i < lines.length - 1; i++) {
+    if (!lines[i].trimStart().startsWith("|")) continue;
+    const head = splitTableRow(lines[i]);
+    if (!headerCells.every((c, j) => (head[j] ?? "").toLowerCase() === c.toLowerCase())) continue;
+    if (!/^\s*\|[\s|:-]+$/.test(lines[i + 1])) continue;
+    const rows = [];
+    for (let k = i + 2; k < lines.length && lines[k].trimStart().startsWith("|"); k++) rows.push(splitTableRow(lines[k]));
+    return rows;
+  }
+  return null;
+}
+
+/** Guard 11: a milestone table that enumerates table names must enumerate exactly these. */
+export function milestoneTableNameErrors(markdown, docName, buildList) {
+  const rows = markdownTableRows(markdown, ["Milestone", "Tables", "Already in the runtime"]);
+  if (!rows) return [`${docName}: no "| Milestone | Tables | Already in the runtime |" table found`];
+  const named = [];
+  for (const r of rows) {
+    const cell = r[1] ?? "";
+    if (/^none\b/i.test(cell)) continue; // "none. It is a query over `x` and `y`"
+    for (const m of cell.matchAll(/`([a-z_]+)`/g)) named.push(m[1]);
+  }
+  const errs = [];
+  const want = new Set(buildList);
+  const got = new Set(named);
+  if (named.length !== got.size) errs.push(`${docName}: its milestone table names some table twice`);
+  for (const t of want) if (!got.has(t)) errs.push(`${docName}: its milestone table omits ${t}, which ADR-006 decision 4 builds in v0.1`);
+  for (const t of got) if (!want.has(t)) errs.push(`${docName}: its milestone table names ${t}, which is not in ADR-006 decision 4's v0.1 build list`);
+  return errs;
+}
+
+/**
+ * Guard 12: per-milestone build and already-deployed counts, derived from the
+ * build list projected through the entity catalog's markers and the applied
+ * migrations. No second private copy: the numbers come from the same three
+ * sources the rest of this file uses.
+ */
+export function buildListMilestoneCounts(entityCsv, buildList, deployed) {
+  const rows = parseCsv(entityCsv);
+  const ent = rows[0].indexOf("entity");
+  const ver = rows[0].indexOf("status_version");
+  const versionOf = new Map(rows.slice(1).map((r) => [r[ent], r[ver]]));
+  const builds = new Map();
+  const already = new Map();
+  for (const t of buildList) {
+    const v = versionOf.get(t);
+    if (!v) continue; // reported by buildListErrors
+    builds.set(v, (builds.get(v) ?? 0) + 1);
+    if (deployed.has(t)) already.set(v, (already.get(v) ?? 0) + 1);
+  }
+  return { builds, already };
+}
+
+/** Guard 13: version-0.1.md states these counts rather than the names. */
+export function milestoneTableCountErrors(markdown, docName, counts, total) {
+  const rows = markdownTableRows(markdown, ["Milestone", "Operations", "v0.1 tables", "Already in the runtime"]);
+  if (!rows) return [`${docName}: no "| Milestone | Operations | v0.1 tables | Already in the runtime |" table found`];
+  const errs = [];
+  const seen = new Set();
+  for (const r of rows) {
+    const label = (r[0] ?? "").replace(/`/g, "");
+    const num = (cell) => (/^-?\d+$/.test(cell ?? "") ? Number(cell) : null);
+    if (/^Total\b/i.test(label)) {
+      if (num(r[2]) !== total) errs.push(`${docName}: its Total row says ${r[2]} v0.1 tables; the build list has ${total}`);
+      const deployedTotal = [...counts.already.values()].reduce((a, b) => a + b, 0);
+      if (num(r[3]) !== deployedTotal) errs.push(`${docName}: its Total row says ${r[3]} already in the runtime; the build list has ${deployedTotal}`);
+      continue;
+    }
+    if (!/^v0\.1-M[0-9]$/.test(label)) continue; // the M0 row carries no table count
+    seen.add(label);
+    const wantBuild = counts.builds.get(label) ?? 0;
+    const wantDeployed = counts.already.get(label) ?? 0;
+    if (num(r[2]) !== wantBuild) errs.push(`${docName}: ${label} states ${r[2]} v0.1 tables; the build list has ${wantBuild}`);
+    if (wantBuild > 0 && num(r[3]) !== wantDeployed) {
+      errs.push(`${docName}: ${label} states ${r[3]} already in the runtime; the build list has ${wantDeployed}`);
+    }
+  }
+  for (const m of counts.builds.keys()) {
+    if (!seen.has(m)) errs.push(`${docName}: its milestone table has no row for ${m}, which builds ${counts.builds.get(m)} tables`);
+  }
+  return errs;
+}
+
+function operationIds(scopeCsv) {
+  const rows = parseCsv(scopeCsv);
+  const col = rows[0].indexOf("operation_id");
+  return new Set(rows.slice(1).map((r) => r[col]).filter(Boolean));
+}
+
+/**
+ * Every capability names operations that exist; a v0.1 capability names no
+ * operation that lives only in the v0.2 scope; and every v0.1 operation is
+ * named by some capability. `exempt` carries the operations deliberately
+ * governed by no capability, listed with their reason in
+ * technical/openapi/README.md §Conventions.
+ */
+export function capabilityCoherenceErrors(capCsv, scope1, scope2, exempt) {
+  const v1 = operationIds(scope1);
+  const v2 = operationIds(scope2);
+  const rows = parseCsv(capCsv);
+  const idCol = rows[0].indexOf("capability_id");
+  const opCol = rows[0].indexOf("related_operations");
+  const msCol = rows[0].indexOf("milestone");
+  if (idCol === -1 || opCol === -1 || msCol === -1) return ["capabilities.csv: missing a required column"];
+  const errs = [];
+  const named = new Set();
+  for (const r of rows.slice(1)) {
+    const milestone = r[msCol] ?? "";
+    for (const op of (r[opCol] ?? "").split(" ").filter((o) => o && o !== "none")) {
+      named.add(op);
+      if (!v1.has(op) && !v2.has(op)) {
+        errs.push(`capabilities.csv: ${r[idCol]} names ${op}, which is in neither scope CSV`);
+      } else if (milestone.startsWith("v0.1") && !v1.has(op)) {
+        errs.push(`capabilities.csv: ${r[idCol]} is ${milestone} but names ${op}, which is v0.2`);
+      }
+    }
+  }
+  for (const op of v1) {
+    if (!named.has(op) && !exempt.has(op)) {
+      errs.push(`capabilities.csv: no capability governs the v0.1 operation ${op}`);
+    }
+  }
+  return errs;
+}
+
+/**
+ * Every `bff.<operation>` producer resolves to a route-set row, and a v0.1
+ * event that names any BFF producer names at least one v0.1 operation —
+ * otherwise the event cannot be raised in the version it claims.
+ */
+export function eventProducerErrors(eventCsv, scope1, scope2) {
+  const v1 = operationIds(scope1);
+  const v2 = operationIds(scope2);
+  const rows = parseCsv(eventCsv);
+  const evCol = rows[0].indexOf("event");
+  const prCol = rows[0].indexOf("producer");
+  const msCol = rows[0].indexOf("milestone");
+  if (evCol === -1 || prCol === -1 || msCol === -1) return ["event-catalog.csv: missing a required column"];
+  const errs = [];
+  for (const r of rows.slice(1)) {
+    const ops = [...(r[prCol] ?? "").matchAll(/\bbff\.([a-z_]+(?:\.[a-z_]+)+)/g)].map((m) => m[1]);
+    for (const op of ops) {
+      if (!v1.has(op) && !v2.has(op)) {
+        errs.push(`event-catalog.csv: ${r[evCol]} is produced by ${op}, which is in neither scope CSV`);
+      }
+    }
+    if ((r[msCol] ?? "").startsWith("v0.1") && ops.length && !ops.some((op) => v1.has(op))) {
+      errs.push(`event-catalog.csv: ${r[evCol]} is ${r[msCol]} but every named producer is v0.2`);
+    }
+  }
+  return errs;
+}
+
 // --------------------------------------------------------------------------
 // Step 1: self-test against in-memory failing fixtures — the validator must
 // prove it can detect each failure class before it validates the real tree.
@@ -120,6 +484,109 @@ function selfTest() {
   if (!dispositionErrors("source_path,disposition,reason\nx,keep,ok\nx,keep,ok\n")[0]?.includes("duplicate")) t.push("duplicate disposition detector");
   if (!dispositionErrors("source_path,disposition,reason\ny,destroy,ok\n")[0]?.includes("unknown")) t.push("unknown disposition detector");
   if (existsSync(join(ROOT, "docs/definitely-missing-fixture.md"))) t.push("missing-file probe");
+
+  // Operation-count guard: one CSV fixture, several failing documents.
+  const fxCsv = "operation_id,milestone\na,v0.1-M1\nb,v0.1-M1\nc,v0.1-M2\n";
+  if (scopeMilestoneCounts(fxCsv).get("v0.1-M1") !== 2) t.push("scope milestone counter");
+  if (statedOperationCounts("the two `v0.1-M1` operations").at(0)?.count !== 2) t.push("stated-count extractor (spelled)");
+  if (statedOperationCounts("| `v0.1-M1` | 2 | 9 |").at(0)?.count !== 2) t.push("stated-count extractor (table)");
+  const ok2 = "the 2 `v0.1-M1` operations and the 1 `v0.1-M2` operations";
+  if (operationCountErrors(ok2, fxCsv, "fx").length !== 0) t.push("operation-count guard (agreeing doc)");
+  if (!operationCountErrors("the 7 `v0.1-M1` operations and the 1 `v0.1-M2` operations", fxCsv, "fx")[0]?.includes("scope-v0.1.csv has 2")) {
+    t.push("operation-count guard (doc overstates)");
+  }
+  if (!operationCountErrors("the 2 `v0.1-M1` operations", fxCsv, "fx")[0]?.includes("states no operation count for v0.1-M2")) {
+    t.push("operation-count guard (doc omits a milestone)");
+  }
+  if (!operationCountErrors(`${ok2} and the 3 \`v0.1-M9\` operations`, fxCsv, "fx")[0]?.includes("no v0.1-M9 rows")) {
+    t.push("operation-count guard (doc invents a milestone)");
+  }
+  if (!operationCountErrors(`${ok2} and the several \`v0.1-M1\` operations`, fxCsv, "fx")[0]?.includes("unreadable")) {
+    t.push("operation-count guard (unreadable count)");
+  }
+
+  // Guard 7: a future-version marker on a deployed table.
+  const fxDeployed = deployedTables(["create table public.parties (\n);\ncreate table if not exists public.locations (\n);"]);
+  if (!(fxDeployed.has("parties") && fxDeployed.has("locations") && fxDeployed.size === 2)) t.push("deployed-table extractor");
+  const fxEnt = "entity,status_version\nparties,v0.2\nlocations,v0.1-M1\npackages,v0.2\n";
+  const fxFut = futureVersionOnDeployedTableErrors(fxEnt, fxDeployed);
+  if (fxFut.length !== 1 || !fxFut[0].includes("parties")) t.push("future-version-on-deployed-table guard");
+
+  const fxBuild = buildListErrors("entity,status_version\nparties,v0.2\nlocations,v0.1-M1\n", ["parties", "projects"]);
+  if (!fxBuild.some((e) => e.includes("parties") && e.includes("marks it v0.2"))) t.push("build-list guard (build target moved out of v0.1)");
+  if (!fxBuild.some((e) => e.includes("projects") && e.includes("no row for it"))) t.push("build-list guard (build target missing)");
+  if (buildListErrors("entity,status_version\nparties,v0.1-M1\n", ["parties"]).length !== 0) t.push("build-list guard (agreeing catalog)");
+  // The direction the 2026-08-06 drift travelled: the catalog moved a table
+  // into a fully-built milestone and the transcribed list never learned of it.
+  if (!buildListErrors("entity,status_version\nparties,v0.1-M1\nsome_head,v0.1-M3\n", ["parties"])
+    .some((e) => e.includes("some_head") && e.includes("does not name it"))) {
+    t.push("build-list guard (catalog gained a v0.1-M3 table the list omits)");
+  }
+  if (buildListErrors("entity,status_version\nextra,v0.1-M1\n", []).length !== 0) t.push("build-list guard (M1 inventory row is not a build target)");
+
+  // Guards 11-13: the four transcriptions of the build list.
+  const fxTable = [
+    "| Milestone | Tables | Already in the runtime |",
+    "|---|---|---|",
+    "| M1 — a | `parties`, `projects` | first one |",
+    "| M2 — b | `work_stages` | none |",
+    "| M3 — c | none. It is a query over `parties` | — |",
+    "",
+  ].join("\n");
+  if (markdownTableRows(fxTable, ["Milestone", "Tables", "Already in the runtime"])?.length !== 3) t.push("markdown table reader");
+  if (markdownTableRows(fxTable, ["Milestone", "Operations"]) !== null) t.push("markdown table reader (absent table must be null)");
+  if (milestoneTableNameErrors(fxTable, "fx", ["parties", "projects", "work_stages"]).length !== 0) t.push("milestone-name guard (agreeing table)");
+  if (!milestoneTableNameErrors(fxTable, "fx", ["parties", "projects", "work_stages", "stage_closures"])
+    .some((e) => e.includes("omits stage_closures"))) {
+    t.push("milestone-name guard (table omits a build target)");
+  }
+  if (!milestoneTableNameErrors(fxTable, "fx", ["parties", "projects"]).some((e) => e.includes("names work_stages"))) {
+    t.push("milestone-name guard (table names a non-build target)");
+  }
+  if (!milestoneTableNameErrors("# no table here\n", "fx", ["parties"]).some((e) => e.includes("no \"| Milestone"))) {
+    t.push("milestone-name guard (missing table)");
+  }
+  const fxCounts = buildListMilestoneCounts(
+    "entity,status_version\nparties,v0.1-M1\nprojects,v0.1-M1\nwork_stages,v0.1-M3\n",
+    ["parties", "projects", "work_stages"],
+    new Set(["parties"]),
+  );
+  if (fxCounts.builds.get("v0.1-M1") !== 2 || fxCounts.builds.get("v0.1-M3") !== 1) t.push("build-list milestone counter (builds)");
+  if (fxCounts.already.get("v0.1-M1") !== 1 || fxCounts.already.has("v0.1-M3")) t.push("build-list milestone counter (already deployed)");
+  const fxCountDoc = (m1Tables, totalTables) => [
+    "| Milestone | Operations | v0.1 tables | Already in the runtime |",
+    "|---|---|---|---|",
+    "| M0 — cross-cutting | — | — | — |",
+    `| \`v0.1-M1\` | 32 | ${m1Tables} | 1 |`,
+    "| `v0.1-M3` | 6 | 1 | 0 |",
+    `| Total | 38 | ${totalTables} | 1 |`,
+    "",
+  ].join("\n");
+  if (milestoneTableCountErrors(fxCountDoc(2, 3), "fx", fxCounts, 3).length !== 0) t.push("milestone-count guard (agreeing doc)");
+  if (!milestoneTableCountErrors(fxCountDoc(6, 3), "fx", fxCounts, 3).some((e) => e.includes("v0.1-M1 states 6"))) {
+    t.push("milestone-count guard (per-milestone count drifted)");
+  }
+  if (!milestoneTableCountErrors(fxCountDoc(2, 23), "fx", fxCounts, 3).some((e) => e.includes("Total row says 23"))) {
+    t.push("milestone-count guard (total drifted)");
+  }
+
+  // Guards 8 and 9: capability and event producers against the route set.
+  const fxScope1 = "operation_id,milestone\nalpha.create,v0.1-M1\nbeta.get,v0.1-M2\n";
+  const fxScope2 = "operation_id,milestone\ngamma.freeze,v0.2\n";
+  const fxCaps = "capability_id,related_operations,milestone\ngood,alpha.create,v0.1-M1\nlate,gamma.freeze,v0.1-M1\nghost,delta.gone,v0.2\nfine,none,v0.2\n";
+  const capErrs = capabilityCoherenceErrors(fxCaps, fxScope1, fxScope2, new Set());
+  if (!capErrs.some((e) => e.includes("late") && e.includes("which is v0.2"))) t.push("capability guard (v0.1 naming a v0.2 operation)");
+  if (!capErrs.some((e) => e.includes("delta.gone") && e.includes("neither scope CSV"))) t.push("capability guard (operation in neither CSV)");
+  if (!capErrs.some((e) => e.includes("no capability governs the v0.1 operation beta.get"))) t.push("capability guard (ungoverned v0.1 operation)");
+  if (capabilityCoherenceErrors(fxCaps, fxScope1, fxScope2, new Set(["beta.get"])).some((e) => e.includes("beta.get"))) {
+    t.push("capability guard (exemption ignored)");
+  }
+  const fxEvents = "event,producer,milestone\nok.raised,bff.alpha.create,v0.1-M1\nstale.raised,bff.gamma.freeze,v0.1-M5\nunknown.raised,bff.delta.gone,v0.2\nworkerish.raised,worker.thing,v0.1-M2\n";
+  const evErrs = eventProducerErrors(fxEvents, fxScope1, fxScope2);
+  if (!evErrs.some((e) => e.includes("stale.raised") && e.includes("every named producer is v0.2"))) t.push("event guard (v0.1 event with only v0.2 producers)");
+  if (!evErrs.some((e) => e.includes("delta.gone") && e.includes("neither scope CSV"))) t.push("event guard (producer in neither CSV)");
+  if (evErrs.some((e) => e.includes("workerish"))) t.push("event guard (non-BFF producer misread)");
+
   if (t.length) {
     console.error("validator self-test FAILED:", t.join("; "));
     process.exit(2);
@@ -157,6 +624,9 @@ const REQUIRED = [
   "docs/decisions/ADR-002-tenancy-parties-and-contracts.md",
   "docs/decisions/ADR-003-evidence-packages-and-acceptance.md",
   "docs/decisions/ADR-004-roadmap-demo-and-documentation.md",
+  "docs/decisions/ADR-005-readiness-gate-and-hidden-works.md",
+  "docs/decisions/ADR-007-pilot-field-client.md",
+  "docs/decisions/ADR-008-valuation-carves-at-admission.md",
   "docs/legacy/README.md",
   "docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md",
   "docs/superpowers/plans/2026-07-30-goproceed-canonical-package.md",
@@ -259,7 +729,16 @@ function main() {
   }
 
   // Version/scope language: milestones referenced by catalogs must be real.
-  const MILESTONES = new Set(["v0.0", "v0.1-M1", "v0.1-M2", "v0.1-M3", "v0.1-M4", "v0.1-M5", "v0.1-M6"]);
+  // "v0.2" entered the catalogs with ADR-006, which re-cut v0.1 down to the six
+  // steps a pilot customer can use and moved packages, per-segment acceptance,
+  // the value-at-risk projection, the statutory cost forms and import expansion
+  // out of it. A later version is named as a whole (v0.2), not per milestone,
+  // because its milestones are not fixed until v0.1 closes — so this set stays
+  // deliberately narrow rather than admitting an open "v0.N" pattern that would
+  // let a typo pass.
+  const MILESTONES = new Set([
+    "v0.0", "v0.1-M1", "v0.1-M2", "v0.1-M3", "v0.1-M4", "v0.1-M5", "v0.1-M6", "v0.2",
+  ]);
   for (const p of ["technical/openapi/scope-v0.1.csv", "technical/permissions/capabilities.csv", "technical/events/event-catalog.csv"]) {
     if (!existsSync(join(ROOT, p))) continue;
     const rows = parseCsv(read(p));
@@ -268,6 +747,65 @@ function main() {
     rows.slice(1).forEach((r, i) => {
       if (!MILESTONES.has(r[msCol])) fail(`${p}: row ${i + 2} has unknown milestone '${r[msCol]}'`);
     });
+  }
+
+  // Guard 7: applied migrations are precedence level 1, so no entity that one
+  // of them creates may carry a marker naming a later version.
+  const MIGRATIONS = join(ROOT, "supabase/migrations");
+  if (existsSync(MIGRATIONS) && existsSync(join(ROOT, "technical/database/entity-catalog.csv"))) {
+    const sqls = readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .map((f) => readFileSync(join(MIGRATIONS, f), "utf8"));
+    for (const e of futureVersionOnDeployedTableErrors(read("technical/database/entity-catalog.csv"), deployedTables(sqls))) fail(e);
+  }
+  if (existsSync(join(ROOT, "technical/database/entity-catalog.csv"))) {
+    for (const e of buildListErrors(read("technical/database/entity-catalog.csv"), ADR006_V01_BUILD_LIST)) fail(e);
+  }
+
+  // Guards 11-13: the transcription above is pinned to its stated size, and
+  // the three documents that restate it must restate exactly it.
+  if (new Set(ADR006_V01_BUILD_LIST).size !== ADR006_V01_BUILD_LIST.length) {
+    fail("validate-canonical-docs.mjs: ADR006_V01_BUILD_LIST names a table twice");
+  }
+  if (ADR006_V01_BUILD_LIST.length !== ADR006_V01_BUILD_TOTAL) {
+    fail(`validate-canonical-docs.mjs: ADR006_V01_BUILD_LIST has ${ADR006_V01_BUILD_LIST.length} entries and the package states ${ADR006_V01_BUILD_TOTAL}`);
+  }
+  for (const doc of ["docs/decisions/ADR-006-pilot-shaped-v0.1.md", "docs/product/roadmap.md"]) {
+    if (!existsSync(join(ROOT, doc))) continue;
+    for (const e of milestoneTableNameErrors(read(doc), doc, ADR006_V01_BUILD_LIST)) fail(e);
+  }
+  if (existsSync(join(ROOT, "technical/database/entity-catalog.csv")) && existsSync(MIGRATIONS)
+      && existsSync(join(ROOT, "docs/delivery/version-0.1.md"))) {
+    const deployed = deployedTables(readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .map((f) => readFileSync(join(MIGRATIONS, f), "utf8")));
+    const counts = buildListMilestoneCounts(read("technical/database/entity-catalog.csv"), ADR006_V01_BUILD_LIST, deployed);
+    for (const e of milestoneTableCountErrors(read("docs/delivery/version-0.1.md"), "docs/delivery/version-0.1.md", counts, ADR006_V01_BUILD_TOTAL)) fail(e);
+  }
+
+  // Guards 8 and 9: the machine-readable authorisation surface and the event
+  // producers must both point at operations the route set actually has. The
+  // three exemptions are listed with their reason in technical/openapi/README.md
+  // §Conventions: `me.context` is governed by the session, and the two
+  // `public`-plane external rows change no state and can consume no grant.
+  const SCOPE1 = "technical/openapi/scope-v0.1.csv";
+  const SCOPE2 = "technical/openapi/scope-v0.2.csv";
+  const CAPS = "technical/permissions/capabilities.csv";
+  const EVENTS = "technical/events/event-catalog.csv";
+  const CAPABILITY_EXEMPT = new Set(["me.context", "external.review_shell", "external.exchange"]);
+  if ([SCOPE1, SCOPE2, CAPS].every((p) => existsSync(join(ROOT, p)))) {
+    for (const e of capabilityCoherenceErrors(read(CAPS), read(SCOPE1), read(SCOPE2), CAPABILITY_EXEMPT)) fail(e);
+  }
+  if ([SCOPE1, SCOPE2, EVENTS].every((p) => existsSync(join(ROOT, p)))) {
+    for (const e of eventProducerErrors(read(EVENTS), read(SCOPE1), read(SCOPE2))) fail(e);
+  }
+
+  // version-0.1.md declares scope-v0.1.csv authoritative for its row-level
+  // lists, so every per-milestone operation count it states must agree with it.
+  const SCOPE_CSV = "technical/openapi/scope-v0.1.csv";
+  const DELIVERY_DOC = "docs/delivery/version-0.1.md";
+  if (existsSync(join(ROOT, SCOPE_CSV)) && existsSync(join(ROOT, DELIVERY_DOC))) {
+    for (const e of operationCountErrors(read(DELIVERY_DOC), read(SCOPE_CSV), DELIVERY_DOC)) fail(e);
   }
 
   if (failures.length) {

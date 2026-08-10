@@ -5,6 +5,118 @@ Deferred findings from the post-implementation engineering review of v0.1-M1
 branch; everything below was consciously deferred. Each item cites the code so
 it can be picked up cold.
 
+## What the M1–M6 build and the work-type carrier did to this file (2026-08-08)
+
+Nine slices landed between 2026-08-06 and 2026-08-08 — M1 through M6, plus the
+work-type carrier — adding migrations `0041`–`0050` and taking the v0.1 route set
+to all 58 operations. Migration `0051`, the unimplied-stage-key guard, followed on
+2026-08-08 out of the whole-build audit, so **the unapplied chain is `0041`–`0051`,
+eleven files**. **None of it has been executed**: not one of the eleven has ever
+been applied anywhere and no test in this repository has been run. This
+section says what that build did to the entries below, so a reader does not have
+to diff it themselves.
+
+*Two counts elsewhere in the package still say ten and were not in this pass's
+remit: `docs/delivery/version-0.1.md:178` («Ten of those fifty files have never
+run» — eleven of fifty-one) and `docs/delivery/production-readiness.md:150` («the
+ten migrations»). The count in the progress document's §7 runbook was corrected
+on 2026-08-08 and now names `0051` among the files a `supabase db reset` would
+execute for the first time.*
+
+**Closed by the build**
+
+- The M2 migration comment correction that `docs/delivery/version-0.1.md`
+  §"Corrections owed elsewhere" carried as its last open row —
+  `0043:808-814` and the column comment at `0043:839-841` now say the FK is added
+  in `0043`, that `0015:251` said M3, and that `requirement_occurrences` is M2.
+- The "`technical/openapi/README.md` still states 72 operations" half of the
+  README entry below: it states **58**.
+- `rule_bindings.manage` was in no responsibility preset, so no persona could bind
+  a rule-version set and INV-083 refused every publication forever. It is now on
+  `requirement_owner` and on `pto_engineer`.
+- INV-083's second route: `import_batches.publish` published a baseline with no
+  bindings at all. It now takes `ruleVersionIds` and refuses an empty set with the
+  same code and user action as the manual route.
+
+**Changed in shape rather than closed — each entry below is annotated in place**
+
+- **P1 valuation redistribution.** [ADR-008](docs/decisions/ADR-008-valuation-carves-at-admission.md)
+  narrows the window but does not close it, and says so in its own Consequences.
+- **P3 responsibility assignments can never be ended.** Its stated dependency —
+  "the append-only correction pattern M3 introduces" — has landed.
+- **P3 dead surface added by the M1 migrations.** M4 and M5 turned it from a
+  tidiness item into a blocker.
+- **P1 the GoProceed rename.** The counts are unchanged and the **command that
+  produces them has gone partly blind**.
+
+**Created by the build, and not fixed** — seven entries, at the end of this file
+under §"Opened by the v0.1 M1–M6 build". The v0.1 final review's money finding is
+a **P0** and is the most serious open **defect** in this repository. The largest
+open item is not a defect: **M4 ships a composer and no document**, because the
+В.1/В.2 field list of Додаток В is committed nowhere and inventing it is
+forbidden. That entry and the resolver's un-narrowed second arm were added on
+2026-08-08 by the whole-build audit.
+
+## Surfaced while verifying the 2026-08-04 package review (migrations 0036–0040)
+
+These are not part of that slice and were deliberately not folded into it. See
+[docs/delivery/package-review-2026-08-04.md](docs/delivery/package-review-2026-08-04.md).
+
+Line references in this file point at a moving tree. Before acting on an item,
+re-locate the cited text **by string, not by line** — four of the references
+below were already stale one change set after they were written, and they were
+re-pointed on 2026-08-06 against the tree as it stands at 40 migrations.
+
+- **P2 — `service_role` holds TRUNCATE on `outbox_dead_letters`.** The
+  append-only guarantee rests on a `BEFORE UPDATE OR DELETE` trigger
+  (`0008:29-31`), and TRUNCATE fires neither. 0037 enabled RLS on the table,
+  which does not gate TRUNCATE either. A TRUNCATE-shaped hole in an
+  append-only table is worth closing on its own terms, not as a grant tweak.
+- **P3 — `technical/openapi/README.md` contradicts `scope-v0.1.csv`.** The
+  README's auth-plane list says the `public` plane "can never consume a grant";
+  the CSV lists `external.exchange` as `public,command,single_use` on POST. One
+  of the two is wrong and M5 depends on which. Re-located 2026-08-06 after the
+  [ADR-006](docs/decisions/ADR-006-pilot-shaped-v0.1.md) re-cut shortened the
+  CSV to 58 rows: the `external.exchange` row is now `scope-v0.1.csv:56`. The
+  **Half closed and half sharpened, 2026-08-08.** The "it still states 72
+  operations" half is **closed**: the README states 58, which is what the CSV
+  holds. The first half is **live and now demonstrable rather than suspected** —
+  M5 built the exchange, and `app.exchange_external_grant` marks the grant
+  consumed with a partial unique index making a second exchange unstorable
+  (INV-057). So the `public`-plane row `external.exchange` both **performs a
+  state change** and **is the only thing that can consume a grant**, and the
+  README's sentence is wrong on both clauses. The README also repeats the claim
+  at `:98` as the reason `external.exchange` is exempt from the capability rule.
+  The exemption is right for a different reason — the caller holds a bearer token
+  and no session — and the reason given is not. `technical/openapi/README.md` was
+  outside the 2026-08-08 documentation slice's remit; it is owed the rewrite.
+- **P3 — `0026:11-13` attributes the external-gate sentence to migration
+  0015**; the text is at `technical/database/schema-v0.1.sql:791` ("EXTERNAL
+  GATE: per-workspace storage quota values and scan-blocked retention
+  periods…"). A migration comment is history and cannot be edited — this needs
+  a docs correction.
+- **CLOSED 2026-08-06 — `tenancy-and-security.md`'s "Before domain expansion,
+  v0.0 must:" list.** It named seven items, six delivered, while domain
+  expansion had already happened. The list no longer exists: the same change
+  set that added migrations `0036`–`0040` retracted it and replaced it with the
+  per-control evidence table under §"The v0.0 control set, proved per control",
+  which cites the deciding migration text for each of the eight controls. The
+  two that remain open there — `aktflow_worker` having no login role, and the
+  absent live catalog comparison — are tracked in that table, not here.
+- **P3 — `baseline-verification.md:53-66`** is the upstream source of the stale
+  risk bullets corrected elsewhere, and is still linked as evidence.
+- **P2 — `aktflow_service` inherits `select` on `evidence_objects` via
+  `aktflow_app`** (`0034:32`, `0016:160-162`) while
+  `tenancy-and-security.md:338` says an upload finalizer "cannot review
+  evidence". An open least-privilege deviation, reasoned at `0034:13-17`.
+- **P3 — `supabase/functions/outbox-drain` is outside every pnpm workspace
+  glob**, so `turbo run test` never runs its 2 tests even though they are
+  counted in the 2026-07-30 recorded run — which is one reason no figure from
+  that record may be restated as a current baseline. Fixing it means adding
+  `supabase/functions/*` to `pnpm-workspace.yaml`, which forces a lockfile
+  regeneration against `ci.yml`'s `--frozen-lockfile`. Its
+  `drain.test.ts` is now marked frozen history (0036 retired the function).
+
 ## P3 — `app.accept_invitation` ignores the invited email address
 
 **What:** `supabase/migrations/0011_workspace_access_security.sql` looks the
@@ -32,7 +144,9 @@ same bearer-vs-identity question, so settle both together.
 **Pros:** closes a dead end an operator will hit.
 **Cons:** reactivation is a governance command with its own audit and
 capability questions — it is not a one-line change.
-**Depends on:** the membership lifecycle commands (not in v0.1-M1's 21 operations).
+**Depends on:** the membership lifecycle commands, which are not among the 32
+`v0.1-M1` operations in `technical/openapi/scope-v0.1.csv` (32 as of the
+2026-08-06 re-cut; the figure was 21 when this item was written).
 
 ## P3 — responsibility assignments can never be ended
 
@@ -46,22 +160,55 @@ warnings accumulate forever.
 **Cons:** needs a superseding-fact command (append a closing fact), because the
 table is deliberately append-only.
 **Depends on:** the append-only correction pattern M3 introduces for review facts.
+**2026-08-08 — the dependency has landed and the item has not.** M3 built that
+pattern twice over: `requirement_exceptions` and `requirement_evidence_decisions`
+are append-only fact tables, each with a serialising head row that a new fact
+supersedes rather than overwrites (migration `0045`). There is now a worked
+shape in this repository to copy, so this item is no longer blocked on a pattern
+being invented — only on someone deciding the governance command. **Written, not
+applied:** `0045` is one of the eleven migrations (`0041`–`0051`) that have never
+run.
 
 ## P3 — dead surface added by the M1 migrations
 
 **What:** `public.project_parties` (migration 0010) and
 `organizations.default_own_party_id` have no writer anywhere in the codebase.
 
-**Why:** both are in the approved entity catalog for M1, but no M1 operation
-populates them — a reader cannot tell "not built yet" from "broken".
+**Why:** both are in the approved entity catalog, but no operation populates
+them — a reader cannot tell "not built yet" from "broken".
 **Pros:** either wire them up or document them as deliberately schema-only.
 **Cons:** project_parties needs its own command and capability decision.
-**Context:** `technical/database/entity-catalog.csv` lists both as `v0.1-M1`
-while `technical/openapi/scope-v0.1.csv` has no operation for either.
+**Context:** `technical/database/entity-catalog.csv` carries a row for
+`project_parties` while neither `technical/openapi/scope-v0.1.csv` nor
+`technical/openapi/scope-v0.2.csv` has an operation for it or for
+`organizations.default_own_party_id`. That row's `status_version` is itself
+under correction — see
+[version-0.1.md](docs/delivery/version-0.1.md) §"Corrections owed elsewhere" —
+so read the row, not a version tag quoted here.
 **Partly addressed in v0.1-M2-A:** `project_parties` is now annotated in the
 entity catalog as deliberately schema-only, so a reader can tell "not built yet"
 from "broken". Wiring it up still needs its own command and capability
 decision.
+
+**ESCALATED 2026-08-08 by M4 and M5 — this stopped being a tidiness item.** Two
+built milestones now depend on records no v0.1 operation can create:
+
+- **M4.** A statutory act version carries three typed signatory slots, and each
+  names a `project_parties` / `party_contacts` row. `scope-v0.1.csv` carries no
+  operation for either table and `apps/app/app/v1/` has no route for either, so a
+  pilot workspace reaches `statutory_acts.compose` **with nothing to put in any
+  slot**. Both M4 suites insert the rows directly and say so.
+- **M5.** `external_access_grants.recipient_contact_id` is therefore permanently
+  unpopulated, and `recipient_email` is the only reachable way to address a
+  reviewer.
+
+Separately, `party_contacts` does not carry the кваліфікаційний сертифікат in the
+deployed database at all: `schema-v0.1.sql:279-283` gives it
+`qualification_certificate_series`/`_number` and migration `0010:119-133` has
+neither, with no later migration adding them — so "the certificate lives on the
+participant record", said by the content rules, by ADR-005 decision 10 and by the
+glossary, is **false in the runtime**. M4 needs nothing from it today because
+nothing is printed.
 
 ## Closed by v0.1-M2-A (2026-07-31)
 
@@ -114,6 +261,16 @@ test rather than leaving it implicit. Migration `0022` added
 scheme will need.
 **Depends on:** a design decision about whether allocation lineage may be
 rewritten by a command acting on a different root.
+
+**2026-08-08 — reshaped by [ADR-008](docs/decisions/ADR-008-valuation-carves-at-admission.md),
+not closed by it.** The ADR says so in its own Consequences: carving at admission
+narrows the window, because only **admitted** quantity competes for the pool and
+admission is a deliberate authorised act rather than a side effect of
+measurement. The minimal case above survives the narrowing — it needs A and B
+each to reach an admission — and the analysis still owes a re-run against the new
+ordering. Read it together with the P0 opened below: on the third write path the
+narrowing does not hold at all, so today the window is exactly as wide as it was
+for any root that has been admitted once.
 
 ## P3 — the two retention figures v0.1-M2-A had to choose are defaults, not policy
 
@@ -265,25 +422,25 @@ the Supabase platform it talks to. That is a maintenance cost, not a hidden one.
 **Not done here** because it changes CI policy for the whole repo, and `main`
 has been passing with `latest` since long before this branch.
 
-## P3 — doc 07's Expo SDK baseline is behind what v0.1-M2-B0 initialises
+## CLOSED 2026-08-06 — doc 07's Expo SDK baseline
 
-**What:** `docs/legacy/07-technical-architecture.md:8` names "Expo SDK 56" and `:20`
-fixes it as the version baseline with the rule "Pin exact patch versions and
-image digests". `apps/mobile` was initialised with `create-expo-app` on the
-owner's instruction and resolves to Expo SDK 57.0.9.
+**What it recorded:** doc 07 named "Expo SDK 56" while `apps/mobile` resolves to
+Expo SDK 57.0.9, and the entry argued the document was normative architecture
+because it carried no Historical marker and did not sit under `docs/legacy`.
 
-**Why it is recorded rather than fixed:** the document carries no Historical
-marker and is not under `docs/legacy`, so by `docs/README.md:25-41` it is target
-version design — precedence rank 2, normative for architecture. Editing a
-normative architecture document is not a foundations slice's call. The owner's
-instruction governs what was built; the document should catch up deliberately.
+**Closed on both halves.** The document is now
+`docs/legacy/07-technical-architecture.md`; `docs/legacy/README.md` makes
+everything it governs Historical and non-normative, which is precedence level 6
+and not level 2. Its content also moved: `:8` reads "Expo SDK 57" and `:20`
+fixes the baseline at "Expo SDK 57.0.9". Nothing here is outstanding.
 
-**Pros of fixing:** the architecture document stops naming a version nothing
-uses, and the next reader does not have to discover the divergence the way this
-one did.
-**Cons:** it is a normative-document edit and should be made by whoever owns the
-architecture baseline, alongside a check of the Node and Next.js pins in the
-same paragraph, which may have drifted for the same reason nobody noticed.
+**One thing this closure does not say.** It says nothing about whether
+`apps/mobile` should be on the delivery path.
+[ADR-007](docs/decisions/ADR-007-pilot-field-client.md) decisions 1–2 take it
+off the v0.1 path entirely — the v0.1 field client is a PWA served from
+`apps/app` — and keep the tree as the starting point for v0.3 offline work. Its
+SDK therefore ages without being on the delivery path, which ADR-007 accepts as
+a named cost.
 
 ## P2 — the pilot-device inventory does not exist
 
@@ -295,24 +452,32 @@ required before capture UX is frozen. No such inventory exists.
 `docs/superpowers/plans/evidence/2026-08-01-b0-procurement.md` records the
 two devices as unprocured; this entry is the standing tracker for that gap.
 
-**Why:** the requirement sits in front of capture UX, which is B1's work, but
-the roadmap only asks that the inventory confirm the support floor before
-that UX is frozen, not before B1 starts. Nothing in B1 or B2 reads a device
-inventory or blocks on one. The document that does depend on it is B3's —
-the acceptance matrix and device-install step need the physical devices
-themselves, and the inventory is how their model numbers and OS versions get
-into that matrix in the first place. So this is a prerequisite for B3, not
-for B1 or B2, and should not be read as blocking either of them.
+**[ADR-007](docs/decisions/ADR-007-pilot-field-client.md) makes this item
+sharper, not softer**, and names this entry in §"What this decision does **not**
+remove". The v0.1 field client is a PWA, so the whole distribution chain is
+gone — no Apple Developer Program membership, no D-U-N-S registration, no Google
+Play Console, no funded Expo plan, no UDID registration, no EAS internal build,
+no TestFlight or Play internal-testing track. The two physical devices are not
+gone. They now matter more: browser behaviour on the `capture` hint, on image
+metadata stripping and transcoding, and on site-storage eviction varies by
+engine and version in ways a native camera API does not, and those are
+measurements only real hardware can make
+([test-strategy.md](docs/delivery/test-strategy.md) §"Field client",
+[version-0.1.md](docs/delivery/version-0.1.md) §"v0.1-M2").
+
+**Why:** the requirement sits in front of capture UX, and nothing in the earlier
+capture work reads a device inventory or blocks on one. What depends on it is
+the closing evidence for M2: the device-matrix recording and the per-browser,
+per-OS measurement table, which need the physical devices themselves, and the
+inventory is how their model numbers and OS versions get into that table.
 
 **Pros of fixing:** closes an entry-evidence gap the roadmap has carried
-open since before B0, and gives B3's acceptance matrix real device rows
-instead of placeholders.
+open since before the field-client work started, and gives the M2 measurement
+table real device rows instead of placeholders.
 **Cons:** none technical — it is a purchasing/logistics task, not code.
-**Depends on:** the same two devices named in the B0 procurement record.
-Buying them is independent of the account procurement, but the iPhone's UDID
-still has to be registered under the Apple Developer Program membership
-before an internal-distribution build will install on it, so the inventory
-is complete in practice only after that account exists.
+**Depends on:** the same two devices named in the B0 procurement record, and on
+nothing else. Buying them no longer waits on any account: with the store chain
+removed, a PWA needs an HTTPS origin, which the product already requires.
 
 ## P1 — the product is renamed to GoProceed, and the runtime and copy identifiers have not followed
 
@@ -324,14 +489,35 @@ slice on 2026-08-03 then moved every workspace package identifier
 importing them), the root `package.json` name, and the `aktflow-app` CSS
 class. What is left, measured on this branch:
 
-- **77** files referencing the five PostgreSQL roles `aktflow_app`,
+- **79** tracked files referencing the five PostgreSQL roles `aktflow_app`,
   `aktflow_app_login`, `aktflow_service`, `aktflow_service_login` and
   `aktflow_worker` — migrations, RLS policies, grants, the local-credentials
-  script, CI env, and `.env.example`.
-- **71** documents and catalogs under `docs/` and `technical/` still mention
-  `aktflow` in some form (up from the 58 last recorded here — three
-  intervening docs slices moved documents into `docs/legacy/`, which grew
-  this count rather than shrinking it).
+  script, CI env, and `.env.example`
+  (`git grep -lE "aktflow_(app|app_login|service|service_login|worker)" | wc -l`,
+  2026-08-06; the figure was 77 when this item was written).
+- **75** tracked documents and catalogs under `docs/` and `technical/` still
+  mention `aktflow` in some form — 66 under `docs/` and 9 under `technical/`
+  (`git grep -li aktflow -- docs technical | wc -l`, 2026-08-06; 71 when this
+  item was written, 58 before that). Three intervening docs slices moved
+  documents into `docs/legacy/`, which grew this count rather than shrinking it.
+  Both counts are stated with the command that produces them because a bare
+  number in this file has already gone stale twice.
+- **2026-08-08 — the counts are unchanged and the COMMAND has gone partly
+  blind.** Re-run on this branch, `git grep` still reports **79** and **75/66/9**.
+  It reports them because `git grep` reads only **tracked** files, and migrations
+  `0036`–`0051` are all untracked: **13** of the **38** migration files that
+  reference the five roles are invisible to it. Counted over the working tree
+  instead — `grep -rlE "aktflow_(app|app_login|service|service_login|worker)"
+  --exclude-dir=.git --exclude-dir=node_modules .` — the figure is **110** files,
+  not 79. Neither number is wrong; they answer different questions, and the entry
+  above quietly asked the first while meaning the second. **The role rename now
+  has to move eleven unapplied migrations as well as the deployed ones**, which is
+  cheaper than it sounds — an unapplied file is a text substitution — and is
+  cheapest before they are applied.
+  *(Re-measured 2026-08-08 with the command above, after migration `0051`
+  landed: the working-tree figures read 12/37/108 before it and 13/38/110 after.
+  They are measurements of a moving uncommitted tree — re-run the command rather
+  than quoting these.)*
 - The user-visible product copy is untouched: every on-screen `AktFlow`
   string, e.g. `apps/app/app/(auth)/login/page.tsx`'s
   `<h1>AktFlow — вхід</h1>` and `apps/demo/index.html`'s `<title>AktFlow —
@@ -347,12 +533,26 @@ against an environment whose app is already connecting under the old name. That
 is a deployment-ordering problem, not a find-and-replace, and it belongs in a
 slice with its own plan and its own rollback story.
 
-`docs/legacy/04-screen-specification.md` also still specifies `aktflow://` and
-`aktflow.app` universal links with four route patterns. It is now archived
-under `docs/legacy/` and non-normative by `docs/README.md`'s precedence, but
-it is the only record of that link contract, so its content still has to be
-carried into the rename slice deliberately rather than left to be
-contradicted silently by code.
+`docs/legacy/04-screen-specification.md` §S29 specified `aktflow://` and
+`aktflow.app` universal links with four route patterns. **As of 2026-08-06 that
+contract has a canonical successor** — the "Mobile deep links" section of
+[docs/architecture/system-overview.md](docs/architecture/system-overview.md) —
+so it is no longer the only record, and the archived file stays archived and
+non-normative under `docs/README.md`'s precedence.
+
+**The scheme rename itself belongs to this slice, and only its remainder is
+left.** `apps/mobile/app.json` already registers `goproceed`, so the custom
+scheme is done. What is outstanding is the link **host**: no GoProceed domain
+has been chosen to replace `aktflow.app`, and neither
+`/.well-known/apple-app-site-association` nor `/.well-known/assetlinks.json`
+exists anywhere in the repository. Split item (2) below owns it, together with
+the other three domains.
+[ADR-007](docs/decisions/ADR-007-pilot-field-client.md) §"What this decision
+does **not** remove" keeps this open and changes its shape: the v0.1 field
+client is a PWA, so for v0.1 this is a plain URL problem rather than an app
+association problem, and the two well-known files belong with `apps/mobile` in
+v0.3. A GoProceed domain still has to be chosen, and «a link is a destination,
+never an authorization» binds the PWA unchanged.
 
 **Pros of fixing:** one name. Today a reader cannot tell whether `aktflow` is the
 old product name, a namespace that outlived it, or a separate system.
@@ -362,3 +562,317 @@ its own review pass rather than folding into a database change.
 **Suggested split:** (1) packages, imports and the workspace root — done, see
 the 2026-08-03 rename slice; (2) product copy, domains, env vars and the
 screen specification's link contract; (3) database roles, with its own plan.
+
+## Opened by the v0.1 M1–M6 build (2026-08-06 → 2026-08-08)
+
+Seven entries, all found by reviewers reading the finished tree. **Two of the
+seven were added on 2026-08-08 by the whole-build audit** — the M4 render
+blocker, which is not a defect and is the largest thing standing between this
+build and a usable milestone, and the resolver's un-narrowed second arm.
+
+**This paragraph read «none is fixed».** That was true when it was written and is
+false as of 2026-08-08: the P0 immediately below and the auto-exchange P1 below it
+have both been closed **in code**, on this same uncommitted branch, and each now
+carries a marker naming the line that closes it. The other five are open. CLOSED
+IN CODE IS NOT FIXED IN ANY ENVIRONMENT — none of the code behind any entry in
+this section has ever been executed, so a marker records what the file now says
+and nothing more. The branch is uncommitted and still moving; read the cited line
+before quoting an entry's state. The
+standing per-milestone owed list lives in
+[`docs/superpowers/plans/2026-08-06-v0.1-implementation-progress.md`](docs/superpowers/plans/2026-08-06-v0.1-implementation-progress.md)
+§5; only the repo-level items are repeated here.
+
+### P0 — the pool strands silently once an over-removal parts quantity from money
+
+**OPEN. Found 2026-08-08 by the arithmetic verifier, after the lineage-ceiling fix
+closed the crash it was looking for. It is the residual, not a regression.**
+
+**What.** `work_item_performed` sums admitted **quantity**; `work_item_allocated`
+sums **money**. While every removal is smaller than what the lineage has funded,
+the two move together. An over-removal parts them, and from then on every
+positive carve on that line divides the unallocated pool by a denominator that no
+longer corresponds to it.
+
+**Reachable in ONE lineage and ONE assignment** — the fixer's own disclosure says
+it needs a second assignment or a second root, and the verifier disproved that.
+Ten-unit line: `record 4` → close (funded 4, 40 %) → `adjust +6` (waits) →
+`adjust +5` (waits) → `adjust −8` (returns the whole 40 %, effective 7, funded 0,
+commits) → close a second stage. It settles at funded 7 and leaves **5 % of the
+pool stranded**.
+
+**Why it is worse than the crash it replaced.** The crash raised at COMMIT: loud,
+attributable, and it refused to write. This does not raise. No constraint
+compares funded quantity to money; `assert_funded_within_lineage` bounds funded
+only from above; nothing reports a stranded remainder. The line is simply worth
+less than it should be, and the number that says so exists nowhere.
+
+**Not a patch.** The lineage ceiling is correct and provably cannot under-fund on
+its own (`headroom = D_i − F_{i-1} ≥ 0` is a theorem). The defect is that two
+quantities the design treats as one — admitted quantity and allocated money —
+diverge under over-removal, and closing it means deciding which of them the carve
+denominator is answerable to. That is the ADR-008 successor's question, and it
+should be answered against a running database rather than by static reading.
+
+**Depends on:** nothing technical. It needs the eleven unapplied migrations run
+once, so the sequence above can be executed instead of derived.
+
+### P0 (CLOSED IN CODE) — a positive `progress.adjust` on an admitted root carves the pool with no closure
+
+**CLOSED IN CODE 2026-08-08 — NEVER EXECUTED.** The gate below is in the tree:
+`apps/app/app/v1/progress-entries/[entryId]/adjustments/route.ts:191` now reads
+`const allocation = (rootAdmitted && delta < 0n) ? …`, and the test that asserted
+the defect as required behaviour was inverted rather than deleted — the case at
+`apps/app/tests/progress-adjust.int.test.ts:235-266` now asserts `admitted: false`
+and a null allocation for a `+3` on an admitted root, and its own comment records
+what it used to assert and why. The whole-build audit then found a SECOND defect
+behind the first — a `+N` followed by a `−N` spent the same quantity twice, and
+`0048` §3 turned the over-payment into a permanent 500 — and as of this reading
+that is closed in code too (`packages/domain/src/valuation.ts:382` bounds the
+correction by `rootAdmittedQuantity − rootFundedQuantity`, and
+`apps/app/tests/progress-adjust.int.test.ts:276-369` walks record → close →
+`+2` → `−2` → second closure).
+
+**A THIRD MEMBER OF THE SAME FAMILY WAS FOUND AND CLOSED ON 2026-08-08, LATER THE
+SAME DAY.** Where the second spent a quantity twice, this one funds a quantity
+the lineage no longer has: `record 4`, admit, `+6`, `−8` leaves an effective 2,
+and the waiting `+6` was then admitted alone at its own quantity — funded 6
+against an effective 2, the same deferred trigger, the same permanent 500. The
+`+2`/`−2` fix does not reach it; both readings of the unfunded remainder arrive
+at the same place, because the removal here EXCEEDS the funding the lineage
+holds. Migration `0051` does not reach it either: it stops an unimplied second
+stage on a COVERED line, and `0051:97-113` leaves an UNCOVERED line's second
+stage deliberately legal — which is every imported line, permanently. Closed by
+a ceiling on the positive carve (`packages/domain/src/valuation.ts:313`) fed by a
+queue `apps/app/src/lib/admission.ts:378` derives from the pending list, and
+walked by `apps/app/tests/progress-adjust.int.test.ts:371`. **No migration:** the
+fix is entirely route and domain code, `0048` §3 stays exactly as written and
+remains the backstop, and nothing in `0041`–`0051` needed correcting because
+`0048` §3's stated reason for being DEFERRED — a closure is momentarily funded 10
+against an effective 6 — is the state the queue exists to keep legal.
+
+All of these statements are readings of files. The entry is kept in full below
+because it is the reasoning the fix rests on.
+
+**What:** `apps/app/app/v1/progress-entries/[entryId]/adjustments/route.ts`
+decides whether to carve by asking «does this lineage already hold a
+`valuation_allocations` row», not «was this quantity admitted». One legitimate
+admission therefore opens the door permanently for that root. Contract quantity
+10, pool P: record `0.000001`; satisfy the hold point and close the stage, which
+admits a millionth of a unit; then `progress.adjust +9.999999` on the same root.
+The correction carves with `admitted_by_closure_id` NULL and takes essentially
+all of P, on one closure that covered nothing, with `progress.adjust` — a
+foreman's capability — and no second stage.
+
+**Why:** it violates **INV-089**, a P0, and it makes
+[ADR-008](docs/decisions/ADR-008-valuation-carves-at-admission.md)'s central
+sentence — «admission is a deliberate authorised act rather than a side effect of
+measurement» — false on the shipping route. `blocked_value.get` cannot show it:
+after the carve the adjustment holds an allocation and therefore reads as
+admitted, which is the same predicate answering wrongly a second time. Three
+independent layers pass it, including migration `0048`'s new
+`assert_funded_within_lineage`, which bounds a lineage by what it **performed**
+and says nothing about what was **admitted**.
+
+**Fix:** gate the existing already-admitted test on the **negative** branch only —
+`rootAdmitted && delta < 0n`. A reduction against admitted money still runs, so
+ADR-008's genuinely open question (what a correction to admitted money does)
+stays where the ADR left it, and a positive delta becomes ordinary unadmitted
+quantity that the next closure admits through `pendingEntries`, which already
+handles a root that carries an allocation while its later entries do not.
+**Cons:** none identified; the belt-and-braces half — extending
+`assert_funded_within_lineage` with a second bound over admitted allocations —
+needs a cutoff timestamp for pre-ADR-008 NULL rows and can follow.
+
+**A passing test asserts the defect as required behaviour.**
+`apps/app/tests/progress-adjust.int.test.ts` records 2, admits, adjusts `+3` and
+asserts `grossMinorUnits > 0`. Inverting that assertion is part of the fix, not a
+regression, and this is the third time this repository has been bitten by the
+same shape. *(It was inverted on 2026-08-08 — see the marker at the head of this
+entry. The assertion now reads `admitted: false` and a null allocation, and the
+test carries the old line in a comment so the fourth occurrence is recognisable.)*
+
+### P1 — the external review shell auto-exchanges, so a mail scanner burns the grant
+
+**CLOSED IN CODE 2026-08-08 — NEVER EXECUTED.** `apps/app/app/external/review/route.ts`
+no longer exchanges on load: the token now shows a button and the POST runs from
+`el("open").addEventListener("click", openLink)` at `:335`, with `openLink`
+rejecting an untrusted event at `:342-343`. The route's own header at `:51-71`
+states what that does NOT stop and it belongs in this entry: **a CDP-driven click
+is trusted and indistinguishable**, so a gateway that clicks every button on every
+page still burns the grant. The residue is throttling, which does not exist — the
+external-plane rate-limit gap is the standing item, not this one.
+
+**What:** `apps/app/app/external/review/route.ts` runs an IIFE on load that reads
+`location.hash` and immediately POSTs to `/external/exchange`. No user gesture.
+
+**Why:** corporate mail security that opens links in a real browser with the
+fragment intact — Defender Safe Links, Proofpoint URL Defense — executes that
+script and consumes the single-use grant. The технагляд then receives
+`EXTERNAL_SHARE_INVALID`, which is indistinguishable from revoked, on a link
+nobody has opened. The route's header claims no scanner «can burn the grant»;
+that holds only for a fetcher that never runs the script, and
+`apps/app/tests/m5-external.int.test.ts` models exactly that case and no other.
+
+**Fix:** put the exchange behind a click. **Cons:** one more step for the
+reviewer, against a failure mode that is silent and unrecoverable.
+
+### P1 — six project-plane capabilities are in no responsibility preset
+
+**What:** `technical/permissions/capabilities.csv` carries 17 project-plane v0.1
+capabilities; `technical/permissions/responsibility-presets.csv` maps 11. The six
+it maps nowhere are `progress.adjust`, `requirement_exceptions.decide`,
+`evidence_decisions.decide`, `stage_closures.close`, `readiness.view` and
+`statutory_acts.compose`.
+
+**Why:** with the shipped presets nobody can correct a quantity, close a stage,
+decide an occurrence, record the only escape v0.1 has, read the blocked money, or
+compose an act. Every M3 and M4 suite grants them by hand, which is exactly the
+shape of a gap a fixture hides — and it is the third recurrence of one finding
+(M1 review finding 8). The other three planes are **not** gaps and are counted
+out deliberately: the eight workspace-plane capabilities resolve from the
+governance role, the two external ones are excluded from the
+`project_access_grants` vocabulary on purpose, and the three service ones belong
+to the service principal.
+
+**Fix:** decide which persona owns each of the six, then add them.
+**Cons:** it is a permissions decision — `stage_closures.close` in particular
+should not land on the same persona as `evidence_decisions.decide` without
+someone thinking about separation of duties first.
+
+### P2 — a hand-typed zero-priced line and an imported one store different provenance
+
+**What:** `apps/app/src/lib/manual-baseline.ts` writes
+`priceBasis: unitPrice === null ? null : pins.priceBasis`, and `unitPrice` is
+assigned only for `unit_price_state = 'known'`. The importer writes the basis for
+a zero-priced row, because — see §"P2 — a zero unit price used to break publish"
+above — `0,00` parses into a truthy `Decimal`. So a line priced at zero stores
+`price_basis = null` when typed and the basis when imported, and the manual
+path's own comment claims parity with the importer.
+
+**Why:** ADR-006 decision 2 makes manual entry first-class, and version-0.1.md's
+M1 exit gate is that a hand-typed line is «indistinguishable in provenance
+quality from an imported one». This is a stored divergence on exactly that axis,
+on a row shape the entry above records as ordinary rather than exotic.
+
+**Fix:** `priceBasis: derivedMinor === null ? null : pins.priceBasis`, and correct
+the comment whichever way the decision goes.
+
+### BLOCKER (not a defect) — M4 ships a composer and no document, and no code can change that
+
+**What:** `DODATOK_V_TEMPLATE.fieldList` is `null`
+(`apps/app/src/lib/statutory-act-form.ts:205`). `renderStatutoryAct` pushes the
+blocker `dodatok_v_field_list_not_committed` for any template with a null field
+list (`:510-521`) and returns `{ ok: false }` whenever the blocker list is
+non-empty (`:526-528`) — **neither test looks at the act**. So
+`statutory_acts.render` refuses for every act, on every input, in every
+workspace, and `statutory_act_versions.freeze` hashes the render and therefore
+always refuses too (`apps/app/app/v1/statutory-act-versions/[actVersionId]/freeze/route.ts:47-65`,
+which states this in its own header). `DBN_RETRIEVAL_RECORD` is `null` at
+`statutory-act-form.ts:129` and is a second, independent, equally unconditional
+blocker. **An act can be composed as a draft and can never become a document.**
+
+**Why this is an entry and not a bug:** the behaviour is correct and the refusal
+is the only correct behaviour available. `hidden-works-content-rules.md`
+allow-list item 3 *licenses* the product to print every field of В.1 and В.2 in
+the standard's order; it does not supply them, and nothing in this repository
+does — `technical/requirements/` holds `dbn-a31-5-2016-dodatok-n.csv` and nothing
+else. Transcribing the captions from memory or from a secondary source is the one
+thing that document forbids without qualification, and
+`docs/delivery/test-strategy.md:139-152` extends the ban to fixtures because «a
+fixture looks verified». A renderer is worse than a fixture: an invented caption
+is printed onto a document a client's lawyer reads and looks decided. **No slice
+may close this item with code, and any change that makes the render succeed
+without the artifact below is a regression, not a fix.**
+
+**What it costs:** M4's user outcome in `docs/delivery/version-0.1.md` §v0.1-M4
+— «as a document someone can print and hand over» — is not met and cannot be met
+from this repository. Two of the six steps of that section's acceptance walk
+(«render twice and diff the bytes», «check the render field by field against the
+В.1/В.2 list») are unperformable. Three of the four M4 operations do their whole
+job; the fourth produces nothing a person can be handed.
+
+**Fix — one artifact, not code.** Commit the enumerated **В.1/В.2 field list**:
+every field of both sections, in the standard's order, with **the standard's own
+captions**, under `technical/requirements/` in the same shape as
+`dbn-a31-5-2016-dodatok-n.csv`, carrying per row a `verification` tag and the
+source it was read from. It must be transcribed from the **primary** ДБН
+А.3.1-5:2016 file by someone holding it — which is the same retrieval that
+produces the ДБН retrieval record (URL, retrieval date, SHA-256) M0 gate 10 owes,
+so the two blockers are one errand. Then populate `DODATOK_V_TEMPLATE.fieldList`
+and `DBN_RETRIEVAL_RECORD` from those files. Both blockers stop being produced
+with no other change, because both are derived from the absence rather than
+declared.
+**Cons:** none. The only alternative — shipping a field list nobody sourced — is
+the fabrication class the audit behind the content rules exists to catch.
+
+**One document still states M4 without this, and it is the one an acceptance
+session would be planned from.** `docs/delivery/version-0.1.md` §v0.1-M4 carries
+the user outcome — «as a document someone can print and hand over» — and a
+six-step **Acceptance evidence** walk, two of whose steps («render twice and diff
+the bytes», «check the render field by field against the В.1/В.2 list») cannot be
+performed at all, and it says nothing about either. It owes one sentence there:
+that `statutory_acts.render` and `statutory_act_versions.freeze` refuse
+unconditionally while `DODATOK_V_TEMPLATE.fieldList` and `DBN_RETRIEVAL_RECORD`
+are `null`, that the refusal is correct behaviour rather than a defect, and that
+the two steps become performable only when the В.1/В.2 field list is committed —
+so the milestone is walked knowing it cannot pass its own gate. That file was not
+in this pass's remit, which is why this is recorded as owed rather than made.
+
+*Recorded 2026-08-08. The absence predates this build and was written down in
+`test-strategy.md`, in migration `0047` §11 item 1 and in the renderer's own
+header; what was written down nowhere is that it makes the freeze unconditional
+and leaves M4 with no deliverable. Cross-referenced from the progress document's
+standing statement and its §5 item 1a.*
+
+### P3 — `app.work_type_key_is_bindable` arm 2 is not scoped to a draft
+
+**What:** `supabase/migrations/0050_the_left_hand_side_of_the_predicate.sql:336`
+defines the resolver SECURITY DEFINER and grants execute to `aktflow_app`. Arm 2
+accepts **any** `contract_version_id` in a workspace the caller is an active
+member of and answers whether that version binds a rule version carrying a given
+work-type key — a bit `cvrb_select` (0041 §9) withholds from a member with no
+`project.view`/`project.admin` grant on the project. The file's own
+bounded-disclosure argument was stated as a property of the function; it is a
+property of the function's two callers.
+
+**Why:** unreachable through any v0.1 route. Both callers —
+`requireBindableWorkType` (`apps/app/src/lib/manual-baseline.ts:107`) and the
+trigger `app.guard_work_item_work_type()` (0050 §5) — pass the contract version
+of the row being written, never one the caller named, and a row can only be
+written into a draft. So this is a **widened surface, not a disclosed leak**. It
+is an entry because `apps/app/tests/work-type-carrier.int.test.ts:528-530`
+already calls the resolver directly, which is the shape a third caller would
+take, and because the next reader of that comment would otherwise trust an
+argument that does not hold.
+
+**Fix:** a new migration — **0052**, the next free file as the chain stands on
+2026-08-08. *(This entry read «migration 0051» when it was written. `0051` was
+claimed later the same day by `0051_the_stage_nobody_agreed_to.sql`, the
+stage-key guard, which does not touch this function; the number was corrected
+here and in `0050` §4 and §6.5. Search for the `create or replace` below, not for
+a number.)* `create or replace function
+app.work_type_key_is_bindable`, arm 2 gaining
+`and exists (select 1 from public.contract_versions v where v.workspace_id = ws
+and v.id = cv and v.status = 'draft')`. Behaviour-preserving for both current
+callers, so no route and no fixture changes; add one case asserting the resolver
+answers false for a published version the caller holds no grant on.
+**Cons:** none identified. It cannot be done by editing `0050` — a function body
+is behaviour, and only comments of the unapplied chain are corrected in place.
+*The stale comment itself was corrected in `0050` §4 on 2026-08-08 and the owed
+migration is recorded in that file's §6.5.*
+
+### P3 — INV-090 is allocated and two catalogs do not point at it
+
+**What:** `technical/database/invariant-catalog.csv` gained **INV-090** on
+2026-08-08 for the write-path work-type refusal, from the text migration `0050`
+§6.4 dictates and deliberately did not allocate an id for.
+`technical/database/entity-catalog.csv`'s `work_items` row and
+`technical/database/relationship-catalog.csv`'s
+`work_items typed_as requirement_rule_versions` row both describe that refusal
+and cite no id; the relationship row's `invariant_id` column reads INV-072, which
+is the **disclosure** half.
+
+**Why:** an invariant nothing references is an invariant no suite is keyed to.
+**Fix:** point both rows at INV-090. Neither file was in the 2026-08-08
+documentation slice's remit, which is the only reason this is an entry rather
+than a change.

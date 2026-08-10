@@ -104,7 +104,11 @@ function committedLabels(): Record<string, string> {
 describe("the committed mobile labels are the catalog's own words", () => {
   it("carries exactly the keys the catalog defines, no more and no fewer", () => {
     const catalog = [...catalogLabels().keys()].sort();
-    expect(catalog.length).toBe(6);
+    // Seven since 2026-08-06, when ADR-007 decision 6 added the `discarded` row
+    // it records the catalog as owing. Like the generator's own guard this is a
+    // row-loss count and not a vocabulary claim; which seven keys are legitimate
+    // is copy-catalog-fidelity.test.ts's question.
+    expect(catalog.length).toBe(7);
     expect(Object.keys(committedLabels()).sort()).toEqual(catalog);
   });
 

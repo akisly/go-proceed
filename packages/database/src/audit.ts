@@ -25,7 +25,15 @@ export async function recordAudit(
        (organization_id, actor_user_id, actor_type, action, object_type, object_id,
         request_id, details, object_version, reason_code)
      values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
-    [organizationId, ctx.actorUserId, opts.actorType ?? "user", intent.action, intent.object_type, intent.object_id,
+    // `ctx.actorUserId || null`, added by v0.1-M5. On the external plane there
+    // is NO account: `withExternalTx` sets the actor GUC to "" and this context
+    // carries the same "", which is not a uuid and would be a 22P02 rather than
+    // an audit row. `public.audit_events.actor_user_id` is nullable and
+    // `actor_type` has carried 'external' since 0002, so the shape was always
+    // there; the coercion is what makes it reachable. An empty string is never
+    // a valid actor on the member plane either, so nothing else changes.
+    [organizationId, ctx.actorUserId || null, opts.actorType ?? "user",
+     intent.action, intent.object_type, intent.object_id,
      ctx.requestId, intent.details, opts.objectVersion ?? null, opts.reasonCode ?? null],
   );
 }

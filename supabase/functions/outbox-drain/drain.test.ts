@@ -2,6 +2,19 @@ import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { Client } from "pg";
 
+// FROZEN HISTORY. public.drain_outbox was RETIRED by migration 0036: it marks
+// outbox rows processed without dispatching them and without honoring the 0008
+// lease, so it could settle a row another worker held. No cron schedule and no
+// non-superuser grant remain.
+//
+// These cases still pass because they connect as `postgres`, the owner, which
+// no revoke gates — so read them as a description of what the retired function
+// does, NOT as evidence that draining is a supported path. Do not extend this
+// file, and do not "fix" it to stay green if the function is ever dropped:
+// delete the suite deliberately instead. The live delivery path is
+// app.claim_outbox / app.complete_outbox / app.fail_outbox (0008), which still
+// has no deployed consumer.
+
 // Admin connection: aktflow_app has INSERT-ONLY on transaction_outbox per
 // data-access-surface.csv DA-099 (SELECT/UPDATE belong to aktflow_worker,
 // DA-058). Reading the drain's effect requires the admin role.

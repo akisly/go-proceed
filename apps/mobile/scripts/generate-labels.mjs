@@ -74,9 +74,18 @@ for (const line of csv.split("\n")) {
   }
   out[key] = uk;
 }
-if (Object.keys(out).length !== 6) {
-  throw new Error(`expected 6 client_state labels, found ${Object.keys(out).length}`);
+// A row-loss guard, not a vocabulary claim: it catches the catalog silently
+// shedding a label, and nothing else. The count went 6 -> 7 on 2026-08-06 when
+// ADR-007 decision 6 added the `discarded` row it records as owed; this script
+// was not re-run, so it would have thrown, and the committed JSON below stayed
+// six keys wide until 2026-08-08. What the seven keys are ALLOWED to be is
+// checked in packages/testing/src/copy-catalog-fidelity.test.ts against the
+// state machine that owns them, which is the check with the teeth.
+const EXPECTED_LABELS = 7;
+if (Object.keys(out).length !== EXPECTED_LABELS) {
+  throw new Error(
+    `expected ${EXPECTED_LABELS} client_state labels, found ${Object.keys(out).length}`);
 }
 writeFileSync(join(import.meta.dirname, "..", "src/lib/status-labels.generated.json"),
   JSON.stringify(out, null, 2) + "\n");
-console.log(`wrote 6 labels`);
+console.log(`wrote ${EXPECTED_LABELS} labels`);

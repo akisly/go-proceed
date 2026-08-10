@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
+import { validationFailed } from "../../../../../src/lib/manual-baseline";
 import { publishImportBatchRequest, type PublishImportBatchResponse } from "@goproceed/contracts";
 import { matchLineage, decimalText, canonicalPriceBasis, type TaxMode } from "@goproceed/domain";
 import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
@@ -74,6 +75,107 @@ export const POST = commandRoute(publishImportBatchRequest, async (a) => {
           { requestId: a.requestId, retryable: false, userAction: "run_new_dry_run" }));
       }
 
+      // ── INV-083, on the second route to a published baseline ─────────────
+      //
+      // «No baseline is published in v0.1 without a bound requirement
+      // rule-version set»: contract_versions.publish and import_batches.publish
+      // both refuse a version carrying no contract_version_rule_bindings row,
+      // or the invariant holds on neither (invariant-catalog.csv:84,
+      // transition-catalog.csv:13, version-0.1.md §"Exit gates", ADR-006
+      // decision 3). The manual route has refused since M1; this one published
+      // a baseline with no obligations at all, which is the route the pilot
+      // actually uses. This is that refusal.
+      //
+      // NOT AN IMPORT EXPANSION. ADR-006 decision 1 freezes the importer, and
+      // what it freezes is expansion — a new format, a new mapping affordance,
+      // a new parsing behaviour, a new column read out of a spreadsheet. This
+      // adds none. It closes a gate BYPASS on an existing route, and a bypass
+      // left open is INV-083 holding on one route, which the invariant itself
+      // says is the same as holding on neither. Nothing about the source file,
+      // the mapping, the parse or the money changes here.
+      //
+      // WHY THE REFUSAL IS LAST OF THE FOUR PRECONDITIONS. The three above are
+      // about whether THIS BATCH may be published at all — it is not ready, it
+      // was changed under the caller, its source moved. Answering any of them
+      // with «прив'яжіть вимоги і повторіть» would name an action that cannot
+      // succeed; an already-published batch in particular can never be
+      // published again no matter what is bound. This one is the first
+      // condition about the BASELINE rather than about the batch, and it is
+      // checked before anything is written.
+      //
+      // A caller that repeats an id means it once, so the set is deduplicated
+      // before it is counted — exactly as contract_versions.bind_rules does —
+      // and a request of three copies of one id is a set of one, not of three.
+      const wantedRuleVersions = [...new Set(a.body.ruleVersionIds)];
+      if (wantedRuleVersions.length === 0) {
+        throw new HttpProblem(409, problem("RULE_BINDING_REQUIRED",
+          "Базис не публікується без прив'язаного набору версій правил. "
+          + "Виберіть вимоги для цього імпорту і повторіть публікацію.",
+          { requestId: a.requestId, retryable: false,
+            userAction: "bind_rule_versions_then_publish" }));
+      }
+
+      // READ BACK BEFORE WRITING ANYTHING. Three of the four things that can be
+      // wrong with this set are unrepresentable in storage — a draft rule
+      // version cannot be bound (composite FK on the literal discriminator
+      // has_been_published, 0041:495-497), a binding cannot misreport the stage
+      // its version names (0041:485-486), and one rule cannot contribute two
+      // versions to one baseline (0041:476) — but each of them reaches the
+      // caller as a raw 23503/23505 turned into a 500, and a 500 is not a
+      // refusal anyone can act on. Same reasoning, same field-error shape and
+      // the same catalogued codes as
+      // contract-versions/[versionId]/rule-bindings/route.ts:77-143, so the two
+      // routes refuse the same request identically.
+      const namedRuleVersions = await tx.query(
+        `select id, requirement_rule_id, status, stage_key
+           from public.requirement_rule_versions
+          where workspace_id = $1 and id = any($2::uuid[])`,
+        [workspaceId, wantedRuleVersions]);
+      const ruleVersionById = new Map(
+        namedRuleVersions.rows.map((r) => [r.id as string, r]));
+      const fieldPath = (id: string) => `ruleVersionIds[${a.body.ruleVersionIds.indexOf(id)}]`;
+
+      const unknownRuleVersions = wantedRuleVersions.filter((id) => !ruleVersionById.has(id));
+      if (unknownRuleVersions.length > 0) {
+        throw validationFailed(a.requestId,
+          "Одну або кілька версій правил не знайдено в цьому робочому просторі.",
+          unknownRuleVersions.map((id) => ({
+            path: fieldPath(id), message: "unknown rule version in this workspace",
+          })));
+      }
+      const unpublishedRuleVersions = wantedRuleVersions.filter(
+        (id) => ruleVersionById.get(id)!.status !== "published");
+      if (unpublishedRuleVersions.length > 0) {
+        throw validationFailed(a.requestId,
+          "До базису можна прив'язати лише опубліковану версію правила. "
+          + "Вилучена з обігу версія не потрапляє до нових базисів (INV-067).",
+          unpublishedRuleVersions.map((id) => ({
+            path: fieldPath(id),
+            message: `rule version is ${ruleVersionById.get(id)!.status}, not published`,
+          })));
+      }
+      // ONE RULE CONTRIBUTES AT MOST ONE VERSION TO A BASELINE (0041:471-476).
+      // The contract version this publication creates does not exist yet, so
+      // there are no bindings to conflict with — the only way to violate the
+      // key here is to name two versions OF THE SAME RULE in one request, and
+      // the deduplication above does not catch that because the two ids differ.
+      // Unchecked, the first insert succeeds and the second raises 23505.
+      const byLineage = new Map<string, string[]>();
+      for (const id of wantedRuleVersions) {
+        const ruleId = ruleVersionById.get(id)!.requirement_rule_id as string;
+        byLineage.set(ruleId, [...(byLineage.get(ruleId) ?? []), id]);
+      }
+      const doubled = [...byLineage.values()].filter((ids) => ids.length > 1).flat();
+      if (doubled.length > 0) {
+        throw validationFailed(a.requestId,
+          "Одне правило дає базису щонайбільше одну версію, "
+          + "а в запиті названо дві версії того самого правила.",
+          doubled.map((id) => ({
+            path: fieldPath(id),
+            message: "two versions of one rule cannot be bound to one baseline",
+          })));
+      }
+
       // Immutable party snapshots from CURRENT profiles.
       const snap = async (partyId: string): Promise<Record<string, unknown>> => {
         const r = await tx.query(
@@ -88,11 +190,30 @@ export const POST = commandRoute(publishImportBatchRequest, async (a) => {
       const ownSnapshot = await snap(contract.own_party_id);
       const customerSnapshot = await snap(contract.customer_party_id);
 
-      const prev = await tx.query(
-        `select id, version_no from public.contract_versions
-          where workspace_id = $1 and contract_id = $2 order by version_no desc limit 1`,
+      // TWO QUERIES BECAUSE THEY ASK TWO DIFFERENT QUESTIONS, and migration 0042
+      // is what split them: once a contract version may be a DRAFT, the single
+      // `order by version_no desc limit 1` this used to be started answering
+      // «the contract's current version» with a draft nobody has agreed to.
+      // 0042's header names this route and the assignments route as the two such
+      // readers and corrects both in that migration's own slice.
+      //
+      //  * The NUMBER is max+1 over EVERY version, drafts included, because
+      //    unique (workspace_id, contract_id, version_no) counts drafts too and
+      //    reusing an open draft's number would fail the insert with a raw 23505.
+      //  * The SUPERSEDED VERSION is the latest PUBLISHED one. A baseline may
+      //    only supersede an agreement; naming a draft would make the diff
+      //    contract_versions.get computes compare against something nobody
+      //    signed. Same rule contract_versions.create enforces on the manual path.
+      const numbering = await tx.query(
+        `select coalesce(max(version_no), 0) as v from public.contract_versions
+          where workspace_id = $1 and contract_id = $2`,
         [workspaceId, contractId]);
-      const versionNo = (prev.rows[0]?.version_no ?? 0) + 1;
+      const versionNo = Number(numbering.rows[0].v) + 1;
+      const prev = await tx.query(
+        `select id from public.contract_versions
+          where workspace_id = $1 and contract_id = $2 and status = 'published'
+          order by version_no desc limit 1`,
+        [workspaceId, contractId]);
       const supersedesVersionId: string | null = prev.rows[0]?.id ?? null;
 
       // Publishable rows: latest attempt, non-blocking, in deterministic source
@@ -175,6 +296,53 @@ export const POST = commandRoute(publishImportBatchRequest, async (a) => {
          contract.source_tolerance_minor_units, contract.source_tolerance_bps,
          batchId, batch.source_manifest_hash, supersedesVersionId, a.userId]);
 
+      // ── The rule-version set, pinned in the same commit ──────────────────
+      //
+      // IT HAS TO BE THIS TRANSACTION AND THERE IS NO SECOND CALL AVAILABLE.
+      // app.guard_rule_binding_window() (migration 0042 §5) admits a binding
+      // only when the target contract version is a draft OR was created by the
+      // current transaction — `cv.xmin = pg_current_xact_id()::xid`. That
+      // second disjunct exists for this route and nothing else: 0042:426-433
+      // names «the frozen importer, which inserts an already-published version
+      // and binds to it in the same commit» as the reason it is there. A
+      // binding attempted after this transaction commits is refused by the
+      // guard, which is INV-080 — a rule published after a baseline never
+      // reaches it — and is why the set cannot be a follow-up call.
+      //
+      // The INSERT grant and the `cvrb_insert` policy were both written for
+      // this: 0041:565-570 justifies the grant with «import_batches.publish
+      // (INV-083 holds on BOTH routes to a published baseline or it holds on
+      // neither)», and 0041:785-787 admits `imports.publish` alongside
+      // `rule_bindings.manage` precisely so this actor can pin the same set.
+      // Until now both were dead code.
+      //
+      // requirement_rule_id and stage_key are copied off the rule version
+      // rather than taken from the caller, so a binding cannot misreport the
+      // stage its own version names; the composite FK (0041:485-486) would
+      // refuse it anyway, and reading them here means the refusal never has to
+      // fire. bound_rule_version_is_published is left to its CHECK-forced
+      // default for the reason rule-bindings/route.ts:139-142 gives: the column
+      // exists so the composite FK can only resolve against a version whose
+      // generated has_been_published is true, and writing it here would suggest
+      // this command is the thing deciding it.
+      for (const ruleVersionId of wantedRuleVersions) {
+        const rv = ruleVersionById.get(ruleVersionId)!;
+        await tx.query(
+          `insert into public.contract_version_rule_bindings
+             (id, workspace_id, project_id, contract_id, contract_version_id,
+              requirement_rule_id, requirement_rule_version_id, stage_key, bound_by_member_id)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+          [randomUUID(), workspaceId, projectId, contractId, contractVersionId,
+           rv.requirement_rule_id, ruleVersionId, rv.stage_key, m.memberId]);
+      }
+      const boundRuleVersionCount = wantedRuleVersions.length;
+      // The distinct stage keys of the bound set ARE this baseline's stage
+      // vocabulary — M2 materialises stages and occurrences from the binding
+      // rather than from a member command — so they are recorded in the audit
+      // for the same reason contract_versions.bind_rules returns them.
+      const stageKeys = [...new Set(
+        wantedRuleVersions.map((id) => ruleVersionById.get(id)!.stage_key as string))].sort();
+
       // Money is NOT recomputed here. validate decided each row's canonical
       // value under one pin generation and stored it; publish writes exactly
       // that, so a pin edited between validate and publish cannot produce a
@@ -240,8 +408,29 @@ export const POST = commandRoute(publishImportBatchRequest, async (a) => {
         [workspaceId, batchId, contractVersionId]);
       await recordAudit(tx, ctx, {
         action: "contract_version.published", object_type: "contract_version",
-        object_id: contractVersionId, details: { versionNo, workItemCount: position },
+        object_id: contractVersionId,
+        details: {
+          versionNo, workItemCount: position,
+          // What INV-083 held against, recorded on the object it held for.
+          // contract_versions.publish records boundRuleVersionCount on its own
+          // publication audit; this route records the SET as well, because on
+          // the manual path the identities are already in the trail — the
+          // separate `contract_version.rules_bound` audit row bind_rules writes
+          // — and on this path there is no such row to find. Without it the
+          // audit could say a baseline was gated and not say by what.
+          boundRuleVersionCount, ruleVersionIds: wantedRuleVersions, stageKeys,
+        },
       }, { organizationId: workspaceId, objectVersion: versionNo });
+      // NO SECOND OUTBOX EVENT. technical/events/event-catalog.csv:16 names
+      // exactly one producer for `contract_version.rules_bound` —
+      // bff.contract_versions.bind_rules — and emitting it here would add an
+      // uncatalogued producer in a slice that is closing a gate, not extending
+      // an event contract. `contract_version.published` is emitted below and
+      // its catalog row (line 7) already names BOTH producers and records that
+      // both refuse an unbound version; a consumer reading that event finds the
+      // bindings committed, because they were written in this transaction. If a
+      // consumer is ever found that needs the binding event from this route,
+      // that is a catalog change first.
       await enqueueOutbox(tx, ctx, {
         topic: "contract_version.published", aggregate_type: "contract_version",
         aggregate_id: contractVersionId, payload_version: 1,
@@ -249,7 +438,10 @@ export const POST = commandRoute(publishImportBatchRequest, async (a) => {
       }, { organizationId: workspaceId });
       return {
         status: 201,
-        body: { contractVersionId, versionNo, workItemCount: position, supersedesVersionId },
+        body: {
+          contractVersionId, versionNo, workItemCount: position, supersedesVersionId,
+          boundRuleVersionCount,
+        },
       };
     });
   });

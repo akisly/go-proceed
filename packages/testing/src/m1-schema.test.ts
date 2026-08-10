@@ -40,7 +40,12 @@ describe("M1 workspace-access schema", () => {
   });
 
   it("project-scoped tables carry tenant-safe composite FKs to projects", async () => {
-    for (const t of ["project_parties", "project_access_grants", "project_responsibility_assignments"]) {
+    // audit_events joined this list in 0040. It is deliberately NOT added to
+    // M1_WORKSPACE_TABLES, which requires a NOT NULL workspace_id — audit's
+    // tenant column is organization_id and its project_id is nullable by
+    // design (workspace-scoped commands record no project).
+    for (const t of ["project_parties", "project_access_grants", "project_responsibility_assignments",
+                     "audit_events"]) {
       const r = await admin.query(
         `select 1 from pg_constraint c
           join pg_class rel on rel.oid = c.conrelid

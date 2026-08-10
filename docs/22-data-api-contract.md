@@ -2,9 +2,9 @@
 
 ## 1. Contract status
 
-Этот документ является нормативным target design. `technical/schema.sql` остаётся executable reference для Pilot, а production implementation оформляется последовательными reviewed migrations. API-first contract хранится в `technical/openapi.yaml`; endpoint не считается готовым только потому, что экран его симулирует.
+**HISTORICAL / NON-NORMATIVE (2026-08-06).** This is an AktFlow-era document. It is **not** target design, and it holds no authority over the current database, the GoProceed v0.1 API surface, release contents, or terminology — [`docs/README.md`](README.md) holds precedence, and `technical/openapi.yaml`, `technical/schema.sql`, `technical/state-catalog.csv` and `technical/terminology.csv` are explicitly not v0.1 authority. It keeps its `docs/` path and its exact line numbering only because running code cites specific lines of §6 ([`document-disposition.csv`](../migration/goproceed-canonical-v0.1/document-disposition.csv) row `docs/22-data-api-contract.md`, `keep` → archive after v0.0 re-points those references); that is also why it carries no canonical metadata block. Objects named below — `hold_point_decisions`, `concealment_events`, `occurrence_trigger_events`, `typed_evidence_records` and the rest of the 126-table model — are the AktFlow model that [ADR-005](decisions/ADR-005-readiness-gate-and-hidden-works.md) replaces, and none of them exists in any migration. Everything from here down is preserved wording, not a current claim.
 
-State values импортируются из `technical/state-catalog.csv`; локализованные labels и юридически чувствительные термины — из `technical/terminology.csv`. Расхождение enum между этими файлами, SQL и OpenAPI блокирует merge/release.
+Историческая справка о том, как это было сформулировано в AktFlow: state values импортировались из `technical/state-catalog.csv`; локализованные labels и юридически чувствительные термины — из `technical/terminology.csv`. Ни одно из этих правил не действует для GoProceed v0.1.
 
 ## 2. Schema domains
 

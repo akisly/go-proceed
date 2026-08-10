@@ -2,6 +2,7 @@ import { queryRoute } from "../../../../../../src/lib/command";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../../src/lib/http";
 import type { ContractVersionResponse, WorkItemView } from "@goproceed/contracts";
+import { workItemView } from "../../../../../../src/lib/manual-baseline";
 import { computeDiff, type DiffComparable } from "@goproceed/domain";
 import { withTenantTx } from "@goproceed/database";
 
@@ -40,26 +41,24 @@ export const GET = queryRoute(async (a) => {
       `select * from public.work_items
         where workspace_id = $1 and contract_version_id = $2 order by position`,
       [workspaceId, version.id]);
-    const workItems: WorkItemView[] = items.rows.map((w) => ({
-      workItemId: w.id,
-      position: w.position,
-      sourceKey: w.source_key,
-      workCode: w.work_code,
-      description: w.description,
-      section: w.section,
-      unitCode: w.unit_code,
-      unitPrecision: w.unit_precision,
-      contractQuantity: String(w.contract_quantity),
-      unitPriceState: w.unit_price_state,
-      unitPriceDecimal: w.unit_price_decimal === null ? null : String(w.unit_price_decimal),
-      valuationBasis: w.valuation_basis,
-      netMinor: String(w.net_amount_minor_units),
-      taxMinor: String(w.tax_amount_minor_units),
-      grossMinor: String(w.gross_amount_minor_units),
-      sourceAmountMinor: w.source_amount_minor_units === null ? null : String(w.source_amount_minor_units),
-      predecessorWorkItemId: w.predecessor_work_item_id,
-    }));
+    // THE SHARED MAPPER, and this call is a correction. `workItemView`'s own
+    // comment says it is «Shared by contract_versions.get and the three
+    // work_items commands so that a line reads identically however it is
+    // fetched — the M1 exit gate is that a hand-typed line is
+    // indistinguishable from an imported one, and two mappers are two chances
+    // for it not to be». This route nonetheless carried a hand-written second
+    // copy of it, field for field. The copy is what made the drift possible,
+    // and the drift is not hypothetical: adding `workTypeKey` to the view
+    // (migration 0050) would have left THIS read — the read a caller recomputes
+    // `confirmedManifestHash` from — silently missing the field, and every
+    // publish would have failed with VERSION_CONFLICT against a digest the
+    // caller could not reproduce.
+    const workItems: WorkItemView[] = items.rows.map(workItemView);
 
+    // The predecessor's lines are only comparable if the predecessor is a real
+    // agreement. `contract_versions.create` already refuses to supersede
+    // anything but a published version, and this guard is the reader's half of
+    // the same rule.
     let diff: ContractVersionResponse["diff"] = null;
     if (version.supersedes_version_id) {
       const prevItems = await tx.query(
@@ -83,12 +82,23 @@ export const GET = queryRoute(async (a) => {
       })));
     }
 
+    // READ OFF THE ROW, NEVER ASSUMED. Before migration 0042 a contract version
+    // could only be published, and this returned the literal "published" with
+    // `new Date(version.published_at)`. A draft carries NULL in both columns
+    // (contract_versions_draft_check), and `new Date(null)` is the epoch — so
+    // the unchanged code would have announced every hand-typed draft as
+    // published and dated it 1970-01-01. This read is also what
+    // contract_versions.publish's manifest confirmation is computed from, which
+    // is precisely why a draft must be readable and must say that it is one.
+    const status: ContractVersionResponse["status"] =
+      version.status === "draft" ? "draft" : "published";
     return {
       contractVersionId: version.id,
       contractId,
       versionNo,
-      status: "published",
-      publishedAt: new Date(version.published_at).toISOString(),
+      status,
+      publishedAt: version.published_at === null
+        ? null : new Date(version.published_at).toISOString(),
       sourceManifestHash: version.source_manifest_hash,
       supersedesVersionId: version.supersedes_version_id,
       pins: {

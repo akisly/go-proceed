@@ -5,7 +5,7 @@
  * the real route handlers, RLS, and database.
  */
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { q, truncateAll, jsonReq } from "./helpers/fixtures";
+import { q, truncateAll, jsonReq, publishBindableRuleVersion } from "./helpers/fixtures";
 import { buildEstimateV1, buildEstimateV2, MAPPING_V1, V1_EXPECTED_NET_MINOR } from "./helpers/estimate-fixture";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"; // засновниця
@@ -25,6 +25,13 @@ let batch1: string;
 let batch1View: { version: number; sourceManifestHash: string; rowResults: { rowResultId: string; errorCodes: string[]; severity: string }[] };
 let v1: { contractVersionId: string; versionNo: number };
 let v1Snapshot: unknown;
+/**
+ * The rule-version set both publications pin. INV-083 refuses a baseline
+ * without one on this route as well as on the manual one, so it is part of the
+ * vertical rather than an aside: an estimate that reaches a published baseline
+ * carrying no obligations is the state ADR-005 decision 2 exists to prevent.
+ */
+let ruleVersionId: string;
 
 const call = async (mod: Promise<{ POST?: unknown; GET?: unknown; PUT?: unknown; PATCH?: unknown }>,
   method: "POST" | "GET" | "PUT" | "PATCH", url: string, body: unknown, params: Record<string, string>) => {
@@ -141,12 +148,32 @@ describe("v0.1-M1 vertical: parties → contracts → import → publish → rei
     batch1View = await reval.json();
     expect((batch1View as { status: string }).status).toBe("preview_ready");
 
-    const pub = await call(import("../app/v1/import-batches/[batchId]/publish/route"), "POST", "http://x",
+    // INV-083 IS PART OF THE VERTICAL, so it is exercised in both directions
+    // rather than satisfied silently: first the refusal, then the publication.
+    // The library row this cites was seeded by workspaces.create in step 1 —
+    // if that seeding is ever removed, this line is where the vertical stops.
+    const unbound = await call(import("../app/v1/import-batches/[batchId]/publish/route"), "POST", "http://x",
       { expectedVersion: batch1View.version, confirmedManifestHash: batch1View.sourceManifestHash },
+      { batchId: batch1 });
+    expect(unbound.status).toBe(409);
+    expect((await unbound.json()).code).toBe("RULE_BINDING_REQUIRED");
+    expect((await q<{ n: string }>(
+      `select count(*) n from public.contract_versions where workspace_id=$1`, [workspaceId]))[0]!.n)
+      .toBe("0");
+
+    ({ ruleVersionId } = await publishBindableRuleVersion(workspaceId));
+    const pub = await call(import("../app/v1/import-batches/[batchId]/publish/route"), "POST", "http://x",
+      { expectedVersion: batch1View.version, confirmedManifestHash: batch1View.sourceManifestHash,
+        ruleVersionIds: [ruleVersionId] },
       { batchId: batch1 });
     expect(pub.status).toBe(201);
     v1 = await pub.json();
     expect(v1.versionNo).toBe(1);
+    expect((v1 as { boundRuleVersionCount?: number }).boundRuleVersionCount).toBe(1);
+    const bound = await q<{ requirement_rule_version_id: string }>(
+      `select requirement_rule_version_id from public.contract_version_rule_bindings
+        where workspace_id=$1 and contract_version_id=$2`, [workspaceId, v1.contractVersionId]);
+    expect(bound.map((b) => b.requirement_rule_version_id)).toEqual([ruleVersionId]);
     const items = await q<{ net: string }>(
       `select sum(net_amount_minor_units)::text net from public.work_items
         where workspace_id=$1 and contract_version_id=$2`, [workspaceId, v1.contractVersionId]);
@@ -161,10 +188,17 @@ describe("v0.1-M1 vertical: parties → contracts → import → publish → rei
     const val2body = await (await call(import("../app/v1/import-batches/[batchId]/validate/route"), "POST", "http://x",
       { mapping: MAPPING_V1, config: { headerRow: 1, locale: "uk-UA" }, expectedVersion: 2 }, { batchId: batch2 })).json();
     expect(val2body.status).toBe("preview_ready");
+    // The SAME rule version v1 bound. The uniqueness that stops a rule
+    // contributing twice is per contract version, and v2 is a new one — so a
+    // reimport pins the same obligations to the new baseline rather than
+    // inheriting them, which is what «the binding is pinned in the same commit
+    // and never acquired later» (INV-080) means for a superseding version.
     const pub2 = await (await call(import("../app/v1/import-batches/[batchId]/publish/route"), "POST", "http://x",
-      { expectedVersion: val2body.version, confirmedManifestHash: val2body.sourceManifestHash },
+      { expectedVersion: val2body.version, confirmedManifestHash: val2body.sourceManifestHash,
+        ruleVersionIds: [ruleVersionId] },
       { batchId: batch2 })).json();
     expect(pub2.versionNo).toBe(2);
+    expect(pub2.boundRuleVersionCount).toBe(1);
     expect(pub2.supersedesVersionId).toBe(v1.contractVersionId);
 
     const v1Resp = await call(import("../app/v1/contracts/[contractId]/versions/[versionNo]/route"), "GET",
@@ -190,10 +224,16 @@ describe("v0.1-M1 vertical: parties → contracts → import → publish → rei
       .rejects.toThrow(/immutable/i);
     await expect(q("delete from public.work_items where contract_version_id=$1", [v1.contractVersionId]))
       .rejects.toThrow(/immutable/i);
+    // Named with a valid rule-version set on purpose: the refusal under test is
+    // «this batch is already published», and a request that would ALSO fail
+    // INV-083 could not tell the two apart. The code is asserted for the same
+    // reason — three of this route's four refusals are 409.
     const again = await call(import("../app/v1/import-batches/[batchId]/publish/route"), "POST", "http://x",
       { expectedVersion: (batch1View as { version: number }).version + 1,
-        confirmedManifestHash: batch1View.sourceManifestHash }, { batchId: batch1 });
+        confirmedManifestHash: batch1View.sourceManifestHash,
+        ruleVersionIds: [ruleVersionId] }, { batchId: batch1 });
     expect(again.status).toBe(409);
+    expect((await again.json()).code).toBe("IMPORT_JOB_CONFLICT");
   });
 
   it("9. INV-001 coda: an outsider sees nothing across every surface", async () => {

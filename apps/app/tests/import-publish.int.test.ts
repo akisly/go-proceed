@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   q, truncateAll, jsonReq, baselineFixture, createBatch, addFile, getBatch,
-  type BaselineFixture,
+  publishBindableRuleVersion, type BaselineFixture,
 } from "./helpers/fixtures";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -26,10 +26,20 @@ const CSV_V2 =
   "1.4;Фарбування;м2;3;100,00;300,00\n";
 
 let fx: BaselineFixture;
+/**
+ * A published rule version this file's baselines can pin.
+ *
+ * Every block below is about money, lineage, immutability or idempotency
+ * rather than about INV-083, so they name this set and move on. The gate
+ * itself is exercised in «INV-083 on the frozen importer» at the end of the
+ * file, where the absence of a set is the subject rather than an obstacle.
+ */
+let ruleVersionId: string;
 beforeEach(async () => {
   await truncateAll();
   current = A;
   fx = await baselineFixture(A);
+  ({ ruleVersionId } = await publishBindableRuleVersion(fx.workspaceId));
 });
 
 async function validate(batchId: string, expectedVersion: number) {
@@ -41,10 +51,19 @@ async function resolve(batchId: string, body: Record<string, unknown>) {
   const { POST } = await import("../app/v1/import-batches/[batchId]/resolutions/route");
   return POST(jsonReq("http://x", body), { params: Promise.resolve({ batchId }) });
 }
-async function publish(batchId: string, expectedVersion: number, manifest: string) {
+/**
+ * `ruleVersionIds` defaults to the file's one published rule version. Passing
+ * `[]` explicitly is how a test asks for the INV-083 refusal; the default keeps
+ * every other block from restating a gate it is not about.
+ */
+async function publish(
+  batchId: string, expectedVersion: number, manifest: string,
+  ruleVersionIds: string[] = [ruleVersionId],
+) {
   const { POST } = await import("../app/v1/import-batches/[batchId]/publish/route");
-  return POST(jsonReq("http://x", { expectedVersion, confirmedManifestHash: manifest }),
-    { params: Promise.resolve({ batchId }) });
+  return POST(jsonReq("http://x", {
+    expectedVersion, confirmedManifestHash: manifest, ruleVersionIds,
+  }), { params: Promise.resolve({ batchId }) });
 }
 async function getVersion(contractId: string, versionNo: number) {
   const { GET } = await import("../app/v1/contracts/[contractId]/versions/[versionNo]/route");
@@ -160,9 +179,15 @@ describe("publish", () => {
     // Idempotent replay: publish already flipped the batch to published, but the
     // SAME key + hash must replay the original 201 without a second version.
     const { POST } = await import("../app/v1/import-batches/[batchId]/publish/route");
-    const req = jsonReq("http://x", { expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash });
+    // The set is named again so the 409 under test is the batch's status and
+    // not INV-083 — a request that would fail both cannot distinguish them.
+    const req = jsonReq("http://x", {
+      expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+      ruleVersionIds: [ruleVersionId],
+    });
     const r1 = await POST(req.clone() as Request, { params: Promise.resolve({ batchId: await (async () => batchId)() }) });
     expect(r1.status).toBe(409); // new key, already-published batch → conflict
+    expect((await r1.json()).code).toBe("IMPORT_JOB_CONFLICT");
     expect((await q<{ n: string }>("select count(*) n from public.contract_versions", []))[0]!.n).toBe("1");
   });
 
@@ -266,5 +291,274 @@ describe("publish idempotency retention", () => {
     const days = (new Date(rows[0]!.expires_at).getTime()
       - new Date(rows[0]!.created_at).getTime()) / 86_400_000;
     expect(Math.round(days)).toBe(400);
+  });
+});
+
+/**
+ * INV-083 ON THE FROZEN IMPORTER — M1 review finding 1.
+ *
+ * NOTHING IN THIS BLOCK HAS BEEN EXECUTED. No node_modules, no database, no
+ * docker: `vitest`, `psql` and `supabase` were never run against it and no
+ * claim is made that any assertion passes.
+ *
+ * «No baseline is published in v0.1 without a bound requirement rule-version
+ * set: contract_versions.publish AND import_batches.publish both REFUSE a
+ * version that carries no contract_version_rule_bindings row»
+ * (invariant-catalog.csv:84). The manual route refused from M1; this one did
+ * not, so the invariant held on one route — which the invariant itself says is
+ * the same as holding on neither, and the route it did not hold on is the one
+ * the pilot uses. Four authorities said it must
+ * (transition-catalog.csv:13, version-0.1.md §"Exit gates", 0041:565-570's
+ * grant justification, and 0042's xmin disjunct, which exists ONLY to let this
+ * route bind inside its own publish transaction).
+ *
+ * These assertions are REQUIRED behaviour, written against the route. Every
+ * refusal below is checked against the database as well as against the status
+ * code: a 409 that still wrote a contract version would be a worse defect than
+ * the one being fixed, and only the table can say it did not.
+ */
+describe("INV-083 on the frozen importer", () => {
+  /** A batch with no discrepancies, ready to publish. */
+  async function readyToPublish() {
+    const batchId = await createBatch(fx.contractId);
+    await addFile(batchId, "кошторис.csv", enc(
+      "Шифр;Назва;Од;К-сть;Ціна;Сума\n1.1;Мурування;м2;10;199,99;1 999,90\n"));
+    await validate(batchId, 2);
+    return { batchId, view: await (await getBatch(batchId)).json() };
+  }
+
+  const publishedVersions = async () => Number((await q<{ n: string }>(
+    `select count(*) n from public.contract_versions where workspace_id = $1`,
+    [fx.workspaceId]))[0]!.n);
+
+  it("refuses a publication that names no rule-version set, and writes nothing", async () => {
+    const { batchId, view } = await readyToPublish();
+    const res = await publish(batchId, view.version, view.sourceManifestHash, []);
+    expect(res.status).toBe(409);
+    const body = await res.json();
+    // The SAME code the manual route answers with. One refusal on two routes
+    // means one code on two routes; a client that had to branch on which route
+    // it took would be reading the invariant as two different rules.
+    expect(body.code).toBe("RULE_BINDING_REQUIRED");
+    expect(body.userAction).toBe("bind_rule_versions_then_publish");
+
+    expect(await publishedVersions()).toBe(0);
+    expect(Number((await q<{ n: string }>(
+      `select count(*) n from public.work_items where workspace_id = $1`,
+      [fx.workspaceId]))[0]!.n)).toBe(0);
+    expect(Number((await q<{ n: string }>(
+      `select count(*) n from public.transaction_outbox where topic = 'contract_version.published'`
+    ))[0]!.n)).toBe(0);
+    // The batch is untouched, so the estimator can bind and retry rather than
+    // re-running validate: a refusal that consumed the batch would make the
+    // recovery path the userAction names impossible.
+    const after = await (await getBatch(batchId)).json();
+    expect(after.status).toBe("preview_ready");
+    expect(after.version).toBe(view.version);
+    expect(after.publishedVersionId).toBeNull();
+  });
+
+  it("refuses an ABSENT set exactly as it refuses an empty one", async () => {
+    // The field defaults to `[]` rather than being required, so that this
+    // request reaches the command's 409 instead of the schema's 422. A client
+    // that has never heard of rule bindings must be told the thing it has to
+    // do, not that its JSON is malformed.
+    const { batchId, view } = await readyToPublish();
+    const { POST } = await import("../app/v1/import-batches/[batchId]/publish/route");
+    const res = await POST(jsonReq("http://x", {
+      expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+    }), { params: Promise.resolve({ batchId }) });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("RULE_BINDING_REQUIRED");
+    expect(await publishedVersions()).toBe(0);
+  });
+
+  it("pins the named set to the version it created, in that same transaction", async () => {
+    const { batchId, view } = await readyToPublish();
+    const res = await publish(batchId, view.version, view.sourceManifestHash, [ruleVersionId]);
+    expect(res.status, await res.clone().text()).toBe(201);
+    const body = await res.json();
+    expect(body.boundRuleVersionCount).toBe(1);
+
+    const bindings = await q<{
+      contract_version_id: string; requirement_rule_version_id: string;
+      requirement_rule_id: string; stage_key: string;
+      bound_rule_version_is_published: boolean; bound_by_member_id: string;
+      project_id: string; contract_id: string;
+    }>(`select contract_version_id, requirement_rule_version_id, requirement_rule_id,
+               stage_key, bound_rule_version_is_published, bound_by_member_id,
+               project_id, contract_id
+          from public.contract_version_rule_bindings where workspace_id = $1`,
+      [fx.workspaceId]);
+    expect(bindings).toHaveLength(1);
+    const b = bindings[0]!;
+    // The binding names the version this publication created — not a version
+    // that already existed. That is what «in its own publish transaction»
+    // means, and app.guard_rule_binding_window()'s xmin disjunct is what
+    // permits it: a published version that was NOT born in this transaction is
+    // refused (INV-080).
+    expect(b.contract_version_id).toBe(body.contractVersionId);
+    expect(b.requirement_rule_version_id).toBe(ruleVersionId);
+    expect(b.project_id).toBe(fx.projectId);
+    expect(b.contract_id).toBe(fx.contractId);
+    expect(b.bound_by_member_id).toBe(fx.memberId);
+    // Copied off the rule version, never taken from the caller — the composite
+    // FK (0041:485-486) makes a binding that misreports its version's stage
+    // unstorable, and reading it here means that refusal never has to fire.
+    const rv = await q<{ stage_key: string; requirement_rule_id: string }>(
+      `select stage_key, requirement_rule_id from public.requirement_rule_versions where id = $1`,
+      [ruleVersionId]);
+    expect(b.stage_key).toBe(rv[0]!.stage_key);
+    expect(b.requirement_rule_id).toBe(rv[0]!.requirement_rule_id);
+    expect(b.bound_rule_version_is_published).toBe(true);
+
+    // The version is published and carries a binding — the state INV-083 says
+    // is the only publishable one — and the audit says by what.
+    const version = await q<{ status: string }>(
+      `select status from public.contract_versions where id = $1`, [body.contractVersionId]);
+    expect(version[0]!.status).toBe("published");
+    const audit = await q<{ details: Record<string, unknown> }>(
+      `select details from public.audit_events
+        where action = 'contract_version.published' and object_id = $1`, [body.contractVersionId]);
+    expect(audit[0]!.details.boundRuleVersionCount).toBe(1);
+    expect(audit[0]!.details.ruleVersionIds).toEqual([ruleVersionId]);
+  });
+
+  it("cannot have its set extended after the publish transaction commits", async () => {
+    // INV-080 from the other side: the importer may bind inside its own
+    // commit, and NOBODY may bind afterwards. Without this, «pinned at
+    // publication» would be a property of one route's code rather than of the
+    // baseline.
+    const { batchId, view } = await readyToPublish();
+    const pub = await (await publish(
+      batchId, view.version, view.sourceManifestHash, [ruleVersionId])).json();
+    const second = await publishBindableRuleVersion(fx.workspaceId, {
+      stageKey: "prykhovani-roboty-2",
+    });
+    // `rule_bindings.manage` has to be granted by hand because it is in NO
+    // responsibility preset (M1 review finding 8) — the estimator who publishes
+    // a baseline cannot bind to one. Granted here so the refusal under test is
+    // INV-080 and not a 403: without it this would pass for the wrong reason.
+    const { POST: grant } = await import("../app/v1/projects/[projectId]/access-grants/route");
+    await grant(jsonReq("http://x", {
+      memberId: fx.memberId, capabilities: ["rule_bindings.manage"],
+    }), { params: Promise.resolve({ projectId: fx.projectId }) });
+    const { POST: bind } = await import(
+      "../app/v1/contract-versions/[versionId]/rule-bindings/route");
+    const res = await bind(jsonReq("http://x", { ruleVersionIds: [second.ruleVersionId] }),
+      { params: Promise.resolve({ versionId: pub.contractVersionId }) });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("VERSION_CONFLICT");
+    expect(Number((await q<{ n: string }>(
+      `select count(*) n from public.contract_version_rule_bindings where contract_version_id = $1`,
+      [pub.contractVersionId]))[0]!.n)).toBe(1);
+  });
+
+  it("refuses a rule version from another workspace as unknown, not as forbidden", async () => {
+    // Existence-safe: a version that belongs to somebody else must not be
+    // distinguishable from one that does not exist, or the refusal is a
+    // cross-tenant oracle (INV-001).
+    const { batchId, view } = await readyToPublish();
+    const otherFx = await baselineFixture(A, { contractBody: { contractNo: "Д-2026/Ф2" } });
+    const foreign = await publishBindableRuleVersion(otherFx.workspaceId);
+
+    const res = await publish(
+      batchId, view.version, view.sourceManifestHash, [foreign.ruleVersionId]);
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("VALIDATION_FAILED");
+    expect(body.fieldErrors[0].path).toBe("ruleVersionIds[0]");
+    expect(await publishedVersions()).toBe(0);
+
+    const unknown = await publish(
+      batchId, view.version, view.sourceManifestHash,
+      ["11111111-1111-4111-8111-111111111111"]);
+    expect(unknown.status).toBe(422);
+    expect((await unknown.json()).fieldErrors[0].message)
+      .toBe((body.fieldErrors[0] as { message: string }).message);
+  });
+
+  it("refuses a retired rule version with a catalogued 422, not a raw foreign-key 500", async () => {
+    // INV-067: a version withdrawn from circulation does not enter a NEW
+    // baseline. The composite FK on has_been_published cannot express this —
+    // a retired version HAS been published — so the command is what refuses,
+    // and it must refuse rather than raise.
+    const { batchId, view } = await readyToPublish();
+    const doomed = await publishBindableRuleVersion(fx.workspaceId, {
+      stageKey: "prykhovani-roboty-3",
+    });
+    const { POST: retire } = await import(
+      "../app/v1/requirement-rule-versions/[ruleVersionId]/retire/route");
+    const retired = await retire(jsonReq("http://x", {}),
+      { params: Promise.resolve({ ruleVersionId: doomed.ruleVersionId }) });
+    expect(retired.status, await retired.clone().text()).toBe(200);
+
+    const res = await publish(
+      batchId, view.version, view.sourceManifestHash, [doomed.ruleVersionId]);
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("VALIDATION_FAILED");
+    expect(body.fieldErrors[0].message).toContain("retired");
+    expect(await publishedVersions()).toBe(0);
+  });
+
+  it("refuses two versions of ONE rule with a 422 rather than raising 23505", async () => {
+    // `unique (workspace_id, contract_version_id, requirement_rule_id)`
+    // (0041:476) makes this unstorable, but unstorable reaches the caller as a
+    // 500, and a 500 is not a refusal anyone can act on. The request names two
+    // DIFFERENT ids, so deduplication cannot catch it — only the lineage can.
+    const { batchId, view } = await readyToPublish();
+    const rv = await q<{ requirement_rule_id: string }>(
+      `select requirement_rule_id from public.requirement_rule_versions where id = $1`,
+      [ruleVersionId]);
+    const next = await publishBindableRuleVersion(fx.workspaceId, {
+      requirementRuleId: rv[0]!.requirement_rule_id,
+      stageKey: "prykhovani-roboty-4",
+    });
+    expect(next.requirementRuleId).toBe(rv[0]!.requirement_rule_id);
+    expect(next.ruleVersionId).not.toBe(ruleVersionId);
+
+    const res = await publish(
+      batchId, view.version, view.sourceManifestHash, [ruleVersionId, next.ruleVersionId]);
+    expect(res.status, await res.clone().text()).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("VALIDATION_FAILED");
+    expect((body.fieldErrors as { path: string }[]).map((f) => f.path))
+      .toEqual(["ruleVersionIds[0]", "ruleVersionIds[1]"]);
+    expect(await publishedVersions()).toBe(0);
+    expect(Number((await q<{ n: string }>(
+      `select count(*) n from public.contract_version_rule_bindings where workspace_id = $1`,
+      [fx.workspaceId]))[0]!.n)).toBe(0);
+  });
+
+  it("means a repeated id once", async () => {
+    const { batchId, view } = await readyToPublish();
+    const res = await publish(batchId, view.version, view.sourceManifestHash,
+      [ruleVersionId, ruleVersionId, ruleVersionId]);
+    expect(res.status, await res.clone().text()).toBe(201);
+    expect((await res.json()).boundRuleVersionCount).toBe(1);
+    expect(Number((await q<{ n: string }>(
+      `select count(*) n from public.contract_version_rule_bindings where workspace_id = $1`,
+      [fx.workspaceId]))[0]!.n)).toBe(1);
+  });
+
+  it("pins every version of a multi-rule set, not only the first", async () => {
+    // A positive control with a set of THREE. With one binding, «pins the set»
+    // and «pins a binding» are the same sentence and no assertion separates
+    // them.
+    const { batchId, view } = await readyToPublish();
+    const b = await publishBindableRuleVersion(fx.workspaceId, { stageKey: "prykhovani-roboty-5" });
+    const c = await publishBindableRuleVersion(fx.workspaceId, { stageKey: "prykhovani-roboty-6" });
+    const res = await publish(batchId, view.version, view.sourceManifestHash,
+      [ruleVersionId, b.ruleVersionId, c.ruleVersionId]);
+    expect(res.status, await res.clone().text()).toBe(201);
+    const body = await res.json();
+    expect(body.boundRuleVersionCount).toBe(3);
+    const bound = await q<{ requirement_rule_version_id: string }>(
+      `select requirement_rule_version_id from public.contract_version_rule_bindings
+        where workspace_id = $1 and contract_version_id = $2
+        order by requirement_rule_version_id`, [fx.workspaceId, body.contractVersionId]);
+    expect(bound.map((r) => r.requirement_rule_version_id).sort())
+      .toEqual([ruleVersionId, b.ruleVersionId, c.ruleVersionId].sort());
   });
 });

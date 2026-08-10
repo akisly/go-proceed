@@ -4,11 +4,14 @@
 
 **Applies to:** v0.0 and v0.1
 
-**Last reviewed:** 2026-08-03
+**Last reviewed:** 2026-08-06
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-003](../decisions/ADR-003-evidence-packages-and-acceptance.md),
-[ADR-004](../decisions/ADR-004-roadmap-demo-and-documentation.md)
+[ADR-004](../decisions/ADR-004-roadmap-demo-and-documentation.md),
+[ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md),
+[ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md),
+[ADR-007](../decisions/ADR-007-pilot-field-client.md)
 
 ## Purpose
 
@@ -21,6 +24,30 @@ rules](../domain/execution-and-evidence.md), [package/acceptance
 rules](../domain/packages-and-acceptance.md), and [VaR
 definition](../domain/value-at-risk.md).
 
+**Version markers follow the ADR-006 re-cut.** Packages, package versions,
+package artifacts, claim segments, internal review, `commercial_decision`,
+the structured issues and coverage recorded against a decision batch, the
+statutory notice apparatus and the seven-state
+value-at-risk projection are **v0.2**
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 5).
+`external_decision_batches` itself is **v0.1-M5**: it entered v0.1 on 2026-08-06
+by owner decision (decision 4, amendment note) because it carries the receipt,
+the confirmation-text version and the idempotency record of an external submit.
+Where a rule
+below names one of them and carries no marker, it is a v0.2 rule by that fact
+alone; nothing here makes one a v0.1 obligation. The v0.1 artifact this
+document's rendering rules apply to is the frozen **statutory act version**,
+pinned by the stage closure that produced it (decision 4.5).
+[ADR-007](../decisions/ADR-007-pilot-field-client.md) adds no job, event, or
+audit shape: the v0.1 field client is a browser page behind the same BFF, and
+evidence inspection stays synchronous inside the finalization command.
+
+**Nothing in this document is executed today.** The outbox has no consumer, and
+artifact rendering, projection rebuilding, and scheduled maintenance have no
+database principal and no runtime
+([tenancy-and-security.md](tenancy-and-security.md) §Current risks). Every
+worker family below is a target contract, not a deployed behaviour.
+
 The delivery guarantee is **at least once**. GoProceed does not claim exactly-once
 execution across PostgreSQL, object storage, and external providers. It obtains
 one effective business result through transactional source facts, immutable
@@ -31,7 +58,7 @@ failures.
 
 | Record | Meaning | Authority and mutability |
 |---|---|---|
-| Domain fact or snapshot | What happened in the product: progress adjustment, evidence receipt, frozen package, decision, prior acceptance reference | Canonical relational authority. Append-only or immutable where the domain model requires it. |
+| Domain fact or snapshot | What happened in the product: progress adjustment, evidence receipt, stage closure, frozen act version, decision — and from v0.2 the frozen package and the prior-acceptance reference | Canonical relational authority. Append-only or immutable where the domain model requires it. |
 | Domain event | Versioned semantic statement that a committed domain transition occurred | Describes a domain fact and its causal identity. It is not a second mutable truth and does not require a separate `domain_events` table; it may be the immutable semantic envelope referenced by an outbox record. |
 | Audit event | Who attempted or completed an authorized command, against what scope, and with what result | Append-only accountability evidence. It never replaces domain history or reconstructs missing business facts. |
 | Transactional outbox record | Committed intent to deliver a domain event or start an external/asynchronous effect | Operational handoff written in the same transaction as its source fact. Immutable topic, payload version, causal references, and payload checksum; claim/delivery state is operational. |
@@ -40,7 +67,7 @@ failures.
 | Dead letter | Exhausted or permanently invalid work requiring explicit action | Append-only failure record linked to the source job/outbox event and every replay. |
 | Notification | In-product fact that a named recipient should be informed about a source fact | User-visible product record, distinct from channel delivery. |
 | Message delivery | One email/channel delivery request and normalized provider result | Operational delivery evidence. Provider acceptance is not proof that a human read or acted on the message. |
-| Projection | Rebuildable current view such as readiness, acceptance, VaR, queue, or delivery status | Derived from authoritative facts. It carries source watermark, algorithm version, calculation time, and stale/error state. |
+| Projection | Rebuildable current view such as readiness, blocked reasons and the blocked-money sum, queue, or delivery status — and from v0.2 acceptance and value at risk | Derived from authoritative facts. It carries source watermark, algorithm version, calculation time, and stale/error state. |
 
 Audit, domain event, and outbox must never be collapsed into one generic “event”
 table:
@@ -228,7 +255,7 @@ Required identities include:
 
 | Effect | Idempotency identity and rule |
 |---|---|
-| Artifact rendering | Frozen package version + artifact kind + renderer/configuration version. Same inputs return/verify the same artifact record and content hash; different renderer/config creates a new immutable identity/key. |
+| Artifact rendering | Frozen source snapshot + artifact kind + renderer/configuration version — in v0.1 the frozen statutory act version, from v0.2 additionally the frozen package version. Same inputs return/verify the same artifact record and content hash; different renderer/config creates a new immutable identity/key. |
 | Projection refresh | Projection kind + source watermark + algorithm version + scope. Replaying the same watermark is deterministic; older watermarks cannot overwrite a newer result. |
 | Notification creation | Recipient + notification kind + source fact/event. Duplicate consumption returns the same in-product notification. |
 | Message delivery | Notification/message identity + channel + delivery generation. Provider idempotency key is reused when supported; ambiguous responses are reconciled before a new generation. |
@@ -275,7 +302,17 @@ explicitly authorizes a distinct delivery or artifact.
 
 Artifact jobs load one frozen snapshot and pinned template/renderer
 configuration. They write to an immutable versioned private key, calculate and
-verify the content hash, then create/return the `package_artifact` fact.
+verify the content hash, then create/return the artifact fact — in v0.1 against
+the frozen statutory act version, from v0.2 additionally the `package_artifact`
+fact against a frozen package version.
+
+A rendered act version is assembled only from already-recorded facts, and no
+rendered surface carries a free-text quantity field. Every normative string it
+prints carries its verification tag and source, or is unrenderable by
+construction
+([hidden-works-content-rules.md](../product/hidden-works-content-rules.md)); a
+renderer may not add a normative item, a clause number, or a form field that the
+allow-list does not carry.
 
 If object upload succeeds but the artifact transaction fails, reconciliation
 either adopts the exact expected object after hash verification or purges it as
@@ -299,8 +336,9 @@ bodies or bearer links.
 
 ### Projection refresh
 
-Readiness, acceptance, VaR, queues, and delivery summaries are rebuildable.
-Projection jobs:
+Readiness, the blocked-money sum, queues, and delivery summaries are rebuildable
+in v0.1; acceptance and the seven-state value-at-risk projection join them in
+v0.2. Projection jobs:
 
 - read authoritative facts through one source watermark/transaction position;
 - pin the projection algorithm version;
@@ -329,6 +367,15 @@ The bounded v0.1 orphan-purge job is an operational storage safeguard. It does
 not implement general customer-data retention or legal hold; automated
 retention/legal-hold workflows remain later-version capabilities.
 
+What the **client** does with its own copy when an intent becomes
+`orphaned_for_purge` differs by client and is not cosmetic. The v0.3 native
+client quarantines its local original under the approved recovery/deletion
+policy; the v0.1 PWA has no quarantine to offer and instead tells the user
+plainly that GoProceed did not save the photo
+([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 6). No job,
+event, or retry in this document may be described as recovering a v0.1 pending
+original, because none can.
+
 ## Audit actor and append-only rules
 
 ### Effective actor
@@ -337,9 +384,11 @@ Every audit event derives the actor from the authenticated server context, never
 from client-supplied display fields:
 
 - member command: Auth subject, membership, workspace, and relevant project
-  access/permission;
-- external command: external session, grant, package version, assurance label,
-  and self-declared reviewer claims kept distinct;
+  access/permission — the same chain whether the request came from the web
+  product or the v0.1 PWA field client, which holds no authority of its own;
+- external command: external session, grant, the grant's scope — one requirement
+  occurrence in v0.1, additionally one package version from v0.2 — assurance
+  label, and self-declared reviewer claims kept distinct;
 - service command: allowlisted service principal and exact job/attempt;
 - system maintenance: named system principal and authorized operational command.
 

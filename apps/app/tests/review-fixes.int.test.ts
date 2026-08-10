@@ -5,7 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
   q, truncateAll, jsonReq, baselineFixture, createBatch, addFile, getBatch,
-  type BaselineFixture,
+  publishBindableRuleVersion, type BaselineFixture,
 } from "./helpers/fixtures";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"; // owner
@@ -25,10 +25,21 @@ async function resolve(batchId: string, body: Record<string, unknown>) {
   const { POST } = await import("../app/v1/import-batches/[batchId]/resolutions/route");
   return POST(jsonReq("http://x", body), { params: Promise.resolve({ batchId }) });
 }
-async function publish(batchId: string, expectedVersion: number, manifest: string) {
+/**
+ * `workspaceId` is required because publication is: `import_batches.publish`
+ * refuses a baseline with no bound rule-version set (INV-083), so a rule
+ * version has to exist and be named. Every block below is about money, lineage
+ * or locations rather than about the gate, so the set is produced here rather
+ * than restated at each call.
+ */
+async function publish(
+  batchId: string, expectedVersion: number, manifest: string, workspaceId: string,
+) {
+  const { ruleVersionId } = await publishBindableRuleVersion(workspaceId);
   const { POST } = await import("../app/v1/import-batches/[batchId]/publish/route");
-  return POST(jsonReq("http://x", { expectedVersion, confirmedManifestHash: manifest }),
-    { params: Promise.resolve({ batchId }) });
+  return POST(jsonReq("http://x", {
+    expectedVersion, confirmedManifestHash: manifest, ruleVersionIds: [ruleVersionId],
+  }), { params: Promise.resolve({ batchId }) });
 }
 
 beforeEach(async () => { await truncateAll(); current = A; });
@@ -82,7 +93,7 @@ describe("Inclusive VAT — tax is extracted from the price, not added", () => {
     await addFile(batchId, "кошторис.csv", enc("Назва;Од;К-сть;Ціна\nМурування;м2;10;199,99\n"));
     const val = await (await validate(batchId, 2, { description: "A", unit: "B", quantity: "C", unitPrice: "D" })).json();
     expect(val.status).toBe("preview_ready");
-    const pub = await (await publish(batchId, val.version, val.sourceManifestHash)).json();
+    const pub = await (await publish(batchId, val.version, val.sourceManifestHash, fx.workspaceId)).json();
     const items = await q<{ net: string; tax: string; gross: string; price_basis: string }>(
       `select net_amount_minor_units net, tax_amount_minor_units tax,
               gross_amount_minor_units gross, price_basis
@@ -122,7 +133,7 @@ describe("Lump-sum line (amount, no unit price)", () => {
     expect(res.status).toBe(201);
     const reval = await (await validate(batchId, val.version)).json();
     expect(reval.status).toBe("preview_ready");
-    const pub = await (await publish(batchId, reval.version, reval.sourceManifestHash)).json();
+    const pub = await (await publish(batchId, reval.version, reval.sourceManifestHash, fx.workspaceId)).json();
     const items = await q<{ net: string; valuation_basis: string }>(
       `select net_amount_minor_units net, valuation_basis from public.work_items where contract_version_id=$1`,
       [pub.contractVersionId]);
@@ -186,7 +197,7 @@ describe("Mapped location column", () => {
     const val = await (await validate(batchId, 2,
       { description: "A", unit: "B", quantity: "C", unitPrice: "D", location: "E" })).json();
     expect(val.status).toBe("preview_ready");
-    const pub = await (await publish(batchId, val.version, val.sourceManifestHash)).json();
+    const pub = await (await publish(batchId, val.version, val.sourceManifestHash, fx.workspaceId)).json();
 
     const locs = await q<{ name: string }>(
       "select name from public.locations where workspace_id=$1 and project_id=$2 order by name",

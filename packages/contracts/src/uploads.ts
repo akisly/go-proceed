@@ -1,6 +1,26 @@
 import { z } from "zod";
 
 export const createUploadIntentRequest = z.object({
+  /**
+   * The obligation this original is being captured against — and, from v0.1-M2,
+   * the AUTHORITY on what may be uploaded.
+   *
+   * The media policy used to come from the template pinned to the assignment
+   * (ADR-005 decision 2 retires that pin). It now comes from the occurrence's
+   * pinned rule version, which is what makes the gate specific to the
+   * requirement instead of specific to the assignment. `upload_intents_
+   * occurrence_fkey` (migration 0043 §5) refuses an occurrence belonging to a
+   * different assignment, so naming one here cannot borrow another assignment's
+   * policy.
+   *
+   * OPTIONAL, AND THE OPTIONALITY IS THE FALLBACK'S ONLY REMAINING DOOR. An
+   * intent with no occurrence is legal — the column is nullable and in v0.1 that
+   * is every intent captured outside the requirement flow — and it gets
+   * `FALLBACK_MEDIA`. Making it required would have been the stricter contract
+   * and it would have broken every deployed caller on the day the occurrence set
+   * is still empty; see the route for why that set is still empty.
+   */
+  requirementOccurrenceId: z.string().uuid().optional(),
   expectedContentHash: z.string().regex(/^[0-9a-f]{64}$/),
   expectedByteSize: z.number().int().positive(),
   claimedMediaType: z.string().regex(/^[a-z]+\/[a-z0-9.+-]+$/),

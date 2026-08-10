@@ -19,10 +19,26 @@ const add = (a: PoolAmounts, b: PoolAmounts): PoolAmounts =>
   ({ net: a.net + b.net, tax: a.tax + b.tax, gross: a.gross + b.gross });
 
 /**
- * Minimal stand-in for what progress.record / progress.adjust maintain under the
- * work-item row lock. Tests drive this rather than calling sliceAllocation with
+ * Minimal stand-in for the allocation state a caller maintains under the
+ * work-item lock. Tests drive this rather than calling sliceAllocation with
  * hand-built state, so the per-root bookkeeping is exercised the way the routes
- * will exercise it.
+ * exercise it.
+ *
+ * THE CALLER CHANGED WITH ADR-008 AND THE ALGEBRA DID NOT. This file is the third
+ * of the three ADR-008 §Consequences names, and it is the one the ADR says is
+ * «unaffected. Only its caller moves.» So nothing below is rewritten: the state
+ * this class threads used to be maintained by `progress.record` and
+ * `progress.adjust`, and after ADR-008 it is maintained by `progress.adjust` and
+ * by the ADMISSION command — `apps/app/src/lib/admission.ts`, called inside the
+ * stage-closure transaction. `apps/app/tests/admission-valuation.int.test.ts` is
+ * where the same matrix is exercised end to end against a real database; this
+ * file stays the pure-arithmetic half and knows about no route at all.
+ *
+ * One consequence IS visible here in what the class does NOT model: after ADR-008
+ * only ADMITTED quantity competes for the pool, so a recorded-and-unadmitted entry
+ * contributes to neither `workItemPerformed` nor `workItemAllocated` until its
+ * closure. `Ledger.apply` therefore represents an ADMISSION and not a measurement,
+ * and a walk over this class says nothing about the gap between the two.
  */
 class Ledger {
   workItemPerformed = 0n;
@@ -38,7 +54,27 @@ class Ledger {
       workItemPerformed: this.workItemPerformed,
       workItemAllocated: this.workItemAllocated,
       rootQuantity: root.quantity,
+      // THE SAME NUMBER, AND ONLY IN THIS MODEL. `AllocationState` split measured
+      // from admitted quantity on 2026-08-08 (see the negative branch of
+      // `sliceAllocation`), and every `apply` here IS an admission — the class
+      // header says so — so a Ledger root has no entry that fails to hold an
+      // allocation and the two figures coincide by construction. The case where
+      // they diverge is a route-level one: `progress.adjust` writing no
+      // allocation for an increase against an admitted root. It cannot be
+      // expressed here at all, and it is asserted end to end in
+      // `apps/app/tests/progress-adjust.int.test.ts`.
+      rootAdmittedQuantity: root.quantity,
       rootFundedQuantity: root.funded,
+      // NOTHING IS EVER QUEUED IN THIS MODEL, and that is what makes the lineage
+      // ceiling (added to the positive branch on 2026-08-08) invisible to every
+      // walk below. `apply` writes one slice and returns, so there is no later
+      // statement of the same transaction for a removal to be waiting in. With
+      // the queue empty the ceiling is `rootQuantity + delta - rootFunded`, and
+      // this class keeps `funded <= quantity` by construction — every apply IS an
+      // admission — so the ceiling is never below the delta and never binds. The
+      // case that needs it is a route-level one and cannot be expressed here:
+      // see `apps/app/tests/progress-adjust.int.test.ts`.
+      queuedRemovalQuantity: 0n,
       rootAllocated: root.allocated,
     };
     const { amounts, fundedQuantity } = sliceAllocation(this.w, state, delta);
@@ -375,6 +411,85 @@ describe("ledger invariants with over-contract quantities", () => {
         expect(held).toBe(l.workItemAllocated.gross);
       }
     }
+  });
+});
+
+describe("the lineage ceiling on a positive carve", () => {
+  // THE ONE PLACE THIS FILE BUILDS STATE BY HAND, and the Ledger's own header
+  // says why it has to: every `apply` there is an admission, so a Ledger root
+  // never has an entry that holds no allocation, and the state this ceiling
+  // exists for — an ADMITTED root carrying an UNADMITTED increase, corrected
+  // downward by more than it was funded — cannot be reached through the model at
+  // all. `apps/app/tests/progress-adjust.int.test.ts` exercises it end to end;
+  // these three cases pin the arithmetic the route depends on.
+  const line: WorkItemValuation = {
+    pool: { net: 1_000n, tax: 0n, gross: 1_000n },
+    contractQuantity: Q(10),
+    taxMode: "exempt",
+    unitPriceState: "known",
+    valuationBasis: "unit_price_derived",
+  };
+
+  it("funds only the lineage's effective quantity when nothing more is queued", () => {
+    // `record 4 / admit / +6 / −8`, at the moment the waiting +6 is admitted
+    // alone. The line's admitted entries are the root (+4) and the correction
+    // (−8), so it reads −4 performed; the lineage measures 2 and holds no
+    // funding, because the −8 handed back all four funded units.
+    const slice = sliceAllocation(line, {
+      workItemPerformed: -Q(4),
+      workItemAllocated: ZERO,
+      rootQuantity: -Q(4),
+      rootAdmittedQuantity: -Q(4),
+      rootFundedQuantity: 0n,
+      queuedRemovalQuantity: 0n,
+      rootAllocated: ZERO,
+    }, Q(6));
+
+    // SIX WERE MEASURED AND TWO MAY DRAW MONEY. Unbounded this returned 6, the
+    // lineage reached funded 6 against an effective 2, and
+    // app.assert_funded_within_lineage() (migration 0048 §3) aborted the closure
+    // at COMMIT — identically on every retry.
+    expect(slice.fundedQuantity).toBe(Q(2));
+    // 2/10 of the pool and not 2/14. The line's performed quantity is floored at
+    // zero before it becomes a denominator: −4 performed would claim 14 units of
+    // a ten-unit line are still available to draw money.
+    expect(slice.amounts.gross).toBe(200n);
+  });
+
+  it("leaves room for a removal the same admission has queued behind it", () => {
+    // `record 10 / adjust −4 / close` — both entries pending, root first. The
+    // root is funded its full 10 and the correction gives 4 back a statement
+    // later. Migration 0048 §3 makes the trigger DEFERRABLE INITIALLY DEFERRED
+    // precisely so that intermediate state is legal, and a ceiling that ignored
+    // the queue would be that immediate trigger written in TypeScript.
+    const state: AllocationState = {
+      workItemPerformed: 0n,
+      workItemAllocated: ZERO,
+      rootQuantity: -Q(4),
+      rootAdmittedQuantity: 0n,
+      rootFundedQuantity: 0n,
+      queuedRemovalQuantity: Q(4),
+      rootAllocated: ZERO,
+    };
+    const queued = sliceAllocation(line, state, Q(10));
+    expect(queued.fundedQuantity).toBe(Q(10));
+    expect(queued.amounts.gross).toBe(1_000n);
+
+    // The same state with an empty queue is the flat ceiling, and it is a
+    // DIFFERENT answer — which is the whole reason the queue is carried. Pinned
+    // here so that dropping the field cannot look harmless.
+    const flat = sliceAllocation(line, { ...state, queuedRemovalQuantity: 0n }, Q(10));
+    expect(flat.fundedQuantity).toBe(Q(6));
+  });
+
+  it("never bounds a lineage that has funded no more than it measured", () => {
+    // The ordinary case, stated so the ceiling cannot quietly start biting: a
+    // root whose funded quantity is within its measured quantity has headroom of
+    // at least the delta, because the ceiling grows by the delta too.
+    const l = new Ledger(line);
+    expect(l.apply("A", Q(4)).gross).toBe(400n);
+    expect(l.apply("A", Q(6)).gross).toBe(600n);
+    expect(l.roots.get("A")!.funded).toBe(Q(10));
   });
 });
 

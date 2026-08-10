@@ -8,17 +8,52 @@ export async function q<T extends Record<string, unknown> = Record<string, unkno
 ): Promise<T[]> {
   const c = new Client({ connectionString: ADMIN_URL });
   await c.connect();
-  const r = await c.query(sql, p);
-  await c.end();
-  return r.rows as T[];
+  // try/finally for the reason spelled out on truncateAll: a query that throws
+  // must not leave its connection open, and every helper here opens its own.
+  try {
+    const r = await c.query(sql, p);
+    return r.rows as T[];
+  } finally {
+    await c.end().catch(() => undefined);
+  }
 }
 
+/**
+ * Empties the world between cases.
+ *
+ * THE CONNECTION IS CLOSED EVEN WHEN THE TRUNCATE FAILS, and that is not
+ * housekeeping. `truncate ... cascade` takes ACCESS EXCLUSIVE on organizations
+ * and on everything that cascades from it. Written without a finally, a single
+ * failed truncate leaked a CONNECTED client still holding — or still queued
+ * for — those locks, and nothing ever closed it: the next file's truncate then
+ * queued behind a client no test owned any more. That is the shape of the
+ * `deadlock detected` this helper raised in m3-refusal, and of the empty
+ * `memberships` lookup that crashed baselineFixture two files later, because a
+ * beforeEach that throws leaves the suite running against a half-emptied
+ * database.
+ *
+ * `lock_timeout` turns the remaining lock contention from a deadlock into a
+ * named, fast failure. A test suite that cannot get the lock in five seconds
+ * has a leak somewhere else, and should say so rather than hang.
+ */
 export async function truncateAll(): Promise<void> {
   const c = new Client({ connectionString: ADMIN_URL });
   await c.connect();
-  await c.query("truncate public.organizations cascade");
-  await c.query("truncate public.audit_events, public.transaction_outbox, public.idempotency_records cascade");
-  await c.end();
+  try {
+    await c.query("set lock_timeout = '5s'");
+    // ONE STATEMENT, NOT TWO, and that is the other half of the deadlock. As two
+    // statements this took ACCESS EXCLUSIVE on organizations and everything
+    // cascading from it, COMMITTED, and only then reached for audit_events — so
+    // an application transaction holding audit_events and waiting on
+    // organizations closed the cycle. A single TRUNCATE acquires every one of
+    // these locks together, so there is no window in which this helper holds one
+    // and wants another.
+    await c.query(`truncate
+      public.organizations, public.audit_events,
+      public.transaction_outbox, public.idempotency_records cascade`);
+  } finally {
+    await c.end().catch(() => undefined);
+  }
 }
 
 export const jsonReq = (url: string, body: unknown, method = "POST"): Request =>
@@ -43,19 +78,44 @@ export interface BaselineFixture {
  * legal+own profile → customer party → contract. Caller must have mocked auth
  * as the creating user already.
  */
+/**
+ * Reads a route's JSON, and refuses to continue past a route that failed.
+ *
+ * WITHOUT THIS THE FIXTURE LIED ABOUT WHERE IT BROKE. Every step below used to
+ * be `(await res.json()).someId as string`, which on a non-2xx quietly yields
+ * `undefined` — so a workspace that failed to be created produced
+ * `workspaceId === undefined`, the memberships lookup two lines later matched
+ * nothing, and the suite died on `TypeError: Cannot read properties of
+ * undefined (reading 'id')` pointing at a query that was never the problem.
+ * That TypeError is what all 39 cases in m4-act reported. The real refusal —
+ * with its status and its catalogued body — is what a reader needs.
+ */
+async function step<T = Record<string, unknown>>(
+  what: string, res: Response,
+): Promise<T> {
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`baselineFixture: ${what} returned ${res.status} ${await res.text()}`);
+  }
+  return await res.json() as T;
+}
+
 export async function baselineFixture(userId: string, over: {
   contractBody?: Record<string, unknown>;
 } = {}): Promise<BaselineFixture> {
   const { POST: createW } = await import("../../app/v1/workspaces/route");
   const w = await createW(jsonReq("http://x/v1/workspaces", { displayName: "Приклад-Фікстура" }), { params: Promise.resolve({}) });
-  const workspaceId = (await w.json()).workspaceId as string;
+  const workspaceId = (await step<{ workspaceId: string }>("workspaces.create", w)).workspaceId;
 
   const { POST: createP } = await import("../../app/v1/workspaces/[workspaceId]/projects/route");
   const p = await createP(jsonReq("http://x", { name: "Приклад-Обʼєкт" }), { params: Promise.resolve({ workspaceId }) });
-  const projectId = (await p.json()).projectId as string;
+  const projectId = (await step<{ projectId: string }>("projects.create", p)).projectId;
 
   const me = await q<{ id: string }>(
     "select id from public.memberships where organization_id=$1 and user_id=$2", [workspaceId, userId]);
+  if (me.length === 0) {
+    throw new Error(
+      `baselineFixture: no membership for user ${userId} in workspace ${workspaceId}`);
+  }
   const memberId = me[0]!.id;
   const { POST: grant } = await import("../../app/v1/projects/[projectId]/access-grants/route");
   await grant(jsonReq("http://x", { memberId, capabilities: ["contracts.edit", "imports.manage", "imports.publish"] }),
@@ -63,7 +123,7 @@ export async function baselineFixture(userId: string, over: {
 
   const { POST: createParty } = await import("../../app/v1/workspaces/[workspaceId]/parties/route");
   const own = await createParty(jsonReq("http://x", { displayName: "Приклад-Власна" }), { params: Promise.resolve({ workspaceId }) });
-  const ownPartyId = (await own.json()).partyId as string;
+  const ownPartyId = (await step<{ partyId: string }>("parties.create (own)", own)).partyId;
   const { PUT: putLegal } = await import("../../app/v1/parties/[partyId]/legal-profile/route");
   await putLegal(jsonReq("http://x", { officialName: "ТОВ Приклад-Власна", edrpou: "12345678" }, "PUT"),
     { params: Promise.resolve({ partyId: ownPartyId }) });
@@ -71,7 +131,8 @@ export async function baselineFixture(userId: string, over: {
   await createOwn(jsonReq("http://x", {}), { params: Promise.resolve({ partyId: ownPartyId }) });
 
   const cust = await createParty(jsonReq("http://x", { displayName: "Приклад-Замовник" }), { params: Promise.resolve({ workspaceId }) });
-  const customerPartyId = (await cust.json()).partyId as string;
+  const customerPartyId =
+    (await step<{ partyId: string }>("parties.create (customer)", cust)).partyId;
 
   const { POST: createContract } = await import("../../app/v1/projects/[projectId]/contracts/route");
   const c = await createContract(jsonReq("http://x", {
@@ -79,7 +140,7 @@ export async function baselineFixture(userId: string, over: {
     currency: "UAH", taxMode: "exclusive", taxRateBps: 2000,
     ...over.contractBody,
   }), { params: Promise.resolve({ projectId }) });
-  const contractId = (await c.json()).contractId as string;
+  const contractId = (await step<{ contractId: string }>("contracts.create", c)).contractId;
 
   return { workspaceId, projectId, ownPartyId, customerPartyId, contractId, memberId };
 }
@@ -102,6 +163,85 @@ export async function addFile(batchId: string, name: string, bytes: Uint8Array):
 export async function getBatch(batchId: string): Promise<Response> {
   const { GET } = await import("../../app/v1/import-batches/[batchId]/route");
   return GET(new Request("http://x"), { params: Promise.resolve({ batchId }) });
+}
+
+/**
+ * One published rule version, for a baseline that has to be bound before it can
+ * be published.
+ *
+ * WHY EVERY IMPORT FIXTURE NOW NEEDS THIS. `import_batches.publish` refuses a
+ * publication carrying no rule-version set (INV-083) — the same refusal
+ * `contract_versions.publish` has always made — so an unbound published
+ * baseline is a state the product can no longer produce, and a fixture that
+ * still produced one would be building a state no user can reach and testing
+ * every later assertion against it.
+ *
+ * IT DRIVES THE PRODUCT'S OWN PATH and inserts nothing directly: the library
+ * row it cites is the one `workspaces.create` seeded, and the version is
+ * published by the route. A fixture that inserted either would pass on a
+ * deployment where neither works, which is exactly the failure the twelve
+ * missing library rows were.
+ *
+ * NO EXTRA GRANT. `requirement_rule_versions.publish` is governed by
+ * `requirement_rules.manage`, a workspace capability that maps to the owner
+ * role, and every caller of this helper created the workspace. The BINDING is
+ * admitted by `cvrb_insert` under `imports.publish` (0041:785-787), which
+ * `baselineFixture` already grants — so the estimator persona reaches the whole
+ * path without a separate grant on this route. (On the MANUAL route it does
+ * not: `rule_bindings.manage` is in no responsibility preset — M1 review
+ * finding 8 — and that gap is untouched here.)
+ *
+ * The shape is the only one v0.1 can publish: a `hold` that blocks stage
+ * closure, timed before concealment. INV-082 refuses every other intervention
+ * type and every other blocking scope.
+ *
+ * CORRECTED BY THE v0.1-M5 SLICE: this comment used to say «naming an internal
+ * approver … INV-085 refuse[s] everything else», and that half is no longer
+ * true. `occurrence_grants.issue` shipped, so
+ * `requirement_rule_versions.publish` accepts `approverIsExternal: true` on a
+ * `hold` — pass it through `over` to build the obligation an external технагляд
+ * can be granted. The default stays `false`, so every existing caller is
+ * unaffected.
+ */
+export async function publishBindableRuleVersion(
+  workspaceId: string, over: Record<string, unknown> = {},
+): Promise<{ ruleVersionId: string; requirementRuleId: string; stageKey: string }> {
+  const lib = await q<{ id: string }>(
+    `select id from public.requirement_library_items
+      where workspace_id = $1 and position_code = 'Н.15' and item_no = 1`, [workspaceId]);
+  if (lib.length !== 1) {
+    // Names the cause rather than letting the publication fail with a 422 about
+    // an id the caller never chose: this is what an unseeded library looks like
+    // from inside a fixture.
+    throw new Error(
+      `publishBindableRuleVersion: workspace ${workspaceId} holds ${lib.length} Н.15/1 library rows, not 1`
+      + " — workspaces.create is what seeds them");
+  }
+  const { POST } = await import(
+    "../../app/v1/workspaces/[workspaceId]/requirement-rule-versions/route");
+  const res = await POST(jsonReq("http://x", {
+    workTypeKey: "montazh-elektrotekhnichnykh-ustanovok",
+    stageKey: "prykhovani-roboty",
+    interventionType: "hold",
+    blockingScope: "blocks_stage_closure",
+    timing: "before_concealment",
+    evidenceKind: "photo",
+    performerRole: "foreman",
+    approverRole: "technical_supervisor",
+    allowedMedia: { mimeTypes: ["image/jpeg"], maxByteSize: 5 * 1024 * 1024 },
+    requirementLibraryItemId: lib[0]!.id,
+    ...over,
+  }), { params: Promise.resolve({ workspaceId }) });
+  if (res.status !== 201) {
+    throw new Error(
+      `publishBindableRuleVersion: publish returned ${res.status} ${await res.text()}`);
+  }
+  const body = await res.json();
+  return {
+    ruleVersionId: body.ruleVersionId as string,
+    requirementRuleId: body.requirementRuleId as string,
+    stageKey: body.stageKey as string,
+  };
 }
 
 /** Minimal hand-crafted ZIP (for IMPORT_FILE_UNSUPPORTED fixtures). */
@@ -147,6 +287,11 @@ export interface PublishedBaselineFixture extends BaselineFixture {
   contractVersionId: string;
   /** Work items of the published version, in position order. */
   workItems: { id: string; workCode: string | null; unitCode: string }[];
+  /**
+   * The rule version the baseline was published against. Not optional: INV-083
+   * means a published baseline always has at least one, on either route.
+   */
+  ruleVersionId: string;
 }
 
 /**
@@ -186,9 +331,11 @@ export async function publishedBaselineFixture(
   }), { params: Promise.resolve({ batchId }) });
 
   const view = await (await getBatch(batchId)).json();
+  const { ruleVersionId } = await publishBindableRuleVersion(fx.workspaceId);
   const { POST: publish } = await import("../../app/v1/import-batches/[batchId]/publish/route");
   const res = await publish(jsonReq("http://x", {
     expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+    ruleVersionIds: [ruleVersionId],
   }), { params: Promise.resolve({ batchId }) });
   if (res.status !== 201) {
     throw new Error(`publishedBaselineFixture: publish returned ${res.status} ${await res.text()}`);
@@ -201,7 +348,7 @@ export async function publishedBaselineFixture(
     [fx.workspaceId, contractVersionId]);
 
   return {
-    ...fx, contractVersionId,
+    ...fx, contractVersionId, ruleVersionId,
     workItems: workItems.map((w) => ({ id: w.id, workCode: w.work_code, unitCode: w.unit_code })),
   };
 }
@@ -292,9 +439,11 @@ export async function matrixFixture(
   }
 
   const view = await (await getBatch(batchId)).json();
+  const { ruleVersionId } = await publishBindableRuleVersion(fx.workspaceId);
   const { POST: publish } = await import("../../app/v1/import-batches/[batchId]/publish/route");
   const res = await publish(jsonReq("http://x", {
     expectedVersion: view.version, confirmedManifestHash: view.sourceManifestHash,
+    ruleVersionIds: [ruleVersionId],
   }), { params: Promise.resolve({ batchId }) });
   if (res.status !== 201) {
     throw new Error(`matrixFixture: publish returned ${res.status} ${await res.text()}`);
@@ -317,6 +466,7 @@ export async function matrixFixture(
   return {
     ...fx,
     contractVersionId,
+    ruleVersionId,
     workItems: items.map((w) => ({ id: w.id, workCode: w.work_code, unitCode: w.unit_code })),
     bySourceKey: Object.fromEntries(items.map((w) => [w.source_key, {
       id: w.id,

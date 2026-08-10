@@ -205,10 +205,17 @@ export async function dropM2Workspaces(c: Client, workspaceIds: readonly string[
     "work_items", "contract_versions", "import_row_results", "import_files",
     "import_batches", "source_amount_resolutions", "contracts",
     "project_responsibility_assignments", "project_access_grants",
-    "project_parties", "projects", "locations", "unit_definitions",
+    "project_parties",
+    // audit_events must precede projects: 0040 gave audit_events a tenant-safe
+    // composite FK to projects with NO ACTION, so deleting a project still
+    // cited by audit raises 23503. The `disable trigger user` at the end of
+    // this function does not help — it suppresses user triggers, not
+    // referential integrity.
+    "audit_events", "projects",
+    "locations", "unit_definitions",
     "own_legal_entity_profiles", "party_legal_profiles", "party_contacts",
     "parties", "invitations", "memberships",
-    "audit_events", "transaction_outbox",
+    "transaction_outbox",
   ];
   // Resolve the tenant column from the catalog rather than guessing: some M1
   // tables name it organization_id, and a guess-then-catch loop turns a missing

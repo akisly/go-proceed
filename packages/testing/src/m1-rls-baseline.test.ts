@@ -76,13 +76,89 @@ describe("INV-001/002 — contract-baseline isolation and immutability", () => {
       .rejects.toThrow(/immutable/i);
   });
 
-  it("aktflow_app has no UPDATE/DELETE grant on append-only tables", async () => {
+  // ── EDITED IN THE v0.1-M1 MANUAL-BASELINE SLICE ───────────────────────────
+  // This was one assertion: aktflow_app holds no UPDATE or DELETE on
+  // contract_versions, work_items, import_files, import_row_results,
+  // source_amount_resolutions or project_responsibility_assignments. Migration
+  // 0042 grants exactly the first two, because ADR-006 decision 2 makes a
+  // hand-typed baseline a draft that must reach 'published' and whose lines
+  // must be correctable until it does — and 0042:59-65 schedules this edit into
+  // the same slice rather than leaving the assertion to be deleted later by
+  // somebody who does not know why it was written.
+  //
+  // IT IS NOT DELETED. An append-only table losing its guard silently is a
+  // failure this repository has already had once, so the assertion splits into
+  // four: the tables that are STILL append-only keep the original claim, the
+  // two that changed state exactly what they gained and what they did not, and
+  // the prohibition that used to live in the absent grant is asserted where it
+  // now lives — in app.guard_contract_version() and app.guard_work_item().
+  //
+  // NOTHING BELOW HAS BEEN EXECUTED: no database was available when this edit
+  // was written, so these four assertions were checked by reading 0042 and are
+  // not claimed to pass.
+
+  it("aktflow_app still has no UPDATE/DELETE on the tables that stayed append-only", async () => {
     const r = await admin.query(
       `select table_name, privilege_type from information_schema.role_table_grants
         where grantee='aktflow_app' and table_schema='public'
-          and table_name in ('contract_versions','work_items','import_files','import_row_results','source_amount_resolutions','project_responsibility_assignments')
+          and table_name in ('import_files','import_row_results','source_amount_resolutions','project_responsibility_assignments')
           and privilege_type in ('UPDATE','DELETE')`);
     expect(r.rows).toEqual([]);
+  });
+
+  it("contract_versions gained UPDATE and did NOT gain DELETE", async () => {
+    // UPDATE is what the draft -> published transition needs. DELETE is not:
+    // there is no contract_versions.remove row in scope-v0.1.csv, so an
+    // abandoned draft keeps its version number forever — a real cost of the
+    // shape, recorded rather than worked around (0042:118-121).
+    const r = await admin.query<{ privilege_type: string }>(
+      `select distinct privilege_type from information_schema.role_table_grants
+        where grantee='aktflow_app' and table_schema='public'
+          and table_name='contract_versions' and privilege_type in ('UPDATE','DELETE')`);
+    expect(r.rows.map((x) => x.privilege_type)).toEqual(["UPDATE"]);
+  });
+
+  it("work_items gained UPDATE and DELETE, for a DRAFT version's lines only", async () => {
+    // work_items.remove is the only DELETE in the v0.1 route set. The grant is
+    // unconditional; the condition — the owning version is still a draft — is
+    // app.guard_work_item()'s, and it is asserted behaviourally in
+    // apps/app/tests/manual-baseline.int.test.ts, at both layers.
+    const r = await admin.query<{ privilege_type: string }>(
+      `select distinct privilege_type from information_schema.role_table_grants
+        where grantee='aktflow_app' and table_schema='public'
+          and table_name='work_items' and privilege_type in ('UPDATE','DELETE')
+        order by privilege_type`);
+    expect(r.rows.map((x) => x.privilege_type)).toEqual(["DELETE", "UPDATE"]);
+  });
+
+  it("the prohibition moved from the missing grant to a guard, on both tables", async () => {
+    // The blanket app.reject_mutation() triggers 0013 installed are replaced,
+    // not removed: if a future migration dropped the guards, the grants above
+    // would leave a published baseline editable by any holder of contracts.edit.
+    const r = await admin.query<{ tgname: string; relname: string }>(
+      `select t.tgname, rel.relname
+         from pg_trigger t
+         join pg_class rel on rel.oid = t.tgrelid
+         join pg_namespace n on n.oid = rel.relnamespace
+        where not t.tgisinternal and n.nspname = 'public'
+          and rel.relname in ('contract_versions','work_items')
+        order by rel.relname, t.tgname`);
+    const wired = r.rows.map((x) => `${x.relname}.${x.tgname}`);
+    expect(wired).toContain("contract_versions.contract_versions_guard");
+    expect(wired).toContain("work_items.work_items_guard");
+    // Migration 0050's second guard on the same table, asserted here for the
+    // reason the block exists: a future migration that dropped it would leave
+    // public.work_items.work_type_key writable with a key naming no rule version
+    // the workspace can bind, and a key that resolves to nothing produces an
+    // empty obligation set, a vacuous stage closure and a PASSING constraint on
+    // every row — silently. This is a schema fact and belongs in the baseline;
+    // the behavioural cover (apps/app/tests/work-type-carrier.int.test.ts) needs
+    // the full route stack, so it would not catch a drop on its own.
+    expect(wired).toContain("work_items.work_items_work_type_guard");
+    // And the triggers they replaced are gone rather than both being installed,
+    // which would make every draft correction fail with the old message.
+    expect(wired).not.toContain("contract_versions.contract_versions_immutable");
+    expect(wired).not.toContain("work_items.work_items_immutable");
   });
 
   it("import batch is invisible to a member without a project grant (own workspace)", async () => {
