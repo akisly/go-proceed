@@ -12,6 +12,10 @@ describe("the problem+json userAction decides what the screen does next", () => 
     expect(nextStateFor("recapture_or_contact_support")).toBe("failed");
   });
 
+  it("returns an expired session to not_sent, not failed — the bytes are still in hand and the capture was never attempted against a valid session", () => {
+    expect(nextStateFor("sign_in")).toBe("not_sent");
+  });
+
   it("never invents a saved state from an error", () => {
     for (const a of ["retry_part", "request_new_upload_grant", "sign_in",
                      "refresh_upload_state_or_request_new_grant",
