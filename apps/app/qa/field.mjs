@@ -541,7 +541,7 @@ const EXPECTED_AUDITS = [
  * still fails, but the artifact-upload step has nothing to upload, and every
  * genuine finding gathered before the crash is lost). `field.mjs`'s first
  * draft only guarded the seeding step; this closes the gap for the other
- * four audits (three of them also authenticated, so also covered by the
+ * audits — five of them now, four also authenticated, so also covered by the
  * `EXPECTED_AUDITS` check above — a crash and a silent skip are two
  * different failure modes and both are now caught).
  */
@@ -679,7 +679,7 @@ async function main() {
       // returning, but never validated `assignmentId` itself. A route
       // regression that returns a well-formed occurrence set beside a
       // missing or empty `assignmentId` would reach here having thrown
-      // nothing, and the three authenticated audits below would then be
+      // nothing, and the four authenticated audits below would then be
       // driven off a value that can never resolve to a real page. Assert
       // the shape explicitly, as a named finding, rather than trusting a
       // later `if`/truthy check to notice — that IS the bug this fixes.
