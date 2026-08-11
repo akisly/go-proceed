@@ -9,11 +9,23 @@ at the time of writing.
 
 ---
 
-## 0. Update — 2026-08-11: the PWA field client landed. §1, §5.1 and §6 below are stale.
+## 0. Update — 2026-08-11: the PWA field client is BUILT, and reachable by nobody. §1, §5.1 and §6 below are stale.
 
 This section is the correction; everything below it is the record of the
 session that wrote «the field client… is still approved and still not
 built» — which was true then and is not true now.
+
+**READ THIS BEFORE ANYTHING ELSE IN THIS SECTION.** The client exists and is
+verified locally. **There is no deployed origin for `apps/app`, so a foreman
+cannot open it.** No `vercel.json` for it, no deploy step in
+`.github/workflows/ci.yml`, and `infra/README-staging.md` records that staging
+has never been provisioned. The implementation plan says the same thing in its
+own words — «none of them puts the client in a foreman's hand». An earlier
+version of this section, and of `TODOS.md`'s matching entry, declared the pilot
+unblocked and did not mention this at all; both were corrected on 2026-08-11 by
+the final whole-branch review. In a repository whose documents are read cold as
+the source of truth, that omission is the failure class this project cares most
+about, which is why it now sits above everything else here.
 
 **What changed.** `docs/superpowers/plans/2026-08-10-pwa-field-client.md`'s
 eleven tasks are all done: the app shell (`apps/app`'s viewport/manifest/no-
@@ -31,19 +43,37 @@ negative-case correction made while building it), every control at least
 44×44 CSS px at 375px, and the unsaved-photo banner up while a capture is in
 flight and gone once it resolves.
 
-**Row 2 of §6's table is now wrong** — the PWA field client exists; see the
-corrected table there is NOT edited in place (this document keeps its
-session-scoped record intact) but the answer as of 2026-08-11 is: yes, a
-foreman can sign in and see the obligation screen and use the capture
-control, on `apps/app`.
+**Row 2 of §6's table is now wrong** — the PWA field client exists. **That
+table is NOT edited in place** (this document keeps its session-scoped record
+intact); the answer as of 2026-08-11 is: yes, the sign-in, «Мої доручення»,
+the obligation screen and the capture control are built and work, on
+`apps/app`, **when it is run locally** — and no, a foreman cannot reach any of
+it, because nothing serves `apps/app` on the public internet.
 
-**§5 item 1 ("The PWA") is done.** Current priority order, unchanged from §5
-items 2–4 below plus one addition:
+**§5 item 1 ("The PWA") is BUILT, not delivered.** Current priority order, §5
+items 2–4 below plus two additions, the first of which now outranks
+everything:
 
-1. The six project-plane capabilities in no responsibility preset (§5 item 2
+1. **NEW, AND FIRST — provision an HTTPS origin for `apps/app`.** Nothing
+   below it can be pilot-tested by a real person until this exists: no
+   `vercel.json` for the app, no CI deploy step, staging never provisioned.
+   Two things wait specifically on it:
+   - **ADR-007's two required measurements** — how each engine handles EXIF
+     and the `capture` attribute, and the storage-eviction rule. Both need
+     real devices against a real origin (ADR-007 §"What must be measured, not
+     assumed", §"Also to be measured, not assumed"). The decision stands
+     either way; the claims this client may print do not.
+   - **`crypto.subtle` needs a secure context** for the content hash.
+     `localhost` qualifies, so local work and the CI browser pass are fine,
+     and nothing else is.
+   When it is provisioned, set `NEXT_PUBLIC_APP_ORIGIN` to that origin.
+   `src/lib/api.ts` refuses to self-fetch with the session cookie against any
+   non-loopback host it has not been told to trust, so the app will render its
+   error screen until this is set.
+2. The six project-plane capabilities in no responsibility preset (§5 item 2
    below) — unchanged, still open.
-2. The eight blank Додаток В fields (§5 item 3 below) — unchanged, still open.
-3. **NEW — the reference image.** ADR-007 decision 4 names one for the
+3. The eight blank Додаток В fields (§5 item 3 below) — unchanged, still open.
+4. **NEW — the reference image.** ADR-007 decision 4 names one for the
    obligation screen and it exists in no form (no column, no asset, no
    owner, no licence); the owner decided 2026-08-10 to ship without it. The
    documents disagree about which milestone owns it — ADR-007 decision 4 and
@@ -51,7 +81,7 @@ items 2–4 below plus one addition:
    `version-0.1.md`'s own M2 exit-gate list omits it. Recorded as owed in
    `TODOS.md` §"CLOSED 2026-08-10/11 — ADR-007 is implemented"; needs an
    owner decision before anything else about it.
-4. The two headline measures (§5 item 4 below) — unchanged, still open.
+5. The two headline measures (§5 item 4 below) — unchanged, still open.
 
 **Local verification this session (`supabase db reset` fresh, then
 `pnpm db:local-credentials`, `pnpm turbo run typecheck`, `pnpm turbo run
@@ -90,7 +120,7 @@ single largest item, with nothing ahead of it.
 | File | Why |
 |---|---|
 | `TODOS.md` | Everything open. Four entries moved to CLOSED today; one new P0 was opened and closed. |
-| `docs/decisions/ADR-007-pilot-field-client.md` | The PWA. **Approved, and not built.** This is the next thing. |
+| `docs/decisions/ADR-007-pilot-field-client.md` | The PWA. Was «approved, and not built» when this table was written; **as of 2026-08-11 it is built and served nowhere** — see §0 above, which supersedes this row. |
 | `docs/product/hidden-works-content-rules.md` | Approved, and restricts at every level including over ADRs. Its §"Open items" first bullet closed today. |
 | `docs/decisions/ADR-006-pilot-shaped-v0.1.md` | v0.1 = six steps. Decision 4 is the table set. |
 

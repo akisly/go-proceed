@@ -1281,10 +1281,35 @@ is the **disclosure** half.
 documentation slice's remit, which is the only reason this is an entry rather
 than a change.
 
-## CLOSED 2026-08-10/11 — ADR-007 is implemented: the PWA field client exists
+## CLOSED 2026-08-10/11 — ADR-007 is implemented: the PWA field client is BUILT (and not yet reachable)
 
-**A customer can now click through the pilot.** `docs/superpowers/plans/2026-08-10-pwa-field-client.md`'s
-eleven tasks are done: sign-in by email + 6-digit OTP, «Мої доручення», the
+**The client is built and verified locally. A customer still cannot click
+through the pilot, because NO DEPLOYED ORIGIN EXISTS.** There is no
+`vercel.json` for `apps/app`, no deploy step in `.github/workflows/ci.yml`,
+and `infra/README-staging.md` records that staging has never been provisioned.
+The plan that produced this work says so in its own words — «none of them puts
+the client in a foreman's hand» — and an earlier version of this section
+opened «A customer can now click through the pilot», which was false on the
+day it was written. **Provisioning an HTTPS origin for `apps/app` is now the
+single largest open item; it is the first entry in `HANDOFF.md` §0's priority
+list.** Two things wait behind it and cannot be done without it:
+
+- **ADR-007's two required measurements.** How each engine handles EXIF and
+  the `capture` attribute, and the storage-eviction rule — both need real
+  devices against a real origin (`docs/decisions/ADR-007-pilot-field-client.md`
+  §"What must be measured, not assumed" and §"Also to be measured, not
+  assumed"). The decision does not depend on how they resolve; the copy and the
+  claims this client is allowed to make do.
+- **`crypto.subtle` needs a secure context.** `localhost` qualifies, so every
+  local run and the CI browser pass are fine, and nothing else is.
+
+**One deployment requirement this created:** `NEXT_PUBLIC_APP_ORIGIN` must be
+set on any origin that is not loopback. `src/lib/api.ts`'s `resolveBaseOrigin`
+refuses to self-fetch (with the session cookie attached) against a host it
+cannot trust, and off loopback that variable is the only way to name one.
+
+**What IS done —** `docs/superpowers/plans/2026-08-10-pwa-field-client.md`'s
+eleven tasks: sign-in by email + 6-digit OTP, «Мої доручення», the
 obligation screen (both required obligations — the acceptance criterion in
 the standard's own wording, and the capture control), the pure capture core
 and its state machine, the `beforeunload` guard for an at-risk photo
@@ -1293,8 +1318,9 @@ its own CI job (`app-qa`) that drives the whole thing authenticated — a real
 Supabase Auth user minted through the local Admin API, a real email-OTP
 sign-in read back out of Mailpit, a real seeded workspace/project/contract/
 assignment built entirely over `/v1` (never a raw SQL insert standing in for
-a command), and the real obligation screen it renders. This closes the single
-largest item both handoffs above named as blocking a pilot.
+a command), and the real obligation screen it renders. This closes the
+*building* of the client, which both handoffs above named as blocking a pilot
+— it does not close *reaching* it; see the origin above.
 
 **INV-086's "NOT YET IMPLEMENTABLE" note is closed** — see
 `technical/database/invariant-catalog.csv`'s INV-086 row, corrected in place.
