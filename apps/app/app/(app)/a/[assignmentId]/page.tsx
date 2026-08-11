@@ -149,12 +149,18 @@ function ObligationCard(
       </dl>
 
       {/*
-       * ONLY FOR `photo` — `measurement` and `checkbox` produce no uploaded
-       * original at all (route.ts's own media-policy comment), and this
-       * component is specifically the photo capture control, not a generic
-       * evidence uploader. Fix round 1 finding 1: previously nothing here
-       * rendered `CaptureIsland` at all, so a foreman had no way to attach a
-       * photo — this is the wiring that closes that gap.
+       * ONLY FOR `photo` — corrected in fix round 2: `document` is NOT
+       * grouped with `measurement`/`checkbox` as producing no uploaded
+       * original (route.ts's media-policy comment excludes only the latter
+       * two; `document` requires `allowedMedia` exactly as `photo` does).
+       * The real reason this control renders for `photo` alone is ADR-007
+       * decision 4, "What the PWA must do in v0.1": the v0.1 client's second
+       * obligation is named as «take the photo» — one interaction — and no
+       * document-capture flow is in that scope. This component is that one
+       * obligation, not a generic evidence uploader a wider evidenceKind
+       * check would turn it into. Fix round 1 finding 1: previously nothing
+       * here rendered `CaptureIsland` at all, so a foreman had no way to
+       * attach a photo — this is the wiring that closes that gap.
        *
        * A RENDERED CONTROL IS NOT A SATISFACTION CLAIM. `CaptureIsland`'s own
        * copy is about the PHOTO's upload state ("Фото збережено"), never

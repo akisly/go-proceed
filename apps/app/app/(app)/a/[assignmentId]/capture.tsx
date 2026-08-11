@@ -6,6 +6,7 @@ import {
   CLIENT_STATE_LABEL, discard, holdsUnsavedBytes, isSaved, type ClientState,
 } from "../../../../src/lib/capture/state";
 import { uploadCapture } from "../../../../src/lib/capture/upload";
+import { AttemptGuard } from "../../../../src/lib/capture/attempt";
 
 /**
  * THE CAPTURE ISLAND — ADR-007 decision 4, obligation 2 of 2, and the
@@ -62,26 +63,44 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
     contentHash: string; serverReceivedAt: string; claimedCaptureTime: string;
   } | null>(null);
 
-  // Set the instant the user confirms a discard, so the in-flight upload's
-  // own eventual callback (there is no AbortController; the request keeps
-  // running) cannot resurrect a state the user already dropped. A ref, not
-  // state, because it has to be visible to a closure captured before the
-  // discard happened, synchronously, with no re-render in between.
-  const discardedRef = useRef(false);
+  // ATTEMPT-SCOPED, NOT COMPONENT-SCOPED (fix round 2). A round-1 shared
+  // boolean answered "has ANY attempt been discarded" — the wrong question
+  // once a second attempt exists, because starting one reset the boolean and
+  // re-armed the FIRST attempt's still-running, never-aborted callback. A
+  // discarded photo's late progress could then drive the visible state, and
+  // — the actual defect — its eventual receipt could land on screen
+  // attributed to the photo the foreman kept. `AttemptGuard` (tested in
+  // isolation in `src/lib/capture/attempt.test.ts`) makes "may this callback
+  // still write" a comparison against a token that changes identity on every
+  // new attempt or bare discard, not against one flag either can reset.
+  // `useRef`, not `useState`: the guard's own identity must survive
+  // re-renders, and mutating it must not itself trigger one. Lazily
+  // assigned (`??=`), not `useRef(new AttemptGuard())` — the latter would
+  // construct a fresh, immediately-discarded instance on every render, since
+  // `useRef`'s argument is only used on the first call but is still
+  // evaluated on every one.
+  const guardRef = useRef<AttemptGuard | null>(null);
+  guardRef.current ??= new AttemptGuard();
+  const guard = guardRef.current;
 
   async function handleFile(file: File) {
-    discardedRef.current = false;
+    const token = guard.begin();
     setBusy(true);
     setMessage(null);
     setReceipt(null);
     const claimedCaptureTime = new Date(file.lastModified).toISOString();
 
     const outcome = await uploadCapture(file, occurrenceId, assignmentId, photoId, (s) => {
-      if (!discardedRef.current) setState(s);
+      if (guard.isCurrent(token)) setState(s);
     });
-    setBusy(false);
-    if (discardedRef.current) return; // the user discarded while this was still in flight
 
+    // A superseded attempt writes NOTHING past this point — not `busy`, not
+    // a message, not a receipt. If a newer attempt (a retake, or a discard)
+    // has since taken over, it already owns every one of those pieces of
+    // state, and this stale resolution has no business touching any of them.
+    if (!guard.isCurrent(token)) return;
+
+    setBusy(false);
     if (outcome.state === "server_confirmed") {
       setReceipt({
         contentHash: outcome.contentHash,
@@ -101,7 +120,10 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
       "Скасувати це фото? Його не буде збережено на сервері, і дію не можна відмінити.",
     );
     if (!confirmed) return;
-    discardedRef.current = true;
+    // Supersedes whatever attempt (if any) is still in flight, so ITS
+    // eventual callbacks find themselves superseded too — whether or not the
+    // foreman goes on to pick a replacement photo immediately after.
+    guard.supersede();
     setState((current) => discard(current));
     setMessage(null);
     setBusy(false);
