@@ -1,9 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
-  CLIENT_STATE_LABEL, discard, holdsUnsavedBytes, isSaved, type ClientState,
+  CLIENT_STATE_LABEL, UNSAVED_PHOTO_WARNING, discard, guardBeforeUnload,
+  holdsUnsavedBytes, isSaved, type ClientState,
 } from "../../../../src/lib/capture/state";
 import { uploadCapture } from "../../../../src/lib/capture/upload";
 import { AttemptGuard } from "../../../../src/lib/capture/attempt";
@@ -82,6 +83,38 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
   const guardRef = useRef<AttemptGuard | null>(null);
   guardRef.current ??= new AttemptGuard();
   const guard = guardRef.current;
+
+  // THE `beforeunload` GUARD (task 10, INV-081's second half made real). The
+  // decision itself — `guardBeforeUnload`, which is `holdsUnsavedBytes` under
+  // the hood — is not made here; this effect only wires that decision to the
+  // one browser API that can act on it. Two things this effect is
+  // responsible for getting right, per context items 3 and 4:
+  //
+  // 1. REGISTERED ONLY WHILE BYTES ARE AT RISK. The early `return` below (no
+  //    listener added at all) rather than always registering and letting
+  //    `guardBeforeUnload` no-op internally means a foreman who has already
+  //    saved, failed, or discarded a photo gets NO prompt on navigating away
+  //    — not even a silent, immediately-cancelled one. A listener that stays
+  //    registered after the photo is safe would make every ordinary
+  //    navigation in the app show the same browser dialog, training people to
+  //    click through the one prompt that actually protects something.
+  //
+  // 2. REMOVED ON EVERY STATE CHANGE AND ON UNMOUNT, NOT JUST AT THE END.
+  //    `[state]` as the effect's only dependency means React tears down the
+  //    PREVIOUS listener (closed over the PREVIOUS `state`) before either
+  //    registering a new one or leaving none registered, on every render
+  //    where `state` changed — including the render where a save, a
+  //    failure, or a discard makes `holdsUnsavedBytes` turn false, and
+  //    including unmount, where the returned cleanup is the only one that
+  //    runs. There is never a moment with two listeners registered, and never
+  //    a moment with a listener still bound to bytes that are no longer at
+  //    risk.
+  useEffect(() => {
+    if (!holdsUnsavedBytes(state)) return;
+    const listener = (event: BeforeUnloadEvent) => guardBeforeUnload(state, event);
+    window.addEventListener("beforeunload", listener);
+    return () => window.removeEventListener("beforeunload", listener);
+  }, [state]);
 
   async function handleFile(file: File) {
     const token = guard.begin();
@@ -166,10 +199,21 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
         {CLIENT_STATE_LABEL[state]}
       </p>
 
+      {/*
+       * THE PERSISTENT BANNER — copy-catalog.csv:281, `warning.capture.
+       * not_saved`, imported as `UNSAVED_PHOTO_WARNING` rather than
+       * hand-written here a second time (context item 2). Gated by
+       * `holdsUnsavedBytes`, the SAME function (not a lookalike condition)
+       * that gates the `beforeunload` listener above — so the banner and the
+       * browser's own close-tab prompt can never disagree about whether this
+       * photo is still at risk. No dismiss control exists on this banner at
+       * all: it disappears exactly when `holdsUnsavedBytes` turns false
+       * (save, failure, or discard), and never before, so "not dismissible
+       * while the condition holds" (task-10-brief.md step 2) needs no extra
+       * code to enforce — there is nothing here that could dismiss it.
+       */}
       {holdsUnsavedBytes(state) && (
-        <p className="text-data text-destructive">
-          Не закривайте сторінку — фото ще не збережено на сервері.
-        </p>
+        <p className="text-data text-destructive">{UNSAVED_PHOTO_WARNING}</p>
       )}
 
       {message && (

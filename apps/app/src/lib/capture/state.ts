@@ -59,3 +59,63 @@ export function holdsUnsavedBytes(s: ClientState): boolean {
 export function discard(s: ClientState): ClientState {
   return holdsUnsavedBytes(s) ? "discarded" : s;
 }
+
+/**
+ * copy-catalog.csv:281, `warning.capture.not_saved`, verbatim. NOT
+ * retranslated, NOT reworded to fit a shorter banner — task 3 already did the
+ * wording work and warned specifically against this photo's outcome: retake
+ * it, or keep it yourself, because GoProceed has not. Every screen that warns
+ * about an at-risk photo (the in-page banner in capture.tsx, and nothing
+ * else — there is exactly one such screen in v0.1) imports this constant
+ * rather than writing its own sentence, so there is only ever one copy of it
+ * to get wrong.
+ */
+export const UNSAVED_PHOTO_WARNING =
+  "GoProceed не зберіг це фото. Зробіть його ще раз або збережіть у себе.";
+
+/**
+ * THE MINIMAL SHAPE `beforeunload` NEEDS, NOT THE REAL `BeforeUnloadEvent`.
+ * A real `BeforeUnloadEvent` only exists inside a browser (no `window` in
+ * this package's Node-based `vitest` run — see the header comment on
+ * `vitest.config.ts` and the absence of any jsdom dependency in
+ * `package.json`), and pulling in a DOM test environment just to construct
+ * one would be exactly the kind of "logic only exercised inside a browser"
+ * that hid the `AttemptGuard` defect in task 9. A plain object literal
+ * implementing this interface is enough to drive every branch below from
+ * plain Node.
+ */
+export type UnloadEventLike = {
+  preventDefault(): void;
+  returnValue: string;
+};
+
+/**
+ * INV-081's second half, made real for `beforeunload` specifically —
+ * task 10's whole job, and per context item 5 the one piece of it that must
+ * not be JSX-local. `holdsUnsavedBytes` is not reimplemented here (a second,
+ * hand-copied condition is exactly how the banner and this guard could one
+ * day disagree about whether bytes are at risk); it is called, so the two
+ * are structurally the same decision rather than two decisions that happen,
+ * for now, to agree.
+ *
+ * The two real constraints of the `beforeunload` contract (context item 4)
+ * both live here, together, so nothing that calls this can get one right and
+ * the other wrong: `preventDefault()` is what every modern engine acts on,
+ * and `returnValue` is what the handful of older engines that ignore
+ * `preventDefault()` on this particular event still read instead. Neither
+ * browser shows the string assigned to `returnValue` — that decision is the
+ * browser's own fixed dialog, not this app's — so its exact value carries no
+ * meaning beyond "not empty".
+ *
+ * Deliberately does nothing (leaves the event untouched) when
+ * `holdsUnsavedBytes` is false, rather than assuming the caller only invokes
+ * this while it is true. The component (`capture.tsx`) also uses
+ * `holdsUnsavedBytes` to decide whether to register the listener at all —
+ * this repeats the check anyway, so a caller that got the registration gate
+ * wrong still cannot make an already-safe unload block.
+ */
+export function guardBeforeUnload(s: ClientState, event: UnloadEventLike): void {
+  if (!holdsUnsavedBytes(s)) return;
+  event.preventDefault();
+  event.returnValue = "true";
+}
