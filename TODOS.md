@@ -235,6 +235,59 @@ zero-priced row — and rows priced at zero are ordinary, being work bundled int
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
 
+## P0 (OPEN) — the field client is built and NOBODY CAN OPEN IT: there is no origin
+
+**This is the largest open item in the repository and it is not a code defect.**
+`apps/app` has no deployed origin: no `vercel.json` for it, no deploy step in
+`.github/workflows/ci.yml`, and `infra/README-staging.md` records that staging
+has never been provisioned. Every one of the eleven tasks of
+`docs/superpowers/plans/2026-08-10-pwa-field-client.md` is complete and verified
+locally, and none of them puts the client in a foreman's hand.
+
+**Two things wait on it and cannot be faked.** ADR-007 requires both to be
+MEASURED rather than assumed, on the two physical devices its «What this decision
+does not remove» section still keeps as a requirement: which browser engines strip
+or transcode EXIF and how each honours the `capture` attribute, and the exact
+storage-eviction rule including whether an installed home-screen PWA is exempt.
+`crypto.subtle` also needs a secure context — localhost qualifies, so local work
+is unaffected and only the real thing is blocked.
+
+**Note for whoever provisions it:** `NEXT_PUBLIC_APP_ORIGIN` is inlined at BUILD
+time, not read at runtime. A container built once and deployed to a named origin
+will refuse every request until it is rebuilt with the value set — `resolveBaseOrigin`
+fails closed by design (see the P1 below).
+
+## P1 (OPEN) — seven residuals from the field-client final review, none blocking
+
+Adjudicated and parked on 2026-08-11 after the whole-branch review's single fix
+wave. Recorded here because the review artefacts are gitignored and would take
+them with them.
+
+1. **INV-081's catalogue row overstates its own enforcement.** It reads «every
+   failed or abandoned in-flight upload raises an explicit unsaved-photo
+   warning». After the recovery mappings were collapsed to `failed`, that holds
+   only on the path where the server supplies no `detail` string. Same defect
+   class as INV-086's row, which the same wave corrected. Either widen the banner
+   gate or correct the row — the row must not claim more than the code does.
+2. **`verifyCode` still collapses 429 into «Невірний або прострочений код».** The
+   fix landed one function above it, on the send path. A rate-limited foreman is
+   told his correct code is wrong, which is the misdirection that fix removed.
+3. **Every `<a>` under `/app/**` renders with user-agent link styling**, including
+   visited-purple. There is no Tailwind preflight and no `a` reset. A design
+   decision rather than a bug, and it has no gate that would catch a regression.
+4. **The loopback port is request-chosen** when `NEXT_PUBLIC_APP_ORIGIN` is unset:
+   `Host: 127.0.0.1:9200` yields that origin with the cookie attached. Only
+   reachable on a deployment that is already fully broken; consider refusing
+   outright when `NODE_ENV === "production"`.
+5. **`docs/superpowers/plans/2026-08-10-pwa-field-client.md` still prints the
+   pre-fix recovery mapping** (`retry_part → "sending"`). The design document is
+   corrected; the plan is a historical artefact and wants a dated pointer to §6.
+6. **A bracketless `Host: ::1`** passes the allowlist and then makes `new URL`
+   throw, surfacing as the generic error screen rather than `UntrustedHostError`.
+   Cosmetic, no security consequence.
+7. **`/context` is the one route the browser pass's overflow gate does not cover**
+   — it is the pre-existing stub, left untouched by the field-client work.
+
 ## P1 (CLOSED 2026-08-10) — valuation funding was first-come and was never re-offered
 
 **What:** the work-item pool is claimed by whichever root records first. When
