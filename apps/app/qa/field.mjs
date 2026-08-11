@@ -467,11 +467,56 @@ const UNSAVED_PHOTO_WARNING =
 /** A minimal but genuine JPEG (SOI + APP0), identical to field-capture.int.test.ts's fixture. */
 const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
 
+/**
+ * FIX ROUND 1, FINDING 1 & 2. Every name below is an audit that MUST have
+ * been attempted by the time `main()` writes its report — checked at the
+ * bottom of `main()` against `ctx.auditsRun`, which `runAudit` populates the
+ * instant it is CALLED, before `fn` runs and regardless of whether `fn`
+ * throws. This is what makes "the authenticated block never ran" a finding
+ * rather than an invisible skip: previously `if (assignmentId) { … }` was
+ * the ONLY thing standing between a seeding regression (a well-formed
+ * response whose `assignmentId` happens to be missing or empty — `seedWorld`
+ * validated `coverage`/`occurrenceCount` but never `assignmentId` itself)
+ * and a report that closes with `ok: true` having audited nothing. A harness
+ * must be unable to pass by not running; this list plus `runAudit` is what
+ * enforces that structurally, not just the explicit `assignmentId` check
+ * added at the seeding step below (belt AND braces — either one catching a
+ * regression the other missed is the point of having both).
+ */
+const EXPECTED_AUDITS = [
+  "unauthenticated surface",
+  "sign-in",
+  "obligation screen",
+  "capture in-flight banner",
+];
+
+/**
+ * FIX ROUND 1, FINDING 2. `apps/demo/qa/verify.mjs`'s `main()` wraps every
+ * individual audit in its own try/catch for exactly this reason — a crashing
+ * selector in ONE audit must not discard every finding the OTHERS already
+ * collected, nor prevent `qa-report.json` from being written at all (which
+ * is what an uncaught rejection propagating out of `main()` would do: CI
+ * still fails, but the artifact-upload step has nothing to upload, and every
+ * genuine finding gathered before the crash is lost). `field.mjs`'s first
+ * draft only guarded the seeding step; this closes the gap for the other
+ * four audits (three of them also authenticated, so also covered by the
+ * `EXPECTED_AUDITS` check above — a crash and a silent skip are two
+ * different failure modes and both are now caught).
+ */
+async function runAudit(ctx, name, fn) {
+  ctx.auditsRun.add(name);
+  try {
+    await fn();
+  } catch (err) {
+    ctx.findings.push(`${name}: audit crashed: ${err instanceof Error ? (err.stack ?? err.message) : String(err)}`);
+  }
+}
+
 // ═══════════════════════════════════════════════════════════════════════════
 // MAIN
 // ═══════════════════════════════════════════════════════════════════════════
 async function main() {
-  const ctx = { findings: [], missingAssets: [] };
+  const ctx = { findings: [], missingAssets: [], auditsRun: new Set() };
   const server = await startNextServer();
   const browser = await launch();
   let userId;
@@ -484,56 +529,58 @@ async function main() {
     // authenticated pass below so a failure minting/seeding a user (which
     // needs the local Supabase stack) never hides a regression in the part
     // of the app that needs nothing but a browser.
-    await withPage(browser, async (page) => {
-      const res = await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
-      const finalUrl = page.url();
-      if (!finalUrl.includes("/login")) {
-        ctx.findings.push(`unauthenticated /: expected a redirect to /login, landed on ${finalUrl}`);
-      }
-      if (!res || res.status() !== 200) {
-        ctx.findings.push(`unauthenticated /: final response was ${res ? res.status() : "no response"}, not 200`);
-      }
-
-      const htmlLang = await page.evaluate(() => document.documentElement.getAttribute("lang"));
-      if (htmlLang !== "uk") {
-        ctx.findings.push(`<html lang="${htmlLang}"> — expected "uk"`);
-      }
-
-      const viewport = await page.evaluate(() =>
-        document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? null);
-      if (viewport === null) {
-        ctx.findings.push("no <meta name=\"viewport\"> found");
-      } else {
-        if (!/width=device-width/.test(viewport)) {
-          ctx.findings.push(`viewport meta "${viewport}" does not declare width=device-width`);
+    await runAudit(ctx, "unauthenticated surface", async () => {
+      await withPage(browser, async (page) => {
+        const res = await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
+        const finalUrl = page.url();
+        if (!finalUrl.includes("/login")) {
+          ctx.findings.push(`unauthenticated /: expected a redirect to /login, landed on ${finalUrl}`);
         }
-        // layout.tsx's own comment: capping zoom on a page read outdoors, in
-        // daylight, by someone who may be gloved, is an accessibility
-        // failure — `maximumScale`/`user-scalable=no` must never reappear.
-        if (/maximum-scale|user-scalable\s*=\s*no/.test(viewport)) {
-          ctx.findings.push(`viewport meta "${viewport}" caps zoom — this must never ship`);
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(`unauthenticated /: final response was ${res ? res.status() : "no response"}, not 200`);
         }
-      }
 
-      // Ukrainian copy, structurally: the two strings a foreman actually
-      // reads on this screen, not a full-page snapshot (which would flag on
-      // any unrelated copy edit and teach people to ignore this check).
-      const bodyText = await page.evaluate(() => document.body.innerText);
-      if (!bodyText.includes("Вхід за одноразовим кодом")) {
-        ctx.findings.push("login screen: expected copy \"Вхід за одноразовим кодом\" not found");
-      }
-      if (!bodyText.includes("Надіслати код")) {
-        ctx.findings.push("login screen: expected the \"Надіслати код\" button label, not found");
-      }
+        const htmlLang = await page.evaluate(() => document.documentElement.getAttribute("lang"));
+        if (htmlLang !== "uk") {
+          ctx.findings.push(`<html lang="${htmlLang}"> — expected "uk"`);
+        }
 
-      await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
-      const small = await measureSmallTargets(page);
-      for (const t of small) {
-        ctx.findings.push(`login @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
-      }
+        const viewport = await page.evaluate(() =>
+          document.querySelector('meta[name="viewport"]')?.getAttribute("content") ?? null);
+        if (viewport === null) {
+          ctx.findings.push("no <meta name=\"viewport\"> found");
+        } else {
+          if (!/width=device-width/.test(viewport)) {
+            ctx.findings.push(`viewport meta "${viewport}" does not declare width=device-width`);
+          }
+          // layout.tsx's own comment: capping zoom on a page read outdoors, in
+          // daylight, by someone who may be gloved, is an accessibility
+          // failure — `maximumScale`/`user-scalable=no` must never reappear.
+          if (/maximum-scale|user-scalable\s*=\s*no/.test(viewport)) {
+            ctx.findings.push(`viewport meta "${viewport}" caps zoom — this must never ship`);
+          }
+        }
 
-      await page.screenshot({ path: path.join(SHOTS, "login.png"), fullPage: true });
-    }).then((d) => reportDiagnostics("unauthenticated /", d, ctx.findings, ctx.missingAssets));
+        // Ukrainian copy, structurally: the two strings a foreman actually
+        // reads on this screen, not a full-page snapshot (which would flag on
+        // any unrelated copy edit and teach people to ignore this check).
+        const bodyText = await page.evaluate(() => document.body.innerText);
+        if (!bodyText.includes("Вхід за одноразовим кодом")) {
+          ctx.findings.push("login screen: expected copy \"Вхід за одноразовим кодом\" not found");
+        }
+        if (!bodyText.includes("Надіслати код")) {
+          ctx.findings.push("login screen: expected the \"Надіслати код\" button label, not found");
+        }
+
+        await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
+        const small = await measureSmallTargets(page);
+        for (const t of small) {
+          ctx.findings.push(`login @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+        }
+
+        await page.screenshot({ path: path.join(SHOTS, "login.png"), fullPage: true });
+      }).then((d) => reportDiagnostics("unauthenticated /", d, ctx.findings, ctx.missingAssets));
+    });
 
     // The manifest, fetched directly (not through the page) so a parse
     // failure is unambiguous and not entangled with the page's own fetch of
@@ -581,15 +628,42 @@ async function main() {
       userId = await mintConfirmedUser(email, password);
       const seedBearer = await seedBearerToken(email, password);
       ({ assignmentId } = await seedWorld(server.baseUrl, seedBearer));
+
+      // FIX ROUND 1, FINDING 1 (CRITICAL). `seedWorld` throwing is not the
+      // only way seeding can go wrong — it already validates
+      // `requirementOccurrences.coverage`/`occurrenceCount` before
+      // returning, but never validated `assignmentId` itself. A route
+      // regression that returns a well-formed occurrence set beside a
+      // missing or empty `assignmentId` would reach here having thrown
+      // nothing, and the three authenticated audits below would then be
+      // driven off a value that can never resolve to a real page. Assert
+      // the shape explicitly, as a named finding, rather than trusting a
+      // later `if`/truthy check to notice — that IS the bug this fixes.
+      if (typeof assignmentId !== "string" || assignmentId.length === 0) {
+        ctx.findings.push(
+          `seedWorld returned successfully but assignmentId is invalid (${JSON.stringify(assignmentId)}) — ` +
+          "assignments.create may have regressed; the authenticated audits below will still run and report their own failures against this value",
+        );
+      }
     } catch (err) {
-      // A seeding failure means NONE of the authenticated assertions below
-      // can run at all — recorded as one loud finding rather than left to
-      // produce a cascade of confusing "element not found" findings against
-      // a screen that was never reachable in the first place.
-      ctx.findings.push(`seeding a user + world failed, authenticated screens were NOT audited: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+      // A seeding failure means the authenticated assertions below cannot
+      // succeed — but they still RUN (no `if` gates them out any more; see
+      // EXPECTED_AUDITS/runAudit above) and report their own specific
+      // failures against an undefined assignmentId, rather than being
+      // silently skipped. This finding names the root cause so a reader
+      // isn't left reconstructing it from three downstream 404s.
+      ctx.findings.push(`seeding a user + world failed, authenticated screens will attempt to run anyway and report their own failures: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
     }
 
-    if (assignmentId) {
+    // FIX ROUND 1, FINDING 1: no `if (assignmentId)` gate here any more —
+    // every audit below is ALWAYS attempted via `runAudit` (see its header
+    // comment), so `ctx.auditsRun` always ends up containing all of
+    // EXPECTED_AUDITS regardless of whether seeding succeeded. Each audit
+    // checks `assignmentId` for itself at its own first line and reports a
+    // specific, named finding if it is unusable, instead of the whole block
+    // being invisibly skipped by a truthy check one screen away from where
+    // the actual validation now lives (immediately above).
+    await runAudit(ctx, "sign-in", async () => {
       // ── The real login screen, driven for real ──────────────────────────
       // Puppeteer's default browser context shares one cookie jar across
       // every `browser.newPage()` call, so signing in once here leaves every
@@ -619,7 +693,9 @@ async function main() {
         }
       });
       reportDiagnostics("sign-in", loginDiagnostics, ctx.findings, ctx.missingAssets);
+    });
 
+    await runAudit(ctx, "obligation screen", async () => {
       // ── The obligation screen: the disclaimer and the touch floor ───────
       const obligationDiagnostics = await withPage(browser, async (page) => {
         await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
@@ -711,7 +787,9 @@ async function main() {
         await page.screenshot({ path: path.join(SHOTS, "obligation.png"), fullPage: true });
       });
       reportDiagnostics("obligation screen", obligationDiagnostics, ctx.findings, ctx.missingAssets);
+    });
 
+    await runAudit(ctx, "capture in-flight banner", async () => {
       // ── The unsaved-photo banner: visible while a capture is in flight ──
       // `page.evaluateOnNewDocument` installs the stub before any of the
       // page's own scripts run, so `uploadCapture`'s first fetch — the
@@ -827,6 +905,22 @@ async function main() {
         await page.screenshot({ path: path.join(SHOTS, "capture-failed.png"), fullPage: true });
       });
       reportDiagnostics("capture in-flight banner", captureDiagnostics, ctx.findings, ctx.missingAssets);
+    });
+
+    // FIX ROUND 1, FINDING 1 — THE STRUCTURAL ENFORCEMENT. Every name in
+    // EXPECTED_AUDITS must be in `ctx.auditsRun` by now, because `runAudit`
+    // adds a name the instant it is called — before its `fn` runs, whether
+    // `fn` throws, and regardless of what `assignmentId` turned out to be.
+    // If one is missing, no `if` gate silently skipped it (there are none
+    // left); the only way to reach this point with a name absent is a
+    // FUTURE refactor that stops calling `runAudit` for it entirely — and
+    // that is exactly the class of regression this check exists to catch,
+    // structurally, rather than trusting every future edit to remember why
+    // the truthy check this replaces was wrong.
+    for (const name of EXPECTED_AUDITS) {
+      if (!ctx.auditsRun.has(name)) {
+        ctx.findings.push(`expected audit "${name}" never ran — see EXPECTED_AUDITS/runAudit in qa/field.mjs`);
+      }
     }
 
     // ─────────────────────────────────────────────────────────────────────
@@ -864,6 +958,14 @@ async function main() {
       generatedAt: new Date().toISOString(),
       baseUrl: server.baseUrl,
       assignmentAudited: assignmentId ?? null,
+      // FIX ROUND 1, FINDING 1: which audits actually ran, in the report
+      // itself — not just enforced internally above. Compared against
+      // EXPECTED_AUDITS, a reader can see directly whether this run
+      // genuinely exercised the authenticated screens or not, rather than
+      // inferring it from `assignmentAudited` being non-null (which is
+      // exactly the inference that was wrong before this fix round).
+      auditsRun: [...ctx.auditsRun],
+      expectedAudits: EXPECTED_AUDITS,
       findings: ctx.findings,
       // Known, already-explained 404s (Chrome's own favicon.ico probe — see
       // withPage's header comment) — counted and named, never a cause for
@@ -880,7 +982,7 @@ async function main() {
       return;
     }
     console.log(
-      `QA passed: unauthenticated surface + login screen + ${assignmentId ? "the seeded obligation screen (disclaimer, touch targets, capture banner)" : "NO authenticated screens (seeding failed — see qa-report.json)"}. ` +
+      `QA passed: ${report.auditsRun.length} of ${EXPECTED_AUDITS.length} expected audits ran (${report.auditsRun.join(", ")}), zero findings. ` +
       "See qa-output/qa-report.json for the full report and qa-output/screenshots/ for evidence.",
     );
   } finally {
