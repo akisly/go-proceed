@@ -309,8 +309,35 @@ async function seedWorld(baseUrl, bearer) {
     confirmedManifestHash: lineManifestHash(view),
   }));
 
+  // `assigneeMemberId` IS LOAD-BEARING AND WAS MISSING. It is optional on
+  // `createAssignmentRequest`, and without it the assignment is created with a
+  // null assignee — which is perfectly valid, and means
+  // `GET /v1/projects/{id}/assignments?assignee=me` correctly returns nothing.
+  // The obligation screen is reached by id and never noticed; «Мої доручення»
+  // is the screen that asks the question, so it rendered its "no assignments"
+  // empty state on a world this file believed it had seeded. Caught the day the
+  // authenticated `/` audit was added, which is the whole argument for adding
+  // it. The seeded foreman is the member who is signing in, so this is also
+  // what makes the world a foreman's world rather than an administrator's.
   const assignment = await httpStep("assignments.create",
-    await f(`/v1/contracts/${contract.contractId}/assignments`, { workItemId: line.workItem.workItemId }));
+    await f(`/v1/contracts/${contract.contractId}/assignments`, {
+      workItemId: line.workItem.workItemId,
+      assigneeMemberId: memberId,
+    }));
+
+  // Asserted through the READ the list screen actually performs, not off the
+  // create response — `CreateAssignmentResponse` carries only the id, the
+  // version and the materialisation, never the assignee. This is the exact
+  // question «Мої доручення» asks, so a seed that satisfies it is a seed that
+  // screen can render.
+  const mine = await httpStep("assignments.list(?assignee=me)",
+    await f(`/v1/projects/${proj.projectId}/assignments?assignee=me`));
+  if (!mine.assignments.some((x) => x.assignmentId === assignment.assignmentId)) {
+    throw new Error(
+      "seedWorld: the assignment just created is not returned by ?assignee=me — "
+      + "«Мої доручення» would render its empty state on a world this file believes it seeded.",
+    );
+  }
 
   if (assignment.requirementOccurrences.coverage !== "covered" || assignment.requirementOccurrences.occurrenceCount !== 1) {
     throw new Error(`seedWorld: expected one covered occurrence, got ${JSON.stringify(assignment.requirementOccurrences)}`);
