@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { CLIENT_STATE_LABEL, holdsUnsavedBytes, isSaved, type ClientState } from "./state";
+import { CLIENT_STATE_LABEL, discard, holdsUnsavedBytes, isSaved, type ClientState } from "./state";
 
 const ALL: ClientState[] = [
   "not_sent", "sending", "awaiting_receipt", "server_confirmed", "failed", "discarded",
@@ -37,5 +37,23 @@ describe("the six labels are the approved copy, and the seventh is unreachable",
   it("has no key for a native-only state", () => {
     expect(Object.keys(CLIENT_STATE_LABEL)).not.toContain("quarantined");
     expect(Object.keys(CLIENT_STATE_LABEL)).not.toContain("expired_purged");
+  });
+});
+
+describe("discard — the seventh state's only reachable transition", () => {
+  it("turns every unsaved state into discarded", () => {
+    for (const s of ALL.filter(holdsUnsavedBytes)) {
+      expect(discard(s), s).toBe("discarded");
+    }
+  });
+
+  it("refuses to overwrite a state that no longer holds unsaved bytes", () => {
+    // A stale discard click (or a race with an in-flight upload's own final
+    // callback landing after the user already discarded) must never turn a
+    // receipt, a failure notice, or an already-discarded state into anything
+    // else — there is nothing left in the browser's hands to drop.
+    for (const s of ALL.filter((x) => !holdsUnsavedBytes(x))) {
+      expect(discard(s), s).toBe(s);
+    }
   });
 });

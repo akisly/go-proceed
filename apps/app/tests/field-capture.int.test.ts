@@ -8,19 +8,28 @@ import {
   publishVersion, ruleVersionBody, seedRequirementLibrary,
 } from "./helpers/manual-baseline";
 import type { CreateUploadIntentResponse, FinalizeUploadIntentResponse } from "@goproceed/contracts";
-import { buildCreateIntentBody } from "../app/(app)/a/[assignmentId]/capture";
+import { buildCreateIntentBody } from "../src/lib/capture/upload";
 
 /**
  * ---------------------------------------------------------------------------
  * Task 9: the capture island. This suite drives the three routes the field
  * client actually calls (create → PUT to Supabase Storage → finalize) in
- * exactly the sequence `capture.tsx`'s `upload()` follows, and separately
- * proves the negative migration 0043 asks for (§6): a v0.1 PWA build cannot
- * express `native_camera`, because `buildCreateIntentBody` — the one place
- * this client's request body is assembled — has no parameter that reaches
- * `originMethod` at all.
+ * exactly the sequence `src/lib/capture/upload.ts`'s `uploadCapture` follows,
+ * and separately proves the negative migration 0043 asks for (§6): a v0.1 PWA
+ * build cannot express `native_camera`, because `buildCreateIntentBody` — the
+ * one place this client's request body is assembled — has no parameter that
+ * reaches `originMethod` at all.
  *
- * WHY THE FIRST SUITE DOES NOT MOCK THE STORAGE PUT. Context item 1 of this
+ * `uploadCapture` ITSELF, and the state transitions it drives through
+ * `onStateChange`, are covered separately and more directly in
+ * `src/lib/capture/upload.test.ts` — a plain-Node unit test with a fake
+ * `fetch`, which is what actually catches a regression in the fetch
+ * sequencing or in the body handed to `fetch` (as opposed to
+ * `buildCreateIntentBody` called in isolation). This file's job is the one a
+ * Node fake cannot do: prove the real routes, the real signed-URL grant, and
+ * the real Supabase Storage PUT agree with what that unit test assumes.
+ *
+ * WHY THIS SUITE DOES NOT MOCK THE STORAGE PUT. Context item 1 of this
  * task's brief is explicit that the bytes go "STRAIGHT TO SUPABASE STORAGE"
  * and never through Next — a mocked PUT would test a shape this client never
  * actually uses. The PUT below is a real HTTP PUT to the local Supabase
@@ -28,11 +37,11 @@ import { buildCreateIntentBody } from "../app/(app)/a/[assignmentId]/capture";
  * apikey header at all: that is not an oversight, it was checked by hand
  * against the running local stack before this file was written (a signed
  * upload URL's token is itself the authorization Supabase Storage's gateway
- * asks for). `capture.tsx`'s own PUT is written the identical way for the
+ * asks for). `uploadCapture`'s own PUT is written the identical way for the
  * identical reason — seeing this succeed here is what license that has.
  *
  * THE OCCURRENCE FIXTURE MIRRORS `requirement-occurrences.int.test.ts`'s
- * `boundBaseline`, trimmed to one rule version, because `upload()`'s own
+ * `boundBaseline`, trimmed to one rule version, because `uploadCapture`'s own
  * signature takes an `occurrenceId` it always sends — a fixture that left
  * `requirementOccurrenceId` unset would exercise the fallback-media path this
  * client never actually takes.
@@ -125,7 +134,7 @@ async function finalize(intentId: string): Promise<Response> {
   return POST(jsonReq("http://x", {}), { params: Promise.resolve({ intentId }) });
 }
 
-/** The exact, unauthenticated PUT `capture.tsx` performs against a signed upload URL. */
+/** The exact, unauthenticated PUT `uploadCapture` performs against a signed upload URL. */
 async function putToSignedUrl(signedUrl: string, bytes: Uint8Array, contentType: string): Promise<Response> {
   return fetch(signedUrl, { method: "PUT", headers: { "content-type": contentType }, body: bytes });
 }
@@ -137,7 +146,7 @@ beforeEach(async () => {
   fx = await boundOccurrence();
 });
 
-describe("field capture — the three routes, driven as capture.tsx drives them", () => {
+describe("field capture — the three routes, driven as uploadCapture drives them", () => {
   it("creates with origin_not_distinguished, PUTs straight to storage, finalizes, and reaches available", async () => {
     const file = new File([JPEG], "фото.jpg", {
       type: "image/jpeg",
@@ -231,7 +240,7 @@ describe("origin method — native_camera is unreachable through the field path 
     expect(buildCreateIntentBody(smuggled).originMethod).toBe("origin_not_distinguished");
   });
 
-  it("what native_camera WOULD store, for contrast — proving the guarantee is capture.tsx's, not the database's", async () => {
+  it("what native_camera WOULD store, for contrast — proving the guarantee is the field builder's, not the database's", async () => {
     // migration 0043 §6 widened the CHECK additively so the native client
     // (apps/mobile, v0.3) keeps working; it does not and must not narrow for
     // the PWA. This is the fact that makes INV-086 a client-side promise

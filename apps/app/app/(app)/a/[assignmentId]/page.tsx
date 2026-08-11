@@ -5,12 +5,13 @@ import type { ListRequirementOccurrencesResponse } from "@goproceed/contracts";
 import { apiGet, ApiError } from "../../../../src/lib/api";
 import { buildObligationScreen, type ObligationItem } from "../../../../src/lib/field/obligations";
 import { Button } from "../../../../src/ui/button";
+import { CaptureIsland } from "./capture";
 
 /**
- * THE OBLIGATION SCREEN — ADR-007 decision 4, obligation 1 of 2. What must be
- * photographed, in the standard's own wording, BEFORE work starts. This is
- * the screen a lawyer may eventually read over the foreman's shoulder; task
- * 9's capture widget will sit inside the list rendered below.
+ * THE OBLIGATION SCREEN — ADR-007 decision 4, both obligations now present:
+ * what must be photographed, in the standard's own wording, BEFORE work
+ * starts (this file), and the capture control that takes the photo (task 9's
+ * `CaptureIsland`, rendered inside `ObligationCard` below).
  *
  * ALL THE DECISIONS LIVE IN `buildObligationScreen`
  * (`src/lib/field/obligations.ts`), tested there with no DOM (see that
@@ -76,7 +77,9 @@ export default async function ObligationPage({ params }: ObligationPageProps) {
       {screen.items.length > 0 && (
         <ol className="flex flex-col gap-4">
           {screen.items.map((item, index) => (
-            <ObligationCard key={item.occurrenceId} item={item} index={index} />
+            <ObligationCard
+              key={item.occurrenceId} item={item} index={index} assignmentId={assignmentId}
+            />
           ))}
         </ol>
       )}
@@ -101,7 +104,9 @@ export default async function ObligationPage({ params }: ObligationPageProps) {
   );
 }
 
-function ObligationCard({ item, index }: { item: ObligationItem; index: number }) {
+function ObligationCard(
+  { item, index, assignmentId }: { item: ObligationItem; index: number; assignmentId: string },
+) {
   return (
     <li className="flex flex-col gap-3 rounded-panel border border-border bg-surface p-4">
       <span className="text-meta font-medium uppercase tracking-wide text-foreground-muted">
@@ -142,6 +147,34 @@ function ObligationCard({ item, index }: { item: ObligationItem; index: number }
           </>
         )}
       </dl>
+
+      {/*
+       * ONLY FOR `photo` — `measurement` and `checkbox` produce no uploaded
+       * original at all (route.ts's own media-policy comment), and this
+       * component is specifically the photo capture control, not a generic
+       * evidence uploader. Fix round 1 finding 1: previously nothing here
+       * rendered `CaptureIsland` at all, so a foreman had no way to attach a
+       * photo — this is the wiring that closes that gap.
+       *
+       * A RENDERED CONTROL IS NOT A SATISFACTION CLAIM. `CaptureIsland`'s own
+       * copy is about the PHOTO's upload state ("Фото збережено"), never
+       * about the OBLIGATION being met — that computation (accounting for
+       * `minEvidenceCount`, review decisions, exceptions) is out of v0.1's
+       * scope (`obligations.ts`'s own header) and nothing here invents a
+       * stand-in for it: no badge, no checkmark, no "виконано" wording is
+       * added by this card, before or after a photo is captured.
+       */}
+      {item.evidenceKind === "photo" && (
+        <CaptureIsland
+          assignmentId={assignmentId}
+          occurrenceId={item.occurrenceId}
+          // `exactOptionalPropertyTypes` (tsconfig.base.json) refuses an
+          // explicit `accept={undefined}` against `accept?: string` — a
+          // conditional spread omits the key entirely when there is no
+          // policy to narrow it with, which is what "optional" means here.
+          {...(item.allowedMedia ? { accept: item.allowedMedia.mimeTypes.join(",") } : {})}
+        />
+      )}
     </li>
   );
 }

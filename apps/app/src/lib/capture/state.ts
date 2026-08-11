@@ -40,3 +40,22 @@ export function isSaved(s: ClientState): boolean {
 export function holdsUnsavedBytes(s: ClientState): boolean {
   return s === "not_sent" || s === "sending" || s === "awaiting_receipt";
 }
+
+/**
+ * The only client-initiated transition to `discarded` — "Explicit warned user
+ * deletion" (state-catalog.csv:44). Guarded by `holdsUnsavedBytes` on both
+ * sides of the call, not just at the UI layer: a photo can only be dropped
+ * from the client's hands while the client is still the only one holding it.
+ * Once `holdsUnsavedBytes` is false — the server already confirmed it, the
+ * upload already failed, or it was already discarded — `state` is returned
+ * unchanged, so a stale click (or a race with an in-flight upload's own
+ * final callback) can never overwrite a `server_confirmed` receipt or a
+ * `failed` notice with `discarded`.
+ *
+ * "Warned" is the caller's job (a confirmation before this is invoked, not
+ * inside it) — this function only performs the transition once the caller
+ * has already obtained that confirmation.
+ */
+export function discard(s: ClientState): ClientState {
+  return holdsUnsavedBytes(s) ? "discarded" : s;
+}
