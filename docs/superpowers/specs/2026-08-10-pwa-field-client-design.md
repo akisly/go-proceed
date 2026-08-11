@@ -254,7 +254,12 @@ and a fresh `Idempotency-Key` but the same `deviceCaptureId`.
 - `request_new_upload_grant` → `not_sent`. No new intent is created
   automatically; picking the file again creates one.
 - `recapture_or_contact_support` → `failed`.
-- `sign_in` → `not_sent`, and the sign-in screen is reached with `next`.
+- `sign_in` → `not_sent`, with the refusal's own detail shown. The capture
+  island does **not** navigate to the sign-in screen by itself; the next page
+  load does, because `middleware.ts` redirects an unauthenticated request to
+  `/login?next=…` and the server components redirect on a 401. Nothing about
+  that is automatic from inside an in-flight upload, and this bullet used to
+  read as though it were.
 - anything this build does not recognise → `failed`.
 
 `failed`'s approved label is «Потрібна дія» and `not_sent`'s is «Не надіслано»;
@@ -268,9 +273,22 @@ really is in flight — a refusal may never leave the screen resting on one, and
 it is the genuine answer to a connection that dropped between the PUT and the
 receipt. It is not in v0.1.
 
-**No silent loss — INV-081.** A `beforeunload` guard whenever any capture is in
-`not_sent`, `sending` or `awaiting_receipt`, plus an in-page banner. This needs
-new Ukrainian copy the catalog does not have. In the same change,
+**No silent loss — INV-081.** A `beforeunload` guard, plus an in-page banner and
+a discard control, whenever **a file has been picked** *and* the capture is in
+`not_sent`, `sending` or `awaiting_receipt`.
+
+*(Both halves of that condition, corrected 2026-08-11 — the final whole-branch
+review's Critical 1. This paragraph named the client state alone, which is what
+shipped, and `not_sent` is ALSO the initial state: on first paint of every
+obligation screen the red banner, the discard control and the `beforeunload`
+listener were all live about a photo that did not exist, so closing an untouched
+tab raised the browser's "leave site?" dialog. That prompt is the mechanism this
+paragraph rests on, and firing it about nothing is how it stops meaning
+anything.* `holdsUnsavedBytes` *now takes a* `CaptureHold` *— the state plus
+`hasPickedFile`, which cannot be derived from the state because the bytes live
+only inside the in-flight upload's closure and never in page state.)*
+
+This needs new Ukrainian copy the catalog does not have. In the same change,
 `copy-catalog.csv` `field.capture.saved_local` = «Збережено на пристрої» is marked
 native-only: it is a string the PWA can never truthfully render.
 
