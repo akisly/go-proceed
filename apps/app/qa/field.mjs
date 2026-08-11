@@ -218,6 +218,9 @@ function lineManifestHash(view) {
  * `manual-baseline.ts`, the assignment-manage capability set from
  * `field-capture.int.test.ts`'s `boundOccurrence()`.
  */
+const PROJECT_NAME = "Приклад-Обʼєкт QA";
+const WORK_ITEM_DESCRIPTION = "Приклад-улаштування прокладки кабелю QA";
+
 async function seedWorld(baseUrl, bearer) {
   const f = authedFetch(baseUrl, bearer);
 
@@ -228,7 +231,7 @@ async function seedWorld(baseUrl, bearer) {
   const memberId = members.members[0].memberId;
 
   const proj = await httpStep("projects.create",
-    await f(`/v1/workspaces/${ws.workspaceId}/projects`, { name: "Приклад-Обʼєкт QA" }));
+    await f(`/v1/workspaces/${ws.workspaceId}/projects`, { name: PROJECT_NAME }));
 
   // Two grants, exactly as the two suites this mirrors make them: the manual-
   // baseline capabilities first (baselineFixture), the field/assignment
@@ -289,7 +292,7 @@ async function seedWorld(baseUrl, bearer) {
     await f(`/v1/contract-versions/${draft.contractVersionId}/work-items`, {
       sourceKey: "1.1",
       workTypeKey: "montazh-elektrotekhnichnykh-ustanovok",
-      description: "Приклад-улаштування прокладки кабелю QA",
+      description: WORK_ITEM_DESCRIPTION,
       unitCode: "м",
       contractQuantity: "10",
       unitPriceState: "known",
@@ -313,7 +316,18 @@ async function seedWorld(baseUrl, bearer) {
     throw new Error(`seedWorld: expected one covered occurrence, got ${JSON.stringify(assignment.requirementOccurrences)}`);
   }
 
-  return { assignmentId: assignment.assignmentId, workspaceId: ws.workspaceId };
+  // The project name and the work-item description are returned rather than
+  // re-typed in the audits: «Мої доручення» renders the description as each
+  // row's title and — because this world has exactly ONE project — must NOT
+  // render the project name at all (`showProjectName` in
+  // src/lib/field/assignments.ts). Asserting against the values this function
+  // actually sent keeps that check honest if either literal above changes.
+  return {
+    assignmentId: assignment.assignmentId,
+    workspaceId: ws.workspaceId,
+    projectName: PROJECT_NAME,
+    workItemDescription: WORK_ITEM_DESCRIPTION,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -486,6 +500,7 @@ const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x
 const EXPECTED_AUDITS = [
   "unauthenticated surface",
   "sign-in",
+  "my assignments list",
   "obligation screen",
   "capture in-flight banner",
 ];
@@ -624,10 +639,12 @@ async function main() {
     const email = `pryklad-qa-field-${stamp}@example.test`;
     const password = `Приклад-QA-Пароль-${stamp}!`;
     let assignmentId;
+    let projectName;
+    let workItemDescription;
     try {
       userId = await mintConfirmedUser(email, password);
       const seedBearer = await seedBearerToken(email, password);
-      ({ assignmentId } = await seedWorld(server.baseUrl, seedBearer));
+      ({ assignmentId, projectName, workItemDescription } = await seedWorld(server.baseUrl, seedBearer));
 
       // FIX ROUND 1, FINDING 1 (CRITICAL). `seedWorld` throwing is not the
       // only way seeding can go wrong — it already validates
@@ -658,11 +675,17 @@ async function main() {
     // FIX ROUND 1, FINDING 1: no `if (assignmentId)` gate here any more —
     // every audit below is ALWAYS attempted via `runAudit` (see its header
     // comment), so `ctx.auditsRun` always ends up containing all of
-    // EXPECTED_AUDITS regardless of whether seeding succeeded. Each audit
-    // checks `assignmentId` for itself at its own first line and reports a
-    // specific, named finding if it is unusable, instead of the whole block
-    // being invisibly skipped by a truthy check one screen away from where
-    // the actual validation now lives (immediately above).
+    // EXPECTED_AUDITS regardless of whether seeding succeeded.
+    //
+    // WHAT EACH AUDIT ACTUALLY CHECKS, stated precisely (an earlier version of
+    // this comment claimed each one validates `assignmentId` "at its own first
+    // line", which is not what any of them does). None of them inspects the
+    // value directly. Each one navigates to a URL built from it and asserts on
+    // the RESULT — a non-200, a missing selector, a wrong landing path — so an
+    // undefined or empty `assignmentId` surfaces as that audit's own named
+    // finding rather than as a silent skip. The explicit shape check on
+    // `assignmentId` lives immediately above, at the seeding step, and is the
+    // one place that looks at the value itself.
     await runAudit(ctx, "sign-in", async () => {
       // ── The real login screen, driven for real ──────────────────────────
       // Puppeteer's default browser context shares one cookie jar across
@@ -693,6 +716,82 @@ async function main() {
         }
       });
       reportDiagnostics("sign-in", loginDiagnostics, ctx.findings, ctx.missingAssets);
+    });
+
+    await runAudit(ctx, "my assignments list", async () => {
+      // ── «Мої доручення», the screen a foreman actually lands on ─────────
+      // ADDED BY THE FINAL WHOLE-BRANCH REVIEW (Important 5). This file used
+      // to visit `/` only UNAUTHENTICATED (to prove the redirect to /login),
+      // then sign in with `?next=/a/{id}` and go straight to the obligation
+      // screen — so the authenticated list, ~252 lines of real decisions, had
+      // never been rendered by anything at all. Its decisions now live in
+      // `src/lib/field/assignments.ts` and are unit-tested; this audit is the
+      // other half, proving they reach a real browser against real seeded
+      // data.
+      const listDiagnostics = await withPage(browser, async (page) => {
+        await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
+        const res = await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(`/: expected 200 for the signed-in list, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+        const landedOn = new URL(page.url()).pathname;
+        if (landedOn !== "/") {
+          ctx.findings.push(`/: a signed-in foreman was redirected to ${landedOn} instead of seeing his list`);
+          return;
+        }
+
+        const bodyText = await page.evaluate(() => document.body.innerText);
+
+        if (!bodyText.includes("Мої доручення")) {
+          ctx.findings.push('/: expected the heading "Мої доручення", not found');
+        }
+
+        // THE ROW ITSELF, from the seeded world — not just the chrome. This
+        // is what separates "the page rendered" from "the two-hop fetch,
+        // `?assignee=me`, and the row mapping all actually worked".
+        if (!bodyText.includes(workItemDescription)) {
+          ctx.findings.push(`/: the seeded assignment ("${workItemDescription}") is not on the list — the projects→assignments fan-out or ?assignee=me may have regressed`);
+        }
+
+        // NEITHER EMPTY STATE, AND NOT THE ERROR STATE. Each of these is a
+        // real branch of `buildMyAssignmentsScreen`, and reaching one of them
+        // here would mean the seeded assignment was invisible for a reason
+        // the assertion above alone would not name.
+        for (const wrong of [
+          "У вас немає доступу до жодного проєкту",
+          "Наразі за вами не закріплено жодного доручення",
+          "Не вдалося завантажити ваші доручення",
+        ]) {
+          if (bodyText.includes(wrong)) {
+            ctx.findings.push(`/: rendered "${wrong}" although one assignment was seeded for this member`);
+          }
+        }
+
+        // The `showProjectName` rule, asserted rather than eyeballed: this
+        // world has exactly ONE project, so repeating its name on the single
+        // row buys nothing and must not appear.
+        if (bodyText.includes(projectName)) {
+          ctx.findings.push(`/: the project name ("${projectName}") is shown although only one project contributes rows — showProjectName should be false`);
+        }
+
+        // The row must be a link to the obligation screen; a list a foreman
+        // cannot tap through is not a list.
+        const href = `/a/${assignmentId}`;
+        const linked = await page.evaluate(
+          (h) => [...document.querySelectorAll("a")].some((a) => a.getAttribute("href") === h), href);
+        if (!linked) {
+          ctx.findings.push(`/: no <a href="${href}"> — the row does not link to its obligation screen`);
+        }
+
+        const small = await measureSmallTargets(page);
+        for (const t of small) {
+          ctx.findings.push(`/ @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+        }
+
+        await page.screenshot({ path: path.join(SHOTS, "my-assignments.png"), fullPage: true });
+      });
+      reportDiagnostics("my assignments list", listDiagnostics, ctx.findings, ctx.missingAssets);
     });
 
     await runAudit(ctx, "obligation screen", async () => {
@@ -827,30 +926,32 @@ async function main() {
           return;
         }
 
-        // SURPRISE, RECORDED RATHER THAN WORKED AROUND SILENTLY:
-        // `holdsUnsavedBytes("not_sent")` is `true` by design (state.ts;
-        // "not_sent" is both the untouched initial state AND the recovery
-        // target after a `request_new_upload_grant` refusal, and state-
-        // catalog.csv:38-45 does not distinguish the two) — which means the
-        // banner and the "Скасувати фото" control are ALREADY on screen here,
-        // before any file has ever been picked. Confirmed by hand against
-        // qa-output/screenshots/obligation.png. This was true across task 9
-        // and task 10 (neither report's own verification flagged it) and is
-        // out of this task's scope to change — task 11 builds the harness,
-        // it does not re-open capture.tsx's design.
+        // AT REST, NOTHING IS AT RISK — and this used to be the opposite.
+        // Task 11's first draft recorded a surprise here: `holdsUnsavedBytes`
+        // was a function of the client state alone, `not_sent` is also the
+        // INITIAL state, and so the red banner and the «Скасувати фото»
+        // control were already on screen before any file had been picked (and
+        // a `beforeunload` listener was already registered). It was recorded
+        // as out of that task's scope; the final whole-branch review made it
+        // Critical 1, and `holdsUnsavedBytes` now takes `hasPickedFile` too.
         //
-        // It does mean a bare "is the banner visible" check cannot, by
-        // itself, prove anything happened when the file was picked — it was
-        // ALREADY true. So the actual in-flight proof below is the STATE
-        // LABEL, "Надсилання" (`CLIENT_STATE_LABEL.sending`), which is unique
-        // to the "sending" state and cannot be true at rest.
+        // So this is now an ASSERTION, not a console warning. A screen a
+        // foreman has merely opened must carry neither affordance: a red
+        // warning about a photo that does not exist is how people learn that
+        // this product's red text means nothing, and the browser's own
+        // close-tab prompt is the mechanism INV-081's second half rests on.
         const bodyTextAtRest = await page.evaluate(() => document.body.innerText);
-        if (!bodyTextAtRest.includes(UNSAVED_PHOTO_WARNING)) {
-          // Not pushed as a finding — see the comment above; recorded so a
-          // reader of a future diff (if capture.tsx's gate ever narrows to
-          // exclude "not_sent") notices the assumption changed under this file.
-          console.warn("qa/field.mjs: unsaved-photo banner was NOT visible at rest before any file was picked — capture.tsx's holdsUnsavedBytes(\"not_sent\") gate may have changed; see the comment above uploadFile().");
+        if (bodyTextAtRest.includes(UNSAVED_PHOTO_WARNING)) {
+          ctx.findings.push(`capture pass: the unsaved-photo banner ("${UNSAVED_PHOTO_WARNING}") is on screen before any file has been picked — holdsUnsavedBytes has lost its hasPickedFile term`);
         }
+        if (bodyTextAtRest.includes("Скасувати фото")) {
+          ctx.findings.push("capture pass: the \"Скасувати фото\" control is offered before any file has been picked — there is nothing to discard");
+        }
+        //
+        // Because the banner is now genuinely absent at rest, its appearance
+        // IS evidence on its own — but the unambiguous in-flight proof below
+        // stays the STATE LABEL «Надсилання» (`CLIENT_STATE_LABEL.sending`),
+        // which is unique to the "sending" state and reachable no other way.
 
         const jpegPath = path.join(OUTPUT, "фото.jpg");
         await writeFile(jpegPath, JPEG_BYTES);
@@ -939,11 +1040,14 @@ async function main() {
       "(no_bindings / work_type_unresolved / no_matching_rule) and a multi-" +
       "occurrence assignment are covered by src/lib/field/obligations.test.ts " +
       "with no browser, not by this file.",
-      "The discard control (\"Скасувати фото\") and the successful-upload receipt " +
-      "path (server_confirmed) are not driven in the browser — only the failure " +
-      "path this task's assertions are about. Both are covered without a browser " +
-      "in tests/field-capture.int.test.ts (the real routes) and src/lib/capture/" +
-      "upload.test.ts (the state machine, fake fetch).",
+      "The discard control (\"Скасувати фото\") is asserted ABSENT at rest but is " +
+      "never clicked here, and the successful-upload receipt path " +
+      "(server_confirmed) is not driven in the browser — only the failure path " +
+      "this harness's assertions are about. In particular the ABORT a discard now " +
+      "performs (capture.tsx's AbortController) is proven only in Node, in " +
+      "src/lib/capture/upload.test.ts. Both paths are otherwise covered without a " +
+      "browser in tests/field-capture.int.test.ts (the real routes) and " +
+      "src/lib/capture/upload.test.ts (the state machine, fake fetch).",
       "No real device/OS was used — headless Chrome via puppeteer only, no " +
       "Safari/iOS, no physical gloved-hand touch input.",
       "The seeded Auth user is deleted after the run (best-effort); the workspace/" +
