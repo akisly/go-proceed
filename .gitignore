@@ -30,3 +30,9 @@ prototype/qa-runtime-tmp/
 apps/demo/dist/
 apps/demo/qa-output/
 apps/demo/qa-runtime-tmp/
+
+# apps/app's browser QA pass (qa/field.mjs) — same reasoning as apps/demo's
+# qa-output/ above: the report, screenshots and the throwaway JPEG fixture it
+# writes for the capture-flow assertion all land here, and CI's
+# app-qa job asserts the tree is clean after a run.
+apps/app/qa-output/

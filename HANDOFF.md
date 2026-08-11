@@ -9,6 +9,64 @@ at the time of writing.
 
 ---
 
+## 0. Update — 2026-08-11: the PWA field client landed. §1, §5.1 and §6 below are stale.
+
+This section is the correction; everything below it is the record of the
+session that wrote «the field client… is still approved and still not
+built» — which was true then and is not true now.
+
+**What changed.** `docs/superpowers/plans/2026-08-10-pwa-field-client.md`'s
+eleven tasks are all done: the app shell (`apps/app`'s viewport/manifest/no-
+service-worker shell), email-OTP sign-in, «Мої доручення», the obligation
+screen (acceptance criterion in the standard's own wording, plus the capture
+control), the capture core and its state machine, the `beforeunload` guard
+for an at-risk photo (INV-081), and `apps/app/qa/field.mjs` — a puppeteer
+pass, in its own CI job (`app-qa`), that drives the whole thing authenticated:
+mints a real Supabase Auth user through the local Admin API, signs in through
+the real email-OTP form (code read back out of Mailpit), seeds a real
+workspace/project/contract/assignment entirely over `/v1`, and asserts on the
+real rendered obligation screen — the довідковий disclaimer genuinely
+visible (not merely present in the DOM — see that file's own header for a
+negative-case correction made while building it), every control at least
+44×44 CSS px at 375px, and the unsaved-photo banner up while a capture is in
+flight and gone once it resolves.
+
+**Row 2 of §6's table is now wrong** — the PWA field client exists; see the
+corrected table there is NOT edited in place (this document keeps its
+session-scoped record intact) but the answer as of 2026-08-11 is: yes, a
+foreman can sign in and see the obligation screen and use the capture
+control, on `apps/app`.
+
+**§5 item 1 ("The PWA") is done.** Current priority order, unchanged from §5
+items 2–4 below plus one addition:
+
+1. The six project-plane capabilities in no responsibility preset (§5 item 2
+   below) — unchanged, still open.
+2. The eight blank Додаток В fields (§5 item 3 below) — unchanged, still open.
+3. **NEW — the reference image.** ADR-007 decision 4 names one for the
+   obligation screen and it exists in no form (no column, no asset, no
+   owner, no licence); the owner decided 2026-08-10 to ship without it. The
+   documents disagree about which milestone owns it — ADR-007 decision 4 and
+   `glossary.md` say v0.1-M2, `competitive-landscape.md` says v0.3,
+   `version-0.1.md`'s own M2 exit-gate list omits it. Recorded as owed in
+   `TODOS.md` §"CLOSED 2026-08-10/11 — ADR-007 is implemented"; needs an
+   owner decision before anything else about it.
+4. The two headline measures (§5 item 4 below) — unchanged, still open.
+
+**Local verification this session (`supabase db reset` fresh, then
+`pnpm db:local-credentials`, `pnpm turbo run typecheck`, `pnpm turbo run
+build`, `node scripts/validate-canonical-docs.mjs`, `pnpm --filter
+@goproceed/demo preflight`, and `cd apps/app && pnpm build && pnpm qa`, plus
+`pnpm turbo run test --concurrency=1` — one at a time, per this document's
+own §4 warning below, which is still exactly correct and still worth
+reading before touching this database from a second shell):** see
+`.superpowers/sdd/2026-08-10-pwa-field-client/task-11-report.md` for the
+full record, including the two regressions this task's own browser harness
+was deliberately made to catch (a disclaimer collapsed into a closed
+`<details>`, a shrunk touch target) and reverted before landing.
+
+---
+
 ## 1. The one-paragraph version
 
 The previous session left four next steps. **All four are done, and the third

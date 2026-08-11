@@ -1280,3 +1280,57 @@ is the **disclosure** half.
 **Fix:** point both rows at INV-090. Neither file was in the 2026-08-08
 documentation slice's remit, which is the only reason this is an entry rather
 than a change.
+
+## CLOSED 2026-08-10/11 — ADR-007 is implemented: the PWA field client exists
+
+**A customer can now click through the pilot.** `docs/superpowers/plans/2026-08-10-pwa-field-client.md`'s
+eleven tasks are done: sign-in by email + 6-digit OTP, «Мої доручення», the
+obligation screen (both required obligations — the acceptance criterion in
+the standard's own wording, and the capture control), the pure capture core
+and its state machine, the `beforeunload` guard for an at-risk photo
+(INV-081), and a real-browser puppeteer pass (`apps/app/qa/field.mjs`) with
+its own CI job (`app-qa`) that drives the whole thing authenticated — a real
+Supabase Auth user minted through the local Admin API, a real email-OTP
+sign-in read back out of Mailpit, a real seeded workspace/project/contract/
+assignment built entirely over `/v1` (never a raw SQL insert standing in for
+a command), and the real obligation screen it renders. This closes the single
+largest item both handoffs above named as blocking a pilot.
+
+**INV-086's "NOT YET IMPLEMENTABLE" note is closed** — see
+`technical/database/invariant-catalog.csv`'s INV-086 row, corrected in place.
+`origin_not_distinguished` is in the deployed CHECK (migration 0043) and in
+`packages/contracts/src/uploads.ts`'s `originMethod` enum, and
+`apps/app/src/lib/capture/upload.ts`'s `buildCreateIntentBody` is the one
+place the PWA's request body is assembled — it carries no parameter that
+could route `native_camera` (or anything else) through it, proven three ways
+(`apps/app/tests/field-capture.int.test.ts`, `src/lib/capture/upload.test.ts`,
+and a browser-driven capture in `qa/field.mjs`).
+
+**Owed, not built: the reference image.** ADR-007 decision 4 names one —
+shown beside the acceptance criterion on the obligation screen, before work
+starts — and it exists in **no form**: no column, no contract field, no
+asset, no owner, no licence. The owner decided on 2026-08-10 to ship the
+obligation text without it (see
+`docs/superpowers/specs/2026-08-10-pwa-field-client-design.md` §3 "Out,
+deliberately"), so `apps/app/app/(app)/a/[assignmentId]/page.tsx` renders the
+acceptance criterion, its norm reference, and the capture control — and
+nothing else where the picture would go.
+
+**And the documents disagree about which milestone owns it — recorded here
+as owed, not resolved.** Three sources, three different answers:
+
+- [ADR-007](docs/decisions/ADR-007-pilot-field-client.md) decision 4 and
+  `docs/domain/glossary.md:121` ("Field client" row) both say v0.1-M2.
+- `docs/product/competitive-landscape.md` says v0.3.
+- `docs/delivery/version-0.1.md`'s own v0.1-M2 exit-gate list **omits it
+  entirely** — neither requiring nor excluding it.
+
+**Fix:** an owner decision on which milestone actually owns the reference
+image, followed by making the three documents agree (and, if v0.1-M2, a
+follow-up slice sourcing the image the same way the ДБН citations were
+sourced — from a primary, verification-tagged origin, never invented).
+**Cons:** none technical; this is a documentation-consistency and
+content-sourcing question, not a code change.
+**Depends on:** nothing technical. `apps/app`'s obligation screen already has
+the one place the image would render (`ObligationCard` in
+`app/(app)/a/[assignmentId]/page.tsx`) if and when the owner supplies one.
