@@ -24,63 +24,92 @@ export async function apiGet<T>(path: string): Promise<T> {
 }
 
 /**
- * WHY THE SCHEME IS DERIVED, NOT A CONSTANT.
- *
- * Fix-round-1, task 7: the original body hardcoded `https://${host}` for the
- * no-override case. `NEXT_PUBLIC_APP_ORIGIN` is set nowhere in this repo,
- * `.claude/launch.json` runs `next dev` on plain HTTP port 3000, and task
- * 11's browser pass runs `next start`, also plain HTTP — so that fallback
- * built `https://localhost:3000` and this self-fetch tried to speak TLS to a
- * server that only speaks HTTP. The request failed at the TLS handshake
- * before `!res.ok` ever ran, this function's caller saw a generic
- * (non-`ApiError`, or an `ApiError` that was never really about the route)
- * failure, and the page's catch-all rendered the error screen on every
- * single render, in every local and CI environment — silently, because
- * `pnpm build`/`tsc --noEmit` succeed either way; a wrong runtime scheme is
- * not a type error.
- *
- * Precedence, in order:
- *   1. `NEXT_PUBLIC_APP_ORIGIN`, when set — an explicit operator override.
- *      Trusted outright: setting it is a deliberate act, not a guess.
- *   2. `x-forwarded-proto`, when present — the one signal a real reverse
- *      proxy in front of a real deployment sets, and the only one that
- *      actually describes what scheme the ORIGINAL client used. This
- *      server's own socket is irrelevant here: this `fetch` call always
- *      talks to Next over plain loopback regardless of what the outside
- *      world sees, so asking the connection "am I on https" is never the
- *      right question in the first place.
- *   3. Otherwise, infer from the host: `http` only for `localhost`,
- *      `127.0.0.1`, `[::1]`/`::1`, or anything under `*.localhost` — the
- *      hostnames a developer's own machine actually answers to over plain
- *      HTTP. Everything else defaults to `https`.
- *
- * That default is `https`, not `http`, ON PURPOSE. The two ways this last
- * branch can be wrong are not symmetric: guessing `https` when the real
- * answer was `http` breaks every fetch loudly (the exact, easy-to-spot
- * symptom this fix exists to close); guessing `http` when the real answer
- * was `https` sends the session cookie across the network in the clear —
- * nothing fails, a credential just leaks, silently. A fallback has to fail
- * loud, not quiet, so the insecure choice is the one that requires positive
- * evidence (a recognized loopback host), never the one left standing by
- * default.
- *
- * DO NOT collapse this back to a single constant scheme. That is the exact
- * simplification this comment exists to stop: a constant `https` reproduces
- * this bug against `next dev`/`next start` (both plain HTTP); a constant
- * `http` would silently ship an insecure fallback to production the day
- * someone's proxy stops sending `x-forwarded-proto`.
+ * Thrown when the inbound `Host` header names a host this process is not
+ * willing to send a session cookie to. Deliberately NOT an `ApiError`: no
+ * status came back from anywhere, because no request was made. Callers that
+ * special-case 401 (see `app/(app)/page.tsx`) therefore fall through to their
+ * generic error screen, which is right — this is a deployment fault, not
+ * something the foreman can fix by signing in again.
  */
-function resolveBaseOrigin(h: Headers): string {
-  if (process.env.NEXT_PUBLIC_APP_ORIGIN) return process.env.NEXT_PUBLIC_APP_ORIGIN;
+export class UntrustedHostError extends Error {
+  constructor(readonly host: string) {
+    super(
+      `Refusing to self-fetch against untrusted Host "${host}". `
+      + "Set NEXT_PUBLIC_APP_ORIGIN to this deployment's own origin.",
+    );
+  }
+}
+
+/**
+ * THE ORIGIN THIS PROCESS WILL ATTACH THE SESSION COOKIE TO — and the reason
+ * it is validated rather than merely assembled.
+ *
+ * `apiGet` sends the ENTIRE Supabase auth cookie jar (`cookie: c.toString()`)
+ * to whatever this returns. Until the final whole-branch review, this function
+ * built its target out of the inbound `Host` header, which is attacker-
+ * supplied on every request that reaches an origin server directly:
+ * `Host: attacker.example` made a server component fetch
+ * `https://attacker.example/v1/projects` with a real foreman's session
+ * attached. Nothing in this repository guaranteed a proxy that normalises
+ * `Host` — there is no `vercel.json` for `apps/app`, no deploy step in
+ * `ci.yml`, and staging has never been provisioned — and `.env.example`
+ * documented `NEXT_PUBLIC_APP_ORIGIN` as "Leave unset in every ordinary case",
+ * so the header-derived path WAS the ordinary path. This branch already
+ * treated a lesser open redirect (task 5) as Critical; a credential handed to
+ * a host named by the request is strictly worse.
+ *
+ * TWO WAYS TO BE TRUSTED, BOTH EXPLICIT, NOTHING ELSE:
+ *
+ *   1. `NEXT_PUBLIC_APP_ORIGIN` is set. It is returned as-is and the `Host`
+ *      header is not consulted at all — not compared against, not appended
+ *      to. Setting it is a deliberate operator act, and every deployment that
+ *      is not a developer's own machine must set it. This is the mechanism
+ *      that makes a real origin safe.
+ *
+ *   2. `Host` names loopback: `localhost`, `127.0.0.1`, `[::1]`/`::1`, or
+ *      anything under `*.localhost` — with or without a port. This is the
+ *      explicit allowlist for the unset case, and it is exactly the set of
+ *      hostnames a developer's own machine answers to. `next dev` (port 3000)
+ *      and `next start` (the browser pass's ephemeral port) both land here.
+ *      Matched case-insensitively: `Host: LOCALHOST` is the same machine, and
+ *      a case-sensitive compare merely sent it down the refusal path for no
+ *      reason.
+ *
+ * Anything else throws. Refusing is the only safe answer: the alternative is
+ * to guess an origin for a request that has already told us it is not the one
+ * we are, while holding a credential.
+ *
+ * THE SCHEME IS NO LONGER READ OFF `x-forwarded-proto`, and that is the same
+ * hole's smaller half. That header is as forgeable as `Host`, and because the
+ * derived default for a non-loopback host is already `https`, trusting it
+ * could only ever DOWNGRADE — `x-forwarded-proto: http` on a public host sent
+ * the session cookie over cleartext, and nothing failed while it happened. It
+ * bought nothing in exchange: an operator whose scheme genuinely differs from
+ * this derivation sets `NEXT_PUBLIC_APP_ORIGIN`, which is branch 1, which is
+ * also how they get a trusted host in the first place. So the scheme is now a
+ * function of the host class alone — `http` for loopback, `https` otherwise —
+ * and no header can move it.
+ *
+ * (Kept from the earlier fix, because the reason still holds: the scheme is
+ * DERIVED, not a constant. A constant `https` breaks `next dev`/`next start`,
+ * both plain HTTP, at the TLS handshake on every render — the failure task 7's
+ * fix round closed. A constant `http` would ship an insecure fallback.)
+ *
+ * `appOrigin` is a parameter with a default rather than a bare
+ * `process.env` read so `api.test.ts` can drive both branches without
+ * mutating the environment.
+ */
+export function resolveBaseOrigin(
+  h: Headers,
+  appOrigin: string | undefined = process.env.NEXT_PUBLIC_APP_ORIGIN,
+): string {
+  if (appOrigin) return appOrigin;
 
   const host = h.get("host") ?? "";
 
-  const forwardedProto = h.get("x-forwarded-proto")?.split(",")[0]?.trim();
-  if (forwardedProto) return `${forwardedProto}://${host}`;
-
   // `host` carries a port in dev (`localhost:3000`); strip it before
   // matching, or a bare hostname comparison would silently never match.
-  const hostname = host.replace(/:\d+$/, "");
+  const hostname = host.replace(/:\d+$/, "").toLowerCase();
   const isLoopback =
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
@@ -88,9 +117,23 @@ function resolveBaseOrigin(h: Headers): string {
     hostname === "::1" ||
     hostname.endsWith(".localhost");
 
-  return `${isLoopback ? "http" : "https"}://${host}`;
+  if (!isLoopback) throw new UntrustedHostError(host);
+
+  return `http://${host}`;
 }
 
 export class ApiError extends Error {
   constructor(readonly status: number, readonly problem: unknown) { super("api"); }
+}
+
+/**
+ * "The session is gone" as one predicate, rather than the same
+ * `err instanceof ApiError && err.status === 401` written at each of the three
+ * places that must agree about it (`app/(app)/page.tsx`'s two catches and
+ * `loadAssignmentsByProject`'s per-project catch). A 401 is never a
+ * per-project failure to absorb: every other in-flight request would fail the
+ * identical way a moment later.
+ */
+export function isSessionExpired(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 401;
 }
