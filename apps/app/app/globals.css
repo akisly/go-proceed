@@ -273,6 +273,21 @@
    * global reset covers only part of what utilities assume. These are the gaps
    * that actually bite, scoped so no public route is touched:
    *
+   *   box-sizing    THE ONE THAT WAS MISSING, and it made every screen of the
+   *                 field client 24px wider than the phone it is for. Tailwind's
+   *                 entire sizing model assumes `border-box`; without it,
+   *                 `w-full px-4` on a `<main>` computes as 100% PLUS 32px of
+   *                 padding, so the page scrolled sideways on a 375px viewport
+   *                 and the right edge of every card sat off-screen. Nothing
+   *                 failed and every screenshot looked correct, because a
+   *                 full-page screenshot captures `scrollWidth` — it came out
+   *                 399px wide and nobody read the number. Found 2026-08-11 by
+   *                 the horizontal-overflow gate added to `qa/field.mjs` in the
+   *                 same change, which now fails the browser pass if any of the
+   *                 three screens scrolls sideways again.
+   *   body margin   The UA's `body { margin: 8px }`, the other 16px of that 24.
+   *                 `goproceed-app` sits ON `<body>` (layout.tsx), so this rule
+   *                 is that element itself, not a descendant.
    *   border-color  Tailwind v4's `border` resolves to `currentColor`. Without
    *                 a default, one forgotten `border-border` paints a border in
    *                 whatever colour the text happens to be.
@@ -283,9 +298,15 @@
    *   table         Required for the register's shared column geometry.
    *   svg           Inline SVG sits on the text baseline and adds a phantom
    *                 descender under every icon. */
+  body.goproceed-app {
+    margin: 0;
+  }
+
+  .goproceed-app,
   .goproceed-app *,
   .goproceed-app *::before,
   .goproceed-app *::after {
+    box-sizing: border-box;
     border-color: var(--color-border);
   }
 

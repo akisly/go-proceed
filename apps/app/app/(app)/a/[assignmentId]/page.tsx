@@ -125,9 +125,19 @@ function ObligationCard(
         // Text, verification tag and source travel together — never the text
         // alone (INV-073's rendering half). A normative string with no
         // visible source is unrenderable per hidden-works-content-rules.md.
+        // `break-words` on the source line, and it is not cosmetic. `source`
+        // carries the retrieval record — a URL and a 64-character sha256 —
+        // neither of which contains a break opportunity, so at 375px the line
+        // ran off the right edge of the phone and took the horizontal scroll
+        // of the whole page with it. A regulatory citation that cannot be read
+        // on the device the client is FOR is a citation that is not really
+        // rendered, which is the same failure the qa harness's own
+        // disclaimer-visibility check exists to catch. Not applied to
+        // `normRef.text`: that is prose, it breaks on its own, and no class
+        // here alters the string itself (INV-073).
         <div className="flex flex-col gap-1 rounded-control bg-surface-muted p-3 text-data text-foreground-secondary">
           <p>{item.normRef.text}</p>
-          <p className="text-meta text-foreground-muted">
+          <p className="text-meta break-words text-foreground-muted">
             {item.normRef.verification} · {item.normRef.source}
           </p>
         </div>

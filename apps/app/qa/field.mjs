@@ -482,6 +482,41 @@ function reportDiagnostics(label, diagnostics, findings, missingAssets) {
  * (a search input measured 22px, a footer link 20px) is exactly as possible
  * here, and `apps/demo` already has a proven-correct way to catch it.
  */
+/**
+ * NOTHING MAY SCROLL SIDEWAYS ON A PHONE. Added by the final fix wave after the
+ * obligation screen's own screenshot showed the ДБН retrieval record — a URL
+ * and a 64-character sha256, neither of which contains a break opportunity —
+ * running off the right edge at 375px and taking the whole document's
+ * horizontal scroll with it. A regulatory citation that cannot be read on the
+ * device this client is FOR is not really rendered, which is the same failure
+ * the disclaimer-visibility check exists to catch, and no assertion here would
+ * have noticed: the text was present, visible, and unclipped.
+ *
+ * `documentElement`, not `body`: the scroll that matters is the viewport's.
+ * A 1px tolerance because sub-pixel layout rounding produces a harmless
+ * `scrollWidth` one greater than `clientWidth` on some elements.
+ */
+async function measureHorizontalOverflow(page) {
+  return page.evaluate(() => {
+    const doc = document.documentElement;
+    const overflow = doc.scrollWidth - doc.clientWidth;
+    if (overflow <= 1) return null;
+    // Name the widest offender, so the finding says WHAT is too wide rather
+    // than only that something is.
+    const widest = [...document.querySelectorAll("body *")]
+      .map((el) => ({ el, right: el.getBoundingClientRect().right }))
+      .filter((x) => x.right > doc.clientWidth + 1)
+      .sort((a, b) => b.right - a.right)[0];
+    return {
+      overflow,
+      viewport: doc.clientWidth,
+      offender: widest
+        ? `<${widest.el.tagName.toLowerCase()} class="${widest.el.className}"> extends to ${Math.round(widest.right)}px`
+        : "no single element identified",
+    };
+  });
+}
+
 async function measureSmallTargets(page) {
   return page.evaluate(() =>
     [...document.querySelectorAll("a, button, input, select, textarea")]
@@ -618,6 +653,10 @@ async function main() {
         const small = await measureSmallTargets(page);
         for (const t of small) {
           ctx.findings.push(`login @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+        }
+        const overflow = await measureHorizontalOverflow(page);
+        if (overflow) {
+          ctx.findings.push(`login @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
         }
 
         await page.screenshot({ path: path.join(SHOTS, "login.png"), fullPage: true });
@@ -815,6 +854,10 @@ async function main() {
         for (const t of small) {
           ctx.findings.push(`/ @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
         }
+        const overflow = await measureHorizontalOverflow(page);
+        if (overflow) {
+          ctx.findings.push(`/ @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
+        }
 
         await page.screenshot({ path: path.join(SHOTS, "my-assignments.png"), fullPage: true });
       });
@@ -899,6 +942,10 @@ async function main() {
         const small = await measureSmallTargets(page);
         for (const t of small) {
           ctx.findings.push(`/a/${assignmentId} @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+        }
+        const overflow = await measureHorizontalOverflow(page);
+        if (overflow) {
+          ctx.findings.push(`/a/${assignmentId} @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
         }
 
         // The negative half of INV-081: nothing on this screen may ever
