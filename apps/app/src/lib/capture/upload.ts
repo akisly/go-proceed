@@ -118,10 +118,21 @@ export type FetchLike = (input: string, init?: RequestInit) => Promise<Response>
  * `fetchImpl` defaults to the real global `fetch` so `capture.tsx` does not
  * have to pass one; `upload.test.ts` passes a fake to run this in Node with
  * no network and no DOM.
+ *
+ * `signal` IS WHAT MAKES THE DISCARD CONFIRMATION TRUE (final review,
+ * Important 3). It is attached to all three requests, so aborting it after the
+ * create has returned but before finalize has run means no evidence object is
+ * ever recorded — which is what «Його не буде збережено на сервері» says. It
+ * was previously absent and the deferral called that "harmless now that
+ * nothing it returns can be written": true of the SCREEN, false of the
+ * server's records, which is the half that matters in a product about
+ * evidence. Optional, because nothing forces a caller to offer a cancel
+ * control; when it is omitted the requests simply run to completion as before.
  */
 export async function uploadCapture(
   file: File, occurrenceId: string, assignmentId: string, photoId: string,
   onStateChange: (s: ClientState) => void,
+  signal?: AbortSignal,
   fetchImpl: FetchLike = fetch,
 ): Promise<UploadOutcome> {
   onStateChange("sending");
@@ -141,6 +152,11 @@ export async function uploadCapture(
       method: "POST",
       headers: { "content-type": "application/json", "Idempotency-Key": attemptKey() },
       body: JSON.stringify(body),
+      // `?? null`, not a bare `signal`: `tsconfig.json` sets
+      // `exactOptionalPropertyTypes`, and `RequestInit.signal` is
+      // `AbortSignal | null` — an explicit `undefined` is a type error rather
+      // than an omission. `null` is what "no signal" means to `fetch`.
+      signal: signal ?? null,
     });
     if (!createRes.ok) {
       const problem = await readProblem(createRes);
@@ -166,6 +182,11 @@ export async function uploadCapture(
       method: "PUT",
       headers: { "content-type": file.type },
       body: bytes,
+      // `?? null`, not a bare `signal`: `tsconfig.json` sets
+      // `exactOptionalPropertyTypes`, and `RequestInit.signal` is
+      // `AbortSignal | null` — an explicit `undefined` is a type error rather
+      // than an omission. `null` is what "no signal" means to `fetch`.
+      signal: signal ?? null,
     });
     if (!putRes.ok) {
       // Routed through the same readProblem/nextStateFor pipeline as the
@@ -189,6 +210,11 @@ export async function uploadCapture(
       method: "POST",
       headers: { "content-type": "application/json", "Idempotency-Key": attemptKey() },
       body: JSON.stringify({}),
+      // `?? null`, not a bare `signal`: `tsconfig.json` sets
+      // `exactOptionalPropertyTypes`, and `RequestInit.signal` is
+      // `AbortSignal | null` — an explicit `undefined` is a type error rather
+      // than an omission. `null` is what "no signal" means to `fetch`.
+      signal: signal ?? null,
     });
     if (!finalizeRes.ok) {
       const problem = await readProblem(finalizeRes);

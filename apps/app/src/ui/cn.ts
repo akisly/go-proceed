@@ -5,11 +5,13 @@ import { extendTailwindMerge } from 'tailwind-merge'
  * tailwind-merge has to be TAUGHT this theme, not just installed.
  *
  * Its conflict resolution is driven by a built-in map of Tailwind's *default*
- * theme. `src/styles/theme.css` clears the stock `--color-*`, `--text-*`,
+ * theme. `app/globals.css` clears the stock `--color-*`, `--text-*`,
  * `--radius-*`, `--shadow-*` and `--breakpoint-*` namespaces and defines its
  * own, so every class this codebase writes is one tailwind-merge has never
  * heard of — and its fallbacks are actively wrong here rather than merely
- * unhelpful.
+ * unhelpful. (This file was ported from a codebase where that sheet was
+ * `src/styles/theme.css`; no such file exists in `apps/app`, and the citation
+ * was corrected rather than left pointing at nothing.)
  *
  * The concrete failure: `text-*` is ambiguous in Tailwind (font-size AND
  * colour), so tailwind-merge disambiguates with a validator — a t-shirt size

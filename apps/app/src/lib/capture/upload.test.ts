@@ -68,11 +68,11 @@ function problem(userAction: string, detail = "Помилка."): unknown {
   };
 }
 
-async function run(responses: Response[]) {
+async function run(responses: Response[], signal?: AbortSignal) {
   const { fetchImpl, calls } = fakeFetch(responses);
   const states: ClientState[] = [];
   const outcome = await uploadCapture(
-    FILE, OCCURRENCE_ID, ASSIGNMENT_ID, PHOTO_ID, (s) => states.push(s), fetchImpl,
+    FILE, OCCURRENCE_ID, ASSIGNMENT_ID, PHOTO_ID, (s) => states.push(s), signal, fetchImpl,
   );
   return { outcome, states, calls };
 }
@@ -179,13 +179,16 @@ describe("uploadCapture — a finalize that never reaches available never become
 });
 
 describe("uploadCapture — a failing call maps through nextStateFor to the state userAction dictates", () => {
-  it("a failing PUT carrying retry_part maps to sending", async () => {
-    const { outcome } = await run([
+  it("a failing PUT carrying retry_part reports failed — nothing here retries the PUT", async () => {
+    // Final review, Important 4: this used to assert "sending", which claimed
+    // an in-flight upload while `uploadCapture` had already returned.
+    const { outcome, states } = await run([
       jsonResponse(201, CREATED),
       jsonResponse(422, problem("retry_part", "Частину не отримано.")),
       jsonResponse(200, AVAILABLE), // unreached
     ]);
-    expect(outcome.state).toBe("sending");
+    expect(outcome.state).toBe("failed");
+    expect(states.at(-1)).toBe("failed");
     if (outcome.state !== "server_confirmed") {
       expect(outcome.message).toBe("Частину не отримано.");
     }
@@ -198,13 +201,36 @@ describe("uploadCapture — a failing call maps through nextStateFor to the stat
     expect(outcome.state).toBe("not_sent");
   });
 
-  it("a failing finalize carrying refresh_upload_state_or_request_new_grant maps to awaiting_receipt", async () => {
-    const { outcome } = await run([
+  it("a failing finalize carrying refresh_upload_state_or_request_new_grant reports failed — nothing here re-GETs the intent", async () => {
+    const { outcome, states } = await run([
       jsonResponse(201, CREATED),
       new Response(null, { status: 200 }),
       jsonResponse(409, problem("refresh_upload_state_or_request_new_grant", "Стан змінився.")),
     ]);
-    expect(outcome.state).toBe("awaiting_receipt");
+    expect(outcome.state).toBe("failed");
+    // `awaiting_receipt` is emitted on the way IN to finalize, which is
+    // correct — that request really was in flight. What must not survive is
+    // it being the LAST thing the foreman is left looking at.
+    expect(states).toEqual(["sending", "awaiting_receipt", "failed"]);
+  });
+
+  it("never leaves the screen on an in-progress label after it has stopped working", async () => {
+    // The structural form of the two assertions above, across every failure
+    // shape this module produces: whatever it narrates along the way, the
+    // state it RESTS on can never be one that claims something is happening.
+    const shapes: Response[][] = [
+      [jsonResponse(422, problem("retry_part"))],
+      [jsonResponse(201, CREATED), jsonResponse(422, problem("retry_part"))],
+      [jsonResponse(201, CREATED), new Response(null, { status: 200 }),
+        jsonResponse(409, problem("refresh_upload_state_or_request_new_grant"))],
+      [jsonResponse(201, CREATED), new Response(null, { status: 200 }),
+        jsonResponse(500, problem("retry_part"))],
+    ];
+    for (const responses of shapes) {
+      const { outcome, states } = await run(responses);
+      expect(["sending", "awaiting_receipt"]).not.toContain(outcome.state);
+      expect(["sending", "awaiting_receipt"]).not.toContain(states.at(-1));
+    }
   });
 
   it("an unrecognised userAction defaults to failed, not a retry", async () => {
@@ -231,12 +257,91 @@ describe("uploadCapture — a failing call maps through nextStateFor to the stat
     const throwing: FetchLike = async () => { throw new Error("network down"); };
     const states: ClientState[] = [];
     const outcome = await uploadCapture(
-      FILE, OCCURRENCE_ID, ASSIGNMENT_ID, PHOTO_ID, (s) => states.push(s), throwing,
+      FILE, OCCURRENCE_ID, ASSIGNMENT_ID, PHOTO_ID, (s) => states.push(s), undefined, throwing,
     );
     expect(outcome.state).toBe("failed");
     if (outcome.state !== "server_confirmed") {
       expect(outcome.message).toBe(GENERIC_FAILURE);
     }
     expect(states).toEqual(["sending", "failed"]);
+  });
+});
+
+describe("uploadCapture — the discard confirmation's promise, enforced (final review, Important 3)", () => {
+  it("hands the same AbortSignal to every request it makes", async () => {
+    // Without this, aborting could stop one leg and let another run —
+    // finalize being the one that actually creates the evidence record.
+    const controller = new AbortController();
+    const { calls } = await run([
+      jsonResponse(201, CREATED),
+      new Response(null, { status: 200 }),
+      jsonResponse(200, AVAILABLE),
+    ], controller.signal);
+
+    expect(calls).toHaveLength(3);
+    for (const call of calls) {
+      expect(call.init?.signal).toBe(controller.signal);
+    }
+  });
+
+  it("aborting after the intent exists stops the pipeline before finalize is ever called", async () => {
+    // THE DEFECT THIS CLOSES, as a test. «Скасувати це фото? Його не буде
+    // збережено на сервері…» was a false statement: `guard.supersede()`
+    // blocked UI writes and nothing else, so the in-flight upload ran to
+    // completion, finalize succeeded, and the server recorded an evidence
+    // object for the photo the foreman had just been told would not be saved.
+    // Here the abort lands while the PUT is in flight, exactly as a discard
+    // does, and the assertion is about what the SERVER is asked to do — the
+    // third call must never happen.
+    const controller = new AbortController();
+    const calls: Call[] = [];
+    let putStarted!: () => void;
+    const putHasStarted = new Promise<void>((resolve) => { putStarted = resolve; });
+
+    // A fake that behaves like the real `fetch` does under abort: the PUT's
+    // promise rejects with an AbortError rather than resolving — but ONLY if
+    // the signal actually reached it. The second listener, on the controller
+    // directly, is what makes this test fail FAST and legibly if the signal is
+    // ever dropped again: the PUT then simply succeeds, finalize runs, and the
+    // `toHaveLength(2)` assertion below names the defect, instead of the whole
+    // test hanging to its timeout on a promise nobody can settle. When the
+    // signal IS threaded through, both listeners sit on the same signal and
+    // the rejecting one — registered first — settles the promise.
+    const fetchImpl: FetchLike = async (url, init) => {
+      calls.push({ url, init });
+      if (calls.length === 1) return jsonResponse(201, CREATED);
+      // Call 3 is finalize — the call that must never happen. It is answered
+      // (with the receipt it would really return) rather than left hanging, so
+      // that a regression fails on the assertion below rather than on a
+      // timeout, and so the failure message is about evidence being recorded.
+      if (calls.length >= 3) return jsonResponse(200, AVAILABLE);
+      putStarted();
+      return await new Promise<Response>((resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => {
+          reject(Object.assign(new Error("aborted"), { name: "AbortError" }));
+        });
+        controller.signal.addEventListener("abort", () => {
+          resolve(new Response(null, { status: 200 }));
+        });
+      });
+    };
+
+    const states: ClientState[] = [];
+    const pending = uploadCapture(
+      FILE, OCCURRENCE_ID, ASSIGNMENT_ID, PHOTO_ID, (s) => states.push(s),
+      controller.signal, fetchImpl,
+    );
+    await putHasStarted;
+    controller.abort();
+    const outcome = await pending;
+
+    expect(calls).toHaveLength(2);
+    expect(calls.map((c) => c.url)).not.toContain(
+      `/v1/upload-intents/${CREATED.uploadIntentId}/finalize`);
+    // An aborted attempt is never reported as saved. `capture.tsx` discards
+    // this outcome entirely (the AttemptGuard has already superseded it), but
+    // the honest value at this layer is `failed`, never `server_confirmed`.
+    expect(outcome.state).toBe("failed");
+    expect(states).not.toContain("server_confirmed");
   });
 });

@@ -33,31 +33,92 @@ export function isSaved(s: ClientState): boolean {
 }
 
 /**
- * INV-081's second half. True while the browser holds bytes the server does not,
- * which is exactly when leaving the page loses a photo. `failed` and `discarded`
- * are false because the user has already been told.
+ * ONE FACT ABOUT THE STATE ALONE: the server has not recorded this photo.
+ *
+ * True for `not_sent`, `sending` and `awaiting_receipt`; false for
+ * `server_confirmed` (the receipt landed), `failed` and `discarded` (the user
+ * has already been told). It says NOTHING about whether a photo exists — at
+ * first paint, before any file has been picked, `not_sent` is the initial
+ * state and this is already `true` about a photo that does not exist.
+ *
+ * THAT DISTINCTION IS THE WHOLE POINT OF SPLITTING THIS OUT, and it is a
+ * correction. Until the final whole-branch review, `holdsUnsavedBytes` WAS
+ * this function, and the banner, the discard control and the `beforeunload`
+ * listener all keyed off it — so a foreman who merely opened an obligation
+ * screen was shown «GoProceed не зберіг це фото…» about no photo, offered
+ * «Скасувати фото» for no photo, and got the browser's "leave site?" dialog on
+ * closing a tab he had done nothing in. That last one is the expensive
+ * failure: `capture.tsx`'s own comment says a listener that stays registered
+ * "would make every ordinary navigation show the same browser dialog, training
+ * people to click through the one prompt that actually protects something",
+ * and the code did exactly that on every visit. INV-081's second half rests on
+ * that prompt still meaning something.
+ *
+ * Nothing user-visible may be gated on this function by itself. Use
+ * `holdsUnsavedBytes` (below), which is this AND "a file has actually been
+ * picked".
  */
-export function holdsUnsavedBytes(s: ClientState): boolean {
+export function serverHasNotRecordedIt(s: ClientState): boolean {
   return s === "not_sent" || s === "sending" || s === "awaiting_receipt";
 }
 
 /**
+ * THE TWO FACTS THAT TOGETHER MEAN "leaving this page loses a photo", carried
+ * as one value so no call site can key off half of them.
+ *
+ * `hasPickedFile` is the fact the client state cannot express. The browser
+ * holds no `File` in React state at all — the bytes live only inside the
+ * in-flight upload's closure — so "are there bytes" is not derivable from
+ * `ClientState`, which is why it travels beside it rather than being inferred
+ * from it. It becomes true when a file is handed to the capture island and
+ * false again when the photo is discarded (there is nothing left to lose).
+ * It deliberately stays true after a `failed` or `server_confirmed` outcome:
+ * those states already answer the question through
+ * `serverHasNotRecordedIt`, and clearing the flag there would make a retake
+ * of the same obligation look, for one render, like a screen nobody had
+ * touched.
+ */
+export type CaptureHold = {
+  state: ClientState;
+  hasPickedFile: boolean;
+};
+
+/**
+ * INV-081's second half. True while the browser holds bytes the server does
+ * not — which is exactly when leaving the page loses a photo, and is now
+ * exactly what the name says, because it can no longer be true before a photo
+ * exists. This is the ONE decision the banner, the discard control and the
+ * `beforeunload` listener are all gated on, so those three can never disagree
+ * about whether a photo is at risk.
+ */
+export function holdsUnsavedBytes(hold: CaptureHold): boolean {
+  return hold.hasPickedFile && serverHasNotRecordedIt(hold.state);
+}
+
+/**
  * The only client-initiated transition to `discarded` — "Explicit warned user
- * deletion" (state-catalog.csv:44). Guarded by `holdsUnsavedBytes` on both
- * sides of the call, not just at the UI layer: a photo can only be dropped
- * from the client's hands while the client is still the only one holding it.
- * Once `holdsUnsavedBytes` is false — the server already confirmed it, the
- * upload already failed, or it was already discarded — `state` is returned
- * unchanged, so a stale click (or a race with an in-flight upload's own
- * final callback) can never overwrite a `server_confirmed` receipt or a
- * `failed` notice with `discarded`.
+ * deletion" (state-catalog.csv:44). Guarded by `serverHasNotRecordedIt` on
+ * both sides of the call, not just at the UI layer: a photo can only be
+ * dropped from the client's hands while the client is still the only one
+ * holding it. Once that is false — the server already confirmed it, the upload
+ * already failed, or it was already discarded — `state` is returned unchanged,
+ * so a stale click (or a race with an in-flight upload's own final callback)
+ * can never overwrite a `server_confirmed` receipt or a `failed` notice with
+ * `discarded`.
+ *
+ * STATE-LEVEL, NOT HOLD-LEVEL, ON PURPOSE. This is the rule about which states
+ * may be overwritten, and it must stay independent of `hasPickedFile`: whether
+ * the UI OFFERS the control is `holdsUnsavedBytes`'s job (`capture.tsx`), and
+ * making this function also consult the flag would mean a single missed
+ * assignment could both hide the control and quietly disarm the guard that
+ * protects a receipt.
  *
  * "Warned" is the caller's job (a confirmation before this is invoked, not
  * inside it) — this function only performs the transition once the caller
  * has already obtained that confirmation.
  */
 export function discard(s: ClientState): ClientState {
-  return holdsUnsavedBytes(s) ? "discarded" : s;
+  return serverHasNotRecordedIt(s) ? "discarded" : s;
 }
 
 /**
@@ -113,9 +174,16 @@ export type UnloadEventLike = {
  * `holdsUnsavedBytes` to decide whether to register the listener at all —
  * this repeats the check anyway, so a caller that got the registration gate
  * wrong still cannot make an already-safe unload block.
+ *
+ * TAKES THE WHOLE `CaptureHold`, NOT A BARE `ClientState`. That is the fix for
+ * the defect described on `serverHasNotRecordedIt`: with a bare state, this
+ * guard blocked unload on the initial `not_sent` — every foreman who opened an
+ * obligation screen and closed the tab got the browser's dialog about a photo
+ * that never existed. The signature is what makes that unrepresentable now; a
+ * caller cannot arm this guard without also stating that a file was picked.
  */
-export function guardBeforeUnload(s: ClientState, event: UnloadEventLike): void {
-  if (!holdsUnsavedBytes(s)) return;
+export function guardBeforeUnload(hold: CaptureHold, event: UnloadEventLike): void {
+  if (!holdsUnsavedBytes(hold)) return;
   event.preventDefault();
   event.returnValue = "true";
 }

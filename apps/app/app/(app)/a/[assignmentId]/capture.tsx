@@ -8,6 +8,7 @@ import {
 } from "../../../../src/lib/capture/state";
 import { uploadCapture } from "../../../../src/lib/capture/upload";
 import { AttemptGuard } from "../../../../src/lib/capture/attempt";
+import { Button } from "../../../../src/ui/button";
 
 /**
  * THE CAPTURE ISLAND — ADR-007 decision 4, obligation 2 of 2, and the
@@ -58,6 +59,17 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
   // `attemptKey()` (upload.ts), not this value.
   const [photoId] = useState(() => crypto.randomUUID());
   const [state, setState] = useState<ClientState>("not_sent");
+  // THE FACT `ClientState` CANNOT CARRY, and the final review's Critical 1.
+  // `not_sent` is BOTH the initial state and a post-refusal recovery target,
+  // so a screen that reasons from the state alone cannot tell "nothing has
+  // happened here" from "a photo was taken and the server does not have it".
+  // The bytes themselves live only inside `uploadCapture`'s closure — they are
+  // never held in React state — so this flag is the only place that fact can
+  // exist. False until a `File` is actually handed over; false again once the
+  // photo is discarded (see `handleDiscard`). Every at-risk affordance below
+  // is gated on `holdsUnsavedBytes(hold)`, which is this AND
+  // `serverHasNotRecordedIt(state)`.
+  const [hasPickedFile, setHasPickedFile] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [receipt, setReceipt] = useState<{
@@ -84,6 +96,19 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
   guardRef.current ??= new AttemptGuard();
   const guard = guardRef.current;
 
+  // THE ABORT THE CONFIRMATION DIALOG PROMISES (final review, Important 3).
+  // `guard.supersede()` alone stops the superseded attempt WRITING to this
+  // screen; it does not stop it RUNNING. Without this controller, a discard
+  // let the in-flight `uploadCapture` finish, finalize succeed, and the server
+  // record an evidence object for the very photo the dialog had just said
+  // «його не буде збережено на сервері» about. In a product whose subject is
+  // evidence integrity, a confirmation that states a falsehood is a worse
+  // defect than a missing abort, so the abort is what closed it — the sentence
+  // stays, and is now true. One controller per attempt, replaced (never
+  // reused) at the start of each, because an already-aborted signal aborts the
+  // next attempt's very first fetch.
+  const abortRef = useRef<AbortController | null>(null);
+
   // THE `beforeunload` GUARD (task 10, INV-081's second half made real). The
   // decision itself — `guardBeforeUnload`, which is `holdsUnsavedBytes` under
   // the hood — is not made here; this effect only wires that decision to the
@@ -109,23 +134,41 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
   //    runs. There is never a moment with two listeners registered, and never
   //    a moment with a listener still bound to bytes that are no longer at
   //    risk.
+  //
+  // 3. NOT REGISTERED AT ALL UNTIL A FILE HAS BEEN PICKED. `hold` below, not
+  //    a bare `state`: `holdsUnsavedBytes` used to be a function of the state
+  //    alone, and `not_sent` is the INITIAL state, so this effect registered a
+  //    listener on the first paint of every obligation screen — point 1's own
+  //    warning, realised. Closing an untouched tab raised the browser's "leave
+  //    site?" dialog about a photo that did not exist. `[hold.state,
+  //    hold.hasPickedFile]` as the dependency list (not `[hold]`, a fresh
+  //    object every render) keeps point 2's teardown behaviour exactly as it
+  //    was.
+  const hold = { state, hasPickedFile };
   useEffect(() => {
-    if (!holdsUnsavedBytes(state)) return;
-    const listener = (event: BeforeUnloadEvent) => guardBeforeUnload(state, event);
+    if (!holdsUnsavedBytes(hold)) return;
+    const listener = (event: BeforeUnloadEvent) => guardBeforeUnload(hold, event);
     window.addEventListener("beforeunload", listener);
     return () => window.removeEventListener("beforeunload", listener);
-  }, [state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `hold` is rebuilt
+    // every render from exactly these two values; depending on the object
+    // itself would re-register the listener on every render instead of on
+    // every change.
+  }, [state, hasPickedFile]);
 
   async function handleFile(file: File) {
     const token = guard.begin();
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
+    setHasPickedFile(true);
     setMessage(null);
     setReceipt(null);
     const claimedCaptureTime = new Date(file.lastModified).toISOString();
 
     const outcome = await uploadCapture(file, occurrenceId, assignmentId, photoId, (s) => {
       if (guard.isCurrent(token)) setState(s);
-    });
+    }, controller.signal);
 
     // A superseded attempt writes NOTHING past this point — not `busy`, not
     // a message, not a receipt. If a newer attempt (a retake, or a discard)
@@ -146,24 +189,40 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
   }
 
   function handleDiscard() {
-    if (!holdsUnsavedBytes(state)) return;
+    if (!holdsUnsavedBytes(hold)) return;
     // "Explicit warned user deletion" (state-catalog.csv:44) — the warning is
-    // this confirmation, asked before the transition, not after.
+    // this confirmation, asked before the transition, not after. Every clause
+    // of it is now enforced by the three lines below it: the request is
+    // ABORTED (so «не буде збережено на сервері» is a fact, not a hope), the
+    // attempt is superseded (so nothing it already started can write here),
+    // and there is no undo control anywhere on this screen.
     const confirmed = window.confirm(
       "Скасувати це фото? Його не буде збережено на сервері, і дію не можна відмінити.",
     );
     if (!confirmed) return;
+    // ABORT FIRST, then supersede. Order matters only for readability here —
+    // both are synchronous — but the sequence states the intent: stop the
+    // request reaching the server at all, and only then stop caring what it
+    // would have said. `?.abort()` because a discard is reachable with no
+    // attempt ever having started (a picked file whose upload already
+    // resolved, for instance), and aborting an already-settled controller is a
+    // no-op by specification.
+    abortRef.current?.abort();
     // Supersedes whatever attempt (if any) is still in flight, so ITS
     // eventual callbacks find themselves superseded too — whether or not the
     // foreman goes on to pick a replacement photo immediately after.
     guard.supersede();
     setState((current) => discard(current));
+    // There is nothing left in this browser's hands to lose: the banner, this
+    // control and the unload guard all go down together, because all three
+    // read `holdsUnsavedBytes(hold)` and this is one of its two terms.
+    setHasPickedFile(false);
     setMessage(null);
     setBusy(false);
   }
 
   const saved = isSaved(state);
-  const canDiscard = holdsUnsavedBytes(state);
+  const canDiscard = holdsUnsavedBytes(hold);
   const inputId = `capture-${occurrenceId}`;
 
   return (
@@ -203,7 +262,7 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
        * THE PERSISTENT BANNER — copy-catalog.csv:281, `warning.capture.
        * not_saved`, imported as `UNSAVED_PHOTO_WARNING` rather than
        * hand-written here a second time (context item 2). Gated by
-       * `holdsUnsavedBytes`, the SAME function (not a lookalike condition)
+       * `holdsUnsavedBytes(hold)`, the SAME call (not a lookalike condition)
        * that gates the `beforeunload` listener above — so the banner and the
        * browser's own close-tab prompt can never disagree about whether this
        * photo is still at risk. No dismiss control exists on this banner at
@@ -211,8 +270,14 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
        * (save, failure, or discard), and never before, so "not dismissible
        * while the condition holds" (task-10-brief.md step 2) needs no extra
        * code to enforce — there is nothing here that could dismiss it.
+       *
+       * IT ALSO DOES NOT APPEAR BEFORE THERE IS A PHOTO. It used to: the gate
+       * was the state alone, and `not_sent` is the initial state, so the red
+       * «GoProceed не зберіг це фото» warned every foreman about a photo he
+       * had not taken — the fastest way to teach someone that this app's red
+       * text means nothing.
        */}
-      {holdsUnsavedBytes(state) && (
+      {holdsUnsavedBytes(hold) && (
         <p className="text-data text-destructive">{UNSAVED_PHOTO_WARNING}</p>
       )}
 
@@ -223,33 +288,56 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
       )}
 
       {/*
-       * Offered exactly while `holdsUnsavedBytes` — a photo already
-       * confirmed, already failed, or already discarded has nothing left in
-       * the browser's hands to drop (state.ts's `discard`, symmetrically).
+       * Offered exactly while `holdsUnsavedBytes(hold)` — a photo already
+       * confirmed, already failed, already discarded, or never picked at all
+       * has nothing left in the browser's hands to drop (state.ts's `discard`,
+       * symmetrically).
+       *
+       * `<Button variant="destructive">`, NOT A HAND-ROLLED `<button>`. This
+       * control shipped with its own inline destructive styling, which is
+       * precisely the drift `src/ui/button.tsx` exists to prevent — and its
+       * own comment had said no destructive variant was needed because
+       * "nothing under /app/** deletes or discards anything", which stopped
+       * being true the moment this screen landed. The variant went in; this is
+       * its call site.
        */}
       {canDiscard && (
-        <button
-          type="button"
-          onClick={handleDiscard}
-          className="h-11 self-start rounded-control px-3 text-data font-medium text-destructive underline underline-offset-4 hover:text-destructive"
-        >
+        <Button type="button" variant="destructive" size="sm" className="self-start" onClick={handleDiscard}>
           Скасувати фото
-        </button>
+        </Button>
       )}
 
       {saved && receipt && (
         <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-data text-foreground-secondary">
           {/*
-           * TWO TIMES, NEVER SHOWN WITHOUT THEIR LABELS, NEVER MERGED INTO
-           * ONE. `claimedCaptureTime` is the device's own mtime claim,
-           * unverified — ADR-007 decision 5 permits exactly this claim, a
-           * server receipt time, and a client-computed hash, and nothing
-           * stronger.
+           * ALL THREE CLAIMS ADR-007 DECISION 5 PERMITS, EACH LABELLED, NONE
+           * MERGED. The decision names exactly three — the device's own
+           * unverified capture-time claim, the server's receipt time, and a
+           * client-computed content hash — and nothing stronger.
+           *
+           * The hash was collected and then never rendered, which is the
+           * worse of the two ways to get this wrong: a claim the product is
+           * permitted to make, computed, carried to the screen, and dropped.
+           * It is the one value here a foreman (or a reviewer standing beside
+           * him) can independently check a downloaded file against, so it is
+           * shown, labelled as what it is — SHA-256 over the bytes THIS
+           * BROWSER sent. It is not evidence about the sensor: nothing here or
+           * anywhere claims the hash binds the camera's output, only that the
+           * bytes the server stored are the bytes this page uploaded.
            */}
           <dt className="text-foreground-muted">Час пристрою (не перевірено)</dt>
           <dd>{formatClaimed(receipt.claimedCaptureTime)}</dd>
           <dt className="text-foreground-muted">Підтверджено сервером</dt>
           <dd>{formatClaimed(receipt.serverReceivedAt)}</dd>
+          <dt className="text-foreground-muted">Контрольна сума файлу (SHA-256)</dt>
+          {/*
+            * `break-all`, and no `font-mono`: `globals.css` clears the
+            * `--font-*` namespace (`--font-*: initial`) and defines only
+            * `--font-display`/`--font-sans`, so a `font-mono` class here would
+            * generate nothing at all and read as styling that is being applied
+            * when it is not.
+            */}
+          <dd className="break-all">{receipt.contentHash}</dd>
         </dl>
       )}
     </div>

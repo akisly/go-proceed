@@ -9,16 +9,23 @@ import { cn } from './cn'
  * secondary outline, tertiary text". The variant set is the doc's, minus the
  * one it names that this product has no call site for.
  *
- * NO DESTRUCTIVE VARIANT. doc 05 lists one, and `--color-destructive` exists in
- * the theme for the evidence-blocking signal — but nothing under `/app/**`
- * deletes or discards anything, so a destructive button here would be a variant
- * that only ever gets used by being reached for wrongly. It goes in when a
- * destructive action does.
+ * THE DESTRUCTIVE VARIANT WENT IN WHEN A DESTRUCTIVE ACTION DID. This comment
+ * previously said there was none, on the stated grounds that "nothing under
+ * `/app/**` deletes or discards anything" — true when it was written, and false
+ * from the moment the capture island landed. «Скасувати фото» drops a photo the
+ * server does not have, irreversibly, and it shipped hand-rolling its own
+ * destructive styling directly on a bare `<button>`: the exact drift this file
+ * exists to prevent, arrived by way of a comment saying the variant was
+ * unnecessary. One call site today —
+ * `app/(app)/a/[assignmentId]/capture.tsx`'s discard control — and it is the
+ * only kind of action that may use it.
  *
- * NO FOCUS RING EITHER. `src/styles/theme.css` gives every focusable element
- * inside `.goproceed-app` one focus treatment — Slate outline plus a Lime halo,
+ * NO FOCUS RING EITHER. `app/globals.css` gives every focusable element inside
+ * `.goproceed-app` one focus treatment — Slate outline plus a Lime halo,
  * matching the public routes. Restating it per variant is how two focus styles
- * end up disagreeing.
+ * end up disagreeing. (This file was ported from a codebase where that sheet
+ * was `src/styles/theme.css`; no such file exists here, and the citation was
+ * corrected rather than left pointing at nothing.)
  */
 const buttonVariants = cva(
   [
@@ -46,6 +53,15 @@ const buttonVariants = cva(
         outline: 'border border-border bg-surface text-foreground hover:bg-surface-muted',
         /** Chrome — rail toggles, close controls. No edge until touched. */
         ghost: 'text-foreground hover:bg-surface-muted',
+        /**
+         * Irreversible, and only irreversible. Outlined rather than filled:
+         * doc 05 caps loud colour hard, and a solid red block beside a Lime
+         * primary would out-shout the action a foreman is actually there to
+         * take. The border and the ink carry it; the fill only arrives on
+         * hover, once the pointer is already committed.
+         */
+        destructive:
+          'border border-destructive bg-surface text-destructive hover:bg-destructive hover:text-surface',
         /** Inline, inside running text. */
         link: 'text-foreground underline underline-offset-4 hover:text-accent-ink',
       },
