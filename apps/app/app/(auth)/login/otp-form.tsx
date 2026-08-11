@@ -65,8 +65,29 @@ export function OtpForm({ next }: OtpFormProps) {
       // every piece of UI copy in this product is Ukrainian. Surfacing it
       // verbatim would ship English text on a failure path exactly when a
       // pilot member is already stuck signing in.
+      //
+      // THE RATE LIMIT IS SPLIT OUT AND THE OTHER TWO STAY COLLAPSED — a
+      // deliberate asymmetry, not an unfinished job.
+      //
+      // Split, because the generic sentence was actively harmful here. GoTrue
+      // returns 429 when codes are requested faster than its own window
+      // allows, and telling a rate-limited foreman to "check your email
+      // address" makes him re-enter an address that was correct the first
+      // time, which requests another code, which extends the limit. He has no
+      // in-product support path to escape that loop. The one thing he needs to
+      // be told is: wait a minute.
+      //
+      // Collapsed, for the other two, because distinguishing "this address is
+      // not provisioned" from "that code was wrong" would turn this public
+      // form into an account-enumeration oracle: anyone could type addresses
+      // and read back which ones exist on the pilot. `shouldCreateUser: false`
+      // (above) is what makes an unprovisioned address fail at all, and the
+      // price of that refusal being safe is that it looks like every other
+      // failure.
       setError(
-        "Не вдалося надіслати код. Перевірте адресу електронної пошти або зверніться до адміністратора.",
+        signInError.status === 429
+          ? "Забагато спроб. Зачекайте близько хвилини й спробуйте ще раз."
+          : "Не вдалося надіслати код. Перевірте адресу електронної пошти або зверніться до адміністратора.",
       );
       return;
     }
