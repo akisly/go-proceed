@@ -8,7 +8,7 @@
 
 **Related decisions:** [ADR-001](ADR-001-product-boundary.md),
 [ADR-002](ADR-002-tenancy-parties-and-contracts.md),
-[ADR-003](ADR-003-evidence-packages-and-acceptance.md)
+[ADR-003](ADR-003-evidence-packages-and-acceptance.md), [ADR-007](ADR-007-pilot-field-client.md)
 
 ## Context
 

@@ -139,6 +139,9 @@ Four must land with this work; one is the owner's.
    still reading «a separate native client, not a responsive-web substitute».
    ADR-007 stops delivery of any slice depending on an un-landed row. The owner
    asked for the edit to be made here and approved in review.
+   *(Landed 2026-08-11 by task 3 of this plan. The amended paragraph is now
+   `ADR-004:70-78`, ADR-004's «Related decisions» header names ADR-007, and
+   ADR-007's own citations were re-pointed at the shifted lines.)*
 
 **Not solved here, and it blocks the pilot rather than the code.** There is no
 HTTPS origin for `apps/app` — no `vercel.json` for it, no CI deploy step, and
@@ -228,11 +231,42 @@ are already approved. The steps:
 6. **Only `status: "available"` produces `server_confirmed`.** Nothing earlier may
    say «збережено». `upload_received` is not `evidence_available`.
 
-**Recovery is the `userAction` taxonomy, which is already client-shaped.**
-`retry_part` retries the PUT; `request_new_upload_grant` creates a new intent;
+**Recovery reads the `userAction` taxonomy, and the v0.1 client acts on none of
+it automatically.** *(Corrected 2026-08-11 by the final whole-branch review —
+Important 4. This paragraph previously read «`retry_part` retries the PUT;
+`request_new_upload_grant` creates a new intent;
 `refresh_upload_state_or_request_new_grant` re-GETs the intent, whose replay path
-returns the stored receipt and *is* the flaky-connection recovery;
-`recapture_or_contact_support` → `failed`; `sign_in` returns to S1 with `next`.
+returns the stored receipt and* is *the flaky-connection recovery», in the present
+tense, and none of it was ever built:* `uploadCapture` *sets a client state and
+returns. Nothing retries the PUT, nothing creates a second intent, and*
+`GET /v1/upload-intents/{intentId}` *is not called from this client at all. The
+document is corrected rather than the code expanded, because a half-built
+recovery loop is worse than an honest absence.)*
+
+What v0.1 does: the refusal's `userAction` decides which client state the screen
+rests in, and the file input — which doubles as the retry control — is how the
+foreman restarts the whole pipeline, hash through finalize, with a fresh intent
+and a fresh `Idempotency-Key` but the same `deviceCaptureId`.
+
+- `retry_part` → `failed`. The PUT is not retried here.
+- `refresh_upload_state_or_request_new_grant` → `failed`. The intent is not
+  re-GETted here.
+- `request_new_upload_grant` → `not_sent`. No new intent is created
+  automatically; picking the file again creates one.
+- `recapture_or_contact_support` → `failed`.
+- `sign_in` → `not_sent`, and the sign-in screen is reached with `next`.
+- anything this build does not recognise → `failed`.
+
+`failed`'s approved label is «Потрібна дія» and `not_sent`'s is «Не надіслано»;
+neither asserts that an operation is under way, which is the property that
+matters. `sending` and `awaiting_receipt` are reachable **only** while a request
+really is in flight — a refusal may never leave the screen resting on one, and
+`recover.test.ts` asserts that across the whole taxonomy.
+
+**The intent re-GET is the recovery worth building next**, and it is the cheapest:
+`GET /v1/upload-intents/{intentId}`'s replay path returns the stored receipt, so
+it is the genuine answer to a connection that dropped between the PUT and the
+receipt. It is not in v0.1.
 
 **No silent loss — INV-081.** A `beforeunload` guard whenever any capture is in
 `not_sent`, `sending` or `awaiting_receipt`, plus an in-page banner. This needs
