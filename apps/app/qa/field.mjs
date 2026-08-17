@@ -404,22 +404,58 @@ async function seedBearerToken(email, password) {
 
 /**
  * Extracts a six-digit OTP code from an email body (Text, HTML, or the list
- * endpoint's Snippet — see `readOtpCode`). Matches a standalone run of six
- * digits, bounded on both sides by a non-digit or the string edge, rather
- * than requiring the literal `code:` prefix the previous version hard-coded.
- * The prefix match broke the moment the template wording (or the Mailpit
- * build rendering it) changed — see `readOtpCode`'s header for why that is
- * exactly what CI's newer `supabase/setup-cli@... version: latest` makes
- * likely. The digit-boundary lookarounds keep this from matching *inside* a
- * longer number (a timestamp, an id) while staying loose enough to survive
- * a reworded template — six consecutive digits with clear boundaries is
- * specific enough in a short OTP email not to collide with anything else
- * a login-code template plausibly contains.
+ * endpoint's Snippet — see `readOtpCode`).
+ *
+ * FIX ROUND 2, ON THIS SAME FUNCTION: round 1 (below, in `readOtpCode`'s own
+ * header) replaced the literal `code:\s*(\d{6})` match with a bare
+ * `(?<!\d)(\d{6})(?!\d)` scan across the WHOLE body, reasoning that a
+ * reworded template shouldn't require the literal prefix. That reasoning
+ * was correct on its own but incomplete: this local stack's actual OTP
+ * email is Supabase's default "Magic Link" template, which carries BOTH the
+ * real code AND a magic-link URL in the SAME body —
+ *
+ *   Log In ( http://127.0.0.1:54321/auth/v1/verify?token=pkce_1899d2f93
+ *   11e485871de6a1d6eb29fc0eccc17bb8fe21889e7cb929a&type=magiclink&... )
+ *
+ *   Alternatively, enter the code: 834368
+ *
+ * — and a PKCE token is a long, effectively-random hex string. Hex digits
+ * are ~62.5% numeric (10 of 16 characters), so a token of that length has a
+ * non-trivial chance of containing an UNRELATED run of six consecutive
+ * digits bounded by letters — which reads, to a bare `(?<!\d)(\d{6})(?!\d)`
+ * scan, as an equally valid "standalone six-digit run" as the real code.
+ * `.exec()` returns the FIRST match, and the token appears BEFORE "enter
+ * the code" in the body, so round 1's fallback would silently hand back a
+ * syntactically valid but WRONG code whenever that token happened to
+ * contain one — which GoTrue then correctly 403's on verify. This is not
+ * hypothetical: it reproduced locally at roughly the rate a random hex
+ * string that length would be expected to contain a spurious six-digit
+ * run, and every failure it produced looked identical to a broken sign-in
+ * screen (`page.waitForNavigation` timing out after the code was
+ * submitted) unless the actual email body was inspected — exactly the
+ * "harness fails for the wrong stated reason" defect class this file
+ * exists to eliminate, reintroduced by round 1's own fix.
+ *
+ * ROUND 2's FIX: try the LABELLED match first — `code:\s*(\d{6})`,
+ * case-insensitive. This is not a return to requiring the literal prefix
+ * everywhere; it is trying the unambiguous, currently-true-for-this-
+ * template match FIRST, before falling back to anything looser. Only if no
+ * labelled match exists (a genuinely reworded template with no "code:"
+ * label at all) does this fall back to a bare standalone-digit scan — and
+ * that fallback now strips anything that looks like a URL
+ * (`https?://\S+`) out of the text FIRST, so a PKCE token (or any other
+ * URL-embedded digit run) can never reach the bare scan in the first
+ * place. This closes the exact failure mode above regardless of which
+ * template ships, rather than trading one template's correctness for
+ * another's.
  */
 function extractOtpCode(text) {
   if (!text) return null;
-  const match = /(?<!\d)(\d{6})(?!\d)/.exec(text);
-  return match ? match[1] : null;
+  const labelled = /code:\s*(\d{6})(?!\d)/i.exec(text);
+  if (labelled) return labelled[1];
+  const withoutUrls = text.replace(/https?:\/\/\S+/gi, " ");
+  const bare = /(?<!\d)(\d{6})(?!\d)/.exec(withoutUrls);
+  return bare ? bare[1] : null;
 }
 
 /**
@@ -463,8 +499,10 @@ function extractOtpCode(text) {
  * thing a version bump reshapes without changing the actual delivered
  * code. The code is extracted from Text, then HTML, then (only as a last
  * resort, in case both bodies are empty for some reason) the list
- * endpoint's own Snippet — see `extractOtpCode`'s header for why the match
- * itself no longer requires the literal `code:` prefix.
+ * endpoint's own Snippet — see `extractOtpCode`'s header for the two-step
+ * match it actually runs (a labelled `code:` match first, a URL-stripped
+ * bare-digit scan only as its own fallback) and for the false-positive
+ * this two-step shape exists to avoid.
  *
  * Polls because the email is genuinely asynchronous — GoTrue enqueues it,
  * Mailpit receives it a moment later — never a fixed sleep, which would
