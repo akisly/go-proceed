@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   CLIENT_STATE_LABEL, UNSAVED_PHOTO_WARNING, discard, guardBeforeUnload,
-  holdsUnsavedBytes, isSaved, type ClientState,
+  holdsUnsavedBytes, isSaved, serverDoesNotHaveThePhoto, type ClientState,
 } from "../../../../src/lib/capture/state";
 import { uploadCapture } from "../../../../src/lib/capture/upload";
 import { AttemptGuard } from "../../../../src/lib/capture/attempt";
@@ -66,9 +66,14 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
   // The bytes themselves live only inside `uploadCapture`'s closure — they are
   // never held in React state — so this flag is the only place that fact can
   // exist. False until a `File` is actually handed over; false again once the
-  // photo is discarded (see `handleDiscard`). Every at-risk affordance below
-  // is gated on `holdsUnsavedBytes(hold)`, which is this AND
-  // `serverHasNotRecordedIt(state)`.
+  // photo is discarded (see `handleDiscard`).
+  //
+  // BOTH at-risk predicates carry this flag as a term, which is what makes it
+  // impossible for any of the three affordances to appear before a photo does:
+  // `holdsUnsavedBytes(hold)` (this AND `serverHasNotRecordedIt(state)`) gates
+  // the `beforeunload` listener and the discard control, and
+  // `serverDoesNotHaveThePhoto(hold)` (this AND not-saved AND not-discarded)
+  // gates the banner. They differ on `failed` and nowhere else — see state.ts.
   const [hasPickedFile, setHasPickedFile] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -214,8 +219,12 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
     guard.supersede();
     setState((current) => discard(current));
     // There is nothing left in this browser's hands to lose: the banner, this
-    // control and the unload guard all go down together, because all three
-    // read `holdsUnsavedBytes(hold)` and this is one of its two terms.
+    // control and the unload guard all go down together. Not because they share
+    // one predicate — since 2026-08-17 they do not — but because `hasPickedFile`
+    // is a term of BOTH `holdsUnsavedBytes` and `serverDoesNotHaveThePhoto`, so
+    // clearing it here settles all three at once. (The `discarded` state would
+    // be enough on its own for either; this line is what also stops a retake
+    // from inheriting a stale "a photo exists" flag.)
     setHasPickedFile(false);
     setMessage(null);
     setBusy(false);
@@ -261,23 +270,35 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
       {/*
        * THE PERSISTENT BANNER — copy-catalog.csv:281, `warning.capture.
        * not_saved`, imported as `UNSAVED_PHOTO_WARNING` rather than
-       * hand-written here a second time (context item 2). Gated by
-       * `holdsUnsavedBytes(hold)`, the SAME call (not a lookalike condition)
-       * that gates the `beforeunload` listener above — so the banner and the
-       * browser's own close-tab prompt can never disagree about whether this
-       * photo is still at risk. No dismiss control exists on this banner at
-       * all: it disappears exactly when `holdsUnsavedBytes` turns false
-       * (save, failure, or discard), and never before, so "not dismissible
-       * while the condition holds" (task-10-brief.md step 2) needs no extra
-       * code to enforce — there is nothing here that could dismiss it.
+       * hand-written here a second time (context item 2). No dismiss control
+       * exists on this banner at all: it disappears exactly when its gate turns
+       * false and never before, so "not dismissible while the condition holds"
+       * (task-10-brief.md step 2) needs no extra code to enforce — there is
+       * nothing here that could dismiss it.
        *
        * IT ALSO DOES NOT APPEAR BEFORE THERE IS A PHOTO. It used to: the gate
        * was the state alone, and `not_sent` is the initial state, so the red
        * «GoProceed не зберіг це фото» warned every foreman about a photo he
        * had not taken — the fastest way to teach someone that this app's red
        * text means nothing.
+       *
+       * GATED ON `serverDoesNotHaveThePhoto`, NOT ON `holdsUnsavedBytes` — a
+       * deliberate split, and the correction of a defect this comment used to
+       * describe as a feature. It read: gated by «`holdsUnsavedBytes(hold)`,
+       * the SAME call (not a lookalike condition) that gates the `beforeunload`
+       * listener above — so the banner and the browser's own close-tab prompt
+       * can never disagree». They are not the same question, and sharing one
+       * call made the banner answer the wrong one: `holdsUnsavedBytes` excludes
+       * `failed`, so a failed upload took this banner DOWN, leaving only
+       * `uploadCapture`'s `problem?.detail` — which, when the server supplies
+       * one, says why the request was refused and nothing about the photo being
+       * lost. `invariant-catalog.csv:82` requires the warning on «every failed
+       * or abandoned in-flight upload»; for as long as the two gates were one
+       * call, the row claimed more than this screen did. See state.ts's own
+       * header on `serverDoesNotHaveThePhoto` for why the unload prompt and the
+       * discard control must NOT follow it into `failed`.
        */}
-      {holdsUnsavedBytes(hold) && (
+      {serverDoesNotHaveThePhoto(hold) && (
         <p className="text-data text-destructive">{UNSAVED_PHOTO_WARNING}</p>
       )}
 

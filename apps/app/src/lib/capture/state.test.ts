@@ -1,7 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   CLIENT_STATE_LABEL, UNSAVED_PHOTO_WARNING, discard, guardBeforeUnload,
-  holdsUnsavedBytes, isSaved, serverHasNotRecordedIt, type ClientState,
+  holdsUnsavedBytes, isSaved, serverDoesNotHaveThePhoto, serverHasNotRecordedIt,
+  type ClientState,
 } from "./state";
 
 const ALL: ClientState[] = [
@@ -30,6 +31,72 @@ describe("INV-081 — no success is reported before the receipt", () => {
   it("holds unsaved bytes for every pre-receipt state ONCE a file has been picked", () => {
     expect(PICKED.filter(holdsUnsavedBytes).map((h) => h.state))
       .toEqual(["not_sent", "sending", "awaiting_receipt"]);
+  });
+});
+
+describe("INV-081's enforcement column, as an assertion — the warning on EVERY failure", () => {
+  // THE ROW SAID «every failed or abandoned in-flight upload raises an explicit
+  // unsaved-photo warning» AND THE CODE DID NOT DO THAT.
+  //
+  // The banner was gated on `holdsUnsavedBytes`, which excludes `failed`. So on
+  // the one outcome the row names first — a failed upload — the banner
+  // DISAPPEARED, and what the foreman saw instead was `uploadCapture`'s
+  // `problem?.detail || GENERIC_FAILURE`. `GENERIC_FAILURE` happens to say the
+  // photo was not saved, which is why this was invisible; a server-supplied
+  // `detail` (a storage quota, a rule refusal) does not, and on that path the
+  // screen carried no statement at all that the photo was lost. The row
+  // overstated its own enforcement for exactly as long as the server stayed
+  // quiet, which is the worst way for a P0 invariant to be wrong.
+  //
+  // `serverDoesNotHaveThePhoto` is the banner's own gate now, and it is a
+  // DIFFERENT question from `holdsUnsavedBytes` rather than a widened version
+  // of it — see state.ts. These tests pin both the difference and its single
+  // cause.
+
+  it("warns for every state where GoProceed does not have the photo, failure included", () => {
+    expect(PICKED.filter(serverDoesNotHaveThePhoto).map((h) => h.state))
+      .toEqual(["not_sent", "sending", "awaiting_receipt", "failed"]);
+  });
+
+  it("differs from holdsUnsavedBytes on `failed`, and on nothing else", () => {
+    // The two gates are allowed to disagree in exactly one place. If a future
+    // edit makes them disagree anywhere else, the split has stopped being the
+    // narrow thing it was introduced as.
+    const disagree = [...PICKED, ...ALL.map((state) => ({ state, hasPickedFile: false }))]
+      .filter((hold) => serverDoesNotHaveThePhoto(hold) !== holdsUnsavedBytes(hold));
+    expect(disagree).toEqual([{ state: "failed", hasPickedFile: true }]);
+  });
+
+  it("says nothing about a photo the server confirmed, or one the user dropped", () => {
+    // `discarded` is the user's own decision, already confirmed through a
+    // dialog that told him it would not be saved; re-warning him about it
+    // would be the app arguing with a choice it just made him make.
+    expect(serverDoesNotHaveThePhoto({ state: "server_confirmed", hasPickedFile: true })).toBe(false);
+    expect(serverDoesNotHaveThePhoto({ state: "discarded", hasPickedFile: true })).toBe(false);
+  });
+
+  it("still says nothing at all before a file has been picked", () => {
+    // The banner's original defect, which this split must not reintroduce
+    // through the new predicate: `not_sent` is also the INITIAL state, so a
+    // gate that forgot `hasPickedFile` would put the red «GoProceed не зберіг
+    // це фото» back on every untouched obligation screen.
+    for (const state of ALL) {
+      expect(serverDoesNotHaveThePhoto({ state, hasPickedFile: false }), state).toBe(false);
+    }
+  });
+
+  it("does not arm the unload dialog on `failed` — there are no bytes left to lose", () => {
+    // The reason the two gates are separate rather than one widened gate.
+    // After a failure `uploadCapture` has returned and the bytes have left the
+    // closure; the browser holds nothing. A `beforeunload` prompt here would be
+    // a dialog about a photo this tab can no longer save, which is precisely
+    // the "training people to click through the one prompt that actually
+    // protects something" that capture.tsx warns against.
+    let prevented = false;
+    const event = { preventDefault: () => { prevented = true; }, returnValue: "" };
+    guardBeforeUnload({ state: "failed", hasPickedFile: true }, event);
+    expect(prevented).toBe(false);
+    expect(event.returnValue).toBe("");
   });
 });
 

@@ -4,6 +4,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 
 import { supabaseBrowser } from "../../../src/lib/supabase-browser";
+import { otpErrorMessage } from "../../../src/lib/otp-error";
 import { safeNext } from "../../../src/lib/safe-next";
 import { SubmitGuard } from "../../../src/lib/submit-guard";
 import { Button } from "../../../src/ui/button";
@@ -81,35 +82,13 @@ export function OtpForm({ next }: OtpFormProps) {
       setPending(false);
 
       if (signInError) {
-        // Never render `signInError.message` — it is Supabase's own
-        // English-language string (e.g. "Signups not allowed for otp"), and
-        // every piece of UI copy in this product is Ukrainian. Surfacing it
-        // verbatim would ship English text on a failure path exactly when a
-        // pilot member is already stuck signing in.
-        //
-        // THE RATE LIMIT IS SPLIT OUT AND THE OTHER TWO STAY COLLAPSED — a
-        // deliberate asymmetry, not an unfinished job.
-        //
-        // Split, because the generic sentence was actively harmful here. GoTrue
-        // returns 429 when codes are requested faster than its own window
-        // allows, and telling a rate-limited foreman to "check your email
-        // address" makes him re-enter an address that was correct the first
-        // time, which requests another code, which extends the limit. He has no
-        // in-product support path to escape that loop. The one thing he needs to
-        // be told is: wait a minute.
-        //
-        // Collapsed, for the other two, because distinguishing "this address is
-        // not provisioned" from "that code was wrong" would turn this public
-        // form into an account-enumeration oracle: anyone could type addresses
-        // and read back which ones exist on the pilot. `shouldCreateUser: false`
-        // (above) is what makes an unprovisioned address fail at all, and the
-        // price of that refusal being safe is that it looks like every other
-        // failure.
-        setError(
-          signInError.status === 429
-            ? "Забагато спроб. Зачекайте близько хвилини й спробуйте ще раз."
-            : "Не вдалося надіслати код. Перевірте адресу електронної пошти або зверніться до адміністратора.",
-        );
+        // The whole failure-to-sentence rule — the 429 split, the deliberate
+        // collapse of everything else, and the refusal to render GoTrue's own
+        // English `message` — lives in `src/lib/otp-error.ts`, which states its
+        // reasoning in full and is unit-tested in plain Node. It used to be
+        // written out here, and `verifyCode` below carried a lookalike ternary
+        // that had never learned the 429 half; see that module's header.
+        setError(otpErrorMessage("send", signInError.status));
         return;
       }
 
@@ -140,7 +119,14 @@ export function OtpForm({ next }: OtpFormProps) {
       setPending(false);
 
       if (verifyError) {
-        setError("Невірний або прострочений код. Спробуйте ще раз.");
+        // THE SAME RULE AS THE SEND PHASE, WHICH IS THE FIX. This line used to
+        // be an unconditional «Невірний або прострочений код», so a foreman
+        // rate-limited at the verify step — GoTrue returns 429 here too — was
+        // told the correct code he was reading off his own phone was wrong. He
+        // then retypes it, or asks for a new one, either of which extends the
+        // limit. The 429 split had landed one function above this, on the send
+        // path, and stopped there.
+        setError(otpErrorMessage("verify", verifyError.status));
         return;
       }
 

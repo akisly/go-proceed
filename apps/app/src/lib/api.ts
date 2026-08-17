@@ -66,14 +66,39 @@ export class UntrustedHostError extends Error {
  *      is not a developer's own machine must set it. This is the mechanism
  *      that makes a real origin safe.
  *
- *   2. `Host` names loopback: `localhost`, `127.0.0.1`, `[::1]`/`::1`, or
- *      anything under `*.localhost` — with or without a port. This is the
- *      explicit allowlist for the unset case, and it is exactly the set of
- *      hostnames a developer's own machine answers to. `next dev` (port 3000)
- *      and `next start` (the browser pass's ephemeral port) both land here.
- *      Matched case-insensitively: `Host: LOCALHOST` is the same machine, and
- *      a case-sensitive compare merely sent it down the refusal path for no
+ *   2. `Host` names loopback: `localhost`, `127.0.0.1`, `[::1]`, or anything
+ *      under `*.localhost` — with or without a port — AND this is not a
+ *      production build. This is the explicit allowlist for the unset case,
+ *      and it is exactly the set of hostnames a developer's own machine
+ *      answers to. `next dev` (port 3000) lands here. Matched
+ *      case-insensitively: `Host: LOCALHOST` is the same machine, and a
+ *      case-sensitive compare merely sent it down the refusal path for no
  *      reason.
+ *
+ *      THE BRACKETED IPv6 FORM IS THE ONLY ONE, and this comment used to claim
+ *      otherwise: it advertised `[::1]`/`::1`, and the allowlist carried a
+ *      matching `hostname === "::1"` arm that could never fire. The port-strip
+ *      below matches the trailing `:1` of a bare `::1` and normalises it to
+ *      `":"`, so that arm was unreachable from the day it was written — while
+ *      the comment went on promising the spelling worked. Brackets are what
+ *      RFC 7230 requires in a Host header and what `new URL` can parse; a bare
+ *      `::1` is refused, which is correct, and is now what the comment says.
+ *
+ *      THE PRODUCTION CLAUSE IS THE PORT'S OTHER HALF. The allowlist settles
+ *      WHICH MACHINE, and the port was still whatever the request named:
+ *      `Host: 127.0.0.1:9200` resolved to `http://127.0.0.1:9200` and sent the
+ *      foreman's whole cookie jar to an attacker-chosen port on the app's own
+ *      loopback interface. It needs a deployment that forgot to set
+ *      `NEXT_PUBLIC_APP_ORIGIN` — but "already misconfigured" is not a security
+ *      boundary, and the fallback has no legitimate user in a production build:
+ *      every deployment that is not a developer's own machine must name its
+ *      origin regardless. So in production there is no header-derived path at
+ *      all, and the error's own message is the remedy.
+ *
+ *      `next start` is a production build, so it needs the variable too — that
+ *      includes `qa/field.mjs`, which now sets it to its own ephemeral origin
+ *      and thereby exercises branch 1, the path a real deployment takes, rather
+ *      than a developer fallback no deployment may use.
  *
  * Anything else throws. Refusing is the only safe answer: the alternative is
  * to guess an origin for a request that has already told us it is not the one
@@ -95,26 +120,39 @@ export class UntrustedHostError extends Error {
  * both plain HTTP, at the TLS handshake on every render — the failure task 7's
  * fix round closed. A constant `http` would ship an insecure fallback.)
  *
- * `appOrigin` is a parameter with a default rather than a bare
- * `process.env` read so `api.test.ts` can drive both branches without
- * mutating the environment.
+ * `appOrigin` and `nodeEnv` are parameters with defaults rather than bare
+ * `process.env` reads so `api.test.ts` can drive every branch without mutating
+ * the environment.
+ *
+ * `nodeEnv`'s default is not really a runtime read: Next inlines
+ * `process.env.NODE_ENV` at compile time, so `next build` bakes `"production"`
+ * into the shipped bundle and no runtime environment can talk it back into the
+ * developer fallback. Measured against `.next/server` output, not assumed.
  */
 export function resolveBaseOrigin(
   h: Headers,
   appOrigin: string | undefined = process.env.NEXT_PUBLIC_APP_ORIGIN,
+  nodeEnv: string | undefined = process.env.NODE_ENV,
 ): string {
   if (appOrigin) return appOrigin;
 
   const host = h.get("host") ?? "";
 
+  // NO HEADER-DERIVED ORIGIN IN A PRODUCTION BUILD, for any host — see branch 2
+  // above. Checked before the allowlist rather than after it so there is only
+  // one refusal to reason about, and so a future edit to the allowlist cannot
+  // widen what production accepts.
+  if (nodeEnv === "production") throw new UntrustedHostError(host);
+
   // `host` carries a port in dev (`localhost:3000`); strip it before
   // matching, or a bare hostname comparison would silently never match.
+  // NOTE this is also what makes a bare `::1` unmatchable — it normalises to
+  // `":"` — which is why no `"::1"` arm appears below.
   const hostname = host.replace(/:\d+$/, "").toLowerCase();
   const isLoopback =
     hostname === "localhost" ||
     hostname === "127.0.0.1" ||
     hostname === "[::1]" ||
-    hostname === "::1" ||
     hostname.endsWith(".localhost");
 
   if (!isLoopback) throw new UntrustedHostError(host);

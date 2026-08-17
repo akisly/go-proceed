@@ -96,6 +96,56 @@ export function holdsUnsavedBytes(hold: CaptureHold): boolean {
 }
 
 /**
+ * INV-081's ENFORCEMENT COLUMN, WHICH `holdsUnsavedBytes` DOES NOT SATISFY —
+ * the banner's own gate, and the one place these two questions are allowed to
+ * differ.
+ *
+ * `invariant-catalog.csv:82` requires that «every failed or abandoned in-flight
+ * upload raises an explicit unsaved-photo warning». `holdsUnsavedBytes`
+ * excludes `failed`, so for as long as the banner was gated on it, the row
+ * claimed more than the code did on the very outcome it names first: a failed
+ * upload took the banner DOWN and left `uploadCapture`'s
+ * `problem?.detail || GENERIC_FAILURE` in its place. `GENERIC_FAILURE` says the
+ * photo was not saved — which is why nobody noticed — but a server-supplied
+ * `detail` (a storage quota, a media-policy refusal) says only why the request
+ * was rejected, and on that path the screen stated nowhere that the photo was
+ * lost. The foreman read a technical reason and walked away from a photo
+ * GoProceed does not have.
+ *
+ * THE FIX IS A SECOND PREDICATE, NOT A WIDER FIRST ONE, and the distinction is
+ * the whole reason this function exists:
+ *
+ *   - `holdsUnsavedBytes` — the BROWSER still holds bytes the server does not.
+ *     True through `not_sent`/`sending`/`awaiting_receipt`, false at `failed`,
+ *     because by then `uploadCapture` has returned and the bytes have left its
+ *     closure. It gates the `beforeunload` dialog and the discard control,
+ *     both of which are about bytes this tab can still act on. Widening it to
+ *     cover `failed` would put the browser's "leave site?" prompt on a photo
+ *     the tab can no longer save — the exact "training people to click through
+ *     the one prompt that actually protects something" `capture.tsx` warns
+ *     against, and the defect the `hasPickedFile` term was added to end.
+ *
+ *   - this — GOPROCEED does not have the photo, and the foreman did not choose
+ *     that. True for the same three states AND for `failed`. It gates the
+ *     banner, whose sentence is about the server's records, not about this
+ *     tab's memory: «GoProceed не зберіг це фото. Зробіть його ще раз або
+ *     збережіть у себе» is exactly as true after a failure as during one, and
+ *     more urgent.
+ *
+ * `discarded` is excluded deliberately: the user was already told, in the
+ * confirmation dialog he had to accept, that the photo would not be saved.
+ * Warning him again would be the app arguing with a choice it just made him
+ * make. `server_confirmed` is excluded because the receipt landed.
+ *
+ * `state.test.ts` pins that these two functions disagree on `failed` and on
+ * nothing else, so the split cannot quietly grow into a second, divergent
+ * opinion about when a photo is at risk.
+ */
+export function serverDoesNotHaveThePhoto(hold: CaptureHold): boolean {
+  return hold.hasPickedFile && !isSaved(hold.state) && hold.state !== "discarded";
+}
+
+/**
  * The only client-initiated transition to `discarded` — "Explicit warned user
  * deletion" (state-catalog.csv:44). Guarded by `serverHasNotRecordedIt` on
  * both sides of the call, not just at the UI layer: a photo can only be

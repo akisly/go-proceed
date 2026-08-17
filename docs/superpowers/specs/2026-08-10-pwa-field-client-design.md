@@ -273,9 +273,32 @@ really is in flight — a refusal may never leave the screen resting on one, and
 it is the genuine answer to a connection that dropped between the PUT and the
 receipt. It is not in v0.1.
 
-**No silent loss — INV-081.** A `beforeunload` guard, plus an in-page banner and
-a discard control, whenever **a file has been picked** *and* the capture is in
-`not_sent`, `sending` or `awaiting_receipt`.
+**No silent loss — INV-081.** A `beforeunload` guard and a discard control
+whenever **a file has been picked** *and* the capture is in `not_sent`,
+`sending` or `awaiting_receipt` — and an in-page banner over those three states
+**plus `failed`**.
+
+*(The banner's gate was separated from the other two on 2026-08-17. This
+paragraph, and the code, had all three on one predicate, `holdsUnsavedBytes`,
+which excludes `failed` — so a failed upload took the banner DOWN and left only
+the route's `detail` string in its place.* `invariant-catalog.csv:82` *requires
+the unsaved-photo warning on «every failed or abandoned in-flight upload», so
+the row claimed more than the screen did on every failure where the server
+supplied a `detail` — a storage quota or a media-policy refusal explains why a
+request was refused and says nothing about a photo being lost. The fallback
+`GENERIC_FAILURE` string does mention the photo, which is the only reason this
+looked correct. It was green in the browser pass too: `qa/field.mjs` drove that
+exact stubbed failure and asserted the banner MUST have cleared.*
+
+*The two questions are genuinely different and now have a predicate each.*
+`holdsUnsavedBytes` *— the browser still holds bytes the server does not — gates
+the unload dialog and the discard control, and must NOT follow the banner into*
+`failed`*: by then* `uploadCapture` *has returned and the bytes have left its
+closure, so a "leave site?" prompt would fire about a photo this tab can no
+longer save.* `serverDoesNotHaveThePhoto` *— GoProceed does not have it and the
+foreman did not choose that — gates the banner, whose sentence is about the
+server's records.* `discarded` *is excluded from both: he was already told, in
+the confirmation he had to accept.)*
 
 *(Both halves of that condition, corrected 2026-08-11 — the final whole-branch
 review's Critical 1. This paragraph named the client state alone, which is what
