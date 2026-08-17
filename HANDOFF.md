@@ -4,9 +4,114 @@ Written to be read cold. The previous handoff is the section «What the last
 session left» below, compressed; everything else is new.
 
 **Everything below §0 is a session record and several of its statements have
-since become false.** §0 is the current state. It has been updated twice — once
-when the field client was built, once when it merged — and it says which
-sections it supersedes.
+since become false.** §0 is the current state. It has been updated three times —
+once when the field client was built, once when it merged, once when the seven
+review residuals were closed — and it says which sections it supersedes.
+
+---
+
+## 0a. Latest — 2026-08-17: the seven P1 residuals are closed. The P0 is untouched and is still first.
+
+**Nothing in this section changes the P0.** `apps/app` still has no deployed
+origin, a foreman still cannot open it, and everything §0 below says about that
+is exactly as true as when it was written. This session did the only unblocked
+engineering work there was: **every other item in §0's priority list needs an
+owner decision or the owner's Vercel/Supabase credentials.** That is worth
+noticing on its own — the repository's queue is now owner-blocked almost end to
+end.
+
+**What closed.** All seven of `TODOS.md`'s «P1 — seven residuals from the
+field-client final review». That entry now carries the full account per item;
+the three findings worth carrying into the next session are here.
+
+**1. A green gate was defending a defect.** `invariant-catalog.csv:82` requires
+the unsaved-photo warning on «every failed or abandoned in-flight upload». The
+banner was gated on `holdsUnsavedBytes`, which excludes `failed` — so a failed
+upload took the banner down and left the route's `detail` string in its place. A
+server `detail` (a storage quota, a media-policy refusal) says why a request was
+refused and nothing about a photo being lost; only the `GENERIC_FAILURE`
+fallback mentions the photo, which is why this looked correct for as long as the
+server stayed quiet. **`qa/field.mjs` drove that precise failure — with a
+`detail` — and asserted the banner MUST have cleared.** The harness that existed
+to prove INV-081 was pinning its violation. The owner's call was to widen the
+banner rather than narrow the row, so the invariant is now true rather than
+smaller; the fix is a second predicate (`serverDoesNotHaveThePhoto`) because the
+unload prompt must NOT follow the banner into `failed`, where the bytes have
+already left the closure.
+
+**2. Two of the seven parked items were recorded WRONG, and both had been
+adjudicated on the description rather than on the behaviour.**
+
+- Item 6 said a bracketless `Host: ::1` passes the allowlist and then makes
+  `new URL` throw. It does not and never did: the port-strip regex matches the
+  trailing `:1` and normalises `::1` to `":"`, which is refused with the error
+  that names the remedy. The real defect was the inverse — a
+  `hostname === "::1"` arm unreachable from the day it was written, while the
+  comment above it advertised the spelling as accepted.
+- Item 4's proposed fix — refuse when `NODE_ENV === "production"` — would have
+  turned the `app-qa` job red, because `qa/field.mjs` runs `next start`, which
+  IS production, on a loopback port with no origin set. The harness now names
+  its own origin instead, which is strictly better: the browser pass exercises
+  the branch a real deployment takes rather than a developer fallback no
+  deployment may use.
+
+  **The lesson generalises past these two:** a parked item's description is a
+  hypothesis, and re-measuring it costs less than the work it describes.
+
+**3. Two facts about `NEXT_PUBLIC_APP_ORIGIN`, measured against `.next/server`
+output, that the P0 will need.** A value **present** at build is inlined as a
+literal and beats the runtime environment — that is the documented rebuild
+requirement. A value **absent** at build survives, on the server only, as a real
+runtime `process.env` read. So a runtime-only value appears to work on a build
+that never had one and silently does nothing on a build that did, which is a
+debugging trap sitting directly on the P0's path. `TODOS.md`'s P0 note said only
+the first half and now says both.
+
+**Also closed, and smaller:** the 429 split that had landed on the send path
+only (a foreman rate-limited at the VERIFY step was told the correct code he was
+reading off his phone was wrong); the missing `a` reset, which turned each
+obligation row purple as a foreman worked down his list, and which now has the
+gate `TODOS.md` said it lacked; `/context`, which had no audit at all rather
+than merely no overflow gate; and a dated header on the plan document naming its
+three superseded sections.
+
+**Still open and NOT closed by this session:** `/context` is still a two-line
+stub with an inline `style={{ padding: 32 }}` and none of the design system. The
+new audit holds it to the floor any served route must meet; it does not make it
+a screen. Building it is owed a decision.
+
+**Verified locally on 2026-08-17**, on a fresh `supabase db reset` followed by
+`pnpm db:local-credentials`, running one thing at a time per §4 below:
+
+- `pnpm turbo run typecheck` — **10 of 10**.
+- `pnpm turbo run test --concurrency=1` — **6 of 6 packages green**, 7m37s.
+  apps/app alone: **801 tests across 57 files** (678/45 when §4 was written; the
+  difference is this branch's new tests plus everything added since that run).
+- `pnpm turbo run build` — **3 of 3**.
+- `node scripts/validate-canonical-docs.mjs` — exit 0.
+- `pnpm --filter @goproceed/demo preflight` — exit 0.
+- `cd apps/app && pnpm qa` — **6 of 6 audits, zero findings** (`context screen`
+  is the sixth), and the run left no tracked file modified.
+
+**Both new gates were proved to fail without their fix, not merely to pass with
+it** — the habit §7 names, applied here because this session's central finding
+was a green gate defending a defect. Reverting the banner to `holdsUnsavedBytes`
+and deleting the `a` reset, then rebuilding and re-running `pnpm qa`, produces
+exactly two findings and no others:
+
+```
+/ @375: anchor "Приклад-улаштування прокладки кабелю QAм" (href=/a/fef2a39b-…)
+  renders with user-agent link styling — color rgb(0, 0, 238), text-decoration
+  underline; app/globals.css's `a` reset has been lost
+capture pass: the unsaved-photo banner ("GoProceed не зберіг це фото…") is gone
+  after the upload FAILED — invariant-catalog.csv:82 requires it on every failed
+  upload, and this stub supplies a server `detail` that says nothing about the
+  photo being lost
+```
+
+That first line is also the plainest evidence the anchor item was misfiled as «a
+design decision rather than a bug»: it is a real obligation row, on the screen a
+foreman lands on, rendering in the user agent's link blue.
 
 ---
 

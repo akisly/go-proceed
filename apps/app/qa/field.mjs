@@ -1307,7 +1307,7 @@ async function main() {
         // close-tab prompt is the mechanism INV-081's second half rests on.
         const bodyTextAtRest = await page.evaluate(() => document.body.innerText);
         if (bodyTextAtRest.includes(UNSAVED_PHOTO_WARNING)) {
-          ctx.findings.push(`capture pass: the unsaved-photo banner ("${UNSAVED_PHOTO_WARNING}") is on screen before any file has been picked — holdsUnsavedBytes has lost its hasPickedFile term`);
+          ctx.findings.push(`capture pass: the unsaved-photo banner ("${UNSAVED_PHOTO_WARNING}") is on screen before any file has been picked — serverDoesNotHaveThePhoto has lost its hasPickedFile term`);
         }
         if (bodyTextAtRest.includes("Скасувати фото")) {
           ctx.findings.push("capture pass: the \"Скасувати фото\" control is offered before any file has been picked — there is nothing to discard");

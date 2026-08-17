@@ -252,41 +252,97 @@ storage-eviction rule including whether an installed home-screen PWA is exempt.
 `crypto.subtle` also needs a secure context — localhost qualifies, so local work
 is unaffected and only the real thing is blocked.
 
-**Note for whoever provisions it:** `NEXT_PUBLIC_APP_ORIGIN` is inlined at BUILD
-time, not read at runtime. A container built once and deployed to a named origin
-will refuse every request until it is rebuilt with the value set — `resolveBaseOrigin`
-fails closed by design (see the P1 below).
+**Note for whoever provisions it:** `NEXT_PUBLIC_APP_ORIGIN` must be set at
+BUILD time. A container built once and deployed to a named origin will refuse
+every request until it is REBUILT with the value set — `resolveBaseOrigin` fails
+closed by design (see the P1 below). Setting it only in the runtime environment
+of an already-built image is the shape of mistake this note exists to prevent.
 
-## P1 (OPEN) — seven residuals from the field-client final review, none blocking
+*Measured against `.next/server` output on 2026-08-17, because the mechanism is
+not quite what the sentence above suggests and the difference is a debugging
+trap. A value PRESENT at build is inlined as a literal and beats anything the
+runtime environment says — that is the rebuild requirement. A value ABSENT at
+build survives, on the server only, as a real `process.env` read performed at
+runtime; the client bundle gets `undefined` either way. So a runtime-only value
+appears to work on a build that never had one, and silently does nothing on a
+build that did. Set it at build time and the question does not arise.*
+
+**`next start` is a production build and therefore needs it too**, loopback or
+not — there is no header-derived origin in a production build as of 2026-08-17
+(P1 item 4 below). `qa/field.mjs` sets it to its own ephemeral origin, which is
+why the browser pass now exercises the same branch a real deployment will.
+
+## P1 (CLOSED 2026-08-17) — seven residuals from the field-client final review
 
 Adjudicated and parked on 2026-08-11 after the whole-branch review's single fix
-wave. Recorded here because the review artefacts are gitignored and would take
-them with them.
+wave; all seven closed on 2026-08-17. Recorded here because the review artefacts
+are gitignored and would take them with them.
 
-1. **INV-081's catalogue row overstates its own enforcement.** It reads «every
-   failed or abandoned in-flight upload raises an explicit unsaved-photo
-   warning». After the recovery mappings were collapsed to `failed`, that holds
-   only on the path where the server supplies no `detail` string. Same defect
-   class as INV-086's row, which the same wave corrected. Either widen the banner
-   gate or correct the row — the row must not claim more than the code does.
-2. **`verifyCode` still collapses 429 into «Невірний або прострочений код».** The
-   fix landed one function above it, on the send path. A rate-limited foreman is
-   told his correct code is wrong, which is the misdirection that fix removed.
-3. **Every `<a>` under `/app/**` renders with user-agent link styling**, including
-   visited-purple. There is no Tailwind preflight and no `a` reset. A design
-   decision rather than a bug, and it has no gate that would catch a regression.
-4. **The loopback port is request-chosen** when `NEXT_PUBLIC_APP_ORIGIN` is unset:
-   `Host: 127.0.0.1:9200` yields that origin with the cookie attached. Only
-   reachable on a deployment that is already fully broken; consider refusing
-   outright when `NODE_ENV === "production"`.
-5. **`docs/superpowers/plans/2026-08-10-pwa-field-client.md` still prints the
-   pre-fix recovery mapping** (`retry_part → "sending"`). The design document is
-   corrected; the plan is a historical artefact and wants a dated pointer to §6.
-6. **A bracketless `Host: ::1`** passes the allowlist and then makes `new URL`
-   throw, surfacing as the generic error screen rather than `UntrustedHostError`.
-   Cosmetic, no security consequence.
-7. **`/context` is the one route the browser pass's overflow gate does not cover**
-   — it is the pre-existing stub, left untouched by the field-client work.
+**Two of the seven were recorded WRONG, and that is the part worth reading.**
+Both were written from inspection rather than from execution, and both were
+adjudicated as low-value on the strength of the description rather than the
+behaviour. Items 4 and 6 below carry what was actually measured. The rule this
+argues for: a parked item's description is a hypothesis, and re-measuring it
+costs less than the work it is describing.
+
+1. **CLOSED — INV-081's catalogue row overstated its own enforcement.** It reads
+   «every failed or abandoned in-flight upload raises an explicit unsaved-photo
+   warning»; the banner was gated on `holdsUnsavedBytes`, which excludes
+   `failed`. **The banner gate was widened rather than the row narrowed** (owner
+   decision, 2026-08-17): a P0 invariant's enforcement column should be made
+   true, not made smaller. It is a SECOND predicate, `serverDoesNotHaveThePhoto`,
+   not a wider first one — `holdsUnsavedBytes` still gates the `beforeunload`
+   dialog and the discard control, and must not follow the banner into `failed`,
+   where the browser no longer holds the bytes. Worse than the row: the browser
+   pass drove that exact failure and **asserted the banner must have cleared** —
+   a green gate defending the defect. That assertion is inverted.
+2. **CLOSED — `verifyCode` collapsed 429 into «Невірний або прострочений код».**
+   The rule moved to `apps/app/src/lib/otp-error.ts` and both phases are forced
+   through it, so the next status worth splitting is split for both by
+   construction. It takes a status, never a message, so GoTrue's English string
+   has no parameter to arrive through.
+3. **CLOSED — every `<a>` under `/app/**` rendered with user-agent link
+   styling.** Not the design decision it was parked as: «Мої доручення» renders
+   each obligation row AS an anchor, so a foreman's list turned purple row by row
+   as he worked through it, and `text-decoration` propagates to in-flow
+   descendants so the rows' own colour classes could not undo the underline. An
+   `a` reset in `globals.css`, plus the gate the entry said it lacked
+   (`measureUaStyledLinks` in `qa/field.mjs`).
+4. **CLOSED — the loopback port was request-chosen**, but NOT by the fix this
+   entry proposed. «Refusing outright when `NODE_ENV === "production"`» would
+   have turned the `app-qa` job red: `qa/field.mjs` runs `next start`, which IS
+   production, on an ephemeral loopback port and set no origin. The harness now
+   names its own origin, which is strictly better — the browser pass exercises
+   the branch a real deployment takes instead of a developer fallback no
+   deployment may use — and production then refuses every header-derived origin.
+   Two facts measured against `.next/server` output while doing it, both now
+   written down: `NODE_ENV` is inlined by `next build` (so a shipped bundle
+   cannot be argued back into the fallback at runtime), and a
+   `NEXT_PUBLIC_APP_ORIGIN` **absent** at build survives as a runtime
+   `process.env` read on the server, while one **present** at build is baked in
+   and beats the runtime environment. The second corrects the note under the P0
+   above, which says only the baked-in half.
+5. **CLOSED — the plan still printed the pre-fix recovery mapping.** It printed
+   three superseded things, not one: the mapping, `holdsUnsavedBytes`'s
+   pre-`CaptureHold` signature, and (as of item 1) the banner's gate. A dated
+   header names all three, with inline markers at each site so a reader landing
+   mid-document cannot copy them.
+6. **CLOSED, AND THE ENTRY WAS WRONG.** It claimed a bracketless `Host: ::1`
+   «passes the allowlist and then makes `new URL` throw». It does not and never
+   did: the port-strip regex `/:\d+$/` matches the trailing `:1` and normalises
+   `::1` to `":"`, which is refused with `UntrustedHostError` — the correct
+   error, naming the remedy. What was real is the inverse: that same
+   normalisation made the `hostname === "::1"` arm **unreachable from the day it
+   was written**, while the function's comment advertised the spelling as
+   accepted. Dead arm removed, comment corrected to the bracketed form RFC 7230
+   permits, and a test now walks every accepted spelling through `new URL`.
+7. **CLOSED — `/context` had no audit at all**, not merely no overflow gate. It
+   now has one, listed in `EXPECTED_AUDITS` so dropping the call is a finding.
+   The audit does not bless the stub — `/context` is still two lines of
+   placeholder text with an inline `style={{ padding: 32 }}` and none of the
+   design system. **Building the real screen is open work and is owed a
+   decision**; what is closed is that a shell-wide regression can no longer hide
+   on the one route nobody was looking at.
 
 ## P1 (CLOSED 2026-08-10) — valuation funding was first-come and was never re-offered
 

@@ -66,9 +66,14 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
   // The bytes themselves live only inside `uploadCapture`'s closure — they are
   // never held in React state — so this flag is the only place that fact can
   // exist. False until a `File` is actually handed over; false again once the
-  // photo is discarded (see `handleDiscard`). Every at-risk affordance below
-  // is gated on `holdsUnsavedBytes(hold)`, which is this AND
-  // `serverHasNotRecordedIt(state)`.
+  // photo is discarded (see `handleDiscard`).
+  //
+  // BOTH at-risk predicates carry this flag as a term, which is what makes it
+  // impossible for any of the three affordances to appear before a photo does:
+  // `holdsUnsavedBytes(hold)` (this AND `serverHasNotRecordedIt(state)`) gates
+  // the `beforeunload` listener and the discard control, and
+  // `serverDoesNotHaveThePhoto(hold)` (this AND not-saved AND not-discarded)
+  // gates the banner. They differ on `failed` and nowhere else — see state.ts.
   const [hasPickedFile, setHasPickedFile] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -214,8 +219,12 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
     guard.supersede();
     setState((current) => discard(current));
     // There is nothing left in this browser's hands to lose: the banner, this
-    // control and the unload guard all go down together, because all three
-    // read `holdsUnsavedBytes(hold)` and this is one of its two terms.
+    // control and the unload guard all go down together. Not because they share
+    // one predicate — since 2026-08-17 they do not — but because `hasPickedFile`
+    // is a term of BOTH `holdsUnsavedBytes` and `serverDoesNotHaveThePhoto`, so
+    // clearing it here settles all three at once. (The `discarded` state would
+    // be enough on its own for either; this line is what also stops a retake
+    // from inheriting a stale "a photo exists" flag.)
     setHasPickedFile(false);
     setMessage(null);
     setBusy(false);
