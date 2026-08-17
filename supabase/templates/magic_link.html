@@ -1,0 +1,46 @@
+<!--
+  Custom magic-link email template, pinned in the repository rather than
+  left to whatever the installed Supabase CLI/GoTrue build ships by
+  default.
+
+  WHY THIS EXISTS: apps/app/qa/field.mjs's sign-in audit drives the real
+  email-OTP login screen and reads the six-digit code back out of this
+  email. Round 3 of the app-qa CI investigation (see
+  .superpowers/sdd/pr14-app-qa-fix-report.md) found that the LOCAL CLI's
+  bundled GoTrue default magic-link template includes a labelled
+  "enter the code: NNNNNN" line, but CI's newer CLI's default template does
+  not — it sends a pure magic-LINK email with no code at all. No amount of
+  parser tolerance in field.mjs can read a code that was never sent: the
+  templates genuinely differ between CLI versions, and a future CLI bump
+  (CI resolves `supabase/setup-cli@... version: latest`) can move the
+  default again in either direction. Pinning this file removes the
+  dependency on that default entirely — local and CI now render the exact
+  same email regardless of which CLI version is installed.
+
+  `{{ .Token }}` is GoTrue's own template variable for the raw one-time
+  code (the same one the bundled default template used) — see
+  supabase/config.toml's `[auth.email.template.magic_link]` for where this
+  file is wired in. The literal English word "code:" immediately before it
+  is load-bearing, not a style choice: apps/app/qa/field.mjs's
+  `extractOtpCode` tries a labelled `code:\s*(\d{6})` match FIRST, before
+  falling back to a bare six-digit scan (itself added to survive a
+  reworded template, then narrowed after a false-positive against a PKCE
+  token — see that function's own header). Keeping the literal label here
+  is what lets the harness use its most specific, least ambiguous match
+  every time, rather than falling back to a scan across the whole body.
+
+  This is currently English, matching GoTrue's own historical default
+  wording, not Ukrainian — deliberately NOT extended to match this
+  product's UI copy language convention here. Localizing the auth email a
+  real foreman receives is a genuine product-copy decision (tone, legal
+  register, brand voice) that deserves its own review, not something to
+  fold into a CI-parity fix silently. Flagged separately, not resolved
+  here.
+-->
+<h2>Your sign-in link</h2>
+
+<p>Follow the link below to sign in. This link expires shortly and can only be used once.</p>
+
+<p><a href="{{ .ConfirmationURL }}">Sign in</a></p>
+
+<p>Alternatively, enter the code: {{ .Token }}</p>
