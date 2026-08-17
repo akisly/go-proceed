@@ -1192,34 +1192,55 @@ async function main() {
           ctx.findings.push('capture pass: expected the "sending" state label ("Надсилання") after picking a file — the upload never appears to have started');
         }
 
-        // The banner must still be up during this same in-flight window —
-        // gated by the identical `holdsUnsavedBytes` function as the state
-        // label, so if it were EVER absent here (rest included) that would
-        // itself be the real regression context item 4 warns against: bytes
-        // genuinely at risk with no visible warning.
+        // The banner must still be up during this same in-flight window — bytes
+        // genuinely at risk with no visible warning is the regression context
+        // item 4 warns against.
         const bannerUpWhileInFlight = await page.evaluate(
           (expected) => document.body.innerText.includes(expected), UNSAVED_PHOTO_WARNING);
         if (!bannerUpWhileInFlight) {
           ctx.findings.push(`capture pass: unsaved-photo banner ("${UNSAVED_PHOTO_WARNING}") is not visible while the upload is in flight ("Надсилання")`);
         }
 
-        // Once the stub resolves (~700ms) the state moves to "failed":
-        // `holdsUnsavedBytes("failed")` is false, so the banner must come
-        // back DOWN — a banner that never clears would itself be a defect
-        // (state.ts's own comment: "failed and discarded are false because
-        // the user has already been told").
-        const bannerClearedAfterFailure = await page.waitForFunction(
-          (expected) => !document.body.innerText.includes(expected),
+        // ── THIS ASSERTION IS INVERTED FROM WHAT IT WAS, AND THE OLD ONE WAS
+        // GREEN THE WHOLE TIME IT WAS WRONG. ──────────────────────────────────
+        //
+        // It used to require the banner to come back DOWN once the stub
+        // resolved, on the strength of `holdsUnsavedBytes("failed") === false`.
+        // That is a test written to describe the code rather than the
+        // invariant, and it made this harness a defender of the defect:
+        // `invariant-catalog.csv:82` requires the unsaved-photo warning on
+        // «every failed or abandoned in-flight upload», and this pass drove the
+        // exact failure it names and then demanded the warning be gone.
+        //
+        // Worse, THIS STUB IS THE BAD PATH ITSELF. It returns a `detail` —
+        // "QA-stubbed failure (qa/field.mjs)" — so what replaced the banner was
+        // a server string that says nothing whatsoever about a photo being
+        // lost. A real deployment's `detail` (a storage quota, a media-policy
+        // refusal) behaves the same way. The only reason this ever looked
+        // acceptable is that the OTHER failure path falls back to
+        // `GENERIC_FAILURE`, which does mention the photo.
+        //
+        // The banner is gated on `serverDoesNotHaveThePhoto` now, which is true
+        // at `failed`, so it must PERSIST. Asserted after waiting for the
+        // failure label rather than immediately, so this cannot pass on the
+        // in-flight render it was already true in.
+        const reachedFailed = await page.waitForFunction(
+          () => document.body.innerText.includes("Потрібна дія"),
           { timeout: 5_000 },
-          UNSAVED_PHOTO_WARNING,
         ).then(() => true).catch(() => false);
-        if (!bannerClearedAfterFailure) {
-          ctx.findings.push("capture pass: unsaved-photo banner is still visible after the upload resolved to a failure — should have cleared");
+        if (!reachedFailed) {
+          ctx.findings.push('capture pass: expected the "failed" state label ("Потрібна дія") after the stubbed failure, not found');
         }
 
         const bodyTextAfter = await page.evaluate(() => document.body.innerText);
-        if (!bodyTextAfter.includes("Потрібна дія")) {
-          ctx.findings.push('capture pass: expected the "failed" state label ("Потрібна дія") after the stubbed failure, not found');
+        if (!bodyTextAfter.includes(UNSAVED_PHOTO_WARNING)) {
+          ctx.findings.push(`capture pass: the unsaved-photo banner ("${UNSAVED_PHOTO_WARNING}") is gone after the upload FAILED — invariant-catalog.csv:82 requires it on every failed upload, and this stub supplies a server \`detail\` that says nothing about the photo being lost`);
+        }
+        // …and it coexists with the server's own reason rather than replacing
+        // it, or being replaced by it. Both must be on screen: the invariant's
+        // fixed warning, and the specific remedy beside it.
+        if (!bodyTextAfter.includes("QA-stubbed failure")) {
+          ctx.findings.push("capture pass: the server-supplied problem `detail` is not rendered after a failed upload — the foreman is told the photo is unsaved but not why");
         }
         if (bodyTextAfter.includes("Збережено на пристрої")) {
           ctx.findings.push('capture pass: renders the forbidden claim "Збережено на пристрої" after a failed upload');
