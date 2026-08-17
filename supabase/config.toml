@@ -92,6 +92,23 @@ openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
 # are monitored, and you can view the emails that would have been sent from the web interface.
+#
+# MIGRATION OWED, NOT DONE: CI's `supabase/setup-cli@... version: latest` step
+# resolves a newer CLI than every developer's local install and logs
+# `WARN: config section [inbucket] is deprecated. Please use [local_smtp]
+# instead` — first observed on PR #14 (branch claude/pwa-field-client). The
+# locally-installed CLI at the time of writing (2.75.0) does NOT recognise
+# `[local_smtp]` at all (verified by inspecting the compiled binary's config
+# struct tags: it embeds `toml:"inbucket"` and no `local_smtp` string
+# anywhere), and separately requires `inbucket.port` to be set — renaming
+# this section on that CLI would silently drop the whole email-testing
+# config rather than "just" being a deprecated-but-working alias, breaking
+# `supabase start` / Mailpit / every OTP-driven local flow (including
+# apps/app/qa/field.mjs's sign-in audit) for anyone still on 2.75.0. Do NOT
+# rename `[inbucket]` -> `[local_smtp]` until the CLI version this repo's
+# developers actually run supports both, confirmed the same way this
+# comment was: check the installed CLI's own config schema first, not just
+# CI's warning text.
 [inbucket]
 enabled = true
 # Port to use for the email testing server web interface.

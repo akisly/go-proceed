@@ -273,6 +273,34 @@ jobs:
         timeout-minutes: 15
         run: supabase start
 
+      # Mailpit readiness probe — same spirit as "Verify Chrome launches"
+      # below: turn an infrastructure problem into an infrastructure-shaped
+      # failure instead of letting it masquerade as a product bug.
+      #
+      # `qa/field.mjs`'s sign-in audit drives the REAL email-OTP screen and
+      # reads the code back out of Mailpit's REST API (`MAILPIT_URL`,
+      # default http://127.0.0.1:54324) — `supabase start`'s own log line
+      # above (`│ Mailpit │ http://127.0.0.1:54324 │`) says the container is
+      # up, but "the log line printed" and "the API answers HTTP requests"
+      # are different claims, and only the second one is what qa/field.mjs
+      # actually depends on. Without this, a Mailpit that is merely slow to
+      # finish starting (or genuinely broken) failed AT `readOtpCode`,
+      # inside the sign-in audit, which used to be misread as a product
+      # defect in login rather than infrastructure not being ready — see
+      # readOtpCode's own header in apps/app/qa/field.mjs for the full
+      # account of that failure mode.
+      - name: Verify Mailpit API is reachable
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:54324/api/v1/messages"; then
+              echo "Mailpit API answered on attempt $i"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Mailpit API at http://127.0.0.1:54324/api/v1/messages never answered 2xx within 30s after supabase start" >&2
+          exit 1
+
       - name: supabase db reset
         run: supabase db reset
 

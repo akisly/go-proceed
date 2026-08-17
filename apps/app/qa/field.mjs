@@ -403,29 +403,139 @@ async function seedBearerToken(email, password) {
 }
 
 /**
- * Mailpit's list endpoint's `Snippet` already carries the rendered
- * "...enter the code: NNNNNN" line (confirmed by hand against the local
- * stack before this was written), so the six digits can be read without a
- * second fetch for the full message body. Polls because the email is
- * genuinely asynchronous — GoTrue enqueues it, Mailpit receives it a moment
- * later — never a fixed sleep, which would either flake under load or waste
- * time under none.
+ * Extracts a six-digit OTP code from an email body (Text, HTML, or the list
+ * endpoint's Snippet — see `readOtpCode`). Matches a standalone run of six
+ * digits, bounded on both sides by a non-digit or the string edge, rather
+ * than requiring the literal `code:` prefix the previous version hard-coded.
+ * The prefix match broke the moment the template wording (or the Mailpit
+ * build rendering it) changed — see `readOtpCode`'s header for why that is
+ * exactly what CI's newer `supabase/setup-cli@... version: latest` makes
+ * likely. The digit-boundary lookarounds keep this from matching *inside* a
+ * longer number (a timestamp, an id) while staying loose enough to survive
+ * a reworded template — six consecutive digits with clear boundaries is
+ * specific enough in a short OTP email not to collide with anything else
+ * a login-code template plausibly contains.
  */
-async function readOtpCode(email, { timeoutMs = 15_000 } = {}) {
+function extractOtpCode(text) {
+  if (!text) return null;
+  const match = /(?<!\d)(\d{6})(?!\d)/.exec(text);
+  return match ? match[1] : null;
+}
+
+/**
+ * Reads the six-digit OTP code Mailpit received for `email`.
+ *
+ * PRIOR VERSION'S DEFECT, FOR THE RECORD: this function used to trust the
+ * LIST endpoint's (`/api/v1/messages`) `Snippet` field exclusively, matched
+ * with a `code:\s*(\d{6})` regex the old comment said was "confirmed by
+ * hand against the local stack before this was written" — i.e. verified
+ * against ONE Mailpit build, on one CLI version, and never re-verified
+ * against CI's. CI resolves `supabase/setup-cli@... version: latest`, which
+ * is demonstrably a newer CLI than the 2.75.0 this was hand-checked
+ * against locally (CI's `supabase start` even logs `WARN: config section
+ * [inbucket] is deprecated. Please use [local_smtp] instead`, a warning the
+ * local CLI does not emit) — so CI is quite possibly running a different
+ * Mailpit build too, with different Snippet truncation or template
+ * wording. When that assumption broke, the old code's own error message —
+ * "no OTP email reached Mailpit" — asserted a cause (nothing arrived) it
+ * had never actually distinguished from "Mailpit is unreachable" or "a
+ * message arrived but no code could be parsed out of it". A harness whose
+ * failure message names a cause it did not establish is exactly the defect
+ * class this repository does not tolerate, so every failure path below is
+ * now traceable to the one cause it actually observed, with the evidence
+ * that grounds it:
+ *
+ *   1. Mailpit never answered `/api/v1/messages` with 2xx (or the fetch
+ *      itself threw, e.g. connection refused) — reports the last HTTP
+ *      status or error seen.
+ *   2. Mailpit answered fine, but no message ever arrived addressed to
+ *      `email` — reports how many messages WERE seen on the last poll and
+ *      which addresses they were sent to, so a caller can tell "Mailpit is
+ *      empty" apart from "Mailpit has mail, just not for this address".
+ *   3. A message addressed to `email` DID arrive, but no six-digit code
+ *      could be parsed out of it — reports the message id plus a truncated
+ *      Snippet/Text/HTML so the actual template text is visible in the CI
+ *      log without a local reproduction.
+ *
+ * Once a matching message is found, this fetches the FULL message
+ * (`GET /api/v1/message/{ID}`) instead of trusting the list endpoint's
+ * `Snippet` — Mailpit truncates that field, which is exactly the kind of
+ * thing a version bump reshapes without changing the actual delivered
+ * code. The code is extracted from Text, then HTML, then (only as a last
+ * resort, in case both bodies are empty for some reason) the list
+ * endpoint's own Snippet — see `extractOtpCode`'s header for why the match
+ * itself no longer requires the literal `code:` prefix.
+ *
+ * Polls because the email is genuinely asynchronous — GoTrue enqueues it,
+ * Mailpit receives it a moment later — never a fixed sleep, which would
+ * either flake under load or waste time under none.
+ */
+async function readOtpCode(email, { timeoutMs = 60_000 } = {}) {
+  // 60s, not the previous 15s. The workflow's own comment on the
+  // `supabase start` step already documents that a cold CI runner pays for
+  // a full Postgres/GoTrue/Kong/Mailpit image pull before anything is up
+  // ("Cold runners pull the full local Postgres/GoTrue/Kong image set on
+  // first boot, which is slow"); 15s never had headroom for that on a
+  // shared, loaded runner, only on a warm local machine. 60s is generous
+  // without hiding a genuinely broken pipeline for a full test run.
   const deadline = Date.now() + timeoutMs;
+  let lastListStatus = null; // number (HTTP status) | string (network error) | null (never reached)
+  let lastMessageCount = null;
+  let lastRecipients = null;
+
   while (Date.now() < deadline) {
-    const res = await fetch(`${MAILPIT_URL}/api/v1/messages`);
+    let res;
+    try {
+      res = await fetch(`${MAILPIT_URL}/api/v1/messages`);
+    } catch (err) {
+      lastListStatus = `fetch failed: ${err.message}`;
+      await new Promise((r) => setTimeout(r, 400));
+      continue;
+    }
+    lastListStatus = res.status;
     if (res.ok) {
       const { messages } = await res.json();
+      lastMessageCount = messages.length;
+      lastRecipients = messages.flatMap((m) => m.To.map((t) => t.Address));
       const mine = messages.find((m) => m.To.some((t) => t.Address === email));
       if (mine) {
-        const match = /code:\s*(\d{6})/.exec(mine.Snippet ?? "");
-        if (match) return match[1];
+        const full = await fetch(`${MAILPIT_URL}/api/v1/message/${mine.ID}`);
+        if (!full.ok) {
+          throw new Error(
+            `readOtpCode: found a Mailpit message for ${email} (id ${mine.ID}) but ` +
+            `GET /api/v1/message/${mine.ID} returned ${full.status} — cannot read its body to find the code.`,
+          );
+        }
+        const body = await full.json();
+        const code = extractOtpCode(body.Text) ?? extractOtpCode(body.HTML) ?? extractOtpCode(mine.Snippet);
+        if (code) return code;
+        const truncate = (s) => JSON.stringify((s ?? "").slice(0, 200));
+        throw new Error(
+          `readOtpCode: found a Mailpit message for ${email} (id ${mine.ID}) but no standalone ` +
+          `six-digit code could be parsed out of its Text, HTML, or Snippet. This is the template-` +
+          `changed / Mailpit-build-changed case readOtpCode's header describes — evidence:\n` +
+          `  Text:    ${truncate(body.Text)}\n` +
+          `  HTML:    ${truncate(body.HTML)}\n` +
+          `  Snippet: ${truncate(mine.Snippet)}`,
+        );
       }
     }
     await new Promise((r) => setTimeout(r, 400));
   }
-  throw new Error(`readOtpCode: no OTP email reached Mailpit for ${email} within ${timeoutMs}ms`);
+
+  if (typeof lastListStatus !== "number" || lastListStatus < 200 || lastListStatus >= 300) {
+    throw new Error(
+      `readOtpCode: Mailpit at ${MAILPIT_URL}/api/v1/messages never answered with a 2xx status within ` +
+      `${timeoutMs}ms (last result: ${lastListStatus === null ? "never reached — timed out before the first fetch resolved" : lastListStatus}). ` +
+      `This is an infrastructure failure, not a sign-in failure — check that Mailpit is actually up.`,
+    );
+  }
+  throw new Error(
+    `readOtpCode: Mailpit answered (status ${lastListStatus}) but no message addressed to ${email} arrived ` +
+    `within ${timeoutMs}ms. Last poll saw ${lastMessageCount} message(s) in Mailpit, addressed to: ` +
+    `${JSON.stringify(lastRecipients)}. This means GoTrue's mail either never reached Mailpit or was sent to a ` +
+    `different address than expected — it does NOT mean Mailpit is unreachable or that a code failed to parse.`,
+  );
 }
 
 // ---------------------------------------------------------------------------
