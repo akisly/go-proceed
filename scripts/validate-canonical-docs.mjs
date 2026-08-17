@@ -37,6 +37,12 @@
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+// `git ls-files` for the stale-role-name guard: it enumerates TRACKED files
+// only, which is both what that guard wants (never scan node_modules, a build
+// output directory or a gitignored QA artifact) and the same source the P1
+// entry's own measurement commands used, so the guard and the entry count the
+// same tree.
+import { execFileSync } from "node:child_process";
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const failures = [];
@@ -54,18 +60,112 @@ export function missingMetadata(markdown) {
 }
 
 // AktFlow may appear only on lines that are explicitly historical/legacy
-// context (docs/legacy/README.md policy). The PostgreSQL role identifiers
+// context (docs/legacy/README.md policy).
+//
+// THE ROLE-NAME EXEMPTION IS NARROWER THAN IT WAS, and the comment that stood
+// here was the reason to revisit it. It read: «The PostgreSQL role identifiers
 // (aktflow_app, aktflow_app_login, aktflow_worker, aktflow_service,
-// aktflow_service_login) are runtime names, not doc branding, and are not
-// being renamed — they are ignored here.
+// aktflow_service_login) are runtime names, not doc branding, and are not being
+// renamed — they are ignored here.» The last clause stopped being true on
+// 2026-08-17 (migration 0057), and the strip below went on excusing the old
+// names from the branding rule regardless.
+//
+// The strip is kept, because the premise still holds — a role identifier IS a
+// runtime name rather than branding, and `goproceed_app` on a line would
+// otherwise have to be spelled around. It now matches BOTH spellings, so a
+// stale `aktflow_app` is still not reported as branding here; it is reported by
+// `staleRoleNameErrors` below, which says the right thing about it instead of
+// calling it a branding violation.
 const LEGACY_CONTEXT = /legacy|historic|supersede|era|migration|former|old /i;
 export function brandingViolations(markdown) {
   const bad = [];
   markdown.split("\n").forEach((line, i) => {
-    const stripped = line.replace(/aktflow_[\w]+/g, "");
+    const stripped = line.replace(/(?:aktflow|goproceed)_[\w]+/g, "");
     if (/AktFlow/i.test(stripped) && !LEGACY_CONTEXT.test(line)) bad.push(i + 1);
   });
   return bad;
+}
+
+/**
+ * THE FIVE OLD POSTGRESQL ROLE NAMES MAY APPEAR ONLY IN A RECORD OF WHAT
+ * HAPPENED — never in a file that describes the system as it is.
+ *
+ * Migration 0057 renamed `aktflow_app`, `aktflow_app_login`, `aktflow_worker`,
+ * `aktflow_service` and `aktflow_service_login` to `goproceed_*`. The rename
+ * was landed while it was still free: no environment had ever applied this
+ * migration chain (`infra/README-staging.md` §Status), so there was no live
+ * connection string to coordinate — which is precisely the condition that
+ * disappears the day the P0 origin is provisioned.
+ *
+ * This guard is what stops the old names creeping back into live code and
+ * documents afterward. It is deliberately a PATH rule rather than a content
+ * rule: the question is not whether a line looks historical, it is whether the
+ * FILE is a record. Four directories are records and are exempt in full —
+ *
+ *   supabase/migrations/     a migration is history; 0003 and 0034 created the
+ *                            roles under the old names and must go on saying so
+ *   docs/legacy/             the AktFlow era, by that directory's own policy
+ *   docs/superpowers/        dated plans, specs and evidence — artefacts of the
+ *                            session that produced them, annotated when they go
+ *                            stale and never rewritten
+ *   migration/               the canonical-package transfer record and its
+ *                            catalog snapshots
+ *
+ * — plus the two dated review records named individually below, and TODOS.md,
+ * whose closed entry quotes the old names as the measurement it was tracking.
+ *
+ * Anything else naming an old role is a stale reference, and the message says
+ * which file and which name so the fix is one substitution.
+ */
+const ROLE_RECORD_DIRS = [
+  "supabase/migrations/",
+  "docs/legacy/",
+  "docs/superpowers/",
+  "migration/",
+];
+const ROLE_RECORD_FILES = new Set([
+  // A dated package review: it records what the roles were called on the day it
+  // was written, and rewriting it would falsify the review.
+  "docs/delivery/package-review-2026-08-04.md",
+  // The P1 entry that tracked this rename, including the grep commands whose
+  // output only makes sense against the old names.
+  "TODOS.md",
+  // The handoff is a session record too, and §0a.3 of it is the account OF
+  // this rename — it has to be able to say which names moved to which.
+  "HANDOFF.md",
+]);
+const OLD_ROLE_RE = /\baktflow_(app_login|app|service_login|service|worker)\b/g;
+
+/**
+ * THIS FILE, and it is not filed with the records above because it is not one.
+ *
+ * A rule that forbids a string has to be able to write that string down: the
+ * pattern, the message that names the replacement, and the self-test fixtures
+ * that prove the detector fires all contain the five old names on purpose. The
+ * alternative — assembling them from fragments so the literal never appears —
+ * would hide the rule from anyone grepping for it, which is a worse outcome
+ * than one exemption stated out loud.
+ *
+ * It is deliberately a single file and not a `scripts/` directory rule:
+ * `set-local-app-password.mjs` and `validate_package.py` live there too and are
+ * live code with no business naming a pre-rename role.
+ */
+const ROLE_RULE_DEFINITION = "scripts/validate-canonical-docs.mjs";
+
+export function isRoleRecordPath(relPath) {
+  return relPath === ROLE_RULE_DEFINITION
+    || ROLE_RECORD_DIRS.some((d) => relPath.startsWith(d))
+    || ROLE_RECORD_FILES.has(relPath);
+}
+
+export function staleRoleNameErrors(relPath, text) {
+  if (isRoleRecordPath(relPath)) return [];
+  const seen = new Set();
+  for (const m of text.matchAll(OLD_ROLE_RE)) seen.add(m[0]);
+  return [...seen].sort().map((name) =>
+    `${relPath}: names the pre-rename PostgreSQL role \`${name}\` — migration 0057 renamed it to `
+    + `\`${name.replace("aktflow_", "goproceed_")}\`. Only a record of what happened may keep the old `
+    + "name (see isRoleRecordPath in scripts/validate-canonical-docs.mjs)");
 }
 
 export function relativeLinks(markdown) {
@@ -493,7 +593,7 @@ export function eventProducerErrors(eventCsv, scope1, scope2) {
  *    v0.1 planes reach a caller by mechanisms presets cannot express —
  *    `workspace` from the governance role via `workspaceCapabilities(role)`
  *    (packages/domain/src/authz.ts), `service` from the service principal's own
- *    login (`aktflow_service_login`, migration 0034), `external` from a bearer
+ *    login (`goproceed_service_login`, migration 0034), `external` from a bearer
  *    grant held by someone who is not a member at all. Requiring a preset for
  *    those would demand a persona for a capability no persona can hold; the
  *    first draft of this guard did exactly that and reported 13 false
@@ -768,6 +868,43 @@ function selfTest() {
   }
   if (presetErrs.some((e) => e.includes("nobody"))) t.push("preset guard (the `none` spelling misread)");
 
+  // Guard 11: the five pre-rename role names, allowed only in a record.
+  const fxRole = "connect as aktflow_app_login and set role aktflow_app; the worker is aktflow_worker\n";
+  const roleErrs = staleRoleNameErrors("packages/database/src/tx.ts", fxRole);
+  if (!roleErrs.some((e) => e.includes("aktflow_app_login"))) t.push("role guard (login role)");
+  if (!roleErrs.some((e) => e.includes("aktflow_app`"))) t.push("role guard (group role, not swallowed by the _login alternative)");
+  if (!roleErrs.some((e) => e.includes("aktflow_worker"))) t.push("role guard (worker)");
+  if (!roleErrs.some((e) => e.includes("goproceed_app_login"))) t.push("role guard (message names the replacement)");
+  if (roleErrs.length !== 3) t.push(`role guard (expected 3 distinct names, got ${roleErrs.length})`);
+  // Records keep the old names — by PATH, not by how the line reads.
+  for (const rec of ["supabase/migrations/0003_roles_and_grants.sql", "docs/legacy/07-technical-architecture.md",
+    "docs/superpowers/plans/2026-08-03-rename-slice3-packages.md", "migration/goproceed-canonical-v0.1/x.md",
+    "TODOS.md", "docs/delivery/package-review-2026-08-04.md"]) {
+    if (staleRoleNameErrors(rec, fxRole).length !== 0) t.push(`role guard (record path not exempt: ${rec})`);
+  }
+  // A file that merely SITS BESIDE a record directory is not one.
+  if (staleRoleNameErrors("docs/architecture/tenancy-and-security.md", fxRole).length === 0) {
+    t.push("role guard (live doc wrongly exempt)");
+  }
+  // The NEW names must never be reported, or the guard would fight the rename.
+  if (staleRoleNameErrors("packages/database/src/tx.ts",
+    "set role goproceed_app; session_user = 'goproceed_service_login'\n").length !== 0) {
+    t.push("role guard (new names wrongly reported)");
+  }
+  // …and a longer identifier that merely starts with an old name is not one.
+  if (staleRoleNameErrors("x.ts", "aktflow_apparatus aktflow_services\n").length !== 0) {
+    t.push("role guard (word boundary)");
+  }
+  // The branding strip must cover BOTH spellings now, or `goproceed_app` on a
+  // line with the word AktFlow would be mis-parsed the way the old comment
+  // assumed only the old spelling needed excusing.
+  if (brandingViolations("the goproceed_app role replaced AktFlow's, in the old scheme\n").length !== 0) {
+    t.push("branding strip (legacy-context line wrongly reported)");
+  }
+  if (brandingViolations("AktFlow ships goproceed_app\n").length !== 1) {
+    t.push("branding strip (real branding hidden by the role strip)");
+  }
+
   if (t.length) {
     console.error("validator self-test FAILED:", t.join("; "));
     process.exit(2);
@@ -995,6 +1132,29 @@ function main() {
   const PRESET_EXEMPT = new Set([]);
   if ([PRESETS, CAPS].every((p) => existsSync(join(ROOT, p)))) {
     for (const e of presetCoherenceErrors(read(PRESETS), read(CAPS), PRESET_EXEMPT)) fail(e);
+  }
+
+  // Guard 11: no live file names a pre-rename PostgreSQL role. Walked over
+  // every TRACKED file rather than a curated list — the point of a rename gate
+  // is that it covers the files nobody thought to add to a list. `git ls-files`
+  // is the same source the P1 entry's own measurement commands used, so this
+  // guard and that entry are counting the same tree.
+  //
+  // Binary and vendored paths are excluded by the extension filter rather than
+  // by a directory list: a role name is an ASCII identifier and only ever
+  // appears in source, SQL, config, CSV or prose.
+  try {
+    const tracked = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n").filter(Boolean)
+      .filter((p) => /\.(ts|tsx|mjs|js|sql|md|csv|yml|yaml|json|py|toml|example|sh)$/.test(p) || p.endsWith(".env.example"));
+    for (const p of tracked) {
+      if (isRoleRecordPath(p)) continue;
+      let text;
+      try { text = read(p); } catch { continue; }
+      for (const e of staleRoleNameErrors(p, text)) fail(e);
+    }
+  } catch (err) {
+    fail(`stale-role-name guard could not enumerate tracked files: ${err.message}`);
   }
 
   // version-0.1.md declares scope-v0.1.csv authoritative for its row-level

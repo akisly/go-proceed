@@ -17,7 +17,7 @@ let servicePool: pg.Pool | null = null;
  *
  * Separate from getPool() on purpose: sharing a pool would mean sharing a
  * login, and the boundary this exists for is exactly that a connection
- * authenticated as aktflow_app_login cannot become the service role. Smaller
+ * authenticated as goproceed_app_login cannot become the service role. Smaller
  * max than the application pool because only the finalize path uses it.
  */
 export function getServicePool(): pg.Pool {

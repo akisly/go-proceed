@@ -783,7 +783,7 @@ table real device rows instead of placeholders.
 nothing else. Buying them no longer waits on any account: with the store chain
 removed, a PWA needs an HTTPS origin, which the product already requires.
 
-## P1 — the product is renamed to GoProceed, and the runtime and copy identifiers have not followed
+## P1 (ROLES CLOSED 2026-08-17) — the product is renamed to GoProceed; domains, env vars and docs have not followed
 
 **What:** the owner stated on 2026-08-03 that the product is GoProceed and that
 the `aktflow` identifiers are being replaced. `apps/mobile`'s deep-link scheme
@@ -839,6 +839,84 @@ to move in the same window, and the rename must land in a migration that runs
 against an environment whose app is already connecting under the old name. That
 is a deployment-ordering problem, not a find-and-replace, and it belongs in a
 slice with its own plan and its own rollback story.
+
+> **ROLES DONE 2026-08-17 — migration `0057`. The paragraph above was reasoning
+> about a deployed environment, and there is none.**
+>
+> `infra/README-staging.md` §Status still records that staging has never been
+> provisioned: no Supabase cloud project, no Vercel project for `apps/app`, no
+> deploy step in CI. The only databases that have ever run this chain are the
+> local stack and CI's, both rebuilt from scratch every run. There was no live
+> connection string to coordinate and no session to keep alive — so the whole
+> «deployment-ordering problem» applied to a future that had not happened yet,
+> and the rename was free. **It stops being free the day the P0 above is
+> provisioned**, which is why it landed first.
+>
+> **Two of that paragraph's three technical claims were also wrong on this
+> stack**, measured before the migration was written, in a transaction that was
+> rolled back:
+> - «clears an md5-hashed password» — `show password_encryption` is
+>   `scram-sha-256`, whose verifier is not salted with the role name. The
+>   password survived the rename intact.
+> - «not a text substitution» — true of the FILES, and irrelevant to the
+>   catalog: 137 RLS policies and 126 table grants named `aktflow_app` before
+>   the rename and named `goproceed_app` after it, with zero still naming the
+>   old one, because `pg_policy.polroles` and ACLs hold OIDs rather than names.
+>   Role membership survived too. No policy is rewritten and no grant re-issued.
+>
+> **AND THE OID ARGUMENT HAS AN EDGE THE PROBE DID NOT COVER — the role name
+> stored as TEXT.** `0057`'s first draft said it «renames and does nothing
+> else». That was wrong, and the TEST SUITE is what said so: six tests in
+> `m2-binding-hardening` and `m2-service-principal` failed at once with
+> `role "aktflow_service" does not exist`. `app.finalize_upload_intent`
+> (migration `0035`) guards on
+> `pg_has_role(session_user, 'aktflow_service', 'member')` — a string inside
+> `prosrc`, which is not a dependency the catalog tracks, so the rename left it
+> pointing at nothing and every server-side finalize raised. It fails closed,
+> but the whole evidence path was down.
+>
+> `0057` now rewrites function bodies and object comments too, by SEARCHING the
+> catalog rather than naming the objects this tree happens to contain, and
+> asserts afterward that none of either kind is left. The full catalog was then
+> swept for every other place a name can hide as text — policy expressions,
+> check constraints, column defaults, views, rules, trigger definitions, cron
+> commands, default ACLs, event triggers, per-role settings. All zero; only
+> function bodies (1) and object comments (4) carried anything.
+>
+> *The lesson is narrower than «test your migrations» and worth the line: a
+> probe that measures the mechanism you thought of is not evidence about the
+> mechanisms you did not. The rolled-back transaction proved OIDs follow a
+> rename, which was true, and said nothing about the one reference that was
+> not an OID.*
+>
+> Only the third claim held: every connection string and CI secret did have to
+> move in the same commit, and did — `packages/database/src/tx.ts`, its test,
+> `scripts/set-local-app-password.mjs`, four `ci.yml` connection strings,
+> `.env.example`, `validate_package.py`, and the reference sweep across 44 live
+> files.
+>
+> **The 40 files under `supabase/migrations/` are NOT edited**, by owner
+> decision the same day. Substituting the text there would have left a
+> textually clean tree and would have been safe in the narrow sense that
+> nothing had applied them for real — it is refused because a migration is
+> history in this repository (this very file says so about a migration
+> *comment*), and history should say what happened: these roles were created as
+> `aktflow_*` and renamed afterward. A fresh `db reset` creates the old names in
+> `0003`/`0034` and renames them in `0057`, which looks redundant and is exactly
+> right.
+>
+> **A gate keeps them gone.** `staleRoleNameErrors` in
+> `scripts/validate-canonical-docs.mjs` walks every tracked file and fails the
+> build on any of the five old names outside a record — `supabase/migrations/`,
+> `docs/legacy/`, `docs/superpowers/`, `migration/`, the two dated review
+> records, this file, and the validator that defines the rule. It also corrected
+> that validator's own comment, which had said the roles «are not being
+> renamed» while excusing them from the branding check.
+>
+> **Still open in this entry, and deliberately not folded in:** the four
+> `aktflow.*` domains, the two `AKTFLOW_*` env vars, and the documents that
+> mention `aktflow` in non-role forms. None of them shares the closing window
+> the roles had — they will cost exactly the same after staging exists.
 
 `docs/legacy/04-screen-specification.md` §S29 specified `aktflow://` and
 `aktflow.app` universal links with four route patterns. **As of 2026-08-06 that

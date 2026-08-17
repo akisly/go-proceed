@@ -34,7 +34,7 @@ describe("0036 the bookkeeping drain no longer races the claim protocol", () => 
           has_function_privilege('service_role',    'public.drain_outbox(int)', 'execute') as service_role,
           has_function_privilege('anon',            'public.drain_outbox(int)', 'execute') as anon,
           has_function_privilege('authenticated',   'public.drain_outbox(int)', 'execute') as authenticated,
-          has_function_privilege('aktflow_app',     'public.drain_outbox(int)', 'execute') as app`);
+          has_function_privilege('goproceed_app',     'public.drain_outbox(int)', 'execute') as app`);
       expect(r.rows[0]).toEqual({
         service_role: false, anon: false, authenticated: false, app: false,
       });
@@ -63,11 +63,11 @@ describe("0037 every public table carries row level security", () => {
     }
   });
 
-  it("aktflow_worker holds no SELECT on outbox_dead_letters", async () => {
+  it("goproceed_worker holds no SELECT on outbox_dead_letters", async () => {
     const c = await adminClient();
     try {
       const r = await c.query(
-        `select has_table_privilege('aktflow_worker', 'public.outbox_dead_letters', 'select') as sel`);
+        `select has_table_privilege('goproceed_worker', 'public.outbox_dead_letters', 'select') as sel`);
       expect(r.rows[0].sel).toBe(false);
     } finally {
       await c.end();
@@ -117,12 +117,12 @@ describe("0038 the purge functions name a principal other than the superuser", (
     "public.fail_upload_purge(uuid, text)",
   ];
 
-  it("aktflow_worker and service_role may execute all four", async () => {
+  it("goproceed_worker and service_role may execute all four", async () => {
     const c = await adminClient();
     try {
       for (const fn of FNS) {
         const r = await c.query(
-          `select has_function_privilege('aktflow_worker', $1, 'execute') as worker,
+          `select has_function_privilege('goproceed_worker', $1, 'execute') as worker,
                   has_function_privilege('service_role',   $1, 'execute') as service`, [fn]);
         expect(r.rows[0], fn).toEqual({ worker: true, service: true });
       }
@@ -141,7 +141,7 @@ describe("0038 the purge functions name a principal other than the superuser", (
         const r = await c.query(
           `select has_function_privilege('anon',          $1, 'execute') as anon,
                   has_function_privilege('authenticated', $1, 'execute') as authenticated,
-                  has_function_privilege('aktflow_app',   $1, 'execute') as app`, [fn]);
+                  has_function_privilege('goproceed_app',   $1, 'execute') as app`, [fn]);
         expect(r.rows[0], fn).toEqual({ anon: false, authenticated: false, app: false });
       }
     } finally {
@@ -151,14 +151,14 @@ describe("0038 the purge functions name a principal other than the superuser", (
 });
 
 describe("0039 organizations has no UPDATE path", () => {
-  it("aktflow_app holds SELECT and INSERT but not UPDATE", async () => {
+  it("goproceed_app holds SELECT and INSERT but not UPDATE", async () => {
     const c = await adminClient();
     try {
       const r = await c.query(`
         select
-          has_table_privilege('aktflow_app', 'public.organizations', 'select') as sel,
-          has_table_privilege('aktflow_app', 'public.organizations', 'insert') as ins,
-          has_table_privilege('aktflow_app', 'public.organizations', 'update') as upd`);
+          has_table_privilege('goproceed_app', 'public.organizations', 'select') as sel,
+          has_table_privilege('goproceed_app', 'public.organizations', 'insert') as ins,
+          has_table_privilege('goproceed_app', 'public.organizations', 'update') as upd`);
       expect(r.rows[0]).toEqual({ sel: true, ins: true, upd: false });
     } finally {
       await c.end();
@@ -184,7 +184,7 @@ describe("0039 organizations has no UPDATE path", () => {
     let code: string | undefined;
     try {
       await c.query("begin");
-      await c.query("set local role aktflow_app");
+      await c.query("set local role goproceed_app");
       await c.query("select set_config('app.actor_user_id', $1, true)", [A]);
       await c.query("select set_config('app.organization_id', $1, true)", [org]);
       await c.query("update public.organizations set display_name = 'changed' where id = $1", [org]);
@@ -203,8 +203,8 @@ describe("0039 organizations has no UPDATE path", () => {
     try {
       const r = await c.query(`
         select
-          has_column_privilege('aktflow_app', 'public.organizations', 'evidence_quota_bytes', 'update') as quota,
-          has_column_privilege('aktflow_app', 'public.organizations', 'blocked_content_retention_days', 'update') as retention`);
+          has_column_privilege('goproceed_app', 'public.organizations', 'evidence_quota_bytes', 'update') as quota,
+          has_column_privilege('goproceed_app', 'public.organizations', 'blocked_content_retention_days', 'update') as retention`);
       expect(r.rows[0]).toEqual({ quota: false, retention: false });
     } finally {
       await c.end();

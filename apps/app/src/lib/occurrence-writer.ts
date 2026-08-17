@@ -13,7 +13,7 @@ import type { MaterialisationPlan } from "./requirement-materialisation";
  * «the dry run writes nothing» checkable by reading the import graph rather
  * than by trusting a code path.
  *
- * Both tables are append-only: no UPDATE or DELETE grant to `aktflow_app` and
+ * Both tables are append-only: no UPDATE or DELETE grant to `goproceed_app` and
  * `app.reject_mutation()` on each (migration 0043 §7-8). There is no correction
  * path for an occurrence — the correction is a different assignment.
  */

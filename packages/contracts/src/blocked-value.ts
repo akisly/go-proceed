@@ -36,7 +36,7 @@ import { blockedReason, blockedReasonCode, blockedValue, blockedValueTotal } fro
  * ─────────────────────────────────────────────────────────────────────────────
  * COMPUTED, NOT READ — the same statement `readiness.get` and
  * `blocked_reasons.get` make. `public.blocked_reasons` is built by migration
- * 0045 §7, its write grant belongs to `aktflow_service` alone, and NOTHING
+ * 0045 §7, its write grant belongs to `goproceed_service` alone, and NOTHING
  * WRITES IT: there is no projection rebuilder in this repository. A route that
  * read it would answer `0` in every real workspace while passing any fixture
  * that inserted rows by hand. `source: "computed"` says so on the wire.

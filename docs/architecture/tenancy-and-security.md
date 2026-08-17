@@ -46,8 +46,8 @@ obligation and is not a v0.1 security control (see
 
 The migration chain in this repository runs to `0040`. It defines 33 application
 tables, one API view (`api.me_context`), 27 functions, and five application
-roles — `aktflow_app` and `aktflow_app_login` (`0003:8,11`), `aktflow_worker`
-(`0008:35`), `aktflow_service` and `aktflow_service_login` (`0034:25,28`).
+roles — `goproceed_app` and `goproceed_app_login` (`0003:8,11`), `goproceed_worker`
+(`0008:35`), `goproceed_service` and `goproceed_service_login` (`0034:25,28`).
 Migrations `0036`-`0040` add no table, no function, and no role: they retire a
 schedule, close an RLS gap, name a principal for the purge functions, withdraw an
 inert grant, and add one composite foreign key with its index.
@@ -83,8 +83,8 @@ the migration text that decides it.
 | 4 | First-owner bootstrap serialized between actors | **Delivered** | `0006:78-83` — `app.org_has_members` takes `pg_advisory_xact_lock` *before* the membership check, so the losing claim waits for the winner's commit instead of racing past it under READ COMMITTED |
 | 5 | Audit enforced append-only | **Delivered** | `0006:10-19` — `app.reject_mutation` on a `BEFORE UPDATE OR DELETE` trigger, which fires for the table owner too, so a widened grant alone cannot rewrite history |
 | 6 | Future object privileges deny-by-default | **Delivered, with one residual the runner cannot close** | `0009:8` revokes `CREATE` on `public`; `0009:28-62` discovers every creator role from `pg_default_acl` rather than assuming one, and revokes tables, sequences, and functions from `anon`/`authenticated`, plus a **global**-scope function revoke because a schema-scoped one cannot subtract the built-in PUBLIC execute (`0009:16-20`). The residual is `supabase_admin`, documented at `0009:21-27` — see Current risks |
-| 7 | Reviewed BFF, worker, and service roles with no browser-reachable secret | **Partial** | `aktflow_app`/`aktflow_app_login` (`0003:8,11`) and `aktflow_service`/`aktflow_service_login` (`0034:25,28`) exist with `NOLOGIN`/`NOINHERIT` separation. `aktflow_worker` (`0008:35`) still has **no login role**, so no worker workload has a credential |
-| 8 | Live catalog comparison proving no staging/production drift | **Not delivered** | The newest snapshot, `catalog-snapshots/20260731-2102.md`, was taken against `127.0.0.1` and predates `0034`: its `## roles (6)` block contains no `aktflow_service` |
+| 7 | Reviewed BFF, worker, and service roles with no browser-reachable secret | **Partial** | `goproceed_app`/`goproceed_app_login` (`0003:8,11`) and `goproceed_service`/`goproceed_service_login` (`0034:25,28`) exist with `NOLOGIN`/`NOINHERIT` separation. `goproceed_worker` (`0008:35`) still has **no login role**, so no worker workload has a credential |
+| 8 | Live catalog comparison proving no staging/production drift | **Not delivered** | The newest snapshot, `catalog-snapshots/20260731-2102.md`, was taken against `127.0.0.1` and predates `0034`: its `## roles (6)` block contains no `goproceed_service` |
 
 The `0009` design note is worth keeping visible because it is the kind of thing a
 later migration will get wrong: a schema-scoped `ALTER DEFAULT PRIVILEGES …
@@ -100,10 +100,10 @@ default-privilege work repeats both the global-scope revoke and the
 | RLS on every application table | **Delivered** | 33 `enable row level security` statements across the chain; `0037:37` was the last, on `outbox_dead_letters` — the only table that had been left out, tenant-owned, and readable by a `nobypassrls` role (`0037:9-12`) |
 | Dead letters unreadable by the worker role | **Delivered** | `0037:42` withdraws the `0008:40` grant as well as enabling RLS, so a future policy cannot silently reopen the path |
 | Outbox drain cannot defeat the lease protocol | **Delivered** | `0036:40` unschedules the 30-second job; `0036:53` revokes `execute` on `public.drain_outbox(int)` from `service_role`, leaving only a superuser session able to call it |
-| Purge functions reachable by a non-superuser principal | **Delivered** | `0038:42-45` strips the direct `anon`/`authenticated` execute that `0021:108-111` left in place; `0038:47-50` grants the four functions to `aktflow_worker` and `service_role` — deliberately not to `aktflow_app` (cross-tenant system action) and not to `aktflow_service` (upload finalization only) |
+| Purge functions reachable by a non-superuser principal | **Delivered** | `0038:42-45` strips the direct `anon`/`authenticated` execute that `0021:108-111` left in place; `0038:47-50` grants the four functions to `goproceed_worker` and `service_role` — deliberately not to `goproceed_app` (cross-tenant system action) and not to `goproceed_service` (upload finalization only) |
 | No false UPDATE affordance on `organizations` | **Delivered** | `0039:31` withdraws the `0003:57` grant that RLS had made inert since `0004` created only `org_select` and `org_insert` |
 | `audit_events.project_id` is tenant-safe | **Delivered** | `0040:81-89` — composite FK `(organization_id, project_id) → projects (workspace_id, id)`, `MATCH SIMPLE` so the NULL-project majority stays legal, `NO ACTION` because a referential action would have to UPDATE or DELETE an append-only row and would fail at run time instead of review time |
-| Service principal separated from the application principal | **Delivered** | `0034:32-33` makes `aktflow_service` a member of `aktflow_app` and `aktflow_service_login` a member of `aktflow_service`, so SQL injected into an ordinary route runs on a connection that cannot reach the service role; `0035:150` and `0035:167-170` make server-observed facts service-only |
+| Service principal separated from the application principal | **Delivered** | `0034:32-33` makes `goproceed_service` a member of `goproceed_app` and `goproceed_service_login` a member of `goproceed_service`, so SQL injected into an ordinary route runs on a connection that cannot reach the service role; `0035:150` and `0035:167-170` make server-observed facts service-only |
 
 ### What v0.0 still owes
 
@@ -238,10 +238,10 @@ identity.
 
 | Service purpose | Database principal today |
 |---|---|
-| BFF command/query execution | `aktflow_app` via `aktflow_app_login` (`0003:8,11,14`) |
-| Upload finalization and integrity/scan state | `aktflow_service` via `aktflow_service_login` (`0034:25,28,32-33`); execute on `app.finalize_upload_intent` is service-only (`0035:167-170`) |
-| Outbox/job claiming and delivery | **None.** `aktflow_worker` exists (`0008:35`) with no login role, and the outbox has no consumer at all — see Current risks |
-| Storage byte purge | Function-level only. `0038:47-50` grants the four purge functions to `aktflow_worker` and `service_role`; the byte-deleting half is wired to no runtime |
+| BFF command/query execution | `goproceed_app` via `goproceed_app_login` (`0003:8,11,14`) |
+| Upload finalization and integrity/scan state | `goproceed_service` via `goproceed_service_login` (`0034:25,28,32-33`); execute on `app.finalize_upload_intent` is service-only (`0035:167-170`) |
+| Outbox/job claiming and delivery | **None.** `goproceed_worker` exists (`0008:35`) with no login role, and the outbox has no consumer at all — see Current risks |
+| Storage byte purge | Function-level only. `0038:47-50` grants the four purge functions to `goproceed_worker` and `service_role`; the byte-deleting half is wired to no runtime |
 | Artifact rendering | **None.** No table to render from, no role, no grant |
 | Projection rebuilding | **None.** No projection table exists |
 | Scheduled maintenance | **None named.** Two `pg_cron` jobs remain — `idempotency-purge` (`0007:45`) and `upload-intent-expiry` (`0021:132`) — and both run as the scheduling superuser, not as an application principal |
@@ -370,15 +370,15 @@ authorization plane.
 
 ### The service principal
 
-`aktflow_service` is the server's own identity: everything `aktflow_app` can do,
+`goproceed_service` is the server's own identity: everything `goproceed_app` can do,
 plus the right to record what the server itself observed. It is reached through
-its own login role, and `aktflow_app_login` is a member of `aktflow_app` and
+its own login role, and `goproceed_app_login` is a member of `goproceed_app` and
 nothing else, so injected SQL on an ordinary route cannot issue the `SET LOCAL
 ROLE` that would reach it (`0034:6-17`).
 
 The membership edge is a deliberate least-privilege deviation, reasoned in the
-migration and recorded as open: because `aktflow_service` inherits from
-`aktflow_app`, it also inherits `select` on `evidence_objects` (`0016:160-162`),
+migration and recorded as open: because `goproceed_service` inherits from
+`goproceed_app`, it also inherits `select` on `evidence_objects` (`0016:160-162`),
 which is wider than the "cannot review evidence" rule stated for an upload
 finalizer below. This is tracked in `TODOS.md`, not silently accepted.
 
@@ -814,7 +814,7 @@ described are proved delivered in Implementation status above.
    drift is unverified.** Every snapshot in
    `migration/goproceed-canonical-v0.1/catalog-snapshots/` records
    `Source host: 127.0.0.1`, and the newest (`20260731-2102.md`) predates
-   `0034` — its `## roles (6)` block has no `aktflow_service`, its
+   `0034` — its `## roles (6)` block has no `goproceed_service`, its
    `outbox_dead_letters` row still reads `"rowsecurity": false`, and its
    `## cron_jobs (3)` block still lists `outbox-drain`. No snapshot in the
    repository corroborates `0034`-`0040` anywhere. Grants, policies, default
@@ -829,8 +829,8 @@ described are proved delivered in Implementation status above.
 Two further open deviations are recorded in `TODOS.md` rather than here because
 they are single-line fixes with a decided remedy: `service_role` holds `TRUNCATE`
 on `outbox_dead_letters`, which neither the append-only trigger nor RLS gates;
-and `aktflow_service` inherits `select` on `evidence_objects` through
-`aktflow_app`, which is wider than the upload-finalizer rule stated above.
+and `goproceed_service` inherits `select` on `evidence_objects` through
+`goproceed_app`, which is wider than the upload-finalizer rule stated above.
 
 ## Required security tests and gates
 

@@ -2070,7 +2070,7 @@ require(len(service_role_rows) == 1 and service_role_rows[0]["status"] == "prohi
 tenant_billing_rows = {
     row["object_name"]: row
     for row in access_rows
-    if row["db_role"] == "aktflow_app" and row["object_name"] in {"saas_invoices", "saas_payments", "saas_invoice_adjustments", "saas_payment_reversals"}
+    if row["db_role"] == "goproceed_app" and row["object_name"] in {"saas_invoices", "saas_payments", "saas_invoice_adjustments", "saas_payment_reversals"}
 }
 require(
     set(tenant_billing_rows) == {"saas_invoices", "saas_payments", "saas_invoice_adjustments", "saas_payment_reversals"}

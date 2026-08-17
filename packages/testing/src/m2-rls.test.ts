@@ -248,7 +248,7 @@ describe("0016 grants", () => {
   it("gives the app role no direct UPDATE on allocation heads", async () => {
     const r = await c.query(
       `select privilege_type from information_schema.role_table_grants
-        where grantee = 'aktflow_app' and table_schema = 'public'
+        where grantee = 'goproceed_app' and table_schema = 'public'
           and table_name = 'progress_allocation_heads'`);
     const privs = r.rows.map((x) => x.privilege_type);
     expect(privs).toContain("SELECT");
@@ -259,7 +259,7 @@ describe("0016 grants", () => {
   it("gives the app role no UPDATE or DELETE on append-only relations", async () => {
     const r = await c.query(
       `select table_name, privilege_type from information_schema.role_table_grants
-        where grantee = 'aktflow_app' and table_schema = 'public'
+        where grantee = 'goproceed_app' and table_schema = 'public'
           and table_name = any($1::text[])
           and privilege_type in ('UPDATE','DELETE')`,
       [["progress_entries", "valuation_allocations", "evidence_objects", "capture_events"]]);

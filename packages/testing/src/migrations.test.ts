@@ -8,9 +8,9 @@ import { appClient } from "./pg";
 // (rls.test.ts) and this package's `test` script (`vitest run`) is wired
 // into `turbo run test`, so this is where migration-shape assertions
 // belong. DB-URL access now goes through this package's shared `pg.ts`
-// helper (APP_DB_URL, same aktflow_app_login default as rls.test.ts)
+// helper (APP_DB_URL, same goproceed_app_login default as rls.test.ts)
 // instead of a bespoke SUPABASE_DB_URL default — `to_regclass` only needs
-// the role to be able to see the catalog, which aktflow_app_login can.
+// the role to be able to see the catalog, which goproceed_app_login can.
 async function tableExists(name: string): Promise<boolean> {
   const c = appClient();
   await c.connect();

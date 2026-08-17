@@ -6,16 +6,16 @@ const execAsync = promisify(exec);
 
 // 'app_pw' is the local/CI-only password set by supabase/seed.sql (never a
 // migration — supabase/migrations/0003_roles_and_grants.sql intentionally
-// creates aktflow_app_login with no password, so `supabase db push` against
+// creates goproceed_app_login with no password, so `supabase db push` against
 // staging/prod never sets a known credential). Override via APP_DB_URL for
 // any other environment.
 const APP_URL = process.env.APP_DB_URL
-  ?? "postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres";
+  ?? "postgresql://goproceed_app_login:app_pw@127.0.0.1:54322/postgres";
 
 // The server's identity. 'service_pw' is the local/CI-only password set by
 // scripts/set-local-app-password.mjs — never by a migration, never by seed.sql.
 const SERVICE_URL = process.env.SERVICE_DB_URL
-  ?? "postgresql://aktflow_service_login:service_pw@127.0.0.1:54322/postgres";
+  ?? "postgresql://goproceed_service_login:service_pw@127.0.0.1:54322/postgres";
 
 export function appClient(): Client { return new Client({ connectionString: APP_URL }); }
 
@@ -35,7 +35,7 @@ export async function asActor<T extends QueryResultRow = QueryResultRow>(
   await c.connect();
   try {
     await c.query("begin");
-    await c.query("set local role aktflow_app");
+    await c.query("set local role goproceed_app");
     await c.query("select set_config('app.actor_user_id', $1, true)", [actorUserId]);
     await c.query("select set_config('app.organization_id', $1, true)", [organizationId ?? ""]);
     const res = await fn(c);
@@ -67,7 +67,7 @@ export async function asExternalSession<T extends QueryResultRow = QueryResultRo
   await c.connect();
   try {
     await c.query("begin");
-    await c.query("set local role aktflow_app");
+    await c.query("set local role goproceed_app");
     // EXPLICITLY EMPTY, not omitted. A session that inherited an actor would be
     // a member transaction wearing a session id, and
     // `app.current_external_session()` would return NULL for it — which is the
@@ -91,7 +91,7 @@ export async function asService<T extends QueryResultRow = QueryResultRow>(
   await c.connect();
   try {
     await c.query("begin");
-    await c.query("set local role aktflow_service");
+    await c.query("set local role goproceed_service");
     await c.query("select set_config('app.actor_user_id', $1, true)", [actorUserId]);
     await c.query("select set_config('app.organization_id', $1, true)", [organizationId ?? ""]);
     const res = await fn(c);

@@ -106,13 +106,13 @@ If either apply exits non-zero, or `outbox-drain` shows up twice, treat
 that as a migration bug and stop — do not proceed to §3 against a staging
 DB in an unknown state.
 
-## 3. Set the `aktflow_app_login` and `aktflow_service_login` passwords on staging (mandatory, do this now)
+## 3. Set the `goproceed_app_login` and `goproceed_service_login` passwords on staging (mandatory, do this now)
 
 **Never run any of the following against this (or any real) Supabase
 project. Each one destroys and rebuilds, or reseeds, the target database:**
 
 > This warning used to say the danger was `supabase/seed.sql` setting
-> `aktflow_app_login`'s password to the known dev value `app_pw`. That stopped
+> `goproceed_app_login`'s password to the known dev value `app_pw`. That stopped
 > being true when the password moved out of `seed.sql` into
 > `scripts/set-local-app-password.mjs`, which refuses non-local hosts — read
 > the first lines of `supabase/seed.sql` and you will see it sets no password
@@ -133,28 +133,28 @@ project. Each one destroys and rebuilds, or reseeds, the target database:**
   internet-reachable database. If Branching is ever turned on for this
   project, set `[db.seed] enabled = false` first.
 
-None of the above is scoped to `aktflow_app_login` alone: a
+None of the above is scoped to `goproceed_app_login` alone: a
 `db reset --linked` rebuilds the whole database from
 `supabase/migrations`, which carries no password for
-`aktflow_service_login` either (migration `0034_service_principal_role.sql`
-creates it exactly like `0003` creates `aktflow_app_login` — LOGIN, no
+`goproceed_service_login` either (migration `0034_service_principal_role.sql`
+creates it exactly like `0003` creates `goproceed_app_login` — LOGIN, no
 password, on purpose). Running any of these commands against staging or
 production is just as unsafe for the service login as for the app login.
 
 If any of the above is ever run against staging or production, treat
-`aktflow_app_login`'s password as compromised — it will have been reset
-to `app_pw` — and treat `aktflow_service_login`'s password as lost (reset
+`goproceed_app_login`'s password as compromised — it will have been reset
+to `app_pw` — and treat `goproceed_service_login`'s password as lost (reset
 to no password, so the service connection goes inert rather than
 compromised to a known value). Immediately re-run the rotation steps
-below for whichever role was affected — §3.1 for `aktflow_app_login`,
-§3.2 for `aktflow_service_login` — before any traffic is allowed through.
+below for whichever role was affected — §3.1 for `goproceed_app_login`,
+§3.2 for `goproceed_service_login` — before any traffic is allowed through.
 
 **Do not skip or defer either step below.** Migration
-`0003_roles_and_grants.sql` creates the `aktflow_app_login` LOGIN role,
+`0003_roles_and_grants.sql` creates the `goproceed_app_login` LOGIN role,
 and migration `0034_service_principal_role.sql` creates the
-`aktflow_service_login` LOGIN role, both with **no password at all** —
+`goproceed_service_login` LOGIN role, both with **no password at all** —
 `supabase db push` never sets one for either, on purpose. Nothing can
-password-authenticate as `aktflow_app_login` or `aktflow_service_login`
+password-authenticate as `goproceed_app_login` or `goproceed_service_login`
 until you set a secret here, which is intentional: it means a freshly
 pushed staging database is inert (unreachable by the app, and unreachable
 by the server's own service connection) rather than reachable with a
@@ -162,10 +162,10 @@ known default, and §4-§5 below (creating the Vercel deployment, which
 needs both `APP_DB_URL` and `SERVICE_DB_URL`) cannot meaningfully proceed
 until both steps below are done.
 
-Membership in the `aktflow_app` role **is** full tenant-table
+Membership in the `goproceed_app` role **is** full tenant-table
 read/write privilege: `app.actor_user_id` is a plain session GUC that
-any connection authenticated as `aktflow_app_login` can set via `set
-local role aktflow_app` (see `packages/database/src/tx.ts`), and RLS
+any connection authenticated as `goproceed_app_login` can set via `set
+local role goproceed_app` (see `packages/database/src/tx.ts`), and RLS
 policies key off that GUC, not off any secondary secret. There is no
 second gate — anyone who has this password can read and write every
 tenant's `organizations`, `memberships`, `legal_entities`,
@@ -174,12 +174,12 @@ Treat it as a top-tier secret, equivalent in blast radius to a database
 admin credential for tenant data — not as a low-stakes app-connection
 password.
 
-### 3.1 `aktflow_app_login`
+### 3.1 `goproceed_app_login`
 
 1. Open the staging project's SQL Editor and run, with a freshly
    generated secret (e.g. `openssl rand -base64 24`):
    ```sql
-   alter role aktflow_app_login password '<generated-secret>';
+   alter role goproceed_app_login password '<generated-secret>';
    ```
 2. Record `<generated-secret>` in the password manager alongside the
    project ref. Never commit it, and never reuse the local dev value
@@ -189,7 +189,7 @@ password.
 3. Compose `APP_DB_URL` for the app deployment using that password and
    the **pooler** host/port from §1, e.g.:
    ```
-   postgresql://aktflow_app_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
+   postgresql://goproceed_app_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
    ```
    `packages/database/src/pool.ts` reads this verbatim from `APP_DB_URL`
    at request time — no other code path composes it.
@@ -197,12 +197,12 @@ password.
    `APP_DB_URL`) until this step and §3.2 below are complete — there is
    no working `APP_DB_URL` to configure them with otherwise.
 
-### 3.2 `aktflow_service_login`
+### 3.2 `goproceed_service_login`
 
-Migration `0034_service_principal_role.sql` creates `aktflow_service`
-(NOLOGIN, a member of `aktflow_app`) and `aktflow_service_login` (LOGIN,
-a member of `aktflow_service` and nothing else), with no password, for
-the same reason as `aktflow_app_login` above. `aktflow_service_login` is
+Migration `0034_service_principal_role.sql` creates `goproceed_service`
+(NOLOGIN, a member of `goproceed_app`) and `goproceed_service_login` (LOGIN,
+a member of `goproceed_service` and nothing else), with no password, for
+the same reason as `goproceed_app_login` above. `goproceed_service_login` is
 the connection `withServiceTx` (`packages/database/src/tx.ts`) uses for
 every write the server makes about what it itself observed — since
 migration 0035, that is the only way an inspection verdict or a
@@ -218,13 +218,13 @@ staging env var; the first signal is a user-facing 500 on the first real
 upload.
 
 1. Open the staging project's SQL Editor and run, with a **different**
-   freshly generated secret (do not reuse the `aktflow_app_login`
+   freshly generated secret (do not reuse the `goproceed_app_login`
    secret from §3.1 — the two logins must not share a password):
    ```sql
-   alter role aktflow_service_login password '<generated-secret>';
+   alter role goproceed_service_login password '<generated-secret>';
    ```
 2. Record `<generated-secret>` in the password manager alongside the
-   project ref, as its own entry distinct from `aktflow_app_login`'s.
+   project ref, as its own entry distinct from `goproceed_app_login`'s.
    Never commit it, and never reuse the local dev value (`service_pw` —
    set only by `scripts/set-local-app-password.mjs` against a local
    database, and refused by that script against any non-local host)
@@ -232,7 +232,7 @@ upload.
 3. Compose `SERVICE_DB_URL` for the app deployment using that password
    and the **pooler** host/port from §1, e.g.:
    ```
-   postgresql://aktflow_service_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
+   postgresql://goproceed_service_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
    ```
    `packages/database/src/pool.ts`'s `getServicePool()` reads this
    verbatim from `SERVICE_DB_URL` at request time — no other code path
@@ -263,18 +263,18 @@ and env vars differ.
   - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the anon key from §1
   - `APP_DB_URL` = the pooler connection string composed in §3.1
   - `SERVICE_DB_URL` = the pooler connection string composed in §3.2. It
-    must authenticate as `aktflow_service_login` — not as
-    `aktflow_app_login`, and not as a superuser/`postgres` connection.
+    must authenticate as `goproceed_service_login` — not as
+    `goproceed_app_login`, and not as a superuser/`postgres` connection.
 
     A superuser connection would pass migration 0035's database-side
-    guard silently: `pg_has_role(session_user, 'aktflow_service',
+    guard silently: `pg_has_role(session_user, 'goproceed_service',
     'member')` is true for a superuser too, so a `SERVICE_DB_URL`
     mistakenly pointed at one would look correct at the database layer
     while writing server-attested facts (inspection verdicts,
     server-sourced capture events) from a connection nobody meant to
     grant that power to. The application does not rely on the database
     to catch this alone — `withServiceTx` (`packages/database/src/tx.ts`)
-    asserts `session_user = 'aktflow_service_login'` at the start of
+    asserts `session_user = 'goproceed_service_login'` at the start of
     every service transaction, so a wrong `SERVICE_DB_URL` (superuser,
     app login, or anything else) fails closed with an explicit error at
     the first service write instead of going unnoticed.

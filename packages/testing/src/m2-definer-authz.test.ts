@@ -13,7 +13,7 @@ const WS_B = "bbbb2222-2222-2222-2222-222222222222";
 const USER_A = "aaaa3333-3333-3333-3333-333333333333";
 const USER_B = "bbbb4444-4444-4444-4444-444444444444";
 const APP_URL = process.env.APP_DB_URL
-  ?? "postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres";
+  ?? "postgresql://goproceed_app_login:app_pw@127.0.0.1:54322/postgres";
 
 let c: Client;
 let a: M2Fixture;
@@ -25,7 +25,7 @@ async function asMemberB<T>(fn: (cl: Client) => Promise<T>): Promise<T> {
   await cl.connect();
   try {
     await cl.query("begin");
-    await cl.query("set local role aktflow_app");
+    await cl.query("set local role goproceed_app");
     await cl.query("select set_config('app.actor_user_id', $1, true)", [USER_B]);
     await cl.query("select set_config('app.organization_id', $1, true)", [WS_B]);
     const out = await fn(cl);

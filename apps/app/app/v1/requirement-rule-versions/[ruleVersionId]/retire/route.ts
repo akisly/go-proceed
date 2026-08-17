@@ -21,7 +21,7 @@ export const runtime = "nodejs";
  * the binding (app.guard_rule_binding, 0041 §8) and not a foreign key: the same
  * key must keep resolving for every binding made before the retirement.
  *
- * IT IS NOT A ROUTE UPDATE. aktflow_app holds no UPDATE grant on
+ * IT IS NOT A ROUTE UPDATE. goproceed_app holds no UPDATE grant on
  * public.requirement_rule_versions — that absence is what makes INV-067
  * structural rather than a convention — so the one write path is the SECURITY
  * DEFINER command app.retire_requirement_rule_version(workspace, version)

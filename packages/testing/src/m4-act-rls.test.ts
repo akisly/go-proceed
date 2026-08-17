@@ -65,7 +65,7 @@ async function asMember(
   await client.connect();
   try {
     await client.query("begin");
-    await client.query("set local role aktflow_app");
+    await client.query("set local role goproceed_app");
     await client.query("select set_config('app.actor_user_id', $1, true)", [userId]);
     await client.query("select set_config('app.organization_id', $1, true)", [organizationId]);
     await client.query(sql, params);
@@ -93,7 +93,7 @@ async function asMemberMessage(
   await client.connect();
   try {
     await client.query("begin");
-    await client.query("set local role aktflow_app");
+    await client.query("set local role goproceed_app");
     await client.query("select set_config('app.actor_user_id', $1, true)", [userId]);
     await client.query("select set_config('app.organization_id', $1, true)", [organizationId]);
     await client.query(sql, params);
@@ -113,7 +113,7 @@ async function visible(
   await client.connect();
   try {
     await client.query("begin");
-    await client.query("set local role aktflow_app");
+    await client.query("set local role goproceed_app");
     await client.query("select set_config('app.actor_user_id', $1, true)", [userId]);
     await client.query("select set_config('app.organization_id', $1, true)", [organizationId]);
     const r = await client.query<{ n: number }>(

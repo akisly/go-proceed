@@ -48,7 +48,7 @@ export const dynamic = "force-dynamic";
  * `external_sessions`, `external_decision_batches`, each narrowed to this
  * session's own row or this occurrence's own rows — and two,
  * `public.audit_events` and `public.transaction_outbox`, carry an INSERT policy
- * and no read (0006:29 revokes SELECT on audit_events from `aktflow_app`
+ * and no read (0006:29 revokes SELECT on audit_events from `goproceed_app`
  * outright, and 0003:64 grants the outbox INSERT only). The conclusion the
  * paragraph above draws is unchanged by the correction; the number is now
  * asserted rather than asserted about, by `packages/testing/src/m5-external-rls.test.ts`,

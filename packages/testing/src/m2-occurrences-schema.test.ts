@@ -377,7 +377,7 @@ describe("both tables are append-only", () => {
   });
 
   it("gives the application role SELECT and INSERT, and UPDATE on stages alone", async () => {
-    // The fifth grant is M3's and is deliberate: 0045:1466 gives aktflow_app
+    // The fifth grant is M3's and is deliberate: 0045:1466 gives goproceed_app
     // UPDATE on work_stages because the closure command has to move one status
     // from open to closed. It is not a widening of what the app may DO — that
     // is `app.guard_work_stage()`, asserted above, which admits that one
@@ -389,7 +389,7 @@ describe("both tables are append-only", () => {
     const g = await c.query<{ table_name: string; privilege_type: string }>(
       `select distinct table_name, privilege_type
          from information_schema.role_table_grants
-        where grantee = 'aktflow_app' and table_schema = 'public'
+        where grantee = 'goproceed_app' and table_schema = 'public'
           and table_name in ('work_stages','requirement_occurrences')
         order by table_name, privilege_type`);
     expect(g.rows.map((r) => `${r.table_name}:${r.privilege_type}`)).toEqual([
@@ -399,13 +399,13 @@ describe("both tables are append-only", () => {
   });
 
   it("gives anon, authenticated and the service role nothing at all", async () => {
-    // aktflow_service records server-observed facts; neither table holds one, so
+    // goproceed_service records server-observed facts; neither table holds one, so
     // 0035's server-only plane does not extend here.
     const g = await c.query<{ n: number }>(
       `select count(*)::int as n from information_schema.role_table_grants
         where table_schema = 'public'
           and table_name in ('work_stages','requirement_occurrences')
-          and grantee in ('anon','authenticated','aktflow_service','PUBLIC')`);
+          and grantee in ('anon','authenticated','goproceed_service','PUBLIC')`);
     expect(g.rows[0]!.n).toBe(0);
   });
 });

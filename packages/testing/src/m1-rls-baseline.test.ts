@@ -77,7 +77,7 @@ describe("INV-001/002 — contract-baseline isolation and immutability", () => {
   });
 
   // ── EDITED IN THE v0.1-M1 MANUAL-BASELINE SLICE ───────────────────────────
-  // This was one assertion: aktflow_app holds no UPDATE or DELETE on
+  // This was one assertion: goproceed_app holds no UPDATE or DELETE on
   // contract_versions, work_items, import_files, import_row_results,
   // source_amount_resolutions or project_responsibility_assignments. Migration
   // 0042 grants exactly the first two, because ADR-006 decision 2 makes a
@@ -97,10 +97,10 @@ describe("INV-001/002 — contract-baseline isolation and immutability", () => {
   // was written, so these four assertions were checked by reading 0042 and are
   // not claimed to pass.
 
-  it("aktflow_app still has no UPDATE/DELETE on the tables that stayed append-only", async () => {
+  it("goproceed_app still has no UPDATE/DELETE on the tables that stayed append-only", async () => {
     const r = await admin.query(
       `select table_name, privilege_type from information_schema.role_table_grants
-        where grantee='aktflow_app' and table_schema='public'
+        where grantee='goproceed_app' and table_schema='public'
           and table_name in ('import_files','import_row_results','source_amount_resolutions','project_responsibility_assignments')
           and privilege_type in ('UPDATE','DELETE')`);
     expect(r.rows).toEqual([]);
@@ -113,7 +113,7 @@ describe("INV-001/002 — contract-baseline isolation and immutability", () => {
     // shape, recorded rather than worked around (0042:118-121).
     const r = await admin.query<{ privilege_type: string }>(
       `select distinct privilege_type from information_schema.role_table_grants
-        where grantee='aktflow_app' and table_schema='public'
+        where grantee='goproceed_app' and table_schema='public'
           and table_name='contract_versions' and privilege_type in ('UPDATE','DELETE')`);
     expect(r.rows.map((x) => x.privilege_type)).toEqual(["UPDATE"]);
   });
@@ -125,7 +125,7 @@ describe("INV-001/002 — contract-baseline isolation and immutability", () => {
     // apps/app/tests/manual-baseline.int.test.ts, at both layers.
     const r = await admin.query<{ privilege_type: string }>(
       `select distinct privilege_type from information_schema.role_table_grants
-        where grantee='aktflow_app' and table_schema='public'
+        where grantee='goproceed_app' and table_schema='public'
           and table_name='work_items' and privilege_type in ('UPDATE','DELETE')
         order by privilege_type`);
     expect(r.rows.map((x) => x.privilege_type)).toEqual(["DELETE", "UPDATE"]);

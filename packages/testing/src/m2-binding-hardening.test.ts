@@ -347,7 +347,7 @@ describe("evidence is created only by the finalization command", () => {
     // capability; identity is what stops them now.
     //
     // The privilege denies before the body runs: 0035 revokes execute on the
-    // function from aktflow_app, so a member connection is refused at the door
+    // function from goproceed_app, so a member connection is refused at the door
     // and the guard's own raise inside the body is never reached from an
     // application connection. Asserting the SQLSTATE rather than the message
     // is what makes the revoke's removal visible — the guard's raise text also
@@ -457,7 +457,7 @@ describe("upload intent identity is not writable", () => {
     // the assertion is now that there is no update surface at all.
     const r = await c.query(
       `select column_name from information_schema.column_privileges
-        where grantee = 'aktflow_app' and table_name = 'upload_intents'
+        where grantee = 'goproceed_app' and table_name = 'upload_intents'
           and privilege_type = 'UPDATE'
         order by column_name`);
     expect(r.rows.map((x) => x.column_name)).toEqual([]);
@@ -629,7 +629,7 @@ describe("server-only transitions and the quota oracle", () => {
     // for good, defeating the retention window that grant existed to serve.
     const r = await c.query(
       `select column_name from information_schema.column_privileges
-        where grantee = 'aktflow_app' and table_name = 'upload_intents'
+        where grantee = 'goproceed_app' and table_name = 'upload_intents'
           and privilege_type = 'UPDATE'`);
     expect(r.rows.map((x) => x.column_name)).not.toContain("blocked_at");
   });
@@ -721,7 +721,7 @@ describe("server-only transitions and the quota oracle", () => {
     // while status was writable, every server-only transition was optional.
     const r = await c.query(
       `select count(*)::int n from information_schema.column_privileges
-        where grantee = 'aktflow_app' and table_name = 'upload_intents'
+        where grantee = 'goproceed_app' and table_name = 'upload_intents'
           and privilege_type = 'UPDATE'`);
     expect(r.rows[0].n).toBe(0);
   });

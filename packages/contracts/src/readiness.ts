@@ -19,7 +19,7 @@ import { blockingScope, evidenceKind, interventionType } from "./requirement-rul
  *
  * WHAT THESE ROUTES DO NOT READ. Migration 0045 §7 builds
  * `public.readiness_projection` and `public.blocked_reasons`, gives the write
- * grant to `aktflow_service` alone, and records in terms that NOTHING WRITES
+ * grant to `goproceed_service` alone, and records in terms that NOTHING WRITES
  * EITHER: there is no projection rebuilder in this repository and
  * `supabase/functions/outbox-drain/index.ts` says drained rows have no deployed
  * consumer. Routes that read those tables would answer `{stages: []}` in every

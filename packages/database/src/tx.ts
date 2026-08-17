@@ -67,13 +67,13 @@ export async function withTenantTx<T>(
   // The external session is CLEARED here rather than passed through, whatever
   // the caller put in the context. A member transaction is a member
   // transaction.
-  return runTx(getPool(), "aktflow_app", { ...ctx, externalSessionId: null }, fn);
+  return runTx(getPool(), "goproceed_app", { ...ctx, externalSessionId: null }, fn);
 }
 
 /**
  * A transaction on the EXTERNAL plane (v0.1-M5).
  *
- * Same pool, same `aktflow_app` role, same `NOBYPASSRLS` posture — and a
+ * Same pool, same `goproceed_app` role, same `NOBYPASSRLS` posture — and a
  * different subject. `app.actor_user_id` is forced to "" and
  * `app.external_session_id` carries the session, so:
  *
@@ -94,7 +94,7 @@ export async function withTenantTx<T>(
  * separate login would need a credential in the secret manager, a third pool, a
  * third entry in `scripts/set-local-app-password.mjs` and a CI change, and it
  * would buy nothing that the empty actor GUC does not already buy: with no
- * actor, `aktflow_app`'s grants reach no row on any table that has no external
+ * actor, `goproceed_app`'s grants reach no row on any table that has no external
  * policy, because RLS with no matching policy denies. The residual risk it does
  * NOT close is a table gaining a permissive policy that reads neither subject —
  * `packages/testing/src/m5-external-rls.test.ts` is where that is caught, by
@@ -118,7 +118,7 @@ export async function withExternalTx<T>(
   // from `ctx`, so spreading and adding nothing is the accurate expression —
   // writing `membershipVersion: undefined` claimed a key this plane does not
   // have.
-  return runTx(getPool(), "aktflow_app", { ...ctx, actorUserId: "" }, fn);
+  return runTx(getPool(), "goproceed_app", { ...ctx, actorUserId: "" }, fn);
 }
 
 /**
@@ -128,7 +128,7 @@ export async function withExternalTx<T>(
  *
  * It can reach exactly two things: `app.exchange_external_grant` and
  * `app.resolve_external_session`, both `SECURITY DEFINER`, both bounded to one
- * lookup by a 256-bit keyed verifier, both granted to `aktflow_app` alone
+ * lookup by a 256-bit keyed verifier, both granted to `goproceed_app` alone
  * (migration 0049 §7). Every table policy denies it, which is the point: an
  * anonymous transaction that could read a table would be the hole this whole
  * plane exists to avoid.
@@ -136,7 +136,7 @@ export async function withExternalTx<T>(
 export async function withAnonymousTx<T>(
   ctx: { requestId: string }, fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  return runTx(getPool(), "aktflow_app",
+  return runTx(getPool(), "goproceed_app",
     { actorUserId: "", organizationId: null, requestId: ctx.requestId,
       externalSessionId: null }, fn);
 }
@@ -156,19 +156,19 @@ export async function withAnonymousTx<T>(
 export async function withServiceTx<T>(
   ctx: TenantContext, fn: (tx: Tx) => Promise<T>,
 ): Promise<T> {
-  return runTx(getServicePool(), "aktflow_service",
+  return runTx(getServicePool(), "goproceed_service",
     { ...ctx, externalSessionId: null }, fn, async (client) => {
     // Checked on every service transaction, because the boundary is a property
     // of the CONNECTION and nothing in the database can tell us it was wired
     // correctly. The guard in migration 0035 asks pg_has_role(session_user,
-    // 'aktflow_service', 'member'), which is TRUE for a superuser: point
+    // 'goproceed_service', 'member'), which is TRUE for a superuser: point
     // SERVICE_DB_URL at the postgres URL by mistake and every check passes, the
     // server-attested columns keep being written, and nothing anywhere reports
     // a symptom. Pointed at APP_DB_URL it fails closed on its own (42501), so
     // this is the one misconfiguration that needs the application to refuse
     // rather than trust its own configuration.
     const who = await client.query<{ ok: boolean }>(
-      "select session_user = 'aktflow_service_login' as ok");
+      "select session_user = 'goproceed_service_login' as ok");
     if (who.rows[0]?.ok !== true) {
       throw new Error(
         "SERVICE_DB_URL is not the service login; refusing to write server-attested facts");
