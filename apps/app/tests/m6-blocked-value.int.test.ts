@@ -81,7 +81,10 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
  * no preset carries `readiness.view`, so every non-admin persona still needs the
  * grant this list issues.
  */
-const M6_PRESET_GAP = ["readiness.view"] as const;
+// `readiness.view` was in NO preset when this list was written; as of 2026-08-17
+// it is on `pto_engineer` and `commercial_manager` — the latter's own description
+// had named it as that persona's v0.1 money screen for four milestones while the
+// preset withheld it. The `M6_PRESET_GAP` constant that named the gap is gone.
 const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign",
               // `progress.adjust` is implied by nothing: IMPLIED_BY_PROJECT_ADMIN
               // (src/lib/authz.ts:84) is exactly project.view and readiness.view, so the
@@ -90,7 +93,7 @@ const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign
               "progress.record", "progress.adjust", "evidence.record",
               "evidence_decisions.decide",
               "stage_closures.close", "requirement_exceptions.decide",
-              ...M6_PRESET_GAP] as const;
+              "readiness.view"] as const;
 
 const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
 const STAGE = "prykhovani-roboty";

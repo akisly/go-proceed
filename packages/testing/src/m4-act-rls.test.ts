@@ -281,8 +281,10 @@ describe("the policy asks for a capability, not for a membership", () => {
 
   it("admits the holder of statutory_acts.compose — the policy is satisfiable", async () => {
     // A policy nobody can satisfy fails closed and is still broken. The owner
-    // holds the capability because `seedActWorld` granted it BY HAND:
-    // `statutory_acts.compose` is in no responsibility preset (0047 §11 item 6).
+    // holds the capability because `seedActWorld` grants it; as of 2026-08-17
+    // `statutory_acts.compose` is also on the `pto_engineer` preset, so the
+    // policy is satisfiable by a named persona and not only by a fixture. This
+    // comment said «is in no responsibility preset (0047 §11 item 6)».
     expect(await asMember(USER_A, WS_A, ACT_INSERT, actParams(a))).toBeNull();
     const actId = await c.query<{ id: string }>(
       `select id from public.statutory_acts where workspace_id = $1`, [WS_A]);

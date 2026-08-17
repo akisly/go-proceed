@@ -188,8 +188,12 @@ export async function getBatch(batchId: string): Promise<Response> {
  * admitted by `cvrb_insert` under `imports.publish` (0041:785-787), which
  * `baselineFixture` already grants — so the estimator persona reaches the whole
  * path without a separate grant on this route. (On the MANUAL route it does
- * not: `rule_bindings.manage` is in no responsibility preset — M1 review
- * finding 8 — and that gap is untouched here.)
+ * not: it needs `rule_bindings.manage` explicitly. CORRECTED 2026-08-17 — this
+ * read «`rule_bindings.manage` is in no responsibility preset — M1 review
+ * finding 8 — and that gap is untouched here», and had been wrong since
+ * 2026-08-07, when that capability was added to BOTH `requirement_owner` and
+ * `pto_engineer` precisely because INV-083 otherwise refused every publication
+ * forever. The manual route still needs the grant; no persona lacks it.)
  *
  * The shape is the only one v0.1 can publish: a `hold` that blocks stage
  * closure, timed before concealment. INV-082 refuses every other intervention

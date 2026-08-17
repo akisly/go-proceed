@@ -1056,7 +1056,7 @@ that holds only for a fetcher that never runs the script, and
 **Fix:** put the exchange behind a click. **Cons:** one more step for the
 reviewer, against a failure mode that is silent and unrecoverable.
 
-### P1 — six project-plane capabilities are in no responsibility preset
+### P1 (CLOSED 2026-08-17) — six project-plane capabilities were in no responsibility preset
 
 **What:** `technical/permissions/capabilities.csv` carries 17 project-plane v0.1
 capabilities; `technical/permissions/responsibility-presets.csv` maps 11. The six
@@ -1078,6 +1078,63 @@ to the service principal.
 **Cons:** it is a permissions decision — `stage_closures.close` in particular
 should not land on the same persona as `evidence_decisions.decide` without
 someone thinking about separation of duties first.
+
+### CLOSED 2026-08-17 — all six mapped, and the Cons above was right but named only half the hazard
+
+**Owner decisions**, taken against the invariants rather than against an org chart:
+
+| Capability | Preset | Kind |
+|---|---|---|
+| `progress.adjust` | `progress_recorder` + `foreman` | responsibility + persona |
+| `readiness.view` | `pto_engineer` + `commercial_manager` | persona ×2 |
+| `statutory_acts.compose` | `pto_engineer` | persona |
+| `stage_closures.close` | `pto_engineer` | persona |
+| `evidence_decisions.decide` | `internal_verifier` | responsibility, no persona |
+| `requirement_exceptions.decide` | `requirement_owner` | responsibility, no persona |
+
+**The Cons above named `evidence_decisions.decide` and stopped one capability
+short.** An occurrence becomes satisfied TWO ways, not one: `readiness.ts`'s
+`satisfiedFor()` counts a current `waiver` or `accept_risk` head exactly as it
+counts an accepting evidence decision, and INV-063 keeps both kinds available
+even on a `hold`. So `requirement_exceptions.decide` is a second route past
+`can_close_stage`, and bundling it with the closure is the same hazard the Cons
+warns about — with INV-069 silent, because the closer never captured anything.
+A draft of this change put it on `pto_engineer` and was withdrawn for that
+reason. `readiness.ts:407` had already been reasoning from «The CLOSER holds
+`stage_closures.close` and need not hold either», which was an assumption about
+a CSV that nothing validated.
+
+**So `pto_engineer` closes the stage and composes the act it pins (INV-084), and
+holds NEITHER way of satisfying an occurrence.** Both of those sit on
+responsibilities that no v0.1 persona bundles, so a pilot must name those people
+deliberately.
+
+**The gate is the durable half.** `validate-canonical-docs.mjs` held
+`responsibility-presets.csv` to EXISTENCE only, which is why six could go
+orphaned for four milestones with every suite green. `presetCoherenceErrors` now
+enforces four rules: reachability, resolvability, plane discipline (a preset is a
+bundle of `project_access_grants` rows, so it may only name project-plane
+capabilities), and the separation of duties above. Its exemption set is empty and
+the call site argues for keeping it that way.
+
+*Plane discipline is a measured correction, not a guess: the first draft required
+a preset for every v0.1 capability and produced 13 false positives — the eight
+workspace, two external and three service capabilities this entry's own «Why»
+paragraph had already counted out. The guard now encodes that paragraph instead
+of contradicting it.*
+
+**Verified three ways:** reverting the CSV reports exactly the six; re-adding
+`requirement_exceptions.decide` to `pto_engineer` reports the SoD violation by
+name; stubbing the detector makes the validator's own self-test exit 2, so the
+self-test is not vacuous either.
+
+**Seventeen stale claims swept with it**, in four routes, nine suites, two
+fixtures and the progress document — every `*_PRESET_GAP` constant and every
+comment asserting one of the six «is in no responsibility preset». **Two of the
+seventeen were already wrong before this change**, which is the same lesson the
+field-client residuals taught: `rule_bindings.manage` had been in two presets
+since 2026-08-07 and `packages.submit` since 2026-08-08, and a constant and a
+comment went on asserting their gaps regardless.
 
 ### P0 (CLOSED 2026-08-10) — every act would freeze successfully and then be permanently unrenderable
 

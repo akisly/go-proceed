@@ -58,10 +58,13 @@ import {
  * and each pair of cases is arranged to differ by exactly the write capability
  * under test.
  *
- * THE M3 CAPABILITIES ARE IN NO RESPONSIBILITY PRESET. `M3_PRESET_GAP` in
- * m3-closure-fixture.ts names the four and says so; every grant below is issued
- * by hand for that reason. On the day a preset carries them, nothing in this file
- * changes except that the workaround stops being one.
+ * THE M3 CAPABILITIES ARE IN PRESETS AS OF 2026-08-17, and this paragraph used
+ * to say the opposite — «THE M3 CAPABILITIES ARE IN NO RESPONSIBILITY PRESET»,
+ * naming `M3_PRESET_GAP` in m3-closure-fixture.ts as the record of it. That
+ * constant is `M3_PROJECT_CAPS` now and its header carries the mapping. Every
+ * grant below is still issued by hand, because a fixture builds the minimal
+ * grant set it needs — but it is no longer a workaround for a gap, which is
+ * exactly what the old paragraph predicted would change.
  *
  * WHAT THIS SUITE CANNOT REACH, NAMED RATHER THAN LEFT LOOKING COVERED:
  * `sco_insert` (public.stage_closure_occurrences) has no isolated negative case.

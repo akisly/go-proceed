@@ -28,9 +28,11 @@ export const runtime = "nodejs";
  * M4 operations behind that one capability_id, so a member who may READ an act
  * may also COMPOSE one. That is uncomfortable and it is the catalog's shape, not
  * this route's: widening the read to `project.view` would be a permissions
- * decision taken in a route. Migration 0047 §11 item 6 records it, together with
- * the fact that `statutory_acts.compose` appears in no responsibility preset at
- * all.
+ * decision taken in a route. Migration 0047 §11 item 6 records it. The second
+ * half of that record — that `statutory_acts.compose` «appears in no
+ * responsibility preset at all» — was CLOSED 2026-08-17: it is on `pto_engineer`.
+ * The read/compose coupling above is untouched by that and is still the catalog's
+ * shape.
  *
  * `project.view` IS REQUIRED BESIDE IT for the reason `readiness.get` gives: the
  * decision blocks come from `public.stage_closure_occurrences` and

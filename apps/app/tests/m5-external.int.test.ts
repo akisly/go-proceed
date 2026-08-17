@@ -71,11 +71,15 @@ const ORIGIN = "https://prykladapp.example";
  * item 32). Migration 0049 §11 item 2 records it. Named rather than folded into
  * the list so the workaround stays legible.
  */
-const M5_PRESET_GAP = ["packages.submit"] as const;
+// CORRECTED 2026-08-17: this was `M5_PRESET_GAP`, and it had been wrong since
+// 2026-08-08 — INDEPENDENTLY of that date's preset work. `packages.submit` is on
+// BOTH the `package_submitter` responsibility and the `commercial_manager`
+// persona, and the progress document had already withdrawn the claim (item 48).
+// The constant went on asserting a gap that two presets had closed.
 const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign",
               "progress.record", "evidence.record", "evidence_decisions.decide",
               "stage_closures.close", "requirement_exceptions.decide", "readiness.view",
-              ...M5_PRESET_GAP] as const;
+              "packages.submit"] as const;
 
 const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
 const STAGE = "prykhovani-roboty";
