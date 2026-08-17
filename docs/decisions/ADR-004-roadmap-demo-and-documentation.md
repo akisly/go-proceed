@@ -8,7 +8,7 @@
 
 **Related decisions:** [ADR-001](ADR-001-product-boundary.md),
 [ADR-002](ADR-002-tenancy-parties-and-contracts.md),
-[ADR-003](ADR-003-evidence-packages-and-acceptance.md)
+[ADR-003](ADR-003-evidence-packages-and-acceptance.md), [ADR-007](ADR-007-pilot-field-client.md)
 
 ## Context
 
@@ -67,11 +67,15 @@ scenario.
   data.
 - Initial deployments may use separate free Vercel domains.
 
-Online mobile use is included in v0.1 as a separate native client, not a
-responsive-web substitute. The client supports camera capture and platform
-photo/file selection, retains the pending original and retry state in
-OS-sandboxed persistent app storage through an ordinary restart, and removes it
-only after server receipt and integrity confirmation.
+Online mobile use as a separate native client, not a responsive-web
+substitute, is **v0.3**, not v0.1
+([ADR-007](ADR-007-pilot-field-client.md) decisions 1–2 amend this paragraph
+rather than superseding it; the v0.1 field client is instead a PWA served from
+`apps/app`). The client supports camera capture and platform photo/file
+selection, retains the pending original and retry state in OS-sandboxed
+persistent app storage through an ordinary restart, and removes it only after
+server receipt and integrity confirmation — also **v0.3**, per the same
+amendment (decision 6 and Cost 2).
 
 The v0.1 pilot support floor is iOS 16.4+ and Android 10+. Before M2 UX freeze,
 the actual pilot-device inventory must confirm this floor and include at least

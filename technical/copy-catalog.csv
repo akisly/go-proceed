@@ -275,6 +275,7 @@ screen.s16.error,Не вдалося завантажити чергу. Спро
 screen.s19.empty,Період без виконаних робіт для закриття.,S19,empty,close empty
 screen.s19.permission,Закриття періоду доступне ролі ПТО.,S19,permission,close permission-denied
 screen.s19.stale,Preflight застарів після зміни правил — перерахувати.,S19,error,close stale
-field.capture.saved_local,Збережено на пристрої,S27,offline,local receipt
+field.capture.saved_local,Збережено на пристрої,S27,offline,"local receipt — NATIVE CLIENT ONLY from 2026-08-10: «Збережено на пристрої» claims a durable local original, which INV-081 forbids the v0.1 PWA from claiming and ADR-007 Cost 2 explains it cannot deliver. A PWA screen may not render this label"
 field.capture.server_confirmed,Підтверджено сервером,S28,synced,server receipt
 field.permission.camera_denied,"Дозвольте доступ до камери, щоб фіксувати роботу",S26,permission,camera denied
+warning.capture.not_saved,GoProceed не зберіг це фото. Зробіть його ще раз або збережіть у себе.,global,warning,"INV-081 — the unsaved-photo warning. The v0.1 PWA holds the original in memory only; on a failed upload or an abandoned in-flight one the loss must be surfaced and never silent (ADR-007 decision 6). Added 2026-08-10 with the field client; the catalog carried no such string"

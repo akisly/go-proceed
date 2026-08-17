@@ -235,6 +235,59 @@ zero-priced row — and rows priced at zero are ordinary, being work bundled int
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
 
+## P0 (OPEN) — the field client is built and NOBODY CAN OPEN IT: there is no origin
+
+**This is the largest open item in the repository and it is not a code defect.**
+`apps/app` has no deployed origin: no `vercel.json` for it, no deploy step in
+`.github/workflows/ci.yml`, and `infra/README-staging.md` records that staging
+has never been provisioned. Every one of the eleven tasks of
+`docs/superpowers/plans/2026-08-10-pwa-field-client.md` is complete and verified
+locally, and none of them puts the client in a foreman's hand.
+
+**Two things wait on it and cannot be faked.** ADR-007 requires both to be
+MEASURED rather than assumed, on the two physical devices its «What this decision
+does not remove» section still keeps as a requirement: which browser engines strip
+or transcode EXIF and how each honours the `capture` attribute, and the exact
+storage-eviction rule including whether an installed home-screen PWA is exempt.
+`crypto.subtle` also needs a secure context — localhost qualifies, so local work
+is unaffected and only the real thing is blocked.
+
+**Note for whoever provisions it:** `NEXT_PUBLIC_APP_ORIGIN` is inlined at BUILD
+time, not read at runtime. A container built once and deployed to a named origin
+will refuse every request until it is rebuilt with the value set — `resolveBaseOrigin`
+fails closed by design (see the P1 below).
+
+## P1 (OPEN) — seven residuals from the field-client final review, none blocking
+
+Adjudicated and parked on 2026-08-11 after the whole-branch review's single fix
+wave. Recorded here because the review artefacts are gitignored and would take
+them with them.
+
+1. **INV-081's catalogue row overstates its own enforcement.** It reads «every
+   failed or abandoned in-flight upload raises an explicit unsaved-photo
+   warning». After the recovery mappings were collapsed to `failed`, that holds
+   only on the path where the server supplies no `detail` string. Same defect
+   class as INV-086's row, which the same wave corrected. Either widen the banner
+   gate or correct the row — the row must not claim more than the code does.
+2. **`verifyCode` still collapses 429 into «Невірний або прострочений код».** The
+   fix landed one function above it, on the send path. A rate-limited foreman is
+   told his correct code is wrong, which is the misdirection that fix removed.
+3. **Every `<a>` under `/app/**` renders with user-agent link styling**, including
+   visited-purple. There is no Tailwind preflight and no `a` reset. A design
+   decision rather than a bug, and it has no gate that would catch a regression.
+4. **The loopback port is request-chosen** when `NEXT_PUBLIC_APP_ORIGIN` is unset:
+   `Host: 127.0.0.1:9200` yields that origin with the cookie attached. Only
+   reachable on a deployment that is already fully broken; consider refusing
+   outright when `NODE_ENV === "production"`.
+5. **`docs/superpowers/plans/2026-08-10-pwa-field-client.md` still prints the
+   pre-fix recovery mapping** (`retry_part → "sending"`). The design document is
+   corrected; the plan is a historical artefact and wants a dated pointer to §6.
+6. **A bracketless `Host: ::1`** passes the allowlist and then makes `new URL`
+   throw, surfacing as the generic error screen rather than `UntrustedHostError`.
+   Cosmetic, no security consequence.
+7. **`/context` is the one route the browser pass's overflow gate does not cover**
+   — it is the pre-existing stub, left untouched by the field-client work.
+
 ## P1 (CLOSED 2026-08-10) — valuation funding was first-come and was never re-offered
 
 **What:** the work-item pool is claimed by whichever root records first. When
@@ -1280,3 +1333,83 @@ is the **disclosure** half.
 **Fix:** point both rows at INV-090. Neither file was in the 2026-08-08
 documentation slice's remit, which is the only reason this is an entry rather
 than a change.
+
+## CLOSED 2026-08-10/11 — ADR-007 is implemented: the PWA field client is BUILT (and not yet reachable)
+
+**The client is built and verified locally. A customer still cannot click
+through the pilot, because NO DEPLOYED ORIGIN EXISTS.** There is no
+`vercel.json` for `apps/app`, no deploy step in `.github/workflows/ci.yml`,
+and `infra/README-staging.md` records that staging has never been provisioned.
+The plan that produced this work says so in its own words — «none of them puts
+the client in a foreman's hand» — and an earlier version of this section
+opened «A customer can now click through the pilot», which was false on the
+day it was written. **Provisioning an HTTPS origin for `apps/app` is now the
+single largest open item; it is the first entry in `HANDOFF.md` §0's priority
+list.** Two things wait behind it and cannot be done without it:
+
+- **ADR-007's two required measurements.** How each engine handles EXIF and
+  the `capture` attribute, and the storage-eviction rule — both need real
+  devices against a real origin (`docs/decisions/ADR-007-pilot-field-client.md`
+  §"What must be measured, not assumed" and §"Also to be measured, not
+  assumed"). The decision does not depend on how they resolve; the copy and the
+  claims this client is allowed to make do.
+- **`crypto.subtle` needs a secure context.** `localhost` qualifies, so every
+  local run and the CI browser pass are fine, and nothing else is.
+
+**One deployment requirement this created:** `NEXT_PUBLIC_APP_ORIGIN` must be
+set on any origin that is not loopback. `src/lib/api.ts`'s `resolveBaseOrigin`
+refuses to self-fetch (with the session cookie attached) against a host it
+cannot trust, and off loopback that variable is the only way to name one.
+
+**What IS done —** `docs/superpowers/plans/2026-08-10-pwa-field-client.md`'s
+eleven tasks: sign-in by email + 6-digit OTP, «Мої доручення», the
+obligation screen (both required obligations — the acceptance criterion in
+the standard's own wording, and the capture control), the pure capture core
+and its state machine, the `beforeunload` guard for an at-risk photo
+(INV-081), and a real-browser puppeteer pass (`apps/app/qa/field.mjs`) with
+its own CI job (`app-qa`) that drives the whole thing authenticated — a real
+Supabase Auth user minted through the local Admin API, a real email-OTP
+sign-in read back out of Mailpit, a real seeded workspace/project/contract/
+assignment built entirely over `/v1` (never a raw SQL insert standing in for
+a command), and the real obligation screen it renders. This closes the
+*building* of the client, which both handoffs above named as blocking a pilot
+— it does not close *reaching* it; see the origin above.
+
+**INV-086's "NOT YET IMPLEMENTABLE" note is closed** — see
+`technical/database/invariant-catalog.csv`'s INV-086 row, corrected in place.
+`origin_not_distinguished` is in the deployed CHECK (migration 0043) and in
+`packages/contracts/src/uploads.ts`'s `originMethod` enum, and
+`apps/app/src/lib/capture/upload.ts`'s `buildCreateIntentBody` is the one
+place the PWA's request body is assembled — it carries no parameter that
+could route `native_camera` (or anything else) through it, proven three ways
+(`apps/app/tests/field-capture.int.test.ts`, `src/lib/capture/upload.test.ts`,
+and a browser-driven capture in `qa/field.mjs`).
+
+**Owed, not built: the reference image.** ADR-007 decision 4 names one —
+shown beside the acceptance criterion on the obligation screen, before work
+starts — and it exists in **no form**: no column, no contract field, no
+asset, no owner, no licence. The owner decided on 2026-08-10 to ship the
+obligation text without it (see
+`docs/superpowers/specs/2026-08-10-pwa-field-client-design.md` §3 "Out,
+deliberately"), so `apps/app/app/(app)/a/[assignmentId]/page.tsx` renders the
+acceptance criterion, its norm reference, and the capture control — and
+nothing else where the picture would go.
+
+**And the documents disagree about which milestone owns it — recorded here
+as owed, not resolved.** Three sources, three different answers:
+
+- [ADR-007](docs/decisions/ADR-007-pilot-field-client.md) decision 4 and
+  `docs/domain/glossary.md:121` ("Field client" row) both say v0.1-M2.
+- `docs/product/competitive-landscape.md` says v0.3.
+- `docs/delivery/version-0.1.md`'s own v0.1-M2 exit-gate list **omits it
+  entirely** — neither requiring nor excluding it.
+
+**Fix:** an owner decision on which milestone actually owns the reference
+image, followed by making the three documents agree (and, if v0.1-M2, a
+follow-up slice sourcing the image the same way the ДБН citations were
+sourced — from a primary, verification-tagged origin, never invented).
+**Cons:** none technical; this is a documentation-consistency and
+content-sourcing question, not a code change.
+**Depends on:** nothing technical. `apps/app`'s obligation screen already has
+the one place the image would render (`ObligationCard` in
+`app/(app)/a/[assignmentId]/page.tsx`) if and when the owner supplies one.

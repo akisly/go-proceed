@@ -1,0 +1,376 @@
+/* ===========================================================================
+ * PORT of apps/demo/src/styles/theme.css — DO NOT let these drift silently.
+ *
+ * apps/demo is a Vite app; apps/app is Next (App Router, @tailwindcss/postcss
+ * instead of @tailwindcss/vite — see apps/app/postcss.config.mjs). The THEME
+ * below — the `@theme` token block and the `.goproceed-app` base layer — is
+ * copied unchanged. Two things could NOT come along unchanged, because they
+ * are wiring for apps/demo's own directory, not theme:
+ *
+ *   1. The original imports `../styles.css` and `./demo.css` as
+ *      `layer(legacy)` — apps/demo's 2,110-line frozen prototype stylesheet
+ *      and its demo-only companion. Their entire purpose is to keep those two
+ *      unlayered, unrelated-to-Tailwind sheets from silently outranking every
+ *      utility class (see the original file's header for the mechanism).
+ *      apps/app has no such legacy sheet to reconcile — it never rendered
+ *      unlayered CSS in the first place — so there is nothing for a `legacy`
+ *      layer to hold here, and the two `@import` lines would not resolve
+ *      against this file's location anyway. Dropped, along with the empty
+ *      `legacy` layer name.
+ *   2. The `@source not` exclusions named apps/demo's own `dist/`,
+ *      `qa-output/`, `tests/`, `qa/` directories (fixture files with
+ *      deliberately-unapproved colours, kept out of Tailwind's content scan).
+ *      Those paths don't exist relative to this file and don't describe
+ *      anything in apps/app. Dropped rather than translated, since apps/app's
+ *      own `tests/` holds backend integration tests with no Tailwind classes
+ *      to leak.
+ *
+ * If apps/demo/src/styles/theme.css changes — a new token, a new base rule —
+ * bring the change here too. This file exists so a phone-rendering shell has
+ * the same design system as the internal register; a fork that quietly
+ * diverges defeats the point of porting rather than reinventing.
+ *
+ * `.goproceed-app` SCOPING: the base-layer resets and the app font below only
+ * apply inside an element carrying the `goproceed-app` class. apps/demo
+ * applies it per-page (see e.g. AppShell.tsx) rather than on `<body>`,
+ * because it also serves public marketing routes that must stay on the
+ * frozen legacy stylesheet and never see this theme. apps/app has no such
+ * routes — every screen is the field client — so `apps/app/app/layout.tsx`
+ * puts the class on `<body>` once, for the whole app. Do not also add it on
+ * a per-screen root element; it would be redundant, not additive.
+ *
+ * DECISION, 2026-08-11: `--font-display` below deliberately does NOT match
+ * apps/demo. apps/demo sets it to Manrope Variable; apps/app targets the
+ * same Inter stack `--font-sans` uses, and does not install
+ * `@fontsource-variable/manrope` at all. One typeface loads faster on a
+ * construction site's mobile connection, and that is what this client is
+ * for — owner decision, not an oversight. If apps/demo's `--font-display`
+ * changes, this is the one token this file does NOT mirror; everything else
+ * in "bring the change here too" above still applies.
+ * ========================================================================= */
+
+@layer theme, base, components, utilities;
+
+@import 'tailwindcss/theme.css' layer(theme);
+@import 'tailwindcss/utilities.css' layer(utilities);
+
+@theme {
+  /* ---- Clear the stock namespace. Nothing Tailwind ships is reachable. ----
+   *
+   * `--text-*`, `--breakpoint-*` and `--shadow-*` are cleared alongside the
+   * original three. Leaving them would keep `text-sm`, `lg:` and `shadow-md`
+   * reachable *in addition* to the scale below — three parallel systems that
+   * only look consistent until someone reaches for the wrong one. doc 05
+   * defines exactly one type scale and this product has exactly two layout
+   * breakpoints (below); a utility that resolves to anything else is drift,
+   * not flexibility. `--spacing` is deliberately kept: its 0.25rem base *is*
+   * doc 05's 4px grid, so the dynamic `p-*`/`gap-*` scale is already correct. */
+  --color-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+  --text-*: initial;
+  --breakpoint-*: initial;
+  --shadow-*: initial;
+
+  /* ---- Surfaces -------------------------------------------------------- */
+  /* Paper is the canvas; White is the working surface a register sits on.
+     One hue, shifting only lightness — the sidebar shares the canvas rather
+     than becoming its own coloured world. */
+  --color-background: #fbfbfb;
+  --color-surface: #fff;
+  --color-surface-muted: #f2f3ef;
+  --color-surface-sunken: #ebece9;
+
+  /* Carbon chrome. The rail is the one dark region in the product. */
+  --color-carbon: #171717;
+  --color-carbon-muted: #353936;
+  --color-carbon-hover: #292c2e;
+
+  /* ---- The rail ---------------------------------------------------------
+   * Its own five values rather than reusing the Carbon text tokens, because
+   * the rail inverts the whole contrast relationship: everything here is
+   * measured against Carbon, not against Paper. Keeping them separate is what
+   * lets the rail be tuned without touching a single content surface.
+   *
+   * doc 05's surface budget puts Carbon at 17-21%. A full-height 240px rail on
+   * a 1440px viewport is ~16.7%, plus the disclosure strip — so the dark rail
+   * IS that budget, which is why it stays dark rather than joining the canvas.
+   * Contrast against #171717, measured: foreground 12.44:1, muted 8.18:1. */
+  --color-rail: #171717;
+  --color-rail-foreground: #dfe2de;
+  --color-rail-muted: #aeb2ae;
+  --color-rail-hover: #242729;
+  --color-rail-line: #2f3234;
+
+  /* ---- Text ------------------------------------------------------------ */
+  /* Four levels. Two is too flat to build hierarchy from. */
+  --color-foreground: #171717; /* 17.93:1 on white */
+  --color-foreground-secondary: #484c5e; /* 8.50:1 — Slate */
+  --color-foreground-muted: #666979; /* 5.86:1 */
+  --color-foreground-subtle: #7a7f7a; /* metadata only, never body */
+
+  /* ---- Structure ------------------------------------------------------- */
+  --color-border: rgba(72, 76, 94, 0.17);
+  --color-border-strong: #e9ebe7;
+
+  /* ---- Accent ---------------------------------------------------------- */
+  /* Lime is the action colour and nothing else. It never carries text on
+     white (1.18:1); it is a ground for Carbon (15.16:1). Budget: <=5%. */
+  --color-accent: #c6ff34;
+  --color-accent-hover: #d7fa72;
+  --color-accent-foreground: #171717;
+  --color-accent-ink: #667f12; /* 4.56:1 — accent TEXT, white grounds only */
+
+  /* ---- Semantic -------------------------------------------------------- */
+  --color-warning: #f2b84b;
+  --color-warning-surface: #fff0d3;
+  --color-warning-foreground: #8b560b; /* 5.43:1 on warning-surface */
+  --color-destructive: #e45c55;
+  --color-success-surface: #edf8d2;
+  --color-success-foreground: #526b11;
+  --color-info-surface: #e8eefc;
+  --color-info-foreground: #3756a1;
+
+  /* ---- Readiness ------------------------------------------------------- */
+  /* Seven catalog states collapse to four visual tones. The LABEL always
+     carries the meaning — these only tint it, never replace it. */
+  --color-readiness-ready-surface: #edf8d2;
+  --color-readiness-ready-foreground: #526b11;
+  --color-readiness-attention-surface: #fff0d3;
+  --color-readiness-attention-foreground: #8b560b;
+  --color-readiness-review-surface: #e8eefc;
+  --color-readiness-review-foreground: #3756a1;
+  --color-readiness-idle-surface: #ebece9;
+  --color-readiness-idle-foreground: #353936;
+
+  /* ---- Evidence -------------------------------------------------------- */
+  --color-evidence-satisfied: #526b11;
+  --color-evidence-pending: #8b560b;
+  --color-evidence-blocking: #e45c55;
+
+  /* ---- Type ------------------------------------------------------------ */
+  /* doc 05 pairs Manrope for display weight with Inter for data — apps/demo
+     keeps that pairing. apps/app deliberately does not: see the DECISION note
+     in this file's header (2026-08-11, owner call). One typeface, Inter, for
+     both display and data here, so a second variable font family is never on
+     the wire for a foreman's mobile connection. */
+  --font-display: 'Inter Variable', system-ui, sans-serif;
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+
+  /* 1.2 minor third from a 13px data base — a register is read, not browsed. */
+  --text-micro: 11px;
+  --text-meta: 12px;
+  --text-data: 13px;
+  --text-body: 15px;
+  --text-h3: 18px;
+  --text-h2: 22px;
+  --text-h1: 26px;
+  /* One step further up the same 1.2 ratio, reserved for the single focal
+     figure on a screen — /app's money-at-risk total. doc 05 §1 opens with
+     "large totals": the number this product exists to surface should not be
+     the same size as the page title that introduces it. */
+  --text-display: 32px;
+
+  /* ---- Radii ----------------------------------------------------------- */
+  /* Small and deliberate. A register is not a set of cards. */
+  --radius-control: 6px;
+  --radius-panel: 10px;
+  --radius-pill: 999px;
+
+  /* ---- Breakpoints ------------------------------------------------------
+   * Exactly two, because the shell has exactly three states and they are a
+   * contract, not a preference (task 15's viewport table):
+   *   below md   — rail off-canvas behind a >=44px control
+   *   md..wide   — rail collapsed to icons, labels on hover/focus
+   *   wide and up— rail open with labels
+   * Naming them `md`/`wide` rather than keeping a stock five-step ladder means
+   * a `lg:` typo fails loudly at build time instead of silently targeting a
+   * width this design never reasons about. */
+  --breakpoint-md: 768px;
+  --breakpoint-wide: 1240px;
+
+  /* The disclosure strip is `position: sticky` and sits above the shell in the
+   * stacking order, so the rail — also sticky — has to stop underneath it
+   * rather than at the viewport edge, or it slides its own brand out of sight
+   * on the first scroll. This is the strip's MEASURED rendered height, not its
+   * declared `min-height`: 16px text at 1.3 line-height plus 8px padding twice
+   * resolves to 37px, not the 36px the rule asks for. qa/verify.mjs asserts the
+   * two still agree, so a future change to the strip cannot silently open a
+   * gap here. */
+  --spacing-strip: 37px;
+
+  /* ---- Depth ------------------------------------------------------------
+   * doc 05: "borders carry most structure; shadows are shallow". So there is
+   * no elevation ladder here — only the two surfaces that genuinely leave the
+   * page get a shadow, and everything else is a border and a lightness shift.
+   * `raised` is for a popover-class surface sitting one step off its parent;
+   * `drawer` is the off-canvas rail, the one element that covers content. */
+  --shadow-raised: 0 1px 2px rgba(21, 23, 25, 0.05), 0 2px 6px rgba(21, 23, 25, 0.06);
+  --shadow-drawer: 0 24px 70px rgba(23, 23, 23, 0.13);
+
+  /* ---- Motion ---------------------------------------------------------- */
+  /* Strong ease-out only; never ease-in, which stalls the first frame. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* Small chrome that appears in place — a tooltip, a popover. Never from
+   * scale(0): nothing appears out of nothing. 150ms, transform + opacity only. */
+  --animate-chip-in: chip-in 150ms var(--ease-out-strong);
+
+  @keyframes chip-in {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* ===========================================================================
+ * Internal shell scope.
+ *
+ * Everything below applies only inside `.goproceed-app`, so the public routes
+ * are untouched by the new system even though both stylesheets are loaded.
+ *
+ * IN `base`, NOT UNLAYERED. Unlayered wins over every layer, so leaving these
+ * rules bare would make them beat the utilities that are supposed to override
+ * them — `.goproceed-app :is(h1,h2,h3,h4,p,...) { margin: 0 }` would silently
+ * defeat every `mb-*` in the app. Sitting in `base` puts them exactly where
+ * they belong: below every utility. (In apps/demo's original, this layer also
+ * sits above a frozen `legacy` layer that does not exist in this port — see
+ * this file's header.)
+ * ========================================================================= */
+@layer base {
+  .goproceed-app {
+    background: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+
+    /* DENSITY, DECIDED IN ONE PLACE — and the default is PROSE, not data.
+     *
+     * This was the other way round first: a 13px data base at the desk,
+     * stepping up to 15px on a phone. Building /app/evidence and /app/rules on
+     * it showed why that is wrong. Those pages are mostly running copy — the
+     * risk qualifier, the versioning explanation — and a 13px paragraph is
+     * uncomfortable to read at any width, while doc 05 puts body at 15-17 and
+     * 12-13 at metadata. The dense base made the common case wrong and forced
+     * an explicit `text-body` onto every paragraph in the app to fix it.
+     *
+     * Inverted: the base is 15px everywhere, and the ONE surface that genuinely
+     * needs density — the register table — steps down to `text-data` itself
+     * (see components/ui/table.tsx). One deliberate step down in one component
+     * beats forty deliberate steps up scattered across pages.
+     *
+     * A phone gets 15px too, which is what the field audience needs anyway:
+     * outdoors, one hand, at arm's length. */
+    font-size: var(--text-body);
+  }
+
+  /* Preflight is not imported (see the file header), and the frozen sheet's
+   * global reset covers only part of what utilities assume. These are the gaps
+   * that actually bite, scoped so no public route is touched:
+   *
+   *   box-sizing    THE ONE THAT WAS MISSING, and it made every screen of the
+   *                 field client 24px wider than the phone it is for. Tailwind's
+   *                 entire sizing model assumes `border-box`; without it,
+   *                 `w-full px-4` on a `<main>` computes as 100% PLUS 32px of
+   *                 padding, so the page scrolled sideways on a 375px viewport
+   *                 and the right edge of every card sat off-screen. Nothing
+   *                 failed and every screenshot looked correct, because a
+   *                 full-page screenshot captures `scrollWidth` — it came out
+   *                 399px wide and nobody read the number. Found 2026-08-11 by
+   *                 the horizontal-overflow gate added to `qa/field.mjs` in the
+   *                 same change, which now fails the browser pass if any of the
+   *                 three screens scrolls sideways again.
+   *   body margin   The UA's `body { margin: 8px }`, the other 16px of that 24.
+   *                 `goproceed-app` sits ON `<body>` (layout.tsx), so this rule
+   *                 is that element itself, not a descendant.
+   *   border-color  Tailwind v4's `border` resolves to `currentColor`. Without
+   *                 a default, one forgotten `border-border` paints a border in
+   *                 whatever colour the text happens to be.
+   *   margins       UA bottom margins on headings/paragraphs/lists fight every
+   *                 `gap-*` and `space-y-*` in the shell; spacing comes from
+   *                 the layout, not from the elements.
+   *   textarea      The frozen reset lists button/input/select but not textarea.
+   *   table         Required for the register's shared column geometry.
+   *   svg           Inline SVG sits on the text baseline and adds a phantom
+   *                 descender under every icon. */
+  body.goproceed-app {
+    margin: 0;
+  }
+
+  .goproceed-app,
+  .goproceed-app *,
+  .goproceed-app *::before,
+  .goproceed-app *::after {
+    box-sizing: border-box;
+    border-color: var(--color-border);
+  }
+
+  .goproceed-app :is(h1, h2, h3, h4, p, ul, ol, dl, dd, figure) {
+    margin: 0;
+  }
+
+  .goproceed-app :is(ul, ol) {
+    padding: 0;
+    list-style: none;
+  }
+
+  .goproceed-app textarea {
+    font: inherit;
+  }
+
+  .goproceed-app table {
+    border-collapse: collapse;
+    border-spacing: 0;
+  }
+
+  .goproceed-app svg {
+    display: block;
+    flex-shrink: 0;
+  }
+
+  .goproceed-app :is(p, li) {
+    text-wrap: pretty;
+  }
+
+  /* Every figure in this product is money or a count. Tabular by default here,
+     rather than remembered per component. */
+  .goproceed-app [data-numeric],
+  .goproceed-app [data-money],
+  .goproceed-app table {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .goproceed-app :is(h1, h2, h3) {
+    font-family: var(--font-display);
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  /* Focus is a visible contract, not a nicety. Slate ring + Lime halo, matching
+     the treatment already used on the public routes so the two never disagree. */
+  .goproceed-app :is(a, button, input, select, textarea, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-foreground-secondary);
+    outline-offset: 2px;
+    box-shadow: 0 0 0 5px rgba(198, 255, 52, 0.34);
+  }
+}
+
+/* Deliberately OUTSIDE `base`. An `!important` declaration inverts layer order
+ * — the LOWEST layer wins — so an `!important` in `base` would be overridden by
+ * any `!important` in a lower layer (in apps/demo's original, the frozen
+ * `legacy` sheet, which this port has no equivalent of — see the file header).
+ * Reduced motion is a user accessibility preference and has to beat
+ * everything, so it stays unlayered here too, on the same principle. */
+@media (prefers-reduced-motion: reduce) {
+  .goproceed-app *,
+  .goproceed-app *::before,
+  .goproceed-app *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

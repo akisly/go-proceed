@@ -14,12 +14,23 @@
 
 > **Amendment note.** This ADR amends
 > [ADR-004](ADR-004-roadmap-demo-and-documentation.md) on exactly one sentence
-> and reverses it. `ADR-004:70-71` reads: «Online mobile use is included in v0.1
-> as a separate native client, **not a responsive-web substitute**.» For v0.1
-> that is now wrong, and this document is the record of the reversal and of what
-> it costs. Everything else in ADR-004 stands, including the v0.3 offline
-> boundary at `ADR-004:86-90`. ADR-001, ADR-002 and ADR-003 are untouched: this
-> decision changes the client, not the domain, not the API, and not the gate.
+> and reverses it. **As approved on 2026-08-06**, ADR-004 read: «Online mobile
+> use is included in v0.1 as a separate native client, **not a responsive-web
+> substitute**.» For v0.1 that is wrong, and this document is the record of the
+> reversal and of what it costs.
+>
+> *(Citation corrected 2026-08-11. That quotation was written in the present
+> tense against `ADR-004:70-71`, and the correction owed by the first row of
+> §"Corrections owed" below has since landed — so the quoted sentence is no
+> longer what those lines say, and an Approved ADR was misquoting the document
+> it amends. The paragraph as it now stands is `ADR-004:70-78`; it states the
+> v0.3 boundary and points back here. Line numbers in this document are a
+> reading aid and go stale by design as the corrections owed are made; the
+> quoted text above is historical and should be read as such.)*
+>
+> Everything else in ADR-004 stands, including the v0.3 offline boundary at
+> `ADR-004:90-94`. ADR-001, ADR-002 and ADR-003 are untouched: this decision
+> changes the client, not the domain, not the API, and not the gate.
 >
 > **ADR-005 is touched on one clause, and saying otherwise would be false.** Its
 > §"Untouched" list carries «the separate online-only Expo/React Native field
@@ -90,11 +101,11 @@ of the following **before** the milestone could be entered or closed:
 
 | Requirement | Where it was stated on 2026-08-06 | Status on 2026-08-06 |
 |---|---|---|
-| An actual pilot-device inventory confirming the iOS 16.4+ / Android 10+ floor, before capture UX is frozen | [`roadmap.md`](../product/roadmap.md) M2 entry evidence, [`ADR-004:76-80`](ADR-004-roadmap-demo-and-documentation.md), [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"M2 — The phone" | Did not exist — [`roadmap.md`](../product/roadmap.md) §"Entry-evidence status as of 2026-08-06", [`TODOS.md:334-342`](../../TODOS.md) |
+| An actual pilot-device inventory confirming the iOS 16.4+ / Android 10+ floor, before capture UX is frozen | [`roadmap.md`](../product/roadmap.md) M2 entry evidence, [`ADR-004:80-84`](ADR-004-roadmap-demo-and-documentation.md), [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"M2 — The phone" | Did not exist — [`roadmap.md`](../product/roadmap.md) §"Entry-evidence status as of 2026-08-06", [`TODOS.md:334-342`](../../TODOS.md) |
 | One physical supported iPhone and one lower-resource physical Android device for acceptance testing | [`roadmap.md`](../product/roadmap.md) M2 entry evidence | Recorded as **unprocured** — [`TODOS.md:342`](../../TODOS.md) |
 | An Apple Developer Program membership, a Google Play Console account, and a funded Expo plan with build minutes | [`2026-08-01-b0-procurement.md:66-75`](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) | «none of the three exists yet»; organisational Apple enrolment additionally needs a D-U-N-S number |
 | The test iPhone's UDID registered under that membership before an internal-distribution build will install on it | [`TODOS.md:357-361`](../../TODOS.md) | Not started |
-| EAS internal preview builds installing on both platforms, and pilot distribution ready through TestFlight and the Google Play internal-testing track | [`roadmap.md`](../product/roadmap.md) M2 exit gates, [`ADR-004:82-84`](ADR-004-roadmap-demo-and-documentation.md), [`system-overview.md`](../architecture/system-overview.md) §"Deployment and secret rules", [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"Offline and device operation" | Not started, and [`version-0.1.md`](../delivery/version-0.1.md) §"v0.1-M2 — The phone" made EAS internal build installation on both platforms part of M2's **closing evidence** |
+| EAS internal preview builds installing on both platforms, and pilot distribution ready through TestFlight and the Google Play internal-testing track | [`roadmap.md`](../product/roadmap.md) M2 exit gates, [`ADR-004:86-88`](ADR-004-roadmap-demo-and-documentation.md), [`system-overview.md`](../architecture/system-overview.md) §"Deployment and secret rules", [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"Offline and device operation" | Not started, and [`version-0.1.md`](../delivery/version-0.1.md) §"v0.1-M2 — The phone" made EAS internal build installation on both platforms part of M2's **closing evidence** |
 
 The device-install step has never been performed at all: no EAS command has ever
 successfully resolved `apps/mobile/eas.json`, and the build profiles in it were
@@ -261,7 +272,7 @@ v0.1 capture is **online-only**, which the package already required for a
 different reason — «no new offline capture begins when current authorization
 cannot be checked»
 ([`execution-and-evidence.md`](../domain/execution-and-evidence.md) §"Native online capture — v0.3",
-[`ADR-004:86-88`](ADR-004-roadmap-demo-and-documentation.md)) — and in addition
+[`ADR-004:90-94`](ADR-004-roadmap-demo-and-documentation.md)) — and in addition
 a **pending original must not be relied on as durable**, which is new here. The
 client therefore:
 
@@ -310,7 +321,7 @@ This ADR ships no push and claims none.
 Recorded for v0.2: **web push on iOS requires the PWA to be installed to the
 Home Screen and iOS 16.4 or later.** The OS requirement matches the stated
 support floor of iOS 16.4+ exactly
-([`ADR-004:76`](ADR-004-roadmap-demo-and-documentation.md),
+([`ADR-004:80`](ADR-004-roadmap-demo-and-documentation.md),
 [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"M2 — The phone"), so the
 floor costs nothing here. The **installation** requirement does not match, and
 must not be glossed: it reintroduces an install step for the one capability the
@@ -324,7 +335,7 @@ This decision is scoped to the pilot, not to the product forever. The v0.3
 offline capture, queue and sync boundary is unchanged
 ([ADR-005 «Explicitly deferred»](ADR-005-readiness-gate-and-hidden-works.md),
 [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"Offline and device operation",
-[`ADR-004:86-90`](ADR-004-roadmap-demo-and-documentation.md)), and the two costs
+[`ADR-004:90-94`](ADR-004-roadmap-demo-and-documentation.md)), and the two costs
 below are precisely the properties an offline outbox cannot tolerate: storage
 that the OS may reclaim under a policy the page does not control, and no
 hardware-backed key to bind the ciphertext to. The honest expectation is
@@ -458,7 +469,7 @@ measured the client behaves as though eviction can happen at any time.
 
 Stated in decision 7 and not repeated. The iOS 16.4+ half costs nothing because
 it matches the support floor already fixed at
-[`ADR-004:76`](ADR-004-roadmap-demo-and-documentation.md). The installed-PWA half
+[`ADR-004:80`](ADR-004-roadmap-demo-and-documentation.md). The installed-PWA half
 is a genuine cost deferred into v0.2, and it must not be described as solved by
 this decision.
 
@@ -510,7 +521,7 @@ had twice.
 
 | Document | The end state it must reach |
 |---|---|
-| [`ADR-004:70-74`](ADR-004-roadmap-demo-and-documentation.md) | The «separate native client, not a responsive-web substitute» sentence and the OS-sandboxed-persistence sentence are v0.3, not v0.1 |
+| [`ADR-004:70-78`](ADR-004-roadmap-demo-and-documentation.md) | The «separate native client, not a responsive-web substitute» sentence and the OS-sandboxed-persistence sentence are v0.3, not v0.1 |
 | [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"M2 — The phone" and §"Offline and device operation" | The Expo client, the EAS/TestFlight/Play distribution line, and the pending-original persistence line leave v0.1 scope |
 | [`roadmap.md`](../product/roadmap.md) §"v0.1-M2 — The phone" | M2 entry evidence loses the account/UDID/store chain and keeps the device inventory; the three `apps/mobile` exit gates are replaced by PWA gates |
 | [`version-0.1.md`](../delivery/version-0.1.md) §"v0.1-M2 — The phone" | The vertical test and the closing evidence stop naming EAS internal build installation |

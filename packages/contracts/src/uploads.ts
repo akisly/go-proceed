@@ -26,7 +26,25 @@ export const createUploadIntentRequest = z.object({
   claimedMediaType: z.string().regex(/^[a-z]+\/[a-z0-9.+-]+$/),
   originalFilename: z.string().max(255).optional(),
   deviceCaptureId: z.string().trim().min(1).max(200),
-  originMethod: z.enum(["native_camera", "photo_picker", "file_picker", "form"]),
+  /**
+   * ADDED 2026-08-10: `origin_not_distinguished`, the value ADR-007 decision 5
+   * requires and INV-086 makes a P0.
+   *
+   * THE DATABASE HAS ADMITTED IT SINCE MIGRATION 0043 and this enum has not, so
+   * until now no PWA capture was recordable at all — the browser page had no
+   * value it was permitted to send. A browser has no camera-session identity and
+   * may be handed transcoded bytes, so the origin cannot be established; the
+   * vocabulary says that rather than asserting a camera.
+   *
+   * THE FOUR NATIVE VALUES ARE NOT REMOVED. They are the native client's, and
+   * `apps/mobile` stays in the tree for v0.3 (ADR-007 decision 2). What is
+   * forbidden is the PWA SENDING one, which is a test in
+   * apps/app/tests/field-capture.int.test.ts and not a narrowing here.
+   */
+  originMethod: z.enum([
+    "native_camera", "photo_picker", "file_picker", "form",
+    "origin_not_distinguished",
+  ]),
   claimedCaptureTime: z.string().datetime({ offset: true }).optional(),
   claimedTzOffset: z.string().regex(/^[+-]\d{2}:\d{2}$/).optional(),
   sourceAppVersion: z.string().max(50).optional(),

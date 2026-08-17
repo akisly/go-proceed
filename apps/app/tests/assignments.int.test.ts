@@ -5,6 +5,11 @@ import {
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+// The third of the three auth.users rows supabase/seed.sql seeds for tests
+// (AUTH_USER_C). memberships.user_id has a foreign key to auth.users, so a
+// second membership in this file needs one of these three seeded ids, not an
+// arbitrary crypto.randomUUID().
+const C = "cccccccc-cccc-cccc-cccc-cccccccccccc";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
@@ -18,6 +23,17 @@ async function createAssignment(body: unknown, contractId = fx.contractId): Prom
 async function listAssignments(projectId = fx.projectId): Promise<Response> {
   const { GET } = await import("../app/v1/projects/[projectId]/assignments/route");
   return GET(new Request("http://x"), { params: Promise.resolve({ projectId }) });
+}
+
+async function listMine(projectId = fx.projectId): Promise<Response> {
+  const { GET } = await import("../app/v1/projects/[projectId]/assignments/route");
+  return GET(new Request("http://x?assignee=me"), { params: Promise.resolve({ projectId }) });
+}
+
+async function listAssignee(value: string, projectId = fx.projectId): Promise<Response> {
+  const { GET } = await import("../app/v1/projects/[projectId]/assignments/route");
+  return GET(new Request(`http://x?assignee=${encodeURIComponent(value)}`),
+    { params: Promise.resolve({ projectId }) });
 }
 
 async function publishedTemplate(): Promise<string> {
@@ -212,5 +228,74 @@ describe("assignments.list", () => {
     current = B;
     const res = await listAssignments();
     expect([403, 404]).toContain(res.status);
+  });
+});
+
+describe("assignments.list answers «which are mine» — the field client's entry", () => {
+  it("returns assigneeMemberId, which was accepted at creation and never read back", async () => {
+    const created = await createAssignment({
+      workItemId: fx.workItems[0]!.id, assigneeMemberId: fx.memberId, plannedQuantity: "1",
+    });
+    expect(created.status).toBe(201);
+    // Read the body ONCE, before the find. An `await` inside a `.find()`
+    // predicate does not do what it looks like — the callback is synchronous and
+    // returns a Promise, which is always truthy, so `.find()` matches the first
+    // element whatever the comparison says.
+    const { assignmentId } = await created.json();
+    const body = await (await listAssignments()).json();
+    const row = body.assignments.find(
+      (x: { assignmentId: string }) => x.assignmentId === assignmentId);
+    expect(row.assigneeMemberId).toBe(fx.memberId);
+  });
+
+  it("filters to the caller's own with ?assignee=me, excluding another member's row and an unassigned row", async () => {
+    // A second membership in the same workspace, so "someone else's assignment"
+    // is a real row in the result set rather than merely an absent one. This
+    // insert-and-return-id shape is the pattern this repo's other suites already
+    // use for a second member (e.g. parties.int.test.ts, contracts.int.test.ts);
+    // `q` is the raw-SQL helper this file already imports.
+    const other = await q<{ id: string }>(
+      `insert into public.memberships (organization_id, user_id, role, status)
+       values ($1, $2, 'member', 'active') returning id`,
+      [fx.workspaceId, C]);
+    const otherMemberId = other[0]!.id;
+
+    const mine = await (await createAssignment({
+      workItemId: fx.workItems[0]!.id, assigneeMemberId: fx.memberId, plannedQuantity: "1",
+    })).json();
+    // Assigned to someone else entirely — must be excluded by an equality
+    // comparison, not merely by accident.
+    const theirs = await (await createAssignment({
+      workItemId: fx.workItems[0]!.id, assigneeMemberId: otherMemberId, plannedQuantity: "1",
+    })).json();
+    // No assignee at all, so assignee_member_id is NULL — the case that depends
+    // on `NULL = $3` evaluating to NULL rather than true. Without this row the
+    // filter could compare with `is not distinct from` and a deleted WHERE
+    // clause would look identical to a working one.
+    const unassigned = await (await createAssignment({
+      workItemId: fx.workItems[0]!.id, plannedQuantity: "1",
+    })).json();
+
+    const res = await listMine();
+    expect(res.status).toBe(200);
+    const { assignments } = await res.json();
+    const ids = assignments.map((a: { assignmentId: string }) => a.assignmentId);
+    expect(ids).toEqual([mine.assignmentId]);
+    expect(ids).not.toContain(theirs.assignmentId);
+    expect(ids).not.toContain(unassigned.assignmentId);
+    for (const a of assignments) expect(a.assigneeMemberId).toBe(fx.memberId);
+
+    // The unfiltered list still sees all three — proves the fix isn't
+    // over-filtering the underlying query itself.
+    const all = await (await listAssignments()).json();
+    const allIds = all.assignments.map((a: { assignmentId: string }) => a.assignmentId);
+    expect(allIds).toEqual(expect.arrayContaining(
+      [mine.assignmentId, theirs.assignmentId, unassigned.assignmentId]));
+  });
+
+  it("refuses any assignee value other than me — a member id on the wire is not a filter", async () => {
+    const res = await listAssignee(fx.memberId);
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe("VALIDATION_FAILED");
   });
 });

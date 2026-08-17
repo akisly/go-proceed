@@ -25,12 +25,23 @@ export const GET = queryRoute(async (a) => {
     await requireProjectCapability(tx, a.requestId,
       { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
 
+    // `me` AND NOTHING ELSE. A member id on the wire would be a filter one member
+    // could point at another, and `meContextResponse` does not carry a member id
+    // for a client to send in the first place. The session already knows who this
+    // is; resolving it here keeps the answer where the identity is.
+    const assignee = new URL(a.req.url).searchParams.get("assignee");
+    if (assignee !== null && assignee !== "me") {
+      throw new HttpProblem(422, problem("VALIDATION_FAILED",
+        "Фільтр assignee підтримує лише значення me.",
+        { requestId: a.requestId, retryable: false, userAction: "correct_and_retry" }));
+    }
+
     // Effective quantity is derived from the entries, never from a cached
     // column: progress is append-only, so the sum is the fact and anything
     // stored alongside it is a second version of the truth.
     const rows = await tx.query(
       `select a.id, a.work_item_id, a.planned_quantity, a.status,
-              a.requirement_template_version_id,
+              a.requirement_template_version_id, a.assignee_member_id,
               w.work_code, w.description, w.unit_code,
               coalesce((select sum(p.quantity) from public.progress_entries p
                          where p.workspace_id = a.workspace_id
@@ -39,8 +50,9 @@ export const GET = queryRoute(async (a) => {
          join public.work_items w
            on w.workspace_id = a.workspace_id and w.id = a.work_item_id
         where a.workspace_id = $1 and a.project_id = $2
+          and (a.assignee_member_id = $3 or $3 is null)
         order by a.created_at desc, a.id`,
-      [workspaceId, projectId]);
+      [workspaceId, projectId, assignee === "me" ? m.memberId : null]);
 
     const out: ListAssignmentsResponse = {
       assignments: rows.rows.map((r) => ({
@@ -53,6 +65,7 @@ export const GET = queryRoute(async (a) => {
         effectiveQuantity: r.effective_quantity,
         status: r.status,
         requirementTemplateVersionId: r.requirement_template_version_id,
+        assigneeMemberId: r.assignee_member_id,
       })),
     };
     return out;

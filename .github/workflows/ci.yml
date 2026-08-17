@@ -219,6 +219,160 @@ jobs:
           path: apps/demo/qa-output/
           retention-days: 14
 
+  # apps/app's browser pass (qa/field.mjs) — task 11 of the PWA field client
+  # plan. Modelled on demo-qa above (same puppeteer version, same launcher,
+  # same Chrome-install steps, same clean-tree contract), but apps/app is not
+  # standalone the way apps/demo is: its pages are gated by middleware.ts and
+  # render real data through /v1, so most of what this job exists to catch —
+  # the довідковий disclaimer, the 44px touch floor on the obligation screen,
+  # the unsaved-photo banner (INV-081) — lives behind a real Supabase session.
+  # This job therefore ALSO carries `verify`'s own Supabase bring-up
+  # (setup-cli, start, db reset, db:local-credentials) — the one respect in
+  # which it cannot just be demo-qa with the filter swapped. See
+  # qa/field.mjs's own header comment for exactly what this buys and what it
+  # still does not cover.
+  app-qa:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Same local-only values `verify` above uses, for the same reason (see
+      # that job's own env block) — this job needs its own Supabase stack
+      # because GitHub Actions jobs do not share state, `demo-qa` included.
+      APP_DB_URL: postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres
+      SERVICE_DB_URL: postgresql://aktflow_service_login:service_pw@127.0.0.1:54322/postgres
+      SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
+      # UNLIKE `verify`'s build (which uses a placeholder — no page there hits
+      # Supabase at build time), this job's build MUST use the real local
+      # anon key: qa/field.mjs signs a real user in through the browser, and
+      # `NEXT_PUBLIC_SUPABASE_ANON_KEY` is compiled into the client bundle, not
+      # read at request time. The value below is `supabase start`'s fixed
+      # local dev anon key (config.toml sets no auth.jwt_secret override, so
+      # this is deterministic across every fresh local stack — see
+      # qa/field.mjs's own header comment for the same key and why it is
+      # stable, and scripts/set-local-app-password.mjs for the sibling
+      # dev-only-default convention this follows).
+      NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with: { version: 9.12.0 }
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
+        with: { version: latest }
+
+      - name: supabase start
+        timeout-minutes: 15
+        run: supabase start
+
+      # Mailpit readiness probe — same spirit as "Verify Chrome launches"
+      # below: turn an infrastructure problem into an infrastructure-shaped
+      # failure instead of letting it masquerade as a product bug.
+      #
+      # `qa/field.mjs`'s sign-in audit drives the REAL email-OTP screen and
+      # reads the code back out of Mailpit's REST API (`MAILPIT_URL`,
+      # default http://127.0.0.1:54324) — `supabase start`'s own log line
+      # above (`│ Mailpit │ http://127.0.0.1:54324 │`) says the container is
+      # up, but "the log line printed" and "the API answers HTTP requests"
+      # are different claims, and only the second one is what qa/field.mjs
+      # actually depends on. Without this, a Mailpit that is merely slow to
+      # finish starting (or genuinely broken) failed AT `readOtpCode`,
+      # inside the sign-in audit, which used to be misread as a product
+      # defect in login rather than infrastructure not being ready — see
+      # readOtpCode's own header in apps/app/qa/field.mjs for the full
+      # account of that failure mode.
+      - name: Verify Mailpit API is reachable
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS -o /dev/null "http://127.0.0.1:54324/api/v1/messages"; then
+              echo "Mailpit API answered on attempt $i"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Mailpit API at http://127.0.0.1:54324/api/v1/messages never answered 2xx within 30s after supabase start" >&2
+          exit 1
+
+      - name: supabase db reset
+        run: supabase db reset
+
+      - name: Set local app-role password (never via seed.sql)
+        run: pnpm db:local-credentials
+
+      # apps/app/qa/browser.mjs uses full `puppeteer`, which downloads a
+      # pinned Chrome for Testing build at install time — same reasoning as
+      # demo-qa's identical step above.
+      - name: Ensure puppeteer's pinned Chrome is installed
+        working-directory: apps/app
+        run: pnpm exec puppeteer browsers install chrome
+
+      # Identical to demo-qa's own step — the same runner, the same Chrome
+      # for Testing build (both apps pin puppeteer@24.10.2), the same missing
+      # shared libraries.
+      - name: Install Chrome headless runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates fonts-liberation libasound2t64 libatk-bridge2.0-0 \
+            libatk1.0-0 libcups2 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0 \
+            libgtk-3-0 libnspr4 libnss3 libxcomposite1 libxdamage1 \
+            libxfixes3 libxkbcommon0 libxrandr2 xdg-utils
+
+      # Reuses the harness's own launch() (including its AKTFLOW_CHROME_PATH
+      # override) so this checks the exact code path `qa` below depends on —
+      # same reasoning as demo-qa's identical step.
+      - name: Verify Chrome launches
+        working-directory: apps/app
+        run: |
+          node --input-type=module -e "
+          import { launch } from './qa/browser.mjs';
+          const browser = await launch();
+          console.log('Chrome launched:', await browser.version());
+          await browser.close();
+          "
+
+      - run: pnpm --filter @goproceed/app typecheck
+
+      # NO `pnpm --filter @goproceed/app test` HERE, UNLIKE demo-qa's `test`
+      # STEP — A DELIBERATE OMISSION, NOT A DROPPED STEP. apps/app's vitest
+      # suite (unit tests plus every *.int.test.ts integration test) already
+      # runs in full inside `verify` above, against this exact repository
+      # state, every push and every PR. Re-running the identical suite here
+      # would only re-pay the cost of a second Supabase bring-up for zero new
+      # coverage — apps/demo's own `test` step earns its place because
+      # apps/demo has NO other job that runs it; apps/app's does. What this
+      # job adds on top of `verify` is the browser pass below, which `verify`
+      # cannot run at all (no Chrome, no puppeteer install there).
+      - run: pnpm --filter @goproceed/app build
+      - run: pnpm --filter @goproceed/app qa
+
+      # Same contract as demo-qa's identical step: qa/field.mjs writes every
+      # generated artifact under the gitignored qa-output/ (see its own
+      # header) and must never touch a tracked file.
+      - name: Assert apps/app QA run left the tree clean
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "apps/app qa run modified the working tree:"
+            git status --porcelain
+            exit 1
+          fi
+
+      - name: Upload QA artifacts
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: app-qa-output
+          path: apps/app/qa-output/
+          retention-days: 14
+
   # Runs the prototype/ package-contract validator (scripts/validate_package.py
   # + prototype's own lint/build/qa) — previously nothing in CI ran this at
   # all, so neither the package contract nor A.4.19 had any CI enforcement.
