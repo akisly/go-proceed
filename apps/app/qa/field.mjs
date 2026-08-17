@@ -111,6 +111,35 @@ async function startNextServer() {
         ...process.env,
         NEXT_PUBLIC_SUPABASE_URL: SUPABASE_URL,
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON_KEY,
+        // THIS HARNESS NAMES ITS OWN ORIGIN, and doing so is part of what the
+        // pass proves rather than a setup detail.
+        //
+        // `next start` is a production build, and `resolveBaseOrigin`
+        // (src/lib/api.ts) has no header-derived fallback in one: the loopback
+        // branch took its PORT from the request, so `Host: 127.0.0.1:9200`
+        // aimed a server component's self-fetch — carrying the foreman's whole
+        // Supabase cookie jar — at an attacker-chosen port on the app's own
+        // loopback interface. Without this line every authenticated audit below
+        // would render the error screen.
+        //
+        // The gain is not just that it still works. Every deployment that is
+        // not a developer's own machine must set this variable, so setting it
+        // here means the browser pass now exercises the SAME branch a real
+        // origin will — instead of a developer fallback that no deployment is
+        // allowed to use, and that therefore proved nothing about the deployed
+        // path. The loopback branch keeps its own coverage in
+        // src/lib/api.test.ts, with no browser.
+        //
+        // IT WORKS BECAUSE THE BUILD LEFT IT UNSET, which is worth knowing
+        // before changing either side. `NEXT_PUBLIC_*` is inlined at build
+        // time; measured against `.next/server` output, a value ABSENT at
+        // build survives as a literal `process.env.NEXT_PUBLIC_APP_ORIGIN`
+        // read that the server performs at runtime, which is what this
+        // assignment reaches. Build apps/app with the variable set to
+        // something else and that build wins — the string is already baked in
+        // and this line is ignored. CI's `app-qa` job sets it nowhere, so the
+        // build there is the unset one.
+        NEXT_PUBLIC_APP_ORIGIN: baseUrl,
       },
       stdio: ["ignore", "pipe", "pipe"],
     },

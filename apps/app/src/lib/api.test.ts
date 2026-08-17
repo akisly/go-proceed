@@ -104,6 +104,92 @@ describe("resolveBaseOrigin — no header can downgrade the scheme", () => {
   });
 });
 
+describe("resolveBaseOrigin — a production build has no header-derived fallback", () => {
+  // THE HOLE: the loopback branch takes its PORT from the request. With
+  // `NEXT_PUBLIC_APP_ORIGIN` unset, `Host: 127.0.0.1:9200` resolved to
+  // `http://127.0.0.1:9200` and `apiGet` sent the foreman's entire Supabase
+  // cookie jar there — an SSRF to an attacker-chosen port on the app's own
+  // loopback interface, carrying a real session. The host allowlist closed the
+  // "which machine" half of this; the port was still whatever the request said.
+  //
+  // Only reachable on a deployment that forgot to set the variable, which is
+  // why it was parked rather than treated as critical. But "already broken" is
+  // not a security boundary, and the fallback has no legitimate user in a
+  // production build: every deployment that is not a developer's own machine
+  // must name its origin anyway.
+  //
+  // `nodeEnv` is a parameter with a default for the same reason `appOrigin` is
+  // — so both branches can be driven here without mutating the environment.
+  // In a real build it is not read at runtime at all: Next inlines
+  // `process.env.NODE_ENV` at compile time, so `next build` bakes "production"
+  // in and no runtime environment can talk a shipped bundle back into the
+  // developer fallback.
+
+  it("refuses a request-chosen loopback port in production", () => {
+    expect(() => resolveBaseOrigin(headers({ host: "127.0.0.1:9200" }), undefined, "production"))
+      .toThrow(UntrustedHostError);
+  });
+
+  it("refuses every loopback spelling in production, not just the suspicious-looking one", () => {
+    for (const host of ["localhost", "localhost:3000", "127.0.0.1:54321", "[::1]:3000", "app.localhost:3000"]) {
+      expect(() => resolveBaseOrigin(headers({ host }), undefined, "production"), host)
+        .toThrow(UntrustedHostError);
+    }
+  });
+
+  it("still resolves NEXT_PUBLIC_APP_ORIGIN in production — that is the supported path", () => {
+    // The refusal must not be reachable for a correctly configured deployment,
+    // or this would be a denial of service dressed as a hardening change.
+    expect(resolveBaseOrigin(headers({ host: "app.goproceed.example" }), "https://app.goproceed.example", "production"))
+      .toBe("https://app.goproceed.example");
+    // Including when the operator legitimately names a loopback origin, which
+    // is what `qa/field.mjs` does against its own ephemeral `next start` port.
+    expect(resolveBaseOrigin(headers({ host: "127.0.0.1:41234" }), "http://127.0.0.1:41234", "production"))
+      .toBe("http://127.0.0.1:41234");
+  });
+
+  it("keeps the loopback fallback outside a production build — next dev must still work", () => {
+    for (const env of ["development", "test", undefined]) {
+      expect(resolveBaseOrigin(headers({ host: "localhost:3000" }), undefined, env), String(env))
+        .toBe("http://localhost:3000");
+    }
+  });
+});
+
+describe("resolveBaseOrigin — the allowlist advertises no spelling it cannot accept", () => {
+  it("refuses a bracketless ::1, which is what the code has always done", () => {
+    // TODOS.md recorded this as «a bracketless `Host: ::1` passes the allowlist
+    // and then makes `new URL` throw, surfacing as the generic error screen
+    // rather than UntrustedHostError». Measured: it does not. The port-strip
+    // regex `/:\d+$/` matches the trailing `:1`, so a bare `::1` is normalised
+    // to `":"`, which is on no allowlist and is refused — with exactly the
+    // error whose message names the remedy.
+    //
+    // What was real is the other half: the allowlist carried a
+    // `hostname === "::1"` arm that this same normalisation made unreachable,
+    // while the function's own comment advertised `::1` as an accepted
+    // spelling. A comment claiming more than the code does is the failure class
+    // this repository cares most about, so the arm is gone and the comment
+    // names only the bracketed form — which is the only one RFC 7230 permits in
+    // a Host header, and the only one `new URL` can parse.
+    expect(() => resolveBaseOrigin(headers({ host: "::1" }), undefined)).toThrow(UntrustedHostError);
+    expect(() => resolveBaseOrigin(headers({ host: "::" }), undefined)).toThrow(UntrustedHostError);
+  });
+
+  it("returns an origin `new URL` can actually parse for every host it accepts", () => {
+    // The guarantee the dead arm would have broken if it had ever matched:
+    // `apiGet` immediately does `new URL(path, base)`, so an accepted host that
+    // produces an unparseable origin surfaces as the generic error screen
+    // rather than as anything a reader could act on. Walked over every spelling
+    // the allowlist admits, so a future addition to it cannot reintroduce one.
+    for (const host of ["localhost", "localhost:3000", "127.0.0.1", "127.0.0.1:54321",
+      "[::1]", "[::1]:3000", "app.localhost:3000", "LOCALHOST:3000"]) {
+      const base = resolveBaseOrigin(headers({ host }), undefined);
+      expect(() => new URL("/v1/me/context", base), host).not.toThrow();
+    }
+  });
+});
+
 describe("isSessionExpired", () => {
   it("is true for a 401 ApiError and nothing else", () => {
     expect(isSessionExpired(new ApiError(401, {}))).toBe(true);
