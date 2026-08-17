@@ -694,6 +694,52 @@ async function measureHorizontalOverflow(page) {
   });
 }
 
+/**
+ * NO ANCHOR UNDER /app/** MAY RENDER WITH USER-AGENT LINK STYLING, and this
+ * gate is the whole reason the fix is safe to keep.
+ *
+ * There was no Tailwind preflight and no `a` reset, so every anchor in the
+ * field client came out blue, underlined and visited-purple. «Мої доручення»
+ * renders each obligation row AS an anchor, so a foreman's list turned purple
+ * row by row as he worked through it — read as a rendering fault, not as
+ * progress. `text-decoration` propagates to in-flow descendants and cannot be
+ * overridden by them, so the row's own `text-foreground` spans could not undo
+ * the underline; only a reset could.
+ *
+ * MEASURED ON THE UNVISITED COLOUR, NOT THE PURPLE. `:visited` styling is
+ * deliberately unreadable from script — every engine returns the unvisited
+ * computed style for privacy reasons — so an assertion about purple is not
+ * available to any harness. Both come from the same UA rule, so pinning
+ * `rgb(0, 0, 238)` pins the cause of both. Same for the underline, which is
+ * directly readable.
+ *
+ * `[data-slot="button"]` anchors are exempt: `<Button asChild>` renders a real
+ * link with button styling, and `src/ui/button.tsx`'s `link` variant underlines
+ * ON PURPOSE. Exempting them by the attribute the component itself sets — not
+ * by a class-name guess — means a hand-rolled anchor that merely looks like a
+ * button is still caught.
+ */
+async function measureUaStyledLinks(page) {
+  return page.evaluate(() => {
+    // Chrome's UA sheet: `a:-webkit-any-link { color: -webkit-link }`, which
+    // computes to this exact value. Comparing the computed rgb rather than the
+    // keyword because getComputedStyle always resolves it.
+    const UA_LINK_BLUE = "rgb(0, 0, 238)";
+    return [...document.querySelectorAll("a")]
+      .filter((el) => !el.closest('[data-slot="button"]'))
+      .map((el) => {
+        const s = getComputedStyle(el);
+        return {
+          label: (el.textContent ?? "").trim().slice(0, 40) || el.getAttribute("href") || "(no text)",
+          href: el.getAttribute("href"),
+          color: s.color,
+          decoration: s.textDecorationLine,
+        };
+      })
+      .filter((l) => l.color === UA_LINK_BLUE || l.decoration.includes("underline"));
+  });
+}
+
 async function measureSmallTargets(page) {
   return page.evaluate(() =>
     [...document.querySelectorAll("a, button, input, select, textarea")]
@@ -740,6 +786,12 @@ const EXPECTED_AUDITS = [
   "unauthenticated surface",
   "sign-in",
   "my assignments list",
+  // Added 2026-08-17. `/context` was the one route under /app/** no audit had
+  // ever opened — the pre-existing stub the field-client work left untouched —
+  // so it sat outside the overflow gate that caught the shell-wide `box-sizing`
+  // defect. Listed here, not just called below, so a future refactor that drops
+  // the call is a finding rather than a silent narrowing of coverage.
+  "context screen",
   "obligation screen",
   "capture in-flight banner",
 ];
@@ -753,7 +805,7 @@ const EXPECTED_AUDITS = [
  * still fails, but the artifact-upload step has nothing to upload, and every
  * genuine finding gathered before the crash is lost). `field.mjs`'s first
  * draft only guarded the seeding step; this closes the gap for the other
- * audits — five of them now, four also authenticated, so also covered by the
+ * audits — six of them now, five also authenticated, so also covered by the
  * `EXPECTED_AUDITS` check above — a crash and a silent skip are two
  * different failure modes and both are now caught).
  */
@@ -895,7 +947,7 @@ async function main() {
       // returning, but never validated `assignmentId` itself. A route
       // regression that returns a well-formed occurrence set beside a
       // missing or empty `assignmentId` would reach here having thrown
-      // nothing, and the four authenticated audits below would then be
+      // nothing, and the five authenticated audits below would then be
       // driven off a value that can never resolve to a real page. Assert
       // the shape explicitly, as a named finding, rather than trusting a
       // later `if`/truthy check to notice — that IS the bug this fixes.
@@ -1036,9 +1088,63 @@ async function main() {
           ctx.findings.push(`/ @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
         }
 
+        // THE SCREEN THIS ONE IS ACTUALLY FOR. Every obligation row here is an
+        // anchor, so before the `a` reset landed a foreman's whole list was
+        // blue and underlined, and each row he opened went visited-purple.
+        for (const link of await measureUaStyledLinks(page)) {
+          ctx.findings.push(`/ @375: anchor "${link.label}" (href=${link.href}) renders with user-agent link styling — color ${link.color}, text-decoration ${link.decoration}; app/globals.css's \`a\` reset has been lost`);
+        }
+
         await page.screenshot({ path: path.join(SHOTS, "my-assignments.png"), fullPage: true });
       });
       reportDiagnostics("my assignments list", listDiagnostics, ctx.findings, ctx.missingAssets);
+    });
+
+    await runAudit(ctx, "context screen", async () => {
+      // ── /context, THE ONE ROUTE UNDER /app/** NOTHING HERE HAD EVER OPENED ──
+      // The field-client work added `/` and `/a/{id}` and left this
+      // pre-existing stub untouched, so it fell outside every gate this file
+      // enforces — the horizontal-overflow check in particular, which is the
+      // one that caught a defect (`box-sizing`) making EVERY screen 24px wider
+      // than the phone it is for. A shell-wide regression of that kind would
+      // have been invisible on exactly one route, and it would have been the
+      // route nobody was looking at.
+      //
+      // THIS AUDIT DOES NOT BLESS THE STUB. `/context` renders two lines of
+      // placeholder text with an inline `style={{ padding: 32 }}` and none of
+      // the design system; it is not a screen a foreman has any reason to
+      // reach. What is asserted here is only what must be true of any route
+      // this app serves: it answers 200 to a signed-in member, it does not
+      // scroll sideways on a phone, it carries no user-agent-styled anchors,
+      // and it logs no console errors. Building the real screen is separate
+      // work and this audit is what will hold it to the same floor.
+      const contextDiagnostics = await withPage(browser, async (page) => {
+        await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
+        const res = await page.goto(`${server.baseUrl}/context`, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(`/context: expected 200 for a signed-in member, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+        const landedOn = new URL(page.url()).pathname;
+        if (landedOn !== "/context") {
+          ctx.findings.push(`/context: a signed-in foreman was redirected to ${landedOn}`);
+          return;
+        }
+
+        const overflow = await measureHorizontalOverflow(page);
+        if (overflow) {
+          ctx.findings.push(`/context @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
+        }
+        for (const t of await measureSmallTargets(page)) {
+          ctx.findings.push(`/context @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+        }
+        for (const link of await measureUaStyledLinks(page)) {
+          ctx.findings.push(`/context @375: anchor "${link.label}" (href=${link.href}) renders with user-agent link styling — color ${link.color}, text-decoration ${link.decoration}; app/globals.css's \`a\` reset has been lost`);
+        }
+
+        await page.screenshot({ path: path.join(SHOTS, "context.png"), fullPage: true });
+      });
+      reportDiagnostics("context screen", contextDiagnostics, ctx.findings, ctx.missingAssets);
     });
 
     await runAudit(ctx, "obligation screen", async () => {
@@ -1123,6 +1229,14 @@ async function main() {
         const overflow = await measureHorizontalOverflow(page);
         if (overflow) {
           ctx.findings.push(`/a/${assignmentId} @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
+        }
+
+        // Both anchors on this screen are `<Button asChild>` and so exempt by
+        // `data-slot` — which is exactly why it is worth checking here too: the
+        // day one of them is hand-rolled back into a bare `<a>`, this catches
+        // it, and the exemption cannot quietly become a blanket one.
+        for (const link of await measureUaStyledLinks(page)) {
+          ctx.findings.push(`/a/${assignmentId} @375: anchor "${link.label}" (href=${link.href}) renders with user-agent link styling — color ${link.color}, text-decoration ${link.decoration}; app/globals.css's \`a\` reset has been lost`);
         }
 
         // The negative half of INV-081: nothing on this screen may ever

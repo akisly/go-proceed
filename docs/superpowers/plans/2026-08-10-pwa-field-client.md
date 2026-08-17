@@ -11,6 +11,44 @@
 **Design:** [`docs/superpowers/specs/2026-08-10-pwa-field-client-design.md`](../specs/2026-08-10-pwa-field-client-design.md)
 **Decision:** [`ADR-007`](../../decisions/ADR-007-pilot-field-client.md) — Approved.
 
+---
+
+> ## ⚠ THIS PLAN IS A HISTORICAL ARTEFACT. IT IS NOT EDITED TO MATCH THE CODE.
+>
+> All eleven tasks landed and merged (PR #14, 2026-08-11). The code sections
+> below are what was PLANNED, and three of them were superseded during
+> implementation. They are left standing — a plan rewritten to agree with its
+> outcome stops being evidence of anything — but a reader arriving here cold
+> would otherwise copy a mapping and a signature the product deliberately
+> abandoned. **The living documents are the design doc linked above and the
+> source files themselves; where they and this file disagree, this file is
+> wrong.**
+>
+> **Superseded, with dates:**
+>
+> 1. **The recovery mapping (task 6 — the `nextStateFor` switch and its tests
+>    below).** This plan has `retry_part → "sending"` and
+>    `refresh_upload_state_or_request_new_grant → "awaiting_receipt"`. **Both
+>    return `failed` as of 2026-08-11** (final whole-branch review, Important
+>    4). Nothing ever retried the PUT or re-GET the intent, so those two labels
+>    told a foreman an operation was under way while nothing whatsoever was in
+>    flight. See the design doc §6 and `apps/app/src/lib/capture/recover.ts`,
+>    which states the whole reasoning.
+>
+> 2. **`holdsUnsavedBytes`'s signature (task 10 and its tests below).** Planned
+>    as `holdsUnsavedBytes(s: ClientState)`. **It takes a `CaptureHold` — the
+>    state plus `hasPickedFile` — as of 2026-08-11** (Critical 1). `not_sent` is
+>    also the INITIAL state, so the state-only version put the red banner, the
+>    discard control and a `beforeunload` listener on every untouched obligation
+>    screen, about a photo that did not exist.
+>
+> 3. **The banner's gate (task 10 below).** Planned, and shipped, as the same
+>    `holdsUnsavedBytes` call that gates the unload guard. **The banner moved to
+>    its own predicate, `serverDoesNotHaveThePhoto`, on 2026-08-17**, because
+>    `holdsUnsavedBytes` excludes `failed` and `invariant-catalog.csv:82`
+>    requires the unsaved-photo warning on every failed upload. See the design
+>    doc's «No silent loss — INV-081» and `src/lib/capture/state.ts`.
+
 ## Global Constraints
 
 Every task's requirements implicitly include this section.
@@ -597,6 +635,11 @@ describe("the client-computed content hash", () => {
 import { describe, it, expect } from "vitest";
 import { nextStateFor } from "./recover";
 
+// ⚠ SUPERSEDED 2026-08-11 — see this document's header. `retry_part` and
+// `refresh_upload_state_or_request_new_grant` both return "failed" in the
+// shipped code; nothing ever retried the PUT or re-GET the intent, so these two
+// expectations pin labels that told a foreman an operation was under way while
+// nothing was in flight. Live version: src/lib/capture/recover.test.ts.
 describe("the problem+json userAction decides what the screen does next", () => {
   it("keeps bytes in hand for every recoverable action", () => {
     expect(nextStateFor("retry_part")).toBe("sending");
@@ -668,6 +711,14 @@ export function isSaved(s: ClientState): boolean {
  * INV-081's second half. True while the browser holds bytes the server does not,
  * which is exactly when leaving the page loses a photo. `failed` and `discarded`
  * are false because the user has already been told.
+ *
+ * ⚠ SUPERSEDED TWICE — see this document's header. It takes a `CaptureHold`
+ * (state + `hasPickedFile`) as of 2026-08-11, and as of 2026-08-17 it no longer
+ * gates the banner at all — `serverDoesNotHaveThePhoto` does, because this
+ * function excludes `failed` and the invariant requires the warning there. The
+ * sentence above, "the user has already been told", is exactly the assumption
+ * that turned out to be false on a `failed` upload carrying a server `detail`.
+ * Live version: src/lib/capture/state.ts.
  */
 export function holdsUnsavedBytes(s: ClientState): boolean {
   return s === "not_sent" || s === "sending" || s === "awaiting_receipt";
@@ -707,6 +758,9 @@ import type { ClientState } from "./state";
  * an unknown condition is how a client hammers a server that just told it to
  * stop. `failed` is honest and the user is told the photo is not saved.
  */
+// ⚠ SUPERSEDED 2026-08-11 — see this document's header. Both `retry_part` and
+// `refresh_upload_state_or_request_new_grant` return "failed" in the shipped
+// code. Live version: src/lib/capture/recover.ts.
 export function nextStateFor(userAction: string): ClientState {
   switch (userAction) {
     case "retry_part": return "sending";
@@ -929,6 +983,8 @@ Assert that `holdsUnsavedBytes` is what gates the guard, and that the warning co
 - [ ] **Step 2: Implement**
 
 A `beforeunload` listener registered while any capture `holdsUnsavedBytes`, plus a persistent in-page banner carrying the catalog string. The banner is not dismissible while the condition holds.
+
+> ⚠ SUPERSEDED 2026-08-17 — see this document's header. The listener still keys off `holdsUnsavedBytes`; the **banner** keys off `serverDoesNotHaveThePhoto`, which additionally covers `failed`. Gating both on one call is what let the banner vanish on a failed upload, which `invariant-catalog.csv:82` forbids.
 
 - [ ] **Step 3: Run and commit**
 
