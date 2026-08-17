@@ -52,9 +52,11 @@ export const runtime = "nodejs";
  * the database would have answered — M3 review finding 5, raised to HIGH by the
  * v0.1 final review because by then three routes did it. The implication now
  * lives in `IMPLIED_BY_PROJECT_ADMIN` (src/lib/authz.ts) so all three inherit it,
- * and `readiness.view` is STILL in no responsibility preset (0045 §11 item 2):
- * a non-admin member still needs a hand-issued grant, and that gap is the
- * permissions decision this route does not get to take.
+ * and `readiness.view` was STILL in no responsibility preset (0045 §11 item 2),
+ * so a non-admin member needed a hand-issued grant — «the permissions decision
+ * this route does not get to take». THE OWNER TOOK IT 2026-08-17: `readiness.view`
+ * is on `pto_engineer` and `commercial_manager`. `project.admin` still implies it
+ * here, which is a separate mechanism and unchanged.
  */
 export const GET = queryRoute(async (a) => {
   const projectId = a.params.projectId;

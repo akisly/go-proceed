@@ -21,8 +21,10 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
  * admitted moves no money, because there is none — gets its own case at the end
  * of the money block rather than being folded into an existing one.
  *
- * `stage_closures.close` is granted by hand: it is in no row of
- * responsibility-presets.csv (the M3 preset gap, migration 0045 §11 item 2).
+ * `stage_closures.close` is granted explicitly below. It WAS in no row of
+ * responsibility-presets.csv when this was written (the M3 preset gap, migration
+ * 0045 §11 item 2); it is on the `pto_engineer` persona as of 2026-08-17, and the
+ * grant here is now just a suite issuing the set it needs.
  */
 const CAPS = ["assignments.manage", "progress.record", "progress.adjust",
               "stage_closures.close"] as const;

@@ -69,11 +69,14 @@ export const runtime = "nodejs";
  * and be told the entries do not exist. Requiring the capability turns that into
  * a legible 403.
  *
- * `statutory_acts.compose` appears in NO row of
- * technical/permissions/responsibility-presets.csv, so every persona needs a
- * hand-issued grant for all four M4 operations. That is M1 review finding 8 and
- * M3 review finding 5 arriving a third time (migration 0047 §11 item 6) and it
- * is not routed around here.
+ * CLOSED 2026-08-17. This paragraph read: «`statutory_acts.compose` appears in
+ * NO row of technical/permissions/responsibility-presets.csv, so every persona
+ * needs a hand-issued grant for all four M4 operations» — M1 review finding 8 and
+ * M3 review finding 5 arriving a third time (migration 0047 §11 item 6). It is on
+ * the `pto_engineer` persona now, beside `stage_closures.close`, because INV-084
+ * makes the closure the event that pins the act version. `presetCoherenceErrors`
+ * in scripts/validate-canonical-docs.mjs fails the build if it leaves again.
+ * Nothing about this route changed; only the sentence about the world did.
  *
  * NOTHING HERE WAS EXECUTED: no test run, no route invoked, no migration applied.
  */

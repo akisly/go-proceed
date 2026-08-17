@@ -94,12 +94,16 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
  * item 6). On the day a preset carries it, this constant becomes redundant and
  * nothing else in the file changes.
  */
-const M4_PRESET_GAP = ["statutory_acts.compose"] as const;
+// `statutory_acts.compose` was in NO preset when this list was written and is on
+// `pto_engineer` as of 2026-08-17, beside `stage_closures.close` — INV-084 makes
+// the closure the event that pins the act, so the closer and the composer are one
+// persona on purpose. The `M4_PRESET_GAP` constant that named the gap has gone
+// with it; the grant stays, because a suite grants the set it needs.
 const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign",
               "progress.record", "progress.adjust", "evidence.record",
               "stage_closures.close", "evidence_decisions.decide",
               "requirement_exceptions.decide", "readiness.view",
-              ...M4_PRESET_GAP] as const;
+              "statutory_acts.compose"] as const;
 
 const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
 const STAGE = "prykhovani-roboty";

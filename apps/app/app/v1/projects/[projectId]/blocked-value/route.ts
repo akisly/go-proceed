@@ -82,11 +82,13 @@ export const GET = queryRoute(async (a) => {
     // a money screen that reports zero because of a missing grant is the worst
     // of the three possible outcomes.
     //
-    // THE COUPLING IS A GAP AND NOT A DESIGN: `readiness.view` is in no row of
-    // responsibility-presets.csv, so a member who is not a project admin needs
-    // both grants issued by hand to open the screen this milestone exists to
-    // ship. Recorded, four milestones running, and not routed around here —
-    // widening this route to `project.view` alone would hide the gap AND put the
+    // THE COUPLING IS STILL A COUPLING; THE PRESET HALF OF IT CLOSED 2026-08-17.
+    // This said `readiness.view` «is in no row of responsibility-presets.csv, so a
+    // member who is not a project admin needs both grants issued by hand» —
+    // recorded four milestones running. It is on `pto_engineer` and
+    // `commercial_manager` now, so a named persona reaches this screen. What has
+    // NOT changed: the read still needs `project.view` beside it, for the reason
+    // above, and widening this route to `project.view` alone would still put the
     // money read behind a capability capabilities.csv does not put it behind.
     //
     // NARROWED 2026-08-08: it said «the pilot owner needs both grants issued by

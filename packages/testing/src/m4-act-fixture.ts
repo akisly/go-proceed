@@ -37,13 +37,21 @@ import { attemptClosure, recordDecision, type ClosureWorld } from "./m3-closure-
  */
 
 /**
- * `statutory_acts.compose` appears in NO ROW of
- * technical/permissions/responsibility-presets.csv, and capabilities.csv:32 puts
- * all four M4 operations behind it — including the two READS. Granted by hand
- * here and named rather than folded into a list: M1 review finding 8 and M3
- * review finding 5, a third time (migration 0047 §11 item 6).
+ * RENAMED 2026-08-17. This was `M4_PRESET_GAP`, because
+ * `statutory_acts.compose` appeared in NO ROW of
+ * technical/permissions/responsibility-presets.csv — M1 review finding 8 and M3
+ * review finding 5 arriving a third time (migration 0047 §11 item 6). It is on
+ * `pto_engineer` now, by owner decision, together with `stage_closures.close`:
+ * INV-084 makes closing a concealed stage the event that pins the act version,
+ * so the closer and the composer are one persona on purpose.
+ *
+ * The constant stays because the fixture still issues the grant; only the name
+ * asserted a gap that is closed. What has NOT changed is the other half of that
+ * comment, which is still uncomfortable and still the catalog's shape:
+ * capabilities.csv:32 puts all four M4 operations behind this one capability_id,
+ * including the two READS, so a member who may read an act may compose one.
  */
-export const M4_PRESET_GAP = ["statutory_acts.compose"] as const;
+export const M4_ACT_CAPS = ["statutory_acts.compose"] as const;
 
 export const HEX64 = "a".repeat(64);
 export const TEMPLATE_KEY = "dodatok-v";
@@ -133,7 +141,7 @@ async function seedParticipant(
  */
 export async function seedActWorld(c: Client, w: ClosureWorld): Promise<ActWorld> {
   const f = w.rules;
-  for (const capability of M4_PRESET_GAP) {
+  for (const capability of M4_ACT_CAPS) {
     await c.query(
       `insert into public.project_access_grants
          (workspace_id, project_id, member_id, capability, granted_by)

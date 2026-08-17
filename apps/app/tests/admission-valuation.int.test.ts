@@ -61,12 +61,14 @@ const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
-// `stage_closures.close` is granted by hand here because it is in NO row of
-// technical/permissions/responsibility-presets.csv — the M3 preset gap, recorded
-// by migration 0045 §11 item 2 and unresolved at the time this file was written.
-// A fixture that grants a capability no persona holds is exactly the shape of a
-// gap a fixture hides (M1 review finding 8), so it is named here rather than
-// slipped into a list.
+// `stage_closures.close` was in NO row of
+// technical/permissions/responsibility-presets.csv when this file was written —
+// the M3 preset gap, recorded by migration 0045 §11 item 2 — and a fixture that
+// grants a capability no persona holds is exactly the shape of a gap a fixture
+// hides (M1 review finding 8), which is why it was named here rather than slipped
+// into a list. RESOLVED 2026-08-17: it is on the `pto_engineer` persona, and
+// scripts/validate-canonical-docs.mjs now fails the build if any v0.1 project
+// capability leaves every preset again.
 const CAPS = ["assignments.manage", "progress.record", "progress.adjust",
               "stage_closures.close"] as const;
 

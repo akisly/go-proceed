@@ -48,13 +48,31 @@ import {
  * The four capabilities migration 0045 §1 adds, NONE of which appears in any row
  * of technical/permissions/responsibility-presets.csv.
  *
- * Granted by hand here and named rather than folded into a list, because a
- * fixture that quietly issues a capability no persona holds is exactly the shape
- * of gap the M1 review found on `rule_bindings.manage` (finding 8) — the suite
- * stays green while no real actor can perform the operation. On the day a preset
- * carries these, this constant becomes redundant and nothing else changes.
+ * RENAMED 2026-08-17, AND THE OLD NAME WAS THE POINT OF IT. This was
+ * `M3_PRESET_GAP`, and its comment said these four were «a capability no persona
+ * holds» — the shape of gap the M1 review found on `rule_bindings.manage`
+ * (finding 8), where a suite stays green while no real actor can perform the
+ * operation. It also said «on the day a preset carries these, this constant
+ * becomes redundant and nothing else changes». That day came: all four are in
+ * `responsibility-presets.csv` now — `stage_closures.close` and `readiness.view`
+ * on `pto_engineer`, `evidence_decisions.decide` on `internal_verifier`,
+ * `requirement_exceptions.decide` on `requirement_owner` — and
+ * `presetCoherenceErrors` in scripts/validate-canonical-docs.mjs fails the build
+ * if any of them leaves again.
+ *
+ * The constant stays because the FIXTURE still has to issue the grants; only its
+ * name was a claim about the world, and that claim had stopped being true. A
+ * constant named after a closed gap is worse than no constant: it tells a reader
+ * the gap is open.
+ *
+ * NOTE FOR ANYONE EXTENDING THIS LIST: no single PRESET may hold
+ * `stage_closures.close` beside either decide capability (the validator refuses
+ * it — a waiver satisfies an occurrence just as an accepting decision does, so
+ * bundling them lets one member clear his own blocker). This fixture grants all
+ * four to ONE member deliberately, because it drives every M3 refusal from one
+ * actor; that is a test convenience and is not a persona.
  */
-export const M3_PRESET_GAP = [
+export const M3_PROJECT_CAPS = [
   "stage_closures.close",
   "evidence_decisions.decide",
   "requirement_exceptions.decide",
@@ -144,7 +162,7 @@ function occurrenceParams(w: {
  * The M3 capabilities are granted here because `seedRulesWorld` predates them.
  */
 export async function seedClosureWorld(c: Client, f: RulesFixture): Promise<ClosureWorld> {
-  for (const capability of M3_PRESET_GAP) {
+  for (const capability of M3_PROJECT_CAPS) {
     await c.query(
       `insert into public.project_access_grants
          (workspace_id, project_id, member_id, capability, granted_by)

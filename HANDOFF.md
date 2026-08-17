@@ -10,7 +10,70 @@ review residuals were closed — and it says which sections it supersedes.
 
 ---
 
-## 0a. Latest — 2026-08-17: the seven P1 residuals are closed. The P0 is untouched and is still first.
+## 0a. Latest — 2026-08-17: the seven P1 residuals AND the six orphaned capabilities are closed. The P0 is untouched and is still first.
+
+Two pieces of work, in two PRs. The second is below the first, under its own
+heading — read both, and read the P0 warning in §0 either way.
+
+---
+
+### 0a.2 — the six orphaned capabilities now have a persona, and a gate
+
+**What was wrong.** Six v0.1 project-plane capabilities —
+`stage_closures.close`, `evidence_decisions.decide`,
+`requirement_exceptions.decide`, `progress.adjust`, `readiness.view`,
+`statutory_acts.compose` — were in no preset for the whole of M3–M6. Every
+route built, every invariant enforced, every suite green, and no named persona
+could invoke any of them. The suites granted them by hand, which is the shape of
+a gap a fixture hides, and it was the third recurrence of one finding.
+
+**The mapping** (owner decisions, taken against the invariants rather than an
+org chart): `progress.adjust` → `progress_recorder` + `foreman`;
+`readiness.view` → `pto_engineer` + `commercial_manager`;
+`statutory_acts.compose` and `stage_closures.close` → `pto_engineer`;
+`evidence_decisions.decide` → `internal_verifier`;
+`requirement_exceptions.decide` → `requirement_owner`. The last two are on
+responsibilities that **no v0.1 persona bundles**, deliberately.
+
+**The finding worth carrying.** `TODOS.md`'s own entry had warned that
+`stage_closures.close` «should not land on the same persona as
+`evidence_decisions.decide`» — and it named one capability too few. An
+occurrence becomes satisfied TWO ways: `readiness.ts`'s `satisfiedFor()` counts
+a current `waiver` or `accept_risk` head exactly as it counts an accepting
+decision, and INV-063 keeps both available even on a `hold`. So
+`requirement_exceptions.decide` is a second route past `can_close_stage`, and
+bundling it with the closure is the same hazard — with INV-069 silent, because
+the closer never captured anything. **A draft of this change put it on
+`pto_engineer` and was withdrawn for exactly that reason.** `readiness.ts:407`
+had already been reasoning from «The CLOSER holds `stage_closures.close` and
+need not hold either» — an assumption about a CSV that nothing validated.
+
+So `pto_engineer` closes the stage and composes the act it pins (INV-084) and
+holds **neither** way of satisfying an occurrence.
+
+**The gate is the durable half.** `validate-canonical-docs.mjs` held
+`responsibility-presets.csv` to EXISTENCE only, which is how six went orphaned
+for four milestones with everything green. `presetCoherenceErrors` enforces
+reachability, resolvability, plane discipline and that separation of duties, and
+its exemption set is empty.
+
+*Plane discipline was measured, not guessed: the first draft required a preset
+for every v0.1 capability and produced 13 false positives — workspace
+capabilities come from the governance role, service from the service principal's
+login, external from a bearer grant held by a non-member, and none of the three
+is expressible as a preset.*
+
+**Seventeen stale claims swept with it** — every `*_PRESET_GAP` constant and
+every comment asserting one of the six «is in no responsibility preset», across
+four routes, nine suites, two fixtures and the progress document. **Two were
+already wrong before this change**: `rule_bindings.manage` had been in two
+presets since 2026-08-07 and `packages.submit` since 2026-08-08. Same lesson as
+0a.1's items 4 and 6, from a different direction — a recorded claim decays, and
+nothing here was checking.
+
+---
+
+### 0a.1 — the seven field-client review residuals
 
 **Nothing in this section changes the P0.** `apps/app` still has no deployed
 origin, a foreman still cannot open it, and everything §0 below says about that

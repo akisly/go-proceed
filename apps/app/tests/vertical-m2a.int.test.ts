@@ -28,8 +28,9 @@ const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
-// `stage_closures.close` is granted by hand: it is in no row of
-// responsibility-presets.csv (the M3 preset gap, migration 0045 §11 item 2).
+// `stage_closures.close` is granted explicitly below. It WAS in no row of
+// responsibility-presets.csv when this was written (the M3 preset gap, migration
+// 0045 §11 item 2); it is on `pto_engineer` as of 2026-08-17.
 const CAPS = ["assignments.manage", "progress.record", "progress.adjust", "evidence.record",
               "stage_closures.close"] as const;
 const PRICED = "1.1;Мурування;м2;10;199,99;1 999,90";

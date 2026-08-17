@@ -83,10 +83,15 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
  * member in «the money reads and the project admin» rather than by weakening
  * this fixture.
  */
-const M3_PRESET_GAP = ["stage_closures.close", "evidence_decisions.decide",
-                       "requirement_exceptions.decide", "readiness.view"] as const;
+// The M3 project capabilities were in NO preset when this list was written and
+// are in presets as of 2026-08-17 (pto_engineer / internal_verifier /
+// requirement_owner). They are still granted explicitly here, because a suite
+// grants the minimal set it needs — but that is no longer a workaround, and the
+// `M3_PRESET_GAP` constant that used to name them has gone with the gap.
 const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign",
-              "progress.record", "evidence.record", ...M3_PRESET_GAP] as const;
+              "progress.record", "evidence.record",
+              "stage_closures.close", "evidence_decisions.decide",
+              "requirement_exceptions.decide", "readiness.view"] as const;
 
 const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
 const STAGE = "prykhovani-roboty";

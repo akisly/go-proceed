@@ -469,6 +469,130 @@ export function eventProducerErrors(eventCsv, scope1, scope2) {
   return errs;
 }
 
+/**
+ * THE PRESET CONTRACT — three rules, and the reason all three exist.
+ *
+ * Six v0.1 capabilities — `stage_closures.close`, `evidence_decisions.decide`,
+ * `requirement_exceptions.decide`, `progress.adjust`, `readiness.view`,
+ * `statutory_acts.compose` — sat in NO preset's `maps_to_capabilities` column
+ * for the whole of M3–M6. Every route was built, every invariant enforced,
+ * every integration suite green, and no named persona could invoke any of them:
+ * the suites granted the capabilities by hand, which is exactly the shape of a
+ * gap a fixture hides. Nothing in this validator noticed, because
+ * `responsibility-presets.csv` was on the REQUIRED list and therefore checked
+ * only for EXISTENCE. Mapped 2026-08-17 by owner decision; these rules are what
+ * stop the class rather than the instance.
+ *
+ * 1. REACHABILITY — every v0.1 capability ON THE PROJECT PLANE is in at least
+ *    one preset, or is in `exempt` with its reason recorded at the call site.
+ *    This is the rule that was missing.
+ *
+ *    PROJECT PLANE ONLY, and the restriction is the rule rather than a
+ *    convenience: a preset is a documented bundle of `project_access_grants`
+ *    rows, so the project plane is the only one it can grant. The other three
+ *    v0.1 planes reach a caller by mechanisms presets cannot express —
+ *    `workspace` from the governance role via `workspaceCapabilities(role)`
+ *    (packages/domain/src/authz.ts), `service` from the service principal's own
+ *    login (`aktflow_service_login`, migration 0034), `external` from a bearer
+ *    grant held by someone who is not a member at all. Requiring a preset for
+ *    those would demand a persona for a capability no persona can hold; the
+ *    first draft of this guard did exactly that and reported 13 false
+ *    positives, which is how the restriction came to be written down.
+ *
+ * 2. RESOLVABILITY — every capability a preset names exists in
+ *    `capabilities.csv`, and names a PROJECT-plane one. A typo is invisible in
+ *    review and silently makes a persona weaker than its description claims;
+ *    `maps_to_capabilities` is space-separated free text with nothing else
+ *    checking it. A preset naming a workspace- or service-plane capability is
+ *    the same error in a subtler form — a grant that could never be issued.
+ *
+ * 3. SEPARATION OF DUTIES — no single preset holds `stage_closures.close`
+ *    together with either capability that can SATISFY an occurrence.
+ *
+ *    Not a style rule, and not derivable from reading the two capability
+ *    descriptions. `readiness.ts`'s `satisfiedFor()` treats a current `waiver`
+ *    or `accept_risk` exception head as satisfying an occurrence, exactly as an
+ *    accepting evidence decision does, and INV-063 keeps both kinds available
+ *    even on a `hold`. So an exception is a SECOND route past
+ *    `can_close_stage`. A preset holding the escape and the closure together
+ *    lets one member clear his own blocker and close over it, without the
+ *    independent accepting decision INV-061 exists to require — and INV-069's
+ *    «may not decide their own capture» would not fire, because he never
+ *    captured anything.
+ *
+ *    `readiness.ts:407` already reasons from this being false: it justifies an
+ *    advisory lock over `select ... for update` with «The CLOSER holds
+ *    stage_closures.close and need not hold either». That sentence was an
+ *    assumption about a CSV nothing validated. It is a rule now.
+ */
+export function presetCoherenceErrors(presetCsv, capCsv, exempt) {
+  const capRows = parseCsv(capCsv);
+  const capIdCol = capRows[0].indexOf("capability_id");
+  const capMsCol = capRows[0].indexOf("milestone");
+  const capPlCol = capRows[0].indexOf("plane");
+  if (capIdCol === -1 || capMsCol === -1 || capPlCol === -1) {
+    return ["capabilities.csv: missing a required column"];
+  }
+
+  const known = new Set();
+  const projectCaps = new Set();
+  const v1ProjectCaps = new Set();
+  for (const r of capRows.slice(1)) {
+    const id = r[capIdCol];
+    if (!id) continue;
+    known.add(id);
+    if (r[capPlCol] !== "project") continue;
+    projectCaps.add(id);
+    if ((r[capMsCol] ?? "").startsWith("v0.1")) v1ProjectCaps.add(id);
+  }
+
+  const rows = parseCsv(presetCsv);
+  const pidCol = rows[0].indexOf("preset_id");
+  const mapCol = rows[0].indexOf("maps_to_capabilities");
+  if (pidCol === -1 || mapCol === -1) return ["responsibility-presets.csv: missing a required column"];
+
+  const errs = [];
+  const granted = new Set();
+  // The two capabilities that can make a blocking occurrence satisfied. Both,
+  // not just the evidence decision — see rule 3 above.
+  const SATISFIES_OCCURRENCE = ["evidence_decisions.decide", "requirement_exceptions.decide"];
+
+  for (const r of rows.slice(1)) {
+    const preset = r[pidCol];
+    if (!preset) continue;
+    // `none` is the documented spelling for a preset that grants nothing —
+    // `performer` is party-level provenance and never a member permission.
+    const caps = (r[mapCol] ?? "").split(" ").filter((c) => c && c !== "none");
+    for (const c of caps) {
+      granted.add(c);
+      if (!known.has(c)) {
+        errs.push(`responsibility-presets.csv: ${preset} names ${c}, which is in no capabilities.csv row`);
+      } else if (!projectCaps.has(c)) {
+        errs.push(
+          `responsibility-presets.csv: ${preset} names ${c}, which is not on the project plane — `
+          + "a preset is a bundle of project_access_grants rows and can grant nothing else");
+      }
+    }
+    if (caps.includes("stage_closures.close")) {
+      for (const c of SATISFIES_OCCURRENCE) {
+        if (caps.includes(c)) {
+          errs.push(
+            `responsibility-presets.csv: ${preset} holds stage_closures.close together with ${c} — `
+            + "one member could satisfy a blocking occurrence and then close over it, without the "
+            + "independent decision INV-061 requires (see this file's presetCoherenceErrors header)");
+        }
+      }
+    }
+  }
+
+  for (const c of v1ProjectCaps) {
+    if (!granted.has(c) && !exempt.has(c)) {
+      errs.push(`responsibility-presets.csv: no preset grants the v0.1 project capability ${c}, so no named persona can invoke it`);
+    }
+  }
+  return errs;
+}
+
 // --------------------------------------------------------------------------
 // Step 1: self-test against in-memory failing fixtures — the validator must
 // prove it can detect each failure class before it validates the real tree.
@@ -586,6 +710,63 @@ function selfTest() {
   if (!evErrs.some((e) => e.includes("stale.raised") && e.includes("every named producer is v0.2"))) t.push("event guard (v0.1 event with only v0.2 producers)");
   if (!evErrs.some((e) => e.includes("delta.gone") && e.includes("neither scope CSV"))) t.push("event guard (producer in neither CSV)");
   if (evErrs.some((e) => e.includes("workerish"))) t.push("event guard (non-BFF producer misread)");
+
+  // Guard 10: the preset contract. One capability fixture, one preset fixture
+  // carrying all three failure classes at once — an orphaned v0.1 capability,
+  // a preset naming a capability that does not exist, and a preset that holds
+  // the closure together with an escape from it.
+  const fxPresetCaps = "capability_id,plane,milestone\n"
+    + "progress.record,project,v0.1-M2\n"
+    + "stage_closures.close,project,v0.1-M3\n"
+    + "requirement_exceptions.decide,project,v0.1-M3\n"
+    + "evidence_decisions.decide,project,v0.1-M3\n"
+    + "orphan.cap,project,v0.1-M3\n"
+    + "later.cap,project,v0.2\n"
+    + "elsewhere.manage,workspace,v0.1-M1\n"
+    + "worker.purge,service,v0.1-M2\n";
+  const fxPresets = "preset_id,kind,maps_to_capabilities,description\n"
+    + "recorder,responsibility,progress.record,ok\n"
+    + "nobody,responsibility,none,party-level provenance only\n"
+    + "typoed,ui_persona,progres.record,a capability that does not exist\n"
+    + "selfclearing,ui_persona,stage_closures.close requirement_exceptions.decide,the SoD violation\n";
+  const presetErrs = presetCoherenceErrors(fxPresets, fxPresetCaps, new Set());
+  if (!presetErrs.some((e) => e.includes("no preset grants the v0.1 project capability orphan.cap"))) {
+    t.push("preset guard (orphaned v0.1 project capability)");
+  }
+  if (presetErrs.some((e) => e.includes("later.cap"))) t.push("preset guard (v0.2 capability wrongly required)");
+  // PLANE SCOPING, BOTH WAYS. A workspace- or service-plane capability reaches
+  // its caller by a mechanism a preset cannot express, so demanding a preset
+  // for one is a false positive — the shape the first draft of this guard
+  // produced thirteen of against the real tree.
+  if (presetErrs.some((e) => e.includes("elsewhere.manage") || e.includes("worker.purge"))) {
+    t.push("preset guard (non-project plane wrongly required)");
+  }
+  // …and naming one inside a preset is a grant that could never be issued.
+  const fxWrongPlane = "preset_id,kind,maps_to_capabilities,description\n"
+    + "confused,ui_persona,progress.record elsewhere.manage,names a workspace capability\n";
+  if (!presetCoherenceErrors(fxWrongPlane, fxPresetCaps, new Set(["orphan.cap", "stage_closures.close",
+    "requirement_exceptions.decide", "evidence_decisions.decide"]))
+    .some((e) => e.includes("elsewhere.manage") && e.includes("not on the project plane"))) {
+    t.push("preset guard (preset naming a non-project capability)");
+  }
+  if (!presetErrs.some((e) => e.includes("typoed names progres.record"))) {
+    t.push("preset guard (capability that does not exist)");
+  }
+  if (!presetErrs.some((e) => e.includes("selfclearing") && e.includes("requirement_exceptions.decide"))) {
+    t.push("preset guard (closure bundled with the exception escape)");
+  }
+  // The evidence-decision half of the same rule, and the `none` spelling.
+  const fxSoD2 = "preset_id,kind,maps_to_capabilities,description\n"
+    + "verifierandcloser,ui_persona,stage_closures.close evidence_decisions.decide,the other SoD violation\n";
+  if (!presetCoherenceErrors(fxSoD2, fxPresetCaps, new Set(["orphan.cap", "requirement_exceptions.decide", "progress.record"]))
+    .some((e) => e.includes("evidence_decisions.decide"))) {
+    t.push("preset guard (closure bundled with the evidence decision)");
+  }
+  if (presetCoherenceErrors(fxPresets, fxPresetCaps, new Set(["orphan.cap"]))
+    .some((e) => e.includes("orphan.cap"))) {
+    t.push("preset guard (exemption ignored)");
+  }
+  if (presetErrs.some((e) => e.includes("nobody"))) t.push("preset guard (the `none` spelling misread)");
 
   if (t.length) {
     console.error("validator self-test FAILED:", t.join("; "));
@@ -798,6 +979,22 @@ function main() {
   }
   if ([SCOPE1, SCOPE2, EVENTS].every((p) => existsSync(join(ROOT, p)))) {
     for (const e of eventProducerErrors(read(EVENTS), read(SCOPE1), read(SCOPE2))) fail(e);
+  }
+
+  // Guard 10: the preset contract — reachability, resolvability, separation of
+  // duties. See presetCoherenceErrors's own header for the six-capability gap
+  // this exists because of, and why the SoD rule is not a style preference.
+  //
+  // THE EXEMPTION LIST IS EMPTY, AND KEEPING IT THAT WAY IS THE POINT. Every
+  // v0.1 capability is reachable from some preset as of 2026-08-17. A future
+  // capability that genuinely must belong to no persona goes here WITH ITS
+  // REASON on the line above it — the way CAPABILITY_EXEMPT above carries its
+  // three — and never by widening the rule. An empty set is the strongest
+  // state this guard can be in; adding to it is a decision, not a fix.
+  const PRESETS = "technical/permissions/responsibility-presets.csv";
+  const PRESET_EXEMPT = new Set([]);
+  if ([PRESETS, CAPS].every((p) => existsSync(join(ROOT, p)))) {
+    for (const e of presetCoherenceErrors(read(PRESETS), read(CAPS), PRESET_EXEMPT)) fail(e);
   }
 
   // version-0.1.md declares scope-v0.1.csv authoritative for its row-level
