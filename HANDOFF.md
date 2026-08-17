@@ -1,31 +1,41 @@
-# Handoff — GoProceed, 2026-08-10 (second session of the day)
+# Handoff — GoProceed, 2026-08-10 → 2026-08-17
 
 Written to be read cold. The previous handoff is the section «What the last
 session left» below, compressed; everything else is new.
 
-**Branch:** `claude/handoff-continuation-9607a0`, working tree not yet committed
-at the time of writing.
-**Base:** the merge of PR #11.
+**Everything below §0 is a session record and several of its statements have
+since become false.** §0 is the current state. It has been updated twice — once
+when the field client was built, once when it merged — and it says which
+sections it supersedes.
 
 ---
 
-## 0. Update — 2026-08-11: the PWA field client is BUILT, and reachable by nobody. §1, §5.1 and §6 below are stale.
+## 0. Current state — 2026-08-17: the field client is MERGED, and reachable by nobody. §1, §5.1 and §6 below are stale.
+
+**Merged.** [PR #14](https://github.com/akisly/go-proceed/pull/14) landed on
+`main` as `0880214`, and CI on `main` is green — `verify`, `demo-qa`,
+`package-validate` and the new `app-qa` browser job. The three PRs before it
+(#12, #13, #14) are all in.
 
 This section is the correction; everything below it is the record of the
-session that wrote «the field client… is still approved and still not
+sessions that wrote «the field client… is still approved and still not
 built» — which was true then and is not true now.
 
-**READ THIS BEFORE ANYTHING ELSE IN THIS SECTION.** The client exists and is
-verified locally. **There is no deployed origin for `apps/app`, so a foreman
-cannot open it.** No `vercel.json` for it, no deploy step in
-`.github/workflows/ci.yml`, and `infra/README-staging.md` records that staging
-has never been provisioned. The implementation plan says the same thing in its
-own words — «none of them puts the client in a foreman's hand». An earlier
-version of this section, and of `TODOS.md`'s matching entry, declared the pilot
-unblocked and did not mention this at all; both were corrected on 2026-08-11 by
-the final whole-branch review. In a repository whose documents are read cold as
-the source of truth, that omission is the failure class this project cares most
-about, which is why it now sits above everything else here.
+**READ THIS BEFORE ANYTHING ELSE IN THIS SECTION.** The client is merged and
+green in CI. **There is no deployed origin for `apps/app`, so a foreman still
+cannot open it.** Merging changed nothing about that: no `vercel.json` for the
+app, no deploy step in `.github/workflows/ci.yml`, and `infra/README-staging.md`
+still records that staging has never been provisioned. The only Vercel project
+in this repository builds `apps/demo`. The implementation plan says the same
+thing in its own words — «none of them puts the client in a foreman's hand».
+
+An earlier version of this section, and of `TODOS.md`'s matching entry, declared
+the pilot unblocked and did not mention this at all; both were corrected on
+2026-08-11 by the final whole-branch review. In a repository whose documents are
+read cold as the source of truth, that omission is the failure class this project
+cares most about, which is why it sits above everything else here — and why it is
+repeated now that «merged» makes it easier than ever to assume otherwise. It is
+`TODOS.md`'s first P0, with its own heading.
 
 **What changed.** `docs/superpowers/plans/2026-08-10-pwa-field-client.md`'s
 eleven tasks are all done: the app shell (`apps/app`'s viewport/manifest/no-
@@ -89,11 +99,36 @@ build`, `node scripts/validate-canonical-docs.mjs`, `pnpm --filter
 @goproceed/demo preflight`, and `cd apps/app && pnpm build && pnpm qa`, plus
 `pnpm turbo run test --concurrency=1` — one at a time, per this document's
 own §4 warning below, which is still exactly correct and still worth
-reading before touching this database from a second shell):** see
-`.superpowers/sdd/2026-08-10-pwa-field-client/task-11-report.md` for the
-full record, including the two regressions this task's own browser harness
-was deliberately made to catch (a disclaimer collapsed into a closed
-`<details>`, a shrunk touch target) and reverted before landing.
+reading before touching this database from a second shell):** the SDD workspace
+that held the per-task reports was deleted when the branch finished, as that
+process prescribes — the record is the git history now, and the branch's
+commit messages carry the reasoning.
+
+**`supabase/templates/magic_link.html` exists because of CI, and the reason is
+worth thirty seconds of your time before you touch it.** `app-qa` passed locally
+and failed on CI three times running, for three different real causes, none of
+which was sufficient alone:
+
+1. The harness read the OTP out of Mailpit's list-endpoint `Snippet`. CI resolves
+   `supabase/setup-cli@… version: latest` and pulled Mailpit v1.30.2; the local
+   CLI (2.75.0) runs v1.22.3. Different build, different shape.
+2. The relaxed fallback that replaced it — a bare six-digit scan — matched digits
+   *inside the magic link's PKCE token*, which is ~62 % numeric, before it
+   reached the real code. Measured at 2 failures in 5 runs; 20/20 after.
+3. **And then the real one: CI's email contained no six-digit code at all.** The
+   CLI's default magic-link template had stopped carrying `{{ .Token }}`. No
+   parser can read a code that was never sent.
+
+So the template is pinned in this repository via
+`[auth.email.template.magic_link]` → `content_path`, which makes local and CI
+identical and immune to the next default change. **The general lesson, which
+applies well beyond email:** this repository's local stack and CI run different
+Supabase CLI versions, so anything you rely on that comes from a CLI *default*
+rather than from `supabase/config.toml` can differ between them — and will
+surface as a CI-only failure shaped like a product bug. The first round's fix
+was to make the harness say which of three failures it actually hit; that
+diagnostic is what turned round three into one log read instead of another guess,
+and it is the part most worth preserving.
 
 ---
 
@@ -119,8 +154,8 @@ single largest item, with nothing ahead of it.
 
 | File | Why |
 |---|---|
-| `TODOS.md` | Everything open. Four entries moved to CLOSED today; one new P0 was opened and closed. |
-| `docs/decisions/ADR-007-pilot-field-client.md` | The PWA. Was «approved, and not built» when this table was written; **as of 2026-08-11 it is built and served nowhere** — see §0 above, which supersedes this row. |
+| `TODOS.md` | Everything open. **Start at its first P0 — «the field client is built and NOBODY CAN OPEN IT».** Four entries moved to CLOSED on 2026-08-10; one P0 was opened and closed the same day. |
+| `docs/decisions/ADR-007-pilot-field-client.md` | The PWA. Was «approved, and not built» when this table was written; **as of 2026-08-17 it is built, merged, and served nowhere** — see §0 above, which supersedes this row. |
 | `docs/product/hidden-works-content-rules.md` | Approved, and restricts at every level including over ADRs. Its §"Open items" first bullet closed today. |
 | `docs/decisions/ADR-006-pilot-shaped-v0.1.md` | v0.1 = six steps. Decision 4 is the table set. |
 
