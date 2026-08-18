@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fail-closed structural and cross-contract checks for the AktFlow spec package.
+"""Fail-closed structural and cross-contract checks for the GoProceed spec package.
 
 Validates the technical/ machine-readable contract set (schema.sql, openapi.yaml,
 and the CSV registries) internally and against each other, the OpenAPI surface's
@@ -210,8 +210,8 @@ contracts = {
     "data-retention-catalog.csv": {"object_name", "release", "retention_class_source", "allowed_classes", "personal_data", "legal_hold_behavior", "deletion_strategy", "policy_status", "external_gate", "notes"},
     "traceability.csv": {"requirement_id", "release", "priority", "flow_id", "primary_screens", "transition_domains", "permission_resources", "operation_ids", "data_entities", "audit_events", "test_ids", "external_gates", "rollout_flag", "owner"},
     "test-catalog.csv": {"test_id", "release", "layer", "priority", "title", "preconditions", "procedure", "expected", "evidence", "automation", "blocker", "owner"},
-    "asvs-profile.csv": {"profile_item", "standard_ref", "required_level", "release", "applicability", "aktflow_control", "evidence", "test_ids", "status", "waiver_policy"},
-    "mobile-security-profile.csv": {"profile_item", "standard_ref", "release", "scope", "aktflow_requirement", "verification", "test_ids", "status", "gate"},
+    "asvs-profile.csv": {"profile_item", "standard_ref", "required_level", "release", "applicability", "goproceed_control", "evidence", "test_ids", "status", "waiver_policy"},
+    "mobile-security-profile.csv": {"profile_item", "standard_ref", "release", "scope", "goproceed_requirement", "verification", "test_ids", "status", "gate"},
     "rate-limits.csv": {"surface", "dimension", "limit", "window", "burst", "lock_or_backoff", "notes"},
     "copy-catalog.csv": {"key", "ui_uk", "screen", "state", "context"},
     "ui-actions.csv": {"action_id", "screen_id", "action_key", "release", "operation_id", "permission_resource", "transition_domain", "audit_event", "test_ids", "state_consequence"},
@@ -2077,10 +2077,10 @@ require(
     and all(row["privileges"] == "SELECT" for row in tenant_billing_rows.values()),
     "data-access-surface.csv: tenant role must be read-only on all SaaS invoice/payment/adjustment tables",
 )
-platform_billing_rows = [row for row in access_rows if row["db_role"] == "aktflow_platform_billing"]
+platform_billing_rows = [row for row in access_rows if row["db_role"] == "goproceed_platform_billing"]
 require(
     {row["object_name"] for row in platform_billing_rows}
-    == {"aktflow_platform_billing", "saas_invoices", "saas_payments", "saas_invoice_adjustments", "saas_payment_reversals"}
+    == {"goproceed_platform_billing", "saas_invoices", "saas_payments", "saas_invoice_adjustments", "saas_payment_reversals"}
     and all(row["rls_policy_family"] == "platform_billing_actor_context" for row in platform_billing_rows),
     "data-access-surface.csv: isolated platform billing role/surface is incomplete",
 )
@@ -2393,11 +2393,11 @@ METRICS.update({
 })
 
 if FAILURES:
-    print(f"AktFlow package validation: FAILED ({len(FAILURES)} findings)")
+    print(f"GoProceed package validation: FAILED ({len(FAILURES)} findings)")
     for failure in FAILURES:
         print(f"- {failure}")
     sys.exit(1)
 
 metric_text = ", ".join(f"{key}={value}" for key, value in METRICS.items())
-print(f"AktFlow package validation: PASS ({metric_text})")
+print(f"GoProceed package validation: PASS ({metric_text})")
 print("External/runtime evidence status: NOT PROVEN; V-001..V-012 remain unvalidated by design.")

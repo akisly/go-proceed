@@ -53,7 +53,7 @@ unreplaced token in an instruction is the instruction working as intended —
 gating it would make CI permanently red, which `preflight.mjs`'s own header
 argues against in terms: «a suite that is red by design trains everyone to
 ignore red». What IS gated is the reverse: `staleDomainErrors` in
-`scripts/validate-canonical-docs.mjs` fails the build if an `aktflow.*` domain
+`scripts/validate-canonical-docs.mjs` fails the build if an old `aktflow.*` domain
 returns to a live file.
 
 ---

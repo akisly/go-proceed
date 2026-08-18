@@ -45,8 +45,8 @@ report,view,yes,yes,yes,yes,scoped,limited,assigned,scoped,scoped,scoped,scoped,
 export,create,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,conditional,no,no,no,separate entitlement recent auth for all
 template,publish,yes,yes,yes,yes,no,no,no,no,scoped,no,no,no,no,no,versioned adapter gate
 integration,manage,yes,yes,no,no,no,no,no,no,no,no,no,yes,no,no,secrets never redisplayed
-saas_subscription,manage,yes,delegated,no,no,no,no,no,no,no,delegated,no,no,no,no,tenant may manage plan/subscription only; never issue settle cancel or credit AktFlow invoices
-platform_saas_billing,manage,no,no,no,no,no,no,no,no,no,no,no,no,no,no,isolated platform_billing audience and aktflow_platform_billing role only; tenant membership never authorizes settlement
+saas_subscription,manage,yes,delegated,no,no,no,no,no,no,no,delegated,no,no,no,no,tenant may manage plan/subscription only; never issue settle cancel or credit GoProceed invoices
+platform_saas_billing,manage,no,no,no,no,no,no,no,no,no,no,no,no,no,no,isolated platform_billing audience and goproceed_platform_billing role only; tenant membership never authorizes settlement
 security,manage,yes,limited,no,no,no,no,no,no,no,no,no,no,yes,no,MFA sessions access review only
 audit,read,yes,yes,yes,yes,scoped,no,no,scoped,scoped,scoped,conditional,no,security,no,no raw tokens/secrets/free text policy
 support_grant,approve,yes,yes,no,no,no,no,no,no,no,no,no,no,security,no,recent auth scope TTL visible banner

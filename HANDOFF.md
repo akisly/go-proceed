@@ -12,10 +12,53 @@ it supersedes.
 
 ---
 
-## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, the five PostgreSQL roles, and the domains. The P0 is untouched and is still first.
+## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Four pieces of work. Each is below, under its own
+Five pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.5 — the rename is finished, and README's «do not overclaim» section was overclaiming
+
+**Every runtime identifier now says GoProceed**, and the gate is a whole-brand
+ban rather than a list: `staleBrandErrors` fails the build on `aktflow` in any
+case in any live file. That rule could not be written until the rename was
+actually done, which is why it arrives last.
+
+**The scans that produced this entry's counts were all case-sensitive.** Every
+`aktflow` grep in `TODOS.md`, mine included, was lower-case — so `AktFlow`
+survived in `scripts/validate_package.py`'s own PASS/FAILED output, in
+`technical/terminology.csv`'s Ukrainian terms («Оплата AktFlow»), and in the
+title of `.interface-design/system.md`, a file whose second line calls it «source
+of truth for every rewritten `/app/**` route». The lesson is the same one three
+times over now: **the rule was narrower than the sentence describing it.** The
+whole-brand ban is the answer to that, not another enumeration.
+
+**`README.md`'s «Actual state (do not overclaim)» section said the five
+PostgreSQL roles and the user-visible copy «have not moved, and each is its own
+later slice».** Both had moved — the copy on 2026-08-10, the roles on
+2026-08-17. A stale claim in the section named for not overclaiming is the
+sharpest form of the failure this repository keeps finding, and it is corrected
+with the dates.
+
+**What deliberately keeps the old name, each argued at the gate's call site:**
+`technical/openapi.yaml` and `technical/schema.sql` — the v2.9 target package
+`README.md` itself calls historical, which keeps «AktFlow API» and
+`LicenseRef-AktFlow-Proprietary` because a licence identifier is not a branding
+string to flip and renaming a record makes it describe a package that never
+existed; `prototype/` and `design-references/`, frozen and out of scope;
+`docs/22-data-api-contract.md`, self-declared HISTORICAL / NON-NORMATIVE; the
+pilot-draft migration constant and its test, exempt by exact LINE so those files
+are still checked for every other spelling; and any line that is explicitly
+historical, now allowed in `.sql` and `.md` alike rather than only under
+`docs/`.
+
+**One operational note worth keeping.** `supabase/config.toml`'s `project_id` is
+`goproceed` now, and `supabase stop` reads that value to find the containers — so
+a stack must be stopped BEFORE pulling this change. Editing first leaves the old
+containers running and unreachable by the CLI, and `supabase start` builds a
+second stack beside them. The recovery is in the config file, above the value.
 
 ---
 

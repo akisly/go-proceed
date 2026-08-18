@@ -2,7 +2,24 @@
 # https://supabase.com/docs/guides/local-development/cli/config
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
-project_id = "aktflow-product-package_2"
+# THE LOCAL STACK'S CONTAINER NAMESPACE, not a hosted project reference. The
+# CLI names every local container and docker volume after it
+# (`supabase_db_<project_id>`, and a volume labelled
+# `com.supabase.cli.project=<project_id>`).
+#
+# Renamed 2026-08-18 from a value that spelled the pre-rename product AND the
+# directory this checkout happens to sit in. IF YOU PULL THIS CHANGE WITH A
+# STACK ALREADY RUNNING, STOP IT FIRST: `supabase stop` reads this value to find
+# the containers, so editing the file first leaves the old ones running and
+# unreachable by the CLI, and `supabase start` then builds a second, parallel
+# stack beside them. The recovery is `docker ps --filter
+# name=supabase_db_aktflow` (the old prefix) and stopping them by hand.
+#
+# The old data volume is not migrated and does not need to be: every local
+# database in this repository is rebuilt from `supabase/migrations` by
+# `supabase db reset`, and `pnpm db:local-credentials` re-sets the two dev
+# passwords afterward.
+project_id = "goproceed"
 
 [api]
 enabled = true

@@ -32,9 +32,16 @@ demonstration may show a payment-presentation refusal that does not exist.
 
 ## Actual state (do not overclaim)
 
-- **Product name is GoProceed.** The workspace package identifiers now say
-  `@goproceed/*`; the five PostgreSQL roles and the user-visible `AktFlow`
-  copy have not moved, and each is its own later slice.
+- **Product name is GoProceed, and the runtime identifiers now agree.** The
+  workspace package identifiers say `@goproceed/*`; the user-visible copy moved
+  2026-08-10; the five PostgreSQL roles moved 2026-08-17 (migration `0057`);
+  and the domains, the Chrome-path env var, the pilot draft's localStorage key
+  and the catalog identifiers followed. `scripts/validate-canonical-docs.mjs`
+  fails the build if any of them comes back.
+  *This bullet said the roles and the copy «have not moved, and each is its own
+  later slice» until 2026-08-18 — in the section headed «do not overclaim»,
+  which is exactly where a stale claim does the most damage. What remains is
+  the historical v2.9 package below, which keeps the old name on purpose.*
 - **The runtime today is a 33-table foundation**, defined by 40
   `supabase/migrations/` through `0040`. Migrations `0036`–`0040` on this
   branch change grants, policies, scheduling, and constraints only, and create
