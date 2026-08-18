@@ -36,3 +36,9 @@ apps/demo/qa-runtime-tmp/
 # writes for the capture-flow assertion all land here, and CI's
 # app-qa job asserts the tree is clean after a run.
 apps/app/qa-output/
+
+# Vercel project link (orgId / projectId), created by `vercel link` and by the
+# Vercel Git integration on first deploy. It identifies an account's project and
+# has no business in the tree — infra/README-staging.md tells the operator to
+# link from their own machine.
+.vercel/
