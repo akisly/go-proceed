@@ -377,10 +377,44 @@ nothing else, so injected SQL on an ordinary route cannot issue the `SET LOCAL
 ROLE` that would reach it (`0034:6-17`).
 
 The membership edge is a deliberate least-privilege deviation, reasoned in the
-migration and recorded as open: because `goproceed_service` inherits from
-`goproceed_app`, it also inherits `select` on `evidence_objects` (`0016:160-162`),
-which is wider than the "cannot review evidence" rule stated for an upload
-finalizer below. This is tracked in `TODOS.md`, not silently accepted.
+migration (`0034:13-17`): a parallel grant surface was rejected because "every
+future table grant had to be made twice — a divergence nobody would notice until
+a policy quietly stopped applying".
+
+**What it costs, measured 2026-08-18 rather than described.**
+`goproceed_service` holds DIRECT grants on exactly two tables —
+`readiness_projection` and `blocked_reasons`, the projections it rebuilds. Through
+the membership it inherits the application's entire surface: `select` on **50**
+tables, `insert` on 48, `update` on 24, `delete` on 3. Among the reads are
+`evidence_objects`, `capture_events`, `upload_intents`,
+`requirement_evidence_decisions`, `statutory_acts` and `stage_closures`.
+
+*This paragraph named `evidence_objects` alone until that date, which understated
+the deviation by forty-nine tables.*
+
+**What bounds it, which the same paragraph omitted and which decides how much the
+breadth matters.** `goproceed_service` is `NOBYPASSRLS` (`0034`), and
+`withServiceTx` (`packages/database/src/tx.ts`) carries the CALLER's
+`app.actor_user_id` into the service transaction rather than clearing it. Every
+policy on those 50 tables therefore evaluates against the acting member, so the
+service connection sees exactly the rows that member could already see. The grant
+is wide; the reach is not.
+
+That bound is asserted, not asserted-in-prose: `m2-service-principal.test.ts`
+reads a real evidence row through the service connection as its entitled actor
+(1 row) and as a stranger (0 rows), and the second case goes red if
+`goproceed_service` is ever granted `BYPASSRLS`. The positive control is there
+deliberately — the first draft of that probe ran against an empty table, where
+"no rows visible" proves nothing.
+
+**What remains a deviation** is the grant surface itself: the role could reach
+those rows for an actor who is entitled to them, in a transaction that has no
+business reading them, and nothing but the command's own code says otherwise.
+That is wider than the "cannot review evidence" rule stated for an upload
+finalizer below — a rule describing the per-workload `NOLOGIN` worker roles of
+the Workers section, not this role. Narrowing it means the parallel grant surface
+`0034` rejected, so it is recorded here as accepted-and-bounded rather than
+tracked as pending work.
 
 ### Workers
 

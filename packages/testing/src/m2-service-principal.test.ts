@@ -174,4 +174,48 @@ describe("only the server may say the server said it", () => {
       [f.workspaceId, intentId, "d".repeat(64), 11, "image/jpeg", "passed", "probe"]));
     expect(r.rows[0]!.outcome).toBe("created");
   });
+
+  /**
+   * THE INHERITED READ, AND THE BOUND NOBODY HAD WRITTEN DOWN.
+   *
+   * `goproceed_service` is a member of `goproceed_app` (0034), deliberately:
+   * that migration rejects a parallel grant surface because «every future table
+   * grant had to be made twice — a divergence nobody would notice until a
+   * policy quietly stopped applying». The cost is that the service role
+   * INHERITS the application's whole grant surface — measured 2026-08-18:
+   * SELECT on 50 tables, INSERT on 48, UPDATE on 24 — while holding direct
+   * grants on only two (`readiness_projection`, `blocked_reasons`).
+   *
+   * `tenancy-and-security.md` recorded that as an open least-privilege
+   * deviation and named ONE table, `evidence_objects`. Both TODOS.md and that
+   * document then described the deviation without its bound, which is the part
+   * that actually decides how much it matters: `goproceed_service` is
+   * NOBYPASSRLS, and `withServiceTx` keeps the CALLER's `app.actor_user_id`.
+   * So the grant is wide and the reach is not — every row the service
+   * connection can see is a row the acting member could already see.
+   *
+   * These two cases are that sentence, made falsifiable. THE FIXTURE MATTERS:
+   * they run after evidence exists, because the first version of this probe was
+   * written against an empty table and «zero rows visible» proved nothing at
+   * all — a passing assertion about a database with nothing in it.
+   */
+  describe("the inherited SELECT is bounded by RLS, not by the grant", () => {
+    it("shows the entitled actor their own evidence through the service connection", async () => {
+      // The positive control. Without it the negative case below passes on an
+      // empty table, which is exactly how this was nearly got wrong.
+      const r = await asService(USER_S, WS_S, (cl) => cl.query<{ n: string }>(
+        `select count(*) n from public.evidence_objects where upload_intent_id = $1`, [intentId]));
+      expect(r.rows[0]!.n).toBe("1");
+    });
+
+    it("hides that same evidence from a service connection acting for a stranger", async () => {
+      // Same connection, same role, same inherited grant — a different actor.
+      // If this ever returns 1, the deviation has stopped being bounded and the
+      // membership edge is a real read of another tenant's evidence.
+      const stranger = "5e999999-9999-9999-9999-999999999999";
+      const r = await asService(stranger, WS_S, (cl) => cl.query<{ n: string }>(
+        `select count(*) n from public.evidence_objects where upload_intent_id = $1`, [intentId]));
+      expect(r.rows[0]!.n).toBe("0");
+    });
+  });
 });

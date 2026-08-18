@@ -14,8 +14,49 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Six pieces of work. Each is below, under its own
+Seven pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.7 — the least-privilege deviation was understated by forty-nine tables, and its bound was written nowhere
+
+**`goproceed_service` is a member of `goproceed_app`**, deliberately: `0034`
+rejected a parallel grant surface because «every future table grant had to be
+made twice — a divergence nobody would notice until a policy quietly stopped
+applying». `TODOS.md` and `tenancy-and-security.md` both recorded the resulting
+deviation and both named ONE table, `evidence_objects`.
+
+**Measured, it is fifty.** Direct grants: two tables
+(`readiness_projection`, `blocked_reasons`). Inherited: `select` on 50, `insert`
+on 48, `update` on 24, `delete` on 3 — including `capture_events`,
+`upload_intents`, `requirement_evidence_decisions`, `statutory_acts` and
+`stage_closures`.
+
+**And the bound was in neither document, which is what actually mattered.**
+`goproceed_service` is `NOBYPASSRLS`, and `withServiceTx` carries the CALLER's
+`app.actor_user_id` into the service transaction rather than clearing it. Every
+policy on those fifty tables evaluates against the acting member, so the service
+connection sees exactly the rows that member could already see. **The grant is
+wide; the reach is not.** Written down as it was, the entry read as an unbounded
+read of every tenant's evidence — which would have been a far more serious
+finding than the real one.
+
+**Not narrowed, and that is the decision.** Removing the membership is precisely
+the parallel grant surface `0034` argued against, and that argument still holds.
+Recorded as accepted-and-bounded rather than left as pending work. The successor
+is the per-workload `NOLOGIN` worker roles the Workers section of
+`tenancy-and-security.md` already describes — v0.2, with its own deployment
+story.
+
+**A methodological note worth more than the finding.** My first probe of the
+bound queried `evidence_objects` as a stranger, got zero rows, and proved
+NOTHING: the table was empty. The test that ships runs after the suite has
+created a real evidence row and carries a positive control (entitled actor sees
+1) beside the negative (stranger sees 0), and I proved it non-vacuous by granting
+`BYPASSRLS` and watching the stranger case turn red. An assertion about an empty
+table is the quietest way to be wrong, and it is the third time this session that
+the check, not the code, was the thing at fault.
 
 ---
 
