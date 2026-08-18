@@ -284,8 +284,10 @@
    *                 399px wide and nobody read the number. Found 2026-08-11 by
    *                 the horizontal-overflow gate added to `qa/field.mjs` in the
    *                 same change, which now fails the browser pass if any of the
-   *                 four screens scrolls sideways again (three when that gate
-   *                 was written; `/context` joined them 2026-08-17).
+   *                 three screens scrolls sideways again. `/context` was a
+   *                 fourth between 2026-08-17 and 2026-08-18, when that
+   *                 foundation-slice stub was deleted — nothing linked to it and
+   *                 no design listed it among the client's screens.
    *   body margin   The UA's `body { margin: 8px }`, the other 16px of that 24.
    *                 `goproceed-app` sits ON `<body>` (layout.tsx), so this rule
    *                 is that element itself, not a descendant.
