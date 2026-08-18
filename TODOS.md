@@ -141,13 +141,40 @@ re-pointed on 2026-08-06 against the tree as it stands at 40 migrations.
   absent live catalog comparison — are tracked in that table, not here.
 - **P3 — `baseline-verification.md:53-66`** is the upstream source of the stale
   risk bullets corrected elsewhere, and is still linked as evidence.
-- **P2 (OPEN) — `goproceed_service` inherits `select` on `evidence_objects` via
-  `goproceed_app`** (`0034:32`, `0016:160-162`; the roles were `aktflow_*` when
-  this was written and were renamed by `0057` — verified still true on
-  2026-08-18: the service role holds no direct grant on that table and reaches
-  SELECT purely through its membership) while
-  `tenancy-and-security.md:338` says an upload finalizer "cannot review
-  evidence". An open least-privilege deviation, reasoned at `0034:13-17`.
+- **CLOSED 2026-08-18 (accepted and bounded) — `goproceed_service` inherits
+  `select` on `evidence_objects` via `goproceed_app`.** The entry was accurate
+  and named one table; measured, the inheritance is `select` on **50** tables,
+  `insert` on 48, `update` on 24, `delete` on 3, against DIRECT grants on
+  exactly two (`readiness_projection`, `blocked_reasons`). So the deviation was
+  understated by forty-nine tables.
+
+  **It is not narrowed, and that is the decision rather than an omission.**
+  `0034:13-17` rejected a parallel grant surface in terms — «every future table
+  grant had to be made twice — a divergence nobody would notice until a policy
+  quietly stopped applying» — and removing the membership means exactly that
+  surface. The reasoning still holds.
+
+  **What was actually missing was the BOUND, from both documents.**
+  `goproceed_service` is `NOBYPASSRLS`, and `withServiceTx` carries the caller's
+  `app.actor_user_id` into the service transaction, so every policy on those 50
+  tables evaluates against the acting member: the service connection sees
+  exactly what that member could already see. The grant is wide; the reach is
+  not. Neither this entry nor `tenancy-and-security.md` said so, which made the
+  deviation read as an unbounded read of every tenant's evidence.
+
+  `tenancy-and-security.md` now states the real breadth and the real bound, and
+  `m2-service-principal.test.ts` makes the bound falsifiable: a real evidence
+  row read through the service connection as its entitled actor (1 row) and as a
+  stranger (0 rows). Proved non-vacuous by granting `BYPASSRLS` and watching the
+  stranger case go red — the first draft ran against an empty table, where zero
+  rows proves nothing.
+
+  **The residual, named rather than closed silently:** the grant surface still
+  lets a service transaction reach rows it has no business reading, for an actor
+  who is entitled to them, with only the command's own code saying otherwise.
+  The successor is the per-workload `NOLOGIN` worker roles the Workers section of
+  `tenancy-and-security.md` describes — v0.2 work, with its own deployment
+  story, not a narrowing of this role.
 - **P3 — `supabase/functions/outbox-drain` is outside every pnpm workspace
   glob**, so `turbo run test` never runs its 2 tests even though they are
   counted in the 2026-07-30 recorded run — which is one reason no figure from
