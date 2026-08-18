@@ -67,11 +67,47 @@ re-locate the cited text **by string, not by line** — four of the references
 below were already stale one change set after they were written, and they were
 re-pointed on 2026-08-06 against the tree as it stands at 40 migrations.
 
-- **P2 — `service_role` holds TRUNCATE on `outbox_dead_letters`.** The
-  append-only guarantee rests on a `BEFORE UPDATE OR DELETE` trigger
-  (`0008:29-31`), and TRUNCATE fires neither. 0037 enabled RLS on the table,
-  which does not gate TRUNCATE either. A TRUNCATE-shaped hole in an
-  append-only table is worth closing on its own terms, not as a grant tweak.
+- **CLOSED 2026-08-18 (migration `0058`) — `service_role` held TRUNCATE, and on
+  far more than one table.** The entry read: «`service_role` holds TRUNCATE on
+  `outbox_dead_letters`. The append-only guarantee rests on a `BEFORE UPDATE OR
+  DELETE` trigger (`0008:29-31`), and TRUNCATE fires neither. 0037 enabled RLS
+  on the table, which does not gate TRUNCATE either. A TRUNCATE-shaped hole in
+  an append-only table is worth closing on its own terms, not as a grant
+  tweak.» Every sentence of that was true, and the scope and the prescription
+  were both wrong.
+
+  **Scope: 19 of 19, not one.** Every append-only or immutable trigger in
+  `public` is `BEFORE UPDATE OR DELETE ... FOR EACH ROW` — `tgtype = 27`, no
+  TRUNCATE bit — so the identical hole sat under `audit_events`,
+  `evidence_objects`, `statutory_acts`, `stage_closures`,
+  `requirement_evidence_decisions` and fourteen others, which is to say under
+  most of the evidence chain rather than under one dead-letter table.
+
+  **Root cause: nobody granted it.** No `grant truncate` appears anywhere in the
+  migration chain. It comes from a default ACL the Supabase image installs
+  (`pg_default_acl`, schema `public`, grantor `postgres`,
+  `service_role=arwdDxtm`, where `D` is TRUNCATE), so all **53** tables in
+  `public` acquired it silently at creation and every future table would too.
+  Revoking on the nineteen would have fixed today and not tomorrow.
+
+  **The prescribed fix was unimplementable, and would have bought nothing.** A
+  TRUNCATE trigger must be `FOR EACH STATEMENT`, and `truncateAll`
+  (`apps/app/tests/helpers/fixtures.ts`) truncates `public.audit_events ...
+  cascade` between test files as the owner — a refusing trigger fails every
+  run, recoverable only with `session_replication_role = replica`, which
+  disables all triggers and is a wider hole than the one being closed. And a
+  trigger cannot constrain the table's OWNER, who may drop it. Once measured,
+  the only non-owner holder in `public` was `service_role`; `goproceed_app`,
+  `goproceed_service` and `goproceed_worker` hold TRUNCATE nowhere, and
+  `anon`/`authenticated` hold none in `public` at all. So «a grant tweak» IS the
+  complete fix for every principal that is not already the database owner.
+
+  `0058` revokes across all of `public` (owner decision) and revokes the default
+  privilege so tables added later never acquire it.
+  `packages/testing/src/truncate-privilege.test.ts` asserts the invariant over
+  the WHOLE SCHEMA rather than a list — a list is what let this happen — and
+  proves the forward half by creating a table and checking what it inherits.
+  Both halves were shown to fail without the migration.
 - **P3 — `technical/openapi/README.md` contradicts `scope-v0.1.csv`.** The
   README's auth-plane list says the `public` plane "can never consume a grant";
   the CSV lists `external.exchange` as `public,command,single_use` on POST. One
@@ -105,8 +141,11 @@ re-pointed on 2026-08-06 against the tree as it stands at 40 migrations.
   absent live catalog comparison — are tracked in that table, not here.
 - **P3 — `baseline-verification.md:53-66`** is the upstream source of the stale
   risk bullets corrected elsewhere, and is still linked as evidence.
-- **P2 — `aktflow_service` inherits `select` on `evidence_objects` via
-  `aktflow_app`** (`0034:32`, `0016:160-162`) while
+- **P2 (OPEN) — `goproceed_service` inherits `select` on `evidence_objects` via
+  `goproceed_app`** (`0034:32`, `0016:160-162`; the roles were `aktflow_*` when
+  this was written and were renamed by `0057` — verified still true on
+  2026-08-18: the service role holds no direct grant on that table and reaches
+  SELECT purely through its membership) while
   `tenancy-and-security.md:338` says an upload finalizer "cannot review
   evidence". An open least-privilege deviation, reasoned at `0034:13-17`.
 - **P3 — `supabase/functions/outbox-drain` is outside every pnpm workspace

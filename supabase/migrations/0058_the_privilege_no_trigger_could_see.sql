@@ -1,0 +1,87 @@
+-- TRUNCATE, WHICH EVERY APPEND-ONLY TRIGGER IN THIS SCHEMA IS BLIND TO.
+--
+-- Nineteen tables in `public` carry an append-only or immutable guarantee, each
+-- enforced by a `BEFORE UPDATE OR DELETE ... FOR EACH ROW` trigger. TRUNCATE
+-- fires neither event. It is not a DELETE with a fast path — it is its own
+-- statement, with its own trigger event (`BEFORE TRUNCATE`, which must be
+-- `FOR EACH STATEMENT`), and not one of the nineteen declares it. RLS does not
+-- gate it either: migration 0037 enabled RLS on `outbox_dead_letters` and a
+-- policy has no say over TRUNCATE at all.
+--
+-- So the append-only guarantee on `audit_events`, `evidence_objects`,
+-- `statutory_acts`, `stage_closures`, `requirement_evidence_decisions` and
+-- fourteen others held against every UPDATE and DELETE and could be stepped
+-- around in one statement by any role holding TRUNCATE.
+--
+-- WHO ACTUALLY HELD IT, measured rather than assumed, because the answer
+-- decides the fix. In schema `public`: `service_role`, on 53 tables — and
+-- nobody else. `goproceed_app`, `goproceed_service` and `goproceed_worker` hold
+-- TRUNCATE on nothing anywhere. `anon` and `authenticated` hold it on nothing in
+-- `public` (they hold it in `storage` and `supabase_functions`, which are
+-- platform-owned and not this migration's business). All three of those roles
+-- are NOLOGIN and are reached by `set role`, not by connecting.
+--
+-- AND NOBODY GRANTED IT. There is no `grant truncate` anywhere in this
+-- migration chain. It arrives from a DEFAULT PRIVILEGE that the Supabase image
+-- installs — `pg_default_acl` for schema `public`, grantor `postgres`, holding
+-- `service_role=arwdDxtm/postgres`, in which `D` is TRUNCATE. Every table any
+-- migration has ever created in `public` acquired it silently on creation, and
+-- every table a future migration creates would acquire it too. Revoking on the
+-- nineteen would therefore have fixed today's tables and none of tomorrow's,
+-- which is why the second statement below matters more than the first.
+--
+-- WHY NOT A REFUSING TRIGGER, which is what TODOS.md argued for («worth closing
+-- on its own terms, not as a grant tweak»). Two reasons, and the second is
+-- decisive:
+--
+--   1. It would break the test suite. `truncateAll`
+--      (apps/app/tests/helpers/fixtures.ts) runs `truncate public.organizations,
+--      public.audit_events, ... cascade` between test files, as the owner. A
+--      `BEFORE TRUNCATE` trigger that raises would fail every run, and the only
+--      way back is `session_replication_role = replica`, which disables ALL
+--      triggers for that connection — a wider hole in the test path than the
+--      one being closed.
+--   2. It would add nothing. A trigger does not constrain the table's OWNER,
+--      who can drop it. Once the measurement above shows that the only
+--      non-owner holder is `service_role`, revoking is not a weaker version of
+--      the fix — it is the complete one for every principal that is not already
+--      the database owner.
+--
+-- Scope is ALL of `public`, not the nineteen (owner decision, 2026-08-18):
+-- nothing in this product uses `service_role` to TRUNCATE anything, and one
+-- invariant a reader can check — «`service_role` holds TRUNCATE on no table in
+-- `public`» — is worth more than a list every future append-only table has to
+-- be remembered into. `packages/testing/src/truncate-privilege.test.ts` asserts
+-- exactly that sentence.
+--
+-- NOTHING THE PRODUCT DOES IS AFFECTED. `supabase db reset`, the migration
+-- chain and `truncateAll` all run as `postgres`, which is the table owner and
+-- keeps TRUNCATE. The service key is used for the Auth admin API and for
+-- storage, never to truncate a table.
+--
+-- Idempotent by construction: `revoke` on a privilege already absent, and
+-- `alter default privileges ... revoke` on a default already revoked, are both
+-- no-ops. A second `supabase db push` changes nothing (infra/README-staging.md
+-- §2.2).
+
+revoke truncate on all tables in schema public from service_role;
+
+-- THE ROOT, and the half that protects tables nobody has written yet. Applies
+-- to objects created by the role running this migration (`postgres`), which is
+-- the grantor of the default ACL that carries the privilege.
+--
+-- The image also installs a `supabase_admin`-granted default ACL for this
+-- schema. It is deliberately NOT touched: only its grantor may alter it, it
+-- applies to tables created BY `supabase_admin`, and no migration in this
+-- repository creates one. If a future migration ever does, that table will
+-- acquire TRUNCATE grants from that ACL and the test named above will fail —
+-- which is the correct outcome, and the reason the test asserts over every
+-- table in `public` rather than over a list.
+alter default privileges in schema public revoke truncate on tables from service_role;
+
+-- Defensive, and expected to be a no-op today: `anon` and `authenticated` hold
+-- TRUNCATE on nothing in `public`. Stated anyway so the invariant the test
+-- asserts covers every non-owner role by construction rather than by the
+-- accident of which ACL the image happened to install.
+revoke truncate on all tables in schema public from anon, authenticated;
+alter default privileges in schema public revoke truncate on tables from anon, authenticated;
