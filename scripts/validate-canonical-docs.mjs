@@ -741,7 +741,35 @@ export function eventProducerErrors(eventCsv, scope1, scope2) {
  *    checking it. A preset naming a workspace- or service-plane capability is
  *    the same error in a subtler form — a grant that could never be issued.
  *
- * 3. SEPARATION OF DUTIES — no single preset holds `stage_closures.close`
+ * 3. SUFFICIENCY — a preset that grants a capability also grants that
+ *    capability's PREREQUISITES, from the `requires` column of
+ *    `capabilities.csv`.
+ *
+ *    Rule 1 asks whether a capability is reachable from some preset. It does
+ *    not ask whether that preset can USE it, and the difference is not
+ *    academic: thirteen routes call `requireProjectCapability` twice, and in
+ *    every one the second capability is `project.view`. So a preset naming
+ *    `readiness.view` or `evidence_decisions.decide` without `project.view`
+ *    describes a member who is refused at the second check — a persona that
+ *    cannot perform its own job, which is the exact defect the six orphaned
+ *    capabilities were.
+ *
+ *    It happened again on 2026-08-17 and this rule is the consequence:
+ *    `readiness.view` was added to `commercial_manager` on the strength of that
+ *    preset's own description naming it as the persona's money screen, without
+ *    checking that all three money reads also demand `project.view`. Rule 1 was
+ *    green throughout. Four presets carried the same defect —
+ *    `requirement_owner`, `internal_verifier`, `package_submitter` and
+ *    `commercial_manager` — and three of them are responsibilities that no
+ *    ui_persona bundles, so a pilot issuing one would have named a verifier who
+ *    could not decide.
+ *
+ *    `project.admin` satisfies the requirement wherever `project.view` does,
+ *    because `IMPLIED_BY_PROJECT_ADMIN` (apps/app/src/lib/authz.ts) makes the
+ *    route accept it — the gate must model the authorization the routes
+ *    actually perform, not a stricter one it would prefer.
+ *
+ * 4. SEPARATION OF DUTIES — no single preset holds `stage_closures.close`
  *    together with either capability that can SATISFY an occurrence.
  *
  *    Not a style rule, and not derivable from reading the two capability
@@ -769,13 +797,21 @@ export function presetCoherenceErrors(presetCsv, capCsv, exempt) {
     return ["capabilities.csv: missing a required column"];
   }
 
+  // `requires` is optional: a catalog written before the column existed still
+  // parses, and every capability without a prerequisite simply has none.
+  const capReqCol = capRows[0].indexOf("requires");
   const known = new Set();
   const projectCaps = new Set();
   const v1ProjectCaps = new Set();
+  const requires = new Map();
   for (const r of capRows.slice(1)) {
     const id = r[capIdCol];
     if (!id) continue;
     known.add(id);
+    if (capReqCol !== -1) {
+      const need = (r[capReqCol] ?? "").split(" ").filter(Boolean);
+      if (need.length) requires.set(id, need);
+    }
     if (r[capPlCol] !== "project") continue;
     projectCaps.add(id);
     if ((r[capMsCol] ?? "").startsWith("v0.1")) v1ProjectCaps.add(id);
@@ -806,6 +842,20 @@ export function presetCoherenceErrors(presetCsv, capCsv, exempt) {
         errs.push(
           `responsibility-presets.csv: ${preset} names ${c}, which is not on the project plane — `
           + "a preset is a bundle of project_access_grants rows and can grant nothing else");
+      }
+    }
+    for (const c of caps) {
+      for (const need of requires.get(c) ?? []) {
+        // `project.admin` implies `project.view` at the route
+        // (IMPLIED_BY_PROJECT_ADMIN), so it satisfies the requirement too.
+        const satisfied = caps.includes(need)
+          || (need === "project.view" && caps.includes("project.admin"));
+        if (!satisfied) {
+          errs.push(
+            `responsibility-presets.csv: ${preset} grants ${c}, whose route also requires ${need}, `
+            + "and the preset does not include it — a member issued this bundle is refused at the "
+            + "second capability check and cannot perform the job the preset names");
+        }
       }
     }
     if (caps.includes("stage_closures.close")) {
@@ -990,6 +1040,50 @@ function selfTest() {
   if (!presetErrs.some((e) => e.includes("selfclearing") && e.includes("requirement_exceptions.decide"))) {
     t.push("preset guard (closure bundled with the exception escape)");
   }
+  // Guard 10c: SUFFICIENCY — the rule that would have caught the 2026-08-17
+  // mistake, where a capability was added to a preset whose route also demands
+  // project.view. Reachability (guard 10a) was green the whole time.
+  const fxReqCaps = "capability_id,plane,milestone,requires\n"
+    + "project.view,project,v0.1-M1,\n"
+    + "project.admin,project,v0.1-M1,\n"
+    + "readiness.view,project,v0.1-M3,project.view\n"
+    + "progress.record,project,v0.1-M2,\n";
+  const fxShort = "preset_id,kind,maps_to_capabilities,description\n"
+    + "money_no_view,ui_persona,readiness.view,grants a capability it cannot exercise\n";
+  const shortErrs = presetCoherenceErrors(fxShort, fxReqCaps,
+    new Set(["project.view", "project.admin", "progress.record"]));
+  if (!shortErrs.some((e) => e.includes("money_no_view") && e.includes("also requires project.view"))) {
+    t.push("preset guard (missing prerequisite)");
+  }
+  // Satisfied explicitly…
+  const fxOk = "preset_id,kind,maps_to_capabilities,description\n"
+    + "money_ok,ui_persona,readiness.view project.view,fine\n";
+  if (presetCoherenceErrors(fxOk, fxReqCaps, new Set(["project.admin", "progress.record"]))
+    .some((e) => e.includes("also requires"))) {
+    t.push("preset guard (explicit prerequisite wrongly reported)");
+  }
+  // …and by project.admin, which the ROUTE accepts via IMPLIED_BY_PROJECT_ADMIN.
+  // Modelling this stricter than the routes do would fail project_manager.
+  const fxAdmin = "preset_id,kind,maps_to_capabilities,description\n"
+    + "admin_ok,ui_persona,readiness.view project.admin,admin implies view at the route\n";
+  if (presetCoherenceErrors(fxAdmin, fxReqCaps, new Set(["project.view", "progress.record"]))
+    .some((e) => e.includes("also requires"))) {
+    t.push("preset guard (project.admin does not satisfy project.view)");
+  }
+  // A capability with no prerequisite must not be reported.
+  const fxNone = "preset_id,kind,maps_to_capabilities,description\n"
+    + "recorder2,responsibility,progress.record,no prerequisite at all\n";
+  if (presetCoherenceErrors(fxNone, fxReqCaps, new Set(["project.view", "project.admin", "readiness.view"]))
+    .some((e) => e.includes("also requires"))) {
+    t.push("preset guard (capability without a prerequisite wrongly reported)");
+  }
+  // A catalog with NO `requires` column at all still parses — the column is
+  // optional, and a missing one means "no prerequisites known", not a crash.
+  const fxNoCol = "capability_id,plane,milestone\nreadiness.view,project,v0.1-M3\n";
+  if (presetCoherenceErrors(fxShort, fxNoCol, new Set()).some((e) => e.includes("also requires"))) {
+    t.push("preset guard (absent requires column mishandled)");
+  }
+
   // The evidence-decision half of the same rule, and the `none` spelling.
   const fxSoD2 = "preset_id,kind,maps_to_capabilities,description\n"
     + "verifierandcloser,ui_persona,stage_closures.close evidence_decisions.decide,the other SoD violation\n";

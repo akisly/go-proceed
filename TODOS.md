@@ -1320,6 +1320,52 @@ to the service principal.
 should not land on the same persona as `evidence_decisions.decide` without
 someone thinking about separation of duties first.
 
+### CLOSED 2026-08-18 — the two couplings that mapping left open, and a defect the mapping itself introduced
+
+**The mapping of 2026-08-17 broke a persona, and the gate it shipped with could
+not see it.** `readiness.view` went onto `commercial_manager` on the strength of
+that preset's own description naming it as the persona's money screen. All three
+money reads — `readiness.get`, `blocked_reasons.get`, `blocked_value.get` — call
+`requireProjectCapability` TWICE, for `readiness.view` AND `project.view`, and
+`commercial_manager` had no `project.view`. The persona could not open the screen
+it was given the capability for. `presetCoherenceErrors` stayed green because
+rule 1 asks whether a capability is REACHABLE from some preset, never whether
+that preset can USE it.
+
+**Four presets carried it, not one.** Thirteen routes require two project
+capabilities and in every one the second is `project.view`, so seven capabilities
+have an unstated prerequisite. `requirement_owner` (requirements.assign,
+requirement_exceptions.decide), `internal_verifier` (evidence_decisions.decide),
+`package_submitter` (packages.submit) and `commercial_manager` (packages.submit,
+readiness.view) all granted something they could not exercise. **Three of those
+are responsibilities that no ui_persona bundles** — the deliberate choice of
+2026-08-17 — so a pilot naming a verifier from `internal_verifier` would have
+named someone who could not decide.
+
+**Fixed structurally, not by four edits.** `capabilities.csv` gains a `requires`
+column recording the prerequisite, and `presetCoherenceErrors` gains rule 3,
+SUFFICIENCY: a preset granting a capability must grant its prerequisites.
+`project.admin` satisfies `project.view` there, because
+`IMPLIED_BY_PROJECT_ADMIN` makes the ROUTE accept it — a gate stricter than the
+routes it models would fail `project_manager` for no reason. Proved by removing
+`project.view` from `commercial_manager` again and watching both its capabilities
+report, and by stubbing the prerequisite loop and watching the validator's own
+self-test name the failure.
+
+**The act coupling is ACCEPTED, not split (owner decision).**
+`statutory_acts.compose` governs four operations of two kinds — two POST commands
+and two GET queries — so a member who may read an act may compose and freeze one.
+That is a real authorization defect and `capabilities.csv` now says so in its own
+row rather than leaving it to a route comment that called it «uncomfortable».
+It is not split because no v0.1 persona needs read-only act access: the
+capability is on `pto_engineer` alone, and an external reviewer reaches an act
+through the external plane and a bearer grant. Splitting costs a migration — the
+vocabulary is pinned by `project_access_grants_capability_check` — plus four
+routes, the preset mapping and its tests, paid for a reader who does not exist
+yet. **The successor is a `statutory_acts.view` capability for the two GETs, and
+it should land WITH the first persona that must read an act without writing
+one.**
+
 ### CLOSED 2026-08-17 — all six mapped, and the Cons above was right but named only half the hazard
 
 **Owner decisions**, taken against the invariants rather than against an org chart:

@@ -14,8 +14,53 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Seven pieces of work. Each is below, under its own
+Eight pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.8 — the capability mapping broke a persona, and its own gate could not see it
+
+**0a.2's mapping shipped a defect and a gate that was blind to it.**
+`readiness.view` went onto `commercial_manager` because that preset's own
+description named it as the persona's money screen. But all three money reads
+call `requireProjectCapability` TWICE — for `readiness.view` AND `project.view` —
+and `commercial_manager` had no `project.view`. **The persona could not open the
+screen it had just been given the capability for**, and `presetCoherenceErrors`
+was green throughout, because rule 1 asks whether a capability is REACHABLE from
+some preset and never whether that preset can USE it.
+
+**Reachability is not sufficiency, and the difference had four instances.**
+Thirteen routes require two project capabilities; in every one the second is
+`project.view`. `requirement_owner`, `internal_verifier`, `package_submitter` and
+`commercial_manager` all granted something they could not exercise — and three
+are responsibilities that no ui_persona bundles, which was 0a.2's deliberate
+choice, so a pilot naming a verifier out of `internal_verifier` would have named
+someone who could not decide.
+
+**Fixed as a rule, not as four edits.** `capabilities.csv` gains a `requires`
+column; `presetCoherenceErrors` gains a SUFFICIENCY rule. `project.admin`
+satisfies `project.view` there because `IMPLIED_BY_PROJECT_ADMIN` makes the ROUTE
+accept it — **a gate stricter than the routes it models is a bug in the gate**,
+and modelling this one strictly would have failed `project_manager` for no
+reason.
+
+**The act coupling is accepted rather than split (owner decision).**
+`statutory_acts.compose` governs two POST commands and two GET queries, so read
+implies write. Recorded in the capability's own row instead of a route comment
+calling it «uncomfortable». No v0.1 persona needs read-only act access —
+`pto_engineer` holds it alone and an external reviewer comes through a different
+plane — and splitting costs a migration, since the vocabulary is pinned by
+`project_access_grants_capability_check`. The successor, `statutory_acts.view`,
+should land with the first persona that must read an act without writing one.
+
+**The pattern, now five for five.** Every substantial finding this week has been
+a check that could not see what it claimed to cover: a browser gate asserting the
+unsaved-photo banner must vanish on the failure it existed to catch; a whole-name
+role rule blind to a `LIKE` prefix; case-sensitive greps that produced the
+rename's own counts; a probe of an empty table proving zero; and now a
+reachability rule mistaken for a sufficiency one. **The code was rarely the
+problem. The thing measuring the code was.**
 
 ---
 
