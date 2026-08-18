@@ -203,18 +203,30 @@ async function grant(projectId: string, memberId: string): Promise<void> {
 }
 
 /**
- * THE PARTICIPANT ROWS ARE INSERTED DIRECTLY, AND THAT IS A GAP AND NOT A
- * SHORTCUT.
+ * THE PARTICIPANT ROWS GO THROUGH THE REAL COMMANDS NOW — and this comment used
+ * to say the opposite, in capitals: «THE PARTICIPANT ROWS ARE INSERTED DIRECTLY,
+ * AND THAT IS A GAP AND NOT A SHORTCUT.» It was right. `scope-v0.1.csv` carried
+ * no `project_parties.*` and no `party_contacts.*` operation and no route wrote
+ * either table, so the three typed signatory slots of п. 8.4.3.5 named records
+ * NO v0.1 COMMAND COULD CREATE: a pilot workspace reached
+ * `statutory_acts.compose` with nothing to put in any slot, and this suite was
+ * green only because it inserted the rows by SQL — «reported rather than routed
+ * around», it said, and it was.
  *
- * `technical/openapi/scope-v0.1.csv` carries no `project_parties.*` and no
- * `party_contacts.*` operation, and `apps/app/app/v1/` has no route that writes
- * either table. So the three typed signatory slots of п. 8.4.3.5 name records
- * that NO v0.1 COMMAND CAN CREATE: a pilot workspace reaches
- * `statutory_acts.compose` and has nothing to put in any slot.
+ * CLOSED 2026-08-18: `POST /v1/projects/{projectId}/parties`
+ * (`project_parties.create`, `project.admin`) and
+ * `POST /v1/parties/{partyId}/contacts` (`party_contacts.create`,
+ * `parties.manage` — stricter for an own party, INV-020). This helper now calls
+ * them, so every act this file composes stands on rows a real member could have
+ * created, and `statutory_acts.compose` is proved reachable through the API for
+ * the first time. The two SQL inserts that remain (`parties`,
+ * `party_legal_profiles`) have had routes since M1 and are used here only to
+ * skip a party's own multi-step setup; they are not the gap.
  *
- * The fixture inserts them because the alternative is not testing the act at
- * all. It is reported rather than routed around — the same shape as the four
- * capabilities M3 had to grant by hand.
+ * `A` created the workspace (owner → `parties.manage`) and the project
+ * (`projects.create` grants the creator `project.admin` explicitly), so no grant
+ * changes were needed to route these through — which is itself a small proof
+ * that the capability decision matches the personas that already exist.
  */
 async function seedParticipant(
   fx: BaselineFixture, o: {
@@ -237,17 +249,21 @@ async function seedParticipant(
         [fx.workspaceId, partyId, o.officialName, A]);
     }
   }
-  const pp = await q<{ id: string }>(
-    `insert into public.project_parties
-       (workspace_id, project_id, party_id, relationship, created_by)
-     values ($1,$2,$3,$4,$5) returning id`,
-    [fx.workspaceId, fx.projectId, partyId, o.relationship, A]);
-  const pc = await q<{ id: string }>(
-    `insert into public.party_contacts
-       (workspace_id, party_id, full_name, role_title, created_by)
-     values ($1,$2,$3,$4,$5) returning id`,
-    [fx.workspaceId, partyId, o.fullName, o.roleTitle, A]);
-  return { partyId, projectPartyId: pp[0]!.id, contactId: pc[0]!.id };
+  const { POST: linkParty } = await import("../app/v1/projects/[projectId]/parties/route");
+  const ppRes = await linkParty(
+    jsonReq("http://x", { partyId, relationship: o.relationship }),
+    params({ projectId: fx.projectId }));
+  if (ppRes.status !== 201) throw new Error(`project_parties.create ${ppRes.status} ${await ppRes.text()}`);
+  const { projectPartyId } = await ppRes.json() as { projectPartyId: string };
+
+  const { POST: addContact } = await import("../app/v1/parties/[partyId]/contacts/route");
+  const pcRes = await addContact(
+    jsonReq("http://x", { fullName: o.fullName, ...(o.roleTitle === null ? {} : { roleTitle: o.roleTitle }) }),
+    params({ partyId }));
+  if (pcRes.status !== 201) throw new Error(`party_contacts.create ${pcRes.status} ${await pcRes.text()}`);
+  const { partyContactId } = await pcRes.json() as { partyContactId: string };
+
+  return { partyId, projectPartyId, contactId: partyContactId };
 }
 
 /**

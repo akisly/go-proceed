@@ -109,6 +109,16 @@ export interface ActWorld {
   customerContactId: string;
 }
 
+/**
+ * INSERTS BY SQL, AND THAT IS NOW A FIXTURE CHOICE RATHER THAN A GAP. Until
+ * 2026-08-18 no route could write `project_parties` or `party_contacts`, so this
+ * was the only way to give an act its signatories at all. Both rows have
+ * commands now — `project_parties.create` and `party_contacts.create` — and
+ * apps/app's `m4-act.int.test.ts` seeds through them, which is what proves
+ * `statutory_acts.compose` reachable end to end. THIS package drives the RLS
+ * suites over a raw pg client with no HTTP layer, so it seeds directly and
+ * always will; the routes are covered where routes can be called.
+ */
 async function seedParticipant(
   c: Client, f: RulesFixture, o: { displayName: string; relationship: string; fullName: string },
 ): Promise<{ partyId: string; projectPartyId: string; contactId: string }> {
