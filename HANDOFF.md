@@ -14,8 +14,35 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Eight pieces of work. Each is below, under its own
+Nine pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.9 — `/context` is deleted, because nothing was ever going to open it
+
+**The stub is gone**, along with the QA audit 0a.1 added for it and the screen
+counts in `qa/field.mjs` and `globals.css`.
+
+`/context` was foundation-slice scaffolding — `dc59713`, the commit that added
+`GET /v1/me/context` — and it never became a screen. **Nothing in the product
+linked to it**, and no ADR, spec or design listed it: the field-client design's
+own «In» section names exactly three screens, sign-in, «Мої доручення» and the
+assignment screen. The one job it could have justified, choosing a workspace, the
+architecture does not need — `GET /v1/projects` «takes no workspace or member id
+from the caller at all; RLS IS the filter», so «Мої доручення» already spans
+everything a session may see. What the route actually did was serve un-themed
+Ukrainian placeholder text to anyone who guessed the URL.
+
+**The `/v1/me/context` API is untouched.** It is a real route with real tests,
+and `infra/README-staging.md` §6 still verifies staging through it. Only the
+page is gone.
+
+*Adding an audit for a page and then deleting the page is not wasted work in the
+wrong order. The audit was right while the gap was real — and covering the route
+is what finally made someone ask what it was for. The answer to «this stub has no
+gate» is sometimes «this stub has no reason», and that question only gets asked
+when something forces the stub to be looked at.*
 
 ---
 

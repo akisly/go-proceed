@@ -404,11 +404,29 @@ costs less than the work it is describing.
    permits, and a test now walks every accepted spelling through `new URL`.
 7. **CLOSED — `/context` had no audit at all**, not merely no overflow gate. It
    now has one, listed in `EXPECTED_AUDITS` so dropping the call is a finding.
-   The audit does not bless the stub — `/context` is still two lines of
-   placeholder text with an inline `style={{ padding: 32 }}` and none of the
-   design system. **Building the real screen is open work and is owed a
-   decision**; what is closed is that a shell-wide regression can no longer hide
-   on the one route nobody was looking at.
+   The audit did not bless the stub, and the entry recorded that «building the
+   real screen is open work and is owed a decision».
+
+   **THE DECISION, 2026-08-18: the route is DELETED, not built.** It was
+   foundation-slice scaffolding — `dc59713`, the commit that added
+   `GET /v1/me/context` — and it never became a screen. Nothing in the product
+   linked to it. No ADR, spec or design listed it: the field-client design's own
+   «In» section names exactly three screens (sign-in, «Мої доручення», the
+   assignment screen) and this was not among them. The one job it could have
+   justified — choosing a workspace — the architecture does not need, because
+   `GET /v1/projects` «takes no workspace or member id from the caller at all;
+   RLS IS the filter», so «Мої доручення» already spans everything a session may
+   see. What the route did do was serve un-themed Ukrainian placeholder text to
+   anyone who guessed the URL.
+
+   The audit that covered it goes with it, and the screen counts in
+   `qa/field.mjs` and `globals.css` are corrected rather than left to drift.
+   **The `/v1/me/context` API is untouched** — a real route with real tests, and
+   `infra/README-staging.md` §6 still verifies staging through it.
+
+   *Adding an audit for a page and then deleting the page is not wasted work in
+   the wrong order: the audit was right while the gap was real, and the gap is
+   how the question «what is this page for?» finally got asked.*
 
 ## P1 (CLOSED 2026-08-10) — valuation funding was first-come and was never re-offered
 
