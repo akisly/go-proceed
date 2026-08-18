@@ -28,7 +28,15 @@ export const runtime = "nodejs";
  * M4 operations behind that one capability_id, so a member who may READ an act
  * may also COMPOSE one. That is uncomfortable and it is the catalog's shape, not
  * this route's: widening the read to `project.view` would be a permissions
- * decision taken in a route. Migration 0047 §11 item 6 records it. The second
+ * decision taken in a route. ADJUDICATED 2026-08-18: the coupling is ACCEPTED and
+ * recorded in `capabilities.csv`'s own row rather than split, because no v0.1
+ * persona needs read-only act access — the capability sits on `pto_engineer`
+ * alone, and an external reviewer reaches an act through the external plane and
+ * a bearer grant, not through this capability. Splitting means a migration (the
+ * vocabulary is pinned by `project_access_grants_capability_check`), these four
+ * routes, the preset mapping and its tests; the successor `statutory_acts.view`
+ * should land with the first persona that must read an act without being able to
+ * write one. Migration 0047 §11 item 6 records it. The second
  * half of that record — that `statutory_acts.compose` «appears in no
  * responsibility preset at all» — was CLOSED 2026-08-17: it is on `pto_engineer`.
  * The read/compose coupling above is untouched by that and is still the catalog's
