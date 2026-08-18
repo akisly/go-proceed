@@ -102,6 +102,22 @@ beforeEach(async () => {
   await q("insert into public.memberships (organization_id, user_id, role, status) values ($1,$2,'admin','active')", [workspaceId, B]);
   await q("insert into public.memberships (organization_id, user_id, role, status) values ($1,$2,'member','active')", [workspaceId, C]);
 
+  // Z IS NOT IN seed.sql — only A, B and C are — and memberships.user_id is an
+  // FK to auth.users. THIS is the intermittent: whether Z exists depends on
+  // whether upload-intents-get.int.test.ts, which inserts the same uuid for its
+  // own «stranger» case, has ALREADY RUN against this database. It had, on the
+  // machine where this file passed 17/17 five times; it had not, on CI's fresh
+  // reset and in one local run after a reset — and createWorkspace(Z) then hit
+  // memberships_user_id_fkey, answered non-201, and everything downstream lied
+  // about the wrong thing. auth.users is truncated by nothing, so a row one
+  // suite inserts is a row every later suite silently inherits. This file
+  // owns its own actor now, the way that suite does, and does not depend on
+  // run order for its existence.
+  await q(
+    `insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+     values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now())
+     on conflict (id) do nothing`,
+    [Z, "signatory-stranger@example.test"]);
   otherWorkspaceId = await createWorkspace(Z, "Приклад-Чужий");
   otherPartyId = await createParty(otherWorkspaceId, "Приклад-Чужий-Учасник");
   current = A;
@@ -185,15 +201,15 @@ describe("project_parties.create — who may name a project's participants", () 
 
   it("is a 404 for a project the caller cannot see, existence-safe", async () => {
     current = Z; // owner of the OTHER workspace, project.admin there and nowhere else
-    // A DIAGNOSTIC PRECONDITION, not a tautology. This case failed ONCE in a
-    // full serialized run with «expected 422 to be 404» — a 422 here can only
-    // mean Z SAW A's project (the route reached the party check) — and passed
-    // 17/17 alone, three times in a row, and in the same file order as the
-    // failing run. The database, the auth mock, the neighbouring suites and
-    // app.has_project_capability (STABLE, keyed on the actor) were all
-    // checked and none explains it. So before asserting, MEASURE the thing the
-    // assertion depends on: does Z hold any grant on this project? If this ever
-    // fires, the failure names the leaked row instead of a status code.
+    // A DIAGNOSTIC PRECONDITION, kept because of what it caught. This case
+    // failed on CI with «expected 422 to be 404», and the first reading — that a
+    // 422 means Z SAW A's project — was wrong: the captured body said
+    // `partyId: Required`, i.e. otherPartyId was undefined, i.e. the fixture
+    // had silently failed to create Z's party, because Z did not exist in
+    // auth.users on that database (see beforeEach). This assertion is what
+    // separated «RLS leaked» from «the fixture lied»: it PASSED in that same
+    // failing run, which is exactly the evidence that nothing had leaked. It
+    // stays, so a real leak would still be named as one.
     const leaked = await q<{ capability: string; member_id: string }>(
       `select g.capability, g.member_id from public.project_access_grants g
          join public.memberships m on m.id = g.member_id
