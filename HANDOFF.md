@@ -14,8 +14,57 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Five pieces of work. Each is below, under its own
+Six pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.6 — a TRUNCATE-shaped hole under most of the evidence chain, and it was never granted
+
+**Migration `0058`.** `TODOS.md` carried this as a P2 about ONE table
+(`outbox_dead_letters`). Measured, it was **19 of 19**: every append-only or
+immutable trigger in `public` is `BEFORE UPDATE OR DELETE ... FOR EACH ROW`
+(`tgtype = 27`, no TRUNCATE bit), so the same hole sat under `audit_events`,
+`evidence_objects`, `statutory_acts`, `stage_closures`,
+`requirement_evidence_decisions` and fourteen more — most of the evidence chain,
+not a dead-letter table. RLS does not gate TRUNCATE either.
+
+**Nobody granted it, which is the part worth carrying.** There is no `grant
+truncate` anywhere in the migration chain. It arrives from a default ACL the
+Supabase image installs (`pg_default_acl`, schema `public`, grantor `postgres`,
+`service_role=arwdDxtm` — `D` is TRUNCATE), so all **53** tables in `public`
+acquired it silently at creation, and every table a future migration adds would
+have too. **A privilege can enter this schema without any migration mentioning
+it.** That is worth remembering the next time a grant is reasoned about from the
+migration text alone.
+
+**The entry's prescribed fix — «on its own terms, not as a grant tweak», i.e. a
+trigger — was unimplementable and would have bought nothing.** TRUNCATE triggers
+must be `FOR EACH STATEMENT`, and `truncateAll` truncates `public.audit_events
+... cascade` between test files as the owner: a refusing trigger fails every
+run, and the only way back is `session_replication_role = replica`, which
+disables ALL triggers — a wider hole than the one being closed. A trigger also
+cannot constrain the table's owner, who can drop it. Once you measure who
+actually holds the privilege, revoking is the COMPLETE fix for every principal
+that is not already the database owner.
+
+**One correction I made mid-investigation, since the wrong number is the more
+alarming one:** an intermediate query of mine omitted the schema and appeared to
+show `anon` and `authenticated` holding TRUNCATE on five tables each. Filtered
+properly, they hold **none in `public`** — those rows are platform `storage` and
+`supabase_functions` tables. In `public` the only non-owner holder was
+`service_role`.
+
+`packages/testing/src/truncate-privilege.test.ts` asserts the invariant over the
+whole schema rather than a list — a list is what let this happen — and proves
+the forward half by creating a table and checking what it inherits. Both halves
+were shown to fail without the migration.
+
+**Still open in this area:** `goproceed_service` inherits SELECT on
+`evidence_objects` through its membership in `goproceed_app` (verified
+2026-08-18), while `tenancy-and-security.md:338` says an upload finalizer
+«cannot review evidence». That is a genuine least-privilege deviation and its
+own decision — the membership was granted deliberately by `0034`.
 
 ---
 
