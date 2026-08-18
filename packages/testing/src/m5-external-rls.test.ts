@@ -17,7 +17,7 @@ import {
  * THE SWEEP `packages/database/src/tx.ts` PROMISED, WRITTEN 2026-08-08.
  *
  * `withExternalTx`'s header records the decision that there is no third
- * database role — the external plane is `aktflow_app` with an EMPTY actor GUC
+ * database role — the external plane is `goproceed_app` with an EMPTY actor GUC
  * and a session GUC — and names the one residual risk that decision does not
  * close:
  *
@@ -43,7 +43,7 @@ import {
  *      every grantee, and «no matching policy denies» never gets a chance to
  *      run.
  *
- *   §2 Can any PERMISSIVE policy granted to `aktflow_app` be satisfied by a
+ *   §2 Can any PERMISSIVE policy granted to `goproceed_app` be satisfied by a
  *      transaction with no subject? This is the residual risk in its exact
  *      form, and it is asked STRUCTURALLY — of the policy expression, not of a
  *      row count — because §3 cannot ask it: a table that is empty returns zero
@@ -351,13 +351,13 @@ describe("§1 — every base table in public is under row level security", () =>
     // `outbox_dead_letters` is the only base table in this schema carrying RLS
     // and no policy at all, and it is closed TWICE: 0008 revoked it from
     // public/anon/authenticated and 0037 took the last grant back off
-    // aktflow_worker, so `aktflow_app` reaches it by neither privilege nor
+    // goproceed_worker, so `goproceed_app` reaches it by neither privilege nor
     // policy. Both halves are asserted, because a future migration that granted
     // select «just for debugging» would leave the policy count at zero and this
     // sentence would still read as true.
     const r = await c.query<{ rls: boolean; sel: boolean; pols: number }>(
       `select cl.relrowsecurity as rls,
-              has_table_privilege('aktflow_app','public.outbox_dead_letters','select') as sel,
+              has_table_privilege('goproceed_app','public.outbox_dead_letters','select') as sel,
               (select count(*)::int from pg_policies p
                 where p.schemaname = 'public' and p.tablename = 'outbox_dead_letters') as pols
          from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
@@ -367,7 +367,7 @@ describe("§1 — every base table in public is under row level security", () =>
 });
 
 describe("§2 — no permissive policy can be satisfied without a subject", () => {
-  it("every permissive policy granted to aktflow_app names a subject predicate", async () => {
+  it("every permissive policy granted to goproceed_app names a subject predicate", async () => {
     const r = await c.query<{
       tablename: string; policyname: string; cmd: string; expr: string;
     }>(
@@ -376,7 +376,7 @@ describe("§2 — no permissive policy can be satisfied without a subject", () =
          from pg_policies
         where schemaname = 'public'
           and permissive = 'PERMISSIVE'
-          and 'aktflow_app' = any(roles)
+          and 'goproceed_app' = any(roles)
         order by tablename, policyname`);
     // Every one of them, read or write. A permissive INSERT policy that names
     // no subject is a row anybody can write; a permissive SELECT policy that
@@ -393,12 +393,12 @@ describe("§2 — no permissive policy can be satisfied without a subject", () =
     expect(r.rows.length).toBeGreaterThan(100);
   });
 
-  it("the two service-role policies that use `true` are NOT granted to aktflow_app", async () => {
+  it("the two service-role policies that use `true` are NOT granted to goproceed_app", async () => {
     // `rp_write_server` and `br_write_server` (0045) are `for all to
-    // aktflow_service using (true)`. They are correct — the projections are the
+    // goproceed_service using (true)`. They are correct — the projections are the
     // server's own — and they are the reason the query above filters by role
     // rather than by expression. This pins the filter: if one of them ever
-    // gains aktflow_app, the assertion above must fail rather than this one.
+    // gains goproceed_app, the assertion above must fail rather than this one.
     const r = await c.query<{ policyname: string; roles: string }>(
       `select policyname, array_to_string(roles, ',') as roles
          from pg_policies
@@ -406,7 +406,7 @@ describe("§2 — no permissive policy can be satisfied without a subject", () =
           and coalesce(qual,'') = 'true'
         order by policyname`);
     for (const p of r.rows) expect({ p: p.policyname, roles: p.roles }).toEqual(
-      { p: p.policyname, roles: "aktflow_service" });
+      { p: p.policyname, roles: "goproceed_service" });
     // Both of them, or the loop above proved nothing by having nothing to
     // iterate over.
     expect(r.rows.map((p) => p.policyname).sort())
@@ -419,13 +419,13 @@ describe("§3 — what a live external session reaches, over every table there i
     const tables = await baseTables();
     const priv = await c.query<{ t: string; sel: boolean }>(
       `select cl.relname as t,
-              has_table_privilege('aktflow_app', 'public.' || quote_ident(cl.relname), 'select') as sel
+              has_table_privilege('goproceed_app', 'public.' || quote_ident(cl.relname), 'select') as sel
          from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
         where n.nspname = 'public' and cl.relkind in ('r','p')`);
     const noSelect = new Set(priv.rows.filter((x) => !x.sel).map((x) => x.t));
 
     // AUDIT IS WRITABLE AND UNREADABLE, and that is a property rather than an
-    // accident: 0006:29 revokes SELECT on audit_events from aktflow_app and
+    // accident: 0006:29 revokes SELECT on audit_events from goproceed_app and
     // 0003:64 grants the outbox INSERT only, so the two tables an external
     // command WRITES (0049 §10's `audit_insert_external` and
     // `outbox_insert_external`) are the two it can never read back.
@@ -503,7 +503,7 @@ describe("§4 — a transaction with neither subject reaches nothing at all", ()
     const tables = await baseTables();
     const priv = await c.query<{ t: string; sel: boolean }>(
       `select cl.relname as t,
-              has_table_privilege('aktflow_app', 'public.' || quote_ident(cl.relname), 'select') as sel
+              has_table_privilege('goproceed_app', 'public.' || quote_ident(cl.relname), 'select') as sel
          from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
         where n.nspname = 'public' and cl.relkind in ('r','p')`);
     const expected: Record<string, Reach> = {};

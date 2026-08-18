@@ -4,7 +4,7 @@ import { removeObject } from "./evidence-storage";
 /**
  * The purge worker for orphaned and expired upload bytes (INV-047).
  *
- * Runs with elevated credentials, not as `aktflow_app`: purging crosses tenants
+ * Runs with elevated credentials, not as `goproceed_app`: purging crosses tenants
  * by nature, and a member-facing role must not be able to trigger byte deletion
  * in another workspace. That mirrors how the outbox drain runs.
  *

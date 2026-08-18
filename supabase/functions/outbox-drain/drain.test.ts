@@ -15,8 +15,8 @@ import { Client } from "pg";
 // app.claim_outbox / app.complete_outbox / app.fail_outbox (0008), which still
 // has no deployed consumer.
 
-// Admin connection: aktflow_app has INSERT-ONLY on transaction_outbox per
-// data-access-surface.csv DA-099 (SELECT/UPDATE belong to aktflow_worker,
+// Admin connection: goproceed_app has INSERT-ONLY on transaction_outbox per
+// data-access-surface.csv DA-099 (SELECT/UPDATE belong to goproceed_worker,
 // DA-058). Reading the drain's effect requires the admin role.
 const admin = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 

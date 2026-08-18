@@ -27,7 +27,7 @@ describe("0006 foundation tenant isolation", () => {
         "insert into public.audit_events (organization_id, actor_user_id, actor_type, action, object_type, object_id) values ($1,$2,'user','x','y','z')",
         [org, B]),
     )).rejects.toThrow(/row-level security|violates|permission denied/i);
-    // No RETURNING here: aktflow_app deliberately has no SELECT on audit
+    // No RETURNING here: goproceed_app deliberately has no SELECT on audit
     // (insert-only accountability), and RETURNING requires SELECT privilege.
     const ok = await asActor(A, org, (c) =>
       c.query(

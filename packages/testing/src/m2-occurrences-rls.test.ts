@@ -300,7 +300,7 @@ describe("requirement_occurrences — tenant isolation and the foreman's read", 
     const g = await c.query<{ table_name: string; privilege_type: string }>(
       `select distinct table_name, privilege_type
          from information_schema.role_table_grants
-        where grantee = 'aktflow_app' and table_schema = 'public'
+        where grantee = 'goproceed_app' and table_schema = 'public'
           and table_name in ('work_stages','requirement_occurrences')
           and privilege_type in ('UPDATE','DELETE')
         order by table_name, privilege_type`);

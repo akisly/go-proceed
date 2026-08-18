@@ -10,10 +10,74 @@ review residuals were closed — and it says which sections it supersedes.
 
 ---
 
-## 0a. Latest — 2026-08-17: the seven P1 residuals AND the six orphaned capabilities are closed. The P0 is untouched and is still first.
+## 0a. Latest — 2026-08-17: the seven P1 residuals, the six orphaned capabilities and the five PostgreSQL roles. The P0 is untouched and is still first.
 
-Two pieces of work, in two PRs. The second is below the first, under its own
-heading — read both, and read the P0 warning in §0 either way.
+Three pieces of work. Each is below, under its own
+heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.3 — the five PostgreSQL roles are renamed, and the window for it has closed behind us
+
+**`aktflow_app`, `aktflow_app_login`, `aktflow_worker`, `aktflow_service` and
+`aktflow_service_login` are now `goproceed_*`** (migration `0057`). This was the
+last runtime identifier still carrying the old product name.
+
+**The reason it is worth reading rather than just noting: it was landed because
+the P0 has NOT been done.** `TODOS.md` had held the roles back with a stated
+argument — «a role rename clears an md5-hashed password, every connection string
+and CI secret has to move in the same window, and the rename must land in a
+migration that runs against an environment whose app is already connecting under
+the old name». Every clause of that describes a DEPLOYED environment, and there
+is none: staging has never been provisioned, so the only databases that have run
+this chain are local and CI's, both rebuilt every run. **The rename was free
+today and becomes exactly that deployment-ordering problem on the day the origin
+is provisioned.** If the ordering had been the other way round, this would have
+cost a coordinated password reset, every connection string and every CI secret in
+one window, with a rollback story.
+
+**Two of that argument's three technical claims were also false on this stack**,
+measured in a rolled-back transaction before the migration was written:
+`password_encryption` is `scram-sha-256`, so no password is cleared; and 137 RLS
+policies and 126 table grants followed the rename automatically, because
+`pg_policy.polroles` and ACLs hold OIDs rather than names. Only the third claim
+held, and it was satisfied by moving the runtime in the same commit.
+
+**THE ONE THING THAT PROBE DID NOT COVER, AND THE MOST USEFUL THING HERE.**
+`0057`'s first draft said it «renames and does nothing else». That was wrong,
+and the test suite is what said so — six tests in `m2-binding-hardening` and
+`m2-service-principal` failing at once with `role "aktflow_service" does not
+exist`. `app.finalize_upload_intent` (migration `0035`) guards on
+`pg_has_role(session_user, 'aktflow_service', 'member')`: a role name stored as
+TEXT inside `prosrc`, which is not a dependency the catalog tracks, so the
+rename left it pointing at nothing and every server-side finalize raised. It
+fails closed — but the entire evidence path was down.
+
+`0057` rewrites function bodies and object comments as well now, by SEARCHING
+the catalog rather than naming the objects this tree happens to contain, and
+asserts afterward that neither kind is left. The catalog was then swept for
+every other place a name can hide as text — policy expressions, check
+constraints, defaults, views, rules, trigger definitions, cron commands, default
+ACLs, event triggers, per-role settings — all zero.
+
+*A probe that measures the mechanism you thought of is not evidence about the
+mechanisms you did not. The rolled-back transaction proved OIDs follow a rename,
+which was true and remains true, and said nothing whatever about the one
+reference that was not an OID.*
+
+**The 40 files under `supabase/migrations/` still say `aktflow_*`, on purpose.**
+Editing them would have left a textually clean tree; it was refused because a
+migration is history here, and history should say what happened. A fresh
+`db reset` creates the old names in `0003`/`0034` and renames them in `0057`.
+
+**`staleRoleNameErrors` keeps them gone** — it walks every tracked file and fails
+the build on any of the five old names outside a record directory. It also fixed
+the branding validator's own comment, which asserted the roles «are not being
+renamed» while excusing them from the branding rule.
+
+**Not folded in, and named rather than dropped:** the four `aktflow.*` domains,
+the two `AKTFLOW_*` env vars, and the documents mentioning `aktflow` in non-role
+forms. None shares the closing window the roles had; they cost the same later.
 
 ---
 

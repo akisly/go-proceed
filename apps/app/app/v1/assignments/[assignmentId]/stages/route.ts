@@ -96,7 +96,7 @@ export const runtime = "nodejs";
  * HEADER. `ws_insert` admits any holder of `assignments.manage` to INSERT into
  * `public.work_stages`, so a route check defends only the callers that come
  * through the route: a second route added later, a job, a hand-run statement as
- * `aktflow_app`. The mint this refusal exists against needs no more than an
+ * `goproceed_app`. The mint this refusal exists against needs no more than an
  * INSERT and a closure, both of which that role can already perform. So the rule
  * is a BEFORE INSERT trigger (`work_stages_stage_key_guard`, migration 0051 §2)
  * and this check is the legible half of it — the same division migration 0050 §5

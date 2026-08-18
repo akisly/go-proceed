@@ -265,11 +265,11 @@ describe("purge worker", () => {
   });
 
   it("is not reachable from the member-facing database role", async () => {
-    // Purging crosses tenants by nature, so aktflow_app must not be able to
+    // Purging crosses tenants by nature, so goproceed_app must not be able to
     // trigger byte deletion in another workspace.
     const grants = await q<{ n: string }>(
       `select count(*) n from information_schema.role_routine_grants
-        where grantee = 'aktflow_app'
+        where grantee = 'goproceed_app'
           and routine_name in ('claim_upload_purge','complete_upload_purge',
                                'fail_upload_purge','expire_upload_intents')`);
     expect(grants[0]!.n).toBe("0");

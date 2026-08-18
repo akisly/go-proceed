@@ -6,7 +6,7 @@ values
   ('cccccccc-cccc-cccc-cccc-cccccccccccc','c@example.test','authenticated','authenticated')
 on conflict (id) do nothing;
 
--- The dev-only aktflow_app_login password is NOT set here. seed.sql can be
+-- The dev-only goproceed_app_login password is NOT set here. seed.sql can be
 -- applied to reachable databases (supabase db push --include-seed, db reset
 -- --linked --include-seed, and Branching preview reseeds), so it must never
 -- contain credentials. Local/CI setup runs `pnpm db:local-credentials`

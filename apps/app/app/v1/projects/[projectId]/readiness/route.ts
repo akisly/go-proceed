@@ -23,7 +23,7 @@ export const runtime = "nodejs";
  * command that closes.
  *
  * IT DOES NOT READ `public.readiness_projection`. That table is built by
- * migration 0045 §7 with a write grant to `aktflow_service` alone and is WRITTEN
+ * migration 0045 §7 with a write grant to `goproceed_service` alone and is WRITTEN
  * BY NOTHING: there is no projection rebuilder in this repository, and
  * `supabase/functions/outbox-drain/index.ts` records that drained rows have no
  * deployed consumer. A route that read it would answer `{stages: []}` in every

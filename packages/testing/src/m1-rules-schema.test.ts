@@ -250,7 +250,7 @@ describe("0041 builds three tenant-safe tables", () => {
     for (const t of NEW_TABLES) {
       const r = await c.query<{ privilege_type: string }>(
         `select distinct privilege_type from information_schema.role_table_grants
-          where grantee = 'aktflow_app' and table_schema = 'public' and table_name = $1
+          where grantee = 'goproceed_app' and table_schema = 'public' and table_name = $1
           order by privilege_type`, [t]);
       // Not "does not contain UPDATE": the whole grant is stated, so a grant
       // added later is visible here rather than passing a negative check.

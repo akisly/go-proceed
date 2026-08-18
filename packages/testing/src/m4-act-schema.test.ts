@@ -841,10 +841,10 @@ describe("the version lineage is contiguous, unforked and single-drafted", () =>
 });
 
 describe("grants — route by route, so an unused grant is visible", () => {
-  it("gives aktflow_app no UPDATE or DELETE on the identity row, and no DELETE on versions", async () => {
+  it("gives goproceed_app no UPDATE or DELETE on the identity row, and no DELETE on versions", async () => {
     const grants = await c.query<{ table_name: string; privilege_type: string }>(
       `select table_name, privilege_type from information_schema.role_table_grants
-        where table_schema = 'public' and grantee = 'aktflow_app'
+        where table_schema = 'public' and grantee = 'goproceed_app'
           and table_name = any($1::text[])`, [[...ACT_TABLES]]);
     const held = new Set(grants.rows.map((r) => `${r.table_name}:${r.privilege_type}`));
     expect(held.has("statutory_acts:SELECT")).toBe(true);
@@ -862,14 +862,14 @@ describe("grants — route by route, so an unused grant is visible", () => {
     }
   });
 
-  it("gives aktflow_service nothing at all", async () => {
+  it("gives goproceed_service nothing at all", async () => {
     // event-catalog.csv:28 names projection_rebuilder as the consumer of
     // `statutory_act_version.frozen`, and a projection rebuilder READS these
-    // tables through aktflow_app membership. Nothing about an act is WRITTEN by
+    // tables through goproceed_app membership. Nothing about an act is WRITTEN by
     // a worker in v0.1.
     const grants = await c.query<{ table_name: string }>(
       `select table_name from information_schema.role_table_grants
-        where table_schema = 'public' and grantee = 'aktflow_service'
+        where table_schema = 'public' and grantee = 'goproceed_service'
           and table_name = any($1::text[])`, [[...ACT_TABLES]]);
     expect(grants.rows).toEqual([]);
   });

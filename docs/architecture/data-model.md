@@ -62,7 +62,7 @@ records what has since been done to each, with the migration that did it.
 
 | Current physical table | Current purpose | State today |
 |---|---|---|
-| `organizations` | Tenant root, with legal attributes duplicated from the first legal entity | RLS since `0004:3`; `SELECT`/`INSERT` only for `aktflow_app` after `0039:31` withdrew a table-wide `UPDATE` that RLS had made inert since `0004`. The duplicated legal attributes are not retired |
+| `organizations` | Tenant root, with legal attributes duplicated from the first legal entity | RLS since `0004:3`; `SELECT`/`INSERT` only for `goproceed_app` after `0039:31` withdrew a table-wide `UPDATE` that RLS had made inert since `0004`. The duplicated legal attributes are not retired |
 | `legal_entities` | Organization-local legal entity | RLS since `0004:4`; creation is governance-scoped (`0006:64-71`). Backfill into tenant-local party and own-legal-profile identities is target work |
 | `memberships` | Membership with a mixed rigid role set | RLS since `0004:5`; four governance roles plus separate project access (`0010`) and responsibilities landed additively |
 | `audit_events` | Command audit facts | RLS since `0006:23`; `SELECT` revoked from the app role outright (`0006:29`); append-only enforced by trigger (`0006:10-19`); `project_id` tenant-safe by composite FK since `0040:81-89` |
@@ -75,8 +75,8 @@ The migration chain in this repository runs to `0040`: 33 application tables,
 one API view (`api.me_context`), 27 functions (22 in `app`, 5 in `public` —
 counting distinct schema-qualified name plus argument-type list, surviving all
 drops, including `SECURITY DEFINER` helpers and trigger functions), five
-application roles — `aktflow_app` and `aktflow_app_login` (`0003:8,11`),
-`aktflow_worker` (`0008:35`), `aktflow_service` and `aktflow_service_login`
+application roles — `goproceed_app` and `goproceed_app_login` (`0003:8,11`),
+`goproceed_worker` (`0008:35`), `goproceed_service` and `goproceed_service_login`
 (`0034:25,28`) — and optional `pg_cron` scheduling.
 
 Migrations `0036`-`0040` add no table, no function, and no role. They retire the
@@ -91,9 +91,9 @@ index on `audit_events.project_id` (`0040:47-49,81-89`).
 independently corroborates the table and function counts — `## tables (33)`,
 `## functions (27)` — and nothing after `0033`:
 
-- its `## roles (6)` block lists `aktflow_app`, `aktflow_app_login`,
-  `aktflow_worker`, `anon`, `authenticated`, and `service_role`. It contains no
-  `aktflow_service`, so it corroborates **three** of the five application roles,
+- its `## roles (6)` block lists `goproceed_app`, `goproceed_app_login`,
+  `goproceed_worker`, `anon`, `authenticated`, and `service_role`. It contains no
+  `goproceed_service`, so it corroborates **three** of the five application roles,
   not five;
 - its `outbox_dead_letters` row still reads `"rowsecurity": false`, which
   `0037:37` changed;

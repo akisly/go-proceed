@@ -60,8 +60,8 @@ describe("withServiceTx", () => {
           "select current_user as cu, session_user as su");
         return r.rows[0]!;
       });
-    expect(seen.cu).toBe("aktflow_service");
-    expect(seen.su).toBe("aktflow_service_login");
+    expect(seen.cu).toBe("goproceed_service");
+    expect(seen.su).toBe("goproceed_service_login");
   });
 
   it("still carries the actor, because the server acts on a member's behalf", async () => {
@@ -77,13 +77,13 @@ describe("withServiceTx", () => {
 
   it("refuses to run when SERVICE_DB_URL is not the service login", async () => {
     // The misconfiguration with no symptom. Migration 0035's guard asks
-    // pg_has_role(session_user, 'aktflow_service', 'member'), which is TRUE for
+    // pg_has_role(session_user, 'goproceed_service', 'member'), which is TRUE for
     // a superuser: a SERVICE_DB_URL pointed at an admin connection satisfies
     // every check the database makes and the boundary evaporates silently.
     //
     // Two admin URLs, because they are stopped in different places and only the
     // first one reaches the assertion this test exists for:
-    //   - supabase_admin is rolsuper, so `set local role aktflow_service`
+    //   - supabase_admin is rolsuper, so `set local role goproceed_service`
     //     succeeds and the 0035 guard returns true. Nothing but the check in
     //     withServiceTx stands between that connection and an inspection
     //     verdict; delete the check and this case goes green.

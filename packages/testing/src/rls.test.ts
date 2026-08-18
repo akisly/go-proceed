@@ -65,17 +65,17 @@ describe("RLS tenant isolation", () => {
     ).rejects.toThrow(/row-level security|violates/i);
   });
 
-  it("aktflow_app role has nobypassrls and cannot see any org row without actor context", async () => {
+  it("goproceed_app role has nobypassrls and cannot see any org row without actor context", async () => {
     const orgId = "cccccccc-cccc-cccc-cccc-cccccccccccc";
     const c = appClient();
     await c.connect();
     try {
       const roleAttrs = await c.query(
-        "select rolbypassrls from pg_roles where rolname = 'aktflow_app'");
+        "select rolbypassrls from pg_roles where rolname = 'goproceed_app'");
       expect(roleAttrs.rows[0].rolbypassrls).toBe(false);
 
       await c.query("begin");
-      await c.query("set local role aktflow_app");
+      await c.query("set local role goproceed_app");
       // no app.actor_user_id set → app.current_actor() is null → RLS hides all rows
       const r = await c.query("select id from public.organizations where id=$1", [orgId]);
       expect(r.rowCount).toBe(0);

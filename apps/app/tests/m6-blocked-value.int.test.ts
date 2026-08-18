@@ -760,7 +760,7 @@ describe("who may read the blocked money", () => {
     // this case defends. It asserted 403, and the refusal is a 404: the route's
     // first statement is `select workspace_id from public.projects where id = $1`
     // (blocked-value/route.ts:68-70), `projects_select` (0011:121-122) admits
-    // only project.view/project.admin, and aktflow_app does not bypass RLS. With
+    // only project.view/project.admin, and goproceed_app does not bypass RLS. With
     // both revoked the project row is invisible, so the route answers «not
     // found» and never reaches its own `project.view` check.
     //

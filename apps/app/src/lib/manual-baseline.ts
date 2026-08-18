@@ -477,7 +477,7 @@ export const notFoundWorkItem = (requestId: string): HttpProblem =>
  * an UPDATE policy's USING expression to every row-LOCKING read as well as to
  * UPDATE itself — CREATE POLICY, «Policies Applied by Command Type»: SELECT FOR
  * UPDATE/SHARE requires the UPDATE USING too. So the instant a version becomes
- * `published` it disappears from `select ... for update` for aktflow_app, while
+ * `published` it disappears from `select ... for update` for goproceed_app, while
  * remaining perfectly visible to a plain SELECT under `cv_select`.
  *
  * Every route that re-read the version with `for update` to check its state was

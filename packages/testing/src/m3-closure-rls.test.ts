@@ -593,7 +593,7 @@ describe("the two projections are readable under readiness.view and writable by 
   it("is written by the server role and by no application actor", async () => {
     // capabilities.csv:43 service.projection_rebuild. «Readiness stays a
     // projection: no editable status column, and no manual override of a derived
-    // state» is a GRANT here, not a route's restraint — aktflow_app holds SELECT
+    // state» is a GRANT here, not a route's restraint — goproceed_app holds SELECT
     // and nothing else, so there is no writable readiness anywhere in the schema.
     await seedProjections();
     const rows = await c.query<{ n: number }>(
@@ -604,7 +604,7 @@ describe("the two projections are readable under readiness.view and writable by 
 
     const grants = await c.query<{ n: number }>(
       `select count(*)::int as n from information_schema.role_table_grants
-        where grantee = 'aktflow_app' and table_schema = 'public'
+        where grantee = 'goproceed_app' and table_schema = 'public'
           and table_name in ('readiness_projection','blocked_reasons')
           and privilege_type in ('INSERT','UPDATE','DELETE')`);
     expect(grants.rows[0]!.n).toBe(0);
@@ -679,7 +679,7 @@ describe("the append-only layer beneath the policies", () => {
     // UPDATE and someone removed the trigger in the same change.
     const g = await c.query<{ table_name: string; privilege_type: string }>(
       `select table_name, privilege_type from information_schema.role_table_grants
-        where grantee = 'aktflow_app' and table_schema = 'public'
+        where grantee = 'goproceed_app' and table_schema = 'public'
           and table_name in ('requirement_exceptions','requirement_evidence_decisions',
                              'stage_closures','stage_closure_occurrences')
           and privilege_type in ('UPDATE','DELETE')`);
@@ -691,7 +691,7 @@ describe("the append-only layer beneath the policies", () => {
     // has ever had a head keeps one.
     const g = await c.query<{ privilege_type: string }>(
       `select distinct privilege_type from information_schema.role_table_grants
-        where grantee = 'aktflow_app' and table_schema = 'public'
+        where grantee = 'goproceed_app' and table_schema = 'public'
           and table_name in ('requirement_exception_heads',
                              'requirement_evidence_decision_heads')
         order by privilege_type`);
@@ -701,7 +701,7 @@ describe("the append-only layer beneath the policies", () => {
   it("gives the app role UPDATE on work_stages and no DELETE", async () => {
     const g = await c.query<{ privilege_type: string }>(
       `select distinct privilege_type from information_schema.role_table_grants
-        where grantee = 'aktflow_app' and table_schema = 'public'
+        where grantee = 'goproceed_app' and table_schema = 'public'
           and table_name = 'work_stages' order by privilege_type`);
     expect(g.rows.map((r) => r.privilege_type)).toEqual(["INSERT", "SELECT", "UPDATE"]);
   });

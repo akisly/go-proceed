@@ -794,11 +794,11 @@ describe("the external plane sees exactly one occurrence, and nothing else", () 
     // has neither in WS_A.
     const { Client } = await import("pg");
     const x = new Client({ connectionString: process.env.APP_DB_URL
-      ?? "postgresql://aktflow_app_login:app_pw@127.0.0.1:54322/postgres" });
+      ?? "postgresql://goproceed_app_login:app_pw@127.0.0.1:54322/postgres" });
     await x.connect();
     try {
       await x.query("begin");
-      await x.query("set local role aktflow_app");
+      await x.query("set local role goproceed_app");
       await x.query("select set_config('app.actor_user_id', $1, true)", [USER_B]);
       await x.query("select set_config('app.external_session_id', $1, true)", [s]);
       // WHAT THIS COUNTS, AND WHY IT IS NOT A BARE count(*). The assertion here
