@@ -158,7 +158,7 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18** — see the note under the table. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
@@ -167,10 +167,19 @@ in each API slice below. The table columns come from ADR-006 decision 4.
 | `v0.1-M1` | 32 | 8 | 8 |
 | `v0.1-M2` | 9 | 5 | 5 |
 | `v0.1-M3` | 6 | 8 | 8 |
-| `v0.1-M4` | 4 | 2 | 2 |
+| `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
 | `v0.1-M6` | 1 | 0 | — |
-| Total | 58 | 26 | 26 |
+| Total | 60 | 26 | 26 |
+
+*M4 is 6 operations, not 4, as of 2026-08-18. `project_parties.create` and
+`party_contacts.create` were added because the act's mandatory signatory slots
+require a `projectPartyId` and a `partyContactId`, and NO v0.1 operation could
+create either row — `statutory_acts.compose` was unreachable on any real
+workspace, and the M4 suite was green only because its fixture inserted the rows
+by SQL (`TODOS.md`, formerly «P3 — dead surface added by the M1 migrations»,
+whose own 2026-08-08 escalation said exactly this). No new table: both existed
+since migration 0010 with RLS and grants and were counted in the 26 all along.*
 
 **Read the fourth column exactly.** *(Added 2026-08-08.)* «Already in the
 runtime» is the count `scripts/validate-canonical-docs.mjs` derives, and what it
@@ -615,11 +624,17 @@ settled it stands unchanged and settles the next disagreement the same way.
   package-version pin and owes the migration that applies it to acts written
   during the pilot. The freeze discipline is unchanged: an act version is
   immutable and is assembled only from recorded facts.
-- **API slice:** the 4 `v0.1-M4` operations — `statutory_acts.compose`,
-  `statutory_act_versions.freeze`, `statutory_acts.get`, `statutory_acts.render`.
+- **API slice:** the 6 `v0.1-M4` operations — `statutory_acts.compose`,
+  `statutory_act_versions.freeze`, `statutory_acts.get`, `statutory_acts.render`,
+  and, since 2026-08-18, `project_parties.create` and `party_contacts.create`.
   The render is new and is necessary: package artifacts are v0.2, so the act's
   own deterministic render is the only artifact surface in v0.1, and without it
-  the milestone produces a row instead of a document.
+  the milestone produces a row instead of a document. The two participant
+  commands are necessary in a plainer way: the act's mandatory signatory slots
+  require a `projectPartyId` and a `partyContactId`, and until they existed no
+  operation could create either row — so `statutory_acts.compose` was
+  unreachable on any real workspace and the milestone was green only in a
+  fixture that inserted the rows by SQL.
 - **Exit gates:**
   - the act is assembled **only from already-recorded facts** — progress entries
     already on the line, evidence objects already available, occurrence decisions

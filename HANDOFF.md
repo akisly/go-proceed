@@ -14,8 +14,66 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Eleven pieces of work. Each is below, under its own
+Twelve pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.12 — the act was unreachable on any real workspace, and it was filed as a P3
+
+**`statutory_acts.compose` — ADR-006 step 4, the акт — could not be called
+through the API on any real workspace until today.** Its two mandatory signatory
+slots require a `projectPartyId` and a `partyContactId`, the compose route 422s
+if either row is missing, and NO route could create either row. M4 was green
+only because its fixture inserted them by SQL and said so in capitals: «THE
+PARTICIPANT ROWS ARE INSERTED DIRECTLY, AND THAT IS A GAP AND NOT A SHORTCUT.»
+The entry tracking this was headed «P3 — dead surface added by the M1
+migrations», and its own 2026-08-08 escalation three paragraphs down said what
+it actually was. TODOS orders by heading. Re-measured before touching anything;
+re-ranked to P1 and closed in the same breath.
+
+**This is the wall you would have hit first after the origin.** Close a
+concealed stage, try to print the act, get 422 on `signatories.builder` with no
+route anywhere to make it stop.
+
+**Two commands, no migration.** `project_parties.create`
+(`POST /v1/projects/{projectId}/parties`, `project.admin`) and
+`party_contacts.create` (`POST /v1/parties/{partyId}/contacts`,
+`parties.manage`, tightened to `own_legal_profiles.manage` for an own party —
+INV-020 — through the same `requirePartyEditCapability` the legal-profile route
+uses). **The capability decision the entry said was needed had already been
+taken by migration 0010:** `pp_write` requires `project.admin`, `pc_insert`
+requires workspace owner/admin, and both routes match their policy exactly.
+That is the whole decision, and it needed no new capability, no CHECK widening,
+no preset change — `project_manager` and the workspace owner already hold what
+the policies ask for.
+
+**The M4 fixture goes through the routes now**, so all 45 M4 tests compose acts
+on rows a real member could have created. `signatory-participants.int.test.ts`
+(17 cases) covers the refusals — and taught two things worth keeping:
+
+- **RLS hides an ungranted project entirely.** My first draft expected a
+  workspace admin with no project grant to get 403; the database answered 404,
+  because `projects_select` requires a project grant and to that member the row
+  does not exist. That is the STRONGER property. The 403 branch — the route
+  matching `pp_write` rather than the policy doing all the work — is reachable
+  only by a member who can SEE the project but holds only `project.view`, and
+  that is now the case that proves it.
+- **The unique constraint's auto-generated name is truncated to 63 bytes**
+  (`…party_id_relationsh_key`). A regex on the full name would have silently
+  missed it and let the 23505 through as a 500. Measured in the live catalog,
+  matched on the prefix, and the 409 test is what keeps it that way.
+
+**One defect the fixture caught before any user could:** both routes built
+`ctx` with `organizationId: null` and never passed the resolved workspace to
+`recordAudit`, which throws — a 500 on a write that had succeeded. The
+`{ organizationId }` override `assignments.create` uses; found on the first
+run, fixed before the second.
+
+**Still open and named:** `organizations.default_own_party_id` has no writer
+(the other half of that entry — a workspace default, its own small decision);
+`party_contacts` still lacks the qualification-certificate columns the content
+rules assume, and the contract deliberately refuses them.
 
 ---
 

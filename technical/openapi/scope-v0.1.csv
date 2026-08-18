@@ -46,6 +46,8 @@ evidence_decisions.create,POST,/v1/occurrences/{occurrenceId}/evidence-decisions
 stage_closures.create,POST,/v1/stages/{stageId}/closures,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M3
 readiness.get,GET,/v1/projects/{projectId}/readiness,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M3
 blocked_reasons.get,GET,/v1/projects/{projectId}/blocked-reasons,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M3
+project_parties.create,POST,/v1/projects/{projectId}/parties,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M4
+party_contacts.create,POST,/v1/parties/{partyId}/contacts,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M4
 statutory_acts.compose,POST,/v1/stages/{stageId}/statutory-acts,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M4
 statutory_act_versions.freeze,POST,/v1/statutory-act-versions/{actVersionId}/freeze,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M4
 statutory_acts.get,GET,/v1/statutory-act-versions/{actVersionId},query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M4

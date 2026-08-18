@@ -235,7 +235,7 @@ being invented — only on someone deciding the governance command. **Written, n
 applied:** `0045` is one of the eleven migrations (`0041`–`0051`) that have never
 run.
 
-## P3 — dead surface added by the M1 migrations
+## P1 (CLOSED 2026-08-18) — the act's signatory slots pointed at rows no command could create; filed as a P3 «dead surface»
 
 **What:** `public.project_parties` (migration 0010) and
 `organizations.default_own_party_id` have no writer anywhere in the codebase.
@@ -275,6 +275,60 @@ neither, with no later migration adding them — so "the certificate lives on th
 participant record", said by the content rules, by ADR-005 decision 10 and by the
 glossary, is **false in the runtime**. M4 needs nothing from it today because
 nothing is printed.
+
+**CLOSED 2026-08-18, AND RE-RANKED FROM P3 TO P1 IN THE SAME BREATH.** The
+heading said «dead surface — tidiness item». The entry's own 2026-08-08
+escalation, three paragraphs down, said what it actually was, and TODOS orders
+by heading. Re-measured against the tree before touching anything:
+`composeSignatorySlot` REQUIRES `projectPartyId` and `partyContactId`; the
+compose route 422s if either row is absent; two of the three slots are
+mandatory; and NO route could create either row. So `statutory_acts.compose` —
+ADR-006 step 4, the акт — was unreachable through the API on any real
+workspace, and M4 was green only because `m4-act.int.test.ts` inserted the rows
+by SQL and said so («reported rather than routed around»). The moment the origin
+exists and someone closes a concealed stage and tries to print the act, this
+was the wall.
+
+**Two commands, no migration.** `project_parties.create`
+(`POST /v1/projects/{projectId}/parties`, `project.admin`) and
+`party_contacts.create` (`POST /v1/parties/{partyId}/contacts`,
+`parties.manage`, tightened to `own_legal_profiles.manage` for an own party
+through the same `requirePartyEditCapability` the legal-profile route uses —
+INV-020). **The capability decision this entry said was needed had already been
+taken by migration 0010:** `pp_write` requires `project.admin`, `pc_insert`
+requires workspace owner/admin, and both routes match their policy exactly —
+which is the whole of the decision, and `src/lib/authz.ts:70-75` says why a
+route may not be stricter or laxer than the policy behind it.
+
+**The M4 fixture now goes through the routes.** `seedParticipant` calls both
+commands, so all 45 M4 tests compose acts on rows a real member could have
+created, and `statutory_acts.compose` is proved reachable end to end for the
+first time. `signatory-participants.int.test.ts` (17 cases) covers the
+refusals: RLS hides an ungranted project entirely (404, existence-safe — the
+first draft expected 403 and the database correctly answered 404); a member with
+only `project.view` gets 403 `SCOPE_PROJECT_DENIED` from the ROUTE, which is
+what proves the route matches `pp_write` rather than the policy doing all the
+work; a foreign party is a field error indistinguishable from an invented uuid;
+the duplicate `(project, party, relationship)` is 409 `VERSION_CONFLICT`
+rather than a 500 — the constraint's auto-generated name is TRUNCATED to 63
+bytes and the route matches a prefix, measured, because the full name would
+silently miss; INV-020's own-party tightening holds; the contract refuses
+qualification-certificate fields the runtime table does not have.
+
+**One defect the fixture caught before any user could:** the first draft of
+both routes built `ctx` with `organizationId: null` (the workspace is resolved
+from the row inside the transaction) and never passed the resolved id to
+`recordAudit`, which throws — a 500 on a write that had succeeded. Fixed with the
+`{ organizationId }` override `assignments.create` uses.
+
+**Catalogs:** two rows in `scope-v0.1.csv` under v0.1-M4; `version-0.1.md`
+counts M4 4→6, total 58→60 (the validator held me to a prose count too);
+`related_operations` on `project.admin` and `parties.manage`; the entity
+catalog's «still schema-only» annotation on `project_parties` retracted with a
+date. **Still open and named:** `organizations.default_own_party_id` has no
+writer (the other half of the original entry — a workspace default, its own
+small decision), and `party_contacts` still lacks the qualification-certificate
+columns the content rules assume (a schema decision, not this slice's).
 
 ## Closed by v0.1-M2-A (2026-07-31)
 
