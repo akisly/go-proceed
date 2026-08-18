@@ -14,8 +14,42 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Ten pieces of work. Each is below, under its own
+Eleven pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.11 — the Supabase CLI is pinned, and the pin moved while it was being chosen
+
+**CI installs exactly `2.115.0` now, and asserts that it did.** Until this it
+asked `setup-cli` for `version: latest`: the SHA-pinned ACTION was reproducible
+and the TOOL it installed was not. Local ran 2.75.0; CI ran whatever shipped
+that morning. §0 above already records what that costs — three red `app-qa` runs
+for a magic-link template that a newer CLI default stopped populating, a failure
+shaped exactly like a product bug and caused by no commit.
+
+**The number moved during the hour it was being decided.** The CLI's own
+upgrade banner said 2.114.0; the releases API said 2.115.0 when I checked
+before writing the pin. That is the item's argument, live: the version CI ran
+changed between asking the question and answering it, and nothing anywhere
+would have recorded that it had.
+
+**The shape, not the number, is the fix.** `.supabase-cli-version` at the root
+is the single source, mirroring `.nvmrc`; both CI jobs read it AND assert the
+installed CLI matches it, printing both — so «which version failed?» is now
+answerable from a red run for the first time; `pnpm db:check-cli` warns
+locally on a mismatch (never refuses — a developer's machine is theirs); and the
+staging runbook now says which CLI to `db push` with, because pushing 58
+migrations to a real project with a version CI has never run means meeting a
+CLI-default difference for the first time on staging.
+
+**Local is 2.75.0 and now says so at every `db:local-credentials`.** Upgrade at
+your own pace; the warning names the case it exists to explain.
+
+**For the P0 sitting:** run `pnpm db:check-cli` before `supabase link`. If it
+warns, `brew upgrade supabase` (or your platform's installer) first. The 58
+migrations have been proved against 2.115.0 in CI and against 2.75.0 locally;
+they have been proved against nothing else.
 
 ---
 

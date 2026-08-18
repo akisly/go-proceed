@@ -821,7 +821,7 @@ wired to a runtime that holds them.
 demonstrated by tests, and the quota becomes a bound rather than a ratchet.
 **Cons:** deployment work, not code — it is written and tested already.
 
-## P3 — the Supabase CLI is unpinned, so the toolchain changes without a commit
+## P3 (CLOSED 2026-08-18) — the Supabase CLI was unpinned, so the toolchain changed without a commit
 
 **What:** `.github/workflows/ci.yml` pins the `supabase/setup-cli` action by SHA
 and then asks it for `version: latest`. The action is reproducible; the tool it
@@ -842,6 +842,31 @@ run the same tool, so "works on my machine" stops being a category of answer.
 the Supabase platform it talks to. That is a maintenance cost, not a hidden one.
 **Not done here** because it changes CI policy for the whole repo, and `main`
 has been passing with `latest` since long before this branch.
+
+**CLOSED 2026-08-18.** Pinned to **2.115.0** — the version CI resolved on that
+day, so nothing about what runs green changed; local (2.75.0) is now the one that
+differs, and says so. The drift the entry measured at 36 releases was 40 by
+closing time, and **the pin value moved from 2.114.0 to 2.115.0 during the hour
+it was being decided** — the CLI's own upgrade banner was already one release
+stale — which is the entry's argument demonstrated live.
+
+The shape is what makes it durable rather than a number in a YAML file:
+- `.supabase-cli-version` at the root is the SINGLE source, mirroring `.nvmrc`.
+- Both CI jobs read it into `setup-cli`'s `version` input, and then ASSERT the
+  installed CLI equals it and print both — until now no step recorded which CLI
+  actually ran, so «which version failed?» could not be answered from a red run.
+- `scripts/check-supabase-cli.mjs` (`pnpm db:check-cli`, and run first by
+  `db:local-credentials`) WARNS on a local mismatch and never refuses: the point
+  is a printed difference instead of a silent one. The message names the
+  magic-link case as the shape of failure it explains.
+- `infra/README-staging.md` §2 now says which CLI to `db push` with, and why
+  pushing 58 migrations with a version CI has never run means meeting a
+  CLI-default difference for the first time on staging.
+
+The maintenance cost the entry named is real and is now explicit: bumping the
+CLI is one edit to one file, in a commit that can be bisected — the entire
+point. `main` had been passing with `latest` since long before this entry;
+that was true, and it was also the fragility.
 
 ## CLOSED 2026-08-06 — doc 07's Expo SDK baseline
 
