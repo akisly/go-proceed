@@ -40,21 +40,37 @@ const params = (p: Record<string, string>) => ({ params: Promise.resolve(p) });
 let workspaceId: string; let projectId: string; let partyId: string; let ownPartyId: string;
 let otherWorkspaceId: string; let otherPartyId: string;
 
+/**
+ * EVERY SETUP CALL CHECKS ITS STATUS, because the first version did not, and
+ * that is exactly how this file's one intermittent stayed unexplained for a
+ * whole verification cycle. `createParty` returned `(await res.json()).partyId`
+ * unconditionally; when the route answered anything but 201 that was
+ * `undefined`, the request body sent by the test under it lacked `partyId`
+ * entirely, zod refused it with `partyId: Required`, and the assertion saw a 422
+ * where it expected a 404 — reading as «the stranger SAW the project» when the
+ * truth was «the fixture silently produced no party». A helper that returns
+ * undefined on a 4xx turns every downstream assertion into a lie about the
+ * wrong thing. `step()` below is what `baselineFixture` already does.
+ */
+async function step<T>(label: string, res: Response): Promise<T> {
+  if (res.status !== 201) throw new Error(`${label}: ${res.status} ${await res.text()}`);
+  return await res.json() as T;
+}
 async function createWorkspace(as: string, name: string): Promise<string> {
   current = as;
   const { POST } = await import("../app/v1/workspaces/route");
   const res = await POST(jsonReq("http://x/v1/workspaces", { displayName: name }), params({}));
-  return (await res.json()).workspaceId;
+  return (await step<{ workspaceId: string }>("workspaces.create", res)).workspaceId;
 }
 async function createProject(ws: string): Promise<string> {
   const { POST } = await import("../app/v1/workspaces/[workspaceId]/projects/route");
   const res = await POST(jsonReq("http://x", { name: "Приклад-Обʼєкт" }), params({ workspaceId: ws }));
-  return (await res.json()).projectId;
+  return (await step<{ projectId: string }>("projects.create", res)).projectId;
 }
 async function createParty(ws: string, displayName: string): Promise<string> {
   const { POST } = await import("../app/v1/workspaces/[workspaceId]/parties/route");
   const res = await POST(jsonReq("http://x", { displayName }), params({ workspaceId: ws }));
-  return (await res.json()).partyId;
+  return (await step<{ partyId: string }>("parties.create", res)).partyId;
 }
 async function linkParty(pid: string, body: unknown): Promise<Response> {
   const { POST } = await import("../app/v1/projects/[projectId]/parties/route");
