@@ -3,7 +3,7 @@ import { ShieldCheck } from 'lucide-react'
 import { formatDateUk } from '../domain/format'
 import { TODAY } from '../data/project'
 import { CONTACT_EMAIL } from '../data/contact'
-import { FIELD_LABEL, FIELDS, REQUIRED_FIELDS } from '../pilot/draft'
+import { DRAFT_KEY, FIELD_LABEL, FIELDS, REQUIRED_FIELDS } from '../pilot/draft'
 
 /**
  * ============================================================================
@@ -49,13 +49,20 @@ import { FIELD_LABEL, FIELDS, REQUIRED_FIELDS } from '../pilot/draft'
  */
 
 /**
- * The exact localStorage key Task 13's `apps/demo/src/pilot/draft.ts` writes
- * to (`DRAFT_KEY = 'aktflow.pilot.draft'`). This page and that module must
- * never disagree on the literal string — this is the D4 disclosure the
- * task brief calls out by name, so it is spelled out once here rather than
- * paraphrased.
+ * The exact localStorage key `apps/demo/src/pilot/draft.ts` writes to. This is
+ * the D4 disclosure the task brief calls out by name, so the page prints the
+ * literal string rather than paraphrasing it.
+ *
+ * IMPORTED, NOT RE-DECLARED, SINCE 2026-08-17. This was a second copy of the
+ * literal under a comment saying «this page and that module must never disagree
+ * on the literal string» — a requirement stated and then left to discipline,
+ * with nothing enforcing it. The 2026-08-17 rename of the key
+ * (`goproceed.pilot.draft`) was exactly the edit that would have moved one copy
+ * and not the other, leaving this page telling a visitor their answers were
+ * under a key nothing writes to. Importing makes the two structurally the same
+ * string.
  */
-const DRAFT_STORAGE_KEY = 'aktflow.pilot.draft'
+const DRAFT_STORAGE_KEY = DRAFT_KEY
 
 function PrivacyDocument() {
   return (

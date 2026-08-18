@@ -11,7 +11,7 @@
   },
   "servers": [
     {
-      "url": "https://api.aktflow.example/v1",
+      "url": "https://api.goproceed.example/v1",
       "description": "Illustrative origin only; CI injects and verifies the environment-specific production origin"
     }
   ],

@@ -1,4 +1,4 @@
-# Staging provisioning runbook — AktFlow P0a slice 1
+# Staging provisioning runbook — GoProceed P0a slice 1
 
 This is an executable runbook for a human operator with a Supabase account
 and a Vercel account. Nothing in this repo automates it, and nothing in
@@ -17,10 +17,51 @@ password manager and in Vercel's encrypted environment variables only.
 
 ---
 
+## 0. The two hostnames this runbook does not know
+
+`{{APP_HOSTNAME}}` and `{{LANDING_HOSTNAME}}` are PLACEHOLDERS, in the same
+style as `{{CONTACT_EMAIL}}` and `{{DEMO_HOSTNAME}}` elsewhere in this
+repository. Substitute your own values everywhere they appear below —
+including in every `curl` of §6 — before running anything.
+
+| Token | What it is | Example shape |
+|---|---|---|
+| `{{APP_HOSTNAME}}` | the host `apps/app` answers on — the field client and `/v1` | `app.example.com` |
+| `{{LANDING_HOSTNAME}}` | the host `apps/landing` answers on | `example.com` |
+
+**They were literal until 2026-08-17, and they were the WRONG literal.** This
+runbook spelled the pre-rename product's domain in nine places, including every
+verification `curl`. The product was renamed to GoProceed on 2026-08-03;
+these were the last customer-facing instructions still naming the old one, so
+an operator following this document would have provisioned a domain for a
+product that no longer exists — at the one moment where that mistake is
+expensive, because DNS and a Vercel domain binding are not free to undo.
+
+**They are tokens rather than corrected literals because nobody has decided the
+real domain, and this repository forbids inventing one.**
+`apps/demo/README.md` §2 states it directly: nothing here shows that any such
+domain is registered or that anyone controls its DNS, and «it needs a decision
+from whoever owns the registration question». A token is the honest
+representation of a decision that has not been taken; a plausible-looking
+`goproceed.com` would read as settled fact.
+
+**There is deliberately no CI gate on these two tokens**, unlike the ones in
+`apps/demo/src`, which `apps/demo/qa/preflight.mjs` fails the build over. That
+gate exists because those tokens must be replaced *before a deploy publishes
+them to a visitor*. These two are instructions to a human operator, and an
+unreplaced token in an instruction is the instruction working as intended —
+gating it would make CI permanently red, which `preflight.mjs`'s own header
+argues against in terms: «a suite that is red by design trains everyone to
+ignore red». What IS gated is the reverse: `staleDomainErrors` in
+`scripts/validate-canonical-docs.mjs` fails the build if an `aktflow.*` domain
+returns to a live file.
+
+---
+
 ## 1. Create the staging Supabase project
 
-1. In the Supabase dashboard, create a new project named `aktflow-staging`
-   (region: pick the one closest to `app.aktflow.com`'s expected traffic).
+1. In the Supabase dashboard, create a new project named `goproceed-staging`
+   (region: pick the one closest to `{{APP_HOSTNAME}}`'s expected traffic).
 2. Record, in a password manager (not in this repo):
    - **Project ref** (e.g. `abcdefghijklmnop`) — visible in the dashboard
      URL and in Project Settings → General.
@@ -278,7 +319,7 @@ and env vars differ.
     every service transaction, so a wrong `SERVICE_DB_URL` (superuser,
     app login, or anything else) fails closed with an explicit error at
     the first service write instead of going unnoticed.
-- Domain: `app.aktflow.com`
+- Domain: `{{APP_HOSTNAME}}`
 
 ### `apps/landing`
 
@@ -290,7 +331,7 @@ and env vars differ.
 - Environment variables: none required — `apps/landing` is static-first
   and contains no API routes and no Supabase server client (see
   `apps/landing/next.config.ts`).
-- Domain: `aktflow.com`
+- Domain: `{{LANDING_HOSTNAME}}`
 
 ### 4.1 pnpm + Turborepo build settings (both projects)
 
@@ -314,7 +355,7 @@ and env vars differ.
 
 Push to the branch each Vercel project is configured to track (or trigger
 a manual deploy from the Vercel dashboard). Confirm both builds succeed
-and `app.aktflow.com` / `aktflow.com` resolve once DNS is pointed at
+and `{{APP_HOSTNAME}}` / `{{LANDING_HOSTNAME}}` resolve once DNS is pointed at
 Vercel.
 
 ## 6. End-to-end verification checklist
@@ -331,7 +372,7 @@ timings) — a checked box with no evidence is not verification.
 
 2. **Bootstrap an organization.**
    ```bash
-   curl -i -X POST https://app.aktflow.com/v1/organizations \
+   curl -i -X POST https://{{APP_HOSTNAME}}/v1/organizations \
      -H "Authorization: Bearer <A's access token>" \
      -H "Content-Type: application/json" \
      -H "Idempotency-Key: $(uuidgen)" \
@@ -358,7 +399,7 @@ timings) — a checked box with no evidence is not verification.
 
 5. **Read back tenant context.**
    ```bash
-   curl -i https://app.aktflow.com/v1/me/context \
+   curl -i https://{{APP_HOSTNAME}}/v1/me/context \
      -H "Authorization: Bearer <A's access token>"
    ```
    - [ ] Response status **200**.
@@ -383,7 +424,7 @@ timings) — a checked box with no evidence is not verification.
 7. **Cross-tenant isolation.** Create a second Auth user, **B**, who has
    never been added to A's organization. Obtain B's access token and:
    ```bash
-   curl -i https://app.aktflow.com/v1/me/context \
+   curl -i https://{{APP_HOSTNAME}}/v1/me/context \
      -H "Authorization: Bearer <B's access token>"
    ```
    - [ ] B's `organizations` list does **not** include the org created in
@@ -404,7 +445,7 @@ timings) — a checked box with no evidence is not verification.
    `packages/testing/src/m2-service-principal.test.ts` for the shape of
    that setup); once one exists, call:
    ```bash
-   curl -i -X POST https://app.aktflow.com/v1/upload-intents/<intentId>/finalize \
+   curl -i -X POST https://{{APP_HOSTNAME}}/v1/upload-intents/<intentId>/finalize \
      -H "Authorization: Bearer <A's access token>"
    ```
    - [ ] Response status is **200**, not 500. A 500 here with no other

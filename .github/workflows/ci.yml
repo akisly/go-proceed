@@ -157,7 +157,7 @@ jobs:
 
       # Verify the browser actually launches on this runner before trusting
       # any downstream step's result — reuses the harness's own launch()
-      # (including its AKTFLOW_CHROME_PATH override) so this checks the
+      # (including its GOPROCEED_CHROME_PATH override) so this checks the
       # exact code path `qa` below depends on, not a stand-in.
       - name: Verify Chrome launches
         working-directory: apps/demo
@@ -326,7 +326,7 @@ jobs:
             libgtk-3-0 libnspr4 libnss3 libxcomposite1 libxdamage1 \
             libxfixes3 libxkbcommon0 libxrandr2 xdg-utils
 
-      # Reuses the harness's own launch() (including its AKTFLOW_CHROME_PATH
+      # Reuses the harness's own launch() (including its GOPROCEED_CHROME_PATH
       # override) so this checks the exact code path `qa` below depends on —
       # same reasoning as demo-qa's identical step.
       - name: Verify Chrome launches

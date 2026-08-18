@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { FIELDS, FIELD_LABEL, buildMailto, clearDraft, draftAsPlainText, loadDraft, parseDraft, saveDraft, serialiseDraft, submitPilotDraft, type PilotDraft } from '../src/pilot/draft'
+import { DRAFT_KEY, FIELDS, FIELD_LABEL, buildMailto, clearDraft, draftAsPlainText, loadDraft, parseDraft, saveDraft, serialiseDraft, submitPilotDraft, type PilotDraft } from '../src/pilot/draft'
 
 const draft: PilotDraft = {
   company: 'ТОВ «Приклад»',
@@ -148,6 +148,75 @@ describe('loadDraft / saveDraft / clearDraft against a working store', () => {
     vi.stubGlobal('localStorage', new MemoryStorage())
     saveDraft(draft)
     clearDraft()
+    expect(loadDraft()).toBeNull()
+  })
+})
+
+/**
+ * THE 2026-08-17 KEY RENAME, WHICH IS A DATA MIGRATION AND NOT A SUBSTITUTION.
+ *
+ * The key moved from the pre-rename namespace to `goproceed.pilot.draft`. A
+ * contractor who typed the three free-text answers, closed the tab, and came
+ * back after the deploy would otherwise find an empty form — the value still in
+ * their browser under a key nothing reads. `draft.ts`'s own header calls losing
+ * one of those answers «unrecoverable», so the rename has to carry them.
+ *
+ * The literal old key is written out here rather than imported: the module
+ * deliberately does not export it, and a test that asked the module for the
+ * string it is migrating FROM could not fail if that string were changed by
+ * mistake.
+ */
+const LEGACY_KEY = 'aktflow.pilot.draft'
+
+describe('the pre-rename draft key is migrated, not abandoned', () => {
+  it('reads a draft left under the old key', () => {
+    const store = new MemoryStorage()
+    store.setItem(LEGACY_KEY, serialiseDraft(draft))
+    vi.stubGlobal('localStorage', store)
+    expect(loadDraft()).toEqual(draft)
+  })
+
+  it('moves it to the new key and removes the old one, so the /legal disclosure names one key truthfully', () => {
+    const store = new MemoryStorage()
+    store.setItem(LEGACY_KEY, serialiseDraft(draft))
+    vi.stubGlobal('localStorage', store)
+    loadDraft()
+    expect(store.getItem(DRAFT_KEY)).toBe(serialiseDraft(draft))
+    expect(store.getItem(LEGACY_KEY)).toBeNull()
+  })
+
+  it('prefers the current key when both exist, and does not resurrect the old one', () => {
+    const newer: PilotDraft = { ...draft, company: 'Приклад-Новіша' }
+    const store = new MemoryStorage()
+    store.setItem(LEGACY_KEY, serialiseDraft(draft))
+    store.setItem(DRAFT_KEY, serialiseDraft(newer))
+    vi.stubGlobal('localStorage', store)
+    expect(loadDraft()).toEqual(newer)
+  })
+
+  it('leaves an UNREADABLE legacy value exactly where it is', () => {
+    // Deleting would destroy bytes this code admits it cannot interpret, and
+    // copying would move a value the next parse would reject anyway.
+    const store = new MemoryStorage()
+    store.setItem(LEGACY_KEY, '{ not json')
+    vi.stubGlobal('localStorage', store)
+    expect(loadDraft()).toBeNull()
+    expect(store.getItem(LEGACY_KEY)).toBe('{ not json')
+    expect(store.getItem(DRAFT_KEY)).toBeNull()
+  })
+
+  it('clearDraft removes the old key too, so "clear" means cleared', () => {
+    const store = new MemoryStorage()
+    store.setItem(LEGACY_KEY, serialiseDraft(draft))
+    vi.stubGlobal('localStorage', store)
+    clearDraft()
+    expect(store.getItem(LEGACY_KEY)).toBeNull()
+    expect(loadDraft()).toBeNull()
+  })
+
+  it('still never throws when storage denies access mid-migration', () => {
+    vi.stubGlobal('localStorage', DENIED_STORAGE)
+    expect(() => loadDraft()).not.toThrow()
     expect(loadDraft()).toBeNull()
   })
 })

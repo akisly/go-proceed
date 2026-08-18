@@ -783,7 +783,7 @@ table real device rows instead of placeholders.
 nothing else. Buying them no longer waits on any account: with the store chain
 removed, a PWA needs an HTTPS origin, which the product already requires.
 
-## P1 (ROLES CLOSED 2026-08-17) — the product is renamed to GoProceed; domains, env vars and docs have not followed
+## P1 (ROLES, DOMAINS + ENV VARS CLOSED) — the product is renamed to GoProceed; the catalog identifiers have not followed
 
 **What:** the owner stated on 2026-08-03 that the product is GoProceed and that
 the `aktflow` identifiers are being replaced. `apps/mobile`'s deep-link scheme
@@ -917,6 +917,65 @@ slice with its own plan and its own rollback story.
 > `aktflow.*` domains, the two `AKTFLOW_*` env vars, and the documents that
 > mention `aktflow` in non-role forms. None of them shares the closing window
 > the roles had — they will cost exactly the same after staging exists.
+
+### DOMAINS AND ENV VARS CLOSED 2026-08-18 — and one of them WAS on the P0's path after all
+
+**The sentence above was wrong about the domains.** They did share a closing
+window, for a reason the roles' argument did not cover:
+`infra/README-staging.md` — the runbook an operator follows to PROVISION the P0
+— spelled the pre-rename hostnames in **nine** places, including every `curl` of
+its §6 verification checklist and the Supabase project name in §1. Following it
+would have bound DNS and a Vercel domain to a product that no longer exists, at
+the one moment where that is expensive to undo. That is not "the same cost
+later"; it is a defect sitting directly on the next thing the owner does.
+
+**They are placeholder tokens, not corrected literals** (owner decision,
+2026-08-18): `{{APP_HOSTNAME}}` and `{{LANDING_HOSTNAME}}`, matching the
+`{{CONTACT_EMAIL}}` / `{{DEMO_HOSTNAME}}` convention already in the tree, and
+defined in a new §0 of the runbook. No domain for this product is recorded
+anywhere as registered, and `apps/demo/README.md` §2 forbids inventing one —
+a plausible `goproceed.com` would have read as settled fact.
+
+**The counts in the bullets above were also wrong, in both directions.**
+`aktflow.app` had ALREADY left every live file; `aktflow.example` survived live
+only in `technical/openapi.yaml` (the rest is `prototype/`, which
+`.github/workflows/ci.yml` records as out of scope). Against that, the entry
+never mentioned the Supabase project name, the pilot draft's localStorage key,
+or the catalog-snapshot script below.
+
+**A silent regression from the ROLE rename, found here rather than by that
+slice.** `scripts/snapshot-db-catalog.mjs` selected roles with
+`rolname like 'aktflow%'`. After migration `0057` that query still SUCCEEDS and
+still returns `anon`/`authenticated`/`service_role` — it just returns no project
+roles, so `pnpm db:catalog-snapshot` produced a snapshot missing the five rows a
+reviewer reads to see who can log in and who bypasses RLS. Nothing failed.
+`staleRoleNameErrors` matched whole identifiers and could not see a LIKE prefix
+written to match them as a set; it matches `aktflow%` now, and the negative test
+for it is the fixed script itself.
+
+**The draft key is a data migration, not a substitution.**
+`aktflow.pilot.draft` → `goproceed.pilot.draft` in
+`apps/demo/src/pilot/draft.ts`, with the old key read once and moved forward on
+load. Renaming it outright would have shown an empty form to a contractor who
+typed three free-text answers and came back after the deploy — the outcome that
+module's own header calls «unrecoverable». `/legal`'s D4 disclosure names the
+key to the visitor, so it can only be truthful about ONE key; `Legal.tsx` now
+IMPORTS the constant instead of re-declaring it under a comment that said the
+two «must never disagree» and left it to discipline.
+
+**Gated:** `staleDomainErrors` fails the build on `aktflow.(com|app|example)`
+in any live file, sharing the role guard's record exemptions.
+`aktflow.pilot` is deliberately not matched — it is a storage namespace, and it
+survives on purpose as the migration constant.
+
+**Still open, and now the whole of what is left of this entry:** documents that
+mention `aktflow` in non-role, non-domain forms — the catalog identifiers
+(`aktflow_platform_billing`, `aktflow_external`, `aktflow_support`,
+`aktflow_audit_writer` in `technical/data-access-surface.csv`, and the
+`aktflow_control` / `aktflow_requirement` CSV column headers), plus
+`supabase/config.toml`'s local `project_id`. None is a live PostgreSQL role;
+they are planned-role rows and column names, and renaming a column header is a
+change to a catalog's shape rather than to a runtime identifier.
 
 `docs/legacy/04-screen-specification.md` §S29 specified `aktflow://` and
 `aktflow.app` universal links with four route patterns. **As of 2026-08-06 that

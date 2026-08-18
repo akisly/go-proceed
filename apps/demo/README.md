@@ -45,11 +45,18 @@ project has been created for `apps/demo`, and this task does not create one.
 
 ## 2. Domain — unresolved, do not invent one
 
-`aktflow.com` appears in this repository only as **planned** infrastructure
-(`infra/README-staging.md:207`, and referenced again as the eventual
-`apps/landing` domain at line 231). Nothing in this repository shows that
-`aktflow.com` is registered or that anyone controls its DNS. Doc 40 §A.3.8
-prefers `demo.aktflow.com` over a `*.vercel.app` project subdomain for
+**This section named the pre-rename domain until 2026-08-17 and now names no
+domain at all, which is the honest state.** The product was renamed to GoProceed
+on 2026-08-03; `infra/README-staging.md` carried that domain as literal
+provisioning instructions until the same date, and now carries
+`{{APP_HOSTNAME}}` / `{{LANDING_HOSTNAME}}` — placeholders, defined in its own
+§0. The registration question this section is about did not change; only
+the brand in the placeholder did, and a corrected literal would have looked like
+an answer.
+
+No domain for this product is shown anywhere in this repository as registered,
+or as having DNS controlled by anyone here. Doc 40 §A.3.8 prefers a
+`demo.` subdomain of a real domain over a `*.vercel.app` project subdomain for
 credibility and deliverability in a cold email, but that preference is
 conditional on the domain actually being controlled — which is not yet
 established.
@@ -59,8 +66,8 @@ style as the two placeholder tokens already in the source
 (`{{CONTACT_EMAIL}}`, `{{FORM_PROCESSOR}}` — see §3). Before deploying,
 replace it with either:
 
-- `demo.aktflow.com`, once `aktflow.com` is confirmed registered and its DNS
-  is controlled by whoever is running this deploy, or
+- `demo.{{LANDING_HOSTNAME}}`, once a real domain is confirmed registered and
+  its DNS is controlled by whoever is running this deploy, or
 - the Vercel-assigned project subdomain (`<project-name>.vercel.app`), if
   a real domain is not yet available and the team decides to proceed
   without one.
@@ -70,7 +77,7 @@ and CEO reviews (see the "Open dependency" section of
 `task-20-brief.md`). It blocks cold sending only — the CEO review ungated
 the warm, community and public-corpus outreach tracks from having a
 custom domain. Nobody should invent an answer on this app's behalf; it
-needs a decision from whoever owns the `aktflow.com` registration question.
+needs a decision from whoever owns the domain registration question.
 
 ## 3. Launch blockers — must be resolved before publishing
 

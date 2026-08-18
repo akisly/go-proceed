@@ -7,7 +7,28 @@
  * contractor who typed it. Everything below is written to that standard.
  */
 
-export const DRAFT_KEY = 'aktflow.pilot.draft'
+export const DRAFT_KEY = 'goproceed.pilot.draft'
+
+/**
+ * THE KEY THIS MODULE USED UNTIL 2026-08-17, read once and migrated away from.
+ *
+ * The product was renamed to GoProceed on 2026-08-03 and this namespace was the
+ * last visitor-facing identifier still carrying the old one. Renaming a
+ * localStorage key is not a text substitution: a contractor who typed three
+ * free-text answers, closed the tab, and came back after the deploy would find
+ * an empty form, because the value sits under a key nothing reads any more.
+ * This module's own header calls that outcome «unrecoverable», so the rename
+ * MOVES the draft instead of abandoning it.
+ *
+ * `loadDraft` migrates on first read and deletes the old key, which also keeps
+ * `/legal`'s D4 disclosure honest: that page tells the visitor the exact key
+ * their answers are under, and it can only name ONE key truthfully.
+ *
+ * Kept rather than deleted after a release or two: the cost is one extra
+ * `getItem` on a cold load, and the visitor this protects is precisely the one
+ * who left a draft and did not come back for months.
+ */
+const LEGACY_DRAFT_KEY = 'aktflow.pilot.draft'
 
 export interface PilotDraft {
   company: string
@@ -130,7 +151,30 @@ export function buildMailto(to: string, draft: PilotDraft): string {
 
 export function loadDraft(): PilotDraft | null {
   try {
-    return parseDraft(localStorage.getItem(DRAFT_KEY))
+    const current = localStorage.getItem(DRAFT_KEY)
+    if (current !== null) return parseDraft(current)
+
+    // Nothing under the current key: look once under the pre-rename one.
+    const legacy = localStorage.getItem(LEGACY_DRAFT_KEY)
+    if (legacy === null) return null
+    const migrated = parseDraft(legacy)
+
+    // MOVE ONLY WHAT PARSES. An unreadable legacy value is left exactly where
+    // it is rather than copied forward or deleted — deleting would destroy
+    // bytes this code admits it cannot interpret, and copying would put a value
+    // the disclosure describes as the visitor's draft under a key where the
+    // next `parseDraft` would reject it again.
+    if (migrated !== null) {
+      try {
+        localStorage.setItem(DRAFT_KEY, legacy)
+        localStorage.removeItem(LEGACY_DRAFT_KEY)
+      } catch {
+        // Storage denied or full mid-migration. The draft is returned below
+        // regardless, and the next load simply migrates again — the old key is
+        // only removed once the new one is written.
+      }
+    }
+    return migrated
   } catch {
     return null
   }
@@ -149,6 +193,9 @@ export function saveDraft(draft: PilotDraft): void {
 export function clearDraft(): void {
   try {
     localStorage.removeItem(DRAFT_KEY)
+    // The pre-rename key too: "clear" must mean the draft is gone, and a
+    // visitor who never triggered a migrating load could still have one there.
+    localStorage.removeItem(LEGACY_DRAFT_KEY)
   } catch {
     // Nothing to reconcile — if removal fails, storage was already
     // unusable, so nothing was durably persisted for the next visit either.
