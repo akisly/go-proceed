@@ -26,8 +26,9 @@ on:
 #
 # supabase/setup-cli is the one substantive rewrite: v3 is a composite action,
 # which runs no Node at all and so leaves this deprecation entirely. Its
-# `version` input still accepts `latest`, which is all this workflow passes. If
-# `verify` fails at "supabase start", suspect that upgrade first.
+# `version` input accepts an exact version, which is what this workflow now
+# passes — read from `.supabase-cli-version` (see the `verify` job). If `verify`
+# fails at "supabase start" right after a CLI bump, suspect the bump first.
 #
 # Pins stay SHA-based, not tags, for the same reason as the permissions block
 # below: a moved tag is a supply-chain vector. The trailing comment is the tag
@@ -76,8 +77,41 @@ jobs:
       # build — it reads the tree.
       - run: pnpm validate:canonical-docs
 
+      # THE CLI IS PINNED, AND THE PIN LIVES IN ONE FILE. Until 2026-08-18 this
+      # asked setup-cli for `version: latest`, so the SHA-pinned ACTION was
+      # reproducible and the TOOL it installed was not: local development ran
+      # 2.75.0 while CI resolved whatever shipped that morning — 2.115.0 on the
+      # day this was pinned, and it had moved from 2.114.0 to 2.115.0 during
+      # the hour the pin was being decided. HANDOFF.md §0 records what that
+      # costs in practice: the magic-link OTP template stopped carrying
+      # `{{ .Token }}` in a newer CLI default and app-qa went red three times
+      # for a change no commit explained. A green build that depends on an
+      # unpinned tool is a build whose result can change overnight.
+      #
+      # `.supabase-cli-version` at the repo root is the single source, mirroring
+      # `.nvmrc`. Both jobs below read it, so the two pins cannot drift from
+      # each other or from the file; `supabase/config.toml` and the local
+      # scripts name the same file for the developer's own machine. Bumping the
+      # CLI is therefore ONE edit that names the version, in a commit that can
+      # be bisected — which is the entire point.
+      - name: Read the pinned Supabase CLI version
+        id: supabase-cli
+        run: echo "version=$(tr -d '[:space:]' < .supabase-cli-version)" >> "$GITHUB_OUTPUT"
+
       - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
-        with: { version: latest }
+        with:
+          version: ${{ steps.supabase-cli.outputs.version }}
+
+      # Prove the pin took, and PRINT the version into the log. Until now no
+      # step recorded which CLI actually ran, so «which version failed?» could
+      # not be answered from a red run — the same blindness the pin exists to
+      # remove.
+      - name: Assert the installed CLI is the pinned one
+        run: |
+          want="$(tr -d '[:space:]' < .supabase-cli-version)"
+          have="$(supabase --version 2>/dev/null | head -1 | tr -d '[:space:]')"
+          echo "supabase CLI: want ${want}, have ${have}"
+          [ "$have" = "$want" ] || { echo "::error::pinned ${want} but setup-cli installed ${have}"; exit 1; }
 
       # Cold runners pull the full local Postgres/GoTrue/Kong image set on
       # first boot, which is slow — give this room instead of relying on the
@@ -266,8 +300,21 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
+      # Same pin, same file, same assertion as `verify` — see the comment there.
+      - name: Read the pinned Supabase CLI version
+        id: supabase-cli
+        run: echo "version=$(tr -d '[:space:]' < .supabase-cli-version)" >> "$GITHUB_OUTPUT"
+
       - uses: supabase/setup-cli@46f7f98c7f948ad727d22c1e67fab04c223a0520 # v3.0.0
-        with: { version: latest }
+        with:
+          version: ${{ steps.supabase-cli.outputs.version }}
+
+      - name: Assert the installed CLI is the pinned one
+        run: |
+          want="$(tr -d '[:space:]' < .supabase-cli-version)"
+          have="$(supabase --version 2>/dev/null | head -1 | tr -d '[:space:]')"
+          echo "supabase CLI: want ${want}, have ${have}"
+          [ "$have" = "$want" ] || { echo "::error::pinned ${want} but setup-cli installed ${have}"; exit 1; }
 
       - name: supabase start
         timeout-minutes: 15

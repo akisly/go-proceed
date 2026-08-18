@@ -11,8 +11,9 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "validate:canonical-docs": "node scripts/validate-canonical-docs.mjs",
-    "db:local-credentials": "node scripts/set-local-app-password.mjs",
-    "db:catalog-snapshot": "node scripts/snapshot-db-catalog.mjs"
+    "db:local-credentials": "node scripts/check-supabase-cli.mjs && node scripts/set-local-app-password.mjs",
+    "db:catalog-snapshot": "node scripts/snapshot-db-catalog.mjs",
+    "db:check-cli": "node scripts/check-supabase-cli.mjs"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

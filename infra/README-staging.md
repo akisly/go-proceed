@@ -89,7 +89,13 @@ returns to a live file.
 ## 2. Link the project and push migrations
 
 From the repo root, with the Supabase CLI installed and authenticated
-(`supabase login`):
+(`supabase login`). **Use the pinned version** — `.supabase-cli-version` at the
+repo root, `2.115.0` as of 2026-08-18 — because it is the version every
+migration in this chain has been proved against in CI, and `pnpm db:check-cli`
+tells you whether yours matches. Pushing 58 migrations to a real project with a
+CLI that CI has never run is a way to meet a CLI-default difference for the
+first time on staging (HANDOFF.md §0 records one such difference costing three
+red CI runs; that is the cheap place to meet it).
 
 ```bash
 supabase link --project-ref <project-ref>
