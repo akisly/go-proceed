@@ -16,7 +16,7 @@ it correctly, and the prerequisites that currently block doing so.
 already provisions `apps/app` and `apps/landing` as Vercel projects from
 this same pnpm/Turborepo monorepo, so adding `apps/demo` as a third Vercel
 project reuses an already-working install/build pipeline and keeps every
-AktFlow surface on one hosting provider instead of introducing a second one
+GoProceed surface on one hosting provider instead of introducing a second one
 for this app alone.
 
 Project settings (same pattern as the two existing projects in

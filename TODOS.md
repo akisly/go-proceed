@@ -783,7 +783,7 @@ table real device rows instead of placeholders.
 nothing else. Buying them no longer waits on any account: with the store chain
 removed, a PWA needs an HTTPS origin, which the product already requires.
 
-## P1 (ROLES, DOMAINS + ENV VARS CLOSED) — the product is renamed to GoProceed; the catalog identifiers have not followed
+## P1 (CLOSED 2026-08-18) — the product is renamed to GoProceed, and every runtime identifier has followed
 
 **What:** the owner stated on 2026-08-03 that the product is GoProceed and that
 the `aktflow` identifiers are being replaced. `apps/mobile`'s deep-link scheme
@@ -968,14 +968,52 @@ in any live file, sharing the role guard's record exemptions.
 `aktflow.pilot` is deliberately not matched — it is a storage namespace, and it
 survives on purpose as the migration constant.
 
-**Still open, and now the whole of what is left of this entry:** documents that
-mention `aktflow` in non-role, non-domain forms — the catalog identifiers
-(`aktflow_platform_billing`, `aktflow_external`, `aktflow_support`,
-`aktflow_audit_writer` in `technical/data-access-surface.csv`, and the
-`aktflow_control` / `aktflow_requirement` CSV column headers), plus
-`supabase/config.toml`'s local `project_id`. None is a live PostgreSQL role;
-they are planned-role rows and column names, and renaming a column header is a
-change to a catalog's shape rather than to a runtime identifier.
+### CLOSED 2026-08-18 — the rename is finished, and the gate is now total
+
+The catalog identifiers (`platform_billing`, `external`, `support`,
+`audit_writer` in `technical/data-access-surface.csv`), the `*_control` /
+`*_requirement` CSV column headers, `technical/permissions.csv`'s prose and
+`scripts/validate_package.py`'s expected column sets all moved together — a
+header and the code asserting it cannot move in separate commits.
+
+**`supabase/config.toml`'s `project_id` is `goproceed`**, and the ORDER matters
+enough to be written down: `supabase stop` reads that value to find the
+containers, so the stack must be stopped BEFORE the edit. Editing first leaves
+the old containers running and unreachable by the CLI, and `supabase start` then
+builds a second stack beside them. Recorded in the file itself, above the value.
+
+**The case-sensitive scans had been missing the brand in its own spelling.**
+Every `aktflow` grep in this entry — including the ones that produced its
+counts — was lower-case, so `AktFlow` survived in
+`scripts/validate_package.py`'s own PASS/FAILED output, in
+`technical/terminology.csv`'s Ukrainian terms («Оплата AktFlow»), and in the
+title of `.interface-design/system.md`, a file that calls itself «source of
+truth for every rewritten `/app/**` route».
+
+**And `README.md`'s «Actual state (do not overclaim)» section said the roles and
+the user-visible copy «have not moved».** Both had — the copy on 2026-08-10, the
+roles on 2026-08-17. A stale claim in the section named for not overclaiming is
+the sharpest version of the failure this repository keeps finding.
+
+**The gate is a whole-brand ban now, which is the rule that could not be written
+until the rename was done.** `staleBrandErrors` fails the build on `aktflow` in
+any case in any live file. The two narrow rules are kept for their better
+messages and their occurrences are not double-reported. Three exemptions, each
+argued at the call site: a line that is explicitly historical (the era happened
+and the repository may describe it — now allowed in `.sql` and `.md` alike, not
+just under `docs/`); the pilot-draft migration constant and its test, by exact
+line rather than by file, so those files are still checked for every other
+spelling; and record paths, which grew by `prototype/` (frozen, out of scope per
+`ci.yml`), `design-references/`, `docs/22-data-api-contract.md` (self-declared
+HISTORICAL / NON-NORMATIVE, partly in Russian, which the English legacy test
+cannot read), and **`technical/openapi.yaml` + `technical/schema.sql` — the v2.9
+target package `README.md` itself calls historical.** Those keep «AktFlow API»
+and `LicenseRef-AktFlow-Proprietary` deliberately: a licence identifier is not a
+branding string to flip, and renaming a record makes it describe a package that
+never existed.
+
+**Nothing is left of this entry.** Verified by the gate rather than by a grep:
+the build fails if any of it returns.
 
 `docs/legacy/04-screen-specification.md` §S29 specified `aktflow://` and
 `aktflow.app` universal links with four route patterns. **As of 2026-08-06 that

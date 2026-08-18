@@ -1,4 +1,4 @@
-# AktFlow internal dashboard — design system
+# GoProceed internal dashboard — design system
 
 Source of truth for every rewritten `/app/**` route. Values here are decided,
 not suggested: if this file names a number, use that number.

@@ -8,7 +8,7 @@ import puppeteer from 'puppeteer'
  *
  * THE OVERRIDE IS `GOPROCEED_CHROME_PATH` AS OF 2026-08-17, and one sibling
  * still reads the old spelling. `prototype/qa/verify.mjs` goes on honouring
- * `AKTFLOW_CHROME_PATH` (alongside `PUPPETEER_EXECUTABLE_PATH` and
+ * the old `AKTFLOW_CHROME_PATH` spelling (alongside `PUPPETEER_EXECUTABLE_PATH` and
  * `CHROME_PATH`) because `prototype/` is frozen — `.github/workflows/ci.yml`
  * records it as out of scope to change, and its harness rewrites tracked
  * screenshots on every run, so touching it is its own slice.

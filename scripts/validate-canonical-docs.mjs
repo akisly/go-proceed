@@ -122,11 +122,36 @@ const ROLE_RECORD_DIRS = [
   "docs/legacy/",
   "docs/superpowers/",
   "migration/",
+  // The AktFlow-era design boards, which are the research record behind
+  // `prototype/` — itself frozen and out of scope (.github/workflows/ci.yml).
+  "design-references/",
+  // `prototype/` IS that frozen directory. `.github/workflows/ci.yml` records
+  // it as «out of scope to change», and its own harness rewrites tracked
+  // screenshots on every run, so a rename there is its own slice with its own
+  // argument. Its package name, lockfile and Chrome-path env var keep the old
+  // spelling deliberately.
+  "prototype/",
 ];
 const ROLE_RECORD_FILES = new Set([
   // A dated package review: it records what the roles were called on the day it
   // was written, and rewriting it would falsify the review.
   "docs/delivery/package-review-2026-08-04.md",
+  // THE HISTORICAL v2.9 TARGET PACKAGE. `README.md` says it in terms — «The old
+  // AktFlow v2.9 target package is historical. Its 126-table / 157-operation
+  // model is not the implementation baseline» — and every legacy source in it
+  // has an explicit disposition. Its API title, its licence identifier
+  // (`LicenseRef-AktFlow-Proprietary`, which is a licence reference and not a
+  // branding string to flip) and its SaaS-billing summaries name the product
+  // that package was written for. Renaming them would make the record describe
+  // a package that never existed.
+  "technical/openapi.yaml",
+  "technical/schema.sql",
+  // Declares itself, in its own first lines: «HISTORICAL / NON-NORMATIVE
+  // (2026-08-06). This is an AktFlow-era document. It is not target design, and
+  // it holds no authority.» Its historical lines are partly in Russian, which
+  // the English LEGACY_CONTEXT test below cannot read, so the file is a record
+  // by path rather than line by line.
+  "docs/22-data-api-contract.md",
   // The P1 entry that tracked this rename, including the grep commands whose
   // output only makes sense against the old names.
   "TODOS.md",
@@ -199,6 +224,70 @@ export function staleDomainErrors(relPath, text) {
     `${relPath}: names the pre-rename domain \`${d}\` — the product is GoProceed and no domain for it is `
     + "recorded as registered anywhere in this repository. Use a placeholder token "
     + "({{APP_HOSTNAME}}/{{LANDING_HOSTNAME}}, see infra/README-staging.md §0) rather than inventing one");
+}
+
+/**
+ * THE BRAND ITSELF, IN ANY SPELLING, IN ANY LIVE FILE.
+ *
+ * `staleRoleNameErrors` and `staleDomainErrors` name specific identifiers and
+ * give specific advice, and both were added while the rename was still in
+ * progress — so each could only forbid the part that had already moved. The
+ * rename finished 2026-08-18, and this is the rule that could not be written
+ * before: nothing outside a record may say `aktflow` at all, in any case.
+ *
+ * It exists because the narrow rules kept turning out to be narrower than the
+ * sentence describing them. `staleRoleNameErrors` matched five whole
+ * identifiers and missed `rolname like 'aktflow%'` in the catalog-snapshot
+ * script — a query that went on SUCCEEDING while silently returning no project
+ * roles. Both rules were case-sensitive and missed `AktFlow` in
+ * `validate_package.py`'s own output, in `technical/terminology.csv`'s Ukrainian
+ * terms, and in the title of `.interface-design/system.md`, which calls itself
+ * the source of truth for every `/app/**` route. A rule that enumerates cannot
+ * cover a thing it has not thought of; a rule that forbids the string can.
+ *
+ * The two specific rules are KEPT rather than folded in, because their messages
+ * name the replacement and the reasoning, and this one can only say «it is
+ * still here». Anything they already reported is skipped below so a single
+ * occurrence is never reported twice.
+ *
+ * `docs/**` prose is additionally allowed to say `AktFlow` on an explicitly
+ * historical line, by `brandingViolations` and its LEGACY_CONTEXT rule — that
+ * is a narrower, older permission and it still applies. This rule defers to it
+ * for the same reason: the era genuinely existed and documents may describe it.
+ */
+const BRAND_RE = /aktflow/gi;
+
+// The pre-rename localStorage key, which survives ON PURPOSE as the constant
+// that migrates a visitor's saved draft forward instead of orphaning it, and
+// the test that pins that behaviour. Listed as exact strings rather than as
+// paths, so these two files are still checked for every OTHER spelling.
+const BRAND_ALLOWED_LINES = [
+  "const LEGACY_DRAFT_KEY = 'aktflow.pilot.draft'",
+  "const LEGACY_KEY = 'aktflow.pilot.draft'",
+];
+
+export function staleBrandErrors(relPath, text, alreadyReported) {
+  if (isRoleRecordPath(relPath)) return [];
+  // AN EXPLICITLY HISTORICAL LINE IS ALLOWED ANYWHERE, not only in `docs/**`
+  // prose. A `.sql` comment saying «the AktFlow-era guard» and a README bullet
+  // saying «the old AktFlow v2.9 package is historical» are exactly as
+  // historical as the same sentence in a document, and the era did happen —
+  // forbidding the repository to describe it would be a worse rule than the one
+  // it replaced. `brandingViolations` applies the identical test to `docs/**`.
+  const errs = [];
+  text.split("\n").forEach((line, i) => {
+    if (!BRAND_RE.test(line)) { BRAND_RE.lastIndex = 0; return; }
+    BRAND_RE.lastIndex = 0;
+    if (BRAND_ALLOWED_LINES.some((a) => line.includes(a))) return;
+    // Already named by a rule that gives better advice.
+    if (alreadyReported && [...line.matchAll(/aktflow[\w.%-]*/gi)]
+      .every((m) => alreadyReported.has(m[0]))) return;
+    // A docs/ line that is explicitly historical is allowed to name the era.
+    if (LEGACY_CONTEXT.test(line)) return;
+    errs.push(`${relPath}:${i + 1}: names the pre-rename product — the rename finished 2026-08-18 and `
+      + "only a record may keep the old name (see isRoleRecordPath in scripts/validate-canonical-docs.mjs)");
+  });
+  return errs;
 }
 
 export function staleRoleNameErrors(relPath, text) {
@@ -960,6 +1049,42 @@ function selfTest() {
   }
   if (staleDomainErrors("docs/legacy/x.md", "aktflow.com\n").length !== 0) t.push("domain guard (record path not exempt)");
 
+  // Guard 13: the brand itself, in any spelling, in any live file.
+  const brandErrs = staleBrandErrors("apps/demo/src/x.ts", "const label = 'AktFlow'\nconst other = 'aktflow'\n", new Set());
+  if (brandErrs.length !== 2) t.push(`brand guard (expected 2 lines, got ${brandErrs.length})`);
+  // `?.` so a stubbed-out detector reports a NAMED self-test failure rather
+  // than crashing on an index — the whole point of this block is to be legible
+  // when it fires.
+  if (!brandErrs[0]?.includes(":1:")) t.push("brand guard (line number)");
+  // Case-insensitive is the whole point — the narrow rules were not, and missed
+  // `AktFlow` in validate_package.py's output and terminology.csv's terms.
+  if (staleBrandErrors("x.ts", "AKTFLOW\n", new Set()).length !== 1) t.push("brand guard (upper case)");
+  // An explicitly historical line is allowed anywhere, not only under docs/.
+  if (staleBrandErrors("technical/database/schema-v0.1.sql", "-- the AktFlow-era guard\n", new Set()).length !== 0) {
+    t.push("brand guard (historical line in a non-doc wrongly reported)");
+  }
+  if (staleBrandErrors("README.md", "The old AktFlow v2.9 package is historical.\n", new Set()).length !== 0) {
+    t.push("brand guard (historical README line wrongly reported)");
+  }
+  // Record paths, including the two added when the rename finished.
+  for (const rec of ["prototype/qa/verify.mjs", "technical/openapi.yaml", "technical/schema.sql",
+    "design-references/x/README.md", "docs/22-data-api-contract.md"]) {
+    if (staleBrandErrors(rec, "AktFlow\n", new Set()).length !== 0) t.push(`brand guard (record not exempt: ${rec})`);
+  }
+  // The pilot-draft migration constant survives on purpose; the same FILE is
+  // still checked for every other spelling.
+  if (staleBrandErrors("apps/demo/src/pilot/draft.ts",
+    "const LEGACY_DRAFT_KEY = 'aktflow.pilot.draft'\n", new Set()).length !== 0) {
+    t.push("brand guard (draft migration constant wrongly reported)");
+  }
+  if (staleBrandErrors("apps/demo/src/pilot/draft.ts", "// AktFlow forever\n", new Set()).length !== 1) {
+    t.push("brand guard (allowlisted FILE wrongly exempted wholesale)");
+  }
+  // No double-reporting of something a specific rule already named better.
+  if (staleBrandErrors("x.ts", "aktflow_app\n", new Set(["aktflow_app"])).length !== 0) {
+    t.push("brand guard (double-reports what the role rule named)");
+  }
+
   // The branding strip must cover BOTH spellings now, or `goproceed_app` on a
   // line with the word AktFlow would be mis-parsed the way the old comment
   // assumed only the old spelling needed excusing.
@@ -1216,8 +1341,17 @@ function main() {
       if (isRoleRecordPath(p)) continue;
       let text;
       try { text = read(p); } catch { continue; }
-      for (const e of staleRoleNameErrors(p, text)) fail(e);
-      for (const e of staleDomainErrors(p, text)) fail(e);
+      const roleErrs = staleRoleNameErrors(p, text);
+      const domErrs = staleDomainErrors(p, text);
+      for (const e of roleErrs) fail(e);
+      for (const e of domErrs) fail(e);
+      // What the two specific rules already named, so the catch-all below does
+      // not report the same occurrence a second time with worse advice.
+      const named = new Set();
+      for (const e of [...roleErrs, ...domErrs]) {
+        for (const m of e.matchAll(/`(aktflow[\w.%-]*)`/gi)) named.add(m[1]);
+      }
+      for (const e of staleBrandErrors(p, text, named)) fail(e);
     }
   } catch (err) {
     fail(`stale-role-name guard could not enumerate tracked files: ${err.message}`);
