@@ -134,7 +134,15 @@ const ROLE_RECORD_FILES = new Set([
   // this rename — it has to be able to say which names moved to which.
   "HANDOFF.md",
 ]);
-const OLD_ROLE_RE = /\baktflow_(app_login|app|service_login|service|worker)\b/g;
+// The five whole names, AND the SQL LIKE prefix that was written to match them
+// as a set. `aktflow%` was missed by the first version of this guard and cost a
+// silent defect: `scripts/snapshot-db-catalog.mjs` selected roles with
+// `rolname like 'aktflow%'`, so after migration 0057 it went on succeeding and
+// simply returned no project roles — the catalog snapshot lost the five rows a
+// reviewer reads to see who can log in and who bypasses RLS, with nothing
+// failing. A guard that only knows whole identifiers cannot see a prefix that
+// was built to match them, so the prefix is named here explicitly.
+const OLD_ROLE_RE = /\baktflow_(app_login|app|service_login|service|worker)\b|aktflow%/g;
 
 /**
  * THIS FILE, and it is not filed with the records above because it is not one.
@@ -158,14 +166,52 @@ export function isRoleRecordPath(relPath) {
     || ROLE_RECORD_FILES.has(relPath);
 }
 
+/**
+ * NO LIVE FILE MAY NAME A PRE-RENAME DOMAIN.
+ *
+ * The product was renamed to GoProceed on 2026-08-03, and the old domains
+ * outlived it in the worst possible place: `infra/README-staging.md` — the
+ * runbook an operator follows to PROVISION the P0 — spelled the old product's
+ * hostnames in nine places, including every `curl` of its verification
+ * checklist. Following it would have bound DNS and a Vercel domain to a product
+ * that no longer exists, at the one moment where that is expensive to undo.
+ *
+ * They are placeholder tokens now (`{{APP_HOSTNAME}}`, `{{LANDING_HOSTNAME}}`,
+ * defined in that runbook's §0) rather than corrected literals, because nobody
+ * has decided the real domain and `apps/demo/README.md` §2 forbids inventing
+ * one. This guard is what stops a literal — old OR newly invented — creeping
+ * back in, and it shares `isRoleRecordPath`'s record exemptions for the same
+ * reason: the question is whether the FILE is a record, not whether the line
+ * reads as historical.
+ *
+ * `aktflow.pilot` is deliberately NOT matched. It is a localStorage key
+ * namespace, not a hostname, and it survives on purpose as
+ * `LEGACY_DRAFT_KEY` in `apps/demo/src/pilot/draft.ts` — the constant that
+ * migrates a visitor's saved draft forward instead of orphaning it.
+ */
+const OLD_DOMAIN_RE = /\baktflow\.(com|app|example)\b/g;
+
+export function staleDomainErrors(relPath, text) {
+  if (isRoleRecordPath(relPath)) return [];
+  const seen = new Set();
+  for (const m of text.matchAll(OLD_DOMAIN_RE)) seen.add(m[0]);
+  return [...seen].sort().map((d) =>
+    `${relPath}: names the pre-rename domain \`${d}\` — the product is GoProceed and no domain for it is `
+    + "recorded as registered anywhere in this repository. Use a placeholder token "
+    + "({{APP_HOSTNAME}}/{{LANDING_HOSTNAME}}, see infra/README-staging.md §0) rather than inventing one");
+}
+
 export function staleRoleNameErrors(relPath, text) {
   if (isRoleRecordPath(relPath)) return [];
   const seen = new Set();
   for (const m of text.matchAll(OLD_ROLE_RE)) seen.add(m[0]);
-  return [...seen].sort().map((name) =>
-    `${relPath}: names the pre-rename PostgreSQL role \`${name}\` — migration 0057 renamed it to `
-    + `\`${name.replace("aktflow_", "goproceed_")}\`. Only a record of what happened may keep the old `
-    + "name (see isRoleRecordPath in scripts/validate-canonical-docs.mjs)");
+  return [...seen].sort().map((name) => name === "aktflow%"
+    ? `${relPath}: uses the SQL LIKE prefix \`aktflow%\`, which matched the project's PostgreSQL `
+      + "roles until migration 0057 renamed them and now matches nothing — a query written this way "
+      + "keeps SUCCEEDING and silently returns no project roles. Use `goproceed%`"
+    : `${relPath}: names the pre-rename PostgreSQL role \`${name}\` — migration 0057 renamed it to `
+      + `\`${name.replace("aktflow_", "goproceed_")}\`. Only a record of what happened may keep the old `
+      + "name (see isRoleRecordPath in scripts/validate-canonical-docs.mjs)");
 }
 
 export function relativeLinks(markdown) {
@@ -882,6 +928,11 @@ function selfTest() {
     "TODOS.md", "docs/delivery/package-review-2026-08-04.md"]) {
     if (staleRoleNameErrors(rec, fxRole).length !== 0) t.push(`role guard (record path not exempt: ${rec})`);
   }
+  // The LIKE prefix, which whole-identifier matching cannot see.
+  const likeErrs = staleRoleNameErrors("scripts/snapshot.mjs", "where rolname like 'aktflow%' order by 1\n");
+  if (!likeErrs.some((e) => e.includes("silently returns no project roles"))) t.push("role guard (SQL LIKE prefix)");
+  if (likeErrs.some((e) => e.includes("renamed it to"))) t.push("role guard (prefix given the whole-name message)");
+  if (staleRoleNameErrors("x.mjs", "like 'goproceed%'\n").length !== 0) t.push("role guard (new prefix wrongly reported)");
   // A file that merely SITS BESIDE a record directory is not one.
   if (staleRoleNameErrors("docs/architecture/tenancy-and-security.md", fxRole).length === 0) {
     t.push("role guard (live doc wrongly exempt)");
@@ -895,6 +946,20 @@ function selfTest() {
   if (staleRoleNameErrors("x.ts", "aktflow_apparatus aktflow_services\n").length !== 0) {
     t.push("role guard (word boundary)");
   }
+  // Guard 12: pre-rename domains.
+  const domErrs = staleDomainErrors("infra/README-staging.md", "curl https://app.aktflow.com/v1 and aktflow.example\n");
+  if (!domErrs.some((e) => e.includes("aktflow.com"))) t.push("domain guard (app subdomain)");
+  if (!domErrs.some((e) => e.includes("aktflow.example"))) t.push("domain guard (example domain)");
+  if (!domErrs.some((e) => e.includes("{{APP_HOSTNAME}}"))) t.push("domain guard (message names the remedy)");
+  if (staleDomainErrors("x.md", "the {{APP_HOSTNAME}} token and goproceed.example\n").length !== 0) {
+    t.push("domain guard (token or new example wrongly reported)");
+  }
+  // The localStorage namespace is not a hostname and must survive.
+  if (staleDomainErrors("apps/demo/src/pilot/draft.ts", "const LEGACY_DRAFT_KEY = 'aktflow.pilot.draft'\n").length !== 0) {
+    t.push("domain guard (localStorage key misread as a domain)");
+  }
+  if (staleDomainErrors("docs/legacy/x.md", "aktflow.com\n").length !== 0) t.push("domain guard (record path not exempt)");
+
   // The branding strip must cover BOTH spellings now, or `goproceed_app` on a
   // line with the word AktFlow would be mis-parsed the way the old comment
   // assumed only the old spelling needed excusing.
@@ -1152,6 +1217,7 @@ function main() {
       let text;
       try { text = read(p); } catch { continue; }
       for (const e of staleRoleNameErrors(p, text)) fail(e);
+      for (const e of staleDomainErrors(p, text)) fail(e);
     }
   } catch (err) {
     fail(`stale-role-name guard could not enumerate tracked files: ${err.message}`);

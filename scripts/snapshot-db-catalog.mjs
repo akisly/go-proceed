@@ -26,8 +26,16 @@ const sections = {
   functions: await q(`select n.nspname, p.proname, p.prosecdef as security_definer
                       from pg_proc p join pg_namespace n on n.oid = p.pronamespace
                       where n.nspname in ('public','api','app') order by 1,2`),
+  // `goproceed%` since 2026-08-17 (migration 0057). THIS PREFIX SPELLED THE OLD
+  // PRODUCT NAME AND THE RENAME BROKE IT SILENTLY: the query still succeeded and
+  // still returned `anon`/`authenticated`/`service_role`, so a snapshot taken
+  // after the rename simply had no project roles in it — no error, no empty
+  // result, just five missing rows in the one section a reviewer reads to check
+  // who can log in and who bypasses RLS. A LIKE prefix is invisible to a guard
+  // that matches whole role names, which is why `staleRoleNameErrors` now
+  // matches this spelling too.
   roles: await q(`select rolname, rolcanlogin, rolbypassrls, rolsuper from pg_roles
-                  where rolname like 'aktflow%' or rolname in ('anon','authenticated','service_role')
+                  where rolname like 'goproceed%' or rolname in ('anon','authenticated','service_role')
                   order by 1`),
   triggers: await q(`select event_object_table, trigger_name, action_timing, event_manipulation
                      from information_schema.triggers where trigger_schema='public' order by 1,2,4`),

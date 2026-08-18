@@ -4,16 +4,70 @@ Written to be read cold. The previous handoff is the section «What the last
 session left» below, compressed; everything else is new.
 
 **Everything below §0 is a session record and several of its statements have
-since become false.** §0 is the current state. It has been updated three times —
-once when the field client was built, once when it merged, once when the seven
-review residuals were closed — and it says which sections it supersedes.
+since become false.** §0 is the current state. It has been updated five times —
+when the field client was built, when it merged, when the seven review residuals
+closed, when the six orphaned capabilities and the five PostgreSQL roles were
+mapped and renamed, and when the domains followed — and it says which sections
+it supersedes.
 
 ---
 
-## 0a. Latest — 2026-08-17: the seven P1 residuals, the six orphaned capabilities and the five PostgreSQL roles. The P0 is untouched and is still first.
+## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, the five PostgreSQL roles, and the domains. The P0 is untouched and is still first.
 
-Three pieces of work. Each is below, under its own
+Four pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.4 — the runbook was telling the operator to provision the wrong product's domain
+
+**`infra/README-staging.md` — the document you follow to DO the P0 — spelled the
+pre-rename hostnames in nine places**, including every `curl` of its §6
+verification checklist and the Supabase project name in §1. An operator
+following it would have bound DNS and a Vercel domain to a product that no
+longer exists, at the one moment where that is expensive to undo.
+
+`TODOS.md`'s rename entry had said the domains «will cost exactly the same after
+staging exists». That was wrong for this one: it is not a later cost, it is a
+defect sitting on the next thing you do.
+
+**They are placeholder tokens now, not corrected literals** — `{{APP_HOSTNAME}}`
+and `{{LANDING_HOSTNAME}}`, matching the `{{CONTACT_EMAIL}}` /
+`{{DEMO_HOSTNAME}}` convention already here, defined in a new §0 of the runbook.
+No domain for this product is recorded anywhere as registered, and
+`apps/demo/README.md` §2 forbids inventing one; a plausible `goproceed.com`
+would have read as settled fact. **There is deliberately no CI gate on those
+tokens** — they are instructions to a human, and an unreplaced token in an
+instruction is the instruction working. What is gated is the reverse:
+`staleDomainErrors` fails the build if an old domain returns to a live file.
+
+**A SILENT REGRESSION FROM 0a.3, found here rather than by that slice.**
+`scripts/snapshot-db-catalog.mjs` selected roles with `rolname like 'aktflow%'`.
+After migration `0057` that query still SUCCEEDS and still returns
+`anon`/`authenticated`/`service_role` — it simply returns no project roles, so
+`pnpm db:catalog-snapshot` produced a snapshot missing the five rows a reviewer
+reads to see who can log in and who bypasses RLS. Nothing failed, and the guard
+0a.3 added could not see it: it matched whole identifiers, and this was a LIKE
+prefix written to match them as a set. It matches `aktflow%` now.
+
+*That is the third time in two days a guard turned out to be checking a
+narrower thing than the sentence describing it. It is worth expecting.*
+
+**The pilot draft key was a data migration, not a substitution.**
+`goproceed.pilot.draft` now, with the old key read once and moved forward on
+load — renaming it outright would have shown an empty form to a contractor who
+typed three free-text answers and came back after the deploy, which
+`draft.ts`'s own header calls «unrecoverable». `/legal` discloses the key to the
+visitor by name, so it can only be truthful about one; `Legal.tsx` now imports
+the constant rather than re-declaring it under a comment saying the two «must
+never disagree».
+
+**What is left of the rename**, and it is the last of it: the catalog
+identifiers (`aktflow_platform_billing`, `aktflow_external`, `aktflow_support`,
+`aktflow_audit_writer`, and the `aktflow_control` / `aktflow_requirement` column
+headers) plus `supabase/config.toml`'s local `project_id`. None is a live
+PostgreSQL role — they are planned-role rows and column names, so renaming them
+changes a catalog's shape rather than a runtime identifier.
 
 ---
 
@@ -78,6 +132,12 @@ renamed» while excusing them from the branding rule.
 **Not folded in, and named rather than dropped:** the four `aktflow.*` domains,
 the two `AKTFLOW_*` env vars, and the documents mentioning `aktflow` in non-role
 forms. None shares the closing window the roles had; they cost the same later.
+
+> **The last sentence was wrong about the domains, and §0a.4 above is the
+> correction.** One of them was on the P0's own path: the staging runbook spelled
+> the pre-rename hostnames in nine places, so following it would have provisioned
+> a domain for a product that no longer exists. That is not a later cost. The
+> domains and env vars closed 2026-08-18.
 
 ---
 
