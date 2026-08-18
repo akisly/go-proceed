@@ -1,15 +1,24 @@
-# Staging provisioning runbook — GoProceed P0a slice 1
+# Staging provisioning runbook — GoProceed
 
 This is an executable runbook for a human operator with a Supabase account
 and a Vercel account. Nothing in this repo automates it, and nothing in
 this repo has run it yet (see "Status" at the bottom). It provisions:
 
-1. A staging Supabase project with migrations 0001-0005 applied.
-2. Two Vercel projects (`apps/app`, `apps/landing`) built from this
-   monorepo via pnpm + Turborepo.
+1. A staging Supabase project with the full migration chain applied — **58
+   files, `0001` through `0058`** as of 2026-08-18. This document said
+   «0001-0005» until that date; it was written for the P0a foundation slice
+   and the chain grew under it. Re-read the number from
+   `ls supabase/migrations | wc -l` rather than from here.
+2. A Vercel project for **`apps/app`** — the API and, since 2026-08-11, the
+   PWA field client a foreman opens on a phone. This is the P0 of `TODOS.md`:
+   the client is built, merged and green in CI, and **nothing serves it on the
+   public internet until this runbook has been run.** `apps/landing` is a
+   second, optional project and is covered separately in §4.
 3. A verification pass that proves the same vertical slice this repo tests
    locally (`POST /v1/organizations` → `GET /v1/me/context`, audit +
-   outbox + cron drain, tenant isolation) also works against staging.
+   outbox + cron drain, tenant isolation) also works against staging — plus,
+   new with the field client, one signed-in foreman opening «Мої доручення»
+   on a real phone at the real origin (§6 step 9).
 
 Do not commit any secret produced by these steps (project ref is not
 secret; DB URL, anon key, and service_role key are). Store them in a
@@ -87,9 +96,16 @@ supabase link --project-ref <project-ref>
 supabase db push
 ```
 
-This applies `supabase/migrations/0001_core_tenancy.sql` through
-`0005_outbox_drain_cron.sql` in order, exactly as `supabase db reset` does
-locally. A plain `supabase db push` (as run above, with no flags) does
+This applies `supabase/migrations/0001_core_tenancy.sql` through the last file
+in that directory (`0058_the_privilege_no_trigger_could_see.sql` as of
+2026-08-18) in order, exactly as `supabase db reset` does locally. Two files
+worth knowing about before you push, because they are the ones that behave
+differently from «create a table»: `0057` RENAMES the five PostgreSQL roles
+from their pre-rename spelling to `goproceed_*` — on a fresh project it creates
+the old names in `0003`/`0034` and renames them in `0057`, which looks redundant
+and is exactly right; and `0058` REVOKES `TRUNCATE` from `service_role` on
+every table in `public`, which is why the operator must never rely on the
+service key to truncate anything. A plain `supabase db push` (as run above, with no flags) does
 **not** apply `supabase/seed.sql` — push only runs migrations — so do not
 seed staging with the local dev fixtures (`AUTH_USER_A` / `AUTH_USER_B`)
 this way; staging users are created via Supabase Auth in §6. This is
@@ -130,7 +146,7 @@ Every migration in this slice is written to be safe to re-run (`create
 runbook requires proving it on staging rather than trusting the comments:
 
 ```bash
-supabase db push   # first apply — should report 5 migrations applied
+supabase db push   # first apply — should report 58 migrations applied (count the directory)
 supabase db push   # second apply, immediately after — should report
                     # "Remote database is up to date" / 0 migrations
                     # applied, and exit 0
@@ -282,81 +298,109 @@ upload.
    complete — there is no working `SERVICE_DB_URL` to configure the
    deployment with otherwise.
 
-## 4. Create two Vercel projects from the monorepo
+## 4. Create the Vercel project for `apps/app`
 
-Both projects import the same GitHub repo/branch; only the root directory
-and env vars differ.
+**Everything Vercel needs to know about HOW to build is in the repository
+already** — `apps/app/vercel.json` — so the dashboard steps below are about
+WHICH repository, WHICH directory, and WHAT SECRETS. Do not retype build
+settings into the dashboard; the file is authoritative and the dashboard
+should show it as detected.
 
-### `apps/app`
+### 4.1 What the repository has decided for you
 
-- Root directory: `apps/app`
-- Framework preset: Next.js
-- Build command: `cd ../.. && pnpm turbo run build --filter=@goproceed/app`
-  (or accept Vercel's monorepo auto-detection, which runs `pnpm install`
-  at the repo root and `next build` in the root directory — either works
-  since Turborepo's task graph builds `@goproceed/database`,
-  `@goproceed/domain`, `@goproceed/contracts` first via `dependsOn: ["^build"]`
-  in `turbo.json`).
-- Install command: `pnpm install` (repo root — pnpm workspaces require
-  this; do not let Vercel install inside `apps/app` alone).
-- Environment variables (Production + Preview):
-  - `NEXT_PUBLIC_SUPABASE_URL` = `https://<project-ref>.supabase.co`
-  - `NEXT_PUBLIC_SUPABASE_ANON_KEY` = the anon key from §1
-  - `APP_DB_URL` = the pooler connection string composed in §3.1
-  - `SERVICE_DB_URL` = the pooler connection string composed in §3.2. It
-    must authenticate as `goproceed_service_login` — not as
-    `goproceed_app_login`, and not as a superuser/`postgres` connection.
+| Setting | Value | Where it lives | Why |
+|---|---|---|---|
+| Framework | Next.js | `apps/app/vercel.json` | |
+| Install | `cd ../.. && pnpm install --frozen-lockfile` | `vercel.json` | pnpm workspaces install at the ROOT; installing inside `apps/app` alone cannot resolve `@goproceed/*` |
+| Build | `cd ../.. && pnpm turbo run build --filter=@goproceed/app` | `vercel.json` | Turborepo's `dependsOn: ["^build"]` builds `@goproceed/database`, `domain`, `contracts` first |
+| Ignored build step | `npx turbo-ignore @goproceed/app` | `vercel.json` | a push touching only `apps/demo` or docs does not redeploy the app |
+| Pre-build gate | `apps/app/scripts/deploy-preflight.mjs` | `package.json` `prebuild` | **refuses to build** on Vercel if any variable in §4.3 is unset or carries a local value — silent in CI and locally |
+| Origin in the build cache | `NEXT_PUBLIC_APP_ORIGIN` in `turbo.json` `build.env` | `turbo.json` | without it, a build with a CHANGED origin could replay a cached bundle with the old one baked in |
 
-    A superuser connection would pass migration 0035's database-side
-    guard silently: `pg_has_role(session_user, 'goproceed_service',
-    'member')` is true for a superuser too, so a `SERVICE_DB_URL`
-    mistakenly pointed at one would look correct at the database layer
-    while writing server-attested facts (inspection verdicts,
-    server-sourced capture events) from a connection nobody meant to
-    grant that power to. The application does not rely on the database
-    to catch this alone — `withServiceTx` (`packages/database/src/tx.ts`)
-    asserts `session_user = 'goproceed_service_login'` at the start of
-    every service transaction, so a wrong `SERVICE_DB_URL` (superuser,
-    app login, or anything else) fails closed with an explicit error at
-    the first service write instead of going unnoticed.
-- Domain: `{{APP_HOSTNAME}}`
+### 4.2 Dashboard steps
 
-### `apps/landing`
+1. **Add New → Project → Import** the `go-proceed` GitHub repository.
+2. **Root Directory: `apps/app`.** This is the one setting `vercel.json`
+   cannot set for itself, and everything else keys off it — Vercel reads
+   `apps/app/vercel.json` only once the root is that directory.
+3. Confirm the detected framework is Next.js and the install/build commands
+   match the table above. If the dashboard proposes anything else, the root
+   directory is wrong.
+4. **Do not deploy yet.** Add the environment variables in §4.3 first —
+   `NEXT_PUBLIC_*` values are inlined at build time, and a first deploy without
+   them produces a bundle that renders its error screen on every authenticated
+   page and cannot be fixed by setting them afterward. (The preflight will
+   refuse such a build, which is the point — but let it pass first time.)
 
-- Root directory: `apps/landing`
-- Framework preset: Next.js
-- Build command: default (Vercel monorepo auto-detect) or
-  `cd ../.. && pnpm turbo run build --filter=@goproceed/landing`
-- Install command: `pnpm install` (repo root)
-- Environment variables: none required — `apps/landing` is static-first
-  and contains no API routes and no Supabase server client (see
-  `apps/landing/next.config.ts`).
-- Domain: `{{LANDING_HOSTNAME}}`
+### 4.3 Environment variables — Production AND Preview, every one
 
-### 4.1 pnpm + Turborepo build settings (both projects)
+The complete contract, with reasoning per variable, is
+`apps/app/.env.example`. Set each of these in **Project Settings → Environment
+Variables**, for **both** Production and Preview:
 
-- Vercel auto-detects pnpm from `pnpm-lock.yaml` + `packageManager` in the
-  root `package.json` (`pnpm@9.12.0`) — no manual override needed for the
-  package manager itself.
-- Set an **Ignored Build Step** per project so a push touching only the
-  other app (or only docs) doesn't trigger a redundant deploy:
-  ```
-  npx turbo-ignore
-  ```
-  (run from each project's root directory setting — `turbo-ignore` reads
-  the project name from `apps/app/package.json` /
-  `apps/landing/package.json` and diffs against the last successful
-  deploy for that project using Turborepo's task graph, so a change to
-  `packages/ui` correctly triggers `apps/landing` but a change to
-  `apps/app/app/v1/organizations/route.ts` alone does not trigger
-  `apps/landing`.)
+| Variable | Kind | Value | Source |
+|---|---|---|---|
+| `NEXT_PUBLIC_SUPABASE_URL` | build | `https://<project-ref>.supabase.co` | §1 |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | build | the `anon` `public` key | §1 → Project Settings → API |
+| `NEXT_PUBLIC_APP_ORIGIN` | build | `https://{{APP_HOSTNAME}}` — **the exact origin, https, no path** | §0 |
+| `APP_DB_URL` | runtime | pooler string as `goproceed_app_login` | §3.1 |
+| `SERVICE_DB_URL` | runtime | pooler string as `goproceed_service_login` — **a different role and password from `APP_DB_URL`** | §3.2 |
+| `SUPABASE_URL` | runtime | same host as `NEXT_PUBLIC_SUPABASE_URL` | §1 |
+| `SUPABASE_SERVICE_ROLE_KEY` | runtime | the `service_role` key | §1 → Project Settings → API. **Server secret. Never `NEXT_PUBLIC_`.** |
+| `EXTERNAL_LINK_ORIGIN` | runtime | `https://{{APP_HOSTNAME}}` | same as the app origin |
+| `EXTERNAL_LINK_HMAC_KEYS` | runtime | `<keyId>:<base64 32+ bytes>` | generate: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
+| `EXTERNAL_LINK_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
+| `EXTERNAL_SESSION_HMAC_KEYS` | runtime | a DIFFERENT generated key | |
+| `EXTERNAL_SESSION_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
+
+**Three of these were undocumented until 2026-08-18 and would have failed the
+first deploy quietly.** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are read
+by `src/lib/evidence-storage.ts`, which defaults them to the LOCAL stack — a
+deploy that set only the previously documented variables would have aimed
+every evidence upload at `127.0.0.1:54321` on the server. And
+`NEXT_PUBLIC_APP_ORIGIN` was documented but not in `turbo.json`'s build cache
+key, so a redeploy to a different hostname could have served the old origin
+from cache. The preflight checks all three; `.env.example` explains all three.
+
+**Preview deployments need a `NEXT_PUBLIC_APP_ORIGIN` too**, and it cannot be
+the production one: `resolveBaseOrigin` returns it verbatim, so a Preview built
+with the Production origin would self-fetch across deployments with the
+session cookie attached. Either set the Preview scope to the Vercel preview
+hostname pattern you actually use, or — simplest for a pilot — **do not build
+Previews at all**: Settings → Git → uncheck «Preview Deployments» until there
+is a second environment worth having.
+
+### 4.4 `apps/landing` — optional, and not part of the P0
+
+`apps/landing` is a static-first Next app with no API routes and no Supabase
+client (`apps/landing/next.config.ts`). It has NO `vercel.json` of its own and
+nothing in the P0 depends on it. If it is deployed:
+
+- Root directory `apps/landing`, framework Next.js, install at the repo root
+  (`cd ../.. && pnpm install --frozen-lockfile`), build
+  `cd ../.. && pnpm turbo run build --filter=@goproceed/landing`.
+- Environment variables: none.
+- Domain: `{{LANDING_HOSTNAME}}`.
+
+It is listed for completeness, not urgency. A foreman opening the field client
+does not touch it.
 
 ## 5. Deploy
 
-Push to the branch each Vercel project is configured to track (or trigger
-a manual deploy from the Vercel dashboard). Confirm both builds succeed
-and `{{APP_HOSTNAME}}` / `{{LANDING_HOSTNAME}}` resolve once DNS is pointed at
-Vercel.
+1. **Attach the domain first**: Project Settings → Domains → add
+   `{{APP_HOSTNAME}}`, and point DNS at Vercel as it instructs. The origin has
+   to exist BEFORE the build that bakes it in, or the value you set in §4.3 is a
+   promise about a hostname that does not resolve.
+2. Trigger a deploy — push to `main`, or Deployments → Redeploy.
+3. **Read the build log for the preflight line before anything else.** A
+   healthy build prints
+   `deploy preflight: OK — origin, Supabase, database and external-link variables are all present and non-local.`
+   near the top. If instead it prints `REFUSING TO BUILD`, it lists every
+   variable that is missing or local; fix them all in §4.3 and redeploy. Do not
+   work around it — it is telling you the bundle would not have worked.
+4. Confirm `https://{{APP_HOSTNAME}}/login` renders the OTP form over TLS. This
+   is the first moment the field client is reachable by a person who is not at a
+   developer's keyboard, and it is the P0 of `TODOS.md` closing.
 
 ## 6. End-to-end verification checklist
 
@@ -454,8 +498,34 @@ timings) — a checked box with no evidence is not verification.
      is unset, or `withServiceTx`'s `session_user` assertion failing
      because it points at the wrong role (§3.2, §4).
 
+9. **Open the field client on a real phone, at the real origin.** This is
+   the step the earlier eight cannot substitute for, and the reason ADR-007
+   requires physical devices. On the pilot iPhone and the pilot Android
+   (`TODOS.md` §"the pilot-device inventory does not exist" — buy them if they
+   are still not bought):
+   - [ ] `https://{{APP_HOSTNAME}}/login` renders; enter an invited member's
+     email; the 6-digit code arrives; sign-in lands on «Мої доручення».
+   - [ ] Open one assignment; the довідковий disclaimer is visible; every
+     control is at least 44×44 CSS px (measure with the browser's inspector at
+     375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI —
+     but the point of this step is a REAL engine, not headless Chrome).
+   - [ ] Take a photo through the capture control; the unsaved-photo banner is
+     up while it uploads and the receipt (device time / server time / SHA-256)
+     renders after. `crypto.subtle` requires this to be https — a plain-http
+     origin fails here, silently, which is why §4.3 forbids one.
+   - [ ] **Record ADR-007's two required measurements**, per engine, in the M2
+     measurement table: whether the engine stripped or transcoded EXIF from the
+     uploaded bytes (compare the SHA-256 on screen with a hash of the original
+     taken off the device), and how the engine honours the `capture` attribute
+     (camera opened directly, or a chooser). These are the measurements the
+     decision said MUST be made rather than assumed, and this is the first
+     moment they can be.
+   - [ ] Add the app to the home screen (the manifest is served); reopen it
+     from there; confirm the session survived.
+
 If every box above is checked with real evidence pasted into the PR/ops
-log, staging is verified end-to-end. Do not mark this done from local
+log, staging is verified end-to-end — and, for the first time, the P0 of
+`TODOS.md` is closed: a foreman can open the client. Do not mark this done from local
 results alone — local Postgres and hosted Supabase can diverge in
 `pg_cron` availability, connection pooling, and role/grant edge cases,
 which is exactly what §2.1 and §2.2 exist to catch.
@@ -464,7 +534,15 @@ which is exactly what §2.1 and §2.2 exist to catch.
 
 ## Status
 
-**Staging has not been provisioned or verified as of this writing.** This
+**Staging has not been provisioned or verified as of this writing — and
+this document being rewritten (2026-08-18) did not change that.** What the
+rewrite changed is that everything the REPOSITORY can decide about the
+deployment is now decided and checked in — `apps/app/vercel.json`, the deploy
+preflight, the complete environment contract in `.env.example`, the build-cache
+key — so that provisioning is one sitting of credentialed steps by the operator,
+each of which either works or is refused with the reason named. The steps that
+need an account, a domain and a phone are still the operator's, and none of them
+has been taken. This
 repo's environment has no GitHub remote, no Vercel account, and no
 Supabase cloud project connected — Tasks 1-12 of the P0a slice-1 plan were
 built and verified entirely against the local Supabase stack

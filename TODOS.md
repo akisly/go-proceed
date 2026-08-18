@@ -318,6 +318,39 @@ storage-eviction rule including whether an installed home-screen PWA is exempt.
 `crypto.subtle` also needs a secure context — localhost qualifies, so local work
 is unaffected and only the real thing is blocked.
 
+**2026-08-18 — everything the REPOSITORY can decide about this is now decided,
+checked in, and gated. The P0 is NOT closed; what changed is that closing it is
+now one sitting of credentialed steps rather than a discovery exercise.**
+
+- `apps/app/vercel.json` — framework, root-relative install and build through
+  turbo, `turbo-ignore`. Vercel reads it once the root directory is `apps/app`.
+- `apps/app/scripts/deploy-preflight.mjs`, wired as `prebuild` — on a
+  deployment build (`VERCEL=1`) it REFUSES to build if any of the twelve
+  variables is unset or carries a local value, naming each; silent in CI and on
+  a developer's machine, so `verify`/`app-qa` are untouched. Proved in five
+  modes and through the real turbo path.
+- `NEXT_PUBLIC_APP_ORIGIN` added to `turbo.json` `build.env` — it was NOT in
+  the build-cache key, so a redeploy to a different hostname could have served
+  a cached bundle with the old origin baked in. That is the rebuild trap the
+  note below warns about, arriving through the cache instead of the dashboard.
+- `.env.example` is now the complete contract, split into BUILD-TIME and
+  RUNTIME. **Two variables it never listed were hard requirements:**
+  `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`, read by
+  `src/lib/evidence-storage.ts`, which DEFAULTS them to the local stack — a
+  deploy setting only the documented variables would have aimed every evidence
+  upload at `127.0.0.1:54321` on the server, and the first photo would have been
+  the first symptom.
+- `infra/README-staging.md` §4 rewritten against the real config (it described
+  a 5-migration foundation slice; the chain is 58), §5 reads the preflight line
+  before anything else, §6 gains step 9 — the field client on a real phone at the
+  real origin, which is where ADR-007's two required measurements finally
+  become possible.
+- `.vercel/` gitignored.
+
+**What is still yours and only yours:** the Supabase project, the two role
+passwords (§3), the Vercel project and its twelve variables (§4.3), the domain
+(§0 — still `{{APP_HOSTNAME}}`, still undecided), and two phones (§6.9).
+
 **Note for whoever provisions it:** `NEXT_PUBLIC_APP_ORIGIN` must be set at
 BUILD time. A container built once and deployed to a named origin will refuse
 every request until it is REBUILT with the value set — `resolveBaseOrigin` fails

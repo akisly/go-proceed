@@ -14,8 +14,55 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Nine pieces of work. Each is below, under its own
+Ten pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.10 — the P0 is prepared to the last credentialed step, and two undocumented variables would have broken the first deploy
+
+**The P0 is still open. A foreman still cannot open the client.** What this
+slice did is decide and check in everything the repository CAN decide, so that
+provisioning is one sitting of steps that need an account — and so that an
+incomplete deploy fails at BUILD with the variable named, instead of at the
+first request with a 500.
+
+**Three findings, each of which would have made the first deploy fail or, worse,
+fail open:**
+
+1. **`SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` were hard requirements that
+   `.env.example` never listed.** `src/lib/evidence-storage.ts` reads both and
+   DEFAULTS them to the local stack — `127.0.0.1:54321` and the published demo
+   key. A deploy that set only the documented variables would have aimed every
+   evidence upload at a Supabase that does not exist on the server, and the
+   first photo would have been the first symptom.
+2. **`NEXT_PUBLIC_APP_ORIGIN` was documented but absent from `turbo.json`'s
+   `build.env`.** Turborepo hashes only declared env into the build cache, so a
+   redeploy to a DIFFERENT hostname could have replayed a cached bundle with the
+   old origin baked in. That is the rebuild trap the P0 note already warned
+   about, arriving through the cache rather than the dashboard.
+3. **`NODE_ENV` is undefined during a `prebuild` hook** (measured), so a
+   preflight cannot key on it. `VERCEL=1` is the honest signal for «this build
+   is going to a real origin», and the preflight is scoped to it — CI's `verify`
+   and `app-qa` build without an origin deliberately (`qa/field.mjs` names its
+   own at `next start` time), and a blanket refusal would have turned both red.
+
+**What is checked in:** `apps/app/vercel.json` (root-relative install/build via
+turbo, `turbo-ignore`); `apps/app/scripts/deploy-preflight.mjs` as `prebuild`,
+refusing on twelve missing-or-local variables and proved in five modes and
+through the real turbo path; the origin in the build-cache key; `.env.example`
+as the complete contract split BUILD-TIME/RUNTIME; `infra/README-staging.md`
+§4–§6 rewritten against the real config (it described a 5-migration foundation
+slice; the chain is 58), with a new §6 step 9 — the field client on a real
+phone at the real origin, which is the first moment ADR-007's two required
+measurements can be made; `.vercel/` gitignored.
+
+**What remains is the operator's, and it is a short list:** a Supabase project
+(§1), two role passwords (§3), a Vercel project with twelve variables (§4.3), a
+domain (§0 — still a `{{APP_HOSTNAME}}` token, still undecided; the runbook
+forbids inventing one), and two phones (§6.9). The runbook's own Status section
+says the same thing in its own words: nothing that needs an account has been
+done, and this document being rewritten did not change that.
 
 ---
 
