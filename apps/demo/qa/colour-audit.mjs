@@ -279,7 +279,7 @@ export function auditColours({ css, label, approved, strictUnresolved = false })
     }
     if (parsed.rgb && !approved.has(key(parsed.rgb))) {
       findings.push(
-        `${label}: unapproved colour "${literal}" → rgb(${parsed.rgb.join(', ')}) is not in the doc 05 palette`,
+        `${label}: unapproved colour "${literal}" → rgb(${parsed.rgb.join(', ')}) is not in the token source (packages/tokens/src/tokens.json)`,
       )
     }
   }
@@ -307,4 +307,35 @@ export function auditTailwindArbitrary({ source, label, approved }) {
     }
   }
   return findings
+}
+
+// ---------------------------------------------------------------------------
+// The approved set, derived from the token source
+// ---------------------------------------------------------------------------
+//
+// `buildApprovedPalette()` above scans a stylesheet and treats whatever it
+// finds as approved. That was right while `apps/demo/src/styles.css` was the
+// frozen specification, and it is wrong now for two reasons: D5 retires that
+// sheet, and — more importantly — it inverts the relationship. The guard was
+// reading the IMPLEMENTATION to decide what the SPECIFICATION was, so any
+// colour that got into the sheet was approved by having got in.
+//
+// The allowlist is now generated from packages/tokens/src/tokens.json
+// (`node packages/tokens/scripts/generate-palette.mjs`), which means adding a
+// colour to the product requires adding it to the token source — and that is
+// the review point. `buildApprovedPalette` stays exported for the frozen
+// public routes until D5 lands, and takes no new callers.
+import { APPROVED_PALETTE, APPROVED_RGB } from './palette.generated.mjs'
+
+export { APPROVED_PALETTE }
+
+/** The approved RGB set. Pass this as `approved` to auditColours(). */
+export function approvedFromTokens() {
+  return new Set(APPROVED_RGB)
+}
+
+/** Which token(s) justify an approved triplet — so a finding can say what the
+ * colour would have to become, not just that it is wrong. */
+export function tokenNamesFor(rgb) {
+  return APPROVED_PALETTE.get(Array.isArray(rgb) ? rgb.join(',') : rgb) ?? []
 }

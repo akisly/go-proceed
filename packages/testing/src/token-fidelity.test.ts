@@ -12,46 +12,30 @@ import { execFileSync } from "node:child_process";
  *
  * What it does NOT catch, stated so nobody assumes otherwise: a wrong value.
  * Once a wrong value is in the source, generation makes it consistent
- * everywhere. That is exactly how `muted` drifted (#686E6A documented,
- * #666979 shipped, name identical). Only the visual gate catches that class.
+ * everywhere. That is exactly how `muted` drifted in v1 (#686E6A documented,
+ * #666979 shipped, name identical). Two other guards close that gap now —
+ * palette-derivation.test.ts recomputes every hex from its OKLCH triple, and
+ * contrast.test.ts asserts every semantic pairing — but neither replaces the
+ * visual gate for a value that is legal and simply wrong.
  */
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 
 /**
- * A fixed, never-cleaned output path (the original `/tmp/token-fidelity`) let
- * a broken generator pass this guard silently. If a generator stopped
- * honouring `TOKENS_OUT_DIR` — e.g. someone hardcoded the real output path
- * back in — it would overwrite the committed file at its real location as a
- * side effect, while this test kept reading a stale-but-matching copy left
- * in the fixed temp path by an earlier successful run, and passed. On a
- * clean checkout that failed correctly with ENOENT; on a warm CI runner or a
- * second local `vitest` invocation it did not. A reviewer built and
- * confirmed exactly this regression.
- *
- * The fix is two-layered: `runDir` is unique per test-file execution
- * (`mkdtempSync`) and removed afterwards (`rmSync`), so no earlier run's
- * output can be waiting there to be misread; and each `regenerate()` call
- * gets its own fresh subdirectory of `runDir`, checked empty immediately
- * before the generator runs and checked to contain exactly the expected file
- * immediately after. A generator that silently ignores `TOKENS_OUT_DIR`
- * leaves that subdirectory empty, so the post-run assertion fails and
- * `readFileSync` never gets the chance to read back something stale.
- * Isolation here is the mechanism the guard depends on, not tidiness.
+ * A fixed, never-cleaned output path let a broken generator pass this guard
+ * silently in v1: if a generator stopped honouring `TOKENS_OUT_DIR` it would
+ * overwrite the committed file at its real location as a side effect, while
+ * this test read a stale-but-matching copy left in the fixed temp path by an
+ * earlier run. `runDir` is therefore unique per test-file execution and removed
+ * afterwards, and each `regenerate()` call gets its own fresh subdirectory,
+ * checked empty immediately before the generator runs and checked to contain
+ * exactly the expected file immediately after. Isolation here is the mechanism
+ * the guard depends on, not tidiness.
  */
 let runDir: string;
 
-beforeAll(() => {
-  runDir = mkdtempSync(join(tmpdir(), "token-fidelity-"));
-});
+beforeAll(() => { runDir = mkdtempSync(join(tmpdir(), "token-fidelity-")); });
+afterAll(() => { rmSync(runDir, { recursive: true, force: true }); });
 
-afterAll(() => {
-  rmSync(runDir, { recursive: true, force: true });
-});
-
-/** Regenerates into a fresh, empty subdirectory of this run's temp root and
- * returns what the generator wrote. See the comment above `runDir` for why
- * this checks the directory's contents before and after, rather than
- * trusting that `TOKENS_OUT_DIR` was honoured. */
 function regenerate(script: string, out: string): string {
   const dir = mkdtempSync(join(runDir, `${script}-`));
   expect(readdirSync(dir)).toEqual([]);
@@ -63,70 +47,122 @@ function regenerate(script: string, out: string): string {
   return readFileSync(join(dir, out), "utf8");
 }
 
-describe("generated tokens match their source", () => {
-  it("the committed CSS is what the generator produces", () => {
-    const committed = readFileSync(join(repoRoot, "packages/ui/src/tokens.generated.css"), "utf8");
-    expect(regenerate("generate-css.mjs", "tokens.generated.css")).toBe(committed);
-  });
+const src = JSON.parse(
+  readFileSync(join(repoRoot, "packages/tokens/src/tokens.json"), "utf8"));
 
-  it("the committed React Native module is what the generator produces", () => {
-    const committed = readFileSync(join(repoRoot, "packages/tokens/src/tokens.generated.ts"), "utf8");
-    expect(regenerate("generate-native.mjs", "tokens.generated.ts")).toBe(committed);
+/** Every generator, and the committed artefact it owns. One row per output —
+ * a generator with no row here is a generator whose output nothing guards. */
+const GENERATORS: Array<[script: string, file: string, committed: string]> = [
+  ["generate-css.mjs", "tokens.generated.css", "packages/ui/src/tokens.generated.css"],
+  ["generate-theme.mjs", "theme.generated.css", "packages/ui/src/theme.generated.css"],
+  ["generate-native.mjs", "tokens.generated.ts", "packages/tokens/src/tokens.generated.ts"],
+  ["generate-dtcg.mjs", "tokens.dtcg.json", "packages/tokens/src/tokens.dtcg.json"],
+  ["generate-palette.mjs", "palette.generated.mjs", "apps/demo/qa/palette.generated.mjs"],
+  ["generate-docs.mjs", "01-tokens.md", "docs/design/01-tokens.md"],
+  ["generate-merge-config.mjs", "tw-merge.generated.ts", "packages/ui/src/tw-merge.generated.ts"],
+];
+
+describe("generated tokens match their source", () => {
+  for (const [script, file, committed] of GENERATORS) {
+    it(`${committed} is what ${script} produces`, () => {
+      expect(regenerate(script, file))
+        .toBe(readFileSync(join(repoRoot, committed), "utf8"));
+    });
+  }
+
+  it("every generator in the scripts directory has a row above", () => {
+    // A generator added without a row would emit an unguarded artefact, which
+    // is the state this whole file exists to make impossible.
+    const scripts = readdirSync(join(repoRoot, "packages/tokens/scripts"))
+      .filter((f) => f.startsWith("generate-") && f.endsWith(".mjs")).sort();
+    expect(scripts).toEqual(GENERATORS.map(([s]) => s).sort());
   });
 });
 
-describe("the source accounts for every documented colour", () => {
-  it("names every token the design document's table defines, or records it contested", () => {
-    // docs/legacy/05-design-system.md:19-30. Parsed from the document rather than
-    // copied, so adding a row there without adding a token fails here. tokens.json
-    // is the source; this document is the specification the source is checked
-    // against — the point of this test is to catch a colour documented for humans
-    // that no token backs. It reads the legacy path because docs/05 carries
-    // disposition `defer`: no structured successor document exists yet to check
-    // the source against instead. When one does, this test should read that one.
-    const doc = readFileSync(join(repoRoot, "docs/legacy/05-design-system.md"), "utf8");
-    const documented = [...doc.matchAll(/^\| `([a-z0-9-]+)` \| `(#[0-9A-Fa-f]{6})` \|/gm)]
-      .map((m) => m[1]!);
-    expect(documented.length).toBe(12);
-
-    const src = JSON.parse(
-      readFileSync(join(repoRoot, "packages/tokens/src/tokens.json"), "utf8"));
-    const accounted = new Set([...Object.keys(src.color), ...src.contested]);
-    expect(documented.filter((t) => !accounted.has(t))).toEqual([]);
-  });
-
-  it("carries a ruling for every token, so no value is unexplained", () => {
-    const src = JSON.parse(
-      readFileSync(join(repoRoot, "packages/tokens/src/tokens.json"), "utf8"));
-    const unexplained = Object.entries(src.color as Record<string, { ruling?: string }>)
-      .filter(([, v]) => !v.ruling || v.ruling.length < 10)
-      .map(([k]) => k);
-
-    // Only entries shaped like a token — an object carrying a `layers`
-    // array, the same test `packages/tokens/scripts/lib/source.mjs` uses in
-    // both generators — are checked for a ruling here, so block-level
-    // metadata in the `shadow` block is not mistaken for a token. The block
-    // carries none today: `nativeBlurDivisor` and its note were removed when
-    // the token moved to React Native's `boxShadow`. Checking the shadow's
-    // ruling at all was missing entirely until a review caught that deleting
-    // it left this test green.
-    const shadowTokens = Object.entries(
-      (src.shadow ?? {}) as Record<string, { layers?: unknown; ruling?: string }>,
-    ).filter(([, v]) => v && typeof v === "object" && Array.isArray(v.layers));
-    for (const [name, v] of shadowTokens) {
-      if (!v.ruling || v.ruling.length < 10) unexplained.push(`shadow.${name}`);
-    }
-
+describe("the source explains itself", () => {
+  it("carries a ruling for every primitive colour", () => {
+    const unexplained = Object.entries(
+      src.primitive.color as Record<string, { ruling?: string }>)
+      .filter(([, v]) => !v.ruling || v.ruling.length < 10).map(([k]) => k);
     expect(unexplained).toEqual([]);
   });
 
-  it("the contested list is empty, so every B0 render has been ruled", () => {
-    // B0's three contested tokens (line, blue-500, the shadow) all needed an
-    // owner at a render rather than a rule — see the ruling entries above.
-    // A review caught that nothing asserted this stayed true: refilling
-    // `contested` left the rest of this suite green.
-    const src = JSON.parse(
-      readFileSync(join(repoRoot, "packages/tokens/src/tokens.json"), "utf8"));
+  it("carries a ruling for every semantic role, scale entry and component value", () => {
+    const unexplained: string[] = [];
+    for (const [name, v] of Object.entries(
+      src.semantic.color as Record<string, { ruling?: string }>)) {
+      if (!v.ruling || v.ruling.length < 10) unexplained.push(`semantic.${name}`);
+    }
+    for (const [block, entries] of Object.entries(src.primitive)) {
+      if (block === "color") continue;
+      for (const [name, v] of Object.entries(entries as Record<string, { ruling?: string }>)) {
+        if (!v.ruling || v.ruling.length < 10) unexplained.push(`primitive.${block}.${name}`);
+      }
+    }
+    for (const [name, v] of Object.entries(
+      src.component as Record<string, { ruling?: string }>)) {
+      if (!v.ruling || v.ruling.length < 10) unexplained.push(`component.${name}`);
+    }
+    expect(unexplained).toEqual([]);
+  });
+
+  it("carries a ruling for every shadow", () => {
+    // Only entries shaped like a token — an object carrying a `layers` array,
+    // the same test packages/tokens/scripts/lib/source.mjs uses in every
+    // generator — are checked, so block-level metadata is not mistaken for a
+    // token. A review once caught that deleting a shadow's ruling left this
+    // suite green.
+    const shadows = Object.entries(
+      (src.shadow ?? {}) as Record<string, { layers?: unknown; ruling?: string }>)
+      .filter(([, v]) => v && typeof v === "object" && Array.isArray(v.layers));
+    expect(shadows.length).toBeGreaterThan(0);
+    expect(shadows.filter(([, v]) => !v.ruling || v.ruling.length < 10).map(([k]) => k))
+      .toEqual([]);
+  });
+
+  it("the contested list is empty, so every value has been ruled", () => {
     expect(src.contested).toEqual([]);
+  });
+});
+
+describe("the semantic layer is well formed", () => {
+  it("every semantic role resolves to a primitive that exists, in both themes", () => {
+    const primitives = new Set(Object.keys(src.primitive.color));
+    const dangling: string[] = [];
+    for (const [name, t] of Object.entries(src.semantic.color as Record<string, any>)) {
+      for (const theme of ["light", "dark"] as const) {
+        const ref = typeof t[theme] === "string" ? t[theme] : t[theme].ref;
+        if (!primitives.has(ref)) dangling.push(`${name}.${theme} -> ${ref}`);
+      }
+    }
+    expect(dangling).toEqual([]);
+  });
+
+  it("no two roles claim the same Tailwind colour name", () => {
+    // bg-muted (a fill) and text-muted (copy) both want `--color-muted`. They
+    // are spelled `sunken` and `ink-muted` precisely so they cannot collide,
+    // and this is what keeps a later addition from quietly re-pointing one of
+    // them: the last declaration in the @theme block would simply win.
+    const seen = new Map<string, string>();
+    const clashes: string[] = [];
+    for (const [name, t] of Object.entries(src.semantic.color as Record<string, any>)) {
+      if (!t.tw) continue;
+      if (seen.has(t.tw)) clashes.push(`${t.tw}: ${seen.get(t.tw)} and ${name}`);
+      seen.set(t.tw, name);
+    }
+    expect(clashes).toEqual([]);
+  });
+
+  it("no primitive ramp step is reachable as a Tailwind utility", () => {
+    // The whole point of the three-layer split: a component names a role. If a
+    // ramp step ever appears in the @theme block, `bg-neutral-200` starts
+    // working and the layer stops being enforceable by anything but review.
+    const theme = readFileSync(
+      join(repoRoot, "packages/ui/src/theme.generated.css"), "utf8");
+    const ramps = [...new Set(Object.keys(src.primitive.color)
+      .map((n) => n.replace(/-\d+$/, "")))];
+    const leaked = ramps.filter((r) =>
+      new RegExp(`^\\s*--color-${r}-\\d+\\s*:`, "m").test(theme));
+    expect(leaked).toEqual([]);
   });
 });

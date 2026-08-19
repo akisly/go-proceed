@@ -6,7 +6,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "generate": "node scripts/generate-css.mjs && node scripts/generate-native.mjs",
+    "generate": "node scripts/generate-css.mjs && node scripts/generate-theme.mjs && node scripts/generate-native.mjs && node scripts/generate-dtcg.mjs && node scripts/generate-palette.mjs && node scripts/generate-docs.mjs && node scripts/generate-merge-config.mjs",
     "typecheck": "tsc --noEmit"
   }
 }

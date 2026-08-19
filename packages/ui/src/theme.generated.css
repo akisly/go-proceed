@@ -1,0 +1,158 @@
+/* GENERATED — do not edit. Source: packages/tokens/src/tokens.json
+   Regenerate: node packages/tokens/scripts/generate-theme.mjs
+   packages/testing/src/token-fidelity.test.ts fails if this file drifts. */
+
+@import "./tokens.generated.css";
+
+/* 1 — clear the stock namespace. Nothing Tailwind ships is reachable. */
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --text-*: initial;
+  --font-weight-*: initial;
+  --leading-*: initial;
+  --tracking-*: initial;
+  --radius-*: initial;
+  --shadow-*: initial;
+  --inset-shadow-*: initial;
+  --drop-shadow-*: initial;
+  --text-shadow-*: initial;
+  --breakpoint-*: initial;
+  --container-*: initial;
+  --ease-*: initial;
+  --animate-*: initial;
+  --blur-*: initial;
+  --perspective-*: initial;
+  --aspect-*: initial;
+}
+
+/* 2 — literals. Breakpoints and container sizes land inside media and
+   container queries, which cannot read a custom property. */
+@theme static {
+  --spacing: 0.25rem;
+  --breakpoint-md: 768px;
+  --breakpoint-wide: 1240px;
+  --container-measure: 680px;
+  --container-content: 1240px;
+  --container-nav: 880px;
+}
+
+/* 3 — roles. `inline` so the utility carries the role variable itself and
+   resolves at the element, not at :root. */
+@theme inline {
+  /* families */
+  --font-display: var(--gp-font-display);
+  --font-sans: var(--gp-font-sans);
+  --font-mono: var(--gp-font-mono);
+  /* type scale — product first, marketing second */
+  --text-micro: var(--gp-size-micro);
+  --text-meta: var(--gp-size-meta);
+  --text-data: var(--gp-size-data);
+  --text-body: var(--gp-size-body);
+  --text-h3: var(--gp-size-h3);
+  --text-h2: var(--gp-size-h2);
+  --text-h1: var(--gp-size-h1);
+  --text-display: var(--gp-size-display);
+  --text-mkt-caption: var(--gp-size-mkt-caption);
+  --text-mkt-index: var(--gp-size-mkt-index);
+  --text-mkt-body: var(--gp-size-mkt-body);
+  --text-mkt-lead: var(--gp-size-mkt-lead);
+  --text-mkt-display-3: var(--gp-size-mkt-display-3);
+  --text-mkt-display-2: var(--gp-size-mkt-display-2);
+  --text-mkt-display-1: var(--gp-size-mkt-display-1);
+  /* weight, leading, tracking */
+  --font-weight-normal: var(--gp-font-weight-normal);
+  --font-weight-medium: var(--gp-font-weight-medium);
+  --font-weight-semibold: var(--gp-font-weight-semibold);
+  --font-weight-bold: var(--gp-font-weight-bold);
+  --leading-none: var(--gp-leading-none);
+  --leading-tight: var(--gp-leading-tight);
+  --leading-display: var(--gp-leading-display);
+  --leading-snug: var(--gp-leading-snug);
+  --leading-normal: var(--gp-leading-normal);
+  --leading-relaxed: var(--gp-leading-relaxed);
+  --tracking-tightest: var(--gp-tracking-tightest);
+  --tracking-tighter: var(--gp-tracking-tighter);
+  --tracking-tight: var(--gp-tracking-tight);
+  --tracking-normal: var(--gp-tracking-normal);
+  --tracking-wide: var(--gp-tracking-wide);
+  /* radius and blur */
+  --radius-control: var(--gp-radius-control);
+  --radius-field: var(--gp-radius-field);
+  --radius-panel: var(--gp-radius-panel);
+  --radius-card: var(--gp-radius-card);
+  --radius-surface: var(--gp-radius-surface);
+  --radius-section: var(--gp-radius-section);
+  --radius-pill: var(--gp-radius-pill);
+  --blur-chrome: var(--gp-blur-chrome);
+  --blur-reveal: var(--gp-blur-reveal);
+  /* elevation — four, and a panel gets none of them */
+  --shadow-raised: var(--gp-shadow-raised);
+  --shadow-overlay: var(--gp-shadow-overlay);
+  --shadow-modal: var(--gp-shadow-modal);
+  --shadow-float: var(--gp-shadow-float);
+  /* motion */
+  --ease-out: var(--gp-ease-out);
+  --ease-enter: var(--gp-ease-enter);
+  --ease-emphatic: var(--gp-ease-emphatic);
+  --ease-soft: var(--gp-ease-soft);
+  --ease-overshoot: var(--gp-ease-overshoot);
+  /* colour — SEMANTIC ROLES ONLY. No ramp step is reachable as a utility:
+     `bg-neutral-200` does not exist and must not. */
+  --color-canvas: var(--gp-bg-canvas);
+  --color-surface: var(--gp-bg-surface);
+  --color-subtle: var(--gp-bg-subtle);
+  --color-sunken: var(--gp-bg-muted);
+  --color-inverse: var(--gp-bg-inverse);
+  --color-signal: var(--gp-bg-signal);
+  --color-overlay: var(--gp-bg-overlay);
+  --color-ink: var(--gp-text-primary);
+  --color-ink-secondary: var(--gp-text-secondary);
+  --color-ink-muted: var(--gp-text-muted);
+  --color-ink-subtle: var(--gp-text-subtle);
+  --color-on-inverse: var(--gp-text-on-inverse);
+  --color-on-inverse-muted: var(--gp-text-on-inverse-muted);
+  --color-on-signal: var(--gp-text-on-signal);
+  --color-link: var(--gp-text-link);
+  --color-brand: var(--gp-text-brand);
+  --color-line-subtle: var(--gp-border-subtle);
+  --color-line: var(--gp-border-default);
+  --color-line-strong: var(--gp-border-strong);
+  --color-line-inverse: var(--gp-border-inverse);
+  --color-focus: var(--gp-border-focus);
+  --color-action: var(--gp-action-primary-bg);
+  --color-action-fg: var(--gp-action-primary-fg);
+  --color-action-hover: var(--gp-action-primary-hover);
+  --color-action-signal: var(--gp-action-signal-bg);
+  --color-action-signal-fg: var(--gp-action-signal-fg);
+  --color-action-signal-hover: var(--gp-action-signal-hover);
+  --color-action-ghost-hover: var(--gp-action-ghost-hover);
+  --color-status-ready: var(--gp-status-ready-surface);
+  --color-status-ready-line: var(--gp-status-ready-border);
+  --color-status-ready-fg: var(--gp-status-ready-fg);
+  --color-status-attention: var(--gp-status-attention-surface);
+  --color-status-attention-line: var(--gp-status-attention-border);
+  --color-status-attention-fg: var(--gp-status-attention-fg);
+  --color-status-blocked: var(--gp-status-blocked-surface);
+  --color-status-blocked-line: var(--gp-status-blocked-border);
+  --color-status-blocked-fg: var(--gp-status-blocked-fg);
+  --color-status-review: var(--gp-status-review-surface);
+  --color-status-review-line: var(--gp-status-review-border);
+  --color-status-review-fg: var(--gp-status-review-fg);
+  --color-status-idle: var(--gp-status-idle-surface);
+  --color-status-idle-line: var(--gp-status-idle-border);
+  --color-status-idle-fg: var(--gp-status-idle-fg);
+  --color-evidence-satisfied: var(--gp-evidence-satisfied);
+  --color-evidence-pending: var(--gp-evidence-pending);
+  --color-evidence-blocking: var(--gp-evidence-blocking);
+  --color-viz-1: var(--gp-viz-1);
+  --color-viz-2: var(--gp-viz-2);
+  --color-viz-3: var(--gp-viz-3);
+  --color-viz-4: var(--gp-viz-4);
+  --color-viz-5: var(--gp-viz-5);
+}
+
+
+/* The icon-rail band: the one shell state a min-width variant cannot express.
+   Both numbers come from --breakpoint-*; neither is typed anywhere else. */
+@custom-variant rail-icons (@media (width >= 768px) and (width < 1240px));

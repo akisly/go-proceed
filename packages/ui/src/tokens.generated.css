@@ -1,18 +1,276 @@
 /* GENERATED — do not edit. Source: packages/tokens/src/tokens.json
    Regenerate: node packages/tokens/scripts/generate-css.mjs
-   packages/testing/src/token-fidelity.test.ts fails if this drifts. */
+   packages/testing/src/token-fidelity.test.ts fails if this file drifts. */
 :root {
-  --ink-950: #171717;
-  --ink-800: #242424;
-  --paper: #FBFBFB;
-  --white: #FFFFFF;
-  --signal-500: #C6FF34;
-  --slate-600: #484C5E;
-  --signal-700: #667F12;
-  --amber-500: #F2B84B;
-  --red-500: #E45C55;
-  --muted: #666979;
-  --line: #D9DBD5;
-  --blue-500: #3756a1;
-  --shadow: 0px 8px 30px 0px rgba(21, 23, 25, 0.07);
+  /* primitive — colour ramps. No component may name one of these; the
+     primitive-leak test fails any `gp-<ramp>-<step>` reference under apps/**. */
+  --gp-neutral-0: #FFFFFF;
+  --gp-neutral-25: #FBFBF9;
+  --gp-neutral-50: #F6F6F3;
+  --gp-neutral-100: #EFEEEB;
+  --gp-neutral-150: #E7E6E2;
+  --gp-neutral-200: #DDDCD8;
+  --gp-neutral-300: #CCCAC6;
+  --gp-neutral-400: #B1AFAB;
+  --gp-neutral-500: #92918C;
+  --gp-neutral-600: #6D6C68;
+  --gp-neutral-700: #5C5B57;
+  --gp-neutral-800: #444441;
+  --gp-neutral-900: #2C2B29;
+  --gp-neutral-950: #1A1917;
+  --gp-neutral-975: #11100F;
+  --gp-signal-50: #F7FDEE;
+  --gp-signal-100: #E9FECA;
+  --gp-signal-200: #DDFEA5;
+  --gp-signal-300: #D6FE8C;
+  --gp-signal-400: #CEFE6C;
+  --gp-signal-500: #C6FF34;
+  --gp-signal-600: #99C23D;
+  --gp-signal-700: #6F8D30;
+  --gp-signal-800: #526628;
+  --gp-signal-900: #3B4821;
+  --gp-amber-50: #FCF6ED;
+  --gp-amber-100: #FEEED4;
+  --gp-amber-200: #FCDBA3;
+  --gp-amber-300: #F6C97D;
+  --gp-amber-500: #F2B84B;
+  --gp-amber-600: #BF8F34;
+  --gp-amber-700: #916E2D;
+  --gp-amber-800: #6B5225;
+  --gp-amber-900: #423319;
+  --gp-danger-50: #FBF4F3;
+  --gp-danger-100: #FCE9E6;
+  --gp-danger-200: #FBD5D1;
+  --gp-danger-300: #F5BAB3;
+  --gp-danger-500: #E45C55;
+  --gp-danger-600: #CE2F30;
+  --gp-danger-700: #A02827;
+  --gp-danger-800: #792623;
+  --gp-danger-900: #531E1B;
+  --gp-blue-50: #F5F7FB;
+  --gp-blue-100: #E8EFFC;
+  --gp-blue-200: #D4E0F9;
+  --gp-blue-300: #BBCBEB;
+  --gp-blue-500: #5A7DCE;
+  --gp-blue-600: #3E63BD;
+  --gp-blue-700: #3756A1;
+  --gp-blue-800: #274181;
+  --gp-blue-900: #1B2D5B;
+  --gp-violet-100: #F0EBFC;
+  --gp-violet-200: #E4DAF9;
+  --gp-violet-300: #D0C3EB;
+  --gp-violet-500: #916CCD;
+  --gp-violet-700: #60438D;
+  --gp-violet-900: #36284D;
+  /* primitive — font */
+  --gp-font-display: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif;
+  --gp-font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
+  --gp-font-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace;
+  --gp-font-features: "cv01", "ss03";
+  /* primitive — text */
+  --gp-size-micro: 11px;
+  --gp-size-meta: 12px;
+  --gp-size-data: 13px;
+  --gp-size-body: 15px;
+  --gp-size-h3: 18px;
+  --gp-size-h2: 22px;
+  --gp-size-h1: 26px;
+  --gp-size-display: 32px;
+  --gp-size-mkt-caption: 13px;
+  --gp-size-mkt-index: 12px;
+  --gp-size-mkt-body: 16px;
+  --gp-size-mkt-lead: clamp(17px, 1.4vw, 20px);
+  --gp-size-mkt-display-3: clamp(26px, 2.6vw, 32px);
+  --gp-size-mkt-display-2: clamp(32px, 4vw, 48px);
+  --gp-size-mkt-display-1: clamp(40px, 5.6vw, 72px);
+  /* primitive — fontWeight */
+  --gp-font-weight-normal: 400;
+  --gp-font-weight-medium: 510;
+  --gp-font-weight-semibold: 590;
+  --gp-font-weight-bold: 680;
+  /* primitive — leading */
+  --gp-leading-none: 1;
+  --gp-leading-tight: 1.15;
+  --gp-leading-display: 1.0;
+  --gp-leading-snug: 1.35;
+  --gp-leading-normal: 1.5;
+  --gp-leading-relaxed: 1.6;
+  /* primitive — tracking */
+  --gp-tracking-tightest: -0.022em;
+  --gp-tracking-tighter: -0.020em;
+  --gp-tracking-tight: -0.014em;
+  --gp-tracking-normal: -0.011em;
+  --gp-tracking-wide: 0.08em;
+  /* primitive — radius */
+  --gp-radius-control: 6px;
+  --gp-radius-field: 8px;
+  --gp-radius-panel: 10px;
+  --gp-radius-card: 14px;
+  --gp-radius-surface: 20px;
+  --gp-radius-section: 28px;
+  --gp-radius-pill: 999px;
+  /* primitive — space */
+  --gp-space-base: 0.25rem;
+  --gp-space-section-sm: 64px;
+  --gp-space-section-md: 96px;
+  --gp-space-section-lg: 112px;
+  --gp-space-section-xl: 160px;
+  /* primitive — breakpoint */
+  --gp-breakpoint-md: 768px;
+  --gp-breakpoint-wide: 1240px;
+  /* primitive — container */
+  --gp-container-measure: 680px;
+  --gp-container-content: 1240px;
+  --gp-container-nav: 880px;
+  /* primitive — duration */
+  --gp-duration-instant: 100ms;
+  --gp-duration-fast: 160ms;
+  --gp-duration-base: 240ms;
+  --gp-duration-slow: 400ms;
+  --gp-duration-marquee: 35s;
+  --gp-duration-deliberate: 640ms;
+  /* primitive — ease */
+  --gp-ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  --gp-ease-enter: cubic-bezier(0.165, 0.84, 0.44, 1);
+  --gp-ease-emphatic: cubic-bezier(0.19, 1, 0.22, 1);
+  --gp-ease-soft: cubic-bezier(0.44, 0, 0.56, 1);
+  --gp-ease-overshoot: cubic-bezier(0.34, 1.56, 0.64, 1);
+  /* primitive — stagger */
+  --gp-stagger-tight: 40ms;
+  --gp-stagger-default: 80ms;
+  --gp-stagger-loose: 120ms;
+  /* primitive — spring */
+  --gp-spring-reveal: stiffness 100, damping 20, mass 1;
+  --gp-spring-press: stiffness 400, damping 30, mass 1;
+  /* primitive — blur */
+  --gp-blur-chrome: 20px;
+  --gp-blur-reveal: 6px;
+  /* elevation. Four, and only four. A panel gets none of them. */
+  --gp-shadow-raised: 0px 1px 2px 0px rgba(17, 16, 15, 0.04), 0px 2px 6px 0px rgba(17, 16, 15, 0.04);
+  --gp-shadow-overlay: 0px 4px 12px 0px rgba(17, 16, 15, 0.06), 0px 12px 28px 0px rgba(17, 16, 15, 0.08);
+  --gp-shadow-modal: 0px 8px 24px 0px rgba(17, 16, 15, 0.08), 0px 24px 64px 0px rgba(17, 16, 15, 0.12);
+  --gp-shadow-float: 0px 12px 32px 0px rgba(17, 16, 15, 0.08), 0px 40px 80px 0px rgba(17, 16, 15, 0.1);
+  /* semantic roles — light */
+  --gp-bg-canvas: var(--gp-neutral-25);
+  --gp-bg-surface: var(--gp-neutral-0);
+  --gp-bg-subtle: var(--gp-neutral-50);
+  --gp-bg-muted: var(--gp-neutral-100);
+  --gp-bg-inverse: var(--gp-neutral-975);
+  --gp-bg-signal: var(--gp-signal-500);
+  --gp-bg-overlay: color-mix(in oklab, var(--gp-neutral-975) 32%, transparent);
+  --gp-text-primary: var(--gp-neutral-975);
+  --gp-text-secondary: var(--gp-neutral-700);
+  --gp-text-muted: var(--gp-neutral-600);
+  --gp-text-subtle: var(--gp-neutral-500);
+  --gp-text-on-inverse: var(--gp-neutral-150);
+  --gp-text-on-inverse-muted: var(--gp-neutral-400);
+  --gp-text-on-signal: var(--gp-neutral-975);
+  --gp-text-link: var(--gp-blue-600);
+  --gp-text-brand: var(--gp-signal-800);
+  --gp-border-subtle: var(--gp-neutral-150);
+  --gp-border-default: var(--gp-neutral-200);
+  --gp-border-strong: var(--gp-neutral-300);
+  --gp-border-inverse: var(--gp-neutral-800);
+  --gp-border-focus: var(--gp-blue-500);
+  --gp-action-primary-bg: var(--gp-neutral-975);
+  --gp-action-primary-fg: var(--gp-neutral-0);
+  --gp-action-primary-hover: var(--gp-neutral-900);
+  --gp-action-signal-bg: var(--gp-signal-500);
+  --gp-action-signal-fg: var(--gp-neutral-975);
+  --gp-action-signal-hover: var(--gp-signal-400);
+  --gp-action-ghost-hover: var(--gp-neutral-100);
+  --gp-status-ready-surface: var(--gp-signal-100);
+  --gp-status-ready-border: var(--gp-signal-200);
+  --gp-status-ready-fg: var(--gp-signal-800);
+  --gp-status-attention-surface: var(--gp-amber-100);
+  --gp-status-attention-border: var(--gp-amber-200);
+  --gp-status-attention-fg: var(--gp-amber-800);
+  --gp-status-blocked-surface: var(--gp-danger-100);
+  --gp-status-blocked-border: var(--gp-danger-200);
+  --gp-status-blocked-fg: var(--gp-danger-700);
+  --gp-status-review-surface: var(--gp-blue-100);
+  --gp-status-review-border: var(--gp-blue-200);
+  --gp-status-review-fg: var(--gp-blue-700);
+  --gp-status-idle-surface: var(--gp-neutral-100);
+  --gp-status-idle-border: var(--gp-neutral-200);
+  --gp-status-idle-fg: var(--gp-neutral-700);
+  --gp-evidence-satisfied: var(--gp-signal-800);
+  --gp-evidence-pending: var(--gp-amber-800);
+  --gp-evidence-blocking: var(--gp-danger-700);
+  --gp-viz-1: var(--gp-signal-600);
+  --gp-viz-2: var(--gp-blue-600);
+  --gp-viz-3: var(--gp-amber-600);
+  --gp-viz-4: var(--gp-danger-600);
+  --gp-viz-5: var(--gp-violet-500);
+  /* component values that are not derivable from a role */
+  --gp-rail-width-wide: 240px;
+  --gp-rail-width-collapsed: 68px;
+  --gp-rail-width-drawer: min(300px, 84vw);
+  --gp-control-height-touch: 44px;
+  --gp-control-height-desk: 36px;
+  --gp-control-height-desk-sm: 32px;
+  --gp-header-height-app: 56px;
+  --gp-header-height-marketing: 64px;
+  --gp-register-row-padding-y: 10px;
+  --gp-register-row-padding-x: 12px;
+  --gp-focus-ring-width: 2px;
+  --gp-focus-ring-offset: 2px;
+}
+
+/* Authored, not shipped (D6). Nothing sets data-theme in v1, so this block
+   is inert until a switch exists — but every pairing in it is asserted by
+   packages/testing/src/contrast.test.ts today, so the switch is a decision
+   rather than a project. */
+[data-theme='dark'] {
+  --gp-bg-canvas: var(--gp-neutral-975);
+  --gp-bg-surface: var(--gp-neutral-950);
+  --gp-bg-subtle: var(--gp-neutral-900);
+  --gp-bg-muted: var(--gp-neutral-800);
+  --gp-bg-inverse: var(--gp-neutral-0);
+  --gp-bg-signal: var(--gp-signal-500);
+  --gp-bg-overlay: color-mix(in oklab, var(--gp-neutral-975) 56%, transparent);
+  --gp-text-primary: var(--gp-neutral-25);
+  --gp-text-secondary: var(--gp-neutral-200);
+  --gp-text-muted: var(--gp-neutral-300);
+  --gp-text-subtle: var(--gp-neutral-400);
+  --gp-text-on-inverse: var(--gp-neutral-900);
+  --gp-text-on-inverse-muted: var(--gp-neutral-700);
+  --gp-text-on-signal: var(--gp-neutral-975);
+  --gp-text-link: var(--gp-blue-300);
+  --gp-text-brand: var(--gp-signal-400);
+  --gp-border-subtle: var(--gp-neutral-900);
+  --gp-border-default: var(--gp-neutral-800);
+  --gp-border-strong: var(--gp-neutral-700);
+  --gp-border-inverse: var(--gp-neutral-300);
+  --gp-border-focus: var(--gp-blue-300);
+  --gp-action-primary-bg: var(--gp-neutral-0);
+  --gp-action-primary-fg: var(--gp-neutral-975);
+  --gp-action-primary-hover: var(--gp-neutral-150);
+  --gp-action-signal-bg: var(--gp-signal-500);
+  --gp-action-signal-fg: var(--gp-neutral-975);
+  --gp-action-signal-hover: var(--gp-signal-400);
+  --gp-action-ghost-hover: var(--gp-neutral-900);
+  --gp-status-ready-surface: var(--gp-signal-900);
+  --gp-status-ready-border: var(--gp-signal-800);
+  --gp-status-ready-fg: var(--gp-signal-300);
+  --gp-status-attention-surface: var(--gp-amber-900);
+  --gp-status-attention-border: var(--gp-amber-800);
+  --gp-status-attention-fg: var(--gp-amber-300);
+  --gp-status-blocked-surface: var(--gp-danger-900);
+  --gp-status-blocked-border: var(--gp-danger-800);
+  --gp-status-blocked-fg: var(--gp-danger-300);
+  --gp-status-review-surface: var(--gp-blue-900);
+  --gp-status-review-border: var(--gp-blue-800);
+  --gp-status-review-fg: var(--gp-blue-300);
+  --gp-status-idle-surface: var(--gp-neutral-900);
+  --gp-status-idle-border: var(--gp-neutral-800);
+  --gp-status-idle-fg: var(--gp-neutral-300);
+  --gp-evidence-satisfied: var(--gp-signal-300);
+  --gp-evidence-pending: var(--gp-amber-300);
+  --gp-evidence-blocking: var(--gp-danger-300);
+  --gp-viz-1: var(--gp-signal-400);
+  --gp-viz-2: var(--gp-blue-300);
+  --gp-viz-3: var(--gp-amber-300);
+  --gp-viz-4: var(--gp-danger-300);
+  --gp-viz-5: var(--gp-violet-300);
 }
