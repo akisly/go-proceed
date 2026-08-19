@@ -3,5 +3,5 @@
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm turbo run build --filter=@goproceed/app",
-  "ignoreCommand": "cd ../.. && npx turbo-ignore @goproceed/app"
+  "ignoreCommand": "cd ../.. && if [ \"$VERCEL_ENV\" != \"production\" ]; then echo 'ignoreCommand: not a production build (VERCEL_ENV='\"$VERCEL_ENV\"') — skipped; apps/app/vercel.json builds Production only for the pilot'; exit 0; fi; npx turbo-ignore @goproceed/app"
 }

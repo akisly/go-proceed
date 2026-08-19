@@ -14,8 +14,208 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Twelve pieces of work. Each is below, under its own
-heading, newest first — and read the P0 warning in §0 whichever you start with.
+Fourteen pieces of work. Each is below, under its own
+heading, newest first — and read the P0 warning in §0 whichever you start with:
+as of 0a.14 the origin EXISTS and is public, and what the warning still guards
+is the §6 evidence and custom SMTP.
+
+---
+
+### 0a.14 — the origin exists, and a person signed in through it: `/login` → code → «Мої доручення»
+
+**The P0 of `TODOS.md` — «NOBODY CAN OPEN IT: there is no origin» — is closed on
+2026-08-19, by its own heading's standard, at
+`https://goproceed-app.vercel.app`** (attached by the owner that evening; the
+`goproceed-app-akislys-projects.vercel.app` alias serves the same deployment).
+A Vercel-provided hostname, not a custom domain; `{{APP_HOSTNAME}}` is still a
+token, and `vercel.app` cannot carry SPF/DKIM, so the SMTP sending domain is a
+separate, still-open decision.
+
+**And the first real sign-in happened, end to end, on the real origin** — the
+owner, on a laptop, 20:34 UTC. Read back from the Auth logs and the database,
+not from the screen: `user_recovery_requested` → `mail.send` (`mail_type:
+magic_link`, from `noreply@mail.app.supabase.io` — the built-in service, to a
+team address) → `POST /verify` → `login` with `login_method: otp` →
+`auth.users.last_sign_in_at` set, one session, one refresh token. Then, at the
+same second, Supavisor: «Connection authenticated … tenant asrvzhjaueyvrfozxpzo,
+mode: session, user: goproceed_app_login … Backend authenticated» — the page's
+server-side self-fetch to `/v1/projects` reached Postgres through the pooler
+with the §3 password and the `.<project-ref>` username, RLS answered an empty
+list, and «Мої доручення» rendered its empty state («У вас немає доступу до
+жодного проєкту…»), which is the correct screen for a user with no grant.
+Every link of the chain the sitting had to get right — origin, proxy, cookie,
+key format, pooler username, role password — was exercised by one sign-in.
+
+**Two detours on the way, both the dashboard's.** The first email carried a
+magic LINK and no code: the hosted «Magic Link» template is not the repo's
+`supabase/templates/magic_link.html` — the docs say «copy the templates into
+the Email Templates section of the Dashboard», and until that was done the
+client's code-only flow had nothing to type. And one `POST /verify` answered
+`otp_expired` before the third code worked. Still open in the dashboard: the
+Auth **Site URL** is `http://localhost:3000` (GoTrue's request log names it as
+the referrer on every call) — set it to `https://goproceed-app.vercel.app`; the
+email rate limit was raised 2→30/h by the owner (the reloader logged it), which
+does not lift the built-in service's team-addresses-only rule. The owner
+merged PR #30, set the two role passwords and the twelve variables, and the
+first production build printed `deploy preflight (VERCEL_ENV=production): OK`.
+Then `/` → 307 `/login`, `/login` → 200 with the OTP form, `/assignments` →
+307, `/v1/*` → 401 unauthenticated; the client bundle carries the staging
+Supabase URL and key and no local value; staging Postgres reads 58/58
+migrations, 140 policies, 53/53 RLS, clean.
+
+**One setting stood between the build and the public, and the runbook had
+never mentioned it.** A new Vercel project ships with Vercel Authentication
+protecting every URL except custom domains — the `*.vercel.app` alias included —
+so every path answered 302 to `vercel.com/sso-api`. Read the docs, asked the
+owner, changed it to «Only Preview Deployments» on their explicit yes (Previews
+are skipped by `ignoreCommand` anyway). Runbook §5 now has the step.
+
+**Two more runbook lines were memory, and both were caught by the owner's
+questions.** «What are `<секрет-1>`/`<секрет-2>`?» — the §3 passwords, and §3's
+URL shape lacked the `.<project-ref>` suffix the shared pooler routes by
+(`goproceed_app_login.<ref>`), now fixed with the docs cited; and «what are the
+`EXTERNAL_*` values?» — generated HMAC keys, now explained in §4.3 with the
+command.
+
+**What remains, and it is the owner's:** §6.1–6.8 (bearer-token `curl`s), §6.9
+(two phones — and before it **custom SMTP**, because Supabase's default email
+service refuses any address outside the project's team and allows two messages
+an hour; a new P1), and the domain decision. Three small things noted on the
+day: `turbo-ignore` is deprecated in favour of Vercel's built-in project
+skipping (P3), an `apt-get` hang cost one CI run (P3), and the cron jobs on
+staging are `idempotency-purge` and `upload-intent-expiry` — `outbox-drain` is
+gone, as 0036 intended.
+
+---
+
+### 0a.13 — every library current, every change read from the vendor first; and the first real Vercel build found the preflight blind
+
+**The rule first, because the rest is its first application.** `CLAUDE.md` now
+says: before implementing, configuring or advising on ANY third-party library
+or service, read the INSTALLED version, read the CURRENT docs for that version,
+name any disagreement explicitly, record the upgrade in `TODOS.md` with its
+deadline, and cite version + URL in the commit. It exists because the owner
+asked «what is `NEXT_PUBLIC_SUPABASE_ANON_KEY`? the dashboard shows
+`…PUBLISHABLE_KEY`» — and the honest answer needed both the installed
+`supabase-js 2.47.10` and the 2026 key docs, and memory could supply neither.
+
+**Tier 1 — the one with a deadline.** `supabase-js 2.47.10 → 2.112.3`,
+`@supabase/ssr 0.5.2 → 0.12.4` (committed alone, 818/818 + a real OTP sign-in
+through the browser pass), then the key family: `NEXT_PUBLIC_SUPABASE_ANON_KEY
+→ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY →
+SUPABASE_SECRET_KEY`, twelve files, values moved to `sb_publishable_…` /
+`sb_secret_…`. Two findings: **the repo was already half on the new format** —
+`evidence-storage.ts` and two tests hard-coded `sb_secret_`/`sb_publishable_`
+local defaults UNDER THE OLD NAMES, name and value disagreeing for as long as
+nobody looked; and **the hosted project accepts both forms today** (measured:
+200 on `auth/v1/settings` with either), so an earlier claim in the session that
+the new key «would break OTP» was too strong — I had read the SDK's header code,
+not the server. The legacy form stops working end-2026; that is the reason to
+move, not a present failure. `deploy-preflight.mjs` now **refuses a legacy JWT
+pasted into either new variable** — the dashboard shows it right beside the
+new key, and a deploy carrying it dies on 2027-01-01 with no earlier symptom.
+
+**Tier 2 — every safe bump, and Next 16.3's deprecation acted on.** react
+19.2.8, next 16.3.1, puppeteer 25.8, pg 8.23, turbo 2.10.11, current `@types`
+(`@types/node` deliberately **kept at 24.x** — 26.x is Node 26's types and the
+runtime is 24; «latest» is not «freshest»). Next 16.3 deprecated the
+`middleware` file convention and the build said so; that file is the whole
+auth gate, so it was not renamed by hand: the vendor's codemod ran, and the
+result was **diffed against the old file with the name normalised — byte-
+identical**. `proxy.ts` is live (`ƒ Proxy` in the build), the warning is gone,
+the browser pass drives the unauthenticated redirect through it.
+
+**Tier 3 — measured and deliberately NOT done.** zod 3→4 (30 files, 94
+`.strict()`, 89 `.uuid()` that tighten, the `ZodError` shape `fieldErrors` is
+built on), vitest 3→4 (`vitest.workspace.ts` removed; the serialised timing
+against shared Postgres is load-bearing), TypeScript 7 (root 5.9.2 and mobile
+6.0.3 already disagree). Each is in `TODOS.md` with blast radius and doc URLs.
+Folding one in would have been the scope creep the rule prevents.
+
+**Then PR #30's first real Vercel build taught the thing this entry is named
+for.** The owner had already set nine runtime variables on the project, and the
+preflight reported all nine «unset». Turborepo's default strict env mode hands
+the build task ONLY the names `turbo.json` declares; the preflight runs inside
+that task as `prebuild`; `turbo.json` declared only the three `NEXT_PUBLIC_*`
+names. The same log carried turbo's own warning naming the same nine as «set on
+your Vercel project, but missing from turbo.json». Reproduced locally through
+the turbo path with all twelve exported — nine false «unset» — then fixed: all
+twelve plus `DEPLOY_PREFLIGHT` in `build.env`, as `env` rather than
+`passThroughEnv` because the verdict is a function of the values and belongs in
+the hash (measured: the hash changes with the value; the run summary records a
+SHA-256, never the value). Proved three ways through turbo: passes with twelve,
+refuses naming exactly the one removed, refuses a legacy JWT by name. §0a.10
+said the preflight was «proved through the real turbo path» — the refusing
+cases were; the passing case had only ever been proved with the variables
+loaded by `next` itself, which the `prebuild` hook never sees. The coupling is
+now written in three places (turbo.json, the preflight header, `.env.example`)
+and in the runbook's §4.1 table.
+
+**And CI went red twice in one day for the runner, not the code.** `supabase
+start` waited eight minutes for the analytics `vector` container to go healthy
+on a docs-only commit; `db reset`'s one-shot migrate container was reported
+`exit 125` by the docker CLI — the daemon failing to RUN a container — while
+`verify` passed the identical step minutes earlier on another runner. Read the
+pinned CLI's source (`legacy-service-catalog.ts` for the `-x` vocabulary,
+`restart-services.ts` for «excluded service → not found → tolerated»,
+`db-setup.ts` for «the one-shot jobs key on config.toml, not on what runs»):
+both jobs now start **five containers, not twelve** — Postgres, Kong, GoTrue,
+Mailpit, storage-api, which is everything any suite or the browser pass talks
+to (`git grep` finds no `.from(`, no `.channel(`, no `functions/v1`) — and
+`db reset` retries once with a `::warning::` so the flake count stays visible.
+Proved locally against the exact list in the yml: all six suites (1637 tests)
+and the app-qa browser pass (5/5, a real OTP sign-in through Kong → GoTrue →
+Mailpit), green on the reduced stack. One thing the proof taught in passing:
+`@goproceed/database`'s `pool.ts` THROWS without `APP_DB_URL` where every other
+suite defaults to the local URL — so a local `turbo run test` needs the two DB
+URLs exported the way CI exports them, or six tests fail with «APP_DB_URL is
+not set» and nothing else is wrong.
+
+**Then the owner could not find the toggle the runbook told them to flip, and
+the runbook was wrong.** §4.3 said «Settings → Git → uncheck Preview
+Deployments». Read the current Vercel docs (project-settings, 2026-07-15;
+vercel-json, 2026-06-17): Settings → Git holds the repository connection, LFS,
+deploy hooks and verified commits — no such toggle exists, and that line was
+written from memory, which is precisely what the rule at the top of this entry
+forbids. What exists is Settings → Build and Deployment → Ignored Build Step →
+«Only build production» — and `vercel.json`'s `ignoreCommand` OVERRIDES that
+dashboard setting, so with `apps/app/vercel.json` carrying one (it did, for
+`turbo-ignore`) the dashboard choice would have done nothing. So the rule now
+lives where it can take effect: `ignoreCommand` exits 0 («ignore») for every
+`VERCEL_ENV` other than `production` and runs `turbo-ignore` only for
+Production. Proved with `sh` against the exact string in the file: preview →
+0, production → turbo-ignore. A skipped build is CANCELED, not failed, so the
+per-push red «Vercel – goproceed-app» check stops; the preflight, the runbook
+§4.1/§4.3/§5.3 no longer name the phantom toggle. Building Previews later is
+one commit: fill the Preview column AND drop the guard.
+
+**And the owner's screenshot corrected my second reading of the Preview
+refusals.** The four `EXTERNAL_*` variables it showed were Sensitive and
+scoped to Production AND Preview — so «set for Production only» was wrong for
+them. What fits every observation: the names were in the build's environment
+(turbo's platform check, which lists platform names absent from the task's
+env, stopped listing them once turbo.json declared them) and the values were
+empty — and a Sensitive value cannot be read back to check. The preflight now
+says, per variable, ABSENT (not set for this environment / not declared in
+turbo.json) or PRESENT BUT EMPTY (the name exists with no value — Edit it and
+enter one), proved both ways through turbo. The runbook §4.3 now also says
+what the four `EXTERNAL_*` values ARE — generated HMAC keys, two different
+secrets, `k1:<base64 of 32 random bytes>`, active id `k1` — because the
+owner's question was «what is this and where do I get it», and the table had
+only a command.
+
+**For the P0 sitting, two variable NAMES changed**, and the Vercel project
+still has the old one: rename `SUPABASE_SERVICE_ROLE_KEY → SUPABASE_SECRET_KEY`
+(an `sb_secret_…` value), and add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+(`sb_publishable_…`). The preflight says exactly this when it refuses. **And
+check the origin against Settings → Domains before trusting it:** when this
+was written the Vercel API listed only `goproceed-app-akislys-projects.vercel.app`
+and the `git-main` alias; the owner then attached `goproceed-app.vercel.app`
+(2026-08-19, ~20:20 UTC) and it is the canonical origin now — see 0a.14.
+`NEXT_PUBLIC_APP_ORIGIN` and `EXTERNAL_LINK_ORIGIN` must be a hostname the
+project actually owns, verbatim: `api.ts` self-fetches against it WITH the
+session cookie, so a hostname this project does not own is a hostname the
+cookie would be sent to.
 
 ---
 

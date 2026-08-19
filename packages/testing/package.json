@@ -9,10 +9,10 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "pg": "^8.22.0",
     "@goproceed/contracts": "workspace:*"
   },
   "devDependencies": {
-    "@types/pg": "^8.20.0"
+    "@types/pg": "^8.23.1",
+    "pg": "^8.23.0"
   }
 }

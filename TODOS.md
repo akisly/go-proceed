@@ -355,7 +355,217 @@ zero-priced row — and rows priced at zero are ordinary, being work bundled int
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
 
-## P0 (OPEN) — the field client is built and NOBODY CAN OPEN IT: there is no origin
+## P2 (CLOSED 2026-08-19, same day) — the Supabase API keys were the legacy JWT form, which stops working at the end of 2026
+
+**What:** every environment — local (`supabase start` issues only this form),
+CI (`ci.yml`), and staging as provisioned 2026-08-19 — uses the LEGACY `anon`
+and `service_role` JWTs, in variables named `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY`. Supabase's current docs present the successors —
+`sb_publishable_…` and `sb_secret_…` — under `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+and its changelog says the legacy keys **work until the end of 2026**.
+
+**Why it is a P2 and not a P3:** a deadline, not a preference. On 2027-01-01 a
+deploy that still carries the legacy keys stops signing anyone in.
+
+**Measured on `goproceed-staging`, 2026-08-19, before deciding anything:** the
+hosted Auth server answers `200` to BOTH forms — the legacy JWT and
+`sb_publishable_…` sent as a Bearer the way `supabase-js 2.47.10` sends it. So
+the new key is not broken on the installed SDK, contrary to an earlier guess in
+this session made from reading the SDK's header code rather than the server.
+The legacy form was kept for staging for CONSISTENCY — it is the only form the
+local stack issues, the only one `app-qa` has proved the sign-in flow against,
+and the one the variable name in the code matches — not because the new one
+fails. Switching only staging would have made it the one environment on a
+different key form with zero test coverage of that form.
+
+**Fix, as one coherent slice:** upgrade `@supabase/supabase-js` (2.47.10) and
+`@supabase/ssr` (0.5.2) to current, rename the variable in code, `.env.example`,
+`turbo.json`, `ci.yml`, `qa/field.mjs` and the runbook to the publishable
+spelling, switch `evidence-storage.ts` to `sb_secret_…`, and confirm the LOCAL
+stack's CLI version issues the new keys (it must — or local and hosted diverge).
+Per `CLAUDE.md`'s rule: read the current docs and the changelog for the target
+SDK version first; do not code from memory.
+**Depends on:** nothing. **Deadline:** before 2026-12-31, with a month of slack.
+
+**CLOSED THE SAME DAY, because the owner asked for every library to be current
+before the Vercel sitting rather than after.** Done as the one coherent slice
+this entry described, per `CLAUDE.md`'s current-docs rule — every step read from
+the installed version and the vendor's own source, not recalled:
+
+- `supabase-js 2.47.10 → 2.112.3`, `@supabase/ssr 0.5.2 → 0.12.4` (ssr 0.12.4
+  peer-requires supabase-js ^2.111, so they move together). Release notes read
+  across the whole span: nothing breaking on the calls this app makes. The
+  PUBLISHED 2.112.3 bundle classifies the new key family explicitly
+  (`isNewApiKey = key.startsWith("sb_publishable_") || key.startsWith("sb_secret_")`);
+  the 2.47.10 bundle had no such code. Committed on its own first and proved by
+  818/818 plus a real OTP sign-in through the browser pass, so the SDK jump and
+  the key switch are separately verifiable.
+- Variables renamed everywhere — `NEXT_PUBLIC_SUPABASE_ANON_KEY →
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY →
+  SUPABASE_SECRET_KEY` — across 12 files; CI and `qa/field.mjs` defaults moved
+  to the `sb_publishable_`/`sb_secret_` the local CLI issues. **The repo was
+  already half on the new format**: two tests and `evidence-storage.ts`
+  hard-coded `sb_publishable_`/`sb_secret_` local defaults under the OLD
+  variable names — name and value had disagreed for as long as nobody looked.
+- Measured: even CLI 2.75.0 issues both forms (`supabase status` shows
+  PUBLISHABLE_KEY/SECRET_KEY beside ANON_KEY/SERVICE_ROLE_KEY), so local, CI and
+  hosted all run the new format with no divergence.
+- `deploy-preflight.mjs` now REFUSES a legacy JWT pasted into either new
+  variable, by shape and by name — the dashboard still shows the legacy key right
+  beside the new one, and a deploy carrying it would work today and die on
+  2027-01-01 with no earlier symptom. Proved both ways.
+- Every explanatory comment, `.env.example` and the staging runbook's variable
+  table say the new name, the new form, and the date.
+
+One verification detour, recorded because it looked like the keys and was not:
+the first full run showed 5 failures / 17 skips in `@goproceed/testing`, caused
+by `supabase db reset` pulling `storage-api:v1.69.0` mid-run — the local CLI
+had been upgraded to 2.114.0 during the P0 sitting (from 2.75.0) and wanted an
+image it had not cached. One-time, infrastructure; 461/461 on re-run. Side
+effect worth noting: local is now one release behind CI's pin instead of forty,
+which is the pin doing its job.
+
+**For the Vercel sitting:** the two variable NAMES changed. Set
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the `sb_publishable_…` value and
+`SUPABASE_SECRET_KEY` to an `sb_secret_…` value; the preflight refuses the
+legacy forms by name.
+
+## P2 — three major-version migrations, measured and deliberately NOT folded into the 2026-08-19 freshness pass
+
+**Context:** on 2026-08-19 the owner asked for every library to be current
+before the Vercel sitting. Tier 1 (Supabase SDK + key format) and Tier 2 (every
+safe minor/patch bump, plus Next 16.3's `middleware → proxy` rename) were done
+on that branch. These three were MEASURED against the tree and the vendor's
+changelog, per `CLAUDE.md`'s current-docs rule, and each turned out to be a
+migration with its own blast radius rather than a bump. Folding any of them into
+a "freshen the libraries" branch would have been the scope creep that rule is
+there to prevent. Each gets its own slice; the measurements are here so it
+starts from facts.
+
+**1. zod 3.24.1 → 4.4.3** — https://zod.dev/v4/changelog
+- 30 files, 309 `z.string()`, 115 `z.object()`, 52 `z.enum()`.
+- `.strict()` ×94 deprecated → `z.strictObject()`; `.email()` ×4 deprecated →
+  `z.email()`; `z.record(x)` single-arg ×2 **removed** (hard break);
+  `.default()` ×30 changes semantics on `z.coerce.*`.
+- **`.uuid()` ×89 tightens to RFC 9562** — ids valid today could start
+  answering 422. Must be measured against real ids before, not after.
+- **`ZodError` issue formats «dramatically streamlined»**, and this repo's
+  problem-JSON `fieldErrors` (42 sites) is built from them; `.flatten()`
+  deprecated. This is a contracts-layer change that touches every `/v1`
+  request schema and `technical/error-catalog.csv`'s documented shape. Needs a
+  brainstorm, a branch, and a test plan of its own.
+
+**2. vitest 3.2.4 → 4.1.11** — https://vitest.dev/guide/migration
+- `vitest.workspace.ts` is REMOVED in v4 (→ `projects` in the config); 4 config
+  files, 124 test files, 45 config-sensitive call sites (`vi.mock`,
+  `hookTimeout`, `fileParallelism`, `environment`).
+- The load-bearing part is not the API, it is the TIMING: `--concurrency=1`,
+  `fileParallelism:false` and the 10 s hook budget are what keep the shared
+  local Postgres from deadlocking (HANDOFF.md §4 records exactly how that
+  fails). Any change to the runner must be proved against a full serialized
+  run, not a green unit file.
+
+**3. TypeScript → 7.0.2 (the Go port)** — https://devblogs.microsoft.com/typescript/
+- Root is 5.9.2, `apps/mobile` is 6.0.3 — the workspace already disagrees with
+  itself. 10 tsconfigs, `moduleResolution: Bundler`, `verbatimModuleSyntax`.
+- Next 16.3's own release notes mention TS6 `baseUrl`/`node10 moduleResolution`
+  deprecations, so 5.9 → 6 is itself a config migration that this repo has not
+  absorbed, before 7 is even considered. Unify on one version first.
+
+**Not done on 2026-08-19, on purpose.** Everything that WAS safe is done; these
+three are named so nobody mistakes "freshened" for "finished".
+
+## P0 (CLOSED 2026-08-19) — the field client is built and NOBODY CAN OPEN IT: there is no origin
+
+**There is an origin, and it is public, and a person has signed in through
+it.** `https://goproceed-app.vercel.app` — attached by the owner on the evening
+of 2026-08-19 (the `goproceed-app-akislys-projects.vercel.app` alias serves the
+same deployment); a Vercel-provided hostname, so `{{APP_HOSTNAME}}` is still a
+token and a custom domain is still undecided (§0 of the runbook). At 20:34 UTC
+the owner signed in on a laptop: OTP code by email, `login_method: otp` in the
+Auth logs, `auth.users.last_sign_in_at` set, and — same second — Supavisor
+authenticated `goproceed_app_login` for the page's `/v1/projects` self-fetch;
+«Мої доручення» rendered its empty state, correct for a user with no grant.
+Measured 2026-08-19 after PR #30 merged (`caff92c`), production deployment
+`dpl_9tVwSHyKCg2sRsafN3cxFZtQ1bVT`:
+
+- the build log printed `deploy preflight (VERCEL_ENV=production): OK — origin,
+  Supabase, database and external-link variables are all present and
+  non-local` — all twelve variables, the `sb_publishable_`/`sb_secret_` key
+  forms, an https origin with no path — and no turbo platform-env warning;
+- `GET /` → 307 `/login?next=%2F` and `GET /assignments` → 307 (the auth gate,
+  `proxy.ts`, is live); `GET /login` → 200 `text/html` over TLS with HSTS, and
+  the page is the OTP form («Вхід за одноразовим кодом…», `#otp-email`,
+  «Надіслати код»); `GET /v1/projects` and `/v1/me/context` → 401
+  `application/problem+json` unauthenticated;
+- the shipped client bundle carries the staging Supabase URL and the staging
+  `sb_publishable_…` key in exactly one chunk each, and no local value
+  (`127.0.0.1`, the local demo key) anywhere;
+- staging Postgres, through the connector: 58/58 migrations (`0058` last),
+  `pg_cron` present, 140 policies, 53/53 `public` tables with RLS, both
+  `goproceed_*_login` roles with SCRAM-SHA-256 verifiers that differ, 0 auth
+  users, 0 organizations — clean;
+- one dashboard setting stood between the build and the public, and the
+  runbook had not mentioned it: a new Vercel project ships with **Vercel
+  Authentication** protecting every URL except custom domains, and the
+  `*.vercel.app` production alias is not a custom domain — every path answered
+  302 to `vercel.com/sso-api`. Changed to «Only Preview Deployments» with the
+  owner's explicit yes (Previews are skipped by `ignoreCommand` anyway).
+
+**What this closes is exactly the sentence in the heading.** What it does not
+close, each tracked under its own heading below: the §6.1–6.8 evidence (an Auth
+user, the idempotent bootstrap, cross-tenant isolation, one finalize through
+`SERVICE_DB_URL`) — the owner's `curl`s, because they carry a bearer token; the
+§6.9 phone session; and the P1 directly below, without which no foreman outside
+the Supabase project's own team can receive the code.
+
+---
+
+## P1 — the OTP email is refused for anyone outside the Supabase team until custom SMTP is configured
+
+**Read from the current Supabase docs on 2026-08-19
+(https://supabase.com/docs/guides/auth/auth-smtp):** the default email service
+is «best-effort», «2 messages per hour», and — the part that decides this item —
+«Unless you configure a custom SMTP server for your project, Supabase Auth will
+refuse to deliver messages to addresses that are not part of the project's
+team.» So today the owner can sign in at the live origin with their own address,
+twice an hour, and a foreman with any other address gets no code at all. Custom
+SMTP (Authentication settings → SMTP) starts at 30 messages per hour and is
+raised on the Rate Limits page. This is the last thing between «/login renders»
+and «a foreman signs in», and it is an account decision (which provider, which
+sending domain), not code — the app sends nothing itself. **The app's hostname
+does not solve it:** `goproceed-app.vercel.app` is Vercel's, and no DNS record
+(SPF/DKIM) can be added under `vercel.app` — the sending domain has to be one
+the owner controls, which is the same open question as `{{APP_HOSTNAME}}`.
+Also still to do in the dashboard on the same page: Auth Site URL is
+`http://localhost:3000` (GoTrue logs it as the referrer on every request) —
+set it to the origin; and the hosted «Magic Link» template must keep
+`{{ .Token }}` (it was the dashboard default — a link with no code — until
+2026-08-19 20:3x, and the client's code-only flow had nothing to type).
+
+---
+
+## P3 — `turbo-ignore` is deprecated; Vercel has a built-in «skip unaffected projects»
+
+The production build log of 2026-08-19 said so in so many words:
+`"turbo-ignore" is deprecated. Use Vercel's built-in project skipping instead.
+https://vercel.com/docs/monorepos#skipping-unaffected-projects`. It still works
+and decided correctly (`No previous deployments found … Proceeding`). When it
+is replaced, the `VERCEL_ENV` guard in `apps/app/vercel.json`'s `ignoreCommand`
+(Production only, for the pilot) has to survive the replacement — read the
+linked page first, per CLAUDE.md.
+
+---
+
+## P3 — CI's `apt-get` step hung for 17 minutes once (runner mirror), and the job timed out
+
+`app-qa` on `5b28c9b` (a docs-only commit): «Install Chrome headless runtime
+libraries» ran from 18:59:55 to the 20-minute job timeout while `demo-qa`'s
+identical step on the same run took seconds. Same class as the Docker flakes
+the five-container stack and the `db reset` retry addressed; a `timeout` plus
+one retry around `apt-get update && apt-get install` in both jobs would make it
+countable instead of a red run. Not done yet — noted on the day it happened.
+
 
 **This is the largest open item in the repository and it is not a code defect.**
 `apps/app` has no deployed origin: no `vercel.json` for it, no deploy step in
