@@ -506,7 +506,8 @@ does not touch it.
 5. Confirm `https://{{APP_HOSTNAME}}/login` renders the OTP form over TLS. This
    is the first moment the field client is reachable by a person who is not at a
    developer's keyboard, and it is the P0 of `TODOS.md` closing. Measured
-   2026-08-19 at `https://goproceed-app-akislys-projects.vercel.app`: `/` → 307
+   2026-08-19 at `https://goproceed-app.vercel.app` (and the
+   `goproceed-app-akislys-projects.vercel.app` alias): `/` → 307
    `/login?next=%2F`, `/login` → 200 `text/html` with HSTS and the form
    (`#otp-email`, «Надіслати код»), `/assignments` → 307 to login,
    `/v1/projects` → 401 `application/problem+json`; the client bundle carries the
@@ -625,8 +626,19 @@ timings) — a checked box with no evidence is not verification.
    start, raised on the Rate Limits page). `TODOS.md` tracks it as a P1. On the pilot iPhone and the pilot Android
    (`TODOS.md` §"the pilot-device inventory does not exist" — buy them if they
    are still not bought):
-   - [ ] `https://{{APP_HOSTNAME}}/login` renders; enter an invited member's
-     email; the 6-digit code arrives; sign-in lands on «Мої доручення».
+   - [x] `https://{{APP_HOSTNAME}}/login` renders; enter an invited member's
+     email; the 6-digit code arrives; sign-in lands on «Мої доручення». —
+     **Done 2026-08-19 20:34 UTC on a laptop, not yet on a phone**, at
+     `https://goproceed-app.vercel.app`, by the owner (a team address, so the
+     built-in email service delivered): Auth logs show `mail.send` →
+     `POST /verify` → `login` (`login_method: otp`), `last_sign_in_at` set,
+     and Supavisor authenticating `goproceed_app_login` for the page's
+     `/v1/projects` self-fetch; the screen was the empty state («У вас немає
+     доступу до жодного проєкту»), correct for a user with no grant. Two
+     dashboard prerequisites this step did not list: the hosted «Magic Link»
+     template must contain `{{ .Token }}` (the default is a link with no code),
+     and the user must exist (`shouldCreateUser: false`) — Authentication →
+     Users → Create user. Repeat on the two phones for the rest of this step.
    - [ ] Open one assignment; the довідковий disclaimer is visible; every
      control is at least 44×44 CSS px (measure with the browser's inspector at
      375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI —
@@ -663,8 +675,9 @@ with RLS, both `goproceed_*_login` passwords set (SCRAM, different). Vercel
 project `goproceed-app`: twelve variables present and non-local (the production
 build printed the preflight's `OK` line), `ignoreCommand` builds Production
 only, Vercel Authentication on Previews only. `GET /login` answers 200 over TLS
-at `https://goproceed-app-akislys-projects.vercel.app` — `{{APP_HOSTNAME}}`
-remains a token; no custom domain yet. Still open, each tracked in `TODOS.md`:
+at `https://goproceed-app.vercel.app` (canonical; the long alias serves the same
+deployment), and the owner has signed in through it once (§6.9, laptop) —
+`{{APP_HOSTNAME}}` remains a token; no custom domain yet. Still open, each tracked in `TODOS.md`:
 §6.1–6.8 (the owner's `curl`s — they carry a bearer token), §6.9 (two phones),
 and custom SMTP, without which no address outside the Supabase team receives
 the code. The paragraph below is the state as of 2026-08-18 and is kept as the

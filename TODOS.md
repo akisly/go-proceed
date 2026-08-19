@@ -477,9 +477,15 @@ three are named so nobody mistakes "freshened" for "finished".
 
 ## P0 (CLOSED 2026-08-19) — the field client is built and NOBODY CAN OPEN IT: there is no origin
 
-**There is an origin, and it is public.** `https://goproceed-app-akislys-projects.vercel.app`
-— Vercel's own production alias for project `goproceed-app`; `{{APP_HOSTNAME}}`
-is still a token and a custom domain is still undecided (§0 of the runbook).
+**There is an origin, and it is public, and a person has signed in through
+it.** `https://goproceed-app.vercel.app` — attached by the owner on the evening
+of 2026-08-19 (the `goproceed-app-akislys-projects.vercel.app` alias serves the
+same deployment); a Vercel-provided hostname, so `{{APP_HOSTNAME}}` is still a
+token and a custom domain is still undecided (§0 of the runbook). At 20:34 UTC
+the owner signed in on a laptop: OTP code by email, `login_method: otp` in the
+Auth logs, `auth.users.last_sign_in_at` set, and — same second — Supavisor
+authenticated `goproceed_app_login` for the page's `/v1/projects` self-fetch;
+«Мої доручення» rendered its empty state, correct for a user with no grant.
 Measured 2026-08-19 after PR #30 merged (`caff92c`), production deployment
 `dpl_9tVwSHyKCg2sRsafN3cxFZtQ1bVT`:
 
@@ -527,7 +533,15 @@ twice an hour, and a foreman with any other address gets no code at all. Custom
 SMTP (Authentication settings → SMTP) starts at 30 messages per hour and is
 raised on the Rate Limits page. This is the last thing between «/login renders»
 and «a foreman signs in», and it is an account decision (which provider, which
-sending domain), not code — the app sends nothing itself.
+sending domain), not code — the app sends nothing itself. **The app's hostname
+does not solve it:** `goproceed-app.vercel.app` is Vercel's, and no DNS record
+(SPF/DKIM) can be added under `vercel.app` — the sending domain has to be one
+the owner controls, which is the same open question as `{{APP_HOSTNAME}}`.
+Also still to do in the dashboard on the same page: Auth Site URL is
+`http://localhost:3000` (GoTrue logs it as the referrer on every request) —
+set it to the origin; and the hosted «Magic Link» template must keep
+`{{ .Token }}` (it was the dashboard default — a link with no code — until
+2026-08-19 20:3x, and the client's code-only flow had nothing to type).
 
 ---
 

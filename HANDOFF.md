@@ -21,12 +21,41 @@ is the §6 evidence and custom SMTP.
 
 ---
 
-### 0a.14 — the origin exists: `/login` answers 200 over TLS to the public internet
+### 0a.14 — the origin exists, and a person signed in through it: `/login` → code → «Мої доручення»
 
 **The P0 of `TODOS.md` — «NOBODY CAN OPEN IT: there is no origin» — is closed on
 2026-08-19, by its own heading's standard, at
-`https://goproceed-app-akislys-projects.vercel.app`.** Vercel's production
-alias, not a custom domain; `{{APP_HOSTNAME}}` is still a token. The owner
+`https://goproceed-app.vercel.app`** (attached by the owner that evening; the
+`goproceed-app-akislys-projects.vercel.app` alias serves the same deployment).
+A Vercel-provided hostname, not a custom domain; `{{APP_HOSTNAME}}` is still a
+token, and `vercel.app` cannot carry SPF/DKIM, so the SMTP sending domain is a
+separate, still-open decision.
+
+**And the first real sign-in happened, end to end, on the real origin** — the
+owner, on a laptop, 20:34 UTC. Read back from the Auth logs and the database,
+not from the screen: `user_recovery_requested` → `mail.send` (`mail_type:
+magic_link`, from `noreply@mail.app.supabase.io` — the built-in service, to a
+team address) → `POST /verify` → `login` with `login_method: otp` →
+`auth.users.last_sign_in_at` set, one session, one refresh token. Then, at the
+same second, Supavisor: «Connection authenticated … tenant asrvzhjaueyvrfozxpzo,
+mode: session, user: goproceed_app_login … Backend authenticated» — the page's
+server-side self-fetch to `/v1/projects` reached Postgres through the pooler
+with the §3 password and the `.<project-ref>` username, RLS answered an empty
+list, and «Мої доручення» rendered its empty state («У вас немає доступу до
+жодного проєкту…»), which is the correct screen for a user with no grant.
+Every link of the chain the sitting had to get right — origin, proxy, cookie,
+key format, pooler username, role password — was exercised by one sign-in.
+
+**Two detours on the way, both the dashboard's.** The first email carried a
+magic LINK and no code: the hosted «Magic Link» template is not the repo's
+`supabase/templates/magic_link.html` — the docs say «copy the templates into
+the Email Templates section of the Dashboard», and until that was done the
+client's code-only flow had nothing to type. And one `POST /verify` answered
+`otp_expired` before the third code worked. Still open in the dashboard: the
+Auth **Site URL** is `http://localhost:3000` (GoTrue's request log names it as
+the referrer on every call) — set it to `https://goproceed-app.vercel.app`; the
+email rate limit was raised 2→30/h by the owner (the reloader logged it), which
+does not lift the built-in service's team-addresses-only rule. The owner
 merged PR #30, set the two role passwords and the twelve variables, and the
 first production build printed `deploy preflight (VERCEL_ENV=production): OK`.
 Then `/` → 307 `/login`, `/login` → 200 with the OTP form, `/assignments` →
@@ -179,13 +208,14 @@ only a command.
 still has the old one: rename `SUPABASE_SERVICE_ROLE_KEY → SUPABASE_SECRET_KEY`
 (an `sb_secret_…` value), and add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 (`sb_publishable_…`). The preflight says exactly this when it refuses. **And
-check the origin against Settings → Domains before trusting it:** the Vercel
-API lists this project's domains as `goproceed-app-akislys-projects.vercel.app`
-and the `git-main` alias — NOT `goproceed-app.vercel.app`, which the sitting
-had pencilled in. `NEXT_PUBLIC_APP_ORIGIN` and `EXTERNAL_LINK_ORIGIN` must be
-the hostname the project actually owns, verbatim: `api.ts` self-fetches
-against it WITH the session cookie, so a hostname this project does not own is
-a hostname the cookie would be sent to.
+check the origin against Settings → Domains before trusting it:** when this
+was written the Vercel API listed only `goproceed-app-akislys-projects.vercel.app`
+and the `git-main` alias; the owner then attached `goproceed-app.vercel.app`
+(2026-08-19, ~20:20 UTC) and it is the canonical origin now — see 0a.14.
+`NEXT_PUBLIC_APP_ORIGIN` and `EXTERNAL_LINK_ORIGIN` must be a hostname the
+project actually owns, verbatim: `api.ts` self-fetches against it WITH the
+session cookie, so a hostname this project does not own is a hostname the
+cookie would be sent to.
 
 ---
 
