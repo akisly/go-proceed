@@ -145,10 +145,27 @@ if ((process.env.APP_DB_URL ?? "") && process.env.APP_DB_URL === process.env.SER
   problems.push("APP_DB_URL and SERVICE_DB_URL are identical — they must authenticate as different roles (README-staging.md §3.2), or withServiceTx fails closed on every service write.");
 }
 
+// NAME THE ENVIRONMENT IN THE VERDICT. Vercel scopes every variable to
+// Production / Preview / Development separately, and a PR push builds a
+// PREVIEW: a variable set for Production only is unset here, and the refusal
+// above is then a list of correctly-named variables the operator is sure they
+// set. Measured 2026-08-19 on dpl_5Aj6qnDSuGRo4JQHFA1LLS9eGj8X — six variables
+// present for Production, absent from the Preview build, reported "unset"
+// with nothing in the message to say which column to look in. `VERCEL_ENV` is
+// one of turbo's built-in passthrough names (VERCEL, VERCEL_*), so it is
+// visible here without being declared. https://vercel.com/docs/environment-variables
+const vercelEnv = process.env.VERCEL_ENV ? ` (VERCEL_ENV=${process.env.VERCEL_ENV})` : "";
 if (problems.length) {
-  console.error("\ndeploy preflight: REFUSING TO BUILD — this bundle would not work where it is going.\n");
+  console.error(`\ndeploy preflight${vercelEnv}: REFUSING TO BUILD — this bundle would not work where it is going.\n`);
   for (const p of problems) console.error(`  - ${p}`);
-  console.error("\nSee apps/app/.env.example for the full contract and infra/README-staging.md §4 for where each value comes from.\n");
+  console.error("\nSee apps/app/.env.example for the full contract and infra/README-staging.md §4 for where each value comes from.");
+  if (process.env.VERCEL_ENV === "preview") {
+    console.error(
+      "This is a PREVIEW build. A variable set for Production only is unset here — check the Preview column in "
+      + "Project Settings → Environment Variables (README-staging.md §4.3 says every variable is needed for Preview too, "
+      + "with a Preview-specific NEXT_PUBLIC_APP_ORIGIN), or disable Preview Deployments (Settings → Git) for the pilot.");
+  }
+  console.error("");
   process.exit(1);
 }
-console.log("deploy preflight: OK — origin, Supabase, database and external-link variables are all present and non-local.");
+console.log(`deploy preflight${vercelEnv}: OK — origin, Supabase, database and external-link variables are all present and non-local.`);

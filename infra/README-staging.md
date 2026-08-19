@@ -426,10 +426,16 @@ does not touch it.
 2. Trigger a deploy — push to `main`, or Deployments → Redeploy.
 3. **Read the build log for the preflight line before anything else.** A
    healthy build prints
-   `deploy preflight: OK — origin, Supabase, database and external-link variables are all present and non-local.`
+   `deploy preflight (VERCEL_ENV=production): OK — origin, Supabase, database and external-link variables are all present and non-local.`
    near the top. If instead it prints `REFUSING TO BUILD`, it lists every
    variable that is missing or local; fix them all in §4.3 and redeploy. Do not
    work around it — it is telling you the bundle would not have worked.
+   **Read the environment in the parentheses.** A push to a PR branch builds a
+   PREVIEW, and a variable set for Production only is unset there — the
+   refusal then lists variables you are certain you set, and the Preview
+   column of Project Settings → Environment Variables is where they are not.
+   The preflight says this itself on a Preview build. Measured 2026-08-19: six
+   variables present for Production, absent from the Preview build.
 4. Confirm `https://{{APP_HOSTNAME}}/login` renders the OTP form over TLS. This
    is the first moment the field client is reachable by a person who is not at a
    developer's keyboard, and it is the P0 of `TODOS.md` closing.
