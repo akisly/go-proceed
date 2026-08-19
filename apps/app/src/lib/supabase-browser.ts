@@ -14,7 +14,7 @@ import { createBrowserClient } from "@supabase/ssr";
  * 0.5.2, omitting it makes the client read/write the session through
  * `document.cookie` itself, using the same cookie names and chunking scheme
  * that `src/lib/supabase-server.ts` (`getAll`/`setAll` over `next/headers`
- * `cookies()`) and `middleware.ts` (`getAll`/`setAll` over the
+ * `cookies()`) and `proxy.ts` (`getAll`/`setAll` over the
  * request/response cookie jars) read on the server. All three only agree on
  * that wire format because they are the same library version — see
  * CLAUDE.md / the task brief on why `@supabase/ssr` is pinned rather than

@@ -10,9 +10,20 @@ import { NextResponse, type NextRequest } from "next/server";
  * sufficient for the API — but it is enforcement at the very last moment,
  * after a whole page has rendered around a fetch that was always going to
  * fail. A foreman who cold-opens `/assignments/…` from a bookmark with no
- * session should never see that shell at all; middleware is what turns "the
+ * session should never see that shell at all; this proxy is what turns "the
  * API will 401" into "you never got here", by running before any route in
  * `app/(app)` renders.
+ *
+ * `proxy.ts`, NOT `middleware.ts`, SINCE 2026-08-19. Next 16.3 deprecated the
+ * `middleware` file convention in favour of `proxy` — the vendor's stated
+ * reason is that "middleware" was being read as Express middleware and
+ * over-used, and "proxy" names what this actually is: a network boundary in
+ * front of the app. The migration is a pure rename (file and export) with NO
+ * semantic change — run through Next's own codemod and then diffed against the
+ * previous file to confirm it touched nothing else. The behaviour below, the
+ * matcher, and the cookie dual-write are exactly as they were. Done now, on the
+ * deprecation warning, rather than on the day a Next major removes the old name
+ * and the whole auth gate silently stops running.
  *
  * WHY `getUser()` AND NOT `getSession()`: `getSession()` decodes the local
  * JWT's claims without checking they are still valid against the Auth
@@ -22,7 +33,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * trust a client-supplied session as proof of identity, only a server round
  * trip.
  */
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   // Reassigned inside `setAll` below: refreshing the session issues a new
   // response so the Set-Cookie headers actually attach to what gets sent
   // back, rather than to a response object created before the refresh ran.

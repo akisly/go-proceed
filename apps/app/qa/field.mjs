@@ -11,7 +11,8 @@ import { launch } from "./browser.mjs";
  * THE BROWSER PASS FOR apps/app — modelled on apps/demo/qa/verify.mjs, but a
  * genuinely different animal underneath it. apps/demo serves a prebuilt
  * static SPA; apps/app is a Next server whose pages are gated by
- * `middleware.ts` and render real data through `/v1`. Most of what this task
+ * `proxy.ts` (the auth gate, `middleware.ts` until 2026-08-19) and render real
+ * data through `/v1`. Most of what this task
  * exists to prove — the довідковий disclaimer, the 44px touch floor on the
  * obligation screen, the unsaved-photo banner — lives BEHIND that gate.
  *
@@ -914,7 +915,7 @@ async function main() {
       ctx.findings.push(`/manifest.webmanifest: failed to fetch/parse: ${err}`);
     }
 
-    // middleware.ts's whole reason for excluding /v1 and /external: an
+    // proxy.ts's whole reason for excluding /v1 and /external: an
     // unauthenticated API call must come back as the problem+json document
     // the client contract promises, never a 307 to an HTML login page. Task
     // 5's report verified this by hand once; this keeps it verified on every

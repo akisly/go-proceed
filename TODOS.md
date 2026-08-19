@@ -430,6 +430,51 @@ which is the pin doing its job.
 `SUPABASE_SECRET_KEY` to an `sb_secret_…` value; the preflight refuses the
 legacy forms by name.
 
+## P2 — three major-version migrations, measured and deliberately NOT folded into the 2026-08-19 freshness pass
+
+**Context:** on 2026-08-19 the owner asked for every library to be current
+before the Vercel sitting. Tier 1 (Supabase SDK + key format) and Tier 2 (every
+safe minor/patch bump, plus Next 16.3's `middleware → proxy` rename) were done
+on that branch. These three were MEASURED against the tree and the vendor's
+changelog, per `CLAUDE.md`'s current-docs rule, and each turned out to be a
+migration with its own blast radius rather than a bump. Folding any of them into
+a "freshen the libraries" branch would have been the scope creep that rule is
+there to prevent. Each gets its own slice; the measurements are here so it
+starts from facts.
+
+**1. zod 3.24.1 → 4.4.3** — https://zod.dev/v4/changelog
+- 30 files, 309 `z.string()`, 115 `z.object()`, 52 `z.enum()`.
+- `.strict()` ×94 deprecated → `z.strictObject()`; `.email()` ×4 deprecated →
+  `z.email()`; `z.record(x)` single-arg ×2 **removed** (hard break);
+  `.default()` ×30 changes semantics on `z.coerce.*`.
+- **`.uuid()` ×89 tightens to RFC 9562** — ids valid today could start
+  answering 422. Must be measured against real ids before, not after.
+- **`ZodError` issue formats «dramatically streamlined»**, and this repo's
+  problem-JSON `fieldErrors` (42 sites) is built from them; `.flatten()`
+  deprecated. This is a contracts-layer change that touches every `/v1`
+  request schema and `technical/error-catalog.csv`'s documented shape. Needs a
+  brainstorm, a branch, and a test plan of its own.
+
+**2. vitest 3.2.4 → 4.1.11** — https://vitest.dev/guide/migration
+- `vitest.workspace.ts` is REMOVED in v4 (→ `projects` in the config); 4 config
+  files, 124 test files, 45 config-sensitive call sites (`vi.mock`,
+  `hookTimeout`, `fileParallelism`, `environment`).
+- The load-bearing part is not the API, it is the TIMING: `--concurrency=1`,
+  `fileParallelism:false` and the 10 s hook budget are what keep the shared
+  local Postgres from deadlocking (HANDOFF.md §4 records exactly how that
+  fails). Any change to the runner must be proved against a full serialized
+  run, not a green unit file.
+
+**3. TypeScript → 7.0.2 (the Go port)** — https://devblogs.microsoft.com/typescript/
+- Root is 5.9.2, `apps/mobile` is 6.0.3 — the workspace already disagrees with
+  itself. 10 tsconfigs, `moduleResolution: Bundler`, `verbatimModuleSyntax`.
+- Next 16.3's own release notes mention TS6 `baseUrl`/`node10 moduleResolution`
+  deprecations, so 5.9 → 6 is itself a config migration that this repo has not
+  absorbed, before 7 is even considered. Unify on one version first.
+
+**Not done on 2026-08-19, on purpose.** Everything that WAS safe is done; these
+three are named so nobody mistakes "freshened" for "finished".
+
 ## P0 (OPEN) — the field client is built and NOBODY CAN OPEN IT: there is no origin
 
 **This is the largest open item in the repository and it is not a code defect.**
