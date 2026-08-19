@@ -355,7 +355,7 @@ zero-priced row — and rows priced at zero are ordinary, being work bundled int
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
 
-## P2 — the Supabase API keys are the legacy JWT form, which stops working at the end of 2026
+## P2 (CLOSED 2026-08-19, same day) — the Supabase API keys were the legacy JWT form, which stops working at the end of 2026
 
 **What:** every environment — local (`supabase start` issues only this form),
 CI (`ci.yml`), and staging as provisioned 2026-08-19 — uses the LEGACY `anon`
@@ -386,6 +386,49 @@ stack's CLI version issues the new keys (it must — or local and hosted diverge
 Per `CLAUDE.md`'s rule: read the current docs and the changelog for the target
 SDK version first; do not code from memory.
 **Depends on:** nothing. **Deadline:** before 2026-12-31, with a month of slack.
+
+**CLOSED THE SAME DAY, because the owner asked for every library to be current
+before the Vercel sitting rather than after.** Done as the one coherent slice
+this entry described, per `CLAUDE.md`'s current-docs rule — every step read from
+the installed version and the vendor's own source, not recalled:
+
+- `supabase-js 2.47.10 → 2.112.3`, `@supabase/ssr 0.5.2 → 0.12.4` (ssr 0.12.4
+  peer-requires supabase-js ^2.111, so they move together). Release notes read
+  across the whole span: nothing breaking on the calls this app makes. The
+  PUBLISHED 2.112.3 bundle classifies the new key family explicitly
+  (`isNewApiKey = key.startsWith("sb_publishable_") || key.startsWith("sb_secret_")`);
+  the 2.47.10 bundle had no such code. Committed on its own first and proved by
+  818/818 plus a real OTP sign-in through the browser pass, so the SDK jump and
+  the key switch are separately verifiable.
+- Variables renamed everywhere — `NEXT_PUBLIC_SUPABASE_ANON_KEY →
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY →
+  SUPABASE_SECRET_KEY` — across 12 files; CI and `qa/field.mjs` defaults moved
+  to the `sb_publishable_`/`sb_secret_` the local CLI issues. **The repo was
+  already half on the new format**: two tests and `evidence-storage.ts`
+  hard-coded `sb_publishable_`/`sb_secret_` local defaults under the OLD
+  variable names — name and value had disagreed for as long as nobody looked.
+- Measured: even CLI 2.75.0 issues both forms (`supabase status` shows
+  PUBLISHABLE_KEY/SECRET_KEY beside ANON_KEY/SERVICE_ROLE_KEY), so local, CI and
+  hosted all run the new format with no divergence.
+- `deploy-preflight.mjs` now REFUSES a legacy JWT pasted into either new
+  variable, by shape and by name — the dashboard still shows the legacy key right
+  beside the new one, and a deploy carrying it would work today and die on
+  2027-01-01 with no earlier symptom. Proved both ways.
+- Every explanatory comment, `.env.example` and the staging runbook's variable
+  table say the new name, the new form, and the date.
+
+One verification detour, recorded because it looked like the keys and was not:
+the first full run showed 5 failures / 17 skips in `@goproceed/testing`, caused
+by `supabase db reset` pulling `storage-api:v1.69.0` mid-run — the local CLI
+had been upgraded to 2.114.0 during the P0 sitting (from 2.75.0) and wanted an
+image it had not cached. One-time, infrastructure; 461/461 on re-run. Side
+effect worth noting: local is now one release behind CI's pin instead of forty,
+which is the pin doing its job.
+
+**For the Vercel sitting:** the two variable NAMES changed. Set
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the `sb_publishable_…` value and
+`SUPABASE_SECRET_KEY` to an `sb_secret_…` value; the preflight refuses the
+legacy forms by name.
 
 ## P0 (OPEN) — the field client is built and NOBODY CAN OPEN IT: there is no origin
 
