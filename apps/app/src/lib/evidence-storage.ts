@@ -11,19 +11,30 @@ export const EVIDENCE_BUCKET = "evidence";
 export const STORAGE_PROVIDER = "supabase";
 
 // Local defaults mirror packages/testing/src/pg.ts: the suites run against the
-// local stack without env setup. The service key falls back ONLY when the URL is
-// the local stack's, so a deployment missing SUPABASE_SERVICE_ROLE_KEY fails
+// local stack without env setup. The secret key falls back ONLY when the URL is
+// the local stack's, so a deployment missing SUPABASE_SECRET_KEY fails
 // loudly at startup instead of carrying a literal credential from source into an
 // environment it was never meant for. The local value is the published Supabase
 // demo secret, not a real one.
+//
+// THIS IS THE `sb_secret_…` FORM, AND THE VARIABLE IS NAMED FOR IT since
+// 2026-08-19. It was `SUPABASE_SERVICE_ROLE_KEY` — the legacy JWT's name — while
+// the value below was ALREADY the new-format local secret the CLI issues, so
+// the name and the value disagreed for as long as nobody looked. Supabase's
+// legacy `service_role`/`anon` JWTs stop working at the end of 2026;
+// supabase-js 2.112 classifies `sb_secret_`/`sb_publishable_` explicitly
+// (`isNewApiKey`), and that SDK is what this file now runs on. Both forms are
+// accepted by the hosted platform today — measured on goproceed-staging — so
+// the rename is about being on the side that survives 2027, not about the old
+// one failing now.
 const LOCAL_URL = "http://127.0.0.1:54321";
 const SUPABASE_URL = process.env.SUPABASE_URL ?? LOCAL_URL;
-const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
+const SERVICE_KEY = process.env.SUPABASE_SECRET_KEY
   ?? (SUPABASE_URL === LOCAL_URL ? "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz" : "");
 
 if (SERVICE_KEY === "") {
   throw new Error(
-    "evidence storage: SUPABASE_SERVICE_ROLE_KEY is required when SUPABASE_URL is not the local stack",
+    "evidence storage: SUPABASE_SECRET_KEY is required when SUPABASE_URL is not the local stack",
   );
 }
 

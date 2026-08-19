@@ -21,7 +21,7 @@ this repo has run it yet (see "Status" at the bottom). It provisions:
    on a real phone at the real origin (§6 step 9).
 
 Do not commit any secret produced by these steps (project ref is not
-secret; DB URL, anon key, and service_role key are). Store them in a
+secret; DB URL, publishable key, and secret key are). Store them in a
 password manager and in Vercel's encrypted environment variables only.
 
 ---
@@ -78,9 +78,14 @@ returns to a live file.
      **session pooler** connection string for `APP_DB_URL`, since Vercel
      serverless functions are short-lived; the direct connection string is
      fine for one-off `psql`/SQL-editor work).
-   - **anon key** — Project Settings → API → `anon` `public` key. This is
-     `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-   - **service_role key** — Project Settings → API → `service_role` key.
+   - **publishable key** — Project Settings → API → **Publishable key**, the
+     `sb_publishable_…` value. This is `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+     (The dashboard also still shows a legacy `anon` JWT; do not use it — it
+     stops working at the end of 2026, and this repo moved to the new form on
+     2026-08-19.)
+   - **secret key** — Project Settings → API → **Secret keys**, an `sb_secret_…`
+     value. This is `SUPABASE_SECRET_KEY`. (Likewise not the legacy
+     `service_role` JWT.)
      Needed only for the outbox-drain Edge Function path (not deployed in
      this slice, see `supabase/functions/outbox-drain/index.ts`) and for
      any one-off admin scripts. Never expose it to the browser or commit it.
@@ -359,12 +364,12 @@ Variables**, for **both** Production and Preview:
 | Variable | Kind | Value | Source |
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | build | `https://<project-ref>.supabase.co` | §1 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | build | the `anon` `public` key | §1 → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | build | the `sb_publishable_…` key | §1 → Project Settings → API → Publishable key |
 | `NEXT_PUBLIC_APP_ORIGIN` | build | `https://{{APP_HOSTNAME}}` — **the exact origin, https, no path** | §0 |
 | `APP_DB_URL` | runtime | pooler string as `goproceed_app_login` | §3.1 |
 | `SERVICE_DB_URL` | runtime | pooler string as `goproceed_service_login` — **a different role and password from `APP_DB_URL`** | §3.2 |
 | `SUPABASE_URL` | runtime | same host as `NEXT_PUBLIC_SUPABASE_URL` | §1 |
-| `SUPABASE_SERVICE_ROLE_KEY` | runtime | the `service_role` key | §1 → Project Settings → API. **Server secret. Never `NEXT_PUBLIC_`.** |
+| `SUPABASE_SECRET_KEY` | runtime | an `sb_secret_…` key | §1 → Project Settings → API → Secret keys. **Server secret. Never `NEXT_PUBLIC_`.** |
 | `EXTERNAL_LINK_ORIGIN` | runtime | `https://{{APP_HOSTNAME}}` | same as the app origin |
 | `EXTERNAL_LINK_HMAC_KEYS` | runtime | `<keyId>:<base64 32+ bytes>` | generate: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `EXTERNAL_LINK_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
@@ -372,7 +377,7 @@ Variables**, for **both** Production and Preview:
 | `EXTERNAL_SESSION_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
 
 **Three of these were undocumented until 2026-08-18 and would have failed the
-first deploy quietly.** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are read
+first deploy quietly.** `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are read
 by `src/lib/evidence-storage.ts`, which defaults them to the LOCAL stack — a
 deploy that set only the previously documented variables would have aimed
 every evidence upload at `127.0.0.1:54321` on the server. And

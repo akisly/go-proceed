@@ -6,7 +6,7 @@ import {
 } from "../src/lib/evidence-storage";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "http://127.0.0.1:54321";
-const PUBLISHABLE = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const PUBLISHABLE = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
   ?? "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
 
 const bytes = (s: string) => new TextEncoder().encode(s);

@@ -59,7 +59,7 @@ jobs:
       # this app hits Supabase at build time, but supabaseServer() reads them
       # eagerly, so an unset var would still be a footgun for future routes.
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -277,16 +277,17 @@ jobs:
       SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       # UNLIKE `verify`'s build (which uses a placeholder — no page there hits
       # Supabase at build time), this job's build MUST use the real local
-      # anon key: qa/field.mjs signs a real user in through the browser, and
-      # `NEXT_PUBLIC_SUPABASE_ANON_KEY` is compiled into the client bundle, not
-      # read at request time. The value below is `supabase start`'s fixed
-      # local dev anon key (config.toml sets no auth.jwt_secret override, so
-      # this is deterministic across every fresh local stack — see
-      # qa/field.mjs's own header comment for the same key and why it is
-      # stable, and scripts/set-local-app-password.mjs for the sibling
-      # dev-only-default convention this follows).
+      # publishable key: qa/field.mjs signs a real user in through the browser,
+      # and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is compiled into the client
+      # bundle, not read at request time. The value below is `supabase start`'s
+      # fixed local `sb_publishable_…` key (deterministic across every fresh
+      # local stack — see qa/field.mjs's own header for the same key and why it
+      # is stable, and scripts/set-local-app-password.mjs for the sibling
+      # dev-only-default convention this follows). It was the legacy anon JWT
+      # until 2026-08-19; the legacy keys stop working at the end of 2026 and
+      # the app's SDK now handles the new family explicitly.
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 

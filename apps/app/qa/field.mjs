@@ -47,17 +47,26 @@ const SHOTS = path.join(OUTPUT, "screenshots");
 // `supabase start` produces from this repo's supabase/config.toml (the JWT
 // signing secret there is the CLI's own unconfigured default,
 // "super-secret-jwt-token-with-at-least-32-characters-long" — not overridden
-// by an env(...) substitution anywhere in config.toml), so the anon/
-// service_role JWTs below are stable across every fresh local stack and every
-// CI run of this repo, the same way scripts/set-local-app-password.mjs
-// defaults its own dev-only passwords. Every one of them is overridable by
-// env var for a stack that ever does override the secret.
+// by an env(...) substitution anywhere in config.toml), so the keys below are
+// stable across every fresh local stack and every CI run of this repo, the
+// same way scripts/set-local-app-password.mjs defaults its own dev-only
+// passwords. Every one of them is overridable by env var for a stack that ever
+// does override the secret.
+//
+// `sb_publishable_…` / `sb_secret_…` SINCE 2026-08-19, not the legacy
+// anon/service_role JWTs this block used to carry. The local CLI (even 2.75.0)
+// issues both forms — `supabase status` shows PUBLISHABLE_KEY and SECRET_KEY
+// beside ANON_KEY and SERVICE_ROLE_KEY — and these are the two it issues,
+// verbatim. The legacy JWTs stop working at the end of 2026; the app's SDK is
+// now 2.112, which handles the new family explicitly. This harness drives a
+// REAL OTP sign-in through the real login screen, so it is the proof that the
+// new-format key works end to end on the installed SDK.
 // ---------------------------------------------------------------------------
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321";
-const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY
-  ?? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU";
+const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  ?? "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
+const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY
+  ?? "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz";
 const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://127.0.0.1:54324";
 
 // Refuses to run the moment any of the three points at something that is not
@@ -110,7 +119,7 @@ async function startNextServer() {
       env: {
         ...process.env,
         NEXT_PUBLIC_SUPABASE_URL: SUPABASE_URL,
-        NEXT_PUBLIC_SUPABASE_ANON_KEY: ANON_KEY,
+        NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ANON_KEY,
         // THIS HARNESS NAMES ITS OWN ORIGIN, and doing so is part of what the
         // pass proves rather than a setup detail.
         //

@@ -13,7 +13,7 @@
 //      NOTHING until the next build. So the moment to notice is now, not
 //      after the deploy is live.
 //
-//   2. `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are read by
+//   2. `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are read by
 //      src/lib/evidence-storage.ts and default to THE LOCAL STACK
 //      (127.0.0.1:54321 and the published demo key). They are runtime, not
 //      build-time, and .env.example did not list them until 2026-08-18. A
@@ -70,8 +70,30 @@ if (!origin) {
   }
 }
 
-for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_ANON_KEY"]) {
+for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]) {
   if (!process.env[name]) problems.push(`${name} is unset — it is compiled into the client bundle and the OTP sign-in cannot work without it.`);
+}
+
+// THE KEY FORMAT, because the dashboard still shows the legacy JWT right beside
+// the new key and the variable name alone does not stop anyone pasting the wrong
+// one. A legacy `anon`/`service_role` JWT works TODAY — measured on the hosted
+// project, both forms answer 200 — and stops working at the end of 2026, so a
+// deploy that carries one has no symptom until 2027-01-01. Refusing it here
+// turns a silent future outage into a named build failure now. The legacy JWT
+// is recognisable by its three base64url segments beginning `eyJ`; the new
+// keys are `sb_publishable_…` / `sb_secret_…` and are not JWTs at all.
+const looksLikeLegacyJwt = (v) => /^eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(v);
+const pub = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "";
+if (pub && looksLikeLegacyJwt(pub)) {
+  problems.push("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY carries a LEGACY anon JWT (eyJ…). Use the `sb_publishable_…` key from Project Settings → API → Publishable key. The legacy form stops working at the end of 2026 and this build would die then with no earlier symptom.");
+} else if (pub && !pub.startsWith("sb_publishable_")) {
+  problems.push(`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY does not look like a publishable key (expected to start with sb_publishable_): ${pub.slice(0, 12)}…`);
+}
+const sec = process.env.SUPABASE_SECRET_KEY ?? "";
+if (sec && looksLikeLegacyJwt(sec)) {
+  problems.push("SUPABASE_SECRET_KEY carries a LEGACY service_role JWT (eyJ…). Use an `sb_secret_…` key from Project Settings → API → Secret keys. Same end-of-2026 cliff as the publishable key.");
+} else if (sec && !sec.startsWith("sb_secret_")) {
+  problems.push(`SUPABASE_SECRET_KEY does not look like a secret key (expected to start with sb_secret_): ${sec.slice(0, 10)}…`);
 }
 if ((process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").includes("127.0.0.1")) {
   problems.push("NEXT_PUBLIC_SUPABASE_URL points at the local stack — a served bundle would ask the visitor's browser to reach 127.0.0.1.");
@@ -83,7 +105,7 @@ const runtime = {
   APP_DB_URL: "packages/database/src/pool.ts — every tenant read and write; the app is inert without it",
   SERVICE_DB_URL: "packages/database/src/pool.ts — every upload finalization 500s without it (README-staging.md §3.2)",
   SUPABASE_URL: "src/lib/evidence-storage.ts — DEFAULTS TO 127.0.0.1:54321 when unset, so every evidence upload would target a Supabase that does not exist on the server",
-  SUPABASE_SERVICE_ROLE_KEY: "src/lib/evidence-storage.ts — the signed-upload issuer; without it the module throws at import on any non-local SUPABASE_URL",
+  SUPABASE_SECRET_KEY: "src/lib/evidence-storage.ts — the signed-upload issuer (an sb_secret_ key, not the legacy service_role JWT); without it the module throws at import on any non-local SUPABASE_URL",
   EXTERNAL_LINK_ORIGIN: "src/lib/external-link.ts — the only Origin the external exchange accepts",
   EXTERNAL_LINK_HMAC_KEYS: "src/lib/external-link.ts — no default, by design",
   EXTERNAL_LINK_ACTIVE_KEY_ID: "src/lib/external-link.ts",
