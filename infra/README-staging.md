@@ -126,18 +126,29 @@ and every `cron.*` call in defensive `do $$ ... exception ... end $$`
 blocks specifically because `pg_cron` requires
 `shared_preload_libraries=pg_cron`, which is true on the standard
 Supabase-hosted image but is **not guaranteed** on every plan/region — if
-it's absent, the migration only `raise notice`s and silently skips
-scheduling the `outbox-drain` job. A clean `db push` is therefore not
-sufficient proof the drain is live. After pushing, check explicitly in
-the SQL Editor:
+it's absent, the migration only `raise notice`s and skips silently. A clean
+`db push` is therefore not sufficient proof the extension is present. After
+pushing, check explicitly in the SQL Editor:
 
 ```sql
-select extname from pg_extension where extname = 'pg_cron';
+select extname, extversion from pg_extension where extname = 'pg_cron';
 -- expect one row
 
-select jobid, jobname, schedule, active from cron.job where jobname = 'outbox-drain';
--- expect exactly one active row, schedule = '30 seconds'
+select jobid, jobname from cron.job where jobname = 'outbox-drain';
+-- expect ZERO rows — read on
 ```
+
+**The `outbox-drain` job is expected to be ABSENT, and this section said the
+opposite until 2026-08-19.** `0005` scheduled it; **`0036_retire_outbox_drain_cron`
+unscheduled it deliberately**, because `drain_outbox` had no lease check and
+raced the real claim protocol `0008` built (`app.claim_outbox` /
+`complete_outbox` / `fail_outbox`) — it could mark a row processed while a
+correct consumer held a live lease on it. So on a database with the full chain
+applied, `cron.job` correctly has no such row, and an operator following the old
+text («expect exactly one active row») would have gone looking for something
+that is meant to be gone. What §2.1 still legitimately proves is that `pg_cron`
+itself loaded — measured 2026-08-19 on `goproceed-staging`: `pg_cron 1.6.4`,
+zero drain jobs, exactly as `0036` intends.
 
 If `pg_cron` is missing: enable it via Database → Extensions in the
 dashboard (or contact Supabase support if the plan doesn't expose it),
@@ -161,13 +172,14 @@ supabase db push   # second apply, immediately after — should report
 Then confirm nothing was duplicated:
 
 ```sql
-select count(*) from cron.job where jobname = 'outbox-drain'; -- expect 1, not 2
+select count(*) from cron.job where jobname = 'outbox-drain'; -- expect 0 (0036 retired it; see §2.1)
 select count(*) from pg_extension where extname = 'pg_cron';  -- expect 1
+select max(version) from supabase_migrations.schema_migrations; -- expect '0058' (or the current last file)
 ```
 
-If either apply exits non-zero, or `outbox-drain` shows up twice, treat
-that as a migration bug and stop — do not proceed to §3 against a staging
-DB in an unknown state.
+If either apply exits non-zero, or the second `push` offers to apply anything
+at all, treat that as a migration bug and stop — do not proceed to §3 against
+a staging DB in an unknown state.
 
 ## 3. Set the `goproceed_app_login` and `goproceed_service_login` passwords on staging (mandatory, do this now)
 
@@ -462,14 +474,18 @@ timings) — a checked box with no evidence is not verification.
    select count(*) from audit_events where organization_id = '<organizationId>';
    -- expect 1
    select id, processed_at from transaction_outbox where organization_id = '<organizationId>';
-   -- expect 1 row, processed_at is NULL right after creation
+   -- expect 1 row, processed_at is NULL
    ```
-   Wait ~30 seconds (the `outbox-drain` cron job's schedule — confirmed
-   present in §2.1), then re-run the second query:
-   - [ ] `processed_at` is now set (non-null) on that row, without any
-     manual intervention — proves `cron.schedule('outbox-drain', '30
-     seconds', ...)` is actually running on staging, not just present in
-     `cron.job`.
+   - [ ] The audit row exists and the outbox row exists with `processed_at`
+     **still NULL** — and it STAYS null. **This step said the opposite until
+     2026-08-19**: it told the operator to wait ~30 seconds for the
+     `outbox-drain` cron to set `processed_at`, and to read «still null» as a
+     failure. That job was retired by `0036` (see §2.1) because it raced the
+     real claim protocol; nothing on staging consumes the outbox yet, by design.
+     On this database the old check would have failed forever. What this step
+     now proves is the write path only: the command enqueued exactly one row and
+     recorded exactly one audit event, in the same transaction, for the same
+     organization.
 
 7. **Cross-tenant isolation.** Create a second Auth user, **B**, who has
    never been added to A's organization. Obtain B's access token and:
