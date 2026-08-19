@@ -1,10 +1,17 @@
 # GoProceed — design system rewrite: plan and specification
 
-**Status:** Proposed — §3 requires an owner ruling before any code moves
+**Status:** Approved
 
-**Applies to:** `apps/landing`, `apps/app`, `packages/tokens`, `packages/ui`
+**Applies to:** all
 
 **Last reviewed:** 2026-08-19
+
+**Related decisions:** None yet. The seven design rulings D1–D7 in §3 were
+adopted as reversible defaults and still need an ADR before Phase 3; D5
+(retiring the frozen prototype sheet) is unruled and nothing built so far
+depends on it.
+
+**Surfaces:** `apps/landing`, `apps/app`, `packages/tokens`, `packages/ui`
 
 **Supersedes on acceptance:** `.interface-design/system.md` §2–§3 (direction,
 tokens), `design-references/visual-directions/README.md` (recommendation),

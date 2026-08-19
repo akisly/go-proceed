@@ -126,6 +126,7 @@ exemption, and it ends when the code citations move.
 | `domain/` | Terms, roles, entities, invariants, calculations | Target domain design |
 | `architecture/` | Runtime boundary, tenancy, security, imports, files | Target architecture |
 | `delivery/` | Milestones, acceptance gates, tests, rollout | Execution evidence |
+| `design/` | Design system: tokens, motion, components, and the procedure for building UI | Target design |
 | `discovery/` | Leads, sends, replies, interviews, pilot evidence | Market evidence only |
 | `decisions/` | Approved trade-offs and supersession rules | Decision authority |
 | `legacy/` | How historical material may be used | Non-normative reference |

@@ -36,9 +36,19 @@ p(
   "Regenerate: `node packages/tokens/scripts/generate-docs.mjs`.",
   "`packages/testing/src/token-fidelity.test.ts` fails if this file drifts.",
   "",
-  "**Status:** Generated from the approved source",
+  "**Status:** Approved",
   "",
-  "**Applies to:** `apps/landing`, `apps/app`, `apps/mobile`, `packages/ui`",
+  "**Applies to:** all",
+  "",
+  // `Last reviewed` is the source's own review date, not the generation date.
+  // Stamping today would make every regeneration look like a review, which is
+  // exactly the signal this field exists to carry. It is read from the source
+  // so the two cannot disagree.
+  `**Last reviewed:** ${src.lastReviewed}`,
+  "",
+  "**Related decisions:** None yet. The rulings behind these values are D1–D7 in the [rewrite plan](./2026-08-19-design-system-rewrite-plan.md) §3, which need an ADR before Phase 3.",
+  "",
+  "**Surfaces:** `apps/landing`, `apps/app`, `apps/mobile`, `packages/ui`",
   "",
   "**Companion:** [design-system rewrite plan](./2026-08-19-design-system-rewrite-plan.md) — the reasoning; this file is the values.",
   "",
