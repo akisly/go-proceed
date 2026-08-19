@@ -385,6 +385,24 @@ every evidence upload at `127.0.0.1:54321` on the server. And
 key, so a redeploy to a different hostname could have served the old origin
 from cache. The preflight checks all three; `.env.example` explains all three.
 
+**The four `EXTERNAL_*` values are GENERATED, not fetched from anywhere.** They
+are the HMAC keys that sign the protected external link (the bearer URL a
+party outside the workspace opens to act on a stage — `src/lib/external-link.ts`)
+and its session cookie (`src/lib/external-session.ts`). There is no default
+and there must not be one: a default key is a key in every deployment that
+forgot to set one. Make two DIFFERENT secrets, one per pair:
+
+```bash
+node -e "console.log('k1:' + require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Run it twice. The first output is `EXTERNAL_LINK_HMAC_KEYS` and the second is
+`EXTERNAL_SESSION_HMAC_KEYS` (each is `<keyId>:<base64 of 32+ random bytes>`;
+several keys may be listed comma-separated for rotation); both
+`*_ACTIVE_KEY_ID` are then `k1`. Mark the two `*_HMAC_KEYS` Sensitive. Later
+rotation is why the key id exists: add `k2:…` to the list, move the active id
+to `k2`, and links signed under `k1` still verify (INV-044).
+
 **Two names changed on 2026-08-19, and the dashboard will happily keep the old
 ones.** `NEXT_PUBLIC_SUPABASE_ANON_KEY` is now `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
 and `SUPABASE_SERVICE_ROLE_KEY` is now `SUPABASE_SECRET_KEY` — and the values
@@ -448,11 +466,16 @@ does not touch it.
    CANCELED and the preflight never runs — so the line you read is from a
    Production build. If you ever see `(VERCEL_ENV=preview)` there, the guard
    was removed: a Preview build reads the Preview column of Project Settings →
-   Environment Variables, and a variable set for Production only is unset
-   there — the refusal then lists variables you are certain you set. The
-   preflight says this itself on a Preview build. Measured 2026-08-19, before
-   the guard: six variables present for Production, absent from the Preview
-   build.
+   Environment Variables, and a variable set for Production only is ABSENT
+   there. **Read the second half of each «is unset» line too** — it says
+   ABSENT (not set for this environment, or not declared in `turbo.json`) or
+   PRESENT BUT EMPTY (the name exists with no value; a Sensitive value cannot
+   be read back, only replaced — Edit it and enter one). Measured 2026-08-19:
+   six variables the operator had created, scoped to Production AND Preview,
+   were reported unset on a Preview build, and the first reading of that was
+   «Production-only scoping». The dashboard showed it was not; the names were
+   present and the values were not. The distinction is in the message now so
+   that reading never has to be guessed again.
 4. Confirm `https://{{APP_HOSTNAME}}/login` renders the OTP form over TLS. This
    is the first moment the field client is reachable by a person who is not at a
    developer's keyboard, and it is the P0 of `TODOS.md` closing.

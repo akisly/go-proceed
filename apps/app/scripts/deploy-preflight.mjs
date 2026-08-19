@@ -90,8 +90,24 @@ if (!origin) {
   }
 }
 
+// "UNSET" IS TWO DIFFERENT FACTS, AND THE MESSAGE SAYS WHICH. A name that is
+// ABSENT from the build's process environment was either never set for this
+// Vercel environment, or is not declared in turbo.json (see the header). A name
+// that is PRESENT BUT EMPTY was created in the dashboard with no value — which
+// a Sensitive variable makes invisible afterwards, because its value cannot be
+// read back, only replaced. Measured 2026-08-19 on the PR #30 builds: six
+// variables the operator had created, scoped to Production AND Preview, were
+// reported unset on a Preview build while turbo's own platform check — which
+// lists platform names that are absent from the task's env — did not list them,
+// i.e. the names were present. Without this distinction the refusal read as a
+// scoping problem, and a scoping problem it was not.
+const unsetHow = (name) =>
+  process.env[name] === undefined
+    ? "ABSENT from the build environment (not set for this Vercel environment, or not declared in turbo.json build.env)"
+    : "PRESENT BUT EMPTY (the dashboard has the name with no value — Edit it and enter one; a Sensitive value cannot be read back, only replaced)";
+
 for (const name of ["NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"]) {
-  if (!process.env[name]) problems.push(`${name} is unset — it is compiled into the client bundle and the OTP sign-in cannot work without it.`);
+  if (!process.env[name]) problems.push(`${name} is unset — ${unsetHow(name)} — it is compiled into the client bundle and the OTP sign-in cannot work without it.`);
 }
 
 // THE KEY FORMAT, because the dashboard still shows the legacy JWT right beside
@@ -133,7 +149,7 @@ const runtime = {
   EXTERNAL_SESSION_ACTIVE_KEY_ID: "src/lib/external-session.ts",
 };
 for (const [name, why] of Object.entries(runtime)) {
-  if (!process.env[name]) problems.push(`${name} is unset (${why}).`);
+  if (!process.env[name]) problems.push(`${name} is unset — ${unsetHow(name)} (${why}).`);
 }
 for (const name of ["APP_DB_URL", "SERVICE_DB_URL"]) {
   const v = process.env[name] ?? "";
@@ -147,13 +163,13 @@ if ((process.env.APP_DB_URL ?? "") && process.env.APP_DB_URL === process.env.SER
 
 // NAME THE ENVIRONMENT IN THE VERDICT. Vercel scopes every variable to
 // Production / Preview / Development separately, and a PR push builds a
-// PREVIEW: a variable set for Production only is unset here, and the refusal
+// PREVIEW: a variable set for Production only is ABSENT here, and the refusal
 // above is then a list of correctly-named variables the operator is sure they
-// set. Measured 2026-08-19 on dpl_5Aj6qnDSuGRo4JQHFA1LLS9eGj8X — six variables
-// present for Production, absent from the Preview build, reported "unset"
-// with nothing in the message to say which column to look in. `VERCEL_ENV` is
-// one of turbo's built-in passthrough names (VERCEL, VERCEL_*), so it is
-// visible here without being declared. https://vercel.com/docs/environment-variables
+// set. `VERCEL_ENV` is one of turbo's built-in passthrough names (VERCEL,
+// VERCEL_*), so it is visible here without being declared. (The 2026-08-19
+// Preview refusals that prompted this turned out NOT to be scoping — see
+// `unsetHow` above — which is why the verdict now carries both the environment
+// and the absent/empty distinction.) https://vercel.com/docs/environment-variables
 const vercelEnv = process.env.VERCEL_ENV ? ` (VERCEL_ENV=${process.env.VERCEL_ENV})` : "";
 if (problems.length) {
   console.error(`\ndeploy preflight${vercelEnv}: REFUSING TO BUILD — this bundle would not work where it is going.\n`);
@@ -161,7 +177,7 @@ if (problems.length) {
   console.error("\nSee apps/app/.env.example for the full contract and infra/README-staging.md §4 for where each value comes from.");
   if (process.env.VERCEL_ENV === "preview") {
     console.error(
-      "This is a PREVIEW build. A variable set for Production only is unset here — check the Preview column in "
+      "This is a PREVIEW build. A variable set for Production only is ABSENT here — check the Preview column in "
       + "Project Settings → Environment Variables (README-staging.md §4.3 says every variable is needed for Preview too, "
       + "with a Preview-specific NEXT_PUBLIC_APP_ORIGIN). For the pilot, apps/app/vercel.json's ignoreCommand builds "
       + "Production only and skips every other environment — if you are reading this on a Preview, that rule is not in "

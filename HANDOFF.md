@@ -120,6 +120,21 @@ per-push red «Vercel – goproceed-app» check stops; the preflight, the runboo
 §4.1/§4.3/§5.3 no longer name the phantom toggle. Building Previews later is
 one commit: fill the Preview column AND drop the guard.
 
+**And the owner's screenshot corrected my second reading of the Preview
+refusals.** The four `EXTERNAL_*` variables it showed were Sensitive and
+scoped to Production AND Preview — so «set for Production only» was wrong for
+them. What fits every observation: the names were in the build's environment
+(turbo's platform check, which lists platform names absent from the task's
+env, stopped listing them once turbo.json declared them) and the values were
+empty — and a Sensitive value cannot be read back to check. The preflight now
+says, per variable, ABSENT (not set for this environment / not declared in
+turbo.json) or PRESENT BUT EMPTY (the name exists with no value — Edit it and
+enter one), proved both ways through turbo. The runbook §4.3 now also says
+what the four `EXTERNAL_*` values ARE — generated HMAC keys, two different
+secrets, `k1:<base64 of 32 random bytes>`, active id `k1` — because the
+owner's question was «what is this and where do I get it», and the table had
+only a command.
+
 **For the P0 sitting, two variable NAMES changed**, and the Vercel project
 still has the old one: rename `SUPABASE_SERVICE_ROLE_KEY → SUPABASE_SECRET_KEY`
 (an `sb_secret_…` value), and add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
