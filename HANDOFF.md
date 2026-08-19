@@ -14,8 +14,105 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Twelve pieces of work. Each is below, under its own
+Thirteen pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with.
+
+---
+
+### 0a.13 — every library current, every change read from the vendor first; and the first real Vercel build found the preflight blind
+
+**The rule first, because the rest is its first application.** `CLAUDE.md` now
+says: before implementing, configuring or advising on ANY third-party library
+or service, read the INSTALLED version, read the CURRENT docs for that version,
+name any disagreement explicitly, record the upgrade in `TODOS.md` with its
+deadline, and cite version + URL in the commit. It exists because the owner
+asked «what is `NEXT_PUBLIC_SUPABASE_ANON_KEY`? the dashboard shows
+`…PUBLISHABLE_KEY`» — and the honest answer needed both the installed
+`supabase-js 2.47.10` and the 2026 key docs, and memory could supply neither.
+
+**Tier 1 — the one with a deadline.** `supabase-js 2.47.10 → 2.112.3`,
+`@supabase/ssr 0.5.2 → 0.12.4` (committed alone, 818/818 + a real OTP sign-in
+through the browser pass), then the key family: `NEXT_PUBLIC_SUPABASE_ANON_KEY
+→ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY →
+SUPABASE_SECRET_KEY`, twelve files, values moved to `sb_publishable_…` /
+`sb_secret_…`. Two findings: **the repo was already half on the new format** —
+`evidence-storage.ts` and two tests hard-coded `sb_secret_`/`sb_publishable_`
+local defaults UNDER THE OLD NAMES, name and value disagreeing for as long as
+nobody looked; and **the hosted project accepts both forms today** (measured:
+200 on `auth/v1/settings` with either), so an earlier claim in the session that
+the new key «would break OTP» was too strong — I had read the SDK's header code,
+not the server. The legacy form stops working end-2026; that is the reason to
+move, not a present failure. `deploy-preflight.mjs` now **refuses a legacy JWT
+pasted into either new variable** — the dashboard shows it right beside the
+new key, and a deploy carrying it dies on 2027-01-01 with no earlier symptom.
+
+**Tier 2 — every safe bump, and Next 16.3's deprecation acted on.** react
+19.2.8, next 16.3.1, puppeteer 25.8, pg 8.23, turbo 2.10.11, current `@types`
+(`@types/node` deliberately **kept at 24.x** — 26.x is Node 26's types and the
+runtime is 24; «latest» is not «freshest»). Next 16.3 deprecated the
+`middleware` file convention and the build said so; that file is the whole
+auth gate, so it was not renamed by hand: the vendor's codemod ran, and the
+result was **diffed against the old file with the name normalised — byte-
+identical**. `proxy.ts` is live (`ƒ Proxy` in the build), the warning is gone,
+the browser pass drives the unauthenticated redirect through it.
+
+**Tier 3 — measured and deliberately NOT done.** zod 3→4 (30 files, 94
+`.strict()`, 89 `.uuid()` that tighten, the `ZodError` shape `fieldErrors` is
+built on), vitest 3→4 (`vitest.workspace.ts` removed; the serialised timing
+against shared Postgres is load-bearing), TypeScript 7 (root 5.9.2 and mobile
+6.0.3 already disagree). Each is in `TODOS.md` with blast radius and doc URLs.
+Folding one in would have been the scope creep the rule prevents.
+
+**Then PR #30's first real Vercel build taught the thing this entry is named
+for.** The owner had already set nine runtime variables on the project, and the
+preflight reported all nine «unset». Turborepo's default strict env mode hands
+the build task ONLY the names `turbo.json` declares; the preflight runs inside
+that task as `prebuild`; `turbo.json` declared only the three `NEXT_PUBLIC_*`
+names. The same log carried turbo's own warning naming the same nine as «set on
+your Vercel project, but missing from turbo.json». Reproduced locally through
+the turbo path with all twelve exported — nine false «unset» — then fixed: all
+twelve plus `DEPLOY_PREFLIGHT` in `build.env`, as `env` rather than
+`passThroughEnv` because the verdict is a function of the values and belongs in
+the hash (measured: the hash changes with the value; the run summary records a
+SHA-256, never the value). Proved three ways through turbo: passes with twelve,
+refuses naming exactly the one removed, refuses a legacy JWT by name. §0a.10
+said the preflight was «proved through the real turbo path» — the refusing
+cases were; the passing case had only ever been proved with the variables
+loaded by `next` itself, which the `prebuild` hook never sees. The coupling is
+now written in three places (turbo.json, the preflight header, `.env.example`)
+and in the runbook's §4.1 table.
+
+**And CI went red twice in one day for the runner, not the code.** `supabase
+start` waited eight minutes for the analytics `vector` container to go healthy
+on a docs-only commit; `db reset`'s one-shot migrate container was reported
+`exit 125` by the docker CLI — the daemon failing to RUN a container — while
+`verify` passed the identical step minutes earlier on another runner. Read the
+pinned CLI's source (`legacy-service-catalog.ts` for the `-x` vocabulary,
+`restart-services.ts` for «excluded service → not found → tolerated»,
+`db-setup.ts` for «the one-shot jobs key on config.toml, not on what runs»):
+both jobs now start **five containers, not twelve** — Postgres, Kong, GoTrue,
+Mailpit, storage-api, which is everything any suite or the browser pass talks
+to (`git grep` finds no `.from(`, no `.channel(`, no `functions/v1`) — and
+`db reset` retries once with a `::warning::` so the flake count stays visible.
+Proved locally against the exact list in the yml: all six suites (1637 tests)
+and the app-qa browser pass (5/5, a real OTP sign-in through Kong → GoTrue →
+Mailpit), green on the reduced stack. One thing the proof taught in passing:
+`@goproceed/database`'s `pool.ts` THROWS without `APP_DB_URL` where every other
+suite defaults to the local URL — so a local `turbo run test` needs the two DB
+URLs exported the way CI exports them, or six tests fail with «APP_DB_URL is
+not set» and nothing else is wrong.
+
+**For the P0 sitting, two variable NAMES changed**, and the Vercel project
+still has the old one: rename `SUPABASE_SERVICE_ROLE_KEY → SUPABASE_SECRET_KEY`
+(an `sb_secret_…` value), and add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+(`sb_publishable_…`). The preflight says exactly this when it refuses. **And
+check the origin against Settings → Domains before trusting it:** the Vercel
+API lists this project's domains as `goproceed-app-akislys-projects.vercel.app`
+and the `git-main` alias — NOT `goproceed-app.vercel.app`, which the sitting
+had pencilled in. `NEXT_PUBLIC_APP_ORIGIN` and `EXTERNAL_LINK_ORIGIN` must be
+the hostname the project actually owns, verbatim: `api.ts` self-fetches
+against it WITH the session cookie, so a hostname this project does not own is
+a hostname the cookie would be sent to.
 
 ---
 
