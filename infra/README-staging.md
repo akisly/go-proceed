@@ -257,7 +257,9 @@ password.
 ### 3.1 `goproceed_app_login`
 
 1. Open the staging project's SQL Editor and run, with a freshly
-   generated secret (e.g. `openssl rand -base64 24`):
+   generated secret — `openssl rand -hex 24` (hex on purpose: the secret
+   goes into a URL in step 3, and hex needs no percent-encoding, where a
+   base64 `+`/`/`/`=` silently would):
    ```sql
    alter role goproceed_app_login password '<generated-secret>';
    ```
@@ -267,10 +269,20 @@ password.
    push` never runs, but the prohibited commands listed at the top of
    this section do) here.
 3. Compose `APP_DB_URL` for the app deployment using that password and
-   the **pooler** host/port from §1, e.g.:
+   the **Session pooler** host/port from §1 — Project Settings → Database
+   → Connection string → Session pooler shows
+   `postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres`;
+   take ONLY the host and port from it and put our role and our secret in:
    ```
-   postgresql://goproceed_app_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
+   postgresql://goproceed_app_login.<project-ref>:<generated-secret>@<pooler-host>:5432/postgres
    ```
+   **The `.<project-ref>` suffix on the username is not optional.** The
+   shared pooler (Supavisor) is multi-tenant and routes by that suffix —
+   `postgres.<project-ref>` in Supabase's own string, and for our role
+   `goproceed_app_login.<project-ref>`. Without it the pooler answers
+   «Tenant or user not found». (Until 2026-08-19 this line showed the
+   username without the suffix — read from memory, not from the docs;
+   https://supabase.com/docs/guides/database/connecting-to-postgres.)
    `packages/database/src/pool.ts` reads this verbatim from `APP_DB_URL`
    at request time — no other code path composes it.
 4. Do not proceed to §4 (creating the Vercel projects / setting their
@@ -298,8 +310,9 @@ staging env var; the first signal is a user-facing 500 on the first real
 upload.
 
 1. Open the staging project's SQL Editor and run, with a **different**
-   freshly generated secret (do not reuse the `goproceed_app_login`
-   secret from §3.1 — the two logins must not share a password):
+   freshly generated secret (`openssl rand -hex 24` again; do not reuse the
+   `goproceed_app_login` secret from §3.1 — the two logins must not share a
+   password):
    ```sql
    alter role goproceed_service_login password '<generated-secret>';
    ```
@@ -310,9 +323,10 @@ upload.
    database, and refused by that script against any non-local host)
    here.
 3. Compose `SERVICE_DB_URL` for the app deployment using that password
-   and the **pooler** host/port from §1, e.g.:
+   and the same Session pooler host/port as §3.1, with the same
+   `.<project-ref>` suffix on the username:
    ```
-   postgresql://goproceed_service_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
+   postgresql://goproceed_service_login.<project-ref>:<generated-secret>@<pooler-host>:5432/postgres
    ```
    `packages/database/src/pool.ts`'s `getServicePool()` reads this
    verbatim from `SERVICE_DB_URL` at request time — no other code path
@@ -366,8 +380,8 @@ Variables**, for **both** Production and Preview:
 | `NEXT_PUBLIC_SUPABASE_URL` | build | `https://<project-ref>.supabase.co` | §1 |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | build | the `sb_publishable_…` key | §1 → Project Settings → API → Publishable key |
 | `NEXT_PUBLIC_APP_ORIGIN` | build | `https://{{APP_HOSTNAME}}` — **the exact origin, https, no path** | §0 |
-| `APP_DB_URL` | runtime | pooler string as `goproceed_app_login` | §3.1 |
-| `SERVICE_DB_URL` | runtime | pooler string as `goproceed_service_login` — **a different role and password from `APP_DB_URL`** | §3.2 |
+| `APP_DB_URL` | runtime | `postgresql://goproceed_app_login.<project-ref>:<secret-1>@<pooler-host>:5432/postgres` — `<secret-1>` is the password YOU set in §3.1 | §3.1 |
+| `SERVICE_DB_URL` | runtime | same shape as `goproceed_service_login.<project-ref>` with `<secret-2>` from §3.2 — **a different role and password from `APP_DB_URL`** | §3.2 |
 | `SUPABASE_URL` | runtime | same host as `NEXT_PUBLIC_SUPABASE_URL` | §1 |
 | `SUPABASE_SECRET_KEY` | runtime | an `sb_secret_…` key | §1 → Project Settings → API → Secret keys. **Server secret. Never `NEXT_PUBLIC_`.** |
 | `EXTERNAL_LINK_ORIGIN` | runtime | `https://{{APP_HOSTNAME}}` | same as the app origin |
