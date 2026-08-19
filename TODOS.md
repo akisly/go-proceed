@@ -355,6 +355,38 @@ zero-priced row — and rows priced at zero are ordinary, being work bundled int
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
 
+## P2 — the Supabase API keys are the legacy JWT form, which stops working at the end of 2026
+
+**What:** every environment — local (`supabase start` issues only this form),
+CI (`ci.yml`), and staging as provisioned 2026-08-19 — uses the LEGACY `anon`
+and `service_role` JWTs, in variables named `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY`. Supabase's current docs present the successors —
+`sb_publishable_…` and `sb_secret_…` — under `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+and its changelog says the legacy keys **work until the end of 2026**.
+
+**Why it is a P2 and not a P3:** a deadline, not a preference. On 2027-01-01 a
+deploy that still carries the legacy keys stops signing anyone in.
+
+**Measured on `goproceed-staging`, 2026-08-19, before deciding anything:** the
+hosted Auth server answers `200` to BOTH forms — the legacy JWT and
+`sb_publishable_…` sent as a Bearer the way `supabase-js 2.47.10` sends it. So
+the new key is not broken on the installed SDK, contrary to an earlier guess in
+this session made from reading the SDK's header code rather than the server.
+The legacy form was kept for staging for CONSISTENCY — it is the only form the
+local stack issues, the only one `app-qa` has proved the sign-in flow against,
+and the one the variable name in the code matches — not because the new one
+fails. Switching only staging would have made it the one environment on a
+different key form with zero test coverage of that form.
+
+**Fix, as one coherent slice:** upgrade `@supabase/supabase-js` (2.47.10) and
+`@supabase/ssr` (0.5.2) to current, rename the variable in code, `.env.example`,
+`turbo.json`, `ci.yml`, `qa/field.mjs` and the runbook to the publishable
+spelling, switch `evidence-storage.ts` to `sb_secret_…`, and confirm the LOCAL
+stack's CLI version issues the new keys (it must — or local and hosted diverge).
+Per `CLAUDE.md`'s rule: read the current docs and the changelog for the target
+SDK version first; do not code from memory.
+**Depends on:** nothing. **Deadline:** before 2026-12-31, with a month of slack.
+
 ## P0 (OPEN) — the field client is built and NOBODY CAN OPEN IT: there is no origin
 
 **This is the largest open item in the repository and it is not a code defect.**
