@@ -21,7 +21,27 @@
 //      evidence upload at a Supabase that does not exist on the server, and
 //      the first upload is the first symptom. Checked here as a courtesy: the
 //      build cannot see the runtime environment, but a Vercel build DOES see
-//      the project's environment variables, so an unset one is visible now.
+//      the project's environment variables, so an unset one is visible now —
+//      PROVIDED TURBOREPO LETS IT THROUGH, which is the next paragraph.
+//
+// EVERY NAME THIS SCRIPT READS IS ALSO LISTED IN turbo.json's `build.env`, AND
+// THE TWO LISTS MUST STAY EQUAL. This script runs as `prebuild`, i.e. INSIDE the
+// turbo task, and Turborepo's default strict env mode hands a task only the
+// variables turbo.json declares — everything else in the process (or on the
+// Vercel project) is absent from `process.env` here. Measured 2026-08-19 on the
+// first real Vercel build (dpl_BDM4C9m6FgJZZUdJBdBqiKfKyuc1): nine runtime
+// variables were set on the project and this script reported all nine unset,
+// because turbo.json declared only the three NEXT_PUBLIC_* names. The same
+// build log carried turbo's own warning naming the same nine as "set on your
+// Vercel project, but missing from turbo.json". So: add a variable below ⇒ add
+// it to turbo.json's `build.env` in the same commit, or the check is blind to
+// it and reports a present variable as missing. `DEPLOY_PREFLIGHT` is in that
+// list for the same reason — without it, neither `=1` nor `=0` reaches this
+// script through turbo. (`env`, not `passThroughEnv`: the verdict depends on
+// the values, so they belong in the task hash — a build cached with a complete
+// environment must not be replayed after a variable was removed. Measured: the
+// hash changes with the value, and the run summary records a SHA-256 of it,
+// not the value.) https://turborepo.dev/docs/reference/configuration#env
 //
 // SCOPED TO DEPLOYMENT BUILDS ONLY. Keyed on `VERCEL=1`, which Vercel sets on
 // every build it runs, and on nothing else — because:

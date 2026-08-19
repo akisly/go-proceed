@@ -338,7 +338,7 @@ should show it as detected.
 | Build | `cd ../.. && pnpm turbo run build --filter=@goproceed/app` | `vercel.json` | Turborepo's `dependsOn: ["^build"]` builds `@goproceed/database`, `domain`, `contracts` first |
 | Ignored build step | `npx turbo-ignore @goproceed/app` | `vercel.json` | a push touching only `apps/demo` or docs does not redeploy the app |
 | Pre-build gate | `apps/app/scripts/deploy-preflight.mjs` | `package.json` `prebuild` | **refuses to build** on Vercel if any variable in §4.3 is unset or carries a local value — silent in CI and locally |
-| Origin in the build cache | `NEXT_PUBLIC_APP_ORIGIN` in `turbo.json` `build.env` | `turbo.json` | without it, a build with a CHANGED origin could replay a cached bundle with the old one baked in |
+| Every §4.3 name in the build's env | all twelve in `turbo.json` `build.env` | `turbo.json` | Turborepo's strict env mode hands the build task ONLY the names declared there, and the preflight runs inside that task. Until 2026-08-19 only the three `NEXT_PUBLIC_*` names were declared, and the first real Vercel build reported nine variables "unset" that WERE set on the project. Values enter the cache key as a hash, so a build cached with a complete environment is not replayed after a variable is removed — which is also why a CHANGED origin cannot replay a cached bundle with the old one baked in |
 
 ### 4.2 Dashboard steps
 
@@ -384,6 +384,15 @@ every evidence upload at `127.0.0.1:54321` on the server. And
 `NEXT_PUBLIC_APP_ORIGIN` was documented but not in `turbo.json`'s build cache
 key, so a redeploy to a different hostname could have served the old origin
 from cache. The preflight checks all three; `.env.example` explains all three.
+
+**Two names changed on 2026-08-19, and the dashboard will happily keep the old
+ones.** `NEXT_PUBLIC_SUPABASE_ANON_KEY` is now `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+and `SUPABASE_SERVICE_ROLE_KEY` is now `SUPABASE_SECRET_KEY` — and the values
+moved with them, to the `sb_publishable_…` / `sb_secret_…` keys the same API
+page shows beside the legacy JWTs. A project that still carries the old names
+fails the preflight with both new names reported unset (the old names are not
+read by anything any more), and a new name carrying a legacy `eyJ…` JWT is
+refused by name. Rename in the dashboard; do not add a second copy.
 
 **Preview deployments need a `NEXT_PUBLIC_APP_ORIGIN` too**, and it cannot be
 the production one: `resolveBaseOrigin` returns it verbatim, so a Preview built
