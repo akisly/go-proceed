@@ -475,7 +475,97 @@ starts from facts.
 **Not done on 2026-08-19, on purpose.** Everything that WAS safe is done; these
 three are named so nobody mistakes "freshened" for "finished".
 
-## P0 (OPEN) — the field client is built and NOBODY CAN OPEN IT: there is no origin
+## P0 (CLOSED 2026-08-19) — the field client is built and NOBODY CAN OPEN IT: there is no origin
+
+**There is an origin, and it is public, and a person has signed in through
+it.** `https://goproceed-app.vercel.app` — attached by the owner on the evening
+of 2026-08-19 (the `goproceed-app-akislys-projects.vercel.app` alias serves the
+same deployment); a Vercel-provided hostname, so `{{APP_HOSTNAME}}` is still a
+token and a custom domain is still undecided (§0 of the runbook). At 20:34 UTC
+the owner signed in on a laptop: OTP code by email, `login_method: otp` in the
+Auth logs, `auth.users.last_sign_in_at` set, and — same second — Supavisor
+authenticated `goproceed_app_login` for the page's `/v1/projects` self-fetch;
+«Мої доручення» rendered its empty state, correct for a user with no grant.
+Measured 2026-08-19 after PR #30 merged (`caff92c`), production deployment
+`dpl_9tVwSHyKCg2sRsafN3cxFZtQ1bVT`:
+
+- the build log printed `deploy preflight (VERCEL_ENV=production): OK — origin,
+  Supabase, database and external-link variables are all present and
+  non-local` — all twelve variables, the `sb_publishable_`/`sb_secret_` key
+  forms, an https origin with no path — and no turbo platform-env warning;
+- `GET /` → 307 `/login?next=%2F` and `GET /assignments` → 307 (the auth gate,
+  `proxy.ts`, is live); `GET /login` → 200 `text/html` over TLS with HSTS, and
+  the page is the OTP form («Вхід за одноразовим кодом…», `#otp-email`,
+  «Надіслати код»); `GET /v1/projects` and `/v1/me/context` → 401
+  `application/problem+json` unauthenticated;
+- the shipped client bundle carries the staging Supabase URL and the staging
+  `sb_publishable_…` key in exactly one chunk each, and no local value
+  (`127.0.0.1`, the local demo key) anywhere;
+- staging Postgres, through the connector: 58/58 migrations (`0058` last),
+  `pg_cron` present, 140 policies, 53/53 `public` tables with RLS, both
+  `goproceed_*_login` roles with SCRAM-SHA-256 verifiers that differ, 0 auth
+  users, 0 organizations — clean;
+- one dashboard setting stood between the build and the public, and the
+  runbook had not mentioned it: a new Vercel project ships with **Vercel
+  Authentication** protecting every URL except custom domains, and the
+  `*.vercel.app` production alias is not a custom domain — every path answered
+  302 to `vercel.com/sso-api`. Changed to «Only Preview Deployments» with the
+  owner's explicit yes (Previews are skipped by `ignoreCommand` anyway).
+
+**What this closes is exactly the sentence in the heading.** What it does not
+close, each tracked under its own heading below: the §6.1–6.8 evidence (an Auth
+user, the idempotent bootstrap, cross-tenant isolation, one finalize through
+`SERVICE_DB_URL`) — the owner's `curl`s, because they carry a bearer token; the
+§6.9 phone session; and the P1 directly below, without which no foreman outside
+the Supabase project's own team can receive the code.
+
+---
+
+## P1 — the OTP email is refused for anyone outside the Supabase team until custom SMTP is configured
+
+**Read from the current Supabase docs on 2026-08-19
+(https://supabase.com/docs/guides/auth/auth-smtp):** the default email service
+is «best-effort», «2 messages per hour», and — the part that decides this item —
+«Unless you configure a custom SMTP server for your project, Supabase Auth will
+refuse to deliver messages to addresses that are not part of the project's
+team.» So today the owner can sign in at the live origin with their own address,
+twice an hour, and a foreman with any other address gets no code at all. Custom
+SMTP (Authentication settings → SMTP) starts at 30 messages per hour and is
+raised on the Rate Limits page. This is the last thing between «/login renders»
+and «a foreman signs in», and it is an account decision (which provider, which
+sending domain), not code — the app sends nothing itself. **The app's hostname
+does not solve it:** `goproceed-app.vercel.app` is Vercel's, and no DNS record
+(SPF/DKIM) can be added under `vercel.app` — the sending domain has to be one
+the owner controls, which is the same open question as `{{APP_HOSTNAME}}`.
+Also still to do in the dashboard on the same page: Auth Site URL is
+`http://localhost:3000` (GoTrue logs it as the referrer on every request) —
+set it to the origin; and the hosted «Magic Link» template must keep
+`{{ .Token }}` (it was the dashboard default — a link with no code — until
+2026-08-19 20:3x, and the client's code-only flow had nothing to type).
+
+---
+
+## P3 — `turbo-ignore` is deprecated; Vercel has a built-in «skip unaffected projects»
+
+The production build log of 2026-08-19 said so in so many words:
+`"turbo-ignore" is deprecated. Use Vercel's built-in project skipping instead.
+https://vercel.com/docs/monorepos#skipping-unaffected-projects`. It still works
+and decided correctly (`No previous deployments found … Proceeding`). When it
+is replaced, the `VERCEL_ENV` guard in `apps/app/vercel.json`'s `ignoreCommand`
+(Production only, for the pilot) has to survive the replacement — read the
+linked page first, per CLAUDE.md.
+
+---
+
+## P3 — CI's `apt-get` step hung for 17 minutes once (runner mirror), and the job timed out
+
+`app-qa` on `5b28c9b` (a docs-only commit): «Install Chrome headless runtime
+libraries» ran from 18:59:55 to the 20-minute job timeout while `demo-qa`'s
+identical step on the same run took seconds. Same class as the Docker flakes
+the five-container stack and the `db reset` retry addressed; a `timeout` plus
+one retry around `apt-get update && apt-get install` in both jobs would make it
+countable instead of a red run. Not done yet — noted on the day it happened.
+
 
 **This is the largest open item in the repository and it is not a code defect.**
 `apps/app` has no deployed origin: no `vercel.json` for it, no deploy step in
