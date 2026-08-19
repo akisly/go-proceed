@@ -21,7 +21,7 @@ this repo has run it yet (see "Status" at the bottom). It provisions:
    on a real phone at the real origin (§6 step 9).
 
 Do not commit any secret produced by these steps (project ref is not
-secret; DB URL, anon key, and service_role key are). Store them in a
+secret; DB URL, publishable key, and secret key are). Store them in a
 password manager and in Vercel's encrypted environment variables only.
 
 ---
@@ -78,9 +78,14 @@ returns to a live file.
      **session pooler** connection string for `APP_DB_URL`, since Vercel
      serverless functions are short-lived; the direct connection string is
      fine for one-off `psql`/SQL-editor work).
-   - **anon key** — Project Settings → API → `anon` `public` key. This is
-     `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-   - **service_role key** — Project Settings → API → `service_role` key.
+   - **publishable key** — Project Settings → API → **Publishable key**, the
+     `sb_publishable_…` value. This is `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`.
+     (The dashboard also still shows a legacy `anon` JWT; do not use it — it
+     stops working at the end of 2026, and this repo moved to the new form on
+     2026-08-19.)
+   - **secret key** — Project Settings → API → **Secret keys**, an `sb_secret_…`
+     value. This is `SUPABASE_SECRET_KEY`. (Likewise not the legacy
+     `service_role` JWT.)
      Needed only for the outbox-drain Edge Function path (not deployed in
      this slice, see `supabase/functions/outbox-drain/index.ts`) and for
      any one-off admin scripts. Never expose it to the browser or commit it.
@@ -252,7 +257,9 @@ password.
 ### 3.1 `goproceed_app_login`
 
 1. Open the staging project's SQL Editor and run, with a freshly
-   generated secret (e.g. `openssl rand -base64 24`):
+   generated secret — `openssl rand -hex 24` (hex on purpose: the secret
+   goes into a URL in step 3, and hex needs no percent-encoding, where a
+   base64 `+`/`/`/`=` silently would):
    ```sql
    alter role goproceed_app_login password '<generated-secret>';
    ```
@@ -262,10 +269,20 @@ password.
    push` never runs, but the prohibited commands listed at the top of
    this section do) here.
 3. Compose `APP_DB_URL` for the app deployment using that password and
-   the **pooler** host/port from §1, e.g.:
+   the **Session pooler** host/port from §1 — Project Settings → Database
+   → Connection string → Session pooler shows
+   `postgresql://postgres.<project-ref>:[YOUR-PASSWORD]@aws-0-<region>.pooler.supabase.com:5432/postgres`;
+   take ONLY the host and port from it and put our role and our secret in:
    ```
-   postgresql://goproceed_app_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
+   postgresql://goproceed_app_login.<project-ref>:<generated-secret>@<pooler-host>:5432/postgres
    ```
+   **The `.<project-ref>` suffix on the username is not optional.** The
+   shared pooler (Supavisor) is multi-tenant and routes by that suffix —
+   `postgres.<project-ref>` in Supabase's own string, and for our role
+   `goproceed_app_login.<project-ref>`. Without it the pooler answers
+   «Tenant or user not found». (Until 2026-08-19 this line showed the
+   username without the suffix — read from memory, not from the docs;
+   https://supabase.com/docs/guides/database/connecting-to-postgres.)
    `packages/database/src/pool.ts` reads this verbatim from `APP_DB_URL`
    at request time — no other code path composes it.
 4. Do not proceed to §4 (creating the Vercel projects / setting their
@@ -293,8 +310,9 @@ staging env var; the first signal is a user-facing 500 on the first real
 upload.
 
 1. Open the staging project's SQL Editor and run, with a **different**
-   freshly generated secret (do not reuse the `goproceed_app_login`
-   secret from §3.1 — the two logins must not share a password):
+   freshly generated secret (`openssl rand -hex 24` again; do not reuse the
+   `goproceed_app_login` secret from §3.1 — the two logins must not share a
+   password):
    ```sql
    alter role goproceed_service_login password '<generated-secret>';
    ```
@@ -305,9 +323,10 @@ upload.
    database, and refused by that script against any non-local host)
    here.
 3. Compose `SERVICE_DB_URL` for the app deployment using that password
-   and the **pooler** host/port from §1, e.g.:
+   and the same Session pooler host/port as §3.1, with the same
+   `.<project-ref>` suffix on the username:
    ```
-   postgresql://goproceed_service_login:<generated-secret>@<pooler-host>:<pooler-port>/postgres
+   postgresql://goproceed_service_login.<project-ref>:<generated-secret>@<pooler-host>:5432/postgres
    ```
    `packages/database/src/pool.ts`'s `getServicePool()` reads this
    verbatim from `SERVICE_DB_URL` at request time — no other code path
@@ -331,9 +350,9 @@ should show it as detected.
 | Framework | Next.js | `apps/app/vercel.json` | |
 | Install | `cd ../.. && pnpm install --frozen-lockfile` | `vercel.json` | pnpm workspaces install at the ROOT; installing inside `apps/app` alone cannot resolve `@goproceed/*` |
 | Build | `cd ../.. && pnpm turbo run build --filter=@goproceed/app` | `vercel.json` | Turborepo's `dependsOn: ["^build"]` builds `@goproceed/database`, `domain`, `contracts` first |
-| Ignored build step | `npx turbo-ignore @goproceed/app` | `vercel.json` | a push touching only `apps/demo` or docs does not redeploy the app |
+| Ignored build step | `VERCEL_ENV` ≠ `production` → exit 0 (skip); else `npx turbo-ignore @goproceed/app` | `vercel.json` `ignoreCommand` | Production only for the pilot — every push to a PR branch would otherwise build a Preview against the Preview environment, which §4.3 does not fill; and within Production, a push touching only `apps/demo` or docs does not redeploy the app. Overrides the dashboard's Ignored Build Step (Vercel docs) — so set it here, not there |
 | Pre-build gate | `apps/app/scripts/deploy-preflight.mjs` | `package.json` `prebuild` | **refuses to build** on Vercel if any variable in §4.3 is unset or carries a local value — silent in CI and locally |
-| Origin in the build cache | `NEXT_PUBLIC_APP_ORIGIN` in `turbo.json` `build.env` | `turbo.json` | without it, a build with a CHANGED origin could replay a cached bundle with the old one baked in |
+| Every §4.3 name in the build's env | all twelve in `turbo.json` `build.env` | `turbo.json` | Turborepo's strict env mode hands the build task ONLY the names declared there, and the preflight runs inside that task. Until 2026-08-19 only the three `NEXT_PUBLIC_*` names were declared, and the first real Vercel build reported nine variables "unset" that WERE set on the project. Values enter the cache key as a hash, so a build cached with a complete environment is not replayed after a variable is removed — which is also why a CHANGED origin cannot replay a cached bundle with the old one baked in |
 
 ### 4.2 Dashboard steps
 
@@ -359,12 +378,12 @@ Variables**, for **both** Production and Preview:
 | Variable | Kind | Value | Source |
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | build | `https://<project-ref>.supabase.co` | §1 |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | build | the `anon` `public` key | §1 → Project Settings → API |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | build | the `sb_publishable_…` key | §1 → Project Settings → API → Publishable key |
 | `NEXT_PUBLIC_APP_ORIGIN` | build | `https://{{APP_HOSTNAME}}` — **the exact origin, https, no path** | §0 |
-| `APP_DB_URL` | runtime | pooler string as `goproceed_app_login` | §3.1 |
-| `SERVICE_DB_URL` | runtime | pooler string as `goproceed_service_login` — **a different role and password from `APP_DB_URL`** | §3.2 |
+| `APP_DB_URL` | runtime | `postgresql://goproceed_app_login.<project-ref>:<secret-1>@<pooler-host>:5432/postgres` — `<secret-1>` is the password YOU set in §3.1 | §3.1 |
+| `SERVICE_DB_URL` | runtime | same shape as `goproceed_service_login.<project-ref>` with `<secret-2>` from §3.2 — **a different role and password from `APP_DB_URL`** | §3.2 |
 | `SUPABASE_URL` | runtime | same host as `NEXT_PUBLIC_SUPABASE_URL` | §1 |
-| `SUPABASE_SERVICE_ROLE_KEY` | runtime | the `service_role` key | §1 → Project Settings → API. **Server secret. Never `NEXT_PUBLIC_`.** |
+| `SUPABASE_SECRET_KEY` | runtime | an `sb_secret_…` key | §1 → Project Settings → API → Secret keys. **Server secret. Never `NEXT_PUBLIC_`.** |
 | `EXTERNAL_LINK_ORIGIN` | runtime | `https://{{APP_HOSTNAME}}` | same as the app origin |
 | `EXTERNAL_LINK_HMAC_KEYS` | runtime | `<keyId>:<base64 32+ bytes>` | generate: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"` |
 | `EXTERNAL_LINK_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
@@ -372,7 +391,7 @@ Variables**, for **both** Production and Preview:
 | `EXTERNAL_SESSION_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
 
 **Three of these were undocumented until 2026-08-18 and would have failed the
-first deploy quietly.** `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are read
+first deploy quietly.** `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are read
 by `src/lib/evidence-storage.ts`, which defaults them to the LOCAL stack — a
 deploy that set only the previously documented variables would have aimed
 every evidence upload at `127.0.0.1:54321` on the server. And
@@ -380,13 +399,53 @@ every evidence upload at `127.0.0.1:54321` on the server. And
 key, so a redeploy to a different hostname could have served the old origin
 from cache. The preflight checks all three; `.env.example` explains all three.
 
+**The four `EXTERNAL_*` values are GENERATED, not fetched from anywhere.** They
+are the HMAC keys that sign the protected external link (the bearer URL a
+party outside the workspace opens to act on a stage — `src/lib/external-link.ts`)
+and its session cookie (`src/lib/external-session.ts`). There is no default
+and there must not be one: a default key is a key in every deployment that
+forgot to set one. Make two DIFFERENT secrets, one per pair:
+
+```bash
+node -e "console.log('k1:' + require('crypto').randomBytes(32).toString('base64'))"
+```
+
+Run it twice. The first output is `EXTERNAL_LINK_HMAC_KEYS` and the second is
+`EXTERNAL_SESSION_HMAC_KEYS` (each is `<keyId>:<base64 of 32+ random bytes>`;
+several keys may be listed comma-separated for rotation); both
+`*_ACTIVE_KEY_ID` are then `k1`. Mark the two `*_HMAC_KEYS` Sensitive. Later
+rotation is why the key id exists: add `k2:…` to the list, move the active id
+to `k2`, and links signed under `k1` still verify (INV-044).
+
+**Two names changed on 2026-08-19, and the dashboard will happily keep the old
+ones.** `NEXT_PUBLIC_SUPABASE_ANON_KEY` is now `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`
+and `SUPABASE_SERVICE_ROLE_KEY` is now `SUPABASE_SECRET_KEY` — and the values
+moved with them, to the `sb_publishable_…` / `sb_secret_…` keys the same API
+page shows beside the legacy JWTs. A project that still carries the old names
+fails the preflight with both new names reported unset (the old names are not
+read by anything any more), and a new name carrying a legacy `eyJ…` JWT is
+refused by name. Rename in the dashboard; do not add a second copy.
+
 **Preview deployments need a `NEXT_PUBLIC_APP_ORIGIN` too**, and it cannot be
 the production one: `resolveBaseOrigin` returns it verbatim, so a Preview built
 with the Production origin would self-fetch across deployments with the
 session cookie attached. Either set the Preview scope to the Vercel preview
 hostname pattern you actually use, or — simplest for a pilot — **do not build
-Previews at all**: Settings → Git → uncheck «Preview Deployments» until there
-is a second environment worth having.
+Previews at all, which is what the repository does**: `apps/app/vercel.json`'s
+`ignoreCommand` exits 0 («ignore this build») for every `VERCEL_ENV` other
+than `production`, and runs `turbo-ignore` only for Production. Two things
+about that, both read from the current Vercel docs on 2026-08-19: **there is
+no «disable Preview Deployments» switch in Settings → Git** (that page holds
+the repository connection, LFS, deploy hooks and verified commits — an earlier
+revision of this runbook named a toggle that does not exist); the dashboard's
+equivalent is Settings → **Build and Deployment → Ignored Build Step → «Only
+build production»**, and **`vercel.json`'s `ignoreCommand` overrides that
+dashboard setting**, so while the file carries one, the dashboard choice does
+nothing — the rule lives in the file on purpose, where a commit can change it.
+A skipped build shows as CANCELED in Deployments, not as a failure, and the
+preflight never runs for it. To build Previews later: set every §4.3 variable
+for Preview (with a Preview origin) AND drop the `VERCEL_ENV` guard from
+`ignoreCommand` in the same commit.
 
 ### 4.4 `apps/landing` — optional, and not part of the P0
 
@@ -412,10 +471,25 @@ does not touch it.
 2. Trigger a deploy — push to `main`, or Deployments → Redeploy.
 3. **Read the build log for the preflight line before anything else.** A
    healthy build prints
-   `deploy preflight: OK — origin, Supabase, database and external-link variables are all present and non-local.`
+   `deploy preflight (VERCEL_ENV=production): OK — origin, Supabase, database and external-link variables are all present and non-local.`
    near the top. If instead it prints `REFUSING TO BUILD`, it lists every
    variable that is missing or local; fix them all in §4.3 and redeploy. Do not
    work around it — it is telling you the bundle would not have worked.
+   **Read the environment in the parentheses.** With the `ignoreCommand` in
+   `vercel.json` (§4.1) a push to a PR branch is SKIPPED — the deployment shows
+   CANCELED and the preflight never runs — so the line you read is from a
+   Production build. If you ever see `(VERCEL_ENV=preview)` there, the guard
+   was removed: a Preview build reads the Preview column of Project Settings →
+   Environment Variables, and a variable set for Production only is ABSENT
+   there. **Read the second half of each «is unset» line too** — it says
+   ABSENT (not set for this environment, or not declared in `turbo.json`) or
+   PRESENT BUT EMPTY (the name exists with no value; a Sensitive value cannot
+   be read back, only replaced — Edit it and enter one). Measured 2026-08-19:
+   six variables the operator had created, scoped to Production AND Preview,
+   were reported unset on a Preview build, and the first reading of that was
+   «Production-only scoping». The dashboard showed it was not; the names were
+   present and the values were not. The distinction is in the message now so
+   that reading never has to be guessed again.
 4. Confirm `https://{{APP_HOSTNAME}}/login` renders the OTP form over TLS. This
    is the first moment the field client is reachable by a person who is not at a
    developer's keyboard, and it is the P0 of `TODOS.md` closing.

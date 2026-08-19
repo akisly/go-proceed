@@ -355,6 +355,126 @@ zero-priced row — and rows priced at zero are ordinary, being work bundled int
 another line. Fixed with a regression test that fails without the change. Kept
 as a record of the fixture-shape gap that hid it.
 
+## P2 (CLOSED 2026-08-19, same day) — the Supabase API keys were the legacy JWT form, which stops working at the end of 2026
+
+**What:** every environment — local (`supabase start` issues only this form),
+CI (`ci.yml`), and staging as provisioned 2026-08-19 — uses the LEGACY `anon`
+and `service_role` JWTs, in variables named `NEXT_PUBLIC_SUPABASE_ANON_KEY` and
+`SUPABASE_SERVICE_ROLE_KEY`. Supabase's current docs present the successors —
+`sb_publishable_…` and `sb_secret_…` — under `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`,
+and its changelog says the legacy keys **work until the end of 2026**.
+
+**Why it is a P2 and not a P3:** a deadline, not a preference. On 2027-01-01 a
+deploy that still carries the legacy keys stops signing anyone in.
+
+**Measured on `goproceed-staging`, 2026-08-19, before deciding anything:** the
+hosted Auth server answers `200` to BOTH forms — the legacy JWT and
+`sb_publishable_…` sent as a Bearer the way `supabase-js 2.47.10` sends it. So
+the new key is not broken on the installed SDK, contrary to an earlier guess in
+this session made from reading the SDK's header code rather than the server.
+The legacy form was kept for staging for CONSISTENCY — it is the only form the
+local stack issues, the only one `app-qa` has proved the sign-in flow against,
+and the one the variable name in the code matches — not because the new one
+fails. Switching only staging would have made it the one environment on a
+different key form with zero test coverage of that form.
+
+**Fix, as one coherent slice:** upgrade `@supabase/supabase-js` (2.47.10) and
+`@supabase/ssr` (0.5.2) to current, rename the variable in code, `.env.example`,
+`turbo.json`, `ci.yml`, `qa/field.mjs` and the runbook to the publishable
+spelling, switch `evidence-storage.ts` to `sb_secret_…`, and confirm the LOCAL
+stack's CLI version issues the new keys (it must — or local and hosted diverge).
+Per `CLAUDE.md`'s rule: read the current docs and the changelog for the target
+SDK version first; do not code from memory.
+**Depends on:** nothing. **Deadline:** before 2026-12-31, with a month of slack.
+
+**CLOSED THE SAME DAY, because the owner asked for every library to be current
+before the Vercel sitting rather than after.** Done as the one coherent slice
+this entry described, per `CLAUDE.md`'s current-docs rule — every step read from
+the installed version and the vendor's own source, not recalled:
+
+- `supabase-js 2.47.10 → 2.112.3`, `@supabase/ssr 0.5.2 → 0.12.4` (ssr 0.12.4
+  peer-requires supabase-js ^2.111, so they move together). Release notes read
+  across the whole span: nothing breaking on the calls this app makes. The
+  PUBLISHED 2.112.3 bundle classifies the new key family explicitly
+  (`isNewApiKey = key.startsWith("sb_publishable_") || key.startsWith("sb_secret_")`);
+  the 2.47.10 bundle had no such code. Committed on its own first and proved by
+  818/818 plus a real OTP sign-in through the browser pass, so the SDK jump and
+  the key switch are separately verifiable.
+- Variables renamed everywhere — `NEXT_PUBLIC_SUPABASE_ANON_KEY →
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `SUPABASE_SERVICE_ROLE_KEY →
+  SUPABASE_SECRET_KEY` — across 12 files; CI and `qa/field.mjs` defaults moved
+  to the `sb_publishable_`/`sb_secret_` the local CLI issues. **The repo was
+  already half on the new format**: two tests and `evidence-storage.ts`
+  hard-coded `sb_publishable_`/`sb_secret_` local defaults under the OLD
+  variable names — name and value had disagreed for as long as nobody looked.
+- Measured: even CLI 2.75.0 issues both forms (`supabase status` shows
+  PUBLISHABLE_KEY/SECRET_KEY beside ANON_KEY/SERVICE_ROLE_KEY), so local, CI and
+  hosted all run the new format with no divergence.
+- `deploy-preflight.mjs` now REFUSES a legacy JWT pasted into either new
+  variable, by shape and by name — the dashboard still shows the legacy key right
+  beside the new one, and a deploy carrying it would work today and die on
+  2027-01-01 with no earlier symptom. Proved both ways.
+- Every explanatory comment, `.env.example` and the staging runbook's variable
+  table say the new name, the new form, and the date.
+
+One verification detour, recorded because it looked like the keys and was not:
+the first full run showed 5 failures / 17 skips in `@goproceed/testing`, caused
+by `supabase db reset` pulling `storage-api:v1.69.0` mid-run — the local CLI
+had been upgraded to 2.114.0 during the P0 sitting (from 2.75.0) and wanted an
+image it had not cached. One-time, infrastructure; 461/461 on re-run. Side
+effect worth noting: local is now one release behind CI's pin instead of forty,
+which is the pin doing its job.
+
+**For the Vercel sitting:** the two variable NAMES changed. Set
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` to the `sb_publishable_…` value and
+`SUPABASE_SECRET_KEY` to an `sb_secret_…` value; the preflight refuses the
+legacy forms by name.
+
+## P2 — three major-version migrations, measured and deliberately NOT folded into the 2026-08-19 freshness pass
+
+**Context:** on 2026-08-19 the owner asked for every library to be current
+before the Vercel sitting. Tier 1 (Supabase SDK + key format) and Tier 2 (every
+safe minor/patch bump, plus Next 16.3's `middleware → proxy` rename) were done
+on that branch. These three were MEASURED against the tree and the vendor's
+changelog, per `CLAUDE.md`'s current-docs rule, and each turned out to be a
+migration with its own blast radius rather than a bump. Folding any of them into
+a "freshen the libraries" branch would have been the scope creep that rule is
+there to prevent. Each gets its own slice; the measurements are here so it
+starts from facts.
+
+**1. zod 3.24.1 → 4.4.3** — https://zod.dev/v4/changelog
+- 30 files, 309 `z.string()`, 115 `z.object()`, 52 `z.enum()`.
+- `.strict()` ×94 deprecated → `z.strictObject()`; `.email()` ×4 deprecated →
+  `z.email()`; `z.record(x)` single-arg ×2 **removed** (hard break);
+  `.default()` ×30 changes semantics on `z.coerce.*`.
+- **`.uuid()` ×89 tightens to RFC 9562** — ids valid today could start
+  answering 422. Must be measured against real ids before, not after.
+- **`ZodError` issue formats «dramatically streamlined»**, and this repo's
+  problem-JSON `fieldErrors` (42 sites) is built from them; `.flatten()`
+  deprecated. This is a contracts-layer change that touches every `/v1`
+  request schema and `technical/error-catalog.csv`'s documented shape. Needs a
+  brainstorm, a branch, and a test plan of its own.
+
+**2. vitest 3.2.4 → 4.1.11** — https://vitest.dev/guide/migration
+- `vitest.workspace.ts` is REMOVED in v4 (→ `projects` in the config); 4 config
+  files, 124 test files, 45 config-sensitive call sites (`vi.mock`,
+  `hookTimeout`, `fileParallelism`, `environment`).
+- The load-bearing part is not the API, it is the TIMING: `--concurrency=1`,
+  `fileParallelism:false` and the 10 s hook budget are what keep the shared
+  local Postgres from deadlocking (HANDOFF.md §4 records exactly how that
+  fails). Any change to the runner must be proved against a full serialized
+  run, not a green unit file.
+
+**3. TypeScript → 7.0.2 (the Go port)** — https://devblogs.microsoft.com/typescript/
+- Root is 5.9.2, `apps/mobile` is 6.0.3 — the workspace already disagrees with
+  itself. 10 tsconfigs, `moduleResolution: Bundler`, `verbatimModuleSyntax`.
+- Next 16.3's own release notes mention TS6 `baseUrl`/`node10 moduleResolution`
+  deprecations, so 5.9 → 6 is itself a config migration that this repo has not
+  absorbed, before 7 is even considered. Unify on one version first.
+
+**Not done on 2026-08-19, on purpose.** Everything that WAS safe is done; these
+three are named so nobody mistakes "freshened" for "finished".
+
 ## P0 (OPEN) — the field client is built and NOBODY CAN OPEN IT: there is no origin
 
 **This is the largest open item in the repository and it is not a code defect.**

@@ -59,7 +59,7 @@ jobs:
       # this app hits Supabase at build time, but supabaseServer() reads them
       # eagerly, so an unset var would still be a footgun for future routes.
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ci-placeholder-publishable-key
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -116,15 +116,57 @@ jobs:
       # Cold runners pull the full local Postgres/GoTrue/Kong image set on
       # first boot, which is slow — give this room instead of relying on the
       # job-level timeout to cover it.
+      #
+      # ONLY THE FIVE CONTAINERS THE SUITES USE ARE STARTED. `-x` is the CLI's
+      # own exclusion flag (vocabulary read from the pinned CLI's
+      # `legacy-service-catalog.ts`: gotrue, realtime, storage-api, imgproxy,
+      # kong, mailpit, postgrest, postgres-meta, studio, edge-runtime, logflare,
+      # vector, supavisor). What stays: Postgres (never excludable), Kong (the
+      # API gateway at :54321), GoTrue (OTP sign-in), Mailpit (the OTP code is
+      # read back out of it) and storage-api (the `evidence` bucket). What goes
+      # has no consumer in this repository — `git grep` finds no `.from(`, no
+      # `.channel(`, no `functions/v1`, nothing on the Studio, pg-meta or
+      # analytics ports — and was exactly where the two 2026-08-19 red runs
+      # died: `supabase start` waiting eight minutes for the analytics `vector`
+      # container to go healthy (run 32234277131, a docs-only commit), and
+      # `db reset`'s one-shot migrate container reported `exit 125` by the
+      # docker CLI — the daemon failing to run a container, not a migration
+      # failing (run 32239195945; `verify` passed the identical step minutes
+      # earlier on another runner). Fewer containers is fewer pulls, less
+      # memory on a 4-vCPU runner, and fewer health checks to lose. `db reset`
+      # tolerates an excluded service: its satellite restart ignores "not
+      # found" by design (CLI `restart-services.ts`), and the one-shot
+      # Realtime/Storage/Auth migrate jobs key on config.toml, not on what is
+      # running, so the schema those services own is still initialised.
+      # Proved locally against this exact list on 2026-08-19: all six suites
+      # (`turbo run test --concurrency=1`, 1637 tests) and the app-qa browser
+      # pass (5/5 audits, a real OTP sign-in through Kong → GoTrue → Mailpit)
+      # green on a stack started with it.
+      # https://supabase.com/docs/reference/cli/supabase-start
       - name: supabase start
         timeout-minutes: 15
-        run: supabase start
+        run: supabase start -x studio,postgres-meta,logflare,vector,edge-runtime,realtime,postgrest
 
       # Applies the migration chain in order and loads supabase/seed.sql
       # (the AUTH_USER_A / AUTH_USER_B fixtures the RLS + integration suites
       # depend on; seed.sql no longer sets any credential).
+      #
+      # ONE RETRY, AND THE FIRST FAILURE IS NOT HIDDEN. The step recreates the
+      # Postgres container and runs three one-shot Docker jobs against it, and
+      # on a shared runner the daemon itself sometimes fails to run one of them
+      # (`error running container: exit 125`, see the `supabase start` comment
+      # above). A deterministic failure — a broken migration, a seed that no
+      # longer applies — fails both attempts and the job stays red; a daemon
+      # hiccup passes on the second attempt with a `::warning::` in the
+      # annotations, so the flake count is visible rather than silently
+      # absorbed. If the first attempt died before the new Postgres container
+      # existed, the retry fails fast with "supabase start is not running",
+      # which is the correct, loud outcome for that rarer case.
       - name: supabase db reset
-        run: supabase db reset
+        run: |
+          if supabase db reset; then exit 0; fi
+          echo "::warning::supabase db reset failed once (runner Docker?) — retrying the step a single time"
+          supabase db reset
 
       # Dev-only password for goproceed_app_login — set by a local-host-only
       # script, never by seed.sql (see scripts/set-local-app-password.mjs).
@@ -277,16 +319,17 @@ jobs:
       SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       # UNLIKE `verify`'s build (which uses a placeholder — no page there hits
       # Supabase at build time), this job's build MUST use the real local
-      # anon key: qa/field.mjs signs a real user in through the browser, and
-      # `NEXT_PUBLIC_SUPABASE_ANON_KEY` is compiled into the client bundle, not
-      # read at request time. The value below is `supabase start`'s fixed
-      # local dev anon key (config.toml sets no auth.jwt_secret override, so
-      # this is deterministic across every fresh local stack — see
-      # qa/field.mjs's own header comment for the same key and why it is
-      # stable, and scripts/set-local-app-password.mjs for the sibling
-      # dev-only-default convention this follows).
+      # publishable key: qa/field.mjs signs a real user in through the browser,
+      # and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` is compiled into the client
+      # bundle, not read at request time. The value below is `supabase start`'s
+      # fixed local `sb_publishable_…` key (deterministic across every fresh
+      # local stack — see qa/field.mjs's own header for the same key and why it
+      # is stable, and scripts/set-local-app-password.mjs for the sibling
+      # dev-only-default convention this follows). It was the legacy anon JWT
+      # until 2026-08-19; the legacy keys stop working at the end of 2026 and
+      # the app's SDK now handles the new family explicitly.
       NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54321
-      NEXT_PUBLIC_SUPABASE_ANON_KEY: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0
+      NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
@@ -316,9 +359,12 @@ jobs:
           echo "supabase CLI: want ${want}, have ${have}"
           [ "$have" = "$want" ] || { echo "::error::pinned ${want} but setup-cli installed ${have}"; exit 1; }
 
+      # Same five containers, same exclusion list, same reasoning as `verify`'s
+      # step — see the comment there. The browser pass needs exactly what the
+      # suites need: Postgres, Kong, GoTrue, Mailpit, storage-api.
       - name: supabase start
         timeout-minutes: 15
-        run: supabase start
+        run: supabase start -x studio,postgres-meta,logflare,vector,edge-runtime,realtime,postgrest
 
       # Mailpit readiness probe — same spirit as "Verify Chrome launches"
       # below: turn an infrastructure problem into an infrastructure-shaped
@@ -348,8 +394,12 @@ jobs:
           echo "Mailpit API at http://127.0.0.1:54324/api/v1/messages never answered 2xx within 30s after supabase start" >&2
           exit 1
 
+      # One retry, first failure annotated — same contract as `verify`'s step.
       - name: supabase db reset
-        run: supabase db reset
+        run: |
+          if supabase db reset; then exit 0; fi
+          echo "::warning::supabase db reset failed once (runner Docker?) — retrying the step a single time"
+          supabase db reset
 
       - name: Set local app-role password (never via seed.sql)
         run: pnpm db:local-credentials
