@@ -490,9 +490,27 @@ does not touch it.
    «Production-only scoping». The dashboard showed it was not; the names were
    present and the values were not. The distinction is in the message now so
    that reading never has to be guessed again.
-4. Confirm `https://{{APP_HOSTNAME}}/login` renders the OTP form over TLS. This
+4. **Open Deployment Protection before you open the URL.** A new Vercel
+   project ships with **Vercel Authentication** on, in a mode that protects
+   every URL except custom domains — and the `*.vercel.app` production alias
+   is NOT a custom domain. Measured 2026-08-19 on the first successful
+   production deployment: every path, `/login` included, answered `302` to
+   `vercel.com/sso-api`, i.e. only a logged-in Vercel team member could open
+   the client. Project Settings → **Deployment Protection** → Vercel
+   Authentication → **«Only Preview Deployments»** (Previews are skipped by
+   `ignoreCommand` anyway), or attach a custom domain, which is exempt. Docs:
+   https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication
+   (API values `prod_deployment_urls_and_all_previews` | `all` | `preview`;
+   the Vercel MCP reports the default as `all_except_custom_domains`). This
+   runbook did not mention the setting until that day.
+5. Confirm `https://{{APP_HOSTNAME}}/login` renders the OTP form over TLS. This
    is the first moment the field client is reachable by a person who is not at a
-   developer's keyboard, and it is the P0 of `TODOS.md` closing.
+   developer's keyboard, and it is the P0 of `TODOS.md` closing. Measured
+   2026-08-19 at `https://goproceed-app-akislys-projects.vercel.app`: `/` → 307
+   `/login?next=%2F`, `/login` → 200 `text/html` with HSTS and the form
+   (`#otp-email`, «Надіслати код»), `/assignments` → 307 to login,
+   `/v1/projects` → 401 `application/problem+json`; the client bundle carries the
+   staging Supabase URL and `sb_publishable_…` key and no local value.
 
 ## 6. End-to-end verification checklist
 
@@ -596,7 +614,15 @@ timings) — a checked box with no evidence is not verification.
 
 9. **Open the field client on a real phone, at the real origin.** This is
    the step the earlier eight cannot substitute for, and the reason ADR-007
-   requires physical devices. On the pilot iPhone and the pilot Android
+   requires physical devices. **Before it: custom SMTP.** Read from the
+   current Supabase docs on 2026-08-19
+   (https://supabase.com/docs/guides/auth/auth-smtp): the default email
+   service is «2 messages per hour» and «Unless you configure a custom SMTP
+   server for your project, Supabase Auth will refuse to deliver messages to
+   addresses that are not part of the project's team.» So the owner's own
+   address gets a code (twice an hour); an invited foreman's address gets
+   nothing until Authentication settings → SMTP is configured (30/hour to
+   start, raised on the Rate Limits page). `TODOS.md` tracks it as a P1. On the pilot iPhone and the pilot Android
    (`TODOS.md` §"the pilot-device inventory does not exist" — buy them if they
    are still not bought):
    - [ ] `https://{{APP_HOSTNAME}}/login` renders; enter an invited member's
@@ -629,6 +655,20 @@ which is exactly what §2.1 and §2.2 exist to catch.
 ---
 
 ## Status
+
+**2026-08-19 — provisioned, deployed, and public at the Vercel alias; the §6
+evidence is not yet recorded.** Supabase project `asrvzhjaueyvrfozxpzo`
+(eu-north-1): 58/58 migrations, `pg_cron` present, 140 policies, 53/53 tables
+with RLS, both `goproceed_*_login` passwords set (SCRAM, different). Vercel
+project `goproceed-app`: twelve variables present and non-local (the production
+build printed the preflight's `OK` line), `ignoreCommand` builds Production
+only, Vercel Authentication on Previews only. `GET /login` answers 200 over TLS
+at `https://goproceed-app-akislys-projects.vercel.app` — `{{APP_HOSTNAME}}`
+remains a token; no custom domain yet. Still open, each tracked in `TODOS.md`:
+§6.1–6.8 (the owner's `curl`s — they carry a bearer token), §6.9 (two phones),
+and custom SMTP, without which no address outside the Supabase team receives
+the code. The paragraph below is the state as of 2026-08-18 and is kept as the
+record of how far the repository alone could go.
 
 **Staging has not been provisioned or verified as of this writing — and
 this document being rewritten (2026-08-18) did not change that.** What the

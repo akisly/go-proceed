@@ -14,8 +14,48 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Thirteen pieces of work. Each is below, under its own
-heading, newest first — and read the P0 warning in §0 whichever you start with.
+Fourteen pieces of work. Each is below, under its own
+heading, newest first — and read the P0 warning in §0 whichever you start with:
+as of 0a.14 the origin EXISTS and is public, and what the warning still guards
+is the §6 evidence and custom SMTP.
+
+---
+
+### 0a.14 — the origin exists: `/login` answers 200 over TLS to the public internet
+
+**The P0 of `TODOS.md` — «NOBODY CAN OPEN IT: there is no origin» — is closed on
+2026-08-19, by its own heading's standard, at
+`https://goproceed-app-akislys-projects.vercel.app`.** Vercel's production
+alias, not a custom domain; `{{APP_HOSTNAME}}` is still a token. The owner
+merged PR #30, set the two role passwords and the twelve variables, and the
+first production build printed `deploy preflight (VERCEL_ENV=production): OK`.
+Then `/` → 307 `/login`, `/login` → 200 with the OTP form, `/assignments` →
+307, `/v1/*` → 401 unauthenticated; the client bundle carries the staging
+Supabase URL and key and no local value; staging Postgres reads 58/58
+migrations, 140 policies, 53/53 RLS, clean.
+
+**One setting stood between the build and the public, and the runbook had
+never mentioned it.** A new Vercel project ships with Vercel Authentication
+protecting every URL except custom domains — the `*.vercel.app` alias included —
+so every path answered 302 to `vercel.com/sso-api`. Read the docs, asked the
+owner, changed it to «Only Preview Deployments» on their explicit yes (Previews
+are skipped by `ignoreCommand` anyway). Runbook §5 now has the step.
+
+**Two more runbook lines were memory, and both were caught by the owner's
+questions.** «What are `<секрет-1>`/`<секрет-2>`?» — the §3 passwords, and §3's
+URL shape lacked the `.<project-ref>` suffix the shared pooler routes by
+(`goproceed_app_login.<ref>`), now fixed with the docs cited; and «what are the
+`EXTERNAL_*` values?» — generated HMAC keys, now explained in §4.3 with the
+command.
+
+**What remains, and it is the owner's:** §6.1–6.8 (bearer-token `curl`s), §6.9
+(two phones — and before it **custom SMTP**, because Supabase's default email
+service refuses any address outside the project's team and allows two messages
+an hour; a new P1), and the domain decision. Three small things noted on the
+day: `turbo-ignore` is deprecated in favour of Vercel's built-in project
+skipping (P3), an `apt-get` hang cost one CI run (P3), and the cron jobs on
+staging are `idempotency-purge` and `upload-intent-expiry` — `outbox-drain` is
+gone, as 0036 intended.
 
 ---
 
