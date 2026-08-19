@@ -102,6 +102,24 @@ suite defaults to the local URL — so a local `turbo run test` needs the two DB
 URLs exported the way CI exports them, or six tests fail with «APP_DB_URL is
 not set» and nothing else is wrong.
 
+**Then the owner could not find the toggle the runbook told them to flip, and
+the runbook was wrong.** §4.3 said «Settings → Git → uncheck Preview
+Deployments». Read the current Vercel docs (project-settings, 2026-07-15;
+vercel-json, 2026-06-17): Settings → Git holds the repository connection, LFS,
+deploy hooks and verified commits — no such toggle exists, and that line was
+written from memory, which is precisely what the rule at the top of this entry
+forbids. What exists is Settings → Build and Deployment → Ignored Build Step →
+«Only build production» — and `vercel.json`'s `ignoreCommand` OVERRIDES that
+dashboard setting, so with `apps/app/vercel.json` carrying one (it did, for
+`turbo-ignore`) the dashboard choice would have done nothing. So the rule now
+lives where it can take effect: `ignoreCommand` exits 0 («ignore») for every
+`VERCEL_ENV` other than `production` and runs `turbo-ignore` only for
+Production. Proved with `sh` against the exact string in the file: preview →
+0, production → turbo-ignore. A skipped build is CANCELED, not failed, so the
+per-push red «Vercel – goproceed-app» check stops; the preflight, the runbook
+§4.1/§4.3/§5.3 no longer name the phantom toggle. Building Previews later is
+one commit: fill the Preview column AND drop the guard.
+
 **For the P0 sitting, two variable NAMES changed**, and the Vercel project
 still has the old one: rename `SUPABASE_SERVICE_ROLE_KEY → SUPABASE_SECRET_KEY`
 (an `sb_secret_…` value), and add `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`

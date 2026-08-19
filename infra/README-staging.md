@@ -336,7 +336,7 @@ should show it as detected.
 | Framework | Next.js | `apps/app/vercel.json` | |
 | Install | `cd ../.. && pnpm install --frozen-lockfile` | `vercel.json` | pnpm workspaces install at the ROOT; installing inside `apps/app` alone cannot resolve `@goproceed/*` |
 | Build | `cd ../.. && pnpm turbo run build --filter=@goproceed/app` | `vercel.json` | Turborepo's `dependsOn: ["^build"]` builds `@goproceed/database`, `domain`, `contracts` first |
-| Ignored build step | `npx turbo-ignore @goproceed/app` | `vercel.json` | a push touching only `apps/demo` or docs does not redeploy the app |
+| Ignored build step | `VERCEL_ENV` ≠ `production` → exit 0 (skip); else `npx turbo-ignore @goproceed/app` | `vercel.json` `ignoreCommand` | Production only for the pilot — every push to a PR branch would otherwise build a Preview against the Preview environment, which §4.3 does not fill; and within Production, a push touching only `apps/demo` or docs does not redeploy the app. Overrides the dashboard's Ignored Build Step (Vercel docs) — so set it here, not there |
 | Pre-build gate | `apps/app/scripts/deploy-preflight.mjs` | `package.json` `prebuild` | **refuses to build** on Vercel if any variable in §4.3 is unset or carries a local value — silent in CI and locally |
 | Every §4.3 name in the build's env | all twelve in `turbo.json` `build.env` | `turbo.json` | Turborepo's strict env mode hands the build task ONLY the names declared there, and the preflight runs inside that task. Until 2026-08-19 only the three `NEXT_PUBLIC_*` names were declared, and the first real Vercel build reported nine variables "unset" that WERE set on the project. Values enter the cache key as a hash, so a build cached with a complete environment is not replayed after a variable is removed — which is also why a CHANGED origin cannot replay a cached bundle with the old one baked in |
 
@@ -399,8 +399,21 @@ the production one: `resolveBaseOrigin` returns it verbatim, so a Preview built
 with the Production origin would self-fetch across deployments with the
 session cookie attached. Either set the Preview scope to the Vercel preview
 hostname pattern you actually use, or — simplest for a pilot — **do not build
-Previews at all**: Settings → Git → uncheck «Preview Deployments» until there
-is a second environment worth having.
+Previews at all, which is what the repository does**: `apps/app/vercel.json`'s
+`ignoreCommand` exits 0 («ignore this build») for every `VERCEL_ENV` other
+than `production`, and runs `turbo-ignore` only for Production. Two things
+about that, both read from the current Vercel docs on 2026-08-19: **there is
+no «disable Preview Deployments» switch in Settings → Git** (that page holds
+the repository connection, LFS, deploy hooks and verified commits — an earlier
+revision of this runbook named a toggle that does not exist); the dashboard's
+equivalent is Settings → **Build and Deployment → Ignored Build Step → «Only
+build production»**, and **`vercel.json`'s `ignoreCommand` overrides that
+dashboard setting**, so while the file carries one, the dashboard choice does
+nothing — the rule lives in the file on purpose, where a commit can change it.
+A skipped build shows as CANCELED in Deployments, not as a failure, and the
+preflight never runs for it. To build Previews later: set every §4.3 variable
+for Preview (with a Preview origin) AND drop the `VERCEL_ENV` guard from
+`ignoreCommand` in the same commit.
 
 ### 4.4 `apps/landing` — optional, and not part of the P0
 
@@ -430,12 +443,16 @@ does not touch it.
    near the top. If instead it prints `REFUSING TO BUILD`, it lists every
    variable that is missing or local; fix them all in §4.3 and redeploy. Do not
    work around it — it is telling you the bundle would not have worked.
-   **Read the environment in the parentheses.** A push to a PR branch builds a
-   PREVIEW, and a variable set for Production only is unset there — the
-   refusal then lists variables you are certain you set, and the Preview
-   column of Project Settings → Environment Variables is where they are not.
-   The preflight says this itself on a Preview build. Measured 2026-08-19: six
-   variables present for Production, absent from the Preview build.
+   **Read the environment in the parentheses.** With the `ignoreCommand` in
+   `vercel.json` (§4.1) a push to a PR branch is SKIPPED — the deployment shows
+   CANCELED and the preflight never runs — so the line you read is from a
+   Production build. If you ever see `(VERCEL_ENV=preview)` there, the guard
+   was removed: a Preview build reads the Preview column of Project Settings →
+   Environment Variables, and a variable set for Production only is unset
+   there — the refusal then lists variables you are certain you set. The
+   preflight says this itself on a Preview build. Measured 2026-08-19, before
+   the guard: six variables present for Production, absent from the Preview
+   build.
 4. Confirm `https://{{APP_HOSTNAME}}/login` renders the OTP form over TLS. This
    is the first moment the field client is reachable by a person who is not at a
    developer's keyboard, and it is the P0 of `TODOS.md` closing.

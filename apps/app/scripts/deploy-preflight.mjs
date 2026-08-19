@@ -163,7 +163,9 @@ if (problems.length) {
     console.error(
       "This is a PREVIEW build. A variable set for Production only is unset here — check the Preview column in "
       + "Project Settings → Environment Variables (README-staging.md §4.3 says every variable is needed for Preview too, "
-      + "with a Preview-specific NEXT_PUBLIC_APP_ORIGIN), or disable Preview Deployments (Settings → Git) for the pilot.");
+      + "with a Preview-specific NEXT_PUBLIC_APP_ORIGIN). For the pilot, apps/app/vercel.json's ignoreCommand builds "
+      + "Production only and skips every other environment — if you are reading this on a Preview, that rule is not in "
+      + "effect on this deployment (a dashboard Ignored Build Step cannot help: vercel.json's ignoreCommand overrides it).");
   }
   console.error("");
   process.exit(1);
