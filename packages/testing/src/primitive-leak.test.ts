@@ -44,10 +44,6 @@ const ROOTS = ["apps/app", "apps/landing", "apps/mobile", "packages/ui/src"];
 const EXCLUDED = [
   // The generated file that DEFINES the ramp. Everything else consumes it.
   "packages/ui/src/tokens.generated.css",
-  // apps/demo carries the frozen 156 KB prototype sheet, byte-identical to
-  // prototype/src/styles.css by test. Excluded until D5 retires it.
-  "apps/demo/src/styles.css",
-  "apps/demo/src/styles/demo.css",
 ];
 
 function* walk(path: string): Generable {

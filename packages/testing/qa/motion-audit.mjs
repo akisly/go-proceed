@@ -57,12 +57,10 @@ export const LAYOUT_EXCEPTIONS = ["grid-template-rows"];
 export const ROOTS = ["packages/ui/src", "apps/landing", "apps/app"];
 
 /**
- * The frozen prototype sheet and its companion predate the system entirely and
- * are byte-identical to `prototype/src/styles.css` by test. Excluded until D5
- * retires them — and listed rather than skipped silently, so the debt is
- * visible and the exclusion cannot outlive the file.
+ * Listed rather than skipped silently, so debt is visible and exclusions
+ * cannot outlive their files.
  */
-export const EXCLUDED = ["apps/demo/src/styles.css", "apps/demo/src/styles/demo.css"];
+export const EXCLUDED = [];
 
 /** The one file allowed to import Motion for React. Anything else is a block
  * or a screen reaching past the vocabulary. */
