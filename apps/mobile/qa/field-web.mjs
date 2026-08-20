@@ -222,6 +222,36 @@ async function exportFieldWeb(apiOrigin) {
       ));
     });
   });
+
+  // `<html lang="uk">`, NOT WHAT THE EXPORT ITSELF PRODUCES. expo-router's
+  // documented customization point (`src/app/+html.tsx`) was tried first
+  // and confirmed, empirically, to have NO EFFECT under this project's
+  // `web.output: "single"` (SPA) mode — the docs describe it under STATIC
+  // rendering only, and a built `dist/index.html` with that file in place
+  // was byte-identical to one without it. `scripts/set-html-lang.mjs` is
+  // the honest fallback: a direct, loudly-failing string replacement on
+  // the export's own `index.html`. Every invocation of THIS function must
+  // run it — Task 7's `vercel.json buildCommand` needs the identical
+  // append after its own `expo export` call, noted in that script's own
+  // header.
+  const langStdout = [];
+  const langStderr = [];
+  await new Promise((resolve, reject) => {
+    const proc = spawn(
+      process.platform === "win32" ? "node.exe" : "node",
+      ["scripts/set-html-lang.mjs"],
+      { cwd: MOBILE_DIR, stdio: ["ignore", "pipe", "pipe"] },
+    );
+    proc.stdout.on("data", (d) => langStdout.push(d.toString()));
+    proc.stderr.on("data", (d) => langStderr.push(d.toString()));
+    proc.once("error", reject);
+    proc.once("exit", (code) => {
+      if (code === 0) resolve();
+      else reject(new Error(
+        `scripts/set-html-lang.mjs exited ${code}\n--- stdout ---\n${langStdout.join("")}\n--- stderr ---\n${langStderr.join("")}`,
+      ));
+    });
+  });
 }
 
 /**
@@ -814,44 +844,23 @@ async function main() {
           ctx.findings.push('login screen: expected the "Надіслати код" button label, not found');
         }
 
-        // <html lang> — MEASURED, NOT ASSUMED. Same rigor as the viewport
-        // meta below: `apps/mobile/dist/index.html` (Expo's own static
-        // template, not generated from `app.json`'s `expo.web` block) —
-        // measured directly against the exported bundle, not assumed —
-        // ships `<html lang="en">` regardless of this being a
-        // Ukrainian-only client. A screen reader announces the WRONG
-        // language for every string on this page as a result. THIS IS A
-        // REAL FINDING, not a skipped assertion; fixing it is out of this
-        // harness's job (a QA pass reports defects, it does not patch app
-        // code) and, per direct research rather than memory, out of a
-        // one-line config key too: expo-router's documented customization
-        // point for the exported root document is a root `+html.tsx`
-        // (https://docs.expo.dev/router/web/static-rendering/, read
-        // 2026-08-21 — `export default function Root({ children }) { return
-        // <html lang="uk">…</html>; }`), but that page describes it under
-        // STATIC rendering (`web.output: "static"`, one HTML file per
-        // route) — this project's export produces exactly ONE `index.html`
-        // for every route (verified: `dist/` carries no per-route HTML
-        // files), which is the signature of the DEFAULT `web.output:
-        // "single"` (SPA) mode, and the docs give no confirmation
-        // `+html.tsx` is honoured there too. So the fix is very likely
-        // "add `apps/mobile/app/+html.tsx`" but MAY additionally require
-        // `web.output: "static"` in `app.json` (a bigger change — splits
-        // the export into per-route files, which would also change how
-        // this harness's own SPA-fallback static server needs to behave) —
-        // confirm against current docs at implementation time rather than
-        // trusting this comment.
+        // <html lang> — MEASURED, NOT ASSUMED. Expo's own generated web
+        // template hardcodes `lang="en"`; this Ukrainian-only client needs
+        // `lang="uk"`. expo-router's documented fix (a root `+html.tsx`,
+        // https://docs.expo.dev/router/web/static-rendering/, read
+        // 2026-08-21) does NOT apply under this project's `web.output:
+        // "single"` (SPA) mode — confirmed empirically (a build with that
+        // file in place was byte-identical to one without it), not assumed
+        // from the docs' own STATIC-rendering framing. The actual fix is
+        // `scripts/set-html-lang.mjs`, run as the last step of
+        // `exportFieldWeb` above: a loudly-failing post-export string
+        // replacement on `dist/index.html`. This assertion is what proves
+        // that step actually ran and actually worked, not merely that it
+        // exists.
         const htmlLang = await page.evaluate(() => document.documentElement.getAttribute("lang"));
         ctx.observations.htmlLang = htmlLang;
         if (htmlLang !== "uk") {
-          ctx.findings.push(
-            `<html lang="${htmlLang}"> — expected "uk". Likely fix: a root `
-            + "apps/mobile/app/+html.tsx rendering <html lang=\"uk\">…</html> "
-            + "(expo-router's static-export document customization point), possibly "
-            + "also requiring app.json's web.output: \"static\" — verify against "
-            + "current docs before implementing; not applied here, out of this "
-            + "harness's scope.",
-          );
+          ctx.findings.push(`<html lang="${htmlLang}"> — expected "uk" (scripts/set-html-lang.mjs did not take effect)`);
         }
 
         // The viewport meta, measured and RECORDED regardless of verdict

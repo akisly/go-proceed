@@ -259,6 +259,27 @@ const styles = StyleSheet.create({
     backgroundColor: color[THEME]["bg-surface"],
     padding: 16,
     gap: 4,
+    // THE ANCHOR IS THIS PRESSABLE, NOT ITS CHILDREN — `<Link asChild>`
+    // merges Link's `href`/navigation behaviour straight onto this
+    // component, and on web (no conflicting `role`, unlike the obligation
+    // screen's back-link) that renders it AS the `<a>` element itself, not
+    // a wrapper around one. Both of these were previously left to browser
+    // defaults and it showed: no host stylesheet resets an anchor's UA
+    // color/underline in this app (no equivalent of apps/app's
+    // `globals.css`), so this element's OWN computed style was Chrome's
+    // `-webkit-link` blue and no text-decoration override at all —
+    // invisible only because `rowTitle`/`rowSubtitle` (below) each set
+    // their own explicit `color` on the nested `Text` children, overriding
+    // what a reader actually sees while leaving the anchor's own style
+    // wrong underneath. Caught by qa/field-web.mjs's `measureUaStyledLinks`
+    // (ported from apps/app/qa/field.mjs), which measures the anchor
+    // element itself for exactly this reason. `text-primary`, not
+    // `text-link`: this row is a card, not inline link text — the SAME
+    // token `rowTitle` below already uses, so the anchor's own color
+    // matches what a reader already sees rather than introducing a third
+    // color into one row.
+    color: color[THEME]["text-primary"],
+    textDecorationLine: "none",
   },
   rowTitle: {
     fontSize: 16,
