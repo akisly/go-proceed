@@ -13,7 +13,7 @@ export function ProofStrip() {
       <div className="mx-auto grid max-w-content wide:grid-cols-[0.34fr_0.66fr]">
         <Reveal
           y={0}
-          className="border-b border-line py-9 md:py-11 wide:border-b-0 wide:border-r wide:py-12 wide:pr-12"
+          className="border-b border-line py-9 md:py-11 wide:border-b-0 wide:py-12 wide:pr-12"
         >
           <div className="flex items-center gap-3">
             <span className="size-2 rounded-pill bg-action-signal" aria-hidden="true" />

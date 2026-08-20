@@ -11,7 +11,7 @@ export function Faq() {
       lead="Межі продукту тут сформульовані так само прямо, як вимоги до доказу."
       className="bg-canvas"
     >
-      <div className="grid gap-10 border-t border-line-strong pt-3 wide:grid-cols-[0.38fr_0.62fr] wide:gap-20">
+      <div className="grid gap-10 border-line-strong pt-3 wide:grid-cols-[0.38fr_0.62fr] wide:gap-20">
         <div className="pt-5">
           <p className="index-label text-ink-muted">Коротко й без припущень</p>
           <p className="mt-5 max-w-[29ch] text-data leading-relaxed text-ink-muted">

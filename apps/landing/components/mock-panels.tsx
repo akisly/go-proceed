@@ -98,7 +98,7 @@ export function ActPanel() {
             <Tr><Td>Роботи</Td><Td>Монтаж кабельних трас ВРУ-1</Td></Tr>
             <Tr><Td>Проєкт</Td><Td>ЕОМ · аркуш 14 · ревізія 03</Td></Tr>
             <Tr><Td>Докази</Td><Td>EV-0248 · 3 матеріали</Td></Tr>
-            <Tr><Td>Рішення</Td><Td>DR-0091 · прийнято</Td></Tr>
+            <Tr><Td className="border-0">Рішення</Td><Td className="border-0">DR-0091 · прийнято</Td></Tr>
           </tbody>
         </Table>
       </div>

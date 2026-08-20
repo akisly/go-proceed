@@ -30,7 +30,7 @@ export function EvidenceIntegrity() {
               ))}
             </dl>
 
-            <div className="landing-paper-grid flex min-h-[420px] flex-col justify-between border-l border-line bg-subtle p-6 md:p-8">
+            <div className="landing-paper-grid flex min-h-[420px] flex-col justify-between bg-subtle p-6 md:p-8">
               <div>
                 <p className="index-label text-ink-muted">Ланцюг подій</p>
                 <ol className="mt-6 space-y-5 border-l border-line-strong pl-5">

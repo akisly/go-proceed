@@ -48,13 +48,17 @@ export function Comparison() {
               </Tr>
             </thead>
             <tbody>
-              {content.rows.map((row) => (
-                <Tr key={row.criterion}>
-                  <Td className="font-semibold">{row.criterion}</Td>
-                  <Td className="text-ink-muted">{row.fragmented}</Td>
-                  <Td className="border-l border-line bg-subtle font-medium">{row.goproceed}</Td>
-                </Tr>
-              ))}
+              {content.rows.map((row, index, self) => {
+                const borderExist = index === self.length - 1 ? 'border-0' : '';
+
+                return (
+                  <Tr key={row.criterion}>
+                    <Td className={`${borderExist} font-semibold`}>{row.criterion}</Td>
+                    <Td className={`${borderExist} text-ink-muted`}>{row.fragmented}</Td>
+                    <Td className={`${borderExist} border-line bg-subtle font-medium`}>{row.goproceed}</Td>
+                  </Tr>
+                )
+              })}
             </tbody>
           </Table>
         </div>
