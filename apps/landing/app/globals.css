@@ -11,6 +11,10 @@
 
 @import "@goproceed/ui/base.css";
 
+/* Shared components carry Tailwind utilities that do not appear in this app's
+ * own source, including the accessible sr-only copy used by TextBlurIn. */
+@source "../../../packages/ui/src";
+
 /* Tailwind v4 scans the whole project and does not distinguish a test from a
  * component. v1 recorded the consequence: deliberately-unapproved colours
  * written as fixtures inside a test file were found by the scanner and emitted
@@ -23,8 +27,42 @@
  * on a figure — so the ~40 KB it costs is a cost this app pays and apps/app
  * does not. */
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
+
   body {
     font-size: var(--gp-size-mkt-body);
     line-height: var(--gp-leading-relaxed);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+@layer components {
+  .landing-hero-field {
+    background:
+      radial-gradient(circle at 82% 18%, var(--color-action-signal) 0 1px, transparent 2px),
+      linear-gradient(to bottom, var(--color-subtle), transparent);
+    background-size: 22px 22px, 100% 100%;
+  }
+
+  .landing-blueprint {
+    background-image:
+      linear-gradient(var(--color-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+
+  .landing-paper-grid {
+    background-image:
+      linear-gradient(var(--color-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
+    background-position: -1px -1px;
+    background-size: 48px 48px;
   }
 }
