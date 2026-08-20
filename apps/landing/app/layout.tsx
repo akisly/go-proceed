@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
 // Three families, loaded as variable fonts and subset by @fontsource:
@@ -11,10 +12,37 @@ import "@fontsource-variable/source-serif-4";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
-export const metadata = {
-  title: "GoProceed — Evidence-to-payment operating layer",
-  description:
-    "GoProceed turns field evidence into approved, auditable payments — акти, довіреності та розрахунки в одному потоці.",
+const title = "GoProceed | Від вимоги до доказу й акта";
+const description =
+  "GoProceed пов’язує вимоги, польові докази, рішення технічного нагляду та чернетки актів для будівельних робіт.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  applicationName: "GoProceed",
+  openGraph: {
+    title,
+    description,
+    type: "website",
+    locale: "uk_UA",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "GoProceed: від вимоги до доказу й акта",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title,
+    description,
+    images: ["/og.png"],
+  },
+  icons: {
+    icon: "/images/verified-stamp.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

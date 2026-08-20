@@ -54,4 +54,33 @@ describe("landing semantic frame", () => {
     expect(html).toContain("Польовий застосунок");
     expect(html).toContain("2 з 3 матеріалів додано");
   });
+
+  it("gives each project role a concrete decision dossier", () => {
+    for (const role of [
+      "Власник або комерційний директор",
+      "Керівник ПТВ",
+      "Майстер на майданчику",
+    ]) {
+      expect(html).toContain(role);
+    }
+    expect(html).toContain('id="roles"');
+  });
+
+  it("renders the comparison, integrity receipt, and pilot without invented pricing", () => {
+    expect(html).toContain('aria-label="Порівняння доказового контуру"');
+    expect(html).toContain('aria-label="Квитанція походження доказу EV-0248"');
+    expect(html).toContain('id="pilot"');
+
+    const pilotStart = html.indexOf('id="pilot"');
+    const pilotEnd = html.indexOf("</section>", pilotStart);
+    expect(html.slice(pilotStart, pilotEnd)).not.toContain("₴");
+  });
+
+  it("finishes with factual FAQ, inert final action, and mock disclaimer", () => {
+    expect(html).toContain('id="faq"');
+    expect(html).toContain("Чи можна фіксувати матеріали без мережі?");
+    expect(html).toContain("Кнопка у цьому макеті не надсилає дані");
+    expect(html).toContain("Візуальний макет продукту");
+    expect(html).toContain("<footer");
+  });
 });

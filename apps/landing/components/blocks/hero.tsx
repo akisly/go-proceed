@@ -65,6 +65,7 @@ export function Hero() {
                     alt="Кабельний лоток на будівельному майданчику до закриття конструкції"
                     fill
                     priority
+                    loading="eager"
                     sizes="(max-width: 1024px) 90vw, 430px"
                     className="object-cover"
                   />
