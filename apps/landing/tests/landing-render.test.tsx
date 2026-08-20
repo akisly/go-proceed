@@ -6,7 +6,7 @@ import LandingPage from "../app/page";
 const html = renderToStaticMarkup(<LandingPage />);
 
 describe("landing semantic frame", () => {
-  it("pairs the project mark with the GoProceed wordmark in navigation", () => {
+  it("uses the same project mark across site chrome and product previews", () => {
     const navigationStart = html.indexOf('<nav aria-label="Головна навігація"');
     const brandLinkEnd = html.indexOf("</a>", navigationStart);
     const brandLinkHtml = html.slice(navigationStart, brandLinkEnd);
@@ -15,7 +15,8 @@ describe("landing semantic frame", () => {
     expect(brandLinkHtml).toContain("<img");
     expect(brandLinkHtml).toContain('alt=""');
     expect(brandLinkHtml).toContain("GoProceed");
-    expect(brandLinkHtml).not.toContain(">GP<");
+    expect(html.match(/data-brand-mark="true"/g) ?? []).toHaveLength(4);
+    expect(html).not.toContain(">GP</span>");
   });
 
   it("publishes one main heading and the first narrative landmarks", () => {
