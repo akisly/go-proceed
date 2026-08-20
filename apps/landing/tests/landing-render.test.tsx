@@ -55,6 +55,22 @@ describe("landing semantic frame", () => {
     expect(html).toContain("2 з 3 матеріалів додано");
   });
 
+  it("places the dashboard inside the hero before the proof strip", () => {
+    const heroStart = html.indexOf('id="product"');
+    const dashboard = html.indexOf('aria-label="Огляд робочого простору GoProceed"');
+    const proofStart = html.indexOf('id="proof"');
+
+    expect(heroStart).toBeGreaterThan(-1);
+    expect(dashboard).toBeGreaterThan(heroStart);
+    expect(dashboard).toBeLessThan(proofStart);
+  });
+
+  it("uses timed clickable tabs instead of a scroll-driven product tour", () => {
+    expect(html).toContain('data-tour-mode="timed-tabs"');
+    expect(html).toContain('role="tablist"');
+    expect(html).toContain('data-tour-progress="true"');
+  });
+
   it("gives each project role a concrete decision dossier", () => {
     for (const role of [
       "Власник або комерційний директор",

@@ -1,12 +1,11 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
-import { motion, useMotionValueEvent, useScroll } from "motion/react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
+import { motion } from "motion/react";
 import { DURATION, EASE } from "./tokens";
 import { useReduced } from "./use-reduced";
 
 export type PinnedTab = {
-  /** Stable id — used as the CrossFade key and the DOM id. Never an index. */
   id: string;
   label: string;
   hint: string;
@@ -15,118 +14,134 @@ export type PinnedTab = {
 
 type PinnedTabsProps = { tabs: PinnedTab[]; className?: string | undefined };
 
+const AUTO_ADVANCE_SECONDS = 6;
+
 /**
- * The product tour: a sticky tab strip whose active tab advances with scroll
- * progress, with the panel swapping beneath it. Measured on Folio, where it is
- * the only scroll-jacked element on the page — and that is the rule here too.
+ * A timed product tour with direct tab control.
  *
- * WHAT MAKES THIS DEFENSIBLE RATHER THAN A SCROLL HIJACK
- * ------------------------------------------------------
- * The page never stops scrolling. The section is simply tall — one viewport
- * per tab — and the strip is `position: sticky` inside it. Scroll speed,
- * direction and momentum stay the reader's. Nothing is intercepted, so nothing
- * can be intercepted wrongly.
- *
- * The tabs are also real buttons. Clicking one scrolls to that tab's slice, so
- * a reader who does not want to scroll through four screens does not have to,
- * and a keyboard user reaches every panel without scrolling at all.
- *
- * ACCESSIBILITY
- * -------------
- * `role="tablist"` with `aria-selected` and `aria-controls`, because these
- * genuinely are tabs over panels — unlike the register's segmented filter,
- * which filters a list in place and is therefore `aria-pressed` buttons with
- * no tabpanel to promise.
- *
- * REDUCED MOTION
- * --------------
- * The pinning goes away entirely and the four panels render stacked, each with
- * its heading. Sticky-plus-scroll-progress IS the animation; there is no
- * shorter version of it, and a reader who declined motion should not have to
- * scroll four screens to see four panels.
+ * The active tab advances after a readable interval while its baseline fills
+ * from left to right. Any manual selection restarts that interval. Readers can
+ * pause the rotation, and reduced-motion preferences disable auto-advance
+ * entirely while preserving the same clickable tab interface.
  */
 export function PinnedTabs({ tabs, className }: PinnedTabsProps) {
   const reduced = useReduced();
-
-  return reduced
-    ? <ReducedPinnedTabs tabs={tabs} className={className} />
-    : <AnimatedPinnedTabs tabs={tabs} className={className} />;
-}
-
-function ReducedPinnedTabs({ tabs, className }: PinnedTabsProps) {
-  return (
-    <div className={className}>
-      {tabs.map((tab) => (
-        <section key={tab.id} aria-labelledby={`${tab.id}-label`} className="border-t border-line py-12">
-          <h3 id={`${tab.id}-label`} className="text-h3 font-semibold text-ink">{tab.label}</h3>
-          <p className="mt-1 text-data text-ink-muted">{tab.hint}</p>
-          <div className="mt-6">{tab.panel}</div>
-        </section>
-      ))}
-    </div>
-  );
-}
-
-function AnimatedPinnedTabs({ tabs, className }: PinnedTabsProps) {
-  const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
-  const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
+  const [cycle, setCycle] = useState(0);
+  const [auto, setAuto] = useState(true);
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  useMotionValueEvent(scrollYProgress, "change", (p) => {
-    const next = Math.min(tabs.length - 1, Math.max(0, Math.floor(p * tabs.length)));
-    setActive((current) => (current === next ? current : next));
-  });
+  const autoRuns = auto && !reduced && tabs.length > 1;
+
+  useEffect(() => {
+    if (!autoRuns) return;
+
+    const timeout = window.setTimeout(() => {
+      setActive((current) => (current + 1) % tabs.length);
+      setCycle((current) => current + 1);
+    }, AUTO_ADVANCE_SECONDS * 1000);
+
+    return () => window.clearTimeout(timeout);
+  }, [active, autoRuns, cycle, tabs.length]);
+
+  function selectTab(index: number): void {
+    setActive(index);
+    setCycle((current) => current + 1);
+  }
+
+  function onTabKeyDown(event: KeyboardEvent<HTMLButtonElement>, index: number): void {
+    let next = index;
+
+    if (event.key === "ArrowRight") next = (index + 1) % tabs.length;
+    else if (event.key === "ArrowLeft") next = (index - 1 + tabs.length) % tabs.length;
+    else if (event.key === "Home") next = 0;
+    else if (event.key === "End") next = tabs.length - 1;
+    else return;
+
+    event.preventDefault();
+    selectTab(next);
+    tabRefs.current[next]?.focus();
+  }
 
   return (
-    <div ref={ref} className={className} style={{ height: `${tabs.length * 100}vh` }}>
-      <div className="sticky top-20 flex h-[calc(100vh-5rem)] flex-col justify-center gap-8">
-        <div role="tablist" aria-label="Продукт" className="grid grid-cols-2 gap-6 md:grid-cols-4">
-          {tabs.map((tab, i) => (
+    <div data-tour-mode="timed-tabs" className={className}>
+      <div className="mb-4 flex justify-end">
+        <button
+          type="button"
+          aria-pressed={!auto}
+          aria-label={auto ? "Призупинити автоматичне перемикання" : "Увімкнути автоматичне перемикання"}
+          onClick={() => {
+            setAuto((current) => !current);
+            setCycle((current) => current + 1);
+          }}
+          className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line px-3 text-meta font-medium text-ink-muted transition-colors duration-fast ease-out hover:border-line-strong hover:text-ink"
+        >
+          <span aria-hidden="true" className="font-mono text-micro">{autoRuns ? "Ⅱ" : "▶"}</span>
+          {autoRuns ? "Пауза" : "Авто"}
+        </button>
+      </div>
+
+      <div role="tablist" aria-label="Продукт" className="grid grid-cols-2 gap-x-6 gap-y-4 md:grid-cols-4">
+        {tabs.map((tab, index) => {
+          const selected = index === active;
+
+          return (
             <button
               key={tab.id}
+              ref={(element) => { tabRefs.current[index] = element; }}
+              type="button"
               role="tab"
               id={`${tab.id}-tab`}
-              aria-selected={i === active}
+              aria-selected={selected}
               aria-controls={`${tab.id}-panel`}
-              tabIndex={i === active ? 0 : -1}
-              onClick={() => scrollToSlice(ref.current, i, tabs.length)}
-              className="relative pb-3 text-left"
+              tabIndex={selected ? 0 : -1}
+              onClick={() => selectTab(index)}
+              onKeyDown={(event) => onTabKeyDown(event, index)}
+              className="relative min-h-16 pb-4 text-left"
             >
-              <span className={i === active ? "text-data font-semibold text-ink" : "text-data font-medium text-ink-muted"}>
+              <span className={selected ? "text-data font-semibold text-ink" : "text-data font-medium text-ink-muted"}>
                 {tab.label}
               </span>
               <span className="mt-1 block text-meta text-ink-subtle">{tab.hint}</span>
-              <span className="absolute inset-x-0 bottom-0 h-px bg-line" />
-              {i === active && (
-                // layoutId is what makes the underline travel between tabs
-                // instead of two rules crossfading in place. One element, one
-                // shared identity, and Motion animates the geometry.
+              <span className="absolute inset-x-0 bottom-0 h-px bg-line" aria-hidden="true" />
+              {selected && (
                 <motion.span
-                  layoutId="pinned-tabs-underline"
-                  className="absolute inset-x-0 bottom-0 h-0.5 bg-ink"
-                  transition={{ duration: DURATION.base, ease: EASE.out }}
+                  key={`${tab.id}-${cycle}-${autoRuns ? "auto" : "still"}`}
+                  data-tour-progress="true"
+                  aria-hidden="true"
+                  className="absolute inset-x-0 bottom-0 h-0.5 origin-left bg-action-signal"
+                  initial={{ scaleX: autoRuns ? 0 : 1 }}
+                  animate={{ scaleX: 1 }}
+                  transition={autoRuns
+                    ? { duration: AUTO_ADVANCE_SECONDS, ease: "linear" }
+                    : { duration: DURATION.fast, ease: EASE.out }}
                 />
               )}
             </button>
-          ))}
-        </div>
-        <div
-          role="tabpanel"
-          id={`${tabs[active]?.id}-panel`}
-          aria-labelledby={`${tabs[active]?.id}-tab`}
-          className="min-h-0 flex-1"
-        >
-          {tabs[active]?.panel}
-        </div>
+          );
+        })}
+      </div>
+
+      <div className="mt-8 min-h-[560px] wide:min-h-[620px]">
+        {tabs.map((tab, index) => (
+          <div
+            key={tab.id}
+            role="tabpanel"
+            id={`${tab.id}-panel`}
+            aria-labelledby={`${tab.id}-tab`}
+            hidden={index !== active}
+          >
+            <motion.div
+              key={`${tab.id}-${cycle}`}
+              initial={reduced ? { opacity: 1 } : { opacity: 0, x: 12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: DURATION.base, ease: EASE.soft }}
+            >
+              {tab.panel}
+            </motion.div>
+          </div>
+        ))}
       </div>
     </div>
   );
-}
-
-/** Scroll to the top of tab `i`'s slice, so a click reaches the same state a
- * scroll would have produced rather than a second, competing one. */
-function scrollToSlice(el: HTMLDivElement | null, i: number, total: number): void {
-  if (!el) return;
-  const top = el.offsetTop + (el.offsetHeight * i) / total;
-  window.scrollTo({ top, behavior: "smooth" });
 }
