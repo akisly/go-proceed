@@ -6,7 +6,7 @@ import labels from "./status-labels.generated.json";
 
 export type ClientState =
   | "not_sent" | "sending" | "awaiting_receipt"
-  | "server_confirmed" | "failed" | "quarantined";
+  | "server_confirmed" | "failed" | "discarded";
 
 export function clientStateLabel(state: ClientState): string {
   const label = (labels as Record<string, string>)[`status.client_state.${state}`];
