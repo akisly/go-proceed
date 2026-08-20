@@ -79,11 +79,23 @@ export async function apiGet(path: string): Promise<Response> {
  * mutation requires — a fresh key per call ATTEMPT, not per logical resource
  * (see `attemptKey()` in `apps/app/src/lib/capture/upload.ts`); the caller
  * owns generating it.
+ *
+ * `signal`, ADDED FOR `src/lib/capture/upload.ts`: optional, and threaded
+ * straight through to `fetch` with no other change to this function's
+ * behaviour — every existing call site (that passes none) is unaffected.
+ * The source PWA's `uploadCapture` (`apps/app/src/lib/capture/upload.ts`)
+ * attaches one `AbortSignal` to all three of its requests, because that
+ * abort is what makes the discard confirmation's «Його не буде збережено на
+ * сервері» true rather than aspirational (see that file's own comment,
+ * "final review, Important 3"). Without this parameter, this module's two
+ * authenticated calls (create-intent, finalize) would be the one place on
+ * this platform where a discard could not stop a request already in flight.
  */
 export async function apiPost(
   path: string,
   body: unknown,
   idempotencyKey: string,
+  signal?: AbortSignal,
 ): Promise<Response> {
   return fetch(`${API_ORIGIN}${path}`, {
     method: "POST",
@@ -93,5 +105,6 @@ export async function apiPost(
       "Idempotency-Key": idempotencyKey,
     },
     body: JSON.stringify(body),
+    signal,
   });
 }
