@@ -1,8 +1,7 @@
 import Image from "next/image";
 import { Chip, type ChipTone } from "@goproceed/ui/components";
-import { Reveal, Stagger, StaggerItem } from "@goproceed/ui/motion";
+import { Stagger, StaggerItem } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
-import { SectionShell } from "../section-shell";
 
 const content = landingContent.dashboard;
 
@@ -12,15 +11,13 @@ const toneByState: Record<(typeof content.rows)[number]["state"], ChipTone> = {
   "Заблоковано": "blocked",
 };
 
-export function SystemDashboard() {
+export function DashboardSurface() {
   return (
-    <SectionShell eyebrow={content.eyebrow} title={content.title} lead={content.lead} className="bg-canvas">
-      <Reveal y={20}>
-        <div
-          role="region"
-          aria-label="Огляд робочого простору GoProceed"
-          className="overflow-hidden rounded-section border border-line-strong bg-surface shadow-float"
-        >
+    <div
+      role="region"
+      aria-label="Огляд робочого простору GoProceed"
+      className="overflow-hidden rounded-section border border-line-strong bg-surface shadow-float"
+    >
           <header className="flex h-14 items-center gap-4 border-b border-line bg-surface px-4 md:px-5">
             <div className="flex gap-1.5" aria-hidden="true">
               <span className="size-2.5 rounded-pill bg-status-blocked-fg" />
@@ -157,9 +154,7 @@ export function SystemDashboard() {
               </div>
             </aside>
           </div>
-        </div>
-      </Reveal>
-    </SectionShell>
+    </div>
   );
 }
 

@@ -12,7 +12,6 @@ import { PilotFormat } from "../components/blocks/pilot-format";
 import { ProofStrip } from "../components/blocks/proof-strip";
 import { ProductTour } from "../components/blocks/product-tour";
 import { RolesDossier } from "../components/blocks/roles-dossier";
-import { SystemDashboard } from "../components/blocks/system-dashboard";
 
 export default function LandingPage() {
   return (
@@ -22,7 +21,6 @@ export default function LandingPage() {
         <Hero />
         <ProofStrip />
         <MoneyOutcome />
-        <SystemDashboard />
         <EvidenceChain />
         <ProductTour />
         <FieldMobile />
