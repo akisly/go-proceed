@@ -593,15 +593,18 @@ rather than duplicated here. The three items below are the follow-up plans
 this entry names but does not yet execute, each its own scope-split slice per
 `superpowers:writing-plans`.
 
-1. **Plan B — `/v1` cross-origin access**, planned as
-   `docs/superpowers/plans/2026-08-XX-v1-cors-bearer.md`. `proxy.ts`'s matcher
-   excludes `/v1`, so CORS cannot live in middleware; it goes into the shared
-   route wrappers (`apps/app/src/lib/command.ts` `queryRoute`/`commandRoute`)
-   plus an `OPTIONS` export, with an allowlist via a new
-   `FIELD_CLIENT_ORIGINS` env var (declared in `turbo.json` `build.env`). The
-   bearer path already works — `apps/app/src/lib/auth.ts` gives `Bearer`
-   priority over the cookie session already, with «mobile» named in its own
-   comment.
+1. **Plan B — `/v1` cross-origin access**, DONE 2026-08-20 — CORS in the proxy
+   per the vendor's Next 16.3.1 pattern; unset-means-unchanged pinned by tests;
+   bearer needed no work — `auth.ts` already prioritizes `Authorization: Bearer`,
+   its comment names mobile. Planned as
+   `docs/superpowers/plans/2026-08-20-v1-cors-bearer.md`. CORS lives in
+   `proxy.ts`, behind a `{ source: "/v1/:path*", has: [{ type: "header", key:
+   "origin" }] }` matcher entry, per the vendor's own Next 16.3.1 proxy#cors
+   pattern; all the logic lives in `apps/app/src/lib/cors.ts`, with an
+   allowlist via a new `FIELD_CLIENT_ORIGINS` env var (declared in
+   `turbo.json` `build.env`). The shared route wrappers
+   (`apps/app/src/lib/command.ts` `queryRoute`/`commandRoute`) were never
+   touched.
 2. **Plan C — Expo-web field client to parity**, planned as
    `docs/superpowers/plans/2026-08-XX-expo-field-client.md`. Rebuilds OTP
    login, «Мої доручення», the assignment screen, and capture →
