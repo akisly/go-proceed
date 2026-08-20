@@ -12,10 +12,34 @@ export function Comparison() {
         <div
           role="region"
           aria-label="Порівняння доказового контуру"
-          tabIndex={0}
-          className="overflow-x-auto rounded-section border border-line-strong bg-surface"
+          className="overflow-hidden rounded-section border border-line-strong bg-surface"
         >
-          <Table className="min-w-[780px]">
+          <div data-mobile-comparison="true" className="md:hidden">
+            <div className="flex items-center justify-between border-b border-line bg-subtle px-5 py-4">
+              <span className="index-label text-ink-muted">Порівняння</span>
+              <span className="font-mono text-micro text-ink-subtle">05 критеріїв</span>
+            </div>
+            {content.rows.map((row, index) => (
+              <article key={row.criterion} className="border-b border-line p-5 last:border-b-0">
+                <div className="flex items-start gap-4">
+                  <span className="font-mono text-micro text-ink-subtle">0{index + 1}</span>
+                  <h3 className="text-data font-semibold text-ink">{row.criterion}</h3>
+                </div>
+                <dl className="mt-5 space-y-4 pl-8">
+                  <div>
+                    <dt className="index-label text-ink-subtle">Розрізнені канали</dt>
+                    <dd className="mt-2 text-data leading-relaxed text-ink-muted">{row.fragmented}</dd>
+                  </div>
+                  <div className="border-l-2 border-action-signal bg-subtle px-4 py-3">
+                    <dt className="index-label text-ink-muted">GoProceed</dt>
+                    <dd className="mt-2 text-data font-medium leading-relaxed text-ink">{row.goproceed}</dd>
+                  </div>
+                </dl>
+              </article>
+            ))}
+          </div>
+
+          <Table className="hidden table-fixed md:table">
             <thead>
               <Tr>
                 <Th className="w-[24%]">Критерій</Th>

@@ -86,6 +86,7 @@ describe("landing semantic frame", () => {
 
   it("renders the comparison, integrity receipt, and pilot without invented pricing", () => {
     expect(html).toContain('aria-label="Порівняння доказового контуру"');
+    expect(html).toContain('data-mobile-comparison="true"');
     expect(html).toContain('aria-label="Квитанція походження доказу EV-0248"');
     expect(html).toContain('id="pilot"');
 
