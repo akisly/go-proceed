@@ -10,7 +10,8 @@
 [ADR-003](ADR-003-evidence-packages-and-acceptance.md),
 [ADR-004](ADR-004-roadmap-demo-and-documentation.md),
 [ADR-005](ADR-005-readiness-gate-and-hidden-works.md),
-[ADR-006](ADR-006-pilot-shaped-v0.1.md)
+[ADR-006](ADR-006-pilot-shaped-v0.1.md),
+[ADR-009](ADR-009-three-pilot-surfaces.md)
 
 > **Amendment note.** This ADR amends
 > [ADR-004](ADR-004-roadmap-demo-and-documentation.md) on exactly one sentence
@@ -193,6 +194,11 @@ and its token-proof screen intact. It is removed from the v0.1 milestone
 outcome, the v0.1 entry evidence, and the v0.1 closing evidence. It is the
 starting point for the v0.3 work described in decision 8, not dead code and not
 a v0.1 deliverable.
+
+> **Amended 2026-08-20 by [ADR-009](ADR-009-three-pilot-surfaces.md):** the
+> schedule moved — apps/mobile becomes the field client's codebase now (Expo,
+> web-first for the pilot); this section's record of the v0.1 decision stands
+> as written.
 
 ### 3. The API and the domain are unchanged, so the client is replaceable
 

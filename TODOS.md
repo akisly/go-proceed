@@ -771,7 +771,9 @@ https://vercel.com/docs/monorepos#skipping-unaffected-projects`. It still works
 and decided correctly (`No previous deployments found … Proceeding`). When it
 is replaced, the `VERCEL_ENV` guard in `apps/app/vercel.json`'s `ignoreCommand`
 (Production only, for the pilot) has to survive the replacement — read the
-linked page first, per CLAUDE.md.
+linked page first, per CLAUDE.md. Additionally, `apps/landing/vercel.json` (added
+2026-08-20) is a second `ignoreCommand` caller with different semantics (no
+`VERCEL_ENV` guard; previews allowed), so the replacement must cover both files.
 
 ---
 

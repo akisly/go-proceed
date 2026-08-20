@@ -147,6 +147,7 @@ deployed. No task in any of the three follow-up plans
   deployed, the landing site is a real second surface with its own build,
   deploy and ignore path — the first entry in `README.md`'s "Product
   surfaces" section that is not also a claim about `apps/app`.
+- **Documentation debt: six files still describe `apps/mobile` as v0.3 / not on the v0.1 path.** Recorded 2026-08-20: `docs/domain/glossary.md:123`, `docs/product/roadmap.md`, `docs/product/vision-and-positioning.md`, `docs/product/personas-and-workflows.md`, `docs/delivery/test-strategy.md`, `docs/domain/execution-and-evidence.md` read true for the ADR-007 era and will be updated (not silently rewritten) as Plans B–D land.
 
 ## Replacement rule
 

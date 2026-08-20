@@ -459,7 +459,7 @@ provisioned on 2026-08-20 as a pilot for the Vercel MCP's project-creation
 flow (ADR-009).
 
 **Created:** Project `goproceed-landing` (Vercel ID `prj_hoBlVEmml70Ap5X2alvKtPUToQpj`)
-linked to GitHub repository `akisliy/go-proceed`, root directory `apps/landing`,
+linked to GitHub repository `akisly/go-proceed`, root directory `apps/landing`,
 production branch `main`. Created 2026-08-20 via the Vercel MCP
 (`create_git_project`/`deploy_to_vercel` tools) with the owner watching; no manual
 dashboard configuration was performed.
@@ -495,6 +495,9 @@ change: the dashboard flow still creates projects with the authentication trap.
 
 **Hostname:** `{{LANDING_HOSTNAME}}` remains a token; no custom domain has been
 decided. The canonical `goproceed-landing.vercel.app` is the origin for now.
+
+**Environment variables:** none. `apps/landing` is a static-rendered site with no
+build-time or runtime secrets.
 
 ## 5. Deploy
 
