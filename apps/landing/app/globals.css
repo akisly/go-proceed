@@ -35,6 +35,20 @@
     font-size: var(--gp-size-mkt-body);
     line-height: var(--gp-leading-relaxed);
   }
+
+  a,
+  button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: color-mix(in srgb, var(--color-action-signal) 18%, transparent);
+  }
+
+  .display {
+    text-wrap: balance;
+  }
+
+  .measure {
+    text-wrap: pretty;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

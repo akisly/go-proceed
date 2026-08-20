@@ -170,7 +170,7 @@ export default function KitchenSink() {
         </CrossFade>
       </Case>
 
-      <Case n="10" name="PinnedTabs" rule="Єдиний scroll-jacked елемент на сторінці — і сторінка ніколи не перестає скролитись. Під reduced motion розпинається на чотири секції.">
+      <Case n="10" name="PinnedTabs" rule="Клікабельні вкладки з автоперемиканням і прогресом. Ручний вибір перезапускає інтервал, пауза та reduced motion зупиняють ротацію.">
         <PinnedTabs tabs={TABS} />
       </Case>
     </main>
