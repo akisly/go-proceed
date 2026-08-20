@@ -69,6 +69,21 @@ export type LandingContent = {
     label: string;
     text: string;
   };
+  dashboard: {
+    eyebrow: string;
+    title: string;
+    lead: string;
+    project: string;
+    navigation: readonly { label: string; count?: string }[];
+    summary: readonly { value: string; label: string }[];
+    rows: readonly {
+      code: string;
+      work: string;
+      place: string;
+      evidence: string;
+      state: "Готово" | "На розгляді" | "Заблоковано";
+    }[];
+  };
   evidence: {
     eyebrow: string;
     title: string;
@@ -163,6 +178,56 @@ export const landingContent = {
   statement: {
     label: "Принцип GoProceed",
     text: "Не звіт про те, що роботу нібито виконано. Факти, на яких її можна відповідально закрити.",
+  },
+  dashboard: {
+    eyebrow: "Робочий простір GoProceed",
+    title: "Стан проєкту видно через роботи, вимоги й докази",
+    lead:
+      "Один екран зводить реєстр робіт, чергу розгляду та конкретну причину блокування без втрати первинного контексту.",
+    project: "БЦ Поділ · Електромонтаж",
+    navigation: [
+      { label: "Огляд" },
+      { label: "Реєстр робіт", count: "48" },
+      { label: "Черга доказів", count: "07" },
+      { label: "Вимоги", count: "26" },
+      { label: "Акти", count: "03" },
+    ],
+    summary: [
+      { value: "48", label: "робіт у контурі" },
+      { value: "07", label: "очікують рішення" },
+      { value: "03", label: "блокуючі вимоги" },
+      { value: "12", label: "етапів готові до закриття" },
+    ],
+    rows: [
+      {
+        code: "W-014",
+        work: "Монтаж кабельних трас",
+        place: "ВРУ-1 · Секція А",
+        evidence: "3 / 3",
+        state: "На розгляді",
+      },
+      {
+        code: "W-015",
+        work: "Вогнезахисне проходження",
+        place: "Вісь 6 · поверх 02",
+        evidence: "1 / 2",
+        state: "Заблоковано",
+      },
+      {
+        code: "W-021",
+        work: "Маркування кабельних ліній",
+        place: "Щитова · поверх 01",
+        evidence: "4 / 4",
+        state: "Готово",
+      },
+      {
+        code: "W-027",
+        work: "Заземлення металоконструкцій",
+        place: "Секція Б · підвал",
+        evidence: "2 / 2",
+        state: "Готово",
+      },
+    ],
   },
   evidence: {
     eyebrow: "Один доказовий ланцюг",

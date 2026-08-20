@@ -20,4 +20,38 @@ describe("landing semantic frame", () => {
     expect(html).not.toContain('href="/pilot');
     expect(html).not.toContain("<form");
   });
+
+  it("renders the full evidence workflow in reading order", () => {
+    const workflowStart = html.indexOf('id="workflow"');
+    expect(workflowStart).toBeGreaterThan(-1);
+
+    let previous = workflowStart;
+    for (const label of ["Робота", "Вимога", "Доказ", "Рішення", "Закриття", "Акт"]) {
+      const next = html.indexOf(label, previous + 1);
+      expect(next).toBeGreaterThan(previous);
+      previous = next;
+    }
+
+    expect(html).toContain("Блокуюча вимога не дозволяє записати етап закритим");
+  });
+
+  it("server-renders every product-tour chapter for reduced-motion access", () => {
+    for (const title of [
+      "Команда знає критерій до того, як він стане проблемою",
+      "Майстер бачить не форму, а наступний потрібний доказ",
+      "Нагляд отримує рівно той контекст, який потрібен для рішення",
+      "Чернетка акта збирається з зафіксованих фактів",
+    ]) {
+      expect(html).toContain(title);
+    }
+  });
+
+  it("shows the product as a real dashboard and a field application", () => {
+    expect(html).toContain('aria-label="Огляд робочого простору GoProceed"');
+    expect(html).toContain("Реєстр робіт");
+    expect(html).toContain("Черга доказів");
+    expect(html).toContain("Інспектор вимоги");
+    expect(html).toContain("Польовий застосунок");
+    expect(html).toContain("2 з 3 матеріалів додано");
+  });
 });
