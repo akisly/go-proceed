@@ -1,6 +1,23 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useReducedMotion } from "motion/react";
+
+type ReducedMotionState = {
+  hydrated: boolean;
+  preference: boolean | null;
+};
+
+/**
+ * The server cannot read a media query. Keep the server and the first client
+ * render on the same conservative branch, then honour the real preference
+ * after hydration. Without this gate Motion can return `null` on the server
+ * and `false` on the first client render, which swaps entire element trees and
+ * causes a hydration mismatch.
+ */
+export function shouldReduce({ hydrated, preference }: ReducedMotionState): boolean {
+  return !hydrated || preference !== false;
+}
 
 /**
  * `useReducedMotion()` returns `null` until Motion has read the media query,
@@ -13,5 +30,12 @@ import { useReducedMotion } from "motion/react";
  * direction is the thing the preference exists to prevent.
  */
 export function useReduced(): boolean {
-  return useReducedMotion() !== false;
+  const preference = useReducedMotion();
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
+
+  return shouldReduce({ hydrated, preference });
 }
