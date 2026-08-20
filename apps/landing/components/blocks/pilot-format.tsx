@@ -8,7 +8,14 @@ const content = landingContent.pilot;
 
 export function PilotFormat() {
   return (
-    <SectionShell id="pilot" eyebrow={content.eyebrow} title={content.title} lead={content.lead} className="bg-canvas">
+    <SectionShell
+      id="pilot"
+      eyebrow={content.eyebrow}
+      title={content.title}
+      lead={content.lead}
+      className="border-y border-line-inverse bg-inverse"
+      inverse
+    >
       <div className="grid overflow-hidden rounded-section border border-line-strong bg-surface shadow-float wide:grid-cols-[0.82fr_1.18fr]">
         <Reveal y={0} className="relative min-h-[520px] overflow-hidden border-b border-line wide:border-b-0 wide:border-r">
           <Image
@@ -27,7 +34,7 @@ export function PilotFormat() {
 
         <div className="p-6 md:p-10">
           <p className="index-label text-ink-muted">Склад контуру</p>
-          <Stagger className="mt-6 divide-y divide-line border-y border-line">
+          <Stagger className="mt-6 divide-y divide-line-strong border-y border-line-strong">
             {content.scope.map((item, index) => (
               <StaggerItem key={item} y={8}>
                 <div className="grid grid-cols-[46px_1fr] gap-4 py-4">
@@ -39,6 +46,7 @@ export function PilotFormat() {
           </Stagger>
           <p className="mt-7 text-data leading-relaxed text-ink-muted">{content.result}</p>
           <MockAction className="mt-8 min-w-44">{content.action}</MockAction>
+          <p className="mt-3 text-meta text-ink-muted">{landingContent.final.note}</p>
         </div>
       </div>
     </SectionShell>

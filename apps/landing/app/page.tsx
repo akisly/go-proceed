@@ -2,10 +2,8 @@ import { EvidenceChain } from "../components/blocks/evidence-chain";
 import { EvidenceIntegrity } from "../components/blocks/evidence-integrity";
 import { Faq } from "../components/blocks/faq";
 import { FieldMobile } from "../components/blocks/field-mobile";
-import { FinalCta } from "../components/blocks/final-cta";
 import { Footer } from "../components/blocks/footer";
 import { Hero } from "../components/blocks/hero";
-import { MoneyOutcome } from "../components/blocks/money-outcome";
 import { NavFloat } from "../components/blocks/nav-float";
 import { Comparison } from "../components/blocks/comparison";
 import { PilotFormat } from "../components/blocks/pilot-format";
@@ -26,16 +24,14 @@ export default function LandingPage() {
       <main id="main-content" tabIndex={-1} className="overflow-x-clip">
         <Hero />
         <ProofStrip />
-        <MoneyOutcome />
         <EvidenceChain />
         <ProductTour />
         <FieldMobile />
         <RolesDossier />
         <Comparison />
         <EvidenceIntegrity />
-        <PilotFormat />
         <Faq />
-        <FinalCta />
+        <PilotFormat />
       </main>
       <Footer />
     </>

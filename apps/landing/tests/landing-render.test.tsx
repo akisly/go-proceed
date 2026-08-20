@@ -73,6 +73,22 @@ describe("landing semantic frame", () => {
     expect(html).toContain('data-tour-progress="true"');
   });
 
+  it("lets each product-tour chapter define its natural height", () => {
+    const tourStart = html.indexOf('data-tour-mode="timed-tabs"');
+    const tourEnd = html.indexOf("</section>", tourStart);
+    const tourHtml = html.slice(tourStart, tourEnd);
+
+    expect(tourStart).toBeGreaterThan(-1);
+    expect(tourHtml).not.toContain("min-h-[560px]");
+    expect(tourHtml).not.toContain("min-h-[620px]");
+    expect(tourHtml).not.toContain("min-h-[480px]");
+  });
+
+  it("renders the workflow as one semantic evidence timeline", () => {
+    expect(html).toContain('data-evidence-timeline="true"');
+    expect(html).toContain('aria-label="Доказовий ланцюг"');
+  });
+
   it("gives each project role a concrete decision dossier", () => {
     for (const role of [
       "Власник або комерційний директор",
@@ -101,5 +117,16 @@ describe("landing semantic frame", () => {
     expect(html).toContain("Кнопка у цьому макеті не надсилає дані");
     expect(html).toContain("Візуальний макет продукту");
     expect(html).toContain("<footer");
+  });
+
+  it("removes repeated framing and finishes with the single pilot section", () => {
+    expect(html).not.toContain("Переробка починається там, де вимога існує окремо від виконання");
+    expect(html).not.toContain("Перевірте, чи може ваша команда закривати етапи на підставі фактів");
+
+    const faqStart = html.indexOf('id="faq"');
+    const pilotStart = html.indexOf('id="pilot"');
+    expect(faqStart).toBeGreaterThan(-1);
+    expect(pilotStart).toBeGreaterThan(faqStart);
+    expect(html.match(/id="pilot"/g)).toHaveLength(1);
   });
 });

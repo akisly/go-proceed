@@ -32,7 +32,7 @@ export function ProductTour() {
 
 function TourPanel({ chapter, children }: { chapter: TourChapter; children: React.ReactNode }) {
   return (
-    <div className="grid h-full min-h-[480px] items-center gap-8 py-4 wide:grid-cols-[0.72fr_1.28fr]">
+    <div className="grid items-center gap-8 py-4 wide:grid-cols-[0.72fr_1.28fr]">
       <div>
         <p className="index-label text-ink-muted">{chapter.label} · {chapter.hint}</p>
         <h3 className="display mt-4 max-w-[17ch] text-mkt-display-3 text-ink">{chapter.title}</h3>

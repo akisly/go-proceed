@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
-import { motion } from "motion/react";
+import { motion, useInView } from "motion/react";
 import { DURATION, EASE } from "./tokens";
 import { useReduced } from "./use-reduced";
 
@@ -16,6 +16,17 @@ type PinnedTabsProps = { tabs: PinnedTab[]; className?: string | undefined };
 
 const AUTO_ADVANCE_SECONDS = 6;
 
+type AutoAdvanceState = {
+  auto: boolean;
+  reduced: boolean;
+  inView: boolean;
+  tabCount: number;
+};
+
+export function shouldAutoAdvance({ auto, reduced, inView, tabCount }: AutoAdvanceState): boolean {
+  return auto && !reduced && inView && tabCount > 1;
+}
+
 /**
  * A timed product tour with direct tab control.
  *
@@ -29,9 +40,11 @@ export function PinnedTabs({ tabs, className }: PinnedTabsProps) {
   const [active, setActive] = useState(0);
   const [cycle, setCycle] = useState(0);
   const [auto, setAuto] = useState(true);
+  const tourRef = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const inView = useInView(tourRef, { amount: 0.35 });
 
-  const autoRuns = auto && !reduced && tabs.length > 1;
+  const autoRuns = shouldAutoAdvance({ auto, reduced, inView, tabCount: tabs.length });
 
   useEffect(() => {
     if (!autoRuns) return;
@@ -64,7 +77,7 @@ export function PinnedTabs({ tabs, className }: PinnedTabsProps) {
   }
 
   return (
-    <div data-tour-mode="timed-tabs" className={className}>
+    <div ref={tourRef} data-tour-mode="timed-tabs" className={className}>
       <div className="mb-4 flex justify-end">
         <button
           type="button"
@@ -76,8 +89,8 @@ export function PinnedTabs({ tabs, className }: PinnedTabsProps) {
           }}
           className="inline-flex min-h-11 items-center gap-2 rounded-control border border-line px-3 text-meta font-medium text-ink-muted transition-colors duration-fast ease-out hover:border-line-strong hover:text-ink"
         >
-          <span aria-hidden="true" className="font-mono text-micro">{autoRuns ? "Ⅱ" : "▶"}</span>
-          {autoRuns ? "Пауза" : "Авто"}
+          <span aria-hidden="true" className="font-mono text-micro">{auto ? "Ⅱ" : "▶"}</span>
+          {auto ? "Пауза" : "Авто"}
         </button>
       </div>
 
@@ -122,7 +135,11 @@ export function PinnedTabs({ tabs, className }: PinnedTabsProps) {
         })}
       </div>
 
-      <div className="mt-8 min-h-[560px] wide:min-h-[620px]">
+      <motion.div
+        layout="size"
+        className="mt-8"
+        transition={reduced ? { duration: 0 } : { layout: { duration: DURATION.base, ease: EASE.soft } }}
+      >
         {tabs.map((tab, index) => (
           <div
             key={tab.id}
@@ -141,7 +158,7 @@ export function PinnedTabs({ tabs, className }: PinnedTabsProps) {
             </motion.div>
           </div>
         ))}
-      </div>
+      </motion.div>
     </div>
   );
 }

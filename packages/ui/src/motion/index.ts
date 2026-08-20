@@ -17,7 +17,7 @@ export { LineDraw } from "./LineDraw";
 export { NodeLock } from "./NodeLock";
 export { CountUp } from "./CountUp";
 export { Marquee } from "./Marquee";
-export { PinnedTabs, type PinnedTab } from "./PinnedTabs";
+export { PinnedTabs, shouldAutoAdvance, type PinnedTab } from "./PinnedTabs";
 export { Lift } from "./Lift";
 export { Press } from "./Press";
 export { CrossFade } from "./CrossFade";

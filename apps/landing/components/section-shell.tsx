@@ -33,7 +33,7 @@ export function SectionShell({
           <header className="mb-12 md:mb-16">
             {eyebrow && <p className={`index-label mb-4 ${muted}`}>{eyebrow}</p>}
             {title && (
-              <h2 className={`display max-w-[19ch] text-mkt-display-2 ${ink} ${headingClassName}`}>
+              <h2 className={`display max-w-[24ch] text-mkt-display-2 ${ink} ${headingClassName}`}>
                 {title}
               </h2>
             )}
