@@ -22,7 +22,8 @@
         "EXTERNAL_LINK_HMAC_KEYS",
         "EXTERNAL_LINK_ACTIVE_KEY_ID",
         "EXTERNAL_SESSION_HMAC_KEYS",
-        "EXTERNAL_SESSION_ACTIVE_KEY_ID"
+        "EXTERNAL_SESSION_ACTIVE_KEY_ID",
+        "FIELD_CLIENT_ORIGINS"
       ]
     },
     "typecheck": {
