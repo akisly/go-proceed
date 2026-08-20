@@ -500,6 +500,89 @@ decided. The canonical `goproceed-landing.vercel.app` is the origin for now.
 **Environment variables:** none. `apps/landing` is a static-rendered site with no
 build-time or runtime secrets.
 
+### 4.5 `apps/mobile` — the field client (`goproceed-field`)
+
+**Created:** Project `goproceed-field` (Vercel ID `prj_q0pHp3k54YSlqw0CZUIylZ56FGBg`)
+linked to GitHub repository `akisly/go-proceed`, root directory `apps/mobile`,
+production branch `main`. Created 2026-08-21 via the Vercel MCP, **link-only** —
+the same creation path §4.4 used for `goproceed-landing`, and with the same
+consequence that follows from it: `apps/mobile/vercel.json` (Task 7, commit
+`ed94d19`) exists only on branch `claude/expo-field-client`, not on `main`. A
+build triggered from `main` today is doomed before it starts — there is no
+build/install command for Vercel to detect, because the config arrives WITH
+the branch, at merge. The first real deploy waits on two things together:
+the owner's environment steps below, and this branch's PR merging.
+
+**Deployment Protection, read back:** all OFF. Same MCP-created pattern §4.4
+already recorded for `goproceed-landing` (`ssoProtection.enabled=false`) — a
+project created through the Vercel MCP does not ship with Vercel
+Authentication on, unlike the dashboard-created default that traps
+`apps/app` in §5 step 4. No dashboard action is needed for this setting on
+`goproceed-field` either.
+
+**The `vercel.json` contract** (`apps/mobile/vercel.json`):
+
+```json
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "buildCommand": "cd ../.. && pnpm --filter @goproceed/tokens generate && pnpm --filter @goproceed/mobile exec expo export --platform web && node apps/mobile/scripts/set-html-lang.mjs",
+  "outputDirectory": "dist",
+  "cleanUrls": true,
+  "rewrites": [{ "source": "/:path*", "destination": "/" }]
+}
+```
+
+Three moving parts, in build order. `expo export --platform web` produces a
+SPA — this project sets no explicit `web.output`, so Expo's default `single`
+mode applies, one `index.html` for every route — hence the `rewrites` entry
+sending every path back to it. `pnpm --filter @goproceed/tokens generate`
+runs first so the exported bundle carries current tokens. `node
+apps/mobile/scripts/set-html-lang.mjs` runs LAST, as a post-export patch —
+and **not the first thing tried.** Expo Router's documented root-document
+customization point is `src/app/+html.tsx`; it was tried first and measured,
+not assumed, to do nothing here: with that file in place, `expo export
+--platform web` produced a `dist/index.html` byte-identical to the one
+produced without it — still `lang="en"`. The docs describe `+html.tsx` under
+STATIC rendering (`web.output: "static"`); this project runs the default
+`single` (SPA) mode, which does not honour the file at all. So the script is
+the honest fallback: a direct string replacement on the one `index.html` a
+`single`-mode export produces, and it fails loudly (`process.exit(1)`) if the
+`lang="en"` pattern it targets is absent, rather than shipping the wrong
+`<html lang>` silently.
+
+**Owner's dashboard steps, still to run — verbatim.**
+
+On `goproceed-field` → Settings → Environment Variables, **Production**, all
+three, and they must be present at **BUILD time** — Metro inlines
+`EXPO_PUBLIC_*` the same way Next.js inlines `NEXT_PUBLIC_*` (§4.2 step 4);
+setting them only after a build already happened is too late:
+
+- `EXPO_PUBLIC_SUPABASE_URL=https://asrvzhjaueyvrfozxpzo.supabase.co`
+- `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_DheHWf443RiuOjXMu0AkZw_rAwhG3wt`
+- `EXPO_PUBLIC_API_ORIGIN=https://goproceed-app.vercel.app`
+
+On `goproceed-app` → add `FIELD_CLIENT_ORIGINS=https://goproceed-field.vercel.app`
+(Production), then redeploy. Plan B's CORS layer (§4.3's `FIELD_CLIENT_ORIGINS`
+row) is unset-means-off, so `/v1` will not answer the field client
+cross-origin until this is set and a deployment carrying it is live.
+
+Then two curls verify the wire, not just the dashboard settings:
+
+```bash
+curl -i -X OPTIONS https://goproceed-app.vercel.app/v1/projects \
+  -H "Origin: https://goproceed-field.vercel.app" \
+  -H "Access-Control-Request-Method: GET"
+# expect Access-Control-Allow-Origin: https://goproceed-field.vercel.app (echoed, not *)
+
+curl -i https://goproceed-field.vercel.app/
+# expect 200 text/html; charset=utf-8, with <html lang="uk" in the body
+```
+
+**Hostname:** `*.vercel.app`, like the other two pilot surfaces — no custom
+domain has been decided for this one either (§0).
+
 ## 5. Deploy
 
 1. **Attach the domain first**: Project Settings → Domains → add
@@ -653,7 +736,11 @@ timings) — a checked box with no evidence is not verification.
 
 9. **Open the field client on a real phone, at the real origin.** This is
    the step the earlier eight cannot substitute for, and the reason ADR-007
-   requires physical devices. **Before it: custom SMTP.** Read from the
+   requires physical devices. **Dated pointer, 2026-08-21:** per ADR-009,
+   the five boxes below are now measured against the Expo client at
+   `goproceed-field` (§4.5) on these same two phones, not against this PWA —
+   the PWA remains the pilot's deployed field client in service until that
+   measurement passes. **Before it: custom SMTP.** Read from the
    current Supabase docs on 2026-08-19
    (https://supabase.com/docs/guides/auth/auth-smtp): the default email
    service is «2 messages per hour» and «Unless you configure a custom SMTP
