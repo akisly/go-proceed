@@ -9,19 +9,6 @@
         "dist/**",
         ".next/**"
       ],
-      // EVERY VARIABLE apps/app/scripts/deploy-preflight.mjs CHECKS MUST BE LISTED
-      // HERE, OR THE PREFLIGHT CANNOT SEE IT. Turborepo runs tasks in strict env
-      // mode by default: a variable that is set in the process (or on the Vercel
-      // project) but not declared in turbo.json is simply absent inside the task,
-      // and the `prebuild` hook is inside the task. Measured 2026-08-19 on the
-      // first real Vercel build: nine runtime variables were set on the project
-      // and the preflight reported all nine "unset", because only the three
-      // NEXT_PUBLIC_* below were declared. `env` rather than `passThroughEnv` on
-      // purpose — the preflight's verdict is a function of these values, so they
-      // belong in the task hash: a build cached with a complete environment must
-      // not be replayed after a variable was removed from the project, which is
-      // exactly what passThroughEnv (not hashed) would allow.
-      // https://turborepo.dev/docs/reference/configuration#env (turbo 2.10.11)
       "env": [
         "NEXT_PUBLIC_SUPABASE_URL",
         "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",

@@ -1,26 +1,230 @@
-/* Base styles — NOT tokens. These two rules used to be smuggled into the
-   hand-maintained packages/ui/src/tokens.css alongside its custom-property
-   declarations. That file is gone: tokens are now generated from
-   packages/tokens/src/tokens.json (see ./tokens.generated.css) and a
-   generator's job is a flat `:root { --token: value }` block, nothing more
-   — it has no way to know that a token should also be applied to `body` or
-   to headings. These rules are the part of the old file that was never a
-   token in the first place: they apply generated custom properties to
-   selectors. They stay hand-maintained here, by their documented names
-   (docs/legacy/05-design-system.md), separate from the generated values they
-   reference.
+/* GoProceed — base layer. HAND-MAINTAINED.
+ *
+ * This is the one CSS file in the design system a human edits. Everything it
+ * references comes from packages/tokens/src/tokens.json via the two generated
+ * files imported below; nothing here introduces a value.
+ *
+ * ENTRY POINT
+ * -----------
+ * An app imports this file and nothing else:
+ *
+ *     @import "@goproceed/ui/base.css";
+ *     @source not "../tests";        <- per app, see WHY SOURCES ARE PER-APP
+ *
+ * ORDER MATTERS AND IS NOT NEGOTIABLE
+ * -----------------------------------
+ * `@import "tailwindcss"` first, then the theme, then this file's own rules.
+ * v1 recorded what happens when a stylesheet arrives UNLAYERED: an unlayered
+ * author declaration beats a layered one outright at any specificity, so
+ * `a { color: inherit }` beat every text-* utility and
+ * `button,input,select { font: inherit }` beat every font-size utility —
+ * silently, with nothing warning. Everything below is either inside a layer or
+ * deliberately outside one, and each deliberate case says why.
+ */
 
-   A consumer that wants both the custom properties and this base styling
-   must import both: "@goproceed/ui/tokens.css" for the tokens,
-   "@goproceed/ui/base.css" for this. */
+@import "tailwindcss";
+@import "./theme.generated.css";
 
-body {
-  font-family: "Inter Variable", Inter, sans-serif;
-  color: var(--ink-950);
-  background: var(--paper);
-  font-synthesis: none;
+/* ---------------------------------------------------------------------------
+ * Variants
+ * ------------------------------------------------------------------------ */
+
+/* Scoped rather than global: `:where()` keeps specificity at zero, and matching
+ * the element itself as well as its descendants means a single dark island —
+ * one panel, one preview — works without a wrapper. theme.generated.css maps
+ * roles with `@theme inline` precisely so this resolves at the element.
+ * D6: nothing sets data-theme in v1. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
+/* `rail-icons` — the 768..1240 band where the rail is icons-only — is declared
+ * in theme.generated.css, because writing it here would mean typing 768 and
+ * 1240 a second time. Every number in this file comes from a token or it does
+ * not appear.
+ */
+
+/* WCAG 2.5.5's 44px floor is about the pointing device, not the viewport, and
+ * Tailwind now has the capability query for it. Breakpoints stay the primary
+ * contract because the shell's three states are defined by width; this exists
+ * so a touch laptop at 1440px still gets a target a gloved hand can hit. */
+@custom-variant touch (@media (pointer: coarse));
+
+/* ---------------------------------------------------------------------------
+ * Base
+ * ------------------------------------------------------------------------ */
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--gp-bg-canvas);
+    color: var(--gp-text-primary);
+    font-family: var(--gp-font-sans);
+    font-feature-settings: var(--gp-font-features);
+    font-synthesis: none;
+    letter-spacing: var(--gp-tracking-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Every figure this product exists to surface is tabular. 620/620 and
+   * 180/150 must differ in SHAPE when their digits share a right edge — that
+   * is what makes a shortfall scannable, and it is why the serif never touches
+   * a number. Applied to the elements that carry figures rather than globally,
+   * because tabular figures in running prose are worse than proportional. */
+  th, td, output, time, data {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* One focus treatment for the whole product. Not a per-variant decision:
+   * a button variant that ships its own ring is a variant that can disagree
+   * with the rest of the system, and this one has to survive being read on a
+   * construction site in daylight. */
+  :focus-visible {
+    outline: var(--gp-focus-ring-width) solid var(--gp-border-focus);
+    outline-offset: var(--gp-focus-ring-offset);
+  }
+
+  /* The display face is opt-in, never inherited. It is marketing-only, never
+   * below --text-mkt-display-3, never inside the application shell, never on a
+   * figure — so it is attached to a class rather than to h1/h2, which the app
+   * also uses. */
+  .display {
+    font-family: var(--gp-font-display);
+    font-weight: var(--gp-font-weight-semibold);
+    letter-spacing: var(--gp-tracking-tighter);
+    line-height: var(--gp-leading-display);
+  }
 }
 
-h1, h2, h3, .brand, strong {
-  font-family: "Manrope Variable", Manrope, sans-serif;
+/* ---------------------------------------------------------------------------
+ * Utilities
+ * ------------------------------------------------------------------------ */
+
+/* `@utility` rather than a class in @layer utilities: only @utility composes
+ * with variants, so `md:index-label` and `dark:blueprint` work. */
+
+@utility tabular {
+  font-variant-numeric: tabular-nums;
 }
+
+/* The index motif — «П. 03 · ДОКАЗИ», «EV-2026-0184», «FIG 0.2». Mono,
+ * uppercase, tracked. Linear uses exactly this device on its marketing site
+ * and it is what makes an indexed document read as an instrument rather than
+ * as a brochure. */
+@utility index-label {
+  font-family: var(--gp-font-mono);
+  font-size: var(--gp-size-mkt-index);
+  font-weight: var(--gp-font-weight-medium);
+  letter-spacing: var(--gp-tracking-wide);
+  line-height: var(--gp-leading-none);
+  text-transform: uppercase;
+  color: var(--gp-text-muted);
+}
+
+/* Reading measure for a marketing paragraph. */
+@utility measure {
+  max-width: var(--gp-container-measure);
+}
+
+/* The drawing-sheet guides: a dashed rule at the container edge with a dot at
+ * each section boundary. Structural, aria-hidden, and the one decorative
+ * element the system permits — on a construction-evidence product a drawing
+ * sheet is not ornament. Suppressed below md, where there is no margin to draw
+ * it in. */
+@utility blueprint {
+  /* `@variant` rather than a hand-written media query: the breakpoint is a
+   * token, and `md` is what resolves it. */
+  @variant md {
+    border-inline: 1px dashed var(--gp-border-subtle);
+  }
+}
+
+/* Marquee track. The duplicated half scrolls exactly its own width, so the
+ * seam is invisible without measuring anything in JS. */
+/* The ribbon's container: clips the track and fades both edges, so the loop
+ * has no visible seam and nothing appears to be cut off mid-word. 64px is one
+ * logo's worth of runway at the sizes this is used at. */
+@utility marquee-mask {
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 64px,
+    black calc(100% - 64px),
+    transparent
+  );
+}
+
+@utility marquee-track {
+  animation: gp-marquee var(--gp-duration-marquee) linear infinite;
+  &:hover { animation-play-state: paused; }
+}
+
+/* Duration utilities are named rather than numeric. `duration-150` would
+ * compile perfectly and mean nothing; `duration-fast` is the 160ms that the
+ * whole system's hover and press feedback shares, and changing it changes it
+ * everywhere at once. Tailwind has no --duration-* theme namespace, so these
+ * are declared here rather than generated into one. */
+@utility duration-instant { transition-duration: var(--gp-duration-instant); }
+@utility duration-fast { transition-duration: var(--gp-duration-fast); }
+@utility duration-base { transition-duration: var(--gp-duration-base); }
+@utility duration-slow { transition-duration: var(--gp-duration-slow); }
+@utility duration-deliberate { transition-duration: var(--gp-duration-deliberate); }
+
+@theme {
+  --animate-chip-in: gp-chip-in var(--gp-duration-fast) var(--gp-ease-out);
+
+  @keyframes gp-chip-in {
+    from { opacity: 0; transform: scale(0.96); }
+    to   { opacity: 1; transform: none; }
+  }
+
+  /* Never from scale(0): enter from .96, not from nothing. */
+  @keyframes gp-marquee {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * Reduced motion — DELIBERATELY UNLAYERED
+ * ---------------------------------------------------------------------------
+ * `!important` inverts layer order: the LOWEST layer wins. Put this block in
+ * `base` and it loses to any `!important` rule in a lower layer, including the
+ * legacy sheet's own. Unlayered, it beats everything. That is why it sits
+ * outside every layer and why it must stay there.
+ *
+ * The rule is not "no motion". It is: opacity only, at or under 120ms, no
+ * transform, no blur, no scroll-linking, marquee frozen, counters at their
+ * final value. Motion primitives read the same preference in JS and skip the
+ * animation entirely rather than running it fast.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 120ms !important;
+    transition-property: opacity !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * WHY SOURCES ARE PER-APP
+ * ---------------------------------------------------------------------------
+ * Tailwind v4 auto-detects candidates across the whole project, and it does
+ * not distinguish a test from a component. v1 recorded the consequence:
+ * deliberately-unapproved colours written as fixtures inside tests/palette.test.ts
+ * were found by the scanner and emitted as real CSS into the production
+ * bundle. The colour guard caught it. Every app must exclude its own test and
+ * QA sources:
+ *
+ *     @source not "../tests";
+ *     @source not "../qa";
+ *
+ * and no test may contain a literal Tailwind class string — assemble fixtures
+ * at runtime instead.
+ */

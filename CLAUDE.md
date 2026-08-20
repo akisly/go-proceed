@@ -23,6 +23,34 @@ Do not let gstack expand an already approved scope.
 Do not let QA automatically modify auth, RLS, grants, or migration code.
 When workflows conflict, the approved design and implementation plan take precedence.
 
+## UI and the design system
+
+Touching `apps/landing/**`, `apps/app/app/**`, `packages/ui/**` or
+`packages/tokens/**` — read **`docs/design/02-building-ui.md` first**. It is the
+procedure, not background: read order, which skills to use and which to refuse,
+the substitution table, and the gate. Reviewing UI counts as touching it.
+
+Not loaded here on purpose. It is 300+ lines and most work in this repo is not
+UI; inlining it would spend context on every migration and every route handler.
+
+Five things that hold even if you read nothing else:
+
+1. **Name a role, never a value.** `bg-canvas`, not `bg-neutral-25`, never a hex.
+   A ramp step is not reachable as a utility and a raw `var(--gp-neutral-*)`
+   fails a test. If no role means what you mean, you found a missing role.
+2. **Never edit a file whose header says GENERATED.** Edit
+   `packages/tokens/src/tokens.json`, then `pnpm --filter @goproceed/tokens generate`.
+   Colours there are OKLCH triples; the hex is output.
+3. **Animation comes from `@goproceed/ui/motion`.** Importing `motion/react`
+   anywhere else fails the build. Reduced motion is a different animation, never
+   a faster one.
+4. **Never write a Tailwind class as a template literal** (`bg-${tone}`). The
+   scanner sees the template, not the class, and emits no CSS — the element
+   renders unstyled with nothing warning.
+5. **Before saying done, run the five commands in that file's §5 and paste the
+   output.** A UI change that compiles is not a UI change that works: a class
+   that does not exist produces no error, only an unstyled element.
+
 ## Third-party libraries and services: current docs first, never memory
 
 Before implementing, configuring, or advising on ANY external library, SDK,

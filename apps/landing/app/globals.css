@@ -1,0 +1,30 @@
+/* apps/landing — the whole stylesheet.
+ *
+ * The design system arrives as one import. Everything else in this file is
+ * either a source exclusion (which is per-app by necessity) or a font
+ * declaration (which is per-app because only this app loads the display face).
+ *
+ * There is no `@theme` block here and there must not be. Tokens live in
+ * packages/tokens/src/tokens.json and reach CSS through generators; a token
+ * declared in an app is a token that exists on one platform.
+ */
+
+@import "@goproceed/ui/base.css";
+
+/* Tailwind v4 scans the whole project and does not distinguish a test from a
+ * component. v1 recorded the consequence: deliberately-unapproved colours
+ * written as fixtures inside a test file were found by the scanner and emitted
+ * as real CSS into the production bundle. */
+@source not "../tests";
+@source not "../.next";
+
+/* The display face is loaded here and nowhere else. It is marketing-only —
+ * never below --text-mkt-display-3, never inside the application shell, never
+ * on a figure — so the ~40 KB it costs is a cost this app pays and apps/app
+ * does not. */
+@layer base {
+  body {
+    font-size: var(--gp-size-mkt-body);
+    line-height: var(--gp-leading-relaxed);
+  }
+}

@@ -1,0 +1,97 @@
+{
+  "version": "2.0.0",
+  "date": "2026-07-30T12:03:50Z",
+  "mode": "daily",
+  "scope": "auth-rls-external-link-storage",
+  "diff_mode": false,
+  "phases_run": [0, 1, 2, 3, 4, 9, 12, 13, 14],
+  "attack_surface": {
+    "code": { "public_endpoints": 0, "authenticated": 2, "admin": 0, "api": 2, "uploads": 0, "integrations": 1, "background_jobs": 1, "websockets": 0 },
+    "infrastructure": { "ci_workflows": 1, "webhook_receivers": 0, "container_configs": 0, "iac_configs": 0, "deploy_targets": 1, "secret_management": "env vars (dev-only values committed as examples; no real secrets found)" }
+  },
+  "findings": [
+    {
+      "id": 1,
+      "severity": "HIGH",
+      "confidence": 9,
+      "status": "VERIFIED",
+      "phase": 4,
+      "phase_name": "CI/CD Pipeline Security",
+      "category": "CI/CD",
+      "fingerprint": "cicd-github-workflows-ci-yml-unpinned-third-party-actions",
+      "title": "Third-party GitHub Actions pinned by tag, not SHA; no explicit permissions block",
+      "file": ".github/workflows/ci.yml",
+      "line": 28,
+      "commit": "abdad52",
+      "description": "pnpm/action-setup@v4 (line 28, also 76) and supabase/setup-cli@v1 (line 36) are third-party actions pinned by mutable tag. actions/checkout@v4, actions/setup-node@v4, actions/setup-python@v5, actions/upload-artifact@v4 are first-party (MEDIUM by FP rule). The workflow has no top-level permissions: block, so the default GITHUB_TOKEN permissions apply on push builds.",
+      "exploit_scenario": "1) Attacker compromises the pnpm/action-setup or supabase/setup-cli repo or its tag. 2) Re-points the v4/v1 tag at a malicious commit. 3) Next CI run on this repo executes attacker code on the runner with the default GITHUB_TOKEN, which without a permissions: block can have contents write on push builds - enough to push commits or tamper with artifacts.",
+      "impact": "Supply-chain code execution in CI; possible repo write via default GITHUB_TOKEN. No repository secrets are exposed in this workflow (only local dev values), which limits blast radius.",
+      "recommendation": "Pin third-party actions to full commit SHAs (uses: pnpm/action-setup@<sha> # v4). Add a top-level 'permissions: contents: read' block to ci.yml. Optionally add CODEOWNERS on .github/workflows/.",
+      "playbook": "",
+      "verification": "self-verified - lines read directly; no repo secrets referenced anywhere in the workflow"
+    },
+    {
+      "id": 2,
+      "severity": "MEDIUM",
+      "confidence": 8,
+      "status": "VERIFIED",
+      "phase": 2,
+      "phase_name": "Secrets Archaeology",
+      "category": "Secrets",
+      "fingerprint": "secrets-supabase-seed-sql-committed-dev-password-branching-path",
+      "title": "Committed dev password 'app_pw' + [db.seed] enabled = true leaves a live path to reseeding an internet-reachable preview DB with a known password",
+      "file": "supabase/seed.sql",
+      "line": 25,
+      "commit": "abdad52",
+      "description": "supabase/seed.sql ends with: alter role aktflow_app_login password 'app_pw'; and supabase/config.toml:62 has [db.seed] enabled = true. The repo's own comments (seed.sql, 0003_roles_and_grants.sql, ci.yml, .env.example) document that supabase db push --include-seed, supabase db reset --linked --include-seed, and Supabase Branching preview branches (automatically, no flag) all apply seed.sql. aktflow_app membership is full tenant-table read/write. The documented mitigation ('set [db.seed] enabled = false before enabling Branching') is procedural only; the safe default is not applied and nothing enforces it.",
+      "exploit_scenario": "1) Team later enables Supabase Branching (or an operator runs a documented-forbidden --include-seed command against a hosted project). 2) The preview/hosted DB is reseeded, setting aktflow_app_login's password to the public value 'app_pw' on an internet-reachable pooler endpoint. 3) Anyone who read this public-repo-style file connects as aktflow_app_login, does set role aktflow_app, sets app.actor_user_id to any value, and reads/writes every tenant table (RLS policies key off a self-declared GUC for this trusted role).",
+      "impact": "Full cross-tenant read/write on any database where seed.sql is ever applied while reachable. Currently conditional: the default staging/prod path (plain supabase db push) does not apply seed.sql.",
+      "recommendation": "Remove the password statement from seed.sql entirely. Set the dev/CI password out-of-band instead: a make target or a psql step in ci.yml and local setup (psql \"$SUPABASE_DB_URL\" -c \"alter role aktflow_app_login password 'app_pw'\") that Supabase tooling can never auto-apply. Alternatively at minimum flip [db.seed] enabled = false and pass seed explicitly where needed. This converts a documented do-not-run rule into a structural impossibility.",
+      "playbook": "If seed.sql is ever applied to a hosted project: 1) alter role aktflow_app_login password to a fresh secret immediately; 2) audit pg_stat_activity / connection logs for aktflow_app_login logins during the exposure window; 3) review audit_events for unexpected writes.",
+      "verification": "self-verified - both motivating lines quoted; application paths confirmed from Supabase CLI behavior documented consistently across four files in the repo"
+    }
+  ],
+  "supply_chain_summary": {
+    "direct_deps": 0,
+    "transitive_deps": 0,
+    "critical_cves": 0,
+    "high_cves": 0,
+    "install_scripts": 0,
+    "lockfile_present": true,
+    "lockfile_tracked": true,
+    "tools_skipped": ["pnpm audit (not run: no network install performed in read-only gate)"]
+  },
+  "filter_stats": {
+    "candidates_scanned": 15,
+    "hard_exclusion_filtered": 6,
+    "confidence_gate_filtered": 7,
+    "verification_filtered": 0,
+    "reported": 2
+  },
+  "totals": { "critical": 0, "high": 1, "medium": 1, "tentative": 0 },
+  "trend": {
+    "prior_report_date": null,
+    "resolved": 0,
+    "persistent": 0,
+    "new": 2,
+    "direction": "first_run"
+  },
+  "notes": {
+    "scope_reality": "External-link protocol and object storage have NO runtime implementation at HEAD abdad52 - they exist only as target design in docs/architecture/. This audit covers the actual runtime slice: supabase/migrations 0001-0005, seed.sql, config.toml, apps/app auth + 2 API routes, packages/database, packages/testing RLS suite, .github/workflows/ci.yml. Target-doc claims were NOT audited as if implemented.",
+    "positive_observations": [
+      "RLS policies deny-by-default: UPDATE/DELETE have no policies on tenant tables, so they are blocked despite table grants",
+      "withTenantTx sets GUCs via parameterized set_config and set local role inside a transaction; nothing leaks to the pooled connection",
+      "requireUser validates tokens server-side via auth.getUser() on both bearer and cookie paths; never trusts client-supplied user ids",
+      "le_insert policy closes cross-tenant legal-entity injection; m_insert bootstrap is race-safe because org+membership commit atomically and the org UUID is unguessable pre-commit",
+      "withIdempotency uses pg_advisory_xact_lock + request-hash conflict detection; replay window surfaced via header",
+      "0003/0005 explicitly strip Supabase default-privilege grants from anon/authenticated and revoke EXECUTE on drain_outbox from browser roles",
+      "Negative RLS tests exist (packages/testing/src/rls.test.ts): cross-tenant select, membership self-insert, legal-entity injection",
+      "No secrets in git history; no tracked .env files; CI uses only local dev values"
+    ],
+    "below_gate_observations": [
+      "config.toml minimum_password_length=6, password_requirements empty - local dev config; hosted project auth settings are managed separately; tighten before real users",
+      "audit_events/transaction_outbox/idempotency_records have no RLS (grants-only protection for trusted BFF role) - acknowledged in-slice by design comments; carry to target v0.1 catalogs",
+      ".gstack/ is not in .gitignore - add it so security reports stay local"
+    ]
+  }
+}

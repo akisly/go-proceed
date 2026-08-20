@@ -4,10 +4,29 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./base.css": "./src/base.css",
+    "./theme.css": "./src/theme.generated.css",
     "./tokens.css": "./src/tokens.generated.css",
-    "./base.css": "./src/base.css"
+    "./motion": "./src/motion/index.ts",
+    "./components": "./src/components/index.ts"
   },
   "scripts": {
-    "typecheck": "echo \"@goproceed/ui: no TypeScript sources yet (tokens-only package)\""
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@goproceed/tokens": "workspace:*",
+    "clsx": "^2.1.1",
+    "motion": "^12.34.0",
+    "radix-ui": "^1.6.7",
+    "tailwind-merge": "^3.6.0"
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.8",
+    "@types/react-dom": "19.2.3",
+    "typescript": "^5.9.3"
   }
 }

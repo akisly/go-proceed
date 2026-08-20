@@ -1,0 +1,1746 @@
+{
+  "$description": "GENERATED from packages/tokens/src/tokens.json — do not edit, and do not treat Figma as the source. Regenerate: node packages/tokens/scripts/generate-dtcg.mjs",
+  "primitive": {
+    "color": {
+      "neutral-0": {
+        "$type": "color",
+        "$value": "#FFFFFF",
+        "$description": "Pure white. The working surface a register sits on — the one place in the system with no warmth at all, so a panel reads as a sheet laid on the canvas rather than as more canvas."
+      },
+      "neutral-25": {
+        "$type": "color",
+        "$value": "#FBFBF9",
+        "$description": "The canvas. Warm by 0.0025 chroma at hue 95 — measurably paper, nowhere near beige. Replaces the neutral #FBFBFB, which had no ramp behind it."
+      },
+      "neutral-50": {
+        "$type": "color",
+        "$value": "#F6F6F3",
+        "$description": "Zebra rows, sunken wells, the ground under an inset control."
+      },
+      "neutral-100": {
+        "$type": "color",
+        "$value": "#EFEEEB",
+        "$description": "Inactive segment, ghost-button hover on canvas, idle status ground."
+      },
+      "neutral-150": {
+        "$type": "color",
+        "$value": "#E7E6E2",
+        "$description": "Hairline inside a surface, and copy on ink (15.22:1 measured against neutral-975)."
+      },
+      "neutral-200": {
+        "$type": "color",
+        "$value": "#DDDCD8",
+        "$description": "The default border. Panel edge, input edge, divider. 1.32:1 against the canvas — visible as structure, invisible as a line you read."
+      },
+      "neutral-300": {
+        "$type": "color",
+        "$value": "#CCCAC6",
+        "$description": "The strong border: table rules and selected outlines, where the default border disappears against a dense grid."
+      },
+      "neutral-400": {
+        "$type": "color",
+        "$value": "#B1AFAB",
+        "$description": "Non-text only on light: disabled fills, and metadata on ink (8.68:1). Never body copy on the canvas — it measures 2.11:1 there."
+      },
+      "neutral-500": {
+        "$type": "color",
+        "$value": "#92918C",
+        "$description": "Metadata floor. 3.05:1 on canvas, so it clears the non-text and large-text threshold and nothing else. Never body text."
+      },
+      "neutral-600": {
+        "$type": "color",
+        "$value": "#6D6C68",
+        "$description": "The body-text floor, and the floor is measured against the DARKEST ground it can land on, not the lightest. At L 0.550 it cleared 4.5:1 on the canvas and on white and failed at 4.46:1 on a zebra row — which is exactly where a register puts its metadata. Measured here: 5.07:1 on canvas, 5.26:1 on surface, 4.85:1 on a subtle fill, 4.53:1 on a muted fill. Muted copy and placeholders stop at this step."
+      },
+      "neutral-700": {
+        "$type": "color",
+        "$value": "#5C5B57",
+        "$description": "Secondary copy, 6.56:1 on canvas. Also the idle status foreground."
+      },
+      "neutral-800": {
+        "$type": "color",
+        "$value": "#444441",
+        "$description": "Hairline on ink; the only border that reads on the inverse surface."
+      },
+      "neutral-900": {
+        "$type": "color",
+        "$value": "#2C2B29",
+        "$description": "Primary-action hover. One step off ink, so the press is felt without the button changing identity."
+      },
+      "neutral-950": {
+        "$type": "color",
+        "$value": "#1A1917",
+        "$description": "The inverse working surface — dark mode's panel, authored now and not shipped (D6)."
+      },
+      "neutral-975": {
+        "$type": "color",
+        "$value": "#11100F",
+        "$description": "Ink. Primary text and, under D1, the primary action fill. 18.35:1 on canvas. Replaces #171717, which was a hue-less grey; this one carries the same warmth as the paper it sits on."
+      },
+      "signal-50": {
+        "$type": "color",
+        "$value": "#F7FDEE",
+        "$description": "Faintest ready wash — a whole row tinted without becoming a chip."
+      },
+      "signal-100": {
+        "$type": "color",
+        "$value": "#E9FECA",
+        "$description": "Ready chip ground. Lands within a rounding error of the legacy readiness-ready surface #EDF8D2, which is the continuity check this ramp had to pass."
+      },
+      "signal-200": {
+        "$type": "color",
+        "$value": "#DDFEA5",
+        "$description": "Ready chip border."
+      },
+      "signal-300": {
+        "$type": "color",
+        "$value": "#D6FE8C",
+        "$description": "Ready foreground in dark mode (8.63:1 on signal-900)."
+      },
+      "signal-400": {
+        "$type": "color",
+        "$value": "#CEFE6C",
+        "$description": "Signal hover. One step lighter than the mark, so hover reads as lift rather than as a different colour."
+      },
+      "signal-500": {
+        "$type": "color",
+        "$value": "#C6FF34",
+        "$description": "THE MARK. Reproduces the legacy Lime #C6FF34 exactly — and not by copying it: #C6FF34 sits precisely on the sRGB gamut boundary at OKLCH L 0.9281 H 125 (measured max chroma 0.2200, its own chroma 0.2198), so the maximum-chroma step of this ramp IS the brand colour. Brand equity survives a full palette revision because the maths landed on it. 16.07:1 against ink both ways: a ground for Carbon and a mark on Carbon. Budget: <=5% of any viewport."
+      },
+      "signal-600": {
+        "$type": "color",
+        "$value": "#99C23D",
+        "$description": "Icon weight on white, where signal-500 is too light to see."
+      },
+      "signal-700": {
+        "$type": "color",
+        "$value": "#6F8D30",
+        "$description": "Mid step. Not for text on white — measures 3.11:1. Kept so the ramp has an even rung, and flagged so nobody reaches for it."
+      },
+      "signal-800": {
+        "$type": "color",
+        "$value": "#526628",
+        "$description": "Ready as TEXT: 6.38:1 on surface, 5.93:1 on signal-100, 6.16:1 on canvas. This step is why --color-accent-ink can be deleted: the old system needed a hand-picked #667F12 because Lime had no dark end."
+      },
+      "signal-900": {
+        "$type": "color",
+        "$value": "#3B4821",
+        "$description": "Ready ground in dark mode."
+      },
+      "amber-50": {
+        "$type": "color",
+        "$value": "#FCF6ED",
+        "$description": "Faintest attention wash."
+      },
+      "amber-100": {
+        "$type": "color",
+        "$value": "#FEEED4",
+        "$description": "Attention chip ground. Within a rounding error of the legacy warning surface #FFF0D3."
+      },
+      "amber-200": {
+        "$type": "color",
+        "$value": "#FCDBA3",
+        "$description": "Attention chip border."
+      },
+      "amber-300": {
+        "$type": "color",
+        "$value": "#F6C97D",
+        "$description": "Attention foreground in dark mode (7.89:1 on amber-900)."
+      },
+      "amber-500": {
+        "$type": "color",
+        "$value": "#F2B84B",
+        "$description": "Reproduces the legacy Amber #F2B84B exactly from its own OKLCH triple (L 0.8165 C 0.1399 H 80). Icon and bar weight; never text."
+      },
+      "amber-600": {
+        "$type": "color",
+        "$value": "#BF8F34",
+        "$description": "Icon on white."
+      },
+      "amber-700": {
+        "$type": "color",
+        "$value": "#916E2D",
+        "$description": "Attention text on a white ground."
+      },
+      "amber-800": {
+        "$type": "color",
+        "$value": "#6B5225",
+        "$description": "Attention text on amber-100 (6.43:1) and the evidence-pending foreground (7.09:1 on canvas)."
+      },
+      "amber-900": {
+        "$type": "color",
+        "$value": "#423319",
+        "$description": "Attention ground in dark mode."
+      },
+      "danger-50": {
+        "$type": "color",
+        "$value": "#FBF4F3",
+        "$description": "Faintest blocked wash."
+      },
+      "danger-100": {
+        "$type": "color",
+        "$value": "#FCE9E6",
+        "$description": "Blocked chip ground."
+      },
+      "danger-200": {
+        "$type": "color",
+        "$value": "#FBD5D1",
+        "$description": "Blocked chip border."
+      },
+      "danger-300": {
+        "$type": "color",
+        "$value": "#F5BAB3",
+        "$description": "Blocked foreground in dark mode (8.00:1 on danger-900)."
+      },
+      "danger-500": {
+        "$type": "color",
+        "$value": "#E45C55",
+        "$description": "Reproduces the legacy Red #E45C55 exactly from its own OKLCH triple (L 0.6484 C 0.1710 H 26). Icon and bar weight."
+      },
+      "danger-600": {
+        "$type": "color",
+        "$value": "#CE2F30",
+        "$description": "The one solid destructive fill: white on it measures 5.16:1. Nothing under /app/** deletes anything, so this exists for the field client and for refusal states, not for a destructive button variant."
+      },
+      "danger-700": {
+        "$type": "color",
+        "$value": "#A02827",
+        "$description": "Blocked text: 6.34:1 on danger-100, 7.17:1 on canvas. Also the evidence-blocking foreground."
+      },
+      "danger-800": {
+        "$type": "color",
+        "$value": "#792623",
+        "$description": "Densest blocked text, for a blocked figure inside a dense table."
+      },
+      "danger-900": {
+        "$type": "color",
+        "$value": "#531E1B",
+        "$description": "Blocked ground in dark mode."
+      },
+      "blue-50": {
+        "$type": "color",
+        "$value": "#F5F7FB",
+        "$description": "Faintest review wash."
+      },
+      "blue-100": {
+        "$type": "color",
+        "$value": "#E8EFFC",
+        "$description": "Review chip ground. Lands on #E8EFFC — the legacy info surface #E8EEFC to within one unit of green, which is the closest continuity in the whole palette."
+      },
+      "blue-200": {
+        "$type": "color",
+        "$value": "#D4E0F9",
+        "$description": "Review chip border."
+      },
+      "blue-300": {
+        "$type": "color",
+        "$value": "#BBCBEB",
+        "$description": "Link colour and review foreground in dark mode."
+      },
+      "blue-500": {
+        "$type": "color",
+        "$value": "#5A7DCE",
+        "$description": "The focus ring. 3.99:1 on surface, clearing the 3:1 non-text threshold with headroom. Every focusable element inside the shell gets this one treatment."
+      },
+      "blue-600": {
+        "$type": "color",
+        "$value": "#3E63BD",
+        "$description": "Links: 5.64:1 on surface."
+      },
+      "blue-700": {
+        "$type": "color",
+        "$value": "#3756A1",
+        "$description": "Reproduces the legacy informational/submitted #3756A1 exactly from its own OKLCH triple. Review text: 6.04:1 on blue-100."
+      },
+      "blue-800": {
+        "$type": "color",
+        "$value": "#274181",
+        "$description": "Densest review text."
+      },
+      "blue-900": {
+        "$type": "color",
+        "$value": "#1B2D5B",
+        "$description": "Review ground in dark mode."
+      },
+      "violet-100": {
+        "$type": "color",
+        "$value": "#F0EBFC",
+        "$description": "Data-visualisation only. Never a status: five statuses is the catalog, and a sixth colour reading as a state is how a legend stops being true."
+      },
+      "violet-200": {
+        "$type": "color",
+        "$value": "#E4DAF9",
+        "$description": "Data-visualisation fill."
+      },
+      "violet-300": {
+        "$type": "color",
+        "$value": "#D0C3EB",
+        "$description": "Data-visualisation on dark."
+      },
+      "violet-500": {
+        "$type": "color",
+        "$value": "#916CCD",
+        "$description": "The fifth categorical series."
+      },
+      "violet-700": {
+        "$type": "color",
+        "$value": "#60438D",
+        "$description": "Fifth series, dense variant."
+      },
+      "violet-900": {
+        "$type": "color",
+        "$value": "#36284D",
+        "$description": "Fifth series ground in dark mode."
+      }
+    },
+    "font": {
+      "display": {
+        "$type": "string",
+        "$value": "'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif",
+        "$description": "D3. Serif display, Cyrillic-complete, variable with an optical-size axis, OFL. Folio and Linear both pair a serif display (Tiempos Headline) with a sans UI; Tiempos is commercial, this is the closest open face with the Ukrainian coverage this product cannot ship without. Display only: never below mkt-display-3, never inside /app/**, never on a figure."
+      },
+      "sans": {
+        "$type": "string",
+        "$value": "'Inter Variable', Inter, system-ui, sans-serif",
+        "$description": "Unchanged from v1 and not re-litigated. Cyrillic-complete, tabular figures, and the cv01/ss03 features Linear also enables. Carries all UI, all body copy and every number."
+      },
+      "mono": {
+        "$type": "string",
+        "$value": "'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace",
+        "$description": "D4. Index labels, evidence IDs, figure captions and ledger keys. Linear's marketing site uses a mono for exactly this (FIG 0.2, 1.0 Intake) and it is the motif that makes an indexed document read as an instrument. Subset to digits, Latin caps and punctuation — the full face is not loaded."
+      },
+      "features": {
+        "$type": "string",
+        "$value": "\"cv01\", \"ss03\"",
+        "$description": "Inter's single-storey a and disambiguated l. Measured in use on linear.app; both reduce misreads in dense numeric rows."
+      }
+    },
+    "text": {
+      "micro": {
+        "$type": "dimension",
+        "$value": "11px",
+        "$description": "v1 scale, kept. Banned on /app and /app/work — the QA harness fails any element under 12px there, and a register read all day should not carry 11px."
+      },
+      "meta": {
+        "$type": "dimension",
+        "$value": "12px",
+        "$description": "v1 scale, kept. Labels and metadata."
+      },
+      "data": {
+        "$type": "dimension",
+        "$value": "13px",
+        "$description": "v1 scale, kept. The desk-density base — a register is read, not browsed."
+      },
+      "body": {
+        "$type": "dimension",
+        "$value": "15px",
+        "$description": "v1 scale, kept. The phone base and desk body. Independently matches Linear's --font-size-regular (0.9375rem)."
+      },
+      "h3": {
+        "$type": "dimension",
+        "$value": "18px",
+        "$description": "v1 scale, kept."
+      },
+      "h2": {
+        "$type": "dimension",
+        "$value": "22px",
+        "$description": "v1 scale, kept."
+      },
+      "h1": {
+        "$type": "dimension",
+        "$value": "26px",
+        "$description": "v1 scale, kept."
+      },
+      "display": {
+        "$type": "dimension",
+        "$value": "32px",
+        "$description": "v1 scale, kept. Reserved for the single focal figure on a screen — /app's money-at-risk total. The only 32px thing on any screen."
+      },
+      "mkt-caption": {
+        "$type": "dimension",
+        "$value": "13px",
+        "$description": "Marketing scale. Captions and legal lines."
+      },
+      "mkt-index": {
+        "$type": "dimension",
+        "$value": "12px",
+        "$description": "Marketing scale. Mono, uppercase, +0.08em tracking. The section index and evidence ID motif."
+      },
+      "mkt-body": {
+        "$type": "dimension",
+        "$value": "16px",
+        "$description": "Marketing scale. Long-form reading size — 15px is a density decision for a register and the wrong call for a landing paragraph."
+      },
+      "mkt-lead": {
+        "$type": "dimension",
+        "$value": "clamp(17px, 1.4vw, 20px)",
+        "$description": "Marketing scale. The sub-headline under a display heading."
+      },
+      "mkt-display-3": {
+        "$type": "dimension",
+        "$value": "clamp(26px, 2.6vw, 32px)",
+        "$description": "Marketing scale. The floor for the serif — below this the display face stops being a display face."
+      },
+      "mkt-display-2": {
+        "$type": "dimension",
+        "$value": "clamp(32px, 4vw, 48px)",
+        "$description": "Marketing scale. Section headings. Folio's measured h2 is 48px/48px at -1.2px tracking."
+      },
+      "mkt-display-1": {
+        "$type": "dimension",
+        "$value": "clamp(40px, 5.6vw, 72px)",
+        "$description": "Marketing scale. Hero and final CTA only, at most twice per page. Folio's measured h1 is 60px/60px."
+      }
+    },
+    "fontWeight": {
+      "normal": {
+        "$type": "string",
+        "$value": "400",
+        "$description": "Variable-font axis value."
+      },
+      "medium": {
+        "$type": "string",
+        "$value": "510",
+        "$description": "Not 500. Inter's 500 renders muddy at 13px in a dense row; 510 does not. Measured on linear.app, which ships exactly this value."
+      },
+      "semibold": {
+        "$type": "string",
+        "$value": "590",
+        "$description": "Not 600, for the same reason as medium. Measured on linear.app."
+      },
+      "bold": {
+        "$type": "string",
+        "$value": "680",
+        "$description": "Not 700. Measured on linear.app. Display headings and the focal figure."
+      }
+    },
+    "leading": {
+      "none": {
+        "$type": "string",
+        "$value": "1",
+        "$description": "Mono index labels, where the line box must not add height."
+      },
+      "tight": {
+        "$type": "string",
+        "$value": "1.15",
+        "$description": "Display headings at mkt-display-3."
+      },
+      "display": {
+        "$type": "string",
+        "$value": "1.0",
+        "$description": "mkt-display-1 and -2. Folio sets h1 60px/60px and h2 48px/48px — a display line box that is exactly its own size."
+      },
+      "snug": {
+        "$type": "string",
+        "$value": "1.35",
+        "$description": "Product headings."
+      },
+      "normal": {
+        "$type": "string",
+        "$value": "1.5",
+        "$description": "Product body and table cells."
+      },
+      "relaxed": {
+        "$type": "string",
+        "$value": "1.6",
+        "$description": "Marketing body and lead. Linear's measured --text-regular-line-height."
+      }
+    },
+    "tracking": {
+      "tightest": {
+        "$type": "string",
+        "$value": "-0.022em",
+        "$description": "mkt-display-1. Folio's measured -1.2px at 48px is -0.025em; -0.022em holds at 72px without the counters closing."
+      },
+      "tighter": {
+        "$type": "string",
+        "$value": "-0.020em",
+        "$description": "mkt-display-2."
+      },
+      "tight": {
+        "$type": "string",
+        "$value": "-0.014em",
+        "$description": "mkt-display-3 and product h1/h2."
+      },
+      "normal": {
+        "$type": "string",
+        "$value": "-0.011em",
+        "$description": "Body and below. Linear's measured --text-regular-letter-spacing. Not 0: Inter at 13-16px sets slightly loose by default."
+      },
+      "wide": {
+        "$type": "string",
+        "$value": "0.08em",
+        "$description": "mkt-index only. Uppercase mono needs the extra space to stop reading as a word."
+      }
+    },
+    "radius": {
+      "control": {
+        "$type": "dimension",
+        "$value": "6px",
+        "$description": "v1, kept. Buttons, inputs, chips inside /app/**. A register is not a set of cards."
+      },
+      "field": {
+        "$type": "dimension",
+        "$value": "8px",
+        "$description": "New. Folio's most frequent radius by a wide margin (301 elements at 8px against 89 at 6px). Marketing controls and evidence tiles."
+      },
+      "panel": {
+        "$type": "dimension",
+        "$value": "10px",
+        "$description": "v1, kept. Panels and cards inside /app/**."
+      },
+      "card": {
+        "$type": "dimension",
+        "$value": "14px",
+        "$description": "New, marketing only. A landing card is a card; a register panel is not."
+      },
+      "surface": {
+        "$type": "dimension",
+        "$value": "20px",
+        "$description": "New, marketing only. Product frames and large tinted surfaces."
+      },
+      "section": {
+        "$type": "dimension",
+        "$value": "28px",
+        "$description": "New, marketing only. The footer sheet that overlaps the CTA band, and full-width tinted sections."
+      },
+      "pill": {
+        "$type": "dimension",
+        "$value": "999px",
+        "$description": "v1, kept. Status chips, indicators, the floating nav, pill CTAs."
+      }
+    },
+    "space": {
+      "base": {
+        "$type": "dimension",
+        "$value": "0.25rem",
+        "$description": "The 4px grid, expressed in rem so it scales with the user's root font size. Emitted as Tailwind's --spacing, so the whole dynamic p-*/gap-* scale inherits it — exactly as v1 did, and the reason --spacing was the one stock namespace v1 did not clear."
+      },
+      "section-sm": {
+        "$type": "dimension",
+        "$value": "64px",
+        "$description": "Marketing rhythm: mobile sections and the mobile band."
+      },
+      "section-md": {
+        "$type": "dimension",
+        "$value": "96px",
+        "$description": "Marketing rhythm: strips. Folio's measured logo-strip padding."
+      },
+      "section-lg": {
+        "$type": "dimension",
+        "$value": "112px",
+        "$description": "Marketing rhythm: the standard section step. Folio's measured value on every content section."
+      },
+      "section-xl": {
+        "$type": "dimension",
+        "$value": "160px",
+        "$description": "Marketing rhythm: hero only."
+      }
+    },
+    "breakpoint": {
+      "md": {
+        "$type": "dimension",
+        "$value": "768px",
+        "$description": "v1, kept. Below it the rail is an off-canvas drawer. There is no sm/lg/xl: a typo fails loudly instead of silently targeting a width this design never reasons about."
+      },
+      "wide": {
+        "$type": "dimension",
+        "$value": "1240px",
+        "$description": "v1, kept. At and above it the rail opens with labels."
+      }
+    },
+    "container": {
+      "measure": {
+        "$type": "dimension",
+        "$value": "680px",
+        "$description": "Reading measure for a marketing paragraph. Beyond it a 16px line runs past the comfortable saccade."
+      },
+      "content": {
+        "$type": "dimension",
+        "$value": "1240px",
+        "$description": "The content cap, shared by the app and the landing so a product screenshot dropped into a landing block lines up with the shell it came from."
+      },
+      "nav": {
+        "$type": "dimension",
+        "$value": "880px",
+        "$description": "The floating pill nav. Folio's is narrower than its content column on purpose — a nav that spans the page stops reading as an object."
+      }
+    },
+    "duration": {
+      "instant": {
+        "$type": "duration",
+        "$value": "100ms",
+        "$description": "Colour-only transitions. Linear's measured value for the same job."
+      },
+      "fast": {
+        "$type": "duration",
+        "$value": "160ms",
+        "$description": "Hover, press, state. Linear's dominant measured duration and the one curve+duration pair that appears on more of their elements than any other."
+      },
+      "base": {
+        "$type": "duration",
+        "$value": "240ms",
+        "$description": "Accordion, tab, popover, chip. Folio measures 200ms on accordions and 250ms is Linear's --speed-regularTransition; 240ms sits between two measured values rather than beside one."
+      },
+      "slow": {
+        "$type": "duration",
+        "$value": "400ms",
+        "$description": "Scroll reveal and section enter. Measured identically on Grovia (400ms) and Linear (staggerIn 400ms) — two independent sites converging on the same number is the strongest evidence available for a motion value."
+      },
+      "marquee": {
+        "$type": "duration",
+        "$value": "35s",
+        "$description": "One full pass of the logo/proof ribbon. Folio's measured value on the same device (35s and 40.25s on two tracks). Long enough that it reads as ambient rather than as something demanding to be watched, and the only perpetual animation the system permits — it pauses on hover and freezes entirely under prefers-reduced-motion."
+      },
+      "deliberate": {
+        "$type": "duration",
+        "$value": "640ms",
+        "$description": "Hero composition and sequence steps. Long enough to be read as choreography, short enough that a returning visitor is not waiting for it."
+      }
+    },
+    "ease": {
+      "out": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "$description": "ease-out-quad. THE interaction curve — measured as Linear's dominant transition timing function. Ease-out only, never ease-in: ease-in stalls the first frame, which is the frame being watched."
+      },
+      "enter": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0.165, 0.84, 0.44, 1)",
+        "$description": "ease-out-quart. Reveals and staggers. Linear's measured staggerIn curve."
+      },
+      "emphatic": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0.19, 1, 0.22, 1)",
+        "$description": "ease-out-expo. Hero composition and line draw."
+      },
+      "soft": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0.44, 0, 0.56, 1)",
+        "$description": "Symmetric. Cross-fades only, where a directionless change should not imply a direction. Grovia's measured reveal curve."
+      },
+      "overshoot": {
+        "$type": "cubicBezier",
+        "$value": "cubic-bezier(0.34, 1.56, 0.64, 1)",
+        "$description": "ILLUSTRATION ONLY. Folio uses it on 78 elements, every one of them an illustration transform. An overshoot on a control makes a button feel like a toy; on a diagram it makes a part feel like it seated."
+      }
+    },
+    "stagger": {
+      "tight": {
+        "$type": "duration",
+        "$value": "40ms",
+        "$description": "Per word or per character. Flexfolio's measured blur-in stagger."
+      },
+      "default": {
+        "$type": "duration",
+        "$value": "80ms",
+        "$description": "Per sibling in a list or grid."
+      },
+      "loose": {
+        "$type": "duration",
+        "$value": "120ms",
+        "$description": "Per section child, where each child is itself a composition."
+      }
+    },
+    "spring": {
+      "reveal": {
+        "$type": "string",
+        "$value": "stiffness 100, damping 20, mass 1",
+        "$description": "The blur-in text reveal. Flexfolio's measured settle is ~3.25s on a spring with no overshoot, which is this shape."
+      },
+      "press": {
+        "$type": "string",
+        "$value": "stiffness 400, damping 30, mass 1",
+        "$description": "Control press feedback. Fast enough to feel instant, damped enough not to wobble."
+      }
+    },
+    "blur": {
+      "chrome": {
+        "$type": "dimension",
+        "$value": "20px",
+        "$description": "The floating nav backdrop. Linear's measured --header-blur."
+      },
+      "reveal": {
+        "$type": "dimension",
+        "$value": "6px",
+        "$description": "The blur-in text reveal's starting blur. Enough to be a resolve, little enough not to be a smear."
+      }
+    }
+  },
+  "semantic": {
+    "light": {
+      "bg-canvas": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-25}",
+        "$description": "The page. Paper, not white — white is reserved for the surface a register sits on, and the two must differ or the panel stops reading as a sheet.",
+        "$extensions": {
+          "app.goproceed.tailwind": "canvas",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-0}",
+        "$description": "The working surface. Panels, cards, table bodies.",
+        "$extensions": {
+          "app.goproceed.tailwind": "surface",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-subtle": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-50}",
+        "$description": "Zebra rows, sunken wells, inset grounds.",
+        "$extensions": {
+          "app.goproceed.tailwind": "subtle",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-muted": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-100}",
+        "$description": "Inactive segment, ghost hover, idle status ground.",
+        "$extensions": {
+          "app.goproceed.tailwind": "sunken",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Under D2 this is no longer the rail. It is the mobile field chrome and exactly one marketing band — the Carbon budget shrinks from 17-21% of the app to two named places.",
+        "$extensions": {
+          "app.goproceed.tailwind": "inverse",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-signal": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-500}",
+        "$description": "The mark. Identical in both modes: it is the one colour in the system that means the same thing on any ground.",
+        "$extensions": {
+          "app.goproceed.tailwind": "signal",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-overlay": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Scrim behind a dialog or the off-canvas rail. Alpha is held apart from the hex here for the same reason it is everywhere else: React Native composes it differently. Applied at 32% alpha.",
+        "$extensions": {
+          "app.goproceed.tailwind": "overlay",
+          "app.goproceed.alpha": 0.32
+        }
+      },
+      "text-primary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Values, titles — the thing being read. 18.35:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "ink",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-secondary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-700}",
+        "$description": "Supporting copy. 6.56:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "ink-secondary",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-muted": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-600}",
+        "$description": "Metadata, labels, placeholders. 5.07:1 on canvas — the body-text floor. Four text levels, never two: two is too flat to build hierarchy from. The dark column is not a mirror of the light one: it sits a step lighter throughout, because a muted fill in dark mode is much closer to its own copy than a muted fill in light mode is to its.",
+        "$extensions": {
+          "app.goproceed.tailwind": "ink-muted",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-subtle": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-500}",
+        "$description": "Metadata ONLY, never body text. 3.05:1 clears the large-text and non-text threshold and nothing else.",
+        "$extensions": {
+          "app.goproceed.tailwind": "ink-subtle",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-on-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-150}",
+        "$description": "Copy on the inverse surface. 15.22:1.",
+        "$extensions": {
+          "app.goproceed.tailwind": "on-inverse",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-on-inverse-muted": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-400}",
+        "$description": "Metadata on the inverse surface. 8.68:1.",
+        "$extensions": {
+          "app.goproceed.tailwind": "on-inverse-muted",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-on-signal": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Copy on the mark. 16.07:1. Never white: signal-500 is a light colour and white on it measures 1.18:1, which is the defect that forced v1 to invent --color-accent-ink.",
+        "$extensions": {
+          "app.goproceed.tailwind": "on-signal",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-link": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-600}",
+        "$description": "Inline links. 5.64:1 on surface.",
+        "$extensions": {
+          "app.goproceed.tailwind": "link",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-brand": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-800}",
+        "$description": "'Ready' as text. 6.38:1 on surface. Replaces v1's --color-accent-ink, which existed only because the Lime had no dark end.",
+        "$extensions": {
+          "app.goproceed.tailwind": "brand",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-subtle": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-150}",
+        "$description": "Hairline inside a surface, and the dashed blueprint guide on the landing.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line-subtle",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-default": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-200}",
+        "$description": "The default. Panel edge, input edge, divider. Structure comes from this line plus a lightness shift between the four bg roles — there is no elevation ladder.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-strong": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-300}",
+        "$description": "Table rules and selected outlines.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line-strong",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-800}",
+        "$description": "Hairline on the inverse surface. The two themes do not mirror here and should not: in light the inverse surface is ink and the line lifts off it; in dark the inverse surface is white and the line has to sit down onto it, which is a step further from the ground.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line-inverse",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-focus": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-500}",
+        "$description": "One focus treatment for every focusable element in the product. 3.99:1 on surface.",
+        "$extensions": {
+          "app.goproceed.tailwind": "focus",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-primary-bg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "D1: ink is the action colour. Primary buttons are near-black, exactly as Folio and Linear. This is what removes the readable-accent problem from the system entirely rather than working around it.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-primary-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-0}",
+        "$description": "The primary action's label. 19.01:1 — the highest-contrast pair in the system, which is what a control that commits money should carry.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-primary-hover": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-900}",
+        "$description": "One step off ink.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-hover",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-signal-bg": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-500}",
+        "$description": "The signal action. EXACTLY ONE per screen — v1 allowed one Lime fill in the whole product and that discipline is what kept the colour meaning something.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-signal",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-signal-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "The signal action's label — ink in both themes. 16.07:1. Never white: signal-500 is a light colour and white on it measures 1.18:1, which is the defect that forced v1 to invent a second accent token.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-signal-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-signal-hover": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-400}",
+        "$description": "Hover reads as lift, not as a different colour.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-signal-hover",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-ghost-hover": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-100}",
+        "$description": "Chrome hover.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-ghost-hover",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-ready-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-100}",
+        "$description": "Seven catalog readiness states collapse to five visual tones. The LABEL always carries the meaning — these only tint it, never replace it.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-ready",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-ready-border": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-200}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-ready-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-ready-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-800}",
+        "$description": "5.93:1 light, 8.63:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-ready-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-attention-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-100}",
+        "$description": "At risk — evidence is expected and the window has not closed. Distinct from blocked, which is a refusal that has already happened.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-attention",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-attention-border": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-200}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-attention-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-attention-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-800}",
+        "$description": "6.43:1 light, 7.89:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-attention-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-blocked-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-100}",
+        "$description": "Blocked or refused.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-blocked",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-blocked-border": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-200}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-blocked-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-blocked-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-700}",
+        "$description": "6.34:1 light, 8.00:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-blocked-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-review-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-100}",
+        "$description": "Submitted or in review.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-review",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-review-border": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-200}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-review-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-review-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-700}",
+        "$description": "6.04:1 light, 8.17:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-review-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-idle-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-100}",
+        "$description": "Nothing has happened yet. Deliberately colourless: an idle state that carries a hue reads as a state that means something.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-idle",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-idle-border": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-200}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-idle-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-idle-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-700}",
+        "$description": "5.86:1 light, 8.64:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-idle-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "evidence-satisfied": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-800}",
+        "$description": "Evidence obtained. 6.16:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "evidence-satisfied",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "evidence-pending": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-800}",
+        "$description": "Evidence expected, not yet obtained. 7.09:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "evidence-pending",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "evidence-blocking": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-700}",
+        "$description": "Evidence missing and blocking a closure. 7.17:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "evidence-blocking",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-1": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-600}",
+        "$description": "Categorical series 1. The five viz roles are ordered by how often a series appears, not by hue family, so a two-series chart never picks two colours that read as one status pair.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-1",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-2": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-600}",
+        "$description": "Categorical series 2.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-2",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-3": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-600}",
+        "$description": "Categorical series 3.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-3",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-4": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-600}",
+        "$description": "Categorical series 4.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-4",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-5": {
+        "$type": "color",
+        "$value": "{primitive.color.violet-500}",
+        "$description": "Categorical series 5. Violet exists for this role and no other — it is never a status.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-5",
+          "app.goproceed.alpha": 1
+        }
+      }
+    },
+    "dark": {
+      "bg-canvas": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "The page. Paper, not white — white is reserved for the surface a register sits on, and the two must differ or the panel stops reading as a sheet.",
+        "$extensions": {
+          "app.goproceed.tailwind": "canvas",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-950}",
+        "$description": "The working surface. Panels, cards, table bodies.",
+        "$extensions": {
+          "app.goproceed.tailwind": "surface",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-subtle": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-900}",
+        "$description": "Zebra rows, sunken wells, inset grounds.",
+        "$extensions": {
+          "app.goproceed.tailwind": "subtle",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-muted": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-800}",
+        "$description": "Inactive segment, ghost hover, idle status ground.",
+        "$extensions": {
+          "app.goproceed.tailwind": "sunken",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-0}",
+        "$description": "Under D2 this is no longer the rail. It is the mobile field chrome and exactly one marketing band — the Carbon budget shrinks from 17-21% of the app to two named places.",
+        "$extensions": {
+          "app.goproceed.tailwind": "inverse",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-signal": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-500}",
+        "$description": "The mark. Identical in both modes: it is the one colour in the system that means the same thing on any ground.",
+        "$extensions": {
+          "app.goproceed.tailwind": "signal",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-overlay": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Scrim behind a dialog or the off-canvas rail. Alpha is held apart from the hex here for the same reason it is everywhere else: React Native composes it differently. Applied at 56% alpha.",
+        "$extensions": {
+          "app.goproceed.tailwind": "overlay",
+          "app.goproceed.alpha": 0.56
+        }
+      },
+      "text-primary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-25}",
+        "$description": "Values, titles — the thing being read. 18.35:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "ink",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-secondary": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-200}",
+        "$description": "Supporting copy. 6.56:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "ink-secondary",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-muted": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-300}",
+        "$description": "Metadata, labels, placeholders. 5.07:1 on canvas — the body-text floor. Four text levels, never two: two is too flat to build hierarchy from. The dark column is not a mirror of the light one: it sits a step lighter throughout, because a muted fill in dark mode is much closer to its own copy than a muted fill in light mode is to its.",
+        "$extensions": {
+          "app.goproceed.tailwind": "ink-muted",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-subtle": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-400}",
+        "$description": "Metadata ONLY, never body text. 3.05:1 clears the large-text and non-text threshold and nothing else.",
+        "$extensions": {
+          "app.goproceed.tailwind": "ink-subtle",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-on-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-900}",
+        "$description": "Copy on the inverse surface. 15.22:1.",
+        "$extensions": {
+          "app.goproceed.tailwind": "on-inverse",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-on-inverse-muted": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-700}",
+        "$description": "Metadata on the inverse surface. 8.68:1.",
+        "$extensions": {
+          "app.goproceed.tailwind": "on-inverse-muted",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-on-signal": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Copy on the mark. 16.07:1. Never white: signal-500 is a light colour and white on it measures 1.18:1, which is the defect that forced v1 to invent --color-accent-ink.",
+        "$extensions": {
+          "app.goproceed.tailwind": "on-signal",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-link": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-300}",
+        "$description": "Inline links. 5.64:1 on surface.",
+        "$extensions": {
+          "app.goproceed.tailwind": "link",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-brand": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-400}",
+        "$description": "'Ready' as text. 6.38:1 on surface. Replaces v1's --color-accent-ink, which existed only because the Lime had no dark end.",
+        "$extensions": {
+          "app.goproceed.tailwind": "brand",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-subtle": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-900}",
+        "$description": "Hairline inside a surface, and the dashed blueprint guide on the landing.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line-subtle",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-default": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-800}",
+        "$description": "The default. Panel edge, input edge, divider. Structure comes from this line plus a lightness shift between the four bg roles — there is no elevation ladder.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-strong": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-700}",
+        "$description": "Table rules and selected outlines.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line-strong",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-300}",
+        "$description": "Hairline on the inverse surface. The two themes do not mirror here and should not: in light the inverse surface is ink and the line lifts off it; in dark the inverse surface is white and the line has to sit down onto it, which is a step further from the ground.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line-inverse",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-focus": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-300}",
+        "$description": "One focus treatment for every focusable element in the product. 3.99:1 on surface.",
+        "$extensions": {
+          "app.goproceed.tailwind": "focus",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-primary-bg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-0}",
+        "$description": "D1: ink is the action colour. Primary buttons are near-black, exactly as Folio and Linear. This is what removes the readable-accent problem from the system entirely rather than working around it.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-primary-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "The primary action's label. 19.01:1 — the highest-contrast pair in the system, which is what a control that commits money should carry.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-primary-hover": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-150}",
+        "$description": "One step off ink.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-hover",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-signal-bg": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-500}",
+        "$description": "The signal action. EXACTLY ONE per screen — v1 allowed one Lime fill in the whole product and that discipline is what kept the colour meaning something.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-signal",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-signal-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "The signal action's label — ink in both themes. 16.07:1. Never white: signal-500 is a light colour and white on it measures 1.18:1, which is the defect that forced v1 to invent a second accent token.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-signal-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-signal-hover": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-400}",
+        "$description": "Hover reads as lift, not as a different colour.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-signal-hover",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-ghost-hover": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-900}",
+        "$description": "Chrome hover.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-ghost-hover",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-ready-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-900}",
+        "$description": "Seven catalog readiness states collapse to five visual tones. The LABEL always carries the meaning — these only tint it, never replace it.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-ready",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-ready-border": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-800}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-ready-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-ready-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-300}",
+        "$description": "5.93:1 light, 8.63:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-ready-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-attention-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-900}",
+        "$description": "At risk — evidence is expected and the window has not closed. Distinct from blocked, which is a refusal that has already happened.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-attention",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-attention-border": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-800}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-attention-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-attention-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-300}",
+        "$description": "6.43:1 light, 7.89:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-attention-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-blocked-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-900}",
+        "$description": "Blocked or refused.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-blocked",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-blocked-border": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-800}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-blocked-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-blocked-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-300}",
+        "$description": "6.34:1 light, 8.00:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-blocked-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-review-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-900}",
+        "$description": "Submitted or in review.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-review",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-review-border": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-800}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-review-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-review-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-300}",
+        "$description": "6.04:1 light, 8.17:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-review-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-idle-surface": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-900}",
+        "$description": "Nothing has happened yet. Deliberately colourless: an idle state that carries a hue reads as a state that means something.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-idle",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-idle-border": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-800}",
+        "$description": "Chip edge.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-idle-line",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "status-idle-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-300}",
+        "$description": "5.86:1 light, 8.64:1 dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "status-idle-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "evidence-satisfied": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-300}",
+        "$description": "Evidence obtained. 6.16:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "evidence-satisfied",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "evidence-pending": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-300}",
+        "$description": "Evidence expected, not yet obtained. 7.09:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "evidence-pending",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "evidence-blocking": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-300}",
+        "$description": "Evidence missing and blocking a closure. 7.17:1 on canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "evidence-blocking",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-1": {
+        "$type": "color",
+        "$value": "{primitive.color.signal-400}",
+        "$description": "Categorical series 1. The five viz roles are ordered by how often a series appears, not by hue family, so a two-series chart never picks two colours that read as one status pair.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-1",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-2": {
+        "$type": "color",
+        "$value": "{primitive.color.blue-300}",
+        "$description": "Categorical series 2.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-2",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-3": {
+        "$type": "color",
+        "$value": "{primitive.color.amber-300}",
+        "$description": "Categorical series 3.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-3",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-4": {
+        "$type": "color",
+        "$value": "{primitive.color.danger-300}",
+        "$description": "Categorical series 4.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-4",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-5": {
+        "$type": "color",
+        "$value": "{primitive.color.violet-300}",
+        "$description": "Categorical series 5. Violet exists for this role and no other — it is never a status.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-5",
+          "app.goproceed.alpha": 1
+        }
+      }
+    }
+  },
+  "shadow": {
+    "raised": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "offsetX": "0px",
+          "offsetY": "1px",
+          "blur": "2px",
+          "spread": "0px",
+          "color": "#11100F",
+          "alpha": 0.04
+        },
+        {
+          "offsetX": "0px",
+          "offsetY": "2px",
+          "blur": "6px",
+          "spread": "0px",
+          "color": "#11100F",
+          "alpha": 0.04
+        }
+      ],
+      "$description": "Hover lift on an interactive card. Structure is border-led: Folio ships 180 elements carrying a 1px border against 8 carrying a real shadow, and that ratio is the model. There is still no elevation ladder — a panel gets no shadow at all."
+    },
+    "overlay": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "offsetX": "0px",
+          "offsetY": "4px",
+          "blur": "12px",
+          "spread": "0px",
+          "color": "#11100F",
+          "alpha": 0.06
+        },
+        {
+          "offsetX": "0px",
+          "offsetY": "12px",
+          "blur": "28px",
+          "spread": "0px",
+          "color": "#11100F",
+          "alpha": 0.08
+        }
+      ],
+      "$description": "Popover-class chrome one step off its parent: tooltip, dropdown, command palette. v1's shadow-raised did this job with one layer; two layers is what makes a light overlay legible on a light canvas without darkening the whole edge."
+    },
+    "modal": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "offsetX": "0px",
+          "offsetY": "8px",
+          "blur": "24px",
+          "spread": "0px",
+          "color": "#11100F",
+          "alpha": 0.08
+        },
+        {
+          "offsetX": "0px",
+          "offsetY": "24px",
+          "blur": "64px",
+          "spread": "0px",
+          "color": "#11100F",
+          "alpha": 0.12
+        }
+      ],
+      "$description": "The only things that cover content: dialog and the off-canvas rail. Under D2 the rail is no longer dark, so this shadow now carries the whole 'this covers content' signal that colour used to carry with it."
+    },
+    "float": {
+      "$type": "shadow",
+      "$value": [
+        {
+          "offsetX": "0px",
+          "offsetY": "12px",
+          "blur": "32px",
+          "spread": "0px",
+          "color": "#11100F",
+          "alpha": 0.08
+        },
+        {
+          "offsetX": "0px",
+          "offsetY": "40px",
+          "blur": "80px",
+          "spread": "0px",
+          "color": "#11100F",
+          "alpha": 0.1
+        }
+      ],
+      "$description": "MARKETING ONLY — the one product frame per viewport. Forbidden under /app/**, where nothing floats off the page. Folio's measured product-frame shadow is a comparable two-layer form (rgba(28,40,64,.08) at 10.85px and 21.7px)."
+    }
+  },
+  "component": {
+    "rail-width-wide": {
+      "$type": "dimension",
+      "$value": "240px",
+      "$description": "v1, kept and not re-litigated. 240px against an otherwise unconstrained content column states the relationship: navigation serves the register, it is not its peer."
+    },
+    "rail-width-collapsed": {
+      "$type": "dimension",
+      "$value": "68px",
+      "$description": "v1, kept. Icons only, labels in a tooltip, between md and wide."
+    },
+    "rail-width-drawer": {
+      "$type": "dimension",
+      "$value": "min(300px, 84vw)",
+      "$description": "v1, kept. Off-canvas below md, behind a >=44px control."
+    },
+    "control-height-touch": {
+      "$type": "dimension",
+      "$value": "44px",
+      "$description": "v1, kept. WCAG 2.5.5's 44px is a floor, not a preference, and the phone audience is gloved and outdoors. Applies below md and, now, under the pointer-coarse variant — Tailwind v4.1 gives a real capability query for the thing the breakpoint was standing in for."
+    },
+    "control-height-desk": {
+      "$type": "dimension",
+      "$value": "36px",
+      "$description": "v1, kept. Default control at the desk."
+    },
+    "control-height-desk-sm": {
+      "$type": "dimension",
+      "$value": "32px",
+      "$description": "v1, kept. Small control at the desk. Folio's measured button height is 32px at 14px/500."
+    },
+    "header-height-app": {
+      "$type": "dimension",
+      "$value": "56px",
+      "$description": "v1, kept. The mobile bar exists only below md, because that is the only width where the rail is hidden. There is no desktop top bar: a second 76px band repeating the brand is 76px not spent on rows."
+    },
+    "header-height-marketing": {
+      "$type": "dimension",
+      "$value": "64px",
+      "$description": "The floating pill nav. Linear's marketing header measures 72px flush to the edge; a detached pill needs less height because it already reads as an object."
+    },
+    "register-row-padding-y": {
+      "$type": "dimension",
+      "$value": "10px",
+      "$description": "v1, kept (py-2.5). Measured against real content at 1440x900: 14 rows in the fold on /app/work."
+    },
+    "register-row-padding-x": {
+      "$type": "dimension",
+      "$value": "12px",
+      "$description": "v1, kept (px-3)."
+    },
+    "focus-ring-width": {
+      "$type": "dimension",
+      "$value": "2px",
+      "$description": "One treatment for every focusable element inside the shell, matching the public routes so the two cannot disagree. 2px rather than Linear's 1px because this ring must survive being rendered on a construction site in daylight."
+    },
+    "focus-ring-offset": {
+      "$type": "dimension",
+      "$value": "2px",
+      "$description": "Offset rather than inset, so the ring never eats the control's own border and change the element's apparent size."
+    }
+  }
+}

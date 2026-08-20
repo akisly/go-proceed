@@ -1221,6 +1221,14 @@ const REQUIRED = [
   "docs/delivery/test-strategy.md",
   "docs/delivery/production-readiness.md",
   "docs/discovery/outreach-log.md",
+  // The design system. `01-tokens.md` is GENERATED — listing it here means a
+  // deletion or a metadata regression fails the build rather than going quiet,
+  // and it is exactly as load-bearing as any hand-written canonical document:
+  // `02-building-ui.md` is the procedure every UI change follows, and CLAUDE.md
+  // points at it by name.
+  "docs/design/01-tokens.md",
+  "docs/design/02-building-ui.md",
+  "docs/design/2026-08-19-design-system-rewrite-plan.md",
   "docs/discovery/validated-assumptions.md",
   "docs/decisions/ADR-001-product-boundary.md",
   "docs/decisions/ADR-002-tenancy-parties-and-contracts.md",
