@@ -39,9 +39,10 @@ const EXPOSE_HEADERS = "x-request-id, idempotency-replay-until";
  * `env` is injectable for tests; production passes nothing and reads
  * process.env at request time.
  */
+// Narrow type so a mistyped property name fails tsc; the cast is safe — reads only.
 export function v1CorsResponse(
   request: NextRequest,
-  env: Record<string, string | undefined> = process.env,
+  env: { FIELD_CLIENT_ORIGINS?: string } = process.env as { FIELD_CLIENT_ORIGINS?: string },
 ): NextResponse {
   const allowed = parseAllowedOrigins(env.FIELD_CLIENT_ORIGINS);
   if (allowed.size === 0) return NextResponse.next({ request });

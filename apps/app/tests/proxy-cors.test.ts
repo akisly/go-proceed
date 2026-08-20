@@ -34,18 +34,24 @@ describe("proxy on /v1 (the guard must answer BEFORE any Supabase code)", () => 
 
   it("answers preflight for an allowlisted origin", async () => {
     process.env.FIELD_CLIENT_ORIGINS = FIELD;
-    const res = await v1("OPTIONS", FIELD);
-    expect(res.headers.get("access-control-allow-origin")).toBe(FIELD);
-    expect(res.headers.get("location")).toBeNull();
-    delete process.env.FIELD_CLIENT_ORIGINS;
+    try {
+      const res = await v1("OPTIONS", FIELD);
+      expect(res.headers.get("access-control-allow-origin")).toBe(FIELD);
+      expect(res.headers.get("location")).toBeNull();
+    } finally {
+      delete process.env.FIELD_CLIENT_ORIGINS;
+    }
   });
   it("stamps pass-through GETs, never redirects, never sets cookies", async () => {
     process.env.FIELD_CLIENT_ORIGINS = FIELD;
-    const res = await v1("GET", FIELD);
-    expect(res.headers.get("access-control-allow-origin")).toBe(FIELD);
-    expect(res.headers.get("location")).toBeNull();
-    expect(res.headers.get("set-cookie")).toBeNull();
-    delete process.env.FIELD_CLIENT_ORIGINS;
+    try {
+      const res = await v1("GET", FIELD);
+      expect(res.headers.get("access-control-allow-origin")).toBe(FIELD);
+      expect(res.headers.get("location")).toBeNull();
+      expect(res.headers.get("set-cookie")).toBeNull();
+    } finally {
+      delete process.env.FIELD_CLIENT_ORIGINS;
+    }
   });
   it("with the allowlist unset, /v1 passes through with no CORS headers at all", async () => {
     const res = await v1("GET", FIELD);
