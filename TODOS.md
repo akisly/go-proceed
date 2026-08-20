@@ -545,6 +545,61 @@ set it to the origin; and the hosted «Magic Link» template must keep
 
 ---
 
+## P2 — a page render costs ~3 auth round trips and 2 self-fetch hops, by design
+
+Measured 2026-08-20 against the live origin: a cold request took 2.2 s, a warm
+one 0.4–0.5 s, and `/v1/projects` answering **401** — before it reaches the
+database at all — still took ~0.4 s warm, because `getUser()` is a network call
+to GoTrue, not a local JWT decode (`apps/app/src/lib/auth.ts`).
+
+Where a single «Мої доручення» render goes: `proxy.ts` calls `getUser()` on
+every navigation; the page then self-fetches its OWN `/v1/projects` over HTTP
+(`apps/app/src/lib/api.ts` — deliberate, and documented there as «the read goes
+through the route, not around it»), which is a second function invocation that
+re-runs `getUser()` and opens its own pool connection; then, strictly after it
+(the project ids are needed), one self-fetch per project to
+`/v1/projects/{id}/assignments?assignee=me`, each again `getUser()` + connect.
+For one project that is ~3 GoTrue round trips, 2 pooler connects and 21 SQL
+statements — of which **14 are fixed `begin` / `set local role` / 5×
+`set_config` / `commit` overhead carrying no page data**. For N projects it is
+N+1 of everything (the assignment hops parallelise, but each still pays its
+own auth + connect).
+
+The `regions: ["arn1"]` fix (§4.1 of the runbook) removes the ~100 ms Atlantic
+tax from each of those round trips, which is the dominant term today — but the
+COUNT of round trips is an architecture decision and survives it. Two options
+when it next matters, both touching auth/data-fetching and therefore needing
+their own approved slice:
+
+1. `getClaims()` (local JWKS verification) instead of `getUser()` per hop —
+   requires asymmetric JWT signing enabled on the project and a `supabase-js`
+   version that ships it; check the installed version and current docs first,
+   per CLAUDE.md. Removes ~N+1 network calls.
+2. Let the server component call `src/lib` directly instead of self-fetching
+   its own routes — removes N+1 function invocations. `api.ts` refuses this on
+   purpose (one enforcement point for authz/RLS), so it is a design change,
+   not a cleanup: whoever makes it must keep the guarantee some other way.
+
+Not yet done, and not to be done as a drive-by.
+
+**One candidate was tried on 2026-08-20 and rejected on measurement:** making
+`exceljs` a lazy `await import()` inside `parseXlsx`, so the package barrel
+(`packages/domain/src/index.ts` re-exports `./import/xlsx`) would stop pulling
+it into every route that imports `@goproceed/domain`. It typechecked, all 101
+domain tests passed, the app built, and a probe confirmed that importing the
+barrel under Node/vitest leaves zero `exceljs` modules in `require.cache`. But
+the built output did not move: comparing `.next` traces before and after, the
+assignments route stayed at **3.39 MB** and the import-validate route at
+**3.41 MB**, with only a 275→277 file-count difference from chunk splitting.
+Turbopack already distributes exceljs across shared chunks, so the shipped
+payload is identical and the only remaining benefit would be fewer modules
+EVALUATED at cold start — which the trace cannot show and which was not worth a
+lazy chunk on the workbook-parsing path. Reverted. If cold-start weight is
+attacked again, measure evaluation time in a deployed function first, not the
+module graph.
+
+---
+
 ## P3 — `turbo-ignore` is deprecated; Vercel has a built-in «skip unaffected projects»
 
 The production build log of 2026-08-19 said so in so many words:
