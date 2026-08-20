@@ -12,7 +12,7 @@
 // status-label-fidelity.test.ts for status-labels.generated.json, and
 // token-fidelity.test.ts for the two token artifacts.
 import { ScrollView, Text, View, StyleSheet } from "react-native";
-import { color } from "@goproceed/tokens";
+import { color, type ThemeName } from "@goproceed/tokens";
 import { clientStateLabel, type ClientState } from "../lib/status-labels";
 
 const STATES: ClientState[] = [
@@ -20,13 +20,26 @@ const STATES: ClientState[] = [
   "server_confirmed", "failed", "quarantined",
 ];
 
-const SURFACE: Record<ClientState, string> = {
-  not_sent: color["muted"],
-  sending: color["slate-600"],
-  awaiting_receipt: color["slate-600"],
-  server_confirmed: color["signal-700"],
-  failed: color["red-500"],
-  quarantined: color["amber-500"],
+// The token model became themed and semantic: `color` is now
+// Record<ThemeName, Record<RoleName, string>>, and the flat primitives this
+// screen used to name — `muted`, `slate-600`, `red-500`, `paper`, `ink-950`,
+// `white` — no longer exist under those names (slate→neutral, red→danger, and
+// the rest became roles). This screen pins ONE theme rather than following the
+// device: it is a proof screen for the generated artifacts, so a fixed theme
+// keeps what it renders comparable between runs.
+const THEME: ThemeName = "light";
+
+// Surface and foreground are taken as a PAIR from the same status role. The
+// `status-*-surface` values are light tints (#EFEEEB … #FCE9E6), so the old
+// single white label colour would have been unreadable on every row; each
+// role's own `-fg` is the contrast the design system already worked out for it.
+const TONE: Record<ClientState, { surface: string; fg: string }> = {
+  not_sent: { surface: color[THEME]["status-idle-surface"], fg: color[THEME]["status-idle-fg"] },
+  sending: { surface: color[THEME]["status-review-surface"], fg: color[THEME]["status-review-fg"] },
+  awaiting_receipt: { surface: color[THEME]["status-review-surface"], fg: color[THEME]["status-review-fg"] },
+  server_confirmed: { surface: color[THEME]["status-ready-surface"], fg: color[THEME]["status-ready-fg"] },
+  failed: { surface: color[THEME]["status-blocked-surface"], fg: color[THEME]["status-blocked-fg"] },
+  quarantined: { surface: color[THEME]["status-attention-surface"], fg: color[THEME]["status-attention-fg"] },
 };
 
 export function TokenProof() {
@@ -34,9 +47,9 @@ export function TokenProof() {
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <Text style={styles.heading}>Стани захоплення</Text>
       {STATES.map((s) => (
-        <View key={s} style={[styles.row, { backgroundColor: SURFACE[s] }]}>
-          <Text style={styles.label}>{clientStateLabel(s)}</Text>
-          <Text style={styles.key}>{s}</Text>
+        <View key={s} style={[styles.row, { backgroundColor: TONE[s].surface }]}>
+          <Text style={[styles.label, { color: TONE[s].fg }]}>{clientStateLabel(s)}</Text>
+          <Text style={[styles.key, { color: TONE[s].fg }]}>{s}</Text>
         </View>
       ))}
     </ScrollView>
@@ -44,10 +57,12 @@ export function TokenProof() {
 }
 
 const styles = StyleSheet.create({
-  page: { flex: 1, backgroundColor: color["paper"] },
+  page: { flex: 1, backgroundColor: color[THEME]["bg-canvas"] },
   content: { padding: 24, gap: 12 },
-  heading: { fontSize: 22, color: color["ink-950"], marginBottom: 8 },
+  heading: { fontSize: 22, color: color[THEME]["text-primary"], marginBottom: 8 },
   row: { padding: 16, borderRadius: 12 },
-  label: { fontSize: 17, color: color["white"] },
-  key: { fontSize: 13, color: color["white"], opacity: 0.8, marginTop: 4 },
+  // `color` is applied per row from TONE — each status carries its own
+  // foreground, so it cannot be a static value here.
+  label: { fontSize: 17 },
+  key: { fontSize: 13, opacity: 0.8, marginTop: 4 },
 });
