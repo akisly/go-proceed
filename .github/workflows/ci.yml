@@ -187,124 +187,26 @@ jobs:
       - run: pnpm turbo run test --concurrency=1
 
       - run: pnpm turbo run build
-
-  # apps/demo is standalone (no Supabase dependency), so it gets its own job
-  # rather than folding into `verify` above. This also covers Finding 3: CI
-  # previously ran no browser assertion at all.
-  demo-qa:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
-        with: { version: 9.12.0 }
-
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-
-      - run: pnpm install --frozen-lockfile
-
-      # apps/demo/qa/browser.mjs uses full `puppeteer`, which downloads a
-      # pinned Chrome for Testing build at install time. pnpm may skip
-      # dependency lifecycle (postinstall) scripts depending on config, so
-      # don't assume the download happened — invoke puppeteer's own
-      # installer explicitly. It is a no-op if the pinned build is already
-      # present.
-      - name: Ensure puppeteer's pinned Chrome is installed
-        working-directory: apps/demo
-        run: pnpm exec puppeteer browsers install chrome
-
-      # Chrome for Testing needs the same shared libraries as any Chrome
-      # build. ubuntu-latest ships a system Chrome (and therefore most of
-      # these transitively), but that has changed under us before — install
-      # explicitly rather than relying on an incidental side effect of an
-      # unrelated preinstalled package.
-      - name: Install Chrome headless runtime libraries
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            ca-certificates fonts-liberation libasound2t64 libatk-bridge2.0-0 \
-            libatk1.0-0 libcups2 libdbus-1-3 libdrm2 libgbm1 libglib2.0-0 \
-            libgtk-3-0 libnspr4 libnss3 libxcomposite1 libxdamage1 \
-            libxfixes3 libxkbcommon0 libxrandr2 xdg-utils
-
-      # Verify the browser actually launches on this runner before trusting
-      # any downstream step's result — reuses the harness's own launch()
-      # (including its GOPROCEED_CHROME_PATH override) so this checks the
-      # exact code path `qa` below depends on, not a stand-in.
-      - name: Verify Chrome launches
-        working-directory: apps/demo
-        run: |
-          node --input-type=module -e "
-          import { launch } from './qa/browser.mjs';
-          const browser = await launch();
-          console.log('Chrome launched:', await browser.version());
-          await browser.close();
-          "
-
-      - run: pnpm --filter @goproceed/demo typecheck
-      - run: pnpm --filter @goproceed/demo lint
-      - run: pnpm --filter @goproceed/demo test
-
-      # THE DEPLOY-TIME PLACEHOLDER GATE, ON THE PATH THAT ACTUALLY PUBLISHES.
-      #
-      # `qa/preflight.mjs` exits 1 on any unreplaced `{{TOKEN}}` in apps/demo/src.
-      # It existed and was run by NOBODY: this job ran typecheck, lint, test,
-      # build and qa, and `qa`'s own scan of the same tokens is report-only and
-      # does not fail. Vercel deploys on every PR, so "run it before publishing"
-      # meant "run it before something that happens automatically" — which is to
-      # say it was never run at all. /legal/privacy shipped `{{FORM_PROCESSOR}}`
-      # twice, inside <code>, in the sentences naming who processes a visitor's
-      # personal data.
-      #
-      # IT IS GREEN, AND THAT IS THE PRECONDITION FOR ADDING IT. preflight.mjs's
-      # own header refuses to be part of a default suite while a token is
-      # genuinely unresolved, and it is right: «a suite that is red by design
-      # trains everyone to ignore red and buries genuine regressions behind a
-      # known, deliberate failure». So the token was resolved FIRST — the
-      # disclosure no longer names a service, because there is none to name (see
-      # src/pages/Legal.tsx) — and this line is what now stops the NEXT one.
-      #
-      # It runs before `build`, because it needs no build: it reads src/, so a
-      # placeholder failure reports in seconds rather than after a bundle.
-      - run: pnpm --filter @goproceed/demo preflight
-
-      - run: pnpm --filter @goproceed/demo build
-      - run: pnpm --filter @goproceed/demo qa
-
-      # apps/demo/qa/verify.mjs writes every generated artifact under the
-      # gitignored qa-output/ (see its FINDING 1 comment). Unlike
-      # prototype/'s harness (see package-validate below), a QA run here
-      # must never touch a tracked file — assert it.
-      - name: Assert apps/demo QA run left the tree clean
-        run: |
-          if [ -n "$(git status --porcelain)" ]; then
-            echo "apps/demo qa run modified the working tree:"
-            git status --porcelain
-            exit 1
-          fi
-
-      - name: Upload QA artifacts
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: demo-qa-output
-          path: apps/demo/qa-output/
-          retention-days: 14
+  # THE `demo-qa` JOB WAS REMOVED ON 2026-08-20, WITH `apps/demo` ITSELF.
+  #
+  # It built apps/demo and ran its puppeteer pass. The demo was never a product
+  # surface — README already filed it as «legacy reference material» and said
+  # the durable, isolated `/demo` arrives inside `apps/app` — so the app it
+  # guarded is gone and the job goes with it. What it uniquely covered (a
+  # browser assertion against a standalone Vite build, and the demo's own unit
+  # suite, which no other job ran) is not re-homed: there is nothing left to
+  # assert it against. `app-qa` below remains the repository's browser pass.
 
   # apps/app's browser pass (qa/field.mjs) — task 11 of the PWA field client
-  # plan. Modelled on demo-qa above (same puppeteer version, same launcher,
-  # same Chrome-install steps, same clean-tree contract), but apps/app is not
-  # standalone the way apps/demo is: its pages are gated by middleware.ts and
-  # render real data through /v1, so most of what this job exists to catch —
+  # plan. It was modelled on the retired demo-qa job (same puppeteer version,
+  # same launcher, same Chrome-install steps, same clean-tree contract), but
+  # apps/app was never standalone the way the demo was: its pages are gated by
+  # proxy.ts and render real data through /v1, so most of what it exists to catch —
   # the довідковий disclaimer, the 44px touch floor on the obligation screen,
   # the unsaved-photo banner (INV-081) — lives behind a real Supabase session.
   # This job therefore ALSO carries `verify`'s own Supabase bring-up
   # (setup-cli, start, db reset, db:local-credentials) — the one respect in
-  # which it cannot just be demo-qa with the filter swapped. See
+  # which it could never just be that job with the filter swapped. See
   # qa/field.mjs's own header comment for exactly what this buys and what it
   # still does not cover.
   app-qa:
@@ -313,7 +215,7 @@ jobs:
     env:
       # Same local-only values `verify` above uses, for the same reason (see
       # that job's own env block) — this job needs its own Supabase stack
-      # because GitHub Actions jobs do not share state, `demo-qa` included.
+      # because GitHub Actions jobs do not share state.
       APP_DB_URL: postgresql://goproceed_app_login:app_pw@127.0.0.1:54322/postgres
       SERVICE_DB_URL: postgresql://goproceed_service_login:service_pw@127.0.0.1:54322/postgres
       SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
@@ -405,15 +307,13 @@ jobs:
         run: pnpm db:local-credentials
 
       # apps/app/qa/browser.mjs uses full `puppeteer`, which downloads a
-      # pinned Chrome for Testing build at install time — same reasoning as
-      # demo-qa's identical step above.
+      # pinned Chrome for Testing build at install time.
       - name: Ensure puppeteer's pinned Chrome is installed
         working-directory: apps/app
         run: pnpm exec puppeteer browsers install chrome
 
-      # Identical to demo-qa's own step — the same runner, the same Chrome
-      # for Testing build (both apps pin puppeteer@24.10.2), the same missing
-      # shared libraries.
+      # The Chrome for Testing build that puppeteer@24.10.2 pins needs shared
+      # libraries the runner image does not carry.
       - name: Install Chrome headless runtime libraries
         run: |
           sudo apt-get update
@@ -424,8 +324,7 @@ jobs:
             libxfixes3 libxkbcommon0 libxrandr2 xdg-utils
 
       # Reuses the harness's own launch() (including its GOPROCEED_CHROME_PATH
-      # override) so this checks the exact code path `qa` below depends on —
-      # same reasoning as demo-qa's identical step.
+      # override) so this checks the exact code path `qa` below depends on.
       - name: Verify Chrome launches
         working-directory: apps/app
         run: |
@@ -438,20 +337,19 @@ jobs:
 
       - run: pnpm --filter @goproceed/app typecheck
 
-      # NO `pnpm --filter @goproceed/app test` HERE, UNLIKE demo-qa's `test`
-      # STEP — A DELIBERATE OMISSION, NOT A DROPPED STEP. apps/app's vitest
+      # NO `pnpm --filter @goproceed/app test` HERE — A DELIBERATE OMISSION,
+      # NOT A DROPPED STEP. apps/app's vitest
       # suite (unit tests plus every *.int.test.ts integration test) already
       # runs in full inside `verify` above, against this exact repository
       # state, every push and every PR. Re-running the identical suite here
       # would only re-pay the cost of a second Supabase bring-up for zero new
-      # coverage — apps/demo's own `test` step earns its place because
-      # apps/demo has NO other job that runs it; apps/app's does. What this
-      # job adds on top of `verify` is the browser pass below, which `verify`
+      # coverage. What this job adds on top of `verify` is the browser pass
+      # below, which `verify`
       # cannot run at all (no Chrome, no puppeteer install there).
       - run: pnpm --filter @goproceed/app build
       - run: pnpm --filter @goproceed/app qa
 
-      # Same contract as demo-qa's identical step: qa/field.mjs writes every
+      # qa/field.mjs writes every
       # generated artifact under the gitignored qa-output/ (see its own
       # header) and must never touch a tracked file.
       - name: Assert apps/app QA run left the tree clean
@@ -470,74 +368,29 @@ jobs:
           path: apps/app/qa-output/
           retention-days: 14
 
-  # Runs the prototype/ package-contract validator (scripts/validate_package.py
-  # + prototype's own lint/build/qa) — previously nothing in CI ran this at
-  # all, so neither the package contract nor A.4.19 had any CI enforcement.
-  package-validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with: { python-version: '3.12' }
-
-      # NPM, NOT PNPM — and no pnpm/action-setup at all.
-      #
-      # This job installs with `npm --prefix prototype ci` and then runs
-      # `make validate`, which is entirely `npm --prefix prototype …` plus
-      # scripts/validate_package.py. Nothing in the Makefile or scripts/ calls
-      # pnpm, so the pnpm/action-setup step here was unused.
-      #
-      # More than unused: `cache: pnpm` made setup-node resolve the pnpm store
-      # path and register a post-job save for it. Since `pnpm install` never
-      # runs in this job the store is never created, so every run ended with
-      #
-      #   Error: Path Validation Error: Path(s) specified in the action for
-      #   caching do(es) not exist, hence no cache is being saved.
-      #
-      # It was not a broken cache, it was a cache that could never work —
-      # pointed at a package manager this job does not use. Caching npm against
-      # prototype/package-lock.json is the version that actually caches the
-      # dependencies this job actually installs.
-      #
-      # The other two jobs both run `pnpm install --frozen-lockfile`, so their
-      # `cache: pnpm` is correct and is left alone.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: prototype/package-lock.json
-
-      - run: npm --prefix prototype ci
-
-      - run: make validate
-
-      # ---------------------------------------------------------------
-      # NOTE: no "git diff --exit-code -- prototype" step here, by design.
-      #
-      # `make validate` (the validate-qa target) runs
-      # `npm --prefix prototype run qa`, whose verify.mjs *regenerates*
-      # prototype/qa-results.json and the 19 tracked PNGs under
-      # prototype/qa-screenshots/ on every single run — including a run
-      # against an untouched, freshly-checked-out HEAD. On the host this
-      # workflow was authored on, a clean-checkout `make validate` exits 0
-      # but leaves 14 tracked files modified (qa-results.json plus 13 of
-      # the 19 screenshots). scripts/validate_package.py:2435-2447 then
-      # reads qa-results.json and requires those screenshots to exist,
-      # so validating and leaving the tree clean are mutually exclusive
-      # with the current prototype/ harness: asserting a clean diff here
-      # would fail on every run, including ones that changed nothing.
-      #
-      # This is measured, pre-existing repository behaviour, not a bug in
-      # this workflow, and prototype/ is out of scope to change to fix it
-      # (see docs/legacy/40-phase1-discovery-outreach.md §A.6 for the deferred-debt
-      # record, and its A.4.19 note for why that acceptance criterion's two
-      # halves cannot both be satisfied without changing prototype/). Do
-      # not "fix" this by adding the assertion back.
-      #
-      # The clean-tree contract this repository *can* uphold — that running
-      # a QA harness must not dirty the working tree — is enforced above,
-      # in demo-qa, against apps/demo's harness instead, which genuinely
-      # satisfies it by writing to a gitignored directory.
-      # ---------------------------------------------------------------
+  # THE `package-validate` JOB WAS REMOVED ON 2026-08-20, WITH ITS SUBJECT.
+  #
+  # It ran `npm --prefix prototype ci` and then `make validate`, which is
+  # `scripts/validate_package.py` plus prototype's own lint/build/qa. Commit
+  # a85e688 («remove») deleted `prototype/` from the tree wholesale, alongside
+  # the `_to_delete/` archives — so from that commit on the job could not even
+  # reach its first step: setup-node failed resolving
+  # `prototype/package-lock.json` for its npm cache («Some specified paths were
+  # not resolved»), red on `main` and on every branch cut from it.
+  #
+  # It is deleted rather than repaired because there is nothing left to point
+  # it at: `validate_package.py` reads prototype's App.jsx, its pages, its
+  # qa-results.json and its styles.css in 29 places. Retargeting that script at
+  # the real apps is a rewrite, not a path fix, and it is recorded in TODOS.md
+  # as its own slice.
+  #
+  # What this job actually guarded, and where each half lives now:
+  #   - `validate-canonical` (the doc/role guard) already runs in `verify`
+  #     above, on every push — it never needed prototype/ and is unaffected.
+  #   - the approved-palette standard was briefly re-homed into apps/demo so
+  #     its three colour checks kept working; apps/demo was itself retired
+  #     hours later (see the demo-qa note above), so that standard and the
+  #     checks reading it are gone together. apps/app's colour discipline is
+  #     packages/tokens + @goproceed/ui, enforced by docs/design/02-building-ui.md.
+  #   - the prototype's own lint/build/qa guarded a frozen React app that no
+  #     longer exists. Nothing replaces it, deliberately.

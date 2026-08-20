@@ -125,7 +125,11 @@ pnpm validate:canonical-docs
 - `apps/mobile` — Expo/React Native iOS/Android client. It is **not on the v0.1
   path** and is not deleted (ADR-007 decision 2): it stays in the tree as the
   starting point for v0.3 offline work.
-- `apps/demo`, `prototype/` — legacy reference material, not product surfaces.
+- `apps/demo` and `prototype/` were the legacy reference material and are
+  **gone** — `prototype/` on 2026-08-19, `apps/demo` on 2026-08-20. Neither
+  was a product surface; the durable `/demo` named above arrives inside
+  `apps/app`, which is what makes the standalone one redundant rather than
+  missing. Their history is in git if a screen ever needs to be recovered.
 
 ## Next executable milestone
 

@@ -37,7 +37,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
        * themed focus-visible ring, the `prefers-reduced-motion` override, the
        * base font-family/size, and the heading/paragraph/border resets all
        * live — none of that is optional polish for a foreman reading a phone
-       * outdoors. apps/demo applies the class per-page instead of on <body>,
+       * outdoors. The retired apps/demo applied the class per-page rather than on <body>,
        * because it also serves public marketing routes that must stay on the
        * frozen legacy stylesheet; apps/app has no such routes; every screen
        * here is the field client. Scoping per-screen would only recreate the

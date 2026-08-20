@@ -1,1 +1,7 @@
-{ "extends": "../../tsconfig.base.json", "include": ["src"] }
+{
+  "extends": "../../tsconfig.base.json",
+  // tw-merge.test.ts asserts packages/ui's GENERATED override by importing the
+  // artifact itself, deliberately, rather than the package barrel — so the file
+  // has to be listed here or tsc refuses it (TS6307).
+  "include": ["src", "../ui/src/tw-merge.generated.ts"]
+}

@@ -122,6 +122,10 @@ evidence supports.
 - Roadmap versions are stable decision boundaries, not schedule promises.
 - A visual prototype under `apps/demo` is not the permanent product demo
   architecture.
+  - **2026-08-20:** that prototype was deleted from the tree. This decision is
+    unchanged and was not reopened — the durable `/demo` still belongs to
+    `apps/app`, as decided above; only the interim visual surface is gone,
+    along with its CI job. Its history remains in git.
 - Landing development does not force deployment of the authenticated app and
   vice versa.
 - Legacy files can remain useful without competing with canonical authority.
