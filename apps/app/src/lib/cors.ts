@@ -41,7 +41,7 @@ const EXPOSE_HEADERS = "x-request-id, idempotency-replay-until";
  */
 export function v1CorsResponse(
   request: NextRequest,
-  env: { FIELD_CLIENT_ORIGINS?: string } = process.env,
+  env: Record<string, string | undefined> = process.env,
 ): NextResponse {
   const allowed = parseAllowedOrigins(env.FIELD_CLIENT_ORIGINS);
   if (allowed.size === 0) return NextResponse.next({ request });
