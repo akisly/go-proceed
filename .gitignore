@@ -30,6 +30,15 @@ prototype/qa-runtime-tmp/
 # tree is clean after one.
 apps/app/qa-output/
 
+# apps/mobile's browser QA pass (qa/field-web.mjs): same convention as
+# apps/app/qa-output/ above — the report, screenshots and the throwaway JPEG
+# fixture land here. `dist/` (the `expo export --platform web` output the
+# harness serves) is already covered by apps/mobile/.gitignore's own `dist/`
+# entry; listed again here too since CI's clean-tree checks run from the
+# repo root, not from apps/mobile.
+apps/mobile/qa-output/
+apps/mobile/dist/
+
 # Vercel project link (orgId / projectId), created by `vercel link` and by the
 # Vercel Git integration on first deploy. It identifies an account's project and
 # has no business in the tree — infra/README-staging.md tells the operator to
