@@ -151,7 +151,7 @@ async function withPage(browser, task) {
  * page while every source-level check stayed green.
  */
 async function auditGeneratedCss(findings) {
-  const approvedCss = await readFile(path.resolve('../../prototype/src/styles.css'), 'utf8')
+  const approvedCss = await readFile(path.resolve('design/approved-palette.css'), 'utf8')
   const approved = buildApprovedPalette(approvedCss)
   const assetsDir = path.join(DIST, 'assets')
   let entries

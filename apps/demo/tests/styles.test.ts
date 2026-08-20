@@ -6,7 +6,7 @@ import { describe, expect, it } from 'vitest'
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const demoCss = readFileSync(resolve(__dirname, '../src/styles.css'), 'utf8')
-const prototypeCss = readFileSync(resolve(__dirname, '../../../prototype/src/styles.css'), 'utf8')
+const prototypeCss = readFileSync(resolve(__dirname, '../design/approved-palette.css'), 'utf8')
 const demoOnlyCss = readFileSync(resolve(__dirname, '../src/styles/demo.css'), 'utf8')
 
 const hexes = (css: string) => new Set((css.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []).map(h => h.toLowerCase()))

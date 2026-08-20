@@ -470,74 +470,28 @@ jobs:
           path: apps/app/qa-output/
           retention-days: 14
 
-  # Runs the prototype/ package-contract validator (scripts/validate_package.py
-  # + prototype's own lint/build/qa) — previously nothing in CI ran this at
-  # all, so neither the package contract nor A.4.19 had any CI enforcement.
-  package-validate:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with: { python-version: '3.12' }
-
-      # NPM, NOT PNPM — and no pnpm/action-setup at all.
-      #
-      # This job installs with `npm --prefix prototype ci` and then runs
-      # `make validate`, which is entirely `npm --prefix prototype …` plus
-      # scripts/validate_package.py. Nothing in the Makefile or scripts/ calls
-      # pnpm, so the pnpm/action-setup step here was unused.
-      #
-      # More than unused: `cache: pnpm` made setup-node resolve the pnpm store
-      # path and register a post-job save for it. Since `pnpm install` never
-      # runs in this job the store is never created, so every run ended with
-      #
-      #   Error: Path Validation Error: Path(s) specified in the action for
-      #   caching do(es) not exist, hence no cache is being saved.
-      #
-      # It was not a broken cache, it was a cache that could never work —
-      # pointed at a package manager this job does not use. Caching npm against
-      # prototype/package-lock.json is the version that actually caches the
-      # dependencies this job actually installs.
-      #
-      # The other two jobs both run `pnpm install --frozen-lockfile`, so their
-      # `cache: pnpm` is correct and is left alone.
-      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-          cache-dependency-path: prototype/package-lock.json
-
-      - run: npm --prefix prototype ci
-
-      - run: make validate
-
-      # ---------------------------------------------------------------
-      # NOTE: no "git diff --exit-code -- prototype" step here, by design.
-      #
-      # `make validate` (the validate-qa target) runs
-      # `npm --prefix prototype run qa`, whose verify.mjs *regenerates*
-      # prototype/qa-results.json and the 19 tracked PNGs under
-      # prototype/qa-screenshots/ on every single run — including a run
-      # against an untouched, freshly-checked-out HEAD. On the host this
-      # workflow was authored on, a clean-checkout `make validate` exits 0
-      # but leaves 14 tracked files modified (qa-results.json plus 13 of
-      # the 19 screenshots). scripts/validate_package.py:2435-2447 then
-      # reads qa-results.json and requires those screenshots to exist,
-      # so validating and leaving the tree clean are mutually exclusive
-      # with the current prototype/ harness: asserting a clean diff here
-      # would fail on every run, including ones that changed nothing.
-      #
-      # This is measured, pre-existing repository behaviour, not a bug in
-      # this workflow, and prototype/ is out of scope to change to fix it
-      # (see docs/legacy/40-phase1-discovery-outreach.md §A.6 for the deferred-debt
-      # record, and its A.4.19 note for why that acceptance criterion's two
-      # halves cannot both be satisfied without changing prototype/). Do
-      # not "fix" this by adding the assertion back.
-      #
-      # The clean-tree contract this repository *can* uphold — that running
-      # a QA harness must not dirty the working tree — is enforced above,
-      # in demo-qa, against apps/demo's harness instead, which genuinely
-      # satisfies it by writing to a gitignored directory.
-      # ---------------------------------------------------------------
+  # THE `package-validate` JOB WAS REMOVED ON 2026-08-20, WITH ITS SUBJECT.
+  #
+  # It ran `npm --prefix prototype ci` and then `make validate`, which is
+  # `scripts/validate_package.py` plus prototype's own lint/build/qa. Commit
+  # a85e688 («remove») deleted `prototype/` from the tree wholesale, alongside
+  # the `_to_delete/` archives — so from that commit on the job could not even
+  # reach its first step: setup-node failed resolving
+  # `prototype/package-lock.json` for its npm cache («Some specified paths were
+  # not resolved»), red on `main` and on every branch cut from it.
+  #
+  # It is deleted rather than repaired because there is nothing left to point
+  # it at: `validate_package.py` reads prototype's App.jsx, its pages, its
+  # qa-results.json and its styles.css in 29 places. Retargeting that script at
+  # the real apps is a rewrite, not a path fix, and it is recorded in TODOS.md
+  # as its own slice.
+  #
+  # What this job actually guarded, and where each half lives now:
+  #   - `validate-canonical` (the doc/role guard) already runs in `verify`
+  #     above, on every push — it never needed prototype/ and is unaffected.
+  #   - the approved-palette standard the demo checks compare against was
+  #     copied, byte-identical, to apps/demo/design/approved-palette.css, so
+  #     tests/palette.test.ts, tests/styles.test.ts and qa/verify.mjs keep
+  #     asserting it in `demo-qa`. See apps/demo/design/README.md.
+  #   - the prototype's own lint/build/qa guarded a frozen React app that no
+  #     longer exists. Nothing replaces it, deliberately.

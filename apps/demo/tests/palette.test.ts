@@ -13,7 +13,7 @@ import {
 } from '../qa/colour-audit.mjs'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
-const approvedCss = readFileSync(resolve(__dirname, '../../../prototype/src/styles.css'), 'utf8')
+const approvedCss = readFileSync(resolve(__dirname, '../design/approved-palette.css'), 'utf8')
 const APPROVED = buildApprovedPalette(approvedCss)
 
 /**

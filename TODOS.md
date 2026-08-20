@@ -600,6 +600,46 @@ module graph.
 
 ---
 
+## P2 — `scripts/validate_package.py` is orphaned: its subject was deleted
+
+Commit `a85e688` («remove») deleted `prototype/` from the tree on 2026-08-19,
+together with the `_to_delete/` archives. Three things depended on it and were
+red on `main` and on every branch cut from it until 2026-08-20:
+
+| What | How it broke |
+|---|---|
+| CI job `package-validate` | setup-node could not resolve `prototype/package-lock.json` for its npm cache — the job died before its first real step |
+| `make validate` | `validate-prototype`, `validate-qa` and `validate-contracts` all reach into `prototype/` |
+| `apps/demo` palette checks | `tests/palette.test.ts`, `tests/styles.test.ts` and `qa/verify.mjs` read `prototype/src/styles.css` as the approved-colour standard — 2 test files failed with ENOENT |
+
+**Done on 2026-08-20:** the approved palette was copied byte-identical to
+`apps/demo/design/approved-palette.css` (provenance in the README beside it),
+the three demo consumers now read that, the dead CI job was removed, and
+`make validate` was reduced to `validate-canonical` — the one target that never
+needed `prototype/` and which `verify` already runs on every push.
+
+**Still open — this item.** `scripts/validate_package.py` (~2,400 lines) is
+still tracked but no longer invoked by anything. It reads prototype's
+`App.jsx`, its pages, `qa-results.json` and `styles.css` in 29 places, so it
+cannot be pointed at the real apps by editing paths: what it asserts —
+route-by-route screen ownership, critical contract markers, the v2.9 package's
+flow completeness — describes an artefact that no longer exists in the tree.
+Two honest options, both a slice of their own:
+
+1. **Delete it**, and with it the last mechanical check on the v2.9 package
+   contract. Record in `docs/` what stopped being enforced, so the loss is
+   deliberate rather than discovered later.
+2. **Retarget it** at `apps/app` and `apps/demo` — a rewrite, and only worth
+   it if someone can say which of its assertions still describe the product.
+
+Until then it is dead code that looks alive, which is the state this entry
+exists to stop being invisible. Note also that `prototype/` is still listed in
+`ROLE_RECORD_DIRS` in `scripts/validate-canonical-docs.mjs`: the exemption is
+inert now (there is nothing at that path) and was left alone deliberately —
+it costs nothing and would be correct again if the directory ever returns.
+
+---
+
 ## P3 — `turbo-ignore` is deprecated; Vercel has a built-in «skip unaffected projects»
 
 The production build log of 2026-08-19 said so in so many words:
