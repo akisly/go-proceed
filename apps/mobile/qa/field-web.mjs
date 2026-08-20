@@ -1302,7 +1302,7 @@ async function main() {
       "holdsUnsavedBytes, apps/mobile/src/lib/capture/state.ts) is unit-tested with no DOM in " +
       "state.test.ts; the wiring (capture.tsx's useEffect) has no browser coverage here either.",
       "No colour-contrast (WCAG AA) scan and no screen-reader pass — same limitation " +
-      "apps/app/qa/field.mjs and apps/demo/qa/verify.mjs both state about themselves.",
+      "apps/app/qa/field.mjs states.",
       "Only ONE occurrence shape is exercised end to end (evidenceKind=photo, coverage=covered, " +
       "exactly one occurrence). The refusal branches and a multi-occurrence assignment are covered " +
       "by apps/mobile/src/lib/field/obligations.test.ts with no browser, not by this file.",
