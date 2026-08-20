@@ -119,6 +119,16 @@ describe("landing semantic frame", () => {
     expect(html).toContain("<footer");
   });
 
+  it("uses vector disclosure icons instead of a typographic FAQ glyph", () => {
+    const faqStart = html.indexOf('id="faq"');
+    const faqEnd = html.indexOf("</section>", faqStart);
+    const faqHtml = html.slice(faqStart, faqEnd);
+
+    expect(faqStart).toBeGreaterThan(-1);
+    expect(faqHtml).toContain("lucide-chevron-down");
+    expect(faqHtml).not.toContain("⌄");
+  });
+
   it("removes repeated framing and finishes with the single pilot section", () => {
     expect(html).not.toContain("Переробка починається там, де вимога існує окремо від виконання");
     expect(html).not.toContain("Перевірте, чи може ваша команда закривати етапи на підставі фактів");

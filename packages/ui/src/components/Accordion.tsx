@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { Accordion as RadixAccordion } from "radix-ui";
 import { cx } from "./cn";
 
@@ -41,12 +42,11 @@ export function Accordion({
               )}
             >
               {entry.question}
-              <span
+              <ChevronDown
                 aria-hidden="true"
-                className="shrink-0 text-ink-muted transition-transform duration-base ease-out group-data-[state=open]:rotate-180"
-              >
-                ⌄
-              </span>
+                strokeWidth={1.75}
+                className="size-4 shrink-0 text-ink-muted transition-transform duration-base ease-out group-data-[state=open]:rotate-180"
+              />
             </RadixAccordion.Trigger>
           </RadixAccordion.Header>
           <RadixAccordion.Content
