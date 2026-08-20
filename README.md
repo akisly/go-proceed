@@ -115,21 +115,38 @@ pnpm validate:canonical-docs
 
 ## Product surfaces
 
-- `apps/landing` — permanent separate marketing product/deployment.
-- `apps/app` — the web product and BFF; the durable isolated `/demo` arrives
+As of 2026-08-20 ([ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md)),
+GoProceed is architected as three separately-deployed pilot surfaces, not one:
+
+- `apps/landing` — permanent separate marketing product/deployment, as a
+  second Vercel project.
+- `apps/app` — the system: the `/v1` BFF and, later, the office
+  dashboard UI-minimum (create workspace/project + access grants; create
+  assignment; view photo evidence); the durable isolated `/demo` arrives
   inside it in v0.2.
-- The **v0.1 field client is a PWA served from `apps/app`**, behind the same BFF
-  boundary as the web product
-  ([ADR-007](docs/decisions/ADR-007-pilot-field-client.md) decision 1). Its
-  capture is online-only and a pending original is **not durable**.
-- `apps/mobile` — Expo/React Native iOS/Android client. It is **not on the v0.1
-  path** and is not deleted (ADR-007 decision 2): it stays in the tree as the
-  starting point for v0.3 offline work.
-- `apps/demo` and `prototype/` were the legacy reference material and are
-  **gone** — `prototype/` on 2026-08-19, `apps/demo` on 2026-08-20. Neither
-  was a product surface; the durable `/demo` named above arrives inside
-  `apps/app`, which is what makes the standalone one redundant rather than
-  missing. Their history is in git if a screen ever needs to be recovered.
+- `apps/mobile` — the field client's codebase, for the person taking photos.
+  It is Expo/React Native, shipped as **Expo-web for the pilot** and native
+  later from the same codebase
+  ([ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md) decision 2), and
+  will deploy as its own, third, Vercel project once the Expo-web client
+  ships.
+
+**Transition state, in force now:** the **v0.1 field client is still a PWA
+served from `apps/app`**, behind the same BFF boundary as the web product
+([ADR-007](docs/decisions/ADR-007-pilot-field-client.md) decision 1). Its
+capture is online-only and a pending original is **not durable**. `apps/app`'s
+field pages retire **only after** the Expo-web client in `apps/mobile` passes
+its parity checklist, measured on two physical phones
+([ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md) «The parity gate»).
+Until that measurement, `apps/mobile` is not on the pilot's *live* path even
+though it is now the field client's codebase — the pilot is never blocked on
+the migration.
+
+`apps/demo` and `prototype/` were the legacy reference material and are
+**gone** — `prototype/` on 2026-08-19, `apps/demo` on 2026-08-20. Neither
+was a product surface; the durable `/demo` named above arrives inside
+`apps/app`, which is what makes the standalone one redundant rather than
+missing. Their history is in git if a screen ever needs to be recovered.
 
 ## Next executable milestone
 
