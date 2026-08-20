@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { V1_PATH_RE, v1CorsResponse } from "./src/lib/cors";
 
 /**
  * Gate every field-client PAGE navigation behind a signed-in session, and
@@ -34,6 +35,16 @@ import { NextResponse, type NextRequest } from "next/server";
  * trip.
  */
 export async function proxy(request: NextRequest) {
+  // /v1 CROSS-ORIGIN BRANCH, 2026-08-20 (ADR-009 Plan B). The second matcher
+  // entry below routes /v1 requests here ONLY when they carry an Origin
+  // header. This guard MUST stay first: /v1's contract is 401 problem+json
+  // from requireUser downstream — never a redirect, never a getUser round
+  // trip here. All logic lives in src/lib/cors.ts; with FIELD_CLIENT_ORIGINS
+  // unset this is a pure pass-through.
+  if (V1_PATH_RE.test(request.nextUrl.pathname)) {
+    return v1CorsResponse(request);
+  }
+
   // Reassigned inside `setAll` below: refreshing the session issues a new
   // response so the Set-Cookie headers actually attach to what gets sent
   // back, rather than to a response object created before the refresh ran.
@@ -150,6 +161,15 @@ export const config = {
    * treatment via a trailing `$`, since they name exact files, not prefixes.
    */
   matcher: [
+    /*
+     * /v1 WITH an Origin header only, 2026-08-20 (ADR-009 Plan B): the
+     * cross-origin field client needs CORS answers, and `has` keeps the
+     * proxy OFF the BFF self-fetch path (api.ts sends no Origin). The
+     * function-body guard above returns before any Supabase code, so the
+     * exclusion rationale in the comment below still holds for everything
+     * this entry lets in. Vendor pattern: Next 16.3.1 proxy#cors.
+     */
+    { source: "/v1/:path*", has: [{ type: "header", key: "origin" }] },
     "/((?!(?:v1|external|_next)(?:/|$)|favicon\\.ico$|manifest\\.webmanifest$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|json)$).*)",
   ],
 };
