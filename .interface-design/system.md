@@ -3,9 +3,12 @@
 Source of truth for every rewritten `/app/**` route. Values here are decided,
 not suggested: if this file names a number, use that number.
 
-Scope is the **internal** application only. `/`, `/pilot`, `/roadmap`,
-`/legal/*` and most of `/demo` render from the frozen `apps/demo/src/styles.css`
-and are out of scope. Do not restyle them.
+Scope is the **internal** application only. It was written while `/`,
+`/pilot`, `/roadmap`, `/legal/*` and most of `/demo` still rendered from
+`apps/demo`'s frozen stylesheet and were explicitly out of scope. `apps/demo`
+was deleted on 2026-08-20, so those routes no longer exist in the tree; what
+remains in scope here is unchanged, and the exclusion is kept only so the
+original boundary stays readable.
 
 ---
 

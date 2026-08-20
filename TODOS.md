@@ -600,6 +600,44 @@ module graph.
 
 ---
 
+## Record (2026-08-20) — `apps/demo` and its CI job are retired
+
+Removed on the owner's decision, on the reasoning that the live demo will be
+served by `apps/app`. This was not a reversal: `README.md` already filed
+`apps/demo` as «legacy reference material, not product surfaces», and
+[ADR-004](docs/decisions/ADR-004-roadmap-demo-and-documentation.md) already
+decided both that «the durable interactive product demo belongs to `apps/app`
+at `/demo`» and that «a visual prototype under `apps/demo` is not the permanent
+product demo architecture». The interim surface simply outlived its purpose.
+
+What went, and what that costs:
+
+- `apps/demo/` (92 files) and the `demo-qa` CI job. No package depended on it —
+  it was a leaf — and no import in `apps/app` or `apps/landing` reached into
+  it, so nothing broke structurally. `apps/app` builds unchanged.
+- **143 unit tests and a browser QA pass, not re-homed.** They asserted the
+  demo's own routes, drawer focus trap and bundle colour; there is nothing left
+  to assert them against. `app-qa` remains the repository's browser pass.
+- **The approved-palette colour guard is gone** (see the P2 entry below for how
+  it got there in the first place). `apps/app`'s colour discipline is the token
+  package plus the §5 gate in `docs/design/02-building-ui.md`.
+- `apps/app/app/globals.css` was a PORT of the demo's theme and said «do not let
+  these drift silently». With no upstream left it now owns the theme outright;
+  its header records that, and the two decisions worth keeping (the
+  `.goproceed-app` scoping, and `--font-display` deliberately not following the
+  demo's Manrope).
+
+**Left for the owner, outside the repository:** the Vercel project
+`aktflow-demo` (root directory `apps/demo`) still exists and will fail its next
+build, because the directory it points at is gone. Delete or pause it in the
+Vercel dashboard — nothing in this repository can do it.
+
+Historical references to `apps/demo` in `HANDOFF.md` and in CLOSED entries here
+were deliberately left alone: they are dated records of what was true when they
+were written, and rewriting them would falsify the record.
+
+---
+
 ## P2 — `scripts/validate_package.py` is orphaned: its subject was deleted
 
 Commit `a85e688` («remove») deleted `prototype/` from the tree on 2026-08-19,
@@ -612,10 +650,16 @@ red on `main` and on every branch cut from it until 2026-08-20:
 | `make validate` | `validate-prototype`, `validate-qa` and `validate-contracts` all reach into `prototype/` |
 | `apps/demo` palette checks | `tests/palette.test.ts`, `tests/styles.test.ts` and `qa/verify.mjs` read `prototype/src/styles.css` as the approved-colour standard — 2 test files failed with ENOENT |
 
-**Done on 2026-08-20:** the approved palette was copied byte-identical to
-`apps/demo/design/approved-palette.css` (provenance in the README beside it),
-the three demo consumers now read that, the dead CI job was removed, and
-`make validate` was reduced to `validate-canonical` — the one target that never
+**Done on 2026-08-20, then partly undone hours later.** The approved palette
+was first copied byte-identical to `apps/demo/design/approved-palette.css` and
+the three demo consumers repointed at it, so the «no colour outside doc 05»
+guard survived losing `prototype/`. Later the same day the owner retired
+`apps/demo` itself (see the entry below), so that copy and the three checks
+reading it went with it. The net position: the demo-era colour guard no longer
+exists anywhere, and colour discipline for the surviving apps is
+`packages/tokens` + `@goproceed/ui`, enforced by `docs/design/02-building-ui.md`
+rather than by a test. The dead `package-validate` CI job was removed and
+`make validate` reduced to `validate-canonical` — the one target that never
 needed `prototype/` and which `verify` already runs on every push.
 
 **Still open — this item.** `scripts/validate_package.py` (~2,400 lines) is
@@ -629,8 +673,9 @@ Two honest options, both a slice of their own:
 1. **Delete it**, and with it the last mechanical check on the v2.9 package
    contract. Record in `docs/` what stopped being enforced, so the loss is
    deliberate rather than discovered later.
-2. **Retarget it** at `apps/app` and `apps/demo` — a rewrite, and only worth
-   it if someone can say which of its assertions still describe the product.
+2. **Retarget it** at `apps/app` — a rewrite, and only worth it if someone can
+   say which of its assertions still describe the product. (`apps/demo`, named
+   here when this entry was written, is gone too.)
 
 Until then it is dead code that looks alive, which is the state this entry
 exists to stop being invisible. Note also that `prototype/` is still listed in

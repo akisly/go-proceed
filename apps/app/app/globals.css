@@ -1,52 +1,34 @@
 /* ===========================================================================
- * PORT of apps/demo/src/styles/theme.css — DO NOT let these drift silently.
+ * THE APP THEME. This file owns it outright.
  *
- * apps/demo is a Vite app; apps/app is Next (App Router, @tailwindcss/postcss
- * instead of @tailwindcss/vite — see apps/app/postcss.config.mjs). The THEME
- * below — the `@theme` token block and the `.goproceed-app` base layer — is
- * copied unchanged. Two things could NOT come along unchanged, because they
- * are wiring for apps/demo's own directory, not theme:
+ * It began as a port of `apps/demo/src/styles/theme.css`, and its header used
+ * to say «if that file changes, bring the change here too». That instruction
+ * is retired: apps/demo was deleted on 2026-08-20 (README «Product surfaces»),
+ * so there is no upstream left to drift from and nothing to reconcile. The
+ * `@theme` token block and the `.goproceed-app` base layer below are now the
+ * source, not a copy — change them here, deliberately.
  *
- *   1. The original imports `../styles.css` and `./demo.css` as
- *      `layer(legacy)` — apps/demo's 2,110-line frozen prototype stylesheet
- *      and its demo-only companion. Their entire purpose is to keep those two
- *      unlayered, unrelated-to-Tailwind sheets from silently outranking every
- *      utility class (see the original file's header for the mechanism).
- *      apps/app has no such legacy sheet to reconcile — it never rendered
- *      unlayered CSS in the first place — so there is nothing for a `legacy`
- *      layer to hold here, and the two `@import` lines would not resolve
- *      against this file's location anyway. Dropped, along with the empty
- *      `legacy` layer name.
- *   2. The `@source not` exclusions named apps/demo's own `dist/`,
- *      `qa-output/`, `tests/`, `qa/` directories (fixture files with
- *      deliberately-unapproved colours, kept out of Tailwind's content scan).
- *      Those paths don't exist relative to this file and don't describe
- *      anything in apps/app. Dropped rather than translated, since apps/app's
- *      own `tests/` holds backend integration tests with no Tailwind classes
- *      to leak.
- *
- * If apps/demo/src/styles/theme.css changes — a new token, a new base rule —
- * bring the change here too. This file exists so a phone-rendering shell has
- * the same design system as the internal register; a fork that quietly
- * diverges defeats the point of porting rather than reinventing.
+ * Two pieces of the original never came along, and both stay absent on
+ * purpose. The demo imported a 2,110-line frozen legacy stylesheet and a
+ * demo-only companion as `layer(legacy)`, purely to stop those unlayered
+ * sheets outranking every utility class; apps/app has no such sheet, because
+ * every screen here is the field client. It also carried `@source not`
+ * exclusions for the demo's own build output.
  *
  * `.goproceed-app` SCOPING: the base-layer resets and the app font below only
- * apply inside an element carrying the `goproceed-app` class. apps/demo
- * applies it per-page (see e.g. AppShell.tsx) rather than on `<body>`,
- * because it also serves public marketing routes that must stay on the
- * frozen legacy stylesheet and never see this theme. apps/app has no such
- * routes — every screen is the field client — so `apps/app/app/layout.tsx`
- * puts the class on `<body>` once, for the whole app. Do not also add it on
- * a per-screen root element; it would be redundant, not additive.
+ * apply inside an element carrying the `goproceed-app` class. The demo applied
+ * it per page, because it also served public marketing routes that had to stay
+ * on the legacy stylesheet. apps/app has no such routes, so
+ * `apps/app/app/layout.tsx` puts the class on `<body>` once, for the whole
+ * app. Do not also add it on a per-screen root element; it would be redundant,
+ * not additive.
  *
- * DECISION, 2026-08-11: `--font-display` below deliberately does NOT match
- * apps/demo. apps/demo sets it to Manrope Variable; apps/app targets the
- * same Inter stack `--font-sans` uses, and does not install
- * `@fontsource-variable/manrope` at all. One typeface loads faster on a
- * construction site's mobile connection, and that is what this client is
- * for — owner decision, not an oversight. If apps/demo's `--font-display`
- * changes, this is the one token this file does NOT mirror; everything else
- * in "bring the change here too" above still applies.
+ * DECISION, 2026-08-11, still standing: `--font-display` below is the same
+ * Inter stack `--font-sans` uses, and `@fontsource-variable/manrope` is not
+ * installed. The demo used Manrope Variable; this client deliberately did not
+ * follow it, because one typeface loads faster on a construction site's mobile
+ * connection. That was an owner decision, not an oversight, and deleting the
+ * demo does not reopen it.
  * ========================================================================= */
 
 @layer theme, base, components, utilities;
