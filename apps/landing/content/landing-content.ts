@@ -65,10 +65,6 @@ export type LandingContent = {
     lead: string;
     equation: readonly { value: string; label: string }[];
   };
-  statement: {
-    label: string;
-    text: string;
-  };
   dashboard: {
     eyebrow: string;
     title: string;
@@ -174,10 +170,6 @@ export const landingContent = {
       { value: "03", label: "Рішення має автора й час" },
       { value: "04", label: "Етап закривається на підставі факту" },
     ],
-  },
-  statement: {
-    label: "Принцип GoProceed",
-    text: "Не звіт про те, що роботу нібито виконано. Факти, на яких її можна відповідально закрити.",
   },
   dashboard: {
     eyebrow: "Робочий простір GoProceed",
