@@ -680,6 +680,38 @@ async function measureHorizontalOverflow(page) {
   });
 }
 
+/**
+ * NO ANCHOR MAY RENDER WITH USER-AGENT LINK STYLING — ported verbatim from
+ * apps/app/qa/field.mjs (field.mjs:732-751; see that file's own comment for
+ * the full history: a missing `a` reset there once turned every list row
+ * blue-and-underlined). `[data-slot="button"]` is apps/app's own
+ * `<Button asChild>` marker (`src/ui/button.tsx`) and this client has no such
+ * component — the exemption clause below is kept anyway, unchanged, so this
+ * stays a byte-for-byte port rather than a divergent copy; it simply never
+ * matches anything here, so no anchor in this client is exempt from the
+ * check by construction.
+ */
+async function measureUaStyledLinks(page) {
+  return page.evaluate(() => {
+    // Chrome's UA sheet: `a:-webkit-any-link { color: -webkit-link }`, which
+    // computes to this exact value. Comparing the computed rgb rather than the
+    // keyword because getComputedStyle always resolves it.
+    const UA_LINK_BLUE = "rgb(0, 0, 238)";
+    return [...document.querySelectorAll("a")]
+      .filter((el) => !el.closest('[data-slot="button"]'))
+      .map((el) => {
+        const s = getComputedStyle(el);
+        return {
+          label: (el.textContent ?? "").trim().slice(0, 40) || el.getAttribute("href") || "(no text)",
+          href: el.getAttribute("href"),
+          color: s.color,
+          decoration: s.textDecorationLine,
+        };
+      })
+      .filter((l) => l.color === UA_LINK_BLUE || l.decoration.includes("underline"));
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Strings this file asserts on but has no import-safe source for — hardcoded
 // with a citation to the source of truth, same convention
@@ -778,6 +810,49 @@ async function main() {
         if (!bodyText.includes("Вхід за одноразовим кодом")) {
           ctx.findings.push('login screen: expected copy "Вхід за одноразовим кодом" not found');
         }
+        if (!bodyText.includes("Надіслати код")) {
+          ctx.findings.push('login screen: expected the "Надіслати код" button label, not found');
+        }
+
+        // <html lang> — MEASURED, NOT ASSUMED. Same rigor as the viewport
+        // meta below: `apps/mobile/dist/index.html` (Expo's own static
+        // template, not generated from `app.json`'s `expo.web` block) —
+        // measured directly against the exported bundle, not assumed —
+        // ships `<html lang="en">` regardless of this being a
+        // Ukrainian-only client. A screen reader announces the WRONG
+        // language for every string on this page as a result. THIS IS A
+        // REAL FINDING, not a skipped assertion; fixing it is out of this
+        // harness's job (a QA pass reports defects, it does not patch app
+        // code) and, per direct research rather than memory, out of a
+        // one-line config key too: expo-router's documented customization
+        // point for the exported root document is a root `+html.tsx`
+        // (https://docs.expo.dev/router/web/static-rendering/, read
+        // 2026-08-21 — `export default function Root({ children }) { return
+        // <html lang="uk">…</html>; }`), but that page describes it under
+        // STATIC rendering (`web.output: "static"`, one HTML file per
+        // route) — this project's export produces exactly ONE `index.html`
+        // for every route (verified: `dist/` carries no per-route HTML
+        // files), which is the signature of the DEFAULT `web.output:
+        // "single"` (SPA) mode, and the docs give no confirmation
+        // `+html.tsx` is honoured there too. So the fix is very likely
+        // "add `apps/mobile/app/+html.tsx`" but MAY additionally require
+        // `web.output: "static"` in `app.json` (a bigger change — splits
+        // the export into per-route files, which would also change how
+        // this harness's own SPA-fallback static server needs to behave) —
+        // confirm against current docs at implementation time rather than
+        // trusting this comment.
+        const htmlLang = await page.evaluate(() => document.documentElement.getAttribute("lang"));
+        ctx.observations.htmlLang = htmlLang;
+        if (htmlLang !== "uk") {
+          ctx.findings.push(
+            `<html lang="${htmlLang}"> — expected "uk". Likely fix: a root `
+            + "apps/mobile/app/+html.tsx rendering <html lang=\"uk\">…</html> "
+            + "(expo-router's static-export document customization point), possibly "
+            + "also requiring app.json's web.output: \"static\" — verify against "
+            + "current docs before implementing; not applied here, out of this "
+            + "harness's scope.",
+          );
+        }
 
         // The viewport meta, measured and RECORDED regardless of verdict
         // (task-6 brief: "measure the viewport meta and REPORT what is
@@ -810,6 +885,45 @@ async function main() {
         await page.screenshot({ path: path.join(SHOTS, "login.png"), fullPage: true });
       }).then((d) => reportDiagnostics("unauthenticated /", d, ctx.findings, ctx.missingAssets));
     });
+
+    // proxy.ts's whole reason for excluding /v1 from the page-auth gate:
+    // an unauthenticated API call must come back as the problem+json
+    // document the client contract promises, never a redirect to an HTML
+    // login page — ported from apps/app/qa/field.mjs's identical bare
+    // check (field.mjs:918-934), same placement (outside any named audit,
+    // a plain Node `fetch`, not a browser request). ADAPTED to this file's
+    // two-server layout, plus one thing field.mjs's own single-origin pass
+    // has no reason to check: an explicit `Origin` header matching
+    // `fieldOrigin`, and an assertion that `access-control-allow-origin`
+    // echoes it back — `src/lib/cors.ts`'s `v1CorsResponse` stamps that
+    // header on EVERY /v1 response from an allowlisted origin, unconditional
+    // on the downstream status, so a 401 refusing an unauthenticated caller
+    // must still carry it. This is the CORS-and-401 layering fact together:
+    // the field client's cross-origin fetch to an unauthenticated endpoint
+    // must be BOTH correctly refused AND correctly CORS-visible to the
+    // browser that made it (an allowed-origin response with no CORS header
+    // would refuse the caller a second, silent way — `TypeError: Failed to
+    // fetch`, indistinguishable from a real network failure — on top of the
+    // 401 the server actually meant to send).
+    try {
+      const v1Res = await fetch(`${appServer.baseUrl}/v1/me/context`, {
+        redirect: "manual",
+        headers: { Origin: fieldOrigin },
+      });
+      if (v1Res.status !== 401) {
+        ctx.findings.push(`/v1/me/context unauthenticated: expected 401, got ${v1Res.status} (middleware may be intercepting /v1)`);
+      }
+      const contentType = v1Res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/problem+json")) {
+        ctx.findings.push(`/v1/me/context unauthenticated: expected application/problem+json, got "${contentType}"`);
+      }
+      const allowOrigin = v1Res.headers.get("access-control-allow-origin");
+      if (allowOrigin !== fieldOrigin) {
+        ctx.findings.push(`/v1/me/context unauthenticated: expected access-control-allow-origin to echo "${fieldOrigin}" (sent as the request's Origin), got ${JSON.stringify(allowOrigin)} — src/lib/cors.ts's v1CorsResponse must stamp allowlisted origins on every /v1 response, 401s included`);
+      }
+    } catch (err) {
+      ctx.findings.push(`/v1/me/context unauthenticated: request failed: ${err}`);
+    }
 
     // ── Seed a user, a session, and the world the obligation screen needs ──
     const stamp = Date.now();
@@ -934,6 +1048,15 @@ async function main() {
           ctx.findings.push(`/ @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
         }
 
+        // THE SCREEN THIS ONE IS ACTUALLY FOR — every obligation row here is
+        // an anchor (`Link asChild`), so a lost `a` reset turns a foreman's
+        // whole list blue-and-underlined row by row. Same check, same
+        // reasoning as apps/app/qa/field.mjs's identical assertion on its
+        // own list screen.
+        for (const link of await measureUaStyledLinks(page)) {
+          ctx.findings.push(`/ @375: anchor "${link.label}" (href=${link.href}) renders with user-agent link styling — color ${link.color}, text-decoration ${link.decoration}`);
+        }
+
         await page.screenshot({ path: path.join(SHOTS, "my-assignments.png"), fullPage: true });
       });
       reportDiagnostics("my assignments list", listDiagnostics, ctx.findings, ctx.missingAssets);
@@ -1003,6 +1126,24 @@ async function main() {
         const overflow = await measureHorizontalOverflow(page);
         if (overflow) {
           ctx.findings.push(`/a/${assignmentId} @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
+        }
+
+        // Same check, same reasoning as apps/app/qa/field.mjs's identical
+        // assertion on its own obligation screen. Checked directly, not
+        // assumed: this screen's own `<Link href="/" asChild>` wraps a
+        // `Pressable` that ALSO sets `role="button"` explicitly
+        // (`../screens/assignment.tsx`'s back link and the error state's
+        // "До списку доручень") — react-native-web renders that combination
+        // as a plain `<div role="button">` on web, not an `<a>`, so this
+        // sweep finds zero anchors here regardless of any `[data-slot]`
+        // exemption. That is a real, separate observation from the UA-link
+        // check itself (a `role="button"` Pressable inside `Link asChild`
+        // never becomes a real hyperlink on this platform — no `href`
+        // attribute, nothing for a screen reader or "open in new tab" to
+        // find) — outside this task's scope to fix, noted here rather than
+        // silently relied upon.
+        for (const link of await measureUaStyledLinks(page)) {
+          ctx.findings.push(`/a/${assignmentId} @375: anchor "${link.label}" (href=${link.href}) renders with user-agent link styling — color ${link.color}, text-decoration ${link.decoration}`);
         }
 
         // Defensive net, same as apps/app/qa/field.mjs's identical check —

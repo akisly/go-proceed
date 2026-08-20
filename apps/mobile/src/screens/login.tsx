@@ -5,7 +5,7 @@
 // `TextInput` values and renders whatever the flow reports back.
 import { useCallback, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { color, type ThemeName } from "@goproceed/tokens";
 
 import { supabase } from "../lib/supabase";
@@ -63,7 +63,19 @@ export function Login() {
         // build is web-first only (see `../lib/supabase.ts`'s header), so
         // `window.location.origin` is available here the same way it is at
         // `otp-form.tsx`'s call site.
-        router.replace(safeNext(nextRef.current ?? "/", window.location.origin));
+        //
+        // `as Href`, NOT A NARROWER TYPE — `safeNext` resolves an arbitrary
+        // caller-supplied `?next=` value against the current origin and
+        // returns whatever same-origin path/query/hash results (see that
+        // function's own header); it is deliberately NOT restricted to this
+        // app's known route table, so no object-form `Href` can describe it
+        // statically. expo-router's own typed-routes docs endorse exactly
+        // this cast for a runtime-computed string
+        // (`<Link href={(\`/user\` + id) as Href} />`,
+        // https://docs.expo.dev/router/reference/typed-routes/, read
+        // 2026-08-21) — not a suppression, the one documented escape hatch
+        // for a route that is genuinely dynamic.
+        router.replace(safeNext(nextRef.current ?? "/", window.location.origin) as Href);
       },
     },
     setState,
