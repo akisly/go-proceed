@@ -181,6 +181,11 @@ rule that it is never routed into a native client
 links") is simply
 not engaged by v0.1, because v0.1 has no native client on its path.
 
+> **Amended 2026-08-20 by [ADR-009](ADR-009-three-pilot-surfaces.md):** the
+> field client's codebase moves to apps/mobile (Expo, web-first); this section
+> remains the accurate record of v0.1 as shipped, and the PWA it describes
+> stays in service until ADR-009's parity gate is measured.
+
 ### 2. `apps/mobile` is not deleted, and is not on the v0.1 path
 
 The workspace stays in the tree, on Expo SDK 57.0.9, with its scheme registered
