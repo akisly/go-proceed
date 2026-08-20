@@ -58,7 +58,11 @@ export type LandingContent = {
       state: string;
     };
   };
-  proof: readonly { value: string; label: string }[];
+  proof: {
+    eyebrow: string;
+    title: string;
+    items: readonly { value: string; label: string }[];
+  };
   outcome: {
     eyebrow: string;
     title: string;
@@ -153,12 +157,16 @@ export const landingContent = {
       state: "Доказ прийнято",
     },
   },
-  proof: [
-    { value: "до робіт", label: "Вимога прив’язана до етапу" },
-    { value: "на майданчику", label: "Майстер бачить потрібний доказ" },
-    { value: "зовнішній контур", label: "Нагляд отримує вузький перегляд" },
-    { value: "після рішення", label: "Закриття спирається на зафіксований факт" },
-  ],
+  proof: {
+    eyebrow: "Контур продукту",
+    title: "Від вимоги до закриття — одна послідовність фактів",
+    items: [
+      { value: "до робіт", label: "Вимога прив’язана до етапу" },
+      { value: "на майданчику", label: "Майстер бачить потрібний доказ" },
+      { value: "зовнішній контур", label: "Нагляд отримує вузький перегляд" },
+      { value: "після рішення", label: "Закриття спирається на зафіксований факт" },
+    ],
+  },
   outcome: {
     eyebrow: "Менше невизначеності між полем і ПТВ",
     title: "Переробка починається там, де вимога існує окремо від виконання",

@@ -67,6 +67,17 @@ describe("landing semantic frame", () => {
     expect(dashboard).toBeLessThan(proofStart);
   });
 
+  it("presents the proof strip as one labelled sequence of four stages", () => {
+    const proofStart = html.indexOf('id="proof"');
+    const proofEnd = html.indexOf("</section>", proofStart);
+    const proofHtml = html.slice(proofStart, proofEnd);
+
+    expect(proofStart).toBeGreaterThan(-1);
+    expect(proofHtml).toContain('aria-labelledby="proof-title"');
+    expect(proofHtml).toContain('<ol');
+    expect(proofHtml.match(/<li/g)).toHaveLength(4);
+  });
+
   it("uses timed clickable tabs instead of a scroll-driven product tour", () => {
     expect(html).toContain('data-tour-mode="timed-tabs"');
     expect(html).toContain('role="tablist"');
