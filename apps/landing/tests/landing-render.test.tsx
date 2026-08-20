@@ -84,12 +84,13 @@ describe("landing semantic frame", () => {
     expect(html).toContain('data-tour-progress="true"');
   });
 
-  it("lets each product-tour chapter define its natural height", () => {
+  it("stabilizes the desktop product tour without restoring oversized panels", () => {
     const tourStart = html.indexOf('data-tour-mode="timed-tabs"');
     const tourEnd = html.indexOf("</section>", tourStart);
     const tourHtml = html.slice(tourStart, tourEnd);
 
     expect(tourStart).toBeGreaterThan(-1);
+    expect(tourHtml).toContain("wide:min-h-[460px]");
     expect(tourHtml).not.toContain("min-h-[560px]");
     expect(tourHtml).not.toContain("min-h-[620px]");
     expect(tourHtml).not.toContain("min-h-[480px]");
