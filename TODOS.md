@@ -579,6 +579,53 @@ rollout.
 
 ---
 
+## P1 — Three pilot surfaces (ADR-009): plans B, C, D
+
+[ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md) (2026-08-20) recut
+the pilot into three separately-deployed surfaces — landing, the system
+(`apps/app`'s `/v1` BFF plus a dashboard UI-minimum), and a field client whose
+codebase moves to `apps/mobile` (Expo), shipped Expo-web for the pilot. The
+ADR itself, the ADR-007 §1 amendment pointer, and this README/TODOS pass are
+what this entry tracks as done; `apps/landing/vercel.json` and the landing
+project's actual deploy are Tasks 2–3 of the same implementation plan
+(`docs/superpowers/plans/2026-08-20-three-pilot-surfaces.md`), tracked there
+rather than duplicated here. The three items below are the follow-up plans
+this entry names but does not yet execute, each its own scope-split slice per
+`superpowers:writing-plans`.
+
+1. **Plan B — `/v1` cross-origin access**, DONE 2026-08-20 — CORS in the proxy
+   per the vendor's Next 16.3.1 pattern; unset-means-unchanged pinned by tests;
+   bearer needed no work — `auth.ts` already prioritizes `Authorization: Bearer`,
+   its comment names mobile. Planned as
+   `docs/superpowers/plans/2026-08-20-v1-cors-bearer.md`. CORS lives in
+   `proxy.ts`, behind a `{ source: "/v1/:path*", has: [{ type: "header", key:
+   "origin" }] }` matcher entry, per the vendor's own Next 16.3.1 proxy#cors
+   pattern; all the logic lives in `apps/app/src/lib/cors.ts`, with an
+   allowlist via a new `FIELD_CLIENT_ORIGINS` env var (declared in
+   `turbo.json` `build.env`). The shared route wrappers
+   (`apps/app/src/lib/command.ts` `queryRoute`/`commandRoute`) were never
+   touched.
+2. **Plan C — Expo-web field client to parity**, planned as
+   `docs/superpowers/plans/2026-08-XX-expo-field-client.md`. Rebuilds OTP
+   login, «Мої доручення», the assignment screen, and capture →
+   upload-intent → finalize → receipt against `apps/mobile`'s Expo/RN
+   codebase, deployed Expo-web as the pilot's third Vercel project. **This is
+   the parity gate:** `apps/app`'s field pages retire only once this client
+   passes the README-staging §6.9 / INV-081 checklist, measured on the two
+   physical phones — not before, and not by code review.
+3. **Plan D — dashboard UI-minimum**, planned as
+   `docs/superpowers/plans/2026-08-XX-dashboard-ui-minimum.md`. Three
+   slices — workspace/project + access grants, assignment creation,
+   photo-evidence view — each behind `docs/design/02-building-ui.md`'s gate,
+   consuming the existing `/v1` routes with no new API.
+
+**Meanwhile, the pilot runs on the PWA.** `apps/app`'s field pages stay
+deployed and functional and are the pilot's only working field client until
+Plan C's parity measurement lands. No task in any of the three plans above may
+remove them first.
+
+---
+
 ## P2 — a page render costs ~3 auth round trips and 2 self-fetch hops, by design
 
 Measured 2026-08-20 against the live origin: a cold request took 2.2 s, a warm
@@ -727,7 +774,9 @@ https://vercel.com/docs/monorepos#skipping-unaffected-projects`. It still works
 and decided correctly (`No previous deployments found … Proceeding`). When it
 is replaced, the `VERCEL_ENV` guard in `apps/app/vercel.json`'s `ignoreCommand`
 (Production only, for the pilot) has to survive the replacement — read the
-linked page first, per CLAUDE.md.
+linked page first, per CLAUDE.md. Additionally, `apps/landing/vercel.json` (added
+2026-08-20) is a second `ignoreCommand` caller with different semantics (no
+`VERCEL_ENV` guard; previews allowed), so the replacement must cover both files.
 
 ---
 

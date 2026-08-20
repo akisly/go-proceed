@@ -392,6 +392,7 @@ Variables**, for **both** Production and Preview:
 | `EXTERNAL_LINK_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
 | `EXTERNAL_SESSION_HMAC_KEYS` | runtime | a DIFFERENT generated key | |
 | `EXTERNAL_SESSION_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
+| `FIELD_CLIENT_ORIGINS` | runtime | OPTIONAL: comma-separated exact origins | Plan C; unset = CORS layer off, `/v1` behaves exactly as before; set only when the Expo-web field client origin exists |
 
 **Three of these were undocumented until 2026-08-18 and would have failed the
 first deploy quietly.** `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are read
@@ -450,20 +451,54 @@ preflight never runs for it. To build Previews later: set every §4.3 variable
 for Preview (with a Preview origin) AND drop the `VERCEL_ENV` guard from
 `ignoreCommand` in the same commit.
 
-### 4.4 `apps/landing` — optional, and not part of the P0
+### 4.4 `apps/landing` — a second project, deployed 2026-08-20 under ADR-009
 
-`apps/landing` is a static-first Next app with no API routes and no Supabase
-client (`apps/landing/next.config.ts`). It has NO `vercel.json` of its own and
-nothing in the P0 depends on it. If it is deployed:
+**Previously (until 2026-08-20):** this section was titled «optional, and not
+part of the P0» and described `apps/landing` as a static-first Next app that
+would be deployed only if time permitted. It is now a live Vercel project,
+provisioned on 2026-08-20 as a pilot for the Vercel MCP's project-creation
+flow (ADR-009).
 
-- Root directory `apps/landing`, framework Next.js, install at the repo root
-  (`cd ../.. && pnpm install --frozen-lockfile`), build
-  `cd ../.. && pnpm turbo run build --filter=@goproceed/landing`.
-- Environment variables: none.
-- Domain: `{{LANDING_HOSTNAME}}`.
+**Created:** Project `goproceed-landing` (Vercel ID `prj_hoBlVEmml70Ap5X2alvKtPUToQpj`)
+linked to GitHub repository `akisly/go-proceed`, root directory `apps/landing`,
+production branch `main`. Created 2026-08-20 via the Vercel MCP
+(`create_git_project`/`deploy_to_vercel` tools) with the owner watching; no manual
+dashboard configuration was performed.
 
-It is listed for completeness, not urgency. A foreman opening the field client
-does not touch it.
+**First production deployment:** `dpl_CnUUmJCiCcJfd5qt4j8mN1fhkZU1`, deployed from
+commit `c77891f` (2026-08-20, before `apps/landing/vercel.json` had merged).
+Vercel's pnpm-workspace auto-detection installed at the repo root automatically,
+because `apps/landing` did not yet have its own `vercel.json`. The committed
+`vercel.json` (added by this branch) will govern builds after merge, making
+install/build explicit instead of inferred. Build succeeded and reached READY in
+~50 seconds.
+
+**Aliases and measured response (2026-08-20):**
+- Canonical: `https://goproceed-landing.vercel.app`
+- Dashboard alias: `goproceed-landing-akislys-projects.vercel.app`
+- Git-main alias: yes (automatic)
+- Measured at canonical:
+  ```
+  HTTP/2 200
+  content-type: text/html; charset=utf-8
+  x-vercel-id: arn1::…
+  ttfb 0.29 s
+  <title>GoProceed — Evidence-to-payment operating layer</title>
+  ```
+
+**Deployment Protection difference — MCP-created vs dashboard:** Unlike §5.4's
+trap for the `apps/app` project (which ships with Vercel Authentication ON), a
+project created via the Vercel MCP shipped with `ssoProtection.enabled=false` —
+Vercel Authentication OFF. The next operator need not open Deployment Protection
+for this project unless a custom domain is attached; the vercel.app alias is
+reachable by anyone. This difference is MCP-specific, not a general Vercel
+change: the dashboard flow still creates projects with the authentication trap.
+
+**Hostname:** `{{LANDING_HOSTNAME}}` remains a token; no custom domain has been
+decided. The canonical `goproceed-landing.vercel.app` is the origin for now.
+
+**Environment variables:** none. `apps/landing` is a static-rendered site with no
+build-time or runtime secrets.
 
 ## 5. Deploy
 
