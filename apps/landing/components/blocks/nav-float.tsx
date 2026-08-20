@@ -3,10 +3,10 @@ import { MockAction } from "../mock-action";
 
 export function NavFloat() {
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-50 px-4 md:top-5">
+    <header className="landing-glass-nav fixed inset-x-0 top-0 z-50 px-5 md:px-8 wide:px-12">
       <nav
         aria-label="Головна навігація"
-        className="pointer-events-auto mx-auto flex h-14 max-w-nav items-center gap-6 rounded-pill border border-line bg-surface px-3 shadow-float md:px-4"
+        className="mx-auto flex h-16 max-w-content items-center gap-6"
       >
         <a href="#product" className="flex items-center gap-2 rounded-pill text-ink">
           <span
@@ -35,6 +35,6 @@ export function NavFloat() {
           <span className="md:hidden">Пілот</span>
         </MockAction>
       </nav>
-    </div>
+    </header>
   );
 }
