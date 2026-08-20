@@ -20,9 +20,9 @@ const tabs: PinnedTab[] = landingContent.tour.map((chapter) => ({
 export function ProductTour() {
   return (
     <SectionShell
-      eyebrow="Продуктовий контур"
-      title="Від правила до документа без розриву історії"
-      lead="Чотири робочі поверхні показують той самий факт у потрібному контексті для кожного учасника."
+      eyebrow="Інтерфейс продукту"
+      title="Один факт у чотирьох робочих поверхнях"
+      lead="Вимога, польова фіксація, розгляд і акт показують спільний контекст відповідно до ролі та моменту роботи."
       className="bg-canvas"
     >
       <PinnedTabs tabs={tabs} />

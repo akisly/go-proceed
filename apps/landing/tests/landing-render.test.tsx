@@ -96,9 +96,28 @@ describe("landing semantic frame", () => {
     expect(tourHtml).not.toContain("min-h-[480px]");
   });
 
-  it("renders the workflow as one semantic evidence timeline", () => {
-    expect(html).toContain('data-evidence-timeline="true"');
-    expect(html).toContain('aria-label="Доказовий ланцюг"');
+  it("renders the evidence route as three labelled product scenes", () => {
+    const workflowStart = html.indexOf('id="workflow"');
+    const workflowEnd = html.indexOf("</section>", workflowStart);
+    const workflowHtml = html.slice(workflowStart, workflowEnd);
+
+    expect(workflowStart).toBeGreaterThan(-1);
+    expect(workflowHtml).toContain('aria-label="Доказовий ланцюг"');
+    expect(workflowHtml.match(/<figure/g) ?? []).toHaveLength(3);
+
+    for (const label of ["Робота і вимога", "Доказ і рішення", "Закриття і акт"]) {
+      expect(workflowHtml).toContain(`aria-label="${label}"`);
+    }
+  });
+
+  it("keeps the evidence scenes free of the square blueprint grid", () => {
+    const workflowStart = html.indexOf('id="workflow"');
+    const workflowEnd = html.indexOf("</section>", workflowStart);
+
+    const workflowHtml = html.slice(workflowStart, workflowEnd);
+
+    expect(workflowHtml).not.toContain("landing-paper-grid");
+    expect(workflowHtml).not.toContain("landing-blueprint");
   });
 
   it("gives each project role a concrete decision dossier", () => {
