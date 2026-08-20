@@ -125,6 +125,14 @@ const ROLE_RECORD_DIRS = [
   // The AktFlow-era design boards, which are the research record behind
   // `prototype/` — itself frozen and out of scope (.github/workflows/ci.yml).
   "design-references/",
+  // A dated security report is a measurement, not a document: `/cso` writes
+  // one JSON per run under this directory, stamped with the timestamp it ran
+  // at, and the 2026-07-30 report names the roles as they were called that
+  // day — three weeks before migration 0057 renamed them. Rewriting the names
+  // inside it would falsify the finding it recorded, exactly as the dated
+  // package review below explains for its own file. New reports land here
+  // whenever `/cso` runs, so the exemption is the directory, not the file.
+  ".gstack/security-reports/",
   // `prototype/` IS that frozen directory. `.github/workflows/ci.yml` records
   // it as «out of scope to change», and its own harness rewrites tracked
   // screenshots on every run, so a rename there is its own slice with its own
