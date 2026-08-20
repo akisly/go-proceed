@@ -13,6 +13,8 @@ export type PinnedTab = {
   panel: ReactNode;
 };
 
+type PinnedTabsProps = { tabs: PinnedTab[]; className?: string | undefined };
+
 /**
  * The product tour: a sticky tab strip whose active tab advances with scroll
  * progress, with the panel swapping beneath it. Measured on Folio, where it is
@@ -43,8 +45,29 @@ export type PinnedTab = {
  * shorter version of it, and a reader who declined motion should not have to
  * scroll four screens to see four panels.
  */
-export function PinnedTabs({ tabs, className }: { tabs: PinnedTab[]; className?: string }) {
+export function PinnedTabs({ tabs, className }: PinnedTabsProps) {
   const reduced = useReduced();
+
+  return reduced
+    ? <ReducedPinnedTabs tabs={tabs} className={className} />
+    : <AnimatedPinnedTabs tabs={tabs} className={className} />;
+}
+
+function ReducedPinnedTabs({ tabs, className }: PinnedTabsProps) {
+  return (
+    <div className={className}>
+      {tabs.map((tab) => (
+        <section key={tab.id} aria-labelledby={`${tab.id}-label`} className="border-t border-line py-12">
+          <h3 id={`${tab.id}-label`} className="text-h3 font-semibold text-ink">{tab.label}</h3>
+          <p className="mt-1 text-data text-ink-muted">{tab.hint}</p>
+          <div className="mt-6">{tab.panel}</div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function AnimatedPinnedTabs({ tabs, className }: PinnedTabsProps) {
   const ref = useRef<HTMLDivElement>(null);
   const [active, setActive] = useState(0);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start start", "end end"] });
@@ -53,20 +76,6 @@ export function PinnedTabs({ tabs, className }: { tabs: PinnedTab[]; className?:
     const next = Math.min(tabs.length - 1, Math.max(0, Math.floor(p * tabs.length)));
     setActive((current) => (current === next ? current : next));
   });
-
-  if (reduced) {
-    return (
-      <div className={className}>
-        {tabs.map((tab) => (
-          <section key={tab.id} aria-labelledby={`${tab.id}-label`} className="border-t border-line py-12">
-            <h3 id={`${tab.id}-label`} className="text-h3 font-semibold text-ink">{tab.label}</h3>
-            <p className="mt-1 text-data text-ink-muted">{tab.hint}</p>
-            <div className="mt-6">{tab.panel}</div>
-          </section>
-        ))}
-      </div>
-    );
-  }
 
   return (
     <div ref={ref} className={className} style={{ height: `${tabs.length * 100}vh` }}>

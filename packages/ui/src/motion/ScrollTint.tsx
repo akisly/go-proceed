@@ -28,16 +28,26 @@ export function ScrollTint({
   className?: string | undefined;
 }) {
   const reduced = useReduced();
+
+  if (reduced) {
+    return <p className={className ? `text-ink ${className}` : "text-ink"}>{text}</p>;
+  }
+
+  return <AnimatedScrollTint text={text} className={className} />;
+}
+
+function AnimatedScrollTint({
+  text, className,
+}: {
+  text: string;
+  className?: string | undefined;
+}) {
   const ref = useRef<HTMLParagraphElement>(null);
   const { scrollYProgress } = useScroll({
     target: ref,
     offset: ["start 0.85", "end 0.45"],
   });
   const words = text.split(" ");
-
-  if (reduced) {
-    return <p className={className ? `text-ink ${className}` : "text-ink"}>{text}</p>;
-  }
 
   return (
     <p ref={ref} className={className}>

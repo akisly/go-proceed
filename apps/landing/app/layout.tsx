@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import type { ReactNode } from "react";
+import { createLandingMetadata } from "../content/landing-metadata";
 
 // Three families, loaded as variable fonts and subset by @fontsource:
 //   Inter        — all UI, all body copy, every figure
@@ -12,38 +14,20 @@ import "@fontsource-variable/source-serif-4";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
-const title = "GoProceed | Від вимоги до доказу й акта";
-const description =
-  "GoProceed пов’язує вимоги, польові докази, рішення технічного нагляду та чернетки актів для будівельних робіт.";
+export async function generateMetadata(): Promise<Metadata> {
+  const requestHeaders = await headers();
+  const host = firstForwardedValue(
+    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host"),
+  ) ?? "localhost:3100";
+  const protocol = firstForwardedValue(requestHeaders.get("x-forwarded-proto"))
+    ?? (host.startsWith("localhost") ? "http" : "https");
 
-export const metadata: Metadata = {
-  title,
-  description,
-  applicationName: "GoProceed",
-  openGraph: {
-    title,
-    description,
-    type: "website",
-    locale: "uk_UA",
-    images: [
-      {
-        url: "/og.png",
-        width: 1200,
-        height: 630,
-        alt: "GoProceed: від вимоги до доказу й акта",
-      },
-    ],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title,
-    description,
-    images: ["/og.png"],
-  },
-  icons: {
-    icon: "/images/verified-stamp.png",
-  },
-};
+  return createLandingMetadata(`${protocol}://${host}`);
+}
+
+function firstForwardedValue(value: string | null): string | null {
+  return value?.split(",")[0]?.trim() || null;
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   // data-theme is set explicitly rather than left to the OS. D6 ships light

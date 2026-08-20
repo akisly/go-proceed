@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "next dev -p 3100",
     "build": "next build",
+    "build:sites": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
@@ -23,8 +24,16 @@
     "@types/node": "24.9.2",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
+    "@cloudflare/vite-plugin": "1.37.1",
+    "@openai/sites-vite-plugin": "0.1.0",
     "@tailwindcss/postcss": "^4.3.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "@vitejs/plugin-rsc": "0.5.26",
+    "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "^4.3.3",
-    "vitest": "3.2.4"
+    "vinext": "1.0.0-beta.2",
+    "vite": "8.0.13",
+    "vitest": "3.2.4",
+    "wrangler": "4.92.0"
   }
 }

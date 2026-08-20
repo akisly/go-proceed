@@ -34,6 +34,42 @@ export function LineDraw({
   viewBox?: string | undefined;
 }) {
   const reduced = useReduced();
+
+  if (reduced) {
+    return (
+      <LineFrame d={d} className={className} strokeWidth={strokeWidth} viewBox={viewBox} />
+    );
+  }
+
+  return (
+    <AnimatedLine d={d} className={className} strokeWidth={strokeWidth} viewBox={viewBox} />
+  );
+}
+
+type LineProps = {
+  d: string;
+  className?: string | undefined;
+  strokeWidth: number;
+  viewBox: string;
+};
+
+function LineFrame({ d, className, strokeWidth, viewBox }: LineProps) {
+  return (
+    <div className={className} aria-hidden="true">
+      <svg viewBox={viewBox} fill="none" preserveAspectRatio="none" className="h-full w-full">
+        <path
+          d={d}
+          stroke="var(--gp-border-strong)"
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          pathLength={1}
+        />
+      </svg>
+    </div>
+  );
+}
+
+function AnimatedLine({ d, className, strokeWidth, viewBox }: LineProps) {
   // The scroll target is the wrapping div, not the <svg>. `useScroll` measures
   // an HTMLElement; an SVGSVGElement is not one, and casting it would compile
   // while handing Motion an element whose layout box it reads differently.
@@ -49,7 +85,7 @@ export function LineDraw({
           stroke="var(--gp-border-strong)"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
-          style={reduced ? { pathLength: 1 } : { pathLength: drawn }}
+          style={{ pathLength: drawn }}
         />
       </svg>
     </div>

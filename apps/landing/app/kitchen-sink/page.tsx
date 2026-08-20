@@ -92,7 +92,7 @@ export default function KitchenSink() {
       </Case>
 
       <Case n="03" name="Stagger" rule="Послідовність — це інформація: вона каже, що елементи впорядковані. Під reduced motion крок лишається, зсув зникає.">
-        <Stagger className="grid gap-3 sm:grid-cols-3">
+        <Stagger className="grid gap-3 md:grid-cols-3">
           {["Реєстр", "Докази", "Акт"].map((t) => (
             <StaggerItem key={t} className="rounded-panel border border-line bg-surface p-5">
               <p className="index-label">{t}</p>

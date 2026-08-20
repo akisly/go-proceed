@@ -22,5 +22,5 @@ export { Lift } from "./Lift";
 export { Press } from "./Press";
 export { CrossFade } from "./CrossFade";
 
-export { useReduced } from "./use-reduced";
+export { shouldReduce, useReduced } from "./use-reduced";
 export { DURATION, EASE, STAGGER, SPRING, BLUR, REDUCED } from "./tokens";

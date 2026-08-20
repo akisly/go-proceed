@@ -9,6 +9,9 @@ supabase/.temp/
 .next/
 next-env.d.ts
 .turbo/
+.playwright-cli/
+apps/landing/.wrangler/
+apps/landing/dist/
 
 # IDE and local tooling
 .idea/

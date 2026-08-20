@@ -61,11 +61,11 @@ export function Hero() {
               <div className="grid md:grid-cols-[1.2fr_0.8fr]">
                 <figure className="relative min-h-72 overflow-hidden bg-sunken md:min-h-96">
                   <Image
-                    src="/images/cable-tray-evidence.png"
+                    src="/images/hero-evidence.jpg"
                     alt="Кабельний лоток на будівельному майданчику до закриття конструкції"
                     fill
-                    priority
                     loading="eager"
+                    fetchPriority="high"
                     sizes="(max-width: 1024px) 90vw, 430px"
                     className="object-cover"
                   />

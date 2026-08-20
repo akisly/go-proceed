@@ -1,5 +1,5 @@
+import { shouldReduce } from "@goproceed/ui/motion";
 import { describe, expect, it } from "vitest";
-import { shouldReduce } from "../../ui/src/motion/use-reduced";
 
 describe("the shared reduced-motion hydration contract", () => {
   it("keeps the server and first client frame on the same safe branch", () => {

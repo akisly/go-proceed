@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { metadata } from "../app/layout";
+import { createLandingMetadata } from "../content/landing-metadata";
+
+const metadata = createLandingMetadata("https://goproceed.example");
 
 describe("landing metadata", () => {
   it("describes the evidence product without unsupported commercial claims", () => {
@@ -9,6 +11,7 @@ describe("landing metadata", () => {
   });
 
   it("publishes one social preview asset", () => {
+    expect(metadata.metadataBase?.toString()).toBe("https://goproceed.example/");
     expect(metadata.openGraph?.images).toEqual([
       {
         url: "/og.png",
