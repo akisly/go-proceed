@@ -70,7 +70,7 @@ export function PinnedTabs({ tabs, className }: { tabs: PinnedTab[]; className?:
 
   return (
     <div ref={ref} className={className} style={{ height: `${tabs.length * 100}vh` }}>
-      <div className="sticky top-0 flex h-screen flex-col justify-center gap-8">
+      <div className="sticky top-20 flex h-[calc(100vh-5rem)] flex-col justify-center gap-8">
         <div role="tablist" aria-label="Продукт" className="grid grid-cols-2 gap-6 md:grid-cols-4">
           {tabs.map((tab, i) => (
             <button
