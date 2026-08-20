@@ -521,7 +521,7 @@ the Supabase project's own team can receive the code.
 
 ---
 
-## P1 — the OTP email is refused for anyone outside the Supabase team until custom SMTP is configured
+## P1 (CLOSED 2026-08-20) — OTP email for outsiders: Brevo custom SMTP is live; the non-team delivery test was waived by the owner
 
 **Read from the current Supabase docs on 2026-08-19
 (https://supabase.com/docs/guides/auth/auth-smtp):** the default email service
@@ -542,6 +542,40 @@ Also still to do in the dashboard on the same page: Auth Site URL is
 set it to the origin; and the hosted «Magic Link» template must keep
 `{{ .Token }}` (it was the dashboard default — a link with no code — until
 2026-08-19 20:3x, and the client's code-only flow had nothing to type).
+
+**How it closed (2026-08-20).** The owner configured Brevo
+(`smtp-relay.brevo.com:587`, relay login `b…@smtp-brevo.com`, sender the
+gmail address, minimum interval 60 s) — and the decisive evidence turned out
+to be retroactive: the headers of the very email the first sign-in used
+(19 Aug, 20:34 UTC) show «отправлено через ha.d.sender-sib.com», DKIM
+`11932482.brevosend.com` — **that email already went through Brevo.** Brevo
+cannot authenticate `gmail.com`, so it rewrites the From to
+`akisliy2306@11932482.brevosend.com` and keeps gmail in Reply-To; SPF/DKIM
+therefore align and deliverability holds — the earlier fear that a gmail
+sender would fail DMARC was wrong, Brevo handles it. The built-in service's
+«team addresses only» rule left the path the moment custom SMTP went live.
+Site URL was set to the origin by the owner the same day.
+
+**What was NOT measured, by explicit owner decision.** Delivery to a
+non-team address from THIS project. One attempt was made: a second user was
+created and a code arrived — but `auth.users` on staging still held exactly
+one row and the owner's `recovery_sent_at` had not moved, so whatever sent
+that code, it was not staging's GoTrue (likely another project's dashboard).
+Rather than repeat the test, the owner chose to accept custom SMTP's
+documented behaviour (the team-only rule is specific to the built-in
+service). Recorded as a waiver, not a verification — if a foreman's first
+code ever fails to arrive, start here. The Supabase logs backend answered
+«Backend error» all afternoon, so the `mail.send` timeline could not be
+re-read either; the email headers above are primary evidence and did not
+need it.
+
+**Spawned, still open:** (1) the From a recipient sees is
+`support <akisliy2306@11932482.brevosend.com>` — functional, but it reads as
+phishing to a stranger; the fix is an authenticated sending domain in Brevo,
+which is the same undecided `{{APP_HOSTNAME}}` question, plus renaming the
+sender from «support» to «GoProceed». Pilot-acceptable as is. (2) Free-tier
+Brevo caps daily volume; irrelevant at pilot scale, revisit before real
+rollout.
 
 ---
 
