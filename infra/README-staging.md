@@ -392,6 +392,7 @@ Variables**, for **both** Production and Preview:
 | `EXTERNAL_LINK_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
 | `EXTERNAL_SESSION_HMAC_KEYS` | runtime | a DIFFERENT generated key | |
 | `EXTERNAL_SESSION_ACTIVE_KEY_ID` | runtime | that `<keyId>` | |
+| `FIELD_CLIENT_ORIGINS` | runtime | OPTIONAL: comma-separated exact origins | Plan C; unset = CORS layer off, `/v1` behaves exactly as before; set only when the Expo-web field client origin exists |
 
 **Three of these were undocumented until 2026-08-18 and would have failed the
 first deploy quietly.** `SUPABASE_URL` and `SUPABASE_SECRET_KEY` are read
