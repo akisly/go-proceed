@@ -86,6 +86,23 @@ describe("apiGet / apiPost — bearer attachment", () => {
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(new Headers(init.headers).has("Authorization")).toBe(false);
   });
+
+  it("apiPost forwards an AbortSignal straight through to fetch", async () => {
+    // Pins the one thing `src/lib/capture/upload.ts` depends on this
+    // function for: without `signal` actually reaching `fetch`, a discard's
+    // abort would stop the raw PUT but not the create/finalize calls routed
+    // through this function — see `upload.ts`'s own header on why that gap
+    // matters for INV-081.
+    getSessionMock.mockResolvedValue({ data: { session: null }, error: null });
+    const fetchMock = vi.fn().mockResolvedValue(new Response("{}", { status: 201 }));
+    vi.stubGlobal("fetch", fetchMock);
+    const controller = new AbortController();
+
+    await apiPost("/v1/assignments/1/upload-intents", { a: 1 }, "idem-3", controller.signal);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.signal).toBe(controller.signal);
+  });
 });
 
 describe("readProblem", () => {

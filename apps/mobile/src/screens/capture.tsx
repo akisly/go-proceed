@@ -26,14 +26,14 @@
 // `handlePress` below — matching this task's brief: v0.1/v0.2 of this client
 // is web-first, and `apps/mobile` stays in the tree for v0.3's native build
 // (ADR-007 decision 2).
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { color, type ThemeName } from "@goproceed/tokens";
 
 import {
-  UNSAVED_PHOTO_WARNING, discard, holdsUnsavedBytes, isSaved, serverDoesNotHaveThePhoto,
-  type CaptureHold, type ClientState,
+  UNSAVED_PHOTO_WARNING, discard, guardBeforeUnload, holdsUnsavedBytes, isSaved,
+  serverDoesNotHaveThePhoto, type CaptureHold, type ClientState,
 } from "../lib/capture/state";
 import { GENERIC_FAILURE, uploadCapture, type PickedPhoto } from "../lib/capture/upload";
 import { sha256Hex } from "../lib/capture/hash";
@@ -107,6 +107,37 @@ export function CaptureIsland({ assignmentId, occurrenceId }: CaptureIslandProps
   const abortRef = useRef<AbortController | null>(null);
 
   const hold: CaptureHold = { state, hasPickedFile };
+
+  // THE `beforeunload` GUARD — INV-081's tab-close half, made real for this
+  // client. Ported from the source's identical effect
+  // (`apps/app/app/(app)/a/[assignmentId]/capture.tsx:153-162`): the
+  // decision (`guardBeforeUnload`, which is `holdsUnsavedBytes` under the
+  // hood) is not made here, this effect only wires that decision to the one
+  // browser API that can act on it.
+  //
+  // REGISTERED ONLY WHILE BYTES ARE AT RISK, and REMOVED ON EVERY STATE
+  // CHANGE AND ON UNMOUNT — same two constraints the source's comment names:
+  // a foreman who has already saved, failed, or discarded a photo gets NO
+  // prompt on navigating away, and there is never a moment with a listener
+  // still bound to bytes that are no longer at risk.
+  //
+  // WEB-ONLY, EXPLICITLY GUARDED — the one delta from source, which never
+  // needs this check because `apps/app` only ever runs in a browser. This
+  // client also targets native (a TODO — see `handlePress` below), where
+  // there is no `window`/`beforeunload` at all; `typeof window !==
+  // "undefined" && typeof window.addEventListener === "function"` keeps
+  // this effect an inert no-op there rather than a crash.
+  useEffect(() => {
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+    if (!holdsUnsavedBytes(hold)) return;
+    const listener = (event: BeforeUnloadEvent) => guardBeforeUnload(hold, event);
+    window.addEventListener("beforeunload", listener);
+    return () => window.removeEventListener("beforeunload", listener);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `hold` is
+    // rebuilt every render from exactly these two values; depending on the
+    // object itself would re-register the listener on every render instead
+    // of on every change — same reasoning as the source's identical effect.
+  }, [state, hasPickedFile]);
 
   async function runCapture(photo: PickedPhoto, lastModifiedMs: number) {
     const token = guard.begin();
@@ -228,6 +259,15 @@ export function CaptureIsland({ assignmentId, occurrenceId }: CaptureIslandProps
 
   function handleDiscard() {
     if (!holdsUnsavedBytes(hold)) return;
+    // NO `window.confirm` ON NATIVE — TODO (v0.3): a native confirmation
+    // (e.g. `Alert.alert`) belongs alongside native capture itself, when
+    // that lands; today this control is unreachable there anyway (the
+    // native branch of `handlePress` never sets `hasPickedFile`, so
+    // `holdsUnsavedBytes` above is already false). Guarded regardless, so
+    // that stays true by construction rather than by coincidence: treating
+    // an absent `confirm` as "not confirmed" is the safe default — do
+    // nothing, drop no photo — not a bypass of the warning.
+    if (typeof window === "undefined" || typeof window.confirm !== "function") return;
     // "Explicit warned user deletion" — the warning is this confirmation,
     // asked before the transition, not after. Same three guarantees as the
     // source's identical comment: the request is ABORTED (so «не буде
