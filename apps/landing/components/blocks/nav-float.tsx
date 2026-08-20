@@ -8,7 +8,7 @@ export function NavFloat() {
         aria-label="Головна навігація"
         className="mx-auto flex h-16 max-w-content items-center gap-6"
       >
-        <a href="#product" className="flex items-center gap-2 rounded-pill text-ink">
+        <a href="#product" className="flex min-h-11 items-center gap-2 rounded-pill text-ink">
           <span
             aria-hidden="true"
             className="grid size-8 place-items-center rounded-pill bg-action text-meta font-semibold text-action-fg"

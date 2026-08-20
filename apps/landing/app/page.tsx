@@ -16,8 +16,14 @@ import { RolesDossier } from "../components/blocks/roles-dossier";
 export default function LandingPage() {
   return (
     <>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-5 focus:top-3 focus:z-[60] focus:rounded-control focus:bg-action focus:px-4 focus:py-3 focus:text-data focus:font-semibold focus:text-action-fg"
+      >
+        Перейти до основного вмісту
+      </a>
       <NavFloat />
-      <main className="overflow-x-clip">
+      <main id="main-content" tabIndex={-1} className="overflow-x-clip">
         <Hero />
         <ProofStrip />
         <MoneyOutcome />

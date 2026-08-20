@@ -8,6 +8,8 @@ const html = renderToStaticMarkup(<LandingPage />);
 describe("landing semantic frame", () => {
   it("publishes one main heading and the first narrative landmarks", () => {
     expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html).toContain('href="#main-content"');
+    expect(html).toContain('id="main-content"');
 
     for (const id of ["product", "proof"]) {
       expect(html).toContain(`id="${id}"`);

@@ -13,7 +13,7 @@ export function Footer() {
     <footer className="border-t border-line bg-canvas px-5 py-10 md:px-8 wide:px-12">
       <div className="mx-auto grid max-w-content gap-8 wide:grid-cols-[1fr_auto] wide:items-start">
         <div>
-          <a href="#product" className="inline-flex items-center gap-3 text-ink">
+          <a href="#product" className="inline-flex min-h-11 items-center gap-3 text-ink">
             <span
               aria-hidden="true"
               className="grid size-9 place-items-center rounded-pill bg-action text-meta font-semibold text-action-fg"
@@ -32,7 +32,7 @@ export function Footer() {
             <a
               key={item.href}
               href={item.href}
-              className="text-meta font-medium text-ink-muted transition-colors duration-fast ease-out hover:text-ink"
+              className="inline-flex min-h-11 items-center text-meta font-medium text-ink-muted transition-colors duration-fast ease-out hover:text-ink"
             >
               {item.label}
             </a>
