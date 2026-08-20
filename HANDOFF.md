@@ -34,8 +34,7 @@ separate, still-open decision.
 **And the first real sign-in happened, end to end, on the real origin** — the
 owner, on a laptop, 20:34 UTC. Read back from the Auth logs and the database,
 not from the screen: `user_recovery_requested` → `mail.send` (`mail_type:
-magic_link`, from `noreply@mail.app.supabase.io` — the built-in service, to a
-team address) → `POST /verify` → `login` with `login_method: otp` →
+magic_link`) → `POST /verify` → `login` with `login_method: otp` →
 `auth.users.last_sign_in_at` set, one session, one refresh token. Then, at the
 same second, Supavisor: «Connection authenticated … tenant asrvzhjaueyvrfozxpzo,
 mode: session, user: goproceed_app_login … Backend authenticated» — the page's
@@ -54,9 +53,21 @@ client's code-only flow had nothing to type. And one `POST /verify` answered
 `otp_expired` before the third code worked. Still open in the dashboard: the
 Auth **Site URL** is `http://localhost:3000` (GoTrue's request log names it as
 the referrer on every call) — set it to `https://goproceed-app.vercel.app`; the
-email rate limit was raised 2→30/h by the owner (the reloader logged it), which
-does not lift the built-in service's team-addresses-only rule. The owner
+email rate limit was raised 2→30/h by the owner (the reloader logged it). The owner
 merged PR #30, set the two role passwords and the twelve variables, and the
+**[correction, 2026-08-20]** an earlier revision of this section said the
+20:34 email came «from `noreply@mail.app.supabase.io` — the built-in service,
+to a team address». The delivered email's own headers refute that: sent via
+`ha.d.sender-sib.com`, DKIM-signed `11932482.brevosend.com` — **Brevo custom
+SMTP, which the owner had configured that same evening** (with the template
+fix and the rate-limit raise; Brevo rewrites the gmail sender to its
+`<account>.brevosend.com` fallback and keeps gmail in Reply-To, which is why
+SPF/DKIM align). The `mail.send` log line naming the built-in service must
+have been one of the EARLIER sends that evening; the exact minute Brevo went
+live could not be re-read because the Supabase logs backend answered
+«Backend error» throughout 2026-08-20 afternoon. The consequence that
+mattered — «team-addresses-only until SMTP is configured» — was therefore
+already lifted on 2026-08-19; the sitting did not know it. Meanwhile the
 first production build printed `deploy preflight (VERCEL_ENV=production): OK`.
 Then `/` → 307 `/login`, `/login` → 200 with the OTP form, `/assignments` →
 307, `/v1/*` → 401 unauthenticated; the client bundle carries the staging

@@ -47,8 +47,9 @@ product that no longer exists — at the one moment where that mistake is
 expensive, because DNS and a Vercel domain binding are not free to undo.
 
 **They are tokens rather than corrected literals because nobody has decided the
-real domain, and this repository forbids inventing one.**
-`apps/demo/README.md` §2 states it directly: nothing here shows that any such
+real domain, and this repository forbids inventing one.** The rule was first
+written down in the retired `apps/demo`'s README (deleted 2026-08-20; the
+principle outlives the file): nothing in this repository shows that any such
 domain is registered or that anyone controls its DNS, and «it needs a decision
 from whoever owns the registration question». A token is the honest
 representation of a decision that has not been taken; a plausible-looking
@@ -56,8 +57,9 @@ representation of a decision that has not been taken; a plausible-looking
 
 **There is deliberately no CI gate on these two tokens**, unlike the ones in
 `apps/demo/src`, which `apps/demo/qa/preflight.mjs` fails the build over. That
-gate exists because those tokens must be replaced *before a deploy publishes
-them to a visitor*. These two are instructions to a human operator, and an
+gate existed because those tokens had to be replaced *before a deploy
+published them to a visitor* (the demo and its preflight are retired; the
+distinction still explains why THESE two are ungated). These two are instructions to a human operator, and an
 unreplaced token in an instruction is the instruction working as intended —
 gating it would make CI permanently red, which `preflight.mjs`'s own header
 argues against in terms: «a suite that is red by design trains everyone to
@@ -624,14 +626,21 @@ timings) — a checked box with no evidence is not verification.
    addresses that are not part of the project's team.» So the owner's own
    address gets a code (twice an hour); an invited foreman's address gets
    nothing until Authentication settings → SMTP is configured (30/hour to
-   start, raised on the Rate Limits page). `TODOS.md` tracks it as a P1. On the pilot iPhone and the pilot Android
+   start, raised on the Rate Limits page). **Done 2026-08-19/20: Brevo custom
+   SMTP** (`smtp-relay.brevo.com:587`, single-sender gmail — Brevo rewrites
+   the From to its `<account>.brevosend.com` fallback, so SPF/DKIM align);
+   the closed P1 in `TODOS.md` records what was proven and the one thing
+   deliberately not measured (delivery to a non-team address from THIS
+   project — accepted by owner decision). On the pilot iPhone and the pilot Android
    (`TODOS.md` §"the pilot-device inventory does not exist" — buy them if they
    are still not bought):
    - [x] `https://{{APP_HOSTNAME}}/login` renders; enter an invited member's
      email; the 6-digit code arrives; sign-in lands on «Мої доручення». —
      **Done 2026-08-19 20:34 UTC on a laptop, not yet on a phone**, at
-     `https://goproceed-app.vercel.app`, by the owner (a team address, so the
-     built-in email service delivered): Auth logs show `mail.send` →
+     `https://goproceed-app.vercel.app`, by the owner — the code email went
+     through **Brevo custom SMTP**, per the delivered email's own headers
+     (DKIM `11932482.brevosend.com`; an earlier revision credited the built-in
+     service, corrected 2026-08-20): Auth logs show `mail.send` →
      `POST /verify` → `login` (`login_method: otp`), `last_sign_in_at` set,
      and Supavisor authenticating `goproceed_app_login` for the page's
      `/v1/projects` self-fetch; the screen was the empty state («У вас немає
