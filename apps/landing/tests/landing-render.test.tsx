@@ -6,6 +6,18 @@ import LandingPage from "../app/page";
 const html = renderToStaticMarkup(<LandingPage />);
 
 describe("landing semantic frame", () => {
+  it("pairs the project mark with the GoProceed wordmark in navigation", () => {
+    const navigationStart = html.indexOf('<nav aria-label="Головна навігація"');
+    const brandLinkEnd = html.indexOf("</a>", navigationStart);
+    const brandLinkHtml = html.slice(navigationStart, brandLinkEnd);
+
+    expect(navigationStart).toBeGreaterThan(-1);
+    expect(brandLinkHtml).toContain("<img");
+    expect(brandLinkHtml).toContain('alt=""');
+    expect(brandLinkHtml).toContain("GoProceed");
+    expect(brandLinkHtml).not.toContain(">GP<");
+  });
+
   it("publishes one main heading and the first narrative landmarks", () => {
     expect(html.match(/<h1/g)).toHaveLength(1);
     expect(html).toContain('href="#main-content"');

@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { landingContent } from "../../content/landing-content";
 import { MockAction } from "../mock-action";
 
@@ -9,12 +10,14 @@ export function NavFloat() {
         className="mx-auto flex h-16 max-w-content items-center gap-6"
       >
         <a href="#product" className="flex min-h-11 items-center gap-2 rounded-pill text-ink">
-          <span
-            aria-hidden="true"
-            className="grid size-8 place-items-center rounded-pill bg-action text-meta font-semibold text-action-fg"
-          >
-            GP
-          </span>
+          <Image
+            src="/icon.png"
+            alt=""
+            width={32}
+            height={32}
+            priority
+            className="size-8 shrink-0"
+          />
           <span className="text-data font-semibold tracking-tight">GoProceed</span>
         </a>
 
