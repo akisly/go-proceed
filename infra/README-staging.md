@@ -582,6 +582,37 @@ change it answered `200 text/html`** — the SPA rewrite catching the request
 because no manifest file existed on disk at all (measured 2026-08-21, the gap
 this task closes; see `docs/superpowers/plans/2026-08-21-field-client-installable.md`).
 
+**Install hint (2026-08-21).** `src/screens/install-hint.tsx`, mounted once in
+`src/app/_layout.tsx` beneath the `Stack` for every route, offers installation
+in one tap where the platform allows it and states the only honest
+alternative where it does not (`docs/superpowers/plans/2026-08-21-install-hint.md`).
+Chromium (desktop and Android Chrome, and any other browser that implements
+the API) fires `beforeinstallprompt`; this build keeps the event, shows a
+bottom banner («Встановити GoProceed на телефон?»), and calls the browser's
+own install dialog from the «Встановити» tap — but only once Chrome itself
+decides to hand the event over, which on a real device is gated on genuine
+engagement (a tap plus roughly 30 seconds, MDN, read 2026-08-21), not at
+first paint. iOS Safari never fires that event at all — Apple ships no
+programmatic install API on iOS at all, by design, not as a gap in this
+build — so the only honest thing to show there is the manual gesture:
+«Натисніть «Поділитися», потім «На екран Домой»». Both variants remember a
+«Не зараз» tap for seven days (`localStorage`) and neither renders once the
+app is already running installed (`display-mode: standalone`, or on iOS
+`navigator.standalone === true`). Verifying this required working around one
+thing measured rather than assumed: this repo's pinned Chrome for Testing
+(`puppeteer` 25.8.0, `HeadlessChrome/152`) fires `beforeinstallprompt` on any
+page meeting the install criteria within roughly 150-250ms of load, with no
+tap and no dwell at all — nothing like the engagement heuristic real Chrome
+documents — so `qa/field-web.mjs`'s `withPage` now suppresses that event on
+every page it opens (a capture-phase listener registered before the bundle's
+own script runs, calling `stopImmediatePropagation()`), which is what lets
+its two install-hint checks — plain headless Chrome → banner absent; a
+second `/login` load on an iPhone Safari UA with `navigator.standalone`
+stubbed to `false` → the iOS instructions, both pressables ≥44×44, «Не
+зараз» hides it and the dismissal survives a reload — run deterministically
+against the same "not yet engaged" baseline a first-time visitor is actually
+in, rather than racing this file's own `await`s.
+
 **iOS storage-partition note, for §6.9 item 5.** A home-screen web app on iOS
 runs in its own storage partition, separate from Safari's — so the FIRST
 launch from the installed icon signs in again even though the tester was
