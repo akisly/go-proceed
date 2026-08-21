@@ -9,6 +9,10 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { launch } from "./browser.mjs";
 import { DOVIDKOVYI_DISCLAIMER_TEXT } from "../src/lib/field/disclaimer.ts";
+import {
+  INSTALL_HINT_TITLE, INSTALL_HINT_BODY_CHROMIUM, INSTALL_HINT_BODY_IOS,
+  INSTALL_HINT_ACTION_LATER,
+} from "../src/lib/install-hint.ts";
 
 /**
  * ═══════════════════════════════════════════════════════════════════════════
@@ -656,6 +660,61 @@ async function readOtpCode(email, { timeoutMs = 60_000 } = {}) {
 // ---------------------------------------------------------------------------
 async function withPage(browser, task) {
   const page = await browser.newPage();
+
+  // SUPPRESSES `beforeinstallprompt` ON EVERY PAGE THIS HELPER OPENS — the
+  // one deliberate divergence from apps/app/qa/field.mjs's identical
+  // `withPage` (that harness has no install hint to interact with). Measured
+  // empirically, not assumed: this repo's pinned Chrome for Testing
+  // (puppeteer 25.8.0, HeadlessChrome/152) fires `beforeinstallprompt`
+  // roughly 150-250ms after `domcontentloaded` on ANY page whose manifest
+  // satisfies Chrome's install criteria — with NO tap and NO ~30s dwell,
+  // contradicting the "user engagement" heuristic MDN documents for real
+  // Chrome (developer.mozilla.org/en-US/docs/Web/API/Window/
+  // beforeinstallprompt_event, read 2026-08-21). Every audit in this file
+  // now mounts `../src/screens/install-hint.tsx` under every route
+  // (`_layout.tsx`), so left alone, that gap would make the banner appear —
+  // nondeterministically, racing this file's own `await`s — on screens that
+  // have nothing to do with it (sign-in, the assignments list, the
+  // obligation screen, the capture pass), which is both untested behavior
+  // and a source of flake.
+  //
+  // A capture-phase listener registered via `evaluateOnNewDocument` — which
+  // runs before ANY other script on the page, this bundle's own included —
+  // is what makes this deterministic rather than a race: it is guaranteed to
+  // receive the event first, and `stopImmediatePropagation()` stops it from
+  // ever reaching `install-hint.tsx`'s own `useEffect`-registered listener,
+  // which therefore never calls `setDeferredEvent` and never renders the
+  // banner. This faithfully represents the state a real, not-yet-engaged
+  // visitor is actually in — `installHintVariant`'s `hasPromptEvent` is
+  // false because no event has arrived, exactly as it would be on first
+  // visit in production Chrome — rather than the test environment's own
+  // engagement-check gap standing in for it. The three dedicated
+  // install-hint checks in the "unauthenticated surface" audit rely on
+  // exactly this: the plain-Chrome pass asserts the banner is absent BECAUSE
+  // of it, the iPhone-UA pass depends on `hasPromptEvent` staying false so
+  // `installHintVariant` resolves to "ios" rather than "chromium", and the
+  // Chromium-variant pass (below) needs the suppression OFF for the one
+  // synthetic event it dispatches itself.
+  //
+  // `window.__goproceedQaAllowBeforeInstallPrompt` IS THAT OFF-SWITCH — read
+  // fresh, inside the handler, at the moment an event actually arrives, not
+  // captured once at registration time. That is what lets a single page set
+  // the flag AFTER navigation (immediately before dispatching its own
+  // synthetic `beforeinstallprompt`) and have exactly that one event pass
+  // through undisturbed, while every OTHER page opened by this same
+  // `withPage` — which never sets the flag at all — keeps the real,
+  // eagerly-firing Chrome-for-Testing event suppressed as before. A version
+  // of this check that read the flag once at registration time (before
+  // navigation) could not do this: the flag would have to be threaded
+  // through `evaluateOnNewDocument` itself, and would apply to the WHOLE
+  // page rather than to one deliberately-dispatched event.
+  await page.evaluateOnNewDocument(() => {
+    window.addEventListener("beforeinstallprompt", (event) => {
+      if (window.__goproceedQaAllowBeforeInstallPrompt) return;
+      event.stopImmediatePropagation();
+    }, true);
+  });
+
   const consoleErrors = [];
   const pageErrors = [];
   const notFoundUrls = [];
@@ -916,8 +975,250 @@ async function main() {
           ctx.findings.push(`login @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
         }
 
+        // THE INSTALL HINT MUST STAY SILENT HERE — this is plain headless
+        // Chrome, no `beforeinstallprompt` listener stub and no iPhone UA, so
+        // neither of `installHintVariant`'s two "show something" signals
+        // (apps/mobile/src/lib/install-hint.ts) is true: Chrome's own
+        // engagement heuristic (a tap + ~30s, MDN, read 2026-08-21) has had
+        // no chance to fire the real event in this short automated visit, and
+        // the UA here is plain desktop-flavoured Chrome, not iOS Safari. This
+        // is the negative half of the install-hint proof; the two positive
+        // halves — the Chromium variant (a synthetic event, same UA) and the
+        // iOS variant (an iPhone UA) — run in the two `withPage` blocks
+        // below.
+        const installHintAtRest = await page.$('[data-testid="install-hint"]');
+        if (installHintAtRest) {
+          ctx.findings.push('login (plain headless Chrome): [data-testid="install-hint"] is rendered although no beforeinstallprompt event fired and the UA is not iOS Safari — installHintVariant should have returned null');
+        }
+
         await page.screenshot({ path: path.join(SHOTS, "login.png"), fullPage: true });
       }).then((d) => reportDiagnostics("unauthenticated /", d, ctx.findings, ctx.missingAssets));
+
+      // ── The install hint's Chromium variant — a THIRD /login load, same
+      // plain UA, with a SYNTHETIC beforeinstallprompt ─────────────────────
+      //
+      // Without this, the Chromium branch — `preventDefault()`, `prompt()`
+      // called from the tap, `userChoice` read, the event dropped — had ZERO
+      // browser coverage: `withPage`'s own suppressor (this file's header)
+      // exists specifically to stop the real, eagerly-firing
+      // Chrome-for-Testing event from ever reaching the component, and nothing
+      // else in this file ever let a `beforeinstallprompt` through. A
+      // regression in `handleInstall` (../src/screens/install-hint.tsx) —
+      // wrong method called, `userChoice` never awaited, the event never
+      // cleared — could ship with 133/133 unit tests and this harness both
+      // green. This block is what closes that gap.
+      //
+      // RELYING ON THE REAL EVENT'S OWN TIMING WOULD BE A RACE, NOT A TEST —
+      // even with the empirically-measured ~150-250ms delay (this file's
+      // header), asserting against it would make this block's pass/fail
+      // depend on how fast THIS machine happens to be. A synthetic event,
+      // dispatched by this file's own script at a moment it chooses, removes
+      // the race entirely — same reasoning as stubbing `navigator.standalone`
+      // for the iOS variant below rather than hoping a real iOS device
+      // shows up.
+      {
+        const chromiumDiagnostics = await withPage(browser, async (page) => {
+          await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
+          const res = await page.goto(`${fieldServer.baseUrl}/login`, { waitUntil: "networkidle0" });
+          if (!res || res.status() !== 200) {
+            ctx.findings.push(`install hint (Chromium, synthetic event) /login: expected 200, got ${res ? res.status() : "no response"}`);
+            return;
+          }
+
+          // ONE `page.evaluate` CALL, ATOMIC — sets the one-page
+          // off-switch (`withPage`'s own header), builds a minimal but
+          // structurally real `BeforeInstallPromptEvent` (MDN's own two
+          // members: `prompt()` returning a Promise, and a `userChoice`
+          // Promise), dispatches it on `window` — the same target the real
+          // event arrives on — and reads back `defaultPrevented`
+          // synchronously in the SAME turn, because `dispatchEvent` calls
+          // every listener (this suppressor, then `install-hint.tsx`'s own)
+          // synchronously before returning. No `await` separates the
+          // dispatch from the read, so there is no window for a stray real
+          // event (already suppressed earlier in this page's life, per the
+          // header) to land in between and confuse the count.
+          const dispatch = await page.evaluate(() => {
+            window.__goproceedQaAllowBeforeInstallPrompt = true;
+            window.__promptCalls = 0;
+            const event = new Event("beforeinstallprompt", { cancelable: true });
+            event.prompt = () => {
+              window.__promptCalls += 1;
+              return Promise.resolve();
+            };
+            event.userChoice = Promise.resolve({ outcome: "accepted", platform: "web" });
+            window.dispatchEvent(event);
+            return { defaultPrevented: event.defaultPrevented };
+          });
+          if (!dispatch.defaultPrevented) {
+            ctx.findings.push('install hint (Chromium, synthetic event): defaultPrevented is false after dispatch — install-hint.tsx must call event.preventDefault() synchronously, per MDN (read 2026-08-21)');
+          }
+
+          const appeared = await page.waitForSelector('[data-testid="install-hint"]', { timeout: 5_000 })
+            .then(() => true).catch(() => false);
+          if (!appeared) {
+            ctx.findings.push('install hint (Chromium, synthetic event): [data-testid="install-hint"] never rendered — installHintVariant should have resolved to "chromium" once hasPromptEvent became true');
+            return;
+          }
+
+          const bodyText = await page.evaluate(() => document.body.innerText);
+          if (!bodyText.includes(INSTALL_HINT_BODY_CHROMIUM)) {
+            ctx.findings.push(`install hint (Chromium, synthetic event): expected the Chromium body "${INSTALL_HINT_BODY_CHROMIUM}" on screen, not found — did the iOS copy render instead?`);
+          }
+
+          // MEASURED DIRECTLY, NOT VIA `measureSmallTargets` — see the iOS
+          // block's identical comment: react-native-web's `Pressable`
+          // renders a `<div role="button">`, which that sweep's
+          // `a, button, input, select, textarea` selector does not match.
+          const installButton = await page.$('[data-testid="install-hint-install"]');
+          if (!installButton) {
+            ctx.findings.push('install hint (Chromium, synthetic event): [data-testid="install-hint-install"] not found — cannot exercise the install tap');
+            return;
+          }
+          const box = await installButton.boundingBox();
+          if (!box || box.width < 44 || box.height < 44) {
+            ctx.findings.push(`install hint (Chromium, synthetic event): [data-testid="install-hint-install"] is ${box ? `${Math.round(box.width)}x${Math.round(box.height)}` : "not laid out"} — expected at least 44x44`);
+          }
+
+          await page.screenshot({ path: path.join(SHOTS, "install-hint-chromium.png"), fullPage: true });
+
+          // THE TAP — `handleInstall` calls the stubbed `prompt()`, awaits
+          // it, awaits the stubbed `userChoice`, then clears the event
+          // (`setDeferredEvent(null)`), which is what makes the banner
+          // disappear. `window.__promptCalls` is the one thing this file's
+          // own stub can observe that a click on the REAL API cannot: proof
+          // `prompt()` — and only `prompt()`, exactly once — was called from
+          // the tap, never from the `beforeinstallprompt` handler itself
+          // (MDN's own warning, read 2026-08-21: calling `prompt()` outside a
+          // user gesture throws in real Chrome).
+          await installButton.click();
+          const hiddenAfterClick = await page.waitForSelector('[data-testid="install-hint"]', { hidden: true, timeout: 5_000 })
+            .then(() => true).catch(() => false);
+          if (!hiddenAfterClick) {
+            ctx.findings.push('install hint (Chromium, synthetic event): clicking "Встановити" did not remove [data-testid="install-hint"] — the event should be dropped once userChoice resolves');
+          }
+          const promptCalls = await page.evaluate(() => window.__promptCalls);
+          if (promptCalls !== 1) {
+            ctx.findings.push(`install hint (Chromium, synthetic event): expected prompt() to have been called exactly once after the tap, got ${promptCalls}`);
+          }
+        });
+        reportDiagnostics("install hint (Chromium, synthetic event)", chromiumDiagnostics, ctx.findings, ctx.missingAssets);
+      }
+
+      // ── The install hint's iOS variant — a third /login load, iPhone UA ──
+      //
+      // STAYS INSIDE THIS SAME "unauthenticated surface" AUDIT rather than
+      // becoming a `runAudit` of its own — `EXPECTED_AUDITS` names exactly
+      // five audits and the task brief this harness extension follows
+      // requires the run stay "ok:true 5/5"; a second named audit here would
+      // make that six for no reason this proof needs. Findings this section
+      // pushes still land in `ctx.findings` exactly like any other, so a
+      // regression here still fails the run.
+      //
+      // `page.setUserAgent` alone is not enough to make
+      // `../src/screens/install-hint.tsx`'s own `detectIOSSafari()` return
+      // true: that function requires `navigator.standalone === false`
+      // (never `undefined`) as proof the UA is genuinely WebKit/Safari and
+      // not merely spoofing an iPhone string (see that function's own
+      // comment) — and `navigator.standalone` is a Safari-only extension
+      // (MDN, read 2026-08-21) that plain headless Chrome does not expose AT
+      // ALL, UA override or not, because overriding the UA string changes
+      // what `navigator.userAgent` reports, not which engine APIs exist.
+      // `page.evaluateOnNewDocument` is what supplies the one thing a UA
+      // override cannot: it runs before every document this page loads
+      // (this navigation AND the reload below), so one registration here
+      // covers both.
+      {
+        const IPHONE_SAFARI_UA =
+          "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
+          + "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+
+        const iosDiagnostics = await withPage(browser, async (page) => {
+          await page.setUserAgent(IPHONE_SAFARI_UA);
+          await page.evaluateOnNewDocument(() => {
+            Object.defineProperty(window.navigator, "standalone", {
+              configurable: true,
+              get: () => false,
+            });
+          });
+          await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
+
+          const res = await page.goto(`${fieldServer.baseUrl}/login`, { waitUntil: "networkidle0" });
+          if (!res || res.status() !== 200) {
+            ctx.findings.push(`install hint (iOS UA) /login: expected 200, got ${res ? res.status() : "no response"}`);
+            return;
+          }
+
+          const appeared = await page.waitForSelector('[data-testid="install-hint"]', { timeout: 5_000 })
+            .then(() => true).catch(() => false);
+          if (!appeared) {
+            ctx.findings.push('install hint (iOS UA): [data-testid="install-hint"] never rendered on /login — installHintVariant should have returned "ios" for an iPhone Safari UA with no beforeinstallprompt event');
+            return;
+          }
+
+          const bodyText = await page.evaluate(() => document.body.innerText);
+          if (!bodyText.includes(INSTALL_HINT_TITLE)) {
+            ctx.findings.push(`install hint (iOS UA): expected the title "${INSTALL_HINT_TITLE}" on screen, not found`);
+          }
+          if (!bodyText.includes(INSTALL_HINT_BODY_IOS)) {
+            ctx.findings.push(`install hint (iOS UA): expected the iOS body "${INSTALL_HINT_BODY_IOS}" on screen, not found — did the chromium copy render instead?`);
+          }
+          // THE CHROMIUM-ONLY BUTTON MUST NOT APPEAR HERE — no
+          // beforeinstallprompt event exists on this UA (Chromium-only per
+          // MDN), so `installHintVariant` must have chosen "ios", never
+          // "chromium".
+          const installButton = await page.$('[data-testid="install-hint-install"]');
+          if (installButton) {
+            ctx.findings.push('install hint (iOS UA): [data-testid="install-hint-install"] is rendered on an iOS Safari UA — the Chromium-only action must not appear without a beforeinstallprompt event');
+          }
+
+          // EVERY PRESSABLE THE BANNER ACTUALLY RENDERS, MEASURED DIRECTLY —
+          // not via `measureSmallTargets` (its `a, button, input, select,
+          // textarea` selector does not match react-native-web's own output
+          // for `Pressable`, a plain `<div role="button">`; see
+          // login.tsx's identical comment on its own Button component). Only
+          // «Не зараз» renders on this variant; the loop still names both
+          // possible testIDs so a future chromium-branch button rendered
+          // here by mistake would be measured too, not silently skipped.
+          for (const testId of ["install-hint-install", "install-hint-later"]) {
+            const handle = await page.$(`[data-testid="${testId}"]`);
+            if (!handle) continue;
+            const box = await handle.boundingBox();
+            if (!box || box.width < 44 || box.height < 44) {
+              ctx.findings.push(`install hint (iOS UA): [data-testid="${testId}"] is ${box ? `${Math.round(box.width)}x${Math.round(box.height)}` : "not laid out"} — expected at least 44x44`);
+            }
+          }
+
+          await page.screenshot({ path: path.join(SHOTS, "install-hint-ios.png"), fullPage: true });
+
+          // «Не зараз» HIDES IT, AND A RELOAD MUST NOT BRING IT BACK — the
+          // whole point of DISMISS_DURATION_MS
+          // (apps/mobile/src/lib/install-hint.ts): a foreman who dismissed
+          // this once should not be asked again on the very next page load.
+          const laterButton = await page.$('[data-testid="install-hint-later"]');
+          if (!laterButton) {
+            ctx.findings.push('install hint (iOS UA): [data-testid="install-hint-later"] not found — cannot exercise dismissal');
+            return;
+          }
+          await laterButton.click();
+          const hiddenAfterClick = await page.waitForSelector('[data-testid="install-hint"]', { hidden: true, timeout: 5_000 })
+            .then(() => true).catch(() => false);
+          if (!hiddenAfterClick) {
+            ctx.findings.push(`install hint (iOS UA): clicking "${INSTALL_HINT_ACTION_LATER}" did not remove [data-testid="install-hint"]`);
+          }
+
+          await page.reload({ waitUntil: "networkidle0" });
+          // A brief, generous wait rather than an instant read: the banner's
+          // own effect (reading localStorage, deciding the variant) runs
+          // post-mount, same timing shape as every other post-mount decision
+          // this harness already waits for (requireSession(), etc).
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const stillHiddenAfterReload = await page.$('[data-testid="install-hint"]');
+          if (stillHiddenAfterReload) {
+            ctx.findings.push('install hint (iOS UA): reappeared after a reload although "Не зараз" was clicked moments before — the 7-day dismiss window did not persist across the reload (localStorage write/read, or DISMISS_DURATION_MS itself, may have regressed)');
+          }
+        });
+        reportDiagnostics("install hint (iOS UA)", iosDiagnostics, ctx.findings, ctx.missingAssets);
+      }
 
       // THE MANIFEST, FETCHED DIRECTLY (not through the page) so a parse
       // failure is unambiguous and not entangled with the page's own fetch
