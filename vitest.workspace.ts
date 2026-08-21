@@ -18,6 +18,7 @@
 // forces a lockfile regeneration, and ci.yml runs --frozen-lockfile.
 export default [
   "apps/app/vitest.config.ts",
+  "apps/mobile/vitest.config.ts",
   "packages/contracts",
   "packages/database",
   "packages/domain",

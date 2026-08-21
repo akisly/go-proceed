@@ -17,7 +17,7 @@ import { clientStateLabel, type ClientState } from "../lib/status-labels";
 
 const STATES: ClientState[] = [
   "not_sent", "sending", "awaiting_receipt",
-  "server_confirmed", "failed", "quarantined",
+  "server_confirmed", "failed", "quarantined", "discarded",
 ];
 
 // The token model became themed and semantic: `color` is now
@@ -40,6 +40,7 @@ const TONE: Record<ClientState, { surface: string; fg: string }> = {
   server_confirmed: { surface: color[THEME]["status-ready-surface"], fg: color[THEME]["status-ready-fg"] },
   failed: { surface: color[THEME]["status-blocked-surface"], fg: color[THEME]["status-blocked-fg"] },
   quarantined: { surface: color[THEME]["status-attention-surface"], fg: color[THEME]["status-attention-fg"] },
+  discarded: { surface: color[THEME]["status-idle-surface"], fg: color[THEME]["status-idle-fg"] },
 };
 
 export function TokenProof() {

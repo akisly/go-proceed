@@ -114,13 +114,13 @@ parity checklist that **already exists** —
 (OTP login, the assignment screen's disclaimer and control-size checks,
 capture → receipt), plus INV-081
 (`technical/database/invariant-catalog.csv:82`) — applied **verbatim** to the
-new client by the follow-up plan `2026-08-XX-expo-field-client.md`, which
+new client by the follow-up plan `2026-08-20-expo-field-client.md`, which
 authors no new checklist. Passing is a measurement taken on hardware, not a
 code review, and it is taken on the same **two physical phones** ADR-007's
 Context table already required and this decision does not remove. Until it
 happens, `apps/app`'s PWA is the pilot's only working field client and stays
 deployed. No task in any of the three follow-up plans
-(`2026-08-20-v1-cors-bearer.md`, `2026-08-XX-expo-field-client.md`,
+(`2026-08-20-v1-cors-bearer.md`, `2026-08-20-expo-field-client.md`,
 `2026-08-XX-dashboard-ui-minimum.md`) removes it before that gate is measured.
 
 ## Consequences

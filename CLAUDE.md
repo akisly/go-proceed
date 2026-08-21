@@ -82,3 +82,11 @@ the OLD variable name — and that is only discoverable by checking both the
 installed version and the current docs, neither of which memory could supply.
 The legacy keys stop working at the end of 2026; the upgrade is tracked in
 `TODOS.md`.
+
+[Correction, 2026-08-21: the «installed supabase-js 2.47.10 cannot accept the
+new format» premise is stale — PR #30 bumped the workspace to 2.112.3, which
+handles `sb_publishable_` keys; the legacy-key workaround is no longer needed
+anywhere, and the Expo field client uses the publishable key directly. The
+RULE this story motivates stands unchanged — this correction is itself an
+instance of it: the fact was re-checked against the installed version before
+being relied on.]

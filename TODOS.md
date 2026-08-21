@@ -606,13 +606,31 @@ this entry names but does not yet execute, each its own scope-split slice per
    (`apps/app/src/lib/command.ts` `queryRoute`/`commandRoute`) were never
    touched.
 2. **Plan C — Expo-web field client to parity**, planned as
-   `docs/superpowers/plans/2026-08-XX-expo-field-client.md`. Rebuilds OTP
-   login, «Мої доручення», the assignment screen, and capture →
-   upload-intent → finalize → receipt against `apps/mobile`'s Expo/RN
-   codebase, deployed Expo-web as the pilot's third Vercel project. **This is
-   the parity gate:** `apps/app`'s field pages retire only once this client
-   passes the README-staging §6.9 / INV-081 checklist, measured on the two
-   physical phones — not before, and not by code review.
+   `docs/superpowers/plans/2026-08-20-expo-field-client.md`. **Progress as of
+   2026-08-21, on branch `claude/expo-field-client`: the client EXISTS.**
+   Login, «Мої доручення», the assignment screen and capture are ported
+   against `apps/mobile`'s Expo/RN codebase — copy carried over
+   byte-identical, the receipt renders the SERVER's hash (not a
+   client-computed one), and INV-081's unsaved-photo banner plus the
+   `beforeunload` guard are wired exactly as the PWA's. 123 unit tests cover
+   it, and it has its own five-audit browser harness
+   (`apps/mobile/qa/field-web.mjs`), reaching `ok:true` against the exported
+   build with Plan B's CORS actually exercised on the wire —
+   `FIELD_CLIENT_ORIGINS` set on the qa server, not assumed. A human also ran
+   the full flow by hand against the local stack on 2026-08-21, not only the
+   harness. The restored-strictness audits earned their keep: they caught,
+   and the branch fixed, two real defects — user-agent link-blue anchors (the
+   same class of bug the PWA's own `qa/field.mjs` caught, item 3 of the
+   2026-08-17 residuals above) and a missing `html lang`. A Vercel project
+   exists — `goproceed-field` (id `prj_q0pHp3k54YSlqw0CZUIylZ56FGBg`, root
+   `apps/mobile`) — created link-only, the same MCP path §4.4 used for
+   `goproceed-landing`; it is awaiting the owner's dashboard environment
+   steps and this branch's merge before a first real deploy exists.
+   **EXPLICITLY NOT CLOSED:** none of the above is the parity gate. Per
+   ADR-009 that gate is the two physical phones against README-staging §6.9 /
+   INV-081 — a passing harness and a passing human smoke test on a laptop are
+   evidence toward it, not a substitute for it. `apps/app`'s field pages stay
+   deployed until the phones say otherwise.
 3. **Plan D — dashboard UI-minimum**, planned as
    `docs/superpowers/plans/2026-08-XX-dashboard-ui-minimum.md`. Three
    slices — workspace/project + access grants, assignment creation,
@@ -623,6 +641,27 @@ this entry names but does not yet execute, each its own scope-split slice per
 deployed and functional and are the pilot's only working field client until
 Plan C's parity measurement lands. No task in any of the three plans above may
 remove them first.
+
+---
+
+## P3 — `packages/tokens`' `generate-palette.mjs` still writes into the deleted `apps/demo` tree
+
+**Observed 2026-08-21, during the field-client build.** `outDir` in
+`packages/tokens/scripts/generate-palette.mjs:27` defaults to
+`apps/demo/qa` (`process.env.TOKENS_OUT_DIR ?? join(repoRoot, "apps/demo/qa")`),
+and the generator writes `apps/demo/qa/palette.generated.mjs` there
+unconditionally unless the caller overrides `TOKENS_OUT_DIR`. `apps/demo` was
+retired on 2026-08-20 (see the "Record" section above), so a plain
+`pnpm --filter @goproceed/tokens generate` today recreates part of a directory
+the owner deliberately removed — a demo-retirement leftover the retirement
+pass did not catch because nobody ran the tokens generator that day. Its own
+micro-slice: point `outDir` at wherever colour-approval consumption actually
+lives now (or drop the palette-generation step entirely if nothing reads it
+post-retirement — `apps/demo/qa/colour-audit.mjs`, the file this generator's
+own header and in-file comments say the output is FOR, no longer exists),
+and confirm `packages/testing/src/token-fidelity.test.ts` (named in the
+generated file's own header as the consumer that "fails if this drifts")
+still has a subject to check against.
 
 ---
 
