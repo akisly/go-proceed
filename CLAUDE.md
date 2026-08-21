@@ -33,6 +33,14 @@ the substitution table, and the gate. Reviewing UI counts as touching it.
 Not loaded here on purpose. It is 300+ lines and most work in this repo is not
 UI; inlining it would spend context on every migration and every route handler.
 
+**Building the office dashboard specifically?** Two more, both Approved and both
+short: `docs/design/03-ui-references.md` (the three reference repos, what we take
+from each, **why plane's AGPL means structure-only**, and the rule that shadcn
+components land in `packages/ui` rather than a second tree in the app) and
+`docs/design/04-role-pain-map.md` (which role each screen serves, sourced to the
+2026-08-21 demand scan — a screen with no named role and no named pain is a
+guess).
+
 Five things that hold even if you read nothing else:
 
 1. **Name a role, never a value.** `bg-canvas`, not `bg-neutral-25`, never a hex.
