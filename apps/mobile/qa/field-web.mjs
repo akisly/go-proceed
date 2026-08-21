@@ -223,23 +223,25 @@ async function exportFieldWeb(apiOrigin) {
     });
   });
 
-  // `<html lang="uk">`, NOT WHAT THE EXPORT ITSELF PRODUCES. expo-router's
-  // documented customization point (`src/app/+html.tsx`) was tried first
-  // and confirmed, empirically, to have NO EFFECT under this project's
-  // `web.output: "single"` (SPA) mode — the docs describe it under STATIC
-  // rendering only, and a built `dist/index.html` with that file in place
-  // was byte-identical to one without it. `scripts/set-html-lang.mjs` is
-  // the honest fallback: a direct, loudly-failing string replacement on
-  // the export's own `index.html`. Every invocation of THIS function must
-  // run it — Task 7's `vercel.json buildCommand` needs the identical
-  // append after its own `expo export` call, noted in that script's own
-  // header.
+  // `<html lang="uk">` AND THE PWA HEAD TAGS, NEITHER OF WHICH THE EXPORT
+  // ITSELF PRODUCES. expo-router's documented customization point
+  // (`src/app/+html.tsx`) was tried first and confirmed, empirically, to
+  // have NO EFFECT under this project's `web.output: "single"` (SPA) mode —
+  // the docs describe it under STATIC rendering only, and a built
+  // `dist/index.html` with that file in place was byte-identical to one
+  // without it. `scripts/finalize-web-html.mjs` is the honest fallback: a
+  // direct, loudly-failing string patch on the export's own `index.html`
+  // that sets `lang="uk"` AND injects the `<link rel="manifest">`,
+  // `theme-color`, `apple-mobile-web-app-*`, and `apple-touch-icon` tags
+  // README-staging §6.9 item 5 needs. Every invocation of THIS function
+  // must run it — `vercel.json`'s `buildCommand` needs the identical append
+  // after its own `expo export` call, noted in that script's own header.
   const langStdout = [];
   const langStderr = [];
   await new Promise((resolve, reject) => {
     const proc = spawn(
       process.platform === "win32" ? "node.exe" : "node",
-      ["scripts/set-html-lang.mjs"],
+      ["scripts/finalize-web-html.mjs"],
       { cwd: MOBILE_DIR, stdio: ["ignore", "pipe", "pipe"] },
     );
     proc.stdout.on("data", (d) => langStdout.push(d.toString()));
@@ -248,7 +250,7 @@ async function exportFieldWeb(apiOrigin) {
     proc.once("exit", (code) => {
       if (code === 0) resolve();
       else reject(new Error(
-        `scripts/set-html-lang.mjs exited ${code}\n--- stdout ---\n${langStdout.join("")}\n--- stderr ---\n${langStderr.join("")}`,
+        `scripts/finalize-web-html.mjs exited ${code}\n--- stdout ---\n${langStdout.join("")}\n--- stderr ---\n${langStderr.join("")}`,
       ));
     });
   });
@@ -325,6 +327,16 @@ const MIME_TYPES = {
   ".mjs": "text/javascript; charset=utf-8",
   ".css": "text/css; charset=utf-8",
   ".json": "application/json; charset=utf-8",
+  // The W3C-documented content type for a Web App Manifest
+  // (w3.org/TR/appmanifest/#content-type) — WITHOUT this entry the fallback
+  // below (`application/octet-stream`) would still be wrong, but distinctly
+  // from the real defect: this map's whole reason for having a
+  // `.webmanifest` entry at all is so the LOCAL harness can distinguish "the
+  // manifest served but mistyped" from "the manifest never served and the
+  // SPA fallback answered with index.html instead" — the latter (200
+  // text/html) is what `/manifest.webmanifest` measured on the field origin
+  // on 2026-08-21 before this file existed at all.
+  ".webmanifest": "application/manifest+json",
   ".png": "image/png",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
@@ -818,10 +830,6 @@ async function main() {
       await withPage(browser, async (page) => {
         await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
         const res = await page.goto(`${fieldServer.baseUrl}/`, { waitUntil: "networkidle0" });
-        // Loading over the static server at all is the manifest check's
-        // replacement — a static SPA export carries no
-        // manifest.webmanifest (task-6 brief: "manifest check N/A for SPA
-        // export").
         if (!res || res.status() !== 200) {
           ctx.findings.push(`unauthenticated /: expected 200 from the static server, got ${res ? res.status() : "no response"}`);
         }
@@ -852,7 +860,7 @@ async function main() {
         // "single"` (SPA) mode — confirmed empirically (a build with that
         // file in place was byte-identical to one without it), not assumed
         // from the docs' own STATIC-rendering framing. The actual fix is
-        // `scripts/set-html-lang.mjs`, run as the last step of
+        // `scripts/finalize-web-html.mjs`, run as the last step of
         // `exportFieldWeb` above: a loudly-failing post-export string
         // replacement on `dist/index.html`. This assertion is what proves
         // that step actually ran and actually worked, not merely that it
@@ -860,7 +868,24 @@ async function main() {
         const htmlLang = await page.evaluate(() => document.documentElement.getAttribute("lang"));
         ctx.observations.htmlLang = htmlLang;
         if (htmlLang !== "uk") {
-          ctx.findings.push(`<html lang="${htmlLang}"> — expected "uk" (scripts/set-html-lang.mjs did not take effect)`);
+          ctx.findings.push(`<html lang="${htmlLang}"> — expected "uk" (scripts/finalize-web-html.mjs did not take effect)`);
+        }
+
+        // THE HEAD CARRIES THE MANIFEST LINK AND THE APPLE INSTALL META —
+        // measured on the served HTML itself (not just the manifest fetch
+        // below), because a browser only discovers `/manifest.webmanifest`
+        // at all via this `<link rel="manifest">`, and iOS Safari (which has
+        // no native manifest support) relies entirely on
+        // `apple-mobile-web-app-capable` and its siblings, not the manifest,
+        // to offer "Add to Home Screen" standalone mode. Both are injected by
+        // `scripts/finalize-web-html.mjs`; this is what proves that
+        // injection survived into what the browser actually parsed.
+        const headHtml = await page.evaluate(() => document.head.innerHTML);
+        if (!headHtml.includes('<link rel="manifest"')) {
+          ctx.findings.push('unauthenticated /: no <link rel="manifest"> in <head> — scripts/finalize-web-html.mjs did not take effect');
+        }
+        if (!headHtml.includes("apple-mobile-web-app-capable")) {
+          ctx.findings.push('unauthenticated /: no apple-mobile-web-app-capable meta in <head> — scripts/finalize-web-html.mjs did not take effect');
         }
 
         // The viewport meta, measured and RECORDED regardless of verdict
@@ -893,6 +918,59 @@ async function main() {
 
         await page.screenshot({ path: path.join(SHOTS, "login.png"), fullPage: true });
       }).then((d) => reportDiagnostics("unauthenticated /", d, ctx.findings, ctx.missingAssets));
+
+      // THE MANIFEST, FETCHED DIRECTLY (not through the page) so a parse
+      // failure is unambiguous and not entangled with the page's own fetch
+      // of it via <link rel="manifest"> — same reasoning, same shape as
+      // apps/app/qa/field.mjs:906-921. RESTORED WITH EQUAL STRICTNESS after
+      // the gap measured on 2026-08-21 (README-staging §4.5): the field
+      // origin answered `/manifest.webmanifest` with 200 text/html — the
+      // SPA rewrite (`vercel.json`'s `rewrites: [{ source: "/:path*",
+      // destination: "/" }]`, mirrored by this file's own `startFieldServer`
+      // SPA fallback) had swallowed it because no manifest file existed on
+      // disk to answer first. Checking `content-type` explicitly, not just
+      // `.ok`, is what makes THAT exact failure mode — a 200 that is
+      // `index.html` in disguise — a finding rather than a silent pass.
+      try {
+        const manifestRes = await fetch(`${fieldServer.baseUrl}/manifest.webmanifest`);
+        if (!manifestRes.ok) {
+          ctx.findings.push(`/manifest.webmanifest: expected 200, got ${manifestRes.status}`);
+        } else {
+          const contentType = manifestRes.headers.get("content-type") ?? "";
+          if (!contentType.includes("application/manifest+json")) {
+            ctx.findings.push(`/manifest.webmanifest: expected content-type to contain "application/manifest+json", got ${JSON.stringify(contentType)} — a text/html response here means the SPA rewrite swallowed the manifest (the exact defect measured on the field origin on 2026-08-21)`);
+          }
+          const manifest = await manifestRes.clone().json().catch((err) => {
+            ctx.findings.push(`/manifest.webmanifest: response body did not parse as JSON: ${err}`);
+            return null;
+          });
+          if (manifest) {
+            if (manifest.lang !== "uk") ctx.findings.push(`manifest.lang is ${JSON.stringify(manifest.lang)}, expected "uk"`);
+            if (!manifest.name) ctx.findings.push("manifest carries no name");
+            if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
+              ctx.findings.push("manifest carries no icons");
+            } else {
+              for (const icon of manifest.icons) {
+                try {
+                  const iconRes = await fetch(new URL(icon.src, fieldServer.baseUrl));
+                  if (!iconRes.ok) {
+                    ctx.findings.push(`manifest icon ${icon.src}: expected 200, got ${iconRes.status}`);
+                    continue;
+                  }
+                  const iconContentType = iconRes.headers.get("content-type") ?? "";
+                  if (!iconContentType.includes("image/png")) {
+                    ctx.findings.push(`manifest icon ${icon.src}: expected content-type image/png, got ${JSON.stringify(iconContentType)}`);
+                  }
+                } catch (err) {
+                  ctx.findings.push(`manifest icon ${icon.src}: request failed: ${err}`);
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        ctx.findings.push(`/manifest.webmanifest: failed to fetch: ${err}`);
+      }
     });
 
     // proxy.ts's whole reason for excluding /v1 from the page-auth gate:

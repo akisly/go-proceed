@@ -2415,3 +2415,55 @@ content-sourcing question, not a code change.
 **Depends on:** nothing technical. `apps/app`'s obligation screen already has
 the one place the image would render (`ObligationCard` in
 `app/(app)/a/[assignmentId]/page.tsx`) if and when the owner supplies one.
+
+---
+
+## P3 — `GET /v1/projects/{id}/assignments?assignee=me` has no status filter; `cancelled` assignments still show in «Мої доручення»
+
+**Seen 2026-08-21**, after retiring the occurrence-less demo assignment that
+the field-client installable work's phone pass needed replaced (see
+`infra/README-staging.md` §4.5/§6.9 item 3). The route
+(`apps/app/app/v1/projects/[projectId]/assignments/route.ts:52-53`) filters
+only on `workspace_id`, `project_id`, and `assignee_member_id` — its `where`
+clause carries no `status` condition at all, so a `cancelled`
+`work_assignments` row is returned exactly like an active one. Both field
+clients render whatever the route sends: `apps/app`'s own «Мої доручення»
+page and `apps/mobile/src/screens/my-assignments.tsx` /
+`apps/mobile/src/lib/field/load-assignments.ts` (the Expo client). Fix is
+either route-level (add a `status <> 'cancelled'` predicate, or an explicit
+allow-list, to the query) or client-level (filter in both clients'
+load-assignments layer identically, since neither client shares code with
+the other — see the P3 below for the same duplication contract). Owner
+decision pending on which layer owns the filter.
+
+---
+
+## P3 — INV-081's "unsaved photo" banner reads as a failure while the upload is still in flight
+
+**Raised by the owner, 2026-08-21**, watching the Expo field client mid-photo.
+The banner text — `"GoProceed не зберіг це фото. Зробіть його ще раз або
+збережіть у себе."` ("GoProceed has not saved this photo. Take it again or
+save it yourself.") — is shown for as long as the browser tab, not the
+server, holds the only copy of the bytes
+(`holdsUnsavedBytes`/`UNSAVED_PHOTO_WARNING`,
+`apps/app/src/lib/capture/state.ts:185` and the identical duplicated string
+at `apps/mobile/src/lib/capture/state.ts:187` — the two clients keep
+independent copies of this state machine by design, per the duplication
+contract those files' own headers describe). This is BY DESIGN, not a bug:
+INV-081 requires the warning to be up from the moment the original exists
+only in memory until the finalize receipt exists, and that loss must never
+be silent — so the banner cannot wait to see whether the upload succeeds
+before appearing. But read cold, mid-upload, the present tense ("has not
+saved") reads as an already-failed state rather than a not-yet-confirmed
+one. **Proposed fix, not built:** split the copy into two variants — an
+in-flight/awaiting-receipt wording ("надсилання триває…" / "still sending…")
+and the current text reserved for the state that follows an actual failure
+— while keeping `holdsUnsavedBytes`'s gate (the enforcement column, per that
+file's own comments) exactly as strict as it is today. Touches: the
+copy-catalog (`technical/copy-catalog.csv`,
+`packages/testing/src/copy-catalog-fidelity.test.ts`), `state.ts` in BOTH
+`apps/app` and `apps/mobile` (duplication contract — the same change made
+twice, not shared), each client's tests, and the puppeteer harness
+assertions on the banner's exact text (`apps/app/qa/field.mjs`,
+`apps/mobile/qa/field-web.mjs`). Owner decision pending on the two strings'
+exact wording.

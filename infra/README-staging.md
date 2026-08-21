@@ -527,7 +527,7 @@ Authentication on, unlike the dashboard-created default that traps
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
-  "buildCommand": "cd ../.. && pnpm --filter @goproceed/tokens generate && pnpm --filter @goproceed/mobile exec expo export --platform web && node apps/mobile/scripts/set-html-lang.mjs",
+  "buildCommand": "cd ../.. && pnpm --filter @goproceed/tokens generate && pnpm --filter @goproceed/mobile exec expo export --platform web && node apps/mobile/scripts/finalize-web-html.mjs",
   "outputDirectory": "dist",
   "cleanUrls": true,
   "rewrites": [{ "source": "/:path*", "destination": "/" }]
@@ -539,8 +539,13 @@ SPA — this project sets no explicit `web.output`, so Expo's default `single`
 mode applies, one `index.html` for every route — hence the `rewrites` entry
 sending every path back to it. `pnpm --filter @goproceed/tokens generate`
 runs first so the exported bundle carries current tokens. `node
-apps/mobile/scripts/set-html-lang.mjs` runs LAST, as a post-export patch —
-and **not the first thing tried.** Expo Router's documented root-document
+apps/mobile/scripts/finalize-web-html.mjs` runs LAST, as a post-export patch —
+**renamed from `set-html-lang.mjs` on 2026-08-21**, when the script grew from
+setting `lang="uk"` alone to also injecting `<link rel="manifest">`, `<meta
+name="theme-color">`, the `apple-mobile-web-app-*` trio and `<link rel=
+"apple-touch-icon">` into the exported `dist/index.html` (§"Installable"
+below) — the name now describes what it does, not just its first job. And
+**not the first thing tried.** Expo Router's documented root-document
 customization point is `src/app/+html.tsx`; it was tried first and measured,
 not assumed, to do nothing here: with that file in place, `expo export
 --platform web` produced a `dist/index.html` byte-identical to the one
@@ -551,6 +556,40 @@ the honest fallback: a direct string replacement on the one `index.html` a
 `single`-mode export produces, and it fails loudly (`process.exit(1)`) if the
 `lang="en"` pattern it targets is absent, rather than shipping the wrong
 `<html lang>` silently.
+
+**Installable (2026-08-21).** `apps/mobile/public/manifest.webmanifest` —
+name «GoProceed — польовий клієнт», `short_name` "GoProceed", `lang: "uk"`,
+`display: "standalone"` — plus `icons/icon-192.png`, `icon-512.png`, and a
+`purpose: "maskable"` `icon-maskable-512.png`, generated once from
+`assets/icon.png` and committed (no build-time image dependency), and a
+separate `apple-touch-icon.png` (180×180) that `finalize-web-html.mjs` links
+from `<head>`. Colours are read from `@goproceed/tokens`' light theme, not
+invented for the manifest: `background_color` `#FBFBF9` (`bg-canvas`),
+`theme_color` `#11100F` (`action-primary-bg`). `apps/mobile/public/` is
+copied byte-for-byte into `dist/` by `expo export --platform web`
+(docs.expo.dev/deploy/web, read 2026-08-20), and Vercel serves it under the
+project's filesystem-before-rewrite routing — a static file under
+`outputDirectory` answers before `vercel.json`'s SPA `rewrites` entry ever
+fires, which is exactly the mechanism this depends on: the manifest is a real
+file on disk at `dist/manifest.webmanifest`, not a route the rewrite could
+swallow. **To verify on the live origin after this branch merges and
+deploys:**
+```bash
+curl -sI https://goproceed-field.vercel.app/manifest.webmanifest
+```
+expect a `content-type` containing `application/manifest+json`. **Before this
+change it answered `200 text/html`** — the SPA rewrite catching the request
+because no manifest file existed on disk at all (measured 2026-08-21, the gap
+this task closes; see `docs/superpowers/plans/2026-08-21-field-client-installable.md`).
+
+**iOS storage-partition note, for §6.9 item 5.** A home-screen web app on iOS
+runs in its own storage partition, separate from Safari's — so the FIRST
+launch from the installed icon signs in again even though the tester was
+already signed in in Safari; that first re-login is expected, not a defect.
+What §6.9 item 5 ("confirm the session survived") means is relaunch-to-relaunch
+of the already-installed app — close it, reopen it from the home screen a
+second time, and the session should still be there — not Safari-to-installed-app
+continuity, which iOS does not provide.
 
 **Owner's dashboard steps, still to run — verbatim.**
 
@@ -799,14 +838,34 @@ timings) — a checked box with no evidence is not verification.
      template must contain `{{ .Token }}` (the default is a link with no code),
      and the user must exist (`shouldCreateUser: false`) — Authentication →
      Users → Create user. Repeat on the two phones for the rest of this step.
+     **Also done on iPhone Safari, 2026-08-21**, at
+     `https://goproceed-field.vercel.app` — the Expo field client (§4.5), not
+     this PWA — the invited member's email, 6-digit code, and sign-in landing
+     on «Мої доручення» all repeated there; the code again arrived through
+     **Brevo custom SMTP**.
    - [ ] Open one assignment; the довідковий disclaimer is visible; every
      control is at least 44×44 CSS px (measure with the browser's inspector at
      375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI —
      but the point of this step is a REAL engine, not headless Chrome).
-   - [ ] Take a photo through the capture control; the unsaved-photo banner is
+     **Partial, 2026-08-21, on iPhone (Expo client):** the disclaimer renders
+     unconditionally and was visible. The 44×44 sweep itself was NOT done
+     with a real inspector on this pass — only `apps/mobile/qa/field-web.mjs`'s
+     equivalent assertion against the exported build, which is headless
+     Chrome, not the real engine this step exists to use. Left unchecked; the
+     real-engine 44×44 measurement is still owed.
+   - [x] Take a photo through the capture control; the unsaved-photo banner is
      up while it uploads and the receipt (device time / server time / SHA-256)
      renders after. `crypto.subtle` requires this to be https — a plain-http
-     origin fails here, silently, which is why §4.3 forbids one.
+     origin fails here, silently, which is why §4.3 forbids one. —
+     **Measured on iPhone (Expo client), 2026-08-21 08:55 UTC:** upload
+     intent came back `available`, `image/jpeg`, **2 870 686 bytes**; the
+     evidence object was created 3.6 s later carrying the same SHA-256
+     (`de82ef4e…`); the receipt rendered. One prerequisite this uncovered:
+     the staging demo world's original seed line had no `work_type_key`, so
+     materialisation produced zero occurrences and there was nothing to
+     photograph against — re-seeded 2026-08-21 the way the product itself
+     creates one (rule version → bind on a DRAFT version → publish →
+     assignment → occurrence), not by hand-inserting a row.
    - [ ] **Record ADR-007's two required measurements**, per engine, in the M2
      measurement table: whether the engine stripped or transcoded EXIF from the
      uploaded bytes (compare the SHA-256 on screen with a hash of the original
