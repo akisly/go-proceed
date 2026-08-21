@@ -92,6 +92,40 @@ and the reason is worth recording because it is easy to get wrong:
    use `border border-line`». The references lean on cards and shadows; that
    part does not come across.
 
+## The hierarchy — plane's shape, mapped onto our tree
+
+**Owner's instruction, 2026-08-21:** even when a pattern comes from circle or
+shadcn-admin, **implement it the way plane structures it**. Read from
+[`makeplane/plane`](https://github.com/makeplane/plane) `@preview` on
+2026-08-21 (structure only — its code is AGPL and never enters this repo):
+
+```
+apps/web/
+  app/                      routes ONLY — layout.tsx / page.tsx per segment, thin
+  core/
+    components/<domain>/    domain-grouped, kebab-case files
+    layouts/                auth-layout, default-layout
+    services/               one <domain>.service.ts per domain, over the API
+    hooks/  lib/  store/
+packages/{ui,types,constants,hooks,utils,services,i18n}
+```
+
+Their `core/` is our `apps/app/src/`. The mapping, binding for every dashboard PR:
+
+| plane | ours | rule |
+|---|---|---|
+| `app/**` | `apps/app/app/**` | **routes only.** A page file wires params, calls a service, and renders a component from `src/components/<domain>`. Logic in a route file is a defect. |
+| `core/components/<domain>/` | `apps/app/src/components/<domain>/` | grouped by DOMAIN (`dash-shell`, `evidence`, `assignments`, `members`), never by type. **Files are kebab-case** — `workspace-switch.tsx`, not `WorkspaceSwitch.tsx` — matching plane (`archive-issue-modal.tsx`, `issue-type-switcher.tsx`). The exported component keeps PascalCase. |
+| `core/layouts/` | `apps/app/src/layouts/` | the shell chrome, separate from the domain components it wraps |
+| `core/services/<d>.service.ts` | `apps/app/src/services/<d>.service.ts` | **one module per domain** over `src/lib/api.ts` — `projects.service.ts`, `evidence.service.ts`. A component never calls `apiGet`/`apiPost` directly; it calls a service. This is what makes a screen testable without a route. |
+| `core/lib/` | `apps/app/src/lib/**` | pure/shared logic — already used this way (`lib/field`, `lib/capture`) |
+| `packages/types`, `packages/constants` | `packages/contracts`, `technical/copy-catalog.csv` | we already have both, under different names |
+
+What we deliberately do NOT copy from plane: MobX (`core/store`) — our reads are
+server components and the pattern in `app/(app)/page.tsx` already works; and its
+split into `apps/admin` / `apps/space` — ADR-009 keeps the dashboard inside
+`apps/app`, and `/external` is our `space`.
+
 ## Why a reference at all
 
 `apps/demo` carried the previous internal dashboard and was retired on
