@@ -1,7 +1,7 @@
 /**
  * The component inventory.
  *
- * SEVENTEEN, and the list is short on purpose. The system's own rule is
+ * EIGHTEEN, and the list is short on purpose. The system's own rule is
  * "install only what earns its place — an unused variant is the first thing to
  * drift", and a package of forty speculative components is forty things whose
  * contrast, touch targets and states nobody has checked against real content.

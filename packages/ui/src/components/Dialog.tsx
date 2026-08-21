@@ -30,6 +30,14 @@ export const Dialog = RadixDialog.Root;
 export const DialogTrigger = RadixDialog.Trigger;
 export const DialogClose = RadixDialog.Close;
 
+/**
+ * Every `DialogContent` needs a `DialogTitle` inside it — Radix's own
+ * accessibility contract, not this file's. Omit one and Radix console-warns
+ * at runtime rather than failing the build; the dialog still opens, but a
+ * screen reader has nothing to announce it by. This file does not paper over
+ * that with a `VisuallyHidden` fallback — a silent one would hide the mistake
+ * the warning exists to surface, so a missing title stays visible as a warning.
+ */
 export function DialogContent({
   className, children, ...rest
 }: ComponentPropsWithoutRef<typeof RadixDialog.Content>) {
