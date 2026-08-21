@@ -10,8 +10,9 @@ import { fileURLToPath } from "node:url";
 import { launch } from "./browser.mjs";
 import { DOVIDKOVYI_DISCLAIMER_TEXT } from "../src/lib/field/disclaimer.ts";
 import {
-  INSTALL_HINT_TITLE, INSTALL_HINT_BODY_CHROMIUM, INSTALL_HINT_BODY_IOS,
-  INSTALL_HINT_ACTION_LATER,
+  INSTALL_HINT_TITLE, INSTALL_HINT_BODY_CHROMIUM,
+  INSTALL_HINT_BODY_IOS_SAFARI, INSTALL_HINT_BODY_IOS_CHROME,
+  INSTALL_HINT_ACTION_LATER, FIRST_SEEN_AT_STORAGE_KEY,
 } from "../src/lib/install-hint.ts";
 
 /**
@@ -688,11 +689,11 @@ async function withPage(browser, task) {
   // visitor is actually in — `installHintVariant`'s `hasPromptEvent` is
   // false because no event has arrived, exactly as it would be on first
   // visit in production Chrome — rather than the test environment's own
-  // engagement-check gap standing in for it. The three dedicated
-  // install-hint checks in the "unauthenticated surface" audit rely on
-  // exactly this: the plain-Chrome pass asserts the banner is absent BECAUSE
-  // of it, the iPhone-UA pass depends on `hasPromptEvent` staying false so
-  // `installHintVariant` resolves to "ios" rather than "chromium", and the
+  // engagement-check gap standing in for it. The install-hint checks in the
+  // "unauthenticated surface" audit rely on exactly this: the plain-Chrome
+  // pass asserts the banner is absent BECAUSE of it, every iPhone-UA pass
+  // depends on `hasPromptEvent` staying false so `installHintVariant`
+  // resolves to an "ios-*" variant rather than "chromium", and the
   // Chromium-variant pass (below) needs the suppression OFF for the one
   // synthetic event it dispatches itself.
   //
@@ -976,19 +977,21 @@ async function main() {
         }
 
         // THE INSTALL HINT MUST STAY SILENT HERE — this is plain headless
-        // Chrome, no `beforeinstallprompt` listener stub and no iPhone UA, so
-        // neither of `installHintVariant`'s two "show something" signals
+        // Chrome, no `beforeinstallprompt` listener stub and no iOS UA, so
+        // none of `installHintVariant`'s "show something" signals
         // (apps/mobile/src/lib/install-hint.ts) is true: Chrome's own
         // engagement heuristic (a tap + ~30s, MDN, read 2026-08-21) has had
         // no chance to fire the real event in this short automated visit, and
-        // the UA here is plain desktop-flavoured Chrome, not iOS Safari. This
-        // is the negative half of the install-hint proof; the two positive
-        // halves — the Chromium variant (a synthetic event, same UA) and the
-        // iOS variant (an iPhone UA) — run in the two `withPage` blocks
-        // below.
+        // the UA here is plain desktop-flavoured Chrome, not any iOS browser
+        // (so `classifyIOSBrowser` resolves `null` and the dwell gate never
+        // even applies). This is the negative half of the install-hint
+        // proof; the positive halves — the Chromium variant (a synthetic
+        // event, same UA), the two iOS variants (iPhone Safari and iPhone
+        // Chrome UAs), and a THIRD negative proving the dwell gate itself —
+        // run in the `withPage` blocks below.
         const installHintAtRest = await page.$('[data-testid="install-hint"]');
         if (installHintAtRest) {
-          ctx.findings.push('login (plain headless Chrome): [data-testid="install-hint"] is rendered although no beforeinstallprompt event fired and the UA is not iOS Safari — installHintVariant should have returned null');
+          ctx.findings.push('login (plain headless Chrome): [data-testid="install-hint"] is rendered although no beforeinstallprompt event fired and the UA is not an iOS browser — installHintVariant should have returned null');
         }
 
         await page.screenshot({ path: path.join(SHOTS, "login.png"), fullPage: true });
@@ -1104,7 +1107,9 @@ async function main() {
         reportDiagnostics("install hint (Chromium, synthetic event)", chromiumDiagnostics, ctx.findings, ctx.missingAssets);
       }
 
-      // ── The install hint's iOS variant — a third /login load, iPhone UA ──
+      // ── The install hint's iOS variants — iPhone Safari UA, iPhone Chrome
+      // UA (CriOS), and a third negative load proving the 10s dwell gate
+      // itself actually withholds the banner ─────────────────────────────
       //
       // STAYS INSIDE THIS SAME "unauthenticated surface" AUDIT rather than
       // becoming a `runAudit` of its own — `EXPECTED_AUDITS` names exactly
@@ -1115,60 +1120,149 @@ async function main() {
       // regression here still fails the run.
       //
       // `page.setUserAgent` alone is not enough to make
-      // `../src/screens/install-hint.tsx`'s own `detectIOSSafari()` return
-      // true: that function requires `navigator.standalone === false`
-      // (never `undefined`) as proof the UA is genuinely WebKit/Safari and
-      // not merely spoofing an iPhone string (see that function's own
-      // comment) — and `navigator.standalone` is a Safari-only extension
-      // (MDN, read 2026-08-21) that plain headless Chrome does not expose AT
-      // ALL, UA override or not, because overriding the UA string changes
-      // what `navigator.userAgent` reports, not which engine APIs exist.
-      // `page.evaluateOnNewDocument` is what supplies the one thing a UA
-      // override cannot: it runs before every document this page loads
-      // (this navigation AND the reload below), so one registration here
-      // covers both.
-      {
-        const IPHONE_SAFARI_UA =
-          "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
-          + "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+      // `../src/screens/install-hint.tsx`'s own `detectIOSBrowser()` return
+      // anything but `null`: that function requires
+      // `navigator.standalone === false` (never `undefined`) as proof the UA
+      // is genuinely WebKit and not merely spoofing an iPhone string (see
+      // that function's own comment) — and `navigator.standalone` is a
+      // WebKit-engine extension (MDN, read 2026-08-21) that plain headless
+      // Chrome does not expose AT ALL, UA override or not, because
+      // overriding the UA string changes what `navigator.userAgent` reports,
+      // not which engine APIs exist. `page.evaluateOnNewDocument` is what
+      // supplies the one thing a UA override cannot: it runs before every
+      // document this page loads (this navigation AND the reload below), so
+      // one registration here covers both.
+      //
+      // NEITHER POSITIVE CASE COULD BE PROVEN WITHOUT PRE-SEEDING THE DWELL
+      // CLOCK EITHER. A fresh page load sets `firstSeenAtMs` to
+      // (approximately) "now" (`readOrSetFirstSeenAt`,
+      // `../src/screens/install-hint.tsx`), so `dwellMs` is still
+      // single-digit milliseconds by the time this file's own assertions
+      // run, moments later — nowhere near `IOS_DWELL_THRESHOLD_MS` (10s,
+      // `apps/mobile/src/lib/install-hint.ts`). The same
+      // `evaluateOnNewDocument` registration that stubs `navigator.standalone`
+      // also writes `sessionStorage[FIRST_SEEN_AT_STORAGE_KEY]` to 20 SECONDS
+      // in the past — before the bundle's own script runs, same ordering
+      // guarantee the `beforeinstallprompt` suppressor in `withPage` relies
+      // on — so by the time the component reads it, `dwellMs` is already
+      // ~20_000: comfortably past the gate without this file waiting out the
+      // real 10s on every run. The third load below deliberately OMITS this
+      // pre-seed, which is what turns the same UA/standalone setup into the
+      // dwell gate's own negative proof.
+      const IPHONE_SAFARI_UA =
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
+        + "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
+      const IPHONE_CHROME_UA =
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 "
+        + "(KHTML, like Gecko) CriOS/125.0.6422.80 Mobile/15E148 Safari/604.1";
 
-        const iosDiagnostics = await withPage(browser, async (page) => {
-          await page.setUserAgent(IPHONE_SAFARI_UA);
-          await page.evaluateOnNewDocument(() => {
+      /**
+       * One iOS-variant load. `preSeedDwellMs` of a number pre-seeds the
+       * dwell clock that many milliseconds in the past (so `dwellMs` is
+       * already past the gate by the time the assertions run); `null` skips
+       * the pre-seed entirely, leaving a fresh session-scoped clock that
+       * cannot have crossed the 10s gate this soon after navigation.
+       * `expectedBodyText` of `null` means the banner must NOT render at
+       * all — the dwell-gate-off proof; any other value means it must
+       * render with exactly that body text, no install button, and every
+       * pressable it does render at least 44×44. `testDismissal` reruns the
+       * dismiss-then-reload proof already covered once by the Safari case;
+       * it is not repeated for Chrome, which shares the exact same
+       * `localStorage`-backed dismissal code path regardless of variant.
+       */
+      async function checkIOSInstallHintVariant({
+        label, userAgent, preSeedDwellMs, expectedBodyText, screenshotName, testDismissal = false,
+      }) {
+        const diagnostics = await withPage(browser, async (page) => {
+          await page.setUserAgent(userAgent);
+
+          // `localStorage` (unlike `sessionStorage`) IS SHARED ACROSS EVERY
+          // PAGE OPENED AGAINST THE SAME ORIGIN, not scoped to this one tab
+          // — measured the hard way: without this clear, the Safari check's
+          // own «Не зараз» tap (below, when `testDismissal` is true) writes
+          // `DISMISSED_AT_STORAGE_KEY` for the field origin, and the NEXT
+          // `checkIOSInstallHintVariant` call — a brand new page, same
+          // origin — inherited it and saw `installHintVariant` resolve to
+          // `null` for a completely unrelated reason (the 7-day dismiss
+          // window, not the dwell gate that call was actually testing). A
+          // ONE-TIME CDP `Storage.clearDataForOrigin` call, not a script
+          // re-run via `evaluateOnNewDocument`, is deliberate: this same
+          // test's OWN dismissal write (when `testDismissal` is true) must
+          // survive its own `page.reload()` below — a clear tied to every
+          // new document would wipe that write out from under itself right
+          // before the reload assertion reads it back.
+          const storageClearSession = await page.target().createCDPSession();
+          await storageClearSession.send("Storage.clearDataForOrigin", {
+            origin: fieldServer.baseUrl,
+            storageTypes: "local_storage",
+          });
+          await storageClearSession.detach();
+
+          await page.evaluateOnNewDocument((firstSeenAtKey, seedMs) => {
             Object.defineProperty(window.navigator, "standalone", {
               configurable: true,
               get: () => false,
             });
-          });
+            if (typeof seedMs === "number") {
+              // A script registered via `evaluateOnNewDocument` runs on
+              // EVERY new document this page creates for the navigation
+              // below — not just the real `/login` response, but also an
+              // interim placeholder document Chrome creates while the
+              // network request is still in flight, measured empirically to
+              // deny storage access entirely (`SecurityError: Failed to
+              // read the 'sessionStorage' property from 'Window': Access is
+              // denied for this document`). The try/catch is what makes
+              // this script safe to re-run there: it silently does nothing
+              // on the placeholder and writes for real once this same
+              // registration re-fires on the actual `/login` document.
+              try {
+                window.sessionStorage.setItem(firstSeenAtKey, String(Date.now() - seedMs));
+              } catch {
+                // ignored — see comment above.
+              }
+            }
+          }, FIRST_SEEN_AT_STORAGE_KEY, preSeedDwellMs);
           await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
 
           const res = await page.goto(`${fieldServer.baseUrl}/login`, { waitUntil: "networkidle0" });
           if (!res || res.status() !== 200) {
-            ctx.findings.push(`install hint (iOS UA) /login: expected 200, got ${res ? res.status() : "no response"}`);
+            ctx.findings.push(`${label} /login: expected 200, got ${res ? res.status() : "no response"}`);
+            return;
+          }
+
+          if (expectedBodyText === null) {
+            // A short, generous wait — long enough for the mount effect to
+            // have run, nowhere near the 10s gate — before checking the
+            // banner is genuinely absent, not merely "not yet rendered".
+            await new Promise((resolve) => setTimeout(resolve, 300));
+            const installHintAtRest = await page.$('[data-testid="install-hint"]');
+            if (installHintAtRest) {
+              ctx.findings.push(`${label}: [data-testid="install-hint"] rendered without a sessionStorage pre-seed — the 10s dwell gate should still be withholding it (dwellMs is a few hundred ms, not >= IOS_DWELL_THRESHOLD_MS)`);
+            }
             return;
           }
 
           const appeared = await page.waitForSelector('[data-testid="install-hint"]', { timeout: 5_000 })
             .then(() => true).catch(() => false);
           if (!appeared) {
-            ctx.findings.push('install hint (iOS UA): [data-testid="install-hint"] never rendered on /login — installHintVariant should have returned "ios" for an iPhone Safari UA with no beforeinstallprompt event');
+            ctx.findings.push(`${label}: [data-testid="install-hint"] never rendered on /login — installHintVariant should have resolved once dwellMs passed the 10s gate`);
             return;
           }
 
           const bodyText = await page.evaluate(() => document.body.innerText);
           if (!bodyText.includes(INSTALL_HINT_TITLE)) {
-            ctx.findings.push(`install hint (iOS UA): expected the title "${INSTALL_HINT_TITLE}" on screen, not found`);
+            ctx.findings.push(`${label}: expected the title "${INSTALL_HINT_TITLE}" on screen, not found`);
           }
-          if (!bodyText.includes(INSTALL_HINT_BODY_IOS)) {
-            ctx.findings.push(`install hint (iOS UA): expected the iOS body "${INSTALL_HINT_BODY_IOS}" on screen, not found — did the chromium copy render instead?`);
+          if (!bodyText.includes(expectedBodyText)) {
+            ctx.findings.push(`${label}: expected the body "${expectedBodyText}" on screen, not found — did a different variant's copy render instead?`);
           }
           // THE CHROMIUM-ONLY BUTTON MUST NOT APPEAR HERE — no
-          // beforeinstallprompt event exists on this UA (Chromium-only per
-          // MDN), so `installHintVariant` must have chosen "ios", never
-          // "chromium".
+          // beforeinstallprompt event exists on any iOS UA (Chromium-only
+          // per MDN), so `installHintVariant` must never resolve to
+          // "chromium" on these loads.
           const installButton = await page.$('[data-testid="install-hint-install"]');
           if (installButton) {
-            ctx.findings.push('install hint (iOS UA): [data-testid="install-hint-install"] is rendered on an iOS Safari UA — the Chromium-only action must not appear without a beforeinstallprompt event');
+            ctx.findings.push(`${label}: [data-testid="install-hint-install"] is rendered on an iOS UA — the Chromium-only action must not appear without a beforeinstallprompt event`);
           }
 
           // EVERY PRESSABLE THE BANNER ACTUALLY RENDERS, MEASURED DIRECTLY —
@@ -1176,7 +1270,7 @@ async function main() {
           // textarea` selector does not match react-native-web's own output
           // for `Pressable`, a plain `<div role="button">`; see
           // login.tsx's identical comment on its own Button component). Only
-          // «Не зараз» renders on this variant; the loop still names both
+          // «Не зараз» renders on any iOS variant; the loop still names both
           // possible testIDs so a future chromium-branch button rendered
           // here by mistake would be measured too, not silently skipped.
           for (const testId of ["install-hint-install", "install-hint-later"]) {
@@ -1184,11 +1278,13 @@ async function main() {
             if (!handle) continue;
             const box = await handle.boundingBox();
             if (!box || box.width < 44 || box.height < 44) {
-              ctx.findings.push(`install hint (iOS UA): [data-testid="${testId}"] is ${box ? `${Math.round(box.width)}x${Math.round(box.height)}` : "not laid out"} — expected at least 44x44`);
+              ctx.findings.push(`${label}: [data-testid="${testId}"] is ${box ? `${Math.round(box.width)}x${Math.round(box.height)}` : "not laid out"} — expected at least 44x44`);
             }
           }
 
-          await page.screenshot({ path: path.join(SHOTS, "install-hint-ios.png"), fullPage: true });
+          await page.screenshot({ path: path.join(SHOTS, screenshotName), fullPage: true });
+
+          if (!testDismissal) return;
 
           // «Не зараз» HIDES IT, AND A RELOAD MUST NOT BRING IT BACK — the
           // whole point of DISMISS_DURATION_MS
@@ -1196,14 +1292,14 @@ async function main() {
           // this once should not be asked again on the very next page load.
           const laterButton = await page.$('[data-testid="install-hint-later"]');
           if (!laterButton) {
-            ctx.findings.push('install hint (iOS UA): [data-testid="install-hint-later"] not found — cannot exercise dismissal');
+            ctx.findings.push(`${label}: [data-testid="install-hint-later"] not found — cannot exercise dismissal`);
             return;
           }
           await laterButton.click();
           const hiddenAfterClick = await page.waitForSelector('[data-testid="install-hint"]', { hidden: true, timeout: 5_000 })
             .then(() => true).catch(() => false);
           if (!hiddenAfterClick) {
-            ctx.findings.push(`install hint (iOS UA): clicking "${INSTALL_HINT_ACTION_LATER}" did not remove [data-testid="install-hint"]`);
+            ctx.findings.push(`${label}: clicking "${INSTALL_HINT_ACTION_LATER}" did not remove [data-testid="install-hint"]`);
           }
 
           await page.reload({ waitUntil: "networkidle0" });
@@ -1214,11 +1310,36 @@ async function main() {
           await new Promise((resolve) => setTimeout(resolve, 500));
           const stillHiddenAfterReload = await page.$('[data-testid="install-hint"]');
           if (stillHiddenAfterReload) {
-            ctx.findings.push('install hint (iOS UA): reappeared after a reload although "Не зараз" was clicked moments before — the 7-day dismiss window did not persist across the reload (localStorage write/read, or DISMISS_DURATION_MS itself, may have regressed)');
+            ctx.findings.push(`${label}: reappeared after a reload although "Не зараз" was clicked moments before — the 7-day dismiss window did not persist across the reload (localStorage write/read, or DISMISS_DURATION_MS itself, may have regressed)`);
           }
         });
-        reportDiagnostics("install hint (iOS UA)", iosDiagnostics, ctx.findings, ctx.missingAssets);
+        reportDiagnostics(label, diagnostics, ctx.findings, ctx.missingAssets);
       }
+
+      await checkIOSInstallHintVariant({
+        label: "install hint (iOS Safari UA)",
+        userAgent: IPHONE_SAFARI_UA,
+        preSeedDwellMs: 20_000,
+        expectedBodyText: INSTALL_HINT_BODY_IOS_SAFARI,
+        screenshotName: "install-hint-ios-safari.png",
+        testDismissal: true,
+      });
+
+      await checkIOSInstallHintVariant({
+        label: "install hint (iOS Chrome UA, CriOS)",
+        userAgent: IPHONE_CHROME_UA,
+        preSeedDwellMs: 20_000,
+        expectedBodyText: INSTALL_HINT_BODY_IOS_CHROME,
+        screenshotName: "install-hint-ios-chrome.png",
+      });
+
+      await checkIOSInstallHintVariant({
+        label: "install hint (iOS Safari UA, dwell gate not yet elapsed)",
+        userAgent: IPHONE_SAFARI_UA,
+        preSeedDwellMs: null,
+        expectedBodyText: null,
+        screenshotName: null,
+      });
 
       // THE MANIFEST, FETCHED DIRECTLY (not through the page) so a parse
       // failure is unambiguous and not entangled with the page's own fetch
