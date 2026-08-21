@@ -1,4 +1,4 @@
-import type { MeContextResponse } from "@goproceed/contracts";
+import { meContextResponse, type MeContextResponse } from "@goproceed/contracts";
 import { apiGet, isSessionExpired } from "../lib/api";
 
 /**
@@ -22,7 +22,14 @@ export type MeContextResult =
 
 export async function getMeContext(): Promise<MeContextResult> {
   try {
-    const meContext = await apiGet<MeContextResponse>("/v1/me/context");
+    // `meContextResponse` is an exported zod schema (the route itself parses
+    // outbound rows through it before responding — see
+    // `apps/app/app/v1/me/context/route.ts`), so this client-side call
+    // PARSES the response through the same schema rather than trusting
+    // `apiGet`'s `<T>` type parameter, which is a compile-time cast only and
+    // asserts nothing at runtime about what the network actually returned.
+    const body = await apiGet<unknown>("/v1/me/context");
+    const meContext = meContextResponse.parse(body);
     return { kind: "ok", meContext };
   } catch (error) {
     if (isSessionExpired(error)) return { kind: "session_expired" };

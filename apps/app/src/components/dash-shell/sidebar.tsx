@@ -88,11 +88,17 @@ export function Sidebar({
 
       <ul className="flex flex-1 flex-col gap-1">
         {NAV_ITEMS.map(({ key, label, icon: Icon, reason }) => (
-          <li key={key}>
+          // `title` lives on the `<li>`, not the disabled `Button`: the
+          // Button's own base carries `disabled:pointer-events-none`
+          // (`packages/ui/src/components/Button.tsx`), so a `title` on the
+          // button itself is never hit-tested and no tooltip ever appears —
+          // the same reason `WorkspaceSwitch` and `ProfilePlaceholder` below
+          // put their own `title` on a plain wrapping element rather than on
+          // whatever's disabled inside it.
+          <li key={key} title={reason}>
             <Button
               variant="ghost"
               disabled
-              title={reason}
               aria-label={label}
               className="w-full justify-start px-2.5"
             >

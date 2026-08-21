@@ -17,6 +17,17 @@ export type ProjectsResult =
 
 export async function listProjects(): Promise<ProjectsResult> {
   try {
+    // NO RUNTIME PARSE HERE, UNLIKE `workspaces.service.ts`'s `getMeContext`:
+    // `@goproceed/contracts` exports `meContextResponse` as a zod schema but
+    // `ProjectsListResponse`/`ProjectListRow` (this file) are plain
+    // TypeScript interfaces — there is no `projectsListResponse` schema to
+    // parse with, and inventing one here, in the app, would duplicate a
+    // contract this package doesn't yet own. Adding it for real would mean:
+    // a `z.object` in `packages/contracts/src/projects.ts` mirroring
+    // `ProjectListRow` exactly, `apps/app/app/v1/projects/route.ts` parsing
+    // its own response through it before returning (matching
+    // `me/context/route.ts`'s pattern), and this call switching from
+    // `apiGet<ProjectsListResponse>` to `apiGet<unknown>` + `.parse()`.
     const { projects } = await apiGet<ProjectsListResponse>("/v1/projects");
     return { kind: "ok", projects };
   } catch (error) {
