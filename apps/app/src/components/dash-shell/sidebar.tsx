@@ -8,7 +8,7 @@
 import type { ReactNode } from "react";
 import { Camera, ClipboardList, LayoutDashboard, Users } from "lucide-react";
 import { Avatar, AvatarFallback, Button, cx } from "@goproceed/ui/components";
-import { WorkspaceSwitch, type Membership } from "./WorkspaceSwitch";
+import { WorkspaceSwitch, type Membership } from "./workspace-switch";
 
 type NavItem = {
   key: string;

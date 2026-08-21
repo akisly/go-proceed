@@ -6,8 +6,8 @@
 import type { ReactNode } from "react";
 import { Menu } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger, cx } from "@goproceed/ui/components";
-import { Sidebar } from "./Sidebar";
-import type { Membership } from "./WorkspaceSwitch";
+import { Sidebar } from "./sidebar";
+import type { Membership } from "./workspace-switch";
 
 /**
  * Below `md` only — matching the shell's three-state contract

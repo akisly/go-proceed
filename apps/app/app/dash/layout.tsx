@@ -1,15 +1,14 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import type { MeContextResponse, ProjectListRow, ProjectsListResponse } from "@goproceed/contracts";
-import { EmptyState } from "@goproceed/ui/components";
 
-import { apiGet, isSessionExpired } from "../../src/lib/api";
-import { Sidebar } from "../../src/components/dash/Sidebar";
-import { TopBar } from "../../src/components/dash/TopBar";
+import { getMeContext } from "../../src/services/workspaces.service";
+import { listProjects } from "../../src/services/projects.service";
+import { DashLayout } from "../../src/layouts/dash-layout";
+import { ShellFatalError } from "../../src/components/dash-shell/shell-error";
 import "./dash-theme.css";
 
 /**
- * The office dashboard's shell — Plan D slice D0, task 2.
+ * The office dashboard's route entry — Plan D slice D0, task 2.
  *
  * ROUTE IS `app/dash/**`, NOT `app/(dash)/**` AS THE BRIEF LITERALLY NAMED IT.
  * `(dash)` is a Next.js ROUTE GROUP — parentheses mean "organise these files,
@@ -36,77 +35,30 @@ import "./dash-theme.css";
  * signed-in-session redirect every other page gets. Confirmed by reading the
  * matcher, not assumed.
  *
- * WHY BOTH `apiGet` CALLS HAPPEN AGAIN IN `page.tsx`: Next's App Router has
- * no prop channel from a layout into `children` — `children` is an opaque,
- * already-resolved element, not something a layout can pass its own fetched
- * data into. The brief's "fetch ONCE… pass data down" is satisfied by Next's
- * own automatic fetch request memoization instead: `apiGet` calls the native
- * `fetch()`, and Next memoizes IDENTICAL `fetch(url, options)` calls for the
- * lifetime of a single render — including `cache: "no-store"` calls, which
- * opt out of the persistent Data Cache but not out of this per-request dedup
- * (Next's own docs are explicit that this applies regardless of the `cache`
- * option). So this file and `page.tsx` each call `apiGet("/v1/projects")`
- * independently, each does its OWN error handling for ITS OWN scope, and only
- * ONE network round trip happens either way.
- *
- * `/v1/me/context` is fetched here (not in `page.tsx`) because the shell
- * chrome — `WorkspaceSwitch`, and the "no workspace" empty state below —
- * needs it and `page.tsx` does not. `/v1/projects` is ALSO fetched here, even
- * though this file never renders the list itself, so that a failure on
- * either endpoint is caught at the one place that gates the whole `/dash/**`
- * tree — the same reasoning `app/(app)/page.tsx` documents for its own two
- * catches.
+ * THIN ON PURPOSE, per `docs/design/03-ui-references.md` §"The hierarchy"
+ * (plane's shape, mapped onto this tree): a route file wires params, calls a
+ * service, and renders a component — nothing else. This one takes no route
+ * params, calls `getMeContext`/`listProjects` (both in `src/services/`),
+ * decides redirect-vs-fatal-error-vs-render, and hands the actual shell
+ * composition to `src/layouts/dash-layout.tsx`. The two services themselves
+ * own the `apiGet` calls and the `ApiError`/401 handling — see
+ * `workspaces.service.ts`'s header for why they return a discriminated
+ * result rather than throwing, and for why `/v1/projects` is fetched again,
+ * independently, in `app/dash/page.tsx` (Next's own automatic per-request
+ * fetch memoization, not a second network round trip).
  */
-export default async function DashLayout({ children }: { children: ReactNode }) {
-  let meContext: MeContextResponse;
-  try {
-    meContext = await apiGet<MeContextResponse>("/v1/me/context");
-  } catch (err) {
-    if (isSessionExpired(err)) redirect(`/login?next=${encodeURIComponent("/dash")}`);
-    return <ShellFatalError />;
-  }
+export default async function DashRouteLayout({ children }: { children: ReactNode }) {
+  const meResult = await getMeContext();
+  if (meResult.kind === "session_expired") redirect(`/login?next=${encodeURIComponent("/dash")}`);
+  if (meResult.kind === "error") return <ShellFatalError />;
 
-  let projects: ProjectListRow[];
-  try {
-    ({ projects } = await apiGet<ProjectsListResponse>("/v1/projects"));
-  } catch (err) {
-    if (isSessionExpired(err)) redirect(`/login?next=${encodeURIComponent("/dash")}`);
-    return <ShellFatalError />;
-  }
-  // `projects` is fetched only to share the gate above with `page.tsx`'s
-  // identical (memoized) call; this file has nothing further to do with it,
-  // and the unused-variable lint that would otherwise flag that is exactly
-  // why the destructure above names it at all rather than discarding it.
-  void projects;
+  // Fetched here too (not only in `page.tsx`) so a failure on EITHER
+  // endpoint is caught at the one place that gates the whole `/dash/**`
+  // tree — the same reasoning `app/(app)/page.tsx` documents for its own two
+  // catches.
+  const projectsResult = await listProjects();
+  if (projectsResult.kind === "session_expired") redirect(`/login?next=${encodeURIComponent("/dash")}`);
+  if (projectsResult.kind === "error") return <ShellFatalError />;
 
-  const { memberships } = meContext;
-  const hasWorkspace = memberships.length > 0;
-
-  return (
-    <div className="flex min-h-dvh bg-canvas">
-      <Sidebar memberships={memberships} className="hidden md:flex" />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <TopBar memberships={memberships} />
-        <main className="min-w-0 flex-1">
-          {hasWorkspace ? children : (
-            <EmptyState
-              className="mx-auto max-w-md py-16"
-              title="Немає робочого простору"
-              description="У вас ще немає робочого простору."
-            />
-          )}
-        </main>
-      </div>
-    </div>
-  );
-}
-
-function ShellFatalError() {
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-canvas p-6">
-      <p className="max-w-sm text-center text-data text-ink-muted">
-        Не вдалося завантажити робочий простір. Спробуйте ще раз.
-      </p>
-    </div>
-  );
+  return <DashLayout memberships={meResult.meContext.memberships}>{children}</DashLayout>;
 }
