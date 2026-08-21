@@ -2,6 +2,7 @@ import Image from "next/image";
 import { Chip, type ChipTone } from "@goproceed/ui/components";
 import { Stagger, StaggerItem } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
+import { BrandMark } from "../brand-mark";
 
 const content = landingContent.dashboard;
 
@@ -32,7 +33,7 @@ export function DashboardSurface() {
           <div className="grid min-h-[660px] wide:grid-cols-[190px_minmax(0,1fr)_300px]">
             <aside className="hidden flex-col bg-inverse px-3 py-5 text-on-inverse wide:flex">
               <div className="flex items-center gap-3 px-2">
-                <span className="grid size-8 place-items-center rounded-control bg-action-signal text-meta font-semibold text-action-signal-fg">GP</span>
+                <BrandMark className="size-8 shrink-0" />
                 <div>
                   <p className="text-data font-semibold">GoProceed</p>
                   <p className="text-micro text-on-inverse-muted">Контур проєкту</p>

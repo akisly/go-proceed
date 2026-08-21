@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Reveal, Stagger, StaggerItem } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
+import { BrandMark } from "../brand-mark";
 import { SectionShell } from "../section-shell";
 
 const content = landingContent.field;
@@ -38,7 +39,7 @@ export function FieldMobile() {
           <div className="landing-blueprint absolute inset-8 rotate-2 rounded-section border border-line-inverse bg-inverse" />
           <div role="region" aria-label="Польовий застосунок" className="relative mx-auto max-w-[390px] overflow-hidden rounded-section border border-line-inverse bg-surface shadow-modal">
             <div className="flex items-center gap-3 border-b border-line px-4 py-3">
-              <span className="grid size-8 place-items-center rounded-control bg-action text-micro font-semibold text-action-fg">GP</span>
+              <BrandMark className="size-8 shrink-0" />
               <span>
                 <span className="block text-meta font-semibold text-ink">Польовий застосунок</span>
                 <span className="block text-micro text-ink-muted">ВРУ-1 · Секція А</span>

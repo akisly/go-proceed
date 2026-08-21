@@ -1,5 +1,6 @@
 import { Reveal, TextBlurIn } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
+import { BrandMark } from "../brand-mark";
 import { MockAction } from "../mock-action";
 
 const content = landingContent.final;
@@ -37,9 +38,7 @@ export function FinalCta() {
             className="overflow-hidden rounded-section border border-line-strong bg-surface shadow-modal"
           >
             <header className="flex items-center gap-3 border-b border-line px-6 py-5 md:px-8">
-              <span className="grid size-9 place-items-center rounded-control bg-action text-meta font-semibold text-action-fg">
-                GP
-              </span>
+              <BrandMark className="size-9 shrink-0" />
               <div>
                 <p className="text-data font-semibold text-ink">Перший пілотний контур</p>
                 <p className="mt-0.5 text-meta text-ink-muted">Робочий бриф · без надсилання даних</p>

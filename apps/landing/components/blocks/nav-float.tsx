@@ -1,4 +1,5 @@
 import { landingContent } from "../../content/landing-content";
+import { BrandMark } from "../brand-mark";
 import { MockAction } from "../mock-action";
 
 export function NavFloat() {
@@ -9,12 +10,7 @@ export function NavFloat() {
         className="mx-auto flex h-16 max-w-content items-center gap-6"
       >
         <a href="#product" className="flex min-h-11 items-center gap-2 rounded-pill text-ink">
-          <span
-            aria-hidden="true"
-            className="grid size-8 place-items-center rounded-pill bg-action text-meta font-semibold text-action-fg"
-          >
-            GP
-          </span>
+          <BrandMark className="size-8 shrink-0" priority />
           <span className="text-data font-semibold tracking-tight">GoProceed</span>
         </a>
 

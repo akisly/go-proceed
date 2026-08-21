@@ -1,4 +1,5 @@
 import { landingContent } from "../../content/landing-content";
+import { BrandMark } from "../brand-mark";
 
 const footerLinks = [
   { label: "Продукт", href: "#product" },
@@ -14,12 +15,7 @@ export function Footer() {
       <div className="mx-auto grid max-w-content gap-8 wide:grid-cols-[1fr_auto] wide:items-start">
         <div>
           <a href="#product" className="inline-flex min-h-11 items-center gap-3 text-ink">
-            <span
-              aria-hidden="true"
-              className="grid size-9 place-items-center rounded-pill bg-action text-meta font-semibold text-action-fg"
-            >
-              GP
-            </span>
+            <BrandMark className="size-9 shrink-0" />
             <span className="text-data font-semibold">{landingContent.footer.line}</span>
           </a>
           <p className="mt-4 max-w-[66ch] text-meta leading-relaxed text-ink-muted">
