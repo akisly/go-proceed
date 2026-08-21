@@ -580,6 +580,34 @@ curl -i https://goproceed-field.vercel.app/
 # expect 200 text/html; charset=utf-8, with <html lang="uk" in the body
 ```
 
+**Measured 2026-08-21, after the owner set both environments and redeployed
+(the #38 deployment — see the trap below):** preflight → `HTTP/2 200`,
+`access-control-allow-origin: https://goproceed-field.vercel.app`, methods
+`GET, POST, PUT, PATCH, DELETE, OPTIONS`, headers
+`authorization, content-type, idempotency-key, x-request-id`, max-age 86400;
+the layering fact — unauthenticated `GET /v1/projects` with the field Origin →
+`HTTP/2 401`, `content-type: application/problem+json` **and**
+`access-control-allow-origin` on the same response, served from `arn1`; the
+field origin → `200 text/html; charset=utf-8`, ttfb 0.36 s, `<html lang="uk"`,
+and its entry bundle carries the staging Supabase URL, the publishable key and
+`https://goproceed-app.vercel.app` with **no** `127.0.0.1` leak — so the
+`EXPO_PUBLIC_*` values were present at BUILD time, which is the only time that
+matters for them.
+
+**Two traps met on the way, both Vercel's, both now known.** (1) A merge of
+this branch with two parallel landing commits produced a `pnpm-lock.yaml` that
+`--frozen-lockfile` rejected (`ERR_PNPM_LOCKFILE_MISSING_DEPENDENCY` on
+expo's peer-suffixed key); every project shares that install command, so all
+three production builds from that merge died at install. A plain
+`pnpm install` repaired it in three structural lines (PR #38). (2) **A
+lockfile-only commit is «unaffected» to turbo-ignore**, so the repair's own
+push was CANCELED for every project — and so was the app's, whose
+`ignoreCommand` runs the same check. Env-variable changes never trigger a
+build either. Both mean the same thing: after setting a variable or repairing
+the lockfile, go to Deployments and **Redeploy the deployment of the commit you
+actually want** — the owner's first redeploy picked the #37 row (still the
+broken lockfile) and errored again; the #38 row was the right one.
+
 **Hostname:** `*.vercel.app`, like the other two pilot surfaces — no custom
 domain has been decided for this one either (§0).
 
