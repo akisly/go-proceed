@@ -1,0 +1,65 @@
+/* apps/app/app/dash — the office dashboard's OWN Tailwind entry point.
+ *
+ * WHY THIS FILE EXISTS SEPARATELY FROM `apps/app/app/globals.css`
+ * -----------------------------------------------------------------------
+ * `globals.css` is the field client's theme: a hand-rolled `@theme` block
+ * with its own literal values (`--color-surface: #fff`, `--radius-panel:
+ * 10px`, `--text-h1: 26px`, `--font-display: 'Inter Variable', …`), written
+ * before `packages/tokens`/`packages/ui` existed and consumed by every route
+ * under `app/(app)/**` and `app/(auth)/**`. It is loaded from the ROOT layout
+ * (`app/layout.tsx`), so it is present on every route in this app, dash
+ * included, and it MUST stay exactly as it is: `apps/app/qa/field.mjs`
+ * navigates to `/` and asserts on it in the field client's own rendered
+ * output, and docs/design/03-ui-references.md's "we do NOT take" column and
+ * 04-role-pain-map.md both say the field client is out of this plan's scope.
+ *
+ * `docs/design/02-building-ui.md` names `apps/app` as a surface this design
+ * system governs, and Task 1 of this plan built Dialog/DropdownMenu/Avatar in
+ * `packages/ui` specifically for this shell — so the dashboard has to
+ * actually import `@goproceed/ui/base.css`, which pulls in a SECOND,
+ * independent `@import "tailwindcss"` (Preflight included) and its own
+ * `@theme` block (`packages/ui/src/theme.generated.css`, generated from
+ * `packages/tokens/src/tokens.json`).
+ *
+ * Several role names COINCIDE between the two systems by lineage, not by
+ * accident — `bg-surface`, `rounded-panel`, `rounded-control`, `text-h1`
+ * through `text-micro`, `breakpoint-md`/`-wide` all resolve to the identical
+ * pixel values in both (verified against `packages/ui/src/tokens.generated.css`
+ * before writing this file). But one does NOT: `font-display` is this app's
+ * own Inter stack in `globals.css` (a deliberate 2026-08-11 call to avoid a
+ * second variable font on a foreman's mobile connection) and
+ * `'Source Serif 4 Variable'` in `packages/ui`'s tokens — and
+ * `@fontsource-variable/source-serif-4` is not even installed here. If both
+ * `@theme` blocks were merged into ONE compiled stylesheet, Tailwind v4's
+ * theme merge is last-declaration-wins per custom property, and which value
+ * survives would depend on import order in one shared file — fragile, and a
+ * `font-display` regression on the field client's own `<h1>` in
+ * `app/(app)/page.tsx` is exactly the kind of change this task must not make.
+ *
+ * Importing `@goproceed/ui/base.css` from a stylesheet the DASH LAYOUT owns,
+ * instead of from the shared root `globals.css`, sidesteps the question
+ * entirely rather than relying on import-order reasoning: Tailwind v4
+ * compiles each CSS entry file (and its own `@import` graph) as an
+ * independent unit, and Next's App Router only serves a nested layout's own
+ * global CSS import to the routes nested under that layout. `globals.css`
+ * keeps compiling from the field client's own literals, unaffected; this file
+ * compiles from `packages/ui`'s generated theme, and only `app/dash/**`
+ * routes load it.
+ *
+ * The dash shell therefore never writes `font-display`/`.display` at all —
+ * consistent with `packages/ui/src/base.css`'s own ruling that the display
+ * face is "marketing-only … never inside the application shell" — so the one
+ * token that actually diverges between the two systems is simply unused here.
+ */
+
+@import "@goproceed/ui/base.css";
+
+/* Shared components carry Tailwind utilities that do not appear in this
+ * app's own source (e.g. Dialog/DropdownMenu's `shadow-modal`, `bg-overlay`). */
+@source "../../../../packages/ui/src";
+
+/* Same reasoning as apps/landing's own globals.css: Tailwind v4 scans the
+ * whole project and does not distinguish a test fixture from a component. */
+@source not "../../tests";
+@source not "../../qa";
+@source not "../../.next";
