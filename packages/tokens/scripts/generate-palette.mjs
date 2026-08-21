@@ -1,6 +1,9 @@
 /**
- * Emits the approved-colour allowlist that apps/demo/qa/colour-audit.mjs
- * checks every stylesheet and every Tailwind arbitrary value against.
+ * Emits the approved-colour allowlist that the dashboard's colour audit
+ * (Plan D) will check every stylesheet and every Tailwind arbitrary value
+ * against. apps/demo/qa/colour-audit.mjs used this until apps/demo retired
+ * on 2026-08-20; packages/testing/src/token-fidelity.test.ts guards the
+ * artifact until the dashboard consumer activates.
  *
  * WHY GENERATED
  * -------------
@@ -24,7 +27,7 @@ import { readSource, repoRoot, shadowTokens } from "./lib/source.mjs";
 import { hexToRgb } from "./lib/color.mjs";
 
 const src = readSource();
-const outDir = process.env.TOKENS_OUT_DIR ?? join(repoRoot, "apps/demo/qa");
+const outDir = process.env.TOKENS_OUT_DIR ?? join(repoRoot, "packages/testing/qa");
 
 const entries = new Map();
 const add = (hex, name) => {
@@ -56,7 +59,7 @@ const out = [
   ...rows.map(([k, names]) => `  [${JSON.stringify(k)}, ${JSON.stringify([...names].sort())}],`),
   "])",
   "",
-  "/** The set apps/demo/qa/colour-audit.mjs compares against. */",
+  "/** The set the dashboard's colour audit will compare against. */",
   "export const APPROVED_RGB = new Set(APPROVED_PALETTE.keys())",
   "",
 ];
