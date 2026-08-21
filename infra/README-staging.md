@@ -582,36 +582,86 @@ change it answered `200 text/html`** — the SPA rewrite catching the request
 because no manifest file existed on disk at all (measured 2026-08-21, the gap
 this task closes; see `docs/superpowers/plans/2026-08-21-field-client-installable.md`).
 
-**Install hint (2026-08-21).** `src/screens/install-hint.tsx`, mounted once in
-`src/app/_layout.tsx` beneath the `Stack` for every route, offers installation
-in one tap where the platform allows it and states the only honest
-alternative where it does not (`docs/superpowers/plans/2026-08-21-install-hint.md`).
-Chromium (desktop and Android Chrome, and any other browser that implements
-the API) fires `beforeinstallprompt`; this build keeps the event, shows a
-bottom banner («Встановити GoProceed на телефон?»), and calls the browser's
-own install dialog from the «Встановити» tap — but only once Chrome itself
-decides to hand the event over, which on a real device is gated on genuine
-engagement (a tap plus roughly 30 seconds, MDN, read 2026-08-21), not at
-first paint. iOS Safari never fires that event at all — Apple ships no
-programmatic install API on iOS at all, by design, not as a gap in this
-build — so the only honest thing to show there is the manual gesture:
-«Натисніть «Поділитися», потім «На екран Домой»». Both variants remember a
-«Не зараз» tap for seven days (`localStorage`) and neither renders once the
-app is already running installed (`display-mode: standalone`, or on iOS
-`navigator.standalone === true`). Verifying this required working around one
-thing measured rather than assumed: this repo's pinned Chrome for Testing
+**Install hint (2026-08-21, browser matrix and dwell gate added 2026-08-21).**
+`src/screens/install-hint.tsx`, mounted once in `src/app/_layout.tsx` beneath
+the `Stack` for every route, offers installation in one tap where the
+platform allows it and states the only honest alternative — per browser —
+where it does not
+(`docs/superpowers/plans/2026-08-21-install-hint.md`,
+`docs/superpowers/plans/2026-08-21-install-hint-ios-browsers.md`).
+
+*Browser matrix* — `installHintVariant` (`src/lib/install-hint.ts`) resolves
+one of four outcomes:
+
+| Browser | Variant | What it shows | Gated on |
+| --- | --- | --- | --- |
+| Chromium — desktop and Android Chrome, or any other browser implementing `beforeinstallprompt` | `chromium` | Bottom banner («Встановити GoProceed на телефон?»), «Встановити» calls the browser's own install dialog from the deferred `beforeinstallprompt` event | Chrome's own engagement heuristic (a tap plus roughly 30 seconds, MDN, read 2026-08-21) — this build has no opinion on when that fires, only reacts once it has |
+| iPhone/iPad Safari | `ios-safari` | «Натисніть «Поділитися» ↓ внизу екрана, потім «На Початковий екран».» — Share is the bottom-centre toolbar button | 10s dwell (below) |
+| Chrome-for-iOS (`CriOS`) | `ios-chrome` | «Натисніть «Поділитися» ↗ біля адресного рядка (або меню ⋮), прокрутіть униз і виберіть «На Початковий екран».» — Share sits beside the address bar at the top, or in the «⋮» menu | 10s dwell |
+| Every other iOS browser (Firefox-for-iOS/`FxiOS`, Edge-for-iOS/`EdgiOS`, …) | `ios-other` | «Відкрийте меню «Поділитися» вашого браузера та виберіть «На Початковий екран».» — no verified Share-control location for these, so no directional pointer is given | 10s dwell |
+
+No iOS browser ever fires `beforeinstallprompt`, and none exposes a
+programmatic install API at all — WebKit blog 13878 (read 2026-08-21)
+confirms every third-party iOS browser adds web apps to the Home Screen
+"from the Share menu" too, since 16.4, because Apple requires every one of
+them to run on WebKit. `classifyIOSBrowser` (`src/lib/install-hint.ts`) is
+the pure UA classifier behind the three iOS rows above: `CriOS` → chrome,
+`FxiOS` → firefox (folded into `ios-other`), `EdgiOS` → other, anything else
+on an iPhone/iPad/iPod UA → Safari.
+
+*The 10-second dwell gate.* Unlike Chromium, no iOS browser gates its
+Share/Add-to-Home-Screen gesture on engagement at all — without a gate of
+this app's own, an iOS variant would render at first paint, on every visit,
+before a foreman has even read the page. `IOS_DWELL_THRESHOLD_MS` (10,000ms)
+is timed off `sessionStorage["goproceed.installHint.firstSeenAt"]`, written
+once on first mount so a reload mid-visit does not reset the clock; Chromium
+ignores it entirely; since Chrome has already done its own engagement gating
+before `hasPromptEvent` can become true, gating it a second time here would
+be redundant, not safer.
+
+Every variant remembers a «Не зараз» tap for seven days (`localStorage`) and
+none renders once the app is already running installed (`display-mode:
+standalone`, or on iOS `navigator.standalone === true`).
+
+**Owner's verification item, still open.** The Ukrainian label for Apple's
+"Add to Home Screen" menu item used throughout this section —
+«На Початковий екран» — is this task's best-effort translation, not a
+label read off a device. **Before this copy is trusted in production, the
+owner must open the Share sheet on a real iPhone set to the Ukrainian
+system locale, read the exact label Apple ships there, and update
+`technical/copy-catalog.csv`'s `hint.install.body_ios_safari` /
+`_ios_chrome` / `_ios_other` rows (and `src/lib/install-hint.ts`'s matching
+constants) if it differs** — a prior row here once carried «На екран
+Домой», a Russianism corrected without ever having been checked against a
+device either; this note exists so the same mistake is not repeated a third
+time.
+
+Verifying the browser-matrix behaviour required working around two things
+measured rather than assumed. First: this repo's pinned Chrome for Testing
 (`puppeteer` 25.8.0, `HeadlessChrome/152`) fires `beforeinstallprompt` on any
 page meeting the install criteria within roughly 150-250ms of load, with no
 tap and no dwell at all — nothing like the engagement heuristic real Chrome
-documents — so `qa/field-web.mjs`'s `withPage` now suppresses that event on
+documents — so `qa/field-web.mjs`'s `withPage` suppresses that event on
 every page it opens (a capture-phase listener registered before the bundle's
-own script runs, calling `stopImmediatePropagation()`), which is what lets
-its two install-hint checks — plain headless Chrome → banner absent; a
-second `/login` load on an iPhone Safari UA with `navigator.standalone`
-stubbed to `false` → the iOS instructions, both pressables ≥44×44, «Не
-зараз» hides it and the dismissal survives a reload — run deterministically
-against the same "not yet engaged" baseline a first-time visitor is actually
-in, rather than racing this file's own `await`s.
+own script runs, calling `stopImmediatePropagation()`). Second: `localStorage`
+(unlike `sessionStorage`) is shared across every page opened against the
+same origin, not scoped to one tab, so a dismissal («Не зараз») tap made by
+one check would silently gate every following check for an unrelated
+reason unless cleared first — the harness now issues a one-time CDP
+`Storage.clearDataForOrigin` call before each load rather than a
+per-document script, which would also wipe out the same check's own
+dismissal write right before its own reload assertion reads it back. What
+this makes possible: an iPhone Safari UA load — pre-seeded 20s past the
+dwell gate via `evaluateOnNewDocument` (wrapped in try/catch, since Chrome
+re-runs that script on an interim placeholder document per navigation that
+denies storage access) — asserting the `ios-safari` body, both pressables
+≥44×44, «Не зараз» hiding it and the dismissal surviving a reload; a second,
+otherwise-identical load with an iPhone Chrome UA (`CriOS/`) asserting the
+`ios-chrome` body; and a third load on the same Safari UA with NO pre-seed,
+asserting the banner stays absent — the dwell gate's own negative proof —
+all running deterministically against the same "not yet engaged" baseline a
+first-time visitor is actually in, rather than racing this file's own
+`await`s or the real 10-second clock.
 
 **iOS storage-partition note, for §6.9 item 5.** A home-screen web app on iOS
 runs in its own storage partition, separate from Safari's — so the FIRST

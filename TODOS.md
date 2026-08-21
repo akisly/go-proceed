@@ -2467,3 +2467,18 @@ twice, not shared), each client's tests, and the puppeteer harness
 assertions on the banner's exact text (`apps/app/qa/field.mjs`,
 `apps/mobile/qa/field-web.mjs`). Owner decision pending on the two strings'
 exact wording.
+
+---
+
+## P3 — the install hint does not recognise an iPad in desktop-class mode
+
+`apps/mobile/src/lib/install-hint.ts`'s `classifyIOSBrowser` keys on
+`/iPad|iPhone|iPod/` in the UA. Since iPadOS 13, Safari on iPad reports a
+Macintosh UA by default («Request Desktop Website» is the default), so a real
+iPad in default configuration gets no install hint at all — it is neither
+recognised as iOS nor offered the Chromium prompt. Found at review on
+2026-08-21 (PR for the iOS-browsers hint). The pilot is two phones (ADR-007
+inventory), so this is deferred; the fix is the usual heuristic
+(`navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1` → iPad)
+plus a test and a harness UA case.
+

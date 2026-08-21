@@ -1,26 +1,41 @@
 // THE INSTALL HINT BANNER — the one piece of `../lib/install-hint.ts`'s
 // decision that needs a DOM: reading `beforeinstallprompt`, `navigator`,
-// `matchMedia` and `localStorage`, and rendering whatever the pure decision
-// module says to. `installHintVariant` itself is unit-tested with no DOM
+// `matchMedia`, `localStorage` and `sessionStorage`, and rendering whatever
+// the pure decision module says to. `installHintVariant` and
+// `classifyIOSBrowser` are both unit-tested with no DOM
 // (`../lib/install-hint.test.ts`); everything below is the wiring that
-// feeds it real browser state and has no unit coverage of its own — its
-// proof is `qa/field-web.mjs`'s browser pass (iPhone-UA second load on
-// `/login`, plain headless Chrome on the first), not this file.
+// feeds them real browser state and has no unit coverage of its own — its
+// proof is `qa/field-web.mjs`'s browser pass (iPhone Safari UA and iPhone
+// Chrome UA loads on `/login`, plain headless Chrome on the first, and a
+// dwell-gate-off load proving the banner stays absent before 10s).
 //
 // MOUNTED ONCE, IN `_layout.tsx`, BENEATH THE STACK — not per-screen. A
 // foreman signed out on `/login` and a foreman signed in on `/` should see
 // the same banner from the same one mount; duplicating it per-screen would
-// duplicate the `beforeinstallprompt` listener and the localStorage read for
-// no reason.
+// duplicate the `beforeinstallprompt` listener and the storage reads for no
+// reason — including the dwell clock: `firstSeenAtMs` is read once per
+// MOUNT of this component, not per screen navigated to, which is what makes
+// "ten seconds since the visitor's first page" a session-wide fact instead
+// of resetting every time the Stack swaps screens.
 import { useCallback, useEffect, useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { color, type ThemeName } from "@goproceed/tokens";
 
 import {
-  installHintVariant, DISMISSED_AT_STORAGE_KEY,
-  INSTALL_HINT_TITLE, INSTALL_HINT_BODY_CHROMIUM, INSTALL_HINT_BODY_IOS,
+  installHintVariant, classifyIOSBrowser, type InstallHintVariant, type IOSBrowser,
+  DISMISSED_AT_STORAGE_KEY, FIRST_SEEN_AT_STORAGE_KEY, IOS_DWELL_THRESHOLD_MS,
+  INSTALL_HINT_TITLE, INSTALL_HINT_BODY_CHROMIUM,
+  INSTALL_HINT_BODY_IOS_SAFARI, INSTALL_HINT_BODY_IOS_CHROME, INSTALL_HINT_BODY_IOS_OTHER,
   INSTALL_HINT_ACTION_INSTALL, INSTALL_HINT_ACTION_LATER,
 } from "../lib/install-hint";
+
+/** The body sentence for every non-null variant — keyed by `InstallHintVariant`, one row per catalog key. */
+const BODY_BY_VARIANT: Record<Exclude<InstallHintVariant, null>, string> = {
+  chromium: INSTALL_HINT_BODY_CHROMIUM,
+  "ios-safari": INSTALL_HINT_BODY_IOS_SAFARI,
+  "ios-chrome": INSTALL_HINT_BODY_IOS_CHROME,
+  "ios-other": INSTALL_HINT_BODY_IOS_OTHER,
+};
 
 // Pinned, same convention and same caveat as the other screens: this
 // component does not yet follow the device's own theme.
@@ -41,24 +56,43 @@ type BeforeInstallPromptEvent = Event & {
 
 /**
  * `navigator.standalone === false` (never `undefined`) is how this checks
- * that the UA is genuinely WebKit/Safari and not merely spoofing an iPhone
- * string — the property is a Safari-only extension (MDN, read 2026-08-21;
- * absent from Chrome, Firefox and every other engine, where reading it
- * yields `undefined`), so requiring the literal `false` is what a UA-only
- * check on its own cannot give: proof this is the engine that can actually
- * offer «Поділитися → На екран Домой», not just a UA string that claims to.
- * `CriOS`/`FxiOS` exclude Chrome-for-iOS and Firefox-for-iOS, both of which
- * still carry `Safari` in their UA (Apple requires WebKit for every iOS
- * browser) but cannot drive the manual gesture Safari's own chrome offers.
+ * that the UA is genuinely WebKit and not merely spoofing an iPhone
+ * string — the property is a WebKit-engine extension (MDN, read 2026-08-21;
+ * absent from every other engine, where reading it yields `undefined`), and
+ * every iOS browser runs on WebKit (Apple requires it), so requiring the
+ * literal `false` is what a UA-only check on its own cannot give: proof this
+ * is an engine that can actually offer the Share → Add-to-Home-Screen
+ * gesture, not just a UA string that claims to. `true` is excluded too —
+ * that means already standalone, handled separately by `detectStandalone()`.
+ * The actual browser classification (`classifyIOSBrowser`, `../lib/install-hint`)
+ * is a pure UA-string check with its own unit coverage; this function's own
+ * job is only the DOM-dependent part that module cannot do itself.
  */
-function detectIOSSafari(): boolean {
-  if (typeof navigator === "undefined") return false;
+function detectIOSBrowser(): IOSBrowser {
+  if (typeof navigator === "undefined") return null;
   const nav = navigator as Navigator & { standalone?: boolean };
-  if (nav.standalone !== false) return false;
-  const ua = navigator.userAgent;
-  const isIOSDevice = /iPad|iPhone|iPod/.test(ua);
-  const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS/.test(ua);
-  return isIOSDevice && isSafari;
+  if (nav.standalone !== false) return null;
+  return classifyIOSBrowser(navigator.userAgent);
+}
+
+/**
+ * The dwell gate's own clock (`../lib/install-hint`'s header) — read once,
+ * on first mount, and written back only when absent, so a reload mid-visit
+ * does not reset it. `sessionStorage`, not `localStorage`: this is a
+ * per-tab-session clock (closing the tab and coming back later is a new
+ * "first look"), unlike the 7-day dismiss window above, which is meant to
+ * survive exactly that.
+ */
+function readOrSetFirstSeenAt(): number {
+  if (typeof window === "undefined") return Date.now();
+  const raw = window.sessionStorage.getItem(FIRST_SEEN_AT_STORAGE_KEY);
+  if (raw !== null) {
+    const parsed = Number(raw);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  const now = Date.now();
+  window.sessionStorage.setItem(FIRST_SEEN_AT_STORAGE_KEY, String(now));
+  return now;
 }
 
 /**
@@ -93,6 +127,13 @@ export function InstallHint() {
   // click with none pending) turns it back off.
   const [deferredEvent, setDeferredEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [dismissedAtMs, setDismissedAtMs] = useState<number | null>(() => (isWeb ? readDismissedAt() : null));
+  const [firstSeenAtMs] = useState<number>(() => (isWeb ? readOrSetFirstSeenAt() : 0));
+  // Forces one re-render at the moment dwell crosses the 10s mark — nothing
+  // reads this value itself; `dwellMs` below is recomputed from `Date.now()`
+  // on every render regardless, this just makes sure a render happens once
+  // more, at the one instant it can flip `installHintVariant`'s answer for
+  // an iOS visitor already sitting on the page with nothing else changing.
+  const [, forceDwellRerender] = useState(0);
 
   useEffect(() => {
     if (!isWeb) return;
@@ -110,14 +151,27 @@ export function InstallHint() {
     return () => window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
   }, [isWeb]);
 
+  // ONE TIMER, FIRING AT THE 10S MARK — never polling. If the threshold has
+  // already elapsed (a mount well after `firstSeenAtMs`, e.g. this same tab
+  // navigated here from another route past the dwell window) no timer is
+  // even set, since `dwellMs` computed below is already past the gate.
+  useEffect(() => {
+    if (!isWeb) return;
+    const remaining = IOS_DWELL_THRESHOLD_MS - (Date.now() - firstSeenAtMs);
+    if (remaining <= 0) return;
+    const timer = setTimeout(() => forceDwellRerender((n) => n + 1), remaining);
+    return () => clearTimeout(timer);
+  }, [isWeb, firstSeenAtMs]);
+
   const variant = isWeb
     ? installHintVariant({
       isWeb,
       isStandalone: detectStandalone(),
-      isIOSSafari: detectIOSSafari(),
+      iosBrowser: detectIOSBrowser(),
       hasPromptEvent: deferredEvent !== null,
       dismissedAtMs,
       nowMs: Date.now(),
+      dwellMs: Date.now() - firstSeenAtMs,
     })
     : null;
 
@@ -147,7 +201,7 @@ export function InstallHint() {
       <View style={styles.textBlock}>
         <Text style={styles.title}>{INSTALL_HINT_TITLE}</Text>
         <Text style={styles.body}>
-          {variant === "chromium" ? INSTALL_HINT_BODY_CHROMIUM : INSTALL_HINT_BODY_IOS}
+          {BODY_BY_VARIANT[variant]}
         </Text>
       </View>
       <View style={styles.actions}>
