@@ -223,23 +223,25 @@ async function exportFieldWeb(apiOrigin) {
     });
   });
 
-  // `<html lang="uk">`, NOT WHAT THE EXPORT ITSELF PRODUCES. expo-router's
-  // documented customization point (`src/app/+html.tsx`) was tried first
-  // and confirmed, empirically, to have NO EFFECT under this project's
-  // `web.output: "single"` (SPA) mode — the docs describe it under STATIC
-  // rendering only, and a built `dist/index.html` with that file in place
-  // was byte-identical to one without it. `scripts/set-html-lang.mjs` is
-  // the honest fallback: a direct, loudly-failing string replacement on
-  // the export's own `index.html`. Every invocation of THIS function must
-  // run it — Task 7's `vercel.json buildCommand` needs the identical
-  // append after its own `expo export` call, noted in that script's own
-  // header.
+  // `<html lang="uk">` AND THE PWA HEAD TAGS, NEITHER OF WHICH THE EXPORT
+  // ITSELF PRODUCES. expo-router's documented customization point
+  // (`src/app/+html.tsx`) was tried first and confirmed, empirically, to
+  // have NO EFFECT under this project's `web.output: "single"` (SPA) mode —
+  // the docs describe it under STATIC rendering only, and a built
+  // `dist/index.html` with that file in place was byte-identical to one
+  // without it. `scripts/finalize-web-html.mjs` is the honest fallback: a
+  // direct, loudly-failing string patch on the export's own `index.html`
+  // that sets `lang="uk"` AND injects the `<link rel="manifest">`,
+  // `theme-color`, `apple-mobile-web-app-*`, and `apple-touch-icon` tags
+  // README-staging §6.9 item 5 needs. Every invocation of THIS function
+  // must run it — `vercel.json`'s `buildCommand` needs the identical append
+  // after its own `expo export` call, noted in that script's own header.
   const langStdout = [];
   const langStderr = [];
   await new Promise((resolve, reject) => {
     const proc = spawn(
       process.platform === "win32" ? "node.exe" : "node",
-      ["scripts/set-html-lang.mjs"],
+      ["scripts/finalize-web-html.mjs"],
       { cwd: MOBILE_DIR, stdio: ["ignore", "pipe", "pipe"] },
     );
     proc.stdout.on("data", (d) => langStdout.push(d.toString()));
@@ -248,7 +250,7 @@ async function exportFieldWeb(apiOrigin) {
     proc.once("exit", (code) => {
       if (code === 0) resolve();
       else reject(new Error(
-        `scripts/set-html-lang.mjs exited ${code}\n--- stdout ---\n${langStdout.join("")}\n--- stderr ---\n${langStderr.join("")}`,
+        `scripts/finalize-web-html.mjs exited ${code}\n--- stdout ---\n${langStdout.join("")}\n--- stderr ---\n${langStderr.join("")}`,
       ));
     });
   });
