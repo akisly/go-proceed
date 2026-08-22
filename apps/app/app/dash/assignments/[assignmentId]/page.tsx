@@ -34,12 +34,35 @@ import { ShellFatalError } from "../../../../src/components/dash-shell/shell-err
  *
  * NO "ASSIGNMENT NOT FOUND" BRANCH OF ITS OWN. The route
  * (`app/v1/assignments/[assignmentId]/evidence/route.ts:28-30`) answers 404
- * `RESOURCE_NOT_FOUND` for an assignment id that does not exist, and the
- * evidence route's own authorization chain (membership, then
- * `project.view`) answers 403 for one outside the caller's grant — both fold
- * into `listEvidenceByAssignment`'s `"error"` arm, same as
+ * `RESOURCE_NOT_FOUND` for an assignment id that does not exist — and, as it
+ * happens, for one outside the caller's grant too. That folds into
+ * `listEvidenceByAssignment`'s `"error"` arm, same as
  * `listAssignments`/`listProjects` do not distinguish their own failure
  * causes either. `ShellFatalError`'s copy stays generic for the same reason.
+ *
+ * CORRECTED — THIS COMMENT USED TO CLAIM A 403 THAT CANNOT HAPPEN HERE, and
+ * it contradicted a comment written earlier in this same slice. The claim was
+ * that «the evidence route's own authorization chain (membership, then
+ * `project.view`) answers 403 for one outside the caller's grant». It does
+ * not: `goproceed_app` runs NOBYPASSRLS (`packages/database/src/tx.ts`) and
+ * `wa_select` (migration 0016) already requires the SAME
+ * `project.view`/`project.admin` pair that `requireProjectCapability` expands
+ * to, so a caller without it gets no `work_assignments` row from the route's
+ * first query and the route's own `notFound` fires before the capability check
+ * is reached. Only 404 is observable. This is asserted, not argued —
+ * `apps/app/tests/evidence-read.int.test.ts`'s «refuses a caller without
+ * project.view with 404 — the row is invisible before it is forbidden» drives
+ * exactly that caller — and that test's own header carries the full account,
+ * including why the route's capability check is nonetheless KEPT (it is the
+ * layer that goes live the day `wa_select` widens). The sibling screen one
+ * level up carried the same wrong claim for the same reason and is corrected
+ * in the same wave: `projects_select` (migration 0011:121-122) reads the
+ * identical `array['project.view','project.admin']`, so its route's capability
+ * check is unreachable too. The 403 asymmetry is real, but it belongs to
+ * routes whose policy and capability check are DIFFERENT predicates —
+ * `m6-blocked-value.int.test.ts` documents it for `blocked_value`'s
+ * `readiness.view` gate sitting behind `projects_select` — and neither of
+ * these two routes is one of those.
  *
  * ZERO GROUPS, NOT ZERO EVIDENCE OBJECTS, IS THE EMPTY CHECK. An assignment
  * with at least one group (even a lone null group of unbound photos) is not

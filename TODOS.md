@@ -751,11 +751,22 @@ such control appears.
 
 ## P2 — `evidence-storage.ts` puts raw storage keys into error messages, and they reach the console
 
-**Found 2026-08-22, researching the evidence read (Plan D slice D1).** Every
-function in `apps/app/src/lib/evidence-storage.ts` interpolates the key into its
-thrown message — `storage: signed upload failed for ${key}`, `download failed
-for ${key}`, `list failed for ${bucket}/${key}`, `remove failed for
-${bucket}/${key}`. These are bare `Error`s, so `toProblemResponse` falls through
+**Found 2026-08-22, researching the evidence read (Plan D slice D1); scope
+corrected 2026-08-22 in the D1 final fix wave.** FIVE of the ten exported
+functions in `apps/app/src/lib/evidence-storage.ts` interpolate the key into
+their thrown message — `createSignedUpload` (:65), `putObject` (:78),
+`downloadObject` (:83), `objectSize` (:102) and `removeObject` (:123):
+`storage: signed upload failed for ${key}`, `download failed for ${key}`,
+`list failed for ${bucket}/${key}`, `remove failed for ${bucket}/${key}`. The
+other five do not: `newEvidenceKey` throws nothing, `objectExists` returns a
+boolean and swallows the error, and the three functions D1 added
+(`createSignedReadUrl`, `createSignedReadUrls`, `openObjectStream`) were built
+under an explicit instruction not to copy this house style, so they carry
+`error.code`/`error.status` and never the key. This entry originally said
+«every function» and «all six functions»; both were wrong, and the count is
+what a reader would have used to size the fix.
+
+These five are bare `Error`s, so `toProblemResponse` falls through
 to `apps/app/src/lib/http.ts`'s `console.error("[INTERNAL_ERROR]", requestId,
 err)` branch and the key goes to the platform log verbatim.
 
@@ -770,15 +781,27 @@ And the file is the house style a new helper would copy: the D1 signed-read
 helper had to be told explicitly NOT to follow it, and the next one may not be.
 
 The fix is to throw the domain object's id and keep the key out of the message
-entirely, in all six functions.
+entirely, in those five functions.
 
 ## P3 — the browser pass cannot assert «no signed URL in the logs», because there are no logs
 
-**Found 2026-08-22, same research.** `apps/app` has no logging library and no
-log lines on any happy path: `console.error` appears three times in the whole
-app, all on error branches, plus two idle-client handlers in
-`packages/database/src/pool.ts`. There is no `middleware.ts`, no
-`instrumentation.ts`, and `next.config.ts` is empty.
+**Found 2026-08-22, same research; the number corrected 2026-08-22 in the D1
+final fix wave.** `apps/app` has no logging library and no log lines on any
+happy path. The shipped app contains exactly ONE `console.error` call —
+`apps/app/src/lib/http.ts:97`, `toProblemResponse`'s unmapped-error branch —
+plus two idle-client handlers in `packages/database/src/pool.ts`. There is no
+`middleware.ts`, no `instrumentation.ts`, and `next.config.ts` is empty.
+
+This entry used to say «`console.error` appears three times in the whole app».
+That was a FILE count read as a call count, and two of the three files are not
+the app: `apps/app/qa/field.mjs` (3 calls) is the browser harness and
+`apps/app/scripts/deploy-preflight.mjs` (5 calls) runs before a build. The
+conclusion the number was defending is unchanged and is if anything stronger —
+there is no happy-path logging, so «never in logs» cannot be asserted — but a
+false number defending a true conclusion is the defect class this branch spent
+five review rounds on, so it is corrected rather than left standing. The same
+sentence appears in `apps/app/tests/evidence-read.int.test.ts` beside the leak
+test and is corrected there too.
 
 So D1's leak test asserts what it can — no signed URL in `audit_events`, in
 `transaction_outbox`, or in any idempotency body — and cannot assert the log
@@ -2753,3 +2776,70 @@ the identical reason: no assignment-description endpoint exists at all (see
 `evidence-by-occurrence.tsx`'s own header on `app/dash/assignments/
 [assignmentId]/page.tsx`'s missing `GET /v1/assignments/{assignmentId}`).
 
+
+## P3 — Plan D slice D1: the evidence screen's occurrence groups come back in UUID order
+
+**Found 2026-08-22, in D1's final whole-branch review; filed rather than fixed
+because the fix extends a contract.** `GET /v1/assignments/{assignmentId}/
+evidence` orders its rows `order by ui.requirement_occurrence_id nulls last, …`
+and then groups them into a `Map` keyed on that id, so the `groups` array — and
+therefore the order `evidence-by-occurrence.tsx` renders sections in — is
+ascending occurrence UUID. A UUID is a meaningless key to sort a screen by: two
+requirements that a ПТВ thinks of as "first" and "second" appear in whichever
+order their random identifiers happen to fall in, and the order changes for no
+reason a reader can see when a third is added. The null group (unbound photos)
+is correctly last by construction and is not part of this.
+
+**What the fix needs, and why it is not a one-liner here.**
+`assignmentEvidenceResponse` (`packages/contracts/src/evidence.ts`) carries
+`occurrenceId` and nothing else per group. The ordinal that would give the
+sections a meaningful order exists — `requirement_occurrences.ordinal`, exposed
+as `ordinal: z.number().int().min(1)` on `RequirementOccurrenceView`
+(`packages/contracts/src/requirement-occurrences.ts:80`) and again on the
+external plane's `externalOccurrenceScopeResponse.occurrence.ordinal` — but it
+is returned by a DIFFERENT call (`GET /v1/assignments/{assignmentId}/
+requirement-occurrences`). So the options are: add `ordinal` to the group object
+in `assignmentEvidenceResponse` and join `requirement_occurrences` in the route's
+query (a contract change, an OpenAPI scope row's shape, and a second table in a
+tenant-scoped read), or have the screen make a second round trip. Both are
+decisions for whoever owns this screen's next iteration.
+
+Same family as the P3 above it — that one is about what a group is CALLED, this
+one is about what order the groups come in — and the same interface would close
+both.
+
+## P3 — Plan D slice D1: the evidence route discards `failedKeys`, so a wholesale storage failure is a silent HTTP 200
+
+**Found 2026-08-22, in D1's final whole-branch review; filed rather than fixed
+because it needs a logging decision this app has not made.**
+`createSignedReadUrls` returns `{ urls, failedKeys }`
+(`apps/app/src/lib/evidence-storage.ts:259-278`) — the split is deliberate and
+was itself a ruling: a per-object failure must not 500 the whole assignment's
+read, because "1 of 1 failed" is the modal shape at pilot start. `GET /v1/
+assignments/{assignmentId}/evidence` destructures `const { urls } = await
+createSignedReadUrls(keys, bucket)` and drops `failedKeys` on the floor.
+
+The consequence is correct for ONE object and wrong for all of them. A lost
+grant, a renamed bucket or a storage outage that fails every key returns HTTP
+200 with a well-formed body in which every row simply has no `readUrl`, so the
+screen renders N cards of «Зображення тимчасово недоступне» — which is exactly
+what it should render for one purged object, and gives an operator nothing to
+distinguish "one object is gone" from "the whole store is unreachable". Only a
+top-level SDK error (auth, transport, an invalid bucket name) still throws.
+
+**The constraint that makes this a decision rather than a fix.** The obvious
+remedy is to log the count when `failedKeys.length === keys.length`, and this
+app has NO happy-path logging to log it into: the shipped app contains exactly
+one `console.error` call (`src/lib/http.ts:97`, the unmapped-error branch), no
+logging library, no `middleware.ts` and no `instrumentation.ts` — see the P3
+"the browser pass cannot assert «no signed URL in the logs», because there are
+no logs" entry above, which is the same gap seen from the other side. Adding a
+lone `console.error` here would be the first happy-path log line in the app and
+would set the format for every one after it, and the same entry records the
+reason to be careful about what goes into it: a storage key must never reach a
+log. The alternative — a partial-failure signal in the response body — is a
+contract change to `assignmentEvidenceResponse`.
+
+Worth revisiting together with structured logging, which is also when the P2
+"`evidence-storage.ts` puts raw storage keys into error messages" above stops
+being latent.

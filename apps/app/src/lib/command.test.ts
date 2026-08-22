@@ -38,6 +38,42 @@ describe("commandRoute", () => {
     const res = await r(mk("{}", { "idempotency-key": "k2" }), { params: Promise.resolve({}) });
     expect(res.headers.get("Idempotency-Replay-Until")).toBe(until.toISOString());
   });
+
+  // `HandlerResult.headers` shipped bound to `queryRoute` only, while its doc
+  // comment sat on the interface BOTH wrappers return and read as though it
+  // governed both. A command route setting a `Location`, a `Retry-After` or a
+  // cache directive served none of them, silently.
+  describe("headers channel", () => {
+    it("passes a handler's headers through to the response", async () => {
+      const r = commandRoute(z.object({}), async () => ({
+        status: 201, body: {}, headers: { "cache-control": "no-store", "retry-after": "30" },
+      }));
+      const res = await r(mk("{}", { "idempotency-key": "k3" }), { params: Promise.resolve({}) });
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(res.headers.get("retry-after")).toBe("30");
+      expect(res.headers.get("content-type")).toBe("application/json");
+    });
+
+    it("sends no such header when the handler asks for none", async () => {
+      const r = commandRoute(z.object({}), async () => ({ status: 201, body: {} }));
+      const res = await r(mk("{}", { "idempotency-key": "k4" }), { params: Promise.resolve({}) });
+      expect(res.headers.get("cache-control")).toBeNull();
+    });
+
+    // The wrapper's own idempotency statement is not a handler's to rewrite:
+    // `expiresAt` is applied AFTER the spread, so a handler naming the same
+    // header loses. Asserted rather than assumed, because the spread order is
+    // one line and reversing it is a silent change.
+    it("does not let a handler overwrite Idempotency-Replay-Until", async () => {
+      const until = new Date("2027-01-01T00:00:00.000Z");
+      const r = commandRoute(z.object({}), async () => ({
+        status: 201, body: {}, expiresAt: until,
+        headers: { "Idempotency-Replay-Until": "1999-01-01T00:00:00.000Z" },
+      }));
+      const res = await r(mk("{}", { "idempotency-key": "k5" }), { params: Promise.resolve({}) });
+      expect(res.headers.get("Idempotency-Replay-Until")).toBe(until.toISOString());
+    });
+  });
 });
 
 describe("queryRoute", () => {

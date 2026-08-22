@@ -14,10 +14,15 @@ import {
 import { LEVEL_3_NOT_A_SIGNATURE_TEXT } from "./statutory-act-form";
 
 /**
- * NOTHING IN THIS FILE HAS BEEN EXECUTED. No `pnpm`, no `vitest`, no database:
+ * «NOTHING IN THIS FILE HAS BEEN EXECUTED. No `pnpm`, no `vitest`, no database:
  * these assertions have never run and no claim is made that they pass. The only
  * check performed was `node --experimental-strip-types --check`, which PARSES
- * and does not typecheck.
+ * and does not typecheck.» — RETRACTED 2026-08-22 (Plan D slice D1 final fix
+ * wave). It runs in the app suite and passes: 29 tests in this file, verified
+ * by running it on its own (`vitest run src/lib/external-link.test.ts`) as well
+ * as inside the full run. A test file whose header says its assertions have
+ * never run is a test file the next reader will not trust to be defending
+ * anything — which is the opposite of what a suite over key material is for.
  *
  * ---------------------------------------------------------------------------
  * v0.1-M5, the pure half: the token, the keys, the cookie, the headers, and the

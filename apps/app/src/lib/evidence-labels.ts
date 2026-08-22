@@ -37,9 +37,15 @@ import type { EvidenceObjectView } from "@goproceed/contracts";
  * `Chip`'s own status tones) for a reason specific to this product's subject
  * matter — `device_claimed` is NOT verified capture-time evidence.
  * `apps/app/app/(app)/a/[assignmentId]/capture.tsx:349` — the field client's
- * own receipt panel — labels the identical fact "Час пристрою (НЕ
- * ПЕРЕВІРЕНО)", in caps in the original reasoning comment there,
- * specifically because the device's own claim binds nothing about the
+ * own receipt panel — labels the identical fact «Час пристрою (не
+ * перевірено)», and that is a RENDERED `<dt>`, in ordinary lowercase, not a
+ * reasoning comment and not in caps (this sentence used to say both, and both
+ * were wrong; the caps were this comment's own emphasis, read back as if the
+ * source carried them). What the source does carry, in the reasoning comment
+ * immediately above that `<dt>` at capture.tsx:330-348, is the argument: ADR-007
+ * decision 5 «names exactly three — the device's own unverified capture-time
+ * claim, the server's receipt time, and a client-computed content hash — and
+ * nothing stronger», because the device's own claim binds nothing about the
  * sensor. Painting `device_claimed` in a positive/verified tone would tell a
  * colour-scanning reader the opposite of what this product's own evidence-
  * integrity stance requires it to say. Reusing this file's existing

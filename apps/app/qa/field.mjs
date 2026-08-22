@@ -694,6 +694,10 @@ async function seedWorld(baseUrl, bearer) {
   return {
     assignmentId: assignment.assignmentId,
     workspaceId: ws.workspaceId,
+    // The register `/dash/projects/{projectId}/assignments` is addressed by
+    // this and nothing else. It was not returned until the D1 final fix wave,
+    // which is a large part of why no audit had ever opened that route.
+    projectId: proj.projectId,
     occurrenceId,
     evidenceObjectId: finalized.evidenceObjectId,
     projectName: PROJECT_NAME,
@@ -1459,6 +1463,7 @@ async function main() {
     const email = `pryklad-qa-field-${stamp}@example.test`;
     const password = `Приклад-QA-Пароль-${stamp}!`;
     let assignmentId;
+    let projectId;
     let projectName;
     let workItemDescription;
     // The seventh audit's two inputs: the obligation a grant can be scoped to,
@@ -1469,7 +1474,7 @@ async function main() {
       userId = await mintConfirmedUser(email, password);
       const seedBearer = await seedBearerToken(email, password);
       ({
-        assignmentId, projectName, workItemDescription, occurrenceId, evidenceObjectId,
+        assignmentId, projectId, projectName, workItemDescription, occurrenceId, evidenceObjectId,
       } = await seedWorld(server.baseUrl, seedBearer));
 
       // FIX ROUND 1, FINDING 1 (CRITICAL). `seedWorld` throwing is not the
@@ -1913,6 +1918,102 @@ async function main() {
       // the audit would prove nothing about a reviewer who has no account.
       // ═══════════════════════════════════════════════════════════════════
       const issued = { url: null };
+
+      // ── 0. THE REGISTER, THE SCREEN BEFORE THIS ONE ────────────────────
+      //
+      // ADDED IN THE D1 FINAL FIX WAVE, for a defect that shipped because
+      // nothing here had ever opened this route. `/dash/projects/{id}/
+      // assignments` is the MIDDLE of the chain the slice exists for
+      // (project → assignments → evidence) and no audit addressed it, so the
+      // §6 width pass — run against the evidence screen only — could not
+      // have seen that the table's four Ukrainian column headings overflowed
+      // their own cells at 360 and 390. `Table` is `w-full table-fixed`, so
+      // a `w-1/5` column on a phone is about 60px, 24px of which is the
+      // `Th`'s `px-3`; «ЗАПЛАНОВАНО» is one unbreakable eleven-character
+      // uppercase word and simply ran over its neighbour.
+      //
+      // ASSERTED PER CELL, NOT BY SCREENSHOT AND NOT BY PAGE OVERFLOW.
+      // `scrollWidth > clientWidth` on the `th` itself is precisely the
+      // "content is wider than its box" condition; the page-level check
+      // below cannot see it, because the panel wrapping the table is
+      // `overflow-x-auto` and absorbs the overflow into a scroll container
+      // rather than into the document. Both are measured, because they are
+      // different failures: a scrolling PANEL is the intended behaviour, a
+      // scrolling PAGE is not.
+      //
+      // AND THE PAGE IS PINNED FIRST, so this cannot pass on the wrong
+      // document. A 500, a redirect to /login or an empty register all
+      // render zero `th` elements, and "no header overflowed" is trivially
+      // true of a page with no headers — the same shape as the INV-044
+      // reload assertion this audit had to have corrected in fix round 1.
+      const registerDiagnostics = await withPage(browser, async (page) => {
+        const url = `${server.baseUrl}/dash/projects/${projectId}/assignments`;
+        const res = await page.goto(url, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(`/dash/projects/${projectId}/assignments: expected 200, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+        for (const width of [1280, 390, 360]) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+          const state = await page.evaluate((description) => {
+            const ths = [...document.querySelectorAll("table th")];
+            return {
+              path: location.pathname,
+              headings: ths.map((th) => ({
+                label: (th.textContent ?? "").trim(),
+                scrollWidth: th.scrollWidth,
+                clientWidth: th.clientWidth,
+              })),
+              rowNamed: document.body.innerText.includes(description),
+            };
+          }, workItemDescription);
+
+          if (state.path !== `/dash/projects/${projectId}/assignments`) {
+            ctx.findings.push(`register @${width}: no longer on the register — path is ${state.path}`);
+            break;
+          }
+          if (state.headings.length !== 4) {
+            ctx.findings.push(
+              `register @${width}: expected the four column headings, found ${state.headings.length} `
+              + `(${JSON.stringify(state.headings.map((h) => h.label))}) — an error page, an empty state or a `
+              + "changed table would make the overflow check below vacuously true",
+            );
+            break;
+          }
+          if (!state.rowNamed) {
+            ctx.findings.push(
+              `register @${width}: the seeded work item «${workItemDescription}» is not on the page — `
+              + "the table is rendering no rows, so nothing below is measuring the real register",
+            );
+          }
+          for (const h of state.headings) {
+            if (h.scrollWidth > h.clientWidth) {
+              ctx.findings.push(
+                `register @${width}: the column heading «${h.label}» overflows its own cell — content `
+                + `${h.scrollWidth}px in a ${h.clientWidth}px box. A single Ukrainian word has no break `
+                + "opportunity, so it runs into the heading beside it.",
+              );
+            }
+          }
+          const overflow = await measureHorizontalOverflow(page);
+          if (overflow) {
+            ctx.findings.push(
+              `register @${width}: the page scrolls sideways by ${overflow.overflow}px `
+              + `(viewport ${overflow.viewport}px) — ${overflow.offender}`,
+            );
+          }
+          if (touch) {
+            for (const t of await measureSmallTargets(page)) {
+              ctx.findings.push(`register @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+            }
+          }
+          await page.screenshot({
+            path: path.join(SHOTS, `dash-assignments-${width}.png`), fullPage: true,
+          });
+        }
+      });
+      reportDiagnostics("assignments register", registerDiagnostics, ctx.findings, ctx.missingAssets);
 
       const officeDiagnostics = await withPage(browser, async (page) => {
         await page.setViewport({ width: 1280, height: 900 });

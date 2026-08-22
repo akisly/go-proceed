@@ -2,7 +2,10 @@ import { z } from "zod";
 
 /**
  * FIX ROUND 1: matched to `externalEvidenceItem`'s strictness
- * (`packages/contracts/src/external.ts:299-308`), the same object field-for-
+ * (`packages/contracts/src/external.ts:313-323` — the schema itself; the
+ * previously cited `:299-308` lands on the prose above it, so the one
+ * comparison this comment asks the reader to make could not be made there),
+ * the same object field-for-
  * field minus `readUrl` — this route's screen must render a trust badge from
  * `captureTimeTrust`, and as a bare `string` an exhaustive switch over it is
  * impossible; `byteSize` as a bare `.int()` admitted 0 and negatives, which

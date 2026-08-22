@@ -25,9 +25,31 @@ import {
  * written with whichever key is currently active.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * NOTHING HERE WAS EXECUTED. No test has been run against this file; the only
+ * «NOTHING HERE WAS EXECUTED. No test has been run against this file; the only
  * check performed on it is `node --experimental-strip-types --check`, which
- * PARSES and does not typecheck.
+ * PARSES and does not typecheck.» — RETRACTED 2026-08-22 (Plan D slice D1
+ * final fix wave), and retracted rather than edited because it was
+ * load-bearing: a header telling its next reader that the module holding this
+ * product's HMAC registry is unexercised invites them to distrust it, or to
+ * rewrite it without a safety net, on a claim that is no longer true.
+ *
+ * WHAT EXERCISES IT NOW, named so the claim can be re-checked rather than
+ * taken:
+ *
+ *   * `src/lib/external-link.test.ts` — 29 tests, in the app suite, over the
+ *     key registry, `signWithActiveKey`/`verifyAgainstAnyKey`,
+ *     `readExternalSessionCookie`, `externalSecurityHeaders` and the mandated
+ *     submission strings;
+ *   * `tests/m5-external.int.test.ts` and `tests/external-evidence.int.test.ts`
+ *     — both drive the real external routes against a live database, so the
+ *     token HMAC, the `__Host-` cookie and the CSP header run end to end;
+ *   * `qa/field.mjs`'s seventh audit — a real browser, a second context with an
+ *     empty cookie jar, opening a real link.
+ *
+ * What is still unexercised is narrower and named where it lives: the DECIDE
+ * path (`app/external/review/route.ts`'s own header — that audit issues a
+ * view-only grant, so the submission this file's mandated strings sit above has
+ * never been pressed in a browser).
  */
 
 /* ── key registry ──────────────────────────────────────────────────────────── */

@@ -68,7 +68,11 @@ stream; it drops the false justification and states the real limit.
 
 **STRENGTHENED — the external plane cannot use a signed URL at all, for a reason
 that survives even if the revocation argument is disputed.** The external shell
-serves `default-src 'none'; … img-src 'self' data:` (`external-link.ts:248-267`).
+serves `default-src 'none'; … img-src 'self' data:`
+(`external-link.ts:265-284`, `img-src` on :272 — corrected 2026-08-22 from
+`:248-267`, which this branch's own edits to that file moved off the header and
+onto the cookie reader beside it, leaving the design's strongest argument
+pointing at prose about `__Host-` cookies).
 A same-origin `<img src="/external/evidence?…">` is admitted; a Supabase-hosted
 signed URL is **blocked by the page's own CSP**. This is now the primary reason
 that plane streams.

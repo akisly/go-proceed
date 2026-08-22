@@ -11,11 +11,23 @@ import { captureTimeTrustLabel, originMethodLabel } from "../../lib/evidence-lab
  * specifically, and adding more would be a guess this screen has no design
  * decision to back.
  *
- * `rounded-card` (14px), NOT `rounded-panel` (10px) — a role `packages/ui`
- * already ships and nothing under `/dash` had used yet (verified: no other
- * `rounded-card` call site in `apps/app` or `apps/landing` before this file).
- * A photo card reads as a distinct, denser unit than the section `Panel` it
- * sits inside, which is exactly what the slightly larger radius signals.
+ * `rounded-panel`, CORRECTED FROM `rounded-card`. The original reasoning here
+ * was that `rounded-card` (14px) reads as a distinct, denser unit than the
+ * section `Panel` (10px) it sits inside — and it cited, as support, that no
+ * other `rounded-card` call site existed in `apps/app` or `apps/landing`. That
+ * observation was true and it was the argument AGAINST: `docs/design/02-
+ * building-ui.md` §3.3 question 1 is explicit that `radius-card`, `surface`,
+ * `section` and `shadow-float` belong to `apps/landing`, which «is greenfield
+ * and may use the marketing scale», and that «`apps/app` may use none of
+ * those: it is dense, its type scale is the product scale, and nothing floats
+ * off the page». A larger radius is exactly the softening that rule forbids
+ * here. `rounded-panel` is what the eight other dash surfaces use, including
+ * `packages/ui/src/components/Panel.tsx` itself, and the distinction between
+ * this card and its containing panel is carried by `border border-line`, which
+ * is how a border-led system is meant to carry it (§4.1: «Structure is
+ * border-led»). Nothing in the gate catches a legal-but-wrong-surface role, so
+ * this would have survived to become the precedent the next dashboard card
+ * copied.
  *
  * NO `next/image`. `next/image` would either hit Supabase's paid image-
  * transformation add-on or need a custom loader that re-fetches the
@@ -82,7 +94,7 @@ export function formatReceivedAt(iso: string): string {
 
 export function EvidenceCard({ item }: { item: EvidenceObjectView }) {
   return (
-    <div className="flex flex-col overflow-hidden rounded-card border border-line bg-surface">
+    <div className="flex flex-col overflow-hidden rounded-panel border border-line bg-surface">
       {/* FIX ROUND 1: `aspect-[4/3]`, corrected from a fixed `h-56`
        * (14rem) height — and the PREVIOUS comment here, claiming
        * `aspect-square`/`aspect-[4/3]` "compile to nothing" because

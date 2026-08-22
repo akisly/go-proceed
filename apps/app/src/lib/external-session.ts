@@ -53,7 +53,21 @@ import {
  * the time the write ran reads and writes nothing. The resolution result is a
  * routing decision, never an authorization one.
  *
- * NOTHING HERE WAS EXECUTED.
+ * «NOTHING HERE WAS EXECUTED.» — RETRACTED 2026-08-22 (Plan D slice D1 final
+ * fix wave). `resolveExternalSession`, `requireCsrfAndOrigin`,
+ * `externalQueryRoute`, `externalCommandRoute`, `EXTERNAL_RESPONSE_HEADERS` and
+ * `rotateExternalSession` are all executed by the suite:
+ * `tests/m5-external.int.test.ts` drives `POST /external/exchange`,
+ * `GET /external/occurrence` and `POST /external/occurrence-decisions` (the
+ * CSRF-and-origin path) against a live database, and
+ * `tests/external-evidence.int.test.ts` drives `GET /external/evidence` through
+ * the same wrapper. `qa/field.mjs`'s seventh audit runs the cookie and the
+ * two-transaction resolution above in a real browser holding no account.
+ *
+ * Retracted rather than deleted, and rather than quietly edited, because the
+ * sentence was load-bearing: this file decides every external request, and a
+ * reader told its logic had never run would reasonably treat the paragraphs
+ * above as design intent instead of as described behaviour.
  */
 
 export interface ExternalSessionScope {

@@ -17,25 +17,36 @@ import { EmptyState } from "@goproceed/ui/components";
  * roles — `measure` (680px), `content` (1240px), `nav` (880px) — none of
  * which means "a short empty-state message".
  *
- * Verified against the rebuilt `apps/app/.next` output, not inferred: the
- * dash-owned CSS chunk this route loads (`static/chunks/25yajd-s762y3.css`,
- * named from `page_client-reference-manifest.js` for this exact route)
- * contains no `.max-w-md` rule and no `--container-md` property at all —
- * only `static/chunks/0_82hi0me6fh6.css` defines `--container-md:28rem` and
- * `.max-w-md{max-width:var(--container-md)}`, and that chunk is the one
- * `apps/app/app/(app)/page` (the field client's root route) ALSO loads, so
- * it is the global `app/globals.css` chunk leaking onto dash pages through
- * the shared root layout — the exact cross-stylesheet coupling `dash-
- * theme.css`'s header declares out of scope, not something this route's own
- * stylesheet provides.
+ * VERIFIED AGAINST THE REBUILT `apps/app/.next` OUTPUT, NOT INFERRED — and
+ * stated as a METHOD rather than as chunk filenames, because the earlier
+ * version of this paragraph named two (`25yajd-s762y3.css`,
+ * `0_82hi0me6fh6.css`) and neither survives a rebuild: Next content-hashes CSS
+ * chunk names, so a citation to one is stale the moment anything upstream of it
+ * changes, and a reader who greps for it finds nothing and cannot tell whether
+ * the claim or the filename went bad. To re-check it, run `pnpm --filter
+ * @goproceed/app build`, read this route's own
+ * `page_client-reference-manifest.js` for the CSS chunk it loads, and grep that
+ * file. Three things hold there, re-confirmed in the final fix wave:
  *
- * `max-w-112` is the SPACING scale instead, and resolves inside the dash
- * chunk on its own terms: `25yajd-s762y3.css` itself defines
- * `--spacing:.25rem` (`packages/ui/src/theme.generated.css:31` is the
- * source), so `.max-w-112{max-width:calc(var(--spacing) * 112)}` — confirmed
- * present in that same chunk — computes to `28rem`, the exact pixel width
- * `max-w-md` would have produced, with no dependency on the leaked global
- * chunk. Same substitution `sign-out-dialog.tsx` already made for its own
+ *   1. the dash-owned chunk contains no `.max-w-md` rule and no
+ *      `--container-md` property at all — Tailwind emits NOTHING for a class
+ *      whose theme namespace was cleared, rather than a declaration with an
+ *      unresolvable variable behind it;
+ *   2. the ONE chunk that does define `--container-md:28rem` and
+ *      `.max-w-md{max-width:var(--container-md)}` is the same chunk
+ *      `apps/app/app/(app)/page` (the field client's root route) loads, so it
+ *      is the global `app/globals.css` chunk leaking onto dash pages through
+ *      the shared root layout — the exact cross-stylesheet coupling
+ *      `dash-theme.css`'s header declares out of scope, not something this
+ *      route's own stylesheet provides;
+ *   3. the dash chunk does contain `.max-w-112{max-width:calc(var(--spacing) *
+ *      112)}` and its own `--spacing:.25rem`
+ *      (`packages/ui/src/theme.generated.css:32` is the source — corrected from
+ *      `:31`, which is the `@theme static {` line that opens the block).
+ *
+ * So `max-w-112` is the SPACING scale, computes to the same 28rem `max-w-md`
+ * would have produced, and depends on nothing that leaks in from the field
+ * client. Same substitution `sign-out-dialog.tsx` already made for its own
  * leaked `max-w-sm` (`max-w-96`), verified there the same way.
  *
  * NOT A GENERAL FIX. `no-projects-empty-state.tsx`, `no-workspace-empty-

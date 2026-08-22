@@ -22,13 +22,26 @@ import { ShellFatalError } from "../../../../../src/components/dash-shell/shell-
  *
  * NO "PROJECT NOT FOUND" BRANCH OF ITS OWN. The route
  * (`app/v1/projects/[projectId]/assignments/route.ts:12-27`) answers 404
- * `RESOURCE_NOT_FOUND` for a project id that does not exist, and 403
- * (`SCOPE_PROJECT_DENIED`, thrown by `requireProjectCapability` at
- * `apps/app/src/lib/authz.ts:100-104`) for one that exists but is outside
- * the caller's `project.view` grant — both fold into `listAssignments`'s
- * `"error"` arm,
+ * `RESOURCE_NOT_FOUND` for a project id that does not exist — and, as it
+ * happens, for one outside the caller's grant too. That folds into
+ * `listAssignments`'s `"error"` arm,
  * same as `projects.service.ts`'s `listProjects()` does not distinguish its
- * own failure causes either. `ShellFatalError`'s copy is generic for exactly
+ * own failure causes either.
+ *
+ * CORRECTED IN THE FINAL FIX WAVE — this said «and 403
+ * (`SCOPE_PROJECT_DENIED`, thrown by `requireProjectCapability` at
+ * `apps/app/src/lib/authz.ts:100-104`) for one that exists but is outside the
+ * caller's `project.view` grant». That 403 is unreachable through this route,
+ * for the reason the evidence screen's own header spells out for its twin:
+ * `goproceed_app` runs NOBYPASSRLS (`packages/database/src/tx.ts`),
+ * `projects_select` (migration 0011:121-122) uses
+ * `app.has_project_capability(workspace_id, id,
+ * array['project.view','project.admin'])`, and `requireProjectCapability`
+ * expands `project.view` to exactly that same pair
+ * (`IMPLIED_BY_PROJECT_ADMIN`, `authz.ts:85`). A caller lacking it gets no
+ * `projects` row from the route's first query, so the route's own 404 fires
+ * before the capability check is reached. The check is nonetheless correct to
+ * keep: it is the layer that goes live the day the policy widens. `ShellFatalError`'s copy is generic for exactly
  * this reason (`app/dash/page.tsx`'s `listProjects()` error branch reuses the
  * same component for what is, there too, actually a projects-endpoint
  * failure, not a workspace one) — reused rather than duplicated into a

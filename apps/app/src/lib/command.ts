@@ -25,6 +25,18 @@ export interface HandlerResult {
    * a capability handed to whoever asks next, and until this existed NO
    * member-plane GET in this app sent any cache directive at all.
    * `ok()` spreads these last, so a handler may also override `content-type`.
+   *
+   * BOUND BY BOTH WRAPPERS, WHICH IT WAS NOT WHEN IT WAS ADDED. `commandRoute`
+   * built its own header record for `Idempotency-Replay-Until` and never
+   * spread `out.headers`, so a command route that set this field served
+   * nothing — no error, no warning, a response that simply looks fine, which
+   * is the failure shape this slice's own design names. This doc comment sat
+   * on the shared interface and read as though it governed both, so the type
+   * promised a channel one wrapper did not carry.
+   *
+   * `Idempotency-Replay-Until` IS APPLIED AFTER THE SPREAD, ON PURPOSE: it is
+   * the wrapper's own statement about the wrapper's own idempotency contract,
+   * and a handler must not be able to overwrite it by name.
    */
   headers?: Record<string, string>;
 }
@@ -34,8 +46,9 @@ type RouteCtx = { params: Promise<Record<string, string>> };
  * Shared command-route wrapper: requestId validation, auth, Idempotency-Key
  * requirement, raw-body sha256 (the idempotency request hash), JSON + zod
  * parsing, and the single problem+json error mapping. The handler receives
- * the validated body and returns { status, body, expiresAt? }; expiresAt
- * becomes the Idempotency-Replay-Until header.
+ * the validated body and returns { status, body, expiresAt?, headers? };
+ * expiresAt becomes the Idempotency-Replay-Until header, and `headers` is
+ * spread onto the response the same way `queryRoute` spreads it.
  */
 export function commandRoute<T>(
   // Input type `unknown` so T binds to the schema OUTPUT (defaults applied),
@@ -73,7 +86,7 @@ export function commandRoute<T>(
       }
       const params = ctx?.params ? await ctx.params : {};
       const out = await run({ req, requestId, userId, body: parsed.data, params, idempotencyKey, requestHash });
-      const headers: Record<string, string> = {};
+      const headers: Record<string, string> = { ...out.headers };
       if (out.expiresAt) headers["Idempotency-Replay-Until"] = out.expiresAt.toISOString();
       return ok(out.status, out.body, requestId, headers);
     } catch (err) {

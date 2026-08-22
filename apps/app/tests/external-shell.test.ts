@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * NOTHING IN THIS FILE HAS BEEN EXECUTED. No node_modules, no database, no
+ * «NOTHING IN THIS FILE HAS BEEN EXECUTED. No node_modules, no database, no
  * docker: `vitest`, `tsc`, `psql` and `supabase` were never run against it, and
  * no claim is made that any assertion below passes. Static reading is the only
- * check that was available.
+ * check that was available.» — RETRACTED 2026-08-22 (Plan D slice D1 final fix
+ * wave). It runs in the app suite and passes: 17 tests in this file, verified
+ * by running it on its own as well as inside the full run. The claim was
+ * already false when the D1 slice began; it was carried into this wave from the
+ * Task 6 controller note that flagged it.
  *
  * ---------------------------------------------------------------------------
  * THE REVIEW SHELL AS A DOCUMENT — the gesture, and the ids it renders through.

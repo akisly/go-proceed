@@ -240,8 +240,13 @@ describe("GET /v1/assignments/{id}/evidence", () => {
       if (r.h !== null) expect(r.h).not.toContain(token);
     }
     // NOTE: «never in logs» is NOT asserted here and cannot be — this app has no
-    // application logging at all (three console.error calls, all on error
-    // paths). Recorded in TODOS.md; the rule still binds every future line.
+    // application logging at all. The shipped app carries exactly ONE
+    // `console.error` call, `src/lib/http.ts:97`'s unmapped-error branch;
+    // `qa/field.mjs` and `scripts/deploy-preflight.mjs` have their own, and
+    // neither runs in the app. (This comment said «three console.error calls»
+    // until the D1 final fix wave — a FILE count read as a call count, two of
+    // whose three files are not the app.) Recorded in TODOS.md; the rule still
+    // binds every future line.
   });
 
   /**

@@ -163,11 +163,20 @@ describe("the running database does not store the spelling a text parser would l
         where conname = 'work_assignments_status_check'`);
     expect(rows).toHaveLength(1);
     expect(rows[0]!.def).toContain("= ANY (ARRAY[");
-    // The literal the deleted resolver matched on. Its absence is the whole
-    // failure mode: the migration source says `in (…)`, the database says
-    // `ANY`, and a parser that reads migrations sees a spelling the database
-    // does not use the moment anyone writes the other one by hand — which six
-    // migrations here already do.
-    expect(rows[0]!.def).not.toContain(" in (");
+    // THE COMPLEMENT OF THE ASSERTION ABOVE — AND CASE-INSENSITIVE, WHICH THE
+    // PREVIOUS VERSION WAS NOT. It read `not.toContain(" in (")`: a LOWERCASE
+    // needle against a string in which `pg_get_constraintdef` renders every
+    // keyword UPPERCASE. In the one world its own comment claimed it guarded
+    // against — Postgres rendering this constraint back as `IN (…)` — the
+    // needle still would not have matched. It could not fail for any input this
+    // query can produce, while reading as though it could: a green line
+    // standing in for a check, which is the defect class this whole file
+    // exists to stop. The regex asserts the claim rather than a lowercase
+    // accident of it. What it guards is narrow and worth saying plainly: it
+    // pins Postgres's NORMALISATION, not the label maps — the migration source
+    // says `in (…)`, the database says `ANY`, and a parser that reads
+    // migrations sees a spelling the database does not use the moment anyone
+    // writes the other one by hand, which six migrations here already do.
+    expect(rows[0]!.def).not.toMatch(/\sin\s*\(/i);
   });
 });
