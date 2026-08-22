@@ -2658,3 +2658,33 @@ inventory), so this is deferred; the fix is the usual heuristic
 (`navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1` → iPad)
 plus a test and a harness UA case.
 
+---
+
+## P3 — Plan D slice D1 task 6 (the evidence screen) renders full-size
+originals, with no thumbnail pipeline
+
+`apps/app/src/components/evidence/evidence-card.tsx` puts every evidence
+photo — `readUrl`, the signed URL `evidence_objects` route hands back — into
+a plain `loading="lazy"` `<img>` inside a fixed-height container, at
+whatever resolution the original upload was captured at. `04-role-pain-map`'s
+office screen this task builds may show a dozen-plus full-resolution JPEGs on
+one page.
+
+Named rather than solved because the obvious fix costs money this slice was
+not asked to spend: Supabase Storage's image-transformation add-on
+(resize/format-negotiation on the signed-URL request) is a paid add-on on the
+project's current plan, so a resized `readUrl` is not available to ask for,
+and building a resize pipeline of our own (a derivative-generation worker
+writing `evidence_objects.relation_kind = 'derivative'` rows, or an
+on-the-fly edge resize) is its own slice, not a two-line addition to a read
+screen. `next/image` was considered and rejected for the same reason: without
+either the add-on or a custom loader, it buys nothing over a bare `<img>`.
+
+Deferred because the pilot's own evidence volume is small (ADR-007's two-phone
+inventory, v0.1's single-pilot-project scope) and `loading="lazy"` already
+keeps an off-screen photo from downloading at all — the cost is real only once
+one assignment accumulates enough photographed occurrences that the panel
+itself becomes slow to open, which nothing in the pilot's plan has hit yet.
+Revisit if a real assignment's evidence count grows past what one scroll
+comfortably holds.
+
