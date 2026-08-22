@@ -48,11 +48,53 @@
  *
  * The dash shell therefore never writes `font-display`/`.display` at all —
  * consistent with `packages/ui/src/base.css`'s own ruling that the display
- * face is "marketing-only … never inside the application shell" — so the one
- * token that actually diverges between the two systems is simply unused here.
+ * face is "marketing-only … never inside the application shell".
+ *
+ * ⚠ THE LAST TWO PARAGRAPHS WERE PARTLY WRONG, AND THE CORRECTION IS BELOW,
+ * BENEATH THE IMPORT. Separate entry files do not sidestep a custom-property
+ * collision — they still land in one document — and "the dash never writes it"
+ * does not matter, because `globals.css` reads it on every `h1/h2/h3`. Read
+ * that block before trusting either sentence above.
  */
 
 @import "@goproceed/ui/base.css";
+
+/* ---------------------------------------------------------------------------
+ * THE `--font-display` COLLISION THIS FILE'S HEADER CLAIMED IT HAD AVOIDED.
+ * IT HAD NOT. Found 2026-08-22 (Plan D task 3), in a screenshot of
+ * `/dash/settings/profile`: «Профіль», «Обліковий запис» and «Робочі простори»
+ * were rendering in Georgia.
+ *
+ * The reasoning above — that compiling each CSS entry file independently
+ * "sidesteps the question entirely" — is wrong, and the error is worth naming
+ * because it is easy to make again. Separate compilation units are still
+ * separate FILES LOADED INTO ONE DOCUMENT. `globals.css` (root layout, every
+ * route) emits `--font-display: 'Inter Variable', …` on `:root`; this file's
+ * chunk emits `--font-display: var(--gp-font-display)` on `:root` too, and on
+ * a `/dash` page the browser resolves the LAST declaration it sees, which is
+ * this one. Import order inside one shared file was never the mechanism; the
+ * cascade is, and it applies across files exactly the same way.
+ *
+ * The second half of the claim — "the dash shell never writes
+ * `font-display`/`.display` at all, so the one token that diverges is simply
+ * unused here" — is also wrong, for a reason nothing in this file could see:
+ * the dash shell does not have to write it. `globals.css`'s own base layer
+ * carries `.goproceed-app :is(h1, h2, h3) { font-family: var(--font-display) }`
+ * and `.goproceed-app` is on `<body>`, so that rule READS the token on every
+ * dash heading. `@fontsource-variable/source-serif-4` is not installed in this
+ * app, so the stack fell through to Georgia — a face this product ships
+ * nowhere, on a surface `packages/ui/src/base.css` rules is "marketing-only …
+ * never inside the application shell".
+ *
+ * Pinning the token back for `/dash/**` is the whole fix: this stylesheet is
+ * loaded only from `app/dash/layout.tsx`, so no field-client route is touched,
+ * and the value is the same Inter stack `globals.css` always intended. Verified
+ * in the browser rather than reasoned about — `qa/field.mjs`'s dash audit now
+ * asserts the computed `font-family` of a dash heading.
+ * ------------------------------------------------------------------------ */
+:root {
+  --font-display: var(--gp-font-sans);
+}
 
 /* Shared components carry Tailwind utilities that do not appear in this
  * app's own source (e.g. Dialog/DropdownMenu's `shadow-modal`, `bg-overlay`). */

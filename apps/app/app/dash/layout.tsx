@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 
 import { getMeContext } from "../../src/services/workspaces.service";
 import { listProjects } from "../../src/services/projects.service";
+import { accountInitial, accountLabel, getSessionIdentity } from "../../src/services/session.service";
 import { DashLayout } from "../../src/layouts/dash-layout";
 import { ShellFatalError } from "../../src/components/dash-shell/shell-error";
 import "./dash-theme.css";
@@ -40,12 +41,23 @@ import "./dash-theme.css";
  * service, and renders a component — nothing else. This one takes no route
  * params, calls `getMeContext`/`listProjects` (both in `src/services/`),
  * decides redirect-vs-fatal-error-vs-render, and hands the actual shell
- * composition to `src/layouts/dash-layout.tsx`. The two services themselves
- * own the `apiGet` calls and the `ApiError`/401 handling — see
+ * composition to `src/layouts/dash-layout.tsx`. The services themselves own
+ * the `apiGet` calls and the `ApiError`/401 handling — see
  * `workspaces.service.ts`'s header for why they return a discriminated
  * result rather than throwing, and for why `/v1/projects` is fetched again,
  * independently, in `app/dash/page.tsx` (Next's own automatic per-request
  * fetch memoization, not a second network round trip).
+ *
+ * THE IDENTITY IS FETCHED ONCE, HERE, AND THREADED DOWN. `/v1/me/context`
+ * carries no email and no name — `requireUser` resolves only `{ userId }` —
+ * so the address the profile menu shows comes from the Supabase session
+ * instead, via `session.service.ts`. Called at the top of the tree rather
+ * than by each component that wants it: a shell whose chrome fetches its own
+ * identity fetches it again for every screen nested inside that chrome.
+ * `app/dash/settings/profile/page.tsx` does call it a second time, because
+ * the App Router gives a layout no way to hand a value to its page — that
+ * call is deduplicated inside the service by React's `cache()`, not by
+ * repeating the round trip.
  */
 export default async function DashRouteLayout({ children }: { children: ReactNode }) {
   const meResult = await getMeContext();
@@ -60,5 +72,23 @@ export default async function DashRouteLayout({ children }: { children: ReactNod
   if (projectsResult.kind === "session_expired") redirect(`/login?next=${encodeURIComponent("/dash")}`);
   if (projectsResult.kind === "error") return <ShellFatalError />;
 
-  return <DashLayout memberships={meResult.meContext.memberships}>{children}</DashLayout>;
+  // A session that died between `proxy.ts`'s own `getUser()` and this render
+  // takes the same redirect every other 401 here takes. A genuine failure
+  // (Auth unreachable, a 500) must NOT redirect: `proxy.ts` would see the
+  // still-valid cookie and hand the request straight back, which is a loop.
+  // `session.service.ts` separates those two outcomes; this file only reads
+  // the `.kind`.
+  const identityResult = await getSessionIdentity();
+  if (identityResult.kind === "session_expired") redirect(`/login?next=${encodeURIComponent("/dash")}`);
+  if (identityResult.kind === "error") return <ShellFatalError />;
+
+  return (
+    <DashLayout
+      memberships={meResult.meContext.memberships}
+      accountLabel={accountLabel(identityResult.email)}
+      accountInitial={accountInitial(identityResult.email)}
+    >
+      {children}
+    </DashLayout>
+  );
 }

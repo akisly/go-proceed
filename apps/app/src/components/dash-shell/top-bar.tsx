@@ -19,7 +19,10 @@ export function TopBar({
   memberships, profileSlot, className,
 }: {
   memberships: Membership[];
-  profileSlot?: ReactNode | undefined;
+  /** Required since Task 3 — see `sidebar.tsx`'s own note on this prop. The
+   * drawer is the ONLY place a phone can reach the profile menu, so an
+   * omitted slot here is "no sign-out on mobile" with nothing to notice it. */
+  profileSlot: ReactNode;
   className?: string | undefined;
 }) {
   return (
@@ -66,19 +69,24 @@ export function TopBar({
            * `pt-16` clears `DialogContent`'s own built-in close button
            * (`packages/ui/src/components/Dialog.tsx`: `absolute right-4
            * top-4`, up to `size-(--gp-control-height-touch)` = 44px on
-           * touch — bottom edge at 16px + 44px = 60px). Without it,
-           * `Sidebar`'s own `p-3` starts `WorkspaceSwitch` at the very top
-           * of this drawer (content is `p-0`), landing its whole row — and,
-           * with more than one membership, the trailing `+N` pill and
-           * chevron specifically — directly under the close button. 64px of
-           * top padding puts every drawer child below the button's bottom
-           * edge regardless of pointer type (44px touch or the smaller
-           * `desk-sm` button), so nothing can land under it; `p-3` and
-           * `pt-16` both survive `cx`'s tailwind-merge pass (padding-top
-           * utilities compile after the shorthand in Tailwind's own
-           * generated order, so the more specific one wins the cascade —
-           * verified against this repo's `tailwind-merge@3.6.0` output, not
-           * assumed) rather than one silently deleting the other.
+           * touch — bottom edge at 16 + 44 = 60px). Without it, `Sidebar`'s
+           * own `p-3` starts `WorkspaceSwitch` at the top of this drawer
+           * (content is `p-0`), landing its row — with more than one
+           * membership, the `+N` pill and chevron specifically — under the
+           * close button.
+           *
+           * `p-3` and `pt-16` both survive `cx`: tailwind-merge's
+           * `conflictingClassGroups` map is one-directional (`p` conflicts
+           * with `pt`, `pr`, … but not the reverse), so a later `pt` never
+           * evicts an earlier `p`. Which one then wins on the element is
+           * source order in the generated sheet, not specificity — `.p-3`
+           * and `.pt-16` have identical specificity — and Tailwind emits
+           * `padding` before `padding-top`.
+           *
+           * The 64px is derived, not measured, and `qa/field.mjs`'s dash
+           * audit now asserts the two boxes do not overlap so that moving
+           * `--gp-control-height-touch` cannot bring the overlap back
+           * silently.
            */}
           <Sidebar
             variant="drawer"

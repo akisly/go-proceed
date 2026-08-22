@@ -7,7 +7,7 @@
 
 import type { ReactNode } from "react";
 import { Camera, ClipboardList, LayoutDashboard, Users } from "lucide-react";
-import { Avatar, AvatarFallback, Button, cx } from "@goproceed/ui/components";
+import { Button, cx } from "@goproceed/ui/components";
 import { WorkspaceSwitch, type Membership } from "./workspace-switch";
 
 type NavItem = {
@@ -22,8 +22,9 @@ type NavItem = {
  * dashboard (its screen 5, "navigation spine" — "nothing else has a home
  * without it"). None is built yet: D1 (evidence), D2 (overview), D3
  * (assignments), D4 (members) are separate slices later in Plan D. Every
- * item is a DISABLED control carrying its own `title`, never a link to a
- * route that would 404 — the brief's own rule, and the standard
+ * item is a DISABLED control carrying its own reason — in its accessible
+ * name AND in a `title`, see the per-item comment below for why both — never
+ * a link to a route that would 404, the brief's own rule and the standard
  * `apps/app/qa/field.mjs` already holds the field client to.
  */
 const NAV_ITEMS: NavItem[] = [
@@ -50,14 +51,17 @@ export function Sidebar({
 }: {
   memberships: Membership[];
   /**
-   * TASK 3's SLOT — a plain `ReactNode` prop. `undefined` renders a clearly
-   * marked placeholder rather than nothing, so this shell does not read as
-   * broken before Task 3 lands, and rather than a fake identity: nothing in
-   * this task's scope can read who is signed in (that is the Supabase
-   * client-side session, which `apiGet`/`/v1/me/context` never expose — see
-   * `apps/app/app/dash/layout.tsx`'s header comment).
+   * The profile control — `ProfileMenu`, built once in
+   * `src/layouts/dash-layout.tsx` and handed to both this rail and the
+   * drawer inside `TopBar`.
+   *
+   * REQUIRED, NOT OPTIONAL, since Task 3. It was `profileSlot?: ReactNode`
+   * with a placeholder fallback while the real menu did not exist; leaving it
+   * optional now would mean a future caller could drop the ONLY way to sign
+   * out of this product and get a shell that renders perfectly, with nothing
+   * red anywhere. A required prop makes that a type error at the call site.
    */
-  profileSlot?: ReactNode | undefined;
+  profileSlot: ReactNode;
   /**
    * "rail" — the persistent desktop sidebar: icon-only between `md` and
    * `wide` (the `rail-icons` custom variant), labelled at `wide` and up.
@@ -88,18 +92,33 @@ export function Sidebar({
 
       <ul className="flex flex-1 flex-col gap-1">
         {NAV_ITEMS.map(({ key, label, icon: Icon, reason }) => (
-          // `title` lives on the `<li>`, not the disabled `Button`: the
-          // Button's own base carries `disabled:pointer-events-none`
-          // (`packages/ui/src/components/Button.tsx`), so a `title` on the
-          // button itself is never hit-tested and no tooltip ever appears —
-          // the same reason `WorkspaceSwitch` and `ProfilePlaceholder` below
-          // put their own `title` on a plain wrapping element rather than on
-          // whatever's disabled inside it.
+          // THE REASON REACHES TWO DIFFERENT AUDIENCES BY TWO DIFFERENT
+          // ROUTES, AND IT NEEDS BOTH.
+          //
+          // `title` on the `<li>`, for a mouse: it cannot go on the `Button`,
+          // whose base carries `disabled:pointer-events-none`
+          // (`packages/ui/src/components/Button.tsx`), so a `title` there is
+          // never hit-tested and no tooltip ever appears.
+          //
+          // …and that fixes the mouse and NOTHING ELSE. A `disabled`
+          // `<button>` is out of the tab order per HTML, so a keyboard user
+          // never lands on it at all, and `title` on an `<li>` computes an
+          // accessible NAME for `role=listitem` — announced inconsistently
+          // across screen readers, and on an element the user is not focused
+          // on. The element they do reach announced only "Огляд, button,
+          // unavailable", with no reason. So the reason is folded into the
+          // button's OWN accessible name.
+          //
+          // The fuller pattern — drop `disabled`, `aria-disabled` on a
+          // still-focusable button, `aria-describedby` for the reason — was
+          // considered and rejected here: it needs `aria-disabled:` styling
+          // variants in `packages/ui`, and all four of these become real
+          // links in D1–D4 anyway.
           <li key={key} title={reason}>
             <Button
               variant="ghost"
               disabled
-              aria-label={label}
+              aria-label={`${label} — ${reason}`}
               className="w-full justify-start px-2.5"
             >
               <Icon aria-hidden="true" strokeWidth={1.75} className="size-4 shrink-0" />
@@ -109,29 +128,18 @@ export function Sidebar({
         ))}
       </ul>
 
-      <div className={collapsible}>
-        {profileSlot ?? <ProfilePlaceholder />}
-      </div>
+      {/*
+        * NO `collapsible` HERE — TASK 3's DEFECT 1, AND IT WAS NOT COSMETIC.
+        * This wrapper used to carry the same `rail-icons:hidden` as the nav
+        * labels, which meant the ENTIRE profile block was `display: none`
+        * between 768px and 1240px — an ordinary office laptop window — and
+        * therefore that once the real menu landed there would still have been
+        * NO WAY TO SIGN OUT at that width. The label may collapse; the
+        * control may not. The collapse now lives on the address inside
+        * `ProfileMenu`, exactly as a nav item above keeps its icon and drops
+        * its `<span>`.
+        */}
+      {profileSlot}
     </nav>
-  );
-}
-
-/**
- * Task 3 replaces this with the real `ProfileMenu` (email, workspace role,
- * sign-out). Marked as a placeholder on its own face — the `title` — rather
- * than silently rendering nothing, so a reviewer of THIS task sees exactly
- * what is missing and why.
- */
-function ProfilePlaceholder() {
-  return (
-    <div
-      className="flex items-center gap-2 rounded-control border border-line-subtle px-2 py-2 text-meta text-ink-muted"
-      title="Профіль і вихід з’являться в наступному завданні."
-    >
-      <Avatar>
-        <AvatarFallback>—</AvatarFallback>
-      </Avatar>
-      <span>Профіль</span>
-    </div>
   );
 }

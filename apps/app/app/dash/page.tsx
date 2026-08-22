@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { listProjects } from "../../src/services/projects.service";
 import { NoProjectsEmptyState } from "../../src/components/dash-shell/no-projects-empty-state";
 import { ProjectsList } from "../../src/components/dash-shell/projects-list";
+import { ShellFatalError } from "../../src/components/dash-shell/shell-error";
 
 /**
  * `/dash`'s own index. THIN, per `docs/design/03-ui-references.md`
@@ -16,22 +17,31 @@ export default async function DashIndexPage() {
   const result = await listProjects();
   if (result.kind === "session_expired") redirect(`/login?next=${encodeURIComponent("/dash")}`);
   if (result.kind === "error") {
-    // UNREACHABLE IN PRACTICE, KEPT ONLY FOR TYPESCRIPT'S NARROWING.
-    // `app/dash/layout.tsx` — this page's own parent, rendered first in the
-    // same request — already calls this exact `listProjects()` and returns
-    // `ShellFatalError` on this exact failure before this page ever runs.
-    // `apiGet` fetches with `{ cache: "no-store" }`, and Next.js memoizes GET
-    // fetch requests with the same URL and options within a single render
-    // pass regardless of that option (nextjs.org/docs/app/api-reference/
-    // functions/fetch#memoization, checked against installed `next@16.3.1`
-    // on 2026-08-22) — so this call cannot observe a different outcome than
-    // the layout's already did. A dedicated `ProjectsLoadError` used to
-    // render here (removed as dead code in this fix round; the layout's
-    // `ShellFatalError` is the only reachable error surface for this
-    // failure) — `throw` rather than a silent `return null` so a future
-    // change that breaks this invariant fails loudly instead of rendering
-    // an empty page.
-    throw result.error;
+    // NORMALLY THE LAYOUT GETS HERE FIRST — BUT NOT ALWAYS, AND THE
+    // DIFFERENCE IS SOFT NAVIGATION.
+    //
+    // On a full request `app/dash/layout.tsx` calls this same
+    // `listProjects()` before this page runs, and returns `ShellFatalError`
+    // without rendering `{children}` — so this branch does not execute.
+    // (`apiGet` fetches with `{ cache: "no-store" }`, and Next memoizes GET
+    // fetches with the same URL and options within one render pass
+    // regardless of that option — nextjs.org/docs/app/api-reference/
+    // functions/fetch#memoization, checked against installed `next@16.3.1` —
+    // so the two calls cannot disagree within a request either.)
+    //
+    // That is a fact about the CURRENT route topology, not an invariant.
+    // Once D1–D4 add sibling routes under `/dash`, a soft navigation between
+    // them re-renders only the page segment: the shared layout does not
+    // re-run, its guard does not re-run, and this branch is reached with the
+    // shell still on screen.
+    //
+    // So it renders rather than throws. There is no `error.tsx` or
+    // `global-error.tsx` anywhere under `apps/app`, so a throw here paints
+    // Next's generic English "Application error" screen for a
+    // Ukrainian-speaking user; `ShellFatalError` says the same thing in the
+    // same words whether the layout or the page is the one that observed
+    // the failure (`dash.error.shell`).
+    return <ShellFatalError />;
   }
   if (result.projects.length === 0) return <NoProjectsEmptyState />;
   return <ProjectsList projects={result.projects} />;
