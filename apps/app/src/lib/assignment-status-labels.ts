@@ -40,6 +40,18 @@
  * would corrupt a record of the OTHER (unapplied) design that someone may yet
  * reconcile with this one.
  *
+ * THE FIDELITY TEST READS `pg_constraint`, NOT THIS COMMENT AND NOT MIGRATION
+ * TEXT — fix round 2 on Task 5. The migration excerpt above is provenance
+ * (where the constraint was FIRST written), not the check's live source of
+ * truth: `apps/app/tests/assignment-status-labels.int.test.ts` queries the
+ * running database directly, the same move `evidence-labels.int.test.ts`
+ * made one task earlier for `ORIGIN_METHOD_LABELS` after a migration-text
+ * version of this exact test shape stayed green while that sibling map
+ * shipped a raw identifier to a real user. A future migration that widens
+ * this CHECK — in any spelling, including the `= ANY (ARRAY[…])` form
+ * Postgres itself normalises every CHECK to — is caught there, not by
+ * re-reading this docblock.
+ *
  * TRANSLATIONS REUSE THIS CATALOG'S OWN EXISTING VOCABULARY FOR THE SAME
  * ENGLISH CONCEPT, rather than being invented fresh: `Чернетка` (draft) and
  * `На паузі` (paused) already label `project`/`contract`/`integration`

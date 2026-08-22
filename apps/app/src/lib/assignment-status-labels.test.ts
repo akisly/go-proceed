@@ -5,78 +5,36 @@ import { join } from "node:path";
 import { ASSIGNMENT_STATUS_LABELS, assignmentStatusLabel } from "./assignment-status-labels";
 
 /**
- * The label map against the CHECK constraint it claims to cover, read out of
- * the APPLIED migration on every run — same discipline `membership-
- * labels.test.ts` holds `MEMBERSHIP_ROLE_LABELS`/`MEMBERSHIP_STATUS_LABELS`
- * to, against a different source file for a reason stated below.
+ * WHAT MOVED OUT, AND WHY — fix round 2 on Task 5.
  *
- * WHY NOT JUST LIST THE FIVE STRINGS HERE. A test that repeats the map's own
- * keys proves only that someone typed them twice. The failure this file
- * exists to catch is the one that happens LATER: a migration widens
- * `work_assignments.status` with a sixth value, nothing here changes, and the
- * new status renders as a raw English token to a Ukrainian-speaking ПТВ with
- * every suite green — which is exactly what already happened once to this
- * five-value set (that is why `dash.assignment_status.*` had to be added as
- * NEW catalog rows in the first place, per `assignment-status-labels.ts`'s
- * header). Deriving the expectation from the schema is what makes the next
- * drift a red test instead of a bug report from the pilot.
+ * This file used to also assert "every value the database permits has a
+ * label" by parsing `supabase/migrations/0015_execution_evidence_module.sql`'s
+ * text. That assertion now lives in `apps/app/tests/
+ * assignment-status-labels.int.test.ts`, reading `pg_constraint` off the
+ * running database instead — moved for the exact reason
+ * `apps/app/tests/evidence-labels.int.test.ts`'s header documents at length
+ * for its own sibling map (`ORIGIN_METHOD_LABELS`): a migration-text parser
+ * only sees the spelling it was written to expect (`check (col in (…))`),
+ * Postgres normalises every CHECK to `= ANY (ARRAY[…])` in storage, six
+ * migrations in this repository already write that spelling BY HAND, and
+ * `evidence_objects.origin_method` was widened that way by migration 0043
+ * while a text-parsing fidelity test identical in shape to this file's old
+ * one stayed green the whole time — shipping a raw identifier
+ * (`origin_not_distinguished`) to a Ukrainian-speaking ПТВ. `pg_constraint`
+ * is not an approximation of the applied schema; after every migration,
+ * every drop, every re-add, in whichever spelling, it IS the applied schema.
  *
- * `supabase/migrations/0015_execution_evidence_module.sql`, NOT
- * `technical/schema.sql`. `membership-labels.test.ts` reads `technical/
- * schema.sql` because that file's `public.memberships` table happens to match
- * the applied one. `work_assignments` does not: `technical/schema.sql:419`
- * describes a different, unapplied target design for this table (an
- * eight-value `state` column). The APPLIED migration is the one the route
- * this screen calls actually queries, so it is the one this test reads.
- * Confirmed no later migration alters the constraint: no
- * `alter table … work_assignments … status` appears anywhere under
- * `supabase/migrations/` (migration 0043's `work_assignments.baseline_status`
- * is a different column, not this one).
- *
- * THE TABLE BLOCK IS EXTRACTED FIRST, same reason `membership-labels.test.ts`
- * and `packages/testing/src/copy-catalog-fidelity.test.ts` both do it: the
- * migration file also defines `upload_intents.status` (a different five-plus
- * value CHECK), so a regex run over the whole file could match the wrong
- * column's constraint. Scoping to the owning `create table` block first, then
- * searching inside it, is what makes that impossible rather than merely
- * unlikely today.
+ * WHAT STAYS HERE. Everything below has no database dependency: the map's
+ * own internal shape (every label is Ukrainian, never an echo of the raw
+ * value), its fallback behaviour for a value it has never seen, and its
+ * agreement with `technical/copy-catalog.csv`. None of that needs
+ * `pg_constraint` to change if the CHECK constraint never does, so none of
+ * it belongs in the `.int.test.ts` directory's DB-backed convention.
  */
 const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..");
-const MIGRATION = join(
-  REPO_ROOT, "supabase", "migrations", "0015_execution_evidence_module.sql");
 const COPY_CATALOG = join(REPO_ROOT, "technical", "copy-catalog.csv");
 
-function checkedValues(table: string, column: string): string[] {
-  const sql = readFileSync(MIGRATION, "utf8");
-  const block = new RegExp(`create table public\\.${table} \\(([\\s\\S]*?)\\n\\);`).exec(sql);
-  if (!block) throw new Error(`no \`create table public.${table}\` block in ${MIGRATION}`);
-  const check = new RegExp(`\\n\\s*${column}\\s[\\s\\S]*?check \\(${column} in\\s*\\(([^)]*)\\)`)
-    .exec(block[1]!);
-  if (!check) throw new Error(`no check constraint on ${table}.${column} in ${MIGRATION}`);
-  return [...check[1]!.matchAll(/'([a-z_]+)'/g)].map((m) => m[1]!);
-}
-
-describe("every work_assignments.status value the database permits has a Ukrainian label", () => {
-  it("covers work_assignments.status", () => {
-    const permitted = checkedValues("work_assignments", "status");
-    // Guards the regex itself: a pattern that silently matched nothing, or
-    // matched `upload_intents.status`'s own constraint instead, would
-    // otherwise pass this suite by asking nothing of the map.
-    expect(permitted).toContain("active");
-    expect(permitted.length).toBe(5);
-
-    const missing = permitted.filter((status) => !(status in ASSIGNMENT_STATUS_LABELS));
-    expect(missing).toEqual([]);
-  });
-
-  it("labels nothing the database forbids", () => {
-    // The other direction — a label for a value the CHECK no longer permits
-    // is a dead entry nobody notices, and the next reader trusts it as
-    // evidence the value still exists.
-    const statuses = new Set(checkedValues("work_assignments", "status"));
-    expect(Object.keys(ASSIGNMENT_STATUS_LABELS).filter((s) => !statuses.has(s))).toEqual([]);
-  });
-
+describe("ASSIGNMENT_STATUS_LABELS's own shape", () => {
   it("labels every value in Ukrainian, never by echoing the identifier back", () => {
     // A label that is the raw value spelled the same way is indistinguishable
     // from a missing one at the call site, since that is exactly what the
@@ -93,7 +51,8 @@ describe("every work_assignments.status value the database permits has a Ukraini
  * rows — same reasoning `membership-labels.test.ts`'s own second `describe`
  * block gives: a catalog row is only worth something if it is true, and the
  * row and the map are two copies of the same Ukrainian sentence that can go
- * stale independently.
+ * stale independently. No database dependency: the catalog is a file in this
+ * repository, not a runtime fact.
  *
  * Only the first two fields are read, and the naive split is safe here for
  * the same reason it is in `membership-labels.test.ts`: `key` is an
