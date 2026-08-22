@@ -55,6 +55,17 @@ import {
  *   `technical/openapi/scope-v0.1.csv` streams an original to an external
  *   session. The case below asserts what IS returned and names the gap rather
  *   than asserting a substitute.
+ *
+ *   CORRECTED 2026-08-22 (Plan D slice D1, Task 4): the second sentence of that
+ *   paragraph is no longer true. `external.evidence_bytes`
+ *   (scope-v0.1.csv:61 — `GET /external/evidence`) streams exactly that
+ *   original to exactly this session. The paragraph's CONCLUSION for THIS file
+ *   is unchanged and it still deliberately asserts no bytes: this suite is
+ *   `v0.1-M5`'s, it drives `external.occurrence_scope`, and that operation's
+ *   response is still identity-and-provenance by design. The new operation has
+ *   its own suite, `apps/app/tests/external-evidence.int.test.ts`, which is
+ *   where the sibling-occurrence, fallback-photo, cross-workspace and
+ *   post-revocation refusals are proved.
  */
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";

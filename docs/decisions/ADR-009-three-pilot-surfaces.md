@@ -6,6 +6,9 @@
 
 **Last reviewed:** 2026-08-20
 
+**Amended:** 2026-08-22 — see «Amendment, 2026-08-22» at the end of this
+document. The original text above and below it is unchanged.
+
 **Related decisions:** [ADR-001](ADR-001-product-boundary.md),
 [ADR-004](ADR-004-roadmap-demo-and-documentation.md),
 [ADR-006](ADR-006-pilot-shaped-v0.1.md), [ADR-007](ADR-007-pilot-field-client.md)
@@ -156,3 +159,119 @@ Reverting to a single deployed surface, or moving the field client back into
 either move undoes decision 1's separately-deployable-surface argument, and
 the second additionally spends decision 3's client-agnostic boundary — the
 property this ADR exercises — without re-deriving it.
+
+
+---
+
+## Amendment, 2026-08-22 — D1 adds two catalogued read operations, and the two planes deliver bytes differently
+
+*An addition. Nothing above this line is rewritten; decisions 1–4 and their
+consequences stand exactly as the owner took them on 2026-08-20.*
+
+### What this amendment records
+
+Plan D slice D1 («evidence read») adds **two** operations to
+[`technical/openapi/scope-v0.1.csv`](../../technical/openapi/scope-v0.1.csv),
+both reads, both tagged `v0.1-M6`:
+
+| Operation | Path | Plane | Capability | How bytes arrive |
+|---|---|---|---|---|
+| `evidence.list` | `GET /v1/assignments/{assignmentId}/evidence` | member | `project.view` | a short-lived **signed URL** per object (TTL 60 s) |
+| `external.evidence_bytes` | `GET /external/evidence?evidenceObjectId=…` | external | `external.view_scope` | a same-origin **stream** through the BFF |
+
+### Why the «no new API» rule bends, and exactly how far
+
+Decision 3 scopes the dashboard pilot to **screens** — «the screens without
+which the owner cannot run the pilot without curl». The plan that implements it
+read that as a standing rule: reads go through the existing `/v1`, and a new
+operation needs the owner's word. The owner gave it on 2026-08-21 for the member
+read, and D1's design of 2026-08-22 found the second, larger reason the rule has
+to bend — one that is not about the dashboard at all.
+
+**`apps/app/app/external/occurrence/route.ts` had already recorded the gap
+against itself**, as the largest functional gap `v0.1-M5` left, in its own
+header: the M5 acceptance walk says технагляд reads the requirement in the
+standard's own wording **with the photo**, and that route returns the
+requirement, the photo's identity, size, media type, SHA-256 and provenance —
+and not the photo. Its own conclusion: «a reviewer who cannot see the photo will
+not accept, and that is the acceptance walk failing for a buildable reason.» It
+declined to close it «with a seventh operation nobody catalogued».
+
+So the exception is narrow and it is the opposite of an escape hatch:
+
+- It is **two operations, both reads**, both catalogued in the same file every
+  other operation is catalogued in, both governed by a capability row in
+  [`technical/permissions/capabilities.csv`](../../technical/permissions/capabilities.csv),
+  and both counted in
+  [`docs/delivery/version-0.1.md`](../delivery/version-0.1.md)'s
+  operations-per-milestone table. Nothing is «added quietly beside the API».
+- **No new grant, no new RLS policy, no migration.** `eo_external_select`
+  (migration 0049 §10) already admitted exactly «objects finalized from an
+  *available* intent on this session's one occurrence», and `storage_key` /
+  `storage_bucket` were already selectable — the shipped route simply never
+  selected them. Verified positively rather than by catalog reading: an external
+  session selecting those columns returns zero rows and **no permission error**,
+  while the same session touching `audit_events` returns `permission denied`.
+  The authorization surface is unchanged by this amendment; only the API surface
+  grows.
+- **No new external capability, and one was not available anyway.** Migration
+  0049's `external_access_grants_permissions_check` pins the grant's permissions
+  jsonb to exactly `external.view_scope` and `external.decide_evidence`, so a
+  third external capability id would be a migration and a contract change rather
+  than a catalog edit. `external.evidence_bytes` therefore joins
+  `external.view_scope`, which is also the right grouping on its own terms: a
+  grant that may read the requirement and the photo's hash but not the photo
+  cannot complete the walk it exists for.
+- **The rule itself is not repealed.** Slices D2–D3 add screens over existing
+  `/v1` operations and no new ones. If a later slice needs a third, it needs its
+  own dated amendment here — this one authorises these two and nothing else.
+
+### Why the member plane signs and the external plane streams
+
+`docs/architecture/tenancy-and-security.md` §"Storage RLS" sanctions **both**:
+«Available-object download uses a short-lived signed URL **or** same-origin
+authorized stream after current access revalidation.» The plane picks, and for
+the external plane the pick was already made by a header this repository has
+been sending since M5.
+
+**The external review page's own CSP forbids a signed URL.**
+`apps/app/src/lib/external-link.ts`'s `externalSecurityHeaders` serves the shell
+with `default-src 'none'; … img-src 'self' data:`. A same-origin
+`<img src="/external/evidence?…">` is admitted; a Supabase-hosted signed URL is
+**blocked by the page's own policy** before a byte is requested. Streaming on
+this plane is not a preference between two workable options — it is the only one
+that works, and relaxing the CSP to admit a provider origin would spend the
+property that makes the shell defensible (no third-party script, frame, font,
+image, analytics or error collector can load at all, so none can receive a
+token-bearing URL).
+
+The member plane has no such constraint, and signing there keeps multi-megabyte
+originals off the serverless function.
+
+### What is deliberately NOT claimed by this amendment
+
+**A revoked grant does not stop a transfer already in flight.** Revocation is
+revalidated **per request**, twice over — `app.resolve_external_session` refuses
+a revoked grant before the handler runs, and every external policy re-resolves
+`app.external_session_scope()` at statement time inside the handler's
+transaction. That is genuine and it is «before». The «during» half that
+`docs/architecture/files-and-storage.md` §Downloads asks for is **implemented
+nowhere in this repository**: no chunked re-check, no abort path, no
+cancellation token. Choosing a stream did not buy it, no test asserts it, and it
+would be new mechanism — best-effort at any granularity, because bytes already
+sent cannot be recalled.
+
+**Streaming behaviour on Vercel's Node runtime is not established.**
+`external.evidence_bytes` is the first streaming response and the first non-JSON
+route on either plane in this codebase, so there is no deployed evidence that
+the platform passes it through without buffering. Correctness is identical
+either way; only memory behaviour differs. Recorded here rather than asserted.
+
+### Consequence for decision 3
+
+Decision 3's list — «create workspace/project + access grants; create
+assignment; view photo evidence» — now has a **second** reading of its third
+item, and both are in scope: ПТВ views photo evidence in the dashboard, and the
+external технагляд views it in the review page with no account. The second was
+the product thesis all along; until this slice it was the one part of the thesis
+the software could not perform.

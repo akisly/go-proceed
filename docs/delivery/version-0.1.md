@@ -158,7 +158,7 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **61 as of 2026-08-22** — see the notes under the table. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22** — see the notes under the table. Both of the day's two additions are Plan D slice D1 and both are reads; the note under the table names them. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
@@ -169,8 +169,8 @@ in each API slice below. The table columns come from ADR-006 decision 4.
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
-| `v0.1-M6` | 2 | 0 | — |
-| Total | 61 | 26 | 26 |
+| `v0.1-M6` | 3 | 0 | — |
+| Total | 62 | 26 | 26 |
 
 *M4 is 6 operations, not 4, as of 2026-08-18. `project_parties.create` and
 `party_contacts.create` were added because the act's mandatory signatory slots
@@ -181,7 +181,7 @@ by SQL (`TODOS.md`, formerly «P3 — dead surface added by the M1 migrations»,
 whose own 2026-08-08 escalation said exactly this). No new table: both existed
 since migration 0010 with RLS and grants and were counted in the 26 all along.*
 
-*`v0.1-M6` is 2 operations, not 1, as of 2026-08-22. `evidence.list` (Plan D slice D1, Task 3) was added under the `v0.1-M6` tag — a compromise: M6 is nominally "the blocked money" and an evidence read is not that, but the alternative (`v0.1-M7`) would need its own entry in ADR-006 decision 4's and [roadmap.md](../product/roadmap.md)'s milestone tables, which restructures the delivery taxonomy to accommodate one slice. `blocked_value.get` is no longer the only `v0.1-M6` row — see the two corrections below, in the M6 section itself. No new table: the read is a join over `upload_intents` and `evidence_objects`, both already counted.*
+*`v0.1-M6` is 3 operations, not 1, as of 2026-08-22. `evidence.list` (Plan D slice D1, Task 3) and `external.evidence_bytes` (the same slice, Task 4) were both added under the `v0.1-M6` tag — a compromise: M6 is nominally "the blocked money" and an evidence read is not that, but the alternative (`v0.1-M7`) would need its own entry in ADR-006 decision 4's and [roadmap.md](../product/roadmap.md)'s milestone tables, which restructures the delivery taxonomy to accommodate one slice. `blocked_value.get` is no longer the only `v0.1-M6` row — see the two corrections below, in the M6 section itself. No new table for either: `evidence.list` is a join over `upload_intents` and `evidence_objects`, and `external.evidence_bytes` reads one `evidence_objects` row and streams the object storage already holds — both tables already counted, and neither operation needed a new grant or a new RLS policy. `external.evidence_bytes` is tagged `v0.1-M6` and not `v0.1-M5` for the same reason `evidence.list` is: the tag records the slice that built it, and re-tagging it M5 would restate a shipped milestone's operation list after the fact. It is nonetheless the operation that closes the gap `v0.1-M5`'s own acceptance walk left — see ADR-009's 2026-08-22 amendment.*
 
 **Read the fourth column exactly.** *(Added 2026-08-08.)* «Already in the
 runtime» is the count `scripts/validate-canonical-docs.mjs` derives, and what it
@@ -756,8 +756,8 @@ settled it stands unchanged and settles the next disagreement the same way.
 - **API slice:** `blocked_value.get` — this milestone's own row in
   [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv), a member-plane query.
   *Corrected 2026-08-22: no longer the only `v0.1-M6` row — `evidence.list`
-  (Plan D slice D1) shares the tag; see the note under the operations-per-milestone
-  table above for why.*
+  and `external.evidence_bytes` (both Plan D slice D1) share the tag; see the note
+  under the operations-per-milestone table above for why.*
 - **Exit gates:**
   - the sum is over the work lines under a blocked stage, at the price on the
     published baseline, attributed **once per assignment** (INV-070), broken down
@@ -806,9 +806,10 @@ settled it stands unchanged and settles the next disagreement the same way.
 - **Settled here, because [roadmap.md](../product/roadmap.md) §"v0.1-M6" defers
   it to this document: neither headline measure is computed inside the product
   in v0.1.** *Corrected 2026-08-22: `blocked_value.get` is no longer the only
-  `v0.1-M6` row (`evidence.list`, Plan D slice D1, shares the tag — see the note
-  under the operations-per-milestone table above); the argument is unaffected,
-  because neither row computes either measure.* No operation in
+  `v0.1-M6` row (`evidence.list` and `external.evidence_bytes`, both Plan D slice
+  D1, share the tag — see the note under the operations-per-milestone table
+  above); the argument is unaffected, because none of the three rows computes
+  either measure.* No operation in
   [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv)
   computes or stores first-time acceptance rate or days-to-signature. Both are
   therefore **recorded beside the product**, in the pilot record of ADR-006

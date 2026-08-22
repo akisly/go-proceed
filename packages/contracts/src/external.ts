@@ -290,6 +290,20 @@ export const externalNormRef = z.object({
  * PHOTO», and this milestone gives them the requirement, the photo's identity,
  * its content hash and its provenance, and not the photo.
  *
+ * CORRECTED 2026-08-22 (Plan D slice D1, Task 4): the second sentence has
+ * stopped being true. `external.evidence_bytes` — `GET /external/evidence`,
+ * scope-v0.1.csv:61, governed by the same `external.view_scope` capability —
+ * streams the original, and it is catalogued rather than invented.
+ *
+ * THE FIRST SENTENCE IS UNCHANGED AND IS THE POINT OF THIS SCHEMA. This object
+ * still carries no storage key, no bucket, no signed URL and no bytes: the new
+ * operation is addressed by `evidenceObjectId`, the field already here, so the
+ * reviewer's page asks for bytes by naming a row it was already shown and never
+ * by naming a location. A key in a response is a capability leak whether or not
+ * an operation exists to spend it; adding a `readUrl` here would be that leak,
+ * and the member plane's `evidenceObjectView` carries one only because its
+ * plane's CSP permits a provider-hosted URL and this plane's does not.
+ *
  * `claimedCaptureTime` and `originMethod` are CLIENT-SUPPLIED METADATA and are
  * labelled as such wherever they are displayed (tenancy-and-security.md
  * §"Capability evaluation": «nothing in the capture path may be trusted because

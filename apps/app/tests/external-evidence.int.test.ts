@@ -1,0 +1,416 @@
+import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
+import { createHash } from "node:crypto";
+import { q, truncateAll, jsonReq, baselineFixture, type BaselineFixture } from "./helpers/fixtures";
+import {
+  addLine, bindRules, createDraft, getVersion, manifestOf, publishRuleVersion,
+  publishVersion, ruleVersionBody, seedRequirementLibrary,
+} from "./helpers/manual-baseline";
+import type { CreateUploadIntentResponse, FinalizeUploadIntentResponse } from "@goproceed/contracts";
+import { buildCreateIntentBody } from "../src/lib/capture/upload";
+import {
+  EXTERNAL_SESSION_COOKIE, resetKeyRegistriesForTests,
+} from "../src/lib/external-link";
+
+/**
+ * Task 4 — `external.evidence_bytes`, GET /external/evidence.
+ *
+ * THE ONE THING THIS SUITE EXISTS FOR is the sentence
+ * `apps/app/app/external/occurrence/route.ts` wrote against itself: «a reviewer
+ * who cannot see the photo will not accept». Everything else here is about what
+ * that reviewer must NOT be able to see.
+ *
+ * The fixture is `m5-external.int.test.ts`'s, with one deliberate addition: TWO
+ * bound rules, so the assignment materialises TWO obligations and the grant is
+ * issued over exactly one of them. With a single occurrence, «the policy scopes
+ * to the session's occurrence» and «the policy admits everything the workspace
+ * has» are the same observation and a route that ignored scoping entirely would
+ * pass. A sibling is the smallest fixture that can tell them apart.
+ *
+ * WHAT THIS SUITE DELIBERATELY DOES NOT ASSERT, and must never be edited to:
+ *
+ *   THAT A REVOKE STOPS A TRANSFER ALREADY IN FLIGHT. Nothing in this repository
+ *   implements that. Revocation is revalidated PER REQUEST — in
+ *   `app.resolve_external_session` before the handler runs, and again at
+ *   statement time inside every external policy through
+ *   `app.external_session_scope()` — and «during» has no chunked re-check, no
+ *   abort path and no cancellation token anywhere. A test asserting it would be
+ *   pinning a guarantee the product does not make, which is the one thing a test
+ *   here may not do. What IS asserted is that the NEXT request is refused.
+ */
+
+const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+let current = A;
+vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
+
+const ORIGIN = "https://prykladapp.example";
+
+// `m5-external.int.test.ts`'s list verbatim. Trimming it is a false economy:
+// the publish/bind/assign chain below is the same chain, and a missing
+// capability surfaces as a 403 three helpers deep.
+const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign",
+              "progress.record", "evidence.record", "evidence_decisions.decide",
+              "stage_closures.close", "requirement_exceptions.decide", "readiness.view",
+              "packages.submit"] as const;
+
+const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
+const STAGE = "prykhovani-roboty";
+const APPROVER = "technical_supervisor";
+
+/** A minimal but genuine JPEG: SOI + APP0 marker, then a byte of payload. */
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+/** The SIBLING occurrence's photo — a distinct payload, so the two rows cannot collide on content_hash. */
+const JPEG_SIBLING = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x01]);
+/** A third payload for the photo captured with NO occurrence at all — the fallback door. */
+const JPEG_FALLBACK = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x02]);
+const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
+
+interface Fx extends BaselineFixture {
+  assignmentId: string;
+  /** The obligation the grant is issued over. */
+  occurrenceId: string;
+  /** Its sibling on the SAME assignment — never in any grant here. */
+  siblingOccurrenceId: string;
+}
+
+beforeAll(() => {
+  process.env.EXTERNAL_LINK_ORIGIN = ORIGIN;
+  process.env.EXTERNAL_LINK_HMAC_KEYS = "k1:" + Buffer.alloc(32, 11).toString("base64");
+  process.env.EXTERNAL_LINK_ACTIVE_KEY_ID = "k1";
+  process.env.EXTERNAL_SESSION_HMAC_KEYS = "s1:" + Buffer.alloc(32, 12).toString("base64");
+  process.env.EXTERNAL_SESSION_ACTIVE_KEY_ID = "s1";
+  resetKeyRegistriesForTests();
+});
+
+async function grantCaps(projectId: string, memberId: string): Promise<void> {
+  const { POST } = await import("../app/v1/projects/[projectId]/access-grants/route");
+  const res = await POST(jsonReq("http://x", { memberId, capabilities: [...CAPS] }),
+    { params: Promise.resolve({ projectId }) });
+  if (res.status >= 300) throw new Error(`grant ${res.status} ${await res.text()}`);
+}
+
+/**
+ * TWO obligations on one assignment, both naming an EXTERNAL approver.
+ *
+ * `userId` is a parameter because one case below builds a SECOND, complete
+ * world for user B and opens a live link into it — the cross-workspace negative
+ * needs a session that is genuinely valid somewhere, not a forged cookie.
+ */
+async function baseline(userId: string = A): Promise<Fx> {
+  const base = await baselineFixture(userId);
+  await grantCaps(base.projectId, base.memberId);
+  const library = await seedRequirementLibrary(base.workspaceId);
+
+  const ruleIds: string[] = [];
+  for (const key of ["Н.15/1", "Н.15/2"]) {
+    const res = await publishRuleVersion(base.workspaceId,
+      ruleVersionBody(library.get(key)!, {
+        workTypeKey: WORK_TYPE, stageKey: STAGE,
+        approverRole: APPROVER, approverIsExternal: true,
+      }));
+    if (res.status !== 201) {
+      throw new Error(`publishRuleVersion ${res.status} ${await res.text()}`);
+    }
+    ruleIds.push((await res.json()).ruleVersionId as string);
+  }
+
+  const draft = await createDraft(base.contractId);
+  const contractVersionId = (await draft.json()).contractVersionId as string;
+  const line = await addLine(contractVersionId, {
+    sourceKey: "1.1", workTypeKey: WORK_TYPE,
+    description: "Приклад-прокладання кабелю в штробі",
+    unitCode: "м", contractQuantity: "10",
+    unitPriceState: "known", unitPrice: "100.00",
+  });
+  if (line.status !== 201) throw new Error(`addLine ${line.status} ${await line.text()}`);
+  const workItemId = (await line.json()).workItem.workItemId as string;
+
+  const bind = await bindRules(contractVersionId, ruleIds);
+  if (bind.status !== 201) throw new Error(`bindRules ${bind.status} ${await bind.text()}`);
+  const view = await (await getVersion(base.contractId, 1)).json();
+  const pub = await publishVersion(contractVersionId, manifestOf(view));
+  if (pub.status !== 201) throw new Error(`publishVersion ${pub.status} ${await pub.text()}`);
+
+  const { POST: createAssignment } = await import(
+    "../app/v1/contracts/[contractId]/assignments/route");
+  const asg = await createAssignment(jsonReq("http://x", { workItemId }),
+    { params: Promise.resolve({ contractId: base.contractId }) });
+  if (asg.status !== 201) throw new Error(`assignments.create ${asg.status} ${await asg.text()}`);
+  const assignmentId = (await asg.json()).assignmentId as string;
+
+  const written = await q<{ id: string }>(
+    `select id from public.requirement_occurrences
+      where workspace_id = $1 and work_assignment_id = $2
+      order by id`, [base.workspaceId, assignmentId]);
+  if (written.length !== 2) {
+    throw new Error(`external-evidence: expected two materialised occurrences, got ${written.length}`);
+  }
+
+  return {
+    ...base, assignmentId,
+    occurrenceId: written[0]!.id, siblingOccurrenceId: written[1]!.id,
+  };
+}
+
+/* ── capture, exactly as the field client performs it ───────────────────────── */
+
+async function captureOne(
+  assignmentId: string, bytes: Uint8Array, occurrenceId?: string,
+): Promise<string> {
+  const { POST: create } = await import(
+    "../app/v1/assignments/[assignmentId]/upload-intents/route");
+  const body = occurrenceId
+    ? buildCreateIntentBody({
+        file: new File([bytes], "фото.jpg", { type: "image/jpeg", lastModified: Date.now() }),
+        occurrenceId, expectedContentHash: hashOf(bytes), deviceCaptureId: crypto.randomUUID(),
+      })
+    : {
+        // No `requirementOccurrenceId` at all — the fallback door
+        // (`packages/contracts/src/uploads.ts`). This photo belongs to the
+        // assignment and to NO obligation, which is what makes it the third
+        // negative below.
+        expectedContentHash: hashOf(bytes),
+        expectedByteSize: bytes.byteLength,
+        claimedMediaType: "image/jpeg",
+        deviceCaptureId: crypto.randomUUID(),
+        originMethod: "origin_not_distinguished" as const,
+      };
+  const createRes = await create(jsonReq("http://x", body),
+    { params: Promise.resolve({ assignmentId }) });
+  if (createRes.status !== 201) {
+    throw new Error(`captureOne: create ${createRes.status} ${await createRes.text()}`);
+  }
+  const created = await createRes.json() as CreateUploadIntentResponse;
+  const put = await fetch(created.upload.signedUrl, {
+    method: "PUT", headers: { "content-type": "image/jpeg" }, body: bytes,
+  });
+  if (put.status !== 200) throw new Error(`captureOne: PUT ${put.status} ${await put.text()}`);
+
+  const { POST: finalize } = await import("../app/v1/upload-intents/[intentId]/finalize/route");
+  const finRes = await finalize(jsonReq("http://x", {}),
+    { params: Promise.resolve({ intentId: created.uploadIntentId }) });
+  if (finRes.status !== 200) {
+    throw new Error(`captureOne: finalize ${finRes.status} ${await finRes.text()}`);
+  }
+  const fin = await finRes.json() as FinalizeUploadIntentResponse;
+  if (fin.status !== "available" || fin.evidenceObjectId === null) {
+    throw new Error(`captureOne: expected an available object, got ${fin.status}`);
+  }
+  return fin.evidenceObjectId;
+}
+
+/* ── the link, exchanged for a session ──────────────────────────────────────── */
+
+async function issue(occurrenceId: string, email: string): Promise<Response> {
+  const { POST } = await import("../app/v1/occurrences/[occurrenceId]/grants/route");
+  return POST(new Request("http://x", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify({
+      recipientEmail: email,
+      recipientRole: APPROVER,
+      permissions: { "external.view_scope": true, "external.decide_evidence": true },
+    }),
+  }), { params: Promise.resolve({ occurrenceId }) });
+}
+
+async function openLink(
+  occurrenceId: string, email = "prykladtechnahliad@example.test",
+): Promise<{ grantId: string; cookie: string }> {
+  const issued = await issue(occurrenceId, email);
+  expect(issued.status, await issued.clone().text()).toBe(201);
+  const grant = await issued.json();
+  const token = new URL(grant.link.url).hash.slice(1);
+
+  const { POST: exchange } = await import("../app/external/exchange/route");
+  const ex = await exchange(new Request(`${ORIGIN}/external/exchange`, {
+    method: "POST",
+    headers: { "content-type": "application/json", origin: ORIGIN },
+    body: JSON.stringify({ token }),
+  }));
+  expect(ex.status, await ex.clone().text()).toBe(200);
+  const raw = ex.headers.get("set-cookie") ?? "";
+  const m = new RegExp(`${EXTERNAL_SESSION_COOKIE}=([A-Za-z0-9_-]{43})`).exec(raw);
+  if (!m) throw new Error(`no external session cookie in: ${raw}`);
+  return { grantId: grant.grantId as string, cookie: m[1]! };
+}
+
+async function revoke(grantId: string, expectedVersion: number): Promise<Response> {
+  const { POST } = await import("../app/v1/grants/[grantId]/revoke-reissue/route");
+  return POST(new Request("http://x", {
+    method: "POST",
+    headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+    body: JSON.stringify({ reissue: false, reason: "Приклад-відкликано", expectedVersion }),
+  }), { params: Promise.resolve({ grantId }) });
+}
+
+/** The route under test, driven the way a browser's `<img>` would drive it. */
+async function bytes(cookie: string | null, evidenceObjectId: string): Promise<Response> {
+  const { GET } = await import("../app/external/evidence/route");
+  const headers: Record<string, string> = {};
+  if (cookie !== null) headers.cookie = `${EXTERNAL_SESSION_COOKIE}=${cookie}`;
+  return GET(new Request(
+    `${ORIGIN}/external/evidence?evidenceObjectId=${evidenceObjectId}`, { headers }));
+}
+
+let fx: Fx;
+let mine: string;
+let sibling: string;
+let fallback: string;
+let cookie: string;
+let grantId: string;
+
+beforeEach(async () => {
+  await truncateAll();
+  current = A;
+  fx = await baseline();
+  mine = await captureOne(fx.assignmentId, JPEG, fx.occurrenceId);
+  sibling = await captureOne(fx.assignmentId, JPEG_SIBLING, fx.siblingOccurrenceId);
+  fallback = await captureOne(fx.assignmentId, JPEG_FALLBACK);
+  ({ cookie, grantId } = await openLink(fx.occurrenceId));
+});
+
+describe("external.evidence_bytes — GET /external/evidence", () => {
+  it("serves the bytes of an object on the session's own occurrence", async () => {
+    const res = await bytes(cookie, mine);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toBe("image/jpeg");
+    expect(res.headers.get("content-length")).toBe(String(JPEG.byteLength));
+    expect(new Uint8Array(await res.arrayBuffer())).toEqual(JPEG);
+  });
+
+  it("re-applies by hand the four headers `externalNoStore` would have set", async () => {
+    // These are not decoration. `externalNoStore` is module-private to
+    // `external-session.ts` and reachable only through the two wrappers, and no
+    // wrapper can emit bytes — so a route that forgot them would look entirely
+    // normal while letting an intermediary keep an evidence photo.
+    const res = await bytes(cookie, mine);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("cache-control")).toBe("no-store, no-cache, must-revalidate, private");
+    expect(res.headers.get("cache-control")).toContain("no-store");
+    expect(res.headers.get("referrer-policy")).toBe("no-referrer");
+    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    await res.arrayBuffer();
+  });
+
+  it("puts NO storage key and NO signed URL in any header", async () => {
+    // files-and-storage.md: «Logs record the domain object and authorization
+    // result, never the signed URL or raw storage key». The response is the
+    // surface a test can actually reach; the log line is asserted by
+    // construction (`EvidenceStorageError` cannot carry either) and named in
+    // TODOS.md as unassertable while this app has no logger.
+    const row = await q<{ storage_key: string; storage_bucket: string }>(
+      `select storage_key, storage_bucket from public.evidence_objects where id = $1`, [mine]);
+    const key = row[0]!.storage_key;
+    expect(key.length).toBeGreaterThan(0);
+
+    const res = await bytes(cookie, mine);
+    expect(res.status).toBe(200);
+    const serialized = [...res.headers.entries()].map(([k, v]) => `${k}: ${v}`).join("\n");
+    expect(serialized).not.toContain(key);
+    // Both halves of the key, in case a future change ever emitted a prefix.
+    for (const half of key.split("/")) expect(serialized).not.toContain(half);
+    expect(serialized).not.toContain("token=");
+    expect(serialized).not.toContain("/object/sign/");
+    await res.arrayBuffer();
+  });
+
+  it("refuses an object on a SIBLING occurrence of the SAME assignment", async () => {
+    // `eo_external_select` scopes to `app.external_session_occurrence()`, which
+    // is the grant's one obligation — not the assignment, not the work item,
+    // not the project. This is the case a route that trusted its `where id = $1`
+    // and nothing else would fail.
+    const res = await bytes(cookie, sibling);
+    expect(res.status).toBe(404);
+    expect((await res.json()).code).toBe("EXTERNAL_SHARE_INVALID");
+  });
+
+  it("refuses a photo captured against NO occurrence at all", async () => {
+    // The fallback door: `upload_intents.requirement_occurrence_id` is nullable
+    // by design, and `null = <uuid>` is NULL, not true. Asserted because the
+    // policy's null behaviour is the kind of thing a «simplifying» rewrite
+    // (`coalesce`, `is not distinct from`) silently inverts.
+    const res = await bytes(cookie, fallback);
+    expect(res.status).toBe(404);
+    expect((await res.json()).code).toBe("EXTERNAL_SHARE_INVALID");
+  });
+
+  it("gives the SAME refusal for an id that does not exist, and for a malformed one", async () => {
+    // No oracle: «not yours», «never existed» and «not even a uuid» are one
+    // answer. The envelope is compared field for field except `requestId`,
+    // which is minted per request and must differ.
+    const absent = await bytes(cookie, crypto.randomUUID());
+    const malformed = await bytes(cookie, "not-a-uuid");
+    const foreign = await bytes(cookie, sibling);
+    expect([absent.status, malformed.status, foreign.status]).toEqual([404, 404, 404]);
+    const [a, m, f] = [await absent.json(), await malformed.json(), await foreign.json()];
+    expect({ ...m, requestId: null }).toEqual({ ...a, requestId: null });
+    expect({ ...f, requestId: null }).toEqual({ ...a, requestId: null });
+    // A malformed id must not become a 500 through SQLSTATE 22P02 — the shape
+    // difference would be measurable even though it is not an existence oracle.
+    expect(m.code).toBe("EXTERNAL_SHARE_INVALID");
+  });
+
+  it("refuses with no cookie, and with a well-formed cookie naming nothing", async () => {
+    expect((await bytes(null, mine)).status).toBe(404);
+    expect((await bytes("x".repeat(43), mine)).status).toBe(404);
+  });
+
+  it("refuses another workspace's session — the grant never crosses a boundary", async () => {
+    // A LIVE session, correctly exchanged, for a DIFFERENT workspace's own
+    // obligation. The cookie is valid; the object is not in its scope.
+    const own = mine;
+    current = B;
+    const other = await baseline(B);
+    await captureOne(other.assignmentId, JPEG, other.occurrenceId);
+    const { cookie: otherCookie } = await openLink(
+      other.occurrenceId, "prykladinshyi@example.test");
+    current = A;
+    const res = await bytes(otherCookie, own);
+    expect(res.status).toBe(404);
+    expect((await res.json()).code).toBe("EXTERNAL_SHARE_INVALID");
+  });
+
+  it("refuses after the grant is revoked", async () => {
+    // The exchange bumped the grant to version 2.
+    const rev = await revoke(grantId, 2);
+    expect(rev.status, await rev.clone().text()).toBe(200);
+    expect((await rev.json()).revokedStatus).toBe("revoked");
+
+    const res = await bytes(cookie, mine);
+    expect(res.status).toBe(404);
+    expect((await res.json()).code).toBe("EXTERNAL_SHARE_INVALID");
+
+    // NOT ASSERTED, AND NOT ACHIEVABLE HERE: that a transfer already in flight
+    // stops. Revocation is revalidated per request — twice, at session
+    // resolution and again per statement — and «during» is implemented nowhere
+    // in this repository: no chunked re-check, no abort path, no cancellation
+    // token, and `openObjectStream` takes no `AbortSignal`. Asserting it would
+    // be a false guarantee.
+  });
+
+  it("writes nothing — not an audit row, not an outbox row, not an idempotency record", async () => {
+    // A GET on this plane mutates no grant (INV-010) and this one additionally
+    // records no read. `audit_events` is unreadable from the external session
+    // itself, so the sweep runs as the admin client.
+    const before = await q<{ n: string }>(
+      `select (
+         (select count(*) from public.audit_events)
+       + (select count(*) from public.transaction_outbox)
+       + (select count(*) from public.idempotency_records))::text as n`);
+    const res = await bytes(cookie, mine);
+    expect(res.status).toBe(200);
+    await res.arrayBuffer();
+    const after = await q<{ n: string }>(
+      `select (
+         (select count(*) from public.audit_events)
+       + (select count(*) from public.transaction_outbox)
+       + (select count(*) from public.idempotency_records))::text as n`);
+    expect(after[0]!.n).toBe(before[0]!.n);
+    // And the grant is untouched: not consumed a second time, not revoked.
+    const g = await q<{ status: string }>(
+      `select status from public.external_access_grants where id = $1`, [grantId]);
+    expect(g[0]!.status).toBe("active");
+  });
+});

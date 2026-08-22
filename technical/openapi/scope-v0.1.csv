@@ -58,5 +58,6 @@ external_grants.revoke_reissue,POST,/v1/grants/{grantId}/revoke-reissue,command,
 external.review_shell,GET,/external/review,query,natural,public,none (HTML shell; fragment never sent),none (HTML shell),v0.1-M5
 external.exchange,POST,/external/exchange,command,single_use,public,@goproceed/contracts#external,@goproceed/contracts#external,v0.1-M5
 external.occurrence_scope,GET,/external/occurrence,query,natural,external,@goproceed/contracts#external,@goproceed/contracts#external,v0.1-M5
+external.evidence_bytes,GET,/external/evidence,query,natural,external,none (binary stream),none (binary stream),v0.1-M6
 external.occurrence_decision_submit,POST,/external/occurrence-decisions,command,required,external,@goproceed/contracts#external,@goproceed/contracts#external,v0.1-M5
 blocked_value.get,GET,/v1/projects/{projectId}/blocked-value,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M6
