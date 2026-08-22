@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 
 import { listProjects } from "../../src/services/projects.service";
+import { getMeContext } from "../../src/services/workspaces.service";
 import { NoProjectsEmptyState } from "../../src/components/dash-shell/no-projects-empty-state";
+import { NoWorkspaceEmptyState } from "../../src/components/dash-shell/no-workspace-empty-state";
 import { ProjectsList } from "../../src/components/dash-shell/projects-list";
 import { ShellFatalError } from "../../src/components/dash-shell/shell-error";
 
@@ -14,6 +16,23 @@ import { ShellFatalError } from "../../src/components/dash-shell/shell-error";
  * lives; this page only ever runs once a workspace is known to exist.
  */
 export default async function DashIndexPage() {
+  // THE "NO WORKSPACE" BRANCH LIVES HERE NOW, not in `src/layouts/dash-layout.tsx`.
+  // A layout wraps every route in the segment and cannot tell which one it is
+  // wrapping, so deciding there replaced `/dash/settings/profile` — the only
+  // screen that shows the signed-in address — with «Немає робочого простору»
+  // for precisely the new account most likely to be checking it. This is the
+  // one screen the sentence is actually about, and it is asked BEFORE
+  // `listProjects`, because a caller with no workspace also has no projects
+  // and would otherwise be told the narrower, wronger thing («Немає проєктів»).
+  //
+  // Not a second round trip: `app/dash/layout.tsx` already called this in the
+  // same render pass, and `apiGet` goes through `fetch`, which Next memoizes
+  // per pass for an identical GET.
+  const meResult = await getMeContext();
+  if (meResult.kind === "session_expired") redirect(`/login?next=${encodeURIComponent("/dash")}`);
+  if (meResult.kind === "error") return <ShellFatalError />;
+  if (meResult.meContext.memberships.length === 0) return <NoWorkspaceEmptyState />;
+
   const result = await listProjects();
   if (result.kind === "session_expired") redirect(`/login?next=${encodeURIComponent("/dash")}`);
   if (result.kind === "error") {
@@ -29,11 +48,12 @@ export default async function DashIndexPage() {
     // functions/fetch#memoization, checked against installed `next@16.3.1` —
     // so the two calls cannot disagree within a request either.)
     //
-    // That is a fact about the CURRENT route topology, not an invariant.
-    // Once D1–D4 add sibling routes under `/dash`, a soft navigation between
-    // them re-renders only the page segment: the shared layout does not
-    // re-run, its guard does not re-run, and this branch is reached with the
-    // shell still on screen.
+    // That is only true of a FULL request, and this commit is what made the
+    // difference matter: `/dash/settings/profile` is a sibling page under the
+    // same layout, linked from the profile menu. A soft navigation back from
+    // it re-renders only the page segment — the shared layout does not re-run
+    // and its guard does not re-run — so this branch is reachable TODAY, with
+    // the shell still on screen, not once D1–D4 land.
     //
     // So it renders rather than throws. There is no `error.tsx` or
     // `global-error.tsx` anywhere under `apps/app`, so a throw here paints

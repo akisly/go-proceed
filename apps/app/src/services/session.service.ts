@@ -60,9 +60,14 @@ export const getSessionIdentity = cache(async function getSessionIdentity(): Pro
     // expired, revoked, signed out in another tab) both mean the same thing
     // to every caller: send this request to `/login`. Anything else — the
     // Auth server unreachable, a 500, a malformed response — is a genuine
-    // failure, and answering it with a redirect to `/login` would put a user
-    // whose session is perfectly valid into a loop through `proxy.ts`, which
-    // would let them straight back in.
+    // failure, and answering THAT with a redirect to `/login` would take a
+    // user whose session is perfectly valid and make them sign in again for
+    // a fault that has nothing to do with their session. It is not a loop —
+    // `proxy.ts:94`'s only redirect is guarded `!user`, so it would not send
+    // them back — it is a dead end that is indistinguishable, from the
+    // outside, from having been logged out. (This comment claimed the loop
+    // until 2026-08-22; corrected in fix round 1.) `ShellFatalError` says
+    // what actually happened instead.
     if (error) {
       if (isAuthSessionMissingError(error)) return { kind: "session_expired" };
       if (isAuthApiError(error) && (error.status === 401 || error.status === 403)) {

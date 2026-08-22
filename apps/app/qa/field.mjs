@@ -51,7 +51,20 @@ import { launch } from "./browser.mjs";
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-const OUTPUT = path.resolve("qa-output");
+/**
+ * EVERY PATH BELOW IS DERIVED FROM THIS FILE, NOT FROM THE CWD.
+ *
+ * `OUTPUT` was `path.resolve("qa-output")` and `startNextServer` spawned with
+ * `cwd: process.cwd()`, so this harness only ran when the shell already stood
+ * in `apps/app`. Run the exact command the task brief and the gate name —
+ * `node apps/app/qa/field.mjs` from the repository root — and `pnpm exec next`
+ * resolved against the root workspace instead, dying with «Command "next" not
+ * found»: a message that names the wrong cause entirely and sends the reader
+ * looking for a missing dependency. CI never hit it because it runs
+ * `pnpm --filter @goproceed/app qa`, which sets the cwd for you.
+ */
+const APP_DIR = path.resolve(import.meta.dirname, "..");
+const OUTPUT = path.join(APP_DIR, "qa-output");
 const SHOTS = path.join(OUTPUT, "screenshots");
 
 // ---------------------------------------------------------------------------
@@ -118,6 +131,33 @@ async function getFreePort() {
   });
 }
 
+/**
+ * Every detached server group this process has started and not yet stopped.
+ * See the `detached` note inside `startNextServer` for why this exists at all.
+ */
+const serverGroups = new Set();
+
+function killAllServerGroups(signal) {
+  for (const proc of serverGroups) {
+    try {
+      process.kill(-proc.pid, signal);
+    } catch {
+      /* already gone */
+    }
+  }
+}
+
+// `exit` can only run synchronous work, and `process.kill` is synchronous, so
+// this is the last-resort net for an uncaught throw. The two signal handlers
+// re-raise with the conventional 128+n code rather than swallowing the signal.
+process.on("exit", () => killAllServerGroups("SIGKILL"));
+for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+  process.once(signal, () => {
+    killAllServerGroups("SIGKILL");
+    process.exit(code);
+  });
+}
+
 async function startNextServer() {
   const port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
@@ -127,7 +167,7 @@ async function startNextServer() {
     process.platform === "win32" ? "pnpm.cmd" : "pnpm",
     ["exec", "next", "start", "-p", String(port), "-H", "127.0.0.1"],
     {
-      cwd: process.cwd(),
+      cwd: APP_DIR,
       env: {
         ...process.env,
         NEXT_PUBLIC_SUPABASE_URL: SUPABASE_URL,
@@ -188,6 +228,17 @@ async function startNextServer() {
       detached: true,
     },
   );
+
+  // …AND `detached` HAS A COST THAT HAS TO BE PAID BACK HERE. Severing the
+  // child from this process's group is what makes `stopServer` able to signal
+  // the whole `pnpm → pnpm → next` chain — and it also means the chain no
+  // longer dies with the harness. Before this change a Ctrl-C killed the
+  // server as collateral; after it, any exit that does not reach `stopServer`
+  // (SIGINT, SIGTERM, an uncaught throw) would leave a `next start` holding a
+  // port for the rest of the session. These handlers are that guarantee, and
+  // `stopServer` removes them so a normal shutdown does not fire twice.
+  proc.once("exit", () => { serverGroups.delete(proc); });
+  serverGroups.add(proc);
   proc.stdout.on("data", (d) => stdout.push(d.toString()));
   proc.stderr.on("data", (d) => stderr.push(d.toString()));
 
@@ -239,6 +290,11 @@ async function stopServer(proc) {
       /* already gone, or never had a group — nothing left to stop */
     }
   };
+
+  // Out of the registry first: from here the shutdown is deliberate, and the
+  // `exit`/signal nets in `killAllServerGroups` have nothing left to do for
+  // this one.
+  serverGroups.delete(proc);
 
   signalGroup("SIGTERM");
   const exited = await Promise.race([
@@ -857,17 +913,28 @@ async function measureUaStyledLinks(page) {
  * one times out with a message about an element not being clickable, which
  * names the symptom and not the cause.
  *
- * `checkVisibility()` rather than a computed-style walk, for the reason the
- * disclaimer check above already establishes at length: it is the engine's own
- * answer and it correctly excludes a closed `<details>`, `display:none` and
- * `visibility:hidden` in one call. The width test catches the remaining case
- * it does not — an element that is technically visible with a zero-width box.
+ * `checkVisibility()` rather than a computed-style walk — it is the engine's
+ * own answer — but IT MUST BE PASSED OPTIONS, which this helper did not do
+ * until 2026-08-22. `visibilityProperty` and `contentVisibilityAuto` both
+ * DEFAULT TO FALSE, and a `visibility: hidden` element still generates a box,
+ * so a bare `checkVisibility()` returns TRUE for one. The header here claimed
+ * it excluded `visibility:hidden` "in one call"; it did not, and these two
+ * helpers decide which of the shell's two duplicated profile controls the
+ * audit is talking about, so the gap was load-bearing.
+ *
+ * `opacityProperty` is deliberately NOT set: it would treat `opacity: 0` as
+ * hidden, and `animate-chip-in` passes through exactly that on its first
+ * frame, which would make every menu and dialog lookup racy. The width test
+ * below covers the remaining case — a box that is technically visible with no
+ * width.
  */
+const VISIBILITY_OPTIONS = { visibilityProperty: true, contentVisibilityAuto: true };
+
 async function visibleHandle(page, selector) {
   for (const handle of await page.$$(selector)) {
-    const rendered = await handle.evaluate((el) =>
-      (typeof el.checkVisibility === "function" ? el.checkVisibility() : true)
-      && el.getBoundingClientRect().width > 0);
+    const rendered = await handle.evaluate((el, opts) =>
+      (typeof el.checkVisibility === "function" ? el.checkVisibility(opts) : true)
+      && el.getBoundingClientRect().width > 0, VISIBILITY_OPTIONS);
     if (rendered) return handle;
     await handle.dispose();
   }
@@ -878,13 +945,36 @@ async function visibleHandle(page, selector) {
  * for menu items and dialog buttons, which carry no id and no test hook. */
 async function visibleHandleWithText(page, selector, text) {
   for (const handle of await page.$$(selector)) {
-    const match = await handle.evaluate((el, want) =>
-      (typeof el.checkVisibility === "function" ? el.checkVisibility() : true)
-      && (el.textContent ?? "").trim() === want, text);
+    const match = await handle.evaluate((el, want, opts) =>
+      (typeof el.checkVisibility === "function" ? el.checkVisibility(opts) : true)
+      && (el.textContent ?? "").trim() === want, text, VISIBILITY_OPTIONS);
     if (match) return handle;
     await handle.dispose();
   }
   return null;
+}
+
+/**
+ * Waits until nothing on the page is still animating.
+ *
+ * GEOMETRY MEASURED MID-ANIMATION IS THE WRONG GEOMETRY, and this harness
+ * proved it against itself: `animate-chip-in` scales the drawer up from 95%,
+ * and `getBoundingClientRect()` returns the TRANSFORMED box, so the four nav
+ * buttons and the close button reported 42px against a 44px floor — 44 ×
+ * 0.955 — and the touch-target audit failed on a drawer that is 44px the
+ * moment it settles. The earlier runs that passed did so only because
+ * unrelated work happened to sit between opening the drawer and measuring it.
+ *
+ * `getAnimations()` is the engine's own answer, so this covers CSS animations
+ * and transitions without naming any of them. Bounded, and a timeout is not a
+ * finding: an animation that never finishes is the marquee's business, not
+ * this helper's, and every caller below asserts something real straight after.
+ */
+async function waitForAnimations(page, timeoutMs = 3_000) {
+  await page.waitForFunction(
+    () => document.getAnimations().every((a) => a.playState === "finished" || a.playState === "idle"),
+    { timeout: timeoutMs },
+  ).catch(() => {});
 }
 
 /** `null` when the two boxes do not overlap; a description when they do. */
@@ -1591,11 +1681,11 @@ async function main() {
           if (railRect.height < 44) {
             ctx.findings.push(`/dash @1000: the profile control is ${Math.round(railRect.height)}px tall — below the 44px floor`);
           }
-          const navItemWidth = await page.evaluate(() => {
+          const navItemWidth = await page.evaluate((VIS) => {
             const btn = [...document.querySelectorAll('nav[aria-label="Основна навігація"] li button')]
-              .find((b) => b.checkVisibility());
+              .find((b) => b.checkVisibility(VIS));
             return btn ? btn.getBoundingClientRect().width : null;
-          });
+          }, VISIBILITY_OPTIONS);
           if (navItemWidth === null) {
             ctx.findings.push("/dash @1000: no visible nav button to compare the profile control's width against");
           } else if (Math.abs(railRect.width - navItemWidth) > 1) {
@@ -1606,10 +1696,10 @@ async function main() {
           // would also pass a rail that never collapsed anything and simply
           // overflowed its 68px.
           const emailShownInRail = await page.evaluate(
-            (sel, addr) => {
-              const btn = [...document.querySelectorAll(sel)].find((b) => b.checkVisibility());
+            (sel, addr, VIS) => {
+              const btn = [...document.querySelectorAll(sel)].find((b) => b.checkVisibility(VIS));
               return btn ? (btn.innerText ?? "").includes(addr) : false;
-            }, PROFILE_TRIGGER, email);
+            }, PROFILE_TRIGGER, email, VISIBILITY_OPTIONS);
           if (emailShownInRail) {
             ctx.findings.push(`/dash @1000: the address is still rendered in the collapsed icon rail — \`rail-icons:hidden\` has been lost from ProfileMenu's label`);
           }
@@ -1637,16 +1727,16 @@ async function main() {
             : { width, height });
           await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
 
-          const state = await page.evaluate(() => ({
+          const state = await page.evaluate((VIS) => ({
             railProfile: !!(() => {
               const el = document.querySelector('nav[aria-label="Основна навігація"] button[aria-label="Профіль і вихід"]');
-              return el && el.checkVisibility();
+              return el && el.checkVisibility(VIS);
             })(),
             menuButton: !!(() => {
               const el = document.querySelector('button[aria-label="Відкрити меню"]');
-              return el && el.checkVisibility();
+              return el && el.checkVisibility(VIS);
             })(),
-          }));
+          }), VISIBILITY_OPTIONS);
           if (phone && (state.railProfile || !state.menuButton)) {
             ctx.findings.push(`/dash @${width}: below md the persistent rail must be gone and the drawer's menu button present — rail profile visible: ${state.railProfile}, menu button visible: ${state.menuButton}`);
           }
@@ -1673,6 +1763,7 @@ async function main() {
         await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
         await page.click('button[aria-label="Відкрити меню"]');
         await page.waitForSelector('[role="dialog"]');
+        await waitForAnimations(page);
         const reducedMotion = await page.evaluate(() => {
           const content = document.querySelector('[role="dialog"]');
           if (!content) return null;
@@ -1692,6 +1783,7 @@ async function main() {
         await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
         await page.click('button[aria-label="Відкрити меню"]');
         await page.waitForSelector('[role="dialog"]');
+        await waitForAnimations(page);
 
         // THE `pt-16` CLEARANCE, MEASURED INSTEAD OF DERIVED. 64px was
         // computed by hand from `top-4` + `--gp-control-height-touch` (44px)
@@ -1759,6 +1851,79 @@ async function main() {
           await drawerTrigger.dispose();
         }
 
+        // ── 2b. «Профіль» FROM THE DRAWER — THE ROUTE CHANGE MUST CLOSE IT ──
+        // THIS WAS A SHIPPED BUG AND NO ASSERTION HERE WOULD HAVE CAUGHT IT.
+        // `top-bar.tsx` held a bare uncontrolled `<Dialog>`, and
+        // `/dash/settings/profile` is nested under `app/dash/layout.tsx`, so
+        // the soft navigation re-renders only `children` — `TopBar` is not
+        // remounted and the drawer's open state survives. Radix's modal
+        // content keeps `hideOthers()` applied, so the page the user just
+        // asked for is covered, focus-trapped and `aria-hidden`, with no way
+        // forward but closing the drawer by hand. The desktop path could
+        // never show it: there is no drawer at all above `md`.
+        // The Escape test above closed the menu (that was its point), so it has
+        // to be reopened before there is a «Профіль» item to press.
+        const reopenTrigger = await visibleHandle(page, `[role="dialog"] ${PROFILE_TRIGGER}`);
+        if (reopenTrigger) {
+          await reopenTrigger.click();
+          await page.waitForSelector('[role="menu"]', { timeout: 5_000 }).catch(() => {});
+          await reopenTrigger.dispose();
+        }
+        const drawerProfileItem = await visibleHandleWithText(page, '[role="menuitem"]', "Профіль");
+        if (!drawerProfileItem) {
+          ctx.findings.push("drawer @375: the profile menu has no visible «Профіль» item — the drawer navigation check could not run");
+        } else {
+          await Promise.all([
+            page.waitForFunction(() => location.pathname === "/dash/settings/profile", { timeout: 10_000 }),
+            drawerProfileItem.click(),
+          ]).catch(() => ctx.findings.push("drawer @375: «Профіль» did not navigate to /dash/settings/profile"));
+          await drawerProfileItem.dispose();
+
+          // Given up to 3s rather than sampled instantly: Radix unmounts the
+          // content on `open=false` with no exit animation, but a one-frame
+          // commit delay would otherwise read as the bug. A drawer that is
+          // still there after three seconds is not mid-frame.
+          const drawerClosed = await page
+            .waitForFunction(() => document.querySelectorAll('[role="dialog"]').length === 0, { timeout: 3_000 })
+            .then(() => true).catch(() => false);
+
+          const afterDrawerNav = await page.evaluate((VIS) => {
+            const heading = document.querySelector("h1");
+            return {
+              openDialogs: document.querySelectorAll('[role="dialog"]').length,
+              // `aria-hidden` on an ancestor is the other half of the damage:
+              // `hideOthers()` marks every sibling of the modal content, so the
+              // page can be on screen and still be invisible to a screen reader.
+              headingRendered: !!heading && heading.checkVisibility(VIS),
+              headingHiddenFromAT: !!heading?.closest('[aria-hidden="true"]'),
+              headingText: (heading?.textContent ?? "").trim(),
+            };
+          }, VISIBILITY_OPTIONS);
+
+          if (!drawerClosed || afterDrawerNav.openDialogs > 0) {
+            ctx.findings.push(
+              `drawer @375: the navigation drawer is STILL OPEN after «Профіль» navigated (${afterDrawerNav.openDialogs} dialog(s)) — `
+              + "it covers the page it just sent the user to; top-bar.tsx's Dialog must close on a route change",
+            );
+          }
+          if (!afterDrawerNav.headingRendered || afterDrawerNav.headingHiddenFromAT) {
+            ctx.findings.push(
+              `drawer @375: the profile screen's heading is not genuinely reachable after navigating from the drawer `
+              + `(rendered: ${afterDrawerNav.headingRendered}, inside aria-hidden: ${afterDrawerNav.headingHiddenFromAT})`,
+            );
+          }
+          if (afterDrawerNav.headingText !== "Профіль") {
+            ctx.findings.push(`drawer @375: expected the «Профіль» heading after navigating, found "${afterDrawerNav.headingText}"`);
+          }
+          await page.screenshot({ path: path.join(SHOTS, "dash-drawer-navigated.png"), fullPage: true });
+          // Back to `/dash` for the touch-target and overflow checks below,
+          // which are about the dashboard index, not this screen.
+          await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
+          await page.click('button[aria-label="Відкрити меню"]');
+          await page.waitForSelector('[role="dialog"]');
+          await waitForAnimations(page);
+        }
+
         for (const t of await measureSmallTargets(page)) {
           ctx.findings.push(`/dash drawer @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
         }
@@ -1811,13 +1976,27 @@ async function main() {
         // restores focus, so the condition legitimately never becomes true,
         // and the click below is the real assertion either way.
         const settleAfterDialog = async () => {
+          // THREE CONDITIONS, BECAUSE FOCUS ALONE IS NOT "TORN DOWN". The
+          // dialog has to be out of the DOM, every animation finished, and
+          // focus landed back on the trigger — Radix's own restore runs in a
+          // `setTimeout(…, 0)` inside FocusScope's effect cleanup
+          // (@radix-ui/react-focus-scope@1.1.16, dist/index.mjs:92-104), and
+          // `RemoveScroll`/`hideOthers` unwind around the same moment.
           await page.waitForFunction(
-            (sel) => {
-              const btn = [...document.querySelectorAll(sel)].find((b) => b.checkVisibility());
+            (sel, VIS) => {
+              if (document.querySelector('[role="dialog"]')) return false;
+              if (!document.getAnimations().every((a) => a.playState === "finished" || a.playState === "idle")) return false;
+              const btn = [...document.querySelectorAll(sel)].find((b) => b.checkVisibility(VIS));
               return !!btn && document.activeElement === btn;
             },
-            { timeout: 2_000 }, PROFILE_TRIGGER,
+            { timeout: 3_000 }, PROFILE_TRIGGER, VISIBILITY_OPTIONS,
           ).catch(() => {});
+          // …and then two frames, which is the one thing a state query cannot
+          // express: React commits the unmount, and the effect cleanups that
+          // follow it are what actually release the focus scope.
+          await page.evaluate(() => new Promise((resolve) => {
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+          }));
         };
 
         const openMenu = async (where) => {
@@ -1831,11 +2010,11 @@ async function main() {
             .then(() => true).catch(() => false);
           await trigger.dispose();
           if (!opened) {
-            const why = await page.evaluate((sel) => {
+            const why = await page.evaluate((sel, VIS) => {
               const describe = (el) => el
                 ? `<${el.tagName.toLowerCase()}${el.getAttribute("role") ? ` role=${el.getAttribute("role")}` : ""} class="${String(el.className).slice(0, 90)}">`
                 : "(none)";
-              const btn = [...document.querySelectorAll(sel)].find((b) => b.checkVisibility());
+              const btn = [...document.querySelectorAll(sel)].find((b) => b.checkVisibility(VIS));
               const r = btn ? btn.getBoundingClientRect() : null;
               // WHAT THE POINTER ACTUALLY HITS at the control's own centre. A
               // leftover full-screen overlay swallows every press while
@@ -1868,7 +2047,7 @@ async function main() {
                 blockedAncestors: blockers.join(" | ") || "(none)",
                 activeElement: describe(document.activeElement),
               };
-            }, PROFILE_TRIGGER);
+            }, PROFILE_TRIGGER, VISIBILITY_OPTIONS);
             ctx.findings.push(
               `${where}: clicking the profile control did not open its menu. `
               + `trigger data-state=${why.triggerState}; the point at its centre hits ${why.hitAtTriggerCentre}; `
@@ -1997,14 +2176,68 @@ async function main() {
               ctx.findings.push(`sign-out: «Скасувати» changed the session cookies (${cookiesBefore.join()} → ${cookiesAfterCancel.join()}) — cancelling must sign nothing out`);
             }
 
-            // THE PAGE IS STILL USABLE AFTER CANCELLING, AND THIS ASSERTION
-            // EXISTS BECAUSE IT WAS NOT. A Radix dialog opened from a Radix
-            // menu item leaves `document.body.style.pointer-events: none`
-            // behind when the two modal layers' locks interleave — the dialog
-            // captures the body's "original" value while the menu still holds
-            // the lock, then restores that captured `none` on close. Nothing
-            // looks wrong: the dialog closes, the shell repaints, and every
-            // control on the dashboard is silently dead until a reload.
+            // THE PAGE IS STILL USABLE AFTER CANCELLING.
+            //
+            // THE MECHANISM THIS COMMENT FIRST GAVE IS NOT POSSIBLE IN THE
+            // INSTALLED VERSION, and saying so is the point: it claimed the
+            // dialog captures the body's "original" pointer-events while the
+            // menu still holds the lock, and then restores that captured
+            // `none`. In `@radix-ui/react-dismissable-layer@1.1.19` the
+            // capture is guarded — `if (layersWithOutsidePointerEventsDisabled
+            // .size === 0) { originalBodyPointerEvents = … }`
+            // (dist/index.mjs:110-114) — so a second layer mounting on top of
+            // a first cannot capture `none`, and the restore is refcounted by
+            // the same Set. (Corrected 2026-08-22, fix round 1.)
+            //
+            // The assertion stays, and stays cheap, because what it measures
+            // is the SYMPTOM and not any one library's route to it: a
+            // dashboard whose every control is silently dead until a reload
+            // looks completely normal in a screenshot. `body.style` is where
+            // that state would land whatever produced it — a future Radix
+            // version, a scroll-lock library, or our own code.
+            // FOCUS LANDS SOMEWHERE DELIBERATE, NOT ON `<body>`.
+            // Radix's modal DialogContent ships
+            // `onCloseAutoFocus: composeEventHandlers(props…, (e) => {
+            // e.preventDefault(); context.triggerRef.current?.focus(); })`
+            // (@radix-ui/react-dialog@1.1.23, dist/index.mjs:154-156). This
+            // dialog is controlled and has NO `DialogTrigger`, so that ref is
+            // null, the optional call no-ops, FocusScope's own restore has
+            // already been cancelled by the `preventDefault` above it, and a
+            // keyboard user is dropped to the top of the document mid-flow.
+            // `sign-out-dialog.tsx` now restores to the profile trigger; this
+            // is what proves the restore actually happened, since nothing
+            // about it is visible in a screenshot.
+            // MEASURED AFTER THE RESTORE HAS HAD ITS CHANCE, NOT THE INSTANT
+            // THE DIALOG LEAVES THE DOM. `@radix-ui/react-focus-scope@1.1.16`
+            // dispatches its unmount-autofocus event inside a
+            // `setTimeout(…, 0)` in the effect cleanup (dist/index.mjs:92-104),
+            // so both Radix's restore and ours run a macrotask AFTER the node
+            // is gone. Sampling `activeElement` immediately reports `<body>`
+            // even when the restore is about to land correctly — this exact
+            // assertion did, on its first run. Bounded, so a restore that
+            // never happens is still a finding: two seconds is far longer than
+            // one macrotask and far shorter than a user would tolerate.
+            await page
+              .waitForFunction(() => document.activeElement !== null && document.activeElement !== document.body,
+                { timeout: 2_000 })
+              .catch(() => { /* still on <body> — the assertion below is what reports it */ });
+            const focusAfterCancel = await page.evaluate(() => {
+              const el = document.activeElement;
+              return {
+                isBody: el === document.body || el === null,
+                label: el ? `${el.tagName.toLowerCase()}[${el.getAttribute("aria-label") ?? ""}]` : "(none)",
+              };
+            });
+            if (focusAfterCancel.isBody) {
+              ctx.findings.push(
+                "sign-out: closing the confirm left focus on <body> — a keyboard user is thrown to the top of the "
+                + "document mid-flow. Radix focuses its DialogTrigger on close and this dialog has none, so the "
+                + "restore has to be explicit (onCloseAutoFocus).",
+              );
+            } else if (!focusAfterCancel.label.includes("Профіль і вихід")) {
+              ctx.findings.push(`sign-out: after «Скасувати» focus is on ${focusAfterCancel.label}, expected the profile control that opened the dialog`);
+            }
+
             const bodyPointerEvents = await page.evaluate(() => document.body.style.pointerEvents || "");
             if (bodyPointerEvents === "none") {
               ctx.findings.push(
@@ -2040,7 +2273,33 @@ async function main() {
             // the cookies being gone does not evict it. Without the refresh a
             // Back press repaints the signed-in shell from cache, with no
             // server round trip to notice the session died.
-            await page.goBack({ waitUntil: "networkidle0" }).catch(() => {});
+            // THE BACK PRESS HAS TO BE PROVEN TO HAVE HAPPENED, or the
+            // assertion below passes for the wrong reason. `goBack()` used to
+            // be `.catch(() => {})` with nothing checking it, so a throw, or a
+            // history stack with nowhere to go back to, left the page sitting
+            // on `/login` — where there is no shell and no address, so every
+            // check underneath went green having tested nothing.
+            //
+            // `goBack()`'s RETURN VALUE cannot carry that proof: `router.replace`
+            // put `/login` there through the History API, so going back is a
+            // same-document navigation and resolves to `null` exactly as a
+            // no-op would. A `popstate` counter installed first distinguishes
+            // them, and the pathname afterwards is NOT the signal either — the
+            // proxy legitimately sends a session-less `/dash` straight back to
+            // `/login`, so landing there again is a pass, not a failure.
+            await page.evaluate(() => {
+              window.__qaPopstates = 0;
+              window.addEventListener("popstate", () => { window.__qaPopstates += 1; });
+            });
+            let backError = null;
+            await page.goBack({ waitUntil: "networkidle0" }).catch((err) => { backError = err; });
+            const popstates = await page.evaluate(() => window.__qaPopstates ?? 0);
+            if (popstates === 0) {
+              ctx.findings.push(
+                `sign-out: the Back press never navigated (${backError ? `goBack threw: ${backError.message}` : "no popstate fired"}) — `
+                + "the Router-Cache assertion below cannot have tested anything",
+              );
+            }
             const afterBack = await page.evaluate(() => ({
               pathname: location.pathname,
               hasShellNav: !!document.querySelector('nav[aria-label="Основна навігація"]'),

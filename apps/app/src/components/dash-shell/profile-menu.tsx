@@ -7,7 +7,7 @@
 // label/separator/items shape. Every class name below is this system's own
 // token role.
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import { LogOut, UserRound } from "lucide-react";
 import {
@@ -60,6 +60,15 @@ export function ProfileMenu({
   className?: string | undefined;
 }) {
   const [signOutOpen, setSignOutOpen] = useState(false);
+  // Where focus returns to when the sign-out confirm closes — see that
+  // component's `onCloseAutoFocus`. Radix's modal Dialog focuses its own
+  // `DialogTrigger` on close, and this one is controlled and has none, so
+  // without a deliberate target focus is dropped on `<body>`. The menu ITEM
+  // that opened the dialog no longer exists by then (Radix unmounts the menu
+  // on select), so the trigger is the correct and only stable target.
+  // `DropdownMenuTrigger` is a direct re-export of Radix's own Trigger, so it
+  // forwards this ref natively.
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   return (
     <>
@@ -71,6 +80,7 @@ export function ProfileMenu({
          * a ref, and Radix's `asChild` composes one onto its child.
          */}
         <DropdownMenuTrigger
+          ref={triggerRef}
           aria-label="Профіль і вихід"
           className={cx(
             "flex w-full items-center gap-2 rounded-control p-1",
@@ -135,7 +145,11 @@ export function ProfileMenu({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <SignOutDialog open={signOutOpen} onOpenChange={setSignOutOpen} />
+      <SignOutDialog
+        open={signOutOpen}
+        onOpenChange={setSignOutOpen}
+        returnFocusTo={triggerRef}
+      />
     </>
   );
 }

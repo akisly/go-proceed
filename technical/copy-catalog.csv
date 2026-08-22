@@ -299,7 +299,7 @@ dash.workspace_switch.disabled,Перемикання між робочими п
 dash.topbar.open_menu,Відкрити меню,dash,nav,"mobile TopBar hamburger button aria-label; opens the off-canvas Sidebar drawer (Dialog)"
 dash.drawer.title,Навігація,dash,nav,"sr-only DialogTitle for the mobile navigation drawer — Radix's own accessibility contract, see Dialog.tsx"
 dash.empty.no_workspace_title,Немає робочого простору,dash,empty,"apps/app/src/components/dash-shell/no-workspace-empty-state.tsx heading — rendered by src/layouts/dash-layout.tsx when the caller has zero workspace memberships"
-dash.empty.no_workspace,У вас ще немає робочого простору.,dash,empty,"apps/app/src/components/dash-shell/no-workspace-empty-state.tsx description — exact string named in task-2-brief.md"
+dash.empty.no_workspace,У вас ще немає робочого простору.,dash,empty,"apps/app/src/components/dash-shell/no-workspace-empty-state.tsx description — exact string named in task-2-brief.md; also rendered inline by src/components/profile/profile-view.tsx when the caller has no membership to list"
 dash.empty.no_projects_title,Немає проєктів,dash,empty,"apps/app/src/components/dash-shell/no-projects-empty-state.tsx heading — rendered by app/dash/page.tsx when GET /v1/projects returns none"
 dash.empty.no_projects,У цьому просторі ще немає проєктів.,dash,empty,"apps/app/src/components/dash-shell/no-projects-empty-state.tsx description — exact string named in task-2-brief.md"
 dash.error.shell,Не вдалося завантажити робочий простір. Спробуйте ще раз.,dash,error,"apps/app/src/components/dash-shell/shell-error.tsx fatal error — rendered by app/dash/layout.tsx when /v1/me/context or /v1/projects fails with something other than a 401"

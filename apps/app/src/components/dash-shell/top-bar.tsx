@@ -1,9 +1,12 @@
+"use client";
+
 // Structure follows ln-dev7/circle's components/layout/headers (MIT:
 // https://github.com/ln-dev7/circle) — a mobile bar with a menu control that
 // opens the same navigation off-canvas. The drawer itself is Task 1's
 // `Dialog` (Radix), not a bespoke sheet; every class below is a token role.
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger, cx } from "@goproceed/ui/components";
 import { Sidebar } from "./sidebar";
@@ -25,6 +28,35 @@ export function TopBar({
   profileSlot: ReactNode;
   className?: string | undefined;
 }) {
+  // ═══════════════════════════════════════════════════════════════════════
+  // THE DRAWER CLOSES WHEN THE ROUTE CHANGES, AND IT HAS TO BE OWNED HERE.
+  //
+  // This was an uncontrolled `<Dialog>` — no `open`, no `onOpenChange` — and
+  // that was a real bug on a phone the moment the drawer gained its first
+  // link. Tapping «Профіль» inside it soft-navigates to
+  // `/dash/settings/profile`, which is nested under `app/dash/layout.tsx`, so
+  // Next re-renders only `children`: this component is not remounted and the
+  // Dialog's internal open state survives the navigation. Radix's modal
+  // content then keeps `hideOthers()` applied, so the page the user just
+  // asked for sits behind the drawer — covered, focus-trapped and
+  // `aria-hidden` — with no way forward but closing the drawer by hand.
+  //
+  // DERIVED FROM THE PATHNAME, NOT SYNCED TO IT IN AN EFFECT. Storing "the
+  // path this drawer was opened on" and comparing it during render means the
+  // drawer is already closed in the first render of the new route; a
+  // `useEffect(() => setOpen(false), [pathname])` would run after paint and
+  // show one frame of the old drawer over the new page. `null` is the closed
+  // state, so reopening on the same path works normally.
+  //
+  // This is also why the file is now `"use client"`. It renders only client
+  // components (`Dialog`, `Sidebar`) and its props stay serialisable —
+  // `memberships` is plain JSON and `profileSlot` is a client element — so
+  // nothing about the server tree above it changes.
+  // ═══════════════════════════════════════════════════════════════════════
+  const pathname = usePathname();
+  const [openedOn, setOpenedOn] = useState<string | null>(null);
+  const open = openedOn !== null && openedOn === pathname;
+
   return (
     <header
       className={cx(
@@ -32,7 +64,7 @@ export function TopBar({
         className,
       )}
     >
-      <Dialog>
+      <Dialog open={open} onOpenChange={(next) => setOpenedOn(next ? pathname : null)}>
         {/*
          * Not `<DialogTrigger asChild><Button>…</Button></DialogTrigger>`:
          * `Button` does not forward a ref (Task 1's own report flags this —

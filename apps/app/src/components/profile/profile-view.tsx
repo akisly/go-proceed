@@ -1,5 +1,6 @@
 import { Panel, PanelBody, PanelHeader } from "@goproceed/ui/components";
 
+
 import { membershipRoleLabel, membershipStatusLabel } from "../../lib/membership-labels";
 import type { Membership } from "../dash-shell/workspace-switch";
 
@@ -54,6 +55,22 @@ export function ProfileView({
 
       <Panel>
         <PanelHeader title="Робочі простори" count={memberships.length} />
+        {/*
+          * ZERO MEMBERSHIPS IS REACHABLE ON THIS SCREEN, and only became so in
+          * fix round 1: `dash-layout.tsx` used to swap the whole of `children`
+          * for «Немає робочого простору» on every `/dash/**` route, which meant
+          * a brand-new account could not reach the one screen that tells them
+          * which address they signed in as. That decision moved to
+          * `app/dash/page.tsx`, so this panel now has to say the same thing for
+          * itself rather than render an empty box under a count of 0. The
+          * sentence is the catalogue's existing `dash.empty.no_workspace`, not
+          * a second wording for the same fact.
+          */}
+        {memberships.length === 0 && (
+          <PanelBody>
+            <p className="text-data text-ink-muted">У вас ще немає робочого простору.</p>
+          </PanelBody>
+        )}
         <ul>
           {memberships.map((membership, i) => (
             <li

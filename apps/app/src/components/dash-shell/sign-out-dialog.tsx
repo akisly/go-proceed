@@ -5,11 +5,11 @@
 // open state the caller owns, whose confirm performs the sign-out. Every class
 // name below is this system's own token role, never shadcn's CSS variables.
 
-import { useRef, useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import { useRouter } from "next/navigation";
 import {
-  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
-  DialogTitle,
+  Banner, Button, Dialog, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle,
 } from "@goproceed/ui/components";
 
 import { supabaseBrowser } from "../../lib/supabase-browser";
@@ -34,10 +34,16 @@ import { performSignOut } from "../../services/sign-out.service";
  * a failed sign-out is worse than not navigating at all.
  */
 export function SignOutDialog({
-  open, onOpenChange,
+  open, onOpenChange, returnFocusTo,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /**
+   * Where focus goes when this closes — see `onCloseAutoFocus` below. The
+   * profile menu's own trigger, which is the control still on screen and the
+   * one the user was working from.
+   */
+  returnFocusTo?: RefObject<HTMLButtonElement | null> | undefined;
 }) {
   const router = useRouter();
   const [pending, setPending] = useState(false);
@@ -100,17 +106,62 @@ export function SignOutDialog({
         onOpenChange(next);
       }}
     >
-      <DialogContent className="max-w-sm">
+      <DialogContent
+        // `max-w-96`, NOT `max-w-sm` — WHICH COMPILES TO NOTHING HERE.
+        // `packages/ui/src/theme.generated.css:21` clears the whole default
+        // container namespace (`--container-*: initial`) and defines exactly
+        // three roles: `measure` (680px), `content` (1240px), `nav` (880px).
+        // So `max-w-sm` emits NO rule in the dash stylesheet — verified by
+        // grepping the built chunk, the same way the Georgia bug was — and
+        // the 384px this dialog had was borrowed from the field client's
+        // pre-token `app/globals.css`, which only happens to be on the same
+        // document. That is precisely the cross-stylesheet coupling
+        // `dash-theme.css`'s header declares out of scope. `max-w-96` is the
+        // SPACING scale, which this theme keeps intact, and resolves to the
+        // same 384px on the dash stylesheet's own terms.
+        //
+        // None of the three container roles means "a confirm dialog", so this
+        // is a missing role (§3.3 question 2) and it is filed in the task
+        // report rather than invented here — together with the three other
+        // call sites the same gap already affects, `DialogContent`'s own
+        // `max-w-md` default among them.
+        className="max-w-96"
+        // FOCUS GOES SOMEWHERE DELIBERATE WHEN THIS CLOSES. Radix's modal
+        // content ships `onCloseAutoFocus: composeEventHandlers(props..., (e)
+        // => { e.preventDefault(); context.triggerRef.current?.focus(); })`
+        // (@radix-ui/react-dialog@1.1.23, dist/index.mjs:154-156) — it
+        // cancels FocusScope's own restore and then focuses the trigger ref.
+        // This dialog is controlled and has NO `DialogTrigger`, so that ref
+        // is null, the optional call no-ops, and Cancel or Escape leaves
+        // focus on nothing: the browser drops it to `<body>` and a keyboard
+        // user is thrown to the top of the document in the middle of a task.
+        //
+        // `composeEventHandlers` defaults to `checkForDefaultPrevented: true`
+        // (@radix-ui/primitive), so preventing the default here runs INSTEAD
+        // of Radix's handler rather than alongside it — one restore, ours.
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          returnFocusTo?.current?.focus();
+        }}
+      >
         <DialogHeader>
           <DialogTitle>Вийти з системи?</DialogTitle>
           <DialogDescription>Ви зможете увійти знову за одноразовим кодом.</DialogDescription>
         </DialogHeader>
 
-        {failed && (
-          <p role="alert" className="text-data text-status-blocked-fg">
-            Не вдалося вийти. Спробуйте ще раз.
-          </p>
-        )}
+        {/*
+          * `Banner tone="blocked"`, not a hand-rolled `<p>`. The previous
+          * version wore `text-status-blocked-fg` WITHOUT the paired
+          * `bg-status-blocked`/`border-status-blocked-line` the tone is
+          * defined as, and carried `role="alert"` — which `Banner`'s own
+          * header explicitly rejects for this exact situation: «alert
+          * interrupts whatever the screen reader is saying, and a refusal the
+          * user just caused by pressing a button is not an interruption — it
+          * is the answer.» Reusing the component keeps a blocked banner here
+          * the same colour as a blocked chip anywhere else, which is the
+          * reason that tone map is shared.
+          */}
+        {failed && <Banner tone="blocked" title="Не вдалося вийти. Спробуйте ще раз." />}
 
         <DialogFooter>
           {/* `outline`, and the confirm is `primary` (ink) — there is no

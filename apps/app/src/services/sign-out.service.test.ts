@@ -80,19 +80,24 @@ describe("performSignOut — the failure path never navigates", () => {
     const result = await performSignOut({ client: h.client, router: h.router });
 
     expect(result).toEqual({ kind: "error", error });
-    // THE POINT OF THIS TEST. `/login` with a cookie the proxy still accepts
-    // bounces straight back to `/dash` (proxy.ts's `!user` gate), which reads
-    // to the user as a button that did nothing — and hides the failure that
-    // actually happened.
+    // THE POINT OF THIS TEST. A failed sign-out may have left the session
+    // alive and this function cannot tell (see the module header). Navigating
+    // to `/login` regardless would show a login form to someone who is still
+    // signed in — on the shared machine they are trying to leave — and would
+    // wipe the only message saying it did not work. `proxy.ts` does NOT send
+    // them back to `/dash`; its one redirect is guarded on `!user`, so a
+    // signed-in visitor to `/login` simply gets the OTP form. The harm is a
+    // false impression of having signed out, not a bounce.
     expect(h.replace).not.toHaveBeenCalled();
     expect(h.refresh).not.toHaveBeenCalled();
     expect(h.calls).toEqual(["signOut:local"]);
   });
 
   it("surfaces a THROWN error the same way, and still does not navigate", async () => {
-    // `signOut` rejects as well as resolving with `{ error }` — it acquires a
-    // navigator lock and performs a fetch, so a lock timeout or a dropped
-    // connection arrives as a rejection.
+    // A rejection is a real path, though not the one first claimed here: a
+    // dropped connection resolves with `{ error: AuthRetryableFetchError }`,
+    // while `navigatorLock` timing out THROWS. Either way the caller must not
+    // navigate, which is what this pins.
     const thrown = new Error("Failed to fetch");
     const h = harness(async () => { throw thrown; });
 

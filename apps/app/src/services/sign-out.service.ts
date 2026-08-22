@@ -55,10 +55,22 @@
  * round trip to notice the session died. `refresh()` invalidates it. The
  * browser pass asserts the Back navigation, not the call.
  *
- * ON FAILURE, NEITHER. Navigating to `/login` while the cookie may still be
- * valid sends the user through `proxy.ts`, which sees a live session and
- * hands them straight back to `/dash` — indistinguishable, from the outside,
- * from a button that did nothing.
+ * ON FAILURE, NEITHER — AND THE REASON IS NOT THE ONE THIS COMMENT USED TO
+ * GIVE. It claimed `/login` with a live session bounces back to `/dash` via
+ * `proxy.ts`. It does not: `proxy.ts:94` holds that file's only redirect and
+ * it is guarded `if (!user && pathname !== "/login")`, so a signed-in user
+ * who lands on `/login` is served the OTP form like anyone else. Nothing
+ * anywhere in this app redirects to `/dash` — all nine `redirect()` calls go
+ * to `/login?next=…`. (Corrected 2026-08-22, fix round 1.)
+ *
+ * The real reason is worse than the invented one. A failed sign-out may well
+ * have left the session alive — see the `_removeSession` note above, which is
+ * exactly why this function cannot tell. Navigating to `/login` anyway shows
+ * that user a login form while they are still signed in, on a machine they
+ * are trying to walk away from, and destroys the only message saying the
+ * sign-out did not happen. They leave believing it did. Staying put, with the
+ * failure on screen and the button ready to press again, is the only outcome
+ * that cannot be mistaken for success.
  */
 
 /**
@@ -95,10 +107,16 @@ export async function performSignOut({
   try {
     ({ error } = await client.auth.signOut({ scope: "local" }));
   } catch (thrown) {
-    // `signOut` REJECTS as well as resolving with `{ error }`: `_useSession`
-    // acquires a lock and `admin.signOut` fetches, so a lock-acquisition
-    // timeout or a transport failure comes back as a rejection. Both are the
-    // same outcome to the caller, and neither may navigate.
+    // `signOut` CAN REJECT as well as resolve with `{ error }`, but NOT for
+    // the reason this comment first gave. A dropped connection does NOT
+    // reject: `auth-js`'s `lib/fetch.js` wraps it in `AuthRetryableFetchError`
+    // and `GoTrueAdminApi.signOut` returns it through `isAuthError`, so a
+    // transport failure arrives on the `{ error }` path handled below.
+    // (Corrected 2026-08-22, fix round 1.) What genuinely rejects is the
+    // lock: `_useSession` acquires one, and `navigatorLock` throws
+    // `NavigatorLockAcquireTimeoutError` rather than resolving. The catch
+    // stays because that path is real and because an unhandled rejection here
+    // would leave the dialog spinning with no message at all.
     return { kind: "error", error: thrown };
   }
   if (error) return { kind: "error", error };

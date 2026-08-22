@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Sidebar } from "../components/dash-shell/sidebar";
 import { TopBar } from "../components/dash-shell/top-bar";
-import { NoWorkspaceEmptyState } from "../components/dash-shell/no-workspace-empty-state";
 import { ProfileMenu } from "../components/dash-shell/profile-menu";
 import type { Membership } from "../components/dash-shell/workspace-switch";
 
@@ -13,10 +12,17 @@ import type { Membership } from "../components/dash-shell/workspace-switch";
  * calls a service, and renders a component — the actual rail/top-bar/main
  * composition is not routing, so it lives here, not in `app/dash/layout.tsx`.
  *
- * `hasWorkspace` is decided here, not by the route, because it is a
- * presentation decision about THIS shell (which branch of `<main>` to show),
- * not a redirect/error decision the route has to make — those two are
- * already handled before this component is ever reached.
+ * IT NO LONGER DECIDES THE "NO WORKSPACE" BRANCH, and that was a real bug
+ * while it did. This layout used to render `{hasWorkspace ? children :
+ * <NoWorkspaceEmptyState />}`, which swaps the empty state in for EVERY route
+ * under `/dash/**` — including `/dash/settings/profile`, the one screen that
+ * shows the signed-in address, made unreachable for exactly the person most
+ * likely to be looking for it: a brand-new account with no workspace yet,
+ * checking which address they signed in as. A layout cannot tell which child
+ * route it is wrapping, so it is the wrong place to make a per-screen
+ * decision; `app/dash/page.tsx` now makes it for the one screen it is true
+ * of. (Sign-out was never affected — the profile menu lives in this chrome,
+ * outside `children`.)
  *
  * THE PROFILE MENU IS BUILT HERE AND HANDED TO BOTH SURFACES — Task 3's
  * DEFECT 2. Task 2 shipped `profileSlot` on `Sidebar` and on `TopBar` and
@@ -43,7 +49,6 @@ export function DashLayout({
   accountInitial: string;
   children: ReactNode;
 }) {
-  const hasWorkspace = memberships.length > 0;
   const profileSlot = <ProfileMenu accountLabel={accountLabel} accountInitial={accountInitial} />;
 
   return (
@@ -51,9 +56,7 @@ export function DashLayout({
       <Sidebar memberships={memberships} profileSlot={profileSlot} className="hidden md:flex" />
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar memberships={memberships} profileSlot={profileSlot} />
-        <main className="min-w-0 flex-1">
-          {hasWorkspace ? children : <NoWorkspaceEmptyState />}
-        </main>
+        <main className="min-w-0 flex-1">{children}</main>
       </div>
     </div>
   );

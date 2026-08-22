@@ -74,10 +74,22 @@ export default async function DashRouteLayout({ children }: { children: ReactNod
 
   // A session that died between `proxy.ts`'s own `getUser()` and this render
   // takes the same redirect every other 401 here takes. A genuine failure
-  // (Auth unreachable, a 500) must NOT redirect: `proxy.ts` would see the
-  // still-valid cookie and hand the request straight back, which is a loop.
-  // `session.service.ts` separates those two outcomes; this file only reads
-  // the `.kind`.
+  // (Auth unreachable, a 500) must NOT redirect — not because it would loop
+  // (this comment said so until 2026-08-22 and it was wrong: `proxy.ts:94`'s
+  // only redirect is guarded `!user`, so a valid session is never bounced
+  // anywhere), but because it would make a user whose session is fine sign in
+  // again for a fault that is not theirs, and hide the outage behind a login
+  // form. `session.service.ts` separates those two outcomes; this file only
+  // reads the `.kind`.
+  //
+  // `next=/dash` IS COARSER THAN THE PAGE-LEVEL REDIRECTS BELOW IT, and that
+  // is a real limitation rather than an oversight — see the report's fix-round
+  // note on finding L. A layout is rendered before its page and has no
+  // supported way to read the child pathname in a server component, so a
+  // deep link to `/dash/settings/profile` that expires between the proxy and
+  // this render comes back to `/dash`. Every COLD open of that URL is still
+  // preserved exactly, because `proxy.ts` redirects with the full
+  // `pathname + search` before this file ever runs.
   const identityResult = await getSessionIdentity();
   if (identityResult.kind === "session_expired") redirect(`/login?next=${encodeURIComponent("/dash")}`);
   if (identityResult.kind === "error") return <ShellFatalError />;
