@@ -749,6 +749,47 @@ such control appears.
 
 ---
 
+## P2 — `evidence-storage.ts` puts raw storage keys into error messages, and they reach the console
+
+**Found 2026-08-22, researching the evidence read (Plan D slice D1).** Every
+function in `apps/app/src/lib/evidence-storage.ts` interpolates the key into its
+thrown message — `storage: signed upload failed for ${key}`, `download failed
+for ${key}`, `list failed for ${bucket}/${key}`, `remove failed for
+${bucket}/${key}`. These are bare `Error`s, so `toProblemResponse` falls through
+to `apps/app/src/lib/http.ts`'s `console.error("[INTERNAL_ERROR]", requestId,
+err)` branch and the key goes to the platform log verbatim.
+
+`docs/architecture/files-and-storage.md` §Downloads is explicit: «Logs record
+the domain object and authorization result, never the signed URL or raw storage
+key.»
+
+Two things make this worth fixing rather than noting. A storage key is not a
+capability on its own, but it is the input to one — signing is a service-key
+operation over a key, so a leaked key narrows an attacker's search to nothing.
+And the file is the house style a new helper would copy: the D1 signed-read
+helper had to be told explicitly NOT to follow it, and the next one may not be.
+
+The fix is to throw the domain object's id and keep the key out of the message
+entirely, in all six functions.
+
+## P3 — the browser pass cannot assert «no signed URL in the logs», because there are no logs
+
+**Found 2026-08-22, same research.** `apps/app` has no logging library and no
+log lines on any happy path: `console.error` appears three times in the whole
+app, all on error branches, plus two idle-client handlers in
+`packages/database/src/pool.ts`. There is no `middleware.ts`, no
+`instrumentation.ts`, and `next.config.ts` is empty.
+
+So D1's leak test asserts what it can — no signed URL in `audit_events`, in
+`transaction_outbox`, or in any idempotency body — and cannot assert the log
+half of the rule. The rule still binds every future line; there is simply
+nothing to assert against yet. Worth revisiting when structured logging arrives,
+which is also when the P2 above becomes urgent rather than latent.
+
+Not established, and outside this repository: whether Vercel's own platform
+access log records request URLs with query strings for these routes. Nothing in
+`apps/app/vercel.json` configures logging either way.
+
 ## P3 — `technical/schema.sql` reads as current truth and is a design-time reference
 
 **Found 2026-08-22, while designing the evidence read (Plan D slice D1).** The
