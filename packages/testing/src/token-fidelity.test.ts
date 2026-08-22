@@ -57,7 +57,7 @@ const GENERATORS: Array<[script: string, file: string, committed: string]> = [
   ["generate-theme.mjs", "theme.generated.css", "packages/ui/src/theme.generated.css"],
   ["generate-native.mjs", "tokens.generated.ts", "packages/tokens/src/tokens.generated.ts"],
   ["generate-dtcg.mjs", "tokens.dtcg.json", "packages/tokens/src/tokens.dtcg.json"],
-  ["generate-palette.mjs", "palette.generated.mjs", "apps/demo/qa/palette.generated.mjs"],
+  ["generate-palette.mjs", "palette.generated.mjs", "packages/testing/qa/palette.generated.mjs"],
   ["generate-docs.mjs", "01-tokens.md", "docs/design/01-tokens.md"],
   ["generate-merge-config.mjs", "tw-merge.generated.ts", "packages/ui/src/tw-merge.generated.ts"],
 ];

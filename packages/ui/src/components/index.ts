@@ -1,13 +1,13 @@
 /**
  * The component inventory.
  *
- * FIFTEEN, and the list is short on purpose. The system's own rule is "install
- * only what earns its place — an unused variant is the first thing to drift",
- * and a package of forty speculative components is forty things whose contrast,
- * touch targets and states nobody has checked against real content.
+ * EIGHTEEN, and the list is short on purpose. The system's own rule is
+ * "install only what earns its place — an unused variant is the first thing to
+ * drift", and a package of forty speculative components is forty things whose
+ * contrast, touch targets and states nobody has checked against real content.
  *
  * What is deliberately NOT here, and when it arrives:
- *   Dialog, Drawer, DropdownMenu, Popover, CommandPalette — Phase 4, with the
+ *   Drawer, Popover, CommandPalette — Phase 4, with the
  *     app shell that needs them. Radix ships all of them in the one dependency
  *     already installed, so this is scheduling, not a gap.
  *   Select, Combobox, DatePicker, Checkbox, Radio, Switch — with the first real
@@ -16,7 +16,7 @@
  *     because the visible option set is the demo's claim.
  *   Toast — nothing in v0.1 is transient enough to need one, and a refusal the
  *     user must be able to re-read must not be able to disappear.
- *   Avatar, Breadcrumb, Pagination, Timeline, Stepper — no screen needs them
+ *   Breadcrumb, Pagination, Timeline, Stepper — no screen needs them
  *     yet.
  */
 export { cn, cx } from "./cn";
@@ -35,3 +35,12 @@ export { Accordion, type AccordionEntry } from "./Accordion";
 export { Meter, type MeterSegment } from "./Meter";
 export { Figure } from "./Figure";
 export { Table, Th, Td, Tr } from "./Table";
+export {
+  Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle,
+  DialogDescription, DialogFooter, DialogClose,
+} from "./Dialog";
+export {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuLabel,
+} from "./DropdownMenu";
+export { Avatar, AvatarFallback } from "./Avatar";

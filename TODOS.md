@@ -631,16 +631,121 @@ this entry names but does not yet execute, each its own scope-split slice per
    INV-081 — a passing harness and a passing human smoke test on a laptop are
    evidence toward it, not a substitute for it. `apps/app`'s field pages stay
    deployed until the phones say otherwise.
-3. **Plan D — dashboard UI-minimum**, planned as
-   `docs/superpowers/plans/2026-08-XX-dashboard-ui-minimum.md`. Three
-   slices — workspace/project + access grants, assignment creation,
-   photo-evidence view — each behind `docs/design/02-building-ui.md`'s gate,
-   consuming the existing `/v1` routes with no new API.
+3. **Plan D — the office dashboard**, planned as
+   `docs/superpowers/plans/2026-08-21-plan-d-dashboard.md` (the
+   `2026-08-XX-dashboard-ui-minimum.md` filename this entry used to predict
+   was never written). **Slice D0 — the shell — is DONE as of 2026-08-22**;
+   D1–D4 are named there with their anchors already discovered, so nobody
+   rediscovers them the expensive way.
+
+   D0 shipped: `Dialog`/`DropdownMenu`/`Avatar` in `packages/ui` (never a
+   second component tree in the app), the `/dash` shell — desktop rail,
+   mobile drawer, workspace identity, disabled nav for the slices that do not
+   exist yet — a profile page, and **the first way to sign out this product
+   has ever had**. Structure follows plane's hierarchy per
+   `docs/design/03-ui-references.md`: `app/**` is routes only, components are
+   kebab-case under a domain folder, anything that talks to an API is a
+   `src/services/*.service.ts`. Which screen serves which role, and the
+   evidence sentence behind each, is `docs/design/04-role-pain-map.md`.
+
+   **Two corrections this slice forced on the plan's own text**, recorded so
+   D1–D4 do not repeat them: the route is `/dash` as a REAL segment, not the
+   `(dash)` route group the plan named — `(dash)` and the field client's
+   `(app)` both resolve to `/` and Next refuses the build; and
+   `GET /v1/me/context` carries **no email and no name**, so the signed-in
+   address comes from the Supabase session, not from `/v1`.
+
+   D1–D4 remain, in the order the demand scan ranks the pain: evidence by
+   assignment (ПТВ, and the one new API this plan needs — record it in
+   ADR-009 as a dated amendment), overview/blocked value (the payer),
+   assignments over the full contract chain, members & access.
 
 **Meanwhile, the pilot runs on the PWA.** `apps/app`'s field pages stay
 deployed and functional and are the pilot's only working field client until
 Plan C's parity measurement lands. No task in any of the three plans above may
 remove them first.
+
+---
+
+## Surfaced by Plan D slice D0 (the dashboard shell), 2026-08-22
+
+Six residuals the slice found and deliberately did not fix inside it. Each is
+recorded with what was actually established, so the next person does not have
+to re-derive it.
+
+**P2 — no container role means «a dialog» or «a short message», and
+`packages/ui`'s own `Dialog` default is dead in the dashboard.**
+`packages/ui/src/theme.generated.css` does `--container-*: initial`, clearing
+the whole default container namespace, and defines exactly three roles:
+`measure` (680px), `content` (1240px), `nav` (880px). The built dash chunk
+therefore emits **no `.max-w-sm` and no `.max-w-md`** — and `max-w-md` is
+`DialogContent`'s own default width, which means **every dialog in the
+dashboard is full-width unless its caller overrides it**. Nothing is visibly
+broken today because both existing dialogs override (the sign-out confirm now
+uses `max-w-96`, verified in the rebuilt chunk; the drawer sets its own
+width), so this is a trap for the next dialog, not a live defect. **FOUR** call
+sites already carry a dead `max-w-*`, and the fourth is the one most easily
+missed because it is not in this app: `shell-error.tsx` (`max-w-sm`),
+`no-workspace-empty-state.tsx` and `no-projects-empty-state.tsx` (`max-w-md`),
+and `packages/ui/src/components/Dialog.tsx:49` (`max-w-md`) — the component
+default named two sentences above. (`app/(auth)/login/page.tsx` also writes
+`max-w-sm` and is NOT one of them: it is a field-client route, where
+`globals.css` does emit that utility.) This is
+`docs/design/02-building-ui.md` §3.3 question 2 — a missing ROLE, to be added
+in `packages/tokens/src/tokens.json` and regenerated, not one scattered edit
+per call site. **Discovered the same way as the Georgia-font bug below: by
+grepping the compiled CSS chunk, not by reading the source** — a class that
+does not exist produces no error, only an element that renders wrong.
+
+**P3 — the dashboard's headings rendered in a font `apps/app` does not
+install (fixed 2026-08-22, kept for the lesson).** `dash-theme.css`'s header
+claimed the `--font-display` collision with the field client's pre-token
+`app/globals.css` was «sidestepped entirely» by separate compilation units.
+It was not: both files still land in one document, so the dashboard inherited
+Georgia. Fixed and the header corrected. The general hazard — the dash theme
+and the field client's legacy stylesheet sharing a document — outlives this
+instance and is the same mechanism as the P2 above.
+
+**P3 — `next=/dash` is hardcoded in all three `session_expired` arms of
+`apps/app/app/dash/layout.tsx`,** so a deep link to a nested `/dash/**` route
+is discarded on re-authentication. **Deliberately not fixed, with evidence:**
+every cold open with a dead cookie is already caught by `proxy.ts`, which
+redirects with the full `pathname + search` before the layout runs, so this
+arm is reachable only when the session dies *between* the proxy's `getUser()`
+and the render — a same-request race. The App Router gives a server layout no
+supported way to read the child pathname; the fix is a `proxy.ts`-set request
+header, which means editing the auth gate's cookie-rebuild path (`response`
+is reassigned inside `setAll`) to improve a redirect target in a race. Its own
+change, with its own proof.
+
+**P3 — the browser pass has an unexplained reopen race.** Reopening the
+profile menu immediately after the sign-out confirm closes intermittently
+finds the menu shut. Diagnostic when it happens: nothing covering the control,
+nothing inert or `aria-hidden`, no pointer-events lock on the body, zero
+dialogs/menus/poppers, focus already restored to the trigger. Mitigated —
+`settleAfterDialog` now waits on three observable conditions plus two
+animation frames instead of sleeping — and **six consecutive green runs
+followed the mitigation** (three by the implementer, three by the controller
+from the repository root). The mechanism is still not established and no one
+has claimed one; the diagnostic stays in the harness so a recurrence names
+what it saw. Candidate fix is `modal={false}` on the profile `DropdownMenu`,
+NOT shipped because the menu renders inside the modal drawer, which applies
+`hideOthers()`, and a non-modal menu does not call `hideOthers` for its own
+content — trading a verified-passing accessibility path against an
+unestablished race needs its own proof.
+
+**P3 — `apps/app/src/ui/button.tsx` is the field client's own pre-token kit**
+(pre-existing on main, not introduced by Plan D). It is used by the four field
+pages **and by `app/(auth)/login/otp-form.tsx`**. When the PWA field pages
+retire per ADR-009, login remains and must move to `packages/ui`'s `Button` —
+otherwise the retirement leaves one screen on a component tree nothing else
+uses.
+
+**P3 — the three components D0 added to `packages/ui` have no kitchen-sink
+entry,** and `DialogClose` hand-rolls its ghost+icon styling rather than
+composing `Button asChild` (the size map has no icon-sm, and `Button` does not
+forward a ref). Both were judged defensible at the time; revisit when a second
+such control appears.
 
 ---
 
