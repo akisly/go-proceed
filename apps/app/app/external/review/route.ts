@@ -131,16 +131,33 @@ export const dynamic = "force-dynamic";
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * WHAT THIS SHELL IS NOT. It is a functional review surface and not a designed
- * one: no framework, no stylesheet, no images, no fonts — the CSP forbids all
- * four from anywhere but this origin, and inlining a design system would put
+ * one: no framework, no external stylesheet, no fonts — the CSP forbids them
+ * from anywhere but this origin, and inlining a design system would put
  * kilobytes of unreviewed markup on the one page an outside professional judges
  * this product by. `docs/product/` owns that decision and has not taken it;
  * migration 0049 §11 item 6 records that `technical/copy-catalog.csv` carries no
  * row for any of these strings, and the six strings the gate and the resume
  * notice add on 2026-08-08 have no row either.
  *
- * NOTHING HERE WAS EXECUTED. This page has never been served, never been opened
- * in a browser, and the exchange it performs has never run.
+ * «NO IMAGES» WAS IN THAT LIST AND IS NOT ANY MORE — 2026-08-22, Plan D slice
+ * D1. There is exactly one kind of image on this page: the evidence
+ * photographs themselves, each a same-origin `GET /external/evidence?…` the
+ * CSP's own `img-src 'self'` already admitted. That is not a design import and
+ * it is not decoration — it is the material the reviewer is being asked to
+ * judge, and the acceptance walk («reads the requirement in the standard's own
+ * wording WITH THE PHOTO») fails without it. The list above still holds for
+ * everything else.
+ *
+ * IT HAS BEEN EXECUTED SINCE 2026-08-22, and the previous paragraph — «this
+ * page has never been served, never been opened in a browser, and the exchange
+ * it performs has never run» — is retracted rather than edited, because it was
+ * load-bearing: every claim in this header used to be unverified. What now
+ * exercises it is `apps/app/qa/field.mjs`'s seventh audit, which opens a real
+ * link in a SECOND browser context holding no cookies, taps the gate, and
+ * asserts the photo decoded (`naturalWidth > 0`) — so the exchange, the
+ * fragment strip, the session cookie and the byte stream have all run in a
+ * real browser. What is still unexercised there is the DECIDE path: that audit
+ * issues a view-only grant, so `submit()` below has still never been pressed.
  */
 export async function GET(): Promise<Response> {
   const nonce = newCspNonce();
@@ -167,7 +184,21 @@ function shell(nonce: string): string {
 <style>
   :root { color-scheme: light dark; }
   body { font: 16px/1.5 system-ui, sans-serif; margin: 0; padding: 1rem;
-         max-width: 44rem; }
+         max-width: 44rem;
+         /* MEASURED, NOT GUESSED — 2026-08-22. The first browser screenshot
+            this page has ever produced (qa/field.mjs's seventh audit, at
+            375px) showed the normative reference running off the right edge
+            and taking the document's horizontal scroll with it: a ДБН
+            citation ends in a URL and a 64-character sha256, and neither
+            contains a break opportunity. The field client's own obligation
+            screen already carries this exact fix for this exact string, on
+            the argument that a regulatory citation which cannot be read on
+            the device it is for is not really rendered. 'anywhere' rather
+            than 'break-word' because only the former also shrinks the
+            element's min-content width, which is what stops the SCROLL as
+            opposed to merely wrapping the text. The audit now asserts no
+            sideways scroll on this page, so this cannot silently regress. */
+         overflow-wrap: anywhere; }
   h1 { font-size: 1.25rem; }
   h2 { font-size: 1rem; margin-top: 1.5rem; }
   .muted { opacity: .75; font-size: .875rem; }
@@ -183,6 +214,15 @@ function shell(nonce: string): string {
   button.wide { width: 100%; margin: .5rem 0 0; font-size: 1.0625rem;
                 padding: .9rem 1rem; }
   ul { padding-left: 1.25rem; }
+  li + li { margin-top: 1rem; }
+  .fact { margin: 0; }
+  /* A photograph of a wall of conduit, read on a phone on site. 'max-width'
+     because a 4000px original must not take the document's horizontal scroll
+     with it; 'height: auto' so it is never distorted; no fixed aspect ratio,
+     because cropping evidence is not this page's decision to make. */
+  .evidence-image { display: block; margin: .5rem 0 0; max-width: 100%;
+                    height: auto; border: 1px solid currentColor;
+                    border-radius: .25rem; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -422,23 +462,67 @@ function shell(nonce: string): string {
     for (var i = 0; i < data.evidence.length; i++) {
       var e = data.evidence[i];
       var li = document.createElement("li");
+      var facts = document.createElement("p");
+      facts.className = "fact";
       // «claimed» is in the text because it is a CLAIM: origin method and
       // capture time are client-supplied metadata and are labelled as such
       // (tenancy-and-security.md §"Capability evaluation").
-      li.textContent = e.mediaType + " · " + e.byteSize + " Б · SHA-256 "
+      facts.textContent = e.mediaType + " · " + e.byteSize + " Б · SHA-256 "
         + e.contentHash.slice(0, 16) + "… · отримано сервером " + e.serverReceivedAt
         + " · заявлений спосіб: " + e.originMethod
         + (e.claimedCaptureTime ? " · заявлений час зйомки: " + e.claimedCaptureTime : "");
+      li.appendChild(facts);
+      // ── THE PHOTO ITSELF — added 2026-08-22, Plan D slice D1 task 7 ──────
+      //
+      // A SAME-ORIGIN IMG AND NOT A SIGNED URL, and that is the page's own CSP
+      // deciding rather than a preference: 'externalSecurityHeaders' serves
+      // this document with "default-src 'none'; … img-src 'self' data:", so a
+      // Supabase-hosted signed URL is blocked before a byte is requested and a
+      // path on this origin is admitted. 'GET /external/evidence' streams the
+      // bytes for exactly this reason (see that route's header).
+      //
+      // THE ID IS NOT A NEW DISCLOSURE. 'evidenceObjectId' is already in the
+      // response this function is rendering — 'GET /external/occurrence'
+      // returns it per object — so the src names something the session was
+      // already told exists, and the stream re-checks the grant, the session
+      // and the occurrence for itself on every request.
+      //
+      // IMAGES ONLY, checked on the SERVER-SNIFFED 'mediaType'. The other
+      // recognised type is 'application/pdf', which an img element cannot
+      // render: pointing one at it would produce a broken-image icon where a
+      // file exists, which is worse than the identity line this list already
+      // shows. Nothing in this repository produces anything but 'image/jpeg'
+      // today (every capture route sniffs and every rule's allowedMedia names
+      // it), so the else-branch is latent — and the note below says what it
+      // means rather than leaving the reader to infer it from a missing
+      // picture.
+      if (typeof e.mediaType === "string" && e.mediaType.indexOf("image/") === 0) {
+        var img = document.createElement("img");
+        img.className = "evidence-image";
+        img.loading = "lazy";
+        // 'alt' is the filename the DEVICE claimed, or a neutral fallback —
+        // never a description this page invented of a photo it cannot see.
+        img.alt = e.originalFilename || "Фото доказу";
+        img.src = "/external/evidence?evidenceObjectId="
+          + encodeURIComponent(e.evidenceObjectId);
+        li.appendChild(img);
+      }
       list.appendChild(li);
     }
     if (data.evidence.length === 0) {
       el("evidence-note").textContent = "Матеріалів не зафіксовано.";
     } else {
-      // STATED, NOT HIDDEN. v0.1 has no operation that streams an evidence
-      // original to an external session, so the reviewer gets the identity of
-      // each file and not the file. See the scope route's header.
+      // CORRECTED 2026-08-22. What stood here — «Перегляд самих файлів у цій
+      // версії недоступний: показано лише їхні ідентифікатори та контрольні
+      // суми.» — was true when it was written and became false the moment
+      // 'GET /external/evidence' shipped. Leaving it would have told a
+      // технагляд that the photo above them does not exist, and the acceptance
+      // walk this whole arc is for («reads the requirement in the standard's
+      // own wording WITH THE PHOTO») would have been refused by the page's own
+      // copy while the bytes were already on screen.
       el("evidence-note").textContent =
-        "Перегляд самих файлів у цій версії недоступний: показано лише їхні ідентифікатори та контрольні суми.";
+        "Зображення завантажуються за цим посиланням. Файли інших типів показано "
+        + "лише за ідентифікатором і контрольною сумою.";
     }
 
     if (data.decision) {

@@ -306,13 +306,33 @@ export async function GET(req: Request): Promise<Response> {
         // no forms, no top-level navigation out.
         //
         // WHAT IS ESTABLISHED AND WHAT IS NOT, per this branch's rule against
-        // claiming unmeasured mechanism: what is established is that the header
-        // is sent (asserted by the suite). That CSP's `sandbox` directive
-        // applies only when the response is loaded AS A DOCUMENT — which is
-        // what leaves `<img>` unaffected — is the specification's rule, not
-        // something measured in a browser here. Nothing in this repository
-        // renders a PDF, and no browser audit exercises this path today; Task
-        // 7's audit is where such a measurement would belong.
+        // claiming unmeasured mechanism.
+        //
+        // ESTABLISHED BY THE SUITE: the header is sent.
+        //
+        // ESTABLISHED IN A BROWSER, 2026-08-22 (task 7): `<img>` is unaffected.
+        // `qa/field.mjs`'s seventh audit loads an `image/jpeg` from this route
+        // as the `src` of an `<img>` on `/external/review` and asserts the
+        // decoded `naturalWidth` is non-zero, on every run. That the `sandbox`
+        // directive applies only to a DOCUMENT load, and therefore leaves an
+        // image sub-resource alone, is the specification's rule — but its
+        // consequence here is now measured rather than argued.
+        //
+        // ALSO MEASURED, BY HAND, AND IT ANSWERS THE QUESTION THIS COMMENT
+        // USED TO DEFER: `default-src 'none'; sandbox` does NOT disable
+        // Chrome's PDF viewer. A real PDF served with this exact header and
+        // opened by top-level navigation renders in the built-in viewer,
+        // identically to the same PDF served without it — no download, no
+        // blank page, no console message (Chrome 152.0.7977.42, headful, PDF
+        // component extension enabled; both cases screenshotted and compared).
+        // So the answer is «keep as is» and no ADR moves. Two limits on that
+        // measurement, stated because they are real: it is Chrome only, and it
+        // CANNOT be automated in `qa/field.mjs` — headless Chrome has no PDF
+        // viewer at all, so the harness would compare two blank pages and call
+        // it a pass. `NOT_COVERED` in that file says so.
+        //
+        // Nothing in this repository produces a PDF evidence object today, so
+        // this whole branch remains latent either way.
         "content-security-policy": "default-src 'none'; sandbox",
         "x-request-id": requestId,
       },

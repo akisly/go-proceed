@@ -1,6 +1,7 @@
 import type { AssignmentEvidenceResponse } from "@goproceed/contracts";
 import { Panel, PanelBody } from "@goproceed/ui/components";
 import { EvidenceCard } from "./evidence-card";
+import { IssueReviewLink } from "./issue-review-link";
 
 /**
  * `app/dash/assignments/[assignmentId]/page.tsx`'s landing content once at
@@ -85,12 +86,23 @@ export function EvidenceByOccurrence({
                 </p>
               )}
             </div>
-            <PanelBody>
+            <PanelBody className="flex flex-col gap-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 wide:grid-cols-3">
                 {group.evidence.map((item) => (
                   <EvidenceCard key={item.evidenceObjectId} item={item} />
                 ))}
               </div>
+              {/* PER GROUP, AND ONLY WHERE THERE IS AN OCCURRENCE TO SCOPE IT
+               * TO. `occurrence_grants.issue` is scoped to ONE requirement
+               * occurrence — that is the whole of ADR-005 decision 9, the
+               * scope that lets an external approver decide before any package
+               * version exists — so the null group, whose photos are bound to
+               * no obligation at all, has nothing a grant could name. It is
+               * not hidden and it is not disabled: there is simply no control,
+               * because there is no occurrence. */}
+              {group.occurrenceId !== null && (
+                <IssueReviewLink occurrenceId={group.occurrenceId} />
+              )}
             </PanelBody>
           </Panel>
         ))}

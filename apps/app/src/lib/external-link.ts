@@ -185,12 +185,29 @@ export function allowedExternalOrigin(): string {
  * for: it cannot be set by a sibling subdomain and cannot be scoped away from
  * the origin that set it.
  *
- * ONE CONSEQUENCE, STATED RATHER THAN DISCOVERED: `Secure` means a browser
- * refuses this cookie over plain `http`, so the external plane does not work on
- * `http://localhost` in a real browser. Integration tests drive the routes
- * directly and are unaffected; a developer clicking a link in a local browser is
- * not. The alternative — dropping `__Host-` in development — would mean the
- * thing under test is not the thing that ships.
+ * ONE CONSEQUENCE THAT WAS STATED AND IS NOT TRUE — CORRECTED 2026-08-22.
+ *
+ * WHAT STOOD HERE: «`Secure` means a browser refuses this cookie over plain
+ * `http`, so the external plane does not work on `http://localhost` in a real
+ * browser… a developer clicking a link in a local browser is not [unaffected].»
+ * That is the spec's rule for ordinary origins and it is NOT the rule browsers
+ * apply to loopback, which is a potentially-trustworthy origin: Chrome accepts
+ * a `Secure` cookie set over plain `http` from `localhost` and from
+ * `127.0.0.1`. MEASURED, not recalled — a ten-line http server that sets this
+ * exact cookie (`__Host-`, `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`) and
+ * echoes the `Cookie` header back returned it on both spellings, on
+ * Chrome 152.0.7977.42, before `qa/field.mjs`'s seventh audit was written
+ * against it. That audit now opens a real link in a real browser over
+ * `http://localhost:<port>` on every run, so the claim is checked rather than
+ * argued.
+ *
+ * WHAT IS STILL TRUE, and is the reason the shape does not change: `__Host-`
+ * forbids `Domain`, requires `Secure` and requires `Path=/`, so it cannot be
+ * set by a sibling subdomain and cannot be scoped away from the origin that set
+ * it. Dropping it in development would mean the thing under test is not the
+ * thing that ships. What is not true is that it costs anything locally. A
+ * browser on a NON-loopback plain-http origin does still refuse it, which is
+ * correct: that is a deployment that must not be serving this plane at all.
  */
 export const EXTERNAL_SESSION_COOKIE = "__Host-goproceed_external";
 

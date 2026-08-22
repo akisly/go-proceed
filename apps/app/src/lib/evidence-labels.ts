@@ -86,6 +86,35 @@ export const ORIGIN_METHOD_LABELS: Readonly<Record<string, string>> = Object.fre
   form: "Форма",
   import: "Імпорт",
   generated_derivative: "Похідний файл",
+  /**
+   * ADDED 2026-08-22 (Plan D slice D1 task 7), AND IT WAS THE ONLY VALUE THE
+   * PRODUCT CAN ACTUALLY PRODUCE TODAY.
+   *
+   * Every photo this repository can capture is a PWA capture, and
+   * `buildCreateIntentBody` (`src/lib/capture/upload.ts`) has exactly one
+   * literal to send: `origin_not_distinguished` (ADR-007 decision 5, INV-086 —
+   * a browser has no camera-session identity and may be handed transcoded
+   * bytes, so the origin cannot be established and the vocabulary says so
+   * rather than asserting a camera). This map did not carry it, so the office
+   * evidence card rendered the raw identifier — `originMethodLabel`'s fallback
+   * doing exactly what it was built for, on the one value that is not an
+   * unknown future one.
+   *
+   * WHY NOTHING CAUGHT IT, which is the more useful half: this file's own
+   * fidelity test derived «every value the database permits» from migration
+   * **0015**, whose CHECK carries six. Migration **0043** widened the same
+   * constraint to seven — that is the migration that made the PWA capture
+   * storable at all — and the test never read it, so a green suite defended
+   * the gap. The test now reads the LAST definition of the constraint across
+   * the migration directory instead of the first, which is what «what the
+   * database permits» meant all along.
+   *
+   * The label is what ADR-007 decision 5 says and not a softer paraphrase: the
+   * origin was not established. It does not say «browser», because the field
+   * this value describes is about what can be ASSERTED, not about which client
+   * sent it.
+   */
+  origin_not_distinguished: "Походження не встановлено",
 });
 
 export function originMethodLabel(method: string): string {

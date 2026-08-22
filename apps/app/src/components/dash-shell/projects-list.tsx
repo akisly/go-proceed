@@ -36,13 +36,28 @@ export function ProjectsList({ projects }: { projects: ProjectListRow[] }) {
             key={project.projectId}
             className={
               i < projects.length - 1
-                ? "flex items-center justify-between gap-4 border-b border-line px-4 py-3"
-                : "flex items-center justify-between gap-4 px-4 py-3"
+                ? "flex items-center justify-between gap-4 border-b border-line pr-4"
+                : "flex items-center justify-between gap-4 pr-4"
             }
           >
+            {/* THE LINK CARRIES THE ROW'S PADDING, NOT THE `<li>` — corrected
+             * 2026-08-22 (Plan D slice D1 task 7), and it is an accessibility
+             * fix rather than a layout preference. With `px-4 py-3` on the
+             * `<li>`, the row measured 44px and the LINK measured 124×20:
+             * `qa/field.mjs`'s touch-target audit reported
+             * «"Приклад-Обʼєкт QA" 124x20» on every run since this row became
+             * a link, and the harness has been red at HEAD ever since —
+             * measured, not inferred, by running the base commit's own
+             * `field.mjs` unchanged. WCAG 2.5.5's 44px floor is about the
+             * TARGET, and the target is the anchor, not the box it sits in.
+             * Moving the padding inside it makes the whole row the tap area,
+             * which is also what a person aiming at a list row expects.
+             * `min-h-(--gp-control-height-touch)` rather than a literal: 44px
+             * is a token (`--gp-control-height-touch`), and a hard-coded
+             * height stops tracking it the moment it moves. */}
             <Link
               href={`/dash/projects/${project.projectId}/assignments`}
-              className="text-data font-medium text-ink hover:underline"
+              className="flex min-h-(--gp-control-height-touch) flex-1 items-center py-3 pl-4 text-data font-medium text-ink hover:underline"
             >
               {project.name}
             </Link>

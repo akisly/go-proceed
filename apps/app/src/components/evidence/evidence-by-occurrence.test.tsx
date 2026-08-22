@@ -83,3 +83,50 @@ describe("EvidenceByOccurrence — the null group is a real group, not an empty 
     expect(nullHeading).toBeLessThan(occurrenceHeading);
   });
 });
+
+describe("EvidenceByOccurrence — the review-link control is scoped to an occurrence", () => {
+  it("offers it on a group that HAS an occurrence", () => {
+    const groups: AssignmentEvidenceResponse["groups"] = [
+      { occurrenceId: "11111111-1111-4111-8111-111111111111", evidence: [item()] },
+    ];
+    const html = renderToStaticMarkup(
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+    );
+    expect(html).toContain("Відправити на перевірку");
+  });
+
+  it("offers it NOWHERE on a lone null group — there is no occurrence to scope a grant to", () => {
+    // `occurrence_grants.issue` is scoped to one requirement occurrence
+    // (ADR-005 decision 9). A control rendered over the null group would have
+    // no id to send, so the only honest options were «absent» and «present but
+    // permanently refused»; this pins the first. The unbound photos themselves
+    // are still shown — that is `evidence-by-occurrence`'s own rule, asserted
+    // in the group above.
+    const groups: AssignmentEvidenceResponse["groups"] = [
+      { occurrenceId: null, evidence: [item()] },
+    ];
+    const html = renderToStaticMarkup(
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+    );
+    expect(html).not.toContain("Відправити на перевірку");
+    expect(html).toContain("Без прив&#x27;язки до вимоги");
+  });
+
+  it("renders exactly one control per occurrence group, not one per screen", () => {
+    const groups: AssignmentEvidenceResponse["groups"] = [
+      { occurrenceId: "11111111-1111-4111-8111-111111111111", evidence: [item()] },
+      { occurrenceId: "22222222-2222-4222-8222-222222222222", evidence: [item()] },
+      { occurrenceId: null, evidence: [item()] },
+    ];
+    const html = renderToStaticMarkup(
+      <EvidenceByOccurrence assignmentId="99999999-9999-4999-8999-999999999999" groups={groups} />,
+    );
+    // Two occurrence groups, two controls; the null group adds none. FOUR and
+    // not two because the string appears TWICE per control — once as the
+    // section heading, once as the submit button's own label — which is
+    // stated rather than left as an unexplained number: a future edit that
+    // drops one of the two would fail here, and the reader should be able to
+    // tell that from a wrong count without opening the component.
+    expect(html.split("Відправити на перевірку").length - 1).toBe(4);
+  });
+});
