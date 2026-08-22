@@ -1,5 +1,7 @@
 import { withExternalTx } from "@goproceed/database";
-import { invalidLink, resolveExternalSession } from "../../../src/lib/external-session";
+import {
+  EXTERNAL_RESPONSE_HEADERS, invalidLink, resolveExternalSession,
+} from "../../../src/lib/external-session";
 import { openObjectStream } from "../../../src/lib/evidence-storage";
 import { requestIdFrom, toProblemResponse } from "../../../src/lib/http";
 
@@ -62,6 +64,13 @@ export const dynamic = "force-dynamic";
  * denies evidence, the grant is what denies audit, and the two failure modes are
  * distinguishable. A migration here would have been a symptom of misreading
  * that.
+ *
+ * AND THE ROUTE STILL DOES NOT LEAVE THE SCOPING TO THAT POLICY ALONE. Its own
+ * SQL joins the intent and requires `requirement_occurrence_id` to equal the
+ * occurrence the SESSION resolved to, so «which obligation» is stated twice, by
+ * two mechanisms, in two transactions. The query's own comment carries the
+ * whole argument, including what the earlier version of this route claimed and
+ * why that claim was false.
  *
  * ─────────────────────────────────────────────────────────────────────────────
  * `externalQueryRoute` CANNOT SERVE THIS, so the `Response` is built by hand —
@@ -155,19 +164,74 @@ export async function GET(req: Request): Promise<Response> {
     const id = new URL(req.url).searchParams.get("evidenceObjectId") ?? "";
     if (!UUID.test(id)) throw invalidLink(requestId);
 
+    // Read out of the scope HERE, on its own line, so that the one value the
+    // query below uses to bound itself is visibly the session's and never the
+    // caller's. Nothing between this line and the query can substitute it.
+    const occurrenceId = scope.occurrenceId;
+
     const row = await withExternalTx(
       { organizationId: scope.workspaceId, requestId, externalSessionId: scope.sessionId },
       async (tx) => {
-        // Selected by id AND asserted to be one row. `eo_external_select` is
-        // what actually scopes this to the session's occurrence — the `where`
-        // clause only picks WHICH of the rows the policy already admits — and
-        // asserting the count means a policy that ever widened fails loudly
-        // here instead of quietly serving a sibling. The same discipline
-        // `external/occurrence/route.ts` applies to its own single row.
+        // ── THE ROUTE PINS THE OCCURRENCE ITSELF — CORRECTED 2026-08-22 ────
+        //
+        // WHAT STOOD HERE AND WHY IT WAS WRONG. This query was
+        // `select … from public.evidence_objects where id = $1` followed by
+        // `if (r.rows.length !== 1) return null`, under a comment claiming
+        // that «asserting the count means a policy that ever widened fails
+        // loudly here instead of quietly serving a sibling». THE ASSERTION
+        // DETECTED NOTHING. `evidence_objects.id` is the table's PRIMARY KEY
+        // (migration 0015:300), so `where id = $1` returns zero or one row
+        // under any policy whatsoever: `length !== 1` was exactly `=== 0`. A
+        // widened `eo_external_select` would have returned its one row, the
+        // count check would have passed, and the sibling would have been
+        // streamed with a 200.
+        //
+        // The precedent that comment cited does the opposite thing.
+        // `external/occurrence/route.ts` selects with NO `where` at all, lets
+        // the policy pick the row, and then compares `rows[0].id` against
+        // `a.scope.occurrenceId` — a cross-check against a value resolved by a
+        // DIFFERENT mechanism in a DIFFERENT transaction. That is what fails
+        // loudly. Filtering on caller input and cross-checking nothing is not
+        // the same discipline; it is the absence of one.
+        //
+        // WHAT THIS DOES INSTEAD, AND WHAT IT IS AND IS NOT. The route now
+        // states the scope in its own SQL: it joins the `upload_intents` row
+        // the policy joins, and requires `ui.requirement_occurrence_id = $2`
+        // where `$2` is `scope.occurrenceId` — the one field of the resolved
+        // session this handler otherwise never touches, produced by
+        // `app.resolve_external_session` in the earlier anonymous transaction,
+        // NOT by the `app.external_session_occurrence()` the policy calls. So
+        // the occurrence is asserted twice by two paths, and a policy that
+        // widened — to the assignment, to a second status, to the workspace —
+        // still cannot make this route serve a row outside the grant.
+        //
+        // THIS IS PREVENTION AND NOT DETECTION, said plainly because the
+        // sentence it replaces claimed detection it did not have: nothing here
+        // notices that a policy widened. It only refuses to benefit from it. A
+        // widened policy would show up as `tests/external-evidence.int.test.ts`
+        // going red against the sibling and fallback cases, and nowhere else.
+        //
+        // `ui.status = 'available'` is restated even though `ui_external_select`
+        // already requires it and `eo_external_select` requires it again: the
+        // design's own rule for this join is to keep both directions of defence
+        // rather than let one policy carry them all. Both join directions are
+        // FK-backed — `evidence_objects(workspace_id, upload_intent_id)` →
+        // `upload_intents(workspace_id, id)` and
+        // `upload_intents(workspace_id, finalized_evidence_object_id)` →
+        // `evidence_objects(workspace_id, id)` (0015:332-355) — so requiring
+        // both is a pair of index lookups, not a scan.
         const r = await tx.query<EvidenceRow>(
-          `select storage_bucket, storage_key, media_type, byte_size::text as byte_size
-             from public.evidence_objects where id = $1`, [id]);
-        if (r.rows.length !== 1) return null;
+          `select eo.storage_bucket, eo.storage_key, eo.media_type,
+                  eo.byte_size::text as byte_size
+             from public.evidence_objects eo
+             join public.upload_intents ui
+               on ui.workspace_id = eo.workspace_id
+              and ui.id = eo.upload_intent_id
+              and ui.finalized_evidence_object_id = eo.id
+            where eo.id = $1
+              and ui.requirement_occurrence_id = $2
+              and ui.status = 'available'`, [id, occurrenceId]);
+        // Zero or one, by the primary key. Stated as the null check it is.
         return r.rows[0] ?? null;
       });
 
@@ -188,15 +252,43 @@ export async function GET(req: Request): Promise<Response> {
     return new Response(stream, {
       status: 200,
       headers: {
-        // Server-sniffed at finalize, never client-declared — see the header.
+        // SPREAD, NOT RE-TYPED — corrected 2026-08-22. These four used to be
+        // four literals copied out of `externalNoStore`, with nothing tying the
+        // copies together: a fifth header added there would have extended every
+        // wrapper-served response and silently skipped this one, and this
+        // route's test — which pinned the four literals it knew about — would
+        // have stayed green. `EXTERNAL_RESPONSE_HEADERS` is now the single
+        // source both spread, and the test iterates it rather than a list of
+        // its own.
+        ...EXTERNAL_RESPONSE_HEADERS,
+        // Server-sniffed at finalize, never client-declared — see the file
+        // header for why that is what makes `nosniff` usable here.
         "content-type": row.media_type,
         "content-length": row.byte_size,
-        // Re-applied by hand: `externalNoStore` is module-private to the
-        // wrappers, and no wrapper can emit bytes.
-        "cache-control": "no-store, no-cache, must-revalidate, private",
-        "referrer-policy": "no-referrer",
-        "x-content-type-options": "nosniff",
-        "x-frame-options": "DENY",
+        // ── THIS RESPONSE CARRIES ITS OWN CSP — added 2026-08-22 ───────────
+        //
+        // `x-frame-options` stops this URL being FRAMED. It does not stop it
+        // being NAVIGATED to, and a top-level navigation to a byte response is
+        // a document of its own on the external origin, which the review
+        // shell's `externalSecurityHeaders` CSP does not reach — a CSP binds
+        // the response it is served on, never a sibling document. Most of the
+        // allowed media types are inert images; `application/pdf` is not — it
+        // is in `evidence-inspection.ts`'s recognised set, and browsers render
+        // it inline in a viewer that historically has had script surface.
+        //
+        // `default-src 'none'; sandbox` costs one header. `sandbox` with no
+        // allow-tokens is the most restrictive form: opaque origin, no scripts,
+        // no forms, no top-level navigation out.
+        //
+        // WHAT IS ESTABLISHED AND WHAT IS NOT, per this branch's rule against
+        // claiming unmeasured mechanism: what is established is that the header
+        // is sent (asserted by the suite). That CSP's `sandbox` directive
+        // applies only when the response is loaded AS A DOCUMENT — which is
+        // what leaves `<img>` unaffected — is the specification's rule, not
+        // something measured in a browser here. Nothing in this repository
+        // renders a PDF, and no browser audit exercises this path today; Task
+        // 7's audit is where such a measurement would belong.
+        "content-security-policy": "default-src 'none'; sandbox",
         "x-request-id": requestId,
       },
     });

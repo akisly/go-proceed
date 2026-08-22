@@ -10,6 +10,7 @@ import { buildCreateIntentBody } from "../src/lib/capture/upload";
 import {
   EXTERNAL_SESSION_COOKIE, resetKeyRegistriesForTests,
 } from "../src/lib/external-link";
+import { EXTERNAL_RESPONSE_HEADERS } from "../src/lib/external-session";
 
 /**
  * Task 4 — `external.evidence_bytes`, GET /external/evidence.
@@ -279,18 +280,41 @@ describe("external.evidence_bytes — GET /external/evidence", () => {
     expect(new Uint8Array(await res.arrayBuffer())).toEqual(JPEG);
   });
 
-  it("re-applies by hand the four headers `externalNoStore` would have set", async () => {
-    // These are not decoration. `externalNoStore` is module-private to
-    // `external-session.ts` and reachable only through the two wrappers, and no
-    // wrapper can emit bytes — so a route that forgot them would look entirely
-    // normal while letting an intermediary keep an evidence photo.
+  it("carries EVERY header the wrapper-served responses carry — iterated, not listed", async () => {
+    // CORRECTED 2026-08-22. This used to assert four literals it had copied out
+    // of `externalNoStore`, which is exactly the divergence it was supposed to
+    // prevent: a fifth header added to the wrapper's record would have extended
+    // every wrapper-served response, skipped the byte route, and left this test
+    // green. It now iterates `EXTERNAL_RESPONSE_HEADERS` — the record the route
+    // spreads and the wrapper spreads — so the assertion grows with the source
+    // instead of trailing it.
     const res = await bytes(cookie, mine);
     expect(res.status).toBe(200);
-    expect(res.headers.get("cache-control")).toBe("no-store, no-cache, must-revalidate, private");
+    expect(Object.keys(EXTERNAL_RESPONSE_HEADERS).length).toBeGreaterThanOrEqual(4);
+    for (const [name, value] of Object.entries(EXTERNAL_RESPONSE_HEADERS)) {
+      expect(res.headers.get(name), `missing or wrong: ${name}`).toBe(value);
+    }
+    // The one value spelled out on purpose, because it is the one whose exact
+    // string a reviewer will want to read in a test rather than chase through a
+    // constant: this response must not be storable by anything in between.
     expect(res.headers.get("cache-control")).toContain("no-store");
-    expect(res.headers.get("referrer-policy")).toBe("no-referrer");
-    expect(res.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(res.headers.get("x-frame-options")).toBe("DENY");
+    await res.arrayBuffer();
+  });
+
+  it("carries its own CSP, because a top-level navigation is a document the shell's CSP never reaches", async () => {
+    // `x-frame-options` stops framing, not navigation. `application/pdf` is in
+    // `evidence-inspection.ts`'s recognised set and renders inline as a document
+    // of its own on the external origin; the review shell's CSP binds the
+    // shell's response and no sibling document. This header is what covers that
+    // case, and it leaves `<img>` alone because CSP's `sandbox` directive
+    // applies only to a response loaded AS a document.
+    //
+    // WHAT THIS ASSERTS IS THAT THE HEADER IS SENT. It does not assert the
+    // browser behaviour that makes it worth sending — nothing in this repo
+    // renders a PDF and no browser audit drives this path yet.
+    const res = await bytes(cookie, mine);
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-security-policy")).toBe("default-src 'none'; sandbox");
     await res.arrayBuffer();
   });
 
@@ -317,13 +341,115 @@ describe("external.evidence_bytes — GET /external/evidence", () => {
   });
 
   it("refuses an object on a SIBLING occurrence of the SAME assignment", async () => {
-    // `eo_external_select` scopes to `app.external_session_occurrence()`, which
-    // is the grant's one obligation — not the assignment, not the work item,
-    // not the project. This is the case a route that trusted its `where id = $1`
-    // and nothing else would fail.
+    // TWO mechanisms have to agree for this to pass, and it is worth knowing
+    // which is which. `eo_external_select` scopes to
+    // `app.external_session_occurrence()`; the route ALSO joins the intent and
+    // requires `requirement_occurrence_id` to equal the occurrence
+    // `app.resolve_external_session` handed it. Either alone would produce this
+    // 404 today — which is the point of having both, and is also why this case
+    // cannot tell them apart. What it does prove is that a route filtering on
+    // caller input and cross-checking nothing (which is what this route did
+    // until 2026-08-22) has no way to reach a 200 here as long as at least one
+    // of the two holds. The sibling row EXISTS — `captureOne` returned its id
+    // above — so this 404 is a refusal and not an absence.
     const res = await bytes(cookie, sibling);
     expect(res.status).toBe(404);
     expect((await res.json()).code).toBe("EXTERNAL_SHARE_INVALID");
+  });
+
+  /**
+   * THE CASE THE PREVIOUS VERSION OF THIS ROUTE COULD NOT SURVIVE, and the one
+   * the coordinator's fix-round finding is about.
+   *
+   * Until 2026-08-22 the route ran `where id = $1` and then asserted
+   * `rows.length === 1`, under a comment claiming that assertion caught a
+   * widened policy. `evidence_objects.id` is the PRIMARY KEY, so the count was
+   * one whenever the policy admitted the row at all: a widened
+   * `eo_external_select` would have been served, with a 200, to a no-account
+   * supervisor asking for a sibling's uuid.
+   *
+   * So this case WIDENS THE POLICIES FOR REAL — both of them, because widening
+   * only `eo_external_select` would leave `ui_external_select` refusing the
+   * join and the test would pass for the wrong reason — and then asserts two
+   * things in order:
+   *
+   *   1. the widening TOOK: the exact query the old route ran now returns the
+   *      sibling's row through a live external session, so the old shape's
+   *      count assertion would have passed and its bytes would have been
+   *      served. Without this step the case could be vacuous and look green.
+   *   2. the route REFUSES ANYWAY, because its own SQL requires the intent's
+   *      `requirement_occurrence_id` to equal the occurrence the SESSION
+   *      resolved to — a value the policy plays no part in producing.
+   *
+   * The original policy expressions are read back out of `pg_policy` and
+   * restored in a `finally`, rather than re-typed from the migration, so this
+   * case cannot drift from whatever 0049 §10 actually says. If the process is
+   * killed between the widening and the restore the local database is left
+   * permissive until the next `supabase db reset` — the same exposure any
+   * DDL-mutating case here has, named rather than hidden.
+   */
+  it("refuses the sibling EVEN IF BOTH POLICIES ARE WIDENED — the route pins the occurrence itself", async () => {
+    const original = await q<{ polname: string; qual: string }>(
+      `select p.polname, pg_get_expr(p.polqual, p.polrelid) as qual
+         from pg_policy p
+        where p.polname in ('eo_external_select', 'ui_external_select')`);
+    expect(original).toHaveLength(2);
+    const sessionRow = await q<{ id: string }>(
+      `select id from public.external_sessions where status = 'active'`);
+    expect(sessionRow).toHaveLength(1);
+    const sessionId = sessionRow[0]!.id;
+
+    const { withExternalTx } = await import("@goproceed/database");
+    // The OLD query, verbatim: filter on caller input, cross-check nothing.
+    const oldRouteQuery = async () => withExternalTx(
+      { organizationId: fx.workspaceId, requestId: crypto.randomUUID(),
+        externalSessionId: sessionId },
+      async (tx) => (await tx.query(
+        `select storage_key from public.evidence_objects where id = $1`, [sibling])).rows.length);
+
+    // Narrow: the old query already sees nothing, so the widening below is what
+    // creates the interesting state rather than the fixture accidentally having
+    // it.
+    expect(await oldRouteQuery()).toBe(0);
+
+    try {
+      await q(`alter policy ui_external_select on public.upload_intents
+                 using (status = 'available')`);
+      await q(`alter policy eo_external_select on public.evidence_objects
+                 using (exists (
+                   select 1 from public.upload_intents ui
+                    where ui.workspace_id = evidence_objects.workspace_id
+                      and ui.id = evidence_objects.upload_intent_id
+                      and ui.status = 'available'))`);
+
+      // 1. THE WIDENING TOOK, and the old shape would have served the sibling.
+      expect(await oldRouteQuery()).toBe(1);
+
+      // 2. THE ROUTE STILL REFUSES.
+      const res = await bytes(cookie, sibling);
+      expect(res.status, await res.clone().text()).toBe(404);
+      expect((await res.json()).code).toBe("EXTERNAL_SHARE_INVALID");
+
+      // …and the session's OWN object is still served, so the refusal above is
+      // the occurrence predicate biting and not the route simply broken.
+      const own = await bytes(cookie, mine);
+      expect(own.status).toBe(200);
+      expect(new Uint8Array(await own.arrayBuffer())).toEqual(JPEG);
+    } finally {
+      for (const row of original) {
+        const table = row.polname === "eo_external_select" ? "evidence_objects" : "upload_intents";
+        await q(`alter policy ${row.polname} on public.${table} using (${row.qual})`);
+      }
+    }
+
+    // The restore is asserted, not assumed: a leaked permissive policy would
+    // weaken every suite that runs after this file.
+    const restored = await q<{ polname: string; qual: string }>(
+      `select p.polname, pg_get_expr(p.polqual, p.polrelid) as qual
+         from pg_policy p
+        where p.polname in ('eo_external_select', 'ui_external_select')`);
+    expect(restored).toEqual(original);
+    expect(await oldRouteQuery()).toBe(0);
   });
 
   it("refuses a photo captured against NO occurrence at all", async () => {

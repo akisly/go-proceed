@@ -278,14 +278,35 @@ export function externalCommandRoute<T>(
  * it. A review page cached by an intermediary is a review page somebody else can
  * read; `Vary: Cookie` is not enough, because the thing that must not be stored
  * is the content and not the negotiation.
+ *
+ * EXPORTED SINCE 2026-08-22, AND THE REASON IS A DUPLICATE THAT ALREADY
+ * EXISTED. `apps/app/app/external/evidence/route.ts` cannot go through either
+ * wrapper — a `ReadableStream` through `externalQueryRoute` becomes the string
+ * `{}` — so it built its own `Response` and re-typed these four literals. Two
+ * copies with nothing tying them together is a silent divergence waiting for
+ * its first edit: adding `pragma: no-cache` here (which
+ * `externalSecurityHeaders` in `external-link.ts` already sends, so the two
+ * external surfaces are not even consistent today) would extend every
+ * wrapper-served response and quietly leave the byte route behind, with that
+ * route's own test still green because it pinned the four literals it knew
+ * about.
+ *
+ * So the record is the single source and BOTH consumers spread it: this
+ * function, and that route. A header added here reaches the byte response
+ * without anyone remembering to, and that route's test iterates this object
+ * rather than a hard-coded list, so the assertion grows with it.
+ *
+ * `set-cookie` is deliberately NOT in here: it is per-response, not a policy.
  */
+export const EXTERNAL_RESPONSE_HEADERS: Readonly<Record<string, string>> = Object.freeze({
+  "cache-control": "no-store, no-cache, must-revalidate, private",
+  "referrer-policy": "no-referrer",
+  "x-content-type-options": "nosniff",
+  "x-frame-options": "DENY",
+});
+
 function externalNoStore(out: ExternalResult): Record<string, string> {
-  const headers: Record<string, string> = {
-    "cache-control": "no-store, no-cache, must-revalidate, private",
-    "referrer-policy": "no-referrer",
-    "x-content-type-options": "nosniff",
-    "x-frame-options": "DENY",
-  };
+  const headers: Record<string, string> = { ...EXTERNAL_RESPONSE_HEADERS };
   if (out.setCookie) headers["set-cookie"] = out.setCookie;
   return headers;
 }
