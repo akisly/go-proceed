@@ -10,6 +10,25 @@
 
 **Spec:** [`docs/design/04-role-pain-map.md`](../../design/04-role-pain-map.md) (which screen serves whom, sourced to the demand scan), [`docs/design/03-ui-references.md`](../../design/03-ui-references.md) (what may be copied from where), ADR-009 decision 3.
 
+## Status — slice D0 complete (2026-08-22)
+
+Tasks 1–3 are done and reviewed; Task 4 is this docs pass and the PR.
+Commits, in order: `04715b3`, `3e5bfaa`, `4f22d51` (Task 1), `f8da539`,
+`f64ce85`, `d688179` (Task 2 and its fix round), `6420f9c`, `52e94a7`
+(Task 3 and its fix round).
+
+**Two things this slice proved wrong in the text below, left in place rather
+than rewritten so the correction is visible:** the route group `(dash)` named
+in Task 2 collides with the field client's `(app)` — both resolve to `/` and
+Next refuses the build, so the path is `/dash` as a real segment, and Task 3's
+paths are `app/dash/settings/profile/` and `src/components/dash-shell/*` in
+kebab-case; and `GET /v1/me/context` carries no email, so the signed-in
+address comes from the Supabase session rather than from `/v1`.
+
+Residuals that outlived the slice are in `TODOS.md` under «Surfaced by Plan D
+slice D0 (the dashboard shell), 2026-08-22» — six of them, including one
+missing token role that makes every future dashboard dialog full-width.
+
 ## Global Constraints
 
 - **The design gate binds and decides.** `docs/design/02-building-ui.md` is a procedure: read §3.1 before the first line, answer §3.3's three questions, and run §5 — **all five commands, output pasted** — before any task claims done:
@@ -63,11 +82,11 @@ Recorded here so D1–D4 are cheap to write and nobody rediscovers them the expe
 
 **Interfaces produced:** `Dialog` (Radix `Dialog` composition: `Dialog`, `DialogTrigger`, `DialogContent`, `DialogHeader`, `DialogTitle`, `DialogDescription`, `DialogFooter`, `DialogClose`), `DropdownMenu` (`DropdownMenu`, `DropdownMenuTrigger`, `DropdownMenuContent`, `DropdownMenuItem`, `DropdownMenuSeparator`, `DropdownMenuLabel`), `Avatar` (`Avatar`, `AvatarFallback` — no image source exists in the product yet, initials only).
 
-- [ ] **Step 1: Read the gate first.** `docs/design/02-building-ui.md` §3.1 (which sends you to `packages/ui/src/components/index.ts` and `packages/ui/src/motion/index.ts` — read both), then §3.3, then §4.1's substitution table. Note in the report which of the three questions each component answered.
-- [ ] **Step 2: Write the components.** Structure and behaviour follow shadcn/ui's own implementations of the same Radix primitives (MIT — header each file with `// Structure follows shadcn/ui's <name> (MIT); styling is this system's token roles.`). Styling is ours: role classes only, `h-(--gp-control-height-desk) touch:h-(--gp-control-height-touch)` for controls, `border border-line` instead of shadows, motion from `@goproceed/ui/motion` (never `motion/react` — that is a build failure). Focus-visible, Escape, and Radix's own portal/overlay semantics stay as the primitive gives them.
-- [ ] **Step 3: Update the inventory note** in `index.ts` — remove Dialog/DropdownMenu (and Avatar) from the absent list, leaving the rest of the note intact; it is a record, not a placeholder.
-- [ ] **Step 4: Run the §5 gate** (all five commands above) and paste the output. `motion-audit` must print `motion-audit: clean`.
-- [ ] **Step 5: Commit** — `feat(ui): Dialog, DropdownMenu and Avatar — the Phase 4 components the app shell needs`.
+- [x] **Step 1: Read the gate first.** `docs/design/02-building-ui.md` §3.1 (which sends you to `packages/ui/src/components/index.ts` and `packages/ui/src/motion/index.ts` — read both), then §3.3, then §4.1's substitution table. Note in the report which of the three questions each component answered.
+- [x] **Step 2: Write the components.** Structure and behaviour follow shadcn/ui's own implementations of the same Radix primitives (MIT — header each file with `// Structure follows shadcn/ui's <name> (MIT); styling is this system's token roles.`). Styling is ours: role classes only, `h-(--gp-control-height-desk) touch:h-(--gp-control-height-touch)` for controls, `border border-line` instead of shadows, motion from `@goproceed/ui/motion` (never `motion/react` — that is a build failure). Focus-visible, Escape, and Radix's own portal/overlay semantics stay as the primitive gives them.
+- [x] **Step 3: Update the inventory note** in `index.ts` — remove Dialog/DropdownMenu (and Avatar) from the absent list, leaving the rest of the note intact; it is a record, not a placeholder.
+- [x] **Step 4: Run the §5 gate** (all five commands above) and paste the output. `motion-audit` must print `motion-audit: clean`.
+- [x] **Step 5: Commit** — `feat(ui): Dialog, DropdownMenu and Avatar — the Phase 4 components the app shell needs`.
 
 ### Task 2: the route group and its shell
 
@@ -75,19 +94,19 @@ Recorded here so D1–D4 are cheap to write and nobody rediscovers them the expe
 
 **Interfaces consumed:** `apiGet` (`apps/app/src/lib/api.ts`), `GET /v1/me/context` (memberships), `GET /v1/projects`.
 
-- [ ] **Step 1:** Server component layout: `requireUser`-backed session via the existing proxy gate; fetch `/v1/me/context` and `/v1/projects` once in the layout; pass down. Empty states in Ukrainian: no workspace → «У вас ще немає робочого простору.»; no project → «У цьому просторі ще немає проєктів.» (add catalog rows).
-- [ ] **Step 2:** Sidebar and top bar — structure after circle's `components/layout/{sidebar,headers}` (MIT, attribute), rendered with our components. Desktop rail + mobile drawer (the `Dialog`/`DropdownMenu` from Task 1). Navigation items are only the slices that exist: Overview (D2, disabled placeholder), Assignments (D3, placeholder), Evidence (D1, placeholder), Members (D4, placeholder), plus the profile menu from Task 3. A disabled item renders as disabled with a title, never as a dead link.
-- [ ] **Step 3:** `pnpm --filter @goproceed/app build` and the §5 gate; then the §6 visual pass — six viewports and reduced motion, with real Ukrainian strings.
-- [ ] **Step 4: Commit** — `feat(dash): the route group and its shell — sidebar, top bar, workspace switch`.
+- [x] **Step 1:** Server component layout: `requireUser`-backed session via the existing proxy gate; fetch `/v1/me/context` and `/v1/projects` once in the layout; pass down. Empty states in Ukrainian: no workspace → «У вас ще немає робочого простору.»; no project → «У цьому просторі ще немає проєктів.» (add catalog rows).
+- [x] **Step 2:** Sidebar and top bar — structure after circle's `components/layout/{sidebar,headers}` (MIT, attribute), rendered with our components. Desktop rail + mobile drawer (the `Dialog`/`DropdownMenu` from Task 1). Navigation items are only the slices that exist: Overview (D2, disabled placeholder), Assignments (D3, placeholder), Evidence (D1, placeholder), Members (D4, placeholder), plus the profile menu from Task 3. A disabled item renders as disabled with a title, never as a dead link.
+- [x] **Step 3:** `pnpm --filter @goproceed/app build` and the §5 gate; then the §6 visual pass — six viewports and reduced motion, with real Ukrainian strings.
+- [x] **Step 4: Commit** — `feat(dash): the route group and its shell — sidebar, top bar, workspace switch`.
 
 ### Task 3: profile and sign-out
 
 **Files:** Create `apps/app/app/(dash)/settings/profile/page.tsx`, `apps/app/src/components/dash/ProfileMenu.tsx`, `apps/app/src/components/dash/SignOutDialog.tsx` (client); Modify `technical/copy-catalog.csv`.
 
-- [ ] **Step 1:** Profile page shows what the product actually knows: email from the session, workspace memberships and role from `/v1/me/context`. No editable fields — there is no route to write them, and inventing one is out of scope.
-- [ ] **Step 2:** Sign-out: `supabaseBrowser().auth.signOut()` then `router.replace("/login")`, behind a confirm dialog (pattern from shadcn-admin's `sign-out-dialog`, MIT). Copy: «Вийти з системи?» / «Ви зможете увійти знову за одноразовим кодом.» / «Вийти» / «Скасувати».
-- [ ] **Step 3:** A test that pins the two things worth pinning: the dialog does not sign out until confirmed, and sign-out clears the session (mock the client).
-- [ ] **Step 4:** §5 gate + app build + tests. **Commit** — `feat(dash): profile, and the first way to sign out that this product has ever had`.
+- [x] **Step 1:** Profile page shows what the product actually knows: email from the session, workspace memberships and role from `/v1/me/context`. No editable fields — there is no route to write them, and inventing one is out of scope.
+- [x] **Step 2:** Sign-out: `supabaseBrowser().auth.signOut()` then `router.replace("/login")`, behind a confirm dialog (pattern from shadcn-admin's `sign-out-dialog`, MIT). Copy: «Вийти з системи?» / «Ви зможете увійти знову за одноразовим кодом.» / «Вийти» / «Скасувати».
+- [x] **Step 3:** A test that pins the two things worth pinning: the dialog does not sign out until confirmed, and sign-out clears the session (mock the client).
+- [x] **Step 4:** §5 gate + app build + tests. **Commit** — `feat(dash): profile, and the first way to sign out that this product has ever had`.
 
 ### Task 4: docs and the PR
 
