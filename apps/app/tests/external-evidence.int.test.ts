@@ -267,10 +267,39 @@ async function revoke(grantId: string, expectedVersion: number): Promise<Respons
  * `lock_not_available` and a completed `finally`, never with a timeout and a
  * queued one.
  *
- * `q()` is not used because it passes an empty values array, which puts node-pg
+ * WHY NOT `q()` — CORRECTED 2026-08-22, AND THE FIRST ANSWER WAS WRONG.
+ *
+ * What stood here said `q()` «passes an empty values array, which puts node-pg
  * on the extended query protocol, where a `set lock_timeout; alter policy …`
- * pair in one string is not accepted. Two statements on one deliberate
- * connection is the honest way to get the GUC onto the statement that needs it.
+ * pair in one string is not accepted». THAT IS FALSE, and it was written from
+ * memory rather than run — the same failure the rest of this file's comments
+ * exist to correct. `pg@8.22.0`'s `requiresPreparation()` ends
+ * `return this.values.length > 0`, so an EMPTY array is falsy and the call takes
+ * the SIMPLE path, which does accept a multi-statement string. Executed against
+ * the local stack on `q()`'s exact call shape — `c.query("set lock_timeout =
+ * '1s'; select current_setting('lock_timeout')", [])` — the batch ran and the
+ * setting read back as `1s`. So «it would not work» was never the reason.
+ *
+ * WHAT IS ACTUALLY TRUE, and both halves were run rather than reasoned:
+ *
+ *   THE RETURN SHAPE BREAKS SILENTLY. A multi-statement simple query makes
+ *   node-pg accumulate an ARRAY of `Result`s (`query.js` `_checkForMultirow`),
+ *   so on that same executed call `Array.isArray(result)` was `true` and
+ *   `result.rows` was `undefined` — while `q()`'s signature promises `T[]` and
+ *   its body is `return r.rows as T[]`. Nothing here reads the return value of
+ *   an `alter policy`, which is exactly what makes it a trap rather than an
+ *   error: it is the next person adding a `returning` clause who finds it.
+ *
+ *   AND IT WOULD HOLD ONLY WHILE THE VALUES ARRAY STAYS EMPTY. By the same line
+ *   of `requiresPreparation()`, one bound parameter flips the call to the
+ *   extended protocol, where the batch IS refused. A helper whose correctness
+ *   depends on never passing a parameter is a helper with a trapdoor in it.
+ *   `ddl()` sends the GUC as its own statement and depends on none of this.
+ *
+ * NOT A REASON, THOUGH IT SOUNDS LIKE ONE: keeping a session-scoped GUC from
+ * leaking into other tests. `q()` (helpers/fixtures.ts) already opens its OWN
+ * `Client` per call and `end()`s it in a `finally` — there is no shared pool
+ * here to leak into, and the GUC dies with the connection either way.
  */
 async function ddl(sql: string): Promise<void> {
   const c = new Client({ connectionString: ADMIN_URL });
