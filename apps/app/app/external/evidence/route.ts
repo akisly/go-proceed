@@ -80,11 +80,31 @@ export const dynamic = "force-dynamic";
  * string `{}`.
  *
  * What that costs is `externalNoStore`, which is module-private to
- * `external-session.ts` and reachable only through the wrappers. ITS FOUR
- * HEADERS ARE RE-APPLIED BY HAND BELOW — `cache-control`, `referrer-policy`,
- * `x-content-type-options`, `x-frame-options` — and they are re-applied because
- * a response that omitted them would look completely normal: no error, no
- * warning, just an evidence photo an intermediary is allowed to keep.
+ * `external-session.ts` and reachable only through the wrappers. Its four
+ * headers — `cache-control`, `referrer-policy`, `x-content-type-options`,
+ * `x-frame-options` — must reach this response too, because a response that
+ * omitted them would look completely normal: no error, no warning, just an
+ * evidence photo an intermediary is allowed to keep.
+ *
+ * THEY ARE SPREAD FROM A SHARED RECORD AND NOT RE-TYPED — corrected 2026-08-22.
+ * Until that date this paragraph said they were «RE-APPLIED BY HAND BELOW» and
+ * the response literal duplicated all four, which is the divergence the wrapper
+ * and this route would have drifted apart through: a fifth header added to
+ * `externalNoStore` would have extended every wrapper-served response and
+ * silently skipped this one. `EXTERNAL_RESPONSE_HEADERS` is now exported from
+ * `external-session.ts`, `externalNoStore` spreads it, this route spreads it,
+ * and this route's suite iterates it rather than pinning a list of its own — so
+ * a header added there arrives here without anyone remembering to.
+ *
+ * ONE HEADER IS THIS ROUTE'S ALONE and is not in that record, because no
+ * wrapper-served response needs it: `content-security-policy: default-src
+ * 'none'; sandbox`. `x-frame-options` stops this URL being FRAMED and does
+ * nothing about its being NAVIGATED to, and a top-level navigation to a byte
+ * response is a document of its own on the external origin that the review
+ * shell's CSP never reaches — a CSP binds the response it is served on, never a
+ * sibling document. Most of the allowed types are inert images; `application/pdf`
+ * is not. The response literal below carries the rest of that reasoning,
+ * including what is asserted about the header and what is deferred to a browser.
  *
  * `nosniff` IS WHAT MAKES `Content-Type` LOAD-BEARING, and `media_type` is safe
  * to echo into it for one specific reason: it is SERVER-SNIFFED at finalize and
@@ -212,9 +232,14 @@ export async function GET(req: Request): Promise<Response> {
         // going red against the sibling and fallback cases, and nowhere else.
         //
         // `ui.status = 'available'` is restated even though `ui_external_select`
-        // already requires it and `eo_external_select` requires it again: the
-        // design's own rule for this join is to keep both directions of defence
-        // rather than let one policy carry them all. Both join directions are
+        // already requires it and `eo_external_select` requires it again. The
+        // design states that rule for the MEMBER plane's version of this join —
+        // «keep both directions of defence: join on
+        // `finalized_evidence_object_id` AND filter on status», because nothing
+        // in the schema relates the two columns and only a revoked UPDATE grant
+        // holds the invariant — and this is the external analogue of that join,
+        // so the same reasoning applies rather than a rule written for this
+        // route. Both join directions are
         // FK-backed — `evidence_objects(workspace_id, upload_intent_id)` →
         // `upload_intents(workspace_id, id)` and
         // `upload_intents(workspace_id, finalized_evidence_object_id)` →

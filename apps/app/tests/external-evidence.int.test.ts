@@ -1,6 +1,9 @@
 import { describe, it, expect, vi, beforeEach, beforeAll } from "vitest";
 import { createHash } from "node:crypto";
-import { q, truncateAll, jsonReq, baselineFixture, type BaselineFixture } from "./helpers/fixtures";
+import { Client } from "pg";
+import {
+  ADMIN_URL, q, truncateAll, jsonReq, baselineFixture, type BaselineFixture,
+} from "./helpers/fixtures";
 import {
   addLine, bindRules, createDraft, getVersion, manifestOf, publishRuleVersion,
   publishVersion, ruleVersionBody, seedRequirementLibrary,
@@ -245,6 +248,41 @@ async function revoke(grantId: string, expectedVersion: number): Promise<Respons
   }), { params: Promise.resolve({ grantId }) });
 }
 
+/**
+ * One DDL statement, on its own connection, under a SHORT `lock_timeout`.
+ *
+ * `q()` sets none — `truncateAll` in the same helpers file sets 5s deliberately,
+ * and its comment records the deadlock that taught it to. `ALTER POLICY` takes a
+ * table-level exclusive lock, so the widen/restore pair below has exactly the
+ * hazard that comment describes: a connection leaked by some earlier suite,
+ * still holding or queued for a lock on `evidence_objects`, would make an ALTER
+ * BLOCK. With no `lock_timeout` the block runs until vitest's default 5s
+ * `testTimeout` kills the case **while the restore is still queued**, and every
+ * later case in this file then runs against a half-widened policy — a red run
+ * that also poisons everything after it.
+ *
+ * 1s, not 5s: there are at most four of these per case (two widen, two restore),
+ * so even four consecutive timeouts total 4s and stay inside the 5s test
+ * timeout. That is the whole point — the case must fail with a named
+ * `lock_not_available` and a completed `finally`, never with a timeout and a
+ * queued one.
+ *
+ * `q()` is not used because it passes an empty values array, which puts node-pg
+ * on the extended query protocol, where a `set lock_timeout; alter policy …`
+ * pair in one string is not accepted. Two statements on one deliberate
+ * connection is the honest way to get the GUC onto the statement that needs it.
+ */
+async function ddl(sql: string): Promise<void> {
+  const c = new Client({ connectionString: ADMIN_URL });
+  await c.connect();
+  try {
+    await c.query("set lock_timeout = '1s'");
+    await c.query(sql);
+  } finally {
+    await c.end().catch(() => undefined);
+  }
+}
+
 /** The route under test, driven the way a browser's `<img>` would drive it. */
 async function bytes(cookie: string | null, evidenceObjectId: string): Promise<Response> {
   const { GET } = await import("../app/external/evidence/route");
@@ -387,12 +425,32 @@ describe("external.evidence_bytes — GET /external/evidence", () => {
    * killed between the widening and the restore the local database is left
    * permissive until the next `supabase db reset` — the same exposure any
    * DDL-mutating case here has, named rather than hidden.
+   *
+   * THE RESTORE IS VERIFIED INSIDE THE `finally`, not after it — corrected
+   * 2026-08-22. Verification that sits after the `try/finally` only runs when
+   * the body PASSED, which is precisely the run where a leak matters least; on
+   * a failing run the restore happened and nothing checked it. Inside the
+   * `finally` it runs on every exit path.
+   *
+   * The cost, stated because it is a real one: an `expect` that fails inside a
+   * `finally` REPLACES the body's error, so a run where both the body and the
+   * restore failed reports only the restore. That is the right way round — a
+   * leaked permissive policy silently weakens every suite that runs after this
+   * file, while a body failure is reproducible by running the case again.
    */
   it("refuses the sibling EVEN IF BOTH POLICIES ARE WIDENED — the route pins the occurrence itself", async () => {
-    const original = await q<{ polname: string; qual: string }>(
+    // ORDERED — corrected 2026-08-22. `pg_policy` has no guaranteed row order,
+    // and the two reads are compared with `toEqual`, which is order-sensitive.
+    // Catalog order can shift after the ALTERs below, so an unordered pair could
+    // report a spurious red AFTER A CORRECT RESTORE — a failure that tells the
+    // next person the policies leaked when they did not.
+    const readPolicies = () => q<{ polname: string; qual: string }>(
       `select p.polname, pg_get_expr(p.polqual, p.polrelid) as qual
          from pg_policy p
-        where p.polname in ('eo_external_select', 'ui_external_select')`);
+        where p.polname in ('eo_external_select', 'ui_external_select')
+        order by p.polname`);
+
+    const original = await readPolicies();
     expect(original).toHaveLength(2);
     const sessionRow = await q<{ id: string }>(
       `select id from public.external_sessions where status = 'active'`);
@@ -413,14 +471,14 @@ describe("external.evidence_bytes — GET /external/evidence", () => {
     expect(await oldRouteQuery()).toBe(0);
 
     try {
-      await q(`alter policy ui_external_select on public.upload_intents
-                 using (status = 'available')`);
-      await q(`alter policy eo_external_select on public.evidence_objects
-                 using (exists (
-                   select 1 from public.upload_intents ui
-                    where ui.workspace_id = evidence_objects.workspace_id
-                      and ui.id = evidence_objects.upload_intent_id
-                      and ui.status = 'available'))`);
+      await ddl(`alter policy ui_external_select on public.upload_intents
+                   using (status = 'available')`);
+      await ddl(`alter policy eo_external_select on public.evidence_objects
+                   using (exists (
+                     select 1 from public.upload_intents ui
+                      where ui.workspace_id = evidence_objects.workspace_id
+                        and ui.id = evidence_objects.upload_intent_id
+                        and ui.status = 'available'))`);
 
       // 1. THE WIDENING TOOK, and the old shape would have served the sibling.
       expect(await oldRouteQuery()).toBe(1);
@@ -438,18 +496,15 @@ describe("external.evidence_bytes — GET /external/evidence", () => {
     } finally {
       for (const row of original) {
         const table = row.polname === "eo_external_select" ? "evidence_objects" : "upload_intents";
-        await q(`alter policy ${row.polname} on public.${table} using (${row.qual})`);
+        await ddl(`alter policy ${row.polname} on public.${table} using (${row.qual})`);
       }
+      // ASSERTED HERE, on every exit path — see the case's header for why this
+      // is not after the `try/finally` and what it costs when both fail.
+      expect(await readPolicies()).toEqual(original);
+      // Behavioural, not only textual: the widened view is gone as well as the
+      // widened text.
+      expect(await oldRouteQuery()).toBe(0);
     }
-
-    // The restore is asserted, not assumed: a leaked permissive policy would
-    // weaken every suite that runs after this file.
-    const restored = await q<{ polname: string; qual: string }>(
-      `select p.polname, pg_get_expr(p.polqual, p.polrelid) as qual
-         from pg_policy p
-        where p.polname in ('eo_external_select', 'ui_external_select')`);
-    expect(restored).toEqual(original);
-    expect(await oldRouteQuery()).toBe(0);
   });
 
   it("refuses a photo captured against NO occurrence at all", async () => {
