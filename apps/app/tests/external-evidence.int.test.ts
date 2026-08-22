@@ -273,12 +273,30 @@ async function revoke(grantId: string, expectedVersion: number): Promise<Respons
  * on the extended query protocol, where a `set lock_timeout; alter policy …`
  * pair in one string is not accepted». THAT IS FALSE, and it was written from
  * memory rather than run — the same failure the rest of this file's comments
- * exist to correct. `pg@8.22.0`'s `requiresPreparation()` ends
+ * exist to correct. `pg@8.23.0`'s `requiresPreparation()` ends
  * `return this.values.length > 0`, so an EMPTY array is falsy and the call takes
  * the SIMPLE path, which does accept a multi-statement string. Executed against
  * the local stack on `q()`'s exact call shape — `c.query("set lock_timeout =
  * '1s'; select current_setting('lock_timeout')", [])` — the batch ran and the
  * setting read back as `1s`. So «it would not work» was never the reason.
+ *
+ * THE VERSION IS `8.23.0` AND IT IS CITED WITH ITS RESOLUTION, because this
+ * number depends on where you stand and getting it wrong is the second mistake
+ * this comment has recorded. The repo root pins `pg: ^8.22.0` and `apps/app`
+ * pins `pg: ^8.23.0`; `apps/app/node_modules/pg` exists, so THIS file — which
+ * lives under `apps/app` and runs via `pnpm --filter @goproceed/app` — resolves
+ * 8.23.0:
+ *
+ *     $ cd apps/app && node -e "console.log(require('pg/package.json').version)"
+ *     8.23.0
+ *
+ * A first correction here cited 8.22.0, which is what the same command prints
+ * from the repo root. Everything above and below was re-executed from inside
+ * `apps/app` against 8.23.0 before this line was written. The two installed
+ * copies are NOT byte-identical as files — 8.23.0 adds
+ * `connection.submittedNamedStatements` in three places — but `diff` puts none
+ * of those inside `requiresPreparation()` or `_checkForMultirow()`, the two
+ * functions everything here rests on, and those are identical between them.
  *
  * WHAT IS ACTUALLY TRUE, and both halves were run rather than reasoned:
  *
@@ -292,9 +310,11 @@ async function revoke(grantId: string, expectedVersion: number): Promise<Respons
  *
  *   AND IT WOULD HOLD ONLY WHILE THE VALUES ARRAY STAYS EMPTY. By the same line
  *   of `requiresPreparation()`, one bound parameter flips the call to the
- *   extended protocol, where the batch IS refused. A helper whose correctness
- *   depends on never passing a parameter is a helper with a trapdoor in it.
- *   `ddl()` sends the GUC as its own statement and depends on none of this.
+ *   extended protocol, where the batch IS refused — run, not inferred: the same
+ *   statement with `[1]` bound throws «cannot insert multiple commands into a
+ *   prepared statement». A helper whose correctness depends on never passing a
+ *   parameter is a helper with a trapdoor in it. `ddl()` sends the GUC as its
+ *   own statement and depends on none of this.
  *
  * NOT A REASON, THOUGH IT SOUNDS LIKE ONE: keeping a session-scoped GUC from
  * leaking into other tests. `q()` (helpers/fixtures.ts) already opens its OWN
