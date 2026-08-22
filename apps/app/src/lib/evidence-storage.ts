@@ -122,3 +122,82 @@ export async function removeObject(key: string, bucket: string = EVIDENCE_BUCKET
   const { error } = await storage(bucket).remove([key]);
   if (error) throw new Error(`storage: remove failed for ${bucket}/${key}: ${error.message}`);
 }
+
+/**
+ * THE CEILING IS OURS AND NOTHING BELOW US ENFORCES IT.
+ *
+ * `docs/architecture/files-and-storage.md` §Downloads: a signed URL «uses the
+ * shortest practical TTL, normally no more than 60 seconds». Measured against
+ * the local storage API on 2026-08-22, the server enforces only a LOWER bound —
+ * `expiresIn: 0` and `-1` are rejected with «body/expiresIn must be >= 1», and
+ * `999999999` (about 31 years) was accepted and produced a token with that
+ * expiry. So this constant, and the fact that no function here takes a TTL
+ * argument, is the entire enforcement.
+ */
+export const EVIDENCE_URL_TTL_SECONDS = 60;
+
+/**
+ * NO KEY IN ANY MESSAGE THROWN FROM HERE DOWN.
+ *
+ * The functions above this line interpolate the storage key into their errors,
+ * which reach `console.error` through `toProblemResponse`'s unmapped branch —
+ * against `files-and-storage.md`'s «Logs record the domain object and
+ * authorization result, never the signed URL or raw storage key». That is a
+ * recorded defect (TODOS.md) and deliberately NOT the style copied here.
+ * A key is the input to a signing operation the service key can perform; a
+ * leaked key narrows an attacker's search to nothing.
+ */
+function readFailed(what: string, message: string): Error {
+  return new Error(`storage: ${what} failed: ${message}`);
+}
+
+/** A short-lived read grant for exactly one object. */
+export async function createSignedReadUrl(bucket: string, key: string): Promise<string> {
+  const { data, error } = await storage(bucket)
+    .createSignedUrl(key, EVIDENCE_URL_TTL_SECONDS);
+  // NOTE: a missing object arrives as HTTP 400 with a body saying 404, so
+  // `error.status` must not be mapped to a response status by any caller.
+  if (error || !data) throw readFailed("signed read", error?.message ?? "no data");
+  return data.signedUrl;
+}
+
+/**
+ * The batch form. One storage call per screen rather than one per photo.
+ *
+ * PER-PATH FAILURES ARE REPORTED INLINE, NOT THROWN: the call returns 200 with
+ * entries carrying `error` and a null URL. A key that could not be signed is
+ * ABSENT from the returned map — never present with a broken value, so a caller
+ * cannot render a dead image and call it evidence.
+ *
+ * Each entry carries both `signedURL` (server-relative) and `signedUrl`
+ * (absolute). Only the second is usable.
+ */
+export async function createSignedReadUrls(
+  bucket: string, keys: string[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (keys.length === 0) return out;
+  const { data, error } = await storage(bucket)
+    .createSignedUrls(keys, EVIDENCE_URL_TTL_SECONDS);
+  if (error || !data) throw readFailed("signed read batch", error?.message ?? "no data");
+  for (const entry of data) {
+    if (entry.error || !entry.path || !entry.signedUrl) continue;
+    out.set(entry.path, entry.signedUrl);
+  }
+  return out;
+}
+
+/**
+ * The object as a stream, for the external plane's same-origin proxy.
+ *
+ * `download(key).asStream()` resolves to the raw `Response.body`; nothing is
+ * buffered, unlike `downloadObject` above, which reads the whole object into a
+ * `Uint8Array` because its one caller needs the bytes in hand to hash them.
+ */
+export async function openObjectStream(
+  bucket: string, key: string,
+): Promise<ReadableStream<Uint8Array>> {
+  const { data, error } = await storage(bucket).download(key).asStream();
+  if (error || !data) throw readFailed("stream", error?.message ?? "no data");
+  return data as ReadableStream<Uint8Array>;
+}
