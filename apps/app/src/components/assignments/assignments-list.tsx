@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { AssignmentSummary } from "@goproceed/contracts";
 import { Table, Th, Td, Tr } from "@goproceed/ui/components";
+import { assignmentStatusLabel } from "../../lib/assignment-status-labels";
 
 /**
  * `dash/projects/[projectId]/assignments/page.tsx`'s landing content once at
@@ -41,44 +42,13 @@ import { Table, Th, Td, Tr } from "@goproceed/ui/components";
  * text still satisfies §4.1's "a status shown only by colour → colour PLUS
  * its `ui_uk` label" rule, because there is no colour to begin with.
  *
- * THE FIVE STATUS LABELS ARE NOT `status.work_assignment.*` FROM
- * `technical/copy-catalog.csv`. Those eight existing rows (`planned`,
- * `assigned`, `accepted`, `in_progress`, `submitted`, `returned`, `completed`,
- * `cancelled`) are "canonical, derived from state-catalog" — but
- * `technical/state-catalog.csv` and `technical/schema.sql` are explicitly
- * non-normative (`docs/README.md`: "the flat CSV catalogs are not v0.1
- * implementation authority"), and `technical/schema.sql:419`'s own
- * `work_assignments` table has a DIFFERENT shape entirely (an eight-value
- * `state` column, `organization_id`/`client_operation_id`/`assigned_user_id`)
- * from the APPLIED migration this route actually queries
- * (`supabase/migrations/0015_execution_evidence_module.sql:87-88`: a
- * five-value `status` column — `draft`/`active`/`paused`/`completed`/
- * `cancelled` — confirmed by reading the CHECK constraint directly, not
- * assumed from either catalog). `technical/states/state-catalog.csv:25-29`'s
- * `assignment.status` rows match the applied five exactly but carry no
- * `ui_uk` column. New rows below (`dash.assignment_status.*`) label the real,
- * applied five; the stale eight-value set is left untouched — reconciling it
- * with the applied schema is a documentation task well outside this slice.
+ * THE LABELS THEMSELVES LIVE IN `../../lib/assignment-status-labels.ts`, NOT
+ * HERE — fix round 1 on this task's own commit asked for a schema-derived
+ * fidelity test matching `membership-labels.test.ts`'s shape, which needs an
+ * importable module the way `membership-labels.ts` is one; that file's own
+ * header carries the reasoning for why the five values are NOT
+ * `status.work_assignment.*` from `technical/copy-catalog.csv`.
  */
-const STATUS_LABELS: Readonly<Record<string, string>> = Object.freeze({
-  draft: "Чернетка",
-  active: "Активний",
-  paused: "На паузі",
-  completed: "Завершено",
-  cancelled: "Скасовано",
-});
-
-/**
- * `Object.hasOwn`, not `STATUS_LABELS[status] ?? status` — same reachable-
- * prototype-property hazard `membershipStatusLabel` in
- * `apps/app/src/lib/membership-labels.ts` is pinned against, and the fallback
- * for the same reason: `status` is `z.string()`-wide server text, not this
- * five-value enum enforced client-side, so an unrecognised value renders
- * untranslated rather than blank or thrown.
- */
-function statusLabel(status: string): string {
-  return Object.hasOwn(STATUS_LABELS, status) ? STATUS_LABELS[status]! : status;
-}
 
 /** `null` only for `plannedQuantity` — an assignment need not carry a plan. */
 function quantityCell(value: string | null, unitCode: string): string {
@@ -115,7 +85,7 @@ export function AssignmentsList({ assignments }: { assignments: AssignmentSummar
                 </Td>
                 <Td numeric>{quantityCell(assignment.plannedQuantity, assignment.unitCode)}</Td>
                 <Td numeric>{quantityCell(assignment.effectiveQuantity, assignment.unitCode)}</Td>
-                <Td>{statusLabel(assignment.status)}</Td>
+                <Td>{assignmentStatusLabel(assignment.status)}</Td>
               </Tr>
             ))}
           </tbody>

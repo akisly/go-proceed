@@ -1,12 +1,30 @@
+import Link from "next/link";
 import type { ProjectListRow } from "@goproceed/contracts";
 
 /**
- * `dash/page.tsx`'s landing content once at least one project exists — a
- * plain list of project names, D0 only. NOT a link to `/dash/p/{id}` or
- * anywhere else: those detail routes are D-later slices and do not exist yet
- * (`docs/design/04-role-pain-map.md` screen 5), so these are plain text
- * rows rather than an anchor to a route that would 404 — the same
- * discipline `Sidebar`'s disabled nav items hold to.
+ * `dash/page.tsx`'s landing content once at least one project exists.
+ *
+ * EACH ROW NOW LINKS TO `/dash/projects/{projectId}/assignments` — added in
+ * Task 5's fix round 1, at the reviewer's own correction: this list is the
+ * middle of the project → assignments → evidence chain the whole D1 slice
+ * exists for, and a screen reachable only by typing a UUID into the URL bar
+ * is not delivered. THIS IS NOT THE SAME CASE `Sidebar`'s disabled nav items
+ * are — those point at slices that do not exist yet, which is why they are
+ * disabled controls rather than links. `/dash/projects/{projectId}/
+ * assignments` exists as of `b31b82f` (this same task's own commit), so
+ * linking to it is wiring a route that is already there, not staging a dead
+ * end.
+ *
+ * ASSIGNMENTS, NOT A GENERAL PROJECT DETAIL PAGE, because there is no general
+ * one yet — `docs/design/04-role-pain-map.md` screen 5 ("Projects — list +
+ * detail shell") is itself a later, unbuilt screen. Assignments is the
+ * closest thing to a project detail view that exists today, so the project
+ * NAME is the link (matching `assignments-list.tsx`'s own row-link pattern:
+ * the existing text becomes clickable, no added label). `project.code` sits
+ * outside the link, same as `assignments-list.tsx`'s `workCode` sub-label
+ * sits outside its row's link — a fact about the row, not part of the
+ * control. No new catalog row: the link carries the project's own name, which
+ * is server data, not a new static Ukrainian string.
  */
 export function ProjectsList({ projects }: { projects: ProjectListRow[] }) {
   return (
@@ -22,7 +40,12 @@ export function ProjectsList({ projects }: { projects: ProjectListRow[] }) {
                 : "flex items-center justify-between gap-4 px-4 py-3"
             }
           >
-            <span className="text-data font-medium text-ink">{project.name}</span>
+            <Link
+              href={`/dash/projects/${project.projectId}/assignments`}
+              className="text-data font-medium text-ink hover:underline"
+            >
+              {project.name}
+            </Link>
             {project.code && (
               <span className="text-meta text-ink-muted">{project.code}</span>
             )}
