@@ -14,7 +14,20 @@ export interface CommandArgs<T> {
   idempotencyKey: string;
   requestHash: string;
 }
-export interface HandlerResult { status: number; body: unknown; expiresAt?: Date }
+export interface HandlerResult {
+  status: number;
+  body: unknown;
+  expiresAt?: Date;
+  /**
+   * Response headers the handler needs and the wrapper cannot know about.
+   * Added 2026-08-22 for `GET /v1/assignments/{id}/evidence`, which returns
+   * short-lived signed storage URLs: a bearer capability in a shared cache is
+   * a capability handed to whoever asks next, and until this existed NO
+   * member-plane GET in this app sent any cache directive at all.
+   * `ok()` spreads these last, so a handler may also override `content-type`.
+   */
+  headers?: Record<string, string>;
+}
 type RouteCtx = { params: Promise<Record<string, string>> };
 
 /**
@@ -82,7 +95,7 @@ export function queryRoute(
       const { userId } = await requireUser(requestId, req);
       const params = ctx?.params ? await ctx.params : {};
       const out = await run({ req, requestId, userId, params });
-      return ok(out.status, out.body, requestId, {});
+      return ok(out.status, out.body, requestId, out.headers ?? {});
     } catch (err) {
       return toProblemResponse(err, requestId);
     }

@@ -47,4 +47,25 @@ describe("queryRoute", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).id).toBe("42");
   });
+
+  describe("headers channel", () => {
+    it("passes a handler's headers through to the response", async () => {
+      const REQ_ID = "0123456789abcdef";
+      const req = new Request("http://x/v1/thing", { headers: { "x-request-id": REQ_ID } });
+      const route = queryRoute(async () => ({
+        status: 200, body: { ok: true }, headers: { "cache-control": "no-store" },
+      }));
+      const res = await route(req, { params: Promise.resolve({}) });
+      expect(res.headers.get("cache-control")).toBe("no-store");
+      expect(res.headers.get("content-type")).toBe("application/json");
+      expect(res.headers.get("x-request-id")).toBe(REQ_ID);
+    });
+
+    it("sends no cache directive when the handler asks for none", async () => {
+      const req = new Request("http://x/v1/thing");
+      const route = queryRoute(async () => ({ status: 200, body: {} }));
+      const res = await route(req, { params: Promise.resolve({}) });
+      expect(res.headers.get("cache-control")).toBeNull();
+    });
+  });
 });
