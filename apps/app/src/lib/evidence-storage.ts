@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createClient, StorageApiError, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * The one private evidence bucket. Staged bytes and available originals live at
@@ -137,27 +137,69 @@ export async function removeObject(key: string, bucket: string = EVIDENCE_BUCKET
 export const EVIDENCE_URL_TTL_SECONDS = 60;
 
 /**
- * NO KEY IN ANY MESSAGE THROWN FROM HERE DOWN.
+ * NO KEY, AND NO PROVIDER MESSAGE, IN ANY ERROR THROWN FROM HERE DOWN.
  *
  * The functions above this line interpolate the storage key into their errors,
  * which reach `console.error` through `toProblemResponse`'s unmapped branch —
  * against `files-and-storage.md`'s «Logs record the domain object and
  * authorization result, never the signed URL or raw storage key». That is a
  * recorded defect (TODOS.md) and deliberately NOT the style copied here.
- * A key is the input to a signing operation the service key can perform; a
- * leaked key narrows an attacker's search to nothing.
+ *
+ * Relaying the provider's own `error.message` verbatim is not a safe
+ * substitute for interpolating the key ourselves — the message can carry the
+ * key too. Measured against the local stack on 2026-08-22: signing
+ * (`POST .../object/sign/evidence/…`) *and* downloading
+ * (`GET .../object/evidence/…`) a key containing a character the storage
+ * server's name validator rejects (one of `{ } < > # % [ ] | \ ^ "` or a
+ * backtick) both answer HTTP 400 with
+ * `{"code":"InvalidKey","message":"Invalid key: <the raw key>"}` — the key,
+ * verbatim, in the message. Every key this codebase issues is
+ * `newEvidenceKey()`, two uuids, which always validates, so this path is not
+ * reachable today through this file's own callers; it becomes reachable the
+ * day a key stops being a uuid pair, or a caller outside this file passes one
+ * through, and the guarantee has to hold then too — not only for the keys
+ * this file currently chooses to mint.
+ *
+ * So nothing below relays `error.message`. `readFailed` carries forward only
+ * `error.code` — a closed, provider-defined enum (`NoSuchKey`, `NoSuchBucket`,
+ * `InvalidKey`, … see
+ * https://supabase.com/docs/guides/storage/debugging/error-codes) — and
+ * `error.status`. A code is an enum member and cannot contain a key; a status
+ * is a number and cannot either. `code` is also the discriminator a caller
+ * should branch on instead of parsing text: see the NOTE on
+ * `createSignedReadUrl` for why `status` alone is not enough to tell a
+ * missing object from most other storage failures.
  */
-function readFailed(what: string, message: string): Error {
-  return new Error(`storage: ${what} failed: ${message}`);
+export class EvidenceStorageError extends Error {
+  /** The storage API's own error code (`NoSuchKey`, `InvalidKey`, …). Undefined for a failure that never reached the API (e.g. a network error). */
+  readonly code: string | undefined;
+  /** The HTTP status the provider answered with, when there was one. */
+  readonly status: number | undefined;
+
+  constructor(what: string, code: string | undefined, status: number | undefined) {
+    super(`storage: ${what} failed${code ? ` (${code})` : ""}`);
+    this.name = "EvidenceStorageError";
+    this.code = code;
+    this.status = status;
+  }
 }
 
-/** A short-lived read grant for exactly one object. */
-export async function createSignedReadUrl(bucket: string, key: string): Promise<string> {
+function readFailed(what: string, error: unknown): Error {
+  const code = error instanceof StorageApiError ? error.code : undefined;
+  const status = error instanceof Error && "status" in error
+    ? (error as { status?: number }).status
+    : undefined;
+  return new EvidenceStorageError(what, code, status);
+}
+
+/** A short-lived read grant for exactly one object. `bucket` is required and never defaulted: the caller's `evidence_objects` row names its own bucket, and a caller must not be able to silently fall back to a constant. */
+export async function createSignedReadUrl(key: string, bucket: string): Promise<string> {
   const { data, error } = await storage(bucket)
     .createSignedUrl(key, EVIDENCE_URL_TTL_SECONDS);
-  // NOTE: a missing object arrives as HTTP 400 with a body saying 404, so
-  // `error.status` must not be mapped to a response status by any caller.
-  if (error || !data) throw readFailed("signed read", error?.message ?? "no data");
+  // NOTE: a missing object arrives as HTTP 400 with a body saying 404 (code
+  // `NoSuchKey`), so `error.status` must not be mapped to a response status by
+  // any caller — branch on `EvidenceStorageError.code` instead.
+  if (error || !data) throw readFailed("signed read", error);
   return data.signedUrl;
 }
 
@@ -171,19 +213,34 @@ export async function createSignedReadUrl(bucket: string, key: string): Promise<
  *
  * Each entry carries both `signedURL` (server-relative) and `signedUrl`
  * (absolute). Only the second is usable.
+ *
+ * A BATCH THAT FAILS COMPLETELY DOES NOT LOOK LIKE "NONE OF THESE EXIST": per-path
+ * failure is inline at HTTP 200 (above), so the `error || !data` guard below
+ * never fires for it. Measured against the local stack: pointing this at a
+ * bucket that does not exist answers 200 with every entry carrying
+ * `error: "Either the object does not exist or you do not have access to
+ * it"` — a string with no path in it, but one that reads, entry by entry,
+ * exactly like "this object is legitimately gone". The caller asked to sign
+ * `keys.length` objects it already believes exist; getting zero of them back
+ * is itself the failure signal, so it is not returned as a quietly empty map.
+ * Without this, a service key that lost `select` on `storage.objects`, or a
+ * renamed bucket, would make an evidence screen render "no photos" for an
+ * assignment that has ten, and the office would sign off believing nothing
+ * was submitted.
  */
 export async function createSignedReadUrls(
-  bucket: string, keys: string[],
+  keys: string[], bucket: string,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>();
   if (keys.length === 0) return out;
   const { data, error } = await storage(bucket)
     .createSignedUrls(keys, EVIDENCE_URL_TTL_SECONDS);
-  if (error || !data) throw readFailed("signed read batch", error?.message ?? "no data");
+  if (error || !data) throw readFailed("signed read batch", error);
   for (const entry of data) {
     if (entry.error || !entry.path || !entry.signedUrl) continue;
     out.set(entry.path, entry.signedUrl);
   }
+  if (out.size === 0) throw readFailed("signed read batch", undefined);
   return out;
 }
 
@@ -193,11 +250,17 @@ export async function createSignedReadUrls(
  * `download(key).asStream()` resolves to the raw `Response.body`; nothing is
  * buffered, unlike `downloadObject` above, which reads the whole object into a
  * `Uint8Array` because its one caller needs the bytes in hand to hash them.
+ *
+ * The caller owns the returned stream and must consume it fully or call
+ * `cancel()` on it; this function takes no `AbortSignal` of its own —
+ * `download()` accepts one via its `parameters` argument, but wiring a
+ * client's abort through to it belongs with the same-origin proxy route that
+ * is this function's one caller, not here.
  */
 export async function openObjectStream(
-  bucket: string, key: string,
+  key: string, bucket: string,
 ): Promise<ReadableStream<Uint8Array>> {
   const { data, error } = await storage(bucket).download(key).asStream();
-  if (error || !data) throw readFailed("stream", error?.message ?? "no data");
+  if (error || !data) throw readFailed("stream", error);
   return data as ReadableStream<Uint8Array>;
 }
