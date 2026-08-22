@@ -14,6 +14,15 @@ import { issueReviewLink, type FetchLike } from "./grants.service";
  * stored and cannot be reconstructed — and it is exactly the branch a future
  * edit would collapse into `ok` by reaching for `body.link!`, at which point
  * the screen would render `undefined` as a link and tell a person to copy it.
+ *
+ * AND IT IS UNREACHABLE IN PRODUCTION TODAY, which this file should say rather
+ * than let «most important branch» imply otherwise. `issueReviewLink` mints a
+ * fresh Idempotency-Key per call (see `attemptKey`'s corrected header), so
+ * nothing it does can replay, and only a fake `fetch` — the two cases below —
+ * can hand it a token-free 201. The branch is DEFENSIVE: the route's contract
+ * genuinely has that shape, a future caller that reuses a key would reach it
+ * for real, and the cost of not handling it is a person being told to copy the
+ * word `undefined`.
  */
 
 function jsonResponse(status: number, body: unknown): Response {

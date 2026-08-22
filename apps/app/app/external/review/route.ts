@@ -499,7 +499,15 @@ function shell(nonce: string): string {
       if (typeof e.mediaType === "string" && e.mediaType.indexOf("image/") === 0) {
         var img = document.createElement("img");
         img.className = "evidence-image";
-        img.loading = "lazy";
+        // EAGER FOR THE FIRST OBJECT, LAZY FOR THE REST — fix round 1. The
+        // first photograph is what the reviewer opened the link to see, so
+        // deferring it saves nothing and costs the one image that is certainly
+        // wanted. It also removes a dependency the browser audit had on
+        // Chrome's lazy-loading threshold: 'measureDecodedImage' asserts the
+        // FIRST image decoded, which is safe today only because one photo sits
+        // above the fold, and would go red for a non-defect the day a
+        // requirement carries enough materials to push it below.
+        img.loading = i === 0 ? "eager" : "lazy";
         // 'alt' is the filename the DEVICE claimed, or a neutral fallback —
         // never a description this page invented of a photo it cannot see.
         img.alt = e.originalFilename || "Фото доказу";

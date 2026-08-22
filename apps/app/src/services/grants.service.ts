@@ -101,13 +101,41 @@ const VIEW_ONLY_PERMISSIONS = {
 } as const;
 
 /**
- * A fresh key per attempt — the same rule `capture/upload.ts`'s `attemptKey`
- * states: a retry after a network failure must REPLAY rather than issue a
- * second grant to the same address. It is minted per call rather than per
- * component so that a caller who presses the button twice, deliberately,
- * after a first attempt returned, issues a second grant — which is the
- * correct reading of two presses, and is exactly what the route's own
- * duplicate-recipient refusal (409, deciding grants only) is there to bound.
+ * A FRESH KEY PER CALL, WHICH IS THE OPPOSITE OF A REPLAY — CORRECTED IN FIX
+ * ROUND 1, BECAUSE THE SENTENCE THAT STOOD HERE SAID THE REVERSE OF WHAT THIS
+ * FUNCTION DOES.
+ *
+ * It claimed this was «the same rule `capture/upload.ts`'s `attemptKey` states:
+ * a retry after a network failure must REPLAY rather than issue a second
+ * grant», and then said in the same paragraph that the key is minted per call
+ * so two presses issue two grants. Both halves cannot be true. The cited
+ * precedent states it correctly — its own header says «A fresh key per call
+ * attempt — NOT per photo» — and what makes a retry replay there is REUSING a
+ * key, not minting one.
+ *
+ * WHAT THIS ACTUALLY DOES: every call to `issueReviewLink` carries a NEW
+ * Idempotency-Key, so nothing this module does can ever replay. Two presses
+ * issue two grants, which is the correct reading of two deliberate presses and
+ * is what the route's own duplicate-recipient refusal (409, deciding grants
+ * only) exists to bound.
+ *
+ * WHY THAT MATTERS TO THE NEXT EDITOR, which is the whole reason this
+ * correction is not cosmetic: someone adding an automatic retry to
+ * `issueReviewLink`'s `catch` arm would have read the old sentence as a promise
+ * that the retry replays, and shipped a duplicate grant on every transient
+ * network failure — a second live link, to the same address, that nobody
+ * intended and that the recipient cannot tell from the first. A retry that must
+ * replay has to carry the SAME key across attempts, which means lifting the key
+ * out of this function and into the caller's attempt state. That is a change,
+ * not a refactor.
+ *
+ * CONSEQUENCE, STATED RATHER THAN LEFT IMPLIED: because the key is always
+ * fresh, `issued_without_link` is UNREACHABLE from this caller. That branch is
+ * defensive — it exists because the route's contract genuinely has it, and
+ * because the alternative to handling it is `body.link!` rendering `undefined`
+ * as a link and telling a person to copy it — but nothing here can produce it
+ * today, and `grants.service.test.ts` reaches it only by handing this function
+ * a fake `fetch` that returns a token-free 201.
  */
 function attemptKey(): string {
   return crypto.randomUUID();

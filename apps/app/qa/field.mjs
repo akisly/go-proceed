@@ -2007,17 +2007,52 @@ async function main() {
         }
         await submit.click();
 
-        // The link, read off the one element that holds it and nothing else.
-        // A 43-character base64url token in the FRAGMENT is what INV-010
-        // requires, so the pattern asserts the shape as well as the presence.
-        const readLink = () => page.evaluate(() =>
-          [...document.querySelectorAll("p")]
-            .map((el) => (el.textContent ?? "").trim())
-            .filter((t) => /^https?:\/\/[^\s]+\/external\/review#[A-Za-z0-9_-]{43}$/.test(t)));
+        // ── WHERE THE TOKEN IS, COUNTED EVERYWHERE IT COULD BE ─────────────
+        //
+        // FIX ROUND 1. This used to collect `<p>` elements whose ENTIRE
+        // trimmed text is the URL, and the comment beside it read as a general
+        // «the link appears once» guarantee it did not give. Add the
+        // conventional copy affordance later — `<input readOnly value={url}>`
+        // beside «Копіювати посилання» — and the token is on screen twice and
+        // in a DOM attribute besides, while a `<p>`-shaped count stays at 1.
+        //
+        // So the search is by TOKEN SHAPE rather than by element shape, across
+        // three places a URL can live: the rendered text, every attribute of
+        // every element, and the `value` PROPERTY of form controls (React sets
+        // that property on a controlled input; the attribute does not always
+        // follow it). `distinct` answers «which link», `total` answers «how
+        // many times is it on this page» — two different questions, and the
+        // second is the one INV-044's «shown once» is about.
+        //
+        // The 43-character base64url fragment is INV-010's own shape, so the
+        // pattern asserts what the link IS as well as that it is there.
+        const readLinkOccurrences = () => page.evaluate(() => {
+          const RE = /https?:\/\/[^\s"'<>]+\/external\/review#[A-Za-z0-9_-]{43}/g;
+          const inText = document.body.innerText.match(RE) ?? [];
+          const inAttrs = [];
+          for (const el of document.querySelectorAll("*")) {
+            for (const a of el.attributes) {
+              const m = a.value.match(RE);
+              if (m) inAttrs.push(...m);
+            }
+            if (typeof el.value === "string") {
+              const m = el.value.match(RE);
+              if (m) inAttrs.push(...m);
+            }
+          }
+          return { inText, inAttrs };
+        });
+        const readLink = async () => {
+          const { inText, inAttrs } = await readLinkOccurrences();
+          return { total: inText.length + inAttrs.length, distinct: [...new Set([...inText, ...inAttrs])] };
+        };
 
+        // Waits on the same TOKEN SHAPE the count below uses, not on an
+        // element shape — so a future affordance change (a readonly input
+        // instead of a paragraph) is measured by the count assertion rather
+        // than timing out here and reporting the wrong cause.
         const appeared = await page.waitForFunction(
-          () => [...document.querySelectorAll("p")]
-            .some((el) => /\/external\/review#[A-Za-z0-9_-]{43}$/.test((el.textContent ?? "").trim())),
+          () => /https?:\/\/[^\s"'<>]+\/external\/review#[A-Za-z0-9_-]{43}/.test(document.body.innerText),
           { timeout: 20_000 },
         ).then(() => true).catch(() => false);
         if (!appeared) {
@@ -2031,10 +2066,22 @@ async function main() {
         }
 
         const links = await readLink();
-        if (links.length !== 1) {
-          ctx.findings.push(`evidence screen: expected exactly one review link on screen, found ${links.length}`);
+        if (links.distinct.length !== 1) {
+          ctx.findings.push(
+            `evidence screen: expected exactly one distinct review link on screen, found ${links.distinct.length}`,
+          );
         }
-        issued.url = links[0] ?? null;
+        // ONE LINK, ONCE. A second copy of the same URL — in a readonly input,
+        // a `title`, a `data-` attribute — is the same token disclosed twice,
+        // and «Посилання показано один раз» is a claim about the token and not
+        // about how many <p> elements hold it.
+        if (links.total !== 1) {
+          ctx.findings.push(
+            `evidence screen: the review token appears ${links.total} time(s) on the page (text + attributes + input values); `
+            + "INV-044's «shown once» is about the token, not about one element that happens to hold it",
+          );
+        }
+        issued.url = links.distinct[0] ?? null;
 
         // The origin is the one the SERVER was configured to build on, not
         // whatever the page happened to render — `buildReviewLink` refuses to
@@ -2069,13 +2116,50 @@ async function main() {
         // link came back here, the product would be storing it somewhere and
         // INV-044 would be false — so this is the assertion that makes the
         // sentence above true rather than merely printed.
-        await page.reload({ waitUntil: "networkidle0" });
-        const afterReload = await readLink();
-        if (afterReload.length !== 0) {
+        //
+        // AND THE RELOAD'S OWN RESPONSE IS CHECKED FIRST — FIX ROUND 1, AND
+        // THIS WAS THE DEFECT THIS AUDIT WAS SUPPOSED TO BE INCAPABLE OF.
+        //
+        // The response used to be discarded and nothing after it re-established
+        // that this was still the evidence screen. Make `/dash/assignments/{id}`
+        // 500 on a second request — a server-component read that only fails
+        // warm, a session read that trips on the freshly written grant row — or
+        // redirect it to `/login`, and the search below finds no token on the
+        // error page, `total === 0`, no finding fires, and the harness reports
+        // zero findings having asserted INV-044 against a stack trace. That is
+        // exactly how slice D0's harness went six consecutive green runs
+        // through a real bug: a check that returned by a route which wiped the
+        // state the bug lived in. The discipline already exists sixty lines
+        // above — the first `goto` asserts `status() !== 200` — and the reload
+        // simply did not copy it.
+        //
+        // Three things are established before absence is allowed to mean
+        // anything: the response is 200, the path is still this screen, and the
+        // screen is rendering its own content (the form is back — which is also
+        // the positive proof that the issued block was client state and nothing
+        // else — and the photo still decodes).
+        const reloadRes = await page.reload({ waitUntil: "networkidle0" });
+        const reloadStatus = reloadRes ? reloadRes.status() : null;
+        const reloadPath = new URL(page.url()).pathname;
+        const formIsBack = await page.evaluate(() => document.querySelectorAll('button[type="submit"]').length);
+        const stillDecodes = await measureDecodedImage(page, PHOTO_FILENAME);
+
+        if (reloadStatus !== 200 || reloadPath !== `/dash/assignments/${assignmentId}`
+            || formIsBack === 0 || !stillDecodes.ok) {
           ctx.findings.push(
-            `evidence screen: the review link is STILL on screen after a reload (${afterReload.length} found) — `
-            + "the token is being re-derived or stored somewhere, and INV-044 says it cannot be",
+            `evidence screen: the reload did not land back on a working evidence screen — status ${reloadStatus}, `
+            + `path ${reloadPath}, submit buttons ${formIsBack}, photo decoded ${stillDecodes.ok} `
+            + `(naturalWidth ${stillDecodes.naturalWidth}). The «shown once» assertion below is only meaningful `
+            + "against the screen itself; on an error page or a login redirect it would pass by finding nothing.",
           );
+        } else {
+          const afterReload = await readLink();
+          if (afterReload.total !== 0) {
+            ctx.findings.push(
+              `evidence screen: the review link is STILL on screen after a reload (${afterReload.total} occurrence(s)) — `
+              + "the token is being re-derived or stored somewhere, and INV-044 says it cannot be",
+            );
+          }
         }
       });
       reportDiagnostics("evidence screen", officeDiagnostics, ctx.findings, ctx.missingAssets);
@@ -2109,6 +2193,19 @@ async function main() {
             const shown = await page.evaluate(() => document.body.innerText);
             ctx.findings.push(`external review: no «Відкрити вимогу» gate button. Page says: ${JSON.stringify(shown.slice(0, 400))}`);
             return;
+          }
+          // THE ONE CONTROL A ТЕХНАГЛЯД MUST HIT ON A PHONE, measured at the
+          // moment it is the only thing on screen. Added in fix round 1: the
+          // external plane had the 375px overflow check and no touch-target
+          // measurement at all, and this page is a hand-written shell with its
+          // own stylesheet — nothing in `packages/ui`'s component contract
+          // reaches it, so the 44px floor here is held by one `min-height` in a
+          // template literal and by nothing else. Measured at the GATE rather
+          // than after it, deliberately: an observer grant renders no decision
+          // buttons, so a check on the scope screen would pass by finding
+          // nothing to measure.
+          for (const t of await measureSmallTargets(page)) {
+            ctx.findings.push(`external review gate @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
           }
           await gate.click();
 
@@ -3090,7 +3187,16 @@ async function main() {
       "capture route in this repository produces one. The consequence is named rather " +
       "than hidden: `GET /external/evidence`'s `content-security-policy: default-src " +
       "'none'; sandbox` is never exercised on a non-image response by any automated " +
-      "check. It was measured by hand for task 7's report and is not asserted here.",
+      "check. It was measured by hand for task 7's report and is not asserted here. " +
+      "AND IT CANNOT BE AUTOMATED HERE, which is the half that matters to whoever reads this " +
+      "list next: HEADLESS CHROME HAS NO PDF VIEWER AT ALL. A PDF served with that header and " +
+      "the same PDF served without it both render an EMPTY document in this harness's browser, " +
+      "so an audit added later to «cover» this case would compare two blank pages, go green, and " +
+      "then be cited as proof of a property nothing checked. The hand measurement needed a " +
+      "HEADFUL Chrome with the PDF component extension enabled (puppeteer's default launch args " +
+      "disable it even headful); its result — the viewer renders, identically, with and without " +
+      "the header, so the header stays and no ADR moves — is in task-7-report.md §2 and in the " +
+      "byte route's own comment.",
 
       "The «Копіювати посилання» button is rendered and never pressed. " +
       "`navigator.clipboard.writeText` needs a permission headless Chrome grants " +

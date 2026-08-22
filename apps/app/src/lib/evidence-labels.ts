@@ -100,14 +100,25 @@ export const ORIGIN_METHOD_LABELS: Readonly<Record<string, string>> = Object.fre
    * doing exactly what it was built for, on the one value that is not an
    * unknown future one.
    *
-   * WHY NOTHING CAUGHT IT, which is the more useful half: this file's own
-   * fidelity test derived «every value the database permits» from migration
-   * **0015**, whose CHECK carries six. Migration **0043** widened the same
-   * constraint to seven — that is the migration that made the PWA capture
-   * storable at all — and the test never read it, so a green suite defended
-   * the gap. The test now reads the LAST definition of the constraint across
-   * the migration directory instead of the first, which is what «what the
-   * database permits» meant all along.
+   * WHY NOTHING CAUGHT IT, which is the more useful half: the fidelity test
+   * derived «every value the database permits» by PARSING MIGRATION SQL, and
+   * read migration **0015**, whose CHECK carries six. Migration **0043**
+   * widened the same constraint to seven — that is the migration that made the
+   * PWA capture storable at all — and the test never read it, so a green suite
+   * defended the gap.
+   *
+   * The first fix walked the whole migration directory, last definition wins.
+   * That was still not enough, and the second failure would have let this
+   * exact defect recur silently: the parser matched only the literal spelling
+   * `check (<column> in (…))`, while the running database renders this
+   * constraint as `= ANY (ARRAY[…])` and six migrations here already write it
+   * that way by hand. Measured: with an eighth value added in the ANY spelling,
+   * the migration parser still reported seven and stayed green.
+   *
+   * So the question is now asked of `pg_constraint`, in
+   * `apps/app/tests/evidence-labels.int.test.ts`, whose header carries the
+   * whole account. A test that approximates the schema can be wrong about the
+   * schema; the database cannot.
    *
    * The label is what ADR-007 decision 5 says and not a softer paraphrase: the
    * origin was not established. It does not say «browser», because the field
