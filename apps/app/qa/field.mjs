@@ -148,10 +148,20 @@ function killAllServerGroups(signal) {
 }
 
 // `exit` can only run synchronous work, and `process.kill` is synchronous, so
-// this is the last-resort net for an uncaught throw. The two signal handlers
+// this is the last-resort net for an uncaught throw. The signal handlers
 // re-raise with the conventional 128+n code rather than swallowing the signal.
+//
+// SIGHUP IS IN THE LIST AND IT IS THE ONE THAT MATTERS MOST HERE. A signal
+// whose default disposition is to terminate does not run `exit` listeners
+// unless a handler is installed for it — so before this line, closing the
+// terminal or dropping an SSH session during a run left the whole
+// `pnpm → pnpm → next` group alive, which `detached: true` is precisely what
+// made possible. It leaked silently, one stray server per abandoned run,
+// because `getFreePort` takes a fresh port every time and nothing ever
+// collided to reveal it. Abandoning a long QA run mid-flight is the ordinary
+// case, not the exotic one.
 process.on("exit", () => killAllServerGroups("SIGKILL"));
-for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143]]) {
+for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129], ["SIGQUIT", 131]]) {
   process.once(signal, () => {
     killAllServerGroups("SIGKILL");
     process.exit(code);
@@ -914,13 +924,23 @@ async function measureUaStyledLinks(page) {
  * names the symptom and not the cause.
  *
  * `checkVisibility()` rather than a computed-style walk — it is the engine's
- * own answer — but IT MUST BE PASSED OPTIONS, which this helper did not do
- * until 2026-08-22. `visibilityProperty` and `contentVisibilityAuto` both
- * DEFAULT TO FALSE, and a `visibility: hidden` element still generates a box,
- * so a bare `checkVisibility()` returns TRUE for one. The header here claimed
- * it excluded `visibility:hidden` "in one call"; it did not, and these two
- * helpers decide which of the shell's two duplicated profile controls the
- * audit is talking about, so the gap was load-bearing.
+ * own answer — but IT MUST BE PASSED OPTIONS. `visibilityProperty` and
+ * `contentVisibilityAuto` both default to false, and a `visibility: hidden`
+ * element still generates a box, so a bare `checkVisibility()` returns TRUE
+ * for one.
+ *
+ * THE CASE THAT NEEDS THEM IS NOT THE ONE THIS HEADER FIRST NAMED. It claimed
+ * the options were what tells the shell's two duplicated profile controls
+ * apart; they are not — the hidden one is `display: none` (`hidden md:flex`),
+ * which a bare `checkVisibility()` already excludes. The real case is the
+ * PORTALLED content these helpers are also pointed at:
+ * `@radix-ui/react-popper@1.3.7` sets `{ visibility: "hidden", pointerEvents:
+ * "none" }` on the popper wrapper when `middlewareData.hide.referenceHidden`
+ * (dist/index.mjs:214-217), so a menu whose trigger has been scrolled out of
+ * a clipping ancestor is styled — in that library's own words — «as if the
+ * PopperContent isn't there at all», while still generating boxes. Without
+ * the options `visibleHandleWithText` would hand back a `[role="menuitem"]`
+ * that cannot be clicked.
  *
  * `opacityProperty` is deliberately NOT set: it would treat `opacity: 0` as
  * hidden, and `animate-chip-in` passes through exactly that on its first
@@ -1916,8 +1936,83 @@ async function main() {
             ctx.findings.push(`drawer @375: expected the «Профіль» heading after navigating, found "${afterDrawerNav.headingText}"`);
           }
           await page.screenshot({ path: path.join(SHOTS, "dash-drawer-navigated.png"), fullPage: true });
+
+          // ── 2c. BACK — THE CASE THE FIRST FIX FOR 2b REINTRODUCED ────────
+          // A controlled Radix Dialog does not call `onOpenChange` when the
+          // prop closes it (see `top-bar.tsx`'s own note and the two call
+          // sites it cites), so a fix that only DERIVES `open` from the
+          // pathname leaves the path it was opened on sitting in state. Press
+          // Back, `pathname` returns to that value, and the drawer reopens
+          // over the dashboard — covered and focus-trapped, on the only
+          // navigation a phone has, since this app contains exactly one link.
+          //
+          // THIS MUST BE A REAL `goBack()`, NOT A `page.goto`. The previous
+          // version of this block returned to `/dash` with a hard navigation,
+          // which remounts `TopBar` and wipes the very state the bug lives in
+          // — which is why six consecutive green runs said nothing about it.
+          await page.evaluate(() => {
+            window.__qaDrawerPopstates = 0;
+            window.addEventListener("popstate", () => { window.__qaDrawerPopstates += 1; });
+          });
+          await page.goBack({ waitUntil: "networkidle0" }).catch(() => {});
+          const backHappened = await page.evaluate(() => window.__qaDrawerPopstates ?? 0);
+          const afterBackToDash = await page.evaluate(() => ({
+            pathname: location.pathname,
+            openDialogs: document.querySelectorAll('[role="dialog"]').length,
+          }));
+          if (backHappened === 0) {
+            ctx.findings.push("drawer @375: the Back press never navigated — the reopen check below cannot have tested anything");
+          }
+          if (afterBackToDash.pathname !== "/dash") {
+            ctx.findings.push(`drawer @375: Back from the profile screen landed on ${afterBackToDash.pathname}, expected /dash`);
+          }
+          if (afterBackToDash.openDialogs > 0) {
+            ctx.findings.push(
+              "drawer @375: pressing Back REOPENED the navigation drawer over the dashboard — the drawer's open state "
+              + "was not cleared on the outbound route change, only re-derived, so returning to the same path restores it",
+            );
+          }
+
+          // ── 2d. A LINK TO THE ROUTE YOU ARE ALREADY ON ──────────────────
+          // `goForward` rather than another drawer trip: it puts us back on
+          // the profile screen without spending an interaction. Then open the
+          // drawer there and press «Профіль» again — the pathname does not
+          // change, so nothing keyed on a route change can close it, and only
+          // the link handler can.
+          await page.goForward({ waitUntil: "networkidle0" }).catch(() => {});
+          if (new URL(page.url()).pathname !== "/dash/settings/profile") {
+            ctx.findings.push(`drawer @375: goForward did not return to the profile screen (on ${new URL(page.url()).pathname}) — the same-route check could not run`);
+          } else {
+            await page.click('button[aria-label="Відкрити меню"]');
+            await page.waitForSelector('[role="dialog"]');
+            await waitForAnimations(page);
+            const sameRouteTrigger = await visibleHandle(page, `[role="dialog"] ${PROFILE_TRIGGER}`);
+            if (sameRouteTrigger) {
+              await sameRouteTrigger.click();
+              await page.waitForSelector('[role="menu"]', { timeout: 5_000 }).catch(() => {});
+              await sameRouteTrigger.dispose();
+            }
+            const sameRouteItem = await visibleHandleWithText(page, '[role="menuitem"]', "Профіль");
+            if (!sameRouteItem) {
+              ctx.findings.push("drawer @375: no «Профіль» item for the same-route check");
+            } else {
+              await sameRouteItem.click();
+              await sameRouteItem.dispose();
+              const closedOnSameRoute = await page
+                .waitForFunction(() => document.querySelectorAll('[role="dialog"]').length === 0, { timeout: 3_000 })
+                .then(() => true).catch(() => false);
+              if (!closedOnSameRoute) {
+                ctx.findings.push(
+                  "drawer @375: pressing «Профіль» while already on /dash/settings/profile left the drawer open over the "
+                  + "page — no route change happens, so the drawer has to close on the link activation itself",
+                );
+              }
+            }
+          }
+
           // Back to `/dash` for the touch-target and overflow checks below,
-          // which are about the dashboard index, not this screen.
+          // which are about the dashboard index, not this screen. A hard
+          // navigation is correct HERE — the state-sensitive checks are done.
           await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
           await page.click('button[aria-label="Відкрити меню"]');
           await page.waitForSelector('[role="dialog"]');

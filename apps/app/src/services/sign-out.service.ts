@@ -60,8 +60,11 @@
  * `proxy.ts`. It does not: `proxy.ts:94` holds that file's only redirect and
  * it is guarded `if (!user && pathname !== "/login")`, so a signed-in user
  * who lands on `/login` is served the OTP form like anyone else. Nothing
- * anywhere in this app redirects to `/dash` — all nine `redirect()` calls go
- * to `/login?next=…`. (Corrected 2026-08-22, fix round 1.)
+ * anywhere in this app redirects to `/dash`: every `redirect()` call in
+ * `apps/app/app` and `apps/app/src` targets `/login?next=…`. (Corrected
+ * 2026-08-22, fix round 1. The count that stood here — "all nine" — was
+ * already stale by one when it was written, which is why this says what is
+ * true of all of them instead of how many there are.)
  *
  * The real reason is worse than the invented one. A failed sign-out may well
  * have left the session alive — see the `_removeSession` note above, which is
@@ -107,16 +110,36 @@ export async function performSignOut({
   try {
     ({ error } = await client.auth.signOut({ scope: "local" }));
   } catch (thrown) {
-    // `signOut` CAN REJECT as well as resolve with `{ error }`, but NOT for
-    // the reason this comment first gave. A dropped connection does NOT
-    // reject: `auth-js`'s `lib/fetch.js` wraps it in `AuthRetryableFetchError`
-    // and `GoTrueAdminApi.signOut` returns it through `isAuthError`, so a
-    // transport failure arrives on the `{ error }` path handled below.
-    // (Corrected 2026-08-22, fix round 1.) What genuinely rejects is the
-    // lock: `_useSession` acquires one, and `navigatorLock` throws
-    // `NavigatorLockAcquireTimeoutError` rather than resolving. The catch
-    // stays because that path is real and because an unhandled rejection here
-    // would leave the dialog spinning with no message at all.
+    // THIS CATCH IS DEFENSIVE AND I HAVE NOT ESTABLISHED A PATH THAT REACHES
+    // IT. Two previous versions of this comment named a cause; both were
+    // wrong, so this one names only what was read.
+    //
+    // What IS verified in `@supabase/auth-js@2.112.3`:
+    //   - a dropped connection does not reject. `lib/fetch.js:28` throws
+    //     `AuthRetryableFetchError`, and `GoTrueAdminApi.js:77-81` catches it,
+    //     sees `isAuthError`, and RETURNS `{ error }` — the path below.
+    //   - `_useSession` acquires no lock. `GoTrueClient.js:2477-2490` awaits
+    //     `__loadSession()` and calls `fn` inside a try/finally that only
+    //     emits debug lines; its own comment reads «No serialization is needed
+    //     at this layer.»
+    //   - the lock that does exist is in `signOut` itself
+    //     (`GoTrueClient.js:3395-3403`), gated `if (this.lock != null)` — and
+    //     `this.lock` is `null` (`:151`), assigned only `if (settings.lock !=
+    //     null)` (`:199`), above a source comment stating there is «no
+    //     `navigator.locks` by default, no implicit `processLock`».
+    //     `@supabase/ssr@0.12.4`'s `createBrowserClient` never sets it and
+    //     `supabase-browser.ts` passes no options, so on this app's client the
+    //     lock branch is unreachable and `navigatorLock` is never called by
+    //     the library at all — it is only re-exported from `index.js:8`.
+    //
+    // So: I could not find a rejecting path, and I am not claiming there is
+    // none. The catch stays for two reasons that do not depend on knowing:
+    // `client` is INJECTED and typed structurally (`SignOutClient`), so any
+    // implementation — a fake, a future SDK — may reject; and if one ever did,
+    // `sign-out-dialog.tsx` never reaches its `setPending(false)`, leaving the
+    // button stuck on «Виходимо…» with nothing on screen to explain it. Two
+    // lines against that is the right trade even for a path that may not
+    // exist.
     return { kind: "error", error: thrown };
   }
   if (error) return { kind: "error", error };

@@ -122,9 +122,14 @@ export function SignOutDialog({
         //
         // None of the three container roles means "a confirm dialog", so this
         // is a missing role (§3.3 question 2) and it is filed in the task
-        // report rather than invented here — together with the three other
-        // call sites the same gap already affects, `DialogContent`'s own
-        // `max-w-md` default among them.
+        // report rather than invented here — together with the FOUR other call
+        // sites the same gap already affects: `shell-error.tsx` (`max-w-sm`),
+        // `no-workspace-empty-state.tsx` and `no-projects-empty-state.tsx`
+        // (`max-w-md`), and `packages/ui/src/components/Dialog.tsx:49`'s own
+        // `max-w-md` default — which means every dashboard dialog is
+        // full-width unless its caller overrides it. (`app/(auth)/login/page.tsx`
+        // also writes `max-w-sm` and is NOT one of them: it is a field-client
+        // route, and `globals.css` does emit that utility.)
         className="max-w-96"
         // FOCUS GOES SOMEWHERE DELIBERATE WHEN THIS CLOSES. Radix's modal
         // content ships `onCloseAutoFocus: composeEventHandlers(props..., (e)

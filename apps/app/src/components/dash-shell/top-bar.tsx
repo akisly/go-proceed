@@ -41,21 +41,40 @@ export function TopBar({
   // asked for sits behind the drawer — covered, focus-trapped and
   // `aria-hidden` — with no way forward but closing the drawer by hand.
   //
-  // DERIVED FROM THE PATHNAME, NOT SYNCED TO IT IN AN EFFECT. Storing "the
-  // path this drawer was opened on" and comparing it during render means the
-  // drawer is already closed in the first render of the new route; a
-  // `useEffect(() => setOpen(false), [pathname])` would run after paint and
-  // show one frame of the old drawer over the new page. `null` is the closed
-  // state, so reopening on the same path works normally.
+  // THE FIRST FIX FOR THAT WAS ITSELF BROKEN, AND THIS IS THE SECOND.
+  // It kept "the path the drawer was opened on" in state and derived
+  // `open = openedOn === pathname`. The derivation flipped `open` to false on
+  // a route change without ever CLEARING `openedOn`, because a controlled
+  // Radix Dialog only calls `onOpenChange` from a real dismissal:
+  // `@radix-ui/react-use-controllable-state@1.2.6` reaches `onChange` only
+  // from `setValue`'s controlled branch (dist/index.mjs:38-46), and
+  // `@radix-ui/react-dialog@1.1.23` has exactly two `context.onOpenChange(false)`
+  // call sites — DismissableLayer's `onDismiss` (:238) and `DialogClose`'s
+  // click (:283). A prop-driven close invokes neither. So the stale path sat
+  // in state, and pressing Back — the only way back on a phone, since this
+  // app contains exactly one link — returned `pathname` to `/dash`, matched
+  // the stale value, and reopened the drawer over the dashboard.
   //
-  // This is also why the file is now `"use client"`. It renders only client
+  // ADJUSTED DURING RENDER, WHICH ACTUALLY CLEARS IT. This is React's
+  // documented "adjusting state when a prop changes": calling the setters
+  // while rendering makes React re-run this component immediately, before it
+  // renders children and before the browser paints, so the drawer is already
+  // closed in the first render of the new route — the property the derivation
+  // was written for — while `open` is now real state that a route change sets
+  // to `false` and nothing resurrects.
+  //
+  // This is also why the file is `"use client"`. It renders only client
   // components (`Dialog`, `Sidebar`) and its props stay serialisable —
   // `memberships` is plain JSON and `profileSlot` is a client element — so
   // nothing about the server tree above it changes.
   // ═══════════════════════════════════════════════════════════════════════
   const pathname = usePathname();
-  const [openedOn, setOpenedOn] = useState<string | null>(null);
-  const open = openedOn !== null && openedOn === pathname;
+  const [open, setOpen] = useState(false);
+  const [lastPathname, setLastPathname] = useState(pathname);
+  if (lastPathname !== pathname) {
+    setLastPathname(pathname);
+    setOpen(false);
+  }
 
   return (
     <header
@@ -64,7 +83,7 @@ export function TopBar({
         className,
       )}
     >
-      <Dialog open={open} onOpenChange={(next) => setOpenedOn(next ? pathname : null)}>
+      <Dialog open={open} onOpenChange={setOpen}>
         {/*
          * Not `<DialogTrigger asChild><Button>…</Button></DialogTrigger>`:
          * `Button` does not forward a ref (Task 1's own report flags this —
@@ -86,6 +105,28 @@ export function TopBar({
           <Menu aria-hidden="true" strokeWidth={1.75} className="size-5" />
         </DialogTrigger>
         <DialogContent
+          // A LINK INSIDE THE DRAWER CLOSES IT, AND THE ROUTE CHANGE ABOVE IS
+          // NOT ENOUGH ON ITS OWN. Tapping «Профіль» while already ON
+          // `/dash/settings/profile` changes no pathname, so the adjustment
+          // above never fires and the drawer would sit over the page the user
+          // is already looking at, in the same covered, focus-trapped state.
+          // Closing on any activated link covers that, and covers a route
+          // change belt-and-braces.
+          //
+          // `closest("a[href]")` because the press lands on the icon or the
+          // text inside the link, never on the anchor itself; buttons are
+          // deliberately not matched, so «Скасувати» in the sign-out confirm —
+          // which reaches this handler too — leaves the drawer alone.
+          //
+          // The profile menu's link is PORTALLED out of this subtree, so this
+          // relies on the event reaching here through the React tree rather
+          // than the DOM one. That is asserted in `apps/app/qa/field.mjs`'s
+          // dash audit rather than claimed here: it presses «Профіль» from the
+          // drawer while already on the profile route and requires the drawer
+          // to be gone afterwards.
+          onClick={(event) => {
+            if ((event.target as HTMLElement).closest?.("a[href]")) setOpen(false);
+          }}
           className={cx(
             // Only position/size/radius/padding/background are overridden —
             // `border border-line` is left as DialogContent's own default

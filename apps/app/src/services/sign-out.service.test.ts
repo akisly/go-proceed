@@ -94,10 +94,11 @@ describe("performSignOut — the failure path never navigates", () => {
   });
 
   it("surfaces a THROWN error the same way, and still does not navigate", async () => {
-    // A rejection is a real path, though not the one first claimed here: a
-    // dropped connection resolves with `{ error: AuthRetryableFetchError }`,
-    // while `navigatorLock` timing out THROWS. Either way the caller must not
-    // navigate, which is what this pins.
+    // A rejection is not a path anyone has established in the installed SDK —
+    // see the module's own catch, which lists what was read and says so. It IS
+    // reachable through the injected client, which is exactly what this test
+    // supplies, and the rule under test is the same either way: whatever shape
+    // the failure arrives in, the caller must not navigate.
     const thrown = new Error("Failed to fetch");
     const h = harness(async () => { throw thrown; });
 

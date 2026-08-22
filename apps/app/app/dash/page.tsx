@@ -11,9 +11,13 @@ import { ShellFatalError } from "../../src/components/dash-shell/shell-error";
  * `/dash`'s own index. THIN, per `docs/design/03-ui-references.md`
  * §"The hierarchy": calls the one service this page needs and renders
  * exactly one of three domain components — no JSX construction of its own,
- * no empty-state copy inline. The "no workspace" case is handled one level
- * up, in `dash-layout.tsx`, since that is where the membership data already
- * lives; this page only ever runs once a workspace is known to exist.
+ * no empty-state copy inline.
+ *
+ * THE "NO WORKSPACE" CASE IS THIS FILE'S, as of fix round 1. It used to be
+ * handled one level up in `dash-layout.tsx`, and this header used to say so
+ * and add that "this page only ever runs once a workspace is known to exist" —
+ * both untrue five lines below since that branch moved here. See the comment
+ * on the branch itself for why a layout was the wrong place for it.
  */
 export default async function DashIndexPage() {
   // THE "NO WORKSPACE" BRANCH LIVES HERE NOW, not in `src/layouts/dash-layout.tsx`.

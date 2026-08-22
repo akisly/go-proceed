@@ -683,12 +683,17 @@ therefore emits **no `.max-w-sm` and no `.max-w-md`** — and `max-w-md` is
 dashboard is full-width unless its caller overrides it**. Nothing is visibly
 broken today because both existing dialogs override (the sign-out confirm now
 uses `max-w-96`, verified in the rebuilt chunk; the drawer sets its own
-width), so this is a trap for the next dialog, not a live defect. Three call
-sites already carry the dead class: `shell-error.tsx` (`max-w-sm`),
-`no-workspace-empty-state.tsx` and `no-projects-empty-state.tsx` (`max-w-md`).
-This is `docs/design/02-building-ui.md` §3.3 question 2 — a missing ROLE, to
-be added in `packages/tokens/src/tokens.json` and regenerated, not four
-scattered edits. **Discovered the same way as the Georgia-font bug below: by
+width), so this is a trap for the next dialog, not a live defect. **FOUR** call
+sites already carry a dead `max-w-*`, and the fourth is the one most easily
+missed because it is not in this app: `shell-error.tsx` (`max-w-sm`),
+`no-workspace-empty-state.tsx` and `no-projects-empty-state.tsx` (`max-w-md`),
+and `packages/ui/src/components/Dialog.tsx:49` (`max-w-md`) — the component
+default named two sentences above. (`app/(auth)/login/page.tsx` also writes
+`max-w-sm` and is NOT one of them: it is a field-client route, where
+`globals.css` does emit that utility.) This is
+`docs/design/02-building-ui.md` §3.3 question 2 — a missing ROLE, to be added
+in `packages/tokens/src/tokens.json` and regenerated, not one scattered edit
+per call site. **Discovered the same way as the Georgia-font bug below: by
 grepping the compiled CSS chunk, not by reading the source** — a class that
 does not exist produces no error, only an element that renders wrong.
 
