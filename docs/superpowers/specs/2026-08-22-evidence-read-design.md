@@ -250,14 +250,26 @@ Beyond the standard gate (`02-building-ui.md` §5, both builds, the app suite):
 ## Recorded finding, not fixed here
 
 **`technical/schema.sql` and the migrations describe different
-`evidence_objects` tables.** `schema.sql` has `organization_id`, `sha256`,
-`mime_type`, `scan_state`, `lifecycle_state`, `assignment_id`, `work_item_id`;
+`evidence_objects` tables, and the file is not what its readers assume.**
+
+`schema.sql` has `organization_id`, `sha256`, `mime_type`, `scan_state`,
+`lifecycle_state`, `assignment_id`, `work_item_id`;
 `supabase/migrations/0015_execution_evidence_module.sql` has `workspace_id`,
 `content_hash`, `media_type`, `inspection_status`, `storage_bucket`,
 `relation_kind` and no scan or lifecycle column at all. The shipped external
 route reads the migration's columns, so the migrations are what runs.
 
-This design is built against the migrations. The discrepancy itself is a
-separate defect: a canonical schema document that disagrees with the database is
-worse than no document, because it is read and believed. It goes to `TODOS.md`
-rather than being fixed inside this slice.
+**The divergence is not itself a defect.** `technical/schema.sql`'s own first
+line calls it the «AktFlow Pilot v2.9 executable reference schema» and says
+«Convert to ordered reviewed migrations before runtime use» — it is a
+design-time reference that the migrations were derived from, not a snapshot of
+the database. A migration departing from it is the process working.
+
+The hazard is narrower and real: **nothing in the file says which tables have
+departed**, and `scripts/validate-canonical-docs.mjs` lists it among the
+canonical documents, so it reads as current truth. Anyone — human or agent —
+who checks a column against it for `evidence_objects` gets a confident wrong
+answer, which is exactly what happened while this design was being written. The
+fix is a line in the file's header naming its status and pointing at the
+migrations as the runtime authority, not a rewrite of the schema. It goes to
+`TODOS.md`, not into this slice.

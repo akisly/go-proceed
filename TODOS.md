@@ -749,6 +749,36 @@ such control appears.
 
 ---
 
+## P3 — `technical/schema.sql` reads as current truth and is a design-time reference
+
+**Found 2026-08-22, while designing the evidence read (Plan D slice D1).** The
+file's own first line says what it is: «AktFlow Pilot v2.9 executable reference
+schema. Convert to ordered reviewed migrations before runtime use.» It is the
+design the migrations were derived FROM, not a snapshot of the database, so a
+migration departing from it is the process working rather than drift.
+
+The hazard is that nothing in the file says WHICH tables have departed, and
+`scripts/validate-canonical-docs.mjs` lists it among the canonical documents —
+so it reads as current truth. `evidence_objects` is the worst case found so far:
+
+| `technical/schema.sql` | `supabase/migrations/0015_execution_evidence_module.sql` |
+|---|---|
+| `organization_id`, `sha256`, `mime_type` | `workspace_id`, `content_hash`, `media_type` |
+| `scan_state`, `lifecycle_state` | neither exists; `inspection_status` instead |
+| `assignment_id`, `work_item_id` on the row | neither; the link is via `upload_intents` |
+
+The shipped `apps/app/app/external/occurrence/route.ts` selects the migration's
+columns, so the migrations are what runs. Anyone checking a column against
+`schema.sql` for this table gets a confident wrong answer — which is exactly
+what happened while the D1 design was being written, and was caught only by
+reading the migration.
+
+**The fix is a header, not a rewrite:** state the file's status on its own face
+and name `supabase/migrations/**` as the runtime authority. Optionally list the
+tables known to have diverged. Rewriting the schema to match the migrations
+would destroy the design record the file exists to be.
+
+
 ## P3 — `packages/tokens`' `generate-palette.mjs` still writes into the deleted `apps/demo` tree
 
 **Observed 2026-08-21, during the field-client build.** `outDir` in
