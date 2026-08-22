@@ -1,13 +1,24 @@
 import { z } from "zod";
 
+/**
+ * FIX ROUND 1: matched to `externalEvidenceItem`'s strictness
+ * (`packages/contracts/src/external.ts:299-308`), the same object field-for-
+ * field minus `readUrl` — this route's screen must render a trust badge from
+ * `captureTimeTrust`, and as a bare `string` an exhaustive switch over it is
+ * impossible; `byteSize` as a bare `.int()` admitted 0 and negatives, which
+ * `evidence_objects`' own `CHECK (byte_size > 0)` (migration 0015) forbids.
+ * This was the brief's own defect (its Step 1 code showed the loose form) and
+ * is fixed here rather than deferred, the same instruction the brief was
+ * itself corrected under.
+ */
 export const evidenceObjectView = z.object({
   evidenceObjectId: z.string().uuid(),
-  mediaType: z.string(),
-  byteSize: z.number().int(),
+  mediaType: z.string().min(1),
+  byteSize: z.number().int().positive(),
   contentHash: z.string().regex(/^[0-9a-f]{64}$/),
   originalFilename: z.string().nullable(),
-  originMethod: z.string(),
-  captureTimeTrust: z.string(),
+  originMethod: z.string().min(1),
+  captureTimeTrust: z.enum(["device_claimed", "server_estimated", "unknown"]),
   claimedCaptureTime: z.string().nullable(),
   serverReceivedAt: z.string(),
   /**
@@ -18,7 +29,7 @@ export const evidenceObjectView = z.object({
    * client renders «недоступне» rather than a broken image.
    */
   readUrl: z.string().url().optional(),
-});
+}).strict();
 
 export const assignmentEvidenceResponse = z.object({
   groups: z.array(z.object({
@@ -31,8 +42,8 @@ export const assignmentEvidenceResponse = z.object({
      */
     occurrenceId: z.string().uuid().nullable(),
     evidence: z.array(evidenceObjectView),
-  })),
-});
+  }).strict()),
+}).strict();
 
 export type EvidenceObjectView = z.infer<typeof evidenceObjectView>;
 export type AssignmentEvidenceResponse = z.infer<typeof assignmentEvidenceResponse>;

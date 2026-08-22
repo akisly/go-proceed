@@ -41,6 +41,8 @@ const LINE = {
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
 /** A distinct payload for the fallback photo, so the two evidence rows never collide on content_hash. */
 const JPEG2 = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x01]);
+/** A third, again distinct payload — the SECOND photo on the bound occurrence (fix round 1, cheap item B). */
+const JPEG3 = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x02]);
 const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 interface Fx extends BaselineFixture {
@@ -166,25 +168,40 @@ beforeEach(async () => {
   occurrenceId = fx.occurrenceId;
   assignmentId = fx.assignmentId;
   await captureOne(assignmentId, JPEG, occurrenceId);
+  // A SECOND photo on the SAME occurrence, not just a second occurrence —
+  // fix round 1, cheap item B. Grouping used to be provable only by trusting
+  // the SQL's `ORDER BY`; two rows sharing one occurrence id is what would
+  // expose a regression that split them into two same-id groups (a `groups.
+  // at(-1)`-style comparison, defeated by any re-sort) rather than merging
+  // them into one.
+  await captureOne(assignmentId, JPEG3, occurrenceId);
   await captureOne(assignmentId, JPEG2 /* no occurrenceId — the fallback photo */);
 });
 
 describe("GET /v1/assignments/{id}/evidence", () => {
-  it("returns both the occurrence-bound photo and the one with no occurrence", async () => {
+  it("returns both the occurrence-bound photos and the one with no occurrence, as exactly two groups", async () => {
     const res = await getEvidence(assignmentId);
     expect(res.status, await res.clone().text()).toBe(200);
 
     const body = assignmentEvidenceResponse.parse(await res.json());
+    // EXACTLY TWO GROUPS (fix round 1, cheap item B): the fixture captures two
+    // photos on ONE occurrence and one fallback photo on none — three evidence
+    // rows, two groups. A grouping bug that keyed on something other than the
+    // occurrence id (or that split one occurrence across two groups) would
+    // show up here as three groups, not two.
+    expect(body.groups).toHaveLength(2);
+
     const bound = body.groups.find((g) => g.occurrenceId === occurrenceId);
     const fallback = body.groups.find((g) => g.occurrenceId === null);
 
-    expect(bound?.evidence).toHaveLength(1);
+    expect(bound?.evidence).toHaveLength(2);
     // THE ONE THAT WOULD SILENTLY VANISH under an inner join or a null filter.
     expect(fallback?.evidence).toHaveLength(1);
     // …and the null group is last.
     expect(body.groups.at(-1)?.occurrenceId).toBeNull();
 
     expect(bound?.evidence[0]?.readUrl).toMatch(/^https?:\/\//);
+    expect(bound?.evidence[1]?.readUrl).toMatch(/^https?:\/\//);
     expect(fallback?.evidence[0]?.readUrl).toMatch(/^https?:\/\//);
   });
 
@@ -193,7 +210,7 @@ describe("GET /v1/assignments/{id}/evidence", () => {
     expect(res.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("does not leak the signed URL into audit or the outbox", async () => {
+  it("does not leak the signed URL into audit, the outbox, or any idempotency body", async () => {
     const res = await getEvidence(assignmentId);
     const body = assignmentEvidenceResponse.parse(await res.json());
     const url = body.groups[0]!.evidence[0]!.readUrl!;
@@ -204,8 +221,23 @@ describe("GET /v1/assignments/{id}/evidence", () => {
     // (migration 0002); `transaction_outbox`'s is `payload`.
     const audit = await q<{ t: string }>(`select details::text as t from public.audit_events`);
     const outbox = await q<{ t: string }>(`select payload::text as t from public.transaction_outbox`);
+    // FIX ROUND 1, CHEAP ITEM A: the spec and TODOS.md:783 name a third place
+    // — «or in any idempotency body». `idempotency_records.response_body` and
+    // `.response_headers` are real jsonb columns (migration 0002). VACUOUSLY
+    // TRUE TODAY: `queryRoute` (unlike `commandRoute`) writes no idempotency
+    // record at all, so this table is empty for a GET and the assertion below
+    // passes without exercising anything. It is still worth asserting — it is
+    // exactly the check that would catch a future refactor that routed this
+    // response through the idempotency store the way command routes do.
+    const idem = await q<{ b: string | null; h: string | null }>(
+      `select response_body::text as b, response_headers::text as h
+         from public.idempotency_records`);
     for (const r of [...audit, ...outbox]) {
       expect(r.t).not.toContain(token);
+    }
+    for (const r of idem) {
+      if (r.b !== null) expect(r.b).not.toContain(token);
+      if (r.h !== null) expect(r.h).not.toContain(token);
     }
     // NOTE: «never in logs» is NOT asserted here and cannot be — this app has no
     // application logging at all (three console.error calls, all on error

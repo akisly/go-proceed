@@ -78,42 +78,58 @@ export const GET = queryRoute(async (a) => {
       list.push(r.storage_key as string);
       byBucket.set(bucket, list);
     }
+    // NO THROW ON A PER-OBJECT FAILURE, NOT EVEN A WHOLE BATCH OF THEM.
+    // `createSignedReadUrls` (fixed round 2) reports failed keys instead of
+    // throwing for anything short of a genuine wholesale SDK error (auth,
+    // transport, an invalid bucket name) — the earlier fix-round-1 remedy
+    // (throw when the whole batch failed) turned "1 of 1 failed", the modal
+    // shape at pilot start, into a 500 for the WHOLE assignment's read, which
+    // is worse than the failure it guarded against. `signed` below is built
+    // from `.urls` only; a key absent from it — whether one key or the whole
+    // batch failed — simply omits `readUrl` on its row, below.
     const signed = new Map<string, string>();
     for (const [bucket, keys] of byBucket) {
-      // NOT CAUGHT HERE, DELIBERATELY. `createSignedReadUrls` throws
-      // `EvidenceStorageError` only when EVERY key in a non-empty batch
-      // failed to sign — a lost `select` grant on `storage.objects`, a
-      // renamed bucket — and letting that become this route's 500 is the
-      // correct failure: a screen rendering «немає фото» for an assignment
-      // that has evidence is exactly what this slice exists to prevent.
-      // A single key that fails to sign inside an otherwise-successful batch
-      // does NOT throw; it is simply absent from `signed` below, and its
-      // evidence entry omits `readUrl`.
-      for (const [k, url] of await createSignedReadUrls(keys, bucket)) signed.set(k, url);
+      const { urls } = await createSignedReadUrls(keys, bucket);
+      for (const [k, url] of urls) signed.set(k, url);
     }
 
-    // Grouping preserves the null bucket and its position: the SQL already
-    // ordered `nulls last`, so walking rows in order and starting a new
-    // group whenever the occurrence id changes keeps it at the end.
-    const groups: { occurrenceId: string | null; evidence: EvidenceObjectView[] }[] = [];
+    // Grouped by a Map keyed on occurrence id, NOT by comparing against
+    // `groups.at(-1)`: the earlier form depended entirely on the SQL's
+    // `ORDER BY … nulls last` to keep one occurrence's rows contiguous — a
+    // later re-sort (e.g. "newest first") would silently split one occurrence
+    // into two groups sharing an id, or emit two null groups, and no type
+    // system catches that. Keying on the occurrence id makes correctness a
+    // property of the grouping code, not of a query it does not control. The
+    // null group is still emitted LAST, but explicitly, by construction below
+    // — not because rows happened to arrive in that order.
+    const byOccurrence = new Map<string, EvidenceObjectView[]>();
+    let nullGroup: EvidenceObjectView[] | null = null;
     for (const r of rows.rows) {
       const occ = (r.requirement_occurrence_id as string | null) ?? null;
-      let g = groups.at(-1);
-      if (!g || g.occurrenceId !== occ) { g = { occurrenceId: occ, evidence: [] }; groups.push(g); }
-      g.evidence.push({
+      const view: EvidenceObjectView = {
         evidenceObjectId: r.id as string,
         mediaType: r.media_type as string,
         byteSize: Number(r.byte_size),
         contentHash: r.content_hash as string,
         originalFilename: (r.original_filename as string | null) ?? null,
         originMethod: r.origin_method as string,
-        captureTimeTrust: r.capture_time_trust as string,
+        captureTimeTrust: r.capture_time_trust as EvidenceObjectView["captureTimeTrust"],
         claimedCaptureTime: r.claimed_capture_time
           ? new Date(r.claimed_capture_time as string).toISOString() : null,
         serverReceivedAt: new Date(r.server_received_at as string).toISOString(),
         readUrl: signed.get(r.storage_key as string),
-      });
+      };
+      if (occ === null) {
+        (nullGroup ??= []).push(view);
+      } else {
+        const list = byOccurrence.get(occ);
+        if (list) list.push(view);
+        else byOccurrence.set(occ, [view]);
+      }
     }
+    const groups: { occurrenceId: string | null; evidence: EvidenceObjectView[] }[] =
+      [...byOccurrence].map(([occurrenceId, evidence]) => ({ occurrenceId, evidence }));
+    if (nullGroup) groups.push({ occurrenceId: null, evidence: nullGroup });
 
     return assignmentEvidenceResponse.parse({ groups });
   });

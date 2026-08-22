@@ -204,44 +204,76 @@ export async function createSignedReadUrl(key: string, bucket: string): Promise<
 }
 
 /**
+ * What the batch form returns: the keys that signed, and the keys that
+ * didn't. Never a throw for a per-object condition — see the function's own
+ * comment for why that was tried and superseded.
+ */
+export interface SignedReadUrls {
+  /** Key -> absolute signed URL, for every key that signed successfully. */
+  urls: Map<string, string>;
+  /**
+   * Keys present in the request that could NOT be signed — a purged object, a
+   * revoked read grant on that one row, .... Carried as keys, same as the
+   * input; not a message, so nothing here needs the log-safety of
+   * `EvidenceStorageError`. A caller renders one row per input key regardless
+   * of which list it landed in, with `readUrl` present or absent — this array
+   * exists so a caller CAN count or reason about failures without having to
+   * diff `urls` against its own input list.
+   */
+  failedKeys: string[];
+}
+
+/**
  * The batch form. One storage call per screen rather than one per photo.
  *
- * PER-PATH FAILURES ARE REPORTED INLINE, NOT THROWN: the call returns 200 with
- * entries carrying `error` and a null URL. A key that could not be signed is
- * ABSENT from the returned map — never present with a broken value, so a caller
- * cannot render a dead image and call it evidence.
+ * PER-PATH FAILURE IS REPORTED, NEVER THROWN — for one key or for every key in
+ * the batch alike. This function used to throw when `out.size === 0`
+ * (fix-round-1's remedy for the finding below), and that was the wrong fix
+ * for a right diagnosis: for a bucket contributing exactly one key — the modal
+ * shape at pilot start — "1 of 1 failed" is indistinguishable from a wholesale
+ * failure, so an assignment with ONE photo whose object vanished out of band
+ * turned the THROW into a 500 that killed the whole assignment's read, which
+ * is a worse failure than the one being guarded against. The actual danger —
+ * a service key that lost `select` on `storage.objects`, or a renamed bucket,
+ * silently reading as "this assignment has no photos" — is closed by NEVER
+ * being silent, not by throwing: every key the caller asked to sign comes back
+ * in exactly one of `urls` or `failedKeys`, so the caller (the evidence route)
+ * emits a row per evidence object either way, with `readUrl` present or
+ * absent. A screen rendering ten rows each saying "недоступне" is the correct
+ * shape for a wholesale failure; a screen dying is not.
  *
  * Each entry carries both `signedURL` (server-relative) and `signedUrl`
- * (absolute). Only the second is usable.
+ * (absolute). Only the second is usable. `entry.path` echoes the REQUESTED
+ * path on both success and failure — measured against the local stack: a
+ * mixed batch of one real key and one that does not exist returns the failed
+ * entry with `path` still set to the key that was asked for, `error` a string,
+ * and `signedURL`/`signedUrl` both null. That is what makes `failedKeys`
+ * buildable at all; the `!entry.path` branch below is a defensive fallback for
+ * a shape the API does not appear to produce, not the expected case.
  *
- * A BATCH THAT FAILS COMPLETELY DOES NOT LOOK LIKE "NONE OF THESE EXIST": per-path
- * failure is inline at HTTP 200 (above), so the `error || !data` guard below
- * never fires for it. Measured against the local stack: pointing this at a
- * bucket that does not exist answers 200 with every entry carrying
- * `error: "Either the object does not exist or you do not have access to
- * it"` — a string with no path in it, but one that reads, entry by entry,
- * exactly like "this object is legitimately gone". The caller asked to sign
- * `keys.length` objects it already believes exist; getting zero of them back
- * is itself the failure signal, so it is not returned as a quietly empty map.
- * Without this, a service key that lost `select` on `storage.objects`, or a
- * renamed bucket, would make an evidence screen render "no photos" for an
- * assignment that has ten, and the office would sign off believing nothing
- * was submitted.
+ * A GENUINE WHOLESALE FAILURE STILL THROWS: the top-level `{ error }` from the
+ * SDK call itself (auth, network, a malformed request) is not a per-object
+ * condition and carries no keys to report per-row, so `readFailed` still
+ * fires on it, unchanged from before.
  */
 export async function createSignedReadUrls(
   keys: string[], bucket: string,
-): Promise<Map<string, string>> {
-  const out = new Map<string, string>();
-  if (keys.length === 0) return out;
+): Promise<SignedReadUrls> {
+  const urls = new Map<string, string>();
+  const failedKeys: string[] = [];
+  if (keys.length === 0) return { urls, failedKeys };
   const { data, error } = await storage(bucket)
     .createSignedUrls(keys, EVIDENCE_URL_TTL_SECONDS);
   if (error || !data) throw readFailed("signed read batch", error);
   for (const entry of data) {
-    if (entry.error || !entry.path || !entry.signedUrl) continue;
-    out.set(entry.path, entry.signedUrl);
+    if (entry.error || !entry.signedUrl) {
+      if (entry.path) failedKeys.push(entry.path);
+      continue;
+    }
+    if (!entry.path) continue;
+    urls.set(entry.path, entry.signedUrl);
   }
-  if (out.size === 0) throw readFailed("signed read batch", undefined);
-  return out;
+  return { urls, failedKeys };
 }
 
 /**

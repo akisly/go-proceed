@@ -28,28 +28,50 @@ describe("evidence storage: read access", () => {
     expect(EVIDENCE_URL_TTL_SECONDS).toBeLessThanOrEqual(60);
   });
 
-  it("omits a key it could not sign instead of returning a broken URL", async () => {
+  it("omits a key it could not sign from `urls`, and reports it in `failedKeys` instead", async () => {
     const good = newEvidenceKey();
     await putObject(good, JPEG, "image/jpeg");
     const missing = `${randomUUID()}/${randomUUID()}`;
 
-    const map = await createSignedReadUrls([good, missing], EVIDENCE_BUCKET);
-    expect(map.has(good)).toBe(true);
-    expect(map.has(missing)).toBe(false);
-    expect(map.get(good)).toMatch(/^http/);
+    const { urls, failedKeys } = await createSignedReadUrls([good, missing], EVIDENCE_BUCKET);
+    expect(urls.has(good)).toBe(true);
+    expect(urls.has(missing)).toBe(false);
+    expect(urls.get(good)).toMatch(/^http/);
+    expect(failedKeys).toEqual([missing]);
   });
 
-  it("throws instead of silently returning an empty map when every key in a batch fails", async () => {
+  it("reports every key as failed, and throws nothing, when every key in a batch fails to sign", async () => {
     // A bucket that does not exist makes the storage API answer 200 with
     // EVERY entry carrying a per-path error — indistinguishable, entry by
     // entry, from "none of these objects exist yet". Measured against the
     // local stack: this is a real 200, not a thrown error, so the guard on
-    // the outer `{ data, error }` never fires; only the "did we get anything
-    // back" check does. This is the case fix-round-1 finding 3 covers: a
-    // whole-batch failure (lost `select` grant, renamed bucket, …) must not
-    // read the same as "this assignment truly has no photos".
+    // the outer `{ data, error }` never fires.
+    //
+    // SUPERSEDES fix-round-1 finding 3's remedy (throwing when the map came
+    // back empty): for a bucket contributing exactly one key, "1 of 1 failed"
+    // is indistinguishable from a wholesale failure, so that throw turned a
+    // single vanished photo into a 500 for the whole assignment. The actual
+    // requirement — a whole-batch failure (lost `select` grant, renamed
+    // bucket, …) must not read the same as "this assignment truly has no
+    // photos" — is met by every key coming back in `failedKeys` rather than
+    // vanishing, not by an exception.
+    const k1 = newEvidenceKey();
+    const k2 = newEvidenceKey();
+    const { urls, failedKeys } = await createSignedReadUrls([k1, k2], "does-not-exist-bucket");
+    expect(urls.size).toBe(0);
+    expect(failedKeys.sort()).toEqual([k1, k2].sort());
+  });
+
+  it("still throws on a genuine wholesale failure — the top-level SDK error, not a per-path one", async () => {
+    // A per-path failure (the two cases above) is reported at HTTP 200 and
+    // must never throw. What SHOULD still throw is the outer `{ error }` the
+    // SDK returns for something that is not a per-object condition at all —
+    // exercised here the same way `createSignedReadUrl`'s NoSuchKey case
+    // proves the single form's error path, by giving the call something it
+    // cannot even attempt: an empty bucket name is rejected by the storage
+    // API before it gets anywhere near individual paths.
     await expect(
-      createSignedReadUrls([newEvidenceKey(), newEvidenceKey()], "does-not-exist-bucket"),
+      createSignedReadUrls([newEvidenceKey()], ""),
     ).rejects.toThrow();
   });
 
