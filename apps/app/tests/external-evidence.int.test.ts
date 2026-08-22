@@ -292,11 +292,14 @@ async function revoke(grantId: string, expectedVersion: number): Promise<Respons
  *
  * A first correction here cited 8.22.0, which is what the same command prints
  * from the repo root. Everything above and below was re-executed from inside
- * `apps/app` against 8.23.0 before this line was written. The two installed
- * copies are NOT byte-identical as files — 8.23.0 adds
- * `connection.submittedNamedStatements` in three places — but `diff` puts none
- * of those inside `requiresPreparation()` or `_checkForMultirow()`, the two
- * functions everything here rests on, and those are identical between them.
+ * `apps/app` against 8.23.0 before this line was written.
+ *
+ * Both copies are installed, so one more thing is worth knowing and it is the
+ * only thing about them that is: `requiresPreparation()` and
+ * `_checkForMultirow()` — the two functions this whole argument rests on — are
+ * IDENTICAL between them, compared directly rather than inferred from where a
+ * diff happened to fall. A reader who ends up in the root's 8.22.0 copy is
+ * reading the same two functions.
  *
  * WHAT IS ACTUALLY TRUE, and both halves were run rather than reasoned:
  *
