@@ -2665,7 +2665,7 @@ originals, with no thumbnail pipeline
 
 `apps/app/src/components/evidence/evidence-card.tsx` puts every evidence
 photo — `readUrl`, the signed URL `evidence_objects` route hands back — into
-a plain `loading="lazy"` `<img>` inside a fixed-height container, at
+a plain `loading="lazy"` `<img>` inside a fixed-aspect-ratio container, at
 whatever resolution the original upload was captured at. `04-role-pain-map`'s
 office screen this task builds may show a dozen-plus full-resolution JPEGs on
 one page.
@@ -2687,4 +2687,69 @@ one assignment accumulates enough photographed occurrences that the panel
 itself becomes slow to open, which nothing in the pilot's plan has hit yet.
 Revisit if a real assignment's evidence count grows past what one scroll
 comfortably holds.
+
+---
+
+## P2 — Plan D slice D1 task 6 (the evidence screen) formats
+`serverReceivedAt` against a hardcoded default zone, not the workspace's own
+
+Fixed round 1 CRITICAL, kept open in a narrower form. `evidence-card.tsx`'s
+`formatReceivedAt` used to call `toLocaleString("uk-UA", { dateStyle,
+timeStyle })` with no `timeZone` at all — silently correct on a Kyiv
+developer machine and silently wrong the moment this server component runs
+somewhere else (Vercel's runtime clock is UTC), with no zone marker on
+screen to warn anyone. Fixed by naming `Europe/Kyiv` — the same default
+`packages/contracts/src/workspaces.ts:5` and `organizations.ts:9` already
+commit to for a workspace/organization that never overrides it — as an
+explicit `timeZone`, plus `timeZoneName: "short"` so a reader always sees
+which zone a time is in, never just the bare digits.
+
+What is still open: this is the DEFAULT, not the CALLER's actual workspace
+timezone. `assignmentEvidenceResponse` (`packages/contracts/src/
+evidence.ts`) carries no `timezone` field, and neither does anything else
+`GET /v1/assignments/{assignmentId}/evidence` returns, so this screen has no
+way to know whether the workspace that owns this assignment actually set a
+non-default zone at creation. Every real workspace today is `Europe/Kyiv`
+(the pilot's own single-timezone scope), so the default is correct in
+practice, not merely convenient — but it is silently wrong the day a second
+timezone exists and nobody threads the real value through. The actual fix,
+and it is a real column, not a guess: `public.organizations.timezone`
+(`supabase/migrations/0001_core_tenancy.sql:12`, `not null default
+'Europe/Kyiv'`) is what `POST /v1/workspaces` (`app/v1/workspaces/route.ts:
+27-29`) actually writes into — "workspace" is this product's name for an
+`organizations` row, there is no separate `workspaces` table — so the fix is
+either the evidence route joining that column into its response body, or
+`/dash`'s session/workspace context (already resolved once per request for
+the shell, `getMeContext`) carrying it down to this screen. Either is a
+real, separate change — not a two-line addition to `evidence-card.tsx`.
+
+---
+
+## P3 — Plan D slice D1 task 6 (the evidence screen) labels an occurrence
+group with its bare UUID, not a human-readable requirement description
+
+`evidence-by-occurrence.tsx`'s section heading for a real occurrence group is
+the literal word "Вимога" plus the occurrence's own UUID underneath, `break-
+all`-wrapped. Every occurrence section in a given assignment carries the
+identical heading text, distinguished only by a 36-character identifier — a
+ПТВ scanning the screen for a photo tied to a specific requirement has to
+read UUIDs, not requirement names, to tell sections apart. Not what
+"grouped by obligation" (this task's own commit message) reads as to the
+person actually looking at the screen, even though it is literally true of
+the data shape.
+
+Named rather than fixed because the ONE interface this task's brief
+authorises consuming — `assignmentEvidenceResponse` — carries `occurrenceId`
+as a bare UUID and nothing else describing it. A human-readable label (the
+requirement's own acceptance-criterion text, or a shorter derived title)
+lives on `RequirementOccurrenceView`, returned by a DIFFERENT, unconsumed
+endpoint (`GET /v1/assignments/{assignmentId}/requirement-occurrences`,
+`packages/contracts/src/requirement-occurrences.ts`). Fetching it from this
+screen would be a second round trip and undocumented scope beyond what the
+brief's own "Interfaces" list authorised — a decision for whoever owns this
+screen's next iteration, not a two-line addition here. The page's own
+identity line (`Доручення {assignmentId}`) has the identical limitation for
+the identical reason: no assignment-description endpoint exists at all (see
+`evidence-by-occurrence.tsx`'s own header on `app/dash/assignments/
+[assignmentId]/page.tsx`'s missing `GET /v1/assignments/{assignmentId}`).
 

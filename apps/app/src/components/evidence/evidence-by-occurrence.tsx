@@ -35,6 +35,24 @@ import { EvidenceCard } from "./evidence-card";
  * in the header's own flex row — a 36-character UUID at `text-meta` does not
  * fit a 360px viewport's panel width without wrapping (§6's own check), and
  * `break-all` is what makes it wrap instead of overflow.
+ *
+ * THE SECTION HEADER BELOW RE-IMPLEMENTS `PanelHeader`'S OWN SPEC
+ * (title + count on one baseline, `border-b border-line px-4 py-3`) RATHER
+ * THAN IMPORTING IT — named here on fix round 1's request, having shipped
+ * unnamed. The reason is real: `PanelHeader`'s `title` prop is typed
+ * `string`, with no slot for a second line, and this header needs one (the
+ * occurrence id, directly below the title/count row). Composing
+ * `<PanelHeader actions={…}>` instead was considered and rejected — the
+ * `actions` slot is `ml-auto flex items-center gap-2`, a single
+ * non-wrapping row, and a 36-character monospace UUID does not fit it at
+ * 360px without overflowing exactly the way `break-all` on its own line
+ * avoids. The cost of the inline copy, stated rather than left implicit:
+ * this file's `border-b border-line px-4 py-3`/`text-h3 font-semibold
+ * text-ink`/`tabular text-meta text-ink-muted` classes are a duplicate of
+ * `packages/ui/src/components/Panel.tsx`'s `PanelHeader`, and will silently
+ * stop matching it if that component's own spacing or type scale ever
+ * changes. Revisit if `PanelHeader` grows a slot for a second line, or if a
+ * second screen needs this same shape.
  */
 export function EvidenceByOccurrence({
   assignmentId, groups,

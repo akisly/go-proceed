@@ -10,35 +10,45 @@ import type { EvidenceObjectView } from "@goproceed/contracts";
  * the route this screen calls actually queries.
  *
  * ══════════════════════════════════════════════════════════════════════
- * `captureTimeTrust` — A TRUST BADGE, NOT A TRUST HIERARCHY IN COLOUR.
+ * `captureTimeTrust` — PLAIN TEXT, NOT A CHIP. FIX ROUND 1 CORRECTED THIS.
  *
- * `packages/contracts/src/evidence.ts`'s own header says this field exists
- * as a `z.enum` (not a bare string, unlike `originMethod` below) precisely
- * so a screen can render "a trust badge" with an exhaustive switch — and
- * this map IS that exhaustiveness: it is typed as
+ * The original version of this file rendered the value inside a
+ * `<Chip tone="neutral">` and cited `Chip.tsx`'s own header — "Not a status.
+ * The eyebrow pill above a heading, and nothing else" — as the justification.
+ * That citation was backwards: that sentence RESTRICTS `neutral` to the
+ * eyebrow-pill role: it is an argument against putting a trust value inside
+ * a `Chip` at all, not for doing so with a defanged tone. With all three
+ * values sharing one identical, colourless tone, the `Chip` carried no
+ * information the text inside it did not already carry — a pill shape with
+ * nothing behind it.
+ *
+ * `packages/contracts/src/evidence.ts`'s own header still explains WHY this
+ * field is a `z.enum` rather than a bare string — so an exhaustive switch is
+ * possible — and this map is still that exhaustiveness: typed as
  * `Record<EvidenceObjectView["captureTimeTrust"], string>`, so a value the
  * union does not carry is a compile error, not a runtime fallback (unlike
  * `originMethodLabel` below, which needs one because its field is a bare
- * `z.string()`).
+ * `z.string()`). What changed is only the CONTAINER, not the label text or
+ * the exhaustiveness — `evidence-card.tsx` now renders this string the same
+ * plain way it renders `originMethodLabel`'s result, immediately below.
  *
- * THE BADGE'S CHIP TONE IS `"neutral"` FOR ALL THREE VALUES, DELIBERATELY —
- * this was considered and rejected as a `ready`/`attention`/`idle` colour
- * ladder (mirroring `Chip`'s own status tones) and rejected for a reason
- * specific to this product's subject matter: `device_claimed` is NOT
- * verified capture-time evidence. `apps/app/app/(app)/a/[assignmentId]/
- * capture.tsx:349` — the field client's own receipt panel — labels the
- * identical fact "Час пристрою (НЕ ПЕРЕВІРЕНО)", in caps in the original
- * reasoning comment there, specifically because the device's own claim binds
- * nothing about the sensor. Painting `device_claimed` in `Chip`'s `ready`
- * tone (used elsewhere for a verified/positive state) would tell a
- * colour-scanning reader the opposite of what this product's own README on
- * evidence integrity requires it to say. Reusing this file's existing
+ * THE REASON A COLOUR LADDER IS STILL REFUSED HOLDS, UNCHANGED: this was
+ * considered and rejected as a `ready`/`attention`/`idle` mapping (mirroring
+ * `Chip`'s own status tones) for a reason specific to this product's subject
+ * matter — `device_claimed` is NOT verified capture-time evidence.
+ * `apps/app/app/(app)/a/[assignmentId]/capture.tsx:349` — the field client's
+ * own receipt panel — labels the identical fact "Час пристрою (НЕ
+ * ПЕРЕВІРЕНО)", in caps in the original reasoning comment there,
+ * specifically because the device's own claim binds nothing about the
+ * sensor. Painting `device_claimed` in a positive/verified tone would tell a
+ * colour-scanning reader the opposite of what this product's own evidence-
+ * integrity stance requires it to say. Reusing this file's existing
  * vocabulary (the same parenthetical) for the LABEL, and refusing a colour
  * claim the product does not make, is the safer of the two available
  * choices — matching `assignments-list.tsx`'s own precedent of refusing an
  * invented tone for `work_assignments.status` where "no design decision …
- * assigns a tone to any … value." `Chip`'s own header names `neutral`
- * exactly for this: "not a status. The eyebrow pill … and nothing else."
+ * assigns a tone to any … value," and matching `originMethodLabel`'s own
+ * plain-text treatment immediately below, for the identical reason.
  * ══════════════════════════════════════════════════════════════════════
  */
 export const CAPTURE_TIME_TRUST_LABELS: Readonly<
