@@ -166,11 +166,58 @@ export function BlockedReasonsList({ reasons }: { reasons: BlockedReason[] }) {
                   {/* Two different reasons a row can carry no missing
                    * evidence, and they are not the same sentence:
                    * CUSTOMER_MOTIVATED_REFUSAL means a decision was already
-                   * made and it was a RETURN (state-catalog.csv:116, via
-                   * `codeFor`, `apps/app/src/lib/readiness.ts:466-472`) — the
-                   * block is not "awaiting a first decision", it is stuck on
-                   * a refusal that needs a resubmission. Every other v0.1
-                   * code is genuinely still awaiting one. */}
+                   * made and it was a RETURN — the block is not "awaiting a
+                   * first decision", it is stuck on a refusal that needs a
+                   * resubmission. Every other v0.1 code is genuinely still
+                   * awaiting one.
+                   *
+                   * ROUND 3 CORRECTION, TWO PARTS.
+                   *
+                   * Part 1 — WHAT `codeFor` (`apps/app/src/lib/readiness.ts`)
+                   * ACTUALLY BRANCHES ON, stated directly rather than left to
+                   * a catalog citation to imply: `EvaluatedOccurrence.
+                   * currentDecisionOutcome`, read off `requirement_evidence_
+                   * decision_heads.current_outcome` — `check (current_outcome
+                   * is null or current_outcome in ('accepted','returned'))`
+                   * (`supabase/migrations/
+                   * 0045_the_refusal_and_the_facts_behind_it.sql`, the `create
+                   * table public.requirement_evidence_decision_heads` block).
+                   * `codeFor` returns `CUSTOMER_MOTIVATED_REFUSAL` exactly
+                   * when that column reads `'returned'`, `SUPERVISION_
+                   * SIGNATURE_MISSING` otherwise — that is the real, DB-level
+                   * source this branch reads, verified against the migration
+                   * directly, not assumed from a catalog row.
+                   *
+                   * Part 2 — a prior citation to a CSV file this same comment
+                   * used to lean on for WHY the mapping is named what it is.
+                   * TWO FILES SHARE THE BASENAME `state-catalog.csv` in this
+                   * repository — `technical/state-catalog.csv` (legacy,
+                   * explicitly non-normative per `docs/README.md`, quoted in
+                   * `assignment-status-labels.ts`'s own header: "the flat CSV
+                   * catalogs are not v0.1 implementation authority") and
+                   * `technical/states/state-catalog.csv` (current, 23
+                   * references elsewhere in this codebase) — and a bare,
+                   * unqualified citation to "state-catalog.csv" is genuinely
+                   * ambiguous between them. VERIFIED, BYTE FOR BYTE: `awk
+                   * 'NR==115||NR==116'` on `technical/states/state-catalog.
+                   * csv` (the plural, canonical one — confirmed via 23
+                   * existing references and `docs/README.md`'s own 
+                   * precedence ruling, not assumed) returns exactly the
+                   * `blocked_reason.code,SUPERVISION_SIGNATURE_MISSING` and
+                   * `blocked_reason.code,CUSTOMER_MOTIVATED_REFUSAL` rows —
+                   * "The occurrence awaits a decision from the approver_role
+                   * that owes it" and "A current return by the approver_role
+                   * names a motivated refusal" respectively — which is what
+                   * this reasoning has always meant. Cited here by the CSV
+                   * row's own key, not a line number that a future edit to
+                   * either file could silently point at the wrong one again:
+                   * `technical/states/state-catalog.csv`'s
+                   * `blocked_reason.code,CUSTOMER_MOTIVATED_REFUSAL` /
+                   * `,SUPERVISION_SIGNATURE_MISSING` rows. `TODOS.md` records
+                   * the ambiguity itself as owed: `readiness.ts`'s own
+                   * `codeFor` comment — the one this file's text was
+                   * originally copied from — still cites the bare, unqualified
+                   * filename. */}
                   {reason.code === "CUSTOMER_MOTIVATED_REFUSAL"
                     ? "Усі фіксації надано — замовник повернув із зауваженнями."
                     : "Усі фіксації надано — очікує рішення."}

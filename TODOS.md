@@ -2843,3 +2843,60 @@ contract change to `assignmentEvidenceResponse`.
 Worth revisiting together with structured logging, which is also when the P2
 "`evidence-storage.ts` puts raw storage keys into error messages" above stops
 being latent.
+
+## P3 — `readiness.ts`'s `codeFor` comment cites a bare `state-catalog.csv`, and two files share that basename
+
+**Found 2026-08-23, in Plan D slice D2's fix round 3, on a citation `blocked-
+reasons-list.tsx` copied verbatim from `readiness.ts:463-464` (`codeFor`'s own
+leading comment): "a current RETURN is `CUSTOMER_MOTIVATED_REFUSAL` by
+state-catalog.csv:116's own definition, and everything else is `SUPERVISION_
+SIGNATURE_MISSING` by :115's."**
+
+**This is a citation-clarity defect, not a factual one — verified both ways
+before filing, because the first report of it treated the two as the same
+thing.** Two files in this repository share the exact basename
+`state-catalog.csv`:
+
+- `technical/state-catalog.csv` (singular) — LEGACY, explicitly non-normative.
+  `docs/README.md`'s own ruling, quoted in `apps/app/src/lib/
+  assignment-status-labels.ts:18`: "the flat CSV catalogs are not v0.1
+  implementation authority." Its lines 115–117 are `package,submitted` /
+  `package,pending_reconciliation` / `package,returned` — a different entity
+  (packages, not blocked reasons) in a different column shape
+  (`domain,state,storage_scope,release,terminal,ui_uk,definition`).
+- `technical/states/state-catalog.csv` (plural) — CURRENT, 23 references
+  elsewhere in this codebase. Its lines 115–116 are exactly
+  `blocked_reason.code,SUPERVISION_SIGNATURE_MISSING,stored_vocabulary,The
+  occurrence awaits a decision from the approver_role that owes it,…` and
+  `blocked_reason.code,CUSTOMER_MOTIVATED_REFUSAL,stored_vocabulary,A current
+  return by the approver_role names a motivated refusal;…` — verified with
+  `awk 'NR==115||NR==116' technical/states/state-catalog.csv`, matching
+  `readiness.ts`'s citation byte for byte.
+
+So a reader who resolves the bare filename to the WRONG one of the two — as
+happened once already, in this same round's own re-review — reaches a
+sentence about packages and concludes the citation has no source at all. It
+does; the sentence is true of the plural, canonical file. `blocked-
+reasons-list.tsx` (`apps/app/src/components/projects/blocked-reasons-list.
+tsx`, the row rendering `missingEvidence.length === 0`'s two fallback
+sentences) was fixed in this same round: it now cites the full path
+`technical/states/state-catalog.csv`, cites the CSV rows by their own key
+(`blocked_reason.code,CUSTOMER_MOTIVATED_REFUSAL` /
+`,SUPERVISION_SIGNATURE_MISSING`, not a line number) rather than the bare
+filename, and ADDITIONALLY names the real DB-level source `codeFor` branches
+on — `EvaluatedOccurrence.currentDecisionOutcome`, read off
+`requirement_evidence_decision_heads.current_outcome`, `check
+(current_outcome is null or current_outcome in ('accepted','returned'))`
+(`supabase/migrations/0045_the_refusal_and_the_facts_behind_it.sql`) — so the
+comment states what the code actually branches on directly, rather than only
+through a catalog row that explains what the OUTPUT code means.
+
+**`readiness.ts:463-464` — the source this text was originally copied from,
+predating this slice — was NOT touched by this round**, on the reasoning that
+a comment fix inside a shared M3 file is outside a D2 slice's remit; this
+entry is that deferral, named rather than silently carried. The fix owed
+there is the same shape already applied to the copy: qualify the bare
+`state-catalog.csv` citation with the full `technical/states/` path (or the
+CSV row's own key), and state `codeFor`'s real branch condition
+(`current_outcome`) alongside it rather than relying on the catalog citation
+alone to carry that weight.
