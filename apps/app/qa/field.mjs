@@ -50,6 +50,17 @@ import { launch } from "./browser.mjs";
  * approver role (`grants.service.ts` carries the whole reason) — so accept and
  * return are still Node-only, in `m5-external.int.test.ts`.
  *
+ * AND SINCE PLAN D SLICE D2 IT ALSO DRIVES THE MONEY SCREEN —
+ * `/dash/projects/{projectId}`, the blocked-value read the subcontractor
+ * owner actually asks for (`docs/design/04-role-pain-map.md`'s own account
+ * of the demand scan). Opens the route with the real seeded world's
+ * `readiness.view` grant, asserts the headline sum, the blocked-reasons
+ * list, the one-line cause split and the «Доручення» link's `href` against
+ * real seeded data, then repeats the overflow/touch-target pass this file
+ * already runs against the register one step further down the chain. What
+ * it does NOT drive — the unvalued register, the 403/404 refusal branches,
+ * the good-news empty state — is named in `NOT_COVERED`, not left implicit.
+ *
  * THE BOUNDARY, STATED PLAINLY (task-11-brief.md context item 3 asks for
  * this twice — once here, once in the report). This harness goes all the way:
  * it mints a real Supabase Auth user through the local Admin HTTP API (the
@@ -499,6 +510,20 @@ async function seedWorld(baseUrl, bearer) {
       // seeding gap rather than a defect, which is exactly why it is granted
       // here rather than worked around in the audit.
       "packages.submit",
+      // ADDED FOR THE PROJECT-OVERVIEW AUDIT (Plan D slice D2). `GET /v1/
+      // projects/{projectId}/blocked-value` checks `readiness.view`
+      // SEPARATELY from `project.view`
+      // (`app/v1/projects/[projectId]/blocked-value/route.ts:74-75`), and
+      // `project.view` alone does NOT imply it
+      // (`authz.ts`'s `IMPLIED_BY_PROJECT_ADMIN` covers `project.admin`
+      // only). Without this grant `/dash/projects/{projectId}` would render
+      // its 403 branch for the very member this world seeds as a foreman —
+      // a seeding gap, not the thing the new audit exists to exercise (that
+      // refusal is proven separately, in `apps/app/src/services/
+      // blocked-value.service.ts`'s own header and its would-be caller, not
+      // by starving the happy-path audit of the grant it needs to see real
+      // data).
+      "readiness.view",
     ],
   }));
 
@@ -1919,6 +1944,146 @@ async function main() {
       // ═══════════════════════════════════════════════════════════════════
       const issued = { url: null };
 
+      // ── -1. THE MONEY SCREEN, ONE STEP BEFORE THE REGISTER NOW ─────────
+      //
+      // ADDED FOR PLAN D SLICE D2. `/dash/projects/{projectId}` is the new
+      // head of the chain this whole slice is about — "project → money →
+      // доручення → докази" — and until this audit, exactly like the
+      // register before it, NO HARNESS HAD EVER OPENED IT. The lesson that
+      // shipped the register's own overflow defect applies unchanged: a
+      // route no audit opens is where defects hide, and this screen is
+      // DENSER and MORE NUMERIC than the register was, which is precisely
+      // where overflow hides best.
+      //
+      // `readiness.view` WAS ADDED TO THIS FUNCTION'S OWN GRANT CALL ABOVE
+      // (`access-grants (field)`) SO THIS AUDIT CAN SEE REAL CONTENT rather
+      // than the 403 branch — that refusal is a real, reachable outcome of
+      // this route (`blocked-value.service.ts`'s own header proves it
+      // reachable, unlike the register's identical-looking one), but it is
+      // proven by reading the route and the RLS policy together, not by
+      // starving THIS audit of the grant a real `pto_engineer`/
+      // `commercial_manager` persona already holds per
+      // `responsibility-presets.csv`.
+      //
+      // THE SEEDED WORLD MATERIALISES EXACTLY ONE LIVE BLOCK: one occurrence
+      // (`hold`, `blocks_stage_closure`), no evidence DECISION yet (only an
+      // uploaded, available photo — evidence present, decision pending), on
+      // an assignment with NO `plannedQuantity`. That is `whole_line`
+      // attribution by construction (`packages/contracts/src/readiness.ts`'s
+      // own account of the two attribution cases), so `totalsByCurrency`
+      // carries a real non-zero UAH figure and `wholeLineAttributionCount`
+      // is exactly 1 — this audit is not driving an empty-state render by
+      // accident.
+      //
+      // WHAT THIS AUDIT DOES NOT EXERCISE, NAMED RATHER THAN LEFT IMPLICIT:
+      // the seeded work item is PRICED (`unitPriceState: "known"`), so
+      // `unvaluedRegister` is empty and `UnvaluedRegister` renders nothing —
+      // its own `<table>`'s overflow safety rests on reusing `assignments-
+      // list.tsx`'s already-measured `min-w-160` (that component's own
+      // comment says so), not on a fresh measurement here. Seeding a SECOND,
+      // unpriced work item purely to exercise that one table was judged out
+      // of proportion to what this audit is for; it is recorded in
+      // `NOT_COVERED` below rather than silently left unstated.
+      const moneyDiagnostics = await withPage(browser, async (page) => {
+        const url = `${server.baseUrl}/dash/projects/${projectId}`;
+        const res = await page.goto(url, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(`/dash/projects/${projectId}: expected 200, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+
+        // ── STRUCTURAL CHECKS, ONCE, AT DESKTOP WIDTH ───────────────────
+        // Attributes, not just visible text — the same correction this
+        // repository's own review history applies to every UI check: a
+        // link's destination is asserted on its `href`, not inferred from
+        // where a click happened to land.
+        const structural = await page.evaluate(() => {
+          const assignmentsLink = [...document.querySelectorAll("a")]
+            .find((a) => (a.textContent ?? "").trim() === "Доручення");
+          return {
+            assignmentsHref: assignmentsLink ? assignmentsLink.getAttribute("href") : null,
+            bodyText: document.body.innerText,
+          };
+        });
+
+        const expectedAssignmentsHref = `/dash/projects/${projectId}/assignments`;
+        if (structural.assignmentsHref !== expectedAssignmentsHref) {
+          ctx.findings.push(
+            `/dash/projects/${projectId}: the «Доручення» link's href is `
+            + `${JSON.stringify(structural.assignmentsHref)}, expected ${JSON.stringify(expectedAssignmentsHref)} — `
+            + "the project → money → доручення chain is broken at its second hop",
+          );
+        }
+
+        // The headline sum: real money, in the seeded currency, never a
+        // cross-currency figure (there is only one currency to begin with
+        // here, but the ₴ glyph is the cheapest structural proof that
+        // `formatMoney` actually ran rather than a blank or a raw number).
+        if (!structural.bodyText.includes("₴")) {
+          ctx.findings.push(
+            `/dash/projects/${projectId}: no ₴ figure on the page — the headline sum did not render, `
+            + "or formatMoney produced something that does not look like money",
+          );
+        }
+        // The seeded occurrence's own `approver_role`
+        // (`technical_supervisor`, `seedWorld`'s own rule-version call
+        // above) — a distinctive raw string that can only be on the page if
+        // the real blocked-reasons list rendered a real row, not a fixture
+        // this test wrote itself.
+        if (!structural.bodyText.includes("technical_supervisor")) {
+          ctx.findings.push(
+            `/dash/projects/${projectId}: the seeded occurrence's approver role "technical_supervisor" `
+            + "is not on the page — the blocked-reasons list is rendering no real row",
+          );
+        }
+        if (!structural.bodyText.includes("Заблоковані вимоги")) {
+          ctx.findings.push(`/dash/projects/${projectId}: the blocked-reasons list panel did not render`);
+        }
+        // Task item 4: the one-line cause split. The seeded block is
+        // SUPERVISION_SIGNATURE_MISSING (evidence present, decision
+        // pending), never a customer refusal, so the count is 0 — asserted
+        // as the exact rendered sentence rather than just "the label is
+        // present", since a sentence with the wrong number is the specific
+        // failure this line exists to prevent.
+        if (!structural.bodyText.includes("з них повернуто замовником: 0")) {
+          ctx.findings.push(
+            `/dash/projects/${projectId}: expected the cause-split sentence "з них повернуто замовником: 0" `
+            + "verbatim — either it did not render, or byCause's CUSTOMER_MOTIVATED_REFUSAL count is wrong",
+          );
+        }
+        // The good-news empty state must NOT be what rendered — this world
+        // has a real live block, so seeing "Нічого не заблоковано" here
+        // would mean the route answered zero blocks for a project that has
+        // one, which is a worse failure than an overflow.
+        if (structural.bodyText.includes("Нічого не заблоковано")) {
+          ctx.findings.push(
+            `/dash/projects/${projectId}: rendered the good-news empty state over a project with a real `
+            + "live block — blockedReasons came back empty when it should not have",
+          );
+        }
+
+        // ── THE SIX-VIEWPORT-ADJACENT PASS: 1280 desk, 390, 360 ─────────
+        for (const width of [1280, 390, 360]) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 1400, isMobile: touch, hasTouch: touch });
+          const overflow = await measureHorizontalOverflow(page);
+          if (overflow) {
+            ctx.findings.push(
+              `/dash/projects/${projectId} @${width}: the page scrolls sideways by ${overflow.overflow}px `
+              + `(viewport ${overflow.viewport}px) — ${overflow.offender}`,
+            );
+          }
+          if (touch) {
+            for (const t of await measureSmallTargets(page)) {
+              ctx.findings.push(`/dash/projects/${projectId} @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+            }
+          }
+        }
+        await page.setViewport({ width: 1280, height: 1400 });
+        await page.screenshot({ path: path.join(SHOTS, "dash-project-money.png"), fullPage: true });
+      });
+      reportDiagnostics("project money overview", moneyDiagnostics, ctx.findings, ctx.missingAssets);
+
       // ── 0. THE REGISTER, THE SCREEN BEFORE THIS ONE ────────────────────
       //
       // ADDED IN THE D1 FINAL FIX WAVE, for a defect that shipped because
@@ -3315,6 +3480,23 @@ async function main() {
       "the same machine. No email client, no mail-security gateway (the rendering " +
       "scanner the gate exists for), no second device and no real phone is involved — " +
       "so the gate is proven to work for a person, and proven against nothing.",
+
+      "THE MONEY SCREEN (Plan D slice D2, `/dash/projects/{projectId}`) IS DRIVEN " +
+      "THROUGH EXACTLY ONE SHAPE: one live block, SUPERVISION_SIGNATURE_MISSING " +
+      "(evidence present, decision pending — never CUSTOMER_MOTIVATED_REFUSAL), " +
+      "whole-line attribution, one currency (UAH), a priced work item. Not exercised " +
+      "by any browser pass: the `unvaluedRegister` panel and its own `<table>` (the " +
+      "seeded work item is priced, so that panel renders nothing here — its overflow " +
+      "safety rests on reusing `assignments-list.tsx`'s already-measured `min-w-160`, " +
+      "not a fresh measurement); the 403 `forbidden` branch and the 404 `not_found` " +
+      "branch (`ProjectMoneyForbidden`/`ProjectMoneyNotFound` are exercised only in " +
+      "reasoning against `blocked-value.service.ts`'s own header, never against a " +
+      "real refused response in a browser); the `zeroPricedAssignmentCount` and " +
+      "`unvaluedAssignmentCount` honesty counts both stay 0 throughout this run, so " +
+      "their non-zero rendering is unverified by any browser pass; and the good-news " +
+      "empty state (`NoBlockedValueEmptyState`) is asserted only as ABSENT here, never " +
+      "driven to actually render — that would need a second seeded world with zero " +
+      "live blocks, which this harness does not build.",
     ];
 
     const report = {
