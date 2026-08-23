@@ -38,20 +38,39 @@ import { apiGet, ApiError, isSessionExpired } from "../lib/api";
  *     {projectId}/assignments` is reachable to them) but cannot see the
  *     MONEY. Unlike the assignments route, this one checks TWO capabilities
  *     (route.ts:74-75, `:102-103`), and the FIRST — `readiness.view`
- *     (route.ts:74-75) — is the one RLS does not already gate: a member
- *     holding `project.view` alone (granted, per this task brief, without
- *     `readiness.view` — `authz.ts:41-92`'s own header records that
- *     `readiness.view` is in no row of `responsibility-presets.csv`) passes
- *     the RLS-gated read at route.ts:70, passes `requireActiveMembership`,
- *     and THEN fails `requireProjectCapability(…, "readiness.view")` at
- *     `authz.ts:101` (403 `SCOPE_PROJECT_DENIED`, "Немає доступу до цього
- *     проєкту."). That branch IS reachable here — checked by reading both
- *     files together, not assumed — which is the opposite of `assignments.
+ *     (route.ts:74-75) — is the one RLS does not already gate.
+ *
+ *     CORRECTED IN FIX ROUND 1: this used to say `readiness.view` "is in no
+ *     row of `responsibility-presets.csv`", copied from `authz.ts:78-80`'s
+ *     own comment without independently re-checking the CSV that comment
+ *     names — and that comment is itself dated 2026-08-08 (M3 pre-landing
+ *     review finding 5) and superseded by corrections the CSV records under
+ *     2026-08-17, which `authz.ts` was never updated to mention. Read
+ *     directly: `technical/permissions/responsibility-presets.csv` DOES
+ *     grant `readiness.view` to two presets today — `pto_engineer` (line 13)
+ *     and `commercial_manager` (line 15), both by a 2026-08-17 correction,
+ *     and line 15's own text says the capability was withheld while the
+ *     preset's description already pointed the commercial lead at this exact
+ *     screen. So "granted without readiness.view" is not the general case —
+ *     it is not true of the two presets built for the money-reading
+ *     personas.
+ *
+ *     THE REAL REACHABILITY CONDITION IS NARROWER: four OTHER presets grant
+ *     `project.view` WITHOUT `readiness.view` —
+ *     `requirement_owner` (line 6), `internal_verifier` (line 8),
+ *     `package_submitter` (line 9) and `foreman` (line 12). A member holding
+ *     one of those four can open `/dash/projects/{projectId}/assignments`
+ *     and then land on THIS screen's 403: the RLS-gated read at route.ts:70
+ *     passes (it only checks `project.view`/`project.admin`), `require
+ *     ActiveMembership` passes, and `requireProjectCapability(…,
+ *     "readiness.view")` then fails at `authz.ts:101` (403
+ *     `SCOPE_PROJECT_DENIED`, "Немає доступу до цього проєкту."). That branch
+ *     IS reachable — checked by reading the route, `authz.ts` and the CSV
+ *     together, not assumed — which is the opposite of `assignments.
  *     service.ts`'s own project.view-only 403 that its header proves
- *     unreachable through the identical RLS coupling. A member who can open
- *     the доручення register can therefore land on THIS screen and be
- *     refused, and the refusal needs its own legible state rather than
- *     falling through to `error`'s generic wording.
+ *     unreachable through the identical RLS coupling. The refusal needs its
+ *     own legible state rather than falling through to `error`'s generic
+ *     wording, for a real persona this product already names.
  *
  *   `session_expired` — unchanged from every sibling service.
  *

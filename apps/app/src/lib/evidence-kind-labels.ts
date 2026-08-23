@@ -5,9 +5,14 @@ import type { MissingEvidenceItem } from "@goproceed/contracts";
  * screen's `missingEvidence` rows render (D2 — `blockedReason.
  * missingEvidence[].evidenceKind`, `packages/contracts/src/readiness.ts`).
  *
- * A REAL FOUR-VALUE CHECK, NOT FREE TEXT — unlike `approver_role` (see
- * `blocked-value-panel.tsx`'s own comment on why THAT field carries no label
- * map): `evidence_kind` is a genuine closed vocabulary both on the wire
+ * A REAL FOUR-VALUE CHECK, NOT FREE TEXT — unlike `approver_role`
+ * (`approver-role-labels.ts`'s own header: that field's CHECK is non-blank
+ * only, never enumerated, so it gets a best-effort map with a raw fallback
+ * and no `pg_constraint` fidelity test; CORRECTED IN FIX ROUND 1 — this
+ * comment previously cited `blocked-value-panel.tsx`, a filename from an
+ * earlier draft of this screen's file layout that was never actually
+ * created; the real home is `../components/projects/blocked-reasons-list.
+ * tsx`). `evidence_kind` is a genuine closed vocabulary both on the wire
  * (`evidenceKind = z.enum(["photo","measurement","document","checkbox"])`,
  * `packages/contracts/src/requirement-rules.ts:46`) and in the database —
  * `check (evidence_kind in ('photo','measurement','document','checkbox'))`

@@ -74,12 +74,26 @@ export async function requirePartyEditCapability(
  * database would have allowed, and this one denied it to the only persona
  * `responsibility-presets.csv` gives `project.admin` to (`project_manager`).
  *
- * THIS DOES NOT CLOSE THE PRESET GAP AND MUST NOT BE READ AS CLOSING IT.
- * `readiness.view` is still in no `maps_to_capabilities` column of
- * `technical/permissions/responsibility-presets.csv` (0045 §11 item 2), so a
- * member who is not a project admin still needs a hand-issued grant to read the
- * blocked money. What changed is only that the pilot owner is no longer locked
- * out of a screen the database was already willing to show them.
+ * THIS DID NOT CLOSE THE PRESET GAP ON 2026-08-08 AND MUST NOT HAVE BEEN READ
+ * AS CLOSING IT THEN — true as written, on that date: `readiness.view` was in
+ * no `maps_to_capabilities` column of `technical/permissions/
+ * responsibility-presets.csv` (0045 §11 item 2) at all.
+ *
+ * STALE AS OF 2026-08-17, FLAGGED IN A LATER FIX ROUND rather than silently
+ * left to mislead the next reader who trusts a comment over the CSV it
+ * names: two presets now carry `readiness.view` — `pto_engineer` (line 13)
+ * and `commercial_manager` (line 15) — both added that date, and line 15's
+ * own text records that the capability was withheld while the preset's own
+ * description already pointed the commercial lead at the money screen it
+ * gates. `apps/app/src/services/blocked-value.service.ts`'s header copied
+ * this paragraph's claim verbatim without re-checking the CSV and shipped it
+ * wrong; that file's fix-round-1 correction carries the current, narrower
+ * fact: FOUR OTHER presets — `requirement_owner`, `internal_verifier`,
+ * `package_submitter`, `foreman` — grant `project.view` WITHOUT
+ * `readiness.view`, and members holding one of those four are who this gap
+ * still describes. A member who is not a project admin and not one of the
+ * two presets above still needs a hand-issued grant to read the blocked
+ * money.
  */
 const IMPLIED_BY_PROJECT_ADMIN: readonly ProjectCapability[] = ["project.view", "readiness.view"];
 

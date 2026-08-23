@@ -37,19 +37,42 @@ export function ProjectMoneyOverview({
         <PanelBody className="flex flex-col gap-6">
           {/* ONE `Figure` PER CURRENCY, laid out as its own row — never one
            * figure with several numbers, which is the shape that tempts a
-           * reader (or a future edit) into adding them together. */}
+           * reader (or a future edit) into adding them together.
+           *
+           * IMPORTANT 4 (fix round 1): the eyebrow now names the basis.
+           * `grossMinorUnits` is net+tax by construction regardless of a
+           * work item's own `taxMode` (exclusive/inclusive/exempt) — the
+           * INVARIANT `gross = net + tax` is what makes GROSS well-defined
+           * across a mix of tax modes, so gross stays the right figure to
+           * total. What was missing was saying so: a Ukrainian construction
+           * contract is typically quoted NET, and an unlabelled gross total
+           * next to a net contract figure reads as either overstating the
+           * exposure or disagreeing with the contract — the design brief
+           * never named a basis, so this was a silent judgement call rather
+           * than a violation, and on a money screen the basis has to be on
+           * the page. */}
           <div className="flex flex-col gap-4">
             {blockedValue.totalsByCurrency.map((total) => (
               <Figure
                 key={total.currency}
-                eyebrow={`Заблоковано, ${total.currency}`}
+                eyebrow={`Заблоковано, ${total.currency} (валова сума)`}
                 value={formatMoney(total.grossMinorUnits, total.currency)}
                 qualifier={
+                  // FINDING A (fix round 1): `wholeLineAttributionCount`
+                  // now renders UNCONDITIONALLY, at zero included — the
+                  // contract's own header on `blockedValueTotal` calls a
+                  // headline that hides this count "exactly the unreadable
+                  // number this screen exists to replace", and hiding it
+                  // AT ZERO left the reader unable to tell "this total is
+                  // not over-attributed" from "this screen does not tell me
+                  // about over-attribution". The overstatement caveat stays
+                  // conditional — it is only a true statement when the
+                  // count is positive.
                   `${total.assignmentCount} `
                   + pluralUk(total.assignmentCount, "доручення", "доручення", "доручень")
+                  + `, з них ${total.wholeLineAttributionCount} за повною сумою рядка`
                   + (total.wholeLineAttributionCount > 0
-                    ? `, з них ${total.wholeLineAttributionCount} за повною сумою рядка`
-                      + " (можливе завищення — рядок не поділений на частки)"
+                    ? " (можливе завищення — рядок не поділений на частки)"
                     : "")
                 }
               />

@@ -83,6 +83,20 @@ export function formatMoney(minorUnits: string, currency: string): string {
   const exponent = currencyExponent(currency);
   const negative = minorUnits.startsWith("-");
   const digits = negative ? minorUnits.slice(1) : minorUnits;
+  // GUARDED, NOT TRUSTED — fix round 1. `netMinorUnits`/`grossMinorUnits`
+  // are `z.string()` on the wire (`packages/contracts/src/readiness.ts`'s
+  // `blockedValue`), not a bigint-shaped refinement, so the contract cannot
+  // actually promise `digits` is free of a decimal point or an exponent —
+  // this module's own header spends thirty lines arguing exactly that
+  // point against `Number()`, and an unguarded `BigInt(digits)` right below
+  // made the identical unproven assumption about the same unpromised
+  // string. Unreachable TODAY because the one producer
+  // (`apps/app/src/lib/blocked-value.ts`'s `sumRows`, over `bigint.
+  // toString()`) never emits either — but a route that throws on a bad
+  // response turns one malformed row into a 500 with no partial render,
+  // which is a worse failure than one row rendering a legible "cannot be
+  // shown" marker instead.
+  if (!/^\d+$/.test(digits)) return "сума не відображається";
   const value = BigInt(digits);
   const scale = 10n ** BigInt(exponent);
   const integerPart = value / scale;

@@ -40,4 +40,13 @@ describe("formatMoney", () => {
   it("never divides by a hard-coded 100 — a one-digit-scale amount at 2dp exponent still zero-pads", () => {
     expect(formatMoney("5", "UAH")).toBe("0,05 ₴");
   });
+
+  it("does not throw on a malformed minor-units string — fix round 1 finding D", () => {
+    // The wire type is a bare z.string(), so the contract cannot promise
+    // this shape; a Server Component render must not 500 over one bad row.
+    expect(formatMoney("12.5", "UAH")).toBe("сума не відображається");
+    expect(formatMoney("1e3", "UAH")).toBe("сума не відображається");
+    expect(formatMoney("", "UAH")).toBe("сума не відображається");
+    expect(formatMoney("abc", "UAH")).toBe("сума не відображається");
+  });
 });

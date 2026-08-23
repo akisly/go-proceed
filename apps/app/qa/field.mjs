@@ -1959,11 +1959,14 @@ async function main() {
       // (`access-grants (field)`) SO THIS AUDIT CAN SEE REAL CONTENT rather
       // than the 403 branch — that refusal is a real, reachable outcome of
       // this route (`blocked-value.service.ts`'s own header proves it
-      // reachable, unlike the register's identical-looking one), but it is
-      // proven by reading the route and the RLS policy together, not by
-      // starving THIS audit of the grant a real `pto_engineer`/
-      // `commercial_manager` persona already holds per
-      // `responsibility-presets.csv`.
+      // reachable, unlike the register's identical-looking one, and names
+      // the real condition: FOUR presets — `requirement_owner`,
+      // `internal_verifier`, `package_submitter`, `foreman` — grant
+      // `project.view` without `readiness.view`), but it is proven by
+      // reading the route, `authz.ts` and `technical/permissions/
+      // responsibility-presets.csv` together, not by starving THIS audit of
+      // the grant a real `pto_engineer`/`commercial_manager` persona already
+      // holds per that same CSV (lines 13 and 15, both since 2026-08-17).
       //
       // THE SEEDED WORLD MATERIALISES EXACTLY ONE LIVE BLOCK: one occurrence
       // (`hold`, `blocks_stage_closure`), no evidence DECISION yet (only an
@@ -2027,13 +2030,24 @@ async function main() {
         }
         // The seeded occurrence's own `approver_role`
         // (`technical_supervisor`, `seedWorld`'s own rule-version call
-        // above) — a distinctive raw string that can only be on the page if
-        // the real blocked-reasons list rendered a real row, not a fixture
-        // this test wrote itself.
-        if (!structural.bodyText.includes("technical_supervisor")) {
+        // above), asserted as its UKRAINIAN LABEL — CORRECTED IN FIX ROUND
+        // 1. This used to assert the raw English identifier itself, which
+        // is a test PINNING a defect rather than catching one: the third
+        // instance of that shape on this branch, per the coordinator's own
+        // finding IMPORTANT 3, and the previous instance
+        // (`origin_not_distinguished`, `evidence-labels.ts`'s own account)
+        // shipped a raw identifier to a Ukrainian-speaking ПТВ for weeks
+        // behind a green suite. `approverRoleLabel` (`src/lib/
+        // approver-role-labels.ts`) now maps `technical_supervisor` to
+        // «технічний нагляд», so asserting THAT string is what proves the
+        // label ran, not merely that some approver-role text reached the
+        // page — a regression back to the raw fallback would make this
+        // assertion fail rather than silently keep passing.
+        if (!structural.bodyText.includes("технічний нагляд")) {
           ctx.findings.push(
-            `/dash/projects/${projectId}: the seeded occurrence's approver role "technical_supervisor" `
-            + "is not on the page — the blocked-reasons list is rendering no real row",
+            `/dash/projects/${projectId}: expected the approver role's Ukrainian label "технічний `
+            + `нагляд" (technical_supervisor via approverRoleLabel) on the page — either the row did `
+            + "not render, or the label regressed to a raw identifier",
           );
         }
         if (!structural.bodyText.includes("Заблоковані вимоги")) {

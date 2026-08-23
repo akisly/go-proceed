@@ -1,9 +1,11 @@
 import type { BlockedReason } from "@goproceed/contracts";
 import { Panel, PanelHeader, PanelBody } from "@goproceed/ui/components";
 import { formatMoney } from "../../lib/money";
+import { formatQuantity } from "../../lib/quantity";
 import { daysSinceUk } from "../../lib/format-uk";
 import { evidenceKindLabel } from "../../lib/evidence-kind-labels";
 import { normRefVerificationLabel } from "../../lib/norm-ref-labels";
+import { approverRoleLabel } from "../../lib/approver-role-labels";
 
 /**
  * Task item 3: the drill-down list, "sorted by `since` ascending — oldest
@@ -15,26 +17,38 @@ import { normRefVerificationLabel } from "../../lib/norm-ref-labels";
  * whatever order `evaluateStages`/`liveBlockedReasons` produced it
  * (`apps/app/src/lib/readiness.ts`), which is stage/occurrence materialisation
  * order, not `since` order. Sorting client-side against a copy (`.slice()`,
- * never mutating the prop) makes the ordering a property of THIS component
- * rather than an assumption about the route that nothing enforces.
+ * never mutating the prop) makes the PRIMARY key — `since` — a property of
+ * THIS component rather than an assumption about the route.
  *
- * `awaitingApproverRole` IS RENDERED RAW, WITH NO LABEL MAP — a decision,
- * not an oversight. `approver_role` carries only a non-blank CHECK on every
- * table it lives on (`requirement_occurrences_approver_role_check`,
- * `supabase/migrations/0052_the_whitespace_that_counted_as_content.sql:144-145`;
- * originally `check (length(btrim(approver_role)) > 0)`,
- * `0043_the_obligation_before_the_covering.sql:575`) — free text a
- * requirement-template author types per requirement, not a closed roster.
- * Fixture values in this very repository (`technical_supervisor`,
- * `apps/app/tests/helpers/fixtures.ts:234`) do not even match `membership-
- * labels.ts`'s thirteen membership roles, so mapping this field through that
- * table would be inventing a translation the data does not support. This
- * is the same "raw but truthful" choice `membershipRoleLabel`'s own fallback
- * makes for a role its map has not learned — except here it is the ONLY
- * available rendering, because there is no closed vocabulary to build a map
- * against in the first place (the binding rule this repository applies to
- * label maps needs a `pg_constraint` enum to test against; a bare
- * non-blank CHECK is not one).
+ * CORRECTED IN FIX ROUND 1: this used to also claim the sort "removes … an
+ * assumption about the route that nothing enforces" in full, which
+ * overclaims the TIE case. `Array.prototype.sort` has been stable since
+ * ES2019, so two rows sharing one `since` keep their INCOMING relative
+ * order rather than being reordered arbitrarily — and their incoming order
+ * IS the route's own `order by o.ordinal, o.id`
+ * (`apps/app/src/lib/readiness.ts:251`), which this component has no
+ * independent way to reproduce: `blockedReason` carries no `ordinal` field
+ * on the wire (`packages/contracts/src/readiness.ts`), only
+ * `requirementOccurrenceId` — a different key than `o.id`'s row-materialisation
+ * meaning would need. Ties are therefore NOT independent of the route; they
+ * correctly INHERIT its order via sort stability, which is a real guarantee
+ * worth naming rather than a gap to paper over with a second sort key that
+ * would only produce a THIRD, unrelated tie-break (UUID text order). Ties
+ * are the normal case here, not the edge: `since` is materialisation-time
+ * `created_at`, and every occurrence on one assignment materialises inside
+ * one transaction, so a whole assignment's rows typically share a
+ * millisecond.
+ *
+ * `awaitingApproverRole` GOES THROUGH `approverRoleLabel`
+ * (`../../lib/approver-role-labels.ts`), NOT RAW — CORRECTED IN FIX ROUND 1.
+ * The previous round concluded "no closed vocabulary" ruled out a label
+ * entirely; it only rules out a SCHEMA-DERIVED FIDELITY TEST (`approver_role`
+ * carries a non-blank CHECK, never an enumerated one, on every table it
+ * lives on — `supabase/migrations/
+ * 0052_the_whitespace_that_counted_as_content.sql:144-145`). A best-effort
+ * map with a raw fallback is exactly `membershipRoleLabel`'s own shape for a
+ * `z.string()`-typed field, and that file's own module carries the
+ * reasoning and the one concretely known value.
  *
  * `code` (the seven-value `blockedReasonCode`) IS NEVER PRINTED AS A RAW
  * VALUE PER ROW — the task brief's item 4 already renders the one code v0.1
@@ -103,14 +117,34 @@ export function BlockedReasonsList({ reasons }: { reasons: BlockedReason[] }) {
               <dl className="grid grid-cols-2 gap-x-4 gap-y-1 text-meta">
                 <div>
                   <dt className="text-ink-muted">Хто вирішує</dt>
-                  <dd className="text-ink">{reason.awaitingApproverRole ?? "—"}</dd>
+                  <dd className="text-ink">
+                    {reason.awaitingApproverRole ? approverRoleLabel(reason.awaitingApproverRole) : "—"}
+                  </dd>
                 </div>
                 <div>
-                  <dt className="text-ink-muted">Гроші</dt>
+                  {/* IMPORTANT 4 (fix round 1): the figure is GROSS
+                   * (`grossMinorUnits`), and the label now says so — a
+                   * Ukrainian construction contract is typically quoted
+                   * net, and an unlabelled gross figure reads as
+                   * disagreeing with it. */}
+                  <dt className="text-ink-muted">Гроші (валова сума)</dt>
                   <dd className="tabular text-ink">
                     {reason.blockedValue
                       ? formatMoney(reason.blockedValue.grossMinorUnits, reason.blockedValue.currency)
-                      : `${reason.unvaluedQuantity} (без оцінки)`}
+                      : (
+                        // IMPORTANT 2 (fix round 1): `unvaluedQuantity` is
+                        // `fromScaled6` output — a fixed six-decimal DOT
+                        // string ("1.250000") with no unit anywhere on
+                        // `blockedReason` (unlike `unvaluedRegisterRow`,
+                        // which carries `unitCode`). `formatQuantity`
+                        // trims it to Ukrainian-comma shape; the missing
+                        // unit is stated outright rather than left for the
+                        // reader to notice its absence.
+                        <>
+                          {formatQuantity(reason.unvaluedQuantity ?? "")} — кількість без оцінки,
+                          {" "}одиниця виміру не передається
+                        </>
+                      )}
                   </dd>
                 </div>
               </dl>

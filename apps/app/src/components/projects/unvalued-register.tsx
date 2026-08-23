@@ -1,6 +1,7 @@
 import type { BlockedValueResponse } from "@goproceed/contracts";
 import { Panel, PanelHeader, PanelBody, Table, Th, Td, Tr } from "@goproceed/ui/components";
 import { unvaluedReasonLabel } from "../../lib/unvalued-reason-labels";
+import { formatQuantity } from "../../lib/quantity";
 
 /**
  * Task item 2: "The unvalued register, its own block, so the headline is not
@@ -15,6 +16,14 @@ import { unvaluedReasonLabel } from "../../lib/unvalued-reason-labels";
  * QUANTITY, NEVER MONEY — the row schema itself has no money field, and this
  * component renders exactly what it is given: `quantity` + `unitCode`, never
  * a computed price.
+ *
+ * `quantity` GOES THROUGH `formatQuantity` — FIX ROUND 1, IMPORTANT 2. It
+ * is `fromScaled6` output (`apps/app/src/lib/blocked-value.ts:643`): a fixed
+ * six-fraction-digit, dot-separated string built to round-trip
+ * `numeric(20,6)` exactly, not to be read — this row shipped `"10.000000"`
+ * before this fix, beside `formatMoney`'s Ukrainian-comma figures elsewhere
+ * on the same screen. `unitCode` was already correct (this row, unlike
+ * `blockedReason.unvaluedQuantity`, carries one) and is unchanged.
  */
 export function UnvaluedRegister({
   register,
@@ -58,7 +67,7 @@ export function UnvaluedRegister({
                 <Tr key={`${row.reason}-${row.unitCode}-${i}`}>
                   <Td>{unvaluedReasonLabel(row.reason)}</Td>
                   <Td numeric>{row.assignmentCount}</Td>
-                  <Td numeric>{row.quantity} {row.unitCode}</Td>
+                  <Td numeric>{formatQuantity(row.quantity)} {row.unitCode}</Td>
                 </Tr>
               ))}
             </tbody>
