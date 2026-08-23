@@ -211,7 +211,7 @@ export const createWorkItemRequest = z.object({
    * this version", which is the same thing the matcher records when it finds
    * no match.
    */
-  predecessorWorkItemId: z.string().uuid().optional(),
+  predecessorWorkItemId: z.string().guid().optional(),
 }).strict().superRefine((v, ctx) => {
   const qtyFits = checkDecimalFits(ctx, "contractQuantity", v.contractQuantity);
   const priceFits = checkDecimalFits(ctx, "unitPrice", v.unitPrice);
@@ -276,7 +276,7 @@ export const updateWorkItemRequest = z.object({
    * an existing draft line into being uncorrectable (migration 0050 §5).
    */
   workTypeKey: z.string().trim().min(1).max(200).nullable().optional(),
-  predecessorWorkItemId: z.string().uuid().nullable().optional(),
+  predecessorWorkItemId: z.string().guid().nullable().optional(),
 }).strict().superRefine((v, ctx) => {
   const qtyFits = checkDecimalFits(ctx, "contractQuantity", v.contractQuantity);
   const priceFits = checkDecimalFits(ctx, "unitPrice", v.unitPrice);

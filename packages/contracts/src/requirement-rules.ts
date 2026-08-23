@@ -70,7 +70,7 @@ export const publishRequirementRuleVersionRequest = z.object({
    * 4.1) — and the uniqueness constraints carry its meaning instead: one rule
    * contributes at most one version to a baseline.
    */
-  requirementRuleId: z.string().uuid().optional(),
+  requirementRuleId: z.string().guid().optional(),
   /** Position inside the rule's ordered set; the order is part of what was agreed. */
   ordinal: z.number().int().min(1).default(1),
   /**
@@ -137,7 +137,7 @@ export const publishRequirementRuleVersionRequest = z.object({
    * exactly what INV-073 and hidden-works-content-rules.md exist to prevent.
    * They are returned, never accepted.
    */
-  requirementLibraryItemId: z.string().uuid(),
+  requirementLibraryItemId: z.string().guid(),
 }).strict().superRefine((v, ctx) => {
   // INV-082, first refusal (ADR-006 decision 4.3). `witness` needs the notice
   // event and its attendance outcomes; `review`'s only blocking scope is

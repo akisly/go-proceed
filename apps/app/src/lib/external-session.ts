@@ -244,7 +244,25 @@ export function externalQueryRoute(
  * means.
  */
 export function externalCommandRoute<T>(
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  // ZOD 4 REORDERED `ZodType`'S TYPE PARAMETERS, and the old spelling did not
+  // fail loudly — it bound `T` to nothing and every `a.body` in every command
+  // route became `unknown`. Verified at the declaration site rather than
+  // recalled: zod 3 was
+  // `ZodType<Output = any, Def extends ZodTypeDef = ZodTypeDef, Input = Output>`
+  // (`zod/v3/types.d.ts:48` — still shipped, under the v3 compat subpath),
+  // and zod 4 is
+  // `ZodType<out Output = unknown, out Input = unknown, out Internals extends ...>`
+  // (`zod/v4/classic/schemas.d.ts:6`). The middle slot changed meaning from
+  // «the def» to «the INPUT», so `<T, z.ZodTypeDef, unknown>` was asking for a
+  // schema whose input is a zod internal object — satisfied by nothing, and
+  // inference fell back to the default.
+  //
+  // The intent is unchanged and still worth stating: the INPUT is `unknown` so
+  // `T` binds to the schema's OUTPUT — defaults applied — not to the pre-parse
+  // input where a defaulted field is still optional. `out Input` is covariant
+  // in zod 4, so any schema's own input type is assignable to `unknown` and
+  // every existing call site keeps inferring exactly what it did before.
+  schema: z.ZodType<T, unknown>,
   run: (a: ExternalCommandArgs<T>) => Promise<ExternalResult>,
 ): (req: Request, ctx: RouteCtx) => Promise<Response> {
   return async (req) => {

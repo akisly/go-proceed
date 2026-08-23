@@ -29,17 +29,23 @@ export type ImportColumnMapping = z.infer<typeof importColumnMapping>;
 
 export const validateImportBatchRequest = z.object({
   mapping: importColumnMapping,
+  // `.prefault({})`, not `.default({})` — see `contracts-baseline.ts`'s
+  // `roundingPolicy` for the full reasoning. Short version: zod 4's
+  // `.default()` hands the value back WITHOUT running the parser, so `{}`
+  // would arrive with no `locale` and no `headerRow`; `.prefault()`
+  // substitutes and then parses, which is zod 3's `.default()` behaviour and
+  // the one this contract was written against.
   config: z.object({
     locale: z.enum(["uk-UA", "en-US"]).default("uk-UA"),
     headerRow: z.number().int().min(0).default(1),
     worksheet: z.string().min(1).optional(),
-  }).default({}),
+  }).prefault({}),
   expectedVersion: z.number().int().min(1),
 });
 export type ValidateImportBatchRequest = z.infer<typeof validateImportBatchRequest>;
 
 export const createResolutionRequest = z.object({
-  rowResultId: z.string().uuid(),
+  rowResultId: z.string().guid(),
   chosenBasis: z.enum(["unit_price_derived", "approved_source_amount"]),
   reason: z.string().trim().min(1).max(2000),
 });
@@ -89,7 +95,7 @@ export const publishImportBatchRequest = z.object({
    * The `max` matches `bindContractVersionRulesRequest`: a resource-exhaustion
    * control (M0 exit gate), not a domain limit.
    */
-  ruleVersionIds: z.array(z.string().uuid()).max(500).default([]),
+  ruleVersionIds: z.array(z.string().guid()).max(500).default([]),
 });
 export type PublishImportBatchRequest = z.infer<typeof publishImportBatchRequest>;
 export interface PublishImportBatchResponse {

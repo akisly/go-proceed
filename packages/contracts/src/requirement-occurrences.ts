@@ -73,10 +73,10 @@ export const occurrenceAllowedMedia = z.object({
 }).strict();
 
 export const requirementOccurrenceView = z.object({
-  occurrenceId: z.string().uuid(),
-  workAssignmentId: z.string().uuid(),
+  occurrenceId: z.string().guid(),
+  workAssignmentId: z.string().guid(),
   /** The pinned identity, never a live rule (INV-067). */
-  ruleVersionId: z.string().uuid(),
+  ruleVersionId: z.string().guid(),
   ordinal: z.number().int().min(1),
 
   /**
@@ -85,7 +85,7 @@ export const requirementOccurrenceView = z.object({
    * 0043's CHECK makes that timing unstorable without a concealed stage.
    */
   stage: z.object({
-    stageId: z.string().uuid().nullable(),
+    stageId: z.string().guid().nullable(),
     stageKey: z.string().min(1),
     isConcealed: z.boolean().nullable(),
   }).strict(),
@@ -129,8 +129,8 @@ export type RequirementOccurrenceView = z.infer<typeof requirementOccurrenceView
  * a defect upstream; refusing it here names it instead of rendering it.
  */
 export const listRequirementOccurrencesResponse = z.object({
-  workAssignmentId: z.string().uuid(),
-  contractVersionId: z.string().uuid(),
+  workAssignmentId: z.string().guid(),
+  contractVersionId: z.string().guid(),
   occurrences: z.array(requirementOccurrenceView),
   /**
    * WHY AN EMPTY SET IS NOT JUST AN EMPTY ARRAY. A foreman shown nothing cannot

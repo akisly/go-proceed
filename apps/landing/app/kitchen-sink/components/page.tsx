@@ -22,7 +22,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Tooltip, TooltipProvider,
-  type AccordionEntry, type ColumnDef, type MeterSegment,
+  type AccordionEntry, type DataTableColumnDef, type MeterSegment,
 } from "@goproceed/ui/components";
 import { CountUp } from "@goproceed/ui/motion";
 
@@ -55,7 +55,7 @@ const ROWS = [
  * numeric ruling ride on `meta`, where a fifth column cannot be added without
  * the percentages visibly failing to sum.
  */
-const SINK_COLUMNS: ColumnDef<(typeof ROWS)[number]>[] = [
+const SINK_COLUMNS: DataTableColumnDef<(typeof ROWS)[number]>[] = [
   { id: "scope", header: "Обсяг", meta: { className: "w-2/5" }, cell: ({ row }) => row.original.scope },
   { id: "planned", header: "Заплановано", meta: { className: "w-1/5", numeric: true }, cell: ({ row }) => row.original.planned },
   { id: "done", header: "Зафіксовано", meta: { className: "w-1/5", numeric: true }, cell: ({ row }) => row.original.done },

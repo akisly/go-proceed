@@ -121,7 +121,7 @@ export const createContractVersionRequest = z.object({
    * "start a parallel version 3" are different intentions and the schema
    * should not guess which one the caller had.
    */
-  supersedesVersionId: z.string().uuid().optional(),
+  supersedesVersionId: z.string().guid().optional(),
 }).strict();
 export type CreateContractVersionRequest = z.infer<typeof createContractVersionRequest>;
 
@@ -155,7 +155,7 @@ export const bindContractVersionRulesRequest = z.object({
    * limit: the shipped Додаток Н library carries twelve items and a workspace
    * that has published more rule versions than this is not a v0.1 pilot.
    */
-  ruleVersionIds: z.array(z.string().uuid()).min(1).max(500),
+  ruleVersionIds: z.array(z.string().guid()).min(1).max(500),
 }).strict();
 export type BindContractVersionRulesRequest = z.infer<typeof bindContractVersionRulesRequest>;
 

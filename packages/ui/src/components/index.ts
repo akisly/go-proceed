@@ -69,7 +69,8 @@ export {
   Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption,
 } from "./Table";
 export {
-  DataTable, type DataTableProps, type ColumnDef, type SortingState,
+  DataTable, dataTableFeatures,
+  type DataTableProps, type DataTableColumnDef, type DataTableFeatures, type SortingState,
 } from "./DataTable";
 export {
   Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage, useFormField,

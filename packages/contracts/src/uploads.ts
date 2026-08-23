@@ -20,7 +20,7 @@ export const createUploadIntentRequest = z.object({
    * and it would have broken every deployed caller on the day the occurrence set
    * is still empty; see the route for why that set is still empty.
    */
-  requirementOccurrenceId: z.string().uuid().optional(),
+  requirementOccurrenceId: z.string().guid().optional(),
   expectedContentHash: z.string().regex(/^[0-9a-f]{64}$/),
   expectedByteSize: z.number().int().positive(),
   claimedMediaType: z.string().regex(/^[a-z]+\/[a-z0-9.+-]+$/),

@@ -13,10 +13,15 @@ export const createRequirementTemplateRequest = z.object({
     mimeTypes: z.array(z.string().regex(/^[a-z]+\/[a-z0-9.+-]+$/)).min(1).max(20),
     maxByteSize: z.number().int().positive().max(50 * 1024 * 1024),
   }).strict(),
+  // `.prefault({})`, not `.default({})` — same zod-4 change as
+  // `contracts-baseline.ts`'s `roundingPolicy`. With `.default({})` an omitted
+  // `multiplicity` would parse to `{}` rather than to `{ min: 1, max: null }`,
+  // and «at least one» would quietly become «no minimum» on every requirement
+  // template created without one.
   multiplicity: z.object({
     min: z.number().int().min(0).default(1),
     max: z.number().int().positive().nullable().default(null),
-  }).strict().default({}),
+  }).strict().prefault({}),
   severity: z.enum(["blocking", "advisory"]).default("blocking"),
 }).strict();
 export type CreateRequirementTemplateRequest = z.infer<typeof createRequirementTemplateRequest>;

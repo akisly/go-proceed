@@ -1,6 +1,6 @@
 "use client";
 
-import type { ColumnDef } from "@tanstack/react-table";
+import type { DataTableColumnDef } from "@goproceed/ui/components";
 import type { BlockedValueResponse } from "@goproceed/contracts";
 import { unvaluedReasonLabel } from "../../lib/unvalued-reason-labels";
 import { formatQuantity } from "../../lib/quantity";
@@ -33,7 +33,7 @@ export type UnvaluedRegisterRow = BlockedValueResponse["unvaluedRegister"][numbe
  * `meta.numeric` on the two figure columns is `Table.tsx`'s ruling 2 —
  * right-aligned and tabular, together, so a shortfall differs in shape.
  */
-export const unvaluedRegisterColumns: ColumnDef<UnvaluedRegisterRow>[] = [
+export const unvaluedRegisterColumns: DataTableColumnDef<UnvaluedRegisterRow>[] = [
   {
     id: "reason",
     accessorKey: "reason",

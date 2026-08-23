@@ -149,13 +149,13 @@ export const blockedValueAttribution = z.enum(["planned_share", "whole_line", "u
 export type BlockedValueAttributionValue = z.infer<typeof blockedValueAttribution>;
 
 export const blockedReason = z.object({
-  requirementOccurrenceId: z.string().uuid(),
+  requirementOccurrenceId: z.string().guid(),
   /** What was agreed, and in which version (INV-067). */
-  ruleVersionId: z.string().uuid(),
-  workAssignmentId: z.string().uuid(),
-  workStageId: z.string().uuid(),
+  ruleVersionId: z.string().guid(),
+  workAssignmentId: z.string().guid(),
+  workStageId: z.string().guid(),
   stageKey: z.string().min(1),
-  workItemId: z.string().uuid(),
+  workItemId: z.string().guid(),
 
   code: blockedReasonCode,
   codeVocabularyVersion: z.string().min(1),
@@ -214,8 +214,8 @@ export type BlockedReason = z.infer<typeof blockedReason>;
  * report the same thing because they are computed by the same function.
  */
 export const occurrenceSatisfactionView = z.object({
-  occurrenceId: z.string().uuid(),
-  ruleVersionId: z.string().uuid(),
+  occurrenceId: z.string().guid(),
+  ruleVersionId: z.string().guid(),
   ordinal: z.number().int().min(1),
   interventionType,
   blockingScope,
@@ -223,9 +223,9 @@ export const occurrenceSatisfactionView = z.object({
   blocksStageClosure: z.boolean(),
   satisfied: z.boolean(),
   satisfiedBy: z.enum(["evidence_decision", "exception"]).nullable(),
-  currentDecisionId: z.string().uuid().nullable(),
+  currentDecisionId: z.string().guid().nullable(),
   currentDecisionOutcome: z.enum(["accepted", "returned"]).nullable(),
-  currentExceptionId: z.string().uuid().nullable(),
+  currentExceptionId: z.string().guid().nullable(),
   currentExceptionAction: z.enum(["waiver", "accept_risk", "not_applicable", "revoke"]).nullable(),
 }).strict();
 export type OccurrenceSatisfactionView = z.infer<typeof occurrenceSatisfactionView>;
@@ -244,10 +244,10 @@ export const readinessScopeKind = z.enum(["work_stage"]);
 
 export const stageReadinessView = z.object({
   scopeKind: readinessScopeKind,
-  workStageId: z.string().uuid(),
-  workAssignmentId: z.string().uuid(),
-  contractId: z.string().uuid(),
-  workItemId: z.string().uuid(),
+  workStageId: z.string().guid(),
+  workAssignmentId: z.string().guid(),
+  contractId: z.string().guid(),
+  workItemId: z.string().guid(),
   stageKey: z.string().min(1),
   isConcealed: z.boolean(),
   status: z.enum(["open", "closed", "closed_without_evidence"]),
@@ -268,7 +268,7 @@ export const stageReadinessView = z.object({
 export type StageReadinessView = z.infer<typeof stageReadinessView>;
 
 export const readinessResponse = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().guid(),
   /**
    * COMPUTED, NEVER READ FROM public.readiness_projection — see this module's
    * header. `computed` says so on the wire, so a client cannot mistake a live
@@ -313,7 +313,7 @@ export const blockedValueTotal = z.object({
 }).strict();
 
 export const blockedReasonsResponse = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().guid(),
   source: z.literal("computed"),
   algorithmVersion: z.string().min(1),
   calculatedAt: z.string().datetime({ offset: true }),

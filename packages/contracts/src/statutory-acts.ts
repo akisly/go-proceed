@@ -71,7 +71,7 @@ export const quantityShare = z.string().trim()
  * only drop two or print their sum, and their sum is not any recorded entry.
  */
 export const composeQuantityEntry = z.object({
-  rootProgressEntryId: z.string().uuid(),
+  rootProgressEntryId: z.string().guid(),
   share: quantityShare,
 }).strict();
 export type ComposeQuantityEntry = z.infer<typeof composeQuantityEntry>;
@@ -81,8 +81,8 @@ export type ComposeQuantityEntry = z.infer<typeof composeQuantityEntry>;
  * by id. Both strings the act freezes are read off those records.
  */
 export const composeSignatorySlot = z.object({
-  projectPartyId: z.string().uuid(),
-  partyContactId: z.string().uuid(),
+  projectPartyId: z.string().guid(),
+  partyContactId: z.string().guid(),
 }).strict();
 export type ComposeSignatorySlot = z.infer<typeof composeSignatorySlot>;
 
@@ -150,7 +150,7 @@ export const composeStatutoryActRequest = z.object({
    * `statutory_act_versions_correction_reason_check` refuse anything else.
    */
   correction: z.object({
-    predecessorVersionId: z.string().uuid(),
+    predecessorVersionId: z.string().guid(),
     reason: z.string().trim().min(1).max(4000),
   }).strict().optional(),
 }).strict();
@@ -184,7 +184,7 @@ export type FreezeStatutoryActVersionRequest =
  */
 export const statutoryActQuantityLineView = z.object({
   lineNo: z.number().int().min(1),
-  rootProgressEntryId: z.string().uuid(),
+  rootProgressEntryId: z.string().guid(),
   recordedQuantity: z.string().min(1),
   share: z.string().min(1),
   printedQuantity: z.string().min(1),
@@ -213,10 +213,10 @@ export type SignatorySlotName = z.infer<typeof signatorySlotName>;
  */
 export const statutoryActSignatoryView = z.object({
   slot: signatorySlotName,
-  projectPartyId: z.string().uuid(),
-  partyId: z.string().uuid(),
+  projectPartyId: z.string().guid(),
+  partyId: z.string().guid(),
   partyRelationship: z.string().min(1),
-  partyContactId: z.string().uuid(),
+  partyContactId: z.string().guid(),
   frozenOrganizationName: z.string().min(1),
   frozenOrganizationNameSource: z.enum(["legal_profile_official_name", "party_display_name"]),
   frozenPersonName: z.string().min(1),
@@ -254,10 +254,10 @@ export type AssuranceLevel = z.infer<typeof assuranceLevel>;
  * copy that disagrees.
  */
 export const statutoryActDecisionView = z.object({
-  requirementOccurrenceId: z.string().uuid(),
+  requirementOccurrenceId: z.string().guid(),
   satisfiedBy: z.enum(["evidence_decision", "exception"]),
-  reliedOnDecisionId: z.string().uuid().nullable(),
-  reliedOnExceptionId: z.string().uuid().nullable(),
+  reliedOnDecisionId: z.string().guid().nullable(),
+  reliedOnExceptionId: z.string().guid().nullable(),
   reliedOnExceptionAction: z.enum(["waiver", "accept_risk"]).nullable(),
   /** The role the occurrence names as owing the decision. Never re-typed. */
   approverRole: z.string().min(1),
@@ -298,14 +298,14 @@ export type StatutoryActDecisionView = z.infer<typeof statutoryActDecisionView>;
  * Додаток В, and the laid-out form is `statutory_acts.render`'s job.
  */
 export const statutoryActVersionView = z.object({
-  statutoryActVersionId: z.string().uuid(),
-  statutoryActId: z.string().uuid(),
-  projectId: z.string().uuid(),
-  contractId: z.string().uuid(),
-  workAssignmentId: z.string().uuid(),
-  workItemId: z.string().uuid(),
-  workStageId: z.string().uuid(),
-  stageClosureId: z.string().uuid(),
+  statutoryActVersionId: z.string().guid(),
+  statutoryActId: z.string().guid(),
+  projectId: z.string().guid(),
+  contractId: z.string().guid(),
+  workAssignmentId: z.string().guid(),
+  workItemId: z.string().guid(),
+  workStageId: z.string().guid(),
+  stageClosureId: z.string().guid(),
   stageIsConcealed: z.boolean(),
 
   /**
@@ -353,7 +353,7 @@ export const statutoryActVersionView = z.object({
 
   versionNo: z.number().int().min(1),
   status: z.enum(["draft", "frozen"]),
-  predecessorVersionId: z.string().uuid().nullable(),
+  predecessorVersionId: z.string().guid().nullable(),
   correctionReason: z.string().nullable(),
   draftVersion: z.number().int().min(1),
 
@@ -377,8 +377,8 @@ export const statutoryActVersionView = z.object({
   rendererVersion: z.string().nullable(),
   contentHash: z.string().regex(/^[0-9a-f]{64}$/).nullable(),
   frozenAt: z.string().datetime({ offset: true }).nullable(),
-  frozenByMemberId: z.string().uuid().nullable(),
-  composedByMemberId: z.string().uuid(),
+  frozenByMemberId: z.string().guid().nullable(),
+  composedByMemberId: z.string().guid(),
   composedAt: z.string().datetime({ offset: true }),
 
   quantityLines: z.array(statutoryActQuantityLineView),
@@ -469,7 +469,7 @@ export type RenderBlock = z.infer<typeof renderBlock>;
  * that renders it once at the end is wrong and this type cannot catch it.
  */
 export const renderedStatutoryAct = z.object({
-  statutoryActVersionId: z.string().uuid(),
+  statutoryActVersionId: z.string().guid(),
   status: z.literal("frozen"),
   actForm: z.literal("dodatok_v"),
   rendererVersion: z.string().min(1),
@@ -578,7 +578,7 @@ export const actRenderBlocker = z.object({
 export type ActRenderBlocker = z.infer<typeof actRenderBlocker>;
 
 export const actRenderBlockedDetails = z.object({
-  statutoryActVersionId: z.string().uuid(),
+  statutoryActVersionId: z.string().guid(),
   actForm: z.enum(["dodatok_v", "dodatok_g"]),
   formTemplateKey: z.string().min(1),
   formTemplateVersion: z.string().min(1),

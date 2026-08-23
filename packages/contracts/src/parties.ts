@@ -55,7 +55,7 @@ export const projectPartyRelationship = z.enum([
 export type ProjectPartyRelationship = z.infer<typeof projectPartyRelationship>;
 
 export const createProjectPartyRequest = z.object({
-  partyId: z.string().uuid(),
+  partyId: z.string().guid(),
   relationship: projectPartyRelationship,
   note: z.string().trim().max(1000).optional(),
 }).strict();

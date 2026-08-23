@@ -430,7 +430,7 @@ which is the pin doing its job.
 `SUPABASE_SECRET_KEY` to an `sb_secret_…` value; the preflight refuses the
 legacy forms by name.
 
-## P2 — three major-version migrations, measured and deliberately NOT folded into the 2026-08-19 freshness pass
+## P2 (item 1 CLOSED 2026-08-24) — three major-version migrations, measured and deliberately NOT folded into the 2026-08-19 freshness pass
 
 **Context:** on 2026-08-19 the owner asked for every library to be current
 before the Vercel sitting. Tier 1 (Supabase SDK + key format) and Tier 2 (every
@@ -442,7 +442,57 @@ a "freshen the libraries" branch would have been the scope creep that rule is
 there to prevent. Each gets its own slice; the measurements are here so it
 starts from facts.
 
-**1. zod 3.24.1 → 4.4.3** — https://zod.dev/v4/changelog
+**1. zod 3.24.1 → 4.4.3 — DONE 2026-08-24.** https://zod.dev/v4/changelog
+
+> Landed on `claude/ui-reference-foundation` alongside the shadcn/TanStack
+> foundation, on the owner's instruction «используй последние версии для
+> библиотек, никаких пришпилены к 3.24.1». **961→967 app tests, 591 contract
+> tests and 107 contracts tests all pass with ZERO test-fixture edits**, which
+> is the strongest available evidence that the upgrade changed no accepted
+> request. What the measured surface actually turned out to be, against the
+> estimate below:
+>
+> - **Five hard breaks, all type errors, all in `packages/contracts` and
+>   `apps/app/src/lib`.** `z.record(x)` single-arg ×2
+>   (`contracts-baseline.ts`), `.default({})` on an object with inner defaults
+>   ×3 (`contracts-baseline.ts`, `imports.ts`, `requirements.ts`), and
+>   `z.ZodType<T, z.ZodTypeDef, unknown>` ×2 (`command.ts`,
+>   `external-session.ts`).
+> - **`.default()` was the dangerous one and it is not what the note below
+>   predicted.** Zod 4 did not merely retype it; `$ZodDefault`'s own source
+>   says it «returns the default value immediately in forward direction. It
+>   doesn't pass the default value into the validator». `.prefault()` is the
+>   zod-3 behaviour and is what all three sites now use. Two of the three
+>   would have silently dropped a business default —
+>   `roundingPolicy.midpoint` and `multiplicity.min: 1`.
+> - **`ZodType`'s parameters were REORDERED, and that break was silent.** zod 3
+>   `<Output, Def, Input>` → zod 4 `<Output, Input, Internals>`. The old
+>   spelling still compiled and bound `T` to nothing, turning every `a.body` in
+>   every command route into `unknown`. Now `z.ZodType<T, unknown>`.
+> - **`.uuid()` tightened to RFC 9562 and this repo could not take it.** 88 of
+>   112 distinct UUID literals in `packages/`, `apps/`, `supabase/`, `scripts/`
+>   and `migration/` are rejected by zod 4's `.uuid()`; 0 by `.guid()`.
+>   Postgres's own `uuid` type checks neither version nor variant, so a
+>   `.uuid()` contract is narrower than the column it describes and every
+>   hand-seeded row is in the gap. All 91 sites are `z.string().guid()`;
+>   `packages/contracts/src/index.ts`'s header carries the full reasoning.
+> - **`fieldErrors`' `path` is UNCHANGED and is now pinned.** `issue.path` is
+>   still `PropertyKey[]` (`zod/v4/core/errors.d.ts:9`) and `i.path.join(".")`
+>   still yields `items.1.qty`. `command.test.ts` asserts that string
+>   exactly — it is what a Ukrainian-speaking caller reads off a 422, and
+>   nothing pinned it before.
+> - **`.strict()` ×113 and `z.string().datetime()` ×16 were NOT touched.** Both
+>   are deprecated in zod 4 and both still exist and still behave identically
+>   (`zod/v4/classic/schemas.d.ts:465` and `:161`; verified by probe, and by
+>   107 contract tests that exercise them). Rewriting 129 call sites to
+>   `z.strictObject()` / `z.iso.datetime()` is a mechanical diff with real
+>   regression risk and no behavioural gain — **owed only when zod removes
+>   them, which the guide says it will not do.**
+> - **`errorMap`, `ZodError` and `.flatten()`: zero uses in source.** The
+>   estimate below feared the `fieldErrors` shape; nothing builds it from
+>   `.flatten()`.
+
+**Original 2026-08-19 estimate, kept for the record:**
 - 30 files, 309 `z.string()`, 115 `z.object()`, 52 `z.enum()`.
 - `.strict()` ×94 deprecated → `z.strictObject()`; `.email()` ×4 deprecated →
   `z.email()`; `z.record(x)` single-arg ×2 **removed** (hard break);
@@ -2911,43 +2961,62 @@ validation — landed as: `@tanstack/react-table`, `react-hook-form`,
 and restyled onto token roles; `Table/Th/Td/Tr` replaced by shadcn's eight
 primitives so there is one table and not two; a `DataTable` composition built
 on satnaing/shadcn-admin's own `tasks-table.tsx`; and the two real
-`<table>`-markup screens migrated onto it. Five residuals it deliberately did
-not close.
+`<table>`-markup screens migrated onto it, and — after the owner's 2026-08-24
+version correction — the whole stack moved to latest, zod 3 → 4 included.
 
-**P2 — `@hookform/resolvers` is pinned to `4.1.3`, three majors behind, and the
-pin is load-bearing.** `CLAUDE.md`'s current-docs rule was applied and the
-answer came out AGAINST the reference: satnaing/shadcn-admin carries
-`@hookform/resolvers ^5.2.2` with `zod ^4.3.6`, but this workspace pins
-**`zod 3.24.1`** in both `packages/contracts/package.json` and
-`apps/app/package.json`, and a form must validate with the SAME schema the
-route parses. Measured against the published packages on 2026-08-23, not
-recalled:
-- `@hookform/resolvers@5.2.2`'s zod entry declares `"zod": "^3.25.0 || ^4.0.0"`
-  as a peer AND its built module opens with `import * as n from "zod/v4/core"`
-  — a subpath `zod@3.24.1` does not expose. That is a module-resolution
-  failure at build time, not a peer warning.
-- `@hookform/resolvers@4.1.3` declares no `zod` peer at all, imports zod only
-  as a TYPE (`zod/dist/zod.d.ts`: `schema: z.ZodSchema<TFieldValues, any,
-  any>`, `schemaOptions?: Partial<z.ParseParams>` — the zod 3 API), and
-  duck-types the thrown error. It is the newest line compatible with zod 3.
-- `5.9.1` (latest) keeps the same `^3.25.0 || ^4.0.0` constraint.
-**The unpin is downstream of the zod 3 → 4 migration already filed above**
-(«three major-version migrations», item 1). When that lands, `4.1.3` → `^5.x`
-becomes a one-line change; until it does, bumping this package silently breaks
-every form. `apps/app/package.json` therefore pins it exactly, the way `zod`
-itself is pinned, rather than caret-ranging it.
+**THE SLICE'S OWN REPORT FILE COULD NOT BE WRITTEN** (the agent harness refuses
+report `.md` files), so the findings that would have lived at
+`.superpowers/sdd/2026-08-23-ui-foundation/report.md` are recorded here
+instead, where they will actually be read.
 
-**P3 — `@tanstack/react-table` is on `^8.21.3` while `9.1.2` is current.**
-Deliberate: `8.21.3` is the version the reference this composition is copied
-from pins (`satnaing/shadcn-admin`'s `package.json` at `main`), and shadcn/ui's
-own data-table guidance is written against the v8 API
-(`useReactTable`/`flexRender`/`getCoreRowModel`). v9 adds
-`@tanstack/react-store` as a runtime dependency and reshapes the options
-object. Taking v9 here would have meant implementing the reference's
-composition from a different API than the reference — the opposite of the
-instruction this slice exists to satisfy. The upgrade is its own slice, and it
-should start by re-reading the reference: if shadcn-admin is still on v8, so
-are we.
+**CLOSED 2026-08-24 — the version policy changed and both version entries
+below went with it.** The owner overrode the pinning decision outright:
+«используй последние версии для библиотек, никаких пришпилены к 3.24.1». The
+whole stack is now on latest — `zod ^4.4.3`, `@hookform/resolvers ^5.9.1`,
+`@tanstack/react-table ^9.1.2`, `react-hook-form ^7.86.0`,
+`class-variance-authority ^0.7.1`, each re-read from the npm registry at
+install time rather than taken on trust. What the two retired entries said, and
+what actually happened:
+
+- **`@hookform/resolvers` is no longer pinned to `4.1.3`.** The pin existed
+  only because `5.x`'s zod entry does `import * as n from "zod/v4/core"`, a
+  subpath `zod@3.24.1` did not expose. On zod 4.4.3 that subpath is the
+  library's own core and the problem does not exist. **Verified by running it,
+  not by reading the peer range:** `zodResolver` over a zod 4 schema with a
+  nested object returned `{ description: {...}, nested: { qty: {...} } }` —
+  correct react-hook-form nested paths, custom Ukrainian messages preserved,
+  and `{}` errors plus parsed values on the valid input.
+- **`@tanstack/react-table` is on `9.1.2`, not the reference's `^8.21.3`.**
+  The coordinator ruled on the conflict between «follow the reference
+  literally» and «latest versions»: latest wins, and the reference's
+  composition is ADAPTED. `DataTable.tsx` says at each line why it departs
+  from `shadcn-admin`'s v8 shape. The map used was the vendor's own, shipped
+  inside the installed package —
+  `node_modules/@tanstack/react-table/skills/migrate-v8-to-v9/SKILL.md`,
+  `library_version: 9.1.2`. The four changes that mattered: `useReactTable` →
+  `useTable` with an explicit `features` object; `getCoreRowModel()` removed
+  (automatic in v9); `getSortedRowModel()` → the `sortedRowModel:
+  createSortedRowModel()` slot beside `rowSortingFeature`; and `TFeatures`
+  first on every public type, which is why callers now write
+  `DataTableColumnDef<T>` from `@goproceed/ui/components` instead of
+  `ColumnDef<T>` from TanStack.
+
+**P3 — v9 makes every feature opt-in, and three of this table's absences are
+now load-bearing rather than incidental.** `rowSelectionFeature` is NOT
+registered, so `row.getIsSelected()` does not exist and `DataTable` no longer
+emits `data-state="selected"` — `TableRow` keeps the matching style, so the day
+selection arrives only the feature and that one attribute have to be added.
+`columnVisibilityFeature` IS registered purely so `row.getVisibleCells()`
+exists (it is declared on that feature, not on core —
+`@tanstack/table-core/dist/features/column-visibility/columnVisibilityFeature.types.d.ts:70`);
+`row.getAllCells()` would render identically today and would silently ignore a
+hidden column once the reference's view-options menu lands. Pagination,
+filtering, faceting, grouping, pinning and sizing are all unregistered.
+**The vendor's own named failure mode applies here: «An API is missing because
+its feature was not registered, not because v9 removed it.»** `stockFeatures`
+would bundle the lot and the skill's last checklist item is to audit it away,
+so it is deliberately never introduced.
+
 
 **P2 — `Checkbox` does not meet the 44px touch floor and nothing on a dash
 route uses it yet.** `packages/ui/src/components/Checkbox.tsx` is shadcn's
@@ -2990,3 +3059,41 @@ the dependency is declared and unimported.** Note also that
 `apps/app/src/ui/button.tsx` already builds a
 SECOND Button with `cva`, independent of `packages/ui`'s — that duplication
 predates this slice and belongs to the same migration.
+
+**FIXED IN THIS SLICE, recorded because the mechanism generalises — a
+`data-[…]` variant BEATS a `touch:` variant on specificity, and the 44px floor
+lost silently.** shadcn's `SelectTrigger` sets its height with
+`data-[size=default]:h-9 data-[size=sm]:h-8`; rewritten to token roles that
+became `data-[size=default]:h-(--gp-control-height-desk)` sitting beside
+`touch:h-(--gp-control-height-touch)`. Measured in a real browser at 390px with
+`(pointer: coarse)` emulated: **the trigger stayed 36px, not 44.**
+`.data-\[size\=default\]\:h-…[data-size=default]` is a class plus an
+attribute selector (0,2,0); `.touch\:h-…` inside `@media (pointer: coarse)` is
+a class (0,1,0), and a media query contributes nothing to specificity. Both
+classes were in the stylesheet, both applied, and nothing warned — `cn()`
+cannot help either, since they are different variant groups and neither is a
+conflict it can resolve. The fix is to compose the height into ONE class per
+size, the way `Button.tsx`'s `SIZE` map already does; re-measured at 360 with
+coarse pointer, the trigger is 44px. **The general rule, which no test yet
+enforces: never put a control height behind a `data-[…]` variant in this
+system — the touch floor is a `touch:` variant and will lose.**
+
+**FIXED IN THIS SLICE — both kitchen-sink tables were overflowing their column
+headings at 390 and 360**, the same defect the assignments register shipped
+once, on the page whose entire job is to demonstrate the ruling. «ЗАПЛАНОВАНО»
+needs 118px; the `w-1/5` cells were 85px (the `Table` case) and 68px (the new
+`DataTable` case). Both now carry the measured `min-w-160`, and both were
+re-measured at 390 and 360 with `thOverflow: []` and page overflow 0.
+
+**NOT A DEFECT, AND NOT MIGRATED ON PURPOSE — `blocked-reasons-list.tsx` is not
+a table.** The brief that ordered this slice named it as one of «three tables …
+hand-written `<table>` markup over a hand-rolled `Table.tsx`». It is a `<ul>`
+of stacked list items, each carrying a `<dl>`, a wrapped norm-ref paragraph and
+a nested evidence list, and it imports `Panel`/`PanelHeader`/`PanelBody` and
+never `Table` — confirmed by grep (only `assignments-list.tsx`,
+`unvalued-register.tsx`, `apps/landing/components/mock-panels.tsx` and
+`apps/landing/components/blocks/comparison.tsx` imported `Table`) and visible
+in `qa-output/screenshots/dash-project-money.png`. **Converting it to a table
+is a redesign no brief authorises**, and it would put D2's measured
+`break-words` fix on its norm-ref paragraph — a real 149–178px sideways page
+overflow at 390/360 — back at risk. Left as it is, deliberately.

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import type { ColumnDef } from "@tanstack/react-table";
+import type { DataTableColumnDef } from "@goproceed/ui/components";
 import type { AssignmentSummary } from "@goproceed/contracts";
 import { assignmentStatusLabel } from "../../lib/assignment-status-labels";
 
@@ -52,7 +52,7 @@ function quantityCell(value: string | null, unitCode: string): string {
   return value === null ? "—" : `${value} ${unitCode}`;
 }
 
-export const assignmentColumns: ColumnDef<AssignmentSummary>[] = [
+export const assignmentColumns: DataTableColumnDef<AssignmentSummary>[] = [
   {
     id: "description",
     accessorKey: "description",

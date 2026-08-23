@@ -128,7 +128,7 @@ export const blockedValueCauseRow = z.object({
   totalsByCurrency: z.array(blockedValueTotal),
   /** Assignments in this row whose line has no usable price (INV-038). */
   unvaluedAssignmentCount: z.number().int().min(0),
-  requirementOccurrenceIds: z.array(z.string().uuid()).min(1),
+  requirementOccurrenceIds: z.array(z.string().guid()).min(1),
 }).strict();
 export type BlockedValueCauseRow = z.infer<typeof blockedValueCauseRow>;
 
@@ -142,8 +142,8 @@ export type BlockedValueCauseRow = z.infer<typeof blockedValueCauseRow>;
  * can always see which agreed price list a figure came from.
  */
 export const blockedValueBaselineRow = z.object({
-  contractId: z.string().uuid(),
-  contractVersionId: z.string().uuid(),
+  contractId: z.string().guid(),
+  contractVersionId: z.string().guid(),
   contractVersionNo: z.number().int().min(1),
   totalsByCurrency: z.array(blockedValueTotal),
   unvaluedAssignmentCount: z.number().int().min(0),
@@ -180,8 +180,8 @@ export const unvaluedRegisterRow = z.object({
  * v0.1 implements no change-order lifecycle at all, so neither has a carrier.
  */
 export const overContractRow = z.object({
-  workItemId: z.string().uuid(),
-  contractId: z.string().uuid(),
+  workItemId: z.string().guid(),
+  contractId: z.string().guid(),
   unitCode: z.string().min(1),
   contractQuantity: z.string(),
   performedQuantity: z.string(),
@@ -221,8 +221,8 @@ export const overContractRow = z.object({
  * admission could never be admitted at this price».
  */
 export const performedNotAdmittedLine = z.object({
-  workItemId: z.string().uuid(),
-  contractId: z.string().uuid(),
+  workItemId: z.string().guid(),
+  contractId: z.string().guid(),
   unitCode: z.string().min(1),
   /** Effective, corrections included: the lineage sum, not the roots' sum. */
   quantity: z.string(),
@@ -233,7 +233,7 @@ export const performedNotAdmittedLine = z.object({
   value: blockedValue.nullable(),
   unvaluedReason: z.enum(["missing_unit_price", "unknown_tax_basis"]).nullable(),
   /** Drill-down: the assignments whose recorded facts are waiting. */
-  workAssignmentIds: z.array(z.string().uuid()).min(1),
+  workAssignmentIds: z.array(z.string().guid()).min(1),
 }).strict();
 export type PerformedNotAdmittedLine = z.infer<typeof performedNotAdmittedLine>;
 
@@ -322,7 +322,7 @@ function sumRows(rows: readonly z.infer<typeof blockedValueTotal>[]): Map<string
  * than asserted.
  */
 export const blockedValueResponse = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().guid(),
   source: z.literal("computed"),
   algorithmVersion: z.string().min(1),
   /** The `blocked_reason.code` vocabulary this answer was computed under. */
