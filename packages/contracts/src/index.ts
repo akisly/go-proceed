@@ -16,6 +16,7 @@ export * from "./requirement-library";
 export * from "./requirement-rules";
 export * from "./requirement-occurrences";
 export * from "./assignments";
+export * from "./evidence";
 export * from "./progress";
 export * from "./progress-adjustments";
 export * from "./uploads";

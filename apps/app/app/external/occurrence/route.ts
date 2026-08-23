@@ -84,6 +84,34 @@ export const dynamic = "force-dynamic";
  * the acceptance walk failing for a buildable reason. It is reported rather than
  * closed with a seventh operation nobody catalogued.
  *
+ * ── CLOSED — 2026-08-22 (Plan D slice D1, Task 4) ───────────────────────────
+ *
+ * The paragraph above is left standing because it is the record of why the gap
+ * existed and of the discipline that refused to close it quietly; what has
+ * changed is that the operation is now CATALOGUED, so the objection «a seventh
+ * operation nobody catalogued» no longer applies to closing it.
+ *
+ * `external.evidence_bytes` — `GET /external/evidence?evidenceObjectId=…`,
+ * scope-v0.1.csv:61, governed by the same `external.view_scope` capability that
+ * governs this route — streams exactly the object this response names, and
+ * nothing else: it is scoped by `eo_external_select`, the very policy this
+ * route's own reads run under, so it needed no new grant, no new policy and no
+ * migration. `apps/app/app/external/evidence/route.ts` carries the whole of the
+ * reasoning, and ADR-009's 2026-08-22 amendment records why the «no new API»
+ * rule bends for it and why this plane streams while the member plane signs.
+ *
+ * TWO THINGS THE SENTENCE ABOVE MUST NOT BE READ AS SAYING ANY MORE:
+ * «`technical/openapi/scope-v0.1.csv` contains no operation that streams an
+ * evidence original to an external session» is false as of this date, and «this
+ * milestone has no row in the API surface for it» is true only of `v0.1-M5` —
+ * the row exists and carries the `v0.1-M6` tag of the slice that built it.
+ *
+ * WHAT IS STILL OPEN, so this correction does not overstate itself: the shell
+ * in `external/review/route.ts` does not yet RENDER that image, and its own copy
+ * («Перегляд самих файлів у цій версії недоступний…») is still accurate for what
+ * a reviewer sees today. The bytes are reachable; the page has not been wired to
+ * ask for them.
+ *
  * A SECOND GAP OF THE SAME KIND: the response identifies the OBLIGATION and not
  * the OBJECT. No project name, no address, no contract number, because the
  * grant «grants no workspace navigation, project discovery» and those rows are

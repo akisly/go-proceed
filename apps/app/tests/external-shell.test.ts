@@ -1,10 +1,14 @@
 import { describe, it, expect } from "vitest";
 
 /**
- * NOTHING IN THIS FILE HAS BEEN EXECUTED. No node_modules, no database, no
+ * «NOTHING IN THIS FILE HAS BEEN EXECUTED. No node_modules, no database, no
  * docker: `vitest`, `tsc`, `psql` and `supabase` were never run against it, and
  * no claim is made that any assertion below passes. Static reading is the only
- * check that was available.
+ * check that was available.» — RETRACTED 2026-08-22 (Plan D slice D1 final fix
+ * wave). It runs in the app suite and passes: 17 tests in this file, verified
+ * by running it on its own as well as inside the full run. The claim was
+ * already false when the D1 slice began; it was carried into this wave from the
+ * Task 6 controller note that flagged it.
  *
  * ---------------------------------------------------------------------------
  * THE REVIEW SHELL AS A DOCUMENT — the gesture, and the ids it renders through.
@@ -194,8 +198,69 @@ describe("external.review_shell — every string is text and every id resolves",
     expect(csp).toContain("default-src 'none'");
     expect(csp).toContain("connect-src 'self'");
     // The gate added markup and no capability: still one nonced inline script,
-    // still no image, font, frame or style from anywhere.
+    // still no font, frame or style from anywhere. IMAGES ARE NO LONGER IN
+    // THAT SENTENCE — see the describe below: this page now loads the evidence
+    // photographs themselves, from THIS origin, under the `img-src 'self'` the
+    // CSP already carried. The two assertions above are what keep that honest:
+    // no `src=` or `href=` naming a scheme and a host appears anywhere in the
+    // document, so the one image source is same-origin by construction.
     expect(occurrences(html, "<script")).toBe(1);
     expect(csp).toMatch(/script-src 'nonce-[^']+'/);
+  });
+});
+
+/**
+ * THE PHOTO — Plan D slice D1 task 7. `GET /external/evidence` shipped in task
+ * 4 and, until this change, nothing called it: the shell told the reviewer in
+ * so many words that the files could not be viewed, while the stream that
+ * serves them was already deployed beside it. These assertions are the string
+ * model of the fix; the browser half — that the bytes actually decode in a
+ * cookie-less context — is `qa/field.mjs`'s seventh audit, and neither
+ * replaces the other.
+ */
+describe("external.review_shell — the evidence photographs", () => {
+  it("builds one same-origin src against the byte route, with no scheme and no host", async () => {
+    const { html } = await shellHtml();
+    expect(occurrences(html, "/external/evidence?evidenceObjectId=")).toBe(1);
+    // A CSP binds what it is served on. `img-src 'self'` admits a path on this
+    // origin and refuses a Supabase-hosted signed URL outright — which is why
+    // the external plane STREAMS while the member plane signs, and why an
+    // absolute URL creeping in here would be a broken image rather than a
+    // slower one.
+    expect(html).not.toMatch(/https?:\/\/[^"'\s]*\/external\/evidence/);
+  });
+
+  it("puts the id through encodeURIComponent rather than concatenating it raw", async () => {
+    const { html } = await shellHtml();
+    expect(html).toContain('encodeURIComponent(e.evidenceObjectId)');
+  });
+
+  it("renders an image only for a server-sniffed image/ media type", async () => {
+    const { html } = await shellHtml();
+    // `application/pdf` is the other recognised type and an <img> cannot show
+    // it: a broken-image icon where a file exists is worse than the identity
+    // line the list already carries. The guard is on `mediaType`, which
+    // `evidence-inspection.ts` measured from the bytes at finalize — never on
+    // a filename, and never on anything the client declared.
+    expect(html).toContain('e.mediaType.indexOf("image/") === 0');
+  });
+
+  it("no longer tells the reviewer the files cannot be viewed", async () => {
+    const { html } = await shellHtml();
+    // The sentence this replaces was true when it was written and false the
+    // moment task 4 shipped. Pinned as an ABSENCE so it cannot come back by a
+    // revert that looks like a copy edit.
+    expect(html).not.toContain("Перегляд самих файлів у цій версії недоступний");
+    expect(html).toContain("Зображення завантажуються за цим посиланням");
+  });
+
+  it("still assigns every reviewer-visible string as text, the image included", async () => {
+    const { html } = await shellHtml();
+    // `alt` comes from `originalFilename`, which is device-supplied. It is set
+    // as a PROPERTY on an element the script created, never interpolated into
+    // markup — the same rule the rest of this page follows, restated because
+    // this is the first attribute on this page that carries client data.
+    expect(html).toContain("img.alt = e.originalFilename");
+    expect(html).not.toContain("innerHTML");
   });
 });

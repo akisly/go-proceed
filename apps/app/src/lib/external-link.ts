@@ -25,9 +25,31 @@ import {
  * written with whichever key is currently active.
  *
  * ─────────────────────────────────────────────────────────────────────────────
- * NOTHING HERE WAS EXECUTED. No test has been run against this file; the only
+ * «NOTHING HERE WAS EXECUTED. No test has been run against this file; the only
  * check performed on it is `node --experimental-strip-types --check`, which
- * PARSES and does not typecheck.
+ * PARSES and does not typecheck.» — RETRACTED 2026-08-22 (Plan D slice D1
+ * final fix wave), and retracted rather than edited because it was
+ * load-bearing: a header telling its next reader that the module holding this
+ * product's HMAC registry is unexercised invites them to distrust it, or to
+ * rewrite it without a safety net, on a claim that is no longer true.
+ *
+ * WHAT EXERCISES IT NOW, named so the claim can be re-checked rather than
+ * taken:
+ *
+ *   * `src/lib/external-link.test.ts` — 29 tests, in the app suite, over the
+ *     key registry, `signWithActiveKey`/`verifyAgainstAnyKey`,
+ *     `readExternalSessionCookie`, `externalSecurityHeaders` and the mandated
+ *     submission strings;
+ *   * `tests/m5-external.int.test.ts` and `tests/external-evidence.int.test.ts`
+ *     — both drive the real external routes against a live database, so the
+ *     token HMAC, the `__Host-` cookie and the CSP header run end to end;
+ *   * `qa/field.mjs`'s seventh audit — a real browser, a second context with an
+ *     empty cookie jar, opening a real link.
+ *
+ * What is still unexercised is narrower and named where it lives: the DECIDE
+ * path (`app/external/review/route.ts`'s own header — that audit issues a
+ * view-only grant, so the submission this file's mandated strings sit above has
+ * never been pressed in a browser).
  */
 
 /* ── key registry ──────────────────────────────────────────────────────────── */
@@ -185,12 +207,29 @@ export function allowedExternalOrigin(): string {
  * for: it cannot be set by a sibling subdomain and cannot be scoped away from
  * the origin that set it.
  *
- * ONE CONSEQUENCE, STATED RATHER THAN DISCOVERED: `Secure` means a browser
- * refuses this cookie over plain `http`, so the external plane does not work on
- * `http://localhost` in a real browser. Integration tests drive the routes
- * directly and are unaffected; a developer clicking a link in a local browser is
- * not. The alternative — dropping `__Host-` in development — would mean the
- * thing under test is not the thing that ships.
+ * ONE CONSEQUENCE THAT WAS STATED AND IS NOT TRUE — CORRECTED 2026-08-22.
+ *
+ * WHAT STOOD HERE: «`Secure` means a browser refuses this cookie over plain
+ * `http`, so the external plane does not work on `http://localhost` in a real
+ * browser… a developer clicking a link in a local browser is not [unaffected].»
+ * That is the spec's rule for ordinary origins and it is NOT the rule browsers
+ * apply to loopback, which is a potentially-trustworthy origin: Chrome accepts
+ * a `Secure` cookie set over plain `http` from `localhost` and from
+ * `127.0.0.1`. MEASURED, not recalled — a ten-line http server that sets this
+ * exact cookie (`__Host-`, `Secure`, `HttpOnly`, `SameSite=Lax`, `Path=/`) and
+ * echoes the `Cookie` header back returned it on both spellings, on
+ * Chrome 152.0.7977.42, before `qa/field.mjs`'s seventh audit was written
+ * against it. That audit now opens a real link in a real browser over
+ * `http://localhost:<port>` on every run, so the claim is checked rather than
+ * argued.
+ *
+ * WHAT IS STILL TRUE, and is the reason the shape does not change: `__Host-`
+ * forbids `Domain`, requires `Secure` and requires `Path=/`, so it cannot be
+ * set by a sibling subdomain and cannot be scoped away from the origin that set
+ * it. Dropping it in development would mean the thing under test is not the
+ * thing that ships. What is not true is that it costs anything locally. A
+ * browser on a NON-loopback plain-http origin does still refuse it, which is
+ * correct: that is a deployment that must not be serving this plane at all.
  */
 export const EXTERNAL_SESSION_COOKIE = "__Host-goproceed_external";
 

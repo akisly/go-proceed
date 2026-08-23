@@ -27,6 +27,29 @@ import { launch } from "./browser.mjs";
  * lie about the coverage, which is the failure mode this repository's docs
  * gate exists to prevent.
  *
+ * AND SINCE 2026-08-22 (Plan D slice D1 task 7) IT ALSO DRIVES THE EXTERNAL
+ * PLANE — the surface no browser had ever opened. Before this change, every
+ * claim `app/external/review/route.ts` made about itself was unverified by its
+ * own admission («this page has never been served, never been opened in a
+ * browser, and the exchange it performs has never run»). The seventh audit
+ * closes the whole loop in one pass: it seeds ONE REAL, AVAILABLE evidence
+ * object through the product's own three capture routes, opens
+ * `/dash/assignments/{id}` and asserts the photo DECODED (`naturalWidth > 0`,
+ * never a screenshot), presses «Відправити на перевірку» and reads the
+ * one-time link off the screen, then opens that link in a SECOND BROWSER
+ * CONTEXT WITH ITS OWN EMPTY COOKIE JAR, taps the gate, and asserts the same
+ * photo decoded there — with the absence of every `sb-` cookie asserted in
+ * that context, so the pass is about the no-account path and not about the
+ * signed-in one wearing a different URL.
+ *
+ * WHAT THAT ADDS TO THE SERVER SIDE, so the header does not overclaim: the
+ * exchange, the fragment strip, the external session cookie over a loopback
+ * origin, `GET /external/occurrence` and `GET /external/evidence` have all now
+ * RUN IN A BROWSER. The DECIDE path has not — the audit issues a view-only
+ * grant, because the screen that issues it cannot name an occurrence's
+ * approver role (`grants.service.ts` carries the whole reason) — so accept and
+ * return are still Node-only, in `m5-external.int.test.ts`.
+ *
  * THE BOUNDARY, STATED PLAINLY (task-11-brief.md context item 3 asks for
  * this twice — once here, once in the report). This harness goes all the way:
  * it mints a real Supabase Auth user through the local Admin HTTP API (the
@@ -171,6 +194,18 @@ for (const [signal, code] of [["SIGINT", 130], ["SIGTERM", 143], ["SIGHUP", 129]
 async function startNextServer() {
   const port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
+  // ── THE EXTERNAL PLANE'S OWN ORIGIN, AND WHY IT IS SPELLED `localhost` ────
+  //
+  // `buildReviewLink` (src/lib/external-link.ts) REFUSES an origin that is
+  // neither `https://` nor `http://localhost`, so `http://127.0.0.1:PORT` —
+  // the origin every other audit in this file uses — cannot build a link at
+  // all: `occurrence_grants.issue` would throw before returning one. The two
+  // spellings name the same interface (`next start -H 127.0.0.1` answers both,
+  // because `localhost` resolves to it), and to a BROWSER they are two
+  // different origins, which is a property this audit uses rather than works
+  // around: the external context's cookie jar cannot be confused with the
+  // office session's even by accident.
+  const externalOrigin = `http://localhost:${port}`;
   const stdout = [];
   const stderr = [];
   const proc = spawn(
@@ -211,6 +246,34 @@ async function startNextServer() {
         // and this line is ignored. CI's `app-qa` job sets it nowhere, so the
         // build there is the unset one.
         NEXT_PUBLIC_APP_ORIGIN: baseUrl,
+
+        // ── THE EXTERNAL PLANE'S FIVE VARIABLES ───────────────────────────
+        //
+        // Set here, not left to `.env.local`, for two reasons that are both
+        // about this being a GATE command. CI has no `.env.local` at all — it
+        // is untracked — so without these lines the seventh audit's grant
+        // issue would 500 on `EXTERNAL_LINK_HMAC_KEYS is not set` in CI while
+        // passing on a developer's machine, which is the worst possible
+        // failure shape. And `.env.local`'s own `EXTERNAL_LINK_ORIGIN` names
+        // port 3000, which is not this run's port: an env var passed to
+        // `spawn` wins over a `.env` file (Next's loader never overwrites an
+        // existing `process.env` entry), so this line is also what stops a
+        // developer's file from building links to a server that is not this
+        // one.
+        //
+        // THE KEYS ARE DEV-ONLY AND LOCAL-ONLY, exactly like the Supabase
+        // keys above and for the same reason: they are safe only because
+        // nothing reachable from outside this machine trusts them. They are
+        // the values `apps/app/.env.example` publishes, verbatim, rather than
+        // freshly random ones — a fixed key makes a failing run reproducible,
+        // and a key committed to `.env.example` is already public.
+        EXTERNAL_LINK_ORIGIN: externalOrigin,
+        EXTERNAL_LINK_HMAC_KEYS: process.env.EXTERNAL_LINK_HMAC_KEYS
+          ?? "dev1:ZGV2LW9ubHktbGluay1rZXktMzItYnl0ZXMtbG9uZy0xMjM0",
+        EXTERNAL_LINK_ACTIVE_KEY_ID: process.env.EXTERNAL_LINK_ACTIVE_KEY_ID ?? "dev1",
+        EXTERNAL_SESSION_HMAC_KEYS: process.env.EXTERNAL_SESSION_HMAC_KEYS
+          ?? "dev1:ZGV2LW9ubHktc2Vzc2lvbi1rZXktMzItYnl0ZXMtbG9uZy0xMg",
+        EXTERNAL_SESSION_ACTIVE_KEY_ID: process.env.EXTERNAL_SESSION_ACTIVE_KEY_ID ?? "dev1",
       },
       stdio: ["ignore", "pipe", "pipe"],
       // THE HARNESS USED TO NEVER EXIT, AND THIS IS WHY (found 2026-08-22,
@@ -260,6 +323,11 @@ async function startNextServer() {
       if (res.ok) {
         return {
           baseUrl,
+          // The origin `occurrence_grants.issue` will actually build links on
+          // — returned so the seventh audit can assert the link it was handed
+          // is the one this server was configured to build, rather than
+          // trusting whatever string came back.
+          externalOrigin,
           async close() {
             await stopServer(proc);
           },
@@ -424,6 +492,13 @@ async function seedWorld(baseUrl, bearer) {
     memberId, capabilities: [
       "assignments.manage", "evidence.record", "rule_bindings.manage",
       "requirements.assign", "project.view",
+      // `packages.submit` GOVERNS `occurrence_grants.issue`
+      // (technical/permissions/capabilities.csv:34), which the seventh audit
+      // presses a button to perform. Without it the POST is a 403 the office
+      // screen renders as «Посилання не створено» — correct behaviour, and a
+      // seeding gap rather than a defect, which is exactly why it is granted
+      // here rather than worked around in the audit.
+      "packages.submit",
     ],
   }));
 
@@ -551,9 +626,80 @@ async function seedWorld(baseUrl, bearer) {
     );
   }
 
+  // ── ONE REAL, AVAILABLE EVIDENCE OBJECT ──────────────────────────────────
+  //
+  // ADDED FOR THE SEVENTH AUDIT (Plan D slice D1 task 7), and it is the one
+  // thing this world was missing. Every audit before it either shows an
+  // obligation with no photo or drives the capture path deliberately INTO
+  // failure (the in-flight banner audit stubs `fetch` so the upload never
+  // succeeds), so nothing here had ever produced an `evidence_objects` row
+  // that reached `available` — and both screens this task is about, the office
+  // evidence screen and the external review page, render nothing without one.
+  //
+  // THE CHAIN IS THE PRODUCT'S OWN, over the same three routes
+  // `src/lib/capture/upload.ts` drives and `tests/field-capture.int.test.ts`
+  // proves: create an upload intent, PUT the bytes STRAIGHT to the signed
+  // storage URL with no Authorization header (the signed token in the URL is
+  // the authorization), then finalize. No raw SQL, no direct storage write,
+  // and no shortcut that would let a broken route pass this seeding step.
+  const occurrences = await httpStep("requirement-occurrences.list",
+    await f(`/v1/assignments/${assignment.assignmentId}/requirement-occurrences`));
+  const occurrenceId = occurrences.occurrences?.[0]?.occurrenceId;
+  if (typeof occurrenceId !== "string" || occurrenceId.length === 0) {
+    throw new Error(
+      `seedWorld: the assignment materialised ${assignment.requirementOccurrences.occurrenceCount} occurrence(s) `
+      + "but GET /v1/assignments/{id}/requirement-occurrences returned none this file could read — "
+      + `got ${JSON.stringify(occurrences).slice(0, 400)}`,
+    );
+  }
+
+  const photoHash = createHash("sha256").update(PHOTO_JPEG_BYTES).digest("hex");
+  const intent = await httpStep("upload-intents.create",
+    await f(`/v1/assignments/${assignment.assignmentId}/upload-intents`, {
+      requirementOccurrenceId: occurrenceId,
+      expectedContentHash: photoHash,
+      expectedByteSize: PHOTO_JPEG_BYTES.length,
+      claimedMediaType: "image/jpeg",
+      originalFilename: PHOTO_FILENAME,
+      deviceCaptureId: crypto.randomUUID(),
+      // The only value a PWA build is permitted to send (ADR-007 decision 5,
+      // INV-086) — `buildCreateIntentBody` has no parameter that reaches it.
+      originMethod: "origin_not_distinguished",
+      // Device-claimed and labelled as such wherever it is shown. An hour ago
+      // rather than `now` so it is visibly DIFFERENT from the server receipt
+      // the same row records.
+      claimedCaptureTime: new Date(Date.now() - 3_600_000).toISOString(),
+    }));
+
+  // No Authorization, no apikey: exactly what `uploadCapture` sends.
+  const put = await fetch(intent.upload.signedUrl, {
+    method: "PUT",
+    headers: { "content-type": "image/jpeg" },
+    body: PHOTO_JPEG_BYTES,
+  });
+  if (!put.ok) {
+    throw new Error(`seedWorld: PUT to the signed upload URL returned ${put.status} ${await put.text()}`);
+  }
+
+  const finalized = await httpStep("upload-intents.finalize",
+    await f(`/v1/upload-intents/${intent.uploadIntentId}/finalize`, {}));
+  if (finalized.status !== "available" || !finalized.evidenceObjectId) {
+    throw new Error(
+      `seedWorld: finalize returned status "${finalized.status}" / evidenceObjectId `
+      + `${JSON.stringify(finalized.evidenceObjectId)} — INV-081 makes "available" the only state that counts as saved, `
+      + "and both screens the seventh audit drives render nothing without one.",
+    );
+  }
+
   return {
     assignmentId: assignment.assignmentId,
     workspaceId: ws.workspaceId,
+    // The register `/dash/projects/{projectId}/assignments` is addressed by
+    // this and nothing else. It was not returned until the D1 final fix wave,
+    // which is a large part of why no audit had ever opened that route.
+    projectId: proj.projectId,
+    occurrenceId,
+    evidenceObjectId: finalized.evidenceObjectId,
     projectName: PROJECT_NAME,
     workItemDescription: WORK_ITEM_DESCRIPTION,
   };
@@ -1013,14 +1159,61 @@ async function rectOf(handle) {
   });
 }
 
-/** Every `sb-…` cookie the browser context currently holds. `@supabase/ssr`
- * chunks a large session across several of them, so this counts rather than
- * looking for one known name. */
-async function supabaseCookieNames(browser) {
-  return (await browser.cookies())
+/**
+ * Every `sb-…` cookie a cookie jar currently holds. `@supabase/ssr` chunks a
+ * large session across several of them, so this counts rather than looking for
+ * one known name.
+ *
+ * IT TAKES EITHER A `Browser` OR A `BrowserContext`, which are separate
+ * `cookies()` methods in puppeteer, and the distinction is the seventh audit's
+ * whole point: the external reviewer's context must hold no `sb-` cookie even
+ * while the default context — the signed-in foreman's — holds several.
+ */
+async function supabaseCookieNamesIn(contextOrBrowser) {
+  return (await contextOrBrowser.cookies())
     .filter((c) => c.name.startsWith("sb-"))
     .map((c) => c.name)
     .sort();
+}
+
+/**
+ * DID THE BROWSER ACTUALLY DECODE PIXELS — the only honest way to ask «is the
+ * photo there», and the reason no screenshot appears in that assertion.
+ *
+ * `naturalWidth` is 0 for every way an image can fail while still looking
+ * plausible in a capture: a 404 or 403 on a signed URL, an expired token, a
+ * CSP refusal, a byte stream that carries a header and no scan data. It is
+ * non-zero only when the decoder produced a raster. `complete` and `src` are
+ * returned beside it so a failure names WHICH of those happened instead of
+ * leaving the reader to re-run the harness by hand.
+ *
+ * It waits, because `loading="lazy"` and a network fetch mean the element can
+ * exist for some milliseconds before it has decoded anything — and it
+ * distinguishes «no such element» (count 0) from «element that never
+ * decoded», which are different defects with different fixes.
+ */
+async function measureDecodedImage(page, alt, timeoutMs = 15_000) {
+  const selector = `img[alt="${alt}"]`;
+  await page.waitForFunction(
+    (sel) => {
+      const img = document.querySelector(sel);
+      return img !== null && img.complete;
+    },
+    { timeout: timeoutMs },
+    selector,
+  ).catch(() => { /* fall through to the measurement, which reports what it found */ });
+
+  return page.evaluate((sel) => {
+    const all = [...document.querySelectorAll(sel)];
+    const img = all[0];
+    return {
+      count: all.length,
+      ok: img ? img.naturalWidth > 0 : false,
+      naturalWidth: img ? img.naturalWidth : 0,
+      complete: img ? img.complete : false,
+      src: img ? img.getAttribute("src") : null,
+    };
+  }, selector);
 }
 
 async function measureSmallTargets(page) {
@@ -1046,8 +1239,60 @@ const DOVIDKOVYI_DISCLAIMER_TEXT =
 const UNSAVED_PHOTO_WARNING =
   "GoProceed не зберіг це фото. Зробіть його ще раз або збережіть у себе.";
 
+/**
+ * INV-044's sentence, retyped here rather than imported — this file is plain
+ * Node ESM with no TypeScript loader, the same reason `lineManifestHash` above
+ * is reimplemented instead of imported from `src/lib/manual-baseline.ts`. It
+ * is pinned BYTE FOR BYTE against `issue-review-link.tsx`'s own exported
+ * constant by that component's unit test, so the two cannot drift silently:
+ * a softening edit there fails `issue-review-link.test.tsx`, and an edit that
+ * changed both would still have to be a deliberate act in two files.
+ */
+const ONE_TIME_LINK_NOTICE =
+  "Посилання показано один раз. Скопіюйте його зараз — відновити його неможливо, "
+  + "лише відкликати й видати нове.";
+
 /** A minimal but genuine JPEG (SOI + APP0), identical to field-capture.int.test.ts's fixture. */
 const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+
+/**
+ * A JPEG A BROWSER CAN ACTUALLY DECODE — and it has to be a second constant,
+ * because `JPEG_BYTES` above cannot be one.
+ *
+ * `JPEG_BYTES` is eleven bytes: a start-of-image marker and an APP0 header.
+ * `evidence-inspection.ts` recognises it as `image/jpeg` (it reads the magic
+ * bytes, which is the whole point of that fixture) and every Node-side test
+ * that uses it is right to. But it carries no frame header and no scan data,
+ * so `<img>.naturalWidth` on it is 0 in every browser — which is exactly the
+ * assertion the seventh audit makes, and would make the seeded photo
+ * indistinguishable from a photo that failed to load. The two fixtures are for
+ * two different questions and neither substitutes for the other.
+ *
+ * 8×8 pixels, 796 bytes, produced by Chrome itself (`canvas.toDataURL(
+ * "image/jpeg")`) and decoded back by Chrome to 8×8 before being pasted here.
+ * Most of the bulk is the sRGB ICC profile Chrome embeds; it is left in
+ * because stripping segments by hand would make this a JPEG this repository
+ * invented rather than one a browser produced.
+ */
+const PHOTO_JPEG_BYTES = Buffer.from(
+  "/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH"
+  + "4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAA"
+  + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAAB"
+  + "FAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAA"
+  + "AChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJY"
+  + "WVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVog"
+  + "AAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAA"
+  + "AAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAA0JCgsK"
+  + "CA0LCgsODg0PEyAVExISEyccHhcgLikxMC4pLSwzOko+MzZGNywtQFdBRkxOUlNSMj5aYVpQYEpRUk//2wBD"
+  + "AQ4ODhMREyYVFSZPNS01T09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09PT09P"
+  + "T0//wAARCAAIAAgDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAb/xAAfEAABBAAHAAAAAAAAAAAA"
+  + "AAAABhESEwEUFSRDUWH/xAAVAQEBAAAAAAAAAAAAAAAAAAAAA//EABgRAAMBAQAAAAAAAAAAAAAAAAECAxER"
+  + "/9oADAMBAAIRAxEAPwCbUag13LbWiiXJKTt5h0ACcpJJAiDgGb//2Q==",
+  "base64",
+);
+
+/** Named once: the seed sends it, the office card renders it as `alt`, the audit selects on it. */
+const PHOTO_FILENAME = "приклад-фото-qa.jpg";
 
 /**
  * FIX ROUND 1, FINDING 1 & 2. Every name below is an audit that MUST have
@@ -1071,6 +1316,10 @@ const EXPECTED_AUDITS = [
   "my assignments list",
   "obligation screen",
   "capture in-flight banner",
+  // BEFORE THE SIGN-OUT AUDIT AND AFTER SIGN-IN — its own header says why:
+  // its first half is an authenticated office screen, so it cannot follow the
+  // audit that signs the user out.
+  "evidence, the review link, and the external plane",
   // LAST, AND ITS POSITION IN THIS LIST IS LOAD-BEARING — see the audit's own
   // header. Its final act destroys the session every audit above needs.
   "dashboard profile and sign-out",
@@ -1214,12 +1463,19 @@ async function main() {
     const email = `pryklad-qa-field-${stamp}@example.test`;
     const password = `Приклад-QA-Пароль-${stamp}!`;
     let assignmentId;
+    let projectId;
     let projectName;
     let workItemDescription;
+    // The seventh audit's two inputs: the obligation a grant can be scoped to,
+    // and the photo that must decode on both planes.
+    let occurrenceId;
+    let evidenceObjectId;
     try {
       userId = await mintConfirmedUser(email, password);
       const seedBearer = await seedBearerToken(email, password);
-      ({ assignmentId, projectName, workItemDescription } = await seedWorld(server.baseUrl, seedBearer));
+      ({
+        assignmentId, projectId, projectName, workItemDescription, occurrenceId, evidenceObjectId,
+      } = await seedWorld(server.baseUrl, seedBearer));
 
       // FIX ROUND 1, FINDING 1 (CRITICAL). `seedWorld` throwing is not the
       // only way seeding can go wrong — it already validates
@@ -1625,6 +1881,527 @@ async function main() {
         await page.screenshot({ path: path.join(SHOTS, "capture-failed.png"), fullPage: true });
       });
       reportDiagnostics("capture in-flight banner", captureDiagnostics, ctx.findings, ctx.missingAssets);
+    });
+
+    await runAudit(ctx, "evidence, the review link, and the external plane", async () => {
+      // ═══════════════════════════════════════════════════════════════════
+      // THE WHOLE LOOP, BOTH PLANES — Plan D slice D1 task 7.
+      //
+      // ITS POSITION IS LOAD-BEARING IN BOTH DIRECTIONS. It must run AFTER
+      // sign-in (its first half is an authenticated office screen) and
+      // BEFORE the dash audit, whose final act signs the seeded user out
+      // for real. The task brief says «after the dashboard audit»; that is
+      // impossible as written and this is the nearest position that is not
+      // — stated here rather than silently reordered, because a reader
+      // comparing this file to the brief should find the discrepancy
+      // explained instead of assuming one of the two is wrong.
+      //
+      // WHAT IT PROVES, in the order it proves it:
+      //   1. ПТВ opens /dash/assignments/{id} and the photo is THERE —
+      //      asserted on the <img>'s own `naturalWidth`, which is zero for
+      //      a broken image, a 403 signed URL and an eleven-byte fixture
+      //      alike, and non-zero only if the browser decoded real pixels.
+      //      A screenshot would have looked correct in every one of those
+      //      cases;
+      //   2. «Відправити на перевірку» issues a real grant and shows the
+      //      link ONCE, beside the sentence INV-044 requires — and a
+      //      reload does not show it again, which is what «once» means;
+      //   3. A SECOND BROWSER CONTEXT, with its own empty cookie jar,
+      //      opens that link, taps the gate, and sees the same photo —
+      //      again on `naturalWidth`. The context is asserted to hold no
+      //      `sb-*` cookie at all, so this is the no-account path and not
+      //      the signed-in one wearing a different URL.
+      //
+      // WHY A SECOND CONTEXT AND NOT A SECOND PAGE: puppeteer's default
+      // context shares ONE cookie jar across every `browser.newPage()`, so
+      // a page opened there would carry the foreman's Supabase session and
+      // the audit would prove nothing about a reviewer who has no account.
+      // ═══════════════════════════════════════════════════════════════════
+      const issued = { url: null };
+
+      // ── 0. THE REGISTER, THE SCREEN BEFORE THIS ONE ────────────────────
+      //
+      // ADDED IN THE D1 FINAL FIX WAVE, for a defect that shipped because
+      // nothing here had ever opened this route. `/dash/projects/{id}/
+      // assignments` is the MIDDLE of the chain the slice exists for
+      // (project → assignments → evidence) and no audit addressed it, so the
+      // §6 width pass — run against the evidence screen only — could not
+      // have seen that the table's four Ukrainian column headings overflowed
+      // their own cells at 360 and 390. `Table` is `w-full table-fixed`, so
+      // a `w-1/5` column on a phone is about 60px, 24px of which is the
+      // `Th`'s `px-3`; «ЗАПЛАНОВАНО» is one unbreakable eleven-character
+      // uppercase word and simply ran over its neighbour.
+      //
+      // ASSERTED PER CELL, NOT BY SCREENSHOT AND NOT BY PAGE OVERFLOW.
+      // `scrollWidth > clientWidth` on the `th` itself is precisely the
+      // "content is wider than its box" condition; the page-level check
+      // below cannot see it, because the panel wrapping the table is
+      // `overflow-x-auto` and absorbs the overflow into a scroll container
+      // rather than into the document. Both are measured, because they are
+      // different failures: a scrolling PANEL is the intended behaviour, a
+      // scrolling PAGE is not.
+      //
+      // AND THE PAGE IS PINNED FIRST, so this cannot pass on the wrong
+      // document. A 500, a redirect to /login or an empty register all
+      // render zero `th` elements, and "no header overflowed" is trivially
+      // true of a page with no headers — the same shape as the INV-044
+      // reload assertion this audit had to have corrected in fix round 1.
+      const registerDiagnostics = await withPage(browser, async (page) => {
+        const url = `${server.baseUrl}/dash/projects/${projectId}/assignments`;
+        const res = await page.goto(url, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(`/dash/projects/${projectId}/assignments: expected 200, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+        for (const width of [1280, 390, 360]) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+          const state = await page.evaluate((description) => {
+            const ths = [...document.querySelectorAll("table th")];
+            return {
+              path: location.pathname,
+              headings: ths.map((th) => ({
+                label: (th.textContent ?? "").trim(),
+                scrollWidth: th.scrollWidth,
+                clientWidth: th.clientWidth,
+              })),
+              rowNamed: document.body.innerText.includes(description),
+            };
+          }, workItemDescription);
+
+          if (state.path !== `/dash/projects/${projectId}/assignments`) {
+            ctx.findings.push(`register @${width}: no longer on the register — path is ${state.path}`);
+            break;
+          }
+          if (state.headings.length !== 4) {
+            ctx.findings.push(
+              `register @${width}: expected the four column headings, found ${state.headings.length} `
+              + `(${JSON.stringify(state.headings.map((h) => h.label))}) — an error page, an empty state or a `
+              + "changed table would make the overflow check below vacuously true",
+            );
+            break;
+          }
+          if (!state.rowNamed) {
+            ctx.findings.push(
+              `register @${width}: the seeded work item «${workItemDescription}» is not on the page — `
+              + "the table is rendering no rows, so nothing below is measuring the real register",
+            );
+          }
+          for (const h of state.headings) {
+            if (h.scrollWidth > h.clientWidth) {
+              ctx.findings.push(
+                `register @${width}: the column heading «${h.label}» overflows its own cell — content `
+                + `${h.scrollWidth}px in a ${h.clientWidth}px box. A single Ukrainian word has no break `
+                + "opportunity, so it runs into the heading beside it.",
+              );
+            }
+          }
+          const overflow = await measureHorizontalOverflow(page);
+          if (overflow) {
+            ctx.findings.push(
+              `register @${width}: the page scrolls sideways by ${overflow.overflow}px `
+              + `(viewport ${overflow.viewport}px) — ${overflow.offender}`,
+            );
+          }
+          if (touch) {
+            for (const t of await measureSmallTargets(page)) {
+              ctx.findings.push(`register @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+            }
+          }
+          await page.screenshot({
+            path: path.join(SHOTS, `dash-assignments-${width}.png`), fullPage: true,
+          });
+        }
+      });
+      reportDiagnostics("assignments register", registerDiagnostics, ctx.findings, ctx.missingAssets);
+
+      const officeDiagnostics = await withPage(browser, async (page) => {
+        await page.setViewport({ width: 1280, height: 900 });
+        const res = await page.goto(`${server.baseUrl}/dash/assignments/${assignmentId}`,
+          { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(`/dash/assignments/${assignmentId}: expected 200, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+
+        // ── 1. The photo, measured and not looked at ───────────────────────
+        const decoded = await measureDecodedImage(page, PHOTO_FILENAME);
+        if (decoded.count === 0) {
+          ctx.findings.push(
+            `evidence screen: no <img alt="${PHOTO_FILENAME}"> on /dash/assignments/${assignmentId} — `
+            + "the seeded evidence object did not reach the card, or `readUrl` was absent and the "
+            + "«Зображення тимчасово недоступне» fallback rendered instead",
+          );
+        } else if (!decoded.ok) {
+          ctx.findings.push(
+            `evidence screen: the photo is in the DOM but the browser decoded nothing — naturalWidth `
+            + `${decoded.naturalWidth}, complete ${decoded.complete}, src ${decoded.src}. A signed URL that `
+            + "404s, expires, or is refused by storage produces exactly this, and a screenshot of it looks "
+            + "like a grey box nobody would call a failure.",
+          );
+        }
+        // The photo is filed under the OBLIGATION it was captured against —
+        // the group heading carries the occurrence's own id, which is the one
+        // thing on this screen that says «this photo answers this
+        // requirement» rather than «this assignment has a photo somewhere».
+        const groupedUnderOccurrence = await page.evaluate(
+          (id) => document.body.innerText.includes(id), occurrenceId);
+        if (!groupedUnderOccurrence) {
+          ctx.findings.push(
+            `evidence screen: the seeded occurrence ${occurrenceId} is not named anywhere on the page — `
+            + "the photo may be rendering in the «Без прив'язки до вимоги» group instead of under its obligation",
+          );
+        }
+        await page.screenshot({ path: path.join(SHOTS, "dash-evidence.png"), fullPage: true });
+
+        // ── THE SIX PINNED WIDTHS — docs/design/02-building-ui.md §6 ────────
+        //
+        // «1920 · 1440 · 1240 · 768 · 390 · 360», the shell's three states.
+        // The gate proves the rules and does not prove the thing looks right;
+        // this is the half that can be automated — a screenshot per width for
+        // a person to look at, plus the two questions that ARE decidable by
+        // measurement at every one of them: does anything scroll sideways, and
+        // does the touch floor survive. The screen carries a form and a
+        // 43-character token now, both of which are exactly the kind of
+        // unbreakable string that takes a document's horizontal scroll with
+        // it, so this is not ceremony.
+        for (const width of [1920, 1440, 1240, 768, 390, 360]) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+          await page.screenshot({
+            path: path.join(SHOTS, `dash-evidence-${width}.png`), fullPage: true,
+          });
+          const overflow = await measureHorizontalOverflow(page);
+          if (overflow) {
+            ctx.findings.push(
+              `evidence screen @${width}: the page scrolls sideways by ${overflow.overflow}px `
+              + `(viewport ${overflow.viewport}px) — ${overflow.offender}`,
+            );
+          }
+          if (touch) {
+            for (const t of await measureSmallTargets(page)) {
+              ctx.findings.push(`evidence screen @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+            }
+          }
+        }
+        // Back to the desk width the rest of this half is written against.
+        await page.setViewport({ width: 1280, height: 900 });
+
+        // ── 2. «Відправити на перевірку» ───────────────────────────────────
+        const emailInput = await visibleHandle(page, 'input[type="email"]');
+        const roleInput = await visibleHandle(page, 'input[placeholder="технічний нагляд"]');
+        if (!emailInput || !roleInput) {
+          ctx.findings.push(
+            "evidence screen: the review-link form is not on the page (email input "
+            + `${emailInput ? "found" : "missing"}, role input ${roleInput ? "found" : "missing"}) — `
+            + "`IssueReviewLink` renders per occurrence group and this world has exactly one",
+          );
+          return;
+        }
+        await emailInput.type("pryklad-tehnahliad-qa@example.test");
+        await roleInput.type("технічний нагляд");
+
+        const submit = await visibleHandleWithText(page, "button", "Відправити на перевірку");
+        if (!submit) {
+          ctx.findings.push('evidence screen: no visible «Відправити на перевірку» button to press');
+          return;
+        }
+        await submit.click();
+
+        // ── WHERE THE TOKEN IS, COUNTED EVERYWHERE IT COULD BE ─────────────
+        //
+        // FIX ROUND 1. This used to collect `<p>` elements whose ENTIRE
+        // trimmed text is the URL, and the comment beside it read as a general
+        // «the link appears once» guarantee it did not give. Add the
+        // conventional copy affordance later — `<input readOnly value={url}>`
+        // beside «Копіювати посилання» — and the token is on screen twice and
+        // in a DOM attribute besides, while a `<p>`-shaped count stays at 1.
+        //
+        // So the search is by TOKEN SHAPE rather than by element shape, across
+        // three places a URL can live: the rendered text, every attribute of
+        // every element, and the `value` PROPERTY of form controls (React sets
+        // that property on a controlled input; the attribute does not always
+        // follow it). `distinct` answers «which link», `total` answers «how
+        // many times is it on this page» — two different questions, and the
+        // second is the one INV-044's «shown once» is about.
+        //
+        // The 43-character base64url fragment is INV-010's own shape, so the
+        // pattern asserts what the link IS as well as that it is there.
+        const readLinkOccurrences = () => page.evaluate(() => {
+          const RE = /https?:\/\/[^\s"'<>]+\/external\/review#[A-Za-z0-9_-]{43}/g;
+          const inText = document.body.innerText.match(RE) ?? [];
+          const inAttrs = [];
+          for (const el of document.querySelectorAll("*")) {
+            for (const a of el.attributes) {
+              const m = a.value.match(RE);
+              if (m) inAttrs.push(...m);
+            }
+            if (typeof el.value === "string") {
+              const m = el.value.match(RE);
+              if (m) inAttrs.push(...m);
+            }
+          }
+          return { inText, inAttrs };
+        });
+        const readLink = async () => {
+          const { inText, inAttrs } = await readLinkOccurrences();
+          return { total: inText.length + inAttrs.length, distinct: [...new Set([...inText, ...inAttrs])] };
+        };
+
+        // Waits on the same TOKEN SHAPE the count below uses, not on an
+        // element shape — so a future affordance change (a readonly input
+        // instead of a paragraph) is measured by the count assertion rather
+        // than timing out here and reporting the wrong cause.
+        const appeared = await page.waitForFunction(
+          () => /https?:\/\/[^\s"'<>]+\/external\/review#[A-Za-z0-9_-]{43}/.test(document.body.innerText),
+          { timeout: 20_000 },
+        ).then(() => true).catch(() => false);
+        if (!appeared) {
+          const shown = await page.evaluate(() => document.body.innerText);
+          ctx.findings.push(
+            "evidence screen: pressing «Відправити на перевірку» produced no link within 20s. "
+            + `What the screen says instead: ${JSON.stringify(shown.slice(0, 600))}`,
+          );
+          await page.screenshot({ path: path.join(SHOTS, "dash-review-link-failed.png"), fullPage: true });
+          return;
+        }
+
+        const links = await readLink();
+        if (links.distinct.length !== 1) {
+          ctx.findings.push(
+            `evidence screen: expected exactly one distinct review link on screen, found ${links.distinct.length}`,
+          );
+        }
+        // ONE LINK, ONCE. A second copy of the same URL — in a readonly input,
+        // a `title`, a `data-` attribute — is the same token disclosed twice,
+        // and «Посилання показано один раз» is a claim about the token and not
+        // about how many <p> elements hold it.
+        if (links.total !== 1) {
+          ctx.findings.push(
+            `evidence screen: the review token appears ${links.total} time(s) on the page (text + attributes + input values); `
+            + "INV-044's «shown once» is about the token, not about one element that happens to hold it",
+          );
+        }
+        issued.url = links.distinct[0] ?? null;
+
+        // The origin is the one the SERVER was configured to build on, not
+        // whatever the page happened to render — `buildReviewLink` refuses to
+        // derive it from a Host header for exactly this reason.
+        if (issued.url && !issued.url.startsWith(`${server.externalOrigin}/external/review#`)) {
+          ctx.findings.push(
+            `evidence screen: the link's origin is not this server's EXTERNAL_LINK_ORIGIN `
+            + `(${server.externalOrigin}) — got ${issued.url}`,
+          );
+        }
+
+        // INV-044, ON THE FACE OF THE RESULT. Not a tooltip, not a title
+        // attribute: the sentence must be in the rendered text beside the link.
+        const afterIssue = await page.evaluate(() => document.body.innerText);
+        if (!afterIssue.includes(ONE_TIME_LINK_NOTICE)) {
+          ctx.findings.push(
+            `evidence screen: the one-time-link sentence is not on screen beside the link. Expected "${ONE_TIME_LINK_NOTICE}"`,
+          );
+        }
+        // The form is GONE, so the same press cannot be repeated without a
+        // reload — this world has exactly one occurrence group, so any
+        // remaining submit button would be the issued block failing to replace
+        // the form.
+        const remainingForms = await page.evaluate(() => document.querySelectorAll('button[type="submit"]').length);
+        if (remainingForms !== 0) {
+          ctx.findings.push(`evidence screen: the issue form is still on screen after a link was issued (${remainingForms} submit button(s))`);
+        }
+        await page.screenshot({ path: path.join(SHOTS, "dash-review-link.png"), fullPage: true });
+
+        // ── «ONCE» MEANS ONCE. A reload re-renders this screen from the
+        // server, which has an HMAC of the token and not the token. If the
+        // link came back here, the product would be storing it somewhere and
+        // INV-044 would be false — so this is the assertion that makes the
+        // sentence above true rather than merely printed.
+        //
+        // AND THE RELOAD'S OWN RESPONSE IS CHECKED FIRST — FIX ROUND 1, AND
+        // THIS WAS THE DEFECT THIS AUDIT WAS SUPPOSED TO BE INCAPABLE OF.
+        //
+        // The response used to be discarded and nothing after it re-established
+        // that this was still the evidence screen. Make `/dash/assignments/{id}`
+        // 500 on a second request — a server-component read that only fails
+        // warm, a session read that trips on the freshly written grant row — or
+        // redirect it to `/login`, and the search below finds no token on the
+        // error page, `total === 0`, no finding fires, and the harness reports
+        // zero findings having asserted INV-044 against a stack trace. That is
+        // exactly how slice D0's harness went six consecutive green runs
+        // through a real bug: a check that returned by a route which wiped the
+        // state the bug lived in. The discipline already exists sixty lines
+        // above — the first `goto` asserts `status() !== 200` — and the reload
+        // simply did not copy it.
+        //
+        // Three things are established before absence is allowed to mean
+        // anything: the response is 200, the path is still this screen, and the
+        // screen is rendering its own content (the form is back — which is also
+        // the positive proof that the issued block was client state and nothing
+        // else — and the photo still decodes).
+        const reloadRes = await page.reload({ waitUntil: "networkidle0" });
+        const reloadStatus = reloadRes ? reloadRes.status() : null;
+        const reloadPath = new URL(page.url()).pathname;
+        const formIsBack = await page.evaluate(() => document.querySelectorAll('button[type="submit"]').length);
+        const stillDecodes = await measureDecodedImage(page, PHOTO_FILENAME);
+
+        if (reloadStatus !== 200 || reloadPath !== `/dash/assignments/${assignmentId}`
+            || formIsBack === 0 || !stillDecodes.ok) {
+          ctx.findings.push(
+            `evidence screen: the reload did not land back on a working evidence screen — status ${reloadStatus}, `
+            + `path ${reloadPath}, submit buttons ${formIsBack}, photo decoded ${stillDecodes.ok} `
+            + `(naturalWidth ${stillDecodes.naturalWidth}). The «shown once» assertion below is only meaningful `
+            + "against the screen itself; on an error page or a login redirect it would pass by finding nothing.",
+          );
+        } else {
+          const afterReload = await readLink();
+          if (afterReload.total !== 0) {
+            ctx.findings.push(
+              `evidence screen: the review link is STILL on screen after a reload (${afterReload.total} occurrence(s)) — `
+              + "the token is being re-derived or stored somewhere, and INV-044 says it cannot be",
+            );
+          }
+        }
+      });
+      reportDiagnostics("evidence screen", officeDiagnostics, ctx.findings, ctx.missingAssets);
+
+      // ── 3. The external plane, in a browser that has never signed in ─────
+      if (!issued.url) {
+        ctx.findings.push("external review: no link was issued above, so the no-account path was not driven");
+        return;
+      }
+      const externalContext = await browser.createBrowserContext();
+      try {
+        const externalDiagnostics = await withPage(externalContext, async (page) => {
+          await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
+          const res = await page.goto(issued.url, { waitUntil: "networkidle0" });
+          if (!res || res.status() !== 200) {
+            ctx.findings.push(`external review: expected 200 for the issued link, got ${res ? res.status() : "no response"}`);
+            return;
+          }
+
+          // THE FRAGMENT IS OUT OF THE ADDRESS BAR BEFORE ANYTHING ELSE
+          // (INV-010's client half). Asserted here because this is the first
+          // time that line has run in a browser at all.
+          const afterStrip = await page.evaluate(() => ({ hash: location.hash, href: location.href }));
+          if (afterStrip.hash !== "") {
+            ctx.findings.push(`external review: the token is still in the address bar after load (${afterStrip.hash.slice(0, 12)}…)`);
+          }
+
+          // The gate: nothing is spent until a person taps.
+          const gate = await visibleHandleWithText(page, "button", "Відкрити вимогу");
+          if (!gate) {
+            const shown = await page.evaluate(() => document.body.innerText);
+            ctx.findings.push(`external review: no «Відкрити вимогу» gate button. Page says: ${JSON.stringify(shown.slice(0, 400))}`);
+            return;
+          }
+          // THE ONE CONTROL A ТЕХНАГЛЯД MUST HIT ON A PHONE, measured at the
+          // moment it is the only thing on screen. Added in fix round 1: the
+          // external plane had the 375px overflow check and no touch-target
+          // measurement at all, and this page is a hand-written shell with its
+          // own stylesheet — nothing in `packages/ui`'s component contract
+          // reaches it, so the 44px floor here is held by one `min-height` in a
+          // template literal and by nothing else. Measured at the GATE rather
+          // than after it, deliberately: an observer grant renders no decision
+          // buttons, so a check on the scope screen would pass by finding
+          // nothing to measure.
+          for (const t of await measureSmallTargets(page)) {
+            ctx.findings.push(`external review gate @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+          }
+          await gate.click();
+
+          const opened = await page.waitForFunction(
+            () => !document.getElementById("scope").hidden,
+            { timeout: 20_000 },
+          ).then(() => true).catch(() => false);
+          if (!opened) {
+            const shown = await page.evaluate(() => document.body.innerText);
+            ctx.findings.push(`external review: the exchange never revealed the scope. Page says: ${JSON.stringify(shown.slice(0, 400))}`);
+            await page.screenshot({ path: path.join(SHOTS, "external-review-failed.png"), fullPage: true });
+            return;
+          }
+
+          // THE PHOTO, ON THE OTHER PLANE. Same measurement, different
+          // mechanism entirely: this one is a same-origin stream through
+          // `GET /external/evidence`, authorised by a session cookie the
+          // exchange just minted, under a page CSP of `img-src 'self'`.
+          const decoded = await measureDecodedImage(page, PHOTO_FILENAME);
+          if (decoded.count === 0) {
+            const note = await page.evaluate(() => document.getElementById("evidence-note")?.textContent ?? "");
+            ctx.findings.push(
+              `external review: no <img> for the evidence object — the shell rendered identities only. Note reads: ${JSON.stringify(note)}`,
+            );
+          } else if (!decoded.ok) {
+            ctx.findings.push(
+              "external review: the photo is in the DOM but decoded nothing — naturalWidth "
+              + `${decoded.naturalWidth}, complete ${decoded.complete}, src ${decoded.src}. `
+              + "A CSP refusal, a revoked session or a storage miss all look exactly like this.",
+            );
+          }
+
+          // SAME-ORIGIN, AND NAMING THE OBJECT THE SEED CREATED. A signed
+          // Supabase URL here would be blocked by this page's own
+          // `img-src 'self'` before a byte moved — the reason this plane
+          // streams — so the shape of the src is not cosmetic.
+          if (decoded.src !== null) {
+            const expected = `/external/evidence?evidenceObjectId=${evidenceObjectId}`;
+            if (decoded.src !== expected) {
+              ctx.findings.push(
+                `external review: the image src is ${JSON.stringify(decoded.src)}, expected ${JSON.stringify(expected)} — `
+                + "an absolute URL, or another object's id, means the shell is not reading the scope it was served",
+              );
+            }
+          }
+
+          // The corrected sentence, and the absence of the one it replaced.
+          const bodyText = await page.evaluate(() => document.body.innerText);
+          if (bodyText.includes("Перегляд самих файлів у цій версії недоступний")) {
+            ctx.findings.push("external review: the page still says the files cannot be viewed, while showing them");
+          }
+
+          // NOTHING MAY SCROLL SIDEWAYS ON A PHONE — the same rule the
+          // obligation screen is held to, and for the same reason: this
+          // page's normative reference ends in a URL and a 64-character
+          // sha256, neither of which contains a break opportunity, and a ДБН
+          // citation that runs off the right edge is a citation the технагляд
+          // cannot read. Caught by the first screenshot this page ever
+          // produced; the fix is one `overflow-wrap` declaration in the
+          // shell's own style block, and this is what keeps it.
+          const overflow = await measureHorizontalOverflow(page);
+          if (overflow) {
+            ctx.findings.push(
+              `external review @375: the page scrolls sideways by ${overflow.overflow}px `
+              + `(viewport ${overflow.viewport}px) — ${overflow.offender}`,
+            );
+          }
+          await page.screenshot({ path: path.join(SHOTS, "external-review.png"), fullPage: true });
+        });
+        reportDiagnostics("external review", externalDiagnostics, ctx.findings, ctx.missingAssets);
+
+        // ── THE PROOF THAT THIS WAS THE NO-ACCOUNT PATH ───────────────────
+        // Read AFTER the page did its work, so a cookie set at any point in
+        // the exchange would be caught. The external session's own cookie
+        // (`__Host-goproceed_external`) is expected and is not an `sb-` one;
+        // what must be absent is every Supabase auth cookie, because their
+        // presence would mean this context reused the foreman's session and
+        // the whole audit proved nothing.
+        const leaked = await supabaseCookieNamesIn(externalContext);
+        if (leaked.length !== 0) {
+          ctx.findings.push(
+            `external review: the no-account browser context holds Supabase auth cookies (${leaked.join(", ")}) — `
+            + "this run exercised a signed-in browser, not the external plane",
+          );
+        }
+        const externalCookies = (await externalContext.cookies()).map((c) => c.name);
+        if (!externalCookies.includes("__Host-goproceed_external")) {
+          ctx.findings.push(
+            `external review: no __Host-goproceed_external cookie in the external context after the exchange `
+            + `(cookies: ${externalCookies.join(", ") || "none"}) — the session that served the bytes is unaccounted for`,
+          );
+        }
+      } finally {
+        await externalContext.close();
+      }
     });
 
     await runAudit(ctx, "dashboard profile and sign-out", async () => {
@@ -2213,7 +2990,7 @@ async function main() {
         await page.screenshot({ path: path.join(SHOTS, "dash-profile.png"), fullPage: true });
 
         // ── 4. Sign-out: not until confirmed, and then for real ────────────
-        const cookiesBefore = await supabaseCookieNames(browser);
+        const cookiesBefore = await supabaseCookieNamesIn(browser);
         if (cookiesBefore.length === 0) {
           ctx.findings.push("sign-out: no `sb-*` session cookies were present BEFORE signing out — the assertions below would pass vacuously");
         }
@@ -2239,7 +3016,7 @@ async function main() {
           // against the cookies and the URL rather than against the dialog
           // looking right. A dialog that signs you out as it opens looks
           // identical in a screenshot.
-          const cookiesWithDialogOpen = await supabaseCookieNames(browser);
+          const cookiesWithDialogOpen = await supabaseCookieNamesIn(browser);
           if (cookiesWithDialogOpen.join() !== cookiesBefore.join()) {
             ctx.findings.push(`sign-out: opening the confirm changed the session cookies (${cookiesBefore.join()} → ${cookiesWithDialogOpen.join()}) — it must sign nothing out until confirmed`);
           }
@@ -2266,7 +3043,7 @@ async function main() {
               () => ![...document.querySelectorAll('[role="dialog"]')].some((d) => (d.innerText ?? "").includes("Вийти з системи?")),
               { timeout: 5_000 })
               .catch(() => ctx.findings.push("sign-out: «Скасувати» did not close the confirm dialog"));
-            const cookiesAfterCancel = await supabaseCookieNames(browser);
+            const cookiesAfterCancel = await supabaseCookieNamesIn(browser);
             if (cookiesAfterCancel.join() !== cookiesBefore.join()) {
               ctx.findings.push(`sign-out: «Скасувати» changed the session cookies (${cookiesBefore.join()} → ${cookiesAfterCancel.join()}) — cancelling must sign nothing out`);
             }
@@ -2357,7 +3134,7 @@ async function main() {
               ctx.findings.push(`sign-out: confirming did not land on /login (still ${new URL(page.url()).pathname}) — router.replace never ran, or signOut reported an error`);
             }
 
-            const cookiesAfter = await supabaseCookieNames(browser);
+            const cookiesAfter = await supabaseCookieNamesIn(browser);
             if (cookiesAfter.length > 0) {
               ctx.findings.push(`sign-out: the session cookies survived (${cookiesAfter.join()}) — the browser is still signed in on a shared machine`);
             }
@@ -2484,7 +3261,60 @@ async function main() {
       "project/contract rows it created under \"Приклад-*\" names are NOT deleted — " +
       "harmless synthetic data, left the same way the Node integration suites " +
       "leave their own truncateAll()-scoped rows between runs, not between a run " +
-      "and the next `supabase db reset`.",
+      "and the next `supabase db reset`. SINCE 2026-08-22 that also includes an " +
+      "800-byte JPEG in local Supabase Storage and the evidence_objects/" +
+      "upload_intents rows naming it, plus one external_access_grant per run whose " +
+      "token nobody holds (it expires in seven days, or dies with the next db reset).",
+
+      "THE EXTERNAL DECIDE PATH IS NOT DRIVEN IN A BROWSER. The seventh audit " +
+      "issues a VIEW-ONLY grant, because the screen that issues it cannot name an " +
+      "occurrence's approver_role (see `grants.service.ts`), so `/external/review`'s " +
+      "accept/return buttons, its synchronizer-token echo, the receipt, and the " +
+      "session rotation a decision performs are all still exercised only in Node, in " +
+      "tests/m5-external.int.test.ts. What the browser now proves on that page is the " +
+      "gate, the fragment strip, the exchange, the scope render and the bytes.",
+
+      "`external_grants.revoke_reissue` reaches no browser at all — nothing in the " +
+      "product calls it yet. That matters more than an ordinary gap because it is the " +
+      "ONLY recovery INV-044 leaves for a link that was lost, and the screen says so " +
+      "in words it cannot yet act on. D-slice work that adds the control owns closing " +
+      "this line.",
+
+      "Only ONE evidence object, one occurrence group, and one media type reach the " +
+      "browser: a single `image/jpeg`. The null (unbound) group renders in no browser " +
+      "here — its treatment is pinned without a DOM in " +
+      "src/components/evidence/evidence-by-occurrence.test.tsx — and `application/pdf`, " +
+      "the other type `evidence-inspection.ts` recognises, is unreachable because no " +
+      "capture route in this repository produces one. The consequence is named rather " +
+      "than hidden: `GET /external/evidence`'s `content-security-policy: default-src " +
+      "'none'; sandbox` is never exercised on a non-image response by any automated " +
+      "check. It was measured by hand for task 7's report and is not asserted here. " +
+      "AND IT CANNOT BE AUTOMATED HERE, which is the half that matters to whoever reads this " +
+      "list next: HEADLESS CHROME HAS NO PDF VIEWER AT ALL. A PDF served with that header and " +
+      "the same PDF served without it both render an EMPTY document in this harness's browser, " +
+      "so an audit added later to «cover» this case would compare two blank pages, go green, and " +
+      "then be cited as proof of a property nothing checked. The hand measurement needed a " +
+      "HEADFUL Chrome with the PDF component extension enabled (puppeteer's default launch args " +
+      "disable it even headful); its result — the viewer renders, identically, with and without " +
+      "the header, so the header stays and no ADR moves — is in task-7-report.md §2 and in the " +
+      "byte route's own comment.",
+
+      "The «Копіювати посилання» button is rendered and never pressed. " +
+      "`navigator.clipboard.writeText` needs a permission headless Chrome grants " +
+      "inconsistently across builds, and a flaky assertion about a convenience control " +
+      "would cost more than it proves — the link is on screen as selectable text either " +
+      "way, which is what the audit asserts. Its failure branch (the message shown when " +
+      "the clipboard refuses) is therefore unexercised anywhere.",
+
+      "Grant lifetime is not exercised: neither the seven-day expiry, the 30-minute " +
+      "idle window nor the 12-hour absolute session ceiling advances during a run that " +
+      "takes under two minutes. Expiry and revocation are covered in Node, in " +
+      "tests/m5-external.int.test.ts and tests/external-evidence.int.test.ts.",
+
+      "The external link is opened by the SAME Chrome build, in a second context, on " +
+      "the same machine. No email client, no mail-security gateway (the rendering " +
+      "scanner the gate exists for), no second device and no real phone is involved — " +
+      "so the gate is proven to work for a person, and proven against nothing.",
     ];
 
     const report = {

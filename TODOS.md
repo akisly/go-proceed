@@ -749,6 +749,100 @@ such control appears.
 
 ---
 
+## P2 — `evidence-storage.ts` puts raw storage keys into error messages, and they reach the console
+
+**Found 2026-08-22, researching the evidence read (Plan D slice D1); scope
+corrected 2026-08-22 in the D1 final fix wave.** FIVE of the ten exported
+functions in `apps/app/src/lib/evidence-storage.ts` interpolate the key into
+their thrown message — `createSignedUpload` (:65), `putObject` (:78),
+`downloadObject` (:83), `objectSize` (:102) and `removeObject` (:123):
+`storage: signed upload failed for ${key}`, `download failed for ${key}`,
+`list failed for ${bucket}/${key}`, `remove failed for ${bucket}/${key}`. The
+other five do not: `newEvidenceKey` throws nothing, `objectExists` returns a
+boolean and swallows the error, and the three functions D1 added
+(`createSignedReadUrl`, `createSignedReadUrls`, `openObjectStream`) were built
+under an explicit instruction not to copy this house style, so they carry
+`error.code`/`error.status` and never the key. This entry originally said
+«every function» and «all six functions»; both were wrong, and the count is
+what a reader would have used to size the fix.
+
+These five are bare `Error`s, so `toProblemResponse` falls through
+to `apps/app/src/lib/http.ts`'s `console.error("[INTERNAL_ERROR]", requestId,
+err)` branch and the key goes to the platform log verbatim.
+
+`docs/architecture/files-and-storage.md` §Downloads is explicit: «Logs record
+the domain object and authorization result, never the signed URL or raw storage
+key.»
+
+Two things make this worth fixing rather than noting. A storage key is not a
+capability on its own, but it is the input to one — signing is a service-key
+operation over a key, so a leaked key narrows an attacker's search to nothing.
+And the file is the house style a new helper would copy: the D1 signed-read
+helper had to be told explicitly NOT to follow it, and the next one may not be.
+
+The fix is to throw the domain object's id and keep the key out of the message
+entirely, in those five functions.
+
+## P3 — the browser pass cannot assert «no signed URL in the logs», because there are no logs
+
+**Found 2026-08-22, same research; the number corrected 2026-08-22 in the D1
+final fix wave.** `apps/app` has no logging library and no log lines on any
+happy path. The shipped app contains exactly ONE `console.error` call —
+`apps/app/src/lib/http.ts:97`, `toProblemResponse`'s unmapped-error branch —
+plus two idle-client handlers in `packages/database/src/pool.ts`. There is no
+`middleware.ts`, no `instrumentation.ts`, and `next.config.ts` is empty.
+
+This entry used to say «`console.error` appears three times in the whole app».
+That was a FILE count read as a call count, and two of the three files are not
+the app: `apps/app/qa/field.mjs` (3 calls) is the browser harness and
+`apps/app/scripts/deploy-preflight.mjs` (5 calls) runs before a build. The
+conclusion the number was defending is unchanged and is if anything stronger —
+there is no happy-path logging, so «never in logs» cannot be asserted — but a
+false number defending a true conclusion is the defect class this branch spent
+five review rounds on, so it is corrected rather than left standing. The same
+sentence appears in `apps/app/tests/evidence-read.int.test.ts` beside the leak
+test and is corrected there too.
+
+So D1's leak test asserts what it can — no signed URL in `audit_events`, in
+`transaction_outbox`, or in any idempotency body — and cannot assert the log
+half of the rule. The rule still binds every future line; there is simply
+nothing to assert against yet. Worth revisiting when structured logging arrives,
+which is also when the P2 above becomes urgent rather than latent.
+
+Not established, and outside this repository: whether Vercel's own platform
+access log records request URLs with query strings for these routes. Nothing in
+`apps/app/vercel.json` configures logging either way.
+
+## P3 — `technical/schema.sql` reads as current truth and is a design-time reference
+
+**Found 2026-08-22, while designing the evidence read (Plan D slice D1).** The
+file's own first line says what it is: «AktFlow Pilot v2.9 executable reference
+schema. Convert to ordered reviewed migrations before runtime use.» It is the
+design the migrations were derived FROM, not a snapshot of the database, so a
+migration departing from it is the process working rather than drift.
+
+The hazard is that nothing in the file says WHICH tables have departed, and
+`scripts/validate-canonical-docs.mjs` lists it among the canonical documents —
+so it reads as current truth. `evidence_objects` is the worst case found so far:
+
+| `technical/schema.sql` | `supabase/migrations/0015_execution_evidence_module.sql` |
+|---|---|
+| `organization_id`, `sha256`, `mime_type` | `workspace_id`, `content_hash`, `media_type` |
+| `scan_state`, `lifecycle_state` | neither exists; `inspection_status` instead |
+| `assignment_id`, `work_item_id` on the row | neither; the link is via `upload_intents` |
+
+The shipped `apps/app/app/external/occurrence/route.ts` selects the migration's
+columns, so the migrations are what runs. Anyone checking a column against
+`schema.sql` for this table gets a confident wrong answer — which is exactly
+what happened while the D1 design was being written, and was caught only by
+reading the migration.
+
+**The fix is a header, not a rewrite:** state the file's status on its own face
+and name `supabase/migrations/**` as the runtime authority. Optionally list the
+tables known to have diverged. Rewriting the schema to match the migrations
+would destroy the design record the file exists to be.
+
+
 ## P3 — `packages/tokens`' `generate-palette.mjs` still writes into the deleted `apps/demo` tree
 
 **Observed 2026-08-21, during the field-client build.** `outDir` in
@@ -2587,3 +2681,165 @@ inventory), so this is deferred; the fix is the usual heuristic
 (`navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1` → iPad)
 plus a test and a harness UA case.
 
+---
+
+## P3 — Plan D slice D1 task 6 (the evidence screen) renders full-size
+originals, with no thumbnail pipeline
+
+`apps/app/src/components/evidence/evidence-card.tsx` puts every evidence
+photo — `readUrl`, the signed URL `evidence_objects` route hands back — into
+a plain `loading="lazy"` `<img>` inside a fixed-aspect-ratio container, at
+whatever resolution the original upload was captured at. `04-role-pain-map`'s
+office screen this task builds may show a dozen-plus full-resolution JPEGs on
+one page.
+
+Named rather than solved because the obvious fix costs money this slice was
+not asked to spend: Supabase Storage's image-transformation add-on
+(resize/format-negotiation on the signed-URL request) is a paid add-on on the
+project's current plan, so a resized `readUrl` is not available to ask for,
+and building a resize pipeline of our own (a derivative-generation worker
+writing `evidence_objects.relation_kind = 'derivative'` rows, or an
+on-the-fly edge resize) is its own slice, not a two-line addition to a read
+screen. `next/image` was considered and rejected for the same reason: without
+either the add-on or a custom loader, it buys nothing over a bare `<img>`.
+
+Deferred because the pilot's own evidence volume is small (ADR-007's two-phone
+inventory, v0.1's single-pilot-project scope) and `loading="lazy"` already
+keeps an off-screen photo from downloading at all — the cost is real only once
+one assignment accumulates enough photographed occurrences that the panel
+itself becomes slow to open, which nothing in the pilot's plan has hit yet.
+Revisit if a real assignment's evidence count grows past what one scroll
+comfortably holds.
+
+---
+
+## P2 — Plan D slice D1 task 6 (the evidence screen) formats
+`serverReceivedAt` against a hardcoded default zone, not the workspace's own
+
+Fixed round 1 CRITICAL, kept open in a narrower form. `evidence-card.tsx`'s
+`formatReceivedAt` used to call `toLocaleString("uk-UA", { dateStyle,
+timeStyle })` with no `timeZone` at all — silently correct on a Kyiv
+developer machine and silently wrong the moment this server component runs
+somewhere else (Vercel's runtime clock is UTC), with no zone marker on
+screen to warn anyone. Fixed by naming `Europe/Kyiv` — the same default
+`packages/contracts/src/workspaces.ts:5` and `organizations.ts:9` already
+commit to for a workspace/organization that never overrides it — as an
+explicit `timeZone`, plus `timeZoneName: "short"` so a reader always sees
+which zone a time is in, never just the bare digits.
+
+What is still open: this is the DEFAULT, not the CALLER's actual workspace
+timezone. `assignmentEvidenceResponse` (`packages/contracts/src/
+evidence.ts`) carries no `timezone` field, and neither does anything else
+`GET /v1/assignments/{assignmentId}/evidence` returns, so this screen has no
+way to know whether the workspace that owns this assignment actually set a
+non-default zone at creation. Every real workspace today is `Europe/Kyiv`
+(the pilot's own single-timezone scope), so the default is correct in
+practice, not merely convenient — but it is silently wrong the day a second
+timezone exists and nobody threads the real value through. The actual fix,
+and it is a real column, not a guess: `public.organizations.timezone`
+(`supabase/migrations/0001_core_tenancy.sql:12`, `not null default
+'Europe/Kyiv'`) is what `POST /v1/workspaces` (`app/v1/workspaces/route.ts:
+27-29`) actually writes into — "workspace" is this product's name for an
+`organizations` row, there is no separate `workspaces` table — so the fix is
+either the evidence route joining that column into its response body, or
+`/dash`'s session/workspace context (already resolved once per request for
+the shell, `getMeContext`) carrying it down to this screen. Either is a
+real, separate change — not a two-line addition to `evidence-card.tsx`.
+
+---
+
+## P3 — Plan D slice D1 task 6 (the evidence screen) labels an occurrence
+group with its bare UUID, not a human-readable requirement description
+
+`evidence-by-occurrence.tsx`'s section heading for a real occurrence group is
+the literal word "Вимога" plus the occurrence's own UUID underneath, `break-
+all`-wrapped. Every occurrence section in a given assignment carries the
+identical heading text, distinguished only by a 36-character identifier — a
+ПТВ scanning the screen for a photo tied to a specific requirement has to
+read UUIDs, not requirement names, to tell sections apart. Not what
+"grouped by obligation" (this task's own commit message) reads as to the
+person actually looking at the screen, even though it is literally true of
+the data shape.
+
+Named rather than fixed because the ONE interface this task's brief
+authorises consuming — `assignmentEvidenceResponse` — carries `occurrenceId`
+as a bare UUID and nothing else describing it. A human-readable label (the
+requirement's own acceptance-criterion text, or a shorter derived title)
+lives on `RequirementOccurrenceView`, returned by a DIFFERENT, unconsumed
+endpoint (`GET /v1/assignments/{assignmentId}/requirement-occurrences`,
+`packages/contracts/src/requirement-occurrences.ts`). Fetching it from this
+screen would be a second round trip and undocumented scope beyond what the
+brief's own "Interfaces" list authorised — a decision for whoever owns this
+screen's next iteration, not a two-line addition here. The page's own
+identity line (`Доручення {assignmentId}`) has the identical limitation for
+the identical reason: no assignment-description endpoint exists at all (see
+`evidence-by-occurrence.tsx`'s own header on `app/dash/assignments/
+[assignmentId]/page.tsx`'s missing `GET /v1/assignments/{assignmentId}`).
+
+
+## P3 — Plan D slice D1: the evidence screen's occurrence groups come back in UUID order
+
+**Found 2026-08-22, in D1's final whole-branch review; filed rather than fixed
+because the fix extends a contract.** `GET /v1/assignments/{assignmentId}/
+evidence` orders its rows `order by ui.requirement_occurrence_id nulls last, …`
+and then groups them into a `Map` keyed on that id, so the `groups` array — and
+therefore the order `evidence-by-occurrence.tsx` renders sections in — is
+ascending occurrence UUID. A UUID is a meaningless key to sort a screen by: two
+requirements that a ПТВ thinks of as "first" and "second" appear in whichever
+order their random identifiers happen to fall in, and the order changes for no
+reason a reader can see when a third is added. The null group (unbound photos)
+is correctly last by construction and is not part of this.
+
+**What the fix needs, and why it is not a one-liner here.**
+`assignmentEvidenceResponse` (`packages/contracts/src/evidence.ts`) carries
+`occurrenceId` and nothing else per group. The ordinal that would give the
+sections a meaningful order exists — `requirement_occurrences.ordinal`, exposed
+as `ordinal: z.number().int().min(1)` on `RequirementOccurrenceView`
+(`packages/contracts/src/requirement-occurrences.ts:80`) and again on the
+external plane's `externalOccurrenceScopeResponse.occurrence.ordinal` — but it
+is returned by a DIFFERENT call (`GET /v1/assignments/{assignmentId}/
+requirement-occurrences`). So the options are: add `ordinal` to the group object
+in `assignmentEvidenceResponse` and join `requirement_occurrences` in the route's
+query (a contract change, an OpenAPI scope row's shape, and a second table in a
+tenant-scoped read), or have the screen make a second round trip. Both are
+decisions for whoever owns this screen's next iteration.
+
+Same family as the P3 above it — that one is about what a group is CALLED, this
+one is about what order the groups come in — and the same interface would close
+both.
+
+## P3 — Plan D slice D1: the evidence route discards `failedKeys`, so a wholesale storage failure is a silent HTTP 200
+
+**Found 2026-08-22, in D1's final whole-branch review; filed rather than fixed
+because it needs a logging decision this app has not made.**
+`createSignedReadUrls` returns `{ urls, failedKeys }`
+(`apps/app/src/lib/evidence-storage.ts:259-278`) — the split is deliberate and
+was itself a ruling: a per-object failure must not 500 the whole assignment's
+read, because "1 of 1 failed" is the modal shape at pilot start. `GET /v1/
+assignments/{assignmentId}/evidence` destructures `const { urls } = await
+createSignedReadUrls(keys, bucket)` and drops `failedKeys` on the floor.
+
+The consequence is correct for ONE object and wrong for all of them. A lost
+grant, a renamed bucket or a storage outage that fails every key returns HTTP
+200 with a well-formed body in which every row simply has no `readUrl`, so the
+screen renders N cards of «Зображення тимчасово недоступне» — which is exactly
+what it should render for one purged object, and gives an operator nothing to
+distinguish "one object is gone" from "the whole store is unreachable". Only a
+top-level SDK error (auth, transport, an invalid bucket name) still throws.
+
+**The constraint that makes this a decision rather than a fix.** The obvious
+remedy is to log the count when `failedKeys.length === keys.length`, and this
+app has NO happy-path logging to log it into: the shipped app contains exactly
+one `console.error` call (`src/lib/http.ts:97`, the unmapped-error branch), no
+logging library, no `middleware.ts` and no `instrumentation.ts` — see the P3
+"the browser pass cannot assert «no signed URL in the logs», because there are
+no logs" entry above, which is the same gap seen from the other side. Adding a
+lone `console.error` here would be the first happy-path log line in the app and
+would set the format for every one after it, and the same entry records the
+reason to be careful about what goes into it: a storage key must never reach a
+log. The alternative — a partial-failure signal in the response body — is a
+contract change to `assignmentEvidenceResponse`.
+
+Worth revisiting together with structured logging, which is also when the P2
+"`evidence-storage.ts` puts raw storage keys into error messages" above stops
+being latent.

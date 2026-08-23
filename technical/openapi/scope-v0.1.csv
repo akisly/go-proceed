@@ -34,6 +34,7 @@ requirement_templates.publish,POST,/v1/requirement-templates/{templateVersionId}
 assignments.create,POST,/v1/contracts/{contractId}/assignments,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
 assignments.list,GET,/v1/projects/{projectId}/assignments,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
 requirement_occurrences.list,GET,/v1/assignments/{assignmentId}/requirement-occurrences,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
+evidence.list,GET,/v1/assignments/{assignmentId}/evidence,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M6
 requirement_occurrences.dry_run,POST,/v1/projects/{projectId}/contract-versions/{versionId}/requirement-occurrences/dry-run,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
 progress.record,POST,/v1/assignments/{assignmentId}/progress,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
 progress.adjust,POST,/v1/progress-entries/{entryId}/adjustments,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
@@ -57,5 +58,6 @@ external_grants.revoke_reissue,POST,/v1/grants/{grantId}/revoke-reissue,command,
 external.review_shell,GET,/external/review,query,natural,public,none (HTML shell; fragment never sent),none (HTML shell),v0.1-M5
 external.exchange,POST,/external/exchange,command,single_use,public,@goproceed/contracts#external,@goproceed/contracts#external,v0.1-M5
 external.occurrence_scope,GET,/external/occurrence,query,natural,external,@goproceed/contracts#external,@goproceed/contracts#external,v0.1-M5
+external.evidence_bytes,GET,/external/evidence,query,natural,external,none (binary stream),none (binary stream),v0.1-M6
 external.occurrence_decision_submit,POST,/external/occurrence-decisions,command,required,external,@goproceed/contracts#external,@goproceed/contracts#external,v0.1-M5
 blocked_value.get,GET,/v1/projects/{projectId}/blocked-value,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M6
