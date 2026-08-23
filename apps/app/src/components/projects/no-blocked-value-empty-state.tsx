@@ -1,0 +1,41 @@
+import { EmptyState } from "@goproceed/ui/components";
+import { ProjectOverviewHeader } from "./project-overview-header";
+
+/**
+ * `getBlockedValue`'s `ok` branch with an empty `blockedReasons` array —
+ * every additive field the money screen renders (`totalsByCurrency`,
+ * `byCause`, `unvaluedRegister`, `unvaluedAssignmentCount`,
+ * `zeroPricedAssignmentCount`) is built FROM `blockedReasons`
+ * (`apps/app/src/lib/blocked-value.ts`'s `summariseBlockedValue`), so an
+ * empty drill-down array is both necessary and sufficient for "nothing is
+ * blocked" — checked against that module, not assumed from the field's name
+ * alone.
+ *
+ * «НІЧОГО НЕ ЗАБЛОКОВАНО» IS AN ACHIEVEMENT, NOT AN ABSENCE OF DATA — the
+ * task brief's own instruction, and `EmptyState`'s own header backs the
+ * shape this takes: "«Немає даних» is not an empty state; it is a shrug…
+ * every empty state… names the condition and the next act." The condition
+ * here is genuinely good news (every live obligation on this project is
+ * either satisfied or has no money behind it), so the description says that
+ * in terms rather than the neutral "nothing found" wording a generic empty
+ * state would reach for.
+ *
+ * `max-w-112`, NOT `max-w-md` — same substitution `no-assignments-empty-
+ * state.tsx` already made and verified against the rebuilt dash chunk (that
+ * file's own header carries the full account): `packages/ui/src/theme.
+ * generated.css`'s `--container-*: initial` clears the default scale
+ * entirely, and `max-w-112` is the SPACING scale's 28rem, which the dash
+ * chunk does emit.
+ */
+export function NoBlockedValueEmptyState({ projectId }: { projectId: string }) {
+  return (
+    <div className="mx-auto flex w-full max-w-content flex-col gap-4 p-6">
+      <ProjectOverviewHeader projectId={projectId} />
+      <EmptyState
+        className="mx-auto max-w-112 py-16"
+        title="Нічого не заблоковано"
+        description="Жодна вимога на цьому проєкті не тримає гроші заблокованими: усе або підтверджено, або ще не має ціни, за якою можна щось заблокувати."
+      />
+    </div>
+  );
+}
