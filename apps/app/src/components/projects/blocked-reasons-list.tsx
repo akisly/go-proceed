@@ -25,8 +25,9 @@ import { approverRoleLabel } from "../../lib/approver-role-labels";
  * overclaims the TIE case. `Array.prototype.sort` has been stable since
  * ES2019, so two rows sharing one `since` keep their INCOMING relative
  * order rather than being reordered arbitrarily — and their incoming order
- * IS the route's own `order by o.ordinal, o.id`
- * (`apps/app/src/lib/readiness.ts:251`), which this component has no
+ * IS the route's own `order by o.ordinal, o.id` — the tail of the
+ * `OCCURRENCES_SQL` constant in `apps/app/src/lib/readiness.ts` — which this
+ * component has no
  * independent way to reproduce: `blockedReason` carries no `ordinal` field
  * on the wire (`packages/contracts/src/readiness.ts`), only
  * `requirementOccurrenceId` — a different key than `o.id`'s row-materialisation

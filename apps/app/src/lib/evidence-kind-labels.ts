@@ -17,12 +17,16 @@ import type { MissingEvidenceItem } from "@goproceed/contracts";
  * `packages/contracts/src/requirement-rules.ts:46`) and in the database —
  * `check (evidence_kind in ('photo','measurement','document','checkbox'))`
  * on `public.requirement_occurrences` (`supabase/migrations/
- * 0043_the_obligation_before_the_covering.sql:532` create table, `:571-572`
- * the CHECK). `apps/app/src/lib/readiness.ts:333` reads this exact column
- * (`evidenceKind: r.evidence_kind as string`) into `EvaluatedOccurrence`,
- * and `missingEvidenceFor` (`readiness.ts:476-479`) carries it straight into
+ * 0043_the_obligation_before_the_covering.sql`, its `create table
+ * public.requirement_occurrences` block and the `evidence_kind` CHECK inside
+ * it). `apps/app/src/lib/readiness.ts`'s `evaluateStages` reads this exact
+ * column (`evidenceKind: r.evidence_kind as string`) into
+ * `EvaluatedOccurrence`, and `missingEvidenceFor` carries it straight into
  * `MissingEvidenceItem.evidenceKind` unchanged — so the value this map
- * labels is the value the database actually stores, not a derived one.
+ * labels is the value the database actually stores, not a derived one. Named
+ * by function, not by line: this module's own sibling `blocked-value.
+ * service.ts` cited a line for a throw inside `requireProjectCapability` in
+ * fix round 1 and that line moved within the SAME round's own edit.
  *
  * TYPED AS `Record<MissingEvidenceItem["evidenceKind"], string>`, matching
  * `evidence-labels.ts`'s `CAPTURE_TIME_TRUST_LABELS` shape: the wire type is

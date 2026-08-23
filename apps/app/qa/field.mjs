@@ -511,10 +511,10 @@ async function seedWorld(baseUrl, bearer) {
       // here rather than worked around in the audit.
       "packages.submit",
       // ADDED FOR THE PROJECT-OVERVIEW AUDIT (Plan D slice D2). `GET /v1/
-      // projects/{projectId}/blocked-value` checks `readiness.view`
-      // SEPARATELY from `project.view`
-      // (`app/v1/projects/[projectId]/blocked-value/route.ts:74-75`), and
-      // `project.view` alone does NOT imply it
+      // projects/{projectId}/blocked-value` calls `requireProjectCapability`
+      // for `readiness.view` SEPARATELY from its own second call for
+      // `project.view` (`app/v1/projects/[projectId]/blocked-value/route.ts`),
+      // and `project.view` alone does NOT imply it
       // (`authz.ts`'s `IMPLIED_BY_PROJECT_ADMIN` covers `project.admin`
       // only). Without this grant `/dash/projects/{projectId}` would render
       // its 403 branch for the very member this world seeds as a foreman —

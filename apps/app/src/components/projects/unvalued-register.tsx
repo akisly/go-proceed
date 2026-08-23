@@ -18,7 +18,8 @@ import { formatQuantity } from "../../lib/quantity";
  * a computed price.
  *
  * `quantity` GOES THROUGH `formatQuantity` — FIX ROUND 1, IMPORTANT 2. It
- * is `fromScaled6` output (`apps/app/src/lib/blocked-value.ts:643`): a fixed
+ * is `fromScaled6` output, built at the `unvaluedRegister` map's own row in
+ * `summariseBlockedValue` (`apps/app/src/lib/blocked-value.ts`): a fixed
  * six-fraction-digit, dot-separated string built to round-trip
  * `numeric(20,6)` exactly, not to be read — this row shipped `"10.000000"`
  * before this fix, beside `formatMoney`'s Ukrainian-comma figures elsewhere

@@ -18,11 +18,15 @@
  * `"10.000000"` → `"10"`; `"1.250000"` → `"1,25"`.
  *
  * GUARDED, NOT TRUSTED — same reasoning `money.ts`'s guard carries: the wire
- * type behind both fields is a bare `z.string()`
- * (`packages/contracts/src/blocked-value.ts`), so nothing on this side of
- * the wire actually promises the six-decimal-dot shape `fromScaled6`
- * happens to produce today. A malformed string renders a legible marker
- * instead of throwing inside a Server Component render.
+ * type behind both fields is a bare `z.string()`, and — ROUND 2 CORRECTION —
+ * that is true of each on a DIFFERENT file, not one: `unvaluedRegisterRow.
+ * quantity` is in `packages/contracts/src/blocked-value.ts`, while
+ * `blockedReason.unvaluedQuantity` is in `packages/contracts/src/
+ * readiness.ts` — a file the previous version of this comment never named,
+ * having generalised from the one it happened to be looking at. Neither
+ * schema promises the six-decimal-dot shape `fromScaled6` happens to
+ * produce today. A malformed string renders a legible marker instead of
+ * throwing inside a Server Component render.
  */
 const LOCALE = "uk-UA";
 

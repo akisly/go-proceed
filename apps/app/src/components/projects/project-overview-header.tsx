@@ -10,10 +10,11 @@ import { Button } from "@goproceed/ui/components";
  *
  * NOT SHARED WITH THE 404 BRANCH. `ProjectMoneyNotFound` renders no header
  * at all: there is no project to link FROM — `notFound: RESOURCE_NOT_FOUND`
- * means the RLS-gated read at `blocked-value/route.ts:70` returned zero
- * rows, so this page cannot even assert this `projectId` names a project the
- * caller may open, and a «Доручення» link under that heading would point at
- * a route that will refuse the identical way.
+ * means the RLS-gated read at `blocked-value/route.ts`'s own `notFound`
+ * guard returned zero rows, so this page cannot even assert this
+ * `projectId` names a project the caller may open, and a «Доручення» link
+ * under that heading would point at a route that will refuse the identical
+ * way.
  *
  * TITLED «Заблокована вартість», NOT «Огляд» — `docs/design/
  * 04-role-pain-map.md` calls this screen "Overview" and lists three data

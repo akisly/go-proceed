@@ -22,13 +22,14 @@ import { apiGet, ApiError, isSessionExpired } from "../lib/api";
  * rather than assumed:
  *
  *   `not_found`  — the caller cannot see the PROJECT at all. The route's own
- *     `select workspace_id from public.projects where id = $1`
- *     (`app/v1/projects/[projectId]/blocked-value/route.ts:68-70`) runs
- *     under RLS, and `projects_select` (`supabase/migrations/
- *     0011_workspace_access_security.sql:121-122`) admits only
+ *     `select workspace_id from public.projects where id = $1` (the same
+ *     query the local `notFound` guards, `app/v1/projects/[projectId]/
+ *     blocked-value/route.ts`) runs under RLS, and `projects_select`
+ *     (`supabase/migrations/0011_workspace_access_security.sql`, the
+ *     `create policy projects_select` block) admits only
  *     `array['project.view','project.admin']` — NOT `readiness.view`. A
  *     caller lacking both project.view and project.admin gets zero rows
- *     back, and the route's own `notFound` fires (route.ts:70, 404
+ *     back, and the route's own `notFound` const fires (404
  *     `RESOURCE_NOT_FOUND`, "Проєкт не знайдено.") before any capability
  *     check is even reached — the identical RLS-fires-before-the-check shape
  *     `assignments.service.ts`'s own header already documents for its
@@ -36,14 +37,16 @@ import { apiGet, ApiError, isSessionExpired } from "../lib/api";
  *
  *   `forbidden`  — the caller CAN see the project (so `/dash/projects/
  *     {projectId}/assignments` is reachable to them) but cannot see the
- *     MONEY. Unlike the assignments route, this one checks TWO capabilities
- *     (route.ts:74-75, `:102-103`), and the FIRST — `readiness.view`
- *     (route.ts:74-75) — is the one RLS does not already gate.
+ *     MONEY. Unlike the assignments route, this one calls
+ *     `requireProjectCapability` TWICE — once for `readiness.view`, once for
+ *     `project.view` — and the FIRST of the two, `readiness.view`, is the
+ *     one RLS does not already gate.
  *
  *     CORRECTED IN FIX ROUND 1: this used to say `readiness.view` "is in no
- *     row of `responsibility-presets.csv`", copied from `authz.ts:78-80`'s
- *     own comment without independently re-checking the CSV that comment
- *     names — and that comment is itself dated 2026-08-08 (M3 pre-landing
+ *     row of `responsibility-presets.csv`", copied from `authz.ts`'s own
+ *     comment ABOVE `IMPLIED_BY_PROJECT_ADMIN` without independently
+ *     re-checking the CSV that comment names — and that comment is itself
+ *     dated 2026-08-08 (M3 pre-landing
  *     review finding 5) and superseded by corrections the CSV records under
  *     2026-08-17, which `authz.ts` was never updated to mention. Read
  *     directly: `technical/permissions/responsibility-presets.csv` DOES
@@ -60,11 +63,18 @@ import { apiGet, ApiError, isSessionExpired } from "../lib/api";
  *     `requirement_owner` (line 6), `internal_verifier` (line 8),
  *     `package_submitter` (line 9) and `foreman` (line 12). A member holding
  *     one of those four can open `/dash/projects/{projectId}/assignments`
- *     and then land on THIS screen's 403: the RLS-gated read at route.ts:70
- *     passes (it only checks `project.view`/`project.admin`), `require
- *     ActiveMembership` passes, and `requireProjectCapability(…,
- *     "readiness.view")` then fails at `authz.ts:101` (403
- *     `SCOPE_PROJECT_DENIED`, "Немає доступу до цього проєкту."). That branch
+ *     and then land on THIS screen's 403: the RLS-gated read at the route's
+ *     own `notFound` guard passes (it only checks `project.view`/`project.
+ *     admin`), `requireActiveMembership` passes, and `requireProjectCapability
+ *     (…, "readiness.view")` then throws its own `SCOPE_PROJECT_DENIED`
+ *     (403, "Немає доступу до цього проєкту.") — a citation to WHERE inside
+ *     `requireProjectCapability` that throw sits is deliberately not repeated
+ *     here: fix round 1 cited `authz.ts:101`, and this file's own edit in
+ *     that same round moved it to `authz.ts:115` before the round even
+ *     closed — the third such rot on this work. The function name is the
+ *     part that survives an edit; `authz.ts` has exactly one
+ *     `SCOPE_PROJECT_DENIED` throw and it is inside `requireProjectCapability`,
+ *     which is enough to re-find it. That branch
  *     IS reachable — checked by reading the route, `authz.ts` and the CSV
  *     together, not assumed — which is the opposite of `assignments.
  *     service.ts`'s own project.view-only 403 that its header proves
