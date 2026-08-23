@@ -22,14 +22,26 @@ import { assignmentColumns } from "./assignments-columns";
  * satnaing/shadcn-admin's own `tasks-table.tsx`, and this file is now the
  * screen-shaped part: a heading, a panel, and the data.
  *
- * IT IS A CLIENT COMPONENT NOW, and that is a real cost worth naming rather
- * than leaving to be discovered. `useReactTable` is a hook, so any TanStack
- * table renders on the client; `AssignmentSummary[]` is plain JSON and crosses
- * the boundary unchanged, and the column definitions — which contain
- * functions and therefore cannot cross it — are imported on the client side of
- * it. The markup is still server-rendered on first paint (Next renders client
- * components on the server too), which is why the QA harness still finds four
- * `th` elements in the initial HTML.
+ * IT IS A CLIENT COMPONENT, and that is a real cost worth naming rather than
+ * leaving to be discovered. `useTable` is a hook — v9's construction API, and
+ * the reason any TanStack table renders on the client. The row data is plain
+ * JSON and crosses the boundary unchanged; the column definitions contain
+ * FUNCTIONS (`cell`, and `header` where it is not a string), so they are
+ * imported on the client side of it, from a `"use client"` module of their
+ * own. The markup is still server-rendered on first paint — Next renders
+ * client components on the server too — which is why the QA harness finds this
+ * table's `th` elements in the initial HTML.
+ *
+ * BOTH MIGRATED TABLES SIT ON THIS SIDE OF THE BOUNDARY, deliberately and
+ * identically. `unvalued-register.tsx` carries the same directive and the same
+ * paragraph. It was briefly left as a server component importing its columns
+ * from a `"use client"` module and handing them to `DataTable` as a prop —
+ * which may or may not serialize, and which NO test or browser in this
+ * repository has ever executed, because the seeded QA world has no unvalued
+ * assignment and that component early-returns `null` before it ever builds the
+ * prop. An untested serialization boundary is not a thing to leave standing on
+ * a guess; putting both components on the client side removes the question
+ * instead of documenting it.
  *
  * EACH ROW LINKS TO `/dash/assignments/{assignmentId}` — the evidence screen.
  * The link, and its measured 44px touch floor, moved into the column

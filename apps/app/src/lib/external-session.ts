@@ -244,18 +244,30 @@ export function externalQueryRoute(
  * means.
  */
 export function externalCommandRoute<T>(
-  // ZOD 4 REORDERED `ZodType`'S TYPE PARAMETERS, and the old spelling did not
-  // fail loudly — it bound `T` to nothing and every `a.body` in every command
-  // route became `unknown`. Verified at the declaration site rather than
-  // recalled: zod 3 was
-  // `ZodType<Output = any, Def extends ZodTypeDef = ZodTypeDef, Input = Output>`
-  // (`zod/v3/types.d.ts:48` — still shipped, under the v3 compat subpath),
-  // and zod 4 is
-  // `ZodType<out Output = unknown, out Input = unknown, out Internals extends ...>`
-  // (`zod/v4/classic/schemas.d.ts:6`). The middle slot changed meaning from
-  // «the def» to «the INPUT», so `<T, z.ZodTypeDef, unknown>` was asking for a
-  // schema whose input is a zod internal object — satisfied by nothing, and
-  // inference fell back to the default.
+  // ZOD 4 REORDERED `ZodType`'S TYPE PARAMETERS AND DROPPED `ZodTypeDef`, and
+  // tsc said so at the top of its voice. Verified at the declaration site and
+  // by re-running the compiler against the old spelling, not recalled:
+  //
+  //   zod 3: `ZodType<Output = any, Def extends ZodTypeDef = ZodTypeDef, Input = Output>`
+  //          (`zod/v3/types.d.ts:48`, still shipped under the v3 compat subpath)
+  //   zod 4: `ZodType<out Output = unknown, out Input = unknown,
+  //                   out Internals extends $ZodTypeInternals<Output, Input> = …>`
+  //          (`zod/v4/classic/schemas.d.ts:6`)
+  //
+  // So `z.ZodType<T, z.ZodTypeDef, unknown>` fails twice over. `ZodTypeDef` is
+  // not exported by zod 4 at all — only `$ZodTypeDef` exists, in `v4/core`, and
+  // `v4/classic/compat.d.ts` re-exports `ZodTypeAny`/`ZodSchema`/`Schema`/
+  // `ZodRawShape` for zod-3 compatibility but deliberately not this one. And
+  // the THIRD slot is now `Internals`, which `unknown` does not satisfy.
+  //
+  // MEASURED, so the next migration does not inherit a false lesson: restoring
+  // the old spelling and running `tsc --noEmit` in `apps/app` produces **336
+  // errors** — 2 × TS2724 («has no exported member named 'ZodTypeDef'. Did you
+  // mean 'ZodType'?», at the `z.ZodTypeDef` token itself), 2 × TS2344 («Type
+  // 'unknown' does not satisfy the constraint '$ZodTypeInternals<T,
+  // z.ZodTypeDef>'», at the third argument), and 307 × TS18046 downstream where
+  // `a.body` had degraded to `unknown`. There was nothing silent about it; the
+  // first error names the fix.
   //
   // The intent is unchanged and still worth stating: the INPUT is `unknown` so
   // `T` binds to the schema's OUTPUT — defaults applied — not to the pre-parse

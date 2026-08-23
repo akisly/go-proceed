@@ -150,9 +150,13 @@ which part bites: the `.uuid()` tightening was worse than «89 that tighten» �
 now `.guid()`, which is what Postgres's own `uuid` column actually enforces —
 and `fieldErrors` turned out NOT to be built on the `ZodError` shape at all
 (`i.path.join(".")` over `issue.path`, unchanged in zod 4 and now pinned by a
-test). The real silent break was `ZodType`'s parameters being REORDERED. Full
-account in `TODOS.md`'s «three major-version migrations» entry, item 1. vitest
-3→4 and TypeScript 7 remain not done.]*
+test). The break that took longest to read was `ZodType`'s parameters being
+REORDERED and `ZodTypeDef` being dropped — **not, as this paragraph briefly
+claimed on first writing, a silent one: it is 336 tsc errors, and the first of
+them names the fix.** All five breaks in this upgrade were caught by the
+compiler; none of them needed a test to find. Full account in `TODOS.md`'s
+«three major-version migrations» entry, item 1. vitest 3→4 and TypeScript 7
+remain not done.]*
 
 **Then PR #30's first real Vercel build taught the thing this entry is named
 for.** The owner had already set nine runtime variables on the project, and the

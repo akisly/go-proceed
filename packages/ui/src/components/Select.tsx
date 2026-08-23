@@ -67,9 +67,32 @@ const TRIGGER_SIZE = {
   sm: "h-(--gp-control-height-desk-sm) touch:h-(--gp-control-height-touch)",
 } as const;
 
-export const Select = SelectPrimitive.Root;
-export const SelectGroup = SelectPrimitive.Group;
-export const SelectValue = SelectPrimitive.Value;
+/**
+ * THESE THREE ARE WRAPPED, NOT ALIASED, AND `SelectValue` IS THE ONE THAT
+ * ACTUALLY BREAKS IF YOU ALIAS IT. shadcn's Select gives every part a
+ * `data-slot`, and for `Root` and `Group` that is only a debugging handle —
+ * but `SelectTrigger` below styles its value through FOUR
+ * `*:data-[slot=select-value]:*` utilities, `line-clamp-1` among them. Alias
+ * `SelectValue` straight to `SelectPrimitive.Value` and the attribute is never
+ * emitted, so all four match nothing; Radix silently drops an unrecognised
+ * `className` on `Value`, so there is no fallback either. The trigger is a
+ * fixed `h-(--gp-control-height-desk)`, so an unclamped value longer than the
+ * control wraps to a second line and overflows it instead of ellipsing.
+ *
+ * Not hypothetical here: «м. п. — метр погонний» in a unit picker is exactly
+ * what D3's line editor puts in this control.
+ */
+export function Select({ ...rest }: ComponentProps<typeof SelectPrimitive.Root>) {
+  return <SelectPrimitive.Root data-slot="select" {...rest} />;
+}
+
+export function SelectGroup({ ...rest }: ComponentProps<typeof SelectPrimitive.Group>) {
+  return <SelectPrimitive.Group data-slot="select-group" {...rest} />;
+}
+
+export function SelectValue({ ...rest }: ComponentProps<typeof SelectPrimitive.Value>) {
+  return <SelectPrimitive.Value data-slot="select-value" {...rest} />;
+}
 
 export function SelectTrigger({
   className, size = "default", children, ...rest

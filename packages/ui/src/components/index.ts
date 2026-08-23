@@ -7,19 +7,32 @@
  * things whose contrast, touch targets and states nobody has checked against
  * real content.
  *
- * FIVE ARRIVED WITH PLAN D'S FOUNDATION CORRECTION (2026-08-23), because the
- * schedule this file recorded had come due and because the owner's instruction
- * was to take them «один в один» from shadcn/ui rather than to approximate
- * them: Table (rebuilt), DataTable, Form, Label, Select, Checkbox. Each names
- * its source file and its licence in its own header.
+ * SIX ARRIVED WITH PLAN D'S FOUNDATION CORRECTION (2026-08-23) — Table
+ * (rebuilt), DataTable, Form, Label, Select, Checkbox. Each names its source
+ * file and its licence in its own header.
+ *
+ * WHAT PUT THEM HERE IS AN INSTRUCTION, NOT A SCREEN. The owner's correction
+ * was «я же дал тебе указания использовать один в один из референсов, то же
+ * самое shadcn», plus TanStack Table for tables and zod for validation: of the
+ * seventeen components in this directory only three had come from shadcn/ui,
+ * and the three tables in the product were hand-written `<table>` markup over
+ * a hand-rolled `Table/Th/Td/Tr`. Table, DataTable and the two migrated
+ * registers are that correction discharged and are used TODAY.
+ *
+ * Form, Label, Select and Checkbox are NOT. **No form exists in this tree.**
+ * They are here because the same instruction named them and because D3's
+ * assignment-creation form is the next slice, not because a screen currently
+ * renders them — and saying otherwise in this file would be the one place a
+ * reviewer cannot check it cheaply. Their only render today is
+ * `/kitchen-sink/components` cases 12 and 13.
  *
  * WHAT IS DELIBERATELY NOT HERE, and when it arrives:
  *   Drawer, Popover, CommandPalette — with the screen that needs them. Radix
  *     ships all of them in the one dependency already installed, so this is
  *     scheduling, not a gap.
- *   Combobox, DatePicker, Radio, Switch — with the field that needs them. The
- *     first real form (Plan D) needs a select and a checkbox and got exactly
- *     those two.
+ *   Combobox, DatePicker, Radio, Switch — with the field that needs them.
+ *     Select and Checkbox came in ahead of their field, for the reason above;
+ *     these four did not, because nothing named them.
  *   DataTableToolbar, DataTablePagination, DataTableBulkActions — the three
  *     the reference wraps its table in. No screen in this product filters,
  *     paginates or selects rows yet; `DataTable.tsx`'s header says what each

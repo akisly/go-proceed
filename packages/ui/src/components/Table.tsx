@@ -128,6 +128,17 @@ export function TableRow({ className, ...rest }: ComponentProps<"tr">) {
  * `numeric` is the ruling, not a convenience: it sets `tabular` and
  * `text-right` together on a heading so the heading cannot drift away from the
  * column it labels.
+ *
+ * IT NOW ACTUALLY SETS BOTH. Until 2026-08-24 this docblock said so while the
+ * code emitted only `text-right`, so a heading containing digits — «Q4 2026»,
+ * «Обсяг, м³» — would have rendered proportional directly above a tabular
+ * column, which is the exact drift the ruling exists to prevent. Nothing
+ * looked wrong, because `base.css`'s own base layer already applies
+ * `font-variant-numeric: tabular-nums` to every `th` and `td` in the product;
+ * the prop was riding on that rather than carrying the ruling itself. Riding
+ * on it is the defect: narrow that base rule and the pairing silently comes
+ * apart, and the docblock would still claim otherwise. Adding the utility
+ * changes no pixel today and makes the code true.
  */
 export function TableHead({
   numeric = false, className, ...rest
@@ -139,7 +150,7 @@ export function TableHead({
       className={cx(
         "px-3 py-2 align-middle text-meta font-medium uppercase tracking-wide text-ink-muted",
         "[&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
-        numeric ? "text-right" : "text-left",
+        numeric ? "tabular text-right" : "text-left",
         className,
       )}
       {...rest}

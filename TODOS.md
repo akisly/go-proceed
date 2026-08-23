@@ -465,10 +465,25 @@ starts from facts.
 >   zod-3 behaviour and is what all three sites now use. Two of the three
 >   would have silently dropped a business default —
 >   `roundingPolicy.midpoint` and `multiplicity.min: 1`.
-> - **`ZodType`'s parameters were REORDERED, and that break was silent.** zod 3
->   `<Output, Def, Input>` → zod 4 `<Output, Input, Internals>`. The old
->   spelling still compiled and bound `T` to nothing, turning every `a.body` in
->   every command route into `unknown`. Now `z.ZodType<T, unknown>`.
+> - **`ZodType`'s parameters were REORDERED and `ZodTypeDef` was dropped.** zod
+>   3 `<Output, Def, Input>` → zod 4 `<Output, Input, Internals>`, and
+>   `ZodTypeDef` is not exported by zod 4 at all (`'ZodTypeDef' in z` is
+>   `false`; only `$ZodTypeDef` exists, in `v4/core`, and
+>   `v4/classic/compat.d.ts` re-exports `ZodTypeAny`/`ZodSchema`/`Schema`/
+>   `ZodRawShape` but not this one). Now `z.ZodType<T, unknown>`.
+>   **CORRECTED 2026-08-24 — an earlier version of this entry called this «the
+>   silent break». It was the LOUDEST of the five.** Restoring the old spelling
+>   and running `tsc --noEmit` in `apps/app` produces 336 errors: 2 × TS2724
+>   («has no exported member named 'ZodTypeDef'. Did you mean 'ZodType'?») at
+>   the token itself, 2 × TS2344 («Type 'unknown' does not satisfy the
+>   constraint '$ZodTypeInternals<T, z.ZodTypeDef>'») at the THIRD argument —
+>   not the middle Input slot the first write-up blamed — and 307 × TS18046
+>   downstream where `a.body` had degraded to `unknown`. The false claim came
+>   from reading a `| head -30` slice of turbo's interleaved output and
+>   inferring silence from a truncation. **The lesson a migration leaves behind
+>   is its durable output, and «distrust the compiler, hunt for silent generic
+>   breaks» is the wrong one to leave: every one of the five breaks in this
+>   upgrade was caught by tsc.**
 > - **`.uuid()` tightened to RFC 9562 and this repo could not take it.** 88 of
 >   112 distinct UUID literals in `packages/`, `apps/`, `supabase/`, `scripts/`
 >   and `migration/` are rejected by zod 4's `.uuid()`; 0 by `.guid()`.
@@ -481,13 +496,35 @@ starts from facts.
 >   still yields `items.1.qty`. `command.test.ts` asserts that string
 >   exactly — it is what a Ukrainian-speaking caller reads off a 422, and
 >   nothing pinned it before.
-> - **`.strict()` ×113 and `z.string().datetime()` ×16 were NOT touched.** Both
->   are deprecated in zod 4 and both still exist and still behave identically
->   (`zod/v4/classic/schemas.d.ts:465` and `:161`; verified by probe, and by
->   107 contract tests that exercise them). Rewriting 129 call sites to
->   `z.strictObject()` / `z.iso.datetime()` is a mechanical diff with real
->   regression risk and no behavioural gain — **owed only when zod removes
->   them, which the guide says it will not do.**
+> - **`.strict()` ×113 and `z.string().datetime()` ×16 were NOT touched, and
+>   the second of those is NOT behaviourally identical.** An earlier version of
+>   this entry claimed both were; `.strict()` is
+>   (`zod/v4/classic/schemas.d.ts:465`, still rejecting unknown keys), but
+>   `datetime()` changed twice, measured side by side against zod 3.24.1 and
+>   zod 4.4.3 in this repository's own store:
+>
+>   | input | zod 3 | zod 4 |
+>   |---|---|---|
+>   | `2026-08-08T09:00Z` (no seconds) | rejected | **accepted** |
+>   | `2026-08-08T09:00:00+0300` (`{offset:true}`, no colon) | accepted | **rejected** |
+>
+>   Seconds became optional and the offset colon became mandatory. Only the
+>   second can reject input that used to pass, and **nothing in this system
+>   produces a basic-format offset**: the two producers are Node's
+>   `Date.prototype.toISOString()`, which always emits `…Z`, and Postgres
+>   `timestamptz` rendered to JSON, which emits the extended form with the
+>   colon. The 968-test app suite round-trips real `timestamptz` values through
+>   twelve of these sixteen sites and passes unchanged. The loosening widens
+>   what a request may carry and nothing depends on rejecting a secondless
+>   timestamp.
+>
+>   **The decision not to rewrite the 129 call sites stands, on the correct
+>   reason:** both APIs still exist, the guide says they will not be removed,
+>   and a mechanical `z.strictObject()` / `z.iso.datetime()` sweep carries
+>   regression risk for no behavioural gain. It does NOT stand on «identical» —
+>   `z.iso.datetime()` would inherit exactly the same two changes, so
+>   rewriting would not fix them either. **Owed:** if a caller ever needs the
+>   basic offset form back, that is a per-field `regex`, not a library setting.
 > - **`errorMap`, `ZodError` and `.flatten()`: zero uses in source.** The
 >   estimate below feared the `fieldErrors` shape; nothing builds it from
 >   `.flatten()`.
@@ -3046,19 +3083,17 @@ survives is a decision for the first real form (D3), with screens in front of
 it** — not one to make ahead of one. Whichever loses, the loser's call sites
 have to move in the same commit that retires it.
 
-**P3 — `class-variance-authority` is installed in `packages/ui` with no
-consumer there yet.** Added on the owner's instruction as part of the shadcn
-baseline; none of the five components taken in this slice uses `cva`, because
-shadcn does not use it in `table`, `form`, `label`, `select` or `checkbox`. It
-earns its place with the components this slice deliberately did NOT replace —
-`Button`, `Chip`, `Banner`, `EmptyState`, `Figure`, `Meter`, `Skeleton`,
-`Separator`, `Tooltip`, `Accordion`, `Panel`, `Input` — each of which is used
-across three merged slices and is its own reviewable migration. **Until that
-migration, `grep -rn class-variance-authority packages/ui/src` finds nothing —
-the dependency is declared and unimported.** Note also that
-`apps/app/src/ui/button.tsx` already builds a
-SECOND Button with `cva`, independent of `packages/ui`'s — that duplication
-predates this slice and belongs to the same migration.
+**CLOSED 2026-08-24 — `class-variance-authority` is no longer a dependency of
+`packages/ui`.** It was added there on the original instruction as part of the
+shadcn baseline, and then nothing imported it: none of the six components taken
+in that slice uses `cva`, because shadcn does not use it in `table`, `form`,
+`label`, `select` or `checkbox`. An unused runtime dependency in a shared
+package ships in every consumer's graph and later reads as licence for a second
+styling idiom, so it is removed until the Button/Chip/Banner migration actually
+needs it — at which point it comes back in the same commit as its first import.
+`apps/app` keeps its own copy, which `apps/app/src/ui/button.tsx` really does
+use. **That file is still a SECOND Button**, independent of `packages/ui`'s,
+and that duplication predates all of this and belongs to the same migration.
 
 **FIXED IN THIS SLICE, recorded because the mechanism generalises — a
 `data-[…]` variant BEATS a `touch:` variant on specificity, and the 44px floor

@@ -51,8 +51,16 @@ export function Comparison() {
             * AND THE PER-ROW `border-0` IS GONE, not lost: the rule moved
             * from the cell to the row when these primitives became shadcn's,
             * and `TableBody` carries `[&_tr:last-child]:border-0` for exactly
-            * this. That also retires a template-literal `className`, which
-            * §4.1 names as a class Tailwind's scanner cannot see. */}
+            * this, so the override had nothing left to switch off.
+            *
+            * IT WAS NOT A §4.1 VIOLATION, and an earlier version of this
+            * comment said it was. §4.1's row reads «`bg-${tone}` → a literal
+            * class string per branch», i.e. it forbids building a class out of
+            * a RUNTIME value and prescribes literal strings per branch as the
+            * fix. The old code interpolated `borderExist`, whose only two
+            * values were the literal `'border-0'` and `''` written three lines
+            * above — so the scanner did see `border-0` and the CSS was
+            * emitted. The pattern was compliant, just roundabout. */}
           <div className="hidden md:block">
             <Table>
               <TableHeader>
@@ -67,7 +75,21 @@ export function Comparison() {
                   <TableRow key={row.criterion}>
                     <TableCell className="font-semibold">{row.criterion}</TableCell>
                     <TableCell className="text-ink-muted">{row.fragmented}</TableCell>
-                    <TableCell className="bg-subtle font-medium">{row.goproceed}</TableCell>
+                    {/* `border-b border-line`, RESTORED 2026-08-24. The
+                      * pre-migration cell carried a `border-line` override
+                      * against `Td`'s own `border-b border-line-strong`, so
+                      * this column's row rules were the LIGHTER
+                      * `--gp-border-default` while its two neighbours were
+                      * `--gp-border-strong`. The migration moved the rule from
+                      * the cell to the row and dropped the override with it,
+                      * darkening this column — an unintended visual change on
+                      * a public landing page, shipped inside a component
+                      * migration. The width has to come back with the colour:
+                      * the cell no longer has a border of its own to recolour,
+                      * and under `border-collapse` a cell's own border wins
+                      * the conflict against its row's at equal width and
+                      * style. */}
+                    <TableCell className="border-b border-line bg-subtle font-medium">{row.goproceed}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

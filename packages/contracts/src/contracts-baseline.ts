@@ -27,9 +27,14 @@ export const createContractRequest = z.object({
   // comment says it «returns the default value immediately in forward
   // direction. It doesn't pass the default value into the validator»
   // (`zod/v4/core/schemas.js`, the `$ZodDefault` constructor). So `{}` would
-  // be handed back verbatim and `midpoint` would be ABSENT — a silent change
-  // to the parsed contract that no type error would have caught here, since
-  // `{}` is not even assignable to the output type. `$ZodPrefault` substitutes
+  // be handed back verbatim and `midpoint` would be ABSENT — a real change to
+  // the parsed contract, and one TSC CAUGHT: `{}` is not assignable to the
+  // schema's output type, so this line was `error TS2769: No overload matches
+  // this call` the moment zod 4 was installed. (An earlier version of this
+  // comment called it «a silent change no type error would have caught», in
+  // the same breath as explaining the type error. It was never silent — but it
+  // would have been if the inner `.default("half_up")` had been an
+  // `.optional()` instead, which is the shape to watch for.) `$ZodPrefault` substitutes
   // the value and THEN runs the inner type (same file, the `$ZodPrefault`
   // constructor), which is exactly what zod 3's `.default()` did: `{}` flows
   // through the object parser and `midpoint` comes out `"half_up"`.

@@ -50,16 +50,41 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
  * components nobody can check against real content — the same argument
  * `index.ts` makes about the inventory being short on purpose.
  *
- * SORTING IS WIRED BUT OFF BY DEFAULT, and that is a decision rather than an
- * oversight. The `rowSortingFeature` and its row-model slot are registered, so
- * a column that sets `enableSorting: true` and a header that calls
- * `column.toggleSorting()` work with no further plumbing. It is off by default
- * because the two registers this file drives document their order as coming
- * from the server — «no client-side sort or filter of its own» — and because a
- * sort control in a column header is a 44px touch target inside a 128px cell
- * at 390px wide, which is the exact geometry `apps/app/qa/field.mjs`'s
- * register audit measures. Turning it on is a screen decision with a width
- * measurement attached, not a default.
+ * SORTING IS WIRED BUT OFF, and turning it on takes MORE than setting
+ * `enableSorting: true` on a column. Stated exactly, because an earlier version
+ * of this comment said «works with no further plumbing» and that was false
+ * twice over. `column_getCanSort` is
+ *
+ *     (columnDef.enableSorting ?? true)
+ *       && (table.options.enableSorting ?? true)
+ *       && !!column.accessorFn
+ *
+ * (`@tanstack/table-core/dist/features/row-sorting/rowSortingFeature.utils.js`),
+ * so two things veto a column-level `true`:
+ *
+ * 1. **The table-level flag.** `DataTable`'s `enableSorting` prop defaults to
+ *    `false` and is passed straight into the options, so it ANDs to `false`
+ *    for every column no matter what the column says. A caller must pass
+ *    `enableSorting` on the component as well.
+ * 2. **A missing accessor.** Three of the six columns in this product —
+ *    `plannedQuantity`, `effectiveQuantity` and `quantity` — are display
+ *    columns with an `id` and a `cell` and no `accessorKey`, so
+ *    `column.accessorFn` is undefined and they can NEVER sort, whatever either
+ *    flag says. Sorting them means giving them an accessor first, which for
+ *    the two quantity columns means deciding whether they sort as text or as
+ *    numbers — a real decision, since they are `numeric(20,6)` strings.
+ *
+ * Nothing ships broken: every column in this product sets
+ * `enableSorting: false` explicitly and no caller passes the prop. This
+ * paragraph exists so the next author does not wire a sort control into a
+ * header and watch it do nothing.
+ *
+ * It is off by default because the two registers this file drives document
+ * their order as coming from the server — «no client-side sort or filter of
+ * its own» — and because a sort control in a column header is a 44px touch
+ * target inside a 128px cell at 390px wide, which is the exact geometry
+ * `apps/app/qa/field.mjs`'s register audit measures. Turning it on is a screen
+ * decision with a width measurement attached, not a default.
  *
  * `meta.numeric` IS THE BRIDGE between the reference's convention and this
  * system's second ruling. shadcn-admin's `ColumnMeta` carries `className`,
@@ -162,9 +187,18 @@ declare module "@tanstack/react-table" {
  * to what `useTable` wants — «'unknown' is assignable to the constraint of
  * type 'TValue', but 'TValue' could be instantiated with a different subtype».
  * `CellData` is literally `unknown`
- * (`@tanstack/table-core/dist/types/type-utils.d.ts:5`), so nothing is lost:
- * a column that wants a typed accessor names its own `TValue` through
- * `DataTableColumnDef<TData, TValue>` and still fits the array.
+ * (`@tanstack/table-core/dist/types/type-utils.d.ts:5`).
+ *
+ * WHAT THAT COSTS, stated honestly because an earlier version of this comment
+ * claimed it cost nothing: a column declared at a narrowed `TValue` does NOT
+ * fit this array. `const c: DataTableColumnDef<Row, number>` assigned into a
+ * `DataTableColumnDef<Row>[]` is `error TS2375` under this repo's
+ * `exactOptionalPropertyTypes`. Columns here are written at the default
+ * `TValue` — `unknown` — and read their data through `row.original`, which is
+ * fully typed, so no column in this product wants the narrowing. A caller who
+ * does want it needs `columnHelper.columns([...])`, which the migration skill
+ * names as the way v9 preserves each nested column's `TValue`, and that is a
+ * different composition than this one.
  */
 export type DataTableProps<TData extends RowData> = {
   columns: DataTableColumnDef<TData>[];
@@ -214,11 +248,15 @@ export function DataTable<TData extends RowData>({
                     * and replaces the reference's
                     * `flexRender(header.column.columnDef.header,
                     * header.getContext())`. The standalone `flexRender` still
-                    * works — the skill says so — but the component form is
-                    * what the vendor's `getting-started` example writes, and
-                    * it does not require this file to hold a live reference
-                    * to `header.getContext()`, whose methods now live on a
-                    * prototype and are lost by destructuring. */}
+                    * works and the migration skill says so outright; the
+                    * component form is preferred because the vendor prefers
+                    * it — «Prefer `<table.FlexRender cell={cell} />` …» in the
+                    * skill's rendering section, and it is what the
+                    * `getting-started` example writes. That is the whole
+                    * reason. An earlier version of this comment invented a
+                    * technical advantage about `getContext()` and prototypes;
+                    * there is none — both forms call `header.getContext()`
+                    * through the instance. */}
                   {header.isPlaceholder ? null : <table.FlexRender header={header} />}
                 </TableHead>
               );
