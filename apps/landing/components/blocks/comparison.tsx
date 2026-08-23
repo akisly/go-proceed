@@ -1,4 +1,6 @@
-import { Table, Td, Th, Tr } from "@goproceed/ui/components";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@goproceed/ui/components";
 import { Reveal } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import { SectionShell } from "../section-shell";
@@ -39,28 +41,38 @@ export function Comparison() {
             ))}
           </div>
 
-          <Table className="hidden table-fixed md:table">
-            <thead>
-              <Tr>
-                <Th className="w-[24%]">Критерій</Th>
-                <Th className="w-[36%]">Розрізнені канали</Th>
-                <Th className="w-[40%] bg-subtle">GoProceed</Th>
-              </Tr>
-            </thead>
-            <tbody>
-              {content.rows.map((row, index, self) => {
-                const borderExist = index === self.length - 1 ? 'border-0' : '';
-
-                return (
-                  <Tr key={row.criterion}>
-                    <Td className={`${borderExist} font-semibold`}>{row.criterion}</Td>
-                    <Td className={`${borderExist} text-ink-muted`}>{row.fragmented}</Td>
-                    <Td className={`${borderExist} border-line bg-subtle font-medium`}>{row.goproceed}</Td>
-                  </Tr>
-                )
-              })}
-            </tbody>
-          </Table>
+          {/* THE BREAKPOINT MOVED FROM THE TABLE TO A WRAPPER. shadcn's
+            * `Table` renders its own container div
+            * (`data-slot="table-container"`), so `hidden md:table` on the
+            * `<table>` would have left that container in flow at every width.
+            * The wrapper is the thing that appears at `md`; the table inside
+            * it keeps the UA's own `display: table`.
+            *
+            * AND THE PER-ROW `border-0` IS GONE, not lost: the rule moved
+            * from the cell to the row when these primitives became shadcn's,
+            * and `TableBody` carries `[&_tr:last-child]:border-0` for exactly
+            * this. That also retires a template-literal `className`, which
+            * §4.1 names as a class Tailwind's scanner cannot see. */}
+          <div className="hidden md:block">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[24%]">Критерій</TableHead>
+                  <TableHead className="w-[36%]">Розрізнені канали</TableHead>
+                  <TableHead className="w-[40%] bg-subtle">GoProceed</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {content.rows.map((row) => (
+                  <TableRow key={row.criterion}>
+                    <TableCell className="font-semibold">{row.criterion}</TableCell>
+                    <TableCell className="text-ink-muted">{row.fragmented}</TableCell>
+                    <TableCell className="bg-subtle font-medium">{row.goproceed}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         </div>
       </Reveal>
     </SectionShell>

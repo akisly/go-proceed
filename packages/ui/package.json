@@ -15,10 +15,13 @@
   },
   "dependencies": {
     "@goproceed/tokens": "workspace:*",
+    "@tanstack/react-table": "^8.21.3",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.33.0",
     "motion": "^12.34.0",
     "radix-ui": "^1.6.7",
+    "react-hook-form": "^7.72.1",
     "tailwind-merge": "^3.6.0"
   },
   "peerDependencies": {

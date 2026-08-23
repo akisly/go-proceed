@@ -2900,3 +2900,93 @@ there is the same shape already applied to the copy: qualify the bare
 CSV row's own key), and state `codeFor`'s real branch condition
 (`current_outcome`) alongside it rather than relying on the catalog citation
 alone to carry that weight.
+
+## Surfaced by the Plan D UI-foundation correction (shadcn one-to-one + TanStack), 2026-08-23
+
+The owner's correction — «я же дал тебе указания использовать один в один из
+референсов, то же самое shadcn», plus TanStack Table for tables and zod for
+validation — landed as: `@tanstack/react-table`, `react-hook-form`,
+`@hookform/resolvers` and `class-variance-authority` installed; shadcn's
+`table`, `form`, `label`, `select` and `checkbox` taken through the shadcn MCP
+and restyled onto token roles; `Table/Th/Td/Tr` replaced by shadcn's eight
+primitives so there is one table and not two; a `DataTable` composition built
+on satnaing/shadcn-admin's own `tasks-table.tsx`; and the two real
+`<table>`-markup screens migrated onto it. Five residuals it deliberately did
+not close.
+
+**P2 — `@hookform/resolvers` is pinned to `4.1.3`, three majors behind, and the
+pin is load-bearing.** `CLAUDE.md`'s current-docs rule was applied and the
+answer came out AGAINST the reference: satnaing/shadcn-admin carries
+`@hookform/resolvers ^5.2.2` with `zod ^4.3.6`, but this workspace pins
+**`zod 3.24.1`** in both `packages/contracts/package.json` and
+`apps/app/package.json`, and a form must validate with the SAME schema the
+route parses. Measured against the published packages on 2026-08-23, not
+recalled:
+- `@hookform/resolvers@5.2.2`'s zod entry declares `"zod": "^3.25.0 || ^4.0.0"`
+  as a peer AND its built module opens with `import * as n from "zod/v4/core"`
+  — a subpath `zod@3.24.1` does not expose. That is a module-resolution
+  failure at build time, not a peer warning.
+- `@hookform/resolvers@4.1.3` declares no `zod` peer at all, imports zod only
+  as a TYPE (`zod/dist/zod.d.ts`: `schema: z.ZodSchema<TFieldValues, any,
+  any>`, `schemaOptions?: Partial<z.ParseParams>` — the zod 3 API), and
+  duck-types the thrown error. It is the newest line compatible with zod 3.
+- `5.9.1` (latest) keeps the same `^3.25.0 || ^4.0.0` constraint.
+**The unpin is downstream of the zod 3 → 4 migration already filed above**
+(«three major-version migrations», item 1). When that lands, `4.1.3` → `^5.x`
+becomes a one-line change; until it does, bumping this package silently breaks
+every form. `apps/app/package.json` therefore pins it exactly, the way `zod`
+itself is pinned, rather than caret-ranging it.
+
+**P3 — `@tanstack/react-table` is on `^8.21.3` while `9.1.2` is current.**
+Deliberate: `8.21.3` is the version the reference this composition is copied
+from pins (`satnaing/shadcn-admin`'s `package.json` at `main`), and shadcn/ui's
+own data-table guidance is written against the v8 API
+(`useReactTable`/`flexRender`/`getCoreRowModel`). v9 adds
+`@tanstack/react-store` as a runtime dependency and reshapes the options
+object. Taking v9 here would have meant implementing the reference's
+composition from a different API than the reference — the opposite of the
+instruction this slice exists to satisfy. The upgrade is its own slice, and it
+should start by re-reading the reference: if shadcn-admin is still on v8, so
+are we.
+
+**P2 — `Checkbox` does not meet the 44px touch floor and nothing on a dash
+route uses it yet.** `packages/ui/src/components/Checkbox.tsx` is shadcn's
+`size-4` (16px). `apps/app/qa/field.mjs`'s `measureSmallTargets` collects every
+`a, button, input, select, textarea` at 390 and 360 and reports anything under
+44 in either dimension — and Radix renders BOTH a `button role="checkbox"` and
+a hidden bubble `input`, so one checkbox on a dash route produces two findings.
+Enlarging the box is the wrong fix (a 44px checkbox is wrong at desk density);
+the fix is a hit area larger than the paint, and choosing its shape — padded
+wrapper, `::before` expansion, or a label that owns the whole row — is a design
+decision no brief in this slice makes. **The first dash screen that reaches for
+this component owes that decision**, and the harness will refuse the screen
+until it is made, which is the right order.
+
+**P2 — this package now carries two answers to «how do I build a form», and
+two `Textarea`s' worth of that same split.** `Field` (render prop, no library)
+and `FormItem`/`FormLabel`/`FormControl`/`FormDescription`/`FormMessage`
+(react-hook-form context) solve the same problem — id minting,
+`aria-describedby`, `aria-invalid`, an error that is never colour alone — by
+opposite mechanisms, and every screen shipped so far uses the first.
+Separately, shadcn's `textarea` was NOT taken, because `Input.tsx` already
+exports one and replacing it is a restyle of a shipped control rather than an
+addition; the two differ in exactly `field-sizing-content` and `min-h-16`
+versus this system's `min-h-24`. Both are recorded in
+`packages/ui/src/components/index.ts` so they cannot go unnoticed. **Which
+survives is a decision for the first real form (D3), with screens in front of
+it** — not one to make ahead of one. Whichever loses, the loser's call sites
+have to move in the same commit that retires it.
+
+**P3 — `class-variance-authority` is installed in `packages/ui` with no
+consumer there yet.** Added on the owner's instruction as part of the shadcn
+baseline; none of the five components taken in this slice uses `cva`, because
+shadcn does not use it in `table`, `form`, `label`, `select` or `checkbox`. It
+earns its place with the components this slice deliberately did NOT replace —
+`Button`, `Chip`, `Banner`, `EmptyState`, `Figure`, `Meter`, `Skeleton`,
+`Separator`, `Tooltip`, `Accordion`, `Panel`, `Input` — each of which is used
+across three merged slices and is its own reviewable migration. **Until that
+migration, `grep -rn class-variance-authority packages/ui/src` finds nothing —
+the dependency is declared and unimported.** Note also that
+`apps/app/src/ui/button.tsx` already builds a
+SECOND Button with `cva`, independent of `packages/ui`'s — that duplication
+predates this slice and belongs to the same migration.
