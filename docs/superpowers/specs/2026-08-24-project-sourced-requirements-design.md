@@ -258,12 +258,18 @@ separate slice and a separate owner decision, not a stretch goal here):
    amended ADR-007.
 2. A row in `04-role-pain-map.md` naming the role (ПТВ) and the pain sentence
    from `docs/discovery/research-ua-demand-2026-08-21.md`.
-3. The dashboard's **first write plumbing**: `apps/app/src/lib/api.ts` exports
-   only `apiGet`; a command call needs `apiPost` carrying an
-   `Idempotency-Key` header. Plan D slice D3 needs the same thing for its
-   nine steps, so whichever slice lands first builds it and the other
-   inherits it. Building it here, with no screen to exercise it, would ship
-   an untested abstraction ahead of its consumer.
+3. A command call from the browser. **Correction to a fact this design and
+   `HANDOFF-2026-08-24.md` §5.2 both carried:** «the dashboard has no write
+   plumbing at all» is true of `apps/app/src/lib/api.ts` (it exports `apiGet`
+   and nothing else) and **false of the dashboard**. `issueReviewLink` in
+   `apps/app/src/services/grants.service.ts` already POSTs to
+   `/v1/occurrences/{id}/grants` with a `crypto.randomUUID()`
+   `Idempotency-Key` header, parses its body with the shared contract
+   `issueOccurrenceGrantRequest` before sending, and distinguishes 401 /
+   refusal-with-detail / malformed-response. A screen slice therefore
+   **follows an existing precedent rather than inventing one**, and so does
+   Plan D slice D3 — whose research note should be read with this
+   correction.
 4. The full `docs/design/02-building-ui.md` procedure and its §5 gate.
 
 A `TODOS.md` entry records this with the date and the two documents that
