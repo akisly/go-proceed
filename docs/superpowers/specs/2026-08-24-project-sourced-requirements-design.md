@@ -223,28 +223,51 @@ superseded by ADR-010 and is removed for the new arm; the intervention-type
 restrictions (hold-only, INV-082/INV-085) are untouched — they are about
 obligations, not sources.
 
-## 7. UI (dashboard)
+## 7. UI — deliberately NOT in this slice
 
-One screen: the workspace requirement library under `/dash`, serving the ПТВ
-(per `docs/design/04-role-pain-map.md` discipline: named role, named pain —
-the pain is «requirements exist only for two Додаток Н positions; everything
-else is retyped into Word»). Two visually separate blocks:
+**Corrected 2026-08-24, after reading two Approved documents this design had
+not consulted when §7 was first drafted.**
 
-1. **Додаток Н** — the twelve seeded rows, read-only, with their existing
-   attribution and the existing disclaimer.
-2. **З робочої документації** — project-sourced items: TanStack table
-   (document, sheet, drawing, project, status), a create form validating with
-   the *same* zod schema the route parses, and an archive action.
+An earlier draft of this section proposed a requirement-library screen under
+`/dash`. That would have widened an approved scope:
 
-Implementation rules already binding: read
-`docs/design/02-building-ui.md` first; components one-to-one from shadcn/ui
-via the MCP; hierarchy from plane (routes in `app/**` only, components under
-`src/components/requirements/`, API access through
-`src/services/requirements.service.ts` — note: the dashboard has no write
-plumbing yet, `apps/app/src/lib/api.ts` exports only `apiGet`; this slice
-adds the first command call and must build `apiPost` with Idempotency-Key
-support, which D3 will inherit); role names for colors; no template-literal
-Tailwind classes; the §5 gate commands run and pasted before «done».
+- [`ADR-009`](../../decisions/ADR-009-three-pilot-surfaces.md) decision 3 fixes
+  the dashboard pilot at «create workspace/project + access grants; create
+  assignment; view photo evidence. **Not the full register**».
+- [`docs/design/04-role-pain-map.md`](../../design/04-role-pain-map.md) lists
+  six screens as the owner's selection of 2026-08-21 and closes with the rule
+  «Before adding a screen to the dashboard, name the role and the sentence in
+  the demand scan that describes its pain. If neither exists, the screen is a
+  guess.» No row covers requirement authoring.
+
+**And the parity argument is decisive:** `requirement_rule_versions.publish`
+— the operation that turns a library item into an obligation — has **no
+screen either**. The whole requirement-authoring path is API-only in the
+approved scope. Project-sourced items reach the product exactly where rule
+publication already lives, under the same roles, and add no asymmetry.
+
+The handoff's own framing agrees: «On any other kind of work there are no
+requirements at all, which binds every pilot **regardless of screens**».
+The binding constraint is the data and the API, and that is what this slice
+removes.
+
+**What a screen would cost, recorded so it is not re-derived** (it is a
+separate slice and a separate owner decision, not a stretch goal here):
+
+1. An amendment to ADR-009 decision 3 — the shape ADR-009 itself used when it
+   amended ADR-007.
+2. A row in `04-role-pain-map.md` naming the role (ПТВ) and the pain sentence
+   from `docs/discovery/research-ua-demand-2026-08-21.md`.
+3. The dashboard's **first write plumbing**: `apps/app/src/lib/api.ts` exports
+   only `apiGet`; a command call needs `apiPost` carrying an
+   `Idempotency-Key` header. Plan D slice D3 needs the same thing for its
+   nine steps, so whichever slice lands first builds it and the other
+   inherits it. Building it here, with no screen to exercise it, would ship
+   an untested abstraction ahead of its consumer.
+4. The full `docs/design/02-building-ui.md` procedure and its §5 gate.
+
+A `TODOS.md` entry records this with the date and the two documents that
+would have to change.
 
 ## 8. Testing
 
@@ -258,16 +281,17 @@ Tailwind classes; the §5 gate commands run and pasted before «done».
   `PROJECT_DOCUMENTATION`, the assembled citation; hash differs from a
   library-sourced twin; archived item refused; other-workspace item
   indistinguishable from absent.
-- **Render separation**: the library screen renders project-sourced items
-  only in their own block, with citation visible — asserted structurally
-  (attributes), not by screenshot, per the standing memory rule.
-- **Route audit in the browser** for the new screen (the §7 handoff rule:
-  every new route gets one; the two routes that got one each surfaced a
-  defect on first run).
+- **Contract-level separation**: `project_requirements.list` never returns a
+  Додаток Н row and `requirement_library.list` never returns a project-sourced
+  one — two operations, two tables, asserted by tests on both.
+- No browser audit in this slice: it ships no route a browser reaches (§7).
+  The rule «every new route gets an audit» attaches to the screen slice.
 - All local, in CI's shape (CI billing-paused until 2026-09-01).
 
 ## 9. Out of scope (YAGNI, recorded so it is not re-derived)
 
+- **The dashboard screen and the `apiPost` write plumbing** — §7 gives the
+  reasoning and the four things a screen slice would have to carry.
 - Uploading the документація sheet (decision 1 — may return as a separate
   decision later; no «optional file» column now).
 - Editing item text in place; restore/unarchive; delete.
