@@ -11,33 +11,13 @@ export const createContractRequest = z.object({
   currency: z.string().regex(/^[A-Z]{3}$/),
   taxMode,
   taxRateBps: z.number().int().min(0).max(10000).optional(),
-  // ZOD 4 (2026-08-24): `z.record()` LOST ITS SINGLE-ARGUMENT FORM — the key
-  // type is now required. Verified against the installed package, not recalled:
-  // `zod/v4/classic/schemas.d.ts:534` declares
-  // `record<Key extends core.$ZodRecordKey, Value extends core.SomeType>(keyType, valueType, params?)`
-  // with no one-argument overload, and tsc says «Expected 2-3 arguments, but
-  // got 1». `z.string()` is what the removed form implied, so the accepted
-  // shape is unchanged: any string key, any value.
+  // The explicit `z.string()` key is zod 4's required form. It accepts what
+  // the single-argument form accepted: any string key, any value.
   terms: z.record(z.string(), z.unknown()).default({}),
   approvalPolicy: z.record(z.string(), z.unknown()).default({}),
-  // `.prefault({})`, NOT `.default({})` — and the difference is behavioural,
-  // not cosmetic. Zod 4 retyped `.default()` to take the schema's OUTPUT
-  // (`zod/v4/classic/schemas.d.ts:46`: `default(def: util.NoUndefined<core.output<this>>)`)
-  // and, more importantly, changed what it DOES: `$ZodDefault`'s own source
-  // comment says it «returns the default value immediately in forward
-  // direction. It doesn't pass the default value into the validator»
-  // (`zod/v4/core/schemas.js`, the `$ZodDefault` constructor). So `{}` would
-  // be handed back verbatim and `midpoint` would be ABSENT — a real change to
-  // the parsed contract, and one TSC CAUGHT: `{}` is not assignable to the
-  // schema's output type, so this line was `error TS2769: No overload matches
-  // this call` the moment zod 4 was installed. (An earlier version of this
-  // comment called it «a silent change no type error would have caught», in
-  // the same breath as explaining the type error. It was never silent — but it
-  // would have been if the inner `.default("half_up")` had been an
-  // `.optional()` instead, which is the shape to watch for.) `$ZodPrefault` substitutes
-  // the value and THEN runs the inner type (same file, the `$ZodPrefault`
-  // constructor), which is exactly what zod 3's `.default()` did: `{}` flows
-  // through the object parser and `midpoint` comes out `"half_up"`.
+  // `.prefault({})`, not `.default({})`: prefault substitutes the value and
+  // then parses it, so `midpoint` comes out `"half_up"`. Under `.default()`
+  // the object would be returned unparsed and `midpoint` would be absent.
   roundingPolicy: z.object({ midpoint: z.enum(["half_up", "half_even"]).default("half_up") }).prefault({}),
   toleranceMinorUnits: z.number().int().min(0).default(100),
   toleranceBps: z.number().int().min(0).default(10),

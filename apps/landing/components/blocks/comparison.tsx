@@ -72,23 +72,15 @@ export function Comparison() {
               </TableHeader>
               <TableBody>
                 {content.rows.map((row) => (
-                  <TableRow key={row.criterion}>
+                  // The GoProceed cell carries a rule one step lighter than
+                  // its neighbours', which is how this block read before the
+                  // table primitives changed. Because that rule is on the CELL,
+                  // `TableBody`'s row-level last-child reset does not reach it,
+                  // so the last row zeroes its own cells here. Verified in the
+                  // built stylesheet and by computed style at 1068 and 360.
+                  <TableRow key={row.criterion} className="last:[&>td]:border-b-0">
                     <TableCell className="font-semibold">{row.criterion}</TableCell>
                     <TableCell className="text-ink-muted">{row.fragmented}</TableCell>
-                    {/* `border-b border-line`, RESTORED 2026-08-24. The
-                      * pre-migration cell carried a `border-line` override
-                      * against `Td`'s own `border-b border-line-strong`, so
-                      * this column's row rules were the LIGHTER
-                      * `--gp-border-default` while its two neighbours were
-                      * `--gp-border-strong`. The migration moved the rule from
-                      * the cell to the row and dropped the override with it,
-                      * darkening this column — an unintended visual change on
-                      * a public landing page, shipped inside a component
-                      * migration. The width has to come back with the colour:
-                      * the cell no longer has a border of its own to recolour,
-                      * and under `border-collapse` a cell's own border wins
-                      * the conflict against its row's at equal width and
-                      * style. */}
                     <TableCell className="border-b border-line bg-subtle font-medium">{row.goproceed}</TableCell>
                   </TableRow>
                 ))}

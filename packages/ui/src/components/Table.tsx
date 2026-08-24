@@ -12,7 +12,7 @@ import { cx } from "./cn";
  * reference (`docs/design/03-ui-references.md`) and every TanStack example is
  * written against. The owner's instruction was «один в один из референсов, то
  * же самое shadcn», so the hand-rolled set is gone and this file is shadcn's —
- * same eight components, same `data-slot` attributes, same container div, same
+ * same components, same `data-slot` attributes, same container div, same
  * child-selector idioms — with the classes rewritten as roles.
  *
  * THREE RULINGS SURVIVE THE SWAP, because they were paid for here and shadcn
@@ -52,7 +52,7 @@ import { cx } from "./cn";
  * own table is `w-full` with auto layout, where `nowrap` is harmless.
  *
  * **No `"use client"`.** shadcn's file carries the directive; none of these
- * eight components uses a hook, state or an effect, and two landing blocks
+ * component here uses a hook, state or an effect, and landing blocks
  * (`comparison.tsx`, `mock-panels.tsx`) render tables from server components.
  * Adding the directive would move them, and every row they contain, into the
  * client bundle for nothing. `DataTable.tsx` — which does use hooks — carries
@@ -125,20 +125,10 @@ export function TableRow({ className, ...rest }: ComponentProps<"tr">) {
 }
 
 /**
- * `numeric` is the ruling, not a convenience: it sets `tabular` and
- * `text-right` together on a heading so the heading cannot drift away from the
- * column it labels.
- *
- * IT NOW ACTUALLY SETS BOTH. Until 2026-08-24 this docblock said so while the
- * code emitted only `text-right`, so a heading containing digits — «Q4 2026»,
- * «Обсяг, м³» — would have rendered proportional directly above a tabular
- * column, which is the exact drift the ruling exists to prevent. Nothing
- * looked wrong, because `base.css`'s own base layer already applies
- * `font-variant-numeric: tabular-nums` to every `th` and `td` in the product;
- * the prop was riding on that rather than carrying the ruling itself. Riding
- * on it is the defect: narrow that base rule and the pairing silently comes
- * apart, and the docblock would still claim otherwise. Adding the utility
- * changes no pixel today and makes the code true.
+ * `numeric` sets `tabular` and `text-right` together, so a heading cannot
+ * drift away from the column it labels. Both are written here rather than
+ * relying on `base.css`'s base-layer `font-variant-numeric` for `th`, which
+ * would make the pairing depend on a rule this component does not own.
  */
 export function TableHead({
   numeric = false, className, ...rest

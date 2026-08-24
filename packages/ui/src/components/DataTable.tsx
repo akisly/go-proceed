@@ -46,45 +46,22 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
  * state is synced to the URL by `useTableUrlState`. None of the screens in
  * this product filters, paginates or selects rows: the assignments register
  * renders exactly what `GET /v1/projects/{id}/assignments` returned, in the
- * order that route already sorts it. Building the toolbar now would be four
+ * order that route already sorts it. Building the toolbar now would add
  * components nobody can check against real content — the same argument
  * `index.ts` makes about the inventory being short on purpose.
  *
- * SORTING IS WIRED BUT OFF, and turning it on takes MORE than setting
- * `enableSorting: true` on a column. Stated exactly, because an earlier version
- * of this comment said «works with no further plumbing» and that was false
- * twice over. `column_getCanSort` is
+ * SORTING IS WIRED BUT OFF, and turning it on takes more than setting
+ * `enableSorting: true` on a column. `column_getCanSort` ANDs the column flag,
+ * the TABLE flag — which this component defaults to `false` — and
+ * `!!column.accessorFn`, so a display column with only an `id` and a `cell`
+ * can never sort whatever either flag says. A caller enabling sorting has to
+ * pass `enableSorting` here as well and give the column an accessor; for a
+ * `numeric(20,6)` quantity that also means choosing text or numeric ordering.
  *
- *     (columnDef.enableSorting ?? true)
- *       && (table.options.enableSorting ?? true)
- *       && !!column.accessorFn
- *
- * (`@tanstack/table-core/dist/features/row-sorting/rowSortingFeature.utils.js`),
- * so two things veto a column-level `true`:
- *
- * 1. **The table-level flag.** `DataTable`'s `enableSorting` prop defaults to
- *    `false` and is passed straight into the options, so it ANDs to `false`
- *    for every column no matter what the column says. A caller must pass
- *    `enableSorting` on the component as well.
- * 2. **A missing accessor.** Three of the six columns in this product —
- *    `plannedQuantity`, `effectiveQuantity` and `quantity` — are display
- *    columns with an `id` and a `cell` and no `accessorKey`, so
- *    `column.accessorFn` is undefined and they can NEVER sort, whatever either
- *    flag says. Sorting them means giving them an accessor first, which for
- *    the two quantity columns means deciding whether they sort as text or as
- *    numbers — a real decision, since they are `numeric(20,6)` strings.
- *
- * Nothing ships broken: every column in this product sets
- * `enableSorting: false` explicitly and no caller passes the prop. This
- * paragraph exists so the next author does not wire a sort control into a
- * header and watch it do nothing.
- *
- * It is off by default because the two registers this file drives document
- * their order as coming from the server — «no client-side sort or filter of
- * its own» — and because a sort control in a column header is a 44px touch
- * target inside a 128px cell at 390px wide, which is the exact geometry
- * `apps/app/qa/field.mjs`'s register audit measures. Turning it on is a screen
- * decision with a width measurement attached, not a default.
+ * It is off by default because the registers this component drives take their
+ * order from the server, and because a sort control in a column header is a
+ * touch target inside a narrow cell on a phone — the geometry
+ * `apps/app/qa/field.mjs`'s register audit measures.
  *
  * `meta.numeric` IS THE BRIDGE between the reference's convention and this
  * system's second ruling. shadcn-admin's `ColumnMeta` carries `className`,
@@ -92,37 +69,24 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
  * column is right-aligned AND tabular and that the two cannot be applied
  * apart. Expressing that as a boolean on the column — rather than as a
  * `className` string a caller can half-write — keeps the ruling in one place
- * and still leaves the reference's three string slots available for
+ * and still leaves the reference's `className` slots available for
  * everything else, chiefly the `table-fixed` column widths.
  */
 
 /**
- * v9 REGISTERS FEATURES EXPLICITLY; v8 BUNDLED THEM ALL. The migration skill's
- * own first line of the breaking-change map: «`useReactTable(options)` →
- * `useTable({ ...options, features })`», and «`getCoreRowModel()` option →
- * Remove it; the core row model is automatic». Its named failure mode is worth
- * quoting because it is the one that wastes an afternoon: «An API is missing
- * because its feature was not registered, not because v9 removed it.»
+ * v9 registers features explicitly where v8 bundled them; an API that looks
+ * missing is usually a feature that was not registered. Two are registered
+ * here because a line below needs each: `rowSortingFeature` (with its
+ * row-model slot) owns `state.sorting`, `onSortingChange` and `enableSorting`,
+ * and `columnVisibilityFeature` owns `row.getVisibleCells()`. Both ownerships
+ * read off the feature's own `types.d.ts` under
+ * `@tanstack/table-core/dist/features`.
  *
- * Two features, and each is here because a line below needs it:
- *
- * - `rowSortingFeature` + `sortedRowModel` — `state.sorting`,
- *   `onSortingChange` and `enableSorting` all live on this feature
- *   (`@tanstack/table-core/dist/features/row-sorting/rowSortingFeature.types.d.ts`,
- *   lines 175 and 199). Without it those options do not exist.
- * - `columnVisibilityFeature` — `row.getVisibleCells()` is declared on THIS
- *   feature, not on core
- *   (`.../features/column-visibility/columnVisibilityFeature.types.d.ts:70`).
- *   Nothing in this product toggles a column yet; `row.getAllCells()` would
- *   render identically today and would silently ignore a hidden column the
- *   day the reference's view-options menu arrives. Registering the feature
- *   costs one import and keeps the reference's own call.
- *
- * NOT registered, and each absence is load-bearing: `rowSelectionFeature`
- * (so `row.getIsSelected()` does not exist here — see the body), pagination,
- * filtering, faceting, grouping, pinning, sizing. `stockFeatures` would bundle
- * the lot; the skill's last checklist item is to audit it away, so it is never
- * introduced.
+ * `rowSelectionFeature` is deliberately absent, so `row.getIsSelected()` does
+ * not exist in the body below. So are pagination, filtering, faceting,
+ * grouping, pinning and sizing. `stockFeatures` would bundle them all and the
+ * vendor's migration skill ends by telling you to audit it away, so it is
+ * never introduced.
  */
 export const dataTableFeatures = tableFeatures({
   columnVisibilityFeature,
@@ -178,27 +142,14 @@ declare module "@tanstack/react-table" {
 }
 
 /**
- * ONE GENERIC, NOT TWO — a v9 correction, and the compiler's, not a
- * preference. `TableOptions<TFeatures, TData>` holds its columns at
- * `ColumnDef<TFeatures, TData, unknown>`, because a real column array is
- * heterogeneous: a description column and a quantity column do not share a
- * `TValue`. Carrying an unbound `TValue` on this component (as the v8 shape
- * did, where it was harmless) makes `ColumnDef<F, TData, TValue>` unassignable
- * to what `useTable` wants — «'unknown' is assignable to the constraint of
- * type 'TValue', but 'TValue' could be instantiated with a different subtype».
- * `CellData` is literally `unknown`
- * (`@tanstack/table-core/dist/types/type-utils.d.ts:5`).
- *
- * WHAT THAT COSTS, stated honestly because an earlier version of this comment
- * claimed it cost nothing: a column declared at a narrowed `TValue` does NOT
- * fit this array. `const c: DataTableColumnDef<Row, number>` assigned into a
- * `DataTableColumnDef<Row>[]` is `error TS2375` under this repo's
- * `exactOptionalPropertyTypes`. Columns here are written at the default
- * `TValue` — `unknown` — and read their data through `row.original`, which is
- * fully typed, so no column in this product wants the narrowing. A caller who
- * does want it needs `columnHelper.columns([...])`, which the migration skill
- * names as the way v9 preserves each nested column's `TValue`, and that is a
- * different composition than this one.
+ * ONE GENERIC, NOT TWO. `TableOptions` holds its columns at
+ * `ColumnDef<TFeatures, TData, unknown>` because a real column array is
+ * heterogeneous, and an unbound `TValue` on this component is unassignable to
+ * that. The cost: a column declared at a narrowed `TValue` does not fit this
+ * array (`error TS2375` under `exactOptionalPropertyTypes`). Columns here are
+ * written at the default and read their data through `row.original`, which is
+ * fully typed. Preserving a per-column `TValue` needs
+ * `columnHelper.columns([...])`, which is a different composition.
  */
 export type DataTableProps<TData extends RowData> = {
   columns: DataTableColumnDef<TData>[];

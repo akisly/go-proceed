@@ -244,36 +244,12 @@ export function externalQueryRoute(
  * means.
  */
 export function externalCommandRoute<T>(
-  // ZOD 4 REORDERED `ZodType`'S TYPE PARAMETERS AND DROPPED `ZodTypeDef`, and
-  // tsc said so at the top of its voice. Verified at the declaration site and
-  // by re-running the compiler against the old spelling, not recalled:
-  //
-  //   zod 3: `ZodType<Output = any, Def extends ZodTypeDef = ZodTypeDef, Input = Output>`
-  //          (`zod/v3/types.d.ts:48`, still shipped under the v3 compat subpath)
-  //   zod 4: `ZodType<out Output = unknown, out Input = unknown,
-  //                   out Internals extends $ZodTypeInternals<Output, Input> = …>`
-  //          (`zod/v4/classic/schemas.d.ts:6`)
-  //
-  // So `z.ZodType<T, z.ZodTypeDef, unknown>` fails twice over. `ZodTypeDef` is
-  // not exported by zod 4 at all — only `$ZodTypeDef` exists, in `v4/core`, and
-  // `v4/classic/compat.d.ts` re-exports `ZodTypeAny`/`ZodSchema`/`Schema`/
-  // `ZodRawShape` for zod-3 compatibility but deliberately not this one. And
-  // the THIRD slot is now `Internals`, which `unknown` does not satisfy.
-  //
-  // MEASURED, so the next migration does not inherit a false lesson: restoring
-  // the old spelling and running `tsc --noEmit` in `apps/app` produces **336
-  // errors** — 2 × TS2724 («has no exported member named 'ZodTypeDef'. Did you
-  // mean 'ZodType'?», at the `z.ZodTypeDef` token itself), 2 × TS2344 («Type
-  // 'unknown' does not satisfy the constraint '$ZodTypeInternals<T,
-  // z.ZodTypeDef>'», at the third argument), and 307 × TS18046 downstream where
-  // `a.body` had degraded to `unknown`. There was nothing silent about it; the
-  // first error names the fix.
-  //
-  // The intent is unchanged and still worth stating: the INPUT is `unknown` so
-  // `T` binds to the schema's OUTPUT — defaults applied — not to the pre-parse
-  // input where a defaulted field is still optional. `out Input` is covariant
-  // in zod 4, so any schema's own input type is assignable to `unknown` and
-  // every existing call site keeps inferring exactly what it did before.
+  // Zod 4 reordered `ZodType`'s parameters and does not export `ZodTypeDef`;
+  // the zod-3 spelling `<T, z.ZodTypeDef, unknown>` is a compile error here,
+  // not a silent degradation. `TODOS.md`'s migration entry records what tsc
+  // reported. The INPUT is `unknown` so `T` binds to the schema's OUTPUT —
+  // defaults applied — not to the pre-parse input where a defaulted field is
+  // still optional.
   schema: z.ZodType<T, unknown>,
   run: (a: ExternalCommandArgs<T>) => Promise<ExternalResult>,
 ): (req: Request, ctx: RouteCtx) => Promise<Response> {

@@ -15,13 +15,12 @@ import { cx } from "./cn";
  * `index.ts` scheduled Select for «the first real form», and Plan D is it.
  *
  * THE OLD RULING THAT DOES **NOT** RETURN WITH IT. v1 refused a Radix Select
- * for the register's eight filter options, and that refusal stands where it
- * was made: on a demo whose visible option set WAS the claim being made, a
- * control that hides seven of eight options defeats the screen's purpose. That
- * is an argument about one screen's filter, not about the primitive. A form
- * that asks for a unit of measure, an approver role or a status has a closed
- * vocabulary the user is choosing FROM, not reading, and a native-feeling
- * listbox with typeahead and roving focus is the right control there.
+ * for the register's filter, and that refusal stands where it was made: on a
+ * demo whose visible option set WAS the claim being made, a control that hides
+ * its options defeats the screen's purpose. That is an argument about one
+ * screen's filter, not about the primitive. A form that asks for a unit of
+ * measure, an approver role or a status has a closed vocabulary the user is
+ * choosing FROM, not reading.
  *
  * PORTALLED CONTENT ESCAPES THE SHELL — `font-sans` and `motion-reduce:` on
  * the content, the same as `Tooltip.tsx`, `Dialog.tsx` and
@@ -68,19 +67,12 @@ const TRIGGER_SIZE = {
 } as const;
 
 /**
- * THESE THREE ARE WRAPPED, NOT ALIASED, AND `SelectValue` IS THE ONE THAT
- * ACTUALLY BREAKS IF YOU ALIAS IT. shadcn's Select gives every part a
- * `data-slot`, and for `Root` and `Group` that is only a debugging handle —
- * but `SelectTrigger` below styles its value through FOUR
- * `*:data-[slot=select-value]:*` utilities, `line-clamp-1` among them. Alias
- * `SelectValue` straight to `SelectPrimitive.Value` and the attribute is never
- * emitted, so all four match nothing; Radix silently drops an unrecognised
- * `className` on `Value`, so there is no fallback either. The trigger is a
- * fixed `h-(--gp-control-height-desk)`, so an unclamped value longer than the
- * control wraps to a second line and overflows it instead of ellipsing.
- *
- * Not hypothetical here: «м. п. — метр погонний» in a unit picker is exactly
- * what D3's line editor puts in this control.
+ * Wrapped rather than aliased to the Radix primitives, because `SelectTrigger`
+ * styles its value through `*:data-[slot=select-value]:*` utilities —
+ * `line-clamp-1` among them. Aliasing `SelectValue` emits no `data-slot`, so
+ * those match nothing and Radix drops an unrecognised `className`, leaving a
+ * long value to wrap out of a fixed-height trigger. Measured with the real
+ * control at 390 and 360: clamp applied, value inside the trigger.
  */
 export function Select({ ...rest }: ComponentProps<typeof SelectPrimitive.Root>) {
   return <SelectPrimitive.Root data-slot="select" {...rest} />;

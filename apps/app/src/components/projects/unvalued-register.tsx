@@ -14,57 +14,33 @@ import { unvaluedRegisterColumns } from "./unvalued-register-columns";
  * `unvaluedRegisterRow`), so folding it into the totals panel would visually
  * imply it is part of the same arithmetic it is explicitly excluded from.
  *
- * ON TANSTACK TABLE SINCE 2026-08-23; the three columns, and the two rulings
- * they carry (quantity-never-money, `formatQuantity` over raw six-decimal
- * output), moved to `unvalued-register-columns.tsx` with them. This file keeps
- * what is screen-shaped: the panel, its heading and its count, and the
- * early return.
+ * On TanStack Table since 2026-08-23; the columns, and the two rulings they
+ * carry (quantity-never-money, `formatQuantity` over raw six-decimal output),
+ * live in `unvalued-register-columns.tsx`.
  *
  * THE EARLY RETURN STAYS, and is not the same thing as `DataTable`'s `empty`.
  * An unvalued register with no rows is GOOD NEWS on this screen — every
  * blocked line has a price — so it renders nothing at all rather than an empty
- * panel announcing a category the reader then has to dismiss. `DataTable`'s
- * `empty` is for a table that is on screen and has no rows; that is a
- * different sentence and this screen never shows it.
+ * panel announcing a category the reader then has to dismiss.
  *
- * `min-w-160`, MATCHING `assignments-list.tsx`'s OWN MEASURED FLOOR, NOT A
- * FRESH GUESS. That file's header records the exact failure a narrower table
- * already shipped once on this screen's neighbour: an uppercase, unbreakable
- * Ukrainian column heading overflowing its `w-1/5` cell at 390/360. This
- * table's headings are shorter («ДОРУЧЕНЬ», 8 characters, is the longest), so
- * reusing the already-measured-safe width should carry over — but named
- * honestly rather than overclaimed: `qa/field.mjs`'s seeded world has no
- * unvalued assignment, so this table renders NOTHING there and no audit has
- * actually measured `scrollWidth` against `clientWidth` on THESE three
- * headings the way the register audit did on its own four. That gap is
- * recorded in `qa/field.mjs`'s own `NOT_COVERED` and is unchanged by this
- * migration.
+ * `min-w-160` matches `assignments-list.tsx`'s measured floor rather than
+ * being measured again for these headings. The seeded QA world has no unvalued
+ * assignment, so `qa/field.mjs` never renders this table and has never
+ * measured `scrollWidth` against `clientWidth` on it; that gap is recorded in
+ * that file's `NOT_COVERED`. `unvalued-register.test.tsx` beside this file
+ * renders the table and asserts its columns, its formatting and this floor,
+ * without a viewport.
  *
- * IT IS A CLIENT COMPONENT, and that is a real cost worth naming rather than
- * leaving to be discovered. `useTable` is a hook — v9's construction API, and
- * the reason any TanStack table renders on the client. The row data is plain
- * JSON and crosses the boundary unchanged; the column definitions contain
- * FUNCTIONS (`cell`, and `header` where it is not a string), so they are
- * imported on the client side of it, from a `"use client"` module of their
- * own. The markup is still server-rendered on first paint — Next renders
- * client components on the server too — which is why the QA harness finds this
- * table's `th` elements in the initial HTML.
+ * IT IS A CLIENT COMPONENT. `useTable` is a hook, so a TanStack table renders
+ * on the client; the column definitions hold functions, so they are imported
+ * from a `"use client"` module. Next still server-renders the markup on first
+ * paint. `assignments-list.tsx` is on this side of the boundary too — the
+ * alternative left an RSC serialization boundary that no browser in this
+ * repository exercises.
  *
- * BOTH MIGRATED TABLES SIT ON THIS SIDE OF THE BOUNDARY, deliberately and
- * identically. `unvalued-register.tsx` carries the same directive and the same
- * paragraph. It was briefly left as a server component importing its columns
- * from a `"use client"` module and handing them to `DataTable` as a prop —
- * which may or may not serialize, and which NO test or browser in this
- * repository has ever executed, because the seeded QA world has no unvalued
- * assignment and that component early-returns `null` before it ever builds the
- * prop. An untested serialization boundary is not a thing to leave standing on
- * a guess; putting both components on the client side removes the question
- * instead of documenting it.
- *
- * THE `overflow-x-auto` WRAPPER IS GONE because `Table` now ships its own
- * container (shadcn's `data-slot="table-container"`), and two nested scroll
- * containers is a defect, not a belt-and-braces. `PanelBody` keeps `p-0` so
- * the table meets the panel's own border.
+ * The scroll container is `Table`'s own (`data-slot="table-container"`), so
+ * this file adds none; `PanelBody` keeps `p-0` so the table meets the panel's
+ * border.
  */
 export function UnvaluedRegister({
   register,

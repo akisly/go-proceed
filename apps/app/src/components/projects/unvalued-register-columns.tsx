@@ -8,7 +8,7 @@ import { formatQuantity } from "../../lib/quantity";
 export type UnvaluedRegisterRow = BlockedValueResponse["unvaluedRegister"][number];
 
 /**
- * The unvalued register's three columns, split out of `unvalued-register.tsx`
+ * The unvalued register's columns, split out of `unvalued-register.tsx`
  * for the same reason `assignments-columns.tsx` was split out of its list —
  * satnaing/shadcn-admin (MIT) keeps a `*-columns.tsx` beside every table it
  * ships, and it is what makes the geometry reviewable in one place instead of

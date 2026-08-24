@@ -12,38 +12,18 @@ import { Checkbox as CheckboxPrimitive } from "radix-ui";
 import { cx } from "./cn";
 
 /**
- * `index.ts` used to say a checkbox arrives «with the first real form». Plan D
- * is that form, and the row-selection column every TanStack register grows
- * needs one too.
+ * Four of shadcn's classes are deliberately absent, each for a rule this
+ * system enforces: `shadow-xs` (structure here is border-led), the
+ * `focus-visible` ring set (`base.css` gives the product one `:focus-visible`
+ * treatment and §4.3 makes a second a build failure), the `dark:` pair (the
+ * roles below already carry the theme), and `transition-shadow` (there is no
+ * shadow; the colour change on check is what moves).
  *
- * FOUR OF SHADCN'S CLASSES ARE DELIBERATELY ABSENT, each for a rule this
- * system enforces with a test:
- *
- * - `shadow-xs` — structure here is border-led. §4.1: «`shadow-md`, a shadow
- *   on a panel → nothing — use `border border-line`». The 1px line does the
- *   work; a 16px control does not need elevation to be found.
- * - `outline-none focus-visible:border-ring focus-visible:ring-[3px]
- *   focus-visible:ring-ring/50` — `base.css` gives every focusable element in
- *   the product ONE `:focus-visible` treatment, so two of them cannot
- *   disagree. `02-building-ui.md` §4.3 rule 6 makes a per-component focus ring
- *   a build failure, and it is the reason `Button.tsx` has none either.
- * - the `dark:` pair — nothing sets `data-theme` in v1 (rewrite-plan D6), and
- *   the roles below already carry the theme.
- * - `transition-shadow` — there is no shadow to transition. The colour change
- *   on check is what moves, so it is `transition-colors` with a named
- *   duration and easing, which is what the motion audit's rules 1–3 require.
- *
- * ⚠️ THIS CONTROL DOES NOT YET MEET THE 44px TOUCH FLOOR, AND NOTHING ON A
- * DASH ROUTE USES IT AS OF THIS COMMIT. `size-4` is shadcn's own metric and it
- * is 16px. `apps/app/qa/field.mjs`'s `measureSmallTargets` collects every
- * `a, button, input, select, textarea` at 390 and 360 and reports anything
- * under 44 in either dimension — and Radix renders BOTH a `button
- * role="checkbox"` and a hidden bubble `input`, so a checkbox on a dash route
- * would produce two findings, not one. Enlarging the box is not the fix
- * (a 44px checkbox is wrong at desk density); the fix is a hit area larger
- * than the paint, and choosing its shape is a design decision no brief in this
- * slice makes. Recorded in `TODOS.md` rather than guessed at here, and the
- * first screen that reaches for this component owes that decision.
+ * ⚠️ THIS CONTROL DOES NOT MEET THE 44px TOUCH FLOOR. `size-4` is shadcn's
+ * metric. Enlarging the box is the wrong fix at desk density; the fix is a hit
+ * area larger than the paint, and its shape is a design decision no brief in
+ * this slice makes. `TODOS.md` carries it, and `qa/field.mjs`'s touch-target
+ * pass will refuse the first dash screen that uses this component.
  */
 export function Checkbox({ className, ...rest }: ComponentProps<typeof CheckboxPrimitive.Root>) {
   return (

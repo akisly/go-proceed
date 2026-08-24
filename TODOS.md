@@ -446,86 +446,82 @@ starts from facts.
 
 > Landed on `claude/ui-reference-foundation` alongside the shadcn/TanStack
 > foundation, on the owner's instruction «используй последние версии для
-> библиотек, никаких пришпилены к 3.24.1». **961→967 app tests, 591 contract
-> tests and 107 contracts tests all pass with ZERO test-fixture edits**, which
-> is the strongest available evidence that the upgrade changed no accepted
-> request. What the measured surface actually turned out to be, against the
-> estimate below:
+> библиотек, никаких пришпилены к 3.24.1». Every suite passed with **no
+> test-fixture edits**, which is the strongest available evidence that the
+> upgrade changed no accepted request.
 >
-> - **Five hard breaks, all type errors, all in `packages/contracts` and
->   `apps/app/src/lib`.** `z.record(x)` single-arg ×2
->   (`contracts-baseline.ts`), `.default({})` on an object with inner defaults
->   ×3 (`contracts-baseline.ts`, `imports.ts`, `requirements.ts`), and
->   `z.ZodType<T, z.ZodTypeDef, unknown>` ×2 (`command.ts`,
->   `external-session.ts`).
-> - **`.default()` was the dangerous one and it is not what the note below
->   predicted.** Zod 4 did not merely retype it; `$ZodDefault`'s own source
->   says it «returns the default value immediately in forward direction. It
->   doesn't pass the default value into the validator». `.prefault()` is the
->   zod-3 behaviour and is what all three sites now use. Two of the three
->   would have silently dropped a business default —
->   `roundingPolicy.midpoint` and `multiplicity.min: 1`.
-> - **`ZodType`'s parameters were REORDERED and `ZodTypeDef` was dropped.** zod
+> **This entry is the one place counts for this migration live.** Every number
+> below is dated, scoped, and paired with the command that produced it, because
+> a count with none of those rots on contact and this migration has already
+> been mis-summarised twice. Do not copy them into source comments.
+>
+> - **Five type-level breaks, in `packages/contracts` and `apps/app/src/lib`.**
+>   `z.record(x)` single-arg (`contracts-baseline.ts`), `.default({})` on an
+>   object with inner defaults (`contracts-baseline.ts`, `imports.ts`,
+>   `requirements.ts`), and `z.ZodType<T, z.ZodTypeDef, unknown>`
+>   (`command.ts`, `external-session.ts`).
+> - **`.default()` was the one with teeth.** Zod 4 did not merely retype it;
+>   `$ZodDefault`'s own source says it «returns the default value immediately
+>   in forward direction. It doesn't pass the default value into the
+>   validator». `.prefault()` is the zod-3 behaviour and is what those sites
+>   now use. Without it `roundingPolicy.midpoint` and `multiplicity.min` would
+>   have disappeared from the parsed contract.
+> - **`ZodType`'s parameters were reordered and `ZodTypeDef` was dropped.** zod
 >   3 `<Output, Def, Input>` → zod 4 `<Output, Input, Internals>`, and
->   `ZodTypeDef` is not exported by zod 4 at all (`'ZodTypeDef' in z` is
->   `false`; only `$ZodTypeDef` exists, in `v4/core`, and
->   `v4/classic/compat.d.ts` re-exports `ZodTypeAny`/`ZodSchema`/`Schema`/
->   `ZodRawShape` but not this one). Now `z.ZodType<T, unknown>`.
+>   `ZodTypeDef` is not exported by zod 4 (`'ZodTypeDef' in z` → `false`; only
+>   `$ZodTypeDef`, in `v4/core`). Now `z.ZodType<T, unknown>`.
 >   **CORRECTED 2026-08-24 — an earlier version of this entry called this «the
->   silent break». It was the LOUDEST of the five.** Restoring the old spelling
->   and running `tsc --noEmit` in `apps/app` produces 336 errors: 2 × TS2724
->   («has no exported member named 'ZodTypeDef'. Did you mean 'ZodType'?») at
->   the token itself, 2 × TS2344 («Type 'unknown' does not satisfy the
->   constraint '$ZodTypeInternals<T, z.ZodTypeDef>'») at the THIRD argument —
->   not the middle Input slot the first write-up blamed — and 307 × TS18046
->   downstream where `a.body` had degraded to `unknown`. The false claim came
->   from reading a `| head -30` slice of turbo's interleaved output and
->   inferring silence from a truncation. **The lesson a migration leaves behind
->   is its durable output, and «distrust the compiler, hunt for silent generic
->   breaks» is the wrong one to leave: every one of the five breaks in this
->   upgrade was caught by tsc.**
-> - **`.uuid()` tightened to RFC 9562 and this repo could not take it.** 88 of
->   112 distinct UUID literals in `packages/`, `apps/`, `supabase/`, `scripts/`
->   and `migration/` are rejected by zod 4's `.uuid()`; 0 by `.guid()`.
->   Postgres's own `uuid` type checks neither version nor variant, so a
->   `.uuid()` contract is narrower than the column it describes and every
->   hand-seeded row is in the gap. All 91 sites are `z.string().guid()`;
->   `packages/contracts/src/index.ts`'s header carries the full reasoning.
-> - **`fieldErrors`' `path` is UNCHANGED and is now pinned.** `issue.path` is
+>   silent break». It was the loudest one.** Reproduced by restoring the old
+>   spelling and running `npx tsc --noEmit` in `apps/app` on 2026-08-24: the
+>   run fails with, among others, `TS2724` («has no exported member named
+>   'ZodTypeDef'. Did you mean 'ZodType'?») at the token itself, `TS2344`
+>   («Type 'unknown' does not satisfy the constraint '$ZodTypeInternals<T,
+>   z.ZodTypeDef>'») at the THIRD argument — not the middle Input slot the
+>   first write-up blamed — and a large tail of `TS18046` where `a.body` had
+>   degraded to `unknown`. The false claim came from reading a `| head -30`
+>   slice of turbo's interleaved output and inferring silence from a
+>   truncation. **The transferable lesson: every TYPE-level break in this
+>   upgrade was caught by tsc. `.uuid()`, below, was not — the compiler said
+>   nothing and the contracts suite caught it. Those are the two classes to
+>   plan for, and «silent generic break» is not one of them.**
+> - **`.uuid()` tightened to RFC 9562 and this repo could not take it.**
+>   Measured 2026-08-24 by extracting every distinct UUID-shaped literal from
+>   `packages/ apps/ supabase/ scripts/ migration/` (`.ts .tsx .sql .mjs .md`)
+>   and parsing each with both schemas: **88 of 112 rejected by `z.uuid()`, 0
+>   by `z.guid()`.** Postgres's own `uuid` type checks neither version nor
+>   variant, so a `.uuid()` contract is narrower than the column it describes
+>   and every hand-seeded row is in the gap. Every site is now
+>   `z.string().guid()`; `packages/contracts/src/index.ts`'s header carries the
+>   reasoning.
+> - **`fieldErrors`' `path` is unchanged and is now pinned.** `issue.path` is
 >   still `PropertyKey[]` (`zod/v4/core/errors.d.ts:9`) and `i.path.join(".")`
->   still yields `items.1.qty`. `command.test.ts` asserts that string
->   exactly — it is what a Ukrainian-speaking caller reads off a 422, and
->   nothing pinned it before.
-> - **`.strict()` ×113 and `z.string().datetime()` ×16 were NOT touched, and
->   the second of those is NOT behaviourally identical.** An earlier version of
->   this entry claimed both were; `.strict()` is
+>   still yields `items.1.qty`. `command.test.ts` asserts that string exactly —
+>   it is what a Ukrainian-speaking caller reads off a 422.
+> - **`.strict()` and `z.string().datetime()` were NOT rewritten, and
+>   `datetime()` is NOT behaviourally identical.** An earlier version of this
+>   entry claimed it was. `.strict()` is unchanged
 >   (`zod/v4/classic/schemas.d.ts:465`, still rejecting unknown keys), but
 >   `datetime()` changed twice, measured side by side against zod 3.24.1 and
->   zod 4.4.3 in this repository's own store:
+>   zod 4.4.3 in this repository's own store on 2026-08-24:
 >
 >   | input | zod 3 | zod 4 |
 >   |---|---|---|
 >   | `2026-08-08T09:00Z` (no seconds) | rejected | **accepted** |
 >   | `2026-08-08T09:00:00+0300` (`{offset:true}`, no colon) | accepted | **rejected** |
 >
->   Seconds became optional and the offset colon became mandatory. Only the
->   second can reject input that used to pass, and **nothing in this system
->   produces a basic-format offset**: the two producers are Node's
->   `Date.prototype.toISOString()`, which always emits `…Z`, and Postgres
->   `timestamptz` rendered to JSON, which emits the extended form with the
->   colon. The 968-test app suite round-trips real `timestamptz` values through
->   twelve of these sixteen sites and passes unchanged. The loosening widens
->   what a request may carry and nothing depends on rejecting a secondless
->   timestamp.
+>   Only the tightening can reject input that used to pass, and the producers
+>   in this system are Node's `Date.prototype.toISOString()` (always `…Z`) and
+>   Postgres `timestamptz` rendered to JSON (extended form, with the colon).
+>   The app suite round-trips real `timestamptz` values through these contracts
+>   and passes unchanged.
 >
->   **The decision not to rewrite the 129 call sites stands, on the correct
->   reason:** both APIs still exist, the guide says they will not be removed,
->   and a mechanical `z.strictObject()` / `z.iso.datetime()` sweep carries
->   regression risk for no behavioural gain. It does NOT stand on «identical» —
->   `z.iso.datetime()` would inherit exactly the same two changes, so
->   rewriting would not fix them either. **Owed:** if a caller ever needs the
->   basic offset form back, that is a per-field `regex`, not a library setting.
-> - **`errorMap`, `ZodError` and `.flatten()`: zero uses in source.** The
+>   **The decision not to rewrite them stands, on the correct reason:** both
+>   APIs still exist, the guide says they will not be removed, and
+>   `z.iso.datetime()` inherits exactly the same two changes — so a sweep would
+>   not fix them either, it would only churn the diff. **Owed:** if a caller
+>   ever needs the basic offset form back, that is a per-field `regex`, not a
+>   library setting.
+> - **`errorMap`, `ZodError` and `.flatten()`: no uses in source.** The
 >   estimate below feared the `fieldErrors` shape; nothing builds it from
 >   `.flatten()`.
 
@@ -2995,8 +2991,8 @@ The owner's correction — «я же дал тебе указания испол
 validation — landed as: `@tanstack/react-table`, `react-hook-form`,
 `@hookform/resolvers` and `class-variance-authority` installed; shadcn's
 `table`, `form`, `label`, `select` and `checkbox` taken through the shadcn MCP
-and restyled onto token roles; `Table/Th/Td/Tr` replaced by shadcn's eight
-primitives so there is one table and not two; a `DataTable` composition built
+and restyled onto token roles; `Table/Th/Td/Tr` replaced by shadcn's own
+primitive set so there is one table and not two; a `DataTable` composition built
 on satnaing/shadcn-admin's own `tasks-table.tsx`; and the two real
 `<table>`-markup screens migrated onto it, and — after the owner's 2026-08-24
 version correction — the whole stack moved to latest, zod 3 → 4 included.
@@ -3030,7 +3026,7 @@ what actually happened:
   from `shadcn-admin`'s v8 shape. The map used was the vendor's own, shipped
   inside the installed package —
   `node_modules/@tanstack/react-table/skills/migrate-v8-to-v9/SKILL.md`,
-  `library_version: 9.1.2`. The four changes that mattered: `useReactTable` →
+  `library_version: 9.1.2`. The changes that mattered here: `useReactTable` →
   `useTable` with an explicit `features` object; `getCoreRowModel()` removed
   (automatic in v9); `getSortedRowModel()` → the `sortedRowModel:
   createSortedRowModel()` slot beside `rowSortingFeature`; and `TFeatures`
@@ -3038,8 +3034,8 @@ what actually happened:
   `DataTableColumnDef<T>` from `@goproceed/ui/components` instead of
   `ColumnDef<T>` from TanStack.
 
-**P3 — v9 makes every feature opt-in, and three of this table's absences are
-now load-bearing rather than incidental.** `rowSelectionFeature` is NOT
+**P3 — v9 makes every feature opt-in, and several of this table's absences
+are now load-bearing rather than incidental.** `rowSelectionFeature` is NOT
 registered, so `row.getIsSelected()` does not exist and `DataTable` no longer
 emits `data-state="selected"` — `TableRow` keeps the matching style, so the day
 selection arrives only the feature and that one attribute have to be added.
@@ -3085,9 +3081,8 @@ have to move in the same commit that retires it.
 
 **CLOSED 2026-08-24 — `class-variance-authority` is no longer a dependency of
 `packages/ui`.** It was added there on the original instruction as part of the
-shadcn baseline, and then nothing imported it: none of the six components taken
-in that slice uses `cva`, because shadcn does not use it in `table`, `form`,
-`label`, `select` or `checkbox`. An unused runtime dependency in a shared
+shadcn baseline, and then no file in the package imported it: shadcn does not
+use `cva` in `table`, `form`, `label`, `select` or `checkbox`. An unused runtime dependency in a shared
 package ships in every consumer's graph and later reads as licence for a second
 styling idiom, so it is removed until the Button/Chip/Banner migration actually
 needs it — at which point it comes back in the same commit as its first import.

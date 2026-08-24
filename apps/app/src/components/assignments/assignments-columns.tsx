@@ -6,23 +6,19 @@ import type { AssignmentSummary } from "@goproceed/contracts";
 import { assignmentStatusLabel } from "../../lib/assignment-status-labels";
 
 /**
- * The register's four columns, defined once.
+ * The register's columns, defined once.
  *
  * SPLIT OUT OF `assignments-list.tsx` FOLLOWING THE REFERENCE'S OWN SHAPE —
- * satnaing/shadcn-admin (MIT) keeps `tasks-columns.tsx` beside
- * `tasks-table.tsx` for every table it ships, and
- * `docs/design/04-role-pain-map.md` names that pair (`*-columns`,
- * `*-mutate-drawer`, `*-provider`) as the reference pattern for this exact
- * screen. The file placement is plane's, per `03-ui-references.md`'s
- * hierarchy table: kebab-case, under `src/components/<domain>/`, not a
- * `features/` tree.
+ * satnaing/shadcn-admin (MIT) keeps a `*-columns.tsx` beside its table, and
+ * `docs/design/04-role-pain-map.md` names that pattern for this screen. The
+ * file placement is plane's, per `03-ui-references.md`'s hierarchy table:
+ * kebab-case, under `src/components/<domain>/`, not a `features/` tree.
  *
  * WIDTHS TRAVEL WITH THE COLUMN, NOT WITH THE MARKUP. `Table` is
- * `w-full table-fixed`, so these four percentages are the whole column
- * geometry; before this commit they were `className`s hand-typed onto four
- * `Th` elements in the JSX, where a fifth column could be added without
- * anybody noticing the percentages no longer sum. `meta.className` is
- * shadcn-admin's own slot for this (`src/tanstack-table.d.ts`) and
+ * `w-full table-fixed`, so these percentages are the whole column geometry;
+ * they used to be `className`s hand-typed onto the `th` elements in the JSX,
+ * where a new column could be added without anybody noticing the percentages
+ * no longer sum. `meta.className` is shadcn-admin's own slot for this and
  * `DataTable` applies it to both the `th` and the `td`.
  *
  * `meta.numeric` IS THE RULING, NOT AN ALIGNMENT PREFERENCE —
@@ -31,20 +27,18 @@ import { assignmentStatusLabel } from "../../lib/assignment-status-labels";
  * when their digits share a right edge, and that is what makes a shortfall
  * scannable to someone reconciling a period.
  *
- * SORTING IS NOT ENABLED ON ANY OF THE FOUR. The route already sorts
- * (`created_at desc, id`) and this list renders exactly what it returned; that
- * was true before the TanStack migration and is unchanged by it. `DataTable`'s
- * header records what turning it on would cost at 390px, which is a
- * measurement, not a preference.
+ * SORTING IS NOT ENABLED. The route already sorts (`created_at desc, id`) and
+ * this list renders exactly what it returned; that was true before the
+ * TanStack migration and is unchanged by it. `DataTable`'s header records what
+ * turning it on would take.
  *
  * STATUS IS PLAIN UKRAINIAN TEXT, NOT A `Chip`, and that ruling is unchanged
- * by this migration — `Chip`'s five tones are assigned to readiness/review
- * states, no design decision in any brief assigns one to
- * `work_assignments.status`'s five values, and "blocked" already carries a
- * distinct financial meaning in this product (blocked value / blocked
- * reasons). Plain text still satisfies `02-building-ui.md` §4.1's «a status
- * shown only by colour → colour PLUS its `ui_uk` label», because there is no
- * colour to begin with.
+ * by this migration — `Chip`'s tones are assigned to readiness/review states,
+ * no design decision in any brief assigns one to `work_assignments.status`,
+ * and "blocked" already carries a distinct financial meaning in this product
+ * (blocked value / blocked reasons). Plain text still satisfies
+ * `02-building-ui.md` §4.1's «a status shown only by colour → colour PLUS its
+ * `ui_uk` label», because there is no colour to begin with.
  */
 
 /** `null` only for `plannedQuantity` — an assignment need not carry a plan. */

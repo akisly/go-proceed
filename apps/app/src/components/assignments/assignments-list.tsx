@@ -13,82 +13,36 @@ import { assignmentColumns } from "./assignments-columns";
  * {projectId}/assignments` returns, in the order the route already sorts it
  * (`created_at desc, id`) — no client-side sort or filter of its own.
  *
- * ON TANSTACK TABLE SINCE 2026-08-23, and the four columns now live in
- * `assignments-columns.tsx`. What used to be here — a hand-written
- * `thead`/`tbody`/`map` over `Table/Th/Td/Tr` — was one of three such copies
- * in this product, none of which shared a line of behaviour. The owner's
- * instruction was TanStack for tables and shadcn one-to-one for components;
- * `packages/ui/src/components/DataTable.tsx` is that composition, taken from
- * satnaing/shadcn-admin's own `tasks-table.tsx`, and this file is now the
- * screen-shaped part: a heading, a panel, and the data.
+ * On TanStack Table since 2026-08-23; the columns live in
+ * `assignments-columns.tsx`, and the row link and its touch floor moved into
+ * the cell that renders them.
  *
- * IT IS A CLIENT COMPONENT, and that is a real cost worth naming rather than
- * leaving to be discovered. `useTable` is a hook — v9's construction API, and
- * the reason any TanStack table renders on the client. The row data is plain
- * JSON and crosses the boundary unchanged; the column definitions contain
- * FUNCTIONS (`cell`, and `header` where it is not a string), so they are
- * imported on the client side of it, from a `"use client"` module of their
- * own. The markup is still server-rendered on first paint — Next renders
- * client components on the server too — which is why the QA harness finds this
- * table's `th` elements in the initial HTML.
+ * IT IS A CLIENT COMPONENT. `useTable` is a hook, so a TanStack table renders
+ * on the client; the column definitions hold functions, so they are imported
+ * from a `"use client"` module. Next still server-renders the markup on first
+ * paint. `unvalued-register.tsx` is on this side of the boundary too — the
+ * alternative left an RSC serialization boundary that no browser in this
+ * repository exercises.
  *
- * BOTH MIGRATED TABLES SIT ON THIS SIDE OF THE BOUNDARY, deliberately and
- * identically. `unvalued-register.tsx` carries the same directive and the same
- * paragraph. It was briefly left as a server component importing its columns
- * from a `"use client"` module and handing them to `DataTable` as a prop —
- * which may or may not serialize, and which NO test or browser in this
- * repository has ever executed, because the seeded QA world has no unvalued
- * assignment and that component early-returns `null` before it ever builds the
- * prop. An untested serialization boundary is not a thing to leave standing on
- * a guess; putting both components on the client side removes the question
- * instead of documenting it.
+ * `min-w-160` IS A MEASURED FLOOR, NOT A ROUND NUMBER. `Table` is
+ * `w-full table-fixed`, so the column widths are percentages of the container
+ * and a narrow container makes an unbreakable uppercase Ukrainian heading
+ * overflow its own cell rather than wrap. That defect shipped once here; the
+ * measurement behind the floor is in `TODOS.md`, and
+ * `apps/app/qa/field.mjs`'s register audit re-checks it per `th` at 1280, 390
+ * and 360 on every run.
  *
- * EACH ROW LINKS TO `/dash/assignments/{assignmentId}` — the evidence screen.
- * The link, and its measured 44px touch floor, moved into the column
- * definition with the cell that renders it; that file carries the
- * measurement.
+ * The scroll container is `Table`'s own (`data-slot="table-container"`); the
+ * wrapper below keeps `overflow-hidden` so the table's edges stay inside the
+ * rounded panel. Below the floor the TABLE scrolls and the PAGE does not,
+ * which is the intended behaviour and not the defect.
  *
- * THE TABLE HAS A MINIMUM WIDTH AND ITS CONTAINER SCROLLS — MEASURED AT 360
- * AND 390, AND THE MEASUREMENT SURVIVES THE MIGRATION UNCHANGED because
- * neither the four column widths nor the heading metrics changed. `Table` is
- * `w-full table-fixed`, so the four widths in `assignments-columns.tsx` are
- * percentages of whatever the container is. MEASURED with the min-width
- * removed and the app rebuilt: each `w-1/5` cell is 68px at 390 and 62px at
- * 360, and «ЗАПЛАНОВАНО» needs 118px, «ВИКОНАНО» 89px and — at 360 —
- * «СТАТУС» 65px. Eleven uppercase characters at `text-meta` (12px) with
- * `tracking-wide` (+0.08em), and ONE WORD, so there is no break opportunity:
- * it did not wrap, it overflowed its cell by 50px and ran into its neighbour.
- * ПТВ opening the register on a phone saw the column headings collide — on the
- * middle screen of the project → assignments → evidence chain.
+ * `Table.tsx`'s ruling 3 — on a phone the register should render as cards, a
+ * different hierarchy rather than a reflow — stays open; the min-width is what
+ * holds until someone takes that decision.
  *
- * `min-w-160` (160 × `--spacing` 0.25rem = 640px) puts each `w-1/5` cell at
- * 128px, clear of the 118px the widest heading needs. THE `overflow-x-auto`
- * MOVED: it used to be on the wrapper below, and it is now `Table`'s own
- * container div — shadcn's table ships one (`data-slot="table-container"`),
- * and keeping a second on the wrapper would nest two scroll containers. The
- * wrapper keeps `overflow-hidden` so the table's edges stay inside the
- * rounded panel, which is exactly what the reference's own wrapper
- * (`overflow-hidden rounded-md border`) does. Below 640px the TABLE scrolls
- * inside the panel and the PAGE does not scroll sideways — the two are
- * different failures and only the second is a layout defect.
- *
- * MEASURED, NOT REASONED, and re-measurable: `apps/app/qa/field.mjs`'s
- * register audit opens `/dash/projects/{projectId}/assignments` at 1280, 390
- * and 360 and asserts, per `th`, that `scrollWidth <= clientWidth` — an
- * overflowing single word is exactly the case where those two differ — plus
- * the page-level sideways-scroll and touch-target checks. That audit is what
- * proves this migration did not move a pixel that mattered.
- *
- * `Table.tsx`'s ruling 3 («on a phone the register renders as cards instead —
- * a different hierarchy, not a reflow») stays open and stays true; the
- * min-width is the floor that stops the register being broken until someone
- * takes that decision.
- *
- * THE `empty` BRANCH IS UNREACHABLE FROM THIS ROUTE and is still required by
- * `DataTable`. `page.tsx` renders `NoAssignmentsEmptyState` when the list is
- * empty and only reaches this component with at least one row — the empty
- * register is a different screen with different copy, not a table with no
- * rows. The sentence below is what a caller that forgot that would see.
+ * `page.tsx` renders `NoAssignmentsEmptyState` for an empty list, so
+ * `DataTable`'s `empty` is not what a reader of this route sees.
  */
 export function AssignmentsList({ assignments }: { assignments: AssignmentSummary[] }) {
   return (
