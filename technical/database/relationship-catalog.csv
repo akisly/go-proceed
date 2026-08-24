@@ -58,6 +58,9 @@ requirement_rules,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),r
 requirement_rule_versions,versions,requirement_rules,N:1,yes,workspace_id+requirement_rule_id -> requirement_rules(workspace_id+id),restrict,INV-067
 requirement_rule_versions,cites,requirement_library_items,N:1,no,workspace_id+requirement_library_item_id -> requirement_library_items(workspace_id+id),restrict,INV-073
 requirement_library_items,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-073
+project_sourced_requirement_items,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-073
+project_sourced_requirement_items,scoped_to,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-073
+requirement_rule_versions,cites,project_sourced_requirement_items,N:1,no,workspace_id+project_sourced_requirement_item_id -> project_sourced_requirement_items(workspace_id+id),restrict,INV-073
 contract_version_rule_bindings,pins,contract_versions,N:1,yes,workspace_id+project_id+contract_id+contract_version_id -> contract_versions(workspace_id+project_id+contract_id+id),restrict,INV-015
 contract_version_rule_bindings,binds,requirement_rule_versions,N:1,yes,workspace_id+requirement_rule_version_id -> requirement_rule_versions(workspace_id+id),restrict,INV-067
 requirement_notices,notifies_for,requirement_occurrences,N:1,yes,workspace_id+requirement_occurrence_id -> requirement_occurrences(workspace_id+id),restrict,INV-068

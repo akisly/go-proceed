@@ -944,6 +944,51 @@ comment on table public.requirement_library_items is
 -- primary-source verification that produced these twelve rows (ADR-005
 -- assumption c). It is a content-sourcing programme, not a schema change.
 
+-- ADR-010: the OTHER source of a requirement. п. 8.4.3.3 says the binding
+-- hidden-works list for a site comes from робоча документація and that Додаток
+-- Н is довідковий, so the table above is a starter by design and this one is
+-- where a workspace states what its own documentation says.
+--
+-- SEPARATE FROM THE LIBRARY ON PURPOSE. Nothing written here can reach
+-- requirement_library_items, so the seeded verified set cannot be corrupted by
+-- authoring, and no row here can become a line of Н.15.
+--
+-- NOTE ON THIS FILE'S VOCABULARY: the tenant root here is public.workspaces,
+-- while the deployed migrations name public.organizations with a workspace_id
+-- column on every child. The two differ by history, not by intent; the
+-- migration's FK targets are the deployed spelling.
+create table public.project_sourced_requirement_items (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  item_text_uk text not null,
+  -- INV-073's source half, structural: «робоча документація» without a sheet
+  -- and a drawing number is a word, not a source. Three identifying fields
+  -- rather than one free-text citation column.
+  source_document text not null,
+  source_sheet text not null,
+  source_drawing_no text not null,
+  source_revision text,
+  -- INV-073's tag half. One storable value: a row cannot claim a verification
+  -- the product never performed (hidden-works-content-rules.md
+  -- §"Verification vocabulary", the PROJECT_DOCUMENTATION bullet).
+  verification text not null check (verification = 'PROJECT_DOCUMENTATION'),
+  status text not null default 'active' check (status in ('active','archived')),
+  created_at timestamptz not null default now(),
+  created_by_member_id uuid not null,
+  archived_at timestamptz,
+  archived_by_member_id uuid,
+  primary key (id),
+  unique (workspace_id, id),
+  foreign key (workspace_id, project_id) references public.projects (workspace_id, id),
+  foreign key (workspace_id, created_by_member_id) references public.memberships (workspace_id, id),
+  foreign key (workspace_id, archived_by_member_id) references public.memberships (workspace_id, id),
+  check (status = 'active'
+      or (archived_at is not null and archived_by_member_id is not null))
+);
+comment on table public.project_sourced_requirement_items is
+  'Requirement text a workspace takes from its own робоча документація for one project, with the sheet and drawing number that identify it. Never a ДБН extract, never rendered inside a Додаток Н block, and never attributed to a standard (hidden-works-content-rules.md §"Project-sourced strings"). Text and citation are immutable: a published rule version has already copied the content, so a correction is a new row plus an archive of the old one rather than an edit no obligation could see.';
+
 create table public.requirement_rules (
   id uuid not null default gen_random_uuid(),
   workspace_id uuid not null references public.workspaces(id),
