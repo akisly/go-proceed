@@ -150,30 +150,47 @@ active→archived. Rule versions copy content at publish, so retroactive edits
 could not change an obligation anyway — the guard makes the model visible
 rather than merely true.
 
-**RLS/grants:** SELECT for workspace members mirroring
-`requirement_library_items`; INSERT and the archive UPDATE through the
-command path under the new capability. No external-plane access: an external
-grant sees the *rule version's copied* citation, never this table.
+**RLS/grants:** SELECT for any active workspace member, mirroring
+`policy rli_select`; INSERT gated on
+`app.member_role(workspace_id) in ('owner','admin')`, mirroring
+`policy rli_insert`. **No UPDATE grant.** Archiving goes through a SECURITY
+DEFINER function, the way retirement goes through
+`app.retire_requirement_rule_version` — 0041 §5 gives the reason: «the
+application role never holds the privilege that would make INV-067 a
+convention». *(Corrected 2026-08-24: an earlier draft said «the archive
+UPDATE through the command path», which the established grant shape refuses.)*
+
+No external-plane access **to this table** — but the external технагляд does
+read the rule version's copied citation, which the owner confirmed on
+2026-08-24, and that requires widening `externalNormRef`. See §10.
 
 **Assembled citation:** the publish route composes the copied
-`norm_ref_source` string deterministically from the four fields
-(«робоча документація {document}, арк. {sheet}, креслення {drawing}
-[, ревізія {rev}]; проект {project}»), the way `citationOf` composes the
-library citation today. Stored fields stay structured; the composed string
-exists only as the frozen copy in the rule version.
+`norm_ref_source` deterministically from the source fields
+(«{document}, арк. {sheet}, кресл. {drawing}[, ревізія {rev}]»), the way
+`citationOf` composes the library citation today. Stored fields stay
+structured; the composed string exists only as the frozen copy in the rule
+version. *(Corrected 2026-08-24: an earlier draft appended «проект {project}».
+A project's name is mutable and the citation is frozen into a hash, so the
+name is out; `project_id` carries the project mark.)*
 
 ### 4.2 `requirement_rule_versions` changes (same migration)
 
 - Widen `norm_ref_verification` CHECK to admit `'PROJECT_DOCUMENTATION'`
   (drop + re-add constraint; append-only migration, and both fidelity tests
   already read `pg_constraint`, not migration text — the §4 handoff lesson).
+  **And widen the twin on `requirement_occurrences` in the same migration** —
+  see §10, item 1; without it a well-formed publish is followed by an
+  `assignments.create` that raises 23514.
 - New nullable column `project_sourced_requirement_item_id uuid` +
   `foreign key (workspace_id, project_sourced_requirement_item_id)
   references public.project_sourced_requirement_items (workspace_id, id)`.
 - `check (requirement_library_item_id is null
   or project_sourced_requirement_item_id is null)` — at most one provenance.
-- Verify `app.guard_requirement_rule_version()` (0041) covers the new column
-  against post-publication mutation; extend it if it enumerates columns.
+- **`app.guard_requirement_rule_version()` needs no edit.** *(Resolved
+  2026-08-24: it compares `to_jsonb(new)` against `to_jsonb(old)` with four
+  keys subtracted rather than enumerating columns, so the new column is frozen
+  from the moment it exists. The spec asked to «extend it if it enumerates
+  columns»; it does not.)*
 
 ### 4.3 What does not change
 
@@ -202,8 +219,14 @@ unrepresentable anyway; the command turns the 23503 into a named refusal).
 ## 6. Publish-path change
 
 `requirement_rule_versions.publish` request: `requirementLibraryItemId`
-becomes one arm of a zod discriminated union — exactly one of
-`requirementLibraryItemId` | `projectSourcedRequirementItemId`. The route:
+becomes optional, gains the sibling `projectSourcedRequirementItemId`, and a
+branch is added to **the `superRefine` this schema already ends with**,
+requiring exactly one of the two. *(Corrected 2026-08-24: an earlier draft
+said «a zod discriminated union». `z.discriminatedUnion` needs a literal
+discriminator key, which two mutually exclusive optional uuids do not have;
+it is used exactly once in the tree and `z.union` zero times, while the
+present-iff `superRefine` is the idiom this very schema and `work-items.ts`
+already use.)* The route:
 
 - reads the project-sourced row RLS-scoped inside the tenant transaction
   (same non-oracle refusal shape as the library read);
@@ -306,3 +329,56 @@ would have to change.
 - External-plane exposure of the new table.
 - act_form assumption fields for project-sourced items — Додаток В/Г mapping
   stays a product assumption per prohibition G and is not extended here.
+
+## 10. What a fact-finding pass changed, 2026-08-24
+
+Eight parallel readers established the repository facts this design had
+assumed. Five findings changed the design; three of them would have shipped a
+broken feature. The implementation plan
+([`../plans/2026-08-24-project-sourced-requirements.md`](../plans/2026-08-24-project-sourced-requirements.md))
+carries each with its file and symbol.
+
+1. **The verification CHECK exists in four places, not one.**
+   `requirement_occurrences.norm_ref_verification` carries the identical
+   two-value CHECK, and `materialiseOccurrences`
+   (`apps/app/src/lib/occurrence-writer.ts`) copies the tag from the rule
+   version into the occurrence. Widening only the rule-version CHECK would
+   give a publish that succeeds and an `assignments.create` that raises 23514.
+   Two widen. `requirement_library_items.verification` stays two-valued — the
+   seeded set must not become able to carry the new tag — and
+   `statutory_act_versions.form_citation_verification` stays two-valued
+   because it tags the **act form's** own citation, which is Додаток В
+   whatever the requirement's source is.
+
+2. **The external contract restates the vocabulary inline and parses on the
+   way out.** `externalNormRef` (`packages/contracts/src/external.ts`) is a
+   second copy of the two-value enum, and the external occurrence route runs
+   `externalOccurrenceScopeResponse.parse(...)`. A технагляд opening a
+   project-sourced occurrence would have hit a zod throw at the response
+   boundary. **Owner decision, 2026-08-24: widen it** — the acceptance walk is
+   the product thesis. `external.ts` reuses the shared `verificationTag`
+   instead of keeping a copy.
+
+3. **A typed label map makes the widening fail to compile until copy exists.**
+   `NORM_REF_VERIFICATION_LABELS` (`apps/app/src/lib/norm-ref-labels.ts`) is a
+   frozen `Record<VerificationTagValue, string>`. **Owner-approved copy:**
+   «за робочою документацією об'єкта» — it names the origin and claims no
+   verification strength, unlike the two existing labels which distinguish
+   source strength. `apps/mobile` duplicates the vocabulary deliberately and
+   its own header says both copies change together.
+
+4. **The archive path is a SECURITY DEFINER function, not an UPDATE** (§4.1),
+   and **the frozen-content guard needs no edit** (§4.2).
+
+5. **Three catalog couplings are machine-checked and bidirectional.**
+   `scripts/validate-canonical-docs.mjs` fails both ways on
+   capability↔operation, entity↔design-DDL, and relationship↔invariant, so
+   those edits are one commit. The milestone tag is `v0.1-M1`: it matches the
+   sibling operations and stays outside the validator's two-way ADR-006
+   build-list check, which runs only for M3–M6.
+
+Two further facts the plan carries and this design had no reason to know:
+the next migration number is **0059** (not 0052 — `TODOS.md`'s «0041–0051,
+eleven files» is stale), and migration `0057` renamed the database roles, so
+**0059 is the first post-rename `create table` + grants + RLS block in the
+repository and has no template to copy verbatim**.
