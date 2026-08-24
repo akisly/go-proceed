@@ -61,7 +61,7 @@ export const createStageClosureRequest = z.object({
    * ADR does not give one» — and a field that vanished would hide the question.
    */
   correction: z.object({
-    predecessorClosureId: z.string().uuid(),
+    predecessorClosureId: z.string().guid(),
     reason: z.string().trim().min(1).max(4000),
   }).strict().optional(),
 }).strict();
@@ -72,11 +72,11 @@ export type CreateStageClosureRequest = z.infer<typeof createStageClosureRequest
  * echoed so the closure receipt names what it froze rather than only how many.
  */
 export const frozenOccurrenceView = z.object({
-  requirementOccurrenceId: z.string().uuid(),
+  requirementOccurrenceId: z.string().guid(),
   blockingScope: z.enum(["blocks_stage_closure", "blocks_both"]),
   satisfiedBy: z.enum(["evidence_decision", "exception"]),
-  reliedOnDecisionId: z.string().uuid().nullable(),
-  reliedOnExceptionId: z.string().uuid().nullable(),
+  reliedOnDecisionId: z.string().guid().nullable(),
+  reliedOnExceptionId: z.string().guid().nullable(),
   reliedOnExceptionAction: z.enum(["waiver", "accept_risk"]).nullable(),
 }).strict();
 export type FrozenOccurrenceView = z.infer<typeof frozenOccurrenceView>;
@@ -88,7 +88,7 @@ export type FrozenOccurrenceView = z.infer<typeof frozenOccurrenceView>;
  */
 export const admissionView = z.object({
   admittedProgressEntryCount: z.number().int().min(0),
-  admittedProgressEntryIds: z.array(z.string().uuid()),
+  admittedProgressEntryIds: z.array(z.string().guid()),
   valued: z.boolean(),
   netMinorUnits: z.string().nullable(),
   taxMinorUnits: z.string().nullable(),
@@ -141,8 +141,8 @@ export interface CreateStageClosureResponse {
  * no raw provider text.
  */
 export const holdPointBlockedDetails = z.object({
-  workStageId: z.string().uuid(),
-  workAssignmentId: z.string().uuid(),
+  workStageId: z.string().guid(),
+  workAssignmentId: z.string().guid(),
   stageKey: z.string().min(1),
   blockingOccurrenceCount: z.number().int().min(0),
   unsatisfiedOccurrenceCount: z.number().int().min(1),

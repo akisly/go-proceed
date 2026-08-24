@@ -1,7 +1,8 @@
+"use client";
+
 import type { BlockedValueResponse } from "@goproceed/contracts";
-import { Panel, PanelHeader, PanelBody, Table, Th, Td, Tr } from "@goproceed/ui/components";
-import { unvaluedReasonLabel } from "../../lib/unvalued-reason-labels";
-import { formatQuantity } from "../../lib/quantity";
+import { Panel, PanelHeader, PanelBody, DataTable } from "@goproceed/ui/components";
+import { unvaluedRegisterColumns } from "./unvalued-register-columns";
 
 /**
  * Task item 2: "The unvalued register, its own block, so the headline is not
@@ -13,18 +14,33 @@ import { formatQuantity } from "../../lib/quantity";
  * `unvaluedRegisterRow`), so folding it into the totals panel would visually
  * imply it is part of the same arithmetic it is explicitly excluded from.
  *
- * QUANTITY, NEVER MONEY — the row schema itself has no money field, and this
- * component renders exactly what it is given: `quantity` + `unitCode`, never
- * a computed price.
+ * On TanStack Table since 2026-08-23; the columns, and the two rulings they
+ * carry (quantity-never-money, `formatQuantity` over raw six-decimal output),
+ * live in `unvalued-register-columns.tsx`.
  *
- * `quantity` GOES THROUGH `formatQuantity` — FIX ROUND 1, IMPORTANT 2. It
- * is `fromScaled6` output, built at the `unvaluedRegister` map's own row in
- * `summariseBlockedValue` (`apps/app/src/lib/blocked-value.ts`): a fixed
- * six-fraction-digit, dot-separated string built to round-trip
- * `numeric(20,6)` exactly, not to be read — this row shipped `"10.000000"`
- * before this fix, beside `formatMoney`'s Ukrainian-comma figures elsewhere
- * on the same screen. `unitCode` was already correct (this row, unlike
- * `blockedReason.unvaluedQuantity`, carries one) and is unchanged.
+ * THE EARLY RETURN STAYS, and is not the same thing as `DataTable`'s `empty`.
+ * An unvalued register with no rows is GOOD NEWS on this screen — every
+ * blocked line has a price — so it renders nothing at all rather than an empty
+ * panel announcing a category the reader then has to dismiss.
+ *
+ * `min-w-160` matches `assignments-list.tsx`'s measured floor rather than
+ * being measured again for these headings. The seeded QA world has no unvalued
+ * assignment, so `qa/field.mjs` never renders this table and has never
+ * measured `scrollWidth` against `clientWidth` on it; that gap is recorded in
+ * that file's `NOT_COVERED`. `unvalued-register.test.tsx` beside this file
+ * renders the table and asserts its columns, its formatting and this floor,
+ * without a viewport.
+ *
+ * IT IS A CLIENT COMPONENT. `useTable` is a hook, so a TanStack table renders
+ * on the client; the column definitions hold functions, so they are imported
+ * from a `"use client"` module. Next still server-renders the markup on first
+ * paint. `assignments-list.tsx` is on this side of the boundary too — the
+ * alternative left an RSC serialization boundary that no browser in this
+ * repository exercises.
+ *
+ * The scroll container is `Table`'s own (`data-slot="table-container"`), so
+ * this file adds none; `PanelBody` keeps `p-0` so the table meets the panel's
+ * border.
  */
 export function UnvaluedRegister({
   register,
@@ -35,45 +51,12 @@ export function UnvaluedRegister({
     <Panel>
       <PanelHeader title="Без оцінки" count={register.length} />
       <PanelBody className="p-0">
-        <div className="overflow-x-auto">
-          {/* `min-w-160`, MATCHING `assignments-list.tsx`'s OWN MEASURED
-           * FLOOR, NOT A FRESH GUESS. That file's header records the exact
-           * failure a narrower table already shipped once on this screen's
-           * neighbour: an uppercase, unbreakable Ukrainian column heading
-           * overflowing its `w-1/5` cell at 390/360. This table's headings
-           * are shorter («ДОРУЧЕНЬ», 8 characters, is the longest), so
-           * reusing the already-measured-safe width should carry over —
-           * but named honestly rather than overclaimed: `qa/field.mjs`'s
-           * seeded world has no unvalued assignment, so this table renders
-           * NOTHING there and no audit has actually measured `scrollWidth`
-           * against `clientWidth` on THESE three headings the way the
-           * register audit did on its own four. Recorded in that file's own
-           * `NOT_COVERED` rather than left to look verified by this
-           * comment's confidence alone. */}
-          <Table className="min-w-160">
-            <thead>
-              <Tr>
-                <Th className="w-2/5">Причина</Th>
-                <Th numeric className="w-1/5">Доручень</Th>
-                <Th numeric className="w-2/5">Кількість</Th>
-              </Tr>
-            </thead>
-            <tbody>
-              {register.map((row, i) => (
-                // No stable id on this row (it is an aggregate, not an
-                // entity) — `reason` + `unitCode` is unique within one
-                // response by construction (the route groups by exactly
-                // those two keys), and `i` is appended only to satisfy React
-                // when that pair somehow repeats.
-                <Tr key={`${row.reason}-${row.unitCode}-${i}`}>
-                  <Td>{unvaluedReasonLabel(row.reason)}</Td>
-                  <Td numeric>{row.assignmentCount}</Td>
-                  <Td numeric>{formatQuantity(row.quantity)} {row.unitCode}</Td>
-                </Tr>
-              ))}
-            </tbody>
-          </Table>
-        </div>
+        <DataTable
+          columns={unvaluedRegisterColumns}
+          data={register}
+          className="min-w-160"
+          empty="Немає позицій без оцінки."
+        />
       </PanelBody>
     </Panel>
   );

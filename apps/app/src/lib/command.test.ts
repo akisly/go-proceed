@@ -27,6 +27,35 @@ describe("commandRoute", () => {
     expect(res.status).toBe(422);
     expect(b.fieldErrors.length).toBeGreaterThan(0);
   });
+
+  /**
+   * THE `path` STRING IS THE USER-VISIBLE HALF OF A 422 and, until the zod 4
+   * upgrade on 2026-08-24, nothing pinned its SHAPE — only that `fieldErrors`
+   * was non-empty. `commandRoute` builds it with `i.path.join(".")` over
+   * `parsed.error.issues`, and zod 4 «dramatically streamlined» the issue
+   * types, so this is precisely the kind of thing a library bump can reshape
+   * without a single type error and without a red test.
+   *
+   * It did NOT change: `issue.path` is still an ordered array of keys
+   * (`zod/v4/core/errors.d.ts:9` declares `readonly path: PropertyKey[]`), and
+   * an array index is still a NUMBER in that array, so a nested field comes
+   * out `items.1.qty` exactly as it did under zod 3. This test is the record
+   * of that, and the guard for the next bump — a Ukrainian-speaking caller
+   * reads this string to find the field they have to correct.
+   */
+  it("names the failing field by its dotted path, array indices included", async () => {
+    const nested = commandRoute(
+      z.object({ items: z.array(z.object({ qty: z.number().int().positive() })) }),
+      async () => ({ status: 200, body: {} }),
+    );
+    const res = await nested(
+      mk(JSON.stringify({ items: [{ qty: 1 }, { qty: -3 }] }), { "idempotency-key": "k" }),
+      { params: Promise.resolve({}) },
+    );
+    expect(res.status).toBe(422);
+    const b = await res.json();
+    expect(b.fieldErrors.map((f: { path: string }) => f.path)).toEqual(["items.1.qty"]);
+  });
   it("passes body, key, and sha256 hash through on success", async () => {
     const res = await echo(mk(JSON.stringify({ name: "ok" }), { "idempotency-key": "k1" }), { params: Promise.resolve({}) });
     expect(res.status).toBe(200);

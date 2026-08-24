@@ -11,8 +11,8 @@ export const createOrganizationRequest = z.object({
 export type CreateOrganizationRequest = z.infer<typeof createOrganizationRequest>;
 
 export const createOrganizationResponse = z.object({
-  organizationId: z.string().uuid(),
-  membershipId: z.string().uuid(),
+  organizationId: z.string().guid(),
+  membershipId: z.string().guid(),
   role: z.literal("owner"),
   version: z.number().int(),
 });

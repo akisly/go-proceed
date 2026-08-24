@@ -51,9 +51,13 @@ type RouteCtx = { params: Promise<Record<string, string>> };
  * spread onto the response the same way `queryRoute` spreads it.
  */
 export function commandRoute<T>(
-  // Input type `unknown` so T binds to the schema OUTPUT (defaults applied),
-  // not the pre-parse input where defaulted fields are still optional.
-  schema: z.ZodType<T, z.ZodTypeDef, unknown>,
+  // Zod 4 reordered `ZodType`'s parameters and does not export `ZodTypeDef`;
+  // the zod-3 spelling `<T, z.ZodTypeDef, unknown>` is a compile error here,
+  // not a silent degradation. `TODOS.md`'s migration entry records what tsc
+  // reported. The INPUT is `unknown` so `T` binds to the schema's OUTPUT —
+  // defaults applied — not to the pre-parse input where a defaulted field is
+  // still optional.
+  schema: z.ZodType<T, unknown>,
   run: (a: CommandArgs<T>) => Promise<HandlerResult>,
 ): (req: Request, ctx: RouteCtx) => Promise<Response> {
   return async (req, ctx) => {

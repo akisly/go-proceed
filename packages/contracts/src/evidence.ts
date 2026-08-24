@@ -15,7 +15,7 @@ import { z } from "zod";
  * itself corrected under.
  */
 export const evidenceObjectView = z.object({
-  evidenceObjectId: z.string().uuid(),
+  evidenceObjectId: z.string().guid(),
   mediaType: z.string().min(1),
   byteSize: z.number().int().positive(),
   contentHash: z.string().regex(/^[0-9a-f]{64}$/),
@@ -43,7 +43,7 @@ export const assignmentEvidenceResponse = z.object({
      * none. A consumer that drops this group shows an assignment as having no
      * evidence when it has evidence.
      */
-    occurrenceId: z.string().uuid().nullable(),
+    occurrenceId: z.string().guid().nullable(),
     evidence: z.array(evidenceObjectView),
   }).strict()),
 }).strict();

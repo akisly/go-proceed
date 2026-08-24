@@ -3,7 +3,7 @@
 /**
  * The component inventory, live.
  *
- * Fifteen components, each next to the ruling it carries. This is where the QA
+ * Each case sits next to the ruling it carries. This is where the QA
  * harness points its viewport, contrast and touch-target passes: a component
  * only ever exercised inside a finished screen is a component nobody can check
  * in isolation.
@@ -16,10 +16,13 @@
 
 import { useState } from "react";
 import {
-  Accordion, Banner, Button, Chip, EmptyState, Field, Figure, Input, Textarea,
+  Accordion, Banner, Button, Checkbox, Chip, DataTable, EmptyState, Field, Figure,
+  Input, Label, Textarea,
   Meter, Panel, PanelHeader, PanelBody, Separator, Skeleton,
-  Table, Th, Td, Tr, Tooltip, TooltipProvider,
-  type AccordionEntry, type MeterSegment,
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+  Tooltip, TooltipProvider,
+  type AccordionEntry, type DataTableColumnDef, type MeterSegment,
 } from "@goproceed/ui/components";
 import { CountUp } from "@goproceed/ui/motion";
 
@@ -46,6 +49,19 @@ const ROWS = [
   { id: "3", scope: "Секція В · покрівля · пароізоляція", planned: 340, done: 340, tone: "attention" as const, state: "Під ризиком" },
 ];
 
+/**
+ * The same three rows, described as DATA rather than as markup — which is the
+ * whole difference the DataTable case below exists to show. The widths and the
+ * numeric ruling ride on `meta`, where a fifth column cannot be added without
+ * the percentages visibly failing to sum.
+ */
+const SINK_COLUMNS: DataTableColumnDef<(typeof ROWS)[number]>[] = [
+  { id: "scope", header: "Обсяг", meta: { className: "w-2/5" }, cell: ({ row }) => row.original.scope },
+  { id: "planned", header: "Заплановано", meta: { className: "w-1/5", numeric: true }, cell: ({ row }) => row.original.planned },
+  { id: "done", header: "Зафіксовано", meta: { className: "w-1/5", numeric: true }, cell: ({ row }) => row.original.done },
+  { id: "state", header: "Стан", meta: { className: "w-1/5" }, cell: ({ row }) => <Chip tone={row.original.tone}>{row.original.state}</Chip> },
+];
+
 function Case({ n, name, rule, children }: {
   n: string; name: string; rule: string; children: React.ReactNode;
 }) {
@@ -68,11 +84,11 @@ export default function ComponentSink() {
         <header className="py-24">
           <p className="index-label">Kitchen sink · components</p>
           <h1 className="display mt-4 max-w-[18ch] text-mkt-display-1 text-ink">
-            П’ятнадцять компонентів і причина кожного
+            Компоненти й причина кожного
           </h1>
           <p className="measure mt-6 text-mkt-lead leading-relaxed text-ink-muted">
             Список короткий навмисне: невикористаний варіант — перше, що поїде.
-            Діалоги, меню й форми приходять із екранами, яким вони потрібні.
+            Примітиви, взяті з shadcn/ui, названі у своїх файлах разом із ліцензією.
           </p>
         </header>
 
@@ -109,27 +125,36 @@ export default function ComponentSink() {
           </Panel>
         </Case>
 
-        <Case n="04" name="Table" rule="Справжня таблиця з table-fixed. Числові колонки праворуч і табличними цифрами: 620/620 і 180/150 різняться формою, коли їхні цифри мають спільний правий край.">
+        <Case n="04" name="Table" rule="Примітиви — один в один із shadcn/ui, стилі — ролі цієї системи. Справжня таблиця з table-fixed. Числові колонки праворуч і табличними цифрами: 620/620 і 180/150 різняться формою, коли їхні цифри мають спільний правий край.">
           <Panel>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Обсяг</Th>
-                  <Th numeric>Заплановано</Th>
-                  <Th numeric>Зафіксовано</Th>
-                  <Th>Стан</Th>
-                </tr>
-              </thead>
-              <tbody>
+            {/* `min-w-160` (640px) IS THE PRODUCT'S OWN MEASURED FLOOR, not a
+              * decoration on a demo. Under `table-fixed` a column does not
+              * widen to fit its content, so at 390px each `w-1/5` cell is
+              * ~68px while «ЗАПЛАНОВАНО» needs 118 — an eleven-character
+              * uppercase word with no break opportunity, which overflows into
+              * its neighbour rather than wrapping. That defect shipped once on
+              * `/dash/projects/{id}/assignments` and `apps/app/qa/field.mjs`
+              * now measures it per `th`. The kitchen sink demonstrates the
+              * ruling or it teaches the defect. */}
+            <Table className="min-w-160">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Обсяг</TableHead>
+                  <TableHead numeric>Заплановано</TableHead>
+                  <TableHead numeric>Зафіксовано</TableHead>
+                  <TableHead>Стан</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {ROWS.map((r) => (
-                  <Tr key={r.id}>
-                    <Td>{r.scope}</Td>
-                    <Td numeric>{r.planned}</Td>
-                    <Td numeric>{r.done}</Td>
-                    <Td><Chip tone={r.tone}>{r.state}</Chip></Td>
-                  </Tr>
+                  <TableRow key={r.id}>
+                    <TableCell>{r.scope}</TableCell>
+                    <TableCell numeric>{r.planned}</TableCell>
+                    <TableCell numeric>{r.done}</TableCell>
+                    <TableCell><Chip tone={r.tone}>{r.state}</Chip></TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
+              </TableBody>
             </Table>
           </Panel>
         </Case>
@@ -216,6 +241,34 @@ export default function ComponentSink() {
                 <Skeleton className="h-4 w-1/2" />
               </PanelBody>
             </Panel>
+          </div>
+        </Case>
+
+        <Case n="12" name="DataTable" rule="Одна поведінка таблиці на весь продукт: колонки описані даними, а не розміткою. Ширини й «числова колонка» їдуть у column.meta, тож п’ята колонка не з’явиться так, щоб ніхто не помітив, що відсотки більше не складаються. Сортування підключене, але вимкнене за замовчуванням — вмикає його екран, у якого є вимір ширини на 390px.">
+          <Panel>
+            <DataTable columns={SINK_COLUMNS} data={ROWS} className="min-w-160" empty="Немає рядків." />
+          </Panel>
+        </Case>
+
+        <Case n="13" name="Label + Checkbox + Select" rule="Три контролі, яких бракувало першій справжній формі. Жоден із них не малює власне кільце фокуса — воно одне на весь продукт і живе в base.css. Checkbox поки НЕ дотягує до 44px на дотик: це записано в TODOS.md, а не приховано тут.">
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-2">
+              <Checkbox id="sink-checkbox" />
+              <Label htmlFor="sink-checkbox">Показати лише заблоковані</Label>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="sink-select">Одиниця виміру</Label>
+              <Select>
+                <SelectTrigger id="sink-select" className="w-64">
+                  <SelectValue placeholder="Оберіть одиницю" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="m2">м² — квадратний метр</SelectItem>
+                  <SelectItem value="m3">м³ — кубічний метр</SelectItem>
+                  <SelectItem value="mp">м. п. — метр погонний</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </Case>
 

@@ -127,7 +127,7 @@ export const issueOccurrenceGrantRequest = z.object({
    * the column is, and because the day a contact route lands the wire should not
    * have to change. Sending one that does not exist is a 404.
    */
-  recipientContactId: z.string().uuid().optional(),
+  recipientContactId: z.string().guid().optional(),
   permissions: externalGrantPermissions,
   expiresInDays: z.number().int().min(1).max(7).default(7),
 }).strict();
@@ -311,7 +311,7 @@ export const externalNormRef = z.object({
  * is the only time on this object that is not a claim.
  */
 export const externalEvidenceItem = z.object({
-  evidenceObjectId: z.string().uuid(),
+  evidenceObjectId: z.string().guid(),
   mediaType: z.string().min(1),
   byteSize: z.number().int().positive(),
   contentHash: z.string().regex(/^[0-9a-f]{64}$/),
@@ -324,7 +324,7 @@ export const externalEvidenceItem = z.object({
 
 export const externalOccurrenceScopeResponse = z.object({
   occurrence: z.object({
-    requirementOccurrenceId: z.string().uuid(),
+    requirementOccurrenceId: z.string().guid(),
     ordinal: z.number().int().positive(),
     /** The closable unit's key. Not the stage row — the session cannot read it. */
     stageKey: z.string().min(1),

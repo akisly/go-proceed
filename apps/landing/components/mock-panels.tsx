@@ -1,5 +1,7 @@
 import Image from "next/image";
-import { Chip, Panel, Table, Td, Th, Tr } from "@goproceed/ui/components";
+import {
+  Chip, Panel, Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@goproceed/ui/components";
 
 export function RequirementPanel() {
   return (
@@ -87,19 +89,24 @@ export function ActPanel() {
   return (
     <MockFrame index="ACT · DRAFT-017" title="Акт прихованих робіт" status={<Chip tone="idle">Чернетка</Chip>}>
       <div role="region" aria-label="Факти чернетки акта" className="overflow-hidden rounded-panel border border-line">
+        {/* The last row's rule is removed by `TableBody`'s own
+          * `[&_tr:last-child]:border-0` since the Table primitives became
+          * shadcn's — the border moved from the cell to the row, so the two
+          * hand-written `border-0` cells this markup used to carry no longer
+          * had anything to switch off. */}
         <Table>
-          <thead>
-            <Tr>
-              <Th className="w-[30%]">Розділ</Th>
-              <Th>Записаний факт</Th>
-            </Tr>
-          </thead>
-          <tbody>
-            <Tr><Td>Роботи</Td><Td>Монтаж кабельних трас ВРУ-1</Td></Tr>
-            <Tr><Td>Проєкт</Td><Td>ЕОМ · аркуш 14 · ревізія 03</Td></Tr>
-            <Tr><Td>Докази</Td><Td>EV-0248 · 3 матеріали</Td></Tr>
-            <Tr><Td className="border-0">Рішення</Td><Td className="border-0">DR-0091 · прийнято</Td></Tr>
-          </tbody>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[30%]">Розділ</TableHead>
+              <TableHead>Записаний факт</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow><TableCell>Роботи</TableCell><TableCell>Монтаж кабельних трас ВРУ-1</TableCell></TableRow>
+            <TableRow><TableCell>Проєкт</TableCell><TableCell>ЕОМ · аркуш 14 · ревізія 03</TableCell></TableRow>
+            <TableRow><TableCell>Докази</TableCell><TableCell>EV-0248 · 3 матеріали</TableCell></TableRow>
+            <TableRow><TableCell>Рішення</TableCell><TableCell>DR-0091 · прийнято</TableCell></TableRow>
+          </TableBody>
         </Table>
       </div>
       <p className="mt-4 text-meta leading-relaxed text-ink-muted">

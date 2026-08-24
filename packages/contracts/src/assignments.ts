@@ -4,10 +4,10 @@ import { z } from "zod";
 const decimal = z.string().regex(/^\d+(\.\d{1,6})?$/);
 
 export const createAssignmentRequest = z.object({
-  workItemId: z.string().uuid(),
-  locationId: z.string().uuid().optional(),
-  performerPartyId: z.string().uuid().optional(),
-  assigneeMemberId: z.string().uuid().optional(),
+  workItemId: z.string().guid(),
+  locationId: z.string().guid().optional(),
+  performerPartyId: z.string().guid().optional(),
+  assigneeMemberId: z.string().guid().optional(),
   plannedQuantity: decimal.optional(),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   /**
@@ -50,7 +50,7 @@ export const createAssignmentRequest = z.object({
    * the media policy for an assignment with no occurrence. Do not add a new
    * caller.
    */
-  requirementTemplateVersionId: z.string().uuid().optional(),
+  requirementTemplateVersionId: z.string().guid().optional(),
 }).strict();
 export type CreateAssignmentRequest = z.infer<typeof createAssignmentRequest>;
 

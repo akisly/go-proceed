@@ -1,12 +1,12 @@
 import { z } from "zod";
 
 export const meContextResponse = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().guid(),
   memberships: z.array(z.object({
     // Canonical name (v0.1-M1): workspaceId. organizationId is kept for
     // compatibility with v0.0 clients; both carry the same value.
-    workspaceId: z.string().uuid(),
-    organizationId: z.string().uuid(),
+    workspaceId: z.string().guid(),
+    organizationId: z.string().guid(),
     displayName: z.string(),
     role: z.string(),
     status: z.string(),

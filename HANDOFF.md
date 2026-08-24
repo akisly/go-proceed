@@ -143,6 +143,22 @@ against shared Postgres is load-bearing), TypeScript 7 (root 5.9.2 and mobile
 6.0.3 already disagree). Each is in `TODOS.md` with blast radius and doc URLs.
 Folding one in would have been the scope creep the rule prevents.
 
+*[Update 2026-08-24: **zod 3→4 is DONE**, on the owner's later instruction to
+run every library at latest. Two corrections to the estimate above, both worth
+carrying: the `.uuid()` tightening was the part that bit hardest — most UUID
+literals in this repository are rejected by zod 4's `.uuid()`, so every site is
+now `.guid()`, which is what Postgres's own `uuid` column enforces — and
+`fieldErrors` turned out not to be built on the `ZodError` shape at all
+(`i.path.join(".")` over `issue.path`, unchanged in zod 4 and now pinned by a
+test).
+**How each class of break was found, since that is the transferable part:**
+every TYPE-level break was caught by tsc, loudly, including the `ZodType`
+parameter reorder that an earlier draft of this paragraph wrongly called
+silent. The `.uuid()` tightening was NOT a type error and the compiler said
+nothing about it — the contracts suite did. Measurements and error codes are in
+`TODOS.md`'s «three major-version migrations» entry, item 1. vitest 3→4 and
+TypeScript 7 remain not done.]*
+
 **Then PR #30's first real Vercel build taught the thing this entry is named
 for.** The owner had already set nine runtime variables on the project, and the
 preflight reported all nine «unset». Turborepo's default strict env mode hands

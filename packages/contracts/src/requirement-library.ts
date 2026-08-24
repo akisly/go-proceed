@@ -44,7 +44,7 @@ export const verificationTag = z.enum(["VERIFIED_PRIMARY", "VERIFIED_SECONDARY"]
 export type VerificationTagValue = z.infer<typeof verificationTag>;
 
 export const requirementLibraryItem = z.object({
-  libraryItemId: z.string().uuid(),
+  libraryItemId: z.string().guid(),
   sourceStandard: z.string().min(1),
   /**
    * The allow-list carries the verbatim contents of Н.14 and Н.15 ONLY.

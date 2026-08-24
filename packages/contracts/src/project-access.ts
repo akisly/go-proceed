@@ -56,7 +56,7 @@ export const projectCapability = z.enum([
 export type ProjectCapabilityValue = z.infer<typeof projectCapability>;
 
 export const grantProjectAccessRequest = z.object({
-  memberId: z.string().uuid(),
+  memberId: z.string().guid(),
   capabilities: z.array(projectCapability).min(1),
   validUntil: z.string().datetime().optional(),
 });
@@ -73,7 +73,7 @@ export const responsibilityKind = z.enum([
 ]);
 
 export const assignResponsibilityRequest = z.object({
-  memberId: z.string().uuid(),
+  memberId: z.string().guid(),
   responsibility: responsibilityKind,
   validFrom: z.string().datetime().optional(),
   validUntil: z.string().datetime().optional(),
