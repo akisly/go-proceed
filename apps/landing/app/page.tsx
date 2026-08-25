@@ -1,7 +1,10 @@
 import { Footer } from "../components/blocks/footer";
 import { EvidenceJourney } from "../components/blocks/evidence-journey";
+import { FieldReview } from "../components/blocks/field-review";
 import { Hero } from "../components/blocks/hero";
 import { NavFloat } from "../components/blocks/nav-float";
+import { ReadinessDiagram } from "../components/blocks/readiness-diagram";
+import { TrustBoundary } from "../components/blocks/trust-boundary";
 
 export default function LandingPage() {
   return (
@@ -16,6 +19,9 @@ export default function LandingPage() {
       <main id="main-content" tabIndex={-1} className="overflow-x-clip">
         <Hero />
         <EvidenceJourney />
+        <FieldReview />
+        <ReadinessDiagram />
+        <TrustBoundary />
       </main>
       <Footer />
     </>
