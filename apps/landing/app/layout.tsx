@@ -14,6 +14,15 @@ import "@fontsource-variable/source-serif-4";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
+const DESIGN_CONTRACT = `<!--
+THESIS: One evidence route turns fragmented construction proof into an accountable decision trail; this page refuses the feature-catalogue pattern.
+OWN-WORLD: Paper, carbon, blueprint lines, field evidence and a single safety-lime signal.
+STORY: The visitor follows R-041 through EV-0248 and DR-0091 to a readiness decision, then sees the honest product boundary and pilot action.
+FIRST VIEWPORT: One promise, one live dossier and two real anchors; no decorative feature grid.
+FORM: Evidence Journey, top-ranked and user-approved-evidence-journey-2026-08-25.
+FINISH: Unreviewed and undocumented is unfinished; the build ends with a finish review, verdict and DESIGN.md.
+-->`;
+
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = firstForwardedValue(
@@ -35,7 +44,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   // this attribute is the switch that turns it on when that decision is taken.
   return (
     <html lang="uk" data-theme="light">
-      <body>{children}</body>
+      <body>
+        <template
+          data-impeccable-contract="user-approved-evidence-journey-2026-08-25"
+          dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }}
+        />
+        {children}
+      </body>
     </html>
   );
 }
