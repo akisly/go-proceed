@@ -5,182 +5,107 @@ import LandingPage from "../app/page";
 
 const html = renderToStaticMarkup(<LandingPage />);
 
-describe("landing semantic frame", () => {
-  it("uses the same project mark across site chrome and product previews", () => {
-    const navigationStart = html.indexOf('<nav aria-label="Головна навігація"');
-    const brandLinkEnd = html.indexOf("</a>", navigationStart);
-    const brandLinkHtml = html.slice(navigationStart, brandLinkEnd);
-
-    expect(navigationStart).toBeGreaterThan(-1);
-    expect(brandLinkHtml).toContain("<img");
-    expect(brandLinkHtml).toContain('alt=""');
-    expect(brandLinkHtml).toContain("GoProceed");
-    expect(html.match(/data-brand-mark="true"/g) ?? []).toHaveLength(4);
-    expect(html).not.toContain(">GP</span>");
-  });
-
-  it("publishes one main heading and the first narrative landmarks", () => {
+describe("landing evidence journey", () => {
+  it("uses one consistent project mark and one main heading", () => {
     expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html.match(/data-brand-mark="true"/g)?.length).toBeGreaterThanOrEqual(2);
     expect(html).toContain('href="#main-content"');
     expect(html).toContain('id="main-content"');
-
-    for (const id of ["product", "proof"]) {
-      expect(html).toContain(`id="${id}"`);
-    }
   });
 
-  it("keeps every pilot action inert", () => {
-    expect(html).toContain('aria-disabled="true"');
-    expect(html).toContain("disabled");
-    expect(html).not.toContain('href="/pilot');
-    expect(html).not.toContain("<form");
-  });
+  it("renders six purposeful scenes in reading order", () => {
+    const ids = ["product", "workflow", "field-review", "readiness", "trust", "pilot"];
+    let cursor = -1;
 
-  it("renders the full evidence workflow in reading order", () => {
-    const workflowStart = html.indexOf('id="workflow"');
-    expect(workflowStart).toBeGreaterThan(-1);
-
-    let previous = workflowStart;
-    for (const label of ["Робота", "Вимога", "Доказ", "Рішення", "Закриття", "Акт"]) {
-      const next = html.indexOf(label, previous + 1);
-      expect(next).toBeGreaterThan(previous);
-      previous = next;
+    for (const id of ids) {
+      const next = html.indexOf(`id="${id}"`);
+      expect(next).toBeGreaterThan(cursor);
+      cursor = next;
     }
 
-    expect(html).toContain("Блокуюча вимога не дозволяє записати етап закритим");
+    expect(html).not.toContain('id="proof"');
+    expect(html).not.toContain('id="roles"');
+    expect(html).not.toContain('data-tour-mode="timed-tabs"');
+    expect(html).not.toContain('aria-label="Порівняння доказового контуру"');
   });
 
-  it("server-renders every product-tour chapter for reduced-motion access", () => {
-    for (const title of [
-      "Команда знає критерій до того, як він стане проблемою",
-      "Майстер бачить не форму, а наступний потрібний доказ",
-      "Нагляд отримує рівно той контекст, який потрібен для рішення",
-      "Чернетка акта збирається з зафіксованих фактів",
-    ]) {
-      expect(html).toContain(title);
+  it("opens with one focused evidence dossier and working pilot actions", () => {
+    const hero = html.slice(html.indexOf('id="product"'), html.indexOf('id="workflow"'));
+
+    expect(hero).toContain('aria-label="Досьє доказу EV-0248"');
+    expect(hero).toContain("R-041");
+    expect(hero).toContain("EV-0248");
+    expect(hero).toContain("Очікує рішення");
+    expect(hero).toContain('href="#pilot"');
+    expect(html.match(/href="#pilot"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html).not.toContain('aria-disabled="true"');
+  });
+
+  it("server-renders the evidence route without autoplay", () => {
+    const section = html.slice(
+      html.indexOf('id="workflow"'),
+      html.indexOf('id="field-review"'),
+    );
+
+    for (const id of ["R-041", "EV-0248", "DR-0091", "CL-017"]) {
+      expect(section).toContain(id);
     }
+
+    expect(section.match(/data-journey-chapter=/g)).toHaveLength(3);
+    expect(section).not.toContain("Пауза");
+    expect(section).not.toContain('role="tablist"');
   });
 
-  it("shows the product as a real dashboard and a field application", () => {
-    expect(html).toContain('aria-label="Огляд робочого простору GoProceed"');
-    expect(html).toContain("Реєстр робіт");
-    expect(html).toContain("Черга доказів");
-    expect(html).toContain("Інспектор вимоги");
-    expect(html).toContain("Польовий застосунок");
-    expect(html).toContain("2 з 3 матеріалів додано");
+  it("shows the field hand-off and online-only boundary", () => {
+    const section = html.slice(
+      html.indexOf('id="field-review"'),
+      html.indexOf('id="readiness"'),
+    );
+
+    expect(section).toContain("Без облікового запису");
+    expect(section).toContain("активного з’єднання");
+    expect(section).toContain("Майстер");
+    expect(section).toContain("ПТВ");
+    expect(section).toContain("Технагляд");
   });
 
-  it("places the dashboard inside the hero before the proof strip", () => {
-    const heroStart = html.indexOf('id="product"');
-    const dashboard = html.indexOf('aria-label="Огляд робочого простору GoProceed"');
-    const proofStart = html.indexOf('id="proof"');
-
-    expect(heroStart).toBeGreaterThan(-1);
-    expect(dashboard).toBeGreaterThan(heroStart);
-    expect(dashboard).toBeLessThan(proofStart);
+  it("labels project state as demonstration data", () => {
+    expect(html).toContain('aria-label="Стан демонстраційного пакета робіт"');
+    expect(html).toContain("Демонстраційні дані");
+    expect(html).toContain("Готово");
+    expect(html).toContain("На розгляді");
+    expect(html).toContain("Заблоковано");
   });
 
-  it("presents the proof strip as one labelled sequence of four stages", () => {
-    const proofStart = html.indexOf('id="proof"');
-    const proofEnd = html.indexOf("</section>", proofStart);
-    const proofHtml = html.slice(proofStart, proofEnd);
-
-    expect(proofStart).toBeGreaterThan(-1);
-    expect(proofHtml).toContain('aria-labelledby="proof-title"');
-    expect(proofHtml).toContain('<ol');
-    expect(proofHtml.match(/<li/g)).toHaveLength(4);
+  it("shows provenance and the honest v0.1 product boundary", () => {
+    expect(html).toContain('aria-label="Квитанція походження EV-0248"');
+    expect(html).toContain("Працює у поточному контурі");
+    expect(html).toContain("Не заявляємо");
+    expect(html).toContain("Чернетка акта не є підписаним документом");
   });
 
-  it("uses timed clickable tabs instead of a scroll-driven product tour", () => {
-    expect(html).toContain('data-tour-mode="timed-tabs"');
-    expect(html).toContain('role="tablist"');
-    expect(html).toContain('data-tour-progress="true"');
+  it("renders an honest accessible pilot form", () => {
+    const pilot = html.slice(html.indexOf('id="pilot"'), html.indexOf("<footer"));
+
+    expect(pilot).toContain("<form");
+    expect(pilot).toContain('name="name"');
+    expect(pilot).toContain('name="contact"');
+    expect(pilot).toContain('required=""');
+    expect(pilot).toContain('aria-live="polite"');
+    expect(pilot).toContain("поштовий клієнт");
+    expect(pilot).not.toContain("Заявку надіслано");
   });
 
-  it("stabilizes the desktop product tour without restoring oversized panels", () => {
-    const tourStart = html.indexOf('data-tour-mode="timed-tabs"');
-    const tourEnd = html.indexOf("</section>", tourStart);
-    const tourHtml = html.slice(tourStart, tourEnd);
+  it("keeps the factual FAQ in the closing scene", () => {
+    const pilot = html.slice(html.indexOf('id="pilot"'), html.indexOf("<footer"));
 
-    expect(tourStart).toBeGreaterThan(-1);
-    expect(tourHtml).toContain("wide:min-h-[460px]");
-    expect(tourHtml).not.toContain("min-h-[560px]");
-    expect(tourHtml).not.toContain("min-h-[620px]");
-    expect(tourHtml).not.toContain("min-h-[480px]");
+    expect(pilot).toContain("Чи можна фіксувати матеріали без мережі?");
+    expect(pilot).toContain("Чернетка акта є готовим підписаним документом?");
+    expect(pilot).toContain("<details");
   });
 
-  it("renders the evidence route as three labelled product scenes", () => {
-    const workflowStart = html.indexOf('id="workflow"');
-    const workflowEnd = html.indexOf("</section>", workflowStart);
-    const workflowHtml = html.slice(workflowStart, workflowEnd);
-
-    expect(workflowStart).toBeGreaterThan(-1);
-    expect(workflowHtml).toContain('aria-label="Доказовий ланцюг"');
-    expect(workflowHtml.match(/<figure/g) ?? []).toHaveLength(3);
-
-    for (const label of ["Робота і вимога", "Доказ і рішення", "Закриття і акт"]) {
-      expect(workflowHtml).toContain(`aria-label="${label}"`);
-    }
-  });
-
-  it("keeps the evidence scenes free of the square blueprint grid", () => {
-    const workflowStart = html.indexOf('id="workflow"');
-    const workflowEnd = html.indexOf("</section>", workflowStart);
-
-    const workflowHtml = html.slice(workflowStart, workflowEnd);
-
-    expect(workflowHtml).not.toContain("landing-paper-grid");
-    expect(workflowHtml).not.toContain("landing-blueprint");
-  });
-
-  it("gives each project role a concrete decision dossier", () => {
-    for (const role of [
-      "Власник або комерційний директор",
-      "Керівник ПТВ",
-      "Майстер на майданчику",
-    ]) {
-      expect(html).toContain(role);
-    }
-    expect(html).toContain('id="roles"');
-  });
-
-  it("renders the comparison, integrity receipt, and pilot without invented pricing", () => {
-    expect(html).toContain('aria-label="Порівняння доказового контуру"');
-    expect(html).toContain('data-mobile-comparison="true"');
-    expect(html).toContain('aria-label="Квитанція походження доказу EV-0248"');
-    expect(html).toContain('id="pilot"');
-
-    const pilotStart = html.indexOf('id="pilot"');
-    const pilotEnd = html.indexOf("</section>", pilotStart);
-    expect(html.slice(pilotStart, pilotEnd)).not.toContain("₴");
-  });
-
-  it("finishes with factual FAQ, inert final action, and mock disclaimer", () => {
-    expect(html).toContain('id="faq"');
-    expect(html).toContain("Чи можна фіксувати матеріали без мережі?");
-    expect(html).toContain("Кнопка у цьому макеті не надсилає дані");
-    expect(html).toContain("Візуальний макет продукту");
+  it("finishes with a factual product-scope footer", () => {
     expect(html).toContain("<footer");
-  });
-
-  it("uses vector disclosure icons instead of a typographic FAQ glyph", () => {
-    const faqStart = html.indexOf('id="faq"');
-    const faqEnd = html.indexOf("</section>", faqStart);
-    const faqHtml = html.slice(faqStart, faqEnd);
-
-    expect(faqStart).toBeGreaterThan(-1);
-    expect(faqHtml).toContain("lucide-chevron-down");
-    expect(faqHtml).not.toContain("⌄");
-  });
-
-  it("removes repeated framing and finishes with the single pilot section", () => {
-    expect(html).not.toContain("Переробка починається там, де вимога існує окремо від виконання");
-    expect(html).not.toContain("Перевірте, чи може ваша команда закривати етапи на підставі фактів");
-
-    const faqStart = html.indexOf('id="faq"');
-    const pilotStart = html.indexOf('id="pilot"');
-    expect(faqStart).toBeGreaterThan(-1);
-    expect(pilotStart).toBeGreaterThan(faqStart);
-    expect(html.match(/id="pilot"/g)).toHaveLength(1);
+    expect(html).toContain("Частина показаних сценаріїв перебуває у розробці");
   });
 });
