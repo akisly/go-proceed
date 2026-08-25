@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { JourneyChapter, JourneyChapters } from "../../content/landing-content";
+import { EvidenceRail } from "../visuals/evidence-rail";
 import { JourneyScene } from "../visuals/journey-scene";
 
 type EvidenceJourneyClientProps = {
@@ -13,6 +14,8 @@ export function EvidenceJourneyClient({ chapters }: EvidenceJourneyClientProps) 
   const chapterRefs = useRef<Array<HTMLElement | null>>([]);
 
   useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
     const observer = new IntersectionObserver(
       (entries) => {
         for (const entry of entries) {
@@ -32,14 +35,14 @@ export function EvidenceJourneyClient({ chapters }: EvidenceJourneyClientProps) 
   }, []);
 
   return (
-    <div className="relative mt-12 grid gap-8 wide:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] wide:gap-16">
-      <div className="landing-journey-stage hidden wide:sticky wide:top-24 wide:block wide:h-[calc(100vh-7.5rem)] wide:max-h-[720px] wide:min-h-[560px]">
+    <div className="relative mt-12 grid gap-8 wide:grid-cols-[minmax(0,0.86fr)_minmax(0,1.14fr)] wide:gap-16 motion-reduce:wide:grid-cols-1">
+      <div className="landing-journey-stage hidden wide:sticky wide:top-24 wide:block wide:h-[calc(100vh-7.5rem)] wide:max-h-[720px] wide:min-h-[560px] motion-reduce:wide:hidden">
         <div className="relative h-full overflow-hidden rounded-section border border-line-strong bg-surface shadow-float">
           {chapters.map((chapter) => (
             <div
               key={chapter.id}
               aria-hidden={active !== chapter.id}
-              className={`absolute inset-0 transition-[opacity,transform] duration-slow ease-out motion-reduce:transform-none motion-reduce:transition-none ${
+              className={`absolute inset-x-0 bottom-[92px] top-0 transition-[opacity,transform] duration-slow ease-out ${
                 active === chapter.id
                   ? "translate-y-0 opacity-100"
                   : "pointer-events-none translate-y-3 opacity-0"
@@ -48,7 +51,14 @@ export function EvidenceJourneyClient({ chapters }: EvidenceJourneyClientProps) 
               <JourneyScene id={chapter.id} />
             </div>
           ))}
+          <div className="absolute inset-x-0 bottom-0 z-20 border-t border-line-strong">
+            <EvidenceRail active={active} />
+          </div>
         </div>
+      </div>
+
+      <div className="overflow-hidden rounded-section border border-line-strong shadow-overlay wide:hidden motion-reduce:wide:block">
+        <EvidenceRail active="decision" />
       </div>
 
       <ol className="border-t border-line-strong">
@@ -57,9 +67,9 @@ export function EvidenceJourneyClient({ chapters }: EvidenceJourneyClientProps) 
             <article
               ref={(node) => { chapterRefs.current[index] = node; }}
               data-journey-chapter={chapter.id}
-              className="grid min-h-[72vh] content-center border-b border-line-strong py-14 md:py-20 wide:min-h-[76vh]"
+              className="grid min-h-[72vh] content-center border-b border-line-strong py-14 md:py-20 wide:min-h-[76vh] motion-reduce:wide:min-h-0"
             >
-              <div className="mb-8 wide:hidden">
+              <div className="landing-journey-inline-scene mb-8 wide:hidden motion-reduce:wide:block">
                 <JourneyScene id={chapter.id} />
               </div>
               <div className="flex items-center gap-4">

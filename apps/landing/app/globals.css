@@ -74,9 +74,10 @@
 
   .landing-hero-field {
     background:
-      radial-gradient(circle at 82% 18%, var(--color-action-signal) 0 1px, transparent 2px),
+      linear-gradient(var(--color-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line) 1px, transparent 1px),
       linear-gradient(to bottom, var(--color-subtle), transparent);
-    background-size: 22px 22px, 100% 100%;
+    background-size: 48px 48px, 48px 48px, 100% 100%;
   }
 
   .landing-blueprint {

@@ -1,8 +1,36 @@
+"use client";
+
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { ArrowRight, Camera, Check, RotateCcw, ShieldCheck, Wifi } from "lucide-react";
 import { landingContent } from "../../content/landing-content";
 
 export function FieldReviewVisual() {
+  const handoffRef = useRef<HTMLDivElement>(null);
+  const [handoffDrawn, setHandoffDrawn] = useState(false);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setHandoffDrawn(true);
+      return;
+    }
+
+    const node = handoffRef.current;
+    if (!node) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry?.isIntersecting) return;
+        setHandoffDrawn(true);
+        observer.disconnect();
+      },
+      { threshold: 0.35 },
+    );
+
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <figure aria-label="Передача EV-0248 з майданчика до технічного нагляду" className="relative grid gap-5 wide:grid-cols-[0.72fr_0.38fr_0.9fr] wide:items-center wide:gap-0">
       <figcaption className="sr-only">Фото з телефону разом із вимогою передається у вузький зовнішній перегляд.</figcaption>
@@ -38,9 +66,16 @@ export function FieldReviewVisual() {
         </div>
       </div>
 
-      <div className="relative mx-auto flex w-full max-w-[300px] items-center justify-center py-4 wide:h-full wide:max-w-none wide:py-0" aria-hidden="true">
-        <span className="absolute left-0 right-0 top-1/2 h-px bg-line-inverse" />
-        <span className="relative grid size-14 place-items-center rounded-pill border border-action-signal bg-inverse text-action-signal shadow-overlay">
+      <div ref={handoffRef} className="relative mx-auto flex w-full max-w-[300px] items-center justify-center py-4 wide:h-full wide:max-w-none wide:py-0" aria-hidden="true">
+        <span
+          data-handoff-line="true"
+          className={`absolute left-0 right-0 top-1/2 h-px origin-left bg-line-inverse transition-transform duration-slow ease-out motion-reduce:scale-x-100 motion-reduce:transition-none ${
+            handoffDrawn ? "scale-x-100" : "scale-x-0"
+          }`}
+        />
+        <span className={`relative grid size-14 place-items-center rounded-pill border border-action-signal bg-inverse text-action-signal shadow-overlay transition-[opacity,transform] delay-150 duration-slow ease-out motion-reduce:scale-100 motion-reduce:opacity-100 motion-reduce:transition-none ${
+          handoffDrawn ? "scale-100 opacity-100" : "scale-90 opacity-0"
+        }`}>
           <ArrowRight className="size-5 rotate-90 wide:rotate-0" strokeWidth={1.75} />
         </span>
       </div>

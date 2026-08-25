@@ -10,8 +10,15 @@ export function JourneyScene({ id }: { id: JourneyChapter["id"] }) {
 
 function RequirementScene() {
   return (
-    <figure aria-label="Вимога R-041 на кресленні" className="landing-blueprint relative h-full min-h-[420px] overflow-hidden bg-surface p-5 md:p-8">
-      <figcaption className="flex items-center gap-2 border-b border-line pb-4">
+    <figure aria-label="Вимога R-041 на кресленні" className="relative h-full min-h-[420px] overflow-hidden bg-surface p-5 md:p-8">
+      <Image
+        src="/images/blueprint-folio.png"
+        alt="Фізичний аркуш креслення, на якому позначена вимога R-041"
+        fill
+        sizes="(max-width: 1240px) 100vw, 520px"
+        className="object-cover opacity-80"
+      />
+      <figcaption className="relative z-10 flex items-center gap-2 border border-line-strong bg-surface px-4 py-3 shadow-overlay">
         <MapPin aria-hidden="true" className="size-4 text-ink-muted" strokeWidth={1.75} />
         <span className="index-label text-ink-muted">ЕОМ · аркуш 14 · REV 03</span>
         <span className="index-label ml-auto text-ink-subtle">ВРУ-1</span>
@@ -22,12 +29,12 @@ function RequirementScene() {
       <div className="absolute left-[28%] top-[56%] h-px w-[55%] bg-line-strong" aria-hidden="true" />
       <div className="absolute left-[70%] top-[28%] h-[28%] w-px bg-line-strong" aria-hidden="true" />
 
-      <div className="absolute left-[38%] top-[38%] border border-action-signal bg-surface px-5 py-3 font-mono text-meta font-semibold text-ink shadow-overlay">
+      <div className="absolute left-[38%] top-[38%] z-10 border border-action-signal bg-surface px-5 py-3 font-mono text-meta font-semibold text-ink shadow-overlay">
         ВРУ-1
       </div>
       <span className="absolute left-[51%] top-[48%] h-[14%] w-px bg-action-signal" aria-hidden="true" />
 
-      <div className="absolute inset-x-5 bottom-5 border border-line-strong bg-surface shadow-float md:inset-x-8 md:bottom-8">
+      <div className="absolute inset-x-5 bottom-5 z-10 border border-line-strong bg-surface shadow-float md:inset-x-8 md:bottom-8">
         <div className="flex items-center border-b border-line px-4 py-3">
           <span className="index-label text-ink-muted">R-041</span>
           <span className="ml-auto rounded-pill border border-status-blocked-line bg-status-blocked px-3 py-1 text-micro font-semibold text-status-blocked-fg">
