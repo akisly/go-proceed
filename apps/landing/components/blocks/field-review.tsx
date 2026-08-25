@@ -1,4 +1,5 @@
 import { landingContent } from "../../content/landing-content";
+import { MarkerText } from "../marker-text";
 import { FieldReviewVisual } from "../visuals/field-review-visual";
 
 export function FieldReview() {
@@ -8,7 +9,12 @@ export function FieldReview() {
     <section id="field-review" className="scroll-mt-24 border-y border-line-inverse bg-inverse px-5 py-20 text-on-inverse md:px-8 md:py-28 wide:px-12">
       <div className="mx-auto max-w-content">
         <header className="grid gap-6 wide:grid-cols-[1fr_0.72fr] wide:items-end">
-          <h2 className="display max-w-[19ch] text-mkt-display-2">{content.title}</h2>
+          <h2
+            className="display max-w-[28ch] text-mkt-display-2"
+            data-section-heading-width="wide"
+          >
+            <MarkerText accent={content.titleAccent} text={content.title} />
+          </h2>
           <div className="wide:justify-self-end">
             <p className="measure max-w-[58ch] text-body leading-relaxed text-on-inverse-muted">{content.lead}</p>
             <p className="mt-5 max-w-[60ch] border-t border-line-inverse pt-4 text-meta leading-relaxed text-on-inverse-muted">

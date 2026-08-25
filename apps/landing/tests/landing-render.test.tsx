@@ -48,7 +48,7 @@ describe("landing evidence journey", () => {
     expect(hero).toContain('data-hero-alignment="center"');
     expect(hero).toContain('data-hero-description="true"');
     expect(hero).toContain('data-hero-actions="true"');
-    expect(hero).toContain('data-hero-accent="true"');
+    expect(hero).toContain('data-marker-accent="true"');
     expect(hero).toContain(">до доказу,</span>");
     expect(hero).toContain("items-center");
     expect(hero).toContain("text-center");
@@ -58,6 +58,23 @@ describe("landing evidence journey", () => {
     expect(hero).toContain("justify-center");
     expect(hero).toContain("text-mkt-display-2");
     expect(hero).not.toContain("text-mkt-display-1");
+  });
+
+  it("marks the thesis phrase in every primary section heading", () => {
+    expect(html.match(/data-marker-accent="true"/g)).toHaveLength(6);
+
+    for (const phrase of [
+      "до доказу,",
+      "без втрати контексту",
+      "переданий контекст",
+      "причинами",
+      "походження",
+      "одному пакеті робіт",
+    ]) {
+      expect(html).toContain(`data-marker-accent="true">${phrase}</span>`);
+    }
+
+    expect(html.match(/data-section-heading-width="wide"/g)).toHaveLength(5);
   });
 
   it("lets the blueprint field span the full hero before it dissolves", () => {

@@ -101,24 +101,25 @@
     mask-repeat: no-repeat;
   }
 
-  .landing-hero-accent {
+  .landing-marker-accent {
     position: relative;
     z-index: 0;
     display: inline-block;
     isolation: isolate;
     padding-inline: 0.03em;
+    color: var(--color-action-signal-fg);
     white-space: nowrap;
   }
 
-  .landing-hero-accent::before,
-  .landing-hero-accent::after {
+  .landing-marker-accent::before,
+  .landing-marker-accent::after {
     position: absolute;
     z-index: -1;
     pointer-events: none;
     content: "";
   }
 
-  .landing-hero-accent::before {
+  .landing-marker-accent::before {
     top: 0.16em;
     right: -0.12em;
     bottom: -0.02em;
@@ -150,7 +151,7 @@
     transform: rotate(-1.1deg) skewX(-1.5deg);
   }
 
-  .landing-hero-accent::after {
+  .landing-marker-accent::after {
     top: 0.28em;
     right: -0.05em;
     bottom: 0.04em;

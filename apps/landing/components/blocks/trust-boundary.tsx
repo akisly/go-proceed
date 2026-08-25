@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { Check, Minus, ShieldCheck } from "lucide-react";
 import { landingContent } from "../../content/landing-content";
+import { MarkerText } from "../marker-text";
 
 export function TrustBoundary() {
   const content = landingContent.trust;
@@ -9,7 +10,12 @@ export function TrustBoundary() {
     <section id="trust" className="scroll-mt-24 bg-subtle px-5 py-20 md:px-8 md:py-28 wide:px-12">
       <div className="mx-auto max-w-content">
         <header className="grid gap-6 wide:grid-cols-[1fr_0.72fr] wide:items-end">
-          <h2 className="display max-w-[20ch] text-mkt-display-2 text-ink">{content.title}</h2>
+          <h2
+            className="display max-w-[28ch] text-mkt-display-2 text-ink"
+            data-section-heading-width="wide"
+          >
+            <MarkerText accent={content.titleAccent} text={content.title} />
+          </h2>
           <p className="measure max-w-[58ch] text-body leading-relaxed text-ink-muted wide:justify-self-end">{content.lead}</p>
         </header>
 

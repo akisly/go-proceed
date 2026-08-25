@@ -1,5 +1,6 @@
 import { ArrowUpRight } from "lucide-react";
 import { landingContent } from "../../content/landing-content";
+import { MarkerText } from "../marker-text";
 import { PilotEnquiryForm } from "../pilot-enquiry-form";
 
 export function PilotEnquiry() {
@@ -8,9 +9,14 @@ export function PilotEnquiry() {
   return (
     <section id="pilot" className="scroll-mt-24 border-y border-line-inverse bg-inverse px-5 py-20 text-on-inverse md:px-8 md:py-28 wide:px-12">
       <div className="mx-auto max-w-content">
-        <div className="grid gap-10 wide:grid-cols-[0.72fr_1.28fr] wide:items-start wide:gap-16">
+        <div className="grid gap-10 wide:grid-cols-[0.82fr_1.18fr] wide:items-start wide:gap-16">
           <div className="wide:sticky wide:top-28">
-            <h2 className="display max-w-[13ch] text-mkt-display-2">{content.title}</h2>
+            <h2
+              className="display max-w-[22ch] text-mkt-display-2"
+              data-section-heading-width="wide"
+            >
+              <MarkerText accent={content.titleAccent} text={content.title} />
+            </h2>
             <p className="measure mt-6 max-w-[48ch] text-body leading-relaxed text-on-inverse-muted">{content.lead}</p>
             <div className="mt-8 border-t border-line-inverse pt-5">
               <p className="text-meta text-on-inverse-muted">Один маршрут для перевірки</p>

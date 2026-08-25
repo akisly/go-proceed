@@ -1,9 +1,9 @@
 import { ArrowDown } from "lucide-react";
 import { landingContent } from "../../content/landing-content";
+import { MarkerText } from "../marker-text";
 import { LiveDossier } from "../visuals/live-dossier";
 
 const hero = landingContent.hero;
-const [titleBeforeAccent, titleAfterAccent] = hero.title.split(hero.titleAccent);
 
 export function Hero() {
   return (
@@ -23,11 +23,7 @@ export function Hero() {
           data-hero-copy-stack="true"
         >
           <h1 className="display max-w-[40ch] text-mkt-display-2 text-ink">
-            {titleBeforeAccent}
-            <span className="landing-hero-accent" data-hero-accent="true">
-              {hero.titleAccent}
-            </span>
-            {titleAfterAccent}
+            <MarkerText accent={hero.titleAccent} text={hero.title} />
           </h1>
 
           <p
