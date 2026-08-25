@@ -41,6 +41,18 @@ describe("landing evidence journey", () => {
     expect(html).not.toContain('aria-disabled="true"');
   });
 
+  it("stacks the hero thesis, description and actions as three deliberate rows", () => {
+    const hero = html.slice(html.indexOf('id="product"'), html.indexOf('id="workflow"'));
+
+    expect(hero).toContain('data-hero-copy-stack="true"');
+    expect(hero).toContain('data-hero-description="true"');
+    expect(hero).toContain('data-hero-actions="true"');
+    expect(hero).toContain('data-hero-accent="true"');
+    expect(hero).toContain(">до доказу,</span>");
+    expect(hero).toContain("text-mkt-display-2");
+    expect(hero).not.toContain("text-mkt-display-1");
+  });
+
   it("server-renders the evidence route without autoplay", () => {
     const section = html.slice(
       html.indexOf('id="workflow"'),
