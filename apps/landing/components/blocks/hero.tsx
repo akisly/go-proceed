@@ -11,7 +11,11 @@ export function Hero() {
       id="product"
       className="relative overflow-hidden px-5 pb-20 pt-28 md:px-8 md:pb-28 md:pt-36 wide:px-12"
     >
-      <div className="landing-hero-field absolute inset-x-0 top-0 -z-10 h-[68%]" aria-hidden="true" />
+      <div
+        className="landing-hero-field absolute inset-0 -z-10"
+        aria-hidden="true"
+        data-hero-grid-flow="true"
+      />
       <div className="mx-auto max-w-content">
         <div
           className="flex flex-col items-center text-center"

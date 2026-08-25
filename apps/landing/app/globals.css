@@ -77,7 +77,28 @@
       linear-gradient(var(--color-line) 1px, transparent 1px),
       linear-gradient(90deg, var(--color-line) 1px, transparent 1px),
       linear-gradient(to bottom, var(--color-subtle), transparent);
+    background-position: center top;
     background-size: 48px 48px, 48px 48px, 100% 100%;
+    -webkit-mask-image: radial-gradient(
+      ellipse 110% 860px at 50% 0%,
+      #000 0%,
+      #000 46%,
+      rgb(0 0 0 / 92%) 58%,
+      rgb(0 0 0 / 58%) 73%,
+      rgb(0 0 0 / 22%) 86%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      ellipse 110% 860px at 50% 0%,
+      #000 0%,
+      #000 46%,
+      rgb(0 0 0 / 92%) 58%,
+      rgb(0 0 0 / 58%) 73%,
+      rgb(0 0 0 / 22%) 86%,
+      transparent 100%
+    );
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
   }
 
   .landing-hero-accent {

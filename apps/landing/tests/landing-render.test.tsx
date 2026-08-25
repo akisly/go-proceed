@@ -60,6 +60,14 @@ describe("landing evidence journey", () => {
     expect(hero).not.toContain("text-mkt-display-1");
   });
 
+  it("lets the blueprint field span the full hero before it dissolves", () => {
+    const hero = html.slice(html.indexOf('id="product"'), html.indexOf('id="workflow"'));
+
+    expect(hero).toContain('data-hero-grid-flow="true"');
+    expect(hero).toContain("landing-hero-field absolute inset-0");
+    expect(hero).not.toContain("h-[68%]");
+  });
+
   it("server-renders the evidence route without autoplay", () => {
     const section = html.slice(
       html.indexOf('id="workflow"'),
