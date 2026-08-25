@@ -1,4 +1,5 @@
 import { Footer } from "../components/blocks/footer";
+import { EvidenceJourney } from "../components/blocks/evidence-journey";
 import { Hero } from "../components/blocks/hero";
 import { NavFloat } from "../components/blocks/nav-float";
 
@@ -14,6 +15,7 @@ export default function LandingPage() {
       <NavFloat />
       <main id="main-content" tabIndex={-1} className="overflow-x-clip">
         <Hero />
+        <EvidenceJourney />
       </main>
       <Footer />
     </>
