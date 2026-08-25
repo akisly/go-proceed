@@ -2,8 +2,10 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import LandingPage from "../app/page";
+import { EvidenceRail } from "../components/visuals/evidence-rail";
 
 const html = renderToStaticMarkup(<LandingPage />);
+const decisionRail = renderToStaticMarkup(<EvidenceRail active="decision" />);
 
 describe("landing evidence journey", () => {
   it("uses one consistent project mark and one main heading", () => {
@@ -98,6 +100,32 @@ describe("landing evidence journey", () => {
     expect(section.match(/data-journey-chapter=/g)).toHaveLength(3);
     expect(section).not.toContain("Пауза");
     expect(section).not.toContain('role="tablist"');
+  });
+
+  it("keeps one evidence point per journey chapter", () => {
+    expect(decisionRail.match(/data-evidence-point="true"/g) ?? []).toHaveLength(3);
+    expect(decisionRail).toContain("R-041");
+    expect(decisionRail).toContain("EV-0248");
+    expect(decisionRail).toContain("DR-0091");
+    expect(decisionRail).toContain("CL-017");
+  });
+
+  it("gives every journey chapter heading a wider reading measure", () => {
+    const section = html.slice(
+      html.indexOf('id="workflow"'),
+      html.indexOf('id="field-review"'),
+    );
+
+    expect(section.match(/<h3 class="display mt-6 max-w-\[22ch\]/g) ?? []).toHaveLength(3);
+  });
+
+  it("keeps evidence connectors behind their points", () => {
+    expect(
+      decisionRail.match(/data-evidence-connector="true" class="[^"]*\bz-0\b/g) ?? [],
+    ).toHaveLength(2);
+    expect(
+      decisionRail.match(/data-evidence-point-marker="true" class="[^"]*\bz-10\b/g) ?? [],
+    ).toHaveLength(3);
   });
 
   it("shows the field hand-off and online-only boundary", () => {

@@ -78,7 +78,7 @@ export function EvidenceJourneyClient({ chapters }: EvidenceJourneyClientProps) 
                 </span>
                 <span className="text-meta font-semibold text-ink-muted">{chapter.moment}</span>
               </div>
-              <h3 className="display mt-6 max-w-[16ch] text-mkt-display-3 text-ink">{chapter.title}</h3>
+              <h3 className="display mt-6 max-w-[22ch] text-mkt-display-3 text-ink">{chapter.title}</h3>
               <p className="measure mt-5 max-w-[55ch] text-body leading-relaxed text-ink-muted">{chapter.lead}</p>
               <p className="index-label mt-7 text-ink-muted">{chapter.reference}</p>
               <ul className="mt-5 grid gap-2 text-data text-ink md:grid-cols-3 wide:grid-cols-1">
