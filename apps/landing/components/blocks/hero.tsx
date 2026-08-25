@@ -13,8 +13,12 @@ export function Hero() {
     >
       <div className="landing-hero-field absolute inset-x-0 top-0 -z-10 h-[68%]" aria-hidden="true" />
       <div className="mx-auto max-w-content">
-        <div className="flex flex-col items-start" data-hero-copy-stack="true">
-          <h1 className="display max-w-[22ch] text-mkt-display-2 text-ink">
+        <div
+          className="flex flex-col items-center text-center"
+          data-hero-alignment="center"
+          data-hero-copy-stack="true"
+        >
+          <h1 className="display max-w-[40ch] text-mkt-display-2 text-ink">
             {titleBeforeAccent}
             <span className="landing-hero-accent" data-hero-accent="true">
               {hero.titleAccent}
@@ -23,13 +27,16 @@ export function Hero() {
           </h1>
 
           <p
-            className="measure mt-7 max-w-[52ch] text-mkt-lead leading-relaxed text-ink-muted"
+            className="measure mt-7 max-w-[68ch] text-mkt-lead leading-relaxed text-ink-muted"
             data-hero-description="true"
           >
             {hero.lead}
           </p>
 
-          <div className="mt-8 flex flex-wrap items-center gap-3" data-hero-actions="true">
+          <div
+            className="mt-8 flex flex-wrap items-center justify-center gap-3"
+            data-hero-actions="true"
+          >
             <a
               href="#pilot"
               className="inline-flex min-h-11 items-center justify-center rounded-control bg-action-signal px-5 text-data font-semibold text-action-signal-fg transition-colors duration-fast ease-out hover:bg-action-signal-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"

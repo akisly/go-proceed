@@ -41,14 +41,21 @@ describe("landing evidence journey", () => {
     expect(html).not.toContain('aria-disabled="true"');
   });
 
-  it("stacks the hero thesis, description and actions as three deliberate rows", () => {
+  it("centers the wider hero thesis, description and actions as one visual group", () => {
     const hero = html.slice(html.indexOf('id="product"'), html.indexOf('id="workflow"'));
 
     expect(hero).toContain('data-hero-copy-stack="true"');
+    expect(hero).toContain('data-hero-alignment="center"');
     expect(hero).toContain('data-hero-description="true"');
     expect(hero).toContain('data-hero-actions="true"');
     expect(hero).toContain('data-hero-accent="true"');
     expect(hero).toContain(">до доказу,</span>");
+    expect(hero).toContain("items-center");
+    expect(hero).toContain("text-center");
+    expect(hero).toContain("max-w-[40ch]");
+    expect(hero).not.toContain("max-w-[30ch]");
+    expect(hero).toContain("max-w-[68ch]");
+    expect(hero).toContain("justify-center");
     expect(hero).toContain("text-mkt-display-2");
     expect(hero).not.toContain("text-mkt-display-1");
   });

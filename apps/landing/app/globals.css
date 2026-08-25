@@ -85,24 +85,72 @@
     z-index: 0;
     display: inline-block;
     isolation: isolate;
+    padding-inline: 0.03em;
     white-space: nowrap;
   }
 
+  .landing-hero-accent::before,
   .landing-hero-accent::after {
     position: absolute;
     z-index: -1;
-    right: -0.06em;
-    bottom: 0.05em;
-    left: -0.06em;
-    height: 0.38em;
-    border-radius: 0.04em;
-    background: linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--color-action-signal) 82%, var(--color-surface)),
-      var(--color-action-signal)
-    );
+    pointer-events: none;
     content: "";
-    transform: rotate(-0.8deg);
+  }
+
+  .landing-hero-accent::before {
+    top: 0.16em;
+    right: -0.12em;
+    bottom: -0.02em;
+    left: -0.1em;
+    background: linear-gradient(
+      96deg,
+      color-mix(in srgb, var(--color-action-signal) 68%, transparent),
+      color-mix(in srgb, var(--color-action-signal) 92%, transparent) 13%,
+      color-mix(in srgb, var(--color-action-signal) 78%, transparent) 62%,
+      color-mix(in srgb, var(--color-action-signal) 88%, transparent)
+    );
+    clip-path: polygon(
+      0 18%,
+      5% 8%,
+      18% 13%,
+      34% 3%,
+      53% 9%,
+      71% 4%,
+      91% 10%,
+      100% 22%,
+      98% 86%,
+      84% 94%,
+      63% 88%,
+      44% 98%,
+      24% 91%,
+      4% 97%,
+      0 78%
+    );
+    transform: rotate(-1.1deg) skewX(-1.5deg);
+  }
+
+  .landing-hero-accent::after {
+    top: 0.28em;
+    right: -0.05em;
+    bottom: 0.04em;
+    left: -0.15em;
+    background: color-mix(in srgb, var(--color-action-signal) 38%, transparent);
+    clip-path: polygon(
+      0 27%,
+      8% 14%,
+      26% 20%,
+      45% 9%,
+      65% 17%,
+      84% 8%,
+      100% 23%,
+      97% 79%,
+      79% 92%,
+      58% 84%,
+      37% 96%,
+      17% 86%,
+      2% 91%
+    );
+    transform: rotate(0.45deg);
   }
 
   .landing-blueprint {
