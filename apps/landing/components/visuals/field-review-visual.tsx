@@ -35,7 +35,10 @@ export function FieldReviewVisual() {
     <figure aria-label="Передача EV-0248 з майданчика до технічного нагляду" className="relative grid gap-5 wide:grid-cols-[0.72fr_0.38fr_0.9fr] wide:items-center wide:gap-0">
       <figcaption className="sr-only">Фото з телефону разом із вимогою передається у вузький зовнішній перегляд.</figcaption>
 
-      <div className="mx-auto w-full max-w-[390px] overflow-hidden rounded-section border border-line-inverse bg-surface text-ink shadow-float">
+      <div
+        data-field-capture-card="true"
+        className="mx-auto w-full max-w-[390px] overflow-hidden rounded-section border border-line-inverse bg-surface text-ink shadow-float wide:mx-0"
+      >
         <div className="flex min-h-12 items-center justify-between border-b border-line px-5">
           <span className="index-label text-ink-muted">Польова робота · W-014</span>
           <span className="flex items-center gap-2 text-micro font-semibold text-status-ready-fg">
@@ -69,7 +72,7 @@ export function FieldReviewVisual() {
       <div ref={handoffRef} className="relative mx-auto flex w-full max-w-[300px] items-center justify-center py-4 wide:h-full wide:max-w-none wide:py-0" aria-hidden="true">
         <span
           data-handoff-line="true"
-          className={`absolute left-0 right-0 top-1/2 h-px origin-left bg-line-inverse transition-transform duration-slow ease-out motion-reduce:scale-x-100 motion-reduce:transition-none ${
+          className={`absolute left-0 right-0 top-1/2 h-px origin-left bg-line-inverse transition-transform duration-slow ease-out motion-reduce:scale-x-100 motion-reduce:transition-none wide:right-8 ${
             handoffDrawn ? "scale-x-100" : "scale-x-0"
           }`}
         />

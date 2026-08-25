@@ -6,6 +6,10 @@ import LandingPage from "../app/page";
 
 const html = renderToStaticMarkup(<LandingPage />);
 const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+const fieldReview = html.slice(
+  html.indexOf('id="field-review"'),
+  html.indexOf('id="readiness"'),
+);
 
 describe("landing craft contract", () => {
   it("renders one continuous evidence rail with every domain transition", () => {
@@ -32,5 +36,17 @@ describe("landing craft contract", () => {
   it("keeps the hero field neutral instead of repeating the signal colour", () => {
     const heroField = css.match(/\.landing-hero-field\s*\{([\s\S]*?)\n\s*\}/)?.[1] ?? "";
     expect(heroField).not.toContain("--color-action-signal");
+  });
+
+  it("aligns the field capture card with the wide frame edge", () => {
+    expect(
+      fieldReview.match(/data-field-capture-card="true" class="[^"]*\bwide:mx-0\b/g) ?? [],
+    ).toHaveLength(1);
+  });
+
+  it("keeps a wide-screen gap between the handoff line and review card", () => {
+    expect(
+      fieldReview.match(/data-handoff-line="true" class="[^"]*\bwide:right-8\b/g) ?? [],
+    ).toHaveLength(1);
   });
 });
