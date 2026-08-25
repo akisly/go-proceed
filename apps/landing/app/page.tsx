@@ -3,6 +3,7 @@ import { EvidenceJourney } from "../components/blocks/evidence-journey";
 import { FieldReview } from "../components/blocks/field-review";
 import { Hero } from "../components/blocks/hero";
 import { NavFloat } from "../components/blocks/nav-float";
+import { PilotEnquiry } from "../components/blocks/pilot-enquiry";
 import { ReadinessDiagram } from "../components/blocks/readiness-diagram";
 import { TrustBoundary } from "../components/blocks/trust-boundary";
 
@@ -22,6 +23,7 @@ export default function LandingPage() {
         <FieldReview />
         <ReadinessDiagram />
         <TrustBoundary />
+        <PilotEnquiry />
       </main>
       <Footer />
     </>

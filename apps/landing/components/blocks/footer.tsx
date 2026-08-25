@@ -3,10 +3,10 @@ import { BrandMark } from "../brand-mark";
 
 const footerLinks = [
   { label: "Продукт", href: "#product" },
-  { label: "Як працює", href: "#workflow" },
-  { label: "Для команди", href: "#roles" },
+  { label: "Маршрут", href: "#workflow" },
+  { label: "Рішення", href: "#field-review" },
+  { label: "Стан", href: "#readiness" },
   { label: "Пілот", href: "#pilot" },
-  { label: "Питання", href: "#faq" },
 ] as const;
 
 export function Footer() {
