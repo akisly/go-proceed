@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { JourneyChapter } from "../../content/landing-content";
+import type { JourneyChapter, JourneyChapters } from "../../content/landing-content";
 import { JourneyScene } from "../visuals/journey-scene";
 
 type EvidenceJourneyClientProps = {
-  chapters: readonly JourneyChapter[];
+  chapters: JourneyChapters;
 };
 
 export function EvidenceJourneyClient({ chapters }: EvidenceJourneyClientProps) {

@@ -13,6 +13,8 @@ export type JourneyChapter = {
   facts: readonly string[];
 };
 
+export type JourneyChapters = readonly [JourneyChapter, ...JourneyChapter[]];
+
 export type FaqEntry = {
   id: string;
   question: string;
@@ -82,7 +84,7 @@ export const landingContent = {
         reference: "DR-0091 · CL-017",
         facts: ["Прийнято технаглядом", "Закриття дозволено", "Чернетка акта"],
       },
-    ] satisfies readonly JourneyChapter[],
+    ] satisfies JourneyChapters,
   },
   fieldReview: {
     title: "Між майданчиком і рішенням — один переданий контекст",
