@@ -1,5 +1,6 @@
 import { AlertTriangle, Check, Clock3, LockKeyhole } from "lucide-react";
 import { landingContent } from "../../content/landing-content";
+import { ReadinessWorkflow } from "./readiness-workflow";
 
 const tone = {
   ready: {
@@ -29,28 +30,7 @@ export function ReadinessMap() {
     <figure aria-label="Стан демонстраційного пакета робіт" className="grid wide:grid-cols-[1.18fr_0.82fr]">
       <div className="border-b border-line p-5 md:p-8 wide:border-b-0 wide:border-r wide:p-10">
         <figcaption className="index-label text-ink-muted">{content.sampleLabel}</figcaption>
-        <svg
-          role="img"
-          aria-labelledby="readiness-title readiness-desc"
-          viewBox="0 0 760 250"
-          className="mt-8 hidden h-auto w-full md:block"
-        >
-          <title id="readiness-title">Стан робіт у доказовому контурі</title>
-          <desc id="readiness-desc">Дванадцять робіт готові, сім перебувають на розгляді, три заблоковані невиконаними вимогами.</desc>
-          <path d="M110 125H650" className="stroke-line-strong" strokeWidth="1" />
-          <path d="M380 125V210H650" className="stroke-line-strong" strokeWidth="1" fill="none" />
-          <circle cx="110" cy="125" r="48" className="fill-status-ready stroke-status-ready-line" />
-          <circle cx="380" cy="125" r="48" className="fill-status-review stroke-status-review-line" />
-          <circle cx="650" cy="125" r="48" className="fill-status-blocked stroke-status-blocked-line" />
-          <text x="110" y="119" textAnchor="middle" className="fill-status-ready-fg font-mono text-[24px] font-semibold">12</text>
-          <text x="110" y="143" textAnchor="middle" className="fill-status-ready-fg text-[12px]">готово</text>
-          <text x="380" y="119" textAnchor="middle" className="fill-status-review-fg font-mono text-[24px] font-semibold">07</text>
-          <text x="380" y="143" textAnchor="middle" className="fill-status-review-fg text-[12px]">розгляд</text>
-          <text x="650" y="119" textAnchor="middle" className="fill-status-blocked-fg font-mono text-[24px] font-semibold">03</text>
-          <text x="650" y="143" textAnchor="middle" className="fill-status-blocked-fg text-[12px]">блок</text>
-          <text x="515" y="110" textAnchor="middle" className="fill-ink-muted text-[11px]">рішення не записане</text>
-          <text x="520" y="226" textAnchor="middle" className="fill-ink-muted text-[11px]">невиконана вимога</text>
-        </svg>
+        <ReadinessWorkflow nodes={content.nodes} />
 
         <dl className="mt-8 grid md:grid-cols-3">
           {content.nodes.map((node) => {

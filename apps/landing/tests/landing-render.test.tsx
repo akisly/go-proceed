@@ -149,6 +149,32 @@ describe("landing evidence journey", () => {
     expect(html).toContain("Заблоковано");
   });
 
+  it("shows readiness as one check with three independent outcomes", () => {
+    const section = html.slice(
+      html.indexOf('id="readiness"'),
+      html.indexOf('id="trust"'),
+    );
+    const workflow = section.slice(
+      section.indexOf("<svg"),
+      section.indexOf("</svg>") + "</svg>".length,
+    );
+
+    expect(workflow).toContain('data-readiness-workflow="true"');
+    expect(workflow).toContain("Пакет робіт");
+    expect(workflow).toContain("Перевірка повноти");
+    expect(workflow.match(/data-readiness-trunk="true"/g) ?? []).toHaveLength(1);
+    expect(workflow.match(/data-readiness-branch=/g) ?? []).toHaveLength(3);
+    expect(workflow.match(/data-readiness-endpoint=/g) ?? []).toHaveLength(3);
+
+    for (const detail of [
+      "усі блокуючі вимоги виконані",
+      "рішення ще не зафіксоване",
+      "є невиконана блокуюча вимога",
+    ]) {
+      expect(workflow).toContain(detail);
+    }
+  });
+
   it("shows provenance and the honest v0.1 product boundary", () => {
     expect(html).toContain('aria-label="Квитанція походження EV-0248"');
     expect(html).toContain("Працює у поточному контурі");
