@@ -3127,3 +3127,19 @@ in `qa-output/screenshots/dash-project-money.png`. **Converting it to a table
 is a redesign no brief authorises**, and it would put D2's measured
 `break-words` fix on its norm-ref paragraph — a real 149–178px sideways page
 overflow at 390/360 — back at risk. Left as it is, deliberately.
+
+---
+
+## Residuals left by the project-sourced-requirements slice (2026-08-27)
+
+The slice that added [ADR-010](docs/decisions/ADR-010-project-sourced-requirements.md), migration 0059 and the `project_requirements` operations surfaced five follow-up items and one stale record correction below.
+
+**1. The dashboard screen for requirement authoring was deliberately NOT built.** [ADR-010](docs/decisions/ADR-010-project-sourced-requirements.md) §"What this decision does NOT authorise" names it explicitly. A screen slice to build it would need four things: (a) a dated amendment to [ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md) decision 3; (b) a row in `docs/design/04-role-pain-map.md` naming the role (ПТВ) and the pain sentence from the demand scan; (c) a browser command call with an `Idempotency-Key` header — precedent exists in `apps/app/src/services/grants.service.ts`, `issueReviewLink` function; (d) the full procedure from `docs/design/02-building-ui.md` and its §5 gate. All four are specification work that must be in place before the screen slice runs.
+
+**2. `apps/mobile` duplicates the verification vocabulary by design.** This slice changed `apps/mobile/src/lib/field/obligations.ts`, `apps/mobile/src/lib/field/obligations.test.ts` and `apps/mobile/src/screens/assignment.tsx` alongside their counterparts in the app. The header of `obligations.ts` names the duplication as «Transitional duplication under ADR-009: … fix bugs in BOTH files.» The rule stands: bugs in either copy must be fixed in both.
+
+**3. The stale chain end.** This file's own §"What the M1–M6 build did" records that «the unapplied chain is `0041`–`0051`, eleven files». That was true on 2026-08-08. The chain now ends at `0059`. Verified 2026-08-27: `ls supabase/migrations | tail -1` → `0059_the_requirement_a_site_supplies.sql`. **This correction is a dated addition, not an edit to the old paragraph** — the record of what was true then stays as written.
+
+**4. Race condition — `app.retire_requirement_rule_version` (migration 0041) has the same SELECT-then-unguarded-UPDATE shape that `app.archive_project_sourced_requirement_item` (migration 0059) fixed in this slice.** The retire function SELECTs the status, checks it is `'published'`, then UPDATEs — but two concurrent calls can both pass the SELECT; the loser's UPDATE then blocks on the winner's row lock, re-evaluates its WHERE against the committed row once unblocked, still matches (the WHERE has no status filter), and the guard trigger (0041) then RAISES — so a racing call to an idempotency-required operation errors instead of being the promised no-op. The 0059 fix: `and status = 'active'` in the UPDATE's WHERE clause (migration 0059, archive function). That WHERE clause makes the loser's UPDATE affect zero rows — no error, no state change, idempotent. Apply the same pattern to `app.retire_requirement_rule_version`, in a `create or replace` in a new migration.
+
+**5. Test typechecking is narrower than its claim.** `apps/app/tsconfig.json`'s `include` is `["src", "app", "next-env.d.ts", ".next/types/**/*.ts"]`. It does not cover `apps/app/tests/**`, so `tsc --noEmit` checks only test files that are transitively imported from `src` or `app`. `vitest` still RUNS all tests (transpile-level errors surface), but it does not perform full type-checking. If a test typechecking gate is needed, the claim must be narrowed or `include` must be widened and a separate tsconfig created.
