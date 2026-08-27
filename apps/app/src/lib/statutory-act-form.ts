@@ -3,7 +3,7 @@ import { DODATOK_V_FIELDS } from "./dodatok-v";
 import {
   renderedStatutoryAct,
   type ActRenderBlocker, type AssuranceLevel, type RenderBlock,
-  type RenderedStatutoryAct, type StatutoryActVersionView,
+  type RenderedStatutoryAct, type StatutoryActVersionView, type VerificationTagValue,
 } from "@goproceed/contracts";
 
 /**
@@ -263,6 +263,20 @@ export interface FormFieldDefinition {
   section: "В.1" | "В.2";
   caption: string;
   binding: FormFieldBinding;
+  /**
+   * STAYS THE TEMPLATE'S OWN TWO-VALUE UNION — NOT WIDENED TO
+   * `VerificationTagValue`, and not an oversight of migration 0059. A field
+   * of this list is TEMPLATE content: transcribed from the ДБН file and
+   * pinned by `form_template_hash`, the same for every act ever rendered off
+   * this template, never a fact recorded about one project. It can never be
+   * `PROJECT_DOCUMENTATION`, because that value states an ORIGIN a workspace
+   * supplied for its own occurrence (hidden-works-content-rules.md
+   * §"Project-sourced strings": "an origin, not a verification strength"),
+   * and there is no such thing as a workspace-supplied field of Додаток В —
+   * prohibition E forbids adding one, and this file's header already refuses
+   * a caption typed from memory for the same reason. `FormTemplate.title.
+   * verification`, below, carries identical reasoning.
+   */
   verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY";
   source: string;
 }
@@ -271,7 +285,13 @@ export interface FormTemplate {
   key: string;
   version: string;
   actForm: "dodatok_v";
-  /** The title of the form. Allow-list item 7. */
+  /**
+   * The title of the form. Allow-list item 7. `verification` stays the
+   * template's own two-value union for the same reason as
+   * `FormFieldDefinition.verification` above: a form title is template
+   * content, never a project's own record, so it is never
+   * `PROJECT_DOCUMENTATION`.
+   */
   title: { text: string; verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY"; source: string };
   /**
    * `null` until the enumeration is committed under `technical/requirements/`.
@@ -487,7 +507,14 @@ export function formTemplateHashOf(template: FormTemplate): string {
 
 function normative(
   blockId: string, text: string,
-  verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY", source: string,
+  // Widened to the full `VerificationTagValue` (not the form template's own
+  // narrower two-value union below) because this helper also renders
+  // `d.normRef.verification` off a live requirement occurrence, which —
+  // since migration 0059 — can legitimately carry `PROJECT_DOCUMENTATION`.
+  // The form's own static calls (title, section caption, field caption,
+  // signatory role) pass a two-value literal, which is assignable here
+  // without narrowing anything back down.
+  verification: VerificationTagValue, source: string,
 ): RenderBlock {
   return { blockId, text, provenance: { kind: "normative", verification, source }, neverCollapse: false };
 }
