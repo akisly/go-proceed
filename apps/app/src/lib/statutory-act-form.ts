@@ -422,19 +422,27 @@ export type DisclaimerPlacement = "every_page" | "never_collapsed" | "conditiona
  * CONDITIONAL, NOT NEVER-COLLAPSED — the distinction §"Required disclaimers"
  * itself draws between this text and `DOVIDKOVYI_DISCLAIMER_TEXT`.
  * `DOVIDKOVYI_DISCLAIMER_TEXT` is shown under every generated requirement
- * list once that list is shown at all; this text is shown only when the list
- * it follows is a MIXED list — seeded Додаток Н items alongside a
- * workspace-supplied, `PROJECT_DOCUMENTATION`-tagged item. A list built
- * entirely from the seeded library never carries it, which is what
+ * list once that list is shown at all; this text is shown only when a fact
+ * about the list's CONTENTS holds.
+ *
+ * THE CONDITION IS «AT LEAST ONE», NOT «MIXED», and the difference is not
+ * pedantry. The rule's own words are «only on a list that ALSO CARRIES
+ * project-sourced items» — satisfied by one such item whatever the rest of the
+ * list is. A condition written as «seeded Додаток Н items ALONGSIDE a
+ * workspace-supplied one» would omit the mandated string from the list that
+ * most needs it: the one whose every item came from the site's own робоча
+ * документація. A list built entirely from the seeded library carries no such
+ * item and never prints it, which is what
  * `PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT` below records as
  * `"conditional"` rather than `"never_collapsed"`.
  *
- * NO RENDER LOGIC READS EITHER CONSTANT BELOW YET. `blocksFor`'s
- * `"decision_blocks"` case composes no mixed list in v0.1 — every decision it
- * reads today is a seeded Додаток Н occurrence — so nothing calls
- * `disclaimer()` with this text yet. It is transcribed and modelled ahead of
- * that render logic so the mandated string and the condition it is mandated
- * under are on the record before anything prints it.
+ * `blocksFor`'s `"decision_blocks"` case READS THIS CONSTANT and pushes it
+ * directly after the довідковий disclaimer when the condition holds. The
+ * surface is live: `loadActVersionView` (src/lib/statutory-act.ts) composes an
+ * act's decisions from `stage_closure_occurrences ⋈ requirement_occurrences`
+ * with no provenance filter, and since migration 0059 an occurrence's
+ * `norm_ref_verification` can be `PROJECT_DOCUMENTATION` — which is also why
+ * `normative()` below takes the full `VerificationTagValue`.
  */
 export const PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT =
   "Пункти, позначені «за робочою документацією об'єкта», внесені виконавцем з "
@@ -779,6 +787,23 @@ export function renderStatutoryAct(
           // only when a list was actually printed.
           out.push(disclaimer(`${f.fieldId}.dovidkovyi`, DOVIDKOVYI_DISCLAIMER_TEXT,
             RULE_REQUIRED_DISCLAIMERS, true));
+          // «and, only on a list that also carries project-sourced items,
+          // immediately after it». AT LEAST ONE, which is what «also carries»
+          // says — not «strictly mixed»: a list whose every item came from the
+          // site's own робоча документація carries project-sourced items too,
+          // and it is the list that most needs the note. The ORDER IS THE
+          // RULE'S, so the push sits directly after the довідковий one above
+          // and cannot drift away from the list it qualifies.
+          //
+          // The tag is read off the DECISION'S OWN citation, which is the
+          // occurrence's `norm_ref_verification` copied at materialisation and
+          // carried here by `loadActVersionView` — the renderer decides nothing
+          // about provenance, it reports what the frozen occurrence recorded.
+          if (version.decisions.some(
+            (d) => d.normRef?.verification === "PROJECT_DOCUMENTATION")) {
+            out.push(disclaimer(`${f.fieldId}.project-sourced`,
+              PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT, RULE_REQUIRED_DISCLAIMERS, true));
+          }
         }
         return out;
       }

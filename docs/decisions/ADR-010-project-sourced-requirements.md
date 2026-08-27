@@ -164,4 +164,11 @@ dated amendment here — this one authorises these two and nothing else.»
   argument for a shared constant, and the slice moves the remaining
   restatements onto it where it can.
 - **A second provenance column on `requirement_rule_versions`.** A rule version
-  rests on exactly one source, enforced by a CHECK rather than by convention.
+  rests on exactly one source: **at most one in the database, exactly one on
+  the wire.** `requirement_rule_versions_one_provenance_check` reads
+  `requirement_library_item_id is null or project_sourced_requirement_item_id
+  is null` — it makes citing BOTH unstorable and leaves citing NEITHER
+  storable. The exactly-one half is the publish request's `superRefine`
+  (`packages/contracts/src/requirement-rules.ts`), which is therefore not a
+  friendlier restating of the CHECK but the only place the neither-id case is
+  refused at all.

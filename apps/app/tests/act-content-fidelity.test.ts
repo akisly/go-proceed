@@ -97,24 +97,27 @@ const REGISTRY_CHECKED_ON = "2026-08-07";
  * participant record.
  *
  * `PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT` (statutory-act-form.ts, modelled
- * `PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT === "conditional"`) IS ALSO NOT
- * HERE, on purpose, for a reason that will stop holding: nothing calls
- * `disclaimer()` with it yet, so it is not, today, a string the renderer can
- * print. It also could not be swept the way every string below is. It
- * legitimately contains «аркуша» as citation prose —
- * hidden-works-content-rules.md §"Project-sourced strings" cites a
- * project-sourced item "only with its structured citation — document,
- * аркуш, креслення, and the ревізія when one was given" — and the
- * prohibition-E sweep below bans «аркуш» as a
- * FIELD ADDED TO THE ДОДАТОК В FORM, over a blanket substring check; run over
- * this constant that check would misread the citation's own vocabulary as
- * the banned field. The same section says why that would be wrong:
- * "Prohibition E is not weakened by the source record ... nothing here
- * prints a field into a Додаток В blank, and E continues to forbid that."
- * WHEN A FUTURE CHANGE WIRES THIS CONSTANT INTO `blocksFor` and it becomes
- * genuinely printable, add it to the list below too — but guard the
- * prohibition-E sweep for it with a check aware of its citation role,
- * never with the blanket substring ban this file uses today.
+ * `PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT === "conditional"`) IS HERE NOW.
+ * It was excluded while nothing called `disclaimer()` with it, and that
+ * exclusion carried its own condition of ending: «WHEN A FUTURE CHANGE WIRES
+ * THIS CONSTANT INTO `blocksFor` and it becomes genuinely printable, add it to
+ * the list below too — but guard the prohibition-E sweep for it with a check
+ * aware of its citation role, never with the blanket substring ban this file
+ * uses today.» `blocksFor`'s `decision_blocks` case now pushes it directly
+ * after the довідковий disclaimer whenever a decision's citation is tagged
+ * `PROJECT_DOCUMENTATION`, so it is printable and both halves of that
+ * instruction are carried out: it joins `printableConstants()`, and the
+ * prohibition-E sweep excepts it by name and checks it a different way —
+ * see `MANDATED_VERBATIM` and the case that owns it.
+ *
+ * WHY THE BLANKET BAN WOULD MISREAD IT. It legitimately contains «аркуша» as
+ * citation prose — hidden-works-content-rules.md §"Project-sourced strings"
+ * cites a project-sourced item "only with its structured citation — document,
+ * аркуш, креслення, and the ревізія when one was given" — while the sweep bans
+ * «аркуш» as a FIELD ADDED TO THE ДОДАТОК В FORM. The same section says why
+ * conflating the two would be wrong: "Prohibition E is not weakened by the
+ * source record ... nothing here prints a field into a Додаток В blank, and E
+ * continues to forbid that."
  */
 function printableConstants(): string[] {
   return [
@@ -122,11 +125,26 @@ function printableConstants(): string[] {
     FORM_CITATION_TEXT,
     pageFooterText(REGISTRY_CHECKED_ON),
     DOVIDKOVYI_DISCLAIMER_TEXT,
+    PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT,
     LEVEL_3_NOT_A_SIGNATURE_TEXT,
     ...Object.values(ASSURANCE_LEVEL_LABEL),
     ...Object.values(ASSURANCE_LEVEL_LABEL).map((l) => `Рівень підтвердження: ${l}.`),
   ];
 }
+
+/**
+ * The printable strings the prohibition-E sweep may NOT check by substring,
+ * and the reason it may not: they are not composed by this product at all.
+ *
+ * A mandated disclaimer is transcribed from an Approved document that
+ * restricts at every precedence level. Prohibition E bans ADDING a field to
+ * Додаток В; a sentence the same document orders the product to print cannot
+ * be such an addition, and the only thing worth checking about it is that the
+ * bytes are the document's own. That is what the case below checks, and it is
+ * a stronger property than the substring ban it replaces: byte identity to the
+ * source admits no added field of any kind, named in the prohibition or not.
+ */
+const MANDATED_VERBATIM: readonly string[] = [PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT];
 
 describe(`the five mandated disclaimers of ${CONTENT_RULES_REPO_PATH}`, () => {
   const mandated = requiredDisclaimers();
@@ -360,9 +378,44 @@ describe("prohibition E — the negative, over every string the renderer can pri
   it("prints none of the banned fields, in any constant, in any case", () => {
     for (const field of banned) {
       for (const s of printableConstants()) {
+        // The mandated disclaimers are checked by transcription in the case
+        // below, never by substring — see `MANDATED_VERBATIM`.
+        if (MANDATED_VERBATIM.includes(s)) continue;
         expect(s.toLowerCase(), `«${field}» reached a printable string`)
           .not.toContain(field.toLowerCase());
       }
+    }
+  });
+
+  it("checks a mandated disclaimer by transcription, because it may carry the citation's own words", () => {
+    // THE EXCEPTION, AND ITS PRICE PAID IN ASSERTIONS. Three things are checked
+    // and the first is the one that replaces the substring ban.
+    const mandated = requiredDisclaimers();
+
+    // 1. THE BYTES ARE THE DOCUMENT'S. Nothing was added to this string by this
+    //    repository, so no field was added to it either — including a field no
+    //    prohibition names yet.
+    for (const s of MANDATED_VERBATIM) {
+      const match = mandated.filter((d) => sameBytes(d.body, s));
+      expect(match, `no mandated disclaimer is byte-identical to «${s.slice(0, 48)}…»`)
+        .toHaveLength(1);
+    }
+
+    // 2. THE EXCEPTION IS NEEDED, and which banned word makes it necessary is
+    //    DERIVED rather than named in this file. If the document ever bans a
+    //    seventh field that also appears in this disclaimer's citation prose,
+    //    this fails and a human decides whether that overlap is legitimate too
+    //    — instead of the ban silently widening its own exemption.
+    const carried = banned.filter((f) =>
+      PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT.toLowerCase().includes(f.toLowerCase()));
+    expect(carried).toEqual(["аркуш"]);
+
+    // 3. AND IT IS AN EXCEPTION FOR ONE WORD, NOT A LICENCE FOR THE REST. Every
+    //    other banned field is still absent from the excepted constant.
+    for (const field of banned) {
+      if (carried.includes(field)) continue;
+      expect(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT.toLowerCase(),
+        `«${field}» reached the mandated disclaimer`).not.toContain(field.toLowerCase());
     }
   });
 

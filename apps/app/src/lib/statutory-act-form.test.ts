@@ -1,9 +1,13 @@
 import { describe, it, expect } from "vitest";
-import { renderBlock, renderedStatutoryAct, type StatutoryActVersionView } from "@goproceed/contracts";
+import {
+  renderBlock, renderedStatutoryAct,
+  type StatutoryActVersionView, type VerificationTagValue,
+} from "@goproceed/contracts";
 import {
   ASSURANCE_LEVEL_LABEL, DBN_RETRIEVAL_RECORD, DODATOK_V_TEMPLATE,
   DOVIDKOVYI_DISCLAIMER_TEXT, FORM_CITATION_SOURCE, FORM_CITATION_TEXT,
-  LEVEL_3_NOT_A_SIGNATURE_TEXT, assuranceLevelOf, canonicalJson, findFormTemplate,
+  LEVEL_3_NOT_A_SIGNATURE_TEXT, PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT,
+  assuranceLevelOf, canonicalJson, findFormTemplate,
   formTemplateHashOf, pageFooterText, renderStatutoryAct,
 } from "./statutory-act-form";
 import { formatScaled, parsePgNumeric, printedQuantityOf } from "./statutory-act";
@@ -289,6 +293,141 @@ describe("both blockers are closed, and the act renders", () => {
     expect(out.ok).toBe(false);
     if (out.ok) return;
     expect(out.blockers.map((b) => b.code)).toContain("form_citation_unsourced");
+  });
+});
+
+describe("the fifth mandated disclaimer, on the list that carries a project-sourced item", () => {
+  /**
+   * ONE DECISION BLOCK OF THE CLOSURE'S FROZEN OCCURRENCE SET, with the tag on
+   * its citation under the case's control.
+   *
+   * THE SURFACE IS REACHABLE AND THIS FIXTURE IS ITS SHAPE, not a hypothetical:
+   * `loadActVersionView` (src/lib/statutory-act.ts) reads the act's decisions
+   * from `stage_closure_occurrences ⋈ requirement_occurrences` with NO
+   * provenance filter, and since migration 0059
+   * `requirement_occurrences.norm_ref_verification` can carry
+   * `PROJECT_DOCUMENTATION`. So a decision reaching `blocksFor` with that tag
+   * is an ordinary act composed over an ADR-010 obligation.
+   *
+   * `assuranceLevel` is level 2 — `assuranceLevelOf(null)`, an internal member
+   * decision — so nothing here trips `decision_assurance_level_unknown` and the
+   * render reaches the decision-blocks composition rather than refusing before
+   * it.
+   */
+  function decisionOn(
+    occurrenceId: string, verification: VerificationTagValue,
+  ): StatutoryActVersionView["decisions"][number] {
+    return {
+      requirementOccurrenceId: occurrenceId,
+      satisfiedBy: "evidence_decision",
+      reliedOnDecisionId: "00000000-0000-4000-8000-0000000000b1",
+      reliedOnExceptionId: null,
+      reliedOnExceptionAction: null,
+      approverRole: "technical_supervision",
+      acceptanceCriterion: "Приклад-критерій приймання",
+      normRef: {
+        text: "Приклад-посилання на джерело вимоги",
+        verification,
+        source: "Приклад-джерело вимоги",
+      },
+      assuranceLevel: "operational_acknowledgement",
+      assuranceLabel: null,
+      decidedAt: "2026-08-07T09:00:00.000Z",
+    };
+  }
+
+  /** The blocks of the ONE field the committed list binds to `decision_blocks`. */
+  function decisionBlocks(decisions: StatutoryActVersionView["decisions"]) {
+    const out = renderStatutoryAct(
+      draftView({ status: "frozen", decisions }),
+      findFormTemplate("dodatok-v", "0.1.0"));
+    expect(out.ok, out.ok ? "" : out.blockers.map((b) => b.code).join(", ")).toBe(true);
+    if (!out.ok) throw new Error("unreachable: the render refused");
+    const bound = DODATOK_V_TEMPLATE.fieldList!
+      .filter((f) => f.binding.kind === "decision_blocks");
+    expect(bound).toHaveLength(1);
+    const field = out.document.sections.flatMap((s) => s.fields)
+      .find((f) => f.fieldId === bound[0]!.fieldId)!;
+    return field.blocks;
+  }
+
+  it("prints it IMMEDIATELY AFTER the довідковий one when one item is project-sourced", () => {
+    // §"Required disclaimers": «and, only on a list that also carries
+    // project-sourced items, immediately after it». The condition is AT LEAST
+    // ONE — the document says «also carries», not «is mixed» — so a list of
+    // one project-sourced item carries it too, and that is asserted separately
+    // below.
+    const blocks = decisionBlocks([
+      decisionOn("00000000-0000-4000-8000-00000000000a", "VERIFIED_PRIMARY"),
+      decisionOn("00000000-0000-4000-8000-00000000000b", "PROJECT_DOCUMENTATION"),
+    ]);
+    const texts = blocks.map((b) => b.text);
+    const dovidkovyi = texts.indexOf(DOVIDKOVYI_DISCLAIMER_TEXT);
+    const projectSourced = texts.indexOf(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+    expect(dovidkovyi).toBeGreaterThanOrEqual(0);
+    // ADJACENCY IS THE RULE'S, not «somewhere after»: «immediately after it».
+    expect(projectSourced).toBe(dovidkovyi + 1);
+    // It is a mandated disclaimer and it cites the document that mandates it,
+    // like every other one this renderer prints.
+    expect(blocks[projectSourced]!.provenance).toEqual({
+      kind: "disclaimer",
+      mandatedBy: "docs/product/hidden-works-content-rules.md §\"Required disclaimers\"",
+    });
+    expect(blocks[projectSourced]!.neverCollapse).toBe(true);
+  });
+
+  it("prints it on a list whose every item is project-sourced, not only on a mixed one", () => {
+    // The narrowing this case exists to refuse. «a list that also carries
+    // project-sourced items» is satisfied by ONE such item, whatever the rest
+    // of the list is; a condition written as «mixed» would silently omit the
+    // mandated string from the list that most needs it.
+    const blocks = decisionBlocks([
+      decisionOn("00000000-0000-4000-8000-00000000000a", "PROJECT_DOCUMENTATION"),
+      decisionOn("00000000-0000-4000-8000-00000000000b", "PROJECT_DOCUMENTATION"),
+    ]);
+    expect(blocks.map((b) => b.text)).toContain(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+  });
+
+  it("does NOT print it on a list built entirely from the seeded Додаток Н library", () => {
+    // `"conditional"` is the whole distinction between this disclaimer and
+    // `DOVIDKOVYI_DISCLAIMER_TEXT`: the довідковий note is shown under every
+    // generated requirement list, this one only when a fact about the list's
+    // CONTENTS holds. An act with no project-sourced occurrence must not carry
+    // it — a disclaimer printed where nothing was project-sourced tells a
+    // reader that something on the page was.
+    const blocks = decisionBlocks([
+      decisionOn("00000000-0000-4000-8000-00000000000a", "VERIFIED_PRIMARY"),
+      decisionOn("00000000-0000-4000-8000-00000000000b", "VERIFIED_SECONDARY"),
+    ]);
+    const texts = blocks.map((b) => b.text);
+    expect(texts).toContain(DOVIDKOVYI_DISCLAIMER_TEXT);
+    expect(texts).not.toContain(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+  });
+
+  it("prints neither disclaimer when the closure froze no occurrence at all", () => {
+    // The existing guard on the довідковий note — «only when a list was
+    // actually printed» — must keep holding for both. A disclaimer under an
+    // empty list is a list that does not exist.
+    const blocks = decisionBlocks([]);
+    expect(blocks).toEqual([]);
+  });
+
+  it("carries a decision whose citation is project-sourced without ДБН attribution", () => {
+    // hidden-works-content-rules.md §"Project-sourced strings": the tag names
+    // an ORIGIN, and the citation the renderer prints beside the item is the
+    // occurrence's own. This asserts the renderer passes the tag through
+    // rather than re-deriving one — a normative block re-tagged
+    // VERIFIED_PRIMARY on its way onto the page is the misattribution ADR-010
+    // exists to prevent.
+    const blocks = decisionBlocks(
+      [decisionOn("00000000-0000-4000-8000-00000000000a", "PROJECT_DOCUMENTATION")]);
+    const normative = blocks.filter((b) => b.provenance.kind === "normative");
+    expect(normative).toHaveLength(1);
+    expect(normative[0]!.provenance).toEqual({
+      kind: "normative",
+      verification: "PROJECT_DOCUMENTATION",
+      source: "Приклад-джерело вимоги",
+    });
   });
 });
 

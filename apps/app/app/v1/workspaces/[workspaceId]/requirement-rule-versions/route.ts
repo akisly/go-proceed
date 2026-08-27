@@ -67,8 +67,12 @@ export const runtime = "nodejs";
  * Додаток Н item or an item the workspace authored from its own робоча
  * документація, and the request carries exactly one of the two ids — refused by
  * `publishRequirementRuleVersionRequest`'s superRefine before this handler
- * runs, and again by `requirement_rule_versions_one_provenance_check` (0059) if
- * it ever got past. The branch is ONLY over which row is read and which
+ * runs. `requirement_rule_versions_one_provenance_check` (0059) backs the
+ * BOTH-IDS half of that and only it: the CHECK reads `library is null or
+ * project_sourced is null`, so it makes citing both unstorable and leaves
+ * citing NEITHER storable. The superRefine alone refuses the neither-id
+ * request; there is no second line of defence under it. The branch is ONLY
+ * over which row is read and which
  * citation is composed from it: the lock, the numbering, the frozen content,
  * the INSERT and the events below are one obligation whichever documentation it
  * came from, and a second route would have been a second chance for those to

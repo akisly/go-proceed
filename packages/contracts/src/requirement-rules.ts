@@ -197,12 +197,18 @@ export const publishRequirementRuleVersionRequest = z.object({
     });
   }
   // ADR-010: v0.1 has two rule sources and a version rests on exactly one.
-  // The database says the same thing in
-  // requirement_rule_versions_one_provenance_check; this is the refusal that
-  // names the field instead of raising 23514.
+  // AT MOST ONE IN THE DATABASE, EXACTLY ONE ON THE WIRE — the two halves are
+  // not the same rule and the difference is load-bearing.
+  // requirement_rule_versions_one_provenance_check (0059) is
+  // `library is null or project_sourced is null`: it refuses BOTH ids and
+  // admits NEITHER, so a row citing no source at all is storable and
+  // m1-project-sourced-schema.test.ts asserts that it is. The exactly-one rule
+  // lives HERE and nowhere else, so this refusal is not a friendlier restating
+  // of a constraint — for the both-ids half it names the field instead of
+  // raising 23514, and for the neither-id half it is the only refusal there is.
   if ((v.requirementLibraryItemId != null) === (v.projectSourcedRequirementItemId != null)) {
     ctx.addIssue({
-      code: "custom",
+      code: z.ZodIssueCode.custom,
       path: ["requirementLibraryItemId"],
       message: "exactly one of requirementLibraryItemId or projectSourcedRequirementItemId is required",
     });

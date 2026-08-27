@@ -739,14 +739,48 @@ describe("0059 §3 — the vocabulary widens by one value, in the two places a t
   });
 
   it("freezes the new column without any edit to the rule-version guard", async () => {
-    // app.guard_requirement_rule_version() compares to_jsonb(new) against
-    // to_jsonb(old) with four keys subtracted rather than enumerating columns,
-    // so this column is frozen from the moment it exists.
+    // app.guard_requirement_rule_version() (0041 §6) compares to_jsonb(new)
+    // against to_jsonb(old) with four keys subtracted rather than enumerating
+    // columns, so this column is frozen from the moment it exists.
+    //
+    // THE PROBE IS A RETIREMENT AND NOT A BARE UPDATE, and that is what this
+    // case is about. The guard raises INV-067 from three branches — DELETE,
+    // a transition other than published -> retired, and the content diff — and
+    // ONLY THE THIRD says anything about this column. An UPDATE that just
+    // nulled it leaves `status` at 'published', so
+    // `old.status <> 'published' or new.status <> 'retired'` fires FIRST and
+    // the row is refused for its transition; the column could have been left
+    // out of the subtraction entirely and such a probe would still be green.
+    // So the write attempted below is a LEGAL retirement that also drops the
+    // provenance, which is the only shape that reaches the diff, and the
+    // assertion is on the diff branch's OWN message rather than on «INV-067»
+    // that all three branches carry.
     const id = await insertRuleVersion({ projectSourcedRequirementItemId: psItem });
     expect(await raised(() => c.query(
       `update public.requirement_rule_versions
-          set project_sourced_requirement_item_id = null where id = $1`, [id])))
-      .toMatch(/INV-067/);
+          set status = 'retired', retired_at = now(), retired_by_member_id = $2,
+              project_sourced_requirement_item_id = null
+        where id = $1`, [id, a.memberId])))
+      .toMatch(/retirement must not alter frozen rule-version content \(INV-067\)/);
+  });
+
+  it("still retires a version that changes nothing else — the positive control", async () => {
+    // Without this the case above passes just as well against a guard that
+    // refused EVERY retirement, and «the column is frozen» would be
+    // indistinguishable from «the row is unretirable». Retirement stops future
+    // binding and is a thing the product does; what it may not do is move
+    // frozen content.
+    const id = await insertRuleVersion({ projectSourcedRequirementItemId: psItem });
+    expect(await raised(() => c.query(
+      `update public.requirement_rule_versions
+          set status = 'retired', retired_at = now(), retired_by_member_id = $2
+        where id = $1`, [id, a.memberId]))).toBe("");
+    // AND THE PROVENANCE SURVIVED IT. The occurrence that pinned this version
+    // still cites the item it was published against (INV-067).
+    const r = await c.query<{ status: string; ps: string | null }>(
+      `select status, project_sourced_requirement_item_id as ps
+         from public.requirement_rule_versions where id = $1`, [id]);
+    expect(r.rows[0]).toEqual({ status: "retired", ps: psItem });
   });
 });
 

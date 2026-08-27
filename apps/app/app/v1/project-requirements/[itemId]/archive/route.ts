@@ -30,8 +30,10 @@ export const runtime = "nodejs";
  * its own actor from app.active_member_id() and does its own owner/admin
  * check; the membership and capability checks below are not redundant with
  * it, they are what turns a plpgsql raise into a problem+json the caller can
- * act on, and they run BEFORE anything is read so a refusal cannot become a
- * cross-tenant oracle.
+ * act on, and they run BEFORE the DEFINER function reads anything, so no
+ * refusal this route emits can become a cross-tenant oracle. The route's OWN
+ * workspace resolution does precede them, and the paragraph below is why that
+ * is safe: it is an ordinary RLS-scoped read that discloses nothing.
  *
  * THE WORKSPACE IS RESOLVED BEFORE THE IDEMPOTENCY SCOPE OPENS, because that
  * scope is keyed on the workspace and the path carries only the item id. The
