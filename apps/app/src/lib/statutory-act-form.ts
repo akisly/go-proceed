@@ -388,6 +388,62 @@ export const DOVIDKOVYI_DISCLAIMER_TEXT =
   + "замінює. За потреби такими актами оформлюють й інші види робіт.";
 
 /**
+ * How a mandatory disclaimer decides whether it is shown, named as a value so
+ * the distinction §"Required disclaimers" draws between its disclaimers is
+ * checkable rather than only described in a comment.
+ *
+ *   `"every_page"`      — `pageFooterText` above: shown on every page
+ *                          regardless of what the page contains
+ *                          (`pageFooterRepeatsOnEveryPage` on the rendered
+ *                          document).
+ *   `"never_collapsed"` — `DOVIDKOVYI_DISCLAIMER_TEXT` above and the
+ *                          decision-block disclaimers below: shown every time
+ *                          their host block is shown at all, which is why
+ *                          every other `disclaimer()` call in this file
+ *                          passes `neverCollapse: true`.
+ *   `"conditional"`     — shown only when a further fact about the host
+ *                          list's CONTENTS holds, true on some lists and
+ *                          false on others. `PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT`
+ *                          below carries this value.
+ *
+ * ADDITIVE ONLY: the existing constants above are not retrofitted with this
+ * type, because doing so is not this change's surface.
+ */
+export type DisclaimerPlacement = "every_page" | "never_collapsed" | "conditional";
+
+/**
+ * §"Required disclaimers": «and, only on a list that also carries
+ * project-sourced items, immediately after it» — printed immediately after
+ * `DOVIDKOVYI_DISCLAIMER_TEXT` above, and only when that list carries at
+ * least one item whose `verification` is `PROJECT_DOCUMENTATION`
+ * (§"Project-sourced strings", ADR-010, migration 0059). Transcribed
+ * verbatim.
+ *
+ * CONDITIONAL, NOT NEVER-COLLAPSED — the distinction §"Required disclaimers"
+ * itself draws between this text and `DOVIDKOVYI_DISCLAIMER_TEXT`.
+ * `DOVIDKOVYI_DISCLAIMER_TEXT` is shown under every generated requirement
+ * list once that list is shown at all; this text is shown only when the list
+ * it follows is a MIXED list — seeded Додаток Н items alongside a
+ * workspace-supplied, `PROJECT_DOCUMENTATION`-tagged item. A list built
+ * entirely from the seeded library never carries it, which is what
+ * `PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT` below records as
+ * `"conditional"` rather than `"never_collapsed"`.
+ *
+ * NO RENDER LOGIC READS EITHER CONSTANT BELOW YET. `blocksFor`'s
+ * `"decision_blocks"` case composes no mixed list in v0.1 — every decision it
+ * reads today is a seeded Додаток Н occurrence — so nothing calls
+ * `disclaimer()` with this text yet. It is transcribed and modelled ahead of
+ * that render logic so the mandated string and the condition it is mandated
+ * under are on the record before anything prints it.
+ */
+export const PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT =
+  "Пункти, позначені «за робочою документацією об'єкта», внесені виконавцем з "
+  + "робочої документації цього об'єкта із зазначенням аркуша та номера креслення. "
+  + "Їх текст не є витягом з ДБН і видавцем цієї системи не перевірявся.";
+
+export const PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT: DisclaimerPlacement = "conditional";
+
+/**
  * §"Required disclaimers": «Next to every rendered decision or signatory block»,
  * on the same page as the actor and the server time.
  *
