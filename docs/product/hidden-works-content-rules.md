@@ -4,11 +4,12 @@
 
 **Applies to:** all
 
-**Last reviewed:** 2026-08-06
+**Last reviewed:** 2026-08-24
 
 **Related decisions:** [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md),
 [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md),
-[ADR-007](../decisions/ADR-007-pilot-field-client.md)
+[ADR-007](../decisions/ADR-007-pilot-field-client.md),
+[ADR-010](../decisions/ADR-010-project-sourced-requirements.md)
 
 > **Why ADR-006 and ADR-007 are listed.** Each of them names this document as
 > binding on the strings it touches — ADR-006 on the assurance ladder it defers
@@ -18,6 +19,19 @@
 > adds a row to the allow-list below, and neither could: this document restricts
 > at every precedence level, **including over ADRs**
 > ([docs/README.md](../README.md) §"Source of truth").
+>
+> **Why ADR-010 is listed, and why it is a different case.** ADR-010
+> (2026-08-24) records the owner's decision to let a workspace author
+> requirements from its own робоча документація. It, too, adds no allow-list
+> row and could not. What it does is ask for a **vocabulary** change, and the
+> change was made *here* rather than there, for exactly the reason above: a
+> verification value is regulatory content, and an ADR cannot introduce one by
+> asserting it. The relationship is therefore the same as ADR-006's and
+> ADR-007's in kind — this document decides, the ADR records why it was asked
+> to — and the edits ADR-010 occasioned are §"Verification vocabulary"'s fourth
+> bullet, §"Project-sourced strings", and one sentence in the requirement-list
+> disclaimer. **No prohibition, no allow-list row and no existing tag was
+> altered by it.**
 
 > **What Approved means here.** Approved on 2026-08-06, promoted from Draft so
 > that the authority ADR-005 §"Replacement rule" delegates to this document is
@@ -83,8 +97,26 @@ Every regulatory item carried by the product is tagged:
 - **VERIFIED_PRIMARY** — the standard's own text was fetched and quoted.
 - **VERIFIED_SECONDARY** — a named reputable source reproduces it.
 - **UNVERIFIED** — believed but not sourced. Must never be shown as normative.
+- **PROJECT_DOCUMENTATION** — the text was typed by a workspace from its own
+  робоча документація for a named project, and carries that document's шифр,
+  аркуш and номер креслення. The product has not verified it and does not
+  vouch for it. Its normative force **for that site** follows from п. 8.4.3.3,
+  not from this product: it must always render with its full structured
+  citation, must never be attributed to a ДБН or a ДСТУ, and must never appear
+  inside a Додаток Н block. Added 2026-08-24 under
+  [ADR-010](../decisions/ADR-010-project-sourced-requirements.md); see
+  §"Project-sourced strings".
 
 Several sites repeating an identical block is one source, not corroboration.
+
+The first three values are a scale of **how well the product sourced a
+standard's text**. The fourth is not a fourth rung on that scale: it names a
+different origin, where the source is the site's own documentation and the
+voucher is the workspace rather than the product. `UNVERIFIED` and
+`PROJECT_DOCUMENTATION` must never be conflated — the first is a string
+nobody sourced, the second is a string sourced to a named sheet of a named
+document, which is why one may be shown as binding for its object and the
+other may not be shown as normative at all.
 
 ## What the product MAY assert, with attribution
 
@@ -234,6 +266,48 @@ class of fabrication the audit was run to catch.
 the assurance ladder below**, and never let a level-3 record be described,
 labelled, exported or demonstrated as an electronic signature.
 
+## Project-sourced strings
+
+Added 2026-08-24 under
+[ADR-010](../decisions/ADR-010-project-sourced-requirements.md), which records
+the owner's decision and supersedes no rule in this document.
+
+A requirement a workspace types from its own робоча документація is **not an
+assertion about any standard**. What the product asserts is narrower, and it is
+this: *a named workspace states that this text stands in its own working
+documentation for this project, at this sheet and this drawing.* The workspace
+vouches; the product carries.
+
+- The text renders as **the workspace's own statement of its documentation**,
+  never as content of ДБН А.3.1-5:2016, ДСТУ 9258:2023 or any other standard,
+  and never under a standard's attribution.
+- It renders **only with its structured citation** — document, аркуш,
+  креслення, and the ревізія when one was given. The architectural requirement
+  under §"Required disclaimers" applies unchanged: the tag and the source live
+  in the data, so a string with no source is *unrenderable* rather than merely
+  unrendered.
+- It renders in **its own block**, never inside the Додаток Н list and never
+  under that list's attribution. **Prohibition A is untouched and stays
+  structural:** the seeded library is a different relation with its own extent
+  constraint, and nothing a workspace types can reach it.
+- The only thing that may be said about **why** it binds is allow-list item 8,
+  in item 8's own words: the binding list for a given site comes from робоча
+  документація (п. 8.4.3.3), and Додаток Н is довідковий. That is a statement
+  about the standard, and item 8 already carries it.
+- Its UI label is **«за робочою документацією об'єкта»** — an origin, not a
+  verification strength. It must not be labelled «перевірено» in any form.
+
+**Prohibition E is not weakened by the source record.** E bans «шифр»,
+«аркуш», «ким видана» and the rest as **fields added to the Додаток В act
+form**. The citation fields above are the provenance of a requirement, stored
+with the requirement; nothing here prints a field into a Додаток В blank, and
+E continues to forbid that.
+
+**What this section does not do.** It adds no allow-list row, upgrades no
+`UNVERIFIED` tag, and licenses no ДБН claim. A project-sourced string is
+outside the allow-list because the allow-list governs what the product may
+assert *about the standards*, and this string asserts nothing about them.
+
 ## Electronic-signature assurance ladder
 
 > **Origin.** Transferred 2026-08-06 from the archived
@@ -355,6 +429,14 @@ unrenderable. See Open items for the only way it comes back.
 > Цей перелік її не замінює. За потреби такими актами оформлюють й інші види
 > робіт.
 
+and, **only on a list that also carries project-sourced items**, immediately
+after it:
+
+> Пункти, позначені «за робочою документацією об'єкта», внесені виконавцем з
+> робочої документації цього об'єкта із зазначенням аркуша та номера
+> креслення. Їх текст не є витягом з ДБН і видавцем цієї системи не
+> перевірявся.
+
 **Next to every rendered decision or signatory block**, on the same page as the
 actor and the server time:
 
@@ -372,26 +454,31 @@ cannot add an unsourced line to Н.15 by editing a view.
 
 ## Open items
 
-- **The primary ДБН file is not retained in the repository, and the fetch was
-  never recorded.** Every allow-list item and every `VERIFIED_PRIMARY` row in
+- **~~The primary ДБН file is not retained in the repository, and the fetch was
+  never recorded.~~ CLOSED 2026-08-10; recorded here 2026-08-24.** This item
+  asked for a retrieval record carrying the exact URL, the retrieval date and a
+  SHA-256 of the bytes. **That record exists**, and it is in the data rather
+  than in prose: every row of
   [`technical/requirements/dbn-a31-5-2016-dodatok-n.csv`](../../technical/requirements/dbn-a31-5-2016-dodatok-n.csv)
-  rests on one download no reviewer can reopen: all that survives of it is a
-  host name and a byte count — no retrieval URL, no retrieval date, no hash.
-  Under this document's own
-  vocabulary that leaves the tag asserted and the source gone. Close it by
-  committing the file, or a retrieval record carrying the exact URL, the
-  retrieval date and a SHA-256 of the bytes, under `technical/requirements/`;
-  until then no row's tag can be independently re-checked, which is the failure
-  mode the fabrication audit exists to prevent. Nothing here downgrades an
-  existing tag on its own — but a re-fetch that does not reproduce the same
-  bytes must downgrade every row it touches to `VERIFIED_SECONDARY`.
-  **This is not a thirteenth M0 gate.** It is the evidence that closes M0's gate
-  «no normative string renderable without its `verification` tag **and its
-  source**» ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 7) for
-  every `VERIFIED_PRIMARY` row v0.1 ships: by the vocabulary above, a source no
-  reviewer can reopen leaves the tag asserted and the source gone, and a gate
-  that requires a source is not closed while it is gone. M0 has **twelve** exit
-  gates and this closes one of them.
+  names `https://e-construction.gov.ua/laws_detail/3879707932224390963`,
+  завантажено 2026-08-10, and
+  `sha256=4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3` —
+  the same three facts as this document's own **CLOSED 2026-08-10** paragraph
+  above, which describes the fetch being reproduced rather than recorded on
+  trust. A reviewer can repeat it: fetch, hash, compare. The bullet contradicted
+  that paragraph from the day the paragraph was written; the contradiction is
+  what is closed here, not the sourcing question.
+  It closes M0's exit gate «no normative string renderable without its
+  `verification` tag **and its source**»
+  ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 7) for every
+  `VERIFIED_PRIMARY` row v0.1 ships. *(The count of M0's exit gates is not
+  restated here. It was measured once and belongs where it can be re-derived,
+  not repeated in prose that outlives the measurement.)*
+  **What is still open is unchanged and stated where it belongs:** one fetch
+  reproduced is not two independent sources agreeing, «незалежність будь-яких
+  додаткових копій не встановлена» stays on every row, and a re-fetch that does
+  not reproduce the same bytes must still downgrade every row it touches to
+  `VERIFIED_SECONDARY`.
 - **Items 9–10 and 12–15 of the allow-list carry no verification tag and no
   retrieval record.** The ЗУ «Про будівельні норми», ЗУ «Про стандартизацію»,
   ПКМУ № 903, наказ Мінрегіону № 281 and наказ Мінрозвитку № 1069 primary texts

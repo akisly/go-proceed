@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { verificationTag } from "./requirement-library";
 
 /**
  * The protected external link (v0.1-M5) — the step where a технагляд decides
@@ -275,7 +276,7 @@ export interface ExternalExchangeResponse {
  */
 export const externalNormRef = z.object({
   text: z.string().min(1),
-  verification: z.enum(["VERIFIED_PRIMARY", "VERIFIED_SECONDARY"]),
+  verification: verificationTag,
   source: z.string().min(1),
 }).strict();
 

@@ -368,12 +368,30 @@ describe("requirement_rule_versions.publish", () => {
     },
   );
 
-  // ADR-006 decision 4.1: the shipped library is the only rule source in v0.1.
-  it("refuses a rule version that cites no library item", () => {
+  // ADR-010 supersedes ADR-006 decision 4.1's "only source": a version now
+  // rests on exactly one of two sources, enforced by the superRefine below
+  // and by requirement_rule_versions_one_provenance_check in the database.
+  it("refuses a rule version that cites no source at all", () => {
     const { requirementLibraryItemId: _drop, ...noCitation } = RULE;
     const r = publishRequirementRuleVersionRequest.safeParse(noCitation);
     expect(r.success).toBe(false);
-    if (!r.success) expect(r.error.issues[0]?.path).toEqual(["requirementLibraryItemId"]);
+    if (!r.success) {
+      expect(r.error.issues[0]?.message)
+        .toContain("exactly one of requirementLibraryItemId or projectSourcedRequirementItemId");
+    }
+  });
+
+  it("refuses a rule version citing both sources", () => {
+    const r = publishRequirementRuleVersionRequest.safeParse({
+      ...RULE, requirementLibraryItemId: uuid(11), projectSourcedRequirementItemId: uuid(13),
+    });
+    expect(r.success).toBe(false);
+  });
+
+  it("accepts a rule version citing only a project-sourced item", () => {
+    const { requirementLibraryItemId: _drop, ...rest } = RULE;
+    expect(publishRequirementRuleVersionRequest
+      .safeParse({ ...rest, projectSourcedRequirementItemId: uuid(13) }).success).toBe(true);
   });
 
   // INV-073 and hidden-works-content-rules.md: the citation, its verification

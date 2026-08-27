@@ -61,3 +61,4 @@ export * from "./statutory-acts";
 // every other module. A real subpath export would be a packaging change owned by
 // nothing in this slice.
 export * from "./external";
+export * from "./project-requirements";

@@ -58,7 +58,10 @@ describe("every requirement_occurrences.norm_ref_verification value the database
   it("covers norm_ref_verification", async () => {
     const permitted = await permittedVerificationTags();
     expect(permitted).toContain("VERIFIED_PRIMARY");
-    expect(permitted.length).toBe(2);
+    expect(permitted).toContain("PROJECT_DOCUMENTATION");
+    expect(permitted.length).toBe(3);
+    expect(NORM_REF_VERIFICATION_LABELS.PROJECT_DOCUMENTATION)
+      .toBe("за робочою документацією об'єкта");
 
     const missing = permitted.filter((v) => !Object.hasOwn(NORM_REF_VERIFICATION_LABELS, v));
     expect(missing).toEqual([]);

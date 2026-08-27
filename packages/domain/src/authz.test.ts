@@ -25,3 +25,12 @@ describe("M2-A capabilities", () => {
     expect(workspaceCapabilities("auditor")).not.toContain("requirement_templates.manage");
   });
 });
+
+describe("project_requirements.manage", () => {
+  it("grants project_requirements.manage to exactly the roles that hold requirement_rules.manage", () => {
+    for (const role of ["owner", "admin", "member", "auditor"] as const) {
+      expect(workspaceCapabilities(role).includes("project_requirements.manage"))
+        .toBe(workspaceCapabilities(role).includes("requirement_rules.manage"));
+    }
+  });
+});

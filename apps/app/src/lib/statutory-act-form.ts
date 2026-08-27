@@ -3,7 +3,7 @@ import { DODATOK_V_FIELDS } from "./dodatok-v";
 import {
   renderedStatutoryAct,
   type ActRenderBlocker, type AssuranceLevel, type RenderBlock,
-  type RenderedStatutoryAct, type StatutoryActVersionView,
+  type RenderedStatutoryAct, type StatutoryActVersionView, type VerificationTagValue,
 } from "@goproceed/contracts";
 
 /**
@@ -263,6 +263,20 @@ export interface FormFieldDefinition {
   section: "В.1" | "В.2";
   caption: string;
   binding: FormFieldBinding;
+  /**
+   * STAYS THE TEMPLATE'S OWN TWO-VALUE UNION — NOT WIDENED TO
+   * `VerificationTagValue`, and not an oversight of migration 0059. A field
+   * of this list is TEMPLATE content: transcribed from the ДБН file and
+   * pinned by `form_template_hash`, the same for every act ever rendered off
+   * this template, never a fact recorded about one project. It can never be
+   * `PROJECT_DOCUMENTATION`, because that value states an ORIGIN a workspace
+   * supplied for its own occurrence (hidden-works-content-rules.md
+   * §"Project-sourced strings": "an origin, not a verification strength"),
+   * and there is no such thing as a workspace-supplied field of Додаток В —
+   * prohibition E forbids adding one, and this file's header already refuses
+   * a caption typed from memory for the same reason. `FormTemplate.title.
+   * verification`, below, carries identical reasoning.
+   */
   verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY";
   source: string;
 }
@@ -271,7 +285,13 @@ export interface FormTemplate {
   key: string;
   version: string;
   actForm: "dodatok_v";
-  /** The title of the form. Allow-list item 7. */
+  /**
+   * The title of the form. Allow-list item 7. `verification` stays the
+   * template's own two-value union for the same reason as
+   * `FormFieldDefinition.verification` above: a form title is template
+   * content, never a project's own record, so it is never
+   * `PROJECT_DOCUMENTATION`.
+   */
   title: { text: string; verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY"; source: string };
   /**
    * `null` until the enumeration is committed under `technical/requirements/`.
@@ -366,6 +386,70 @@ export const DOVIDKOVYI_DISCLAIMER_TEXT =
   + "відтворений дослівно. Обов'язковий перелік прихованих робіт для вашого об'єкта "
   + "визначає робоча документація (п. 8.4.3.3 ДБН А.3.1-5:2016). Цей перелік її не "
   + "замінює. За потреби такими актами оформлюють й інші види робіт.";
+
+/**
+ * How a mandatory disclaimer decides whether it is shown, named as a value so
+ * the distinction §"Required disclaimers" draws between its disclaimers is
+ * checkable rather than only described in a comment.
+ *
+ *   `"every_page"`      — `pageFooterText` above: shown on every page
+ *                          regardless of what the page contains
+ *                          (`pageFooterRepeatsOnEveryPage` on the rendered
+ *                          document).
+ *   `"never_collapsed"` — `DOVIDKOVYI_DISCLAIMER_TEXT` above and the
+ *                          decision-block disclaimers below: shown every time
+ *                          their host block is shown at all, which is why
+ *                          every other `disclaimer()` call in this file
+ *                          passes `neverCollapse: true`.
+ *   `"conditional"`     — shown only when a further fact about the host
+ *                          list's CONTENTS holds, true on some lists and
+ *                          false on others. `PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT`
+ *                          below carries this value.
+ *
+ * ADDITIVE ONLY: the existing constants above are not retrofitted with this
+ * type, because doing so is not this change's surface.
+ */
+export type DisclaimerPlacement = "every_page" | "never_collapsed" | "conditional";
+
+/**
+ * §"Required disclaimers": «and, only on a list that also carries
+ * project-sourced items, immediately after it» — printed immediately after
+ * `DOVIDKOVYI_DISCLAIMER_TEXT` above, and only when that list carries at
+ * least one item whose `verification` is `PROJECT_DOCUMENTATION`
+ * (§"Project-sourced strings", ADR-010, migration 0059). Transcribed
+ * verbatim.
+ *
+ * CONDITIONAL, NOT NEVER-COLLAPSED — the distinction §"Required disclaimers"
+ * itself draws between this text and `DOVIDKOVYI_DISCLAIMER_TEXT`.
+ * `DOVIDKOVYI_DISCLAIMER_TEXT` is shown under every generated requirement
+ * list once that list is shown at all; this text is shown only when a fact
+ * about the list's CONTENTS holds.
+ *
+ * THE CONDITION IS «AT LEAST ONE», NOT «MIXED», and the difference is not
+ * pedantry. The rule's own words are «only on a list that ALSO CARRIES
+ * project-sourced items» — satisfied by one such item whatever the rest of the
+ * list is. A condition written as «seeded Додаток Н items ALONGSIDE a
+ * workspace-supplied one» would omit the mandated string from the list that
+ * most needs it: the one whose every item came from the site's own робоча
+ * документація. A list built entirely from the seeded library carries no such
+ * item and never prints it, which is what
+ * `PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT` below records as
+ * `"conditional"` rather than `"never_collapsed"`.
+ *
+ * `blocksFor`'s `"decision_blocks"` case READS THIS CONSTANT and pushes it
+ * directly after the довідковий disclaimer when the condition holds. The
+ * surface is live: `loadActVersionView` (src/lib/statutory-act.ts) composes an
+ * act's decisions from `stage_closure_occurrences ⋈ requirement_occurrences`
+ * with no provenance filter, and since migration 0059 an occurrence's
+ * `norm_ref_verification` can be `PROJECT_DOCUMENTATION` — which is also why
+ * `normative()` below takes the full `VerificationTagValue`.
+ */
+export const PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT =
+  "Пункти, позначені «за робочою документацією об'єкта», внесені виконавцем з "
+  + "робочої документації цього об'єкта із зазначенням аркуша та номера креслення. "
+  + "Їх текст не є витягом з ДБН і видавцем цієї системи не перевірявся.";
+
+export const PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT: DisclaimerPlacement = "conditional";
 
 /**
  * §"Required disclaimers": «Next to every rendered decision or signatory block»,
@@ -487,7 +571,14 @@ export function formTemplateHashOf(template: FormTemplate): string {
 
 function normative(
   blockId: string, text: string,
-  verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY", source: string,
+  // Widened to the full `VerificationTagValue` (not the form template's own
+  // narrower two-value union below) because this helper also renders
+  // `d.normRef.verification` off a live requirement occurrence, which —
+  // since migration 0059 — can legitimately carry `PROJECT_DOCUMENTATION`.
+  // The form's own static calls (title, section caption, field caption,
+  // signatory role) pass a two-value literal, which is assignable here
+  // without narrowing anything back down.
+  verification: VerificationTagValue, source: string,
 ): RenderBlock {
   return { blockId, text, provenance: { kind: "normative", verification, source }, neverCollapse: false };
 }
@@ -696,6 +787,23 @@ export function renderStatutoryAct(
           // only when a list was actually printed.
           out.push(disclaimer(`${f.fieldId}.dovidkovyi`, DOVIDKOVYI_DISCLAIMER_TEXT,
             RULE_REQUIRED_DISCLAIMERS, true));
+          // «and, only on a list that also carries project-sourced items,
+          // immediately after it». AT LEAST ONE, which is what «also carries»
+          // says — not «strictly mixed»: a list whose every item came from the
+          // site's own робоча документація carries project-sourced items too,
+          // and it is the list that most needs the note. The ORDER IS THE
+          // RULE'S, so the push sits directly after the довідковий one above
+          // and cannot drift away from the list it qualifies.
+          //
+          // The tag is read off the DECISION'S OWN citation, which is the
+          // occurrence's `norm_ref_verification` copied at materialisation and
+          // carried here by `loadActVersionView` — the renderer decides nothing
+          // about provenance, it reports what the frozen occurrence recorded.
+          if (version.decisions.some(
+            (d) => d.normRef?.verification === "PROJECT_DOCUMENTATION")) {
+            out.push(disclaimer(`${f.fieldId}.project-sourced`,
+              PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT, RULE_REQUIRED_DISCLAIMERS, true));
+          }
         }
         return out;
       }

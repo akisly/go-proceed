@@ -3,11 +3,13 @@ import { readFileSync } from "node:fs";
 import { renderedStatutoryAct } from "@goproceed/contracts";
 import {
   ASSURANCE_LEVEL_LABEL, DODATOK_V_TEMPLATE, DOVIDKOVYI_DISCLAIMER_TEXT,
-  FORM_CITATION_TEXT, LEVEL_3_NOT_A_SIGNATURE_TEXT, pageFooterText,
+  FORM_CITATION_TEXT, LEVEL_3_NOT_A_SIGNATURE_TEXT,
+  PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT, PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT,
+  pageFooterText,
 } from "../src/lib/statutory-act-form";
 import {
   CONTENT_RULES_REPO_PATH, allowListItem, assuranceLadder, prohibition,
-  prohibitionEBannedFields, quoted, requiredDisclaimers,
+  prohibitionEBannedFields, quoted, requiredDisclaimers, type RequiredDisclaimer,
 } from "./helpers/content-rules";
 
 /**
@@ -93,6 +95,29 @@ const REGISTRY_CHECKED_ON = "2026-08-07";
  * are asserted where they are recorded: the Додаток Н half in
  * `m4-act.int.test.ts` against the CSV, and the participant half against the
  * participant record.
+ *
+ * `PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT` (statutory-act-form.ts, modelled
+ * `PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT === "conditional"`) IS HERE NOW.
+ * It was excluded while nothing called `disclaimer()` with it, and that
+ * exclusion carried its own condition of ending: «WHEN A FUTURE CHANGE WIRES
+ * THIS CONSTANT INTO `blocksFor` and it becomes genuinely printable, add it to
+ * the list below too — but guard the prohibition-E sweep for it with a check
+ * aware of its citation role, never with the blanket substring ban this file
+ * uses today.» `blocksFor`'s `decision_blocks` case now pushes it directly
+ * after the довідковий disclaimer whenever a decision's citation is tagged
+ * `PROJECT_DOCUMENTATION`, so it is printable and both halves of that
+ * instruction are carried out: it joins `printableConstants()`, and the
+ * prohibition-E sweep excepts it by name and checks it a different way —
+ * see `MANDATED_VERBATIM` and the case that owns it.
+ *
+ * WHY THE BLANKET BAN WOULD MISREAD IT. It legitimately contains «аркуша» as
+ * citation prose — hidden-works-content-rules.md §"Project-sourced strings"
+ * cites a project-sourced item "only with its structured citation — document,
+ * аркуш, креслення, and the ревізія when one was given" — while the sweep bans
+ * «аркуш» as a FIELD ADDED TO THE ДОДАТОК В FORM. The same section says why
+ * conflating the two would be wrong: "Prohibition E is not weakened by the
+ * source record ... nothing here prints a field into a Додаток В blank, and E
+ * continues to forbid that."
  */
 function printableConstants(): string[] {
   return [
@@ -100,26 +125,55 @@ function printableConstants(): string[] {
     FORM_CITATION_TEXT,
     pageFooterText(REGISTRY_CHECKED_ON),
     DOVIDKOVYI_DISCLAIMER_TEXT,
+    PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT,
     LEVEL_3_NOT_A_SIGNATURE_TEXT,
     ...Object.values(ASSURANCE_LEVEL_LABEL),
     ...Object.values(ASSURANCE_LEVEL_LABEL).map((l) => `Рівень підтвердження: ${l}.`),
   ];
 }
 
-describe(`the four mandated disclaimers of ${CONTENT_RULES_REPO_PATH}`, () => {
+/**
+ * The printable strings the prohibition-E sweep may NOT check by substring,
+ * and the reason it may not: they are not composed by this product at all.
+ *
+ * A mandated disclaimer is transcribed from an Approved document that
+ * restricts at every precedence level. Prohibition E bans ADDING a field to
+ * Додаток В; a sentence the same document orders the product to print cannot
+ * be such an addition, and the only thing worth checking about it is that the
+ * bytes are the document's own. That is what the case below checks, and it is
+ * a stronger property than the substring ban it replaces: byte identity to the
+ * source admits no added field of any kind, named in the prohibition or not.
+ */
+const MANDATED_VERBATIM: readonly string[] = [PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT];
+
+describe(`the five mandated disclaimers of ${CONTENT_RULES_REPO_PATH}`, () => {
   const mandated = requiredDisclaimers();
 
-  it("mandates exactly four disclaimers, and the renderer carries a constant for each", () => {
-    // THE COUNT IS THE ASSERTION. A fifth mandated disclaimer added to the
-    // document is a string the product is required to print and does not; the
-    // renderer would keep passing every other test in this file, because every
-    // other test asks about a string that exists. This is the one that notices
-    // a string that does not.
-    expect(mandated).toHaveLength(4);
-    // Four DISTINCT strings, each of which the tests below tie to a named
-    // renderer constant. Without the distinctness check a reader bug that
-    // returned the same blockquote four times would satisfy the count.
-    expect(new Set(mandated.map((d) => d.body)).size).toBe(4);
+  /**
+   * One mandated disclaimer, found by the sentence that introduces it rather
+   * than by its position in `mandated`. A disclaimer inserted ABOVE this one
+   * in the document — exactly what happened when the project-sourced note
+   * joined between the довідковий disclaimer and the assurance-level line —
+   * shifts every positional index below it; an anchor phrase drawn from the
+   * document's own wording does not move when the document grows.
+   */
+  function disclaimerIntroducedBy(anchor: string): RequiredDisclaimer {
+    const found = mandated.filter((d) => d.introduction.includes(anchor));
+    expect(found, `exactly one disclaimer introduced by "${anchor}"`).toHaveLength(1);
+    return found[0]!;
+  }
+
+  it("mandates exactly five disclaimers, and the renderer carries a constant for each", () => {
+    // THE COUNT IS THE ASSERTION. A disclaimer added to the document beyond
+    // the ones named below is a string the product is required to print and
+    // does not; the renderer would keep passing every other test in this
+    // file, because every other test asks about a string that exists. This is
+    // the one that notices a string that does not.
+    expect(mandated).toHaveLength(5);
+    // DISTINCT strings, each of which the tests below tie to a named renderer
+    // constant. Without the distinctness check a reader bug that returned the
+    // same blockquote repeatedly would satisfy the count.
+    expect(new Set(mandated.map((d) => d.body)).size).toBe(5);
     for (const d of mandated) expect(d.body.trim().length).toBeGreaterThan(0);
   });
 
@@ -171,22 +225,44 @@ describe(`the four mandated disclaimers of ${CONTENT_RULES_REPO_PATH}`, () => {
     expect(renderedStatutoryAct.shape.pageFooter.shape.neverCollapse).toBeDefined();
   });
 
+  it("prints the project-sourced items note character for character", () => {
+    const projectSourcedNote = disclaimerIntroducedBy(
+      "only on a list that also carries project-sourced items");
+    expectSameBytes(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT, projectSourcedNote.body);
+    // «immediately after it» — right after the довідковий disclaimer above,
+    // never on its own and never ahead of it.
+    expect(projectSourcedNote.introduction).toContain("immediately after it");
+  });
+
+  it("is told to print that one CONDITIONALLY, unlike the довідковий disclaimer or the footer", () => {
+    // The document's own words draw the distinction this constant must carry:
+    // the footer is mandated «on every page» (mandated[0]) and the довідковий
+    // disclaimer «never collapsed» (mandated[1]) — both unconditional once
+    // their host prints at all. The project-sourced note is mandated «only on
+    // a list that also carries project-sourced items»: a fact about the
+    // list's CONTENTS, true on a mixed list and false on a list built
+    // entirely from the seeded Додаток Н library.
+    expect(PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT).toBe("conditional");
+    expect(PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT).not.toBe("never_collapsed");
+    expect(PROJECT_SOURCED_ITEMS_DISCLAIMER_PLACEMENT).not.toBe("every_page");
+  });
+
   it("prints the assurance-level line character for character, for every level", () => {
+    const assuranceLevelLine = disclaimerIntroducedBy(
+      "Next to every rendered decision or signatory block");
     for (const label of Object.values(ASSURANCE_LEVEL_LABEL)) {
       expectSameBytes(
         `Рівень підтвердження: ${label}.`,
-        mandated[2]!.body.replace("{level}", label));
+        assuranceLevelLine.body.replace("{level}", label));
     }
-    expect(mandated[2]!.introduction)
-      .toContain("Next to every rendered decision or signatory block");
   });
 
   it("prints the level-3 denial character for character, and only after the level", () => {
-    expectSameBytes(LEVEL_3_NOT_A_SIGNATURE_TEXT, mandated[3]!.body);
+    const levelThreeDenial = disclaimerIntroducedBy("for level 3 only");
+    expectSameBytes(LEVEL_3_NOT_A_SIGNATURE_TEXT, levelThreeDenial.body);
     // «and, for level 3 only, immediately after it» — the ORDER is the rule's,
     // so the denial cannot drift away from the level it denies.
-    expect(mandated[3]!.introduction).toContain("for level 3 only");
-    expect(mandated[3]!.introduction).toContain("immediately after it");
+    expect(levelThreeDenial.introduction).toContain("immediately after it");
   });
 
   it("does not restore the approving order that was removed on 2026-08-06", () => {
@@ -302,9 +378,44 @@ describe("prohibition E — the negative, over every string the renderer can pri
   it("prints none of the banned fields, in any constant, in any case", () => {
     for (const field of banned) {
       for (const s of printableConstants()) {
+        // The mandated disclaimers are checked by transcription in the case
+        // below, never by substring — see `MANDATED_VERBATIM`.
+        if (MANDATED_VERBATIM.includes(s)) continue;
         expect(s.toLowerCase(), `«${field}» reached a printable string`)
           .not.toContain(field.toLowerCase());
       }
+    }
+  });
+
+  it("checks a mandated disclaimer by transcription, because it may carry the citation's own words", () => {
+    // THE EXCEPTION, AND ITS PRICE PAID IN ASSERTIONS. Three things are checked
+    // and the first is the one that replaces the substring ban.
+    const mandated = requiredDisclaimers();
+
+    // 1. THE BYTES ARE THE DOCUMENT'S. Nothing was added to this string by this
+    //    repository, so no field was added to it either — including a field no
+    //    prohibition names yet.
+    for (const s of MANDATED_VERBATIM) {
+      const match = mandated.filter((d) => sameBytes(d.body, s));
+      expect(match, `no mandated disclaimer is byte-identical to «${s.slice(0, 48)}…»`)
+        .toHaveLength(1);
+    }
+
+    // 2. THE EXCEPTION IS NEEDED, and which banned word makes it necessary is
+    //    DERIVED rather than named in this file. If the document ever bans a
+    //    seventh field that also appears in this disclaimer's citation prose,
+    //    this fails and a human decides whether that overlap is legitimate too
+    //    — instead of the ban silently widening its own exemption.
+    const carried = banned.filter((f) =>
+      PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT.toLowerCase().includes(f.toLowerCase()));
+    expect(carried).toEqual(["аркуш"]);
+
+    // 3. AND IT IS AN EXCEPTION FOR ONE WORD, NOT A LICENCE FOR THE REST. Every
+    //    other banned field is still absent from the excepted constant.
+    for (const field of banned) {
+      if (carried.includes(field)) continue;
+      expect(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT.toLowerCase(),
+        `«${field}» reached the mandated disclaimer`).not.toContain(field.toLowerCase());
     }
   });
 

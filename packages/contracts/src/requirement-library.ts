@@ -39,8 +39,24 @@ import { z } from "zod";
  * date, no hash were recorded (hidden-works-content-rules.md §"Open items").
  * A re-fetch that does not reproduce the same bytes must downgrade every row
  * it touches to `VERIFIED_SECONDARY`.
+ *
+ * `PROJECT_DOCUMENTATION` joined 2026-08-24 (ADR-010; migration 0059) and is
+ * not another verification strength beside `VERIFIED_PRIMARY` and
+ * `VERIFIED_SECONDARY` — it names an ORIGIN, a workspace's own робоча
+ * документація, and asserts nothing about a standard
+ * (hidden-works-content-rules.md §"Project-sourced strings"). It is never a
+ * downgrade target and never a downgrade source: the re-fetch rule above moves
+ * rows only between the standard-verification values, never into or out of
+ * this one. `public.requirement_library_items` never carries it — the seeded
+ * Додаток Н set is a different relation with its own extent constraint,
+ * unreachable from anything a workspace types — so this constant's widening is
+ * for the tables that copy a tag onto an occurrence instead:
+ * `requirement_rule_versions.norm_ref_verification` and
+ * `requirement_occurrences.norm_ref_verification`.
  */
-export const verificationTag = z.enum(["VERIFIED_PRIMARY", "VERIFIED_SECONDARY"]);
+export const verificationTag = z.enum([
+  "VERIFIED_PRIMARY", "VERIFIED_SECONDARY", "PROJECT_DOCUMENTATION",
+]);
 export type VerificationTagValue = z.infer<typeof verificationTag>;
 
 export const requirementLibraryItem = z.object({

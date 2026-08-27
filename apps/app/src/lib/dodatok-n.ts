@@ -16,12 +16,17 @@ import type { Tx } from "@goproceed/database";
  * WHY THIS EXISTS AT ALL. Until it landed, nothing in a real deployment put a
  * row in public.requirement_library_items. The chain that broke, end to end:
  * `requirement_library.list` answered `{items: []}` in every workspace;
- * `publishRequirementRuleVersionRequest.requirementLibraryItemId` is REQUIRED
- * and the command refuses an id that does not resolve in the workspace, so
- * `requirement_rule_versions.publish` returned 422 always; with no rule version
- * there was nothing for `contract_versions.bind_rules` to bind; and INV-083
- * then refused every publication forever. Twelve missing rows made the whole of
- * ADR-005 decision 2 unreachable outside the test fixtures.
+ * `publishRequirementRuleVersionRequest` required a `requirementLibraryItemId`
+ * that resolved in the workspace (ADR-010's project-sourced alternative did
+ * not exist yet) and refused one that did not, so `requirement_rule_versions.
+ * publish` returned 422 always; with no rule version there was nothing for
+ * `contract_versions.bind_rules` to bind; and INV-083 then refused every
+ * publication forever. Twelve missing rows made the whole of ADR-005 decision 2
+ * unreachable outside the test fixtures.
+ *
+ * TODAY, `publishRequirementRuleVersionRequest`'s own `superRefine` requires
+ * exactly one of `requirementLibraryItemId` or `projectSourcedRequirementItemId`
+ * — never both, never neither.
  *
  * WHY A CONSTANT AND NOT A READ OF THE CSV. technical/requirements/ is a
  * repository path, not a deployment artifact: the running application has no
@@ -108,6 +113,17 @@ export interface DodatokNItem {
    * INV-073. `UNVERIFIED` is absent from this union for the same reason it is
    * absent from the column's CHECK: an unverified string must never be shown as
    * normative, and the cheapest guarantee is that it cannot exist.
+   *
+   * STAYS TWO-VALUED EVEN AFTER MIGRATION 0059, AND THAT IS THE MIGRATION'S OWN
+   * DECISION, NOT A GAP HERE. Migration 0059's own "WHAT THIS DOES NOT CHANGE"
+   * says `public.requirement_library_items` "IS NOT TOUCHED: it keeps ... its
+   * two-value verification CHECK, so nothing this migration adds can put a line
+   * into Додаток Н." The seeded Додаток Н set is a different relation with its
+   * own extent constraint, and nothing a workspace types can reach it
+   * (hidden-works-content-rules.md §"Project-sourced strings"). `PROJECT_
+   * DOCUMENTATION` names an origin a workspace supplies for its OWN occurrence;
+   * every row this module writes is instead the shipped standard's own text, so
+   * it could never carry that tag.
    */
   verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY";
   /** The whole provenance string, stored verbatim as `source_citation`. */

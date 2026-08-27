@@ -4,7 +4,8 @@ import { requireActiveMembership, requireWorkspaceCapability } from "../../../..
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { validationFailed } from "../../../../../src/lib/manual-baseline";
 import {
-  citationOf, ruleVersionView, type RuleVersionRow,
+  citationOf, projectSourceCitationOf, projectSourceNormRef, ruleVersionView,
+  type RuleVersionRow,
 } from "../../../../../src/lib/requirement-content";
 import {
   publishRequirementRuleVersionRequest, type PublishRequirementRuleVersionResponse,
@@ -55,12 +56,28 @@ export const runtime = "nodejs";
  *    external-approver-accepted-from-M5 tests».
  *
  * THE CITATION IS COPIED, NEVER ACCEPTED. `norm_ref`, `norm_ref_verification`
- * and `norm_ref_source` are read off the cited library row inside this
+ * and `norm_ref_source` are read off the cited source row inside this
  * transaction. A caller that could send them could assert a normative string
  * carrying a verification tag it invented, which is exactly what INV-073 and
  * hidden-works-content-rules.md §"Architectural requirement" exist to prevent.
- * Copying also makes the obligation immutable in the right way: a library row
+ * Copying also makes the obligation immutable in the right way: a source row
  * corrected later must not silently change an obligation already agreed.
+ *
+ * TWO SOURCES, ONE COMMAND (ADR-010). The cited row is either a shipped
+ * Додаток Н item or an item the workspace authored from its own робоча
+ * документація, and the request carries exactly one of the two ids — refused by
+ * `publishRequirementRuleVersionRequest`'s superRefine before this handler
+ * runs. `requirement_rule_versions_one_provenance_check` (0059) backs the
+ * BOTH-IDS half of that and only it: the CHECK reads `library is null or
+ * project_sourced is null`, so it makes citing both unstorable and leaves
+ * citing NEITHER storable. The superRefine alone refuses the neither-id
+ * request; there is no second line of defence under it. The branch is ONLY
+ * over which row is read and which
+ * citation is composed from it: the lock, the numbering, the frozen content,
+ * the INSERT and the events below are one obligation whichever documentation it
+ * came from, and a second route would have been a second chance for those to
+ * drift. ADR-010 supersedes ADR-006 decision 4.1's «the only rule source in
+ * v0.1 is the shipped library» and nothing else in that decision.
  */
 
 /**
@@ -118,33 +135,107 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
           [{ path: "approverIsExternal", message: "a hold must name an internal approver role until v0.1-M5" }]);
       }
 
-      // ── the cited library row, read inside the tenant transaction ──────────
-      // RLS-scoped: a row in another workspace is indistinguishable from an
-      // absent one, so the refusal is never an oracle for another tenant's
-      // content.
-      const lib = await tx.query(
-        `select id, source_standard, position_code, position_title_uk, item_no,
-                item_text_uk, verification, source_citation
-           from public.requirement_library_items
-          where workspace_id = $1 and id = $2`,
-        [workspaceId, a.body.requirementLibraryItemId]);
-      if (lib.rows.length === 0) {
-        // ADR-006 decision 4.1: «the only rule source in v0.1 is the shipped
-        // library». The column is nullable so v0.2's workspace-authored rules
-        // stay additive (0041 departure 3); the v0.1 restriction is this refusal.
-        throw validationFailed(a.requestId,
-          "Пункт бібліотеки вимог не знайдено в цьому робочому просторі. "
-          + "У v0.1 правило спирається лише на постачений перелік Додатка Н.",
-          [{ path: "requirementLibraryItemId", message: "unknown library item in this workspace" }]);
-      }
-      const item = lib.rows[0];
+      // ── the cited source row, read inside the tenant transaction ───────────
+      // RLS-SCOPED ON BOTH ARMS: a row in another workspace is indistinguishable
+      // from an absent one, so neither refusal is ever an oracle for another
+      // tenant's content. `requirement_library_items` is reached through
+      // `rli_select` and `project_sourced_requirement_items` through
+      // `psri_select` (0059), and both are workspace-scoped, so the explicit
+      // `workspace_id = $1` below is the second of two layers rather than the
+      // only one.
+      //
+      // Exactly one branch runs: the request contract has already refused a body
+      // carrying both ids and a body carrying neither.
+      let libraryItemId: string | null = null;
+      let projectItemId: string | null = null;
+      let sourceTextUk: string;
+      let normRef: string;
+      let normRefVerification: string;
+      let normRefSource: string;
 
-      // Absent acceptanceCriterion copies the standard's own wording VERBATIM,
-      // which is what ADR-006 step 2 promises the foreman will see. Supplied
-      // wording is the workspace's own: it is stored as the acceptance criterion
+      if (a.body.requirementLibraryItemId != null) {
+        const lib = await tx.query(
+          `select id, source_standard, position_code, position_title_uk, item_no,
+                  item_text_uk, verification, source_citation
+             from public.requirement_library_items
+            where workspace_id = $1 and id = $2`,
+          [workspaceId, a.body.requirementLibraryItemId]);
+        if (lib.rows.length === 0) {
+          // THIS REFUSAL SURVIVED ADR-010; ITS SECOND SENTENCE DID NOT. It used
+          // to read «У v0.1 правило спирається лише на постачений перелік
+          // Додатка Н» — ADR-006 decision 4.1's claim that the shipped library
+          // is the only source — and ADR-010 supersedes exactly that clause. An
+          // unknown library item is still refused; a caller told the library is
+          // their only option would now be told something false, when
+          // `project_requirements.create` is the other thing they can do.
+          throw validationFailed(a.requestId,
+            "Пункт бібліотеки вимог не знайдено в цьому робочому просторі. "
+            + "Правило спирається або на постачений перелік Додатка Н, "
+            + "або на вимогу з робочої документації об'єкта.",
+            [{ path: "requirementLibraryItemId", message: "unknown library item in this workspace" }]);
+        }
+        const item = lib.rows[0];
+        libraryItemId = item.id as string;
+        sourceTextUk = item.item_text_uk as string;
+        normRef = citationOf(item.source_standard as string, item.position_code as string);
+        normRefVerification = item.verification as string;
+        normRefSource = item.source_citation as string;
+      } else {
+        const psri = await tx.query(
+          `select id, item_text_uk, source_document, source_sheet, source_drawing_no,
+                  source_revision, verification, status
+             from public.project_sourced_requirement_items
+            where workspace_id = $1 and id = $2`,
+          [workspaceId, a.body.projectSourcedRequirementItemId]);
+        if (psri.rows.length === 0) {
+          throw validationFailed(a.requestId,
+            "Пункт вимоги з робочої документації не знайдено в цьому робочому просторі.",
+            [{ path: "projectSourcedRequirementItemId",
+               message: "unknown project-sourced requirement item in this workspace" }]);
+        }
+        const item = psri.rows[0];
+        // AN ARCHIVED ITEM IS REFUSED BY NAME, and that is a different refusal
+        // from "not found" on purpose. Archiving means «do not build NEW
+        // obligations on this» (ADR-010 decision 5: there is no update, and a
+        // correction is a new item plus an archive of the old one), so a caller
+        // needs to be told to author the correction rather than to go looking
+        // for an id they can already see in `project_requirements.list`. It
+        // discloses nothing: the RLS-scoped read above already proved the row is
+        // theirs. VERSIONS ALREADY PUBLISHED FROM IT ARE UNTOUCHED — they copied
+        // its text and citation and are frozen (INV-067); archiving the item
+        // does not retire them, and no baseline that bound one changes.
+        if (item.status !== "active") {
+          throw validationFailed(a.requestId,
+            "Пункт вимоги з робочої документації заархівовано, тож нові правила на нього "
+            + "не спираються. Створіть новий пункт або оберіть інший.",
+            [{ path: "projectSourcedRequirementItemId",
+               message: "archived project-sourced requirement item may not source a new rule version" }]);
+        }
+        projectItemId = item.id as string;
+        sourceTextUk = item.item_text_uk as string;
+        // THE COMPOSED CITATION LANDS IN norm_ref_source, NOT ONLY IN norm_ref.
+        // `requirement_rule_versions_norm_ref_sourced_check` (0041) requires a
+        // non-blank source whenever norm_ref is present, and the structured
+        // fields ARE the source here: «робоча документація» without a sheet and
+        // a drawing number is a word, not a source (ADR-010 decision 3).
+        normRef = projectSourceNormRef();
+        // Copied, not composed: the one storable value of this table's own
+        // verification CHECK, read off the row for the same reason the library
+        // arm reads it off its row rather than writing the tag here.
+        normRefVerification = item.verification as string;
+        normRefSource = projectSourceCitationOf(
+          item.source_document as string, item.source_sheet as string,
+          item.source_drawing_no as string, item.source_revision as string | null);
+      }
+
+      // Absent acceptanceCriterion copies the SOURCE's own wording VERBATIM —
+      // the standard's on the library arm, which is what ADR-006 step 2 promises
+      // the foreman will see, and the workspace's own documentation on the
+      // project arm, which is what ADR-010 promises there. Supplied wording is
+      // the workspace's own either way: it is stored as the acceptance criterion
       // and it does NOT acquire the citation's verification tag by sitting next
       // to it — the tag travels with norm_ref and only with norm_ref.
-      const acceptanceCriterion = a.body.acceptanceCriterion ?? (item.item_text_uk as string);
+      const acceptanceCriterion = a.body.acceptanceCriterion ?? sourceTextUk;
 
       // Serialize version numbering per lineage, for the reason
       // requirement_templates.create:28-32 gives: max+1 read outside a lock lets
@@ -183,7 +274,6 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
         // it. For photo and document the contract REQUIRES the object, so the
         // default is never what an occurrence copies.
         : "[]";
-      const normRef = citationOf(item.source_standard as string, item.position_code as string);
       const frozen = JSON.stringify({
         requirementRuleId, versionNo, ordinal: a.body.ordinal,
         workTypeKey: a.body.workTypeKey,
@@ -207,9 +297,23 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
         // versions identical in every obligation but resting on different
         // standards are different obligations.
         normRef,
-        normRefVerification: item.verification,
-        normRefSource: item.source_citation,
-        requirementLibraryItemId: item.id,
+        normRefVerification,
+        normRefSource,
+        // BOTH PROVENANCE KEYS, UNCONDITIONALLY, ONE OF THEM NULL. Two code
+        // paths building two JSON shapes is how key-order drift starts, and a
+        // digest that depended on which arm published would make two identical
+        // obligations from the same documentation hash differently.
+        //
+        // ADDING A KEY CHANGES EVERY FUTURE LIBRARY-SOURCED HASH, and that is
+        // safe HERE because nothing pins a literal `rule_version_hash`: the only
+        // hash assertion in the suite is relative — «admits exactly one
+        // transition, and it does not touch frozen content»
+        // (packages/testing/src/m1-rules-schema.test.ts) reads the hash before
+        // retiring a version and asserts the SAME value afterwards. Rows already
+        // published keep the digest they were written with; they are frozen and
+        // nothing recomputes them.
+        requirementLibraryItemId: libraryItemId,          // null on the project arm
+        projectSourcedRequirementItemId: projectItemId,   // null on the library arm
       });
       const ruleVersionHash = createHash("sha256").update(frozen).digest("hex");
 
@@ -220,17 +324,18 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
             intervention_type, blocking_scope, timing, evidence_kind,
             acceptance_criterion, performer_role, approver_role, approver_is_external,
             min_evidence_count, max_evidence_count, allowed_media,
-            norm_ref, norm_ref_verification, norm_ref_source, requirement_library_item_id,
+            norm_ref, norm_ref_verification, norm_ref_source,
+            requirement_library_item_id, project_sourced_requirement_item_id,
             rule_version_hash, published_at, published_by_member_id, created_by_member_id)
          values ($1,$2,$3,$4,$5,'published',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,
-                 $19,$20,$21,$22,$23,now(),$24,$24)
+                 $19,$20,$21,$22,$23,$24,now(),$25,$25)
          returning *`,
         [randomUUID(), workspaceId, requirementRuleId, versionNo, a.body.ordinal,
          a.body.workTypeKey, a.body.stageKey,
          a.body.interventionType, a.body.blockingScope, a.body.timing, a.body.evidenceKind,
          acceptanceCriterion, a.body.performerRole, a.body.approverRole, a.body.approverIsExternal,
          a.body.minEvidenceCount, a.body.maxEvidenceCount, allowedMediaJson,
-         normRef, item.verification, item.source_citation, item.id,
+         normRef, normRefVerification, normRefSource, libraryItemId, projectItemId,
          ruleVersionHash, m.memberId]);
       // location_predicate, form_schema and exception_policy are NOT named: the
       // first keeps its '{}' default because v0.1 has no location predicate
@@ -248,7 +353,12 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
           requirementRuleId, versionNo, ruleVersionHash,
           workTypeKey: a.body.workTypeKey, stageKey: a.body.stageKey,
           interventionType: a.body.interventionType, blockingScope: a.body.blockingScope,
-          requirementLibraryItemId: item.id,
+          // Both, one null: which documentation an obligation rested on is part
+          // of what the audit trail has to be able to answer, and an entry that
+          // named only the arm that happened to be filled would leave the other
+          // arm's versions looking like versions with no source at all.
+          requirementLibraryItemId: libraryItemId,
+          projectSourcedRequirementItemId: projectItemId,
         },
       }, { organizationId: workspaceId, objectVersion: versionNo });
       await enqueueOutbox(tx, ctx, {
