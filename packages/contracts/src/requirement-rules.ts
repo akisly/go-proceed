@@ -248,7 +248,22 @@ export interface RequirementRuleVersionResponse {
   normRef: string | null;
   normRefVerification: VerificationTagValue | null;
   normRefSource: string | null;
-  requirementLibraryItemId: string;
+  /**
+   * The two provenances (ADR-010), EXACTLY ONE of them non-null — the same
+   * exactly-one rule the publish request states above and
+   * `requirement_rule_versions_one_provenance_check` enforces in the database.
+   *
+   * BOTH ARE CARRIED, AND THE NULL HALF IS THE INFORMATION. Which source a
+   * version rests on is not derivable from `normRefVerification` alone
+   * (`PROJECT_DOCUMENTATION` names an origin, not the item), and a response
+   * carrying only the filled field would leave a consumer unable to tell an
+   * absent provenance from an arm it did not read. `requirementLibraryItemId`
+   * became nullable here when the second arm shipped: a reader that treated it
+   * as always present would dereference `null` on every project-sourced
+   * version.
+   */
+  requirementLibraryItemId: string | null;
+  projectSourcedRequirementItemId: string | null;
   publishedAt: string;
 }
 export type PublishRequirementRuleVersionResponse = RequirementRuleVersionResponse;

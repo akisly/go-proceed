@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { q, truncateAll, jsonReq } from "./helpers/fixtures";
+import { publishRuleVersion, ruleVersionBody } from "./helpers/manual-baseline";
 
 /**
  * ADR-010's project-sourced requirement items: a workspace authors a
@@ -13,6 +14,11 @@ import { q, truncateAll, jsonReq } from "./helpers/fixtures";
  *   project_requirements.create  POST /v1/workspaces/{workspaceId}/project-requirements
  *   project_requirements.archive POST /v1/project-requirements/{itemId}/archive
  *   project_requirements.list    GET  /v1/workspaces/{workspaceId}/project-requirements
+ *
+ * The last block drives a FOURTH route, `requirement_rule_versions.publish`,
+ * because an authored item that no rule version can rest on is a table nobody
+ * reaches: ADR-010's second source arm is what turns these three into a
+ * feature, and the item it publishes from is authored here.
  */
 
 // OWNER and MEMBER are two of the three canonical ids supabase/seed.sql plants
@@ -233,5 +239,120 @@ describe("project_requirements.list", () => {
     await archiveProjectRequirement(item);
     const body = await (await listProjectRequirements(WS)).json();
     expect(body.items.find((i: { itemId: string }) => i.itemId === item).status).toBe("archived");
+  });
+});
+
+/**
+ * ADR-010's second source arm on `requirement_rule_versions.publish`. The same
+ * command, the same frozen content and the same INSERT — a different
+ * documentation behind it — so this block asserts BOTH arms rather than only
+ * the new one: this is the change that made the route branch, and «the shipped
+ * Додаток Н still publishes» is a claim the branching change owes.
+ *
+ * It lives in this file rather than beside the other rule-version suites
+ * because what it needs is a project-sourced item, and the three routes that
+ * author, archive and list one are already driven above.
+ */
+describe("requirement_rule_versions.publish, the two source arms", () => {
+  let item: string;
+  let libraryItem: string;
+
+  beforeEach(async () => {
+    item = (await (await createProjectRequirement(WS, valid)).json()).itemId as string;
+    // Read through the route rather than the table: `workspaces.create` seeds
+    // the Додаток Н rows (apps/app/src/lib/dodatok-n.ts), and the library arm
+    // must publish from a row the product itself put there.
+    const lib = await (await listRequirementLibrary(WS)).json();
+    libraryItem = lib.items[0].libraryItemId as string;
+  });
+
+  /**
+   * The shared v0.1 rule shape with its source named explicitly.
+   * `ruleVersionBody` spreads `over` last, so `requirementLibraryItemId:
+   * undefined` genuinely REMOVES the library arm: `JSON.stringify` drops an
+   * undefined value rather than sending the `null` the strict request schema
+   * would refuse. Each caller then names the one source it publishes from,
+   * which is what the request's exactly-one rule requires.
+   */
+  const ruleFrom = (source: Record<string, unknown>): Record<string, unknown> =>
+    ruleVersionBody(libraryItem, { requirementLibraryItemId: undefined, ...source });
+
+  it("publishes a rule version from a project-sourced item", async () => {
+    const res = await publishRuleVersion(WS, ruleFrom({ projectSourcedRequirementItemId: item }));
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.normRefVerification).toBe("PROJECT_DOCUMENTATION");
+    expect(body.normRefSource).toContain("Приклад-РД-2026-014");
+    expect(body.normRefSource).toContain("арк. 12");
+    expect(body.normRefSource).toContain("кресл. АР-07");
+    // The site's own text is attributed to the site's own documentation and to
+    // no standard's list: a project-sourced string never renders inside a
+    // Додаток Н block (hidden-works-content-rules.md §"Project-sourced
+    // strings"), so the position-level Додаток Н citation must not be here.
+    expect(body.normRef).not.toContain("Додаток Н");
+  });
+
+  it("refuses publishing from an archived item", async () => {
+    expect((await archiveProjectRequirement(item)).status).toBe(200);
+    const res = await publishRuleVersion(WS, ruleFrom({ projectSourcedRequirementItemId: item }));
+    expect(res.status).toBe(422);
+    // Refused BY NAME, not as an absent row: archiving means «do not build new
+    // obligations on this», and the caller can already see the item.
+    const body = await res.json();
+    expect(body.fieldErrors[0].path).toBe("projectSourcedRequirementItemId");
+  });
+
+  it("copies the item text as the default acceptance criterion", async () => {
+    const body = await (await publishRuleVersion(WS, ruleFrom({
+      acceptanceCriterion: undefined, projectSourcedRequirementItemId: item,
+    }))).json();
+    expect(body.acceptanceCriterion).toBe("Приховані роботи з гідроізоляції санвузла");
+  });
+
+  it("still publishes from the shipped library, tagged and cited as before", async () => {
+    const res = await publishRuleVersion(WS, ruleFrom({ requirementLibraryItemId: libraryItem }));
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.normRef).toContain("Додаток Н");
+    expect(body.normRefVerification).not.toBe("PROJECT_DOCUMENTATION");
+    expect(body.normRefSource.length).toBeGreaterThan(0);
+  });
+
+  it("carries both provenance fields, exactly one of them filled", async () => {
+    const fromProject = await (await publishRuleVersion(WS,
+      ruleFrom({ projectSourcedRequirementItemId: item }))).json();
+    expect(fromProject.projectSourcedRequirementItemId).toBe(item);
+    expect(fromProject.requirementLibraryItemId).toBeNull();
+
+    const fromLibrary = await (await publishRuleVersion(WS,
+      ruleFrom({ requirementLibraryItemId: libraryItem }))).json();
+    expect(fromLibrary.requirementLibraryItemId).toBe(libraryItem);
+    expect(fromLibrary.projectSourcedRequirementItemId).toBeNull();
+
+    // The column, not only the view: `requirement_rule_versions_one_provenance_check`
+    // is what makes the pair exclusive, and a view that agreed with a row the
+    // database stored differently would be the failure worth catching.
+    const rows = await q<{ lib: string | null; psri: string | null }>(
+      `select requirement_library_item_id as lib,
+              project_sourced_requirement_item_id as psri
+         from public.requirement_rule_versions where id = $1`,
+      [fromProject.ruleVersionId]);
+    expect(rows[0]).toEqual({ lib: null, psri: item });
+  });
+
+  it("refuses an unknown item on either arm, and claims no single source", async () => {
+    const unknownProject = await publishRuleVersion(WS,
+      ruleFrom({ projectSourcedRequirementItemId: randomUUID() }));
+    expect(unknownProject.status).toBe(422);
+
+    const unknownLibrary = await publishRuleVersion(WS,
+      ruleFrom({ requirementLibraryItemId: randomUUID() }));
+    expect(unknownLibrary.status).toBe(422);
+    // ADR-010 supersedes ADR-006 decision 4.1's «the only rule source in v0.1
+    // is the shipped library». The refusal survives that supersession; the
+    // sentence «У v0.1 правило спирається лише на постачений перелік Додатка Н»
+    // does not, and a refusal telling a caller the library is their only option
+    // would now be false.
+    expect(await unknownLibrary.text()).not.toContain("спирається лише");
   });
 });
