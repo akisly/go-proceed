@@ -749,3 +749,25 @@ describe("0059 §3 — the vocabulary widens by one value, in the two places a t
       .toMatch(/INV-067/);
   });
 });
+
+// ───────────────────────────────────────────────────────────────────────────
+// §4 — app.project_in_workspace, added review fix round 1 on Task 11
+// ───────────────────────────────────────────────────────────────────────────
+
+describe("0059 §4 — the tenant-existence helper's own ACL", () => {
+  // Not a functional re-test of the route's fix: that lives in
+  // project-requirements.int.test.ts ("succeeds for a second admin who did
+  // not create the project"). This pins only the posture a SECURITY DEFINER
+  // helper needs to be safe to call from goproceed_app in the first place —
+  // 0009's deny-by-default strips automatic EXECUTE from every new function,
+  // and this is the check that a later grant did not quietly widen it.
+  it("goproceed_app may execute it; anon and authenticated may not", async () => {
+    const fn = "app.project_in_workspace(uuid, uuid)";
+    const r = await c.query<{ app: boolean; anon: boolean; authenticated: boolean }>(
+      `select has_function_privilege('goproceed_app', $1, 'execute') as app,
+              has_function_privilege('anon', $1, 'execute') as anon,
+              has_function_privilege('authenticated', $1, 'execute') as authenticated`,
+      [fn]);
+    expect(r.rows[0]).toEqual({ app: true, anon: false, authenticated: false });
+  });
+});

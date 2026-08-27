@@ -10,6 +10,14 @@
 --   public.requirement_rule_versions.project_sourced_requirement_item_id — the
 --   second provenance a rule version may cite, exclusive with the first.
 --
+--   ADDED 2026-08-27 (fix round 1, Task 11 review finding 1): a second
+--   SECURITY DEFINER helper, app.project_in_workspace(uuid, uuid) — see §4.
+--   project_requirements.create's own tenant-boundary check must not be a
+--   plain RLS-scoped select against public.projects, because projects_select
+--   answers whether THIS member may see THIS project's contents, and
+--   project_requirements.manage is a workspace capability that grants no such
+--   per-project access on its own.
+--
 -- WHAT THIS DOES NOT CHANGE
 --   No table is dropped. No column is dropped. Migrations 0001-0058 are applied
 --   history and are not edited. The only existing objects altered are two CHECK
@@ -41,6 +49,9 @@
 --     drop table public.project_sourced_requirement_items;
 --     drop function app.guard_project_sourced_requirement_item();
 --     drop function app.archive_project_sourced_requirement_item(uuid, uuid);
+--   app.project_in_workspace(uuid, uuid) (§4) reads and writes nothing and may
+--   be dropped at any time, independent of the above:
+--     drop function app.project_in_workspace(uuid, uuid);
 --   Once a workspace has authored one item, a published rule version may
 --   already cite it, and a published baseline is immutable — so the citation
 --   cannot be re-derived from anything and there is no rollback. Re-narrowing
@@ -289,3 +300,44 @@ alter table public.requirement_rule_versions
   add constraint requirement_rule_versions_one_provenance_check
     check (requirement_library_item_id is null
         or project_sourced_requirement_item_id is null);
+
+-- ===========================================================================
+-- 4. app.project_in_workspace — ADDED 2026-08-27, fix round 1 on Task 11
+--
+-- THE TRAP THIS CLOSES. project_requirements.create resolves the caller's
+-- projectId against public.projects while running as goproceed_app, which is
+-- subject to RLS. projects_select (0011) is
+-- `using (app.has_project_capability(workspace_id, id,
+-- array['project.view','project.admin']))`, and that predicate reads
+-- project_access_grants — it answers "may THIS member see THIS project's
+-- contents", never "does this project belong to this workspace". INV-019
+-- auto-grants project.admin and project.view to a project's CREATOR alone at
+-- creation time and infers access for nobody else afterwards. A route that
+-- asks projects_select's question in place of the tenant question it actually
+-- has therefore answers "not found" for a real project in the caller's own
+-- workspace, to every owner or admin who did not happen to create it —
+-- although project_requirements.manage is a WORKSPACE capability (ADR-010
+-- decision 5) and the project mark on a requirement item is metadata
+-- identifying where the requirement came from, never an access boundary
+-- (ADR-010 decision 4).
+--
+-- THE QUESTION THIS FUNCTION ANSWERS INSTEAD is the narrow one the route
+-- actually needs: does this project id belong to this workspace, full stop,
+-- independent of any per-project grant. SECURITY DEFINER so the query runs
+-- outside projects_select rather than being filtered by it — the same reason
+-- app.active_member_id and app.project_has_grants (0011) bypass RLS on the
+-- tables they answer about. The return is a bare boolean with no row data, so
+-- a caller learns tenancy and nothing about the project's own columns; a
+-- refusal built on it is non-oracle the same way the route's caller-facing
+-- comment already promises — false for a foreign project and false for an
+-- absent one, indistinguishably. search_path is 0051's strict form (every
+-- reference schema-qualified) rather than 0011's older `= public`, matching
+-- this migration's own functions in §2.
+create or replace function app.project_in_workspace(p_workspace uuid, p_project uuid)
+returns boolean language sql stable security definer set search_path = '' as $$
+  select exists(
+    select 1 from public.projects
+     where workspace_id = p_workspace and id = p_project)
+$$;
+revoke all on function app.project_in_workspace(uuid, uuid) from public;
+grant execute on function app.project_in_workspace(uuid, uuid) to goproceed_app;
