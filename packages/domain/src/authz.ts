@@ -7,7 +7,7 @@ export type GovernanceRole = "owner" | "admin" | "member" | "auditor";
 // are still the media-policy source the upload gate reads (plan contradiction 3).
 export type WorkspaceCapability =
   | "parties.manage" | "own_legal_profiles.manage" | "projects.create" | "units.manage"
-  | "requirement_templates.manage" | "requirement_rules.manage";
+  | "requirement_templates.manage" | "requirement_rules.manage" | "project_requirements.manage";
 // v0.1-M2-A adds the execution/evidence action capabilities. evidence.custody is
 // in technical/permissions/capabilities.csv but its only operation
 // (evidence_links.create) is M3, so it is deliberately absent here: an unused
@@ -65,9 +65,9 @@ export type ProjectCapability =
 const MAP: Record<GovernanceRole, readonly WorkspaceCapability[]> = {
   // INV-020: own_legal_profiles.manage is strictly narrower than parties.manage.
   owner: ["parties.manage", "own_legal_profiles.manage", "projects.create", "units.manage",
-          "requirement_templates.manage", "requirement_rules.manage"],
+          "requirement_templates.manage", "requirement_rules.manage", "project_requirements.manage"],
   admin: ["parties.manage", "projects.create", "units.manage", "requirement_templates.manage",
-          "requirement_rules.manage"],
+          "requirement_rules.manage", "project_requirements.manage"],
   member: [],
   auditor: [],
 };
