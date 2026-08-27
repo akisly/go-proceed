@@ -124,11 +124,15 @@ export const publishRequirementRuleVersionRequest = z.object({
    */
   allowedMedia: allowedMedia.optional(),
   /**
-   * REQUIRED in v0.1, and the column is nullable on purpose: "the only rule
-   * source in v0.1 is the shipped library" (ADR-006 decision 4.1) is a v0.1
-   * restriction, and a NOT NULL would bake v0.1 into the schema and make
-   * v0.2's workspace-authored rules a schema change rather than an additive
-   * one. The restriction therefore lives here, in the command's contract.
+   * One of two mutually exclusive sources for this version's content — see
+   * `projectSourcedRequirementItemId` and the superRefine below for the
+   * exactly-one rule. REQUIRED, and the only source, until ADR-010
+   * superseded that one clause of ADR-006 decision 4.1 ("the only rule
+   * source in v0.1 is the shipped library") and gave a workspace a second
+   * source of its own, still within v0.1. The column was already nullable
+   * for exactly this reason: a NOT NULL would have baked "library only" into
+   * the schema and made a second source a schema change rather than the
+   * additive one ADR-010 turned out to need.
    *
    * NOTE WHAT IS NOT ON THIS WIRE: `normRef`, `normRefVerification` and
    * `normRefSource`. The command COPIES all three from the cited library row
@@ -137,7 +141,17 @@ export const publishRequirementRuleVersionRequest = z.object({
    * exactly what INV-073 and hidden-works-content-rules.md exist to prevent.
    * They are returned, never accepted.
    */
-  requirementLibraryItemId: z.string().guid(),
+  requirementLibraryItemId: z.string().guid().optional(),
+  /**
+   * The second source (ADR-010): an item a workspace authored into
+   * `project_requirements` from its own робоча документація, rather than the
+   * shipped library. Exactly one of this and `requirementLibraryItemId` is
+   * required — see the superRefine below — because a version rests on one
+   * source, never both and never neither. Same shape as the library arm: the
+   * caller names which item, and the command copies its content into the
+   * version rather than accepting normative text directly.
+   */
+  projectSourcedRequirementItemId: z.string().guid().optional(),
 }).strict().superRefine((v, ctx) => {
   // INV-082, first refusal (ADR-006 decision 4.3). `witness` needs the notice
   // event and its attendance outcomes; `review`'s only blocking scope is
@@ -180,6 +194,17 @@ export const publishRequirementRuleVersionRequest = z.object({
       code: z.ZodIssueCode.custom,
       path: ["allowedMedia"],
       message: "allowedMedia is not accepted for evidenceKind 'measurement' and 'checkbox'",
+    });
+  }
+  // ADR-010: v0.1 has two rule sources and a version rests on exactly one.
+  // The database says the same thing in
+  // requirement_rule_versions_one_provenance_check; this is the refusal that
+  // names the field instead of raising 23514.
+  if ((v.requirementLibraryItemId != null) === (v.projectSourcedRequirementItemId != null)) {
+    ctx.addIssue({
+      code: "custom",
+      path: ["requirementLibraryItemId"],
+      message: "exactly one of requirementLibraryItemId or projectSourcedRequirementItemId is required",
     });
   }
 });
