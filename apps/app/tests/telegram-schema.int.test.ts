@@ -11,6 +11,7 @@ let aMember: string;
 let bMember: string;
 let aBindingId: string;
 let aMessageId: string;
+let immutableMessageId: string;
 let aAttachmentId: string;
 let otherProjectEvidenceId: string;
 
@@ -72,6 +73,9 @@ beforeAll(async () => {
   [aMessageId] = (await q<{ id: string }>(`insert into public.communication_messages
     (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text, server_received_at, delivery_state)
     values ($1, $2, $3, 'inbound', 'photo', 'Фото', now(), 'received') returning id`, [A, aProject, aBindingId])).map((r) => r.id);
+  [immutableMessageId] = (await q<{ id: string }>(`insert into public.communication_messages
+    (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text, server_received_at, delivery_state)
+    values ($1, $2, $3, 'inbound', 'text', 'Незмінне повідомлення', now(), 'received') returning id`, [A, aProject, aBindingId])).map((r) => r.id);
   [aAttachmentId] = (await q<{ id: string }>(`insert into public.communication_attachments
     (workspace_id, project_id, message_id, provider_file_id, provider_file_unique_id, state)
     values ($1, $2, $3, 'provider-file', 'provider-unique', 'processing') returning id`, [A, aProject, aMessageId])).map((r) => r.id);
@@ -105,7 +109,7 @@ describe("Telegram persistence schema", () => {
   });
 
   it("rejects a message primary identity rewrite", async () => {
-    await expect(q("update public.communication_messages set id=gen_random_uuid() where id=$1", [aMessageId]))
+    await expect(q("update public.communication_messages set id=gen_random_uuid() where id=$1", [immutableMessageId]))
       .rejects.toThrow(/original is immutable/i);
   });
 

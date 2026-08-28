@@ -2989,7 +2989,10 @@ create table public.communication_messages (
   foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, retry_of_message_id) references public.communication_messages(workspace_id, project_id, id),
   check (direction in ('inbound','outbound','system')),
-  check (delivery_state in ('received','queued','provider_accepted','failed','delivery_unknown'))
+  check (delivery_state in ('received','queued','provider_accepted','failed','delivery_unknown')),
+  check (direction <> 'inbound' or delivery_state = 'received'),
+  check (direction <> 'outbound' or delivery_state in ('queued','provider_accepted','failed','delivery_unknown')),
+  check (retry_of_message_id is null or direction = 'outbound')
 );
 create table public.communication_message_events (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
@@ -2997,7 +3000,10 @@ create table public.communication_message_events (
   server_received_at timestamptz not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, message_id) references public.communication_messages(workspace_id, project_id, id),
-  check (event_kind in ('edited','delivery_state_changed','bot_removed','bot_restored'))
+  check (event_kind in ('edited','delivery_state_changed','bot_removed','bot_restored')),
+  check ((event_kind = 'edited' and text is not null and delivery_state is null)
+      or (event_kind = 'delivery_state_changed' and text is null and delivery_state is not null)
+      or (event_kind in ('bot_removed','bot_restored') and text is null and delivery_state is null))
 );
 
 alter table public.evidence_objects
@@ -3005,35 +3011,42 @@ alter table public.evidence_objects
 
 create table public.communication_attachments (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
-  message_id uuid not null, provider_file_id text, provider_file_unique_id text,
-  state text not null, requirement_occurrence_id uuid, evidence_object_id uuid, terminal_at timestamptz,
+  message_id uuid not null, telegram_media_group_id uuid, provider_file_id text, provider_file_unique_id text,
+  state text not null, requirement_occurrence_id uuid, evidence_object_id uuid, failure_code text, terminal_at timestamptz,
   unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, message_id) references public.communication_messages(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, telegram_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, evidence_object_id) references public.evidence_objects(workspace_id, project_id, id),
   check (state in ('unbound','awaiting_requirement_choice','processing','available','not_evidence','failed')),
   check ((state in ('unbound','available','not_evidence','failed')) = (terminal_at is not null)),
-  check (state not in ('unbound','available','not_evidence','failed') or (provider_file_id is null and provider_file_unique_id is null))
+  check (state not in ('unbound','available','not_evidence','failed') or (provider_file_id is null and provider_file_unique_id is null)),
+  check (state <> 'available' or evidence_object_id is not null),
+  check (state <> 'failed' or failure_code is not null)
 );
 create table public.telegram_requirement_choices (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
-  communication_attachment_id uuid not null, chooser_member_id uuid not null,
+  communication_attachment_id uuid not null, telegram_media_group_id uuid, chooser_member_id uuid not null,
   requirement_occurrence_id uuid not null, chosen_at timestamptz not null,
   unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, communication_attachment_id) references public.communication_attachments(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, telegram_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
   foreign key (workspace_id, chooser_member_id) references public.memberships(workspace_id, id),
   foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id)
 );
 create table public.communication_delivery_attempts (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, attempt_no integer not null, state text not null,
-  attempted_at timestamptz not null, unique (workspace_id, id),
+  provider_message_id bigint, error_code text, attempted_at timestamptz not null, completed_at timestamptz, unique (workspace_id, id),
   unique (workspace_id, project_id, id), unique (workspace_id, message_id, attempt_no),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, message_id) references public.communication_messages(workspace_id, project_id, id),
-  check (state in ('provider_accepted','retryable_rejection','definitive_failure','delivery_unknown'))
+  check (state in ('provider_accepted','retryable_rejection','definitive_failure','delivery_unknown')),
+  check (completed_at is null or completed_at >= attempted_at),
+  check ((state = 'provider_accepted' and provider_message_id is not null and error_code is null)
+      or (state <> 'provider_accepted' and provider_message_id is null))
 );
 
 -- Communication originals reject UPDATE/DELETE except their delivery-provider

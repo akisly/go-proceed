@@ -321,7 +321,8 @@ begin
   if tg_op = 'DELETE' then
     raise exception 'communication message original is immutable; append an event';
   end if;
-  if old.workspace_id is distinct from new.workspace_id
+  if old.id is distinct from new.id
+     or old.workspace_id is distinct from new.workspace_id
      or old.project_id is distinct from new.project_id
      or old.telegram_chat_binding_id is distinct from new.telegram_chat_binding_id
      or old.direction is distinct from new.direction
