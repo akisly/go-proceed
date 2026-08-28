@@ -64,5 +64,5 @@ export default async function ProjectAssignmentsPage({ params }: AssignmentsPage
   }
   if (result.kind === "error") return <ShellFatalError />;
   if (result.assignments.length === 0) return <NoAssignmentsEmptyState />;
-  return <AssignmentsList assignments={result.assignments} />;
+  return <AssignmentsList assignments={result.assignments} projectId={projectId} />;
 }
