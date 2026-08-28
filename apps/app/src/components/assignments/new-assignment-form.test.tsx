@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, beforeAll, beforeEach, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
@@ -14,21 +14,41 @@ import type { BaselineOption } from "../../services/baseline.service";
 // set `test.globals: true` (this file imports `describe`/`it`/`expect`/`vi`/
 // `afterEach` explicitly, from "vitest"), so that auto-registration never
 // fires and jsdom's `document` would otherwise keep accumulating every
-// previous test's rendered markup. This file renders FOUR times, so without
+// previous test's rendered markup. This file renders EIGHT times, so without
 // this line the second test's `getByRole("button", …)` would find two buttons
 // and throw — the failure mode `evidence-card.test.tsx` warns about, here for
 // real rather than in principle.
 afterEach(cleanup);
 
 // `useRouter` throws outside an app-router context ("invariant expected app
-// router to be mounted"), and the success arm of this form navigates. The
-// double stub is what lets the fourth test's retry reach `kind: "ok"` without
-// mounting Next's router.
+// router to be mounted"), and the success and session-expired arms of this
+// form both navigate. These two stubs are what let those arms be asserted
+// without mounting Next's router.
 const push = vi.fn();
 const refresh = vi.fn();
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh }),
 }));
+
+// These two live at module scope, so they accumulate calls across the whole
+// file, and `vitest.config.ts` sets no `clearMocks`. That was harmless while
+// nothing asserted on them; the navigation cases below do, and a stale call
+// from an earlier test would make `toHaveBeenCalledWith` pass for the wrong
+// reason. Reset before each, not after: a test must not depend on its
+// predecessor having cleaned up.
+beforeEach(() => {
+  push.mockClear();
+  refresh.mockClear();
+});
+
+// Radix's Select needs these three to open, and jsdom implements none of them.
+// Additive, not overriding — nothing else in this file touches the select, and
+// an absent method cannot be shadowed.
+beforeAll(() => {
+  window.HTMLElement.prototype.hasPointerCapture = vi.fn(() => false);
+  window.HTMLElement.prototype.releasePointerCapture = vi.fn();
+  window.HTMLElement.prototype.scrollIntoView = vi.fn();
+});
 
 const WORK_ITEM_ID = "22222222-2222-4222-8222-222222222222";
 const MEMBER_ID = "33333333-3333-4333-8333-333333333333";
@@ -147,5 +167,95 @@ describe("NewAssignmentForm", () => {
     await userEvent.click(button);
     expect(keys).toHaveLength(2);
     expect(keys[0]).toBe(keys[1]);
+  });
+
+  /**
+   * The success path, pinned — because until this test existed `router.refresh()`
+   * could be deleted without failing anything, while its own comment claimed it
+   * was load-bearing. A comment asserting a necessity that no test holds is a
+   * claim, not a guarantee.
+   *
+   * THE ORDER IS THE POINT, not just the two calls. Next's Router Cache would
+   * serve the register's previous list to the very navigation this push
+   * performs, so the доручення the user just created would be missing from the
+   * screen they land on. `refresh()` must invalidate BEFORE `push()` navigates;
+   * a refresh afterwards revalidates a page the user has already read.
+   */
+  it("on success revalidates the register and then navigates to it, in that order", async () => {
+    const create = vi.fn<CreateAssignmentImpl>(
+      async () => ({ kind: "ok", assignmentId: "a1" }),
+    );
+    render(<NewAssignmentForm projectId="p1" baselines={baselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={create} initialWorkItemId={WORK_ITEM_ID} />);
+    await userEvent.click(screen.getByRole("button", { name: "Створити доручення" }));
+
+    expect(refresh).toHaveBeenCalledTimes(1);
+    expect(push).toHaveBeenCalledWith("/dash/projects/p1/assignments");
+
+    // `invocationCallOrder` is a global monotonic counter across all vi mocks,
+    // which is what makes an ordering claim between two SEPARATE mocks
+    // expressible at all.
+    expect(refresh.mock.invocationCallOrder[0]!)
+      .toBeLessThan(push.mock.invocationCallOrder[0]!);
+  });
+
+  /**
+   * The session-expired arm. The encoded return path is written out literally
+   * rather than rebuilt with `encodeURIComponent`: reusing the implementation's
+   * own call would make this assertion agree with the component by
+   * construction, including if both were wrong. This is the string that has to
+   * reach the address bar.
+   */
+  it("on an expired session sends the user to login carrying this page as the return path", async () => {
+    const create = vi.fn<CreateAssignmentImpl>(async () => ({ kind: "session_expired" }));
+    render(<NewAssignmentForm projectId="p1" baselines={baselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={create} initialWorkItemId={WORK_ITEM_ID} />);
+    await userEvent.click(screen.getByRole("button", { name: "Створити доручення" }));
+
+    expect(push).toHaveBeenCalledWith(
+      "/login?next=%2Fdash%2Fprojects%2Fp1%2Fassignments%2Fnew",
+    );
+    // Nothing was created, so there is nothing to revalidate. A refresh here
+    // would be a wasted round trip on a page the user is leaving.
+    expect(refresh).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The role token must never reach the screen. `public.memberships.role`
+   * holds `owner`, `pto_manager`, `field_worker` — English identifiers on a
+   * Ukrainian screen — and `membership-labels.ts` exists to translate them.
+   *
+   * WORTH A TEST RATHER THAN A READING, because this leak is INTERPOLATED:
+   * `${m.role}` is not a string literal, so no scan of this file's quoted
+   * strings can see it. That is exactly how it survived the first review, and
+   * a test is the only thing that notices if someone reverts to the token.
+   *
+   * The third member is deliberately a role the map does not know:
+   * `membershipRoleLabel` returns the raw value rather than a blank or a
+   * throw, and that documented fallback should stay a decision rather than
+   * become a surprise.
+   */
+  it("renders the Ukrainian role label in the picker, never the raw role token", async () => {
+    const roleMembers: MemberOption[] = [
+      { memberId: MEMBER_ID, role: "owner" },
+      { memberId: "55555555-5555-4555-8555-555555555555", role: "pto_manager" },
+      { memberId: "66666666-6666-4666-8666-666666666666", role: "security_officer" },
+    ];
+    render(<NewAssignmentForm projectId="p1" baselines={baselines} members={roleMembers}
+      currentMemberId={MEMBER_ID} createImpl={vi.fn<CreateAssignmentImpl>()} />);
+
+    // Radix's trigger is role="combobox"; resolving it by its accessible name
+    // also re-proves the `FieldLabel htmlFor` association from here.
+    await userEvent.click(screen.getByRole("combobox", { name: /Виконавець/ }));
+    const options = Array.from(document.querySelectorAll("[data-slot=select-item]"))
+      .map((e) => e.textContent ?? "").join("|");
+
+    expect(options).toContain("Власник");
+    expect(options).toContain("Керівник ПТВ");
+    expect(options).not.toContain("owner");
+    expect(options).not.toContain("pto_manager");
+    // The documented fallback: unknown roles render untranslated rather than
+    // blank, so a membership never disappears from the list.
+    expect(options).toContain("security_officer");
   });
 });

@@ -18,6 +18,7 @@ import {
 } from "../../services/assignment-create.service";
 import type { BaselineOption } from "../../services/baseline.service";
 import { fieldErrorsFrom, unmappedFrom } from "../../lib/problem-field-errors";
+import { membershipRoleLabel } from "../../lib/membership-labels";
 import { nextSubmitState, type SubmitState } from "../../lib/submit-state";
 
 /**
@@ -54,11 +55,24 @@ const formSchema = z.object({
   assigneeMemberId: z.string().min(1, "Оберіть виконавця."),
   /**
    * Both optional fields accept "" through ONE refinement rather than through
-   * `.regex(…).or(z.literal(""))`. A zod union that fails on every branch
-   * reports its own `invalid_union` message — the English "Invalid input" —
-   * and throws the branch messages away, so `12abc` would have shown an
-   * English sentence in a Ukrainian product. The refinement carries its
-   * message in every failing case.
+   * `.regex(…).or(z.literal(""))`.
+   *
+   * NOT because the union leaks English. It does not, and an earlier version
+   * of this comment said it did: measured on the installed zod 4.4.3,
+   * `"12abc"` through the union yields «Вкажіть число, до шести знаків після
+   * коми.» verbatim, because `handleUnionResults` returns the single
+   * NON-ABORTED branch's issues — `z.literal("")` aborts, the regex branch
+   * does not, so exactly one survives and is reported as itself. The English
+   * `invalid_union` message «Invalid input» needs two or more non-aborted
+   * branches, which this schema never has.
+   *
+   * The refinement stays for two smaller and true reasons. It does not depend
+   * on that internal single-survivor heuristic, which is zod's to change and
+   * not part of its API. And it treats a stray space as empty: `" "` trims to
+   * `""` and passes here, where the union rejects it — branch 1 fails the
+   * regex on the trimmed value and branch 2 compares the literal against the
+   * UNTRIMMED input. Refusing an optional field because someone brushed the
+   * space bar is a real refusal for no reason.
    */
   plannedQuantity: z.string().trim().refine(
     (v) => v === "" || QUANTITY.test(v),
@@ -265,15 +279,21 @@ export function NewAssignmentForm({
                 <SelectContent>
                   {members.map((m) => (
                     <SelectItem key={m.memberId} value={m.memberId}>
-                      {m.memberId === currentMemberId
-                        ? `${m.role} · ${m.memberId.slice(0, 8)} (ви)`
-                        : `${m.role} · ${m.memberId.slice(0, 8)}`}
+                      {/* `membershipRoleLabel`, never the raw `m.role`: the
+                          column holds `pto_manager` and `field_worker`, and
+                          interpolating the token puts English on a Ukrainian
+                          screen — the one leak a scan for string LITERALS
+                          cannot see. The id stays untranslated because
+                          `members.list` returns no name and no email; D4 owns
+                          that. */}
+                      {`${membershipRoleLabel(m.role)} · ${m.memberId.slice(0, 8)}`
+                        + (m.memberId === currentMemberId ? " (ви)" : "")}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <FieldDescription id={assignee.description}>
-                Доручення без виконавця не потрапляє в «Мої доручення» на телефоні.
+                Доручення з&apos;явиться в «Мої доручення» на телефоні цієї людини.
               </FieldDescription>
               {fieldState.invalid && (
                 <FieldError id={assignee.error} errors={[fieldState.error]} />
