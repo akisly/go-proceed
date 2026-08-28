@@ -136,6 +136,12 @@ create table public.telegram_media_groups (
   check (completed_at is null or completed_at >= created_at)
 );
 
+-- Evidence is project-scoped. The original schema exposed only its tenant key;
+-- this candidate key makes a communication attachment unable to name evidence
+-- from a sibling project in the same workspace.
+alter table public.evidence_objects
+  add constraint evidence_objects_project_identity_key unique (workspace_id, project_id, id);
+
 create table public.communication_messages (
   id uuid primary key default gen_random_uuid(),
   workspace_id uuid not null,
@@ -231,9 +237,10 @@ create table public.communication_attachments (
     references public.telegram_media_groups(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, requirement_occurrence_id)
     references public.requirement_occurrences(workspace_id, project_id, id),
-  foreign key (workspace_id, evidence_object_id)
-    references public.evidence_objects(workspace_id, id),
-  check ((state in ('unbound', 'available', 'not_evidence', 'failed') and terminal_at is not null and provider_file_id is null)
+  foreign key (workspace_id, project_id, evidence_object_id)
+    references public.evidence_objects(workspace_id, project_id, id),
+  check ((state in ('unbound', 'available', 'not_evidence', 'failed') and terminal_at is not null
+          and provider_file_id is null and provider_file_unique_id is null)
       or (state not in ('unbound', 'available', 'not_evidence', 'failed') and terminal_at is null)),
   check (state <> 'available' or evidence_object_id is not null),
   check (state <> 'failed' or failure_code is not null)
@@ -289,7 +296,8 @@ create table public.communication_delivery_attempts (
 create or replace function app.guard_telegram_chat_binding() returns trigger
 language plpgsql set search_path = '' as $$
 begin
-  if old.workspace_id is distinct from new.workspace_id
+  if old.id is distinct from new.id
+     or old.workspace_id is distinct from new.workspace_id
      or old.project_id is distinct from new.project_id
      or old.bot_id is distinct from new.bot_id
      or old.connected_by_member_id is distinct from new.connected_by_member_id
@@ -432,7 +440,12 @@ end $$;
 
 create or replace function app.claim_telegram_inbox(p_batch integer, p_worker text, p_lease_seconds integer)
 returns setof public.telegram_inbox_updates
-language sql security definer set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
+begin
+  if p_lease_seconds is null or p_lease_seconds not between 1 and 900 then
+    raise exception 'lease seconds must be between 1 and 900';
+  end if;
+  return query
   with picked as (
     select bot_id, update_id from public.telegram_inbox_updates
      where state in ('pending', 'leased') and available_at <= now()
@@ -443,11 +456,12 @@ language sql security definer set search_path = '' as $$
   )
   update public.telegram_inbox_updates i
      set state = 'leased', lease_id = gen_random_uuid(), leased_by = p_worker,
-         lease_expires_at = now() + make_interval(secs => greatest(1, p_lease_seconds)),
+         lease_expires_at = now() + make_interval(secs => p_lease_seconds),
          attempts = i.attempts + 1, last_error_code = null
     from picked p
    where i.bot_id = p.bot_id and i.update_id = p.update_id
-  returning i.*
+  returning i.*;
+end
 $$;
 
 create or replace function app.complete_telegram_inbox(
@@ -483,7 +497,12 @@ end $$;
 create or replace function app.claim_outbox_topic(
   p_topic text, p_batch integer, p_worker text, p_lease_seconds integer
 ) returns setof public.transaction_outbox
-language sql security definer set search_path = '' as $$
+language plpgsql security definer set search_path = '' as $$
+begin
+  if p_lease_seconds is null or p_lease_seconds not between 1 and 900 then
+    raise exception 'lease seconds must be between 1 and 900';
+  end if;
+  return query
   with picked as (
     select id from public.transaction_outbox
      where topic = p_topic and processed_at is null and available_at <= now()
@@ -494,9 +513,10 @@ language sql security definer set search_path = '' as $$
   )
   update public.transaction_outbox o
      set claimed_by = p_worker, lease_token = gen_random_uuid(),
-         lease_expires_at = now() + make_interval(secs => greatest(1, p_lease_seconds))
+         lease_expires_at = now() + make_interval(secs => p_lease_seconds)
     from picked p where o.id = p.id
-  returning o.*
+  returning o.*;
+end
 $$;
 
 revoke all on table public.telegram_chat_bindings, public.telegram_binding_intents,

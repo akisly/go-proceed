@@ -15,6 +15,16 @@ communication_attachment.state,processing,stored_lifecycle,Bounded provider down
 communication_attachment.state,available,terminal,Durable evidence available,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_attachment.state,not_evidence,terminal,Choice expiry or rule made attachment communication only,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_attachment.state,failed,terminal,Processing failed with safe reason,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_media_group.state,open,stored_lifecycle,Album is collecting its normalized attachment messages,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_media_group.state,awaiting_requirement_choice,stored_lifecycle,Uploader must choose one requirement for the album,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_media_group.state,processing,stored_lifecycle,Album attachments are in bounded evidence processing,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_media_group.state,completed,terminal,All album processing reached durable outcomes,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_media_group.state,not_evidence,terminal,Album remained communication only after choice expiry or invalid context,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_media_group.state,failed,terminal,Album processing ended with a safe failure,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_delivery_attempt.state,provider_accepted,terminal,Provider accepted the outbound message,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_delivery_attempt.state,retryable_rejection,stored_lifecycle,Provider rejected the attempt with an explicit retry path,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_delivery_attempt.state,definitive_failure,terminal,Provider definitively rejected the outbound attempt,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_delivery_attempt.state,delivery_unknown,terminal,Network outcome is unknown and retry needs duplicate acknowledgement,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 workspace.status,active,stored_lifecycle,Operating workspace,docs/architecture/data-model.md
 workspace.status,suspended,stored_lifecycle,Access suspended by governance/operations,docs/architecture/data-model.md
 workspace.status,closing,stored_lifecycle,Manual closure procedure in progress,docs/architecture/files-and-storage.md
