@@ -1,5 +1,7 @@
+// @vitest-environment jsdom
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
+import { render, screen } from "@testing-library/react";
 import type { EvidenceObjectView } from "@goproceed/contracts";
 
 import { EvidenceCard, formatReceivedAt, WORKSPACE_TIMEZONE_DEFAULT } from "./evidence-card";
@@ -104,5 +106,19 @@ describe("EvidenceCard — the readUrl-present branch", () => {
     expect(html).toContain("https://storage.example.test/signed/x.jpg");
     expect(html).toContain('loading="lazy"');
     expect(html).not.toContain("Зображення тимчасово недоступне");
+  });
+
+  // The first jsdom-backed case in this app: `renderToStaticMarkup` above
+  // can only prove the string `IMG_0142.jpg` appears somewhere in the
+  // markup — it would pass just as well if the filename leaked into the
+  // wrong attribute, or a stray text node, or a second unrelated element.
+  // `getByRole` walks jsdom's actual accessibility tree: it resolves the
+  // rendered `<img>`'s IMPLICIT role and its accessible name (from `alt`)
+  // the way a screen reader would, and throws if zero or more than one
+  // element matches. That is a claim about rendered DOM structure a string
+  // comparison cannot make.
+  it("exposes the original filename as the rendered image's accessible name", () => {
+    render(<EvidenceCard item={baseItem()} />);
+    expect(screen.getByRole("img", { name: "IMG_0142.jpg" })).toBeTruthy();
   });
 });
