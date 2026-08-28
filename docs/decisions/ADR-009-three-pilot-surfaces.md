@@ -6,8 +6,9 @@
 
 **Last reviewed:** 2026-08-20
 
-**Amended:** 2026-08-22 — see «Amendment, 2026-08-22» at the end of this
-document. The original text above and below it is unchanged.
+**Amended:** 2026-08-22 and 2026-08-28 — see «Amendment, 2026-08-22» and
+«Amendment, 2026-08-28» at the end of this document. The original text above
+them is unchanged.
 
 **Related decisions:** [ADR-001](ADR-001-product-boundary.md),
 [ADR-004](ADR-004-roadmap-demo-and-documentation.md),
@@ -275,3 +276,95 @@ item, and both are in scope: ПТВ views photo evidence in the dashboard, and t
 external технагляд views it in the review page with no account. The second was
 the product thesis all along; until this slice it was the one part of the thesis
 the software could not perform.
+
+---
+
+## Amendment, 2026-08-28 — decision 3 authorises «create assignment» and not the baseline it stands on; the manual chain earns screens, import and КБ-2в do not
+
+**The original is unchanged.** Decision 3's sentence stands word for word,
+«Not the full register» included. This amendment answers a question the
+original did not: which side of that line the manual contract-baseline chain
+falls on. The implementation ran into it, so it is settled here rather than in
+a commit message.
+
+### What forced the question
+
+Decision 3 puts **create assignment** inside the dashboard's pilot scope.
+Measured against the tree on 2026-08-28, no screen can create one until a
+published contract version exists to take a line from: `createAssignmentRequest`
+requires exactly one field, `workItemId`
+(`packages/contracts/src/assignments.ts:6-12`), and a work item belongs to a
+contract version that must already be published. Reaching that state from an
+empty workspace is fourteen command calls over thirteen distinct operations —
+`baselineFixture` (`apps/app/tests/helpers/fixtures.ts:102-146`) spends seven of
+them before a contract can be created at all, and its eighth is the contract.
+It also reads the caller's own `memberId` out of `public.memberships` by SQL,
+because the access-grant step needs one and no read on the member plane returns
+it.
+
+So decision 3 as written authorises a screen whose precondition it does not
+authorise. The owner has been meeting that precondition with curl and SQL,
+which is the exact state the decision's own words — «the screens without which
+the owner cannot run the pilot without curl» — were written to end.
+
+### What this amendment authorises
+
+**The manual contract-baseline chain may carry screens, as an operability
+surface.** Named, so the authorisation cannot creep: `parties.create`,
+`parties.legal_profile.put`, `parties.own_profile.create`, `contracts.create`,
+`requirement_rule_versions.publish`, `contract_versions.create`,
+`work_items.create`, `contract_versions.bind_rules`,
+`contract_versions.publish`, `assignments.create`, and the
+`project_access.grant` step the chain silently requires — `project.admin`
+implies only `project.view` and `readiness.view`
+(`apps/app/src/lib/authz.ts:98`), so a member who created the project still
+gets 403 on `contracts.create` until that grant exists.
+
+### What stays outside — and this is the line decision 3 was drawing
+
+**Import batches, КБ-2в and packages get no screen.** `import_batches.create`,
+`import_files.add`, `import_batches.validate`, `import_batches.get`,
+`import_resolutions.create` and `import_batches.publish` are shipped operations
+(`technical/openapi/scope-v0.1.csv:23-28`) and stay API-only. They are «the full
+register» the clause was written against: the surface that would make this a
+кошторис application, and the one whose demand is unvalidated — assumption A-6
+is still open and this repository has still never read one real sanitized
+кошторис.
+
+The distinction is not a technicality. The manual chain types the minimum a
+baseline needs in order to exist; the register reconciles a document somebody
+else produced.
+
+### Whom these screens serve, and how that is checked
+
+**The owner or a workspace admin standing up a pilot — not ПТВ.** They rest on
+decision 3's operability clause, not on a pain the demand scan measured.
+[`docs/design/04-role-pain-map.md`](../design/04-role-pain-map.md) records them
+in a category of their own for that reason and states in terms that no scan
+sentence supports them.
+
+That cuts both ways, and both halves are binding: the bar is lower — these
+screens are not owed the workflow polish a ПТВ screen is owed — and it is
+different, because operability is falsifiable where polish is not. **The
+acceptance criterion for every slice that follows:** a person holding only a
+browser and an email address creates a workspace, a project, two parties, a
+contract, a published baseline carrying at least one typed line, and one
+assignment, with no curl, no psql and no SQL.
+
+### What is deliberately NOT claimed
+
+**No demand evidence.** Claim 4 of the demand scan — «a named buyer will adopt
+and pay» — is still unsupported and nothing here moves it. A screen justified by
+operability earns its place by taking curl out of the owner's hands and by
+nothing else.
+
+**No requirement-authoring screen.**
+[ADR-010](ADR-010-project-sourced-requirements.md)'s prohibition stands. Its
+dated correction of the same date records what the arrival of a
+`requirement_rule_versions.publish` screen does to its reasoning — it retires
+one of that bullet's three grounds and leaves the other two carrying it.
+
+**No new API operation.** This amendment authorises screens over operations
+that already exist. The reads those screens will need are a separate question
+with its own dated amendment when it is answered; the «no new API» rule bends
+only where an amendment says it bends, and this one bends it nowhere.
