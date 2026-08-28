@@ -1421,14 +1421,21 @@ function main() {
 
   // Guards 8 and 9: the machine-readable authorisation surface and the event
   // producers must both point at operations the route set actually has. The
-  // three exemptions are listed with their reason in technical/openapi/README.md
-  // §Conventions: `me.context` is governed by the session, and the two
-  // `public`-plane external rows change no state and can consume no grant.
+  // five exemptions are listed with their reason in technical/openapi/README.md
+  // §Conventions: `me.context` is governed by the session; the two
+  // `public`-plane external rows change no state and can consume no grant; and
+  // the two `.list` reads (2026-08-28) are governed by active membership
+  // itself — their RLS policies (`rli_select`, `psri_select`) admit any active
+  // member, and a capability row claiming owner/admin for them was the catalog
+  // contradiction both routes' headers recorded (TODOS 2026-08-27 residual 6).
   const SCOPE1 = "technical/openapi/scope-v0.1.csv";
   const SCOPE2 = "technical/openapi/scope-v0.2.csv";
   const CAPS = "technical/permissions/capabilities.csv";
   const EVENTS = "technical/events/event-catalog.csv";
-  const CAPABILITY_EXEMPT = new Set(["me.context", "external.review_shell", "external.exchange"]);
+  const CAPABILITY_EXEMPT = new Set([
+    "me.context", "external.review_shell", "external.exchange",
+    "requirement_library.list", "project_requirements.list",
+  ]);
   if ([SCOPE1, SCOPE2, CAPS].every((p) => existsSync(join(ROOT, p)))) {
     for (const e of capabilityCoherenceErrors(read(CAPS), read(SCOPE1), read(SCOPE2), CAPABILITY_EXEMPT)) fail(e);
   }

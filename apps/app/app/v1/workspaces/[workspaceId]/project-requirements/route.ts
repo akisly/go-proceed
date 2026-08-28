@@ -148,6 +148,14 @@ export const POST = commandRoute(createProjectRequirementRequest, async (a) => {
  * departure for the READ alone, matching `psri_select`'s own permissiveness.
  * CAPABILITIES.CSV THEREFORE OWES THE SAME CORRECTION requirement-library's
  * route already flags for its sibling row, and this route does not make it.
+ *
+ * THE CORRECTION LANDED 2026-08-28 (TODOS 2026-08-27 residual 6):
+ * project_requirements.list left project_requirements.manage's operation list
+ * and stands in the capability-exempt set (technical/openapi/README.md
+ * §Conventions, the validator's CAPABILITY_EXEMPT) with active membership as
+ * its stated governor, beside requirement_library.list whose row took the
+ * same correction. The disagreement above is now history of why the policy
+ * won.
  */
 export const GET = queryRoute(async (a) => {
   const workspaceId = a.params.workspaceId;

@@ -85,6 +85,18 @@ true in the software rather than only in the documentation.
    because a published rule version has already copied the content and no edit
    could reach it.
 
+   *[Amended 2026-08-28 — the `list` third of the first sentence.* The slice's
+   own build departed from it for the read alone: migration 0059's
+   `psri_select` admits **any active member** («the foreman who reads an
+   occurrence reads the text behind it», the policy's own words), and the list
+   route asks for membership and no capability, recording the departure in its
+   header. The permission catalog followed on 2026-08-28 (TODOS 2026-08-27
+   residual 6): `project_requirements.list` is a membership-governed read,
+   listed with the capability-exempt operations in
+   `technical/openapi/README.md` §Conventions. `create` and `archive` stay
+   governed by `project_requirements.manage`, held exactly as this decision
+   says.]
+
 6. **No dashboard screen.** See «What this decision does not authorise» below.
 
 ## Relationship to ADR-006 decision 4.1

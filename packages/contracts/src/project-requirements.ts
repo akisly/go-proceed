@@ -9,11 +9,14 @@ import { z } from "zod";
  * rule source in v0.1) and leaves the rest of decision 4 standing.
  *
  * The catalogued operations, all on the member plane
- * (technical/openapi/scope-v0.1.csv), governed by one workspace capability,
- * `project_requirements.manage`, held by exactly the roles that hold
- * `requirement_rules.manage`. `create` and `archive` are commands and carry an
- * `Idempotency-Key` HEADER; `list` is a query and carries neither a key nor a
- * request body:
+ * (technical/openapi/scope-v0.1.csv). `create` and `archive` are commands,
+ * carry an `Idempotency-Key` HEADER, and are governed by one workspace
+ * capability, `project_requirements.manage`, held by exactly the roles that
+ * hold `requirement_rules.manage`; `list` is a query, carries neither a key
+ * nor a request body, and is governed by ACTIVE MEMBERSHIP rather than the
+ * capability (`psri_select` admits any active member; catalog corrected
+ * 2026-08-28, TODOS 2026-08-27 residual 6 — this header used to claim one
+ * capability governed all three):
  *   `project_requirements.create`
  *     POST /v1/workspaces/{workspaceId}/project-requirements
  *   `project_requirements.archive`

@@ -91,13 +91,19 @@ the runtime baseline is recorded in
 - **Every v0.1 operation is named by a capability row in
   [`technical/permissions/capabilities.csv`](../permissions/capabilities.csv),
   and an operation governed by no capability is an authorisation hole rather
-  than a scope statement.** Three are deliberately outside that rule and are
+  than a scope statement.** Five are deliberately outside that rule and are
   listed here so their absence is not read as an oversight: `me.context` is the
   caller's own resolved context and is governed by the session itself rather
   than by a capability; `external.review_shell` and `external.exchange` are
   `public`-plane rows that perform no state change and can never consume a
-  grant, and are governed by INV-010, INV-044 and INV-057 instead. No other
-  v0.1 row may be added without one.
+  grant, and are governed by INV-010, INV-044 and INV-057 instead; and
+  `requirement_library.list` and `project_requirements.list` (moved here
+  2026-08-28) are member-plane reads governed by ACTIVE MEMBERSHIP itself —
+  their RLS policies (`rli_select`, 0041; `psri_select`, 0059) admit any
+  active member, in the migrations' own words «the foreman who reads an
+  occurrence reads the text behind it», and the capability rows that used to
+  claim them for owner/admin contradicted routes that have never asked for a
+  capability. No other v0.1 row may be added without one.
 
 ## Columns of `scope-v0.1.csv`
 
