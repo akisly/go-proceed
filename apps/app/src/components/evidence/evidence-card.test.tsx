@@ -1,10 +1,22 @@
 // @vitest-environment jsdom
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
-import { render, screen } from "@testing-library/react";
+import { cleanup, render, screen } from "@testing-library/react";
 import type { EvidenceObjectView } from "@goproceed/contracts";
 
 import { EvidenceCard, formatReceivedAt, WORKSPACE_TIMEZONE_DEFAULT } from "./evidence-card";
+
+// Testing Library's own auto-cleanup only registers itself
+// `if (typeof afterEach === 'function')` at import time — true only when
+// vitest injects `afterEach` as a global. This project deliberately does not
+// set `test.globals: true` (this file imports `describe`/`it`/`expect`/
+// `afterEach` explicitly, from "vitest"), so that auto-registration never
+// fires and jsdom's `document` would otherwise keep accumulating every
+// previous test's rendered markup. Harmless here (one `render()` call), but
+// load-bearing the moment a file renders more than once — copy this line
+// along with the `// @vitest-environment jsdom` docblock whenever this
+// pattern is reused.
+afterEach(cleanup);
 
 /**
  * FIX ROUND 1: the two load-bearing behaviours this file's own commit
