@@ -20,10 +20,15 @@ found already shipped. This spec is the first build slice.
 2. **Decisions before code.** The three documents of slice D3-0 are committed
    ahead of this spec.
 3. **This slice adds no API operation.** Every read it needs already exists.
-4. **`Form*` over `Field`** — the choice `packages/ui/src/components/index.ts`
-   says «the first screen that has to choose between them» must make.
-5. **No jsdom.** Form logic is extracted into pure functions and tested
-   directly; interaction is proved in the browser harness.
+4. **shadcn's `Field` family, taken one-to-one from the registry** — owner
+   instruction of 2026-08-28 citing
+   <https://ui.shadcn.com/docs/components/radix/field>, and the standing rule
+   that components come from shadcn and are never hand-rolled. This overrides
+   the `Form*` recommendation an earlier draft of this spec carried, and it
+   retires the hand-written `Field` in `packages/ui` — that file IS the
+   hand-rolled substitute the rule forbids. See §4's «The Field family».
+5. **jsdom and `@testing-library` in `apps/app`** — owner instruction, same
+   date, overriding this spec's earlier «no jsdom». See §8.
 
 ---
 
@@ -101,12 +106,89 @@ browser.
 per-field paths on every zod failure (`items.1.qty` shape, pinned by
 `command.test.ts`) and nothing in this product has ever read them — a 422
 currently renders as one banner. A pure mapper turns the problem document into
-`{field → message}` and `FormMessage` displays it; anything unmapped falls back
-to the banner, so no error can vanish.
+the shape `FieldError` already accepts, and anything unmapped falls back to the
+banner, so no error can vanish.
 
 **`router.refresh()` after the write**, before navigating back to the register.
 No write path in the app does this today, so the register would otherwise show
 a stale list from the Router Cache.
+
+### The Field family — the one component this slice adds to `packages/ui`
+
+Ten components, taken **one-to-one from the shadcn registry**: `Field`,
+`FieldLabel`, `FieldDescription`, `FieldError`, `FieldGroup`, `FieldLegend`,
+`FieldSeparator`, `FieldSet`, `FieldContent`, `FieldTitle`. Read from the
+registry on 2026-08-28, not from memory.
+
+**It needs no new dependency.** Its imports are `cva` (Button already uses it),
+`cn` (this package's `cx`), `Label` and `Separator` — both already exported
+here.
+
+**Why it fits this form better than the `Form*` set.** It is *presentational*:
+the shadcn docs say in terms that these components do not depend on
+react-hook-form context. So the markup does not bind to a form library, and
+`FieldError`'s `errors?: Array<{ message?: string } | undefined>` takes zod v4
+issues directly — the same shape the server's `fieldErrors` mapper produces.
+One error channel, two sources, no adapter. `Field` also ships `role="group"`
+and `FieldError` ships `role="alert"`, so the accessibility this form needs
+arrives with the component instead of being re-derived.
+
+**What holds the form state, since `Field` deliberately does not.** The
+registry's own docs answer it — «See the Form documentation for building forms
+with the Field component and React Hook Form» — and the usage they show is
+`useForm` driving the values while `Field` draws them:
+`<FieldError errors={errors.username} />`. So: **react-hook-form used directly,
+with `zodResolver` over the same `createAssignmentRequest` the wire uses**, and
+the `Form*` context components not involved. That keeps one schema in both
+places rather than restating the rules, and both packages
+(`react-hook-form`, `@hookform/resolvers`) are already installed and have never
+had a call site. What the owner's instruction rejected is the `Form*` component
+set; the library underneath it is what shadcn's own Field documentation pairs
+with, and this spec follows that pairing.
+
+**Structure and behaviour are copied; the STYLING is mapped to token roles**,
+per `docs/design/02-building-ui.md` §7.2 and matching the header D0's own
+shadcn ports carry («Structure follows shadcn/ui's <name> (MIT); styling is
+this system's token roles»). This is not a licence to redesign it — it is
+mandatory, because this system clears the stock namespaces. **Measured in the
+built chunks on 2026-08-28:** `text-sm`, `text-muted-foreground` and
+`rounded-md` produce **zero** rules, while `text-meta`, `text-ink-muted` and
+`rounded-control` are present. Pasting the registry's classes verbatim would
+ship a form with no styling and no error — §8's own trap, and the reason this
+paragraph exists.
+
+The substitutions, decided here so the implementer does not re-derive them:
+`text-sm`/`text-base` → `text-meta`/`text-data`; `text-muted-foreground` →
+`text-ink-muted`; `text-destructive` → `text-status-blocked-fg` (the role the
+retired `Field` already used for exactly this); `bg-background` →
+`bg-surface`; `rounded-md` → `rounded-control`; `border-primary` /
+`bg-primary/5` on the checked-card variant → `border-line` plus the selected
+state this system already uses, and **never** `bg-action-signal`, which §4.3
+rule 10 rations to one element per screen.
+
+**One trap, named because it fails silently.** `Field`'s
+`orientation="responsive"` is built on `@container/field-group` and `@md/…`
+container queries. `packages/ui/src/theme.generated.css:21` sets
+`--container-*: initial` and defines only `measure`, `content` and `nav`, so
+the `@md/` variant has no size to resolve and emits nothing. Slice A therefore
+uses `vertical` and `horizontal` only. Shipping `responsive` requires a
+container ROLE in `tokens.json` first (§3.3 question 2: a missing size is a
+missing role), and that is not this slice's business.
+
+**The retirement, and its one caller.** The hand-written
+`packages/ui/src/components/Field.tsx` is superseded. Its only real consumer is
+`apps/app/src/components/evidence/issue-review-link.tsx` — the write precedent
+— and it moves to the new family in this slice, because leaving one screen on a
+retired component is how a second component tree starts. The inventory note in
+`index.ts` records the retirement, and «duplication 1» that note describes is
+resolved by deletion rather than by a coin toss.
+
+**§7.2's three obligations are not optional:** the components land in
+`packages/ui/src/components/`, are exported from `index.ts`, and are rendered
+in `/kitchen-sink/components` — all three, or `component-contract.test.ts`
+fails on the orphan. That gate is also the reason this slice fixes the
+four already-orphaned components' absence there only if the test demands it,
+and does not otherwise expand.
 
 ## 5. The assignee problem, named rather than hidden
 
@@ -158,9 +240,35 @@ was reviewed.)
 
 ## 8. Testing
 
-**Pure functions, tested directly** (no DOM): the problem→fieldErrors mapper,
-the submit state machine, the request builder (form values → validated
-`createAssignmentRequest`), and the key-mint fallback.
+**jsdom and `@testing-library` arrive in `apps/app` with this slice** (owner
+instruction, 2026-08-28). Today the app has neither: its four `.tsx` tests use
+`renderToStaticMarkup` from `react-dom/server` and can therefore assert a first
+render and nothing else — no typing, no submitting, no error display, no
+double press.
+
+**It is switched on per file, never globally.** A `// @vitest-environment jsdom`
+docblock on the component tests; `apps/app/vitest.config.ts` keeps its node
+default so that every `tests/*.int.test.ts` suite continues to run against the
+real Postgres in the environment it was written for. A global `environment:
+"jsdom"` would put 82 files including the whole integration suite into a
+simulated DOM, and this config's serialization (`fileParallelism: false`) is
+load-bearing against a shared database — HANDOFF.md §4 records how that fails.
+
+**The gate on the addition:** the full serialized run
+(`pnpm turbo run test --concurrency=1`) is green afterwards, with the app's own
+count unchanged except for the new files. A test-runner change that quietly
+moves an existing suite into another environment is exactly the kind of change
+that looks green and is not, so the count is compared, not assumed.
+
+**Pure functions, tested directly** (these stay pure and stay tested without a
+DOM, because logic that can be tested without a browser should be): the
+problem→`FieldError` mapper, the submit state machine, the request builder
+(form values → validated `createAssignmentRequest`), and the key-mint fallback.
+
+**Component tests, now possible:** the form renders its fields; a submit with an
+empty required line shows the error against that field and does not call the
+API; a 422 from the server lands on the named field; the submit control is
+disabled while in flight and a second press does not fire a second request.
 
 **Contract-level:** the request builder's output parses against the real
 `createAssignmentRequest`, so the form cannot drift from the wire.
@@ -186,11 +294,31 @@ visual pass at all six widths with real Ukrainian strings.
 - **A Combobox.** The line `Select` is a plain select; a pilot baseline typed by
   hand is small. When slice C makes baselines large, the Combobox becomes a
   real need and `packages/ui`'s inventory already names it as absent-until-then.
-- **jsdom.** Revisit if a later form slice cannot be proved without it.
+- **`orientation="responsive"` on `Field`** — its container query has no size to
+  resolve until a container role exists (§4). `vertical` and `horizontal` only.
+- **Finding callers for the remaining orphans.** `Select` stops being one in
+  this slice — it is the line picker (§3). `Form*` and `Checkbox` do not, and
+  `Form*` in particular is now a set with no caller and no planned one; whether
+  it stays is a decision for whoever needs a form library, not for this slice.
 - **Assignee identity.** D4.
 
 ## 10. What this slice must not break
 
-The register, the money screen and the evidence screen are shipped and read the
-same routes. Nothing here changes a route, a contract or a capability, so the
-blast radius is the new page plus `api.ts`'s new export.
+Nothing here changes a route, a contract, a capability or a migration. The
+blast radius is nonetheless wider than the new page, and it is exactly three
+things:
+
+1. **`packages/ui` gains ten components and loses one.** The retired `Field`
+   has one consumer, `issue-review-link.tsx`, which migrates in this slice.
+   That component is the write precedent and is covered by
+   `issue-review-link.test.tsx` — those tests must still pass, and if the
+   migration changes rendered markup they are the place it shows.
+2. **The test runner gains an environment.** Per-file, never global (§8), and
+   the full serialized run is compared by count before and after.
+3. **The register gains a link.** «Нове доручення» on
+   `/dash/projects/{projectId}/assignments`, which the qa harness's register
+   audit already visits — so the audit sees the new control and its 44px floor
+   applies to it, on a screen whose touch targets that harness has already
+   caught once.
+
+The money screen and the evidence screen are untouched.
