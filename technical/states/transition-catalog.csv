@@ -20,6 +20,9 @@ import_batch.status,validated,preview_ready,preview build,normalized preview per
 import_batch.status,preview_ready,published,explicit publish command,no blocking rows; tolerance respected or resolved (INV-054),docs/architecture/files-and-storage.md
 import_batch.status,preview_ready,abandoned,abandon command,imports.manage,docs/architecture/files-and-storage.md
 assignment.status,draft,active,activate command,assignments.manage,docs/domain/execution-and-evidence.md
+project.status,draft,active,activate command,project.admin,Task 1 project field channel
+project_field_channel.state,unbound,connected,configure command,project.admin,Task 1 project field channel
+project_field_channel.state,connected,active,project activation,project.admin,Task 1 project field channel
 assignment.status,active,paused,pause command,assignments.manage,docs/domain/execution-and-evidence.md
 assignment.status,paused,active,resume command,assignments.manage,docs/domain/execution-and-evidence.md
 assignment.status,active,completed,complete command,assignments.manage,docs/domain/execution-and-evidence.md

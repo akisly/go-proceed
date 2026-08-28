@@ -8,6 +8,25 @@ export const createProjectRequest = z.object({
 });
 export type CreateProjectRequest = z.infer<typeof createProjectRequest>;
 
+export const projectStatus = z.enum(["draft", "active", "archived"]);
+export const fieldCommunicationChannel = z.literal("telegram");
+export const configureProjectFieldChannelRequest = z.object({
+  channel: fieldCommunicationChannel,
+  expectedVersion: z.number().int().positive(),
+}).strict();
+export const activateProjectRequest = z.object({
+  expectedVersion: z.number().int().positive(),
+}).strict();
+export const projectFieldChannelResponse = z.object({
+  projectId: z.string().guid(),
+  projectStatus,
+  channel: fieldCommunicationChannel.nullable(),
+  channelState: z.enum(["unbound", "connected", "active", "unhealthy", "archived"]).nullable(),
+  lockedAt: z.string().datetime().nullable(),
+  version: z.number().int().positive(),
+}).strict();
+export type ProjectFieldChannelResponse = z.infer<typeof projectFieldChannelResponse>;
+
 export interface CreateProjectResponse { projectId: string; version: number }
 
 export interface ProjectListRow {

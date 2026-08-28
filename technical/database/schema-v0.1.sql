@@ -72,6 +72,8 @@ create type membership_status       as enum ('active','suspended','ended');
 create type invitation_status       as enum ('pending','accepted','revoked','expired');
 create type party_status            as enum ('draft','active','archived');
 create type project_status          as enum ('draft','active','archived');
+create type field_communication_channel as enum ('telegram');
+create type project_field_channel_state as enum ('unbound','connected','active','unhealthy','archived');
 create type project_party_role      as enum ('customer','technical_supervision','designer','general_contractor','performer','other');
 create type responsibility_kind     as enum ('performer','progress_recorder','evidence_recorder','evidence_custodian','requirement_owner','package_compiler','internal_verifier','package_submitter','acceptance_liaison','commercial_observer');
 create type contract_status         as enum ('draft','active','archived');
@@ -305,6 +307,23 @@ create table public.projects (
 );
 comment on table public.projects is
   'Construction object. Not owned by one legal entity; contracts of different own parties may coexist (ADR-002). Creation atomically grants creator project-admin access (INV-019).';
+
+create table public.project_field_channels (
+  workspace_id uuid not null,
+  project_id uuid not null,
+  channel field_communication_channel not null,
+  state project_field_channel_state not null default 'unbound',
+  locked_at timestamptz,
+  locked_by_member_id uuid,
+  last_healthy_at timestamptz,
+  version bigint not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (workspace_id, project_id),
+  foreign key (workspace_id, project_id) references public.projects (workspace_id, id),
+  check ((locked_at is null and locked_by_member_id is null)
+      or (locked_at is not null and locked_by_member_id is not null))
+);
 
 create table public.project_parties (
   id uuid not null default gen_random_uuid(),

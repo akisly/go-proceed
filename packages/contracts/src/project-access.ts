@@ -52,6 +52,7 @@ export const projectCapability = z.enum([
   // thing this vocabulary may never do. Migration 0049 §1 widens the database
   // CHECK by the same value in this same commit.
   "packages.submit",
+  "communication.reply",
 ]);
 export type ProjectCapabilityValue = z.infer<typeof projectCapability>;
 

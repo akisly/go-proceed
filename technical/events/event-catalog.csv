@@ -3,6 +3,7 @@ workspace.created,domain_event,1,workspace,consumer + outbox_event_id + effect_k
 invitation.issued,domain_event,1,workspace,notification: recipient + kind + source fact,bff.invitations.create,notification_creator email_delivery,v0.1-M1
 invitation.accepted,domain_event,1,workspace,consumer + outbox_event_id + effect_kind,bff.invitations.accept,notification_creator,v0.1-M1
 project.created,domain_event,1,project,consumer + outbox_event_id + effect_kind,bff.projects.create,projection_rebuilder,v0.1-M1
+project.activated,domain_event,1,project,consumer + outbox_event_id + effect_kind,bff.projects.activate,projection_rebuilder notification_creator,v0.1-M6
 contract.created,domain_event,1,contract,consumer + outbox_event_id + effect_kind,bff.contracts.create,projection_rebuilder,v0.1-M1
 contract_version.published,domain_event,1,contract_version,projection: kind + watermark + algorithm + scope. CORRECTED 2026-08-06: this row recorded the manual-baseline producer as not yet catalogued — contract_versions.publish is a v0.1-M1 row of technical/openapi/scope-v0.1.csv and is the ADR-006 decision 2 route. Both producers refuse a version with no bound rule-version set (INV-083),bff.contract_versions.publish bff.import_batches.publish,projection_rebuilder notification_creator,v0.1-M1
 work_assignment.created,domain_event,1,work_assignment,consumer + outbox_event_id + effect_kind,bff.assignments.create,notification_creator,v0.1-M2

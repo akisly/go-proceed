@@ -1656,6 +1656,54 @@
         "description": "Update non-lifecycle display metadata only. Customer name and site address here never replace the immutable contract counterparty or package snapshot; project timezone is presentation context while contract-terms timezone controls deadlines and periods. Lifecycle uses transitionProject. This optimistic mutation requires the documented entity precondition and returns the new exact entity tag. Authorization is evaluated for the authenticated actor within the validated organization and resource scope; errors use the canonical Problem Details catalog and every response returns X-Request-Id."
       }
     },
+    "/projects/{projectId}/field-channel": {
+      "get": {
+        "tags": ["Projects"],
+        "operationId": "getProjectFieldChannel",
+        "summary": "Get the project's field communication channel",
+        "parameters": [{ "$ref": "#/components/parameters/ProjectId" }],
+        "responses": {
+          "200": { "description": "Field channel", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectFieldChannelResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "operationId": "configureProjectFieldChannel",
+        "summary": "Configure Telegram as the draft project's field channel",
+        "parameters": [{ "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ConfigureProjectFieldChannelRequest" } } } },
+        "responses": {
+          "200": { "description": "Configured field channel", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectFieldChannelResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/Validation" }
+        },
+        "x-idempotency-class": "standard_30d"
+      }
+    },
+    "/projects/{projectId}/activate": {
+      "post": {
+        "tags": ["Projects"],
+        "operationId": "activateProject",
+        "summary": "Activate a draft project with its connected Telegram channel",
+        "parameters": [{ "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ActivateProjectRequest" } } } },
+        "responses": {
+          "200": { "description": "Activated project", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectFieldChannelResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/Validation" }
+        },
+        "x-idempotency-class": "standard_30d"
+      }
+    },
     "/projects/{projectId}/locations": {
       "get": {
         "tags": [
@@ -12169,6 +12217,34 @@
       }
     },
     "schemas": {
+      "ConfigureProjectFieldChannelRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["channel", "expectedVersion"],
+        "properties": {
+          "channel": { "type": "string", "enum": ["telegram"] },
+          "expectedVersion": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "ActivateProjectRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["expectedVersion"],
+        "properties": { "expectedVersion": { "type": "integer", "minimum": 1 } }
+      },
+      "ProjectFieldChannelResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["projectId", "projectStatus", "channel", "channelState", "lockedAt", "version"],
+        "properties": {
+          "projectId": { "type": "string", "format": "uuid" },
+          "projectStatus": { "type": "string", "enum": ["draft", "active", "archived"] },
+          "channel": { "type": ["string", "null"], "enum": ["telegram", null] },
+          "channelState": { "type": ["string", "null"], "enum": ["unbound", "connected", "active", "unhealthy", "archived", null] },
+          "lockedAt": { "type": ["string", "null"], "format": "date-time" },
+          "version": { "type": "integer", "minimum": 1 }
+        }
+      },
       "TenantRole": {
         "type": "string",
         "enum": [

@@ -7,6 +7,14 @@ workspace.status,closed,stored_lifecycle,Closed after the approved manual proced
 membership.status,active,stored_lifecycle,Current governed member,docs/architecture/tenancy-and-security.md
 membership.status,suspended,stored_lifecycle,Temporarily suspended member,docs/architecture/tenancy-and-security.md
 membership.status,ended,stored_lifecycle,Ended membership retained as history,docs/architecture/tenancy-and-security.md
+project.status,draft,stored_lifecycle,Project is being configured and has not yet entered field operation,Task 1 project field channel
+project.status,active,stored_lifecycle,Project has an activated and locked field channel,Task 1 project field channel
+project.status,archived,stored_lifecycle,Project is retained as history,Task 1 project field channel
+project_field_channel.state,unbound,stored_lifecycle,No field channel has been connected yet,Task 1 project field channel
+project_field_channel.state,connected,stored_lifecycle,Telegram channel connected while project remains draft,Task 1 project field channel
+project_field_channel.state,active,stored_lifecycle,Telegram channel is locked for the active project,Task 1 project field channel
+project_field_channel.state,unhealthy,stored_lifecycle,Connected Telegram channel needs health recovery,Task 1 project field channel
+project_field_channel.state,archived,stored_lifecycle,Field channel retained with archived project history,Task 1 project field channel
 invitation.status,pending,stored_lifecycle,Offer issued and unexpired,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
 invitation.status,accepted,stored_lifecycle,Offer accepted into a membership,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md
 invitation.status,revoked,stored_lifecycle,Offer withdrawn,docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md

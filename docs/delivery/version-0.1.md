@@ -158,7 +158,7 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24** — see the notes under the table. Both of the day's two additions are Plan D slice D1 and both are reads; the note under the table names them. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28** — see the notes under the table. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
@@ -169,8 +169,8 @@ in each API slice below. The table columns come from ADR-006 decision 4.
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
-| `v0.1-M6` | 3 | 0 | — |
-| Total | 65 | 26 | 26 |
+| `v0.1-M6` | 6 | 0 | — |
+| Total | 68 | 26 | 26 |
 
 *The «v0.1 tables» column is ADR-006 decision 4's build list and stays at
 its 26. `project_sourced_requirement_items` is a twenty-seventh v0.1 table,
