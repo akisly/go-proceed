@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { createAssignment } from "./assignments.service";
-import type { FetchLike } from "../lib/api";
+import { createAssignment } from "./assignment-create.service";
+import type { FetchLike } from "../lib/api-command";
 
 const input = {
   contractId: "11111111-1111-4111-8111-111111111111",
@@ -18,9 +18,9 @@ describe("createAssignment", () => {
   });
 
   it("posts to the contract's assignments route with the key it was given", async () => {
-    let path = ""; let key = "";
+    let path = ""; let key: string | undefined;
     const fake: FetchLike = async (p, init) => {
-      path = p; key = (init?.headers as Record<string, string>)["Idempotency-Key"];
+      path = p; key = (init?.headers as Record<string, string | undefined>)?.["Idempotency-Key"];
       return new Response(JSON.stringify({ assignmentId: "a1" }), { status: 201 });
     };
     const res = await createAssignment(input, "k2", fake);
