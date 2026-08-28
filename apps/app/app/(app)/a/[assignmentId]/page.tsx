@@ -4,6 +4,7 @@ import type { ListRequirementOccurrencesResponse } from "@goproceed/contracts";
 
 import { apiGet, ApiError } from "../../../../src/lib/api";
 import { buildObligationScreen, type ObligationItem } from "../../../../src/lib/field/obligations";
+import { normRefVerificationLabel } from "../../../../src/lib/norm-ref-labels";
 import { Button } from "../../../../src/ui/button";
 import { CaptureIsland } from "./capture";
 
@@ -137,8 +138,15 @@ function ObligationCard(
         // here alters the string itself (INV-073).
         <div className="flex flex-col gap-1 rounded-control bg-surface-muted p-3 text-data text-foreground-secondary">
           <p>{item.normRef.text}</p>
+          {/*
+           * The tag renders as its Ukrainian LABEL, not the storage token
+           * (TODOS 2026-08-27 residual 7): «за робочою документацією
+           * об'єкта» is an origin a foreman can read; PROJECT_DOCUMENTATION
+           * is not. Same change in the Expo copy's assignment.tsx — the
+           * obligations.ts header's both-files rule.
+           */}
           <p className="text-meta break-words text-foreground-muted">
-            {item.normRef.verification} · {item.normRef.source}
+            {normRefVerificationLabel(item.normRef.verification)} · {item.normRef.source}
           </p>
         </div>
       )}

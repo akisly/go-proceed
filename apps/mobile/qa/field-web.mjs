@@ -1628,6 +1628,30 @@ async function main() {
           ctx.findings.push(`obligation screen: довідковий disclaimer is clipped by an ancestor — ${disclaimerCheck.clippedBy}`);
         }
 
+        // THE NORM-REF META LINE CARRIES THE UKRAINIAN LABEL, NEVER THE
+        // STORAGE TOKEN (TODOS 2026-08-27 residual 7). Ported verbatim from
+        // apps/app/qa/field.mjs's identical assertion — the both-files rule
+        // `../src/lib/field/obligations.ts`'s header states. This world's
+        // obligations are library-sourced, so the visible tag must be a
+        // «перевірено за …» label, and NO storage token may appear in the
+        // rendered text.
+        const normRefTag = await page.evaluate(() => {
+          const text = document.body.innerText;
+          const raw = /\b(?:VERIFIED_PRIMARY|VERIFIED_SECONDARY|PROJECT_DOCUMENTATION)\b/.exec(text);
+          return {
+            raw: raw ? raw[0] : null,
+            labelled: text.includes("перевірено за першоджерелом")
+              || text.includes("перевірено за вторинним джерелом")
+              || text.includes("за робочою документацією об'єкта"),
+          };
+        });
+        if (normRefTag.raw) {
+          ctx.findings.push(`obligation screen: the raw verification token ${normRefTag.raw} is rendered — normRefVerificationLabel's Ukrainian label must stand in its place`);
+        }
+        if (!normRefTag.labelled) {
+          ctx.findings.push("obligation screen: no norm-ref verification label in the rendered text — the citation's tag line is missing entirely");
+        }
+
         const small = await measureSmallTargets(page);
         for (const t of small) {
           ctx.findings.push(`/a/${assignmentId} @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
