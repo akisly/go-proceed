@@ -125,6 +125,15 @@ const ROLE_RECORD_DIRS = [
   // The AktFlow-era design boards, which are the research record behind
   // `prototype/` — itself frozen and out of scope (.github/workflows/ci.yml).
   "design-references/",
+  // Dated Cowork session outputs (one directory per session id): the outreach
+  // data-processing scripts in there load their source workbooks by the REAL
+  // paths those files had on the operator's disk on the day they ran, and some
+  // of those filenames carry the old product name. Rewriting a path inside a
+  // dated output would falsify how the data was actually produced — the same
+  // reasoning as the /cso reports directory above. Added 2026-08-28, when the
+  // 2026-08-27 merges first brought this directory under the walk and the
+  // gate went red on main.
+  "outputs/",
   // A dated security report is a measurement, not a document: `/cso` writes
   // one JSON per run under this directory, stamped with the timestamp it ran
   // at, and the 2026-07-30 report names the roles as they were called that
@@ -166,6 +175,15 @@ const ROLE_RECORD_FILES = new Set([
   // The handoff is a session record too, and §0a.3 of it is the account OF
   // this rename — it has to be able to say which names moved to which.
   "HANDOFF.md",
+  // The same reasoning, one dated handoff later: its §6 repair instruction
+  // names the parent repository's REAL directory on the operator's disk —
+  // `~/Downloads/aktflow-product-package 2` — which is a filesystem fact, not
+  // a branding string, and «corrected» it would point at a directory that
+  // does not exist. Added 2026-08-28, when PR #52 merged it and the gate went
+  // red on main. A FUTURE dated handoff that trips this guard adds itself
+  // here with its own reason — the failure is the guard asking the author to
+  // decide, not noise.
+  "HANDOFF-2026-08-27.md",
 ]);
 // The five whole names, AND the SQL LIKE prefix that was written to match them
 // as a set. `aktflow%` was missed by the first version of this guard and cost a
