@@ -1,0 +1,1744 @@
+[
+  {
+    "tender_id": "UA-2026-03-27-010672-a",
+    "tender_uuid": "e1332f582f1c406ca1ad588d7fcba2bc",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-03-27-010672-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/e1332f582f1c406ca1ad588d7fcba2bc",
+    "tender_title": "Розроблення проєктної документації «Капітальний  ремонт  залізничної  колії  перегону  Підвисоке  -Рогатин  82  км  ПК1  –  88  км  ПК9» *",
+    "tender_status": "complete",
+    "award_value_uah": 850000,
+    "award_date": "2026-04-21T12:17:17.456554+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"СЛОБОЖАНСЬКИЙ ПРОЕКТНИЙ ДІМ\"",
+    "supplier_edrpou": "40471341",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2026-08-07-011471-a",
+    "tender_uuid": "44c6e5173694475e892194f84291d59f",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-08-07-011471-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/44c6e5173694475e892194f84291d59f",
+    "tender_title": "Експертиза проекту «Капітальний ремонт залізничної колії 1435 мм перегону Мацеїв – Любомль та станції Любомль 494 км ПК 1 – 501 км ПК 5, 501 км ПК 6 – 502 км ПК 8» ^",
+    "tender_status": "complete",
+    "award_value_uah": 79990,
+    "award_date": "2026-08-07T18:59:36.466631+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю \"Перша будівельна експертиза\"",
+    "supplier_edrpou": "41134902",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "Київ",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2026-03-25-010587-a",
+    "tender_uuid": "c9f1c15d880c4d69aa79132a8dc5d00e",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-03-25-010587-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/c9f1c15d880c4d69aa79132a8dc5d00e",
+    "tender_title": "Експертиза проекту «Капітальний ремонт залізничних колій №№ ІІІ, 5 станції Затока та залізничної колії перегону Затока-Янтарна 2 км ПК3 – 5 км ПК7, Львівська область, Львівський район» ~",
+    "tender_status": "complete",
+    "award_value_uah": 97888.63,
+    "award_date": "2026-03-25T15:07:39.746145+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю \"ВЕСТ БУД ЕКСПЕРТИЗА\"",
+    "supplier_edrpou": "44966795",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "Львів",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2026-07-20-008624-a",
+    "tender_uuid": "1d1a053c4f75448094344b465285353e",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-07-20-008624-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/1d1a053c4f75448094344b465285353e",
+    "tender_title": "Отримання технічних умов по об’єкту: «Капітальний ремонт магістрального газопроводу «Шебелинка – Полтава – Київ» на ділянці км 429,33 – км 438,726 в Бориспільському районі Київської області» в місцях перетину трубопроводу із залізничними коліями (Архітектурні, інженерні та планувальні послуги)",
+    "tender_status": "complete",
+    "award_value_uah": 97181.17,
+    "award_date": "2026-07-20T15:47:45.928099+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-30T00:00:00+02:00",
+    "supplier_name": "Регіональна філія «Південно-Західна залізниця» АТ «Укрзалізниця»",
+    "supplier_edrpou": "40081221",
+    "supplier_scale": "large",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ОПЕРАТОР ГАЗОТРАНСПОРТНОЇ СИСТЕМИ УКРАЇНИ\""
+  },
+  {
+    "tender_id": "UA-2025-10-16-011127-a",
+    "tender_uuid": "de96bef5be9646c7a43e9319221808e3",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-10-16-011127-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/de96bef5be9646c7a43e9319221808e3",
+    "tender_title": "Роботи з ремонту залізничних та підкранових колій (50220000-3 — Послуги з ремонту, технічного обслуговування залізничного транспорту і пов’язаного обладнання та супутні послуги)",
+    "tender_status": "complete",
+    "award_value_uah": 17299998,
+    "award_date": "2025-12-26T15:57:50.021145+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ БУДІВЕЛЬНЕ УПРАВЛІННЯ 150 ТРЕСТУ \"ПІВДЕНЗАХІДТРАНСБУД\"",
+    "supplier_edrpou": "39733628",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "ТРИПІЛЬСЬКА ТЕПЛОВА ЕЛЕКТРИЧНА СТАНЦІЯ ПУБЛІЧНОГО АКЦІОНЕРНОГО ТОВАРИСТВА \"ЦЕНТРЕНЕРГО\""
+  },
+  {
+    "tender_id": "UA-2026-02-27-009787-a",
+    "tender_uuid": "640d23da45b24d558268c3b762cd3d3c",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-02-27-009787-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/640d23da45b24d558268c3b762cd3d3c",
+    "tender_title": "Розроблення проєктної документації «Капітальний ремонт залізничної колії перегону Іваничі - Володимир 92 км ПК8 - 95 км ПК2» *",
+    "tender_status": "complete",
+    "award_value_uah": 588000,
+    "award_date": "2026-03-23T16:13:20.142892+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТДВ ІНСТИТУТ ДНІПРОДІПРОТРАНС",
+    "supplier_edrpou": "01388420",
+    "supplier_scale": "mid",
+    "supplier_url": "http://www.dgt.dp.ua/",
+    "supplier_domain": "dgt.dp.ua",
+    "supplier_region": "Дніпропетровська область",
+    "supplier_locality": "Дніпро",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2026-04-27-002499-a",
+    "tender_uuid": "723b3279e8e14442b50e98bf033d481e",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-04-27-002499-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/723b3279e8e14442b50e98bf033d481e",
+    "tender_title": "Поточний ремонт залізничної під′їздної колії №50 та №52 +++  АТ \"Укрнафта\" при станції +++  регіональної філії \"Південна залізниця\" , Чернігівська обл., Прилуцький р-н, +++",
+    "tender_status": "complete",
+    "award_value_uah": 117561.6,
+    "award_date": "2026-04-27T10:36:26.725670+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"УКРПРОМТРАНСБУД\"",
+    "supplier_edrpou": "41775616",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Полтавська область",
+    "supplier_locality": "Кременчук",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "ГНІДИНЦІВСЬКИЙ ГАЗОПЕРЕРОБНИЙ ЗАВОД АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРНАФТА\""
+  },
+  {
+    "tender_id": "UA-2026-03-02-013509-a",
+    "tender_uuid": "c290a95ba5ca44b886215516df9dbb5b",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-03-02-013509-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/c290a95ba5ca44b886215516df9dbb5b",
+    "tender_title": "Розроблення проєктної документації «Капітальний ремонт залізничної колії перегону Глібовичі – Вибранівка 35 км ПК 5 - 43 км ПК 2»*",
+    "tender_status": "complete",
+    "award_value_uah": 967800,
+    "award_date": "2026-03-25T11:08:02.147665+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТДВ ІНСТИТУТ ДНІПРОДІПРОТРАНС",
+    "supplier_edrpou": "01388420",
+    "supplier_scale": "mid",
+    "supplier_url": "http://www.dgt.dp.ua/",
+    "supplier_domain": "dgt.dp.ua",
+    "supplier_region": "Дніпропетровська область",
+    "supplier_locality": "Дніпро",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2026-02-26-011757-a",
+    "tender_uuid": "e1e72a6449524fb98be661d3fbf42932",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-02-26-011757-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/e1e72a6449524fb98be661d3fbf42932",
+    "tender_title": "С_26П-150_50220000-3 Послуги з ремонту, технічного обслуговування залізничного транспорту і пов’язаного обладнання та супутні послуги (Послуги з поточного утримання під’їзних колій)\n",
+    "tender_status": "complete",
+    "award_value_uah": 1820000,
+    "award_date": "2026-03-17T16:52:12.791034+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2027-06-30T00:00:00+03:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"БУДІВЕЛЬНО-МОНТАЖНЕ ПІДПРИЄМСТВО-164\"",
+    "supplier_edrpou": "33608607",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Харківська область",
+    "supplier_locality": " місто Харків",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "АТ \"УКРГАЗВИДОБУВАННЯ\""
+  },
+  {
+    "tender_id": "UA-2026-02-26-007623-a",
+    "tender_uuid": "e4cf0635bc734abb99ede8f444c3dbba",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-02-26-007623-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/e4cf0635bc734abb99ede8f444c3dbba",
+    "tender_title": "Розроблення проєктної документації «Капітальний ремонт залізничної непарної колії перегону Клевань – Цумань 257 км ПК 1 – 266 км ПК 4» *",
+    "tender_status": "complete",
+    "award_value_uah": 2223000,
+    "award_date": "2026-03-20T14:15:29.527567+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"МАГІСТРАЛЬПРОЕКТ\"",
+    "supplier_edrpou": "36795168",
+    "supplier_scale": "micro",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2026-03-25-005581-a",
+    "tender_uuid": "f23110e29e0c46e48080439af9899cf6",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-03-25-005581-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/f23110e29e0c46e48080439af9899cf6",
+    "tender_title": "Експертиза проєкту «Капітальний ремонт залізничних колій №№ 3,5 та стрілочного переводу №8 станції Мшана, Львівська область, Львівський район, с. Мшана» ~",
+    "tender_status": "complete",
+    "award_value_uah": 64500,
+    "award_date": "2026-03-25T11:55:31.588780+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю \"Перша будівельна експертиза\"",
+    "supplier_edrpou": "41134902",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "Київ",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2026-06-16-003639-a",
+    "tender_uuid": "6b85b0f01c5d436c8832c8f00b994bc4",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-06-16-003639-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/6b85b0f01c5d436c8832c8f00b994bc4",
+    "tender_title": "Капітальний ремонт зовнішньої мережі водопостачання м. Роздільна, вул. Тираспольська з улаштуванням відводу від існуючого магістрального водогону під залізничною колією до точки приєднання до централізованої системи водопостачання м. Роздільна вул. Привокзальна для забезпечення водопостачання об’єктів критичної інфраструктури та населення міста",
+    "tender_status": "complete",
+    "award_value_uah": 384836.57,
+    "award_date": "2026-06-16T11:10:48.047934+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-07-31T11:12:33+03:00",
+    "supplier_name": "ТОВ \"ІНЖСПЕЦБУД\"",
+    "supplier_edrpou": "34320769",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Одеська область",
+    "supplier_locality": "с. Лиманка",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "КП Роздільнянський міський водоканал\""
+  },
+  {
+    "tender_id": "UA-2025-12-04-017723-a",
+    "tender_uuid": "d1a919c28d164639b4f646cb56efc447",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-12-04-017723-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/d1a919c28d164639b4f646cb56efc447",
+    "tender_title": "ДП \"СхідГЗК\". Інгульська шахта. Поточний ремонт колії залізничного цеху. Технологічна колія №8",
+    "tender_status": "complete",
+    "award_value_uah": 3239946.16,
+    "award_date": "2025-12-04T16:11:38.418285+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T16:11:30+02:00",
+    "supplier_name": "Приватне підприємство \"ВЛАДІКОС\"",
+    "supplier_edrpou": "34689669",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Полтавська область",
+    "supplier_locality": "м.Кременчук",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "ДП СХІДНИЙ ГІРНИЧО-ЗБАГАЧУВАЛЬНИЙ КОМБІНАТ"
+  },
+  {
+    "tender_id": "UA-2026-03-02-006628-a",
+    "tender_uuid": "31f818b8cadc47589b4d6a8c6a04cd8f",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-03-02-006628-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/31f818b8cadc47589b4d6a8c6a04cd8f",
+    "tender_title": "Розроблення проєктної документації  «Капітальний ремонт залізничної колії перегону Білобожниця – Пишківці 100 км ПК 2 – 118 км ПК 3, станції Пишківці 118 км ПК 4 - 7» *",
+    "tender_status": "complete",
+    "award_value_uah": 2132000,
+    "award_date": "2026-03-31T16:04:08.596948+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"МАГІСТРАЛЬПРОЕКТ\"",
+    "supplier_edrpou": "36795168",
+    "supplier_scale": "micro",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2026-03-26-011461-a",
+    "tender_uuid": "3b0406d654714026a957ee60f7709708",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-03-26-011461-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/3b0406d654714026a957ee60f7709708",
+    "tender_title": "ДК 021:2015 (CPV) : 45230000-8 Будівництво трубопроводів, ліній зв’язку та електропередач, шосе, доріг, аеродромів і залізничних доріг; вирівнювання поверхонь (Утримання вулично-шляхової мережі, а саме: послуги з поточного ремонту дорожнього покриття на вул. Полудневій (на ділянці від буд. №50 вул. Січової до залізничної колії) у м. Львові)",
+    "tender_status": "complete",
+    "award_value_uah": 2525000,
+    "award_date": "2026-04-17T15:35:10.563983+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВ \"ІННОВА-БУД\"",
+    "supplier_edrpou": "42018832",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "місто Львів",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Личаківська районна адміністрація Львівської міської ради"
+  },
+  {
+    "tender_id": "UA-2025-11-25-015148-a",
+    "tender_uuid": "54fa6d58fa2f4f7b808dfa61c2f8d4e9",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-11-25-015148-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/54fa6d58fa2f4f7b808dfa61c2f8d4e9",
+    "tender_title": "Послуги з поточного ремонту залізничної колії СП №21 Р50 лівий",
+    "tender_status": "complete",
+    "award_value_uah": 99800,
+    "award_date": "2025-11-25T15:55:41.869512+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-02T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"СХІДТРАНСБУД\"",
+    "supplier_edrpou": "41120643",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "м. Київ",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Державне підприємство \"Комбінат \"Прогрес\" Державного агентства з управління резервами України"
+  },
+  {
+    "tender_id": "UA-2026-04-27-000413-a",
+    "tender_uuid": "722f7d5f09f04f2399662d6d32df4d71",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-04-27-000413-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/722f7d5f09f04f2399662d6d32df4d71",
+    "tender_title": "Додаткові роботи з розробки проєктно – кошторисної документації по об’єкту: «Капітальний ремонт шляхопроводу трамвайного на перетині вул. Добринінської з залізничними коліями Київ - Петрівка - Київська ГЕС» за ДК 021:2015-71320000-7 Послуги з інженерного проектування",
+    "tender_status": "complete",
+    "award_value_uah": 2055194,
+    "award_date": "2026-04-27T09:00:50.740651+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2027-12-31T00:00:00+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю \"ІННОВЕЙШН ПРОДЖЕКТ ГРУП\"",
+    "supplier_edrpou": "43391091",
+    "supplier_scale": "micro",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Харківська область",
+    "supplier_locality": "Харків",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Комунальна корпорація \"Київавтодор\""
+  },
+  {
+    "tender_id": "UA-2026-02-18-010141-a",
+    "tender_uuid": "c18572d42cdd4e34bfce96e3d1a27515",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-02-18-010141-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/c18572d42cdd4e34bfce96e3d1a27515",
+    "tender_title": "Консультаційні послуги в частині виконання перевірки обсягів фактично виконаних будівельних робіт по об’єкту: «Капітальний ремонт шляхопроводу через залізничну колію ділянки «Київ – Петрівка – Київська ГЕС по вул. Полярній»",
+    "tender_status": "complete",
+    "award_value_uah": 248948,
+    "award_date": "2026-03-04T14:36:03.109763+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-25T00:00:00+02:00",
+    "supplier_name": "Комунальне підприємство виконавчого органу Київської міської ради (Київської міської державної адміністрації) \"Київекспертиза\"",
+    "supplier_edrpou": "21606480",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "КИЇВСЬКИЙ НАУКОВО-ДОСЛІДНИЙ ІНСТИТУТ СУДОВИХ ЕКСПЕРТИЗ МІНІСТЕРСТВА ЮСТИЦІЇ УКРАЇНИ"
+  },
+  {
+    "tender_id": "UA-2026-02-18-010883-a",
+    "tender_uuid": "53a6a3660c2742ea90cb14a576427b4b",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-02-18-010883-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/53a6a3660c2742ea90cb14a576427b4b",
+    "tender_title": "Консультаційні послуги в частині виконання перевірки обсягів фактично виконаних будівельних робіт по об’єкту: «Капітальний ремонт шляхопроводу  на перетині вул. Новоконстянтинівської з під’їзними залізничними коліями по вул. Портовій та двома автопроводами в м. Києві»",
+    "tender_status": "complete",
+    "award_value_uah": 284324,
+    "award_date": "2026-03-04T14:38:58.411756+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-25T00:00:00+02:00",
+    "supplier_name": "Комунальне підприємство виконавчого органу Київської міської ради (Київської міської державної адміністрації) \"Київекспертиза\"",
+    "supplier_edrpou": "21606480",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "КИЇВСЬКИЙ НАУКОВО-ДОСЛІДНИЙ ІНСТИТУТ СУДОВИХ ЕКСПЕРТИЗ МІНІСТЕРСТВА ЮСТИЦІЇ УКРАЇНИ"
+  },
+  {
+    "tender_id": "UA-2026-03-20-002424-a",
+    "tender_uuid": "407bd5103ef643a4b0044792567581f4",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-03-20-002424-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/407bd5103ef643a4b0044792567581f4",
+    "tender_title": "Розроблення проєктної документації «Капітальний ремонт залізничної колії станції Брюховичі 9км ПК4-10км ПК1, перегону Брюховичі – Куликів 10км ПК2-24км ПК7, станції Куликів 24км ПК8-25км ПК5, перегону Куликів - Жовква 25км ПК6-27км ПК10» *",
+    "tender_status": "complete",
+    "award_value_uah": 1789900,
+    "award_date": "2026-04-10T14:46:42.759512+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"СЛОБОЖАНСЬКИЙ ПРОЕКТНИЙ ДІМ\"",
+    "supplier_edrpou": "40471341",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2025-11-26-014908-a",
+    "tender_uuid": "13fc84a27a8d43a0a34f4759801fd7b8",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-11-26-014908-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/13fc84a27a8d43a0a34f4759801fd7b8",
+    "tender_title": "Послуги з поточного ремонту шляхопроводу над залізничною колією на вул. Сяйво у м. Львові (додаткові послуги).",
+    "tender_status": "complete",
+    "award_value_uah": 2113159.49,
+    "award_date": "2025-11-26T15:46:06.903371+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T23:59:59.999000+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю \"ШЛЯХОВИК-Т\"",
+    "supplier_edrpou": "42844920",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "Львів",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Залізнична районна адміністрація Львівської міської ради"
+  },
+  {
+    "tender_id": "UA-2025-08-15-005954-a",
+    "tender_uuid": "8e55afc16eb04927bf65a2c12bdbd6b4",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-08-15-005954-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/8e55afc16eb04927bf65a2c12bdbd6b4",
+    "tender_title": "Послуги з проведення ремонту ділянок: залізничної колії №8 БНВ (інв. №13323); залізничної колії №57 (інв №14064); колій №7 (інв. №14726) та №8 (інв. №14727); залізничної колії №74 (інв.№14766); стрілочних переводів: СП№260, який входить до складу залізничної колії №35 (інв.№3354); СП№311, який входить до складу залізничної колії №6 (інв.№14725); СП№715, який входить до складу залізничної колії №53 (інв.№14750) ЧФ ДП «АМПУ»",
+    "tender_status": "complete",
+    "award_value_uah": 11536930.45,
+    "award_date": "2025-09-25T15:27:46.998043+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"СХІДТРАНСБУД\"",
+    "supplier_edrpou": "41120643",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Чорноморська філія ДП \"АМПУ\""
+  },
+  {
+    "tender_id": "UA-2025-08-07-002451-a",
+    "tender_uuid": "b99de2a1026a484e9d352734ce54fd79",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-08-07-002451-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/b99de2a1026a484e9d352734ce54fd79",
+    "tender_title": "Середній ремонт залізничної колії № 1 станції \"Розвантажувальна\" та комплексно-оздоровчий ремонт залізничної колії № 1 СКЦ ЗЦ ГМЗ",
+    "tender_status": "complete",
+    "award_value_uah": 9888763.26,
+    "award_date": "2025-08-27T13:49:25.812228+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T10:43:05+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"БУДІНДУСТРІЯ\"",
+    "supplier_edrpou": "31996862",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "Буча",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "ДП СХІДНИЙ ГІРНИЧО-ЗБАГАЧУВАЛЬНИЙ КОМБІНАТ"
+  },
+  {
+    "tender_id": "UA-2025-11-27-017764-a",
+    "tender_uuid": "3905258c6f6247aaa78cb2c0b552f06e",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-11-27-017764-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/3905258c6f6247aaa78cb2c0b552f06e",
+    "tender_title": "Проведення технічного нагляду на об’єкті: «Послуги з поточного ремонту шляхопроводу над залізничною колією на вул. Сяйво у м. Львові (додаткові послуги).»",
+    "tender_status": "complete",
+    "award_value_uah": 22046.47,
+    "award_date": "2025-11-27T18:21:33.461495+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T23:59:59.999000+02:00",
+    "supplier_name": "Фізична особа-підприємець Онисько Віталій Тарасович",
+    "supplier_edrpou": "3662806078",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "Львів",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Залізнична районна адміністрація Львівської міської ради"
+  },
+  {
+    "tender_id": "UA-2025-09-24-013954-a",
+    "tender_uuid": "9cd1e3475fe24f3a98c022b5b5dda05f",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-24-013954-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/9cd1e3475fe24f3a98c022b5b5dda05f",
+    "tender_title": "Проектно-вишукувальні роботи «Капітальний ремонт причалу № 14 (інв. № 063550), залізничної колії № 44 (інв. № 057174), залізничної колії № 45 (інв. № 057175) Одеської філії ДП \"АМПУ\" за адресою м. Одеса, Митна площа, 1/2»",
+    "tender_status": "complete",
+    "award_value_uah": 2162854.58,
+    "award_date": "2025-10-27T09:06:47.142989+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВ МОРБУДПРОЕКТ",
+    "supplier_edrpou": "38295459",
+    "supplier_scale": "sme",
+    "supplier_url": "http://www.morbudproekt.com.ua/",
+    "supplier_domain": "morbudproekt.com.ua",
+    "supplier_region": "Одеська область",
+    "supplier_locality": "Одеса",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Одеська філія ДП \"АМПУ\""
+  },
+  {
+    "tender_id": "UA-2025-11-05-015702-a",
+    "tender_uuid": "da25a6bcd524421a9da66ddb4638c8f7",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-11-05-015702-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/da25a6bcd524421a9da66ddb4638c8f7",
+    "tender_title": "Послуги з поточного ремонту залізничної колії № 24 (інв. № 057162) та автодороги від головної прохідної до причала в корені Військового молу (інв № 068545) Одеської філії ДП «АМПУ»",
+    "tender_status": "complete",
+    "award_value_uah": 4599600,
+    "award_date": "2025-12-03T16:17:40.832485+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВ \"КОНКРІТМІТАЛ\"",
+    "supplier_edrpou": "45704385",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Одеська область",
+    "supplier_locality": "місто Одеса",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Одеська філія ДП \"АМПУ\""
+  },
+  {
+    "tender_id": "UA-2025-11-28-004893-a",
+    "tender_uuid": "947ddbdce26b41c38f67e386798c39b9",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-11-28-004893-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/947ddbdce26b41c38f67e386798c39b9",
+    "tender_title": "Роботи з розробки проєктно-кошторисної документації по об’єкту: «Капітальний ремонт шляхопроводу трамвайного на перетині вул. Добринінської з залізничними коліями Київ – Петрівка - Київська ГЕС»  за ДК 021:2015-71320000-7 Послуги з інженерного проектування",
+    "tender_status": "complete",
+    "award_value_uah": 4222000,
+    "award_date": "2025-12-25T13:27:26.284963+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2027-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ІННОВЕЙШН ПРОДЖЕКТ ГРУП\"",
+    "supplier_edrpou": "43391091",
+    "supplier_scale": "micro",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Комунальна корпорація \"Київавтодор\""
+  },
+  {
+    "tender_id": "UA-2025-05-14-012035-a",
+    "tender_uuid": "1fe000263ea5459595b5169cb2badce9",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-05-14-012035-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/1fe000263ea5459595b5169cb2badce9",
+    "tender_title": "Матеріали для ремонту залізничних колій ",
+    "tender_status": "complete",
+    "award_value_uah": 12100800,
+    "award_date": "2025-05-23T15:30:46.565446+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-09-30T00:00:00+03:00",
+    "supplier_name": "ТОВ \"ІнтеграЛіс\"",
+    "supplier_edrpou": "45614742",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "м. Київ",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Військова частина А2192"
+  },
+  {
+    "tender_id": "UA-2025-08-20-006656-a",
+    "tender_uuid": "4abb8129873641699a317e1a9aa68831",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-08-20-006656-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/4abb8129873641699a317e1a9aa68831",
+    "tender_title": "Ремонт залізничної під′їздної колії +++ АТ \"Укрнафта\" при станції Прилуки регіональної філії \"Південна залізниця\"",
+    "tender_status": "complete",
+    "award_value_uah": 150000,
+    "award_date": "2025-08-20T14:00:33.275392+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"УКРПРОМТРАНСБУД\"",
+    "supplier_edrpou": "41775616",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Полтавська область",
+    "supplier_locality": "Кременчук",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Гнідинцівський ГПЗ ПАТ \"УКРНАФТА\""
+  },
+  {
+    "tender_id": "UA-2025-09-04-001724-a",
+    "tender_uuid": "6f80a47d6db644c69ba3523aaa3d6dd1",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-04-001724-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/6f80a47d6db644c69ba3523aaa3d6dd1",
+    "tender_title": "Технічна інвентаризація та виготовлення технічного паспорту на об`єкті: «Капітальний ремонт шляхопроводу через залізничні колії по вул. Онікієнка Олега в м. Бровари Київської області.»",
+    "tender_status": "complete",
+    "award_value_uah": 30000,
+    "award_date": "2025-09-04T09:58:47.308769+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-10-02T09:56:01+03:00",
+    "supplier_name": "Фізична особа-підприємець Шебаніц Олексій Сергійович",
+    "supplier_edrpou": "3437801555",
+    "supplier_scale": "micro",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Управління будівництва, житлово - комунального господарства, інфраструктури та транспорту Броварської міської ради Броварського району Київської області"
+  },
+  {
+    "tender_id": "UA-2025-10-31-003504-a",
+    "tender_uuid": "7f5c83ae106244ba954b14220e8b0883",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-10-31-003504-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/7f5c83ae106244ba954b14220e8b0883",
+    "tender_title": "Отримання технічних умов по об’єкту: «Капітальний ремонт магістрального газопроводу «Єфремівка-Диканька-Київ» на ділянках 423,7-440,4 км та 444,7-450,3 км поблизу м. Київ» в місцях його перетину із залізничними коліями (Архітектурні, інженерні та планувальні послуги)",
+    "tender_status": "complete",
+    "award_value_uah": 95462.84,
+    "award_date": "2025-10-31T11:13:42.404078+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "Регіональна філія «Південно-Західна залізниця» АТ «Укрзалізниця»",
+    "supplier_edrpou": "40081221",
+    "supplier_scale": "large",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ОПЕРАТОР ГАЗОТРАНСПОРТНОЇ СИСТЕМИ УКРАЇНИ\""
+  },
+  {
+    "tender_id": "UA-2025-09-22-011675-a",
+    "tender_uuid": "ec11ab48f15f400a8e453b9653698de7",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-22-011675-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/ec11ab48f15f400a8e453b9653698de7",
+    "tender_title": "Послуги з поточного ремонту під’їзду з центральної дороги до реабілітаційного комплексу «Агапе» вздовж залізничної колії в с. Боратин Луцького району Волинської області (45233142-6) (код за ДК 021:2015: 45230000-8 - Будівництво трубопроводів, ліній зв’язку та електропередач, шосе, доріг, аеродромів і залізничних доріг; вирівнювання поверхонь)",
+    "tender_status": "complete",
+    "award_value_uah": 1543832.34,
+    "award_date": "2025-10-06T16:51:48.101704+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-11-15T00:00:00+02:00",
+    "supplier_name": "ПП \"РОУДІЗ\"",
+    "supplier_edrpou": "31964715",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Волинська область",
+    "supplier_locality": "с. Рованці",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "БОРАТИНСЬКА СІЛЬСЬКА РАДА"
+  },
+  {
+    "tender_id": "UA-2025-07-15-006832-a",
+    "tender_uuid": "1e1f77678df54771abea10e7c077f485",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-07-15-006832-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/1e1f77678df54771abea10e7c077f485",
+    "tender_title": "С_25П-362_45230000-8 Будівництво трубопроводів, ліній зв'язку та електропередач, шосе, доріг, аеродромів і залізничних доріг; вирівнювання поверхонь (Поточний ремонт під’їзної залізничної колії КБВЗТіК, філії БУ «Укрбургаз» АТ \"Укргазвидобування\")",
+    "tender_status": "complete",
+    "award_value_uah": 2656936.01,
+    "award_date": "2025-08-04T16:26:10.685258+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"БУДІНДУСТРІЯ\"",
+    "supplier_edrpou": "31996862",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "Буча",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "АТ \"УКРГАЗВИДОБУВАННЯ\""
+  },
+  {
+    "tender_id": "UA-2025-09-04-002847-a",
+    "tender_uuid": "20543221289243a1998b2db5d60b5dc1",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-04-002847-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/20543221289243a1998b2db5d60b5dc1",
+    "tender_title": "Технічна інвентаризація та виготовлення технічного паспорту на об`єкті: «Капітальний ремонт шляхопроводу через залізничні колії по вул. Онікієнка Олега в м. Бровари Київської області. Додаткові роботи.(Капітальний ремонт з’їздів та заїздів до шляхопроводу.)»",
+    "tender_status": "complete",
+    "award_value_uah": 25000,
+    "award_date": "2025-09-04T10:57:47.775786+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-10-02T10:35:07+03:00",
+    "supplier_name": "Фізична особа-підприємець Шебаніц Олексій Cергійович",
+    "supplier_edrpou": "3437801555",
+    "supplier_scale": "micro",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Управління будівництва, житлово - комунального господарства, інфраструктури та транспорту Броварської міської ради Броварського району Київської області"
+  },
+  {
+    "tender_id": "UA-2025-07-11-007977-a",
+    "tender_uuid": "aca2685e531b479ebbb27348813e882b",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-07-11-007977-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/aca2685e531b479ebbb27348813e882b",
+    "tender_title": "Капітальний ремонт - установлення обмежувальних засобів регулювання дорожнього руху на шляхопроводі через залізничну колію по вул. Замонастирська в м. Тернопіль",
+    "tender_status": "complete",
+    "award_value_uah": 731053,
+    "award_date": "2025-07-11T14:47:22.356342+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T14:47:28+02:00",
+    "supplier_name": "ТЕХНО- БУД- ЦЕНТР",
+    "supplier_edrpou": "337683419187",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Тернопільська область",
+    "supplier_locality": "Тернопіль",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Управління житлово-комунального господарства, благоустрою та екології Тернопільської міської ради"
+  },
+  {
+    "tender_id": "UA-2025-11-11-001854-a",
+    "tender_uuid": "c4d8852a443a417bb832bb118615e770",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-11-11-001854-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/c4d8852a443a417bb832bb118615e770",
+    "tender_title": "Отримання технічних умов по об’єкту: «Капітальний ремонт магістральних газопроводів Київ-Захід України І н.» на ділянці 0-17,9 км та «Єфремівка-Диканька-Київ» на ділянці 461,1-466,5 км поблизу м. Київ» в місцях його перетину із залізничними коліями (Архітектурні, інженерні та планувальні послуги)",
+    "tender_status": "complete",
+    "award_value_uah": 95462.84,
+    "award_date": "2025-11-11T09:44:17.250528+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "Регіональна філія «Південно-Західна залізниця» АТ «Укрзалізниця»",
+    "supplier_edrpou": "40081221",
+    "supplier_scale": "large",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ОПЕРАТОР ГАЗОТРАНСПОРТНОЇ СИСТЕМИ УКРАЇНИ\""
+  },
+  {
+    "tender_id": "UA-2025-07-02-007341-a",
+    "tender_uuid": "2f31e88bc69542afb8ea60794b75e565",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-07-02-007341-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/2f31e88bc69542afb8ea60794b75e565",
+    "tender_title": "Проведення технічного нагляду за об'єктом: Послуги з поточного ремонту шляхопроводу над залізничною колією на вул. Сяйво у м. Львові.",
+    "tender_status": "complete",
+    "award_value_uah": 99680,
+    "award_date": "2025-07-02T14:06:05.478858+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T23:59:59.999000+02:00",
+    "supplier_name": "ФОП Онисько Віталій Тарасович",
+    "supplier_edrpou": "3662806078",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "Львів",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Залізнична районна адміністрація Львівської міської ради"
+  },
+  {
+    "tender_id": "UA-2025-11-10-002715-a",
+    "tender_uuid": "0104f139db19441b83a3cb94e16d575c",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-11-10-002715-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/0104f139db19441b83a3cb94e16d575c",
+    "tender_title": "Технічний нагляд під час виконання будівельних робіт із поточного ремонту під’їзду з центральної дороги до реабілітаційного комплексу «Агапе» вздовж залізничної колії в с. Боратин Луцького району Волинської області (71248000-8) (код за ДК 021:2015: 71240000-2 - Архітектурні, інженерні та планувальні послуги)",
+    "tender_status": "complete",
+    "award_value_uah": 19242,
+    "award_date": "2025-11-10T10:39:26.156010+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "КРАСЬ ЮРІЙ ІГОРОВИЧ",
+    "supplier_edrpou": "3080704216",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Волинська область",
+    "supplier_locality": "місто Луцьк",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "БОРАТИНСЬКА СІЛЬСЬКА РАДА"
+  },
+  {
+    "tender_id": "UA-2025-09-02-000491-a",
+    "tender_uuid": "443432f93423412583811fd0af3f6be2",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-02-000491-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/443432f93423412583811fd0af3f6be2",
+    "tender_title": "50220000-3  Послуги з ремонту, технічного обслуговування залізничного транспорту і пов’язаного обладнання та супутні послуги (Послуги з технічного обслуговування пристроїв сигналізації, централізації та блокування на під'їзних коліях Зміївської ТЕС)",
+    "tender_status": "complete",
+    "award_value_uah": 82303.44,
+    "award_date": "2025-09-02T08:54:52.082500+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "Виробничий підрозділ \"Основ'янська дистанція сигналізації та зв'язку\" регіональної філії \"Південна залізниця\" Акціонерного товариства \"Українська залізниця\"",
+    "supplier_edrpou": "40075815",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Харківська область",
+    "supplier_locality": "Харків",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Публічне акціонерне товариство «Центренерго»  Зміївська теплова електрична станція"
+  },
+  {
+    "tender_id": "UA-2025-09-18-002514-a",
+    "tender_uuid": "7888f6f469e84fb88aed57d534a68be0",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-18-002514-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/7888f6f469e84fb88aed57d534a68be0",
+    "tender_title": "Роботи з коригування проєктно-кошторисної документації по об’єкту: «Капітальний ремонт шляхопроводу через залізничну колію ділянки Київ – Петрівка – Київська ГЕС по вул. Полярній» за ДК 021:2015-71320000-7 Послуги з інженерного проектування",
+    "tender_status": "complete",
+    "award_value_uah": 3093257.8,
+    "award_date": "2025-09-18T10:25:02.859903+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю «ІНЖИНІРИНГОВА КОМПАНІЯ «АВТОМАГІСТРАЛЬ»",
+    "supplier_edrpou": "42055455",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Комунальна корпорація \"Київавтодор\""
+  },
+  {
+    "tender_id": "UA-2025-07-25-000480-a",
+    "tender_uuid": "9558185c8b744cb8a2e6010850ba6216",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-07-25-000480-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/9558185c8b744cb8a2e6010850ba6216",
+    "tender_title": "Ц_25П-282_45450000-6-Інші завершальні будівельні роботи (Поточний ремонт під’їзної залізничної колії на ВО №2 БВТЗіК філії «УГВ-Сервіс» за адресою: Полтавська область, Полтавський район, Машівська територіальна громада, с. Селещина).",
+    "tender_status": "complete",
+    "award_value_uah": 1899900,
+    "award_date": "2025-08-08T14:32:35.033797+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-10-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"БУДІНДУСТРІЯ\"",
+    "supplier_edrpou": "31996862",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "Буча",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "АТ \"УКРГАЗВИДОБУВАННЯ\""
+  },
+  {
+    "tender_id": "UA-2025-09-11-002270-a",
+    "tender_uuid": "2e2f804287e04e77a6346fff3a0e8764",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-11-002270-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/2e2f804287e04e77a6346fff3a0e8764",
+    "tender_title": "Капітальний ремонт шляхопроводу через залізничні колії по вул. Онікієнка Олега в м. Бровари Київської області. (Контрольне топографо-геодезичне знімання масштабу 1:500); 71355000-1 — Геодезичні послуги за ДК 021:2015 Єдиного закупівельного словника",
+    "tender_status": "complete",
+    "award_value_uah": 9159.98,
+    "award_date": "2025-09-11T10:34:40.255685+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-10-31T10:35:03+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю \"ГеоФекторі\"",
+    "supplier_edrpou": "42762968",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "м. Бровари",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Управління будівництва, житлово - комунального господарства, інфраструктури та транспорту Броварської міської ради Броварського району Київської області"
+  },
+  {
+    "tender_id": "UA-2025-04-11-008119-a",
+    "tender_uuid": "9b7cd8b755cb4bb48f538e36bf1df3d2",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-04-11-008119-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/9b7cd8b755cb4bb48f538e36bf1df3d2",
+    "tender_title": "С_25П-197_50220000-3 Послуги з ремонту, технічного обслуговування залізничного транспорту і пов’язаного обладнання та супутні послуги (Послуги з обслуговування залізничних під'їзних колій)\n",
+    "tender_status": "complete",
+    "award_value_uah": 493418.8,
+    "award_date": "2025-04-29T17:28:42.382752+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2027-09-30T00:00:00+03:00",
+    "supplier_name": "ПП Путеєць",
+    "supplier_edrpou": "25458326",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Харківська область",
+    "supplier_locality": "Харків",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "АТ \"УКРГАЗВИДОБУВАННЯ\""
+  },
+  {
+    "tender_id": "UA-2025-10-01-004442-a",
+    "tender_uuid": "2d7192a548e148b4af08eb9cf8408026",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-10-01-004442-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/2d7192a548e148b4af08eb9cf8408026",
+    "tender_title": "Розроблення проектно-кошторисної документації з поточного ремонту під’їзду з центральної дороги до реабілітаційного комплексу «Агапе» вздовж залізничної колії в с. Боратин Луцького району Волинської області (71311220-9) (код за ДК 021:2015: 71310000-4 - Консультаційні послуги у галузях інженерії та будівництва)",
+    "tender_status": "complete",
+    "award_value_uah": 23424.47,
+    "award_date": "2025-10-01T11:49:46.377972+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "СМОЛЯК ЮРІЙ ВОЛОДИМИРОВИЧ",
+    "supplier_edrpou": "2905209590",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Рівненська область",
+    "supplier_locality": "Млинівський р-н ",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "БОРАТИНСЬКА СІЛЬСЬКА РАДА"
+  },
+  {
+    "tender_id": "UA-2025-08-08-001211-a",
+    "tender_uuid": "af78b69c39e24bc19ab5e130fecfdd95",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-08-08-001211-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/af78b69c39e24bc19ab5e130fecfdd95",
+    "tender_title": "Будівництво трубопроводів, ліній зв’язку та електропередач, шосе, доріг, аеродромів і залізничних доріг; вирівнювання поверхонь за кодом ДК 021:2015 - 45230000-8 (Протиаварійні заходи для забезпечення безпечної експлуатації шляхопроводу по вул. Олександри Екстер через залізничні колії швидкісного трамваю в м. Києві)",
+    "tender_status": "complete",
+    "award_value_uah": 154999900,
+    "award_date": "2025-09-05T15:32:18.757505+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"УКРТРАНСМІСТ\"",
+    "supplier_edrpou": "33778270",
+    "supplier_scale": "large",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Комунальне підприємство по ремонту і утриманню мостів і шляхів м. Києва \"Київавтошляхміст\""
+  },
+  {
+    "tender_id": "UA-2025-09-11-003143-a",
+    "tender_uuid": "87b342b2554441a4a244a58150b69f59",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-11-003143-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/87b342b2554441a4a244a58150b69f59",
+    "tender_title": "Капітальний ремонт шляхопроводу через залізничні колії по вул. Онікієнка Олега в м. Бровари Київської області. Додаткові роботи. (Капітальний ремонт з`їздів та заїздів до шляхопроводу.) (Контрольне топографо-геодезичне знімання масштабу 1:500); 71355000-1 — Геодезичні послуги за ДК 021:2015 Єдиного закупівельного словника",
+    "tender_status": "complete",
+    "award_value_uah": 51295.87,
+    "award_date": "2025-09-11T11:02:09.154261+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-10-31T11:03:06+02:00",
+    "supplier_name": "Товариство з обмеженою відповільністю \"ГеоФекторі\"",
+    "supplier_edrpou": "42762968",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "м. Бровари",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Управління будівництва, житлово - комунального господарства, інфраструктури та транспорту Броварської міської ради Броварського району Київської області"
+  },
+  {
+    "tender_id": "UA-2025-10-21-016693-a",
+    "tender_uuid": "54ba41bd86a548a9815412d5bdf50764",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-10-21-016693-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/54ba41bd86a548a9815412d5bdf50764",
+    "tender_title": "Послуга з проведення відбору проб у вигляді циліндричних кернів, підбору та випробування складів сумішей асфальтобетонів дорожніх та аеродромних після надання послуг з поточного ремонту на під’їзді з центральної дороги до реабілітаційного комплексу «Агапе» вздовж залізничної колії в с. Боратин Луцького району Волинської області (98113000-8) (код за ДК 021:2015: 98110000-7 - Послуги підприємницьких, професійних та спеціалізованих організацій)",
+    "tender_status": "complete",
+    "award_value_uah": 12500,
+    "award_date": "2025-10-21T17:30:20.227932+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "ПРИВАТНЕ ПІДПРИЄМСТВО \"ЛАБОРАТОРІЯ ЗАХІДДОРСЕРВІС\"",
+    "supplier_edrpou": "33951851",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "Львівський р-н село Горішній",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "БОРАТИНСЬКА СІЛЬСЬКА РАДА"
+  },
+  {
+    "tender_id": "UA-2025-08-07-007735-a",
+    "tender_uuid": "2d5ed824605b4b78913e0a9c53f47fc8",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-08-07-007735-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/2d5ed824605b4b78913e0a9c53f47fc8",
+    "tender_title": "Експертиза проектної документації за об'єктом: «Капітальний ремонт залізничних колій №33 (інв. №1031083) та №36 (інв. №1031084) Миколаївської філії ДП «АМПУ» (адміністрації Миколаївського морського порту) м. Миколаїв, вул. Заводська, 23»",
+    "tender_status": "complete",
+    "award_value_uah": 32617.68,
+    "award_date": "2025-08-07T14:47:27.207115+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"БУДПРОЕКТЕКСПЕРТИЗА\"",
+    "supplier_edrpou": "41054749",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Київська область",
+    "supplier_locality": "Київ",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "Миколаївська філія Державного підприємства \"Адміністрація морських портів України\" (Адміністрація Миколаївського морського порту)"
+  },
+  {
+    "tender_id": "UA-2025-04-16-010233-a",
+    "tender_uuid": "07abd7e517d64e8198bdde32806fd946",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-04-16-010233-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/07abd7e517d64e8198bdde32806fd946",
+    "tender_title": "Розроблення проєктної документації «Капітальний ремонт залізничної колії перегону Городенка-Завод - Стефанешти 50 км ПК9 - 55 км ПК4» *",
+    "tender_status": "complete",
+    "award_value_uah": 1156000,
+    "award_date": "2025-05-12T13:43:58.970141+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ІНСТИТУТ ПРОЕКТУВАННЯ ІНФРАСТРУКТУРИ ТРАНСПОРТУ\"",
+    "supplier_edrpou": "36818766",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2025-04-10-014435-a",
+    "tender_uuid": "6b5d71bfb69449988d50cf08ccab8f6c",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-04-10-014435-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/6b5d71bfb69449988d50cf08ccab8f6c",
+    "tender_title": "ДК 021:2015 –  50220000-3 Послуги з ремонту, технічного обслуговування залізничного транспорту і пов’язаного обладнання та супутні послуги (Послуга з ремонту залізничних колій)",
+    "tender_status": "complete",
+    "award_value_uah": 56775,
+    "award_date": "2025-04-10T19:44:13.785567+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-30T00:00:00+02:00",
+    "supplier_name": "ПРИВАТНЕ ПІДПРИЄМСТВО \"СЕРВІС-ТРАНС-ПЛЮС\"",
+    "supplier_edrpou": "32080360",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Кіровоградська область",
+    "supplier_locality": "місто Знам'янка",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "ДЕРЖАВНЕ ПІДПРИЄМСТВО \"БІЛГОРОД-ДНІСТРОВСЬКИЙ МОРСЬКИЙ ТОРГОВЕЛЬНИЙ ПОРТ\""
+  },
+  {
+    "tender_id": "UA-2025-08-05-010160-a",
+    "tender_uuid": "bbfea4d8b9e341fab3b4d331c21ad51b",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-08-05-010160-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/bbfea4d8b9e341fab3b4d331c21ad51b",
+    "tender_title": "Експертиза проекту «Капітальний ремонт залізничної колії перегону Козова – Потутори 48 км ПК 8 – 54 км ПК 4, перегону Потутори – Підвисоке 64 км ПК 1 – 72 км ПК 9» ~",
+    "tender_status": "complete",
+    "award_value_uah": 169323.44,
+    "award_date": "2025-08-05T16:04:10.988483+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю «ЗАХІДНИЙ ЕКСПЕРТНО-ТЕХНІЧНИЙ ЦЕНТР»",
+    "supplier_edrpou": "40958141",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "Львів",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2025-02-13-004965-a",
+    "tender_uuid": "77193e117471408fbb906996f73af665",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-02-13-004965-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/77193e117471408fbb906996f73af665",
+    "tender_title": "Розроблення проєктної документації «Капітальний ремонт залізничних колій №№ 31, 32 станції Клепарів»*",
+    "tender_status": "complete",
+    "award_value_uah": 696371.66,
+    "award_date": "2025-03-07T09:48:35.131745+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ІНСТИТУТ ПРОЕКТУВАННЯ ІНФРАСТРУКТУРИ ТРАНСПОРТУ\"",
+    "supplier_edrpou": "36818766",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2025-05-30-007235-a",
+    "tender_uuid": "b871a4f9f73b45e28e386c31b88501fc",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-05-30-007235-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/b871a4f9f73b45e28e386c31b88501fc",
+    "tender_title": "Консультаційні послуги в частині виконання перевірки обсягів фактично виконаних будівельних робіт по об’єкту: «Капітальний ремонт шляхопроводу через залізничну колію ділянки «Київ - Петрівка — Київська ГЕС по вул. Полярній»",
+    "tender_status": "complete",
+    "award_value_uah": 517998,
+    "award_date": "2025-06-12T16:35:19.039431+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "Комунальне підприємство виконавчого органу Київської міської ради (Київської міської державної адміністрації) \"Київекспертиза\"",
+    "supplier_edrpou": "21606480",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Залізнична інфраструктура"
+    ],
+    "search_queries": [
+      "ремонт залізничної колії"
+    ],
+    "buyer_name": "КИЇВСЬКИЙ НАУКОВО-ДОСЛІДНИЙ ІНСТИТУТ СУДОВИХ ЕКСПЕРТИЗ МІНІСТЕРСТВА ЮСТИЦІЇ УКРАЇНИ"
+  },
+  {
+    "tender_id": "UA-2025-06-13-010261-a",
+    "tender_uuid": "e952308fe0cc4bbaba4f1bbbbf8a6568",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-06-13-010261-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/e952308fe0cc4bbaba4f1bbbbf8a6568",
+    "tender_title": "Роботи з розробки проектної документації по об’єкту: «Реконструкція ПЛ 330 кВ, перевлаштування прольоту опор № 65 - № 66 (без зміни місця положення опор) на перетині із залізничною колією у Черкаській області» в рамках реалізації проєкту «Реконструкція споруд залізниці з електрифікацією дільниці регіональної філії «Одеська залізниця» АТ «Укрзалізниця» у Черкаській області (коригування)» стадія «Робочий проект» та забезпечення проведення експертизи проектної документації  - ДК 021:2015-71320000-7 «Послуги з інженерного проектування»)",
+    "tender_status": "complete",
+    "award_value_uah": 1173799.56,
+    "award_date": "2025-06-13T15:45:50.122528+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ «ІНЖ-ПРОЕКТ»",
+    "supplier_edrpou": "40319646",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Одеська область",
+    "supplier_locality": "Одеса",
+    "segments": [
+      "Залізнична електрифікація"
+    ],
+    "search_queries": [
+      "електрифікація залізниці"
+    ],
+    "buyer_name": "Регіональна філія \"Одеська залізниця\" ПАТ \"Укрзалізниця\""
+  },
+  {
+    "tender_id": "UA-2024-12-20-007126-a",
+    "tender_uuid": "9804a64ba9ec487d995cf7e321f4bd36",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2024-12-20-007126-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/9804a64ba9ec487d995cf7e321f4bd36",
+    "tender_title": "Здійснення технічного нагляду за будівництвом об’єкта «Реконструкція споруд залізниці з електрифікацією дільниці Ковель – Ізов – Держкордон регіональної філії «Львівська залізниця» ПАТ «Укрзалізниця» у Волинській області. І черга» ~",
+    "tender_status": "complete",
+    "award_value_uah": 875852,
+    "award_date": "2024-12-20T11:35:26.476397+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "Фізична особа – підприємць Хомин Євгеній Михайлович",
+    "supplier_edrpou": "2324216690",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "Львів",
+    "segments": [
+      "Залізнична електрифікація"
+    ],
+    "search_queries": [
+      "електрифікація залізниці"
+    ],
+    "buyer_name": "РЕГІОНАЛЬНА ФІЛІЯ \"ЛЬВІВСЬКА ЗАЛІЗНИЦЯ\" АКЦІОНЕРНОГО ТОВАРИСТВА \"УКРАЇНСЬКА ЗАЛІЗНИЦЯ\""
+  },
+  {
+    "tender_id": "UA-2024-08-07-010828-a",
+    "tender_uuid": "0efe5d3830a54055aff73f363ed65b25",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2024-08-07-010828-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/0efe5d3830a54055aff73f363ed65b25",
+    "tender_title": "ОД-24Р_720_ВО: Роботи з проведення експертизи проекту будівництва: «Реконструкція споруд залізниці з електрифікацією дільниці регіональної філії «Одеська залізниця» АТ «Укрзалізниця»» (Код ДК 021:2015–71310000-4 - Консультаційні послуги у галузях інженерії та будівництва)",
+    "tender_status": "complete",
+    "award_value_uah": 234900,
+    "award_date": "2024-09-11T09:20:59.303328+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2024-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВ \"УК ЕКСПЕРТИЗА\"",
+    "supplier_edrpou": "42431096",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Тернопільська область",
+    "supplier_locality": "місто Тернопіль(з)",
+    "segments": [
+      "Залізнична електрифікація"
+    ],
+    "search_queries": [
+      "електрифікація залізниці"
+    ],
+    "buyer_name": "Регіональна філія \"Одеська залізниця\" ПАТ \"Укрзалізниця\""
+  },
+  {
+    "tender_id": "UA-2026-08-24-000506-a",
+    "tender_uuid": "63cd309f4db44ecc84bc3923ba81f475",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-08-24-000506-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/63cd309f4db44ecc84bc3923ba81f475",
+    "tender_title": "Виконання робіт: «Монтажні та пусконалагоджувальні роботи по встановленню системи відеоспостереження на території Петрівської ЦЛ». Код ДК 021-2015 (CPV) 45310000-3 - Електромонтажні роботи",
+    "tender_status": "complete",
+    "award_value_uah": 77470,
+    "award_date": "2026-08-24T09:15:18.441662+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T09:18:41+02:00",
+    "supplier_name": "Фізична особа-підприємець Ташов Володимир Олександрович",
+    "supplier_edrpou": "2128915818",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Кіровоградська область",
+    "supplier_locality": "місто Кропивницький",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "Комунальне некомерційне підприємство «Петрівська центральна лікарня» Петрівської селищної ради Олександрійського району Кіровоградської області"
+  },
+  {
+    "tender_id": "UA-2026-07-07-000393-a",
+    "tender_uuid": "f8d7b1b4c2ec433294650ddc3aab4d2a",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-07-07-000393-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/f8d7b1b4c2ec433294650ddc3aab4d2a",
+    "tender_title": "Монтажні та пусконалагоджувальні послуги, код ДК 021:2015  45310000-3 \"Електромонтажні роботи\"\n",
+    "tender_status": "complete",
+    "award_value_uah": 61732.16,
+    "award_date": "2026-07-07T09:08:35.716409+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "УПРАВЛІННЯ ПОЛІЦІЇ ОХОРОНИ В ЧЕРНІГІВСЬКІЙ ОБЛАСТІ",
+    "supplier_edrpou": "40109021",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Чернігівська область",
+    "supplier_locality": "місто Чернігів",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "ВІДДІЛ ОСВІТИ БОБРОВИЦЬКОЇ МІСЬКОЇ РАДИ ЧЕРНІГІВСЬКОЇ ОБЛАСТІ"
+  },
+  {
+    "tender_id": "UA-2026-06-13-000282-a",
+    "tender_uuid": "66e6f69365a84f1991a2d87f3ba9a4fd",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-06-13-000282-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/66e6f69365a84f1991a2d87f3ba9a4fd",
+    "tender_title": "Монтаж та комплекс пусконалагоджувальних робіт системи охоронно-тривожної сигналізації 45310000-3 Електромонтажні роботи",
+    "tender_status": "complete",
+    "award_value_uah": 2050,
+    "award_date": "2026-06-13T12:52:58.495175+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "УПРАВЛІННЯ ПОЛІЦІЇ ОХОРОНИ В ОДЕСЬКІЙ ОБЛАСТІ",
+    "supplier_edrpou": "40108934",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Одеська область",
+    "supplier_locality": "місто Одеса",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "КОМУНАЛЬНЕ НЕКОМЕРЦІЙНЕ ПІДПРИЄМСТВО \"ОБЛАСНА ПСИХІАТРИЧНА ЛІКАРНЯ №4\" ОДЕСЬКОЇ ОБЛАСНОЇ РАДИ\""
+  },
+  {
+    "tender_id": "UA-2026-05-04-012832-a",
+    "tender_uuid": "cd5ed3a71af349e38717204e9c885d71",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-05-04-012832-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/cd5ed3a71af349e38717204e9c885d71",
+    "tender_title": "Організація електромонтажних робіт по встановленню гібридного інвертора, налаштування та пусконалагоджувальні роботи обладнання. Організація електромонтажних робіт по встановленню сонячних панелей. Організація електромонтажних робіт по встановленню акумуляторної батереї, налаштування та пусконалаголжувальні роботи обладнання. Пусконалагоджувальні роботи СЕС.",
+    "tender_status": "complete",
+    "award_value_uah": 35360,
+    "award_date": "2026-05-04T17:07:32.096493+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ГАЦУЛЯ ВОЛОДИМИР ОЛЕКСІЙОВИЧ",
+    "supplier_edrpou": "2852217952",
+    "supplier_scale": "mid",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Полтавська область",
+    "supplier_locality": "селище Котельва",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "Відділ управління комунальним майном Котелевської селищної ради"
+  },
+  {
+    "tender_id": "UA-2026-05-28-006385-a",
+    "tender_uuid": "d290019e6ea34552808e42735ca1cd97",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-05-28-006385-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/d290019e6ea34552808e42735ca1cd97",
+    "tender_title": "Монтажні та пусконалагоджувальні роботи по встановленню системи охоронної сигналізації ДК 021:2015 (CPV) : 45310000-3 Електромонтажні роботи",
+    "tender_status": "complete",
+    "award_value_uah": 27359.4,
+    "award_date": "2026-05-28T13:12:53.731610+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ОХОРОНА-МОНТАЖ ТА СЕРВІС\"",
+    "supplier_edrpou": "43193121",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "ІНСТИТУТ ЗАХИСТУ РОСЛИН НАЦІОНАЛЬНОЇ АКАДЕМІЇ АГРАРНИХ НАУК УКРАЇНИ"
+  },
+  {
+    "tender_id": "UA-2026-05-19-007805-a",
+    "tender_uuid": "03bc802e50234377adf4ba5e067ec2bd",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-05-19-007805-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/03bc802e50234377adf4ba5e067ec2bd",
+    "tender_title": "Монтажні та пусконалагоджувальні роботи по встановленню системи охоронної сигналізації ДК 021:2015 (CPV) : 45310000-3 Електромонтажні роботи",
+    "tender_status": "complete",
+    "award_value_uah": 55843,
+    "award_date": "2026-05-19T13:45:53.495368+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-06-11T00:00:00+03:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ОХОРОНА-МОНТАЖ ТА СЕРВІС\"",
+    "supplier_edrpou": "43193121",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "м. Київ",
+    "supplier_locality": "",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "ІНСТИТУТ ЗАХИСТУ РОСЛИН НАЦІОНАЛЬНОЇ АКАДЕМІЇ АГРАРНИХ НАУК УКРАЇНИ"
+  },
+  {
+    "tender_id": "UA-2026-03-30-000143-a",
+    "tender_uuid": "950cd949bc8943d2a5570cca09ccdd07",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-03-30-000143-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/950cd949bc8943d2a5570cca09ccdd07",
+    "tender_title": "Електромонтажні та пусконалагоджувальні роботи для заміни схеми електропостачання на об’єктах Замовника",
+    "tender_status": "complete",
+    "award_value_uah": 29649.96,
+    "award_date": "2026-03-30T08:25:09.485635+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-04-06T00:00:00+03:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ЕНЕРГОПРОФ\"",
+    "supplier_edrpou": "40953850",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Львівська область",
+    "supplier_locality": "Львів",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "Товариство з обмеженою відповідальністю \"Львівенергозбут\""
+  },
+  {
+    "tender_id": "UA-2026-04-20-012817-a",
+    "tender_uuid": "0bd42c9ed28d418f8d82d22ea7a2e9dc",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-04-20-012817-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/0bd42c9ed28d418f8d82d22ea7a2e9dc",
+    "tender_title": "Монтаж та комплекс пусконалагоджувальних робіт системи охоронно-тривожної сигналізації 45310000-3 Електромонтажні роботи",
+    "tender_status": "complete",
+    "award_value_uah": 10850,
+    "award_date": "2026-04-21T17:53:20.320877+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-12-31T00:00:00+02:00",
+    "supplier_name": "УПРАВЛІННЯ ПОЛІЦІЇ ОХОРОНИ В ОДЕСЬКІЙ ОБЛАСТІ",
+    "supplier_edrpou": "40108934",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Одеська область",
+    "supplier_locality": "місто Одеса",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "КОМУНАЛЬНЕ НЕКОМЕРЦІЙНЕ ПІДПРИЄМСТВО \"ОБЛАСНА ПСИХІАТРИЧНА ЛІКАРНЯ №4\" ОДЕСЬКОЇ ОБЛАСНОЇ РАДИ\""
+  },
+  {
+    "tender_id": "UA-2026-05-20-011092-a",
+    "tender_uuid": "7d2d97153c7f40209674f6daf07ba367",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-05-20-011092-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/7d2d97153c7f40209674f6daf07ba367",
+    "tender_title": "Електромонтажні та пусконалагоджувальні роботи з підключення гібридного інвертора;Монтаж та складання електрощита (встановлення автоматики, реле захисту, перемикача навантаження та обмежувача перенапруг)\n(ДК 021:2015:45310000-3 Електромонтажні роботи)",
+    "tender_status": "complete",
+    "award_value_uah": 17000,
+    "award_date": "2026-05-20T15:32:58.888419+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-05-31T00:00:00+03:00",
+    "supplier_name": "КОНОВАЛЕНКО СЕРГІЙ ВОЛОДИМИРОВИЧ",
+    "supplier_edrpou": "2037114754",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Миколаївська область",
+    "supplier_locality": "",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "Відділ освіти, молоді та спорту Казанківської селищної ради Миколаївської області"
+  },
+  {
+    "tender_id": "UA-2026-05-20-011414-a",
+    "tender_uuid": "e8b4c77ddca34c2cb0b189bd982c6f9a",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-05-20-011414-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/e8b4c77ddca34c2cb0b189bd982c6f9a",
+    "tender_title": "Електромонтажні та пусконалагоджувальні роботи з підключення гібридного інвертора;Монтаж та складання електрощита (встановлення автоматики, реле захисту, перемикача навантаження та обмежувача перенапруг)\n(ДК 021:2015:45310000-3 Електромонтажні роботи)",
+    "tender_status": "complete",
+    "award_value_uah": 17000,
+    "award_date": "2026-05-20T15:50:46.817023+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-05-31T00:00:00+03:00",
+    "supplier_name": "КОНОВАЛЕНКО СЕРГІЙ ВОЛОДИМИРОВИЧ",
+    "supplier_edrpou": "2037114754",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Миколаївська область",
+    "supplier_locality": "",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "Відділ освіти, молоді та спорту Казанківської селищної ради Миколаївської області"
+  },
+  {
+    "tender_id": "UA-2026-05-19-005088-a",
+    "tender_uuid": "180e2feea3e747498e26d9799e518830",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2026-05-19-005088-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/180e2feea3e747498e26d9799e518830",
+    "tender_title": "Електромонтажні та пусконалагоджувальні роботи з підключення гібридного інвертора;Монтаж та складання електрощита (встановлення автоматики, реле захисту, перемикача навантаження та обмежувача перенапруг)\n(ДК 021:2015:45310000-3 Електромонтажні роботи)",
+    "tender_status": "complete",
+    "award_value_uah": 17000,
+    "award_date": "2026-05-19T11:45:42.822834+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2026-05-31T00:00:00+03:00",
+    "supplier_name": "КОНОВАЛЕНКО СЕРГІЙ ВОЛОДИМИРОВИЧ",
+    "supplier_edrpou": "2037114754",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Миколаївська область",
+    "supplier_locality": "",
+    "segments": [
+      "Промислова електрика / ПНР"
+    ],
+    "search_queries": [
+      "пусконалагоджувальні електромонтажні роботи"
+    ],
+    "buyer_name": "Відділ освіти, молоді та спорту Казанківської селищної ради Миколаївської області"
+  }
+]

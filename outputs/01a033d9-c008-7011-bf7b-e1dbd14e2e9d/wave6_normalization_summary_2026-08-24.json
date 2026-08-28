@@ -1,0 +1,28 @@
+{
+  "generated_at": "2026-08-24T23:59:59+03:00",
+  "input_supplier_leads": 288,
+  "invalid_or_redacted_removed": 3,
+  "valid_supplier_leads": 285,
+  "overlaps_with_base_1688": 44,
+  "unique_new_supplier_leads": 241,
+  "unified_total": 1929,
+  "public_supplier_requalify": 0,
+  "company_type_counts": {
+    "tender_proven_contractor": 192,
+    "sole_proprietor_contractor": 49
+  },
+  "intent_priority_counts": {
+    "I1": 12,
+    "I2": 37,
+    "I3": 192
+  },
+  "lane_counts": {
+    "Pilot now": 512,
+    "Expansion discovery": 1375,
+    "Later / requirements": 8,
+    "Requalify": 34
+  },
+  "high_confidence_count": 1863,
+  "tender_signal_count": 1670,
+  "live_project_signal_count": 931
+}

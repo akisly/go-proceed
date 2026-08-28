@@ -11,14 +11,28 @@ const flatten = (value: unknown): string =>
         : "";
 
 describe("landing product truth", () => {
-  it("keeps the evidence chain in the approved operational order", () => {
-    expect(landingContent.evidence.steps.map((step) => step.label)).toEqual([
-      "Робота",
-      "Вимога",
-      "Доказ",
-      "Рішення",
-      "Закриття",
-      "Акт",
+  it("keeps the evidence journey in the approved operational order", () => {
+    expect(landingContent.journey.chapters.map((chapter) => chapter.id)).toEqual([
+      "requirement",
+      "capture",
+      "decision",
+    ]);
+    expect(flatten(landingContent.journey)).toContain("R-041");
+    expect(flatten(landingContent.journey)).toContain("EV-0248");
+    expect(flatten(landingContent.journey)).toContain("DR-0091");
+    expect(flatten(landingContent.journey)).toContain("CL-017");
+  });
+
+  it("publishes exactly the six approved scene records", () => {
+    expect(Object.keys(landingContent)).toEqual([
+      "nav",
+      "hero",
+      "journey",
+      "fieldReview",
+      "readiness",
+      "trust",
+      "pilot",
+      "footer",
     ]);
   });
 
@@ -29,12 +43,8 @@ describe("landing product truth", () => {
     },
   );
 
-  it("defines four real product-tour chapters", () => {
-    expect(landingContent.tour).toHaveLength(4);
-    expect(
-      landingContent.tour.every(
-        (chapter) => chapter.id.length > 0 && chapter.label.length > 0 && chapter.hint.length > 0,
-      ),
-    ).toBe(true);
+  it("states the online-only and unsigned-draft boundaries", () => {
+    expect(flatten(landingContent)).toContain("активного з’єднання");
+    expect(flatten(landingContent)).toContain("Чернетка акта не є підписаним документом");
   });
 });

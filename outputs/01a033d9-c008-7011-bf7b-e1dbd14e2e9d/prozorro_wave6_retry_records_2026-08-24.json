@@ -1,0 +1,54 @@
+[
+  {
+    "tender_id": "UA-2025-09-25-013964-a",
+    "tender_uuid": "05af0261e74147068ab641cf7405b720",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-09-25-013964-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/05af0261e74147068ab641cf7405b720",
+    "tender_title": "Будівництво КЛ-0,4 кВ Л-6, Л-25 ТП-498 оп.№1 (дві кабельні лінії) в м. Кропивницький для зовнішнього електропостачання блочно-модульної котельні \"Джерельна\" КП \"Теплоенергетик\" КМР\" по вул. Джерельна\" (приєднання) ",
+    "tender_status": "complete",
+    "award_value_uah": 76850.84,
+    "award_date": "2025-09-25T16:56:00.698576+03:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "ТОВАРИСТВО З ОБМЕЖЕНОЮ ВІДПОВІДАЛЬНІСТЮ \"ЕНЕРГОБУДПРОЕКТ-2\"",
+    "supplier_edrpou": "34724556",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Кіровоградська область",
+    "supplier_locality": "місто Кропивницький",
+    "segments": [
+      "Кабельні лінії електропередачі"
+    ],
+    "search_queries": [
+      "будівництво кабельної лінії"
+    ],
+    "buyer_name": "ПрАТ \"Кіровоградобленерго\""
+  },
+  {
+    "tender_id": "UA-2025-11-24-004933-a",
+    "tender_uuid": "75ee14393f314474aca4a26f5245360c",
+    "tender_url": "https://prozorro.gov.ua/tender/UA-2025-11-24-004933-a",
+    "public_api_url": "https://public-api.prozorro.gov.ua/api/2.5/tenders/75ee14393f314474aca4a26f5245360c",
+    "tender_title": "Роботи з проведення експертизи проекту будівництва: «Реконструкція споруд залізниці із заміною підтримуючих конструкцій контактної мережі на жорсткі поперечини.» (Код ДК 021:2015–71310000-4 - Консультаційні послуги у галузях інженерії та будівництва)",
+    "tender_status": "complete",
+    "award_value_uah": 60787.69,
+    "award_date": "2025-11-24T11:18:57.440787+02:00",
+    "contract_status": "active",
+    "delivery_end_date": "2025-12-31T00:00:00+02:00",
+    "supplier_name": "Товариство з обмеженою відповідальністю «УК ЕКСПЕРТИЗА»",
+    "supplier_edrpou": "42431096",
+    "supplier_scale": "sme",
+    "supplier_url": "",
+    "supplier_domain": "",
+    "supplier_region": "Тернопільська область",
+    "supplier_locality": "Тернопіль",
+    "segments": [
+      "Залізнична електрифікація"
+    ],
+    "search_queries": [
+      "реконструкція контактної мережі залізниці"
+    ],
+    "buyer_name": "Регіональна філія \"Одеська залізниця\" ПАТ \"Укрзалізниця\""
+  }
+]

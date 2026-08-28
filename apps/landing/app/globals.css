@@ -74,9 +74,105 @@
 
   .landing-hero-field {
     background:
-      radial-gradient(circle at 82% 18%, var(--color-action-signal) 0 1px, transparent 2px),
+      linear-gradient(var(--color-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--color-line) 1px, transparent 1px),
       linear-gradient(to bottom, var(--color-subtle), transparent);
-    background-size: 22px 22px, 100% 100%;
+    background-position: center top;
+    background-size: 48px 48px, 48px 48px, 100% 100%;
+    -webkit-mask-image: radial-gradient(
+      ellipse 110% 860px at 50% 0%,
+      #000 0%,
+      #000 46%,
+      rgb(0 0 0 / 92%) 58%,
+      rgb(0 0 0 / 58%) 73%,
+      rgb(0 0 0 / 22%) 86%,
+      transparent 100%
+    );
+    mask-image: radial-gradient(
+      ellipse 110% 860px at 50% 0%,
+      #000 0%,
+      #000 46%,
+      rgb(0 0 0 / 92%) 58%,
+      rgb(0 0 0 / 58%) 73%,
+      rgb(0 0 0 / 22%) 86%,
+      transparent 100%
+    );
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+
+  .landing-marker-accent {
+    position: relative;
+    z-index: 0;
+    display: inline-block;
+    isolation: isolate;
+    padding-inline: 0.03em;
+    color: var(--color-action-signal-fg);
+    white-space: nowrap;
+  }
+
+  .landing-marker-accent::before,
+  .landing-marker-accent::after {
+    position: absolute;
+    z-index: -1;
+    pointer-events: none;
+    content: "";
+  }
+
+  .landing-marker-accent::before {
+    top: 0.16em;
+    right: -0.12em;
+    bottom: -0.02em;
+    left: -0.1em;
+    background: linear-gradient(
+      96deg,
+      color-mix(in srgb, var(--color-action-signal) 68%, transparent),
+      color-mix(in srgb, var(--color-action-signal) 92%, transparent) 13%,
+      color-mix(in srgb, var(--color-action-signal) 78%, transparent) 62%,
+      color-mix(in srgb, var(--color-action-signal) 88%, transparent)
+    );
+    clip-path: polygon(
+      0 18%,
+      5% 8%,
+      18% 13%,
+      34% 3%,
+      53% 9%,
+      71% 4%,
+      91% 10%,
+      100% 22%,
+      98% 86%,
+      84% 94%,
+      63% 88%,
+      44% 98%,
+      24% 91%,
+      4% 97%,
+      0 78%
+    );
+    transform: rotate(-1.1deg) skewX(-1.5deg);
+  }
+
+  .landing-marker-accent::after {
+    top: 0.28em;
+    right: -0.05em;
+    bottom: 0.04em;
+    left: -0.15em;
+    background: color-mix(in srgb, var(--color-action-signal) 38%, transparent);
+    clip-path: polygon(
+      0 27%,
+      8% 14%,
+      26% 20%,
+      45% 9%,
+      65% 17%,
+      84% 8%,
+      100% 23%,
+      97% 79%,
+      79% 92%,
+      58% 84%,
+      37% 96%,
+      17% 86%,
+      2% 91%
+    );
+    transform: rotate(0.45deg);
   }
 
   .landing-blueprint {
@@ -92,5 +188,20 @@
       linear-gradient(90deg, var(--color-line) 1px, transparent 1px);
     background-position: -1px -1px;
     background-size: 48px 48px;
+  }
+
+  .landing-dot-grid {
+    background-image: radial-gradient(
+      circle,
+      color-mix(in srgb, var(--color-line-strong) 64%, transparent) 1px,
+      transparent 1.2px
+    );
+    background-position: 10px 10px;
+    background-size: 20px 20px;
+  }
+
+  .readiness-workflow-endpoint-pulse {
+    transform-box: fill-box;
+    transform-origin: center;
   }
 }

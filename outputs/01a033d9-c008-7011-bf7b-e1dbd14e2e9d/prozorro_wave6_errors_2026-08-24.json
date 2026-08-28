@@ -1,0 +1,18 @@
+[
+  {
+    "error": "Error: 429 Too Many Requests https://prozorro.gov.ua/api/tenders/UA-2025-09-25-013964-a/summary",
+    "tender_id": "UA-2025-09-25-013964-a",
+    "segment": "Кабельні лінії електропередачі",
+    "search_queries": [
+      "будівництво кабельної лінії"
+    ]
+  },
+  {
+    "error": "Error: 429 Too Many Requests https://prozorro.gov.ua/api/tenders/UA-2025-11-24-004933-a/summary",
+    "tender_id": "UA-2025-11-24-004933-a",
+    "segment": "Залізнична електрифікація",
+    "search_queries": [
+      "реконструкція контактної мережі залізниці"
+    ]
+  }
+]
