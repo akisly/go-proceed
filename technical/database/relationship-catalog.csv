@@ -1,5 +1,15 @@
 from_entity,relationship,to_entity,cardinality,required,tenant_safe_key,on_delete,invariant_id
 memberships,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
+telegram_chat_bindings,binds,project_field_channels,1:1,yes,workspace_id+project_id -> project_field_channels(workspace_id+project_id),restrict,INV-092
+telegram_binding_intents,targets,project_field_channels,N:1,yes,workspace_id+project_id -> project_field_channels(workspace_id+project_id),restrict,INV-092
+telegram_member_link_intents,targets,project_field_channels,N:1,yes,workspace_id+project_id -> project_field_channels(workspace_id+project_id),restrict,INV-001
+telegram_member_links,links,memberships,N:1,yes,workspace_id+member_id -> memberships(workspace_id+id),restrict,INV-092
+telegram_media_groups,belongs_to,telegram_chat_bindings,N:1,yes,workspace_id+project_id+telegram_chat_binding_id -> telegram_chat_bindings(workspace_id+project_id+id),restrict,INV-092
+communication_messages,belongs_to,telegram_chat_bindings,N:1,yes,workspace_id+project_id+telegram_chat_binding_id -> telegram_chat_bindings(workspace_id+project_id+id),restrict,INV-092
+communication_message_events,records,communication_messages,N:1,yes,workspace_id+project_id+message_id -> communication_messages(workspace_id+project_id+id),restrict,INV-093
+communication_attachments,belongs_to,communication_messages,N:1,yes,workspace_id+project_id+message_id -> communication_messages(workspace_id+project_id+id),restrict,INV-094
+telegram_requirement_choices,selects_for,communication_attachments,N:1,yes,workspace_id+project_id+communication_attachment_id -> communication_attachments(workspace_id+project_id+id),restrict,INV-001
+communication_delivery_attempts,attempts,communication_messages,N:1,yes,workspace_id+project_id+message_id -> communication_messages(workspace_id+project_id+id),restrict,INV-093
 memberships,subject_of,auth.users,N:1,yes,user_id -> auth.users(id) provider-global subject only,restrict,INV-001
 invitations,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
 parties,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001

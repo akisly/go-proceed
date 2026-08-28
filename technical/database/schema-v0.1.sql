@@ -2911,6 +2911,75 @@ create trigger dead_letters_append_only before update or delete on public.dead_l
 -- =============================================================================
 -- 12. RLS AND GRANTS (coverage rule; concrete policies ship per migration slice)
 -- =============================================================================
+-- Telegram project communication (migration 0062). The source of truth is the
+-- normalized conversation; provider handles and raw webhook JSON are never a
+-- member-plane projection. Every project-scoped relation uses workspace_id +
+-- project_id and the relevant parent identity as its composite key.
+create table public.telegram_chat_bindings (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  bot_id bigint not null, chat_id bigint not null, chat_type text not null,
+  connected_by_member_id uuid not null, connected_at timestamptz not null,
+  unique (workspace_id, id), unique (workspace_id, project_id, id),
+  unique (bot_id, chat_id), unique (workspace_id, project_id)
+);
+create table public.telegram_binding_intents (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  requested_by_member_id uuid not null, verifier_hash text not null,
+  expires_at timestamptz not null, consumed_at timestamptz,
+  unique (workspace_id, id), unique (verifier_hash)
+);
+create table public.telegram_member_link_intents (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  member_id uuid not null, issued_by_member_id uuid not null, verifier_hash text not null,
+  expires_at timestamptz not null, consumed_at timestamptz,
+  unique (workspace_id, id), unique (verifier_hash)
+);
+create table public.telegram_member_links (
+  id uuid primary key, workspace_id uuid not null, member_id uuid not null,
+  telegram_user_id bigint not null, verified_at timestamptz not null,
+  revoked_at timestamptz, unique (workspace_id, id),
+  unique (workspace_id, telegram_user_id), unique (workspace_id, member_id)
+);
+create table public.telegram_inbox_updates (
+  bot_id bigint not null, update_id bigint not null, payload jsonb,
+  payload_hash text not null, state text not null, lease_id uuid,
+  lease_expires_at timestamptz, attempts integer not null, disposition text,
+  primary key (bot_id, update_id)
+);
+create table public.telegram_media_groups (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  telegram_chat_binding_id uuid not null, provider_media_group_id text not null,
+  state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id)
+);
+create table public.communication_messages (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  telegram_chat_binding_id uuid not null, direction text not null, kind text not null,
+  text text, provider_message_id bigint, server_received_at timestamptz not null,
+  delivery_state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id)
+);
+create table public.communication_message_events (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  message_id uuid not null, event_kind text not null, server_received_at timestamptz not null,
+  unique (workspace_id, id), unique (workspace_id, project_id, id)
+);
+create table public.communication_attachments (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  message_id uuid not null, provider_file_id text, state text not null,
+  terminal_at timestamptz, unique (workspace_id, id), unique (workspace_id, project_id, id)
+);
+create table public.telegram_requirement_choices (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  communication_attachment_id uuid not null, chooser_member_id uuid not null,
+  requirement_occurrence_id uuid not null, chosen_at timestamptz not null,
+  unique (workspace_id, id), unique (workspace_id, project_id, id)
+);
+create table public.communication_delivery_attempts (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  message_id uuid not null, attempt_no integer not null, state text not null,
+  attempted_at timestamptz not null, unique (workspace_id, id),
+  unique (workspace_id, project_id, id), unique (workspace_id, message_id, attempt_no)
+);
+
 -- Every tenant table reachable by an exposed role gets RLS (INV-060). Future
 -- object privileges are deny-by-default via ALTER DEFAULT PRIVILEGES for every
 -- actual migration-owner role discovered from pg_class/pg_default_acl
@@ -3001,6 +3070,17 @@ alter table public.blocked_reasons enable row level security;
 alter table public.package_review_status_projection enable row level security;
 alter table public.acceptance_projection enable row level security;
 alter table public.value_at_risk_projection enable row level security;
+alter table public.telegram_chat_bindings enable row level security;
+alter table public.telegram_binding_intents enable row level security;
+alter table public.telegram_member_link_intents enable row level security;
+alter table public.telegram_member_links enable row level security;
+alter table public.telegram_inbox_updates enable row level security;
+alter table public.telegram_media_groups enable row level security;
+alter table public.communication_messages enable row level security;
+alter table public.communication_message_events enable row level security;
+alter table public.communication_attachments enable row level security;
+alter table public.telegram_requirement_choices enable row level security;
+alter table public.communication_delivery_attempts enable row level security;
 
 -- =============================================================================
 -- END OF TARGET DESIGN

@@ -62,3 +62,4 @@ export * from "./statutory-acts";
 // nothing in this slice.
 export * from "./external";
 export * from "./project-requirements";
+export * from "./project-communications";

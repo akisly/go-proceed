@@ -1,5 +1,20 @@
 state_machine,state,kind,description,source_document
 workspace.status,trial,stored_lifecycle,New workspace before activation,docs/architecture/data-model.md
+telegram_inbox_update.state,pending,stored_lifecycle,Accepted raw webhook awaiting due processing,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_inbox_update.state,leased,stored_lifecycle,Worker owns a bounded processing lease,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_inbox_update.state,processed,terminal,Normalized terminal success with raw payload cleared,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_inbox_update.state,failed,terminal,Normalized terminal failure with raw payload cleared,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_message.delivery_state,received,stored_lifecycle,Inbound normalized message received,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_message.delivery_state,queued,stored_lifecycle,Outbound message durably queued,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_message.delivery_state,provider_accepted,stored_lifecycle,Provider accepted outbound message,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_message.delivery_state,failed,terminal,Provider definitely rejected outbound message,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_message.delivery_state,delivery_unknown,terminal,Network outcome unknown and explicit retry may duplicate,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_attachment.state,unbound,terminal,Visible communication image not linked to a live assignment card,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_attachment.state,awaiting_requirement_choice,stored_lifecycle,Uploader must select one eligible requirement,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_attachment.state,processing,stored_lifecycle,Bounded provider download and evidence processing underway,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_attachment.state,available,terminal,Durable evidence available,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_attachment.state,not_evidence,terminal,Choice expiry or rule made attachment communication only,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_attachment.state,failed,terminal,Processing failed with safe reason,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 workspace.status,active,stored_lifecycle,Operating workspace,docs/architecture/data-model.md
 workspace.status,suspended,stored_lifecycle,Access suspended by governance/operations,docs/architecture/data-model.md
 workspace.status,closing,stored_lifecycle,Manual closure procedure in progress,docs/architecture/files-and-storage.md
