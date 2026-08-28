@@ -1,0 +1,349 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-25T17:29:10Z",
+  "title": "Design System: GoProceed Evidence Atlas",
+  "extensions": {
+    "colorMeta": {
+      "paper": {
+        "role": "neutral",
+        "displayName": "Warm Paper",
+        "canonical": "#FBFBF9",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Clean Sheet",
+        "canonical": "#FFFFFF",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FFFFFF"]
+      },
+      "paper-subtle": {
+        "role": "neutral",
+        "displayName": "Blueprint Wash",
+        "canonical": "#F6F6F3",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#F6F6F3"]
+      },
+      "paper-sunken": {
+        "role": "neutral",
+        "displayName": "Sunken Paper",
+        "canonical": "#EFEEEB",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "carbon": {
+        "role": "neutral",
+        "displayName": "Carbon",
+        "canonical": "#11100F",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "carbon-hover": {
+        "role": "neutral",
+        "displayName": "Lifted Carbon",
+        "canonical": "#2C2B29",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "ink-secondary": {
+        "role": "neutral",
+        "displayName": "Secondary Document Ink",
+        "canonical": "#5C5B57",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "ink-muted": {
+        "role": "neutral",
+        "displayName": "Muted Document Ink",
+        "canonical": "#6D6C68",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "ink-subtle": {
+        "role": "neutral",
+        "displayName": "Subtle Metadata Ink",
+        "canonical": "#92918C",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "line": {
+        "role": "neutral",
+        "displayName": "Drawing Rule",
+        "canonical": "#DDDCD8",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "line-strong": {
+        "role": "neutral",
+        "displayName": "Strong Drawing Rule",
+        "canonical": "#CCCAC6",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "line-inverse": {
+        "role": "neutral",
+        "displayName": "Inverse Drawing Rule",
+        "canonical": "#444441",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#EFEEEB", "#FBFBF9"]
+      },
+      "on-inverse": {
+        "role": "neutral",
+        "displayName": "Paper on Carbon",
+        "canonical": "#E7E6E2",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#CCCAC6", "#E7E6E2", "#FBFBF9"]
+      },
+      "on-inverse-muted": {
+        "role": "neutral",
+        "displayName": "Muted Paper on Carbon",
+        "canonical": "#B1AFAB",
+        "tonalRamp": ["#11100F", "#2C2B29", "#444441", "#6D6C68", "#92918C", "#B1AFAB", "#E7E6E2", "#FBFBF9"]
+      },
+      "safety-lime": {
+        "role": "primary",
+        "displayName": "Safety Lime",
+        "canonical": "#C6FF34",
+        "tonalRamp": ["#3B4821", "#526628", "#6F8D30", "#99C23D", "#C6FF34", "#D6FE8C", "#E9FECA", "#F7FDEE"]
+      },
+      "safety-lime-hover": {
+        "role": "primary",
+        "displayName": "Lifted Safety Lime",
+        "canonical": "#CEFE6C",
+        "tonalRamp": ["#3B4821", "#526628", "#6F8D30", "#99C23D", "#C6FF34", "#CEFE6C", "#E9FECA", "#F7FDEE"]
+      },
+      "focus-blue": {
+        "role": "secondary",
+        "displayName": "Focus Blue",
+        "canonical": "#5A7DCE",
+        "tonalRamp": ["#1B2D5B", "#274181", "#3756A1", "#3E63BD", "#5A7DCE", "#BBCBEB", "#E8EFFC", "#F5F7FB"]
+      },
+      "ready-surface": {
+        "role": "primary",
+        "displayName": "Ready Wash",
+        "canonical": "#E9FECA",
+        "tonalRamp": ["#3B4821", "#526628", "#6F8D30", "#99C23D", "#C6FF34", "#D6FE8C", "#E9FECA", "#F7FDEE"]
+      },
+      "ready-line": {
+        "role": "primary",
+        "displayName": "Ready Rule",
+        "canonical": "#DDFEA5",
+        "tonalRamp": ["#3B4821", "#526628", "#6F8D30", "#99C23D", "#C6FF34", "#DDFEA5", "#E9FECA", "#F7FDEE"]
+      },
+      "ready-ink": {
+        "role": "primary",
+        "displayName": "Ready Ink",
+        "canonical": "#526628",
+        "tonalRamp": ["#3B4821", "#526628", "#6F8D30", "#99C23D", "#C6FF34", "#D6FE8C", "#E9FECA", "#F7FDEE"]
+      },
+      "review-surface": {
+        "role": "tertiary",
+        "displayName": "Review Wash",
+        "canonical": "#E8EFFC",
+        "tonalRamp": ["#1B2D5B", "#274181", "#3756A1", "#3E63BD", "#5A7DCE", "#BBCBEB", "#E8EFFC", "#F5F7FB"]
+      },
+      "review-line": {
+        "role": "tertiary",
+        "displayName": "Review Rule",
+        "canonical": "#D4E0F9",
+        "tonalRamp": ["#1B2D5B", "#274181", "#3756A1", "#3E63BD", "#5A7DCE", "#BBCBEB", "#D4E0F9", "#F5F7FB"]
+      },
+      "review-ink": {
+        "role": "tertiary",
+        "displayName": "Review Ink",
+        "canonical": "#3756A1",
+        "tonalRamp": ["#1B2D5B", "#274181", "#3756A1", "#3E63BD", "#5A7DCE", "#BBCBEB", "#E8EFFC", "#F5F7FB"]
+      },
+      "blocked-surface": {
+        "role": "tertiary",
+        "displayName": "Blocked Wash",
+        "canonical": "#FCE9E6",
+        "tonalRamp": ["#531E1B", "#792623", "#A02827", "#CE2F30", "#E45C55", "#F5BAB3", "#FCE9E6", "#FBF4F3"]
+      },
+      "blocked-line": {
+        "role": "tertiary",
+        "displayName": "Blocked Rule",
+        "canonical": "#FBD5D1",
+        "tonalRamp": ["#531E1B", "#792623", "#A02827", "#CE2F30", "#E45C55", "#F5BAB3", "#FBD5D1", "#FBF4F3"]
+      },
+      "blocked-ink": {
+        "role": "tertiary",
+        "displayName": "Blocked Ink",
+        "canonical": "#A02827",
+        "tonalRamp": ["#531E1B", "#792623", "#A02827", "#CE2F30", "#E45C55", "#F5BAB3", "#FCE9E6", "#FBF4F3"]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Hero Display",
+        "purpose": "One dominant public promise, balanced across short lines."
+      },
+      "headline": {
+        "displayName": "Scene Headline",
+        "purpose": "Major chapter titles with a restrained measure."
+      },
+      "title": {
+        "displayName": "Evidence Title",
+        "purpose": "Prominent conclusions inside product proof."
+      },
+      "body": {
+        "displayName": "Narrative Body",
+        "purpose": "Public explanation held to a readable 680px measure."
+      },
+      "data": {
+        "displayName": "Operational Data",
+        "purpose": "Controls, values, and compact decisions."
+      },
+      "label": {
+        "displayName": "Evidence Index",
+        "purpose": "Uppercase IDs, timestamps, references, and route nodes."
+      }
+    },
+    "shadows": [
+      {
+        "name": "overlay",
+        "value": "0px 4px 12px 0px rgba(17, 16, 15, 0.06), 0px 12px 28px 0px rgba(17, 16, 15, 0.08)",
+        "purpose": "Compact callouts, evidence captions, and nested sheets."
+      },
+      {
+        "name": "float",
+        "value": "0px 12px 32px 0px rgba(17, 16, 15, 0.08), 0px 40px 80px 0px rgba(17, 16, 15, 0.10)",
+        "purpose": "Primary dossier, sticky evidence stage, handoff surfaces, and pilot form."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-fast",
+        "value": "160ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "purpose": "Hover, focus-adjacent color shifts, and FAQ indicators."
+      },
+      {
+        "name": "scene-handoff",
+        "value": "400ms cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+        "purpose": "One intersection-triggered evidence handoff and journey crossfade."
+      },
+      {
+        "name": "reduced-motion-static",
+        "value": "opacity only at or below 120ms; no transforms, blur, sticky choreography, or line drawing",
+        "purpose": "Preserve the complete evidence story as a static composition."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "md",
+        "value": "768px"
+      },
+      {
+        "name": "wide",
+        "value": "1240px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Signal Button",
+      "kind": "button",
+      "refersTo": "button-signal",
+      "description": "The single primary advancement action on a public surface.",
+      "html": "<button class=\"ds-btn-signal\">ОБГОВОРИТИ ПІЛОТ</button>",
+      "css": ".ds-btn-signal { min-height: 44px; padding: 0 20px; border: 0; border-radius: var(--gp-radius-control); background: var(--gp-action-signal-bg); color: var(--gp-action-signal-fg); font: 590 13px/1.5 var(--gp-font-sans); letter-spacing: var(--gp-tracking-normal); transition: background-color var(--gp-duration-fast) var(--gp-ease-out); } .ds-btn-signal:hover { background: var(--gp-action-signal-hover); } .ds-btn-signal:focus-visible { outline: var(--gp-focus-ring-width) solid var(--gp-border-focus); outline-offset: var(--gp-focus-ring-offset); } .ds-btn-signal:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Carbon Button",
+      "kind": "button",
+      "refersTo": "button-carbon",
+      "description": "A persistent navigation action against the paper canvas.",
+      "html": "<button class=\"ds-btn-carbon\">ПІЛОТ</button>",
+      "css": ".ds-btn-carbon { min-height: 44px; padding: 0 16px; border: 0; border-radius: var(--gp-radius-control); background: var(--gp-action-primary-bg); color: var(--gp-action-primary-fg); font: 590 13px/1.5 var(--gp-font-sans); letter-spacing: var(--gp-tracking-normal); transition: background-color var(--gp-duration-fast) var(--gp-ease-out); } .ds-btn-carbon:hover { background: var(--gp-action-primary-hover); } .ds-btn-carbon:focus-visible { outline: var(--gp-focus-ring-width) solid var(--gp-border-focus); outline-offset: var(--gp-focus-ring-offset); } .ds-btn-carbon:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Quiet Button",
+      "kind": "button",
+      "refersTo": "button-quiet",
+      "description": "A secondary action that preserves the hierarchy of the signal button.",
+      "html": "<button class=\"ds-btn-quiet\">СКОПІЮВАТИ ТЕКСТ</button>",
+      "css": ".ds-btn-quiet { min-height: 44px; padding: 0 16px; border: 1px solid var(--gp-border-strong); border-radius: var(--gp-radius-control); background: var(--gp-bg-surface); color: var(--gp-text-primary); font: 590 13px/1.5 var(--gp-font-sans); letter-spacing: var(--gp-tracking-normal); transition: background-color var(--gp-duration-fast) var(--gp-ease-out); } .ds-btn-quiet:hover { background: var(--gp-action-ghost-hover); } .ds-btn-quiet:focus-visible { outline: var(--gp-focus-ring-width) solid var(--gp-border-focus); outline-offset: var(--gp-focus-ring-offset); } .ds-btn-quiet:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Evidence Field",
+      "kind": "input",
+      "refersTo": "field",
+      "description": "A labelled, daylight-legible field for pilot context and reply details.",
+      "html": "<label class=\"ds-field-label\">КОНТАКТ ДЛЯ ВІДПОВІДІ<input class=\"ds-field\" placeholder=\"Email, телефон або нік\"></label>",
+      "css": ".ds-field-label { display: grid; gap: 8px; color: var(--gp-text-primary); font: 590 12px/1.5 var(--gp-font-sans); letter-spacing: var(--gp-tracking-normal); } .ds-field { min-height: 44px; width: 100%; padding: 0 12px; border: 1px solid var(--gp-border-strong); border-radius: var(--gp-radius-control); background: var(--gp-bg-surface); color: var(--gp-text-primary); font: 400 13px/1.5 var(--gp-font-sans); transition: border-color var(--gp-duration-fast) var(--gp-ease-out); } .ds-field::placeholder { color: var(--gp-text-subtle); } .ds-field:hover { border-color: var(--gp-border-strong); } .ds-field:focus-visible { border-color: var(--gp-border-focus); outline: var(--gp-focus-ring-width) solid var(--gp-border-focus); outline-offset: var(--gp-focus-ring-offset); }"
+    },
+    {
+      "name": "Floating Navigation",
+      "kind": "nav",
+      "description": "A compact fixed paper strip with restrained links and one Carbon action.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-nav-brand\" href=\"#\">GoProceed</a><a class=\"ds-nav-link\" href=\"#workflow\">ЯК ПРАЦЮЄ</a><a class=\"ds-nav-action\" href=\"#pilot\">ПІЛОТ</a></nav>",
+      "css": ".ds-nav { min-height: 64px; display: flex; align-items: center; gap: 20px; padding: 0 20px; border-bottom: 1px solid color-mix(in srgb, var(--gp-border-strong) 52%, transparent); background: color-mix(in srgb, var(--gp-bg-surface) 82%, transparent); color: var(--gp-text-primary); backdrop-filter: blur(24px) saturate(165%); font-family: var(--gp-font-sans); } .ds-nav-brand { margin-right: auto; color: inherit; font-size: 13px; font-weight: 590; text-decoration: none; } .ds-nav-link { min-height: 44px; display: inline-flex; align-items: center; padding: 0 12px; border-radius: var(--gp-radius-pill); color: var(--gp-text-muted); font-size: 12px; font-weight: 510; text-decoration: none; transition: color var(--gp-duration-fast) var(--gp-ease-out), background var(--gp-duration-fast) var(--gp-ease-out); } .ds-nav-link:hover { color: var(--gp-text-primary); background: var(--gp-action-ghost-hover); } .ds-nav-action { min-height: 44px; display: inline-flex; align-items: center; padding: 0 16px; border-radius: var(--gp-radius-control); background: var(--gp-action-primary-bg); color: var(--gp-action-primary-fg); font-size: 13px; font-weight: 590; text-decoration: none; } .ds-nav a:focus-visible { outline: var(--gp-focus-ring-width) solid var(--gp-border-focus); outline-offset: var(--gp-focus-ring-offset); }"
+    },
+    {
+      "name": "Ready Status Chip",
+      "kind": "chip",
+      "refersTo": "status-ready",
+      "description": "A written verified state with matched surface, rule, and ink.",
+      "html": "<span class=\"ds-status-ready\"><svg viewBox=\"0 0 16 16\" aria-hidden=\"true\"><path d=\"M3 8.4 6.2 11.5 13 4.8\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg>ДОКАЗ ПРИЙНЯТО</span>",
+      "css": ".ds-status-ready { min-height: 28px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px; border: 1px solid var(--gp-status-ready-border); border-radius: var(--gp-radius-pill); background: var(--gp-status-ready-surface); color: var(--gp-status-ready-fg); font: 590 11px/1 var(--gp-font-sans); } .ds-status-ready svg { width: 14px; height: 14px; }"
+    },
+    {
+      "name": "Live Evidence Dossier",
+      "kind": "card",
+      "refersTo": "dossier",
+      "description": "The primary proof frame connecting one work line, requirement, evidence, and review state.",
+      "html": "<article class=\"ds-dossier\"><header class=\"ds-dossier-head\"><span>GP-2026-014 · W-014</span><b>ОЧІКУЄ РІШЕННЯ</b></header><section class=\"ds-dossier-body\"><small>R-041 · БЛОКУЮЧА ВИМОГА</small><h3>Кабельний лоток до закриття стелі</h3><p>EV-0248 · ВРУ-1 · 14:32</p></section></article>",
+      "css": ".ds-dossier { overflow: hidden; max-width: 720px; border: 1px solid var(--gp-border-strong); border-radius: var(--gp-radius-section); background: var(--gp-bg-surface); color: var(--gp-text-primary); box-shadow: var(--gp-shadow-float); font-family: var(--gp-font-sans); } .ds-dossier-head { min-height: 56px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 24px; border-bottom: 1px solid var(--gp-border-default); font: 510 12px/1 var(--gp-font-mono); letter-spacing: var(--gp-tracking-wide); } .ds-dossier-head b { color: var(--gp-status-review-fg); font: 590 11px/1 var(--gp-font-sans); } .ds-dossier-body { padding: 28px; } .ds-dossier-body small { color: var(--gp-text-muted); font: 510 12px/1 var(--gp-font-mono); letter-spacing: var(--gp-tracking-wide); } .ds-dossier-body h3 { max-width: 18ch; margin: 20px 0; font: 590 22px/1.35 var(--gp-font-sans); } .ds-dossier-body p { margin: 0; padding-top: 16px; border-top: 1px solid var(--gp-border-default); color: var(--gp-text-muted); font-size: 13px; } .ds-dossier:hover { border-color: var(--gp-border-strong); } .ds-dossier:focus-within { outline: var(--gp-focus-ring-width) solid var(--gp-border-focus); outline-offset: var(--gp-focus-ring-offset); }"
+    },
+    {
+      "name": "Evidence Rail",
+      "kind": "custom",
+      "description": "The signature ordered route from requirement through evidence and decision to recorded closure.",
+      "html": "<ol class=\"ds-rail\"><li class=\"ds-rail-done\"><i>✓</i><b>R-041</b><span>ВИМОГА</span></li><li class=\"ds-rail-done\"><i>✓</i><b>EV-0248</b><span>ДОКАЗ</span></li><li class=\"ds-rail-current\"><i>3</i><b>DR-0091</b><span>РІШЕННЯ</span></li><li><i>4</i><b>CL-017</b><span>ЗАКРИТТЯ</span></li></ol>",
+      "css": ".ds-rail { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; padding: 16px 20px; list-style: none; background: var(--gp-bg-surface); color: var(--gp-text-muted); font-family: var(--gp-font-mono); } .ds-rail li { position: relative; min-width: 0; display: grid; justify-items: center; gap: 8px; } .ds-rail li + li::before { content: ''; position: absolute; right: 50%; top: 14px; width: 100%; height: 1px; background: var(--gp-border-strong); z-index: 0; } .ds-rail i { position: relative; z-index: 1; width: 28px; height: 28px; display: grid; place-items: center; border: 1px solid var(--gp-border-strong); border-radius: var(--gp-radius-pill); background: var(--gp-bg-surface); color: var(--gp-text-muted); font: normal 590 11px/1 var(--gp-font-sans); } .ds-rail b { overflow: hidden; max-width: 100%; color: inherit; font-size: 12px; font-weight: 510; letter-spacing: var(--gp-tracking-wide); text-overflow: ellipsis; white-space: nowrap; } .ds-rail span { color: var(--gp-text-muted); font: 400 11px/1 var(--gp-font-sans); } .ds-rail .ds-rail-done i { border-color: var(--gp-text-primary); background: var(--gp-text-primary); color: var(--gp-text-on-inverse); } .ds-rail .ds-rail-done + li::before, .ds-rail .ds-rail-current::before { background: var(--gp-text-primary); } .ds-rail .ds-rail-current { color: var(--gp-text-primary); } .ds-rail .ds-rail-current i { border-color: var(--gp-action-signal-bg); background: var(--gp-action-signal-bg); color: var(--gp-action-signal-fg); } .ds-rail:focus-within { outline: var(--gp-focus-ring-width) solid var(--gp-border-focus); outline-offset: var(--gp-focus-ring-offset); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Evidence Atlas",
+    "overview": "GoProceed should feel like a construction evidence dossier laid across a drawing table: precise, calm, attributable, and visibly connected from requirement to decision. Warm paper grounds make long reading humane; carbon intervals create decisive chapter breaks; blueprint lines, physical drawings, site photography, and document receipts make the product world specific without turning it into themed decoration.\n\nThe system is information-dense inside product proof and generous around consequences. It borrows editorial scale for persuasion while preserving the compact labels, thin rules, and exact IDs of an operational instrument. The shipped public surface is light-first with deliberate carbon sections, not a dark-mode marketing skin.",
+    "keyCharacteristics": [
+      "Paper-led canvases with thin document rules and restrained carbon intervals.",
+      "Large Source Serif statements paired with compact Inter UI and JetBrains Mono evidence labels.",
+      "Product proof shown as linked work, requirement, evidence, decision, and receipt surfaces.",
+      "Safety Lime reserved for an action, an active route node, or a verified state.",
+      "Real construction imagery and code-native diagrams carry the visual argument.",
+      "Motion explains one handoff and becomes a complete static composition under reduced motion."
+    ],
+    "rules": [
+      {
+        "name": "The Signal Budget Rule",
+        "body": "Safety Lime occupies roughly five percent or less of a viewport; its scarcity makes an active or verified state legible.",
+        "section": "colors"
+      },
+      {
+        "name": "The Semantic Risk Rule",
+        "body": "Blue, amber, red, and green status colors describe actual state and never serve as decorative palette variety.",
+        "section": "colors"
+      },
+      {
+        "name": "The Figure Discipline Rule",
+        "body": "Source Serif never carries product UI, IDs, timestamps, or quantities; evidence identifiers use the mono label and data values use tabular Inter figures.",
+        "section": "typography"
+      },
+      {
+        "name": "The Structural Shadow Rule",
+        "body": "A shadow must explain overlap or hierarchy; ordinary document cells, readiness rows, and textual sections stay flat.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Document Edge Rule",
+        "body": "Do not round every container. Round the outer instrument or interactive control; keep internal evidence sheets and tabular partitions crisp.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do make one concrete evidence route or product dossier the dominant proof on a public surface.",
+      "Do use thin rules, paper tones, IDs, timestamps, and source labels to establish accountability.",
+      "Do keep Safety Lime rare and attach it to a real action, current node, or verified outcome.",
+      "Do pair construction photography with legible code-native records and diagrams.",
+      "Do preserve visible labels, 44px targets, keyboard focus, and non-color status cues.",
+      "Do make every animated explanation complete and readable as a static reduced-motion composition."
+    ],
+    "donts": [
+      "Don't replace the linked evidence story with a generic grid of same-sized feature cards.",
+      "Don't use decorative color gradients; neutral blueprint grids and the translucent paper navigation are the narrow structural exceptions.",
+      "Don't spread Safety Lime across backgrounds, illustrations, or secondary actions.",
+      "Don't add shadows to every panel or make document surfaces float without a hierarchy reason.",
+      "Don't use Source Serif for product controls, figures, IDs, or body copy.",
+      "Don't imply status through color alone or hide essential content behind JavaScript-driven motion."
+    ]
+  }
+}

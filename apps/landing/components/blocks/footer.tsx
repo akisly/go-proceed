@@ -3,10 +3,10 @@ import { BrandMark } from "../brand-mark";
 
 const footerLinks = [
   { label: "Продукт", href: "#product" },
-  { label: "Як працює", href: "#workflow" },
-  { label: "Для команди", href: "#roles" },
+  { label: "Маршрут", href: "#workflow" },
+  { label: "Рішення", href: "#field-review" },
+  { label: "Стан", href: "#readiness" },
   { label: "Пілот", href: "#pilot" },
-  { label: "Питання", href: "#faq" },
 ] as const;
 
 export function Footer() {
@@ -16,7 +16,7 @@ export function Footer() {
         <div>
           <a href="#product" className="inline-flex min-h-11 items-center gap-3 text-ink">
             <BrandMark className="size-9 shrink-0" />
-            <span className="text-data font-semibold">{landingContent.footer.line}</span>
+            <span className="text-h3 font-semibold">{landingContent.footer.line}</span>
           </a>
           <p className="mt-4 max-w-[66ch] text-meta leading-relaxed text-ink-muted">
             {landingContent.footer.disclaimer}

@@ -1,6 +1,5 @@
 import { landingContent } from "../../content/landing-content";
 import { BrandMark } from "../brand-mark";
-import { MockAction } from "../mock-action";
 
 export function NavFloat() {
   return (
@@ -11,7 +10,9 @@ export function NavFloat() {
       >
         <a href="#product" className="flex min-h-11 items-center gap-2 rounded-pill text-ink">
           <BrandMark className="size-8 shrink-0" priority />
-          <span className="text-data font-semibold tracking-tight">GoProceed</span>
+          <span className="text-h3 font-semibold tracking-tight landing-marker-accent">
+            GoProceed
+          </span>
         </a>
 
         <div className="ml-auto hidden items-center gap-1 md:flex">
@@ -26,10 +27,13 @@ export function NavFloat() {
           ))}
         </div>
 
-        <MockAction className="ml-auto md:ml-2" variant="primary">
+        <a
+          href="#pilot"
+          className="ml-auto inline-flex min-h-11 items-center justify-center rounded-control bg-action px-4 text-data font-semibold text-action-fg transition-colors duration-fast ease-out hover:bg-action-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus md:ml-2"
+        >
           <span className="hidden md:inline">{landingContent.nav.action}</span>
           <span className="md:hidden">Пілот</span>
-        </MockAction>
+        </a>
       </nav>
     </header>
   );

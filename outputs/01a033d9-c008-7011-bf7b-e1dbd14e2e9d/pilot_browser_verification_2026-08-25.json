@@ -1,0 +1,47 @@
+{
+  "verified_at": "2026-08-25T23:59:59+03:00",
+  "browser": "Codex in-app Browser",
+  "policy": "Only company-level identity, activity and public business routes are retained. No personal contacts are stored.",
+  "records": [
+    {
+      "edrpou": "32735498",
+      "company_name": "ТОВ МІСТО ЕНЕРДЖІ",
+      "status": "direct_fit_confirmed",
+      "url": "https://opendatabot.ua/c/32735498",
+      "company_url": "https://mistoenergy.com.ua/",
+      "evidence": "Exact entity is active; registry activity includes water, heating and air-conditioning installation, electrical installation and other construction-installation work. The official company website describes turnkey heat-substation and engineering-system work."
+    },
+    {
+      "edrpou": "00132351",
+      "company_name": "ДП ВІННИЦЬКА МЕХАНІЗОВАНА КОЛОНА ПРАТ КИЇВСІЛЬЕЛЕКТРО",
+      "status": "keep_pilot_n15",
+      "url": "https://kievselelektro.pat.ua/documents/kontaktna-inform",
+      "company_url": "https://kievselelektro.pat.ua/",
+      "evidence": "Exact EDRPOU and subsidiary identity are corroborated by registry search and the parent company's public corporate page. Official Prozorro awards provide the primary evidence for transformer-substation and power-line scope."
+    },
+    {
+      "edrpou": "04847816",
+      "company_name": "КП ЕЛЕКТРОМОНТАЖНАЛАДКА",
+      "status": "identity_verified_tender_scope_primary",
+      "url": "https://opendatabot.ua/c/04847816",
+      "company_url": "",
+      "evidence": "Exact EDRPOU and active legal entity are corroborated. No standalone official company website was found in the focused search; official Prozorro awards remain the primary evidence for electrical-installation and transformer work."
+    },
+    {
+      "edrpou": "35089695",
+      "company_name": "ТОВ ЕКОВЕНТ-КОМПЛЕКТ",
+      "status": "requalify_self_performed_installation",
+      "url": "https://opendatabot.ua/c/35089695",
+      "company_url": "",
+      "evidence": "Exact entity is active and has official ventilation-installation awards, but the search-visible primary activity is manufacture of other metal products. Confirm that ventilation installation is self-performed and that a PТО/documentation workflow exists before offering the pilot."
+    },
+    {
+      "edrpou": "23628267",
+      "company_name": "МПП АГРОЕНЕРГОСЕРВІС",
+      "status": "keep_pilot_n15_tender_route",
+      "url": "https://opendatabot.ua/c/23628267",
+      "company_url": "",
+      "evidence": "Exact active entity is corroborated. Focused search also surfaced public procurement work for electrical-equipment measurements and the current official electrical-installation contracts; no standalone official company website was found."
+    }
+  ]
+}

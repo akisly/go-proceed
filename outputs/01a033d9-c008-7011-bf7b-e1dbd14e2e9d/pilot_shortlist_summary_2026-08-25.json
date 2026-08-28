@@ -1,0 +1,41 @@
+{
+  "generated_at": "2026-08-25T23:59:59+03:00",
+  "source_file": "prospects_unified_v8_2026-08-24.json",
+  "source_accounts": 2178,
+  "shortlist_accounts": 103,
+  "group_counts": {
+    "A1 — Запуск пилота 30–45 дней": 21,
+    "A2 — Квалификация перед пилотом": 50,
+    "B1 — Discovery → пилот": 30,
+    "C — Генподрядчик / канал": 2
+  },
+  "fit_counts": {
+    "N.14 — сантехніка / HVAC / тепло": 17,
+    "N.15 — електромонтаж / силові системи": 54,
+    "Adjacent workflow — discovery до пілоту": 32
+  },
+  "core_launch_accounts": 71,
+  "discovery_reserve_accounts": 32,
+  "batches": 12,
+  "queue_counts": {
+    "New outbound": 101,
+    "Re-engagement": 2
+  },
+  "contact_route_counts": {
+    "1 — Офіційний сайт": 22,
+    "2 — Перевірений корпоративний маршрут": 8,
+    "3 — Prozorro / реєстр; route потрібен": 71,
+    "2 — Перевірений публічний профіль": 2
+  },
+  "browser_verified_direct_fit": 12,
+  "browser_requalification_required": 0,
+  "confirmed_interest": 0,
+  "agreed_pilots": 0,
+  "rules": {
+    "a1": "Direct N.14/N.15 fit, readiness >=80, at least one future published completion signal, no public/non-contractor or Browser requalification signal, and a verified public route or strong tender evidence",
+    "a2": "Direct N.14/N.15 fit and readiness >=68; requires qualification before pilot offer",
+    "b1": "Adjacent workflow with readiness >=66 and workflow fit >=4; discovery before pilot",
+    "c": "Strong tender intent and general-contractor/channel signal",
+    "agreement": "pilot_agreed is true only after an explicit positive response; no inferred agreements"
+  }
+}
