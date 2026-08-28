@@ -65,6 +65,56 @@ describe("NewAssignmentForm", () => {
     expect(await screen.findByText("Забагато знаків після коми.")).toBeTruthy();
   });
 
+  /**
+   * The claim: «anything unmapped falls back to the banner, so no error can
+   * vanish». That sentence is the whole reason `unmappedFrom` exists, and a
+   * message the server sent that the user never sees is the exact failure this
+   * design was built to prevent — invisible in every other test here, because
+   * every other test names a path the form has a field for.
+   *
+   * BOTH HALVES IN ONE CASE, on purpose. Two separate tests would each prove
+   * that one branch fires; only one document carrying both paths proves the
+   * SPLIT — that the known message went to its field and NOT also to the
+   * banner, and the unknown one went to the banner and was not silently
+   * dropped on the way.
+   */
+  it("splits a mixed refusal: the named field's message to that field, the rest to the banner", async () => {
+    const create = vi.fn<CreateAssignmentImpl>(async () => ({
+      kind: "refused", status: 422, detail: "Перевірте поля.",
+      problem: {
+        fieldErrors: [
+          { path: "plannedQuantity", message: "Забагато знаків після коми." },
+          // A path this form has no field for. The server owns the contract,
+          // not the form, so it can and does name things the form never
+          // renders.
+          { path: "contractId", message: "Кошторис уже не чинний." },
+        ],
+      },
+    }));
+    render(<NewAssignmentForm projectId="p1" baselines={baselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={create} initialWorkItemId={WORK_ITEM_ID} />);
+    await userEvent.click(screen.getByRole("button", { name: "Створити доручення" }));
+
+    // `FieldError` is role="alert"; `Banner` is deliberately role="status"
+    // (Banner.tsx: an answer to a press is not an interruption). That is what
+    // makes these two queries address the two halves separately.
+    const fieldError = await screen.findByRole("alert");
+    const banner = screen.getByRole("status");
+
+    expect(fieldError).toHaveTextContent("Забагато знаків після коми.");
+    expect(banner).toHaveTextContent("Кошторис уже не чинний.");
+
+    // The split, stated as what must NOT happen: the mapped message does not
+    // also land in the banner, and the unmapped one does not vanish into the
+    // field it has no home in.
+    expect(banner).not.toHaveTextContent("Забагато знаків після коми.");
+    expect(fieldError).not.toHaveTextContent("Кошторис уже не чинний.");
+
+    // `detail` is the fallback for a refusal that named nothing unmapped —
+    // never a replacement for a message the server actually sent.
+    expect(banner).not.toHaveTextContent("Перевірте поля.");
+  });
+
   it("does not fire a second request when the button is pressed twice", async () => {
     let resolve!: (v: CreateAssignmentResult) => void;
     const create = vi.fn<CreateAssignmentImpl>(
