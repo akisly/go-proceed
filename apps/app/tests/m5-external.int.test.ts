@@ -12,6 +12,10 @@ import { materialiseOccurrences } from "../src/lib/occurrence-writer";
 import {
   EXTERNAL_CSRF_HEADER, EXTERNAL_SESSION_COOKIE, resetKeyRegistriesForTests,
 } from "../src/lib/external-link";
+import {
+  EXTERNAL_TEST_APPROVER, EXTERNAL_TEST_ORIGIN, cookieOf, exchange,
+  externalScope as scope, issueGrant as issue, tokenOf,
+} from "./helpers/external-plane";
 
 /**
  * NOTHING IN THIS FILE HAS BEEN EXECUTED. No `vitest`, no `tsc`, no `psql`, no
@@ -73,7 +77,7 @@ const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
-const ORIGIN = "https://prykladapp.example";
+const ORIGIN = EXTERNAL_TEST_ORIGIN;
 
 /**
  * `packages.submit` IS IN NO ROW OF
@@ -94,7 +98,7 @@ const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign
 
 const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
 const STAGE = "prykhovani-roboty";
-const APPROVER = "technical_supervisor";
+const APPROVER = EXTERNAL_TEST_APPROVER;
 
 interface Fx extends BaselineFixture {
   contractVersionId: string;
@@ -200,51 +204,15 @@ async function baseline(): Promise<Fx> {
   };
 }
 
-async function issue(
-  occurrenceId: string, body: Record<string, unknown> = {}, key = crypto.randomUUID(),
-): Promise<Response> {
-  const { POST } = await import("../app/v1/occurrences/[occurrenceId]/grants/route");
-  const req = new Request("http://x", {
-    method: "POST",
-    headers: { "content-type": "application/json", "idempotency-key": key },
-    body: JSON.stringify({
-      recipientEmail: "prykladtechnahliad@example.test",
-      recipientRole: APPROVER,
-      permissions: { "external.view_scope": true, "external.decide_evidence": true },
-      ...body,
-    }),
-  });
-  return POST(req, { params: Promise.resolve({ occurrenceId }) });
-}
-
-function tokenOf(link: { url: string }): string {
-  return new URL(link.url).hash.slice(1);
-}
-
-async function exchange(token: string, origin = ORIGIN): Promise<Response> {
-  const { POST } = await import("../app/external/exchange/route");
-  return POST(new Request(`${ORIGIN}/external/exchange`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin },
-    body: JSON.stringify({ token }),
-  }));
-}
-
-/** The opaque cookie value the browser would have stored. */
-function cookieOf(res: Response): string {
-  const raw = res.headers.get("set-cookie") ?? "";
-  const m = new RegExp(`${EXTERNAL_SESSION_COOKIE}=([A-Za-z0-9_-]{43})`).exec(raw);
-  if (!m) throw new Error(`no external session cookie in: ${raw}`);
-  return m[1]!;
-}
-
-async function scope(cookie: string | null): Promise<Response> {
-  const { GET } = await import("../app/external/occurrence/route");
-  const headers: Record<string, string> = {};
-  if (cookie) headers.cookie = `${EXTERNAL_SESSION_COOKIE}=${cookie}`;
-  return GET(new Request(`${ORIGIN}/external/occurrence`, { headers }),
-    { params: Promise.resolve({}) });
-}
+/*
+ * `issue`, `tokenOf`, `exchange`, `cookieOf` and `scope` are the SHARED
+ * external-plane drivers (`./helpers/external-plane`, extracted 2026-08-28 —
+ * TODOS 2026-08-27 residual 9; this file's copies were the originals). The
+ * knobs this suite's refusal matrix is made of survived as parameters:
+ * `exchange(token, origin)` for the cross-origin exchange and `scope(null)`
+ * for the cookieless read. `submit` below stays HERE — it has one consumer,
+ * and its CSRF/content-type/origin knobs are this suite's own.
+ */
 
 async function submit(
   cookie: string, csrf: string | null, body: Record<string, unknown>,
