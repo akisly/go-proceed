@@ -74,10 +74,19 @@ export function createTelegramApiClient(config: TelegramConfig, fetcher: Telegra
       throw networkError(forSend);
     }
     let payload: TelegramApiResponse<T> | null = null;
-    try { payload = await response.json() as TelegramApiResponse<T>; } catch { payload = null; }
+    try { payload = await response.json() as TelegramApiResponse<T>; } catch {
+      // A successful HTTP response whose body cannot be read or decoded may
+      // still represent an accepted send. Never turn that outcome into a
+      // retryable provider rejection that could duplicate the message.
+      if (forSend && response.ok) throw networkError(true);
+    }
     const providerStatus = typeof payload?.error_code === "number" ? payload.error_code : response.status;
-    if (!response.ok || payload?.ok !== true || payload.result === undefined) {
+    if (!response.ok || payload?.ok === false) {
       throw providerError(providerStatus, providerStatus === 429 || providerStatus >= 500);
+    }
+    if (payload?.ok !== true || payload.result === undefined || payload.result === null) {
+      if (forSend && response.ok) throw networkError(true);
+      throw providerError(providerStatus, false);
     }
     return payload.result;
   }
@@ -86,10 +95,10 @@ export function createTelegramApiClient(config: TelegramConfig, fetcher: Telegra
     const result = await post<TelegramApiFile>("getFile", { file_id: fileId });
     const path = typeof result.file_path === "string" ? result.file_path : null;
     if (path === null || typeof result.file_id !== "string") throw providerError(200, false);
-    const fileSize = typeof result.file_size === "number" && Number.isSafeInteger(result.file_size) ? result.file_size : null;
-    if (fileSize !== null && fileSize > MAX_TELEGRAM_FILE_BYTES) {
+    if (typeof result.file_size === "number" && Number.isFinite(result.file_size) && result.file_size > MAX_TELEGRAM_FILE_BYTES) {
       throw new TelegramApiError("provider_limit", "provider_file_too_large", null, false, "Telegram file exceeds the evidence size limit.");
     }
+    const fileSize = typeof result.file_size === "number" && Number.isSafeInteger(result.file_size) ? result.file_size : null;
     return { fileId: result.file_id, fileUniqueId: typeof result.file_unique_id === "string" ? result.file_unique_id : null, fileSize, filePath: path };
   }
 
@@ -99,7 +108,10 @@ export function createTelegramApiClient(config: TelegramConfig, fetcher: Telegra
       if (input.replyToMessageId !== undefined && input.replyToMessageId !== null) body.reply_parameters = { message_id: input.replyToMessageId };
       if (input.messageThreadId !== undefined && input.messageThreadId !== null) body.message_thread_id = input.messageThreadId;
       const result = await post<{ message_id: string | number }>("sendMessage", body, true);
-      const messageId = validateDecimalId(typeof result.message_id === "number" ? String(result.message_id) : result.message_id);
+      if (typeof result !== "object" || result === null) throw networkError(true);
+      const messageId = typeof result.message_id === "number"
+        ? (Number.isSafeInteger(result.message_id) ? String(result.message_id) : null)
+        : validateDecimalId(result.message_id);
       if (messageId === null) throw providerError(200, false);
       return { messageId };
     },

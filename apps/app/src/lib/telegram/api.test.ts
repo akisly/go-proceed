@@ -25,12 +25,32 @@ describe("TelegramApiClient", () => {
       .rejects.toMatchObject({ kind: "delivery_unknown" });
   });
 
+  it("classifies an unreadable 2xx send response as delivery_unknown", async () => {
+    const malformedResponseFetch = (async () => new Response("not-json", { status: 200 })) as typeof fetch;
+    const client = createTelegramApiClient(config, malformedResponseFetch);
+    await expect(client.sendMessage({ chatId: "-1001", text: "Тест" }))
+      .rejects.toMatchObject({ kind: "delivery_unknown", code: "network_outcome_unknown" });
+  });
+
   it("refuses a getFile result above 20 MiB before downloading bytes", async () => {
     const fetcher = fakeTelegramFetch({ fileSize: MAX_TELEGRAM_FILE_BYTES + 1 });
     const client = createTelegramApiClient(config, fetcher);
     await expect(client.downloadFile("file-id"))
       .rejects.toMatchObject({ kind: "provider_limit" });
     expect(fetcher.calls.some((call) => call.url.includes("/file/bot"))).toBe(false);
+  });
+
+  it("refuses an unsafe finite oversized file declaration before downloading bytes", async () => {
+    const fetcher = fakeTelegramFetch({ fileSize: Number.MAX_SAFE_INTEGER + 1 });
+    const client = createTelegramApiClient(config, fetcher);
+    await expect(client.downloadFile("file-id")).rejects.toMatchObject({ kind: "provider_limit" });
+    expect(fetcher.calls.some((call) => call.url.includes("/file/bot"))).toBe(false);
+  });
+
+  it("rejects an unsafe numeric provider message id instead of rewriting it", async () => {
+    const client = createTelegramApiClient(config, fakeTelegramFetch({ messageId: Number.MAX_SAFE_INTEGER + 1 }));
+    await expect(client.sendMessage({ chatId: "-1001", text: "Тест" }))
+      .rejects.toMatchObject({ kind: "provider_error" });
   });
 
   it("keeps definite provider failures distinct from delivery_unknown and safe", async () => {

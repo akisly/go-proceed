@@ -97,6 +97,21 @@ describe("normalizeTelegramUpdate", () => {
     });
   });
 
+  it("selects the largest photo pixel area when file sizes are absent", () => {
+    const normalized = normalizeTelegramUpdate({
+      update_id: 1008,
+      message: {
+        ...messageFixture.message,
+        photo: [
+          { file_id: "wide", file_unique_id: "wide-u", width: 200, height: 100 },
+          { file_id: "tall", file_unique_id: "tall-u", width: 100, height: 300 },
+        ],
+        text: undefined,
+      },
+    });
+    expect(normalized).toMatchObject({ files: [{ fileId: "tall" }] });
+  });
+
   it("returns unsupported for updates outside the adapter boundary", () => {
     expect(normalizeTelegramUpdate({ update_id: 1007, channel_post: {} })).toEqual({
       kind: "unsupported",

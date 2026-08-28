@@ -68,7 +68,17 @@ function filesFromMessage(message: AnyRecord): TelegramFileCandidate[] {
     ? message.photo.map(record).filter((item): item is AnyRecord => item !== null)
       .map(candidateFromPhoto).filter((item): item is TelegramFileCandidate => item !== null)
     : [];
-  const largestPhoto = photos.sort((a, b) => (b.fileSize ?? 0) - (a.fileSize ?? 0) || (b.width ?? 0) - (a.width ?? 0))[0];
+  const area = (photo: TelegramFileCandidate): number => {
+    const width = photo.width;
+    const height = photo.height;
+    if (width === null || height === null || !Number.isSafeInteger(width) || !Number.isSafeInteger(height) || width < 0 || height < 0) return 0;
+    if (height !== 0 && width > Number.MAX_SAFE_INTEGER / height) return 0;
+    return width * height;
+  };
+  const largestPhoto = photos.sort((a, b) =>
+    area(b) - area(a) || (b.fileSize ?? 0) - (a.fileSize ?? 0) ||
+    (b.width ?? 0) - (a.width ?? 0) || (b.height ?? 0) - (a.height ?? 0),
+  )[0];
   const candidates: TelegramFileCandidate[] = largestPhoto ? [largestPhoto] : [];
 
   const document = record(message.document);
