@@ -114,8 +114,20 @@ import {
  * inputs. INV-015's determinism clause is «byte-deterministic FOR A GIVEN
  * RENDERER VERSION», so this string is the qualifier that makes the promise
  * keepable across a change to this file.
+ *
+ * /2, 2026-08-28: the project-sourced slice taught `blocksFor` to print
+ * `PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT` on a list that carries a
+ * PROJECT_DOCUMENTATION decision — output that /1, still deployed anywhere the
+ * new code is not, cannot produce. Left un-bumped, «/1» would have named two
+ * different behaviours, and a cross-binary divergence on such an act would
+ * have reported «renderer statutory-act-render/1 against frozen
+ * statutory-act-render/1» — a diagnostic pointing away from the real cause.
+ * Bumped after verifying no frozen act exists outside disposable local dev
+ * (staging measured 2026-08-28: migrations through 0058, zero
+ * statutory_act_versions rows), so no pinned content_hash anywhere covers the
+ * old string and the bump breaks no re-render.
  */
-export const RENDERER_VERSION = "statutory-act-render/1";
+export const RENDERER_VERSION = "statutory-act-render/2";
 
 // ───────────────────────────────────────────────────────────────────────────
 // Provenance-bearing source records
