@@ -100,7 +100,7 @@ const ITEM = {
   sourceSheet: "12",
   sourceDrawingNo: "АР-07",
   sourceRevision: null,
-  verification: "VERIFIED_PRIMARY" as const,
+  verification: "PROJECT_DOCUMENTATION" as const,
   status: "active" as const,
   createdAt: "2026-08-24T00:00:00.000Z",
   archivedAt: null,
@@ -121,27 +121,33 @@ describe("project_requirements.list", () => {
     expect(r.success).toBe(true);
   });
 
-  // This schema reuses verificationTag rather than restating its values, so it
-  // accepts whatever that constant accepts without being told to here.
-  it.each(["VERIFIED_PRIMARY", "VERIFIED_SECONDARY"] as const)(
-    "accepts verification %s",
+  // THE TYPE IS THE STORABLE SET (TODOS 2026-08-27 residual 8b, closed
+  // 2026-08-28). An earlier version of this file asserted the opposite —
+  // «accepts verification VERIFIED_PRIMARY / VERIFIED_SECONDARY», blessing a
+  // response typed wider than anything this table's CHECK can store. The
+  // schema is now the literal, so every value but PROJECT_DOCUMENTATION is
+  // refused, the seeded-library tags included: a project-sourced row claiming
+  // «перевірено» is exactly the conflation ADR-010 decision 4 forbids.
+  it.each(["VERIFIED_PRIMARY", "VERIFIED_SECONDARY", "UNVERIFIED"] as const)(
+    "refuses verification %s — the one returnable value is PROJECT_DOCUMENTATION",
     (tag) => {
-      expect(projectSourcedRequirementItem.safeParse({ ...ITEM, verification: tag }).success).toBe(true);
+      const r = projectSourcedRequirementItem.safeParse({ ...ITEM, verification: tag });
+      expect(r.success).toBe(false);
+      if (!r.success) expect(r.error.issues[0]?.path).toEqual(["verification"]);
     },
   );
 
-  // INV-073, restated at the boundary: UNVERIFIED is not a storable value and
-  // must not become a returnable one.
-  it("refuses UNVERIFIED as a verification tag", () => {
-    const r = projectSourcedRequirementItem.safeParse({ ...ITEM, verification: "UNVERIFIED" });
-    expect(r.success).toBe(false);
-    if (!r.success) expect(r.error.issues[0]?.path).toEqual(["verification"]);
-  });
-
-  it("refuses an empty source field even in a response row", () => {
+  it("refuses an empty and a whitespace-only source field even in a response row", () => {
+    // The whitespace half is residual 8a: the response now runs the same
+    // `.trim().min(1)` chain the create request runs, a second layer over
+    // migration 0059 §1's btrim CHECKs — so «nothing can produce one» stops
+    // being the only reason a blank never reaches a reader.
     for (const field of ["sourceDocument", "sourceSheet", "sourceDrawingNo", "itemTextUk"]) {
       expect(projectSourcedRequirementItem.safeParse({ ...ITEM, [field]: "" }).success).toBe(false);
+      expect(projectSourcedRequirementItem.safeParse({ ...ITEM, [field]: " \t " }).success).toBe(false);
     }
+    expect(projectSourcedRequirementItem
+      .safeParse({ ...ITEM, sourceRevision: "  " }).success).toBe(false);
   });
 
   it("refuses a status outside active or archived", () => {
