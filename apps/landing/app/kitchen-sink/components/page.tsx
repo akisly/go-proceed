@@ -79,7 +79,10 @@ export default function ComponentSink() {
   const [value, setValue] = useState("620");
   const invalid = Number.isNaN(Number(value)) || value.trim() === "";
   const fixedFieldId = useId();
+  const fixedDescriptionId = useId();
+  const fixedErrorId = useId();
   const commentFieldId = useId();
+  const commentDescriptionId = useId();
 
   return (
     <TooltipProvider>
@@ -182,17 +185,25 @@ export default function ComponentSink() {
               <Input
                 id={fixedFieldId}
                 aria-invalid={invalid}
+                aria-describedby={
+                  [fixedDescriptionId, invalid ? fixedErrorId : undefined].filter(Boolean).join(" ")
+                  || undefined
+                }
                 inputMode="decimal"
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
               />
-              <FieldDescription>Одиниці — за позицією кошторису</FieldDescription>
-              {invalid && <FieldError errors={[{ message: "Введіть число" }]} />}
+              <FieldDescription id={fixedDescriptionId}>Одиниці — за позицією кошторису</FieldDescription>
+              {invalid && <FieldError id={fixedErrorId} errors={[{ message: "Введіть число" }]} />}
             </Field>
             <Field>
               <FieldLabel htmlFor={commentFieldId}>Коментар до відмови</FieldLabel>
-              <Textarea id={commentFieldId} placeholder="Що саме не підтверджено" />
-              <FieldDescription>Побачить технагляд</FieldDescription>
+              <Textarea
+                id={commentFieldId}
+                aria-describedby={commentDescriptionId}
+                placeholder="Що саме не підтверджено"
+              />
+              <FieldDescription id={commentDescriptionId}>Побачить технагляд</FieldDescription>
             </Field>
           </div>
         </Case>
