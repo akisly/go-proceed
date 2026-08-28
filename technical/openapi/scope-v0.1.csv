@@ -67,3 +67,5 @@ blocked_value.get,GET,/v1/projects/{projectId}/blocked-value,query,natural,membe
 project_field_channel.configure,POST,/v1/projects/{projectId}/field-channel,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M6
 project_field_channel.get,GET,/v1/projects/{projectId}/field-channel,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M6
 projects.activate,POST,/v1/projects/{projectId}/activate,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M6
+telegram_binding_intents.create,POST,/v1/projects/{projectId}/telegram/binding-intents,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M6
+telegram_member_link_intents.create,POST,/v1/projects/{projectId}/telegram/member-link-intents,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M6

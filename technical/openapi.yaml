@@ -1704,6 +1704,43 @@
         "x-idempotency-class": "standard_30d"
       }
     },
+    "/projects/{projectId}/telegram/binding-intents": {
+      "post": {
+        "tags": ["Projects"],
+        "operationId": "createTelegramBindingIntent",
+        "summary": "Issue a one-time Telegram group-binding link for a draft project",
+        "description": "Requires project.admin. The response's Telegram URL contains a 15-minute one-time token and must not be persisted or replayed by a client.",
+        "parameters": [{ "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTelegramBindingIntentRequest" } } } },
+        "responses": {
+          "201": { "description": "One-time group-binding link", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TelegramBindingIntentResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/Validation" }
+        },
+        "x-idempotency-class": "one_time_secret_response"
+      }
+    },
+    "/projects/{projectId}/telegram/member-link-intents": {
+      "post": {
+        "tags": ["Projects"],
+        "operationId": "createTelegramMemberLinkIntent",
+        "summary": "Issue a one-time private Telegram identity-link URL for the current member",
+        "description": "Creates an identity link only for the caller's current active membership in this project context. Display names and usernames do not authorize the link.",
+        "parameters": [{ "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTelegramMemberLinkIntentRequest" } } } },
+        "responses": {
+          "201": { "description": "One-time private identity-link URL", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TelegramMemberLinkIntentResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/Validation" }
+        },
+        "x-idempotency-class": "one_time_secret_response"
+      }
+    },
     "/projects/{projectId}/locations": {
       "get": {
         "tags": [
@@ -12243,6 +12280,36 @@
           "channelState": { "type": ["string", "null"], "enum": ["unbound", "connected", "active", "unhealthy", "archived", null] },
           "lockedAt": { "type": ["string", "null"], "format": "date-time" },
           "version": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "CreateTelegramBindingIntentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "TelegramBindingIntentResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["intentId", "expiresAt", "telegramUrl"],
+        "properties": {
+          "intentId": { "type": "string", "format": "uuid" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "telegramUrl": { "type": "string", "format": "uri" }
+        }
+      },
+      "CreateTelegramMemberLinkIntentRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {}
+      },
+      "TelegramMemberLinkIntentResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["intentId", "expiresAt", "telegramUrl"],
+        "properties": {
+          "intentId": { "type": "string", "format": "uuid" },
+          "expiresAt": { "type": "string", "format": "date-time" },
+          "telegramUrl": { "type": "string", "format": "uri" }
         }
       },
       "TenantRole": {

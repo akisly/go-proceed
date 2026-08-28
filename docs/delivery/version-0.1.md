@@ -169,7 +169,7 @@ in each API slice below. The table columns come from ADR-006 decision 4.
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
-| `v0.1-M6` | 6 | 0 | — |
+| `v0.1-M6` | 8 | 0 | — |
 | Total | 68 | 26 | 26 |
 
 *The «v0.1 tables» column is ADR-006 decision 4's build list and stays at
