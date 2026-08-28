@@ -35,9 +35,11 @@ export const POST = commandRoute(activateProjectRequest, async (a) => {
         throw conflict(a.requestId, "Проєкт було змінено. Оновіть сторінку і повторіть.");
       }
       const c = await tx.query(
-        `select channel, state from public.project_field_channels where workspace_id=$1 and project_id=$2 for update`,
+        `select channel, state, last_healthy_at
+           from public.project_field_channels where workspace_id=$1 and project_id=$2 for update`,
         [workspaceId, projectId]);
-      if (p.rows[0].status !== "draft" || c.rows.length === 0 || c.rows[0].state !== "connected") {
+      if (p.rows[0].status !== "draft" || c.rows.length === 0
+        || c.rows[0].state !== "connected" || c.rows[0].last_healthy_at === null) {
         throw conflict(a.requestId, "Чернетку проєкту можна активувати лише з підключеним каналом Telegram.");
       }
       const updated = await tx.query(
@@ -55,7 +57,7 @@ export const POST = commandRoute(activateProjectRequest, async (a) => {
       await enqueueOutbox(tx, ctx, {
         topic: "project.activated", aggregate_type: "project", aggregate_id: projectId,
         payload_version: 1, payload: { workspaceId, projectId, channel: channel.rows[0].channel },
-      });
+      }, { organizationId: workspaceId });
       return {
         status: 200,
         body: projectFieldChannelResponse.parse({

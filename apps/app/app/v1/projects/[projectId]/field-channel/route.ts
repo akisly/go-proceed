@@ -78,10 +78,10 @@ export const POST = commandRoute(configureProjectFieldChannelRequest, async (a) 
       if (current.rows.length === 0) {
         await tx.query(
           `insert into public.project_field_channels (workspace_id, project_id, channel, state)
-           values ($1,$2,$3,'connected')`, [workspaceId, projectId, a.body.channel]);
+           values ($1,$2,$3,'unbound')`, [workspaceId, projectId, a.body.channel]);
       } else if (current.rows[0].state === "unbound") {
         await tx.query(
-          `update public.project_field_channels set channel=$3, state='connected', version=version+1, updated_at=now()
+          `update public.project_field_channels set channel=$3, version=version+1, updated_at=now()
             where workspace_id=$1 and project_id=$2`, [workspaceId, projectId, a.body.channel]);
       } else {
         throw conflict(a.requestId, "Канал польової комунікації вже налаштовано.");
@@ -93,7 +93,7 @@ export const POST = commandRoute(configureProjectFieldChannelRequest, async (a) 
         action: "project_field_channel.configured", object_type: "project", object_id: projectId,
         details: { channel: a.body.channel },
       }, { organizationId: workspaceId });
-      return { status: 200, body: responseOf(projectId, { ...updated.rows[0], channel: a.body.channel, state: "connected", locked_at: null }) };
+      return { status: 200, body: responseOf(projectId, { ...updated.rows[0], channel: a.body.channel, state: "unbound", locked_at: null }) };
     });
   });
   return { status: out.status, body: out.body, expiresAt: out.expiresAt };

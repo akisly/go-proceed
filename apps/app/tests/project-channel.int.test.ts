@@ -76,20 +76,62 @@ describe("project field channel", () => {
     expect((await response.json()).code).toBe("VERSION_CONFLICT");
   });
 
-  it("configures Telegram once, then activates and locks the channel", async () => {
+  it("keeps configuration unbound and refuses member activation before a healthy binding exists", async () => {
     const configured = await configure(projectId, { channel: "telegram", expectedVersion: 1 });
     expect(configured.status).toBe(200);
     expect(await configured.json()).toMatchObject({
-      projectId, projectStatus: "draft", channel: "telegram", channelState: "connected", lockedAt: null, version: 2,
+      projectId, projectStatus: "draft", channel: "telegram", channelState: "unbound", lockedAt: null, version: 2,
     });
+
+    const unbound = await activate(projectId, { expectedVersion: 2 });
+    expect(unbound.status).toBe(409);
+    expect((await unbound.json()).code).toBe("VERSION_CONFLICT");
+
+    // Task 4 owns the binding write. Simulate its connected-but-unhealthy row
+    // here so this Task 1 route proves it cannot treat a selected channel as a
+    // live Telegram group.
+    await q(
+      "update public.project_field_channels set state='connected' where workspace_id=$1 and project_id=$2",
+      [workspaceId, projectId],
+    );
+    const unhealthy = await activate(projectId, { expectedVersion: 2 });
+    expect(unhealthy.status).toBe(409);
+    expect((await unhealthy.json()).code).toBe("VERSION_CONFLICT");
+
+    await q(
+      "update public.project_field_channels set last_healthy_at=now() where workspace_id=$1 and project_id=$2",
+      [workspaceId, projectId],
+    );
 
     const activated = await activate(projectId, { expectedVersion: 2 });
     expect(activated.status).toBe(200);
-    expect(await activated.json()).toMatchObject({
+    const body = await activated.json();
+    expect(body).toMatchObject({
       projectId, projectStatus: "active", channel: "telegram", channelState: "active", version: 3,
     });
-    const [outbox] = await q<{ topic: string }>(
-      "select topic from public.transaction_outbox where aggregate_id=$1", [projectId]);
-    expect(outbox).toEqual({ topic: "project.activated" });
+    expect(body.lockedAt).toEqual(expect.any(String));
+    const [committed] = await q<{
+      status: string; state: string; locked_at: string | null; organization_id: string | null; topic: string;
+    }>(`
+      select p.status, c.state, c.locked_at, o.organization_id, o.topic
+        from public.projects p
+        join public.project_field_channels c on c.workspace_id=p.workspace_id and c.project_id=p.id
+        join public.transaction_outbox o on o.aggregate_id=p.id
+       where p.id=$1`, [projectId]);
+    expect(committed).toMatchObject({
+      status: "active", state: "active", organization_id: workspaceId, topic: "project.activated",
+    });
+    expect(committed!.locked_at).not.toBeNull();
+
+    const reconfigure = await configure(projectId, { channel: "telegram", expectedVersion: 3 });
+    expect(reconfigure.status).toBe(409);
+    await expect(q(
+      "update public.project_field_channels set locked_at=locked_at + interval '1 second' where workspace_id=$1 and project_id=$2",
+      [workspaceId, projectId],
+    )).rejects.toThrow(/locked field channel identity is immutable/i);
+    await expect(q(
+      "update public.project_field_channels set state='unbound' where workspace_id=$1 and project_id=$2",
+      [workspaceId, projectId],
+    )).rejects.toThrow(/locked field channel/i);
   });
 });

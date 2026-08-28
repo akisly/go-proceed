@@ -321,6 +321,7 @@ create table public.project_field_channels (
   updated_at timestamptz not null default now(),
   primary key (workspace_id, project_id),
   foreign key (workspace_id, project_id) references public.projects (workspace_id, id),
+  foreign key (workspace_id, locked_by_member_id) references public.memberships (workspace_id, id),
   check ((locked_at is null and locked_by_member_id is null)
       or (locked_at is not null and locked_by_member_id is not null))
 );

@@ -22,6 +22,8 @@ create table public.project_field_channels (
   primary key (workspace_id, project_id),
   foreign key (workspace_id, project_id)
     references public.projects(workspace_id, id),
+  foreign key (workspace_id, locked_by_member_id)
+    references public.memberships(organization_id, id),
   check ((locked_at is null and locked_by_member_id is null)
       or (locked_at is not null and locked_by_member_id is not null))
 );
@@ -36,6 +38,39 @@ create policy pfc_insert on public.project_field_channels for insert to goprocee
 create policy pfc_update on public.project_field_channels for update to goproceed_app
   using (app.has_project_capability(workspace_id, project_id, array['project.admin']))
   with check (app.has_project_capability(workspace_id, project_id, array['project.admin']));
+
+create or replace function app.guard_project_field_channel() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  -- The one exceptional write that creates the lock must come from a connected,
+  -- recently healthy channel. A selected channel alone is not a Telegram group.
+  if old.locked_at is null and new.locked_at is not null
+     and (old.state <> 'connected' or old.last_healthy_at is null or new.state <> 'active') then
+    raise exception 'only a connected healthy field channel may be locked';
+  end if;
+
+  if old.locked_at is not null then
+    if new.channel is distinct from old.channel
+       or new.locked_at is distinct from old.locked_at
+       or new.locked_by_member_id is distinct from old.locked_by_member_id then
+      raise exception 'locked field channel identity is immutable';
+    end if;
+    if (old.state = 'active' and new.state not in ('active','unhealthy'))
+       or (old.state = 'unhealthy' and new.state not in ('unhealthy','active'))
+       or (old.state = 'archived' and new.state <> 'archived') then
+      raise exception 'locked field channel admits only health-state transitions';
+    end if;
+    if new.last_healthy_at is null
+       or new.last_healthy_at < old.last_healthy_at then
+      raise exception 'locked field channel health cannot be cleared or moved backwards';
+    end if;
+  end if;
+  return new;
+end $$;
+revoke all on function app.guard_project_field_channel() from public;
+create trigger project_field_channels_guard
+  before update on public.project_field_channels
+  for each row execute function app.guard_project_field_channel();
 
 alter table public.project_access_grants
   drop constraint project_access_grants_capability_check;
