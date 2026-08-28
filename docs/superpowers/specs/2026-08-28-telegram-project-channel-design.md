@@ -45,7 +45,7 @@ original.
 | 5 | Evidence is submitted by replying to a GoProceed assignment card. An unbound photo stays visible in communication history but is not evidence. |
 | 6 | One official GoProceed bot serves all project groups. Server-side tenant and project resolution provide isolation. |
 | 7 | GoProceed mirrors conversation from the time the bot is connected. It does not import earlier Telegram history. |
-| 8 | Removing or editing a Telegram message does not erase an evidence object or attributed decision already committed in GoProceed. |
+| 8 | Editing a Telegram message appends history and does not rewrite committed evidence or decisions. Removing a source message in Telegram does not erase GoProceed records; ordinary group-message deletions are not reported by the HTTP Bot API and therefore cannot be mirrored automatically. |
 
 ## 3. Approaches considered
 
@@ -96,8 +96,9 @@ second rich client.
 - send a PTV reply from the web app back to the same Telegram thread;
 - record Telegram replies from linked PTV members in the web history;
 - expose explicit accept and return actions with current authorization checks;
-- reflect Telegram edits and deletions without rewriting committed evidence or
-  decisions;
+- reflect Telegram edits without rewriting committed evidence or decisions;
+- preserve GoProceed history when a source is later removed in Telegram, while
+  making no claim that ordinary group-message deletion is observable;
 - retry safe delivery failures and make uncertain delivery visible;
 - monitor connection, ingestion, download, finalization, and delivery health.
 
@@ -131,6 +132,9 @@ their bytes are not downloaded and they cannot become evidence in this release.
 - retroactively associating an unbound photo in the web app;
 - videos, voice messages, PDFs, and arbitrary documents as evidence;
 - customer-specific bot names, tokens, or branding.
+- real-time mirroring of ordinary Telegram group-message deletions; the HTTP
+  Bot API exposes deletion updates only for connected business-account chats,
+  which this release explicitly excludes.
 
 ## 5. Current-state prerequisite
 
@@ -324,14 +328,15 @@ is authorized and scoped independently.
 - delivery/visibility state;
 - immutable original normalized content.
 
-Unique provider identities deduplicate inbound messages. Message edits and
-deletes append events; they do not overwrite original content.
+Unique provider identities deduplicate inbound messages. Message edits append
+events; they do not overwrite original content. Ordinary group-message
+deletions produce no HTTP Bot API update and therefore produce no event.
 
 ### `communication_message_events`
 
-Append-only edits, deletes, delivery transitions, and bot-removal/health events.
-Every event records provider time when present and server time. A delete event
-changes the chat projection but never cascades to evidence or decisions.
+Append-only edits, delivery transitions, and bot-removal/health events. Every
+event records provider time when present and server time. The model does not
+invent a deletion event when the provider emitted none.
 
 ### `communication_attachments`
 
@@ -436,7 +441,9 @@ only from a linked member who currently holds the required authority.
 - author, role, Telegram source, provider time, and server receipt time;
 - replies, assignment cards, image attachments, and evidence states;
 - explicit unlinked-author and unbound-attachment states;
-- message edit/delete history without implying evidence deletion;
+- message edit history without rewriting the original;
+- a permanent notice that Telegram source deletion is not observable and does
+  not delete GoProceed history;
 - PTV reply composer fixed to Telegram;
 - explicit accept and return actions;
 - delivery states: queued, provider accepted, failed, or unknown;
@@ -486,7 +493,8 @@ has no cross-project or cross-channel recipient picker.
 | Bot removed or permission revoked | Mark channel unhealthy, stop outbound sends, surface activation/operation failure, and do not switch channels. |
 | Definite outbound rejection | Apply bounded retries when classified retryable, then expose failure. |
 | Outbound acceptance unknown | Record `delivery_unknown`; do not blind-retry a possible duplicate. |
-| Telegram message edited/deleted | Append an event and update the chat projection; preserve immutable evidence and decisions. |
+| Telegram message edited | Append an event and update the chat projection; preserve immutable evidence and decisions. |
+| Telegram source message deleted | The ordinary Bot API emits no deletion update. Keep the GoProceed record unchanged and never claim live deletion mirroring. |
 
 ## 12. API surface
 
@@ -516,7 +524,7 @@ run outside the webhook response through leased work.
 
 - strict request/response schemas and channel vocabulary;
 - webhook-secret and update parser fixtures;
-- normalization of messages, replies, edits, deletes, albums, callbacks, and
+- normalization of messages, replies, edits, albums, callbacks, and
   group migrations;
 - stable provider idempotency identities;
 - requirement-choice and attachment state transitions;
@@ -534,7 +542,8 @@ run outside the webhook response through leased work.
 - unlinked participants cannot record evidence or decisions;
 - one-occurrence and multi-occurrence card flows;
 - albums, partial failures, quota limits, media policies, and revoked access;
-- edits/deletes preserve committed evidence and decision rows;
+- edits preserve committed evidence and decision rows;
+- absence of a deletion update never mutates or purges communication evidence;
 - a web reply commits with an outbox event atomically;
 - definite failure, bounded retry, dead letter, and delivery-unknown paths;
 - bot removal changes health without unlocking the channel.
@@ -543,7 +552,7 @@ run outside the webhook response through leased work.
 
 CI uses a fake Telegram Bot API server and signed webhook fixtures. It does not
 depend on the public Telegram service. The fake covers downloads, provider
-limits, send responses, timeouts after possible acceptance, edits, deletions,
+limits, send responses, timeouts after possible acceptance, and edits,
 callback queries, and group migration events.
 
 ### Staging acceptance
@@ -558,7 +567,9 @@ One real closed Telegram group and physical phone prove:
 6. see the same timeline and evidence in the web app;
 7. reply from Telegram and from the web app;
 8. accept and return with attributed decisions;
-9. edit and delete a source message without deleting evidence;
+9. edit a source message and observe append-only history; delete it in Telegram
+   and confirm GoProceed retains the last known record without claiming a
+   deletion event;
 10. remove and restore the bot and observe health without channel switching;
 11. inject a provider timeout and observe `delivery_unknown` without an
     automatic duplicate.
@@ -594,6 +605,6 @@ all existing projects and no inferred channel for historical projects.
 The release succeeds when a linked foreman can reply to an assignment card with
 a supported image, receive a truthful durable receipt, and have PTV see the
 same message and evidence in the web app; PTV can reply from either surface and
-record an attributed accept/return decision; duplicate, cross-tenant, deleted,
-failed, and uncertain-provider paths remain explainable without changing the
-project channel or inventing evidence.
+record an attributed accept/return decision; duplicate, cross-tenant, edited,
+source-removed, failed, and uncertain-provider paths remain explainable without
+changing the project channel, inventing a deletion event, or inventing evidence.
