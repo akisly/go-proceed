@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import type { Client } from "pg";
-import { adminClient, asActor } from "./pg";
+import { adminClient, appClient, asActor } from "./pg";
 import {
   dropRulesWorkspaces, raised, seedRuleVersion, seedRulesWorld, sqlstate,
   type RulesFixture,
@@ -54,6 +54,16 @@ const USER_B = "ffff4444-4444-4444-4444-444444444444";
  */
 const WS_C = "ffff5555-5555-5555-5555-555555555555";
 const USER_C = "ffff6666-6666-6666-6666-666666666666";
+/**
+ * A SECOND authorized retiree of WS_A, role 'admin'.
+ *
+ * Without a second one, a re-stamped retired_by_member_id would carry the same
+ * value it already had and the corruption would be invisible in that column —
+ * only the timestamp would move. The concurrency case below needs both halves
+ * observable. The same arrangement, for the same reason, as USER_D in
+ * m1-project-sourced-schema.test.ts.
+ */
+const USER_D = "ffff7777-7777-7777-7777-777777777777";
 
 const NEW_TABLES = [
   "requirement_library_items",
@@ -64,6 +74,8 @@ const NEW_TABLES = [
 let c: Client;
 let a: RulesFixture;
 let b: RulesFixture;
+/** USER_D's membership id in WS_A — the value a losing racer would stamp. */
+let adminMemberId: string;
 
 beforeAll(async () => {
   c = await adminClient();
@@ -83,6 +95,17 @@ beforeAll(async () => {
   await c.query(
     `insert into public.memberships (organization_id, user_id, role, status)
      values ($1,$2,'owner','active')`, [WS_C, USER_C]);
+
+  await c.query(
+    `insert into auth.users (id, instance_id, aud, role, email,
+                             encrypted_password, created_at, updated_at)
+     values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',
+             $2,'',now(),now())
+     on conflict (id) do nothing`, [USER_D, `${USER_D}@fixture.test`]);
+  const admin = await c.query<{ id: string }>(
+    `insert into public.memberships (organization_id, user_id, role, status)
+     values ($1,$2,'admin','active') returning id`, [WS_A, USER_D]);
+  adminMemberId = admin.rows[0]!.id;
 }, 120_000);
 
 afterAll(async () => {
@@ -140,6 +163,54 @@ async function withTriggerDisabled<T>(
   await c.query(`alter table public.${table} disable trigger ${trigger}`);
   try { return await fn(); }
   finally { await c.query(`alter table public.${table} enable trigger ${trigger}`); }
+}
+
+/**
+ * Opens a member transaction on a client the CALLER owns and leaves it open.
+ *
+ * `asActor` commits before it returns, which is right for every other case here
+ * and useless for the concurrency case: driving an interleaving needs one
+ * transaction still holding its row lock while a second one runs. The same
+ * instrument as m1-project-sourced-schema.test.ts's `beginAs`.
+ */
+async function beginAs(cl: Client, user: string, ws: string): Promise<void> {
+  await cl.query("begin");
+  await cl.query("set local role goproceed_app");
+  await cl.query("select set_config('app.actor_user_id', $1, true)", [user]);
+  await cl.query("select set_config('app.organization_id', $1, true)", [ws]);
+}
+
+/**
+ * Blocks until some OTHER backend is waiting on a lock inside the retire
+ * command, and fails loudly if none ever does.
+ *
+ * This is what turns the concurrency case below from a hoped-for interleaving
+ * into a driven one. Committing the winner on a timer instead would let the
+ * loser's snapshot be taken AFTER the commit, in which case it reads 'retired',
+ * returns at the idempotency branch, and the case silently degrades into the
+ * sequential replay that is already tested one `it` above — passing whether or
+ * not the compare-and-swap is there. The first, timing-based version of the
+ * sibling archive test passed against the unfixed function for exactly that
+ * reason (migration 0059's report).
+ */
+async function waitUntilBlockedOnRetire(budgetMs = 10_000): Promise<void> {
+  const deadline = Date.now() + budgetMs;
+  for (;;) {
+    const r = await c.query<{ n: number }>(
+      // `pid <> pg_backend_pid()` because this poll's OWN text contains the
+      // function name it searches for, inside the LIKE literal.
+      `select count(*)::int as n from pg_stat_activity
+        where pid <> pg_backend_pid()
+          and wait_event_type = 'Lock'
+          and query like '%retire_requirement_rule_version%'`);
+    if (r.rows[0]!.n > 0) return;
+    if (Date.now() > deadline) {
+      throw new Error(
+        "no backend ever blocked inside app.retire_requirement_rule_version; "
+        + "the racing interleaving this test exists to drive did not happen");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
 }
 
 describe("0041 builds three tenant-safe tables", () => {
@@ -460,6 +531,67 @@ describe("a published rule version is immutable (INV-067)", () => {
       `select retired_at from public.requirement_rule_versions where id = $1`, [rv.ruleVersionId]);
     expect(second.rows[0]!.retired_at.toISOString())
       .toBe(first.rows[0]!.retired_at.toISOString());
+  });
+
+  it("keeps the first retiree when a second one RACES it, not merely when one replays", async () => {
+    // THE CASE THE SEQUENTIAL REPLAY ABOVE CANNOT REACH — TODOS residual 4 of
+    // the 2026-08-27 slice, migration 0060. A replay returns at the status
+    // read; a racer never sees that status. Both calls read 'published', both
+    // proceed to the UPDATE, and the loser then re-evaluates its WHERE against
+    // the winner's committed row. Without the compare-and-swap the loser's
+    // UPDATE still matches, retired -> retired reaches the guard (0041 §7),
+    // and the guard RAISES — a racing call to an operation scope-v0.1.csv
+    // marks idempotency-required errors instead of being the promised no-op.
+    // The same interleaving, driven the same way, as the archive race in
+    // m1-project-sourced-schema.test.ts, whose CAS this migration copies.
+    const rv = await seedRuleVersion(c, a);
+    const winner = appClient();
+    const loser = appClient();
+    await winner.connect();
+    await loser.connect();
+    let loserError: unknown;
+    try {
+      // The winner runs its UPDATE and holds the row lock, uncommitted.
+      await beginAs(winner, USER_A, WS_A);
+      await winner.query(
+        `select app.retire_requirement_rule_version($1,$2)`, [WS_A, rv.ruleVersionId]);
+
+      // The loser takes its own snapshot, reads a row that is STILL
+      // 'published', passes the idempotency branch, and blocks on that lock. A
+      // wait here is bounded by the commit two statements down, so a timeout
+      // is a bug rather than a slow machine.
+      await beginAs(loser, USER_D, WS_A);
+      await loser.query("set local lock_timeout = '15s'");
+      const blocked = loser
+        .query(`select app.retire_requirement_rule_version($1,$2)`, [WS_A, rv.ruleVersionId])
+        .catch((e: unknown) => { loserError = e; });
+
+      // Not a sleep: the winner commits only once the loser is PROVABLY past
+      // its status read and waiting on the row lock.
+      await waitUntilBlockedOnRetire();
+      await winner.query("commit");
+      await blocked;
+      if (loserError === undefined) await loser.query("commit");
+      else await loser.query("rollback");
+    } finally {
+      await winner.end().catch(() => undefined);
+      await loser.end().catch(() => undefined);
+    }
+    // The losing call is not an error — it is a no-op. Raising would make a
+    // concurrent retirement fail an operation scope-v0.1.csv:30 marks
+    // idempotency-required.
+    expect(loserError).toBeUndefined();
+
+    const row = await c.query<{ status: string; retired_by_member_id: string }>(
+      `select status, retired_by_member_id from public.requirement_rule_versions
+        where id = $1`, [rv.ruleVersionId]);
+    expect(row.rows[0]!.status).toBe("retired");
+    // Who retired it and when is the fact the function records. Without
+    // `and status = 'published'` on the UPDATE the loser's WHERE still matches
+    // after the winner commits — the guard turns that into a raise today, and
+    // with the guard gone it would read adminMemberId instead.
+    expect(row.rows[0]!.retired_by_member_id).toBe(a.memberId);
+    expect(row.rows[0]!.retired_by_member_id).not.toBe(adminMemberId);
   });
 
   it("refuses a retirement that also alters content, and one that records no retiree", async () => {
