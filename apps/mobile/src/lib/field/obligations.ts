@@ -12,7 +12,13 @@ type EvidenceKindValue = "photo" | "measurement" | "document" | "checkbox";
 
 interface NormativeCitation {
   text: string;
-  verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY";
+  // Kept in sync BY HAND with `packages/contracts/src/requirement-library.ts`'s
+  // `verificationTag` — this app has no dependency on `@goproceed/contracts` to
+  // import it from (see the file header). Widened to three values by migration
+  // 0059/ADR-010: `PROJECT_DOCUMENTATION` names an origin (a workspace's own
+  // робоча документація), not a verification strength, and is never a
+  // downgrade target or source for the other two.
+  verification: "VERIFIED_PRIMARY" | "VERIFIED_SECONDARY" | "PROJECT_DOCUMENTATION";
   source: string;
 }
 

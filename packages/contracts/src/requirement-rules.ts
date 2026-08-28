@@ -124,11 +124,15 @@ export const publishRequirementRuleVersionRequest = z.object({
    */
   allowedMedia: allowedMedia.optional(),
   /**
-   * REQUIRED in v0.1, and the column is nullable on purpose: "the only rule
-   * source in v0.1 is the shipped library" (ADR-006 decision 4.1) is a v0.1
-   * restriction, and a NOT NULL would bake v0.1 into the schema and make
-   * v0.2's workspace-authored rules a schema change rather than an additive
-   * one. The restriction therefore lives here, in the command's contract.
+   * One of two mutually exclusive sources for this version's content — see
+   * `projectSourcedRequirementItemId` and the superRefine below for the
+   * exactly-one rule. REQUIRED, and the only source, until ADR-010
+   * superseded that one clause of ADR-006 decision 4.1 ("the only rule
+   * source in v0.1 is the shipped library") and gave a workspace a second
+   * source of its own, still within v0.1. The column was already nullable
+   * for exactly this reason: a NOT NULL would have baked "library only" into
+   * the schema and made a second source a schema change rather than the
+   * additive one ADR-010 turned out to need.
    *
    * NOTE WHAT IS NOT ON THIS WIRE: `normRef`, `normRefVerification` and
    * `normRefSource`. The command COPIES all three from the cited library row
@@ -137,7 +141,17 @@ export const publishRequirementRuleVersionRequest = z.object({
    * exactly what INV-073 and hidden-works-content-rules.md exist to prevent.
    * They are returned, never accepted.
    */
-  requirementLibraryItemId: z.string().guid(),
+  requirementLibraryItemId: z.string().guid().optional(),
+  /**
+   * The second source (ADR-010): an item a workspace authored into
+   * `project_requirements` from its own робоча документація, rather than the
+   * shipped library. Exactly one of this and `requirementLibraryItemId` is
+   * required — see the superRefine below — because a version rests on one
+   * source, never both and never neither. Same shape as the library arm: the
+   * caller names which item, and the command copies its content into the
+   * version rather than accepting normative text directly.
+   */
+  projectSourcedRequirementItemId: z.string().guid().optional(),
 }).strict().superRefine((v, ctx) => {
   // INV-082, first refusal (ADR-006 decision 4.3). `witness` needs the notice
   // event and its attendance outcomes; `review`'s only blocking scope is
@@ -182,6 +196,23 @@ export const publishRequirementRuleVersionRequest = z.object({
       message: "allowedMedia is not accepted for evidenceKind 'measurement' and 'checkbox'",
     });
   }
+  // ADR-010: v0.1 has two rule sources and a version rests on exactly one.
+  // AT MOST ONE IN THE DATABASE, EXACTLY ONE ON THE WIRE — the two halves are
+  // not the same rule and the difference is load-bearing.
+  // requirement_rule_versions_one_provenance_check (0059) is
+  // `library is null or project_sourced is null`: it refuses BOTH ids and
+  // admits NEITHER, so a row citing no source at all is storable and
+  // m1-project-sourced-schema.test.ts asserts that it is. The exactly-one rule
+  // lives HERE and nowhere else, so this refusal is not a friendlier restating
+  // of a constraint — for the both-ids half it names the field instead of
+  // raising 23514, and for the neither-id half it is the only refusal there is.
+  if ((v.requirementLibraryItemId != null) === (v.projectSourcedRequirementItemId != null)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["requirementLibraryItemId"],
+      message: "exactly one of requirementLibraryItemId or projectSourcedRequirementItemId is required",
+    });
+  }
 });
 export type PublishRequirementRuleVersionRequest =
   z.infer<typeof publishRequirementRuleVersionRequest>;
@@ -223,7 +254,22 @@ export interface RequirementRuleVersionResponse {
   normRef: string | null;
   normRefVerification: VerificationTagValue | null;
   normRefSource: string | null;
-  requirementLibraryItemId: string;
+  /**
+   * The two provenances (ADR-010), EXACTLY ONE of them non-null — the same
+   * exactly-one rule the publish request states above and
+   * `requirement_rule_versions_one_provenance_check` enforces in the database.
+   *
+   * BOTH ARE CARRIED, AND THE NULL HALF IS THE INFORMATION. Which source a
+   * version rests on is not derivable from `normRefVerification` alone
+   * (`PROJECT_DOCUMENTATION` names an origin, not the item), and a response
+   * carrying only the filled field would leave a consumer unable to tell an
+   * absent provenance from an arm it did not read. `requirementLibraryItemId`
+   * became nullable here when the second arm shipped: a reader that treated it
+   * as always present would dereference `null` on every project-sourced
+   * version.
+   */
+  requirementLibraryItemId: string | null;
+  projectSourcedRequirementItemId: string | null;
   publishedAt: string;
 }
 export type PublishRequirementRuleVersionResponse = RequirementRuleVersionResponse;

@@ -184,6 +184,32 @@ export function ruleVersionBody(
   };
 }
 
+/**
+ * The same v0.1 rule shape resting on ADR-010's SECOND source arm: an item the
+ * workspace authored from its own робоча документація rather than a shipped
+ * Додаток Н row.
+ *
+ * A SIBLING OF `ruleVersionBody`, NOT A PARAMETER OF IT. The request's
+ * superRefine requires EXACTLY ONE of the two source ids, so a single builder
+ * taking both would make «neither» and «both» — the two shapes this command may
+ * never receive — reachable by ordinary use of the fixture.
+ *
+ * IT IS BUILT FROM `ruleVersionBody` RATHER THAN BESIDE IT, so the two arms
+ * cannot drift: everything except the source id is literally the same object,
+ * and a field added to the shared shape reaches this arm without a second edit.
+ * The uuid handed in below is destructured away before the body is returned and
+ * never reaches a route — the delete removes the KEY, so this does not lean on
+ * `JSON.stringify` dropping an undefined value the way an inline
+ * `requirementLibraryItemId: undefined` override does.
+ */
+export function projectSourcedRuleVersionBody(
+  projectSourcedRequirementItemId: string, over: Record<string, unknown> = {},
+): Record<string, unknown> {
+  const shared = ruleVersionBody("00000000-0000-0000-0000-000000000000");
+  delete shared.requirementLibraryItemId;
+  return { ...shared, projectSourcedRequirementItemId, ...over };
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
 /**

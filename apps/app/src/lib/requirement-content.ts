@@ -49,6 +49,50 @@ export function citationOf(sourceStandard: string, positionCode: string): string
   return `${sourceStandard}, Додаток Н (довідковий), позиція ${positionCode}`;
 }
 
+/**
+ * The citation of a requirement a workspace took from its own робоча
+ * документація. Allow-list item 8 is the only thing asserted about WHY it
+ * binds: «the binding list for a given site comes from робоча документація
+ * (п. 8.4.3.3)». Nothing here attributes the TEXT to a ДБН.
+ *
+ * THE ДБН REFERENCE INSIDE THE PARENTHESES IS NOT AN ATTRIBUTION OF THE TEXT,
+ * and the distinction is the whole of why this string is allowed to name a
+ * standard at all. It cites the clause that makes a site's own documentation
+ * binding for that site; `citationOf` above cites a standard as the AUTHOR of
+ * the wording. Confusing the two is exactly what
+ * hidden-works-content-rules.md §"Project-sourced strings" forbids — «never as
+ * content of ДБН А.3.1-5:2016 … and never under a standard's attribution».
+ *
+ * NO «Додаток Н», ever. A project-sourced string «must never appear inside a
+ * Додаток Н block», and a citation carrying that name is how it would end up
+ * rendered inside one.
+ */
+export function projectSourceNormRef(): string {
+  return "Робоча документація об'єкта (п. 8.4.3.3 ДБН А.3.1-5:2016)";
+}
+
+/**
+ * The structured source that must accompany `projectSourceNormRef()` —
+ * document, аркуш, креслення, and the ревізія when one was given.
+ *
+ * THE PROJECT NAME IS DELIBERATELY ABSENT. A name is mutable and this string is
+ * frozen into `rule_version_hash`, so a renamed project would leave every
+ * version that cited it carrying a name the workspace no longer uses. The three
+ * structured fields identify the document, and the version's own
+ * `project_sourced_requirement_item_id` carries the project mark by reference.
+ *
+ * THE REVISION IS OPTIONAL BECAUSE THE COLUMN IS. `source_revision` is the one
+ * nullable identifying field on `project_sourced_requirement_items` (0059); the
+ * other three are NOT NULL and non-blank, which is what makes «робоча
+ * документація» a source rather than a word (INV-073, ADR-010 decision 3).
+ */
+export function projectSourceCitationOf(
+  document: string, sheet: string, drawingNo: string, revision: string | null,
+): string {
+  const base = `${document}, арк. ${sheet}, кресл. ${drawingNo}`;
+  return revision === null ? base : `${base}, ревізія ${revision}`;
+}
+
 export interface LibraryItemRow {
   id: string;
   source_standard: string;
@@ -109,7 +153,15 @@ export interface RuleVersionRow {
   norm_ref: string | null;
   norm_ref_verification: string | null;
   norm_ref_source: string | null;
-  requirement_library_item_id: string;
+  /**
+   * The two provenances, exactly one of them filled —
+   * `requirement_rule_versions_one_provenance_check` (0059) is what makes the
+   * pair exclusive. Both are nullable HERE and not only in the database: a
+   * `string` on either would let a reader dereference the arm that is null on
+   * every row published from the other source.
+   */
+  requirement_library_item_id: string | null;
+  project_sourced_requirement_item_id: string | null;
   published_at: Date | string;
 }
 
@@ -164,7 +216,13 @@ export function ruleVersionView(r: RuleVersionRow): RequirementRuleVersionRespon
     normRef: r.norm_ref,
     normRefVerification: r.norm_ref_verification as VerificationTagValue | null,
     normRefSource: r.norm_ref_source,
+    // BOTH provenances travel, one of them null, and the null half is
+    // information rather than an omission: it is how a reader tells a version
+    // resting on the shipped Додаток Н from one resting on a site's own робоча
+    // документація (ADR-010). Returning only the filled one would make the two
+    // arms indistinguishable to a consumer that reads a single field.
     requirementLibraryItemId: r.requirement_library_item_id,
+    projectSourcedRequirementItemId: r.project_sourced_requirement_item_id,
     publishedAt: new Date(r.published_at).toISOString(),
   };
 }

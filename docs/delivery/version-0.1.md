@@ -158,19 +158,26 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22** — see the notes under the table. Both of the day's two additions are Plan D slice D1 and both are reads; the note under the table names them. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24** — see the notes under the table. Both of the day's two additions are Plan D slice D1 and both are reads; the note under the table names them. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
 |---|---|---|---|
 | M0 — cross-cutting | — | — | — |
-| `v0.1-M1` | 32 | 8 | 8 |
+| `v0.1-M1` | 35 | 8 | 8 |
 | `v0.1-M2` | 9 | 5 | 5 |
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
 | `v0.1-M6` | 3 | 0 | — |
-| Total | 62 | 26 | 26 |
+| Total | 65 | 26 | 26 |
+
+*The «v0.1 tables» column is ADR-006 decision 4's build list and stays at
+its 26. `project_sourced_requirement_items` is a twenty-seventh v0.1 table,
+added by [ADR-010](../decisions/ADR-010-project-sourced-requirements.md) on
+2026-08-24 rather than by ADR-006, and it is deliberately not counted into a
+list that names what ADR-006 decided. Its three operations ARE counted above,
+because the operations column counts scope-v0.1.csv and nothing else.*
 
 *M4 is 6 operations, not 4, as of 2026-08-18. `project_parties.create` and
 `party_contacts.create` were added because the act's mandatory signatory slots
@@ -324,7 +331,7 @@ settled it stands unchanged and settles the next disagreement the same way.
   predicate narrows to **(work type, stage)** — `locations` stays deployed and is
   not read by the predicate, and `unit_definitions` is used only as far as a
   manual line needs a unit (decision 4.2).
-- **API slice:** the 32 `v0.1-M1` operations — `workspaces.create`,
+- **API slice:** the 35 `v0.1-M1` operations — `workspaces.create`,
   `me.context`, `invitations.create`, `invitations.accept`, `members.list`,
   `parties.create`, `parties.update`, `parties.legal_profile.put`,
   `parties.own_profile.create`, `projects.create`, `projects.list`,
@@ -335,7 +342,9 @@ settled it stands unchanged and settles the next disagreement the same way.
   `import_batches.validate`, `import_batches.get`, `import_resolutions.create`,
   `import_batches.publish`, `requirement_rule_versions.publish`,
   `requirement_rule_versions.retire`, `requirement_library.list`,
-  `requirement_templates.create`, `requirement_templates.publish`.
+  `requirement_templates.create`, `requirement_templates.publish`,
+  `project_requirements.create`, `project_requirements.archive`,
+  `project_requirements.list`.
   Three notes on that list, because three groups of rows are there for different
   reasons:
   - **Five are new and are the manual baseline** — `contract_versions.create`,
