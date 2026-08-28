@@ -28,7 +28,7 @@ export function ReadinessMap() {
 
   return (
     <figure aria-label="Стан демонстраційного пакета робіт" className="grid wide:grid-cols-[1.18fr_0.82fr]">
-      <div className="border-b border-line p-5 md:p-8 wide:border-b-0 wide:border-r wide:p-10">
+      <div className="landing-dot-grid border-b border-line p-5 md:p-8 wide:border-b-0 wide:border-r wide:p-10">
         <figcaption className="index-label text-ink-muted">{content.sampleLabel}</figcaption>
         <ReadinessWorkflow nodes={content.nodes} />
 

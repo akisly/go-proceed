@@ -37,7 +37,7 @@ export function FieldReviewVisual() {
 
       <div
         data-field-capture-card="true"
-        className="mx-auto w-full max-w-[390px] overflow-hidden rounded-section border border-line-inverse bg-surface text-ink shadow-float wide:mx-0"
+        className="mx-auto w-full overflow-hidden rounded-section border border-line-inverse bg-surface text-ink shadow-float wide:mx-0"
       >
         <div className="flex min-h-12 items-center justify-between border-b border-line px-5">
           <span className="index-label text-ink-muted">Польова робота · W-014</span>
@@ -72,7 +72,7 @@ export function FieldReviewVisual() {
       <div ref={handoffRef} className="relative mx-auto flex w-full max-w-[300px] items-center justify-center py-4 wide:h-full wide:max-w-none wide:py-0" aria-hidden="true">
         <span
           data-handoff-line="true"
-          className={`absolute left-0 right-0 top-1/2 h-px origin-left bg-line-inverse transition-transform duration-slow ease-out motion-reduce:scale-x-100 motion-reduce:transition-none wide:right-8 ${
+          className={`absolute left-0 right-0 top-1/2 h-px origin-left bg-line-inverse transition-transform duration-slow ease-out motion-reduce:scale-x-100 motion-reduce:transition-none ${
             handoffDrawn ? "scale-x-100" : "scale-x-0"
           }`}
         />

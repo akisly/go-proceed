@@ -102,6 +102,20 @@ describe("landing evidence journey", () => {
     expect(section).not.toContain('role="tablist"');
   });
 
+  it("drives the evidence journey with Motion instead of CSS transitions", () => {
+    const section = html.slice(
+      html.indexOf('id="workflow"'),
+      html.indexOf('id="field-review"'),
+    );
+
+    expect(section).toContain('data-evidence-motion-engine="motion"');
+    expect(section).toContain('data-evidence-stage-transition="presence"');
+    expect(section.match(/data-evidence-scroll-trigger="motion-in-view"/g) ?? []).toHaveLength(3);
+    expect(section.match(/data-evidence-rail-motion="motion"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(section).not.toContain("transition-[opacity,transform]");
+    expect(section).not.toContain("transition-colors duration-slow");
+  });
+
   it("keeps one evidence point per journey chapter", () => {
     expect(decisionRail.match(/data-evidence-point="true"/g) ?? []).toHaveLength(3);
     expect(decisionRail).toContain("R-041");
@@ -160,11 +174,32 @@ describe("landing evidence journey", () => {
     );
 
     expect(workflow).toContain('data-readiness-workflow="true"');
+    expect(workflow).toContain('data-readiness-motion-engine="motion"');
+    expect(workflow).toContain('data-readiness-cycle="infinite"');
     expect(workflow).toContain("Пакет робіт");
     expect(workflow).toContain("Перевірка повноти");
     expect(workflow.match(/data-readiness-trunk="true"/g) ?? []).toHaveLength(1);
     expect(workflow.match(/data-readiness-branch=/g) ?? []).toHaveLength(3);
     expect(workflow.match(/data-readiness-endpoint=/g) ?? []).toHaveLength(3);
+    expect(workflow.match(/data-readiness-signal=/g) ?? []).toHaveLength(4);
+    expect(workflow.match(/data-readiness-traveler=/g) ?? []).toHaveLength(4);
+    expect(workflow.match(/data-readiness-pulse=/g) ?? []).toHaveLength(6);
+    expect(workflow).not.toContain("<animateMotion");
+    expect(workflow).not.toContain("<animate ");
+    expect(workflow).toContain('data-readiness-signal="trunk" class="stroke-ink-muted"');
+    expect(workflow).toContain('data-readiness-traveler="trunk" class="fill-ink-muted stroke-surface"');
+
+    for (const [id, lineTone, dotTone, pulseTone] of [
+      ["ready", "status-ready-fg", "status-ready-fg", "action-signal"],
+      ["review", "status-review-fg", "status-review-fg", "status-review"],
+      ["blocked", "status-blocked-fg", "status-blocked-fg", "status-blocked"],
+    ] as const) {
+      expect(workflow).toContain(`data-readiness-signal="${id}" class="stroke-${lineTone}"`);
+      expect(workflow).toContain(`data-readiness-traveler="${id}" class="fill-${dotTone} stroke-surface"`);
+      expect(workflow).toContain(`data-readiness-pulse="${id}-primary"`);
+      expect(workflow).toContain(`data-readiness-pulse="${id}-secondary"`);
+      expect(workflow.match(new RegExp(`data-readiness-pulse="${id}-(?:primary|secondary)"[^>]*stroke-${pulseTone}`, "g")) ?? []).toHaveLength(2);
+    }
 
     for (const detail of [
       "усі блокуючі вимоги виконані",
@@ -177,6 +212,9 @@ describe("landing evidence journey", () => {
 
   it("shows provenance and the honest v0.1 product boundary", () => {
     expect(html).toContain('aria-label="Квитанція походження EV-0248"');
+    expect(html).toContain("Квитанція доказу · EV-0248");
+    expect(html).toContain("verified-stamp-uk.png");
+    expect(html).not.toContain("Evidence receipt");
     expect(html).toContain("Працює у поточному контурі");
     expect(html).toContain("Не заявляємо");
     expect(html).toContain("Чернетка акта не є підписаним документом");

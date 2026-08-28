@@ -1,0 +1,70 @@
+{
+  "research_date": "2026-08-24",
+  "browser": "Codex in-app Browser",
+  "policy": "No personal contact data retained; company-level websites, registry profiles and tender evidence only.",
+  "companies": [
+    {
+      "edrpou": "38119659",
+      "company_name": "ТОВ ВІК.КІНГ",
+      "status": "keep_pilot_now",
+      "finding": "Registry search corroborates the entity and KVED 41.20; no official company site found. Official Prozorro awards remain the primary work-scope evidence.",
+      "url": "https://opendatabot.ua/c/38119659"
+    },
+    {
+      "edrpou": "42356035",
+      "company_name": "ТОВ СІТІПРОЕКТ",
+      "status": "requalify",
+      "finding": "Registry search shows primary KVED 71.11 architecture. Keep the tender signal but verify self-performed construction before outreach.",
+      "url": "https://opendatabot.ua/c/42356035"
+    },
+    {
+      "edrpou": "43187830",
+      "company_name": "ТОВ САН РОСТ",
+      "status": "requalify",
+      "finding": "Registry search shows primary KVED 01.11 agriculture. Tender wins alone do not establish a repeatable lift-contractor workflow.",
+      "url": "https://opendatabot.ua/c/43187830"
+    },
+    {
+      "edrpou": "40682121",
+      "company_name": "ТОВ ЩАСЛИВИЙ-СЕРВІСБУД",
+      "status": "keep_expansion_discovery",
+      "finding": "Entity is registered and Google surfaced an official Prozorro win for stormwater wells and drainage, corroborating the collected award record.",
+      "url": "https://opendatabot.ua/c/40682121"
+    },
+    {
+      "edrpou": "46158743",
+      "company_name": "ТОВ ПРОФЕСІЙНІ ПРОЄКТНІ РІШЕННЯ",
+      "status": "requalify",
+      "finding": "Registry search points to architecture and engineering activities; verify self-performed installation work before outreach.",
+      "url": "https://opendatabot.ua/c/46158743"
+    },
+    {
+      "edrpou": "41008865",
+      "company_name": "ТОВ СЕМ-ТЕХНОЛОДЖИ",
+      "status": "keep_expansion_discovery",
+      "finding": "Registry search shows primary KVED 42.21 pipeline construction and related water/heating installation activities. A similarly named website was not accepted as official without an EDRPOU match.",
+      "url": "https://opendatabot.ua/c/41008865"
+    },
+    {
+      "edrpou": "34329599",
+      "company_name": "ТОВ ТЕПЛО-КВАР",
+      "status": "upgrade_pilot_n14",
+      "finding": "Primary KVED 43.22 for water, heating and air-conditioning installation is corroborated by the official construction registry and matches the shipped N.14 workflow.",
+      "url": "https://e-construction.gov.ua/organizations_detail/2283351179398218946?org_type=3"
+    },
+    {
+      "edrpou": "36699380",
+      "company_name": "ТОВ ЗАХІДЕЛЕКТРОМОНТАЖ",
+      "status": "upgrade_pilot_n15",
+      "finding": "Official construction registry corroborates the entity; search results also show electrical-installation activity and material scale.",
+      "url": "https://e-construction.gov.ua/organizations_detail/2283351183407973805?org_type=14"
+    },
+    {
+      "edrpou": "33330969",
+      "company_name": "ТОВ ОПИТНИЙ ЗАВОД М",
+      "status": "keep_pilot_n15",
+      "finding": "Official company website describes construction, repair and engineering services; registry search shows construction organization as the primary activity.",
+      "url": "http://zavodm.com.ua/"
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+[
+  {
+    "company": "Компанія «ВіК»",
+    "domain": "vik.com.ua",
+    "source_url": "https://vik.com.ua/pages/view/GNB"
+  },
+  {
+    "company": "RalcoTechnic",
+    "domain": "ralco.com.ua",
+    "source_url": "https://ralco.com.ua/"
+  },
+  {
+    "company": "Ваша Безпека",
+    "domain": "vbezpeka.com.ua",
+    "source_url": "https://vbezpeka.com.ua/uk/service/pozhezhogasinnya/"
+  },
+  {
+    "company": "SOLTI",
+    "domain": "solti.ua",
+    "source_url": "https://www.solti.ua/systemna-integraciya/systemy-bezpeky-ta-keruvan/videonabludenie/"
+  },
+  {
+    "company": "Укравтономгаз",
+    "domain": "ukravtonomgaz.ua",
+    "source_url": "https://ukravtonomgaz.ua/scheme/kotelnya"
+  },
+  {
+    "company": "ORION.GROUP",
+    "domain": "oriongr.com",
+    "source_url": "https://oriongr.com/"
+  },
+  {
+    "company": "SARGON",
+    "domain": "sargon.com.ua",
+    "source_url": "https://www.sargon.com.ua/torkretuvannya-betonu"
+  }
+]

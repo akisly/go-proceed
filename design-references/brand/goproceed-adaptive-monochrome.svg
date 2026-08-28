@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <mask id="dot-ring" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">
+      <rect width="1024" height="1024" fill="#fff" />
+      <circle cx="721" cy="288" r="66" fill="#000" />
+    </mask>
+  </defs>
+  <g transform="translate(512 512) scale(.78) translate(-512 -512)">
+    <g mask="url(#dot-ring)">
+      <g fill="none" stroke="#FFFFFF" stroke-width="74" stroke-linecap="butt" stroke-linejoin="miter">
+      <path d="M693 253A316 316 0 1 0 828 512" />
+      <path d="M230.125 696 721 288" />
+      </g>
+      <path d="M470 640 624 512H850V586H651L586 640Z" fill="#FFFFFF" />
+    </g>
+    <circle cx="721" cy="288" r="54" fill="#FFFFFF" />
+  </g>
+</svg>

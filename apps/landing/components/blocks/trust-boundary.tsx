@@ -23,7 +23,7 @@ export function TrustBoundary() {
           <article aria-label="Квитанція походження EV-0248" className="overflow-hidden border border-line-strong bg-surface shadow-float">
             <header className="flex flex-wrap items-center gap-3 border-b border-line px-5 py-4 md:px-7">
               <ShieldCheck aria-hidden="true" className="size-5 text-status-ready-fg" strokeWidth={1.75} />
-              <p className="index-label text-ink-muted">Evidence receipt · EV-0248</p>
+              <p className="index-label text-ink-muted">Квитанція доказу · EV-0248</p>
               <span className="ml-auto rounded-pill border border-status-ready-line bg-status-ready px-3 py-1 text-micro font-semibold text-status-ready-fg">
                 Доказ прийнято
               </span>
@@ -47,7 +47,7 @@ export function TrustBoundary() {
                   </ol>
                 </div>
                 <Image
-                  src="/images/verified-stamp.png"
+                  src="/images/verified-stamp-uk.png"
                   alt="Графічна печатка перевіреного доказу"
                   width={260}
                   height={109}

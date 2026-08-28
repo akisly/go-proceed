@@ -10,7 +10,9 @@ export function NavFloat() {
       >
         <a href="#product" className="flex min-h-11 items-center gap-2 rounded-pill text-ink">
           <BrandMark className="size-8 shrink-0" priority />
-          <span className="text-data font-semibold tracking-tight">GoProceed</span>
+          <span className="text-h3 font-semibold tracking-tight landing-marker-accent">
+            GoProceed
+          </span>
         </a>
 
         <div className="ml-auto hidden items-center gap-1 md:flex">

@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useReduced } from "@goproceed/ui/motion";
+import {
+  animate,
+  motion,
+  useInView,
+  useMotionValue,
+  useTransform,
+  type MotionValue,
+} from "motion/react";
+import { useEffect, useRef } from "react";
 
 type ReadinessWorkflowNode = {
   id: "ready" | "review" | "blocked";
@@ -13,6 +22,24 @@ type ReadinessWorkflowProps = {
   nodes: readonly ReadinessWorkflowNode[];
 };
 
+type ReadinessSignalProps = {
+  d: string;
+  fillClassName: string;
+  id: "trunk" | ReadinessWorkflowNode["id"];
+  opacity: MotionValue<number>;
+  progress: MotionValue<number>;
+  start: readonly [number, number];
+  strokeClassName: string;
+  travelerOpacity: MotionValue<number>;
+};
+
+const cycle = {
+  duration: 2.2,
+  pause: 1.8,
+  trunkEnd: 0.25,
+  branchesEnd: 0.614,
+} as const;
+
 const layout = {
   ready: {
     cardY: 24,
@@ -21,6 +48,9 @@ const layout = {
     surface: "fill-status-ready",
     border: "stroke-status-ready-line",
     foreground: "fill-status-ready-fg",
+    signalFill: "fill-status-ready-fg",
+    signalStroke: "stroke-status-ready-fg",
+    pulseStroke: "stroke-action-signal",
   },
   review: {
     cardY: 121,
@@ -29,6 +59,9 @@ const layout = {
     surface: "fill-status-review",
     border: "stroke-status-review-line",
     foreground: "fill-status-review-fg",
+    signalFill: "fill-status-review-fg",
+    signalStroke: "stroke-status-review-fg",
+    pulseStroke: "stroke-status-review",
   },
   blocked: {
     cardY: 218,
@@ -37,55 +70,92 @@ const layout = {
     surface: "fill-status-blocked",
     border: "stroke-status-blocked-line",
     foreground: "fill-status-blocked-fg",
+    signalFill: "fill-status-blocked-fg",
+    signalStroke: "stroke-status-blocked-fg",
+    pulseStroke: "stroke-status-blocked",
   },
 } as const;
 
 export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
   const workflowRef = useRef<SVGSVGElement>(null);
-  const [motionState, setMotionState] = useState<"idle" | "active" | "static">("idle");
+  const inView = useInView(workflowRef, { amount: 0.4, once: true });
+  const reduced = useReduced();
+  const cycleProgress = useMotionValue(0);
+  const active = inView && !reduced;
   const total = nodes.reduce((sum, node) => sum + Number.parseInt(node.value, 10), 0);
 
   useEffect(() => {
-    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let observer: IntersectionObserver | undefined;
-
-    const showStatic = () => {
-      setMotionState("static");
-      observer?.disconnect();
-    };
-
-    if (mediaQuery.matches || !("IntersectionObserver" in window)) {
-      showStatic();
+    if (!active) {
+      cycleProgress.set(0);
       return;
     }
 
-    const node = workflowRef.current;
-    if (!node) {
-      showStatic();
-      return;
-    }
+    cycleProgress.set(0);
+    const controls = animate(cycleProgress, 1, {
+      duration: cycle.duration,
+      ease: "linear",
+      repeat: Infinity,
+      repeatDelay: cycle.pause,
+      repeatType: "loop",
+    });
 
-    const handlePreferenceChange = (event: MediaQueryListEvent) => {
-      if (event.matches) showStatic();
-    };
+    return () => controls.stop();
+  }, [active, cycleProgress]);
 
-    observer = new IntersectionObserver(
-      ([entry]) => {
-        if (!entry?.isIntersecting) return;
-        setMotionState("active");
-        observer?.disconnect();
-      },
-      { rootMargin: "0px 0px -10%", threshold: 0.4 },
-    );
+  const trunkProgress = useTransform(
+    cycleProgress,
+    [0, cycle.trunkEnd],
+    [0, 1],
+    { clamp: true },
+  );
+  const branchProgress = useTransform(
+    cycleProgress,
+    [cycle.trunkEnd, cycle.branchesEnd],
+    [0, 1],
+    { clamp: true },
+  );
+  const trunkOpacity = useTransform(
+    cycleProgress,
+    [0, 0.015, cycle.trunkEnd, 0.64, 0.72],
+    [0, 1, 1, 0.32, 0],
+  );
+  const branchOpacity = useTransform(
+    cycleProgress,
+    [0.235, cycle.trunkEnd, cycle.branchesEnd, 0.72, 0.8],
+    [0, 1, 1, 0.28, 0],
+  );
+  const trunkTravelerOpacity = useTransform(
+    cycleProgress,
+    [0, 0.015, 0.23, cycle.trunkEnd],
+    [0, 1, 1, 0],
+  );
+  const branchTravelerOpacity = useTransform(
+    cycleProgress,
+    [0.235, cycle.trunkEnd, 0.59, cycle.branchesEnd],
+    [0, 1, 1, 0],
+  );
+  const primaryPulseOpacity = useTransform(
+    cycleProgress,
+    [0.59, 0.635, 0.76, 0.91],
+    [0, 1, 0.58, 0],
+  );
+  const primaryPulseTransform = useTransform(
+    cycleProgress,
+    [0.59, 0.7, 0.91],
+    ["scale(0.98, 0.95)", "scale(1.025, 1.035)", "scale(1.07, 1.1)"],
+  );
+  const secondaryPulseOpacity = useTransform(
+    cycleProgress,
+    [0.65, 0.715, 0.84, 1],
+    [0, 0.82, 0.36, 0],
+  );
+  const secondaryPulseTransform = useTransform(
+    cycleProgress,
+    [0.65, 0.78, 1],
+    ["scale(0.99, 0.97)", "scale(1.05, 1.075)", "scale(1.1, 1.16)"],
+  );
 
-    mediaQuery.addEventListener("change", handlePreferenceChange);
-    observer.observe(node);
-
-    return () => {
-      mediaQuery.removeEventListener("change", handlePreferenceChange);
-      observer?.disconnect();
-    };
-  }, []);
+  const motionState = reduced ? "static" : active ? "active" : "idle";
 
   return (
     <svg
@@ -94,6 +164,8 @@ export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
       aria-labelledby="readiness-title readiness-desc"
       viewBox="0 0 760 320"
       data-readiness-workflow="true"
+      data-readiness-motion-engine="motion"
+      data-readiness-cycle="infinite"
       data-readiness-motion={motionState}
       className="mt-8 hidden h-auto w-full md:block"
     >
@@ -119,37 +191,30 @@ export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
           />
         ))}
 
-        <path
+        <ReadinessSignal
           d="M182 160H306"
-          pathLength="1"
-          className="readiness-workflow-signal readiness-workflow-trunk-signal stroke-action-signal"
-          strokeWidth="2.5"
+          fillClassName="fill-ink-muted"
+          id="trunk"
+          opacity={trunkOpacity}
+          progress={trunkProgress}
+          start={[182, 160]}
+          strokeClassName="stroke-ink-muted"
+          travelerOpacity={trunkTravelerOpacity}
         />
         {nodes.map((node) => (
-          <path
+          <ReadinessSignal
             key={`signal-${node.id}`}
             d={layout[node.id].path}
-            pathLength="1"
-            className="readiness-workflow-signal readiness-workflow-branch-signal stroke-action-signal"
-            strokeWidth="2.5"
+            fillClassName={layout[node.id].signalFill}
+            id={node.id}
+            opacity={branchOpacity}
+            progress={branchProgress}
+            start={[366, 160]}
+            strokeClassName={layout[node.id].signalStroke}
+            travelerOpacity={branchTravelerOpacity}
           />
         ))}
       </g>
-
-      {motionState === "active" && (
-        <g aria-hidden="true" className="fill-action-signal">
-          <circle r="4.5">
-            <animateMotion path="M182 160H306" dur="0.56s" fill="freeze" />
-            <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.84;1" dur="0.56s" fill="freeze" />
-          </circle>
-          {nodes.map((node) => (
-            <circle key={`pulse-${node.id}`} r="4.5">
-              <animateMotion path={layout[node.id].path} begin="0.4s" dur="0.64s" fill="freeze" />
-              <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.08;0.84;1" begin="0.4s" dur="0.64s" fill="freeze" />
-            </circle>
-          ))}
-        </g>
-      )}
 
       <g>
         <rect x="22" y="118" width="160" height="84" rx="14" className="fill-surface stroke-line-strong" />
@@ -187,14 +252,27 @@ export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
               rx="14"
               className={`${styles.surface} ${styles.border}`}
             />
-            <rect
+            <motion.rect
               x="508"
               y={styles.cardY}
               width="230"
               height="78"
               rx="14"
-              className={`readiness-workflow-endpoint-pulse fill-none ${styles.border}`}
+              data-readiness-pulse={`${node.id}-primary`}
+              className={`readiness-workflow-endpoint-pulse fill-none ${styles.pulseStroke}`}
+              strokeWidth="3"
+              style={{ opacity: primaryPulseOpacity, transform: primaryPulseTransform }}
+            />
+            <motion.rect
+              x="508"
+              y={styles.cardY}
+              width="230"
+              height="78"
+              rx="14"
+              data-readiness-pulse={`${node.id}-secondary`}
+              className={`readiness-workflow-endpoint-pulse fill-none ${styles.pulseStroke}`}
               strokeWidth="2"
+              style={{ opacity: secondaryPulseOpacity, transform: secondaryPulseTransform }}
             />
             <text x="528" y={textY + 13} className={`${styles.foreground} font-mono text-[26px] font-semibold`}>
               {node.value}
@@ -210,5 +288,53 @@ export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
         );
       })}
     </svg>
+  );
+}
+
+function ReadinessSignal({
+  d,
+  fillClassName,
+  id,
+  opacity,
+  progress,
+  start,
+  strokeClassName,
+  travelerOpacity,
+}: ReadinessSignalProps) {
+  const pathRef = useRef<SVGPathElement>(null);
+  const travelerX = useTransform(progress, (value) => {
+    const path = pathRef.current;
+    return path
+      ? path.getPointAtLength(path.getTotalLength() * value).x
+      : start[0];
+  });
+  const travelerY = useTransform(progress, (value) => {
+    const path = pathRef.current;
+    return path
+      ? path.getPointAtLength(path.getTotalLength() * value).y
+      : start[1];
+  });
+
+  return (
+    <>
+      <motion.path
+        ref={pathRef}
+        d={d}
+        data-readiness-signal={id}
+        className={strokeClassName}
+        strokeWidth="2.5"
+        style={{ opacity, pathLength: progress }}
+      />
+      <motion.circle
+        cx={travelerX}
+        cy={travelerY}
+        r="5.5"
+        aria-hidden="true"
+        data-readiness-traveler={id}
+        className={`${fillClassName} stroke-surface`}
+        strokeWidth="2.5"
+        style={{ opacity: travelerOpacity }}
+      />
+    </>
   );
 }
