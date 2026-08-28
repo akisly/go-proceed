@@ -14,9 +14,10 @@
  * nothing warning.
  */
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
-  Accordion, Banner, Button, Checkbox, Chip, DataTable, EmptyState, Field, Figure,
+  Accordion, Banner, Button, Checkbox, Chip, DataTable, EmptyState,
+  Field, FieldDescription, FieldError, FieldLabel, Figure,
   Input, Label, Textarea,
   Meter, Panel, PanelHeader, PanelBody, Separator, Skeleton,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -77,6 +78,8 @@ function Case({ n, name, rule, children }: {
 export default function ComponentSink() {
   const [value, setValue] = useState("620");
   const invalid = Number.isNaN(Number(value)) || value.trim() === "";
+  const fixedFieldId = useId();
+  const commentFieldId = useId();
 
   return (
     <TooltipProvider>
@@ -172,29 +175,24 @@ export default function ComponentSink() {
           <Meter segments={SEGMENTS} />
         </Case>
 
-        <Case n="07" name="Field + Input + Textarea" rule="Уся a11y-обв’язка написана один раз: label, description і error зшиті через aria-describedby, aria-invalid береться з наявності помилки. Помилка ніколи не є лише кольором.">
+        <Case n="07" name="Field + Input + Textarea" rule="Примітив узятий у shadcn один в один: він презентаційний, a11y-обв’язку — id, aria-describedby, aria-invalid — тепер збирає викликач, а не render prop. Помилка ніколи не є лише кольором: FieldError несе ✕ перед текстом.">
           <div className="grid max-w-xl gap-5">
-            <Field
-              label="Зафіксований обсяг"
-              description="Одиниці — за позицією кошторису"
-              required
-              error={invalid ? "Введіть число" : undefined}
-            >
-              {({ id, describedBy, invalid: bad }) => (
-                <Input
-                  id={id}
-                  aria-describedby={describedBy}
-                  aria-invalid={bad}
-                  inputMode="decimal"
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                />
-              )}
+            <Field data-invalid={invalid}>
+              <FieldLabel htmlFor={fixedFieldId}>Зафіксований обсяг</FieldLabel>
+              <Input
+                id={fixedFieldId}
+                aria-invalid={invalid}
+                inputMode="decimal"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+              />
+              <FieldDescription>Одиниці — за позицією кошторису</FieldDescription>
+              {invalid && <FieldError errors={[{ message: "Введіть число" }]} />}
             </Field>
-            <Field label="Коментар до відмови" description="Побачить технагляд">
-              {({ id, describedBy }) => (
-                <Textarea id={id} aria-describedby={describedBy} placeholder="Що саме не підтверджено" />
-              )}
+            <Field>
+              <FieldLabel htmlFor={commentFieldId}>Коментар до відмови</FieldLabel>
+              <Textarea id={commentFieldId} placeholder="Що саме не підтверджено" />
+              <FieldDescription>Побачить технагляд</FieldDescription>
             </Field>
           </div>
         </Case>
