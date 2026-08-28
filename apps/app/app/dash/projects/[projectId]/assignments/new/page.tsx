@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 
 import { listPublishedBaselines } from "../../../../../../src/services/baseline.service";
@@ -38,6 +39,22 @@ import { ShellFatalError } from "../../../../../../src/components/dash-shell/she
  * sentence. A caller whose own membership is not in the ACTIVE members list
  * (suspended, revoked, or a race with an admin's own edit) gets `""`, which
  * `NewAssignmentForm` treats as "no default assignee" rather than throwing.
+ *
+ * THE HEADING IS THIS ROUTE'S OWN, NOT THE FORM'S. `NewAssignmentForm` starts
+ * directly with `<form>` and owns no page chrome — unlike `AssignmentsList`
+ * one file over, which renders both its own `<h1>` and its content. Wrapper
+ * and heading here match `assignments-list.tsx`'s exactly (`mx-auto flex
+ * w-full max-w-content flex-col gap-4 p-6` / `text-h1 font-semibold
+ * text-ink`), so the two screens read as one system rather than one page
+ * with chrome and one without.
+ *
+ * SHARED WITH THE NO-BASELINE EMPTY STATE, NOT WITH THE FATAL ERROR —
+ * `ProjectOverviewHeader`'s own precedent one screen up
+ * (`project-overview-header.tsx`): a heading is shown for every branch that
+ * establishes "you are on this screen for a project you can reach" (the form,
+ * and the calm "no baseline yet" state), and withheld only where nothing
+ * about the screen could be asserted at all (`ShellFatalError`, matching
+ * every other fatal branch in this dash, none of which carry a heading).
  */
 type NewAssignmentPageProps = { params: Promise<{ projectId: string }> };
 
@@ -65,25 +82,39 @@ export default async function NewAssignmentPage({ params }: NewAssignmentPagePro
   // treatment `.../assignments/page.tsx` gives a project id outside the
   // caller's reach: `listProjects()` already filters to what RLS admits, so
   // an id that names no row here is indistinguishable from one that does not
-  // exist at all, and the generic fatal error is the honest answer for both.
+  // exist at all, and the generic fatal error is the honest answer for both,
+  // with no heading — there is nothing this screen can assert about a project
+  // it cannot confirm.
   const workspaceId = projects.projects.find((p) => p.projectId === projectId)?.workspaceId;
   if (workspaceId === undefined) return <ShellFatalError />;
 
-  if (baselines.baselines.length === 0) return <NoBaselineEmptyState />;
+  let content: ReactNode;
+  if (baselines.baselines.length === 0) {
+    content = <NoBaselineEmptyState />;
+  } else {
+    const members = await listMembers(workspaceId);
+    if (members.kind === "session_expired") {
+      redirect(`/login?next=${encodeURIComponent(back)}`);
+    }
+    if (members.kind !== "ok") return <ShellFatalError />;
 
-  const members = await listMembers(workspaceId);
-  if (members.kind === "session_expired") redirect(`/login?next=${encodeURIComponent(back)}`);
-  if (members.kind !== "ok") return <ShellFatalError />;
+    const active = members.members.filter((m) => m.status === "active");
+    const currentMemberId = active.find((m) => m.userId === me.meContext.userId)?.memberId ?? "";
 
-  const active = members.members.filter((m) => m.status === "active");
-  const currentMemberId = active.find((m) => m.userId === me.meContext.userId)?.memberId ?? "";
+    content = (
+      <NewAssignmentForm
+        projectId={projectId}
+        baselines={baselines.baselines}
+        members={active.map((m) => ({ memberId: m.memberId, role: m.role }))}
+        currentMemberId={currentMemberId}
+      />
+    );
+  }
 
   return (
-    <NewAssignmentForm
-      projectId={projectId}
-      baselines={baselines.baselines}
-      members={active.map((m) => ({ memberId: m.memberId, role: m.role }))}
-      currentMemberId={currentMemberId}
-    />
+    <div className="mx-auto flex w-full max-w-content flex-col gap-4 p-6">
+      <h1 className="text-h1 font-semibold text-ink">Нове доручення</h1>
+      {content}
+    </div>
   );
 }
