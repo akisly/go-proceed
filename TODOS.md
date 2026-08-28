@@ -3130,6 +3130,16 @@ overflow at 390/360 — back at risk. Left as it is, deliberately.
 
 ---
 
+## P2 — the 2026-08-27 landing merge imports `motion/react` directly, and the motion gate has been red since (found 2026-08-28)
+
+**What:** `apps/landing/components/visuals/evidence-rail.tsx:4` and `apps/landing/components/visuals/readiness-workflow.tsx:11` (458 lines between them, landed with the `codex/landing-evidence-journey` merge, last touched by `bbfc705`) import `AnimatePresence`/`motion` from `motion/react` directly and build bespoke `motion.span` choreography. `packages/ui/src/motion/index.ts`'s own header is categorical: twelve primitives, «a feature file may use nothing else — a bespoke `motion.div` in a block component is a review failure», and repo `CLAUDE.md` rule 3 says the same in three lines. There is no passthrough export to swap to; this is a rewrite, not an import edit.
+
+**What it breaks, measured 2026-08-28:** `node packages/testing/qa/motion-audit.mjs` reports exactly these two files (rule 5); `pnpm --filter @goproceed/testing test` is 625/626 with the ONE failure being `motion-audit.test.ts > finds nothing` — so steps 2 and 3 of `docs/design/02-building-ui.md` §5's gate are red on `main`, and every slice that runs the gate inherits the red until this is fixed.
+
+**Why it merged silently:** the §5 gate's own «known gaps» paragraph — `motion-audit.mjs` is not yet a CI step. The merge that violated the rule is also the first demonstration of why that gap matters; closing the gap (add the audit beside `pnpm validate:canonical-docs` in `ci.yml`) belongs to the same fix so the class dies, not just the instance.
+
+**The fix is a landing-visual slice, not a chore:** each visual's choreography must be re-expressed in the primitive vocabulary (`CrossFade` for the `AnimatePresence` swaps, `Reveal`/`Stagger` for entrances) — or, if the choreography genuinely has no primitive, that is §7.3's «a thirteenth primitive is a decision» path, with the plan's §8.3 updated in the same change. Either way the §6 pass applies: six viewports and reduced-motion-as-different-animation, because these are the landing's animated centrepieces. Not folded into the 2026-08-28 residuals branch, which touches no landing surface.
+
 ## Residuals left by the project-sourced-requirements slice (2026-08-27)
 
 The slice that added [ADR-010](docs/decisions/ADR-010-project-sourced-requirements.md), migration 0059 and the `project_requirements` operations surfaced five follow-up items and one stale record correction below.
