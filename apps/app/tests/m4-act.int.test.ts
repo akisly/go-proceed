@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { randomUUID } from "node:crypto";
 import { q, truncateAll, jsonReq, baselineFixture, type BaselineFixture } from "./helpers/fixtures";
 import {
-  addLine, bindRules, createDraft, getVersion, manifestOf, publishRuleVersion,
-  publishVersion, ruleVersionBody, seedRequirementLibrary,
+  addLine, bindRules, createDraft, getVersion, manifestOf, projectSourcedRuleVersionBody,
+  publishRuleVersion, publishVersion, ruleVersionBody, seedRequirementLibrary,
 } from "./helpers/manual-baseline";
 import { readDodatokN, DODATOK_N_SOURCE_STANDARD, type DodatokNRow } from "./helpers/dodatok-n";
 import { prohibitionEBannedFields } from "./helpers/content-rules";
@@ -13,8 +13,11 @@ import {
   BOUND_RULE_VERSIONS_SQL, boundRuleVersion, planForWorkType,
 } from "../src/lib/requirement-materialisation";
 import { materialiseOccurrences } from "../src/lib/occurrence-writer";
-import { citationOf } from "../src/lib/requirement-content";
-import { DODATOK_V_TEMPLATE, FORM_CITATION_TEXT, DBN_RETRIEVAL_RECORD, RENDERER_VERSION,
+import {
+  citationOf, projectSourceCitationOf, projectSourceNormRef,
+} from "../src/lib/requirement-content";
+import { DODATOK_V_TEMPLATE, DOVIDKOVYI_DISCLAIMER_TEXT, FORM_CITATION_TEXT,
+  DBN_RETRIEVAL_RECORD, PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT, RENDERER_VERSION,
 } from "../src/lib/statutory-act-form";
 
 /**
@@ -112,13 +115,36 @@ const REGISTRY_CHECKED_ON = "2026-08-01";
 /** The CSV, read independently of anything the product does with it. */
 const CSV: DodatokNRow[] = readDodatokN();
 
+/**
+ * The site's own authored requirement, for `baseline({ projectSourced: true })`,
+ * in transparently fake demo naming. «Приклад-» is not decoration: a plausible
+ * invented Ukrainian document code in a test fixture is indistinguishable from a
+ * real one the moment it is pasted into an issue or a screenshot, and this
+ * string is composed into a CITATION the act renders as the source of an
+ * obligation.
+ */
+const PROJECT_SOURCED = {
+  itemTextUk: "Приклад-герметизація вводу кабелю в гільзі перед закриттям штроби",
+  sourceDocument: "Приклад-РД-2026-207",
+  sourceSheet: "7",
+  sourceDrawingNo: "ЕМ-12",
+  sourceRevision: "2",
+};
+
 interface Fx extends BaselineFixture {
   contractVersionId: string;
   workItemId: string;
   assignmentId: string;
   workStageId: string;
   stageClosureId: string;
+  /** The TWO Додаток Н occurrences, whatever else materialised beside them. */
   occurrenceIds: string[];
+  /**
+   * Set only by `baseline({ projectSourced: true })`: the THIRD occurrence on
+   * the same concealed stage, materialised from a rule version resting on
+   * ADR-010's project arm, satisfied by an accepting decision before closure.
+   */
+  projectSourcedOccurrenceId?: string;
   /**
    * An assignment on an UNTYPED line of the same baseline.
    *
@@ -284,7 +310,7 @@ async function seedParticipant(
  * pilot has — responsibility-presets.csv says «one member may combine
  * responsibilities in v0.1» — so the sequence is decide, record, except, close.
  */
-async function baseline(): Promise<Fx> {
+async function baseline(opts: { projectSourced?: boolean } = {}): Promise<Fx> {
   const base = await baselineFixture(A);
   await grant(base.projectId, base.memberId);
   const library = await seedRequirementLibrary(base.workspaceId);
@@ -298,6 +324,27 @@ async function baseline(): Promise<Fx> {
       throw new Error(`publishRuleVersion ${res.status} ${await res.text()}`);
     }
     ruleIds.push((await res.json()).ruleVersionId as string);
+  }
+
+  // ADR-010's second source arm, bound BESIDE the two Додаток Н rules — same
+  // work type, same stage — so the assignment below materialises a third
+  // occurrence onto the same concealed stage and the closure freezes all three.
+  if (opts.projectSourced) {
+    const { POST: createRequirement } = await import(
+      "../app/v1/workspaces/[workspaceId]/project-requirements/route");
+    const authored = await createRequirement(
+      jsonReq("http://x", { projectId: base.projectId, ...PROJECT_SOURCED }),
+      params({ workspaceId: base.workspaceId }));
+    if (authored.status !== 201) {
+      throw new Error(`project_requirements.create ${authored.status} ${await authored.text()}`);
+    }
+    const itemId = (await authored.json()).itemId as string;
+    const published = await publishRuleVersion(base.workspaceId,
+      projectSourcedRuleVersionBody(itemId));
+    if (published.status !== 201) {
+      throw new Error(`publishRuleVersion (project arm) ${published.status} ${await published.text()}`);
+    }
+    ruleIds.push((await published.json()).ruleVersionId as string);
   }
 
   const draft = await createDraft(base.contractId);
@@ -340,7 +387,27 @@ async function baseline(): Promise<Fx> {
   if (asg.status !== 201) throw new Error(`assignments.create ${asg.status} ${await asg.text()}`);
   const assignmentId = (await asg.json()).assignmentId as string;
 
-  const { workStageId, occurrenceIds } = await materialisedFor(base, assignmentId);
+  const { workStageId, occurrenceIds: allOccurrenceIds } =
+    await materialisedFor(base, assignmentId, opts.projectSourced ? 3 : 2);
+
+  // The satisfaction script below is positional over the TWO Додаток Н
+  // occurrences — [0] decided, [1] excepted — so the project-sourced one, whose
+  // uuid may sort anywhere among them, is pulled out by its own tag rather than
+  // by position.
+  let projectSourcedOccurrenceId: string | undefined;
+  let occurrenceIds = allOccurrenceIds;
+  if (opts.projectSourced) {
+    const ps = await q<{ id: string }>(
+      `select id from public.requirement_occurrences
+        where workspace_id = $1 and work_assignment_id = $2
+          and norm_ref_verification = 'PROJECT_DOCUMENTATION'`,
+      [base.workspaceId, assignmentId]);
+    if (ps.length !== 1) {
+      throw new Error(`m4-act: expected 1 project-sourced occurrence, got ${ps.length}`);
+    }
+    projectSourcedOccurrenceId = ps[0]!.id;
+    occurrenceIds = allOccurrenceIds.filter((id) => id !== projectSourcedOccurrenceId);
+  }
 
   const spareAsg = await createAssignment(jsonReq("http://x", { workItemId: spareWorkItemId }),
     params({ contractId: base.contractId }));
@@ -356,6 +423,18 @@ async function baseline(): Promise<Fx> {
     params({ occurrenceId: occurrenceIds[0]! }));
   if (decided.status !== 201) {
     throw new Error(`evidence_decisions.create ${decided.status} ${await decided.text()}`);
+  }
+
+  // The project-sourced obligation is satisfied the same way, and in the same
+  // INV-069 window: the decision must precede this member's own progress record.
+  if (projectSourcedOccurrenceId !== undefined) {
+    const psDecided = await decide(
+      jsonReq("http://x", { outcome: "accepted", expectedVersion: null }),
+      params({ occurrenceId: projectSourcedOccurrenceId }));
+    if (psDecided.status !== 201) {
+      throw new Error(
+        `evidence_decisions.create (project-sourced) ${psDecided.status} ${await psDecided.text()}`);
+    }
   }
 
   // 2. record the quantity the act will print a share of
@@ -395,7 +474,8 @@ async function baseline(): Promise<Fx> {
 
   return {
     ...base, contractVersionId, workItemId, assignmentId, workStageId, stageClosureId,
-    occurrenceIds, libraryKeys, progressEntryId, uncoveredAssignmentId,
+    occurrenceIds, projectSourcedOccurrenceId, libraryKeys, progressEntryId,
+    uncoveredAssignmentId,
     builderPartyId: builder.partyId,
     builderProjectPartyId: builder.projectPartyId,
     builderContactId: builder.contactId,
@@ -422,14 +502,14 @@ async function baseline(): Promise<Fx> {
  * file while testing half of it.
  */
 async function materialisedFor(
-  base: BaselineFixture, assignmentId: string,
+  base: BaselineFixture, assignmentId: string, expected = 2,
 ): Promise<{ workStageId: string; occurrenceIds: string[] }> {
   const rows = await q<{ id: string; work_stage_id: string }>(
     `select id, work_stage_id from public.requirement_occurrences
       where workspace_id = $1 and work_assignment_id = $2
       order by id`, [base.workspaceId, assignmentId]);
-  if (rows.length !== 2) {
-    throw new Error(`m4-act: expected 2 materialised occurrences, got ${rows.length}`);
+  if (rows.length !== expected) {
+    throw new Error(`m4-act: expected ${expected} materialised occurrences, got ${rows.length}`);
   }
   const stage = rows[0]!.work_stage_id;
   if (stage === null) throw new Error("m4-act: the materialised occurrence carries no stage");
@@ -1105,6 +1185,18 @@ describe("M4 goes end to end: the act freezes, renders, and re-renders identical
     expect(captions.some((c: string) => c.includes("посада,номер"))).toBe(true);
     expect(captions.some((c: string) => c.includes("посада, номер"))).toBe(true);
     expect(captions.some((c: string) => c.includes("На основі викладеного"))).toBe(true);
+
+    // The fifth disclaimer's CONDITION, at the integration boundary: this
+    // act's list is entirely Додаток Н, so the project-sourced note must not
+    // print. The renderer's own unit tests pin the condition both ways; this
+    // line pins that the integration does not set it unconditionally. The
+    // positive arm is the «project-sourced obligation crosses stage closure»
+    // describe below.
+    const texts = fields
+      .flatMap((f: { blocks: { text: string }[] }) => f.blocks)
+      .map((b: { text: string }) => b.text);
+    expect(texts).toContain(DOVIDKOVYI_DISCLAIMER_TEXT);
+    expect(texts).not.toContain(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
   });
 
   it("means M4 composes, freezes AND renders end to end — both artifacts landed", () => {
@@ -1218,6 +1310,106 @@ describe("every Додаток Н item the act carries is byte-identical to the 
       expect(Object.keys(d)).not.toContain("signature");
       expect(Object.keys(d)).not.toContain("signedAt");
     }
+  });
+});
+
+describe("a project-sourced obligation crosses stage closure into the rendered act", () => {
+  /**
+   * THE 2026-08-27 SLICE'S NAMED COVERAGE GAP, CLOSED. The fifth mandated
+   * disclaimer was proved at the renderer boundary only
+   * (src/lib/statutory-act-form.test.ts); no integration test walked a
+   * PROJECT_DOCUMENTATION occurrence through stage closure into a rendered
+   * document. This one does: a third rule version on ADR-010's project arm is
+   * bound beside the two Додаток Н rules — same work type, same stage — so the
+   * closure freezes three occurrences and the act's list «also carries» a
+   * project-sourced item.
+   *
+   * A SECOND FULL FIXTURE, NOT A RETROFIT OF `fx`: provenance is bound before
+   * the contract version publishes, so the global fixture cannot acquire a
+   * third rule after the fact.
+   *
+   * NON-VACUITY: mutation-checked by inverting `blocksFor`'s project-sourced
+   * condition in statutory-act-form.ts — the disclaimer then prints on the
+   * library-only act and not here, and this case and the layout case above
+   * each went red on their own half.
+   */
+  it("carries the citation to the document and prints the fifth disclaimer once, directly after the довідковий one", async () => {
+    const pfx = await baseline({ projectSourced: true });
+
+    const actVersionId = await composeOnce(pfx);
+    const view = await (await getAct(actVersionId)).json();
+
+    // The closure froze three; the composer carried all three. A provenance
+    // filter anywhere on the way would make the act omit an obligation the
+    // closure was granted against — the exact shape the two-obligation comment
+    // on `baseline()` already guards at two.
+    expect(view.decisions).toHaveLength(3);
+    const ps = view.decisions.filter(
+      (d: { normRef: { verification: string } | null }) =>
+        d.normRef?.verification === "PROJECT_DOCUMENTATION");
+    expect(ps).toHaveLength(1);
+    // The site's own text, byte for byte, attributed to робоча документація
+    // and to no standard's list — hidden-works-content-rules.md
+    // §"Project-sourced strings", the same two helpers the writer used, so the
+    // attribution cannot drift from the one the content rules allow.
+    expect(sameBytes(ps[0].acceptanceCriterion, PROJECT_SOURCED.itemTextUk)).toBe(true);
+    expect(sameBytes(ps[0].normRef.text, projectSourceNormRef())).toBe(true);
+    expect(ps[0].normRef.text).not.toContain("Додаток Н");
+    expect(sameBytes(ps[0].normRef.source, projectSourceCitationOf(
+      PROJECT_SOURCED.sourceDocument, PROJECT_SOURCED.sourceSheet,
+      PROJECT_SOURCED.sourceDrawingNo, PROJECT_SOURCED.sourceRevision))).toBe(true);
+    expect(ps[0].satisfiedBy).toBe("evidence_decision");
+    expect(ps[0].assuranceLevel).toBe("operational_acknowledgement");
+    // ... and the two Додаток Н decisions stand unchanged beside it.
+    const lib = view.decisions.filter(
+      (d: { normRef: { verification: string } | null }) =>
+        d.normRef?.verification === "VERIFIED_PRIMARY");
+    expect(lib).toHaveLength(2);
+
+    expect((await freezeAct(actVersionId, 1)).status).toBe(200);
+    const first = await renderAct(actVersionId);
+    expect(first.status, await first.clone().text()).toBe(200);
+    const bytes = await first.text();
+    // INV-015's determinism clause holds for the mixed act too: the
+    // project-sourced blocks are inside `content_hash`, not decoration on it.
+    const again = await (await renderAct(actVersionId)).text();
+    expect(Buffer.from(again, "utf-8").equals(Buffer.from(bytes, "utf-8"))).toBe(true);
+
+    const doc = JSON.parse(bytes);
+    const blocks: { text: string; provenance: Record<string, unknown> }[] = doc.sections
+      .flatMap((s: { fields: unknown[] }) => s.fields)
+      .flatMap((f: { blocks: unknown[] }) => f.blocks);
+    const texts = blocks.map((b) => b.text);
+
+    // «and, only on a list that also carries project-sourced items,
+    // immediately after it» — present, exactly once in the whole document,
+    // directly after the довідковий note, and citing the document that
+    // mandates it.
+    expect(texts.filter((t) => t === PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT)).toHaveLength(1);
+    const dovidkovyi = texts.indexOf(DOVIDKOVYI_DISCLAIMER_TEXT);
+    expect(dovidkovyi).toBeGreaterThan(-1);
+    expect(texts[dovidkovyi + 1]).toBe(PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT);
+    const note = blocks.find((b) => b.text === PROJECT_SOURCED_ITEMS_DISCLAIMER_TEXT)!;
+    expect(note.provenance).toEqual({
+      kind: "disclaimer",
+      mandatedBy: "docs/product/hidden-works-content-rules.md §\"Required disclaimers\"",
+    });
+
+    // The authored obligation reached the DOCUMENT as a normative block with
+    // its tag and its citation. Template content stays two-valued by design
+    // (`FormFieldDefinition.verification`), so exactly one block in the whole
+    // document may carry this tag — the occurrence's own.
+    const norm = blocks.filter(
+      (b) => b.provenance.kind === "normative"
+        && (b.provenance as { verification?: string }).verification === "PROJECT_DOCUMENTATION");
+    expect(norm).toHaveLength(1);
+    expect(sameBytes(norm[0]!.text, projectSourceNormRef())).toBe(true);
+    expect(sameBytes((norm[0]!.provenance as { source: string }).source,
+      projectSourceCitationOf(
+        PROJECT_SOURCED.sourceDocument, PROJECT_SOURCED.sourceSheet,
+        PROJECT_SOURCED.sourceDrawingNo, PROJECT_SOURCED.sourceRevision))).toBe(true);
+    // And the authored TEXT itself is in the document, as the criterion fact.
+    expect(texts.some((t) => sameBytes(t, PROJECT_SOURCED.itemTextUk))).toBe(true);
   });
 });
 
