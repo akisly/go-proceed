@@ -14,7 +14,7 @@ import type { BaselineOption } from "../../services/baseline.service";
 // set `test.globals: true` (this file imports `describe`/`it`/`expect`/`vi`/
 // `afterEach` explicitly, from "vitest"), so that auto-registration never
 // fires and jsdom's `document` would otherwise keep accumulating every
-// previous test's rendered markup. This file renders EIGHT times, so without
+// previous test's rendered markup. This file renders TWELVE times, so without
 // this line the second test's `getByRole("button", …)` would find two buttons
 // and throw — the failure mode `evidence-card.test.tsx` warns about, here for
 // real rather than in principle.
@@ -63,6 +63,43 @@ const baselines: BaselineOption[] = [{
   }],
 }];
 const members: MemberOption[] = [{ memberId: MEMBER_ID, role: "owner" }];
+
+const SECOND_CONTRACT_ID = "77777777-7777-4777-8777-777777777777";
+const SECOND_VERSION_ID = "88888888-8888-4888-8888-888888888888";
+const SECOND_WORK_ITEM_ID = "99999999-9999-4999-8999-999999999999";
+
+/**
+ * Two published baselines on one project — the shape that exposed the defect.
+ *
+ * BOTH ARE «версія 1» ON PURPOSE. They are different CONTRACTS, each with its
+ * own version numbering, so the version number alone cannot tell them apart;
+ * if `baselineLabel` ever drops the contract id the two options become
+ * indistinguishable and the reader is choosing blind.
+ */
+const twoBaselines: BaselineOption[] = [
+  baselines[0]!,
+  {
+    contractId: SECOND_CONTRACT_ID,
+    contractVersionId: SECOND_VERSION_ID,
+    contractVersionNo: 1,
+    workItems: [{
+      workItemId: SECOND_WORK_ITEM_ID,
+      workCode: "2.1", description: "Приклад-монтаж розподільчого щита", unitCode: "шт",
+    }],
+  },
+];
+
+/** Open a Radix select by its accessible name and pick one option. */
+async function chooseFrom(combobox: RegExp, option: RegExp): Promise<void> {
+  await userEvent.click(screen.getByRole("combobox", { name: combobox }));
+  await userEvent.click(await screen.findByRole("option", { name: option }));
+}
+
+/** The options currently rendered in the open select, as one string. */
+function openOptions(): string {
+  return Array.from(document.querySelectorAll("[data-slot=select-item]"))
+    .map((e) => e.textContent ?? "").join("|");
+}
 
 describe("NewAssignmentForm", () => {
   it("refuses to submit with no line chosen, and does not call the service", async () => {
@@ -257,5 +294,105 @@ describe("NewAssignmentForm", () => {
     // The documented fallback: unknown roles render untranslated rather than
     // blank, so a membership never disappears from the list.
     expect(options).toContain("security_officer");
+  });
+
+  /**
+   * ─────────────────────────────────────────────────────────────────────────
+   * THE SECOND BASELINE. Before these three, the form did `baselines[0]` and
+   * every use followed: the line picker listed the first baseline's lines and
+   * the write addressed the first baseline's contract. On a project with two
+   * published baselines the доручення was created against whichever contract
+   * sorted first — silently, with nothing on screen saying so.
+   * ─────────────────────────────────────────────────────────────────────────
+   */
+
+  it("lists only the chosen baseline's lines, never the other baseline's", async () => {
+    render(<NewAssignmentForm projectId="p1" baselines={twoBaselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={vi.fn<CreateAssignmentImpl>()} />);
+
+    await userEvent.click(screen.getByRole("combobox", { name: /Рядок кошторису/ }));
+    expect(openOptions()).toContain("Приклад-прокладання кабелю в штробі");
+    expect(openOptions()).not.toContain("Приклад-монтаж розподільчого щита");
+    await userEvent.keyboard("{Escape}");
+
+    // And the inverse, so this cannot pass by the list simply never changing.
+    await chooseFrom(/Кошторис/, /77777777/);
+    await userEvent.click(screen.getByRole("combobox", { name: /Рядок кошторису/ }));
+    expect(openOptions()).toContain("Приклад-монтаж розподільчого щита");
+    expect(openOptions()).not.toContain("Приклад-прокладання кабелю в штробі");
+  });
+
+  /**
+   * The reset. A `workItemId` chosen under the previous baseline is not a line
+   * of the new one.
+   *
+   * WHAT THE FAILURE ACTUALLY LOOKS LIKE, measured by deleting the reset
+   * rather than reasoned about: the trigger renders EMPTY. Not the stale text
+   * — a non-empty value suppresses Radix's placeholder, and no item on offer
+   * matches that value, so there is nothing left to display. A blank line
+   * picker still holding another contract's work item, ready to submit it.
+   * Hence asserting the placeholder is back, not merely that the old text is
+   * gone: the second is true of the broken state too.
+   */
+  it("clears the chosen line when the baseline changes", async () => {
+    render(<NewAssignmentForm projectId="p1" baselines={twoBaselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={vi.fn<CreateAssignmentImpl>()} />);
+
+    await chooseFrom(/Рядок кошторису/, /Приклад-прокладання кабелю/);
+    expect(screen.getByRole("combobox", { name: /Рядок кошторису/ }))
+      .toHaveTextContent("Приклад-прокладання кабелю в штробі");
+
+    await chooseFrom(/Кошторис/, /77777777/);
+
+    const linePicker = screen.getByRole("combobox", { name: /Рядок кошторису/ });
+    expect(linePicker).toHaveTextContent("Оберіть рядок");
+    expect(linePicker).not.toHaveTextContent("Приклад-прокладання кабелю в штробі");
+  });
+
+  /**
+   * The assertion that would have caught the original defect: the `contractId`
+   * on the wire is the CHOSEN baseline's, not `baselines[0]`'s. Everything
+   * else about this form could be right and the доручення would still be
+   * attached to the wrong contract.
+   */
+  it("sends the chosen baseline's contractId and line, not the first baseline's", async () => {
+    const create = vi.fn<CreateAssignmentImpl>(
+      async () => ({ kind: "ok", assignmentId: "a1" }),
+    );
+    render(<NewAssignmentForm projectId="p1" baselines={twoBaselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={create} />);
+
+    await chooseFrom(/Кошторис/, /77777777/);
+    await chooseFrom(/Рядок кошторису/, /Приклад-монтаж розподільчого щита/);
+    await userEvent.click(screen.getByRole("button", { name: "Створити доручення" }));
+
+    expect(create).toHaveBeenCalledTimes(1);
+    expect(create.mock.calls[0]![0]).toMatchObject({
+      contractId: SECOND_CONTRACT_ID,
+      workItemId: SECOND_WORK_ITEM_ID,
+    });
+    // Stated the other way too: neither field may carry the first baseline's
+    // value, which is exactly what the defect sent.
+    expect(create.mock.calls[0]![0].contractId).not.toBe(baselines[0]!.contractId);
+    expect(create.mock.calls[0]![0].workItemId).not.toBe(WORK_ITEM_ID);
+  });
+
+  /**
+   * The other half of the spec's rule: with exactly ONE baseline the identity
+   * is static text, never a `Select` carrying a single option. A control that
+   * can only produce the value it already holds asks for a choice that does
+   * not exist — but the fact still has to be on screen, because the доручення
+   * is created against that contract and the reader must be able to check it.
+   */
+  it("renders a single baseline as static text, not as a one-option Select", async () => {
+    render(<NewAssignmentForm projectId="p1" baselines={baselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={vi.fn<CreateAssignmentImpl>()} />);
+
+    // The identity is readable...
+    expect(screen.getByText(/Договір 11111111 · версія 1/)).toBeTruthy();
+    // ...and there is no baseline combobox at all. The two that remain are the
+    // line picker and the виконавець picker.
+    expect(screen.queryByRole("combobox", { name: /^Кошторис/ })).toBeNull();
+    expect(screen.getAllByRole("combobox")).toHaveLength(2);
   });
 });

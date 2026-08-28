@@ -7,7 +7,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 
 import {
-  Banner, Button, Field, FieldDescription, FieldError, FieldGroup, FieldLabel,
+  Banner, Button, Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldTitle,
   Input, Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@goproceed/ui/components";
 
@@ -47,10 +47,20 @@ import { nextSubmitState, type SubmitState } from "../../lib/submit-state";
 const QUANTITY = /^\d+(\.\d{1,6})?$/;
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
-/** The names this form can render a message beside. Anything else is a banner. */
+/**
+ * The names this form can render a message beside. Anything else is a banner.
+ *
+ * `contractVersionId` is deliberately NOT here even though it is a form field.
+ * With a single baseline it renders as static text and has no `FieldError` to
+ * receive a message, so treating it as mapped would send a server refusal to a
+ * field that cannot display it — the message would vanish, which is the one
+ * thing `unmappedFrom` exists to prevent. Routed to the banner instead, where
+ * it is visible in both the one-baseline and many-baseline shapes.
+ */
 const FORM_FIELDS = ["workItemId", "assigneeMemberId", "plannedQuantity", "dueDate"] as const;
 
 const formSchema = z.object({
+  contractVersionId: z.string().min(1, "Оберіть кошторис."),
   workItemId: z.string().min(1, "Оберіть рядок кошторису."),
   assigneeMemberId: z.string().min(1, "Оберіть виконавця."),
   /**
@@ -107,6 +117,23 @@ function describedBy(...ids: Array<string | false | undefined>): string | undefi
   return ids.filter((id): id is string => typeof id === "string").join(" ") || undefined;
 }
 
+/**
+ * A baseline's identity, from the three fields `BaselineOption` actually
+ * carries. Nothing else is available: `blocked_value.get`'s rows supply
+ * `contractId`, `contractVersionId` and `contractVersionNo`, and there is no
+ * contract title anywhere on the wire.
+ *
+ * THE TRUNCATED CONTRACT ID IS LOAD-BEARING, not decoration. Two baselines on
+ * one project can be different CONTRACTS, each with its own version numbering,
+ * so «версія 1» and «версія 1» is a real collision and the version number
+ * alone cannot name the choice being made. Same treatment as the виконавець
+ * picker, for the same reason and with the same honesty about what the read
+ * returns.
+ */
+function baselineLabel(baseline: BaselineOption): string {
+  return `Договір ${baseline.contractId.slice(0, 8)} · версія ${baseline.contractVersionNo}`;
+}
+
 const BANNER_TITLE = "Доручення не створено";
 const NETWORK_FAILURE = "Перевірте з'єднання та спробуйте ще раз.";
 const CONTRACT_REFUSED = "Перевірте заповнені поля — дані не пройшли перевірку.";
@@ -130,11 +157,12 @@ export function NewAssignmentForm({
   // family is presentational and mints nothing, which is the same reason
   // `issue-review-link.tsx` mints its own.
   const uid = useId();
-  const slots = (name: (typeof FORM_FIELDS)[number]) => ({
+  const slots = (name: keyof FormValues) => ({
     control: `${uid}${name}`,
     description: `${uid}${name}-description`,
     error: `${uid}${name}-error`,
   });
+  const contractVersion = slots("contractVersionId");
   const workItem = slots("workItemId");
   const assignee = slots("assigneeMemberId");
   const quantity = slots("plannedQuantity");
@@ -154,16 +182,32 @@ export function NewAssignmentForm({
   const [state, setState] = useState<SubmitState>("idle");
   const [banner, setBanner] = useState<string | null>(null);
 
-  const baseline = baselines[0];
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      contractVersionId: baselines[0]?.contractVersionId ?? "",
       workItemId: initialWorkItemId,
       assigneeMemberId: currentMemberId,
       plannedQuantity: "",
       dueDate: "",
     },
   });
+
+  /**
+   * THE CHOSEN BASELINE, not `baselines[0]`.
+   *
+   * The first version of this file took the head of the list and every use
+   * followed from it — `workItems` to populate the line picker, `contractId`
+   * to address the write. On a project with two published baselines that
+   * silently created the доручення against whichever contract happened to sort
+   * first, with nothing on screen saying so and no way to correct it. The
+   * spec's rule is the one implemented here: more than one baseline is a
+   * `Select`, exactly one is static text — never a control with a single
+   * option.
+   */
+  const chosenVersionId = form.watch("contractVersionId");
+  const baseline =
+    baselines.find((b) => b.contractVersionId === chosenVersionId) ?? baselines[0];
 
   // The unit belongs to the chosen line, so the label has to follow the
   // choice rather than name a unit the estimator is not working in.
@@ -230,6 +274,70 @@ export function NewAssignmentForm({
     <form onSubmit={form.handleSubmit(onSubmit)} noValidate>
       <FieldGroup>
         {banner !== null && <Banner tone="blocked" title={BANNER_TITLE}>{banner}</Banner>}
+
+        {baselines.length > 1 ? (
+          <Controller
+            name="contractVersionId"
+            control={form.control}
+            render={({ field, fieldState }) => (
+              <Field data-invalid={fieldState.invalid}>
+                <FieldLabel htmlFor={contractVersion.control}>Кошторис</FieldLabel>
+                <Select
+                  value={field.value}
+                  onValueChange={(next) => {
+                    field.onChange(next);
+                    // THE RESET IS THE WHOLE POINT OF HANDLING THE CHANGE
+                    // HERE. A `workItemId` chosen under the previous baseline
+                    // is not a line of this one, and leaving it would send a
+                    // work item belonging to another contract.
+                    //
+                    // MEASURED, by removing this line and reading what the
+                    // trigger renders: it goes completely BLANK — not the
+                    // stale text, and not the placeholder either, because a
+                    // non-empty value suppresses the placeholder while no
+                    // rendered item matches it. So the visible failure is a
+                    // line picker showing nothing at all while still holding
+                    // another contract's work item, ready to submit it.
+                    form.setValue("workItemId", "");
+                  }}
+                >
+                  <SelectTrigger
+                    id={contractVersion.control}
+                    aria-invalid={fieldState.invalid}
+                    aria-describedby={describedBy(
+                      contractVersion.description, fieldState.invalid && contractVersion.error,
+                    )}
+                  >
+                    <SelectValue placeholder="Оберіть кошторис" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {baselines.map((b) => (
+                      <SelectItem key={b.contractVersionId} value={b.contractVersionId}>
+                        {baselineLabel(b)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FieldDescription id={contractVersion.description}>
+                  Доручення створюється за цим кошторисом. Зміна кошторису очищає обраний рядок.
+                </FieldDescription>
+                {fieldState.invalid && (
+                  <FieldError id={contractVersion.error} errors={[fieldState.error]} />
+                )}
+              </Field>
+            )}
+          />
+        ) : (
+          // Exactly one baseline: static text, NOT a Select with a single
+          // option. A control that can only produce the value it already has
+          // asks the reader to make a choice that does not exist. It is still
+          // shown, because the доручення is created against this contract and
+          // that is a fact the reader has to be able to check.
+          <Field>
+            <FieldTitle>Кошторис</FieldTitle>
+            <p className="text-data text-ink">{baselineLabel(baseline)}</p>
+          </Field>
+        )}
 
         <Controller
           name="workItemId"
