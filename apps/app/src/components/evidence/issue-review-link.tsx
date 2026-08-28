@@ -237,7 +237,11 @@ export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
 
       <form className="flex max-w-measure flex-col gap-3" onSubmit={submit}>
         <Field>
-          <FieldLabel htmlFor={emailId}>Пошта одержувача</FieldLabel>
+          <FieldLabel htmlFor={emailId}>
+            Пошта одержувача
+            <span className="ml-1 text-status-blocked-fg" aria-hidden="true">*</span>
+            <span className="sr-only"> (обов’язкове)</span>
+          </FieldLabel>
           <Input
             id={emailId}
             type="email"
@@ -252,7 +256,11 @@ export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
         </Field>
 
         <Field>
-          <FieldLabel htmlFor={roleId}>Роль одержувача</FieldLabel>
+          <FieldLabel htmlFor={roleId}>
+            Роль одержувача
+            <span className="ml-1 text-status-blocked-fg" aria-hidden="true">*</span>
+            <span className="sr-only"> (обов’язкове)</span>
+          </FieldLabel>
           <Input
             id={roleId}
             type="text"
