@@ -97,3 +97,10 @@ apps/app/qa-output/
 # repo root, not from apps/mobile.
 apps/mobile/qa-output/
 apps/mobile/dist/
+
+# Child B discovery — personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)
+discovery/leads.csv
+discovery/outreach-log.csv
+discovery/suppression.csv
+discovery/drafts/
+discovery/*.db
