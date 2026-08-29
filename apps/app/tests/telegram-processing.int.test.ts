@@ -111,6 +111,11 @@ databaseDescribe("Telegram inbox processing", () => {
       [botId, updateId],
     );
     expect(inbox).toEqual({ state: "processed", payload: null, payload_hash: "a".repeat(64) });
+    const [outbox] = await q<{ count: string }>(
+      "select count(*)::text as count from public.transaction_outbox where organization_id=$1 and topic='telegram.message.normalized'",
+      [workspaceId],
+    );
+    expect(outbox).toEqual({ count: "1" });
   });
 
   it("appends edits without rewriting the original message", async () => {
@@ -176,9 +181,102 @@ databaseDescribe("Telegram inbox processing", () => {
                evidence_object_id, requirement_occurrence_id
           from public.communication_attachments where workspace_id=$1`, [workspaceId]);
     expect(attachment).toEqual({
-      state: "processing", provider_file_id: "photo-file", provider_file_unique_id: "photo-unique",
+      state: "staged", provider_file_id: "photo-file", provider_file_unique_id: "photo-unique",
       media_type_snapshot: "image/jpeg", byte_size: "123", evidence_object_id: null, requirement_occurrence_id: null,
     });
+  });
+
+  it("does not ingest a newly received message after the bound channel is archived", async () => {
+    await q("update public.project_field_channels set state='archived' where workspace_id=$1 and project_id=$2", [workspaceId, projectId]);
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('3', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId), message: {
+        message_id: 461, date: 1_700_000_000, chat: { id: -100777, type: "supergroup" }, from: { id: 77 }, text: "Після архіву",
+      },
+    })]);
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await expect(processTelegramInboxBatch({ workerId: "processing-test", limit: 10 }))
+      .resolves.toEqual({ claimed: 1, processed: 1, failed: 0 });
+    const [messageCount] = await q<{ count: string }>(
+      "select count(*)::text as count from public.communication_messages where workspace_id=$1", [workspaceId],
+    );
+    const [outboxCount] = await q<{ count: string }>(
+      "select count(*)::text as count from public.transaction_outbox where organization_id=$1 and topic='telegram.message.normalized'",
+      [workspaceId],
+    );
+    expect(messageCount).toEqual({ count: "0" });
+    expect(outboxCount).toEqual({ count: "0" });
+  });
+
+  it("does not append an edit after the bound channel is archived", async () => {
+    await q(`insert into public.communication_messages
+      (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text,
+       provider_message_id, provider_sent_at, delivery_state)
+      values ($1, $2, $3, 'inbound', 'text', 'До архіву', 463, now(), 'received')`,
+    [workspaceId, projectId, bindingId]);
+    await q("update public.project_field_channels set state='archived' where workspace_id=$1 and project_id=$2", [workspaceId, projectId]);
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('6', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId), edited_message: {
+        message_id: 463, date: 1_700_000_000, edit_date: 1_700_000_100,
+        chat: { id: -100777, type: "supergroup" }, text: "Після архіву",
+      },
+    })]);
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await expect(processTelegramInboxBatch({ workerId: "processing-test", limit: 10 }))
+      .resolves.toEqual({ claimed: 1, processed: 1, failed: 0 });
+    const [message] = await q<{ text: string }>(
+      "select text from public.communication_messages where telegram_chat_binding_id=$1 and provider_message_id=463", [bindingId],
+    );
+    const [eventCount] = await q<{ count: string }>(
+      "select count(*)::text as count from public.communication_message_events where workspace_id=$1", [workspaceId],
+    );
+    expect(message).toEqual({ text: "До архіву" });
+    expect(eventCount).toEqual({ count: "0" });
+  });
+
+  it("converges a stolen expired edit lease on one append-only event and one outbox intent", async () => {
+    const originalUpdateId = String(Number(updateId) + 1);
+    const editUpdateId = updateId;
+    const originalPayload = {
+      update_id: Number(originalUpdateId), message: {
+        message_id: 462, date: 1_700_000_000, chat: { id: -100777, type: "supergroup" }, from: { id: 77 }, text: "Оригінал",
+      },
+    };
+    const editPayload = {
+      update_id: Number(editUpdateId), edited_message: {
+        message_id: 462, date: 1_700_000_000, edit_date: 1_700_000_100,
+        chat: { id: -100777, type: "supergroup" }, text: "Виправлено",
+      },
+    };
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('4', 64), 'pending')`, [botId, originalUpdateId, JSON.stringify(originalPayload)]);
+    const { processTelegramInboxBatch, processTelegramUpdate } = await import("../src/lib/telegram/processor");
+    const { normalizeTelegramUpdate } = await import("../src/lib/telegram/normalize");
+    await processTelegramInboxBatch({ workerId: "processing-test", limit: 10 });
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('5', 64), 'pending')`, [botId, editUpdateId, JSON.stringify(editPayload)]);
+    await q("select * from app.claim_telegram_inbox(1, 'stale-worker', 60)");
+
+    await processTelegramUpdate(normalizeTelegramUpdate(editPayload));
+    await q(`update public.telegram_inbox_updates
+      set lease_expires_at=now() - interval '1 second'
+      where bot_id=$1 and update_id=$2`, [botId, editUpdateId]);
+    await expect(processTelegramInboxBatch({ workerId: "replacement-worker", limit: 10 }))
+      .resolves.toEqual({ claimed: 1, processed: 1, failed: 0 });
+
+    const [events] = await q<{ count: string }>(`select count(*)::text as count
+      from public.communication_message_events where workspace_id=$1 and event_kind='edited'`, [workspaceId]);
+    const [message] = await q<{ text: string }>(
+      "select text from public.communication_messages where telegram_chat_binding_id=$1 and provider_message_id=462", [bindingId],
+    );
+    const [outbox] = await q<{ count: string }>(`select count(*)::text as count
+      from public.transaction_outbox
+      where organization_id=$1 and topic='telegram.message.normalized'
+        and payload->>'providerUpdateId'=$2`, [workspaceId, editUpdateId]);
+    expect(events).toEqual({ count: "1" });
+    expect(message).toEqual({ text: "Оригінал" });
+    expect(outbox).toEqual({ count: "1" });
   });
 
   it("does not retain a startgroup token as communication text", async () => {
@@ -226,9 +324,13 @@ databaseDescribe("Telegram inbox processing", () => {
     const [binding] = await q<{ chat_id: string }>(
       "select chat_id::text from public.telegram_chat_bindings where id=$1", [bindingId],
     );
+    const [outboxCount] = await q<{ count: string }>(`select count(*)::text as count
+      from public.transaction_outbox
+      where organization_id=$1 and topic='telegram.channel.health_changed'`, [workspaceId]);
     expect(channel).toEqual({ state: "connected", locked_at: null });
     expect(events.map((event) => event.event_kind)).toEqual(["bot_removed", "bot_restored"]);
     expect(binding).toEqual({ chat_id: "-100777" });
+    expect(outboxCount).toEqual({ count: "2" });
   });
 
   it("does not treat restricted bot membership as a healthy restoration", async () => {

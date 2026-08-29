@@ -2996,7 +2996,7 @@ create table public.communication_messages (
 );
 create table public.communication_message_events (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
-  message_id uuid not null, event_kind text not null, text text, delivery_state text,
+  message_id uuid not null, event_kind text not null, text text, delivery_state text, provider_update_id bigint,
   server_received_at timestamptz not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, message_id) references public.communication_messages(workspace_id, project_id, id),
@@ -3005,6 +3005,9 @@ create table public.communication_message_events (
       or (event_kind = 'delivery_state_changed' and text is null and delivery_state is not null)
       or (event_kind in ('bot_removed','bot_restored') and text is null and delivery_state is null))
 );
+create unique index communication_message_events_provider_edit_identity_uniq
+  on public.communication_message_events (workspace_id, project_id, message_id, provider_update_id)
+  where event_kind = 'edited' and provider_update_id is not null;
 
 alter table public.evidence_objects
   add constraint evidence_objects_project_identity_key unique (workspace_id, project_id, id);
@@ -3019,7 +3022,7 @@ create table public.communication_attachments (
   foreign key (workspace_id, project_id, telegram_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, evidence_object_id) references public.evidence_objects(workspace_id, project_id, id),
-  check (state in ('unbound','awaiting_requirement_choice','processing','available','not_evidence','failed')),
+  check (state in ('staged','unbound','awaiting_requirement_choice','processing','available','not_evidence','failed')),
   check ((state in ('unbound','available','not_evidence','failed')) = (terminal_at is not null)),
   check (state not in ('unbound','available','not_evidence','failed') or (provider_file_id is null and provider_file_unique_id is null)),
   check (state <> 'available' or evidence_object_id is not null),

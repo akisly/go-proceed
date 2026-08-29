@@ -1,4 +1,4 @@
-import { withServiceTx } from "@goproceed/database";
+import { enqueueOutbox, withServiceTx } from "@goproceed/database";
 import { consumeBindingCommand, consumeMemberLinkCommand } from "./linking";
 import { loadTelegramConfig } from "./config";
 import { normalizeTelegramUpdate, type NormalizedTelegramUpdate } from "./normalize";
@@ -131,11 +131,18 @@ async function storeMessage(
         await tx.query(`insert into public.communication_attachments
           (workspace_id, project_id, message_id, provider_file_id, provider_file_unique_id,
            filename_snapshot, media_type_snapshot, byte_size, state)
-          values ($1, $2, $3, $4, $5, $6, $7, $8, 'processing')`, [
+          values ($1, $2, $3, $4, $5, $6, $7, $8, 'staged')`, [
           binding.workspace_id, binding.project_id, messageId, file.fileId, file.fileUniqueId,
           file.fileName, file.mimeType, file.fileSize,
         ]);
       }
+      await enqueueOutbox(tx, { actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, {
+        topic: "telegram.message.normalized",
+        aggregate_type: "communication_message",
+        aggregate_id: messageId,
+        payload_version: 1,
+        payload: { messageId, projectId: binding.project_id, providerUpdateId: update.updateId },
+      });
     }
     return authorMemberId === null ? "stored_unverified_message" : "stored_chat_message";
   });
@@ -151,14 +158,27 @@ async function appendEdit(
     [binding.telegram_chat_binding_id, update.messageId]);
     const messageId = message.rows[0]?.id;
     if (!messageId) return "ignored_unknown_provider_message";
-    await tx.query(`insert into public.communication_message_events
-      (workspace_id, project_id, message_id, event_kind, text, provider_event_at)
-      values ($1, $2, $3, 'edited', $4, $5::timestamptz)`, [
+    const event = await tx.query<{ id: string }>(`insert into public.communication_message_events
+      (workspace_id, project_id, message_id, event_kind, text, provider_event_at, provider_update_id)
+      values ($1, $2, $3, 'edited', $4, $5::timestamptz, $6::bigint)
+      on conflict (workspace_id, project_id, message_id, provider_update_id)
+        where event_kind = 'edited' and provider_update_id is not null do nothing
+      returning id`, [
       // The append-only event schema requires a text value. An edited
       // media message can have no caption, so preserve that provider fact as
       // an empty normalized body rather than failing and losing the edit.
-      binding.workspace_id, binding.project_id, messageId, update.text ?? "", update.editedAt,
+      binding.workspace_id, binding.project_id, messageId, update.text ?? "", update.editedAt, update.updateId,
     ]);
+    const eventId = event.rows[0]?.id;
+    if (eventId) {
+      await enqueueOutbox(tx, { actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, {
+        topic: "telegram.message.normalized",
+        aggregate_type: "communication_message_event",
+        aggregate_id: eventId,
+        payload_version: 1,
+        payload: { messageId, projectId: binding.project_id, providerUpdateId: update.updateId, eventKind: "edited" },
+      });
+    }
     return "appended_message_edit";
   });
 }
@@ -187,11 +207,22 @@ async function processMembershipChange(
       returning id`, [binding.workspace_id, binding.project_id, binding.telegram_chat_binding_id, update.updateId]);
     const systemMessageId = message.rows[0]?.id;
     if (systemMessageId) {
-      await tx.query(`insert into public.communication_message_events
+      const event = await tx.query<{ id: string }>(`insert into public.communication_message_events
         (workspace_id, project_id, message_id, event_kind)
-        values ($1, $2, $3, $4)`, [
+        values ($1, $2, $3, $4)
+        returning id`, [
         binding.workspace_id, binding.project_id, systemMessageId, removed ? "bot_removed" : "bot_restored",
       ]);
+      const eventId = event.rows[0]?.id;
+      if (eventId) {
+        await enqueueOutbox(tx, { actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, {
+          topic: "telegram.channel.health_changed",
+          aggregate_type: "project_field_channel",
+          aggregate_id: binding.project_id,
+          payload_version: 1,
+          payload: { projectId: binding.project_id, messageId: systemMessageId, providerUpdateId: update.updateId, eventKind: removed ? "bot_removed" : "bot_restored" },
+        });
+      }
     }
     return removed ? "channel_marked_unhealthy" : "channel_restored";
   });
@@ -231,6 +262,7 @@ export async function processTelegramUpdate(
   const chatId = update.chatId;
   const binding = await resolveBoundChat(loadTelegramConfig().botId, chatId);
   if (binding === null) return "ignored_unknown_chat";
+  if (binding.channel_state === "archived") return "ignored_archived_channel";
   if (update.kind === "message") return storeMessage(binding, update, context);
   if (update.kind === "edited_message") return appendEdit(binding, update);
   return processMembershipChange(binding, update);

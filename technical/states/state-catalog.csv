@@ -9,6 +9,7 @@ communication_message.delivery_state,queued,stored_lifecycle,Outbound message du
 communication_message.delivery_state,provider_accepted,stored_lifecycle,Provider accepted outbound message,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_message.delivery_state,failed,terminal,Provider definitely rejected outbound message,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_message.delivery_state,delivery_unknown,terminal,Network outcome unknown and explicit retry may duplicate,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+communication_attachment.state,staged,stored_lifecycle,Provider metadata durably staged for later eligibility; no download or evidence processing has started,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_attachment.state,unbound,terminal,Visible communication image not linked to a live assignment card,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_attachment.state,awaiting_requirement_choice,stored_lifecycle,Uploader must select one eligible requirement,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_attachment.state,processing,stored_lifecycle,Bounded provider download and evidence processing underway,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md

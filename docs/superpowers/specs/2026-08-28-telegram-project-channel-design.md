@@ -343,7 +343,8 @@ invent a deletion event when the provider emitted none.
 - message and Telegram file identity;
 - media-group identity;
 - untrusted filename and provider-declared size/type;
-- processing state;
+- lifecycle state, initially `staged` while provider metadata is retained but
+  no download or evidence processing has begun;
 - chosen requirement occurrence;
 - durable evidence object id when finalized;
 - exact failure code and retry disposition.

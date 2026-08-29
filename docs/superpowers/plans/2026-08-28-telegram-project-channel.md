@@ -323,7 +323,7 @@ export const communicationDeliveryState = z.enum([
   "received", "queued", "provider_accepted", "failed", "delivery_unknown",
 ]);
 export const communicationAttachmentState = z.enum([
-  "unbound", "awaiting_requirement_choice", "processing", "available",
+  "staged", "unbound", "awaiting_requirement_choice", "processing", "available",
   "not_evidence", "failed",
 ]);
 export const postProjectCommunicationRequest = z.object({

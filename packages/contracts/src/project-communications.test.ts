@@ -20,6 +20,21 @@ describe("project communications contracts", () => {
     expect(JSON.stringify(page)).not.toContain("bot_token");
   });
 
+  it("exposes staged provider metadata without claiming evidence processing", () => {
+    expect(projectCommunicationPage.parse({
+      messages: [{
+        messageId: crypto.randomUUID(), direction: "inbound", kind: "photo",
+        author: { memberId: null, displayName: null, verified: false }, text: null,
+        replyToMessageId: null, providerSentAt: null, serverReceivedAt: new Date().toISOString(),
+        deliveryState: "received", attachments: [{
+          attachmentId: crypto.randomUUID(), filename: null, mediaType: "image/jpeg", byteSize: "123",
+          state: "staged", requirementOccurrenceId: null, evidenceObjectId: null, failureCode: null,
+        }],
+      }],
+      nextCursor: null,
+    }).messages[0]?.attachments[0]?.state).toBe("staged");
+  });
+
   it("distinguishes a newly issued Telegram URL from its token-free idempotency replay", () => {
     const receipt = {
       intentId: crypto.randomUUID(), projectId: crypto.randomUUID(), memberId: crypto.randomUUID(),
