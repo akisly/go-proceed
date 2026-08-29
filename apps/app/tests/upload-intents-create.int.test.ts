@@ -51,6 +51,18 @@ async function createIntent(
   return POST(req, { params: Promise.resolve({ assignmentId: id }) });
 }
 
+async function transcript(response: Response): Promise<{ status: number; headers: Record<string, string>; body: unknown }> {
+  const body = await response.json() as Record<string, unknown>;
+  // Request IDs are per HTTP call, not part of the command result. Keep every
+  // other field and header so this pins the observable error/replay contract.
+  delete body.requestId;
+  return {
+    status: response.status,
+    headers: Object.fromEntries([...response.headers].filter(([name]) => name !== "x-request-id")),
+    body,
+  };
+}
+
 async function publishedTemplate(
   f: MatrixFixture, allowedMedia: { mimeTypes: string[]; maxByteSize: number },
 ): Promise<string> {
@@ -331,5 +343,41 @@ describe("upload_intents.create", () => {
       [body.uploadIntentId]);
     // The column existed since 0015 and nothing ever wrote it.
     expect(Number(rows[0]!.quota_reserved_bytes)).toBe(PAYLOAD.byteLength);
+  });
+
+  it.each([
+    "unknown_assignment",
+    "wrong_occurrence",
+    "unsupported_media",
+    "quota_exhausted",
+  ] as const)("preserves %s status, body, and headers on retry", async (scenario) => {
+    const key = crypto.randomUUID();
+    let run: () => Promise<Response>;
+    switch (scenario) {
+      case "unknown_assignment":
+        run = () => createIntent(VALID(), "00000000-0000-0000-0000-000000000000", key);
+        break;
+      case "wrong_occurrence":
+        run = () => createIntent({ ...VALID(), requirementOccurrenceId: crypto.randomUUID() }, assignmentId, key);
+        break;
+      case "unsupported_media":
+        run = () => createIntent({ ...VALID(), claimedMediaType: "application/zip" }, assignmentId, key);
+        break;
+      case "quota_exhausted":
+        await q(`update public.organizations set evidence_quota_bytes = $2 where id = $1`,
+          [fx.workspaceId, PAYLOAD.byteLength + 1]);
+        await createIntent(VALID());
+        run = () => createIntent(VALID(), assignmentId, key);
+        break;
+    }
+    const first = await transcript(await run!());
+    const second = await transcript(await run!());
+    expect(second).toEqual(first);
+    expect(first).toMatchObject({
+      unknown_assignment: { status: 404, body: { code: "RESOURCE_NOT_FOUND" } },
+      wrong_occurrence: { status: 422, body: { code: "VALIDATION_FAILED" } },
+      unsupported_media: { status: 422, body: { code: "UPLOAD_SIZE_LIMIT" } },
+      quota_exhausted: { status: 422, body: { code: "UPLOAD_SIZE_LIMIT" } },
+    }[scenario]);
   });
 });

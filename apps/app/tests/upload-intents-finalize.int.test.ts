@@ -45,6 +45,16 @@ async function finalize(intentId: string): Promise<Response> {
   return POST(jsonReq("http://x", {}), { params: Promise.resolve({ intentId }) });
 }
 
+async function transcript(response: Response): Promise<{ status: number; headers: Record<string, string>; body: unknown }> {
+  const body = await response.json() as Record<string, unknown>;
+  delete body.requestId;
+  return {
+    status: response.status,
+    headers: Object.fromEntries([...response.headers].filter(([name]) => name !== "x-request-id")),
+    body,
+  };
+}
+
 /** Authorizes an intent and puts the bytes where finalize will look for them. */
 async function staged(bytes: Uint8Array, mediaType = "image/jpeg") {
   const intent = await createIntent(bytes, mediaType);
@@ -339,4 +349,27 @@ describe("upload_intents.finalize", () => {
       [fx.workspaceId]);
     expect(evidence[0]!.n).toBe("0");
   });
+
+  it.each(["available_replay", "hash_mismatch"] as const)(
+    "preserves %s status, body, and headers on retry", async (scenario) => {
+      let run: () => Promise<Response>;
+      if (scenario === "available_replay") {
+        const intent = await staged(JPEG);
+        run = () => finalize(intent.uploadIntentId);
+      } else {
+        const intent = await createIntent(JPEG);
+        const tampered = new Uint8Array(JPEG); tampered[tampered.length - 1] = 0x01;
+        await putObject(intent.storage.key, tampered, "image/jpeg");
+        run = () => finalize(intent.uploadIntentId);
+      }
+      const first = await transcript(await run());
+      const second = await transcript(await run());
+      expect(second).toEqual(first);
+      expect(first).toMatchObject(
+        scenario === "available_replay"
+          ? { status: 200, body: { status: "available", failureCode: null } }
+          : { status: 422, body: { code: "UPLOAD_CHECKSUM_MISMATCH" } },
+      );
+    },
+  );
 });
