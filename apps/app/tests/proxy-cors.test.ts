@@ -21,6 +21,10 @@ describe("matcher", () => {
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/login" })).toBe(true);
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/_next/static/x.js" })).toBe(false);
   });
+  it("leaves provider integrations outside the member-session proxy while retaining /dash", () => {
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/integrations/telegram/webhook" })).toBe(false);
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/dash" })).toBe(true);
+  });
 });
 
 describe("proxy on /v1 (the guard must answer BEFORE any Supabase code)", () => {

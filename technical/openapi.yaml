@@ -1741,6 +1741,34 @@
         "x-idempotency-class": "standard_30d"
       }
     },
+    "/integrations/telegram/webhook": {
+      "post": {
+        "tags": ["Integrations"],
+        "operationId": "acceptTelegramWebhook",
+        "summary": "Durably accept one provider-authenticated Telegram update",
+        "description": "The Telegram x-telegram-bot-api-secret-token header is verified before body parsing. The request is limited to exactly 1 MiB by declared and streamed bytes. A valid update is durably inserted as pending before 200 is returned; a duplicate returns the same empty 200 response and never exposes a stored disposition or tenant detail. This endpoint performs no member-session authentication, tenant selection, Telegram send, or file download. 401, 413, and 422 responses are empty and contain no provider secret, payload, or tenant detail. The documented 120/minute bound is enforced by the edge limiter, not this route.",
+        "security": [],
+        "parameters": [{
+          "name": "x-telegram-bot-api-secret-token",
+          "in": "header",
+          "required": true,
+          "schema": { "type": "string" },
+          "description": "Telegram provider webhook secret; never a member credential."
+        }],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "type": "object", "required": ["update_id"] } } }
+        },
+        "responses": {
+          "200": { "description": "Durably accepted, including a duplicate provider update; empty response." },
+          "401": { "description": "Provider secret missing or invalid; empty response." },
+          "413": { "description": "Declared or streamed request body exceeds 1 MiB; empty response." },
+          "422": { "description": "Malformed JSON or invalid provider update_id; empty response." }
+        },
+        "x-idempotency-class": "provider_update_id",
+        "x-rate-limit": "telegramWebhookIngress"
+      }
+    },
     "/projects/{projectId}/locations": {
       "get": {
         "tags": [

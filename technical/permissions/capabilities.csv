@@ -45,3 +45,4 @@ service.outbox_dispatch,service,Claim outbox records and create deterministic jo
 service.projection_rebuild,service,Read authoritative facts and replace rebuildable projection rows; in v0.1 the rebuildable set is readiness_projection and blocked_reasons — the seven-state value-at-risk projection moves to v0.2 (ADR-006 decision 5),readiness.get blocked_reasons.get,v0.1-M3,
 service.orphan_purge,service,Purge orphaned staging objects within 24 hours,none,v0.1-M2,
 service.notification_deliver,service,Create notifications and record channel delivery results,none,v0.0,
+service.telegram_ingress,service,Verify a provider webhook secret and durably enqueue a Telegram update before any tenant resolution; duplicate provider updates receive the same empty acknowledgement and no callback payload selects tenant scope,telegram_webhook.accept,v0.1-M6,
