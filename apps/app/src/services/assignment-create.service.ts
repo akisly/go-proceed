@@ -1,5 +1,38 @@
 "use client";
 
+/**
+ * `assignments.create` from the BROWSER — the office write, and the third
+ * module of the client/server split the other two already explain from their
+ * own side. Stated here too because this is the file a client-side reader
+ * opens first: they arrive from `new-assignment-form.tsx`'s import, not from
+ * `lib/api.ts`.
+ *
+ * WHY IT IS NOT IN `assignments.service.ts`, BESIDE THE READ IT BELONGS WITH.
+ * That module imports `apiGet` from `lib/api.ts`, and `lib/api.ts` imports
+ * `next/headers` at module scope — server-only. A `"use client"` form that
+ * imported this function from there would pull `next/headers` into the browser
+ * graph and fail the Turbopack build at the import site, whatever the function
+ * itself does. Reproduced during Task 5's review with a throwaway client
+ * component, not inferred.
+ *
+ * SO THE SPLIT IS THREE MODULES, EACH WITH ONE JOB:
+ *   `lib/api-command.ts`          — `apiPost`/`FetchLike`, zero imports, so a
+ *                                   browser module can reach it;
+ *   `services/assignments.service.ts` — the server READ, unchanged;
+ *   this file                     — the browser WRITE, `"use client"`, and it
+ *                                   imports only `@goproceed/contracts` and
+ *                                   `lib/api-command.ts`.
+ *
+ * THE `"use client"` DIRECTIVE ABOVE IS LOAD-BEARING, not decoration on a
+ * module that happens to run in a browser: it is what keeps a Server Component
+ * from importing this by accident and re-creating the coupling the split
+ * removed. `grants.service.ts` is the precedent — same directive, same reason,
+ * same refusal to import from `lib/api.ts`.
+ *
+ * Slices B and C reuse all three unchanged; that reuse is why the foundation
+ * was extracted rather than hand-rolled per call site.
+ */
+
 import { createAssignmentRequest } from "@goproceed/contracts";
 import { apiPost, type FetchLike } from "../lib/api-command";
 
