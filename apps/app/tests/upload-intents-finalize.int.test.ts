@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHash } from "node:crypto";
 import { Client } from "pg";
-import { q, jsonReq, matrixFixture, type MatrixFixture } from "./helpers/fixtures";
+import {
+  ADMIN_URL, hasIsolatedDatabaseCredentials, q, jsonReq, matrixFixture, type MatrixFixture,
+} from "./helpers/fixtures";
 import { dropWorkspaces } from "../../../packages/testing/src/pg";
 import { putObject, objectExists, removeObject } from "../src/lib/evidence-storage";
 import { setInspector, resetInspector, sniffMediaType } from "../src/lib/evidence-inspection";
@@ -22,12 +24,11 @@ let fx: MatrixFixture;
 let assignmentId: string;
 let fixtureWorkspaceIds: string[] = [];
 
-const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL
-  && process.env.TEST_DB_ADMIN_URL ? describe : describe.skip;
+const databaseDescribe = hasIsolatedDatabaseCredentials() ? describe : describe.skip;
 
 async function cleanupFixtureWorkspaces(): Promise<void> {
   if (fixtureWorkspaceIds.length === 0) return;
-  const client = new Client({ connectionString: process.env.TEST_DB_ADMIN_URL });
+  const client = new Client({ connectionString: ADMIN_URL });
   await client.connect();
   try {
     const workspaceIds = [...new Set(fixtureWorkspaceIds)].reverse();

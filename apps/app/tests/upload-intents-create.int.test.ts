@@ -3,7 +3,8 @@ import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import { Client } from "pg";
 import {
-  q, jsonReq, matrixFixture, baselineFixture, type MatrixFixture,
+  ADMIN_URL, hasIsolatedDatabaseCredentials, q, jsonReq, matrixFixture,
+  baselineFixture, type MatrixFixture,
 } from "./helpers/fixtures";
 import { dropWorkspaces } from "../../../packages/testing/src/pg";
 import { EVIDENCE_BUCKET, removeObject } from "../src/lib/evidence-storage";
@@ -38,12 +39,11 @@ let fx: MatrixFixture;
 let assignmentId: string;
 let fixtureWorkspaceIds: string[] = [];
 
-const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL
-  && process.env.TEST_DB_ADMIN_URL ? describe : describe.skip;
+const databaseDescribe = hasIsolatedDatabaseCredentials() ? describe : describe.skip;
 
 async function cleanupFixtureWorkspaces(): Promise<void> {
   if (fixtureWorkspaceIds.length === 0) return;
-  const client = new Client({ connectionString: process.env.TEST_DB_ADMIN_URL });
+  const client = new Client({ connectionString: ADMIN_URL });
   await client.connect();
   try {
     const workspaceIds = [...new Set(fixtureWorkspaceIds)].reverse();

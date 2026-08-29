@@ -3,6 +3,23 @@ import { deflateRawSync } from "node:zlib";
 
 export const LOCAL_ADMIN_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
+export interface IsolatedDatabaseEnvironment {
+  APP_DB_URL?: string;
+  SERVICE_DB_URL?: string;
+  TEST_DB_ADMIN_URL?: string;
+}
+
+function nonBlank(value: string | undefined): boolean {
+  return Boolean(value?.trim());
+}
+
+/** True only when every connection required by isolated integration tests is explicit. */
+export function hasIsolatedDatabaseCredentials(
+  env: IsolatedDatabaseEnvironment = process.env,
+): boolean {
+  return nonBlank(env.APP_DB_URL) && nonBlank(env.SERVICE_DB_URL) && nonBlank(env.TEST_DB_ADMIN_URL);
+}
+
 /**
  * Integration fixtures must share the explicitly provisioned administrator
  * database with their application connections and teardown. The local URL is
@@ -10,7 +27,7 @@ export const LOCAL_ADMIN_URL = "postgresql://postgres:postgres@127.0.0.1:54322/p
  * start`; the selection happens once at module load so `q()` and callers that
  * construct a client with `ADMIN_URL` cannot split one test across databases.
  */
-export function adminDatabaseUrl(env: { TEST_DB_ADMIN_URL?: string } = process.env): string {
+export function adminDatabaseUrl(env: Pick<IsolatedDatabaseEnvironment, "TEST_DB_ADMIN_URL"> = process.env): string {
   return env.TEST_DB_ADMIN_URL?.trim() || LOCAL_ADMIN_URL;
 }
 
