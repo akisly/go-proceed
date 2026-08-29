@@ -170,6 +170,14 @@ describe("the body the create form builds is one assignments.create accepts", ()
  * for the banner when a refusal names only fields the form has. Either one in
  * English is the same defect in a different box.
  *
+ * AND THEY MUST DIFFER, 2026-08-29. The first fix put the SAME sentence in
+ * both, which made the reader see it twice — once under «Рядок кошторису» and
+ * once in the banner above it, on the very path this test drives. The form's
+ * own unit test declares that split an invariant and could not catch the
+ * breach, because its fixtures carry a generic detail. So the split is
+ * asserted HERE, against what the real route actually produced: `detail`
+ * names the kind of refusal, `fieldErrors[].message` names the field.
+ *
  * THE ASSERTION IS «NO LATIN WORD», NOT «EQUALS THIS SENTENCE» — the literal is
  * checked too, but the scripts are what generalize: a future refusal that
  * reaches for an English phrase fails here without anyone having to remember to
@@ -203,6 +211,8 @@ describe("a real refusal from this route speaks Ukrainian in the slot the form r
       "Позицію робіт не знайдено в поточній опублікованій версії договору.");
     expect(body.detail).toMatch(CYRILLIC);
     expect(body.detail).not.toMatch(LATIN_WORD);
+    expect(body.detail).toBe("Перевірте виділені поля.");
+    expect(body.detail).not.toBe(fieldError.message);
   });
 
   /**
@@ -230,5 +240,7 @@ describe("a real refusal from this route speaks Ukrainian in the slot the form r
     expect(fieldError.message).toBe("Учасника не знайдено в цьому просторі.");
     expect(body.detail).toMatch(CYRILLIC);
     expect(body.detail).not.toMatch(LATIN_WORD);
+    expect(body.detail).toBe("Перевірте виділені поля.");
+    expect(body.detail).not.toBe(fieldError.message);
   });
 });

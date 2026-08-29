@@ -137,6 +137,48 @@ describe("NewAssignmentForm", () => {
    * banner, and the unknown one went to the banner and was not silently
    * dropped on the way.
    */
+  /**
+   * THE CASE THE MIXED ONE ABOVE CANNOT REACH, added 2026-08-29.
+   *
+   * Above, `contractId` is unmapped, so the banner shows a LEFTOVER and never
+   * consults `detail`. That is the branch every refusal test here happened to
+   * take — and it is why the split survived being broken. The route's own
+   * `invalid()` names exactly one field, and it is always one this form has,
+   * so `leftovers` is empty and the banner falls through to `detail`. On that
+   * path — the only one the real route produces — a `detail` equal to the
+   * field's message renders the same sentence twice.
+   *
+   * The fixture is therefore the SHAPE THE REAL ROUTE NOW SENDS, taken from
+   * `assignment-creation.int.test.ts`: a generic detail, a specific field
+   * message. Change `invalid()` back to passing one sentence to both and this
+   * fails, where the mixed case above would still pass.
+   */
+  it("does not repeat a mapped message in the banner when nothing is unmapped", async () => {
+    const create = vi.fn<CreateAssignmentImpl>(async () => ({
+      kind: "refused", status: 422, detail: "Перевірте виділені поля.",
+      problem: {
+        fieldErrors: [
+          { path: "workItemId",
+            message: "Позицію робіт не знайдено в поточній опублікованій версії договору." },
+        ],
+      },
+    }));
+    render(<NewAssignmentForm projectId="p1" baselines={baselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={create} initialWorkItemId={WORK_ITEM_ID} />);
+    await userEvent.click(screen.getByRole("button", { name: "Створити доручення" }));
+
+    const fieldError = await screen.findByRole("alert");
+    const banner = screen.getByRole("status");
+
+    expect(fieldError).toHaveTextContent(
+      "Позицію робіт не знайдено в поточній опублікованій версії договору.");
+    expect(banner).toHaveTextContent("Перевірте виділені поля.");
+
+    // The duplication, stated as what must NOT happen.
+    expect(banner).not.toHaveTextContent(
+      "Позицію робіт не знайдено в поточній опублікованій версії договору.");
+  });
+
   it("splits a mixed refusal: the named field's message to that field, the rest to the banner", async () => {
     const create = vi.fn<CreateAssignmentImpl>(async () => ({
       kind: "refused", status: 422, detail: "Перевірте поля.",

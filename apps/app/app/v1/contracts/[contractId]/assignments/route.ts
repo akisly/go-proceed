@@ -82,9 +82,37 @@ export const POST = commandRoute(createAssignmentRequest, async (a) => {
    * The route's operations, statuses and logic are untouched — the spec's §10
    * «this slice changes no route» means «adds no API operation», and correcting
    * which existing string goes in which existing field adds none.
+   *
+   * CORRECTION, 2026-08-29 — «one sentence in both slots» was the wrong shape,
+   * and the paragraph above rejected the only alternative it considered.
+   *
+   * Putting the SAME sentence in both made the reader see it twice. The form's
+   * banner falls back to `problem.detail` exactly when a refusal names only
+   * fields the form has (`new-assignment-form.tsx`: `leftovers.length > 0 ?
+   * leftovers.join(" ") : result.detail`), and every path below names one such
+   * field — so on the reachable case this helper exists for, «Позицію робіт не
+   * знайдено…» rendered under «Рядок кошторису» AND again in the blocked-red
+   * banner above it.
+   *
+   * `new-assignment-form.test.tsx` states that as an invariant in so many
+   * words — «the mapped message does not also land in the banner» — and passed
+   * anyway, because its fixtures carry a GENERIC detail and the duplicate
+   * arrives through the `detail` fallback rather than through `unmappedFrom`.
+   * A test can hold the rule and still miss the breach.
+   *
+   * THE THIRD OPTION THE PARAGRAPH ABOVE MISSED. It weighed «leave the
+   * English» against «swap the two strings» and rightly refused the swap. But
+   * `http.ts`'s rule is that `detail` is user-facing COPY — it does not
+   * require `detail` to be the SPECIFIC sentence. A generic Ukrainian summary
+   * satisfies it, keeps the specific sentence in the slot that names a field,
+   * and closes the English leak the swap would have moved rather than fixed.
+   *
+   * So: `detail` says which KIND of refusal this is, `fieldErrors[].message`
+   * says WHICH field and why. Both Ukrainian, neither a duplicate of the other.
    */
+  const INVALID_DETAIL = "Перевірте виділені поля.";
   const invalid = (path: string, message: string) =>
-    new HttpProblem(422, problem("VALIDATION_FAILED", message, {
+    new HttpProblem(422, problem("VALIDATION_FAILED", INVALID_DETAIL, {
       requestId: a.requestId, retryable: false, userAction: "correct_fields",
       fieldErrors: [{ path, message }],
     }));

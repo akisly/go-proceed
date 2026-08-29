@@ -3229,6 +3229,16 @@ overflow at 390/360 — back at risk. Left as it is, deliberately.
 
 **The fix is a landing-visual slice, not a chore:** each visual's choreography must be re-expressed in the primitive vocabulary (`CrossFade` for the `AnimatePresence` swaps, `Reveal`/`Stagger` for entrances) — or, if the choreography genuinely has no primitive, that is §7.3's «a thirteenth primitive is a decision» path, with the plan's §8.3 updated in the same change. Either way the §6 pass applies: six viewports and reduced-motion-as-different-animation, because these are the landing's animated centrepieces. Not folded into the 2026-08-28 residuals branch, which touches no landing surface.
 
+**Correction, 2026-08-29 — there are THREE offenders, not two.** Re-measured
+on the slice-A branch with `pnpm turbo run test --concurrency=1`:
+`motion-audit.test.ts > finds nothing` reports
+`apps/landing/components/blocks/evidence-journey-client.tsx:9` alongside the two
+`visuals/` files named above. The count is what a reader would have used to size
+the fix — a `blocks/` file was never in scope as this entry was written, and the
+audit's own output is the authority. Everything else in this entry stands: the
+suite is 625/626 with that single failure, and all three imports are present
+unchanged at `aa8f412`, so no slice since has introduced or removed one.
+
 **Same day, same surface, same slice:** `@goproceed/landing`'s OWN test task is also red on `main` — two named cases, measured 2026-08-28: `tests/landing-craft.test.tsx` «keeps a wide-screen gap between the handoff line and review card» (expected 1 matching element, got 0 — plausibly the `bbfc705` border adjustment) and `tests/landing-render.test.tsx` «renders an honest accessible pilot form» (the `#pilot` section lost its `aria-live="polite"`). Both belong to the landing slice this entry describes; whoever takes it fixes the three causes together and leaves `pnpm turbo run test --concurrency=1` genuinely green.
 
 ## Residuals left by the project-sourced-requirements slice (2026-08-27)
