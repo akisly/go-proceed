@@ -123,7 +123,7 @@ export const config = {
    * fails silently — a bad matcher does not throw, it just quietly starts
    * (or stops) intercepting paths it shouldn't.
    *
-   *  - `v1`, `external`, `integrations`, `_next`: MUST NOT be matched. Both `/v1` and
+   *  - `v1`, `external`, `integrations`, `internal`, `_next`: MUST NOT be matched. Both `/v1` and
    *    `/external` answer an unauthenticated request with a 401
    *    `application/problem+json` body carrying `userAction: "sign_in"`
    *    (`requireUser` in src/lib/auth.ts) — a machine-readable contract that
@@ -144,7 +144,7 @@ export const config = {
    *    cookies the way a normal navigation does — redirecting it to `/login`
    *    would break "Add to Home Screen" without protecting anything.
    *
-   * FIX-ROUND-1, task 5: `v1`, `external`, `integrations` and `_next` are now anchored to a
+   * FIX-ROUND-1, task 5: `v1`, `external`, `integrations`, `internal` and `_next` are now anchored to a
    * path-SEGMENT boundary — `(?:v1|external|_next)(?:/|$)` — rather than
    * being bare literal prefixes. A bare `v1|external|_next` alternative
    * matches as a PREFIX: it would just as happily swallow a future page
@@ -170,6 +170,6 @@ export const config = {
      * this entry lets in. Vendor pattern: Next 16.3.1 proxy#cors.
      */
     { source: "/v1/:path*", has: [{ type: "header", key: "origin" }] },
-    "/((?!(?:v1|external|integrations|_next)(?:/|$)|favicon\\.ico$|manifest\\.webmanifest$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|json)$).*)",
+    "/((?!(?:v1|external|integrations|internal|_next)(?:/|$)|favicon\\.ico$|manifest\\.webmanifest$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|map|txt|json)$).*)",
   ],
 };

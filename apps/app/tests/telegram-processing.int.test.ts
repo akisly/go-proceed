@@ -1,0 +1,211 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { Client } from "pg";
+
+const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL ? describe : describe.skip;
+const admin = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+const actorUserId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
+const botId = "123456789";
+
+async function q<T extends Record<string, unknown> = Record<string, unknown>>(
+  sql: string, params: unknown[] = [],
+): Promise<T[]> {
+  const client = new Client({ connectionString: admin });
+  await client.connect();
+  try {
+    return (await client.query<T>(sql, params)).rows;
+  } finally {
+    await client.end();
+  }
+}
+
+async function deleteFixture(workspaceId: string, inboxUpdateId: string): Promise<void> {
+  const client = new Client({ connectionString: admin });
+  await client.connect();
+  try {
+    // This is intentionally narrow: developer databases can be behind the
+    // migration sequence, so this test never resets, truncates, seeds, or
+    // sweeps unrelated tenant data.
+    await client.query("set session_replication_role = replica");
+    const scoped = await client.query<{ table_name: string; column_name: string }>(`
+      select c.table_name, c.column_name
+        from information_schema.columns c
+        join information_schema.tables t on t.table_schema=c.table_schema and t.table_name=c.table_name
+       where c.table_schema='public' and t.table_type='BASE TABLE'
+         and c.table_name <> 'organizations'
+         and c.column_name in ('workspace_id', 'organization_id')`);
+    for (const { table_name, column_name } of scoped.rows) {
+      await client.query(`delete from public.${table_name} where ${column_name}=$1`, [workspaceId]);
+    }
+    await client.query("delete from public.telegram_inbox_updates where bot_id=$1 and update_id between $2::bigint and ($2::bigint + 1)",
+      [botId, inboxUpdateId]);
+    await client.query("delete from public.organizations where id=$1", [workspaceId]);
+  } finally {
+    await client.query("set session_replication_role = origin").catch(() => undefined);
+    await client.end();
+  }
+}
+
+databaseDescribe("Telegram inbox processing", () => {
+  let workspaceId = "";
+  let projectId = "";
+  let memberId = "";
+  let bindingId = "";
+  let updateId = "";
+
+  beforeEach(async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "t".repeat(32));
+    vi.stubEnv("TELEGRAM_BOT_ID", botId);
+    vi.stubEnv("TELEGRAM_BOT_USERNAME", "GoProceedTestBot");
+    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "w".repeat(32));
+    vi.stubEnv("TELEGRAM_WORKER_SECRET", "r".repeat(32));
+    vi.stubEnv("TELEGRAM_LINK_PEPPER", "p".repeat(32));
+    vi.stubEnv("APP_PUBLIC_ORIGIN", "https://app.goproceed.test");
+
+    workspaceId = crypto.randomUUID();
+    [projectId] = (await q<{ id: string }>(`insert into public.organizations (id, legal_name, display_name)
+      values ($1, 'Telegram processor', 'Telegram processor') returning id`, [workspaceId])).map((row) => row.id);
+    [memberId] = (await q<{ id: string }>(`insert into public.memberships
+      (organization_id, user_id, role, status, all_projects)
+      values ($1, $2, 'owner', 'active', true) returning id`, [workspaceId, actorUserId])).map((row) => row.id);
+    [projectId] = (await q<{ id: string }>(`insert into public.projects
+      (workspace_id, name, created_by, status) values ($1, 'Telegram processor', $2, 'draft') returning id`,
+    [workspaceId, actorUserId])).map((row) => row.id);
+    await q(`insert into public.project_field_channels (workspace_id, project_id, channel, state)
+      values ($1, $2, 'telegram', 'connected')`, [workspaceId, projectId]);
+    [bindingId] = (await q<{ id: string }>(`insert into public.telegram_chat_bindings
+      (workspace_id, project_id, bot_id, chat_id, chat_type, connected_by_member_id)
+      values ($1, $2, $3, -100777, 'supergroup', $4) returning id`,
+    [workspaceId, projectId, botId, memberId])).map((row) => row.id);
+    updateId = String(Math.floor(Math.random() * 1_000_000_000) + 1_000_000_000);
+  });
+
+  afterEach(async () => {
+    if (workspaceId) await deleteFixture(workspaceId, updateId);
+    vi.unstubAllEnvs();
+  });
+
+  it("stores an unlinked group author as unverified communication and clears the raw payload", async () => {
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('a', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId),
+      message: {
+        message_id: 456, date: 1_700_000_000,
+        chat: { id: -100777, type: "supergroup" },
+        from: { id: 77, first_name: "Неперевірений" }, text: "Готово",
+      },
+    })]);
+
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await expect(processTelegramInboxBatch({ workerId: "processing-test", limit: 10 }))
+      .resolves.toEqual({ claimed: 1, processed: 1, failed: 0 });
+    await expect(processTelegramInboxBatch({ workerId: "processing-test", limit: 10 }))
+      .resolves.toEqual({ claimed: 0, processed: 0, failed: 0 });
+
+    const [message] = await q<{ text: string; author_member_id: string | null; provider_user_id: string }>(
+      "select text, author_member_id, provider_user_id::text from public.communication_messages where telegram_chat_binding_id=$1",
+      [bindingId],
+    );
+    expect(message).toEqual({ text: "Готово", author_member_id: null, provider_user_id: "77" });
+    const [inbox] = await q<{ state: string; payload: unknown; payload_hash: string }>(
+      "select state, payload, payload_hash from public.telegram_inbox_updates where bot_id=$1 and update_id=$2",
+      [botId, updateId],
+    );
+    expect(inbox).toEqual({ state: "processed", payload: null, payload_hash: "a".repeat(64) });
+  });
+
+  it("appends edits without rewriting the original message", async () => {
+    const originalUpdateId = String(Number(updateId) + 1);
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('b', 64), 'pending')`, [botId, originalUpdateId, JSON.stringify({
+      update_id: Number(originalUpdateId), message: {
+        message_id: 457, date: 1_700_000_000, chat: { id: -100777, type: "supergroup" },
+        from: { id: 77 }, text: "Було",
+      },
+    })]);
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await processTelegramInboxBatch({ workerId: "processing-test", limit: 10 });
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('c', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId), edited_message: {
+        message_id: 457, date: 1_700_000_000, edit_date: 1_700_000_100,
+        chat: { id: -100777, type: "supergroup" }, text: "Стало",
+      },
+    })]);
+    await processTelegramInboxBatch({ workerId: "processing-test", limit: 10 });
+
+    const [message] = await q<{ text: string }>(
+      "select text from public.communication_messages where telegram_chat_binding_id=$1 and provider_message_id=457", [bindingId],
+    );
+    const [event] = await q<{ event_kind: string; text: string }>(
+      `select event_kind, text from public.communication_message_events
+       where workspace_id=$1 and project_id=$2 and event_kind='edited'`, [workspaceId, projectId],
+    );
+    expect(message).toEqual({ text: "Було" });
+    expect(event).toEqual({ event_kind: "edited", text: "Стало" });
+  });
+
+  it("ignores an unknown group without creating a tenant message", async () => {
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('d', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId), message: {
+        message_id: 458, date: 1_700_000_000, chat: { id: -100999, type: "supergroup" }, from: { id: 77 }, text: "Не тут",
+      },
+    })]);
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await processTelegramInboxBatch({ workerId: "processing-test", limit: 10 });
+    const [count] = await q<{ count: string }>(
+      "select count(*)::text as count from public.communication_messages where workspace_id=$1", [workspaceId],
+    );
+    expect(count).toEqual({ count: "0" });
+  });
+
+  it("does not retain a startgroup token as communication text", async () => {
+    const rawToken = "never-store-this-token";
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('e', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId), message: {
+        message_id: 459, date: 1_700_000_000, chat: { id: -100777, type: "supergroup", title: "Група" },
+        from: { id: 77 }, text: `/startgroup ${rawToken}`,
+      },
+    })]);
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await processTelegramInboxBatch({ workerId: "processing-test", limit: 10 });
+    const [messageCount] = await q<{ count: string }>(
+      "select count(*)::text as count from public.communication_messages where workspace_id=$1", [workspaceId],
+    );
+    const [receipt] = await q<{ payload: unknown; disposition: string }>(
+      "select payload, disposition from public.telegram_inbox_updates where bot_id=$1 and update_id=$2", [botId, updateId],
+    );
+    expect(messageCount).toEqual({ count: "0" });
+    expect(receipt).toMatchObject({ payload: null, disposition: "binding_invalid_or_expired" });
+    expect(JSON.stringify(receipt)).not.toContain(rawToken);
+  });
+
+  it("marks a bound channel unhealthy on bot removal and restores only its health", async () => {
+    const restoredUpdateId = String(Number(updateId) + 1);
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state) values
+      ($1, $2, $3::jsonb, repeat('f', 64), 'pending'),
+      ($1, $4, $5::jsonb, repeat('0', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId), my_chat_member: {
+        chat: { id: -100777, type: "supergroup" }, new_chat_member: { status: "kicked" },
+      },
+    }), restoredUpdateId, JSON.stringify({
+      update_id: Number(restoredUpdateId), my_chat_member: {
+        chat: { id: -100777, type: "supergroup" }, new_chat_member: { status: "member" },
+      },
+    })]);
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await processTelegramInboxBatch({ workerId: "processing-test", limit: 10 });
+    const [channel] = await q<{ state: string; locked_at: string | null }>(
+      "select state::text, locked_at from public.project_field_channels where workspace_id=$1 and project_id=$2", [workspaceId, projectId],
+    );
+    const events = await q<{ event_kind: string }>(`select event_kind from public.communication_message_events
+      where workspace_id=$1 and project_id=$2 order by created_at`, [workspaceId, projectId]);
+    const [binding] = await q<{ chat_id: string }>(
+      "select chat_id::text from public.telegram_chat_bindings where id=$1", [bindingId],
+    );
+    expect(channel).toEqual({ state: "connected", locked_at: null });
+    expect(events.map((event) => event.event_kind)).toEqual(["bot_removed", "bot_restored"]);
+    expect(binding).toEqual({ chat_id: "-100777" });
+  });
+});

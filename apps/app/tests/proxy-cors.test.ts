@@ -23,6 +23,7 @@ describe("matcher", () => {
   });
   it("leaves provider integrations outside the member-session proxy while retaining /dash", () => {
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/integrations/telegram/webhook" })).toBe(false);
+    expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/internal/telegram/jobs" })).toBe(false);
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/dash" })).toBe(true);
   });
 });

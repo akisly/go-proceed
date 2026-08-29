@@ -75,6 +75,8 @@ telegram.binding_intent.invalid_or_expired,Посилання для підкл�
 telegram.binding_intent.wrong_group_type,Для підключення виберіть групу або супергрупу Telegram.,telegram,error,"startgroup was used outside a group or supergroup"
 telegram.member_link.membership_inactive,Ваше членство в робочому просторі більше не активне.,telegram,error,"private identity-link command after membership ended or was revoked"
 telegram.intent.replayed_without_url,Посилання Telegram не показано повторно. Створіть нове посилання з новим ключем ідемпотентності.,telegram,notice,"same-key replay intentionally returns a safe receipt without the one-time URL"
+telegram.channel.unhealthy,Бот Telegram більше не має доступу до групи. Канал майданчика тимчасово недоступний.,telegram,warning,"bound-chat membership changed to left or kicked; the field channel remains locked"
+telegram.channel.restored,Доступ бота Telegram до групи відновлено.,telegram,notice,"bound-chat membership was restored without changing the locked channel or group"
 status.evidence_request.open,Потрібні докази,global,status,"evidence_request state label — canonical, derived from state-catalog"
 status.evidence_request.fulfilled,Виконано,global,status,"evidence_request state label — canonical, derived from state-catalog"
 status.evidence_request.cancelled,Скасовано,global,status,"evidence_request state label — canonical, derived from state-catalog"
