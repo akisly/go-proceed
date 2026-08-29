@@ -10,14 +10,19 @@ export class TelegramApiError extends Error {
   readonly code: string;
   readonly status: number | null;
   readonly retryable: boolean;
+  readonly retryAfterMs: number | null;
 
-  constructor(kind: TelegramApiErrorKind, code: string, status: number | null, retryable: boolean, message: string) {
+  constructor(
+    kind: TelegramApiErrorKind, code: string, status: number | null, retryable: boolean,
+    message: string, retryAfterMs: number | null = null,
+  ) {
     super(message);
     this.name = "TelegramApiError";
     this.kind = kind;
     this.code = code;
     this.status = status;
     this.retryable = retryable;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -46,8 +51,15 @@ export type TelegramApiClient = {
 type InternalFile = TelegramFileInfo & { filePath: string };
 type TelegramFetcher = typeof fetch;
 
-function providerError(status: number | null, retryable: boolean): TelegramApiError {
-  return new TelegramApiError("provider_error", "provider_rejected", status, retryable, "Telegram provider rejected the request.");
+function providerRetryAfterMs(value: unknown): number | null {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 3_600
+    ? value * 1_000
+    : null;
+}
+
+function providerError(status: number | null, retryable: boolean, retryAfterMs: number | null = null): TelegramApiError {
+  return new TelegramApiError("provider_error", "provider_rejected", status, retryable,
+    "Telegram provider rejected the request.", retryAfterMs);
 }
 
 function networkError(forSend: boolean): TelegramApiError {
@@ -70,6 +82,10 @@ export function createTelegramApiClient(config: TelegramConfig, fetcher: Telegra
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(body),
+        // Delivery runs while its exact channel and outbox lease are fenced in
+        // one transaction. Time out well before that renewed lease expires;
+        // an abort remains delivery_unknown because Telegram may have accepted.
+        signal: forSend ? AbortSignal.timeout(20_000) : null,
       });
     } catch {
       throw networkError(forSend);
@@ -83,7 +99,8 @@ export function createTelegramApiClient(config: TelegramConfig, fetcher: Telegra
     }
     const providerStatus = typeof payload?.error_code === "number" ? payload.error_code : response.status;
     if (!response.ok || payload?.ok === false) {
-      throw providerError(providerStatus, providerStatus === 429 || providerStatus >= 500);
+      throw providerError(providerStatus, providerStatus === 429 || providerStatus >= 500,
+        providerRetryAfterMs(payload?.parameters?.retry_after));
     }
     if (payload?.ok !== true || payload.result === undefined || payload.result === null) {
       if (forSend && response.ok) throw networkError(true);

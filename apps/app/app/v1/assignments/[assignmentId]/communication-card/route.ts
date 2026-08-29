@@ -4,7 +4,7 @@ import { z } from "zod";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { commandRoute } from "../../../../../src/lib/command";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { formatAssignmentCard } from "../../../../../src/lib/telegram/cards";
+import { AssignmentCardTooLongError, formatAssignmentCard } from "../../../../../src/lib/telegram/cards";
 import { loadTelegramConfig } from "../../../../../src/lib/telegram/config";
 import { enqueueTelegramMessage } from "../../../../../src/lib/telegram/delivery";
 
@@ -79,13 +79,24 @@ export const POST = commandRoute(request, async (a) => {
       order by case timing when 'before_work' then 1 when 'during' then 2 when 'before_concealment' then 3
                             when 'after' then 4 when 'before_package' then 5 end, ordinal, id`,
     [authorized.workspaceId, authorized.projectId, assignmentId]);
-    const card = formatAssignmentCard({
-      assignmentId, title,
-      occurrences: occurrences.rows.map((occurrence) => ({
-        occurrenceId: occurrence.id, criterion: occurrence.criterion,
-        normRef: occurrence.norm_ref ?? "Нормативне посилання не вказано",
-      })),
-    });
+    let card;
+    try {
+      card = formatAssignmentCard({
+        assignmentId, title,
+        occurrences: occurrences.rows.map((occurrence) => ({
+          occurrenceId: occurrence.id, criterion: occurrence.criterion,
+          normRef: occurrence.norm_ref ?? "Нормативне посилання не вказано",
+        })),
+      });
+    } catch (error) {
+      if (error instanceof AssignmentCardTooLongError) {
+        throw new HttpProblem(422, problem("VALIDATION_FAILED", "Картка завдання задовга. Скоротіть назву або вимоги.", {
+          requestId: a.requestId, retryable: false, userAction: "correct_fields",
+          fieldErrors: [{ path: "assignment", message: "assignment_card_too_long" }],
+        }));
+      }
+      throw error;
+    }
     const queued = await enqueueTelegramMessage(tx, ctx, {
       workspaceId: authorized.workspaceId, projectId: authorized.projectId, telegramChatBindingId,
       workAssignmentId: assignmentId, kind: "assignment_card", text: card.text,

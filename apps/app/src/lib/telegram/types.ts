@@ -116,6 +116,7 @@ export type TelegramApiResponse<T> = {
   result?: T;
   error_code?: number;
   description?: string;
+  parameters?: { retry_after?: unknown };
 };
 
 export type TelegramApiMessage = { message_id: string };

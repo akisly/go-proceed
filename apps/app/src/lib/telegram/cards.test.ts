@@ -16,17 +16,14 @@ describe("Telegram card formatting", () => {
     expect(card.parseMode).toBe("HTML");
   });
 
-  it("keeps a long assignment card within Telegram's text limit", () => {
-    // Break caught: a large but valid assignment can make the provider reject
-    // the entire card before participants can reply to it.
-    const card = formatAssignmentCard({
+  it("rejects an assignment card that cannot retain every ordered occurrence", () => {
+    // Break caught: truncating a card silently removes the evidence choices
+    // that participants must be able to reply against.
+    expect(() => formatAssignmentCard({
       assignmentId: "assignment-2",
       title: "Робота ".repeat(900),
       occurrences: [{ occurrenceId: "o1", criterion: "Критерій ".repeat(900), normRef: "ДБН" }],
-    });
-
-    expect(card.text.length).toBeLessThanOrEqual(MAX_TELEGRAM_MESSAGE_CHARACTERS);
-    expect(card.text).toContain("…");
+    })).toThrow("assignment_card_too_long");
   });
 
   it("escapes receipt details before rendering provider HTML", () => {

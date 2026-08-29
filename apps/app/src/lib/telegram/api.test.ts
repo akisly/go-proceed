@@ -30,6 +30,32 @@ describe("TelegramApiClient", () => {
     expect(body).toMatchObject({ chat_id: "-1001", text: "<b>Картка</b>", parse_mode: "HTML" });
   });
 
+  it("bounds a delivery request with an abort signal", async () => {
+    const fetcher = fakeTelegramFetch();
+    const client = createTelegramApiClient(config, fetcher);
+    await client.sendMessage({ chatId: "-1001", text: "Тест" });
+
+    expect(fetcher.calls[0]?.init?.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("preserves Telegram's bounded retry_after for a definitive 429 rejection", async () => {
+    const client = createTelegramApiClient(config, (async () => Response.json({
+      ok: false, error_code: 429, parameters: { retry_after: 2 },
+    }, { status: 429 })) as typeof fetch);
+
+    await expect(client.sendMessage({ chatId: "-1001", text: "Тест" }))
+      .rejects.toMatchObject({ retryable: true, retryAfterMs: 2_000 });
+  });
+
+  it.each(["two", 3_601])("discards malformed or oversized retry_after %j", async (retryAfter) => {
+    const client = createTelegramApiClient(config, (async () => Response.json({
+      ok: false, error_code: 429, parameters: { retry_after: retryAfter },
+    }, { status: 429 })) as typeof fetch);
+
+    await expect(client.sendMessage({ chatId: "-1001", text: "Тест" }))
+      .rejects.toMatchObject({ retryable: true, retryAfterMs: null });
+  });
+
   it("classifies a timeout after dispatch as delivery_unknown", async () => {
     const client = createTelegramApiClient(config, timeoutAfterAcceptingFetch());
     await expect(client.sendMessage({ chatId: "-1001", text: "Тест" }))

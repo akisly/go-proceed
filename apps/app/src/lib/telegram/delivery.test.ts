@@ -53,4 +53,19 @@ describe("Telegram delivery classification", () => {
     await expect(classifyTelegramSend(api, sendInput))
       .resolves.toEqual({ kind: "retryable_rejection", retryAfterMs: 0 });
   });
+
+  it("preserves a bounded provider retry delay", async () => {
+    const api: TelegramApiClient = {
+      sendMessage: async () => {
+        throw new TelegramApiError("provider_error", "provider_rejected", 429, true, "retry", 2_000);
+      },
+      answerCallbackQuery: async () => undefined,
+      setWebhook: async () => undefined,
+      getFile: async () => ({ fileId: "file", fileUniqueId: null, fileSize: null }),
+      downloadFile: async () => new Uint8Array(),
+    };
+
+    await expect(classifyTelegramSend(api, sendInput))
+      .resolves.toEqual({ kind: "retryable_rejection", retryAfterMs: 2_000 });
+  });
 });

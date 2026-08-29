@@ -1773,7 +1773,7 @@
         "tags": ["Assignments", "Telegram"],
         "operationId": "publishAssignmentCommunicationCard",
         "summary": "Queue one assignment card for the project's locked Telegram group",
-        "description": "Requires project.view and assignments.manage. The command atomically records the internal assignment card and its communication.telegram.send outbox item. A successful response means queued, not delivered or read. The provider message id written only after provider acceptance is the sole Telegram reply anchor.",
+        "description": "Requires project.view and assignments.manage. The command atomically records the complete internal assignment card and its communication.telegram.send outbox item. It rejects a card above Telegram's rendered 4096-character limit rather than omitting ordered occurrences. A successful response means queued, not delivered or read. The provider message id written only after provider acceptance is the sole Telegram reply anchor.",
         "parameters": [
           { "name": "assignmentId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
           { "$ref": "#/components/parameters/IdempotencyKey" }
