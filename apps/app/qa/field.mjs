@@ -489,6 +489,32 @@ function lineManifestHash(view) {
 const PROJECT_NAME = "Приклад-Обʼєкт QA";
 const WORK_ITEM_DESCRIPTION = "Приклад-улаштування прокладки кабелю QA";
 
+/**
+ * TWO MORE PROJECTS, EACH SEEDED FOR ONE STATE THE MAIN WORLD CANNOT REACH —
+ * added by the final fix wave, and named here so they are not mistaken for
+ * padding.
+ *
+ * `EMPTY_PROJECT_NAME` — a project with NO assignment, because the main
+ * project has one from the moment it is seeded and its register therefore
+ * never renders the empty state. F1 (the create link existing only once an
+ * assignment already exists) is invisible on any register that has a row.
+ *
+ * `NO_MONEY_PROJECT_NAME` — a project the seeded member can SEE
+ * (`project.view`) and create доручення on (`assignments.manage`) but whose
+ * MONEY they cannot read: `readiness.view` is deliberately withheld from its
+ * grant, which is the exact shape four responsibility presets ship
+ * (`requirement_owner`, `internal_verifier`, `package_submitter`, `foreman`).
+ * That is the only way to reach F2's refusal without minting a second user.
+ *
+ * NEITHER CHANGES ANY EXISTING ASSERTION, and that was checked rather than
+ * hoped: `showProjectName` is `distinctProjectsWithWork > 1`
+ * (src/lib/field/assignments.ts) and neither project carries an assignment, so
+ * «Мої доручення» still renders one row and still hides the project name; no
+ * audit counts the rows in `/dash`'s project list.
+ */
+const EMPTY_PROJECT_NAME = "Приклад-Порожній проєкт QA";
+const NO_MONEY_PROJECT_NAME = "Приклад-Проєкт без доступу до грошей QA";
+
 async function seedWorld(baseUrl, bearer) {
   const f = authedFetch(baseUrl, bearer);
 
@@ -654,6 +680,30 @@ async function seedWorld(baseUrl, bearer) {
   await httpStep("workspaces.create (second, for the multi-membership rail)",
     await f("/v1/workspaces", { displayName: "Приклад-Другий-простір QA" }));
 
+  // ── THE TWO EXTRA PROJECTS ───────────────────────────────────────────────
+  // See the constants above for what each exists to make reachable. Both are
+  // created in THIS workspace, so `listProjects()` returns them to the same
+  // signed-in session every audit already uses, and both are left without a
+  // contract: neither ever grows an assignment, so `showProjectName` stays
+  // false and «Мої доручення» still renders exactly one row.
+  const emptyProject = await httpStep("projects.create (empty register)",
+    await f(`/v1/workspaces/${ws.workspaceId}/projects`, { name: EMPTY_PROJECT_NAME }));
+  await httpStep("access-grants (empty register)",
+    await f(`/v1/projects/${emptyProject.projectId}/access-grants`, {
+      memberId, capabilities: ["project.view", "assignments.manage", "readiness.view"],
+    }));
+
+  // `readiness.view` IS WITHHELD HERE, AND THAT IS THE WHOLE POINT. With it,
+  // this project would render the no-baseline empty state like the one above
+  // and prove nothing. Without it, `blocked_value.get` answers 403 and the
+  // create screen has to say so legibly instead of rendering ShellFatalError.
+  const noMoneyProject = await httpStep("projects.create (no readiness.view)",
+    await f(`/v1/workspaces/${ws.workspaceId}/projects`, { name: NO_MONEY_PROJECT_NAME }));
+  await httpStep("access-grants (no readiness.view)",
+    await f(`/v1/projects/${noMoneyProject.projectId}/access-grants`, {
+      memberId, capabilities: ["project.view", "assignments.manage"],
+    }));
+
   const me = await httpStep("me.context", await f("/v1/me/context"));
   if (me.memberships.length !== 2) {
     throw new Error(
@@ -734,6 +784,9 @@ async function seedWorld(baseUrl, bearer) {
     // this and nothing else. It was not returned until the D1 final fix wave,
     // which is a large part of why no audit had ever opened that route.
     projectId: proj.projectId,
+    // The two states the main project cannot be in at the same time as itself.
+    emptyProjectId: emptyProject.projectId,
+    noMoneyProjectId: noMoneyProject.projectId,
     occurrenceId,
     evidenceObjectId: finalized.evidenceObjectId,
     projectName: PROJECT_NAME,
@@ -1553,6 +1606,11 @@ async function main() {
     let projectId;
     let projectName;
     let workItemDescription;
+    // The final fix wave's two extra worlds — an empty register, and a project
+    // whose money the seeded member may not read. See `seedWorld`'s own
+    // constants for why neither can be a state of the main project.
+    let emptyProjectId;
+    let noMoneyProjectId;
     // The seventh audit's two inputs: the obligation a grant can be scoped to,
     // and the photo that must decode on both planes.
     let occurrenceId;
@@ -1562,7 +1620,7 @@ async function main() {
       const seedBearer = await seedBearerToken(email, password);
       ({
         assignmentId, workspaceId, projectId, projectName, workItemDescription, occurrenceId,
-        evidenceObjectId,
+        evidenceObjectId, emptyProjectId, noMoneyProjectId,
       } = await seedWorld(server.baseUrl, seedBearer));
 
       // FIX ROUND 1, FINDING 1 (CRITICAL). `seedWorld` throwing is not the
@@ -2674,6 +2732,23 @@ async function main() {
 
     // ── "assignment creation" — Plan D3, task 9 ──────────────────────────
     //
+    // FOUR BLOCKS SINCE THE FINAL FIX WAVE, and the first two are the reason
+    // that wave needed a harness at all — they are the only checks in this file
+    // that exercise how a person REACHES this screen rather than what it does
+    // once they are on it:
+    //   0.  the empty register offers «Нове доручення», and following it lands
+    //       on the create screen (F1 — until the fix, the only link to that
+    //       route lived in the component the empty register never renders, so
+    //       the first доручення in a project was uncreatable through the UI);
+    //   0b. a member who may create доручення but may not read the project's
+    //       money gets a named refusal instead of ShellFatalError (F2);
+    //   1–3. the form itself, unchanged: it renders, it refuses legibly, and a
+    //       double press creates exactly one assignment.
+    //
+    // Blocks 0 and 0b drive projects `seedWorld` creates for them, because
+    // neither state is one the main project can be in — see that function's own
+    // constants.
+    //
     // THE PROOF NO UNIT TEST CAN GIVE. `new-assignment-form.test.tsx` injects
     // a fake `createImpl`; `assignment-creation.int.test.ts` drives the real
     // route directly. Neither opens a browser, so neither can see whether a
@@ -2709,6 +2784,172 @@ async function main() {
     // them to one row, and this line — not the row count — is what catches
     // that.
     await runAudit(ctx, "assignment creation", async () => {
+      // ── 0. THE WAY IN, FROM THE STATE THAT NEEDS IT MOST ────────────────
+      //
+      // F1, and it is the reason this block exists at all. Until the final fix
+      // wave the ONLY navigational entry point to `/assignments/new` lived in
+      // `assignments-list.tsx`, which `assignments/page.tsx` renders only when
+      // the register already has a row — so the first доручення in a project
+      // could not be created through the UI. Every other check in this file
+      // drives `/assignments/new` by URL, which is exactly the move an owner
+      // holding a browser cannot make, so none of them could see it.
+      //
+      // IT NEEDS ITS OWN PROJECT. The seeded world's register has had a row
+      // since `seedWorld` returned; an empty register is not a state the main
+      // project can be in, which is why `EMPTY_PROJECT_NAME` is seeded.
+      //
+      // AND IT IS FOLLOWED, NOT JUST FOUND. A control that carries the right
+      // label and the right href and lands on a broken screen is the defect
+      // wearing the fix's clothes, so the click is real and the destination is
+      // asserted — the no-baseline empty state, which is the honest answer for
+      // a project with no published contract version.
+      const entryDiag = await withPage(browser, async (page) => {
+        await page.setViewport({ width: 1280, height: 900 });
+        const registerUrl = `${server.baseUrl}/dash/projects/${emptyProjectId}/assignments`;
+        const res = await page.goto(registerUrl, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(
+            `empty register: expected 200 for ${registerUrl}, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+
+        const empty = await page.evaluate(() => ({
+          text: document.body.innerText,
+          tables: document.querySelectorAll("table").length,
+          createHrefs: [...document.querySelectorAll("a")]
+            .filter((a) => (a.textContent ?? "").trim() === "Нове доручення")
+            .map((a) => a.getAttribute("href")),
+        }));
+        // The page IS the empty state — pinned first, so the assertions below
+        // cannot pass on a register that quietly grew a row.
+        if (!empty.text.includes("Немає доручень") || empty.tables !== 0) {
+          ctx.findings.push(
+            `empty register: expected the «Немає доручень» empty state and no table on ${registerUrl} `
+            + `(tables found: ${empty.tables}) — this project is supposed to have no assignment, so `
+            + "everything below would be measuring the wrong screen");
+          return;
+        }
+        const wantHref = `/dash/projects/${emptyProjectId}/assignments/new`;
+        if (!empty.createHrefs.includes(wantHref)) {
+          ctx.findings.push(
+            `empty register: no «Нове доручення» link to ${wantHref} on a project with no доручення — `
+            + "the first assignment in a project cannot be created through the UI "
+            + `(anchors with that label found: ${JSON.stringify(empty.createHrefs)})`);
+          return;
+        }
+
+        // The 44px floor applies to it exactly as it does to the register's own
+        // copy of this control — a new control on a touch width is a new place
+        // for that floor to be missed.
+        await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+        for (const t of await measureSmallTargets(page)) {
+          ctx.findings.push(`empty register @390: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+        }
+        await page.screenshot({
+          path: path.join(SHOTS, "dash-assignments-empty-390.png"), fullPage: true,
+        });
+        await page.setViewport({ width: 1280, height: 900 });
+
+        // FOLLOWED FOR REAL, through the anchor, the way a person would.
+        const link = await visibleHandleWithText(page, "a", "Нове доручення");
+        if (!link) {
+          ctx.findings.push("empty register: the «Нове доручення» link is in the DOM but not visible");
+          return;
+        }
+        await link.click();
+        await link.dispose();
+        await page.waitForFunction(
+          (want) => location.pathname === want, { timeout: 10_000 }, wantHref,
+        ).catch(() => {});
+
+        const landed = await page.evaluate(() => ({
+          path: location.pathname,
+          heading: document.querySelector("h1")?.textContent?.trim() ?? "",
+          text: document.body.innerText,
+        }));
+        if (landed.path !== wantHref) {
+          ctx.findings.push(
+            `empty register: following «Нове доручення» left the browser on ${landed.path}, not ${wantHref}`);
+          return;
+        }
+        if (landed.heading !== "Нове доручення") {
+          ctx.findings.push(
+            `empty register: the create screen reached from the empty state has the heading `
+            + `"${landed.heading}", not «Нове доручення»`);
+        }
+        // This project has no contract at all, so the honest answer is the
+        // no-baseline empty state — never the shell's fatal error.
+        if (!landed.text.includes("У проєкті ще немає опублікованої версії договору")) {
+          ctx.findings.push(
+            "empty register: the create screen reached from the empty state did not render the "
+            + "no-baseline empty state for a project with no published contract version — page text: "
+            + `"${landed.text.replace(/\s+/g, " ").slice(0, 240)}"`);
+        }
+        await page.screenshot({
+          path: path.join(SHOTS, "dash-assignment-creation-no-baseline.png"), fullPage: true,
+        });
+      });
+      reportDiagnostics("empty register", entryDiag, ctx.findings, ctx.missingAssets);
+
+      // ── 0b. THE MONEY REFUSAL, LEGIBLE ──────────────────────────────────
+      //
+      // F2. `listPublishedBaselines` reads a project's published baselines
+      // through `blocked_value.get`, gated by `readiness.view` — a capability
+      // four responsibility presets do NOT grant alongside `project.view`. That
+      // refusal used to fold into the service's `error` arm, which the route
+      // renders as `ShellFatalError`: «Не вдалося завантажити робочий простір»,
+      // the copy for a system that broke, shown to a member who is simply not
+      // granted a read and who can create the same assignment by curl.
+      //
+      // `NO_MONEY_PROJECT_NAME` is seeded with `project.view` and
+      // `assignments.manage` and WITHOUT `readiness.view`, which is the only
+      // way to stand in that person's shoes without minting a second user.
+      const forbiddenDiag = await withPage(browser, async (page) => {
+        await page.setViewport({ width: 1280, height: 900 });
+        const url = `${server.baseUrl}/dash/projects/${noMoneyProjectId}/assignments/new`;
+        const res = await page.goto(url, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(
+            `money refusal: expected 200 for ${url}, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+        const state = await page.evaluate(() => ({
+          heading: document.querySelector("h1")?.textContent?.trim() ?? "",
+          statuses: [...document.querySelectorAll('[role="status"]')]
+            .map((n) => (n.textContent ?? "").trim()),
+          text: document.body.innerText,
+        }));
+        // The generic fatal error is what this fix removed; naming it is what
+        // makes this assertion a regression test rather than a spot check.
+        if (state.text.includes("Не вдалося завантажити робочий простір")) {
+          ctx.findings.push(
+            "money refusal: a member with project.view + assignments.manage but no readiness.view still "
+            + "gets ShellFatalError on the create screen — a permission boundary rendered as a system failure");
+        }
+        if (!state.statuses.some((t) => t.includes("Немає доступу до кошторисів цього проєкту"))) {
+          ctx.findings.push(
+            'money refusal: no [role="status"] banner naming the missing access on the create screen — '
+            + `statuses found: ${JSON.stringify(state.statuses)}`);
+        }
+        // The refusal is about the money, not about the project, so the screen
+        // still asserts which screen it is — the route's own stated rule.
+        if (state.heading !== "Нове доручення") {
+          ctx.findings.push(
+            `money refusal: expected the heading «Нове доручення» to survive the refusal, found "${state.heading}"`);
+        }
+        // The banner carries a title AND a sentence, so the state is never
+        // signalled by colour alone.
+        const banner = state.statuses.find((t) => t.includes("Немає доступу до кошторисів цього проєкту")) ?? "";
+        if (!banner.includes("Попросіть адміністратора проєкту")) {
+          ctx.findings.push(
+            "money refusal: the banner names the refusal but not what to do about it — its body did not render");
+        }
+        await page.screenshot({
+          path: path.join(SHOTS, "dash-assignment-creation-forbidden.png"), fullPage: true,
+        });
+      });
+      reportDiagnostics("money refusal", forbiddenDiag, ctx.findings, ctx.missingAssets);
+
       const diag = await withPage(browser, async (page) => {
         const posts = [];
         page.on("request", (req) => {
