@@ -40,6 +40,7 @@ type DeliveryTarget = {
   text: string;
   kind: string;
   replyToMessageId: string | null;
+  inlineKeyboard: Array<Array<{ text: string; callbackData: string }>> | undefined;
   eligible: boolean;
 };
 
@@ -74,15 +75,17 @@ export async function enqueueTelegramMessage(
     text: string;
     kind: "assignment_card" | "text";
     replyToMessageId?: string | null;
+    inlineKeyboard?: Array<Array<{ text: string; callbackData: string }>>;
   },
 ): Promise<{ messageId: string; deliveryState: "queued" }> {
   const messageId = crypto.randomUUID();
   await tx.query(`insert into public.communication_messages
     (id, workspace_id, project_id, telegram_chat_binding_id, direction, kind,
-     text, reply_to_message_id, work_assignment_id, delivery_state)
-    values ($1, $2, $3, $4, 'outbound', $5, $6, $7, $8, 'queued')`, [
+     text, reply_to_message_id, work_assignment_id, telegram_reply_markup, delivery_state)
+    values ($1, $2, $3, $4, 'outbound', $5, $6, $7, $8, $9::jsonb, 'queued')`, [
     messageId, input.workspaceId, input.projectId, input.telegramChatBindingId,
     input.kind, input.text, input.replyToMessageId ?? null, input.workAssignmentId,
+    input.inlineKeyboard === undefined ? null : JSON.stringify(input.inlineKeyboard),
   ]);
   await enqueueOutbox(tx, ctx, {
     topic: OUTBOX_TOPIC,
@@ -134,19 +137,21 @@ async function deliverClaimedTelegramOutbox(
     const prepared = await tx.query<{
       message_id: string; workspace_id: string; project_id: string; chat_id: string;
       text: string; kind: string; reply_provider_message_id: string | null; eligible: boolean;
-    }>("select * from app.prepare_telegram_delivery($1::uuid, $2::uuid, $3::bigint, $4::integer)",
+      telegram_reply_markup: Array<Array<{ text: string; callbackData: string }>> | null;
+    }>("select * from app.prepare_telegram_delivery_with_markup($1::uuid, $2::uuid, $3::bigint, $4::integer)",
       [item.id, item.lease_token, botId, OUTBOX_LEASE_SECONDS]);
     const row = prepared.rows[0];
     if (!row) throw new Error("telegram_delivery_target_missing");
     const target: DeliveryTarget = {
       messageId: row.message_id, workspaceId: row.workspace_id, projectId: row.project_id,
       chatId: row.chat_id, text: row.text, kind: row.kind,
-      replyToMessageId: row.reply_provider_message_id, eligible: row.eligible,
+      replyToMessageId: row.reply_provider_message_id, inlineKeyboard: row.telegram_reply_markup ?? undefined, eligible: row.eligible,
     };
     const result = !target.eligible
       ? { kind: "definitive_failure", code: "delivery_target_unavailable" } as const
       : await classifyTelegramSend(api, {
         chatId: target.chatId, text: target.text, replyToMessageId: target.replyToMessageId,
+        ...(target.inlineKeyboard === undefined ? {} : { inlineKeyboard: target.inlineKeyboard }),
         ...(target.kind === "assignment_card" ? { parseMode: "HTML" as const } : {}),
       });
     const number = await attemptNumber(tx, target);

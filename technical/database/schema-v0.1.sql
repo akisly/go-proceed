@@ -2972,10 +2972,13 @@ create table public.telegram_inbox_updates (
 create table public.telegram_media_groups (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   telegram_chat_binding_id uuid not null, provider_media_group_id text not null,
-  state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
+  reply_provider_message_id bigint, work_assignment_id uuid, last_part_at timestamptz not null,
+  choice_expires_at timestamptz, state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
   unique (telegram_chat_binding_id, provider_media_group_id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
+  check (choice_expires_at is null or choice_expires_at >= last_part_at),
   check (state in ('open','awaiting_requirement_choice','processing','completed','not_evidence','failed'))
 );
 create table public.communication_messages (
@@ -2984,7 +2987,7 @@ create table public.communication_messages (
   text text, author_member_id uuid, provider_user_id bigint, provider_display_name_snapshot text,
   provider_username_snapshot text, provider_message_id bigint, provider_sent_at timestamptz,
   server_received_at timestamptz not null, reply_to_message_id uuid,
-  provider_reply_to_message_id bigint, work_assignment_id uuid, retry_of_message_id uuid, delivery_state text not null,
+  provider_reply_to_message_id bigint, work_assignment_id uuid, retry_of_message_id uuid, telegram_reply_markup jsonb, delivery_state text not null,
   unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
@@ -3043,6 +3046,25 @@ create table public.telegram_requirement_choices (
   foreign key (workspace_id, chooser_member_id) references public.memberships(workspace_id, id),
   foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id)
 );
+create table public.telegram_requirement_choice_sessions (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  telegram_chat_binding_id uuid not null, uploader_member_id uuid not null,
+  work_assignment_id uuid not null, communication_attachment_id uuid, telegram_media_group_id uuid,
+  token_hash text not null, candidate_occurrence_id uuid not null, allowed_occurrence_ids uuid[] not null,
+  expires_at timestamptz not null, consumed_at timestamptz, chosen_occurrence_id uuid, created_at timestamptz not null,
+  unique (workspace_id, id), unique (token_hash),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
+  foreign key (workspace_id, uploader_member_id) references public.memberships(workspace_id, id),
+  foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, communication_attachment_id) references public.communication_attachments(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, telegram_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, candidate_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, chosen_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
+  check (token_hash ~ '^[0-9a-f]{64}$'), check (cardinality(allowed_occurrence_ids) > 1),
+  check ((communication_attachment_id is null) <> (telegram_media_group_id is null)),
+  check ((consumed_at is null) = (chosen_occurrence_id is null)), check (expires_at > created_at)
+);
 create table public.communication_delivery_attempts (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, attempt_no integer not null, state text not null,
@@ -3097,7 +3119,7 @@ create trigger communication_delivery_attempts_append_only before update or dele
 revoke all on table public.telegram_chat_bindings, public.telegram_binding_intents,
   public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
   public.telegram_media_groups, public.communication_messages, public.communication_message_events,
-  public.communication_attachments, public.telegram_requirement_choices,
+  public.communication_attachments, public.telegram_requirement_choices, public.telegram_requirement_choice_sessions,
   public.communication_delivery_attempts from public, anon, authenticated, goproceed_app;
 grant select on public.telegram_chat_bindings, public.telegram_media_groups,
   public.communication_messages, public.communication_message_events to goproceed_app;
@@ -3107,7 +3129,7 @@ grant select (id, workspace_id, project_id, message_id, telegram_media_group_id,
   on public.communication_attachments to goproceed_app;
 grant select, insert, update on public.telegram_chat_bindings, public.telegram_binding_intents,
   public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
-  public.telegram_media_groups, public.communication_messages, public.communication_attachments
+  public.telegram_media_groups, public.communication_messages, public.communication_attachments, public.telegram_requirement_choice_sessions
   to goproceed_service;
 grant select, insert on public.communication_message_events, public.telegram_requirement_choices,
   public.communication_delivery_attempts to goproceed_service;
@@ -3212,6 +3234,7 @@ alter table public.communication_messages enable row level security;
 alter table public.communication_message_events enable row level security;
 alter table public.communication_attachments enable row level security;
 alter table public.telegram_requirement_choices enable row level security;
+alter table public.telegram_requirement_choice_sessions enable row level security;
 alter table public.communication_delivery_attempts enable row level security;
 
 -- =============================================================================

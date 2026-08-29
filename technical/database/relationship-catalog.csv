@@ -10,6 +10,8 @@ communication_message_events,records,communication_messages,N:1,yes,workspace_id
 communication_attachments,belongs_to,communication_messages,N:1,yes,workspace_id+project_id+message_id -> communication_messages(workspace_id+project_id+id),restrict,INV-094
 communication_attachments,finalizes_as,evidence_objects,N:1,no,workspace_id+project_id+evidence_object_id -> evidence_objects(workspace_id+project_id+id),restrict,INV-095
 telegram_requirement_choices,selects_for,communication_attachments,N:1,yes,workspace_id+project_id+communication_attachment_id -> communication_attachments(workspace_id+project_id+id),restrict,INV-001
+telegram_requirement_choice_sessions,targets,communication_attachments,N:1,no,workspace_id+project_id+communication_attachment_id -> communication_attachments(workspace_id+project_id+id),restrict,INV-097
+telegram_requirement_choice_sessions,targets,telegram_media_groups,N:1,no,workspace_id+project_id+telegram_media_group_id -> telegram_media_groups(workspace_id+project_id+id),restrict,INV-097
 communication_delivery_attempts,attempts,communication_messages,N:1,yes,workspace_id+project_id+message_id -> communication_messages(workspace_id+project_id+id),restrict,INV-093
 memberships,subject_of,auth.users,N:1,yes,user_id -> auth.users(id) provider-global subject only,restrict,INV-001
 invitations,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001

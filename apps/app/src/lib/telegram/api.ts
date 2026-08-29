@@ -32,6 +32,7 @@ export type SendTelegramMessageInput = {
   parseMode?: "HTML";
   replyToMessageId?: string | null;
   messageThreadId?: string | null;
+  inlineKeyboard?: Array<Array<{ text: string; callbackData: string }>>;
 };
 
 export type TelegramFileInfo = {
@@ -126,6 +127,11 @@ export function createTelegramApiClient(config: TelegramConfig, fetcher: Telegra
       if (input.parseMode !== undefined) body.parse_mode = input.parseMode;
       if (input.replyToMessageId !== undefined && input.replyToMessageId !== null) body.reply_parameters = { message_id: input.replyToMessageId };
       if (input.messageThreadId !== undefined && input.messageThreadId !== null) body.message_thread_id = input.messageThreadId;
+      if (input.inlineKeyboard !== undefined) {
+        body.reply_markup = { inline_keyboard: input.inlineKeyboard.map((row) => row.map((button) => ({
+          text: button.text, callback_data: button.callbackData,
+        }))) };
+      }
       const result = await post<{ message_id: string | number }>("sendMessage", body, true);
       if (typeof result !== "object" || result === null) throw networkError(true);
       const messageId = typeof result.message_id === "number"
