@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
+import { withServiceTx, withTenantTx } from "@goproceed/database";
 
 const admin = process.env.TEST_DB_ADMIN_URL ?? "";
 const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL && admin ? describe : describe.skip;
@@ -277,6 +278,46 @@ databaseDescribe("Telegram inbox processing", () => {
     expect(events).toEqual({ count: "1" });
     expect(message).toEqual({ text: "Оригінал" });
     expect(outbox).toEqual({ count: "1" });
+  });
+
+  it("allows only the constrained service-plane Telegram outbox RPC", async () => {
+    const messageId = crypto.randomUUID();
+    const providerUpdateId = Number(updateId);
+    await q(`insert into public.communication_messages
+      (id, workspace_id, project_id, telegram_chat_binding_id, direction, kind, text,
+       provider_message_id, provider_sent_at, delivery_state)
+      values ($1, $2, $3, $4, 'inbound', 'text', 'RPC source', 464, now(), 'received')`,
+    [messageId, workspaceId, projectId, bindingId]);
+    const args = [workspaceId, projectId, "telegram.message.normalized", messageId, providerUpdateId, "message"];
+    const rpc = `select app.enqueue_telegram_processor_outbox(
+      $1::uuid, $2::uuid, $3::text, $4::uuid, $5::bigint, $6::text
+    )`;
+
+    const [privileges] = await q<{ service_allowed: boolean; app_allowed: boolean }>(`select
+      has_function_privilege('goproceed_service',
+        'app.enqueue_telegram_processor_outbox(uuid,uuid,text,uuid,bigint,text)', 'execute') as service_allowed,
+      has_function_privilege('goproceed_app',
+        'app.enqueue_telegram_processor_outbox(uuid,uuid,text,uuid,bigint,text)', 'execute') as app_allowed`);
+    expect(privileges).toEqual({ service_allowed: true, app_allowed: false });
+
+    await withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+      await tx.query(rpc, args);
+    });
+    const [outbox] = await q<{ aggregate_type: string; aggregate_id: string; event_kind: string }>(`select
+      aggregate_type, aggregate_id, payload->>'eventKind' as event_kind
+      from public.transaction_outbox
+      where organization_id=$1 and topic='telegram.message.normalized' and aggregate_id=$2`, [workspaceId, messageId]);
+    expect(outbox).toEqual({ aggregate_type: "communication_message", aggregate_id: messageId, event_kind: "message" });
+
+    await expect(withTenantTx({ actorUserId, organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+      await tx.query(rpc, args);
+    })).rejects.toThrow(/permission denied/i);
+    await expect(withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+      await tx.query(rpc, [workspaceId, projectId, "unrelated.topic", messageId, providerUpdateId, "message"]);
+    })).rejects.toThrow(/topic is not allowed/i);
+    await expect(withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+      await tx.query(rpc, [workspaceId, crypto.randomUUID(), "telegram.message.normalized", messageId, providerUpdateId, "message"]);
+    })).rejects.toThrow(/aggregate does not match tenant/i);
   });
 
   it("does not retain a startgroup token as communication text", async () => {

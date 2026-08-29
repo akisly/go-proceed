@@ -2451,6 +2451,10 @@ comment on table public.transaction_outbox is
 create index outbox_available_idx
   on public.transaction_outbox (workspace_id, available_at, id)
   where delivered_at is null;
+create unique index transaction_outbox_telegram_processor_identity_uniq
+  on public.transaction_outbox
+    (workspace_id, topic, aggregate_type, aggregate_id, (payload ->> 'providerUpdateId'), (payload ->> 'eventKind'))
+  where topic in ('telegram.message.normalized', 'telegram.channel.health_changed');
 
 create table public.jobs (
   id uuid not null default gen_random_uuid(),

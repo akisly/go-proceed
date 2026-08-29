@@ -1,4 +1,4 @@
-import { enqueueOutbox, withServiceTx } from "@goproceed/database";
+import { withServiceTx } from "@goproceed/database";
 import { consumeBindingCommand, consumeMemberLinkCommand } from "./linking";
 import { loadTelegramConfig } from "./config";
 import { normalizeTelegramUpdate, type NormalizedTelegramUpdate } from "./normalize";
@@ -98,6 +98,25 @@ async function linkedMemberId(tx: { query: <T extends Record<string, unknown>>(s
   return result.rows[0]?.member_id ?? null;
 }
 
+/**
+ * A Telegram worker has a provider identity, never a member identity. This
+ * narrow SECURITY DEFINER function is the only service-plane outbox path: it
+ * derives the allowed aggregate and payload from an already-persisted source
+ * fact, rather than weakening general outbox RLS or inventing an actor.
+ */
+async function enqueueTelegramProcessorOutbox(
+  tx: { query: <T extends Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> },
+  binding: ChatBinding,
+  input: { topic: "telegram.message.normalized" | "telegram.channel.health_changed"; messageId: string; providerUpdateId: string; eventKind: "message" | "edited" | "bot_removed" | "bot_restored" },
+): Promise<void> {
+  await tx.query(`select app.enqueue_telegram_processor_outbox(
+    $1::uuid, $2::uuid, $3::text, $4::uuid, $5::bigint, $6::text
+  )`, [
+    binding.workspace_id, binding.project_id, input.topic,
+    input.messageId, input.providerUpdateId, input.eventKind,
+  ]);
+}
+
 async function storeMessage(
   binding: ChatBinding,
   update: Extract<NormalizedTelegramUpdate, { kind: "message" }>,
@@ -136,12 +155,8 @@ async function storeMessage(
           file.fileName, file.mimeType, file.fileSize,
         ]);
       }
-      await enqueueOutbox(tx, { actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, {
-        topic: "telegram.message.normalized",
-        aggregate_type: "communication_message",
-        aggregate_id: messageId,
-        payload_version: 1,
-        payload: { messageId, projectId: binding.project_id, providerUpdateId: update.updateId },
+      await enqueueTelegramProcessorOutbox(tx, binding, {
+        topic: "telegram.message.normalized", messageId, providerUpdateId: update.updateId, eventKind: "message",
       });
     }
     return authorMemberId === null ? "stored_unverified_message" : "stored_chat_message";
@@ -171,12 +186,8 @@ async function appendEdit(
     ]);
     const eventId = event.rows[0]?.id;
     if (eventId) {
-      await enqueueOutbox(tx, { actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, {
-        topic: "telegram.message.normalized",
-        aggregate_type: "communication_message_event",
-        aggregate_id: eventId,
-        payload_version: 1,
-        payload: { messageId, projectId: binding.project_id, providerUpdateId: update.updateId, eventKind: "edited" },
+      await enqueueTelegramProcessorOutbox(tx, binding, {
+        topic: "telegram.message.normalized", messageId, providerUpdateId: update.updateId, eventKind: "edited",
       });
     }
     return "appended_message_edit";
@@ -215,12 +226,9 @@ async function processMembershipChange(
       ]);
       const eventId = event.rows[0]?.id;
       if (eventId) {
-        await enqueueOutbox(tx, { actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, {
-          topic: "telegram.channel.health_changed",
-          aggregate_type: "project_field_channel",
-          aggregate_id: binding.project_id,
-          payload_version: 1,
-          payload: { projectId: binding.project_id, messageId: systemMessageId, providerUpdateId: update.updateId, eventKind: removed ? "bot_removed" : "bot_restored" },
+        await enqueueTelegramProcessorOutbox(tx, binding, {
+          topic: "telegram.channel.health_changed", messageId: systemMessageId, providerUpdateId: update.updateId,
+          eventKind: removed ? "bot_removed" : "bot_restored",
         });
       }
     }
