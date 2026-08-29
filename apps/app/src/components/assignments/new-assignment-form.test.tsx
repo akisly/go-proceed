@@ -4,6 +4,8 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import "@testing-library/jest-dom/vitest";
 
+import { createAssignmentRequest } from "@goproceed/contracts";
+
 import { NewAssignmentForm, type CreateAssignmentImpl, type MemberOption } from "./new-assignment-form";
 import type { CreateAssignmentResult } from "../../services/assignment-create.service";
 import type { BaselineOption } from "../../services/baseline.service";
@@ -394,5 +396,55 @@ describe("NewAssignmentForm", () => {
     // line picker and the виконавець picker.
     expect(screen.queryByRole("combobox", { name: /^Кошторис/ })).toBeNull();
     expect(screen.getAllByRole("combobox")).toHaveLength(2);
+  });
+
+  /**
+   * DERIVATION, NOT AGREEMENT — and the difference is the whole point.
+   *
+   * The form used to carry `const QUANTITY = /^\d+(\.\d{1,6})?$/`, transcribed
+   * from `packages/contracts/src/assignments.ts` under a comment promising it
+   * was «kept identical». A test with hard-coded expectations would have passed
+   * on that copy and would keep passing after the contract narrowed underneath
+   * it — which is exactly the drift nothing in CI could see: the form accepts
+   * six places, `createAssignment`'s own `safeParse` refuses the body, and the
+   * reader gets a generic banner with no message against the field.
+   *
+   * So the EXPECTATION is computed from the contract at run time. Narrow
+   * `decimal` to two places and `"1.123456"` flips to refused HERE without this
+   * file being touched; a form still running a stale regex then fails on that
+   * row and names it.
+   *
+   * ONLY THE QUANTITY IS DRIVEN THROUGH THE DOM. `dueDate` derives its rule the
+   * same way, but an `input type="date"` sanitizes its own value — jsdom
+   * implements this, as browsers do — so a malformed string never reaches the
+   * resolver through the control at all. Its refinement guards the case where
+   * the type is not supported and the control degrades to text, which is not a
+   * state this environment can produce.
+   */
+  it("takes the quantity rule from the contract rather than restating it", async () => {
+    const rule = createAssignmentRequest.shape.plannedQuantity.unwrap();
+    const create = vi.fn<CreateAssignmentImpl>(async () => ({ kind: "error", error: "no network" }));
+    render(<NewAssignmentForm projectId="p1" baselines={baselines} members={members}
+      currentMemberId={MEMBER_ID} createImpl={create} initialWorkItemId={WORK_ITEM_ID} />);
+
+    const quantity = screen.getByLabelText(/Планова кількість/);
+    const submit = screen.getByRole("button", { name: "Створити доручення" });
+
+    // Every sample the contract's own regex discriminates: the sixth decimal
+    // it allows, the seventh it does not, the decimal comma a Ukrainian
+    // keyboard produces, a sign, a bare separator, and a word.
+    for (const sample of ["1", "1.123456", "1.1234567", "0.5", "1,5", "-1", "1.", "abc"]) {
+      await userEvent.clear(quantity);
+      await userEvent.type(quantity, sample);
+      const before = create.mock.calls.length;
+      await userEvent.click(submit);
+      const reachedTheWire = create.mock.calls.length > before;
+      expect(reachedTheWire, `«${sample}»`).toBe(rule.safeParse(sample).success);
+    }
+
+    // The refusal is still the form's own Ukrainian sentence, not zod's
+    // English one for the inner schema — the reason the rule is consulted
+    // inside a `.refine()` rather than piped into the field.
+    expect(screen.getByText("Вкажіть число, до шести знаків після коми.")).toBeTruthy();
   });
 });

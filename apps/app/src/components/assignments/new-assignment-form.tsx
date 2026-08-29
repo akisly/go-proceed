@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Controller, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { createAssignmentRequest } from "@goproceed/contracts";
 
 import {
   Banner, Button, Field, FieldDescription, FieldError, FieldGroup, FieldLabel, FieldTitle,
@@ -43,9 +44,40 @@ import { nextSubmitState, type SubmitState } from "../../lib/submit-state";
  * file.
  */
 
-/** Kept identical to `decimal` in `packages/contracts/src/assignments.ts`. */
-const QUANTITY = /^\d+(\.\d{1,6})?$/;
-const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+/**
+ * THE CONTRACT'S OWN RULES, UNWRAPPED — not a second copy of them.
+ *
+ * These two lines used to be `const QUANTITY = /^\d+(\.\d{1,6})?$/` and
+ * `const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/`, transcribed from
+ * `packages/contracts/src/assignments.ts` under a comment that promised they
+ * were «kept identical». Nothing kept them. Narrow the contract's `decimal` to
+ * two places and this form still accepts six: `createAssignment`'s own
+ * `safeParse` refuses the body, the reader gets the generic
+ * «дані не пройшли перевірку» banner with no message against the quantity
+ * field, and not one test in this repository fails. The spec's §4 states the
+ * rule this restores — «`zodResolver` runs the same `createAssignmentRequest`
+ * the wire uses, so the rules are stated once».
+ *
+ * `.unwrap()` IS WHAT MAKES IT REACHABLE, and it was measured on the installed
+ * zod 4.4.3 rather than assumed: both fields are `.optional()` on the request,
+ * so `shape.plannedQuantity` is a `ZodOptional` whose `safeParse("")` is FALSE
+ * (an optional accepts `undefined`, never the empty string). `.unwrap()` hands
+ * back the inner `ZodString` carrying the regex, which answers the only
+ * question this form asks it: is this NON-EMPTY string one the wire will take.
+ * The empty case is the refinement's own `v === ""` arm below, where it belongs
+ * — it is a fact about the FORM (this field may be left blank and is then not
+ * sent), not about the request.
+ *
+ * THE TWO REQUIRED FIELDS ARE NOT DERIVED, DELIBERATELY. `workItemId` and
+ * `assigneeMemberId` are `z.string().guid()` on the request and
+ * `z.string().min(1, …)` here, and those are different rules rather than a
+ * duplicated one: the form is asking «did you choose», the contract is asking
+ * «is this a guid», and both values come from a `Select` populated with server
+ * ids where a non-guid cannot be typed. Deriving them would replace a message
+ * that names the missing choice with one that cannot be acted on.
+ */
+const quantityRule = createAssignmentRequest.shape.plannedQuantity.unwrap();
+const dueDateRule = createAssignmentRequest.shape.dueDate.unwrap();
 
 /**
  * The names this form can render a message beside. Anything else is a banner.
@@ -65,7 +97,11 @@ const formSchema = z.object({
   assigneeMemberId: z.string().min(1, "Оберіть виконавця."),
   /**
    * Both optional fields accept "" through ONE refinement rather than through
-   * `.regex(…).or(z.literal(""))`.
+   * `.regex(…).or(z.literal(""))` — and the rule inside the refinement is the
+   * CONTRACT'S, read through `quantityRule`/`dueDateRule` above rather than
+   * transcribed. The refinement is what keeps the Ukrainian message: a derived
+   * `.pipe()` or a bare `.and()` would surface zod's own English string for the
+   * inner schema, and the message is the half of this that a person reads.
    *
    * NOT because the union leaks English. It does not, and an earlier version
    * of this comment said it did: measured on the installed zod 4.4.3,
@@ -85,11 +121,11 @@ const formSchema = z.object({
    * space bar is a real refusal for no reason.
    */
   plannedQuantity: z.string().trim().refine(
-    (v) => v === "" || QUANTITY.test(v),
+    (v) => v === "" || quantityRule.safeParse(v).success,
     "Вкажіть число, до шести знаків після коми.",
   ),
   dueDate: z.string().trim().refine(
-    (v) => v === "" || ISO_DATE.test(v),
+    (v) => v === "" || dueDateRule.safeParse(v).success,
     "Вкажіть дату у форматі РРРР-ММ-ДД.",
   ),
 });
