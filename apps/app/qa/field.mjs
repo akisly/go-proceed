@@ -697,12 +697,62 @@ async function seedWorld(baseUrl, bearer) {
   // this project would render the no-baseline empty state like the one above
   // and prove nothing. Without it, `blocked_value.get` answers 403 and the
   // create screen has to say so legibly instead of rendering ShellFatalError.
+  //
+  // OMITTING IT FROM THIS LIST IS ONLY HALF THE WITHHOLDING — the creator's
+  // own `project.admin` row implies it, and is taken back immediately below.
   const noMoneyProject = await httpStep("projects.create (no readiness.view)",
     await f(`/v1/workspaces/${ws.workspaceId}/projects`, { name: NO_MONEY_PROJECT_NAME }));
   await httpStep("access-grants (no readiness.view)",
     await f(`/v1/projects/${noMoneyProject.projectId}/access-grants`, {
       memberId, capabilities: ["project.view", "assignments.manage"],
     }));
+
+  // ── AND `project.admin` IS TAKEN BACK, WHICH IS WHAT MAKES THE WITHHOLDING
+  //    REAL ──────────────────────────────────────────────────────────────────
+  //
+  // WITHHOLDING A CAPABILITY FROM A GRANT DOES NOT WITHHOLD IT. Every project
+  // is created by this same member, and `projects.create` grants its creator
+  // `project.admin` and `project.view` unconditionally
+  // (app/v1/workspaces/[workspaceId]/projects/route.ts) — access is never
+  // inferred later, so it is handed out at creation instead. And
+  // `requireProjectCapability` treats `project.admin` as covering
+  // `IMPLIED_BY_PROJECT_ADMIN = ["project.view", "readiness.view"]`
+  // (src/lib/authz.ts). So the grant above, which carefully omits
+  // `readiness.view`, omits nothing at all: the member still holds it through
+  // the admin row, `blocked_value.get` still answers 200, and the create
+  // screen renders its ordinary empty state.
+  //
+  // THAT IS NOT A SILENT PASS — IT IS EXACTLY TWO FINDINGS. Block 0b looks for
+  // a `[role="status"]` banner naming the missing access; with the refusal
+  // never reached, that assertion fires, and so does the one below it that
+  // reads the same absent banner for its «Попросіть адміністратора проєкту»
+  // body. Both describe the seed, not the screen. Revoking the admin row is
+  // what makes them describe the screen.
+  //
+  // SQL, WHERE EVERY OTHER SEEDING STEP HERE IS HTTP, AND ON PURPOSE: `/v1/
+  // projects/{projectId}/access-grants` carries a POST and nothing else — v0.1
+  // has no operation that revokes a project access grant, and inventing one to
+  // serve a test would be an API change owned by
+  // technical/openapi/scope-v0.1.csv, not by this harness. The column is the
+  // one authz.ts itself reads (`revoked_at is null`), so this writes the state
+  // the production check already tests for rather than a second mechanism.
+  //
+  // AND IT IS ASSERTED, NOT ASSUMED. A revoke that matched no row would leave
+  // the member an admin and put block 0b back exactly where it started, so the
+  // row count is checked here — where the message can say what went wrong —
+  // rather than surfacing later as two findings about a banner.
+  const revoked = await dbQuery(
+    `update public.project_access_grants set revoked_at = now()
+      where workspace_id = $1 and project_id = $2 and member_id = $3
+        and capability = 'project.admin' and revoked_at is null
+      returning 1 as ok`,
+    [ws.workspaceId, noMoneyProject.projectId, memberId]);
+  if (revoked.length !== 1) {
+    throw new Error(
+      `seedWorld: expected to revoke exactly one project.admin grant on ${NO_MONEY_PROJECT_NAME}, `
+      + `revoked ${revoked.length} — the money-refusal audit needs readiness.view genuinely absent, and `
+      + "projects.create grants project.admin to its creator, which implies it (src/lib/authz.ts).");
+  }
 
   const me = await httpStep("me.context", await f("/v1/me/context"));
   if (me.memberships.length !== 2) {
