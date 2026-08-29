@@ -89,6 +89,16 @@ describe("Telegram webhook ingress", () => {
     expect(await duplicate.text()).toBe("");
   });
 
+  it("canonicalizes decimal-string update IDs before using the inbox identity", async () => {
+    const padded = await acceptTelegramUpdate(request('{"update_id":"001"}', { secret }));
+    const canonical = await acceptTelegramUpdate(request('{"update_id":"1"}', { secret }));
+
+    expect(padded.status).toBe(200);
+    expect(canonical.status).toBe(200);
+    const calls = query.mock.calls as unknown as Array<[string, unknown[]]>;
+    expect(calls.map(([, values]) => values[1])).toEqual(["1", "1"]);
+  });
+
   it("rejects malformed JSON and unsafe provider update identities", async () => {
     expect((await acceptTelegramUpdate(request("{", { secret }))).status).toBe(422);
     expect((await acceptTelegramUpdate(request('{"update_id":9007199254740992}', { secret }))).status).toBe(422);

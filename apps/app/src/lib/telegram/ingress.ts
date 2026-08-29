@@ -62,7 +62,8 @@ function updateIdFrom(value: unknown): string | null {
   }
   if (typeof value !== "string" || !/^\d+$/.test(value)) return null;
   try {
-    return BigInt(value) <= MAX_POSTGRES_BIGINT ? value : null;
+    const parsed = BigInt(value);
+    return parsed <= MAX_POSTGRES_BIGINT ? String(parsed) : null;
   } catch {
     return null;
   }
@@ -74,7 +75,7 @@ function providerUpdateId(payload: unknown): string | null {
   if (updateId === null) return null;
   // The normalizer is the adapter boundary. It is used here only to make the
   // ingress identity agree with its bounded/redacted metadata convention.
-  return normalizeTelegramUpdate(payload).updateId === updateId ? updateId : null;
+  return updateIdFrom(normalizeTelegramUpdate(payload).updateId) === updateId ? updateId : null;
 }
 
 function empty(status: 200 | 401 | 413 | 422): Response {
