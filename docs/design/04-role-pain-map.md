@@ -73,12 +73,63 @@ Owner's selection, 2026-08-21: the ADR-009 minimum **plus** the Dashboard overvi
 | 5 | **Projects** — list + detail shell | all office roles | navigation spine; nothing else has a home without it | circle `app/[orgId]/projects` + `layout/sidebar` |
 | 6 | **Profile & sign-out** | everyone | there is currently **no way to sign out** anywhere in the product | shadcn-admin `settings/profile`, `sign-out-dialog` |
 
+**[Correction, 2026-08-28 — row 3's pain sentence is not in the scan, and half
+of row 3 has shipped.]** «reconstruction after the fact; today this is SQL»
+appears nowhere in
+[the demand scan](../discovery/research-ua-demand-2026-08-21.md) this document
+sources every row to — checked by string on 2026-08-28: neither
+«reconstruction» nor «SQL» occurs in that file. What the scan does support for
+ПТВ is the aggregation loop, in its §"Role evidence": «several days searching
+photos in chats, transcribing passports into Word, and calling the foreman to
+assemble the monthly customer folder» — which the scan itself labels vendor
+evidence rather than independent measurement — «customer-specific formatting
+requirements, repeated revisions», and «manually typing hidden-work acts,
+maintaining an as-built register».
+
+Those sentences justify the **list** half of row 3, and that half has shipped:
+`/dash/projects/{projectId}/assignments`, its columns, and the link into row
+1's evidence screen. They do **not** justify the **create** half, which is
+carried by the operability section below instead — under a different role and
+a different kind of justification. The row is left as written, per this
+repository's rule that a correction is a dated addition and never a rewrite;
+read this note with it.
+
 ### Deliberately NOT built, and why
 - **Anything for the foreman in the dashboard** — see above; the field client is his surface.
 - **An account for technical supervision** — the no-account link is the adoption path; an account is the refusal path.
 - circle's issues / cycles / initiatives / reviews / inbox / agent, and its 30+ settings pages — a vocabulary from a different product.
 - shadcn-admin's chats, apps, error pages, its own auth screens — we have OTP.
 - The full register (imports, KB-2v, packages) — ADR-009 decision 3 says «Not the full register», and claim 4 is unvalidated: building it now is building on an unmeasured assumption.
+
+## Screens that serve operability, not a measured pain
+
+Added 2026-08-28 under
+[ADR-009](../decisions/ADR-009-three-pilot-surfaces.md)'s amendment of the same
+date.
+
+Every screen in the table above is justified by a role and by a sentence
+describing that role's pain. The screen below is justified by neither, and it
+gets a section of its own precisely so that the difference stays visible. Put
+into the same table it would inherit an authority it does not have.
+
+| # | Screen | Serves | Justified by | NOT justified by |
+|---|---|---|---|---|
+| 7 | **The contract-baseline chain** — party + legal profile, contract, draft version, typed lines, rule-version publication, bindings, publication, and the assignment at the end | the owner or a workspace admin standing up a pilot | ADR-009 decision 3's operability clause: «the screens without which the owner cannot run the pilot without curl». Creating an assignment is already inside decision 3 and is unreachable until a published baseline exists | any sentence in the demand scan. Nothing in it says a ПТВ suffers from entering contract structure, and no such sentence may be invented to license polish here |
+
+**What follows from being an operability screen, concretely:**
+
+- **It is measured by completion, not by feel.** The test is the walk in
+  ADR-009's amendment: browser and an email address to a created assignment,
+  with no curl, no psql and no SQL. That is falsifiable in the browser harness;
+  «pleasant to use» is not, and is not claimed.
+- **It is not owed rows 1–4's polish, and must not spend their budget.**
+- **The rule at the end of this document applies to it unchanged.** It must not
+  add work to a role whose pain has not been measured — the foreman still owes
+  the dashboard nothing, and no step of this chain may be pushed onto him.
+- **It is provisional by construction.** If the pilot ever produces evidence
+  that a ПТВ enters baselines themselves, this screen moves up into the table
+  with a real pain sentence and its bar rises to match. Until such a sentence
+  exists, it stays here — and «the pilot needed it» is not that sentence.
 
 ## The rule this document exists to enforce
 

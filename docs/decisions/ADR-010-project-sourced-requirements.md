@@ -85,6 +85,18 @@ true in the software rather than only in the documentation.
    because a published rule version has already copied the content and no edit
    could reach it.
 
+   *[Amended 2026-08-28 — the `list` third of the first sentence.* The slice's
+   own build departed from it for the read alone: migration 0059's
+   `psri_select` admits **any active member** («the foreman who reads an
+   occurrence reads the text behind it», the policy's own words), and the list
+   route asks for membership and no capability, recording the departure in its
+   header. The permission catalog followed on 2026-08-28 (TODOS 2026-08-27
+   residual 6): `project_requirements.list` is a membership-governed read,
+   listed with the capability-exempt operations in
+   `technical/openapi/README.md` §Conventions. `create` and `archive` stay
+   governed by `project_requirements.manage`, held exactly as this decision
+   says.]
+
 6. **No dashboard screen.** See «What this decision does not authorise» below.
 
 ## Relationship to ADR-006 decision 4.1
@@ -140,6 +152,31 @@ dated amendment here — this one authorises these two and nothing else.»
   the approved scope and stays that way. A screen is a separate decision and
   would need an amendment here, a role-pain-map row, and the UI procedure in
   [docs/design/02-building-ui.md](../design/02-building-ui.md).
+
+  *[Corrected 2026-08-28 — the parity ARGUMENT, not the prohibition.* This
+  bullet rests on three grounds, and the third has an expiry date it did not
+  have when it was written. [ADR-009](ADR-009-three-pilot-surfaces.md)'s
+  amendment of the same date authorises a screen for
+  `requirement_rule_versions.publish` as part of the manual contract-baseline
+  chain, so «has no screen either» stops being true the day that screen ships
+  and **must not be cited again** once it does.
+
+  **The prohibition itself is unchanged, and the two remaining grounds carry
+  it unaided.** ADR-009's amendment authorises the chain and says in terms that
+  it authorises no requirement-authoring screen; `04-role-pain-map.md` still
+  has no row for one, and its own rule — name the role and the pain sentence,
+  or the screen is a guess — is unrelaxed.
+
+  A fact that was not established when this bullet was written, and that
+  removes the pressure the parity argument used to absorb: **`workTypeKey` is
+  free text** — `z.string().trim().min(1).max(200)`
+  (`packages/contracts/src/requirement-rules.ts:83`), no controlled vocabulary
+  — so a rule version can be published for ANY work type on top of the twelve
+  seeded Додаток Н library items that `workspaces.create` materialises. The
+  chain screen therefore never needs this decision's project-sourced arm to
+  function, and `project_requirements.create` stays API-only with nothing
+  leaning on it. Its four prerequisites (TODOS residual 1) are untouched and
+  all four still apply.]
 - **No Додаток Н item, no Додаток В field, no clause number.** A project-sourced
   string is never attributed to a ДБН or a ДСТУ and never renders inside a
   Додаток Н block. Prohibitions **A**, **C** and **E** of the content rules are

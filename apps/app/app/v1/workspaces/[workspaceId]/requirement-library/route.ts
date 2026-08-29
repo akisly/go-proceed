@@ -63,6 +63,13 @@ export const runtime = "nodejs";
  * the operation belongs to the read every active member has, not to the
  * capability that PUBLISHES and RETIRES rule versions. Recorded, not edited.
  *
+ * THE CORRECTION LANDED 2026-08-28: requirement_library.list left
+ * requirement_rules.manage's operation list and stands in the
+ * capability-exempt set (technical/openapi/README.md §Conventions, the
+ * validator's CAPABILITY_EXEMPT) with active membership as its stated
+ * governor. The two disagreeing sources above now agree; the paragraphs stay
+ * as the history of why the policy won.
+ *
  * NO CREATE, UPDATE OR DELETE COUNTERPART, and adding one is not a schema
  * change. Library content is a repository change under
  * hidden-works-content-rules.md §"Change control"; no row of

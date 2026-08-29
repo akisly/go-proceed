@@ -14,9 +14,11 @@
  * nothing warning.
  */
 
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
-  Accordion, Banner, Button, Checkbox, Chip, DataTable, EmptyState, Field, Figure,
+  Accordion, Banner, Button, Checkbox, Chip, DataTable, EmptyState,
+  Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel,
+  FieldLegend, FieldSeparator, FieldSet, FieldTitle, Figure,
   Input, Label, Textarea,
   Meter, Panel, PanelHeader, PanelBody, Separator, Skeleton,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -77,6 +79,15 @@ function Case({ n, name, rule, children }: {
 export default function ComponentSink() {
   const [value, setValue] = useState("620");
   const invalid = Number.isNaN(Number(value)) || value.trim() === "";
+  const fixedFieldId = useId();
+  const fixedDescriptionId = useId();
+  const fixedErrorId = useId();
+  const commentFieldId = useId();
+  const commentDescriptionId = useId();
+  const acceptedFieldId = useId();
+  const acceptedDescriptionId = useId();
+  const partialFieldId = useId();
+  const partialDescriptionId = useId();
 
   return (
     <TooltipProvider>
@@ -172,29 +183,32 @@ export default function ComponentSink() {
           <Meter segments={SEGMENTS} />
         </Case>
 
-        <Case n="07" name="Field + Input + Textarea" rule="Уся a11y-обв’язка написана один раз: label, description і error зшиті через aria-describedby, aria-invalid береться з наявності помилки. Помилка ніколи не є лише кольором.">
+        <Case n="07" name="Field + Input + Textarea" rule="Примітив узятий у shadcn один в один: він презентаційний, a11y-обв’язку — id, aria-describedby, aria-invalid — тепер збирає викликач, а не render prop. Помилка ніколи не є лише кольором: FieldError несе ✕ перед текстом.">
           <div className="grid max-w-xl gap-5">
-            <Field
-              label="Зафіксований обсяг"
-              description="Одиниці — за позицією кошторису"
-              required
-              error={invalid ? "Введіть число" : undefined}
-            >
-              {({ id, describedBy, invalid: bad }) => (
-                <Input
-                  id={id}
-                  aria-describedby={describedBy}
-                  aria-invalid={bad}
-                  inputMode="decimal"
-                  value={value}
-                  onChange={(e) => setValue(e.target.value)}
-                />
-              )}
+            <Field data-invalid={invalid}>
+              <FieldLabel htmlFor={fixedFieldId}>Зафіксований обсяг</FieldLabel>
+              <Input
+                id={fixedFieldId}
+                aria-invalid={invalid}
+                aria-describedby={
+                  [fixedDescriptionId, invalid ? fixedErrorId : undefined].filter(Boolean).join(" ")
+                  || undefined
+                }
+                inputMode="decimal"
+                value={value}
+                onChange={(e) => setValue(e.target.value)}
+              />
+              <FieldDescription id={fixedDescriptionId}>Одиниці — за позицією кошторису</FieldDescription>
+              {invalid && <FieldError id={fixedErrorId} errors={[{ message: "Введіть число" }]} />}
             </Field>
-            <Field label="Коментар до відмови" description="Побачить технагляд">
-              {({ id, describedBy }) => (
-                <Textarea id={id} aria-describedby={describedBy} placeholder="Що саме не підтверджено" />
-              )}
+            <Field>
+              <FieldLabel htmlFor={commentFieldId}>Коментар до відмови</FieldLabel>
+              <Textarea
+                id={commentFieldId}
+                aria-describedby={commentDescriptionId}
+                placeholder="Що саме не підтверджено"
+              />
+              <FieldDescription id={commentDescriptionId}>Побачить технагляд</FieldDescription>
             </Field>
           </div>
         </Case>
@@ -270,6 +284,58 @@ export default function ComponentSink() {
               </Select>
             </div>
           </div>
+        </Case>
+
+        <Case n="14" name="FieldSet + FieldLegend + FieldGroup + FieldSeparator + FieldContent + FieldTitle" rule="Решта родини Field, яку ніщо не малювало. Компонент, який ніде не відрендерено, — це компонент, на який ніхто не дивився: саме так FieldSeparator приїхав із bg-canvas там, де таблиця замін вимагає bg-surface, і це стало видно лише тут. FieldTitle, а не FieldLabel, над фактом без контрола: мітка, якій нема що позначати, бреше зчитувачу екрана.">
+          <Panel>
+            <PanelBody>
+              <FieldSet>
+                <FieldLegend>Приймання роботи</FieldLegend>
+                <FieldGroup>
+                  {/* A FACT, NOT A CONTROL — so `FieldTitle`, never
+                    * `FieldLabel`. `htmlFor` would have nothing to point at,
+                    * and a `<label>` with no control is announced as one
+                    * anyway. This is the same pair `new-assignment-form.tsx`
+                    * renders for a single published кошторис. */}
+                  <Field>
+                    <FieldTitle>Позиція кошторису</FieldTitle>
+                    <p className="text-data text-ink">1.1 · Приклад-улаштування стяжки · м²</p>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor={acceptedFieldId}>Прийнятий обсяг</FieldLabel>
+                    <Input
+                      id={acceptedFieldId}
+                      aria-describedby={acceptedDescriptionId}
+                      inputMode="decimal"
+                      defaultValue="180"
+                    />
+                    <FieldDescription id={acceptedDescriptionId}>
+                      Одиниці — за позицією кошторису
+                    </FieldDescription>
+                  </Field>
+
+                  {/* THE SEPARATOR SITS ON A PANEL, WHICH IS WHY ITS TOKEN
+                    * MATTERS. The label punches a hole in the rule behind it
+                    * by painting what is BEHIND that rule — `bg-surface`
+                    * here, the panel's own colour. With `bg-canvas` (the page
+                    * ground, one layer further back) it draws a
+                    * paper-coloured band across a white panel. */}
+                  <FieldSeparator>або</FieldSeparator>
+
+                  <Field orientation="horizontal">
+                    <Checkbox id={partialFieldId} aria-describedby={partialDescriptionId} />
+                    <FieldContent>
+                      <FieldLabel htmlFor={partialFieldId}>Прийнято частково</FieldLabel>
+                      <FieldDescription id={partialDescriptionId}>
+                        Решту повертають виконавцю; до оплати рахується лише прийняте.
+                      </FieldDescription>
+                    </FieldContent>
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
+            </PanelBody>
+          </Panel>
         </Case>
 
         <div className="border-t border-line py-14">

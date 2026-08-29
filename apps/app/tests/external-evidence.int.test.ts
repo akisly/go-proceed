@@ -14,6 +14,9 @@ import {
   EXTERNAL_SESSION_COOKIE, resetKeyRegistriesForTests,
 } from "../src/lib/external-link";
 import { EXTERNAL_RESPONSE_HEADERS } from "../src/lib/external-session";
+import {
+  EXTERNAL_TEST_APPROVER, EXTERNAL_TEST_ORIGIN, cookieOf, exchange, issueGrant, tokenOf,
+} from "./helpers/external-plane";
 
 /**
  * Task 4 — `external.evidence_bytes`, GET /external/evidence.
@@ -47,7 +50,7 @@ const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
-const ORIGIN = "https://prykladapp.example";
+const ORIGIN = EXTERNAL_TEST_ORIGIN;
 
 // `m5-external.int.test.ts`'s list verbatim. Trimming it is a false economy:
 // the publish/bind/assign chain below is the same chain, and a missing
@@ -59,7 +62,7 @@ const CAPS = ["assignments.manage", "rule_bindings.manage", "requirements.assign
 
 const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
 const STAGE = "prykhovani-roboty";
-const APPROVER = "technical_supervisor";
+const APPROVER = EXTERNAL_TEST_APPROVER;
 
 /** A minimal but genuine JPEG: SOI + APP0 marker, then a byte of payload. */
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
@@ -205,38 +208,24 @@ async function captureOne(
 
 /* ── the link, exchanged for a session ──────────────────────────────────────── */
 
-async function issue(occurrenceId: string, email: string): Promise<Response> {
-  const { POST } = await import("../app/v1/occurrences/[occurrenceId]/grants/route");
-  return POST(new Request("http://x", {
-    method: "POST",
-    headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
-    body: JSON.stringify({
-      recipientEmail: email,
-      recipientRole: APPROVER,
-      permissions: { "external.view_scope": true, "external.decide_evidence": true },
-    }),
-  }), { params: Promise.resolve({ occurrenceId }) });
-}
-
+/*
+ * The grant/exchange/cookie moves are the SHARED external-plane drivers
+ * (`./helpers/external-plane`, extracted 2026-08-28 — TODOS 2026-08-27
+ * residual 9). This suite's deliberate difference — grants addressed to
+ * varying recipients — survives as the body override `issueGrant` merges over
+ * the shared default. `openLink` stays HERE: it asserts on the way through,
+ * and an assertion inside a shared helper is a hidden test.
+ */
 async function openLink(
   occurrenceId: string, email = "prykladtechnahliad@example.test",
 ): Promise<{ grantId: string; cookie: string }> {
-  const issued = await issue(occurrenceId, email);
+  const issued = await issueGrant(occurrenceId, { recipientEmail: email });
   expect(issued.status, await issued.clone().text()).toBe(201);
   const grant = await issued.json();
-  const token = new URL(grant.link.url).hash.slice(1);
 
-  const { POST: exchange } = await import("../app/external/exchange/route");
-  const ex = await exchange(new Request(`${ORIGIN}/external/exchange`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: ORIGIN },
-    body: JSON.stringify({ token }),
-  }));
+  const ex = await exchange(tokenOf(grant.link));
   expect(ex.status, await ex.clone().text()).toBe(200);
-  const raw = ex.headers.get("set-cookie") ?? "";
-  const m = new RegExp(`${EXTERNAL_SESSION_COOKIE}=([A-Za-z0-9_-]{43})`).exec(raw);
-  if (!m) throw new Error(`no external session cookie in: ${raw}`);
-  return { grantId: grant.grantId as string, cookie: m[1]! };
+  return { grantId: grant.grantId as string, cookie: cookieOf(ex) };
 }
 
 async function revoke(grantId: string, expectedVersion: number): Promise<Response> {

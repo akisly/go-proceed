@@ -255,9 +255,13 @@ export interface RequirementRuleVersionResponse {
   normRefVerification: VerificationTagValue | null;
   normRefSource: string | null;
   /**
-   * The two provenances (ADR-010), EXACTLY ONE of them non-null — the same
-   * exactly-one rule the publish request states above and
-   * `requirement_rule_versions_one_provenance_check` enforces in the database.
+   * The two provenances (ADR-010) — AT MOST ONE IN THE DATABASE, EXACTLY ONE
+   * ON THE WIRE, and the halves are not the same rule.
+   * `requirement_rule_versions_one_provenance_check` (0059) refuses BOTH ids
+   * and admits NEITHER; the exactly-one rule lives in the publish request's
+   * superRefine above and nowhere else. Every row this response describes came
+   * through that request, which is why a reader still finds exactly one
+   * non-null half — a guarantee of the command, not of the CHECK.
    *
    * BOTH ARE CARRIED, AND THE NULL HALF IS THE INFORMATION. Which source a
    * version rests on is not derivable from `normRefVerification` alone

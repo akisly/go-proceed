@@ -52,10 +52,69 @@ export const POST = commandRoute(createAssignmentRequest, async (a) => {
     throw new HttpProblem(404, problem("RESOURCE_NOT_FOUND", "Договір не знайдено.",
       { requestId: a.requestId, retryable: false, userAction: "return_to_list" }));
   }
-  const invalid = (path: string, message: string, detail: string) =>
-    new HttpProblem(422, problem("VALIDATION_FAILED", message, {
+  /**
+   * ONE UKRAINIAN SENTENCE, IN BOTH SLOTS — corrected in the final fix wave,
+   * and this is the whole of that correction.
+   *
+   * This helper used to take `(path, message, detail)`: the Ukrainian went
+   * into `problem.detail` and an ENGLISH phrase went into
+   * `fieldErrors[].message`. The office form maps `fieldErrors[].message` onto
+   * the field it names, so «Рядок кошторису» rendered «unknown work item in
+   * the current published version» in blocked-red — reachable in practice the
+   * moment someone publishes a newer contract version between page load and
+   * submit, and the same shape for `assigneeMemberId`. Every test fed
+   * FABRICATED Ukrainian field errors, which is why nothing caught it: the
+   * same defect class as the interpolated role tokens this branch already
+   * caught once, and invisible to a scan for string literals for the same
+   * reason.
+   *
+   * IT IS NOT A SWAP OF THE TWO STRINGS. `src/lib/http.ts` states in terms
+   * that «`problem()`'s detail is user-facing copy», and the form's banner
+   * renders `problem.detail` whenever a refusal carries no unmapped leftovers
+   * — so putting the English there would move the leak from the field to the
+   * banner rather than close it. Both slots are read by a person, so both
+   * carry the sentence a person can act on.
+   *
+   * NOTHING WAS LOST WITH THE ENGLISH. It was never logged, never asserted and
+   * never matched on: `problem.code` is the machine channel (`VALIDATION_FAILED`)
+   * and `fieldErrors[].path` already discriminates all five call sites below.
+   *
+   * The route's operations, statuses and logic are untouched — the spec's §10
+   * «this slice changes no route» means «adds no API operation», and correcting
+   * which existing string goes in which existing field adds none.
+   *
+   * CORRECTION, 2026-08-29 — «one sentence in both slots» was the wrong shape,
+   * and the paragraph above rejected the only alternative it considered.
+   *
+   * Putting the SAME sentence in both made the reader see it twice. The form's
+   * banner falls back to `problem.detail` exactly when a refusal names only
+   * fields the form has (`new-assignment-form.tsx`: `leftovers.length > 0 ?
+   * leftovers.join(" ") : result.detail`), and every path below names one such
+   * field — so on the reachable case this helper exists for, «Позицію робіт не
+   * знайдено…» rendered under «Рядок кошторису» AND again in the blocked-red
+   * banner above it.
+   *
+   * `new-assignment-form.test.tsx` states that as an invariant in so many
+   * words — «the mapped message does not also land in the banner» — and passed
+   * anyway, because its fixtures carry a GENERIC detail and the duplicate
+   * arrives through the `detail` fallback rather than through `unmappedFrom`.
+   * A test can hold the rule and still miss the breach.
+   *
+   * THE THIRD OPTION THE PARAGRAPH ABOVE MISSED. It weighed «leave the
+   * English» against «swap the two strings» and rightly refused the swap. But
+   * `http.ts`'s rule is that `detail` is user-facing COPY — it does not
+   * require `detail` to be the SPECIFIC sentence. A generic Ukrainian summary
+   * satisfies it, keeps the specific sentence in the slot that names a field,
+   * and closes the English leak the swap would have moved rather than fixed.
+   *
+   * So: `detail` says which KIND of refusal this is, `fieldErrors[].message`
+   * says WHICH field and why. Both Ukrainian, neither a duplicate of the other.
+   */
+  const INVALID_DETAIL = "Перевірте виділені поля.";
+  const invalid = (path: string, message: string) =>
+    new HttpProblem(422, problem("VALIDATION_FAILED", INVALID_DETAIL, {
       requestId: a.requestId, retryable: false, userAction: "correct_fields",
-      fieldErrors: [{ path, message: detail }],
+      fieldErrors: [{ path, message }],
     }));
 
   const ctx = { actorUserId: a.userId, organizationId: null, requestId: a.requestId };
@@ -104,8 +163,7 @@ export const POST = commandRoute(createAssignmentRequest, async (a) => {
         [workspaceId, contractId, a.body.workItemId]);
       if (wi.rows.length === 0) {
         throw invalid("workItemId",
-          "Позицію робіт не знайдено в поточній опублікованій версії договору.",
-          "unknown work item in the current published version");
+          "Позицію робіт не знайдено в поточній опублікованій версії договору.");
       }
       const contractVersionId: string = wi.rows[0].contract_version_id;
 
@@ -145,8 +203,7 @@ export const POST = commandRoute(createAssignmentRequest, async (a) => {
           [workspaceId, a.body.requirementTemplateVersionId]);
         if (t.rows.length === 0) {
           throw invalid("requirementTemplateVersionId",
-            "Версію шаблону вимог не знайдено або вона ще не опублікована.",
-            "must reference a published template version");
+            "Версію шаблону вимог не знайдено або вона ще не опублікована.");
         }
       }
 
@@ -166,16 +223,13 @@ export const POST = commandRoute(createAssignmentRequest, async (a) => {
         // The composite foreign keys are the hard guarantee; this turns a raw
         // 23503 into the catalog-coded problem the client can act on.
         if (e instanceof Error && /work_assignments_workspace_id_project_id_location/.test(e.message)) {
-          throw invalid("locationId", "Локацію не знайдено в цьому проєкті.",
-            "unknown location in this project");
+          throw invalid("locationId", "Локацію не знайдено в цьому проєкті.");
         }
         if (e instanceof Error && /work_assignments_workspace_id_performer/.test(e.message)) {
-          throw invalid("performerPartyId", "Сторону-виконавця не знайдено.",
-            "unknown party in this workspace");
+          throw invalid("performerPartyId", "Сторону-виконавця не знайдено.");
         }
         if (e instanceof Error && /work_assignments_workspace_id_assignee/.test(e.message)) {
-          throw invalid("assigneeMemberId", "Учасника не знайдено в цьому просторі.",
-            "unknown membership in this workspace");
+          throw invalid("assigneeMemberId", "Учасника не знайдено в цьому просторі.");
         }
         throw e;
       }

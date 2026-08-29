@@ -4,7 +4,11 @@ import {
   addLine, bindRules, createDraft, getVersion, manifestOf, projectSourcedRuleVersionBody,
   publishRuleVersion, publishVersion,
 } from "./helpers/manual-baseline";
-import { EXTERNAL_SESSION_COOKIE, resetKeyRegistriesForTests } from "../src/lib/external-link";
+import { resetKeyRegistriesForTests } from "../src/lib/external-link";
+import {
+  EXTERNAL_TEST_APPROVER, EXTERNAL_TEST_ORIGIN, cookieOf, exchange, externalScope,
+  issueGrant,
+} from "./helpers/external-plane";
 
 /**
  * ADR-010, END TO END: a requirement the SITE supplied from its own робоча
@@ -38,9 +42,9 @@ const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
-const ORIGIN = "https://prykladapp.example";
+const ORIGIN = EXTERNAL_TEST_ORIGIN;
 const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
-const APPROVER = "technical_supervisor";
+const APPROVER = EXTERNAL_TEST_APPROVER;
 
 /**
  * `project.view` reaches the occurrence at all (RLS `ro_select`), `packages.submit`
@@ -91,44 +95,14 @@ async function listOccurrences(assignmentId: string): Promise<Response> {
   return GET(new Request("http://x"), params({ assignmentId }));
 }
 
-/**
- * The three external-plane drivers, written the way `m5-external.int.test.ts`
- * and `external-evidence.int.test.ts` write them. Neither suite exports its
- * copy, and this file may not restructure either, so the shape is mirrored
- * rather than imported — including the cookie regex, which matches the opaque
- * value the browser would have stored and never a token.
+/*
+ * The external-plane drivers are the SHARED ones now
+ * (`./helpers/external-plane`, extracted 2026-08-28 — TODOS 2026-08-27
+ * residual 9). This file used to carry the third near-duplicate copy, with a
+ * header explaining that neither older suite exported its own and this slice
+ * could not restructure either; the extraction closed that. The shared
+ * default grant body IS this suite's grant body.
  */
-async function issueGrant(occurrenceId: string): Promise<Response> {
-  const { POST } = await import("../app/v1/occurrences/[occurrenceId]/grants/route");
-  return POST(jsonReq("http://x", {
-    recipientEmail: "prykladtechnahliad@example.test",
-    recipientRole: APPROVER,
-    permissions: { "external.view_scope": true, "external.decide_evidence": true },
-  }), params({ occurrenceId }));
-}
-
-async function exchange(token: string): Promise<Response> {
-  const { POST } = await import("../app/external/exchange/route");
-  return POST(new Request(`${ORIGIN}/external/exchange`, {
-    method: "POST",
-    headers: { "content-type": "application/json", origin: ORIGIN },
-    body: JSON.stringify({ token }),
-  }));
-}
-
-function cookieOf(res: Response): string {
-  const raw = res.headers.get("set-cookie") ?? "";
-  const m = new RegExp(`${EXTERNAL_SESSION_COOKIE}=([A-Za-z0-9_-]{43})`).exec(raw);
-  if (!m) throw new Error(`no external session cookie in: ${raw}`);
-  return m[1]!;
-}
-
-async function externalScope(cookie: string): Promise<Response> {
-  const { GET } = await import("../app/external/occurrence/route");
-  return GET(new Request(`${ORIGIN}/external/occurrence`, {
-    headers: { cookie: `${EXTERNAL_SESSION_COOKIE}=${cookie}` },
-  }), params({}));
-}
 
 beforeAll(() => {
   process.env.EXTERNAL_LINK_ORIGIN = ORIGIN;

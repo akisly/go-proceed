@@ -29,6 +29,7 @@ import { color, type ThemeName } from "@goproceed/tokens";
 import { apiGet, readProblem, requireSession, type Problem } from "../lib/api";
 import { supabase } from "../lib/supabase";
 import { buildObligationScreen, type ObligationItem } from "../lib/field/obligations";
+import { normRefVerificationLabel } from "../lib/field/norm-ref-labels";
 import { CaptureIsland } from "./capture";
 
 // Inlined from @goproceed/contracts (not a mobile app dependency) — same
@@ -260,10 +261,13 @@ function ObligationCard(
         // Text, verification tag and source travel together — never the
         // text alone (INV-073's rendering half). A normative string with no
         // visible source is unrenderable per hidden-works-content-rules.md.
+        // The tag renders as its Ukrainian LABEL, not the storage token
+        // (TODOS 2026-08-27 residual 7): «за робочою документацією об'єкта»
+        // is an origin a foreman can read; PROJECT_DOCUMENTATION is not.
         <View style={styles.normRefBox}>
           <Text style={styles.normRefText}>{item.normRef.text}</Text>
           <Text style={styles.normRefMeta}>
-            {item.normRef.verification} · {item.normRef.source}
+            {normRefVerificationLabel(item.normRef.verification)} · {item.normRef.source}
           </Text>
         </View>
       )}

@@ -866,6 +866,95 @@ helper had to be told explicitly NOT to follow it, and the next one may not be.
 The fix is to throw the domain object's id and keep the key out of the message
 entirely, in those five functions.
 
+## P3 — the kitchen-sink obligation is enforced by nothing, and two documents claimed it was
+
+**Found 2026-08-29, in the final review of Plan D slice A.**
+`docs/design/02-building-ui.md` §7.2 requires three things of a new component:
+it lands in `packages/ui/src/components/`, it is exported from `index.ts`, and
+it is rendered in `/kitchen-sink/components`. Both that file and
+`docs/superpowers/specs/2026-08-28-assignment-creation-design.md` §4 stated
+that all three are gated by `component-contract.test.ts`. **Only the first two
+are.** That suite asserts file↔`index.ts` parity in both directions and never
+opens a kitchen sink. Both sentences were corrected on 2026-08-29; this entry
+is the missing gate itself.
+
+**Why it is worth building rather than trusting.** Slice A shipped
+`packages/ui/src/components/Field.tsx` with `bg-canvas` on `FieldSeparator`'s
+label where §7.2's own substitution table maps shadcn's `bg-background` to
+`bg-surface`. `cx` is `extendTailwindMerge` with the taught config, so the
+class was live: a paper-toned band across a white panel. Nothing failed,
+because nothing rendered it. That is the exact failure mode the third
+obligation exists to prevent, and it was unguarded.
+
+**The fix is cheap where the parsing already happens.** `component-contract.
+test.ts` already parses the exported names out of `index.ts`; the addition is a
+scan of the kitchen-sink page for each of them.
+
+**It will fail on existing orphans when it lands, and that is the point.**
+`Form`/`FormField`/`FormItem` and their siblings (`packages/ui/src/components/
+index.ts:35-37`) are exported with no caller and no sink entry — the same
+condition that hid the `bg-canvas` bug. Landing the gate means either rendering
+them or retiring them, which is a decision this entry is asking for rather than
+making.
+
+## P2 — a project access grant can be issued through the product and never taken back
+
+**Found 2026-08-29, in the final review of Plan D slice A.** `/v1/projects/
+{projectId}/access-grants` carries a POST and nothing else. There is no v0.1
+operation that revokes a project access capability — `technical/openapi/
+scope-v0.1.csv` names none, and `apps/app/app/v1/projects/[projectId]/
+access-grants/route.ts` exports only `POST`.
+
+The column exists and the read path already honours it: `public.
+project_access_grants.revoked_at` is nullable (migration `0010`), the partial
+unique index is `where revoked_at is null`, and `requireProjectCapability`
+(`apps/app/src/lib/authz.ts`) filters on `revoked_at is null` on every check.
+So the STATE is modelled and enforced; only the command to reach it is missing.
+
+**Why this is a P2 and not a P3.** A mis-scoped grant in the pilot cannot be
+corrected through the product. The only route back is a superuser UPDATE — the
+same statement `apps/app/qa/field.mjs`'s `seedWorld` now has to run, which is
+where this was found. A permissions system whose grants are one-way is an
+operational finding, not a nicety: the owner who over-granted has no move that
+does not involve someone with database credentials.
+
+It also has a second cost, already paid once. Because the capability cannot be
+taken back through the API, the QA harness had to reach for raw SQL to build a
+member who genuinely lacks `readiness.view` — the harness's own boundary
+statement («never a raw SQL insert standing in for what a route would have
+done») now carries an exception it did not have before.
+
+**The fix** is an operation — `project_access.revoke`, or a DELETE on the
+existing collection — added to `scope-v0.1.csv` first, since that file owns the
+API surface. Once it exists, `seedWorld`'s SQL should become an HTTP call like
+every other step around it.
+
+## P3 — about twenty-five routes put English into `fieldErrors[].message`, and the first form to read that field just shipped
+
+**Found 2026-08-29, in the final review of Plan D slice A.** Slice A's F4 fixed
+five hand-written refusals in `apps/app/app/v1/contracts/[contractId]/
+assignments/route.ts` because the office form renders `fieldErrors[].message`
+verbatim, beside the control, in blocked-red — so an English phrase there is
+English shown to a Ukrainian-speaking foreman.
+
+That form is the FIRST surface in this codebase to read that field. The other
+routes were never wrong in practice, because nothing rendered them; they are
+wrong the moment a second form does. `access-grants/route.ts:38`,
+`progress/route.ts:98` and `contracts/route.ts:40` are three of roughly
+twenty-five.
+
+There is also a channel F4 did not close and could not: `apps/app/src/lib/
+command.ts:86-88` maps zod issues straight into `fieldErrors[].message`, so a
+body-schema failure still puts zod's own English into that slot regardless of
+what the handler does. It is unreachable from slice A's form (its Selects
+cannot produce a non-guid), which is why it is filed rather than fixed.
+
+**The fix** is not a sweep — it is a decision about where the boundary sits:
+either every `fieldErrors[].message` is user-facing copy (and `command.ts` must
+translate zod), or the field is machine-facing and forms must map `path` to
+their own copy. Slice A assumed the first. Whichever is chosen belongs in
+`docs/architecture/` before the second form is built.
+
 ## P3 — the browser pass cannot assert «no signed URL in the logs», because there are no logs
 
 **Found 2026-08-22, same research; the number corrected 2026-08-22 in the D1
@@ -3130,6 +3219,28 @@ overflow at 390/360 — back at risk. Left as it is, deliberately.
 
 ---
 
+## P2 — the 2026-08-27 landing merge imports `motion/react` directly, and the motion gate has been red since (found 2026-08-28)
+
+**What:** `apps/landing/components/visuals/evidence-rail.tsx:4` and `apps/landing/components/visuals/readiness-workflow.tsx:11` (458 lines between them, landed with the `codex/landing-evidence-journey` merge, last touched by `bbfc705`) import `AnimatePresence`/`motion` from `motion/react` directly and build bespoke `motion.span` choreography. `packages/ui/src/motion/index.ts`'s own header is categorical: twelve primitives, «a feature file may use nothing else — a bespoke `motion.div` in a block component is a review failure», and repo `CLAUDE.md` rule 3 says the same in three lines. There is no passthrough export to swap to; this is a rewrite, not an import edit.
+
+**What it breaks, measured 2026-08-28:** `node packages/testing/qa/motion-audit.mjs` reports exactly these two files (rule 5); `pnpm --filter @goproceed/testing test` is 625/626 with the ONE failure being `motion-audit.test.ts > finds nothing` — so steps 2 and 3 of `docs/design/02-building-ui.md` §5's gate are red on `main`, and every slice that runs the gate inherits the red until this is fixed.
+
+**Why it merged silently:** the §5 gate's own «known gaps» paragraph — `motion-audit.mjs` is not yet a CI step. The merge that violated the rule is also the first demonstration of why that gap matters; closing the gap (add the audit beside `pnpm validate:canonical-docs` in `ci.yml`) belongs to the same fix so the class dies, not just the instance.
+
+**The fix is a landing-visual slice, not a chore:** each visual's choreography must be re-expressed in the primitive vocabulary (`CrossFade` for the `AnimatePresence` swaps, `Reveal`/`Stagger` for entrances) — or, if the choreography genuinely has no primitive, that is §7.3's «a thirteenth primitive is a decision» path, with the plan's §8.3 updated in the same change. Either way the §6 pass applies: six viewports and reduced-motion-as-different-animation, because these are the landing's animated centrepieces. Not folded into the 2026-08-28 residuals branch, which touches no landing surface.
+
+**Correction, 2026-08-29 — there are THREE offenders, not two.** Re-measured
+on the slice-A branch with `pnpm turbo run test --concurrency=1`:
+`motion-audit.test.ts > finds nothing` reports
+`apps/landing/components/blocks/evidence-journey-client.tsx:9` alongside the two
+`visuals/` files named above. The count is what a reader would have used to size
+the fix — a `blocks/` file was never in scope as this entry was written, and the
+audit's own output is the authority. Everything else in this entry stands: the
+suite is 625/626 with that single failure, and all three imports are present
+unchanged at `aa8f412`, so no slice since has introduced or removed one.
+
+**Same day, same surface, same slice:** `@goproceed/landing`'s OWN test task is also red on `main` — two named cases, measured 2026-08-28: `tests/landing-craft.test.tsx` «keeps a wide-screen gap between the handoff line and review card» (expected 1 matching element, got 0 — plausibly the `bbfc705` border adjustment) and `tests/landing-render.test.tsx` «renders an honest accessible pilot form» (the `#pilot` section lost its `aria-live="polite"`). Both belong to the landing slice this entry describes; whoever takes it fixes the three causes together and leaves `pnpm turbo run test --concurrency=1` genuinely green.
+
 ## Residuals left by the project-sourced-requirements slice (2026-08-27)
 
 The slice that added [ADR-010](docs/decisions/ADR-010-project-sourced-requirements.md), migration 0059 and the `project_requirements` operations surfaced five follow-up items and one stale record correction below.
@@ -3140,16 +3251,24 @@ The slice that added [ADR-010](docs/decisions/ADR-010-project-sourced-requiremen
 
 **3. The stale chain end.** This file's own §"What the M1–M6 build did" records that «the unapplied chain is `0041`–`0051`, eleven files». That was true on 2026-08-08. The chain now ends at `0059`. Verified 2026-08-27: `ls supabase/migrations | tail -1` → `0059_the_requirement_a_site_supplies.sql`. **This correction is a dated addition, not an edit to the old paragraph** — the record of what was true then stays as written.
 
-**4. Race condition — `app.retire_requirement_rule_version` (migration 0041) has the same SELECT-then-unguarded-UPDATE shape that `app.archive_project_sourced_requirement_item` (migration 0059) fixed in this slice.** The retire function SELECTs the status, checks it is `'published'`, then UPDATEs — but two concurrent calls can both pass the SELECT; the loser's UPDATE then blocks on the winner's row lock, re-evaluates its WHERE against the committed row once unblocked, still matches (the WHERE has no status filter), and the guard trigger (0041) then RAISES — so a racing call to an idempotency-required operation errors instead of being the promised no-op. The 0059 fix: `and status = 'active'` in the UPDATE's WHERE clause (migration 0059, archive function). That WHERE clause makes the loser's UPDATE affect zero rows — no error, no state change, idempotent. Apply the same pattern to `app.retire_requirement_rule_version`, in a `create or replace` in a new migration.
+**4. (CLOSED 2026-08-28, migration `0060`) Race condition — `app.retire_requirement_rule_version` (migration 0041) has the same SELECT-then-unguarded-UPDATE shape that `app.archive_project_sourced_requirement_item` (migration 0059) fixed in this slice.** The retire function SELECTs the status, checks it is `'published'`, then UPDATEs — but two concurrent calls can both pass the SELECT; the loser's UPDATE then blocks on the winner's row lock, re-evaluates its WHERE against the committed row once unblocked, still matches (the WHERE has no status filter), and the guard trigger (0041) then RAISES — so a racing call to an idempotency-required operation errors instead of being the promised no-op. The 0059 fix: `and status = 'active'` in the UPDATE's WHERE clause (migration 0059, archive function). That WHERE clause makes the loser's UPDATE affect zero rows — no error, no state change, idempotent. Apply the same pattern to `app.retire_requirement_rule_version`, in a `create or replace` in a new migration.
+
+**CLOSED 2026-08-28 by migration `0060_the_retirement_that_raced_itself.sql`** — the prescribed `create or replace` with `and status = 'published'` on the UPDATE's WHERE, everything else byte-for-byte 0041's body (search_path moved to `''`, 0059's spelling; every reference was already schema-qualified). Pinned by the forced-interleave case «keeps the first retiree when a second one RACES it» in `packages/testing/src/m1-rules-schema.test.ts`, driven by polling `pg_stat_activity` for the blocked backend — the archive race test's own instrument. Shown RED against the unfixed function first, failing with exactly the predicted guard raise («admits only the published -> retired transition (INV-067); attempted retired -> retired»), then GREEN after 0060; 36/36 in the file.
 
 **5. Test typechecking is narrower than its claim.** `apps/app/tsconfig.json`'s `include` is `["src", "app", "next-env.d.ts", ".next/types/**/*.ts"]`. It does not cover `apps/app/tests/**`, so `tsc --noEmit` checks only test files that are transitively imported from `src` or `app`. `vitest` still RUNS all tests (transpile-level errors surface), but it does not perform full type-checking. If a test typechecking gate is needed, the claim must be narrowed or `include` must be widened and a separate tsconfig created.
 
 **Added 2026-08-27 by the final whole-branch review — four further residuals.** A dated addition, not an edit: the paragraph introducing this section counts what the slice's own retro surfaced and is left exactly as written.
 
-**6. `capabilities.csv` and the list route disagree about who may read a workspace's project requirements.** `technical/permissions/capabilities.csv` puts `project_requirements.list` in the `operations` column of `project_requirements.manage` (owner/admin) alongside `.create` and `.archive`. The route does not gate it that way: `GET /v1/workspaces/{workspaceId}/project-requirements` (`apps/app/app/v1/workspaces/[workspaceId]/project-requirements/route.ts`) requires ACTIVE MEMBERSHIP only and leaves the row filter to the `psri_select` policy, which admits any active member — and its own header records why («a route stricter than the policy denies a read the policy allows») and that the catalog is what owes the correction. The read is deliberate and the catalog line is the stale half. The fix is a catalog edit, not a route edit: `project_requirements.list` moves out of `project_requirements.manage`'s operation list to wherever a membership-gated read belongs. It is left here rather than done inline because moving an operation between capability rows is a permission-catalog decision with its own review.
+**6. (CLOSED 2026-08-28) `capabilities.csv` and the list route disagree about who may read a workspace's project requirements.** `technical/permissions/capabilities.csv` puts `project_requirements.list` in the `operations` column of `project_requirements.manage` (owner/admin) alongside `.create` and `.archive`. The route does not gate it that way: `GET /v1/workspaces/{workspaceId}/project-requirements` (`apps/app/app/v1/workspaces/[workspaceId]/project-requirements/route.ts`) requires ACTIVE MEMBERSHIP only and leaves the row filter to the `psri_select` policy, which admits any active member — and its own header records why («a route stricter than the policy denies a read the policy allows») and that the catalog is what owes the correction. The read is deliberate and the catalog line is the stale half. The fix is a catalog edit, not a route edit: `project_requirements.list` moves out of `project_requirements.manage`'s operation list to wherever a membership-gated read belongs. It is left here rather than done inline because moving an operation between capability rows is a permission-catalog decision with its own review.
 
-**7. `apps/mobile` renders the raw verification token where the content rules now mandate a label.** `apps/mobile/src/screens/assignment.tsx` prints `{item.normRef.verification} · {item.normRef.source}` — so a project-sourced obligation reaches a foreman's phone as the literal string `PROJECT_DOCUMENTATION`. `docs/product/hidden-works-content-rules.md` §"Project-sourced strings" gives the label in terms: «Its UI label is «за робочою документацією об'єкта» — an origin, not a verification strength.» The map that produces it exists only in the app: `NORM_REF_VERIFICATION_LABELS` / `normRefVerificationLabel` in `apps/app/src/lib/norm-ref-labels.ts`, checked against the running database by `apps/app/tests/norm-ref-labels.int.test.ts`. Porting it is a field-client copy change and needs its own slice — the mobile app has no dependency on `@goproceed/contracts` by design (`assignment.tsx` restates the three-value union locally for that reason), so the port duplicates the map under the standing rule residual 2 records: a bug in either copy is fixed in both.
+**CLOSED 2026-08-28, and the decision came out one step wider than the entry asked.** «Wherever a membership-gated read belongs» turned out to be the catalog's own exemption mechanism — the validator's `CAPABILITY_EXEMPT` set, whose members are listed with their reason in `technical/openapi/README.md` §Conventions («an operation governed by no capability is an authorisation hole rather than a scope statement… deliberately outside that rule») — not another capability row, because no capability means «any active member» and inventing one would restate membership. `project_requirements.list` moved there, and so did `requirement_library.list`: the identical defect, recorded in `requirement-library/route.ts`'s header since M1 («CAPABILITIES.CSV THEREFORE OWES A CORRECTION»), same policy wording, same fix, one decision. Both capability rows carry dated corrections, both route headers record the landing, ADR-010 decision 5 took a dated amendment for its `list` third, and the contracts-package header stopped claiming one capability governs all three. `pnpm validate:canonical-docs` green.
+
+**7. (CLOSED 2026-08-28, in BOTH copies) `apps/mobile` renders the raw verification token where the content rules now mandate a label.** `apps/mobile/src/screens/assignment.tsx` prints `{item.normRef.verification} · {item.normRef.source}` — so a project-sourced obligation reaches a foreman's phone as the literal string `PROJECT_DOCUMENTATION`. `docs/product/hidden-works-content-rules.md` §"Project-sourced strings" gives the label in terms: «Its UI label is «за робочою документацією об'єкта» — an origin, not a verification strength.» The map that produces it exists only in the app: `NORM_REF_VERIFICATION_LABELS` / `normRefVerificationLabel` in `apps/app/src/lib/norm-ref-labels.ts`, checked against the running database by `apps/app/tests/norm-ref-labels.int.test.ts`. Porting it is a field-client copy change and needs its own slice — the mobile app has no dependency on `@goproceed/contracts` by design (`assignment.tsx` restates the three-value union locally for that reason), so the port duplicates the map under the standing rule residual 2 records: a bug in either copy is fixed in both.
+
+**CLOSED 2026-08-28, and the entry had counted only half the defect.** The PWA's own field page — `apps/app/app/(app)/a/[assignmentId]/page.tsx`, the pilot's LIVE field client — rendered the same raw token on the same line, so «fix bugs in BOTH files» applied from the start. Mobile got the ported map (`apps/mobile/src/lib/field/norm-ref-labels.ts`, PORT header per `obligations.ts`, byte-pinned by its own unit test including the measured-U+0027 apostrophe and the «must not be labelled «перевірено»» rule); the PWA page now calls the app's existing `normRefVerificationLabel`. Both qa harnesses gained the structural assertion the memory rule asks for — the rendered text must carry a Ukrainian label and may carry NO raw `VERIFIED_*`/`PROJECT_DOCUMENTATION` token — and both passed with zero findings (app 7/7 audits, mobile 5/5); the assertion's failing arm was observed firing in a broken-env run before the green one. Mobile suite 150/150.
 
 **8. Two wire-layer narrownesses in the project-sourced contracts, both currently harmless.** (a) `packages/contracts/src/project-requirements.ts` validates the REQUEST fields with `z.string().trim().min(1)` and the RESPONSE fields (`projectSourcedRequirementItem`: `itemTextUk`, `sourceDocument`, `sourceSheet`, `sourceDrawingNo`, `sourceRevision`) with `z.string().min(1)` and no `.trim()`, so a whitespace-only value would parse on the way out. Nothing can produce one — migration 0059 §1 carries `length(btrim(<col>, E' \t\n\r\f\v\u00A0')) > 0` CHECKs on all four mandatory columns and the conditional one on `source_revision` — so the wire is a second layer over a storage guarantee rather than the only guard; aligning it would make the two directions read the same. (b) The read views reuse the three-valued `verificationTag` over columns whose CHECKs stay narrower: `projectSourcedRequirementItem.verification` is `verificationTag` while the only storable value on that table is `PROJECT_DOCUMENTATION`, and `requirementLibraryItem.verification` is the same constant while `requirement_library_items_verification_check` stays two-valued. `packages/contracts/src/requirement-library.ts`'s own header documents the asymmetry and why the constant widened for the copy tables and not for the library; neither is a defect and both are places a reader can mistake the type for the storable set.
 
-**9. The external-plane test drivers exist in three near-duplicate copies.** `apps/app/tests/m5-external.int.test.ts` (`exchange` / `cookieOf` / `scope`), `apps/app/tests/external-evidence.int.test.ts` (`issue`, plus an inline exchange and cookie read) and `apps/app/tests/project-sourced-chain.int.test.ts` (`issueGrant` / `exchange` / `cookieOf` / `externalScope`) each carry their own copy of the same four moves, including the `EXTERNAL_SESSION_COOKIE` regex that matches the opaque session value rather than a token. The chain suite's header says why it mirrored rather than imported: neither existing suite exports its copy and that slice could not restructure either. Extraction to `apps/app/tests/helpers/` — beside `fixtures.ts` and `manual-baseline.ts` — is the follow-up, and it must keep each suite's deliberate differences (m5's `origin` override is what its cross-origin refusals are made of).
+**9. (CLOSED 2026-08-28) The external-plane test drivers exist in three near-duplicate copies.** `apps/app/tests/m5-external.int.test.ts` (`exchange` / `cookieOf` / `scope`), `apps/app/tests/external-evidence.int.test.ts` (`issue`, plus an inline exchange and cookie read) and `apps/app/tests/project-sourced-chain.int.test.ts` (`issueGrant` / `exchange` / `cookieOf` / `externalScope`) each carry their own copy of the same four moves, including the `EXTERNAL_SESSION_COOKIE` regex that matches the opaque session value rather than a token. The chain suite's header says why it mirrored rather than imported: neither existing suite exports its copy and that slice could not restructure either. Extraction to `apps/app/tests/helpers/` — beside `fixtures.ts` and `manual-baseline.ts` — is the follow-up, and it must keep each suite's deliberate differences (m5's `origin` override is what its cross-origin refusals are made of).
+
+**CLOSED 2026-08-28 by `apps/app/tests/helpers/external-plane.ts`** — `issueGrant` / `tokenOf` / `exchange` / `cookieOf` / `externalScope`, plus the shared `EXTERNAL_TEST_ORIGIN` / `EXTERNAL_TEST_APPROVER` constants all three suites restated. The deliberate differences survived as parameters, not forks: m5's cross-origin refusals pass `exchange(token, origin)` (the request URL stays on the real origin while the header lies), its cookieless read passes `externalScope(null)`, and external-evidence's varying recipients ride the body override `issueGrant` merges over the shared default. Deliberately NOT extracted: m5's `submit` (one consumer; its CSRF/content-type/origin knobs are that suite's refusal matrix) and both `openLink` composites (they assert on the way through, and an assertion inside a shared helper is a hidden test). The chain suite's mirror-not-import header — the paragraph this entry quotes — is replaced by the extraction note. All three suites green (40/40) with `tsc` clean.

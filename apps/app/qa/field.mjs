@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import path from "node:path";
 import process from "node:process";
+import { Client } from "pg";
 import { launch } from "./browser.mjs";
 
 /**
@@ -127,12 +128,22 @@ const ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 const SERVICE_ROLE_KEY = process.env.SUPABASE_SECRET_KEY
   ?? "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz";
 const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://127.0.0.1:54324";
+// The superuser connection `tests/helpers/fixtures.ts`'s `ADMIN_URL` also
+// uses, for the same reason: the "assignment creation" audit's proof is a
+// ROW COUNT, not a route response, and a route response is exactly what a
+// route that agreed with itself while writing nothing (or writing twice)
+// would still return correctly.
+const SUPABASE_DB_URL = process.env.SUPABASE_DB_URL
+  ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
 
-// Refuses to run the moment any of the three points at something that is not
+// Refuses to run the moment any of the four points at something that is not
 // this machine — the same guard scripts/set-local-app-password.mjs makes,
 // for the same reason: the values above are dev-only secrets, safe ONLY
 // because nothing reachable from outside this machine trusts them.
-for (const [label, url] of [["NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL], ["MAILPIT_URL", MAILPIT_URL]]) {
+for (const [label, url] of [
+  ["NEXT_PUBLIC_SUPABASE_URL", SUPABASE_URL], ["MAILPIT_URL", MAILPIT_URL],
+  ["SUPABASE_DB_URL", SUPABASE_DB_URL],
+]) {
   const host = new URL(url).hostname;
   if (!["127.0.0.1", "localhost", "::1"].includes(host)) {
     console.error(`qa/field.mjs: refusing non-local ${label} (${host}) — this harness's Admin API calls carry a dev-only key.`);
@@ -478,6 +489,32 @@ function lineManifestHash(view) {
 const PROJECT_NAME = "Приклад-Обʼєкт QA";
 const WORK_ITEM_DESCRIPTION = "Приклад-улаштування прокладки кабелю QA";
 
+/**
+ * TWO MORE PROJECTS, EACH SEEDED FOR ONE STATE THE MAIN WORLD CANNOT REACH —
+ * added by the final fix wave, and named here so they are not mistaken for
+ * padding.
+ *
+ * `EMPTY_PROJECT_NAME` — a project with NO assignment, because the main
+ * project has one from the moment it is seeded and its register therefore
+ * never renders the empty state. F1 (the create link existing only once an
+ * assignment already exists) is invisible on any register that has a row.
+ *
+ * `NO_MONEY_PROJECT_NAME` — a project the seeded member can SEE
+ * (`project.view`) and create доручення on (`assignments.manage`) but whose
+ * MONEY they cannot read: `readiness.view` is deliberately withheld from its
+ * grant, which is the exact shape four responsibility presets ship
+ * (`requirement_owner`, `internal_verifier`, `package_submitter`, `foreman`).
+ * That is the only way to reach F2's refusal without minting a second user.
+ *
+ * NEITHER CHANGES ANY EXISTING ASSERTION, and that was checked rather than
+ * hoped: `showProjectName` is `distinctProjectsWithWork > 1`
+ * (src/lib/field/assignments.ts) and neither project carries an assignment, so
+ * «Мої доручення» still renders one row and still hides the project name; no
+ * audit counts the rows in `/dash`'s project list.
+ */
+const EMPTY_PROJECT_NAME = "Приклад-Порожній проєкт QA";
+const NO_MONEY_PROJECT_NAME = "Приклад-Проєкт без доступу до грошей QA";
+
 async function seedWorld(baseUrl, bearer) {
   const f = authedFetch(baseUrl, bearer);
 
@@ -643,6 +680,80 @@ async function seedWorld(baseUrl, bearer) {
   await httpStep("workspaces.create (second, for the multi-membership rail)",
     await f("/v1/workspaces", { displayName: "Приклад-Другий-простір QA" }));
 
+  // ── THE TWO EXTRA PROJECTS ───────────────────────────────────────────────
+  // See the constants above for what each exists to make reachable. Both are
+  // created in THIS workspace, so `listProjects()` returns them to the same
+  // signed-in session every audit already uses, and both are left without a
+  // contract: neither ever grows an assignment, so `showProjectName` stays
+  // false and «Мої доручення» still renders exactly one row.
+  const emptyProject = await httpStep("projects.create (empty register)",
+    await f(`/v1/workspaces/${ws.workspaceId}/projects`, { name: EMPTY_PROJECT_NAME }));
+  await httpStep("access-grants (empty register)",
+    await f(`/v1/projects/${emptyProject.projectId}/access-grants`, {
+      memberId, capabilities: ["project.view", "assignments.manage", "readiness.view"],
+    }));
+
+  // `readiness.view` IS WITHHELD HERE, AND THAT IS THE WHOLE POINT. With it,
+  // this project would render the no-baseline empty state like the one above
+  // and prove nothing. Without it, `blocked_value.get` answers 403 and the
+  // create screen has to say so legibly instead of rendering ShellFatalError.
+  //
+  // OMITTING IT FROM THIS LIST IS ONLY HALF THE WITHHOLDING — the creator's
+  // own `project.admin` row implies it, and is taken back immediately below.
+  const noMoneyProject = await httpStep("projects.create (no readiness.view)",
+    await f(`/v1/workspaces/${ws.workspaceId}/projects`, { name: NO_MONEY_PROJECT_NAME }));
+  await httpStep("access-grants (no readiness.view)",
+    await f(`/v1/projects/${noMoneyProject.projectId}/access-grants`, {
+      memberId, capabilities: ["project.view", "assignments.manage"],
+    }));
+
+  // ── AND `project.admin` IS TAKEN BACK, WHICH IS WHAT MAKES THE WITHHOLDING
+  //    REAL ──────────────────────────────────────────────────────────────────
+  //
+  // WITHHOLDING A CAPABILITY FROM A GRANT DOES NOT WITHHOLD IT. Every project
+  // is created by this same member, and `projects.create` grants its creator
+  // `project.admin` and `project.view` unconditionally
+  // (app/v1/workspaces/[workspaceId]/projects/route.ts) — access is never
+  // inferred later, so it is handed out at creation instead. And
+  // `requireProjectCapability` treats `project.admin` as covering
+  // `IMPLIED_BY_PROJECT_ADMIN = ["project.view", "readiness.view"]`
+  // (src/lib/authz.ts). So the grant above, which carefully omits
+  // `readiness.view`, omits nothing at all: the member still holds it through
+  // the admin row, `blocked_value.get` still answers 200, and the create
+  // screen renders its ordinary empty state.
+  //
+  // THAT IS NOT A SILENT PASS — IT IS EXACTLY TWO FINDINGS. Block 0b looks for
+  // a `[role="status"]` banner naming the missing access; with the refusal
+  // never reached, that assertion fires, and so does the one below it that
+  // reads the same absent banner for its «Попросіть адміністратора проєкту»
+  // body. Both describe the seed, not the screen. Revoking the admin row is
+  // what makes them describe the screen.
+  //
+  // SQL, WHERE EVERY OTHER SEEDING STEP HERE IS HTTP, AND ON PURPOSE: `/v1/
+  // projects/{projectId}/access-grants` carries a POST and nothing else — v0.1
+  // has no operation that revokes a project access grant, and inventing one to
+  // serve a test would be an API change owned by
+  // technical/openapi/scope-v0.1.csv, not by this harness. The column is the
+  // one authz.ts itself reads (`revoked_at is null`), so this writes the state
+  // the production check already tests for rather than a second mechanism.
+  //
+  // AND IT IS ASSERTED, NOT ASSUMED. A revoke that matched no row would leave
+  // the member an admin and put block 0b back exactly where it started, so the
+  // row count is checked here — where the message can say what went wrong —
+  // rather than surfacing later as two findings about a banner.
+  const revoked = await dbQuery(
+    `update public.project_access_grants set revoked_at = now()
+      where workspace_id = $1 and project_id = $2 and member_id = $3
+        and capability = 'project.admin' and revoked_at is null
+      returning 1 as ok`,
+    [ws.workspaceId, noMoneyProject.projectId, memberId]);
+  if (revoked.length !== 1) {
+    throw new Error(
+      `seedWorld: expected to revoke exactly one project.admin grant on ${NO_MONEY_PROJECT_NAME}, `
+      + `revoked ${revoked.length} — the money-refusal audit needs readiness.view genuinely absent, and `
+      + "projects.create grants project.admin to its creator, which implies it (src/lib/authz.ts).");
+  }
+
   const me = await httpStep("me.context", await f("/v1/me/context"));
   if (me.memberships.length !== 2) {
     throw new Error(
@@ -723,6 +834,9 @@ async function seedWorld(baseUrl, bearer) {
     // this and nothing else. It was not returned until the D1 final fix wave,
     // which is a large part of why no audit had ever opened that route.
     projectId: proj.projectId,
+    // The two states the main project cannot be in at the same time as itself.
+    emptyProjectId: emptyProject.projectId,
+    noMoneyProjectId: noMoneyProject.projectId,
     occurrenceId,
     evidenceObjectId: finalized.evidenceObjectId,
     projectName: PROJECT_NAME,
@@ -1146,6 +1260,38 @@ async function visibleHandleWithText(page, selector, text) {
 }
 
 /**
+ * One query, one throwaway connection — the same shape as
+ * `tests/helpers/fixtures.ts`'s `q()`, for the same reason: a query that
+ * throws must not leave its connection open.
+ */
+async function dbQuery(sql, params = []) {
+  const c = new Client({ connectionString: SUPABASE_DB_URL });
+  await c.connect();
+  try {
+    const r = await c.query(sql, params);
+    return r.rows;
+  } finally {
+    await c.end().catch(() => undefined);
+  }
+}
+
+/**
+ * ROWS, not a route's own opinion of what it wrote. The "assignment creation"
+ * audit's whole point is a count taken from the same table
+ * `assignments.create` writes to, before and after a real double press — a
+ * 201 that counted something it did not persist, or a route that persisted
+ * twice while answering once, would both still look fine from a response
+ * body.
+ */
+async function countAssignments(workspaceId, projectId) {
+  const rows = await dbQuery(
+    `select count(*)::int as n from public.work_assignments
+      where workspace_id = $1 and project_id = $2`,
+    [workspaceId, projectId]);
+  return rows[0].n;
+}
+
+/**
  * Waits until nothing on the page is still animating.
  *
  * GEOMETRY MEASURED MID-ANIMATION IS THE WRONG GEOMETRY, and this harness
@@ -1244,6 +1390,18 @@ async function measureDecodedImage(page, alt, timeoutMs = 15_000) {
 async function measureSmallTargets(page) {
   return page.evaluate(() =>
     [...document.querySelectorAll("a, button, input, select, textarea")]
+      // `aria-hidden="true"` excludes Radix `Select`'s own `SelectBubbleInput`
+      // — a real `<select>`, `tabIndex={-1}` and visually-hidden 1x1, that it
+      // renders beside every trigger purely so the VALUE bubbles into native
+      // `<form>` submission and autofill. It is not reachable by pointer, by
+      // keyboard or by assistive tech (that is what `aria-hidden` means), so
+      // it was never a touch target to begin with — the trigger button beside
+      // it is, and that one is measured on its own. Added by task 9, first
+      // caught on «Нове доручення» because it is the first screen in this
+      // app to render a `Select` with real options; the exclusion is general
+      // (nothing legitimately interactive is ever `aria-hidden`) so it holds
+      // for every audit that calls this helper, not only that screen's.
+      .filter((el) => el.getAttribute("aria-hidden") !== "true")
       .map((el) => {
         const r = el.getBoundingClientRect();
         return {
@@ -1345,6 +1503,12 @@ const EXPECTED_AUDITS = [
   // its first half is an authenticated office screen, so it cannot follow the
   // audit that signs the user out.
   "evidence, the review link, and the external plane",
+  // ALSO BEFORE SIGN-OUT, FOR THE SAME REASON — it creates through a real
+  // authenticated session and needs one. Placed after the register it sits
+  // beside (that audit is the read half of this route's neighbourhood; this
+  // is the write half) rather than beside "my assignments list", which reads
+  // a different screen entirely.
+  "assignment creation",
   // LAST, AND ITS POSITION IN THIS LIST IS LOAD-BEARING — see the audit's own
   // header. Its final act destroys the session every audit above needs.
   "dashboard profile and sign-out",
@@ -1488,9 +1652,15 @@ async function main() {
     const email = `pryklad-qa-field-${stamp}@example.test`;
     const password = `Приклад-QA-Пароль-${stamp}!`;
     let assignmentId;
+    let workspaceId;
     let projectId;
     let projectName;
     let workItemDescription;
+    // The final fix wave's two extra worlds — an empty register, and a project
+    // whose money the seeded member may not read. See `seedWorld`'s own
+    // constants for why neither can be a state of the main project.
+    let emptyProjectId;
+    let noMoneyProjectId;
     // The seventh audit's two inputs: the obligation a grant can be scoped to,
     // and the photo that must decode on both planes.
     let occurrenceId;
@@ -1499,7 +1669,8 @@ async function main() {
       userId = await mintConfirmedUser(email, password);
       const seedBearer = await seedBearerToken(email, password);
       ({
-        assignmentId, projectId, projectName, workItemDescription, occurrenceId, evidenceObjectId,
+        assignmentId, workspaceId, projectId, projectName, workItemDescription, occurrenceId,
+        evidenceObjectId, emptyProjectId, noMoneyProjectId,
       } = await seedWorld(server.baseUrl, seedBearer));
 
       // FIX ROUND 1, FINDING 1 (CRITICAL). `seedWorld` throwing is not the
@@ -1734,6 +1905,32 @@ async function main() {
           ctx.findings.push("obligation screen: довідковий disclaimer is present in the DOM but not genuinely rendered (checkVisibility()/document.body.innerText both say it is not shown — collapsed <details>, display:none, or visibility:hidden)");
         } else if (disclaimerCheck.clippedBy) {
           ctx.findings.push(`obligation screen: довідковий disclaimer is clipped by an ancestor — ${disclaimerCheck.clippedBy}`);
+        }
+
+        // THE NORM-REF META LINE CARRIES THE UKRAINIAN LABEL, NEVER THE
+        // STORAGE TOKEN (TODOS 2026-08-27 residual 7: a foreman's phone
+        // showed the literal PROJECT_DOCUMENTATION where the Approved
+        // document mandates «за робочою документацією об'єкта»). This world's
+        // obligations are library-sourced, so the visible tag must be a
+        // «перевірено за …» label, and NO storage token may appear in the
+        // rendered text — asserted against innerText, the same rendered-text
+        // signal the disclaimer check above trusts. The same assertion lives
+        // in apps/mobile/qa/field-web.mjs (obligations.ts's both-files rule).
+        const normRefTag = await page.evaluate(() => {
+          const text = document.body.innerText;
+          const raw = /\b(?:VERIFIED_PRIMARY|VERIFIED_SECONDARY|PROJECT_DOCUMENTATION)\b/.exec(text);
+          return {
+            raw: raw ? raw[0] : null,
+            labelled: text.includes("перевірено за першоджерелом")
+              || text.includes("перевірено за вторинним джерелом")
+              || text.includes("за робочою документацією об'єкта"),
+          };
+        });
+        if (normRefTag.raw) {
+          ctx.findings.push(`obligation screen: the raw verification token ${normRefTag.raw} is rendered — normRefVerificationLabel's Ukrainian label must stand in its place`);
+        }
+        if (!normRefTag.labelled) {
+          ctx.findings.push("obligation screen: no norm-ref verification label in the rendered text — the citation's tag line is missing entirely");
         }
 
         const small = await measureSmallTargets(page);
@@ -2581,6 +2778,479 @@ async function main() {
       } finally {
         await externalContext.close();
       }
+    });
+
+    // ── "assignment creation" — Plan D3, task 9 ──────────────────────────
+    //
+    // FOUR BLOCKS SINCE THE FINAL FIX WAVE, and the first two are the reason
+    // that wave needed a harness at all — they are the only checks in this file
+    // that exercise how a person REACHES this screen rather than what it does
+    // once they are on it:
+    //   0.  the empty register offers «Нове доручення», and following it lands
+    //       on the create screen (F1 — until the fix, the only link to that
+    //       route lived in the component the empty register never renders, so
+    //       the first доручення in a project was uncreatable through the UI);
+    //   0b. a member who may create доручення but may not read the project's
+    //       money gets a named refusal instead of ShellFatalError (F2);
+    //   1–3. the form itself, unchanged: it renders, it refuses legibly, and a
+    //       double press creates exactly one assignment.
+    //
+    // Blocks 0 and 0b drive projects `seedWorld` creates for them, because
+    // neither state is one the main project can be in — see that function's own
+    // constants.
+    //
+    // THE PROOF NO UNIT TEST CAN GIVE. `new-assignment-form.test.tsx` injects
+    // a fake `createImpl`; `assignment-creation.int.test.ts` drives the real
+    // route directly. Neither opens a browser, so neither can see whether a
+    // REAL click on a REAL button — rendered, laid out, hit-tested — actually
+    // reaches the form at all, or whether a SECOND real click, thrown as fast
+    // as this driver can throw one, is something the disabled attribute
+    // stops before a second request leaves.
+    //
+    // BESIDE THE REGISTER ON PURPOSE (both in EXPECTED_AUDITS and here): the
+    // register audit above is the READ half of this same neighbourhood — it
+    // opens `/dash/projects/{projectId}/assignments` and asserts on what is
+    // already there. This is the WRITE half, on the screen one hop further
+    // in, and it reuses that audit's `projectId` and `workItemDescription`
+    // rather than seeding a second world.
+    //
+    // THE ROW COUNT IS TAKEN FROM THE TABLE, NOT FROM A ROUTE'S OWN OPINION
+    // OF WHAT IT WROTE — a 201 that counted something it did not persist, or
+    // a route that persisted twice while answering once, would both still
+    // look fine from a response body. `countAssignments` queries
+    // `public.work_assignments` directly, before the two presses and after.
+    //
+    // AND THE REQUEST COUNT IS TAKEN FROM THE NETWORK, NOT ONLY THE TABLE.
+    // `after === before + 1` alone would still pass even with the disabled
+    // guard ripped out of `new-assignment-form.tsx`, because both presses
+    // send the SAME `idempotencyKey.current` and the server's own
+    // `withIdempotency` (packages/database/src/idempotency.ts) replays the
+    // first response for the second — a real concurrent double press would
+    // still leave exactly one row. That would be a true and useful fact, but
+    // it is a fact about the SERVER's safety net, not about whether the
+    // button actually disabled. Counting the POSTs that left the browser is
+    // the assertion that is specifically about the client guard: with it
+    // removed, two requests leave even though idempotency still collapses
+    // them to one row, and this line — not the row count — is what catches
+    // that.
+    await runAudit(ctx, "assignment creation", async () => {
+      // ── 0. THE WAY IN, FROM THE STATE THAT NEEDS IT MOST ────────────────
+      //
+      // F1, and it is the reason this block exists at all. Until the final fix
+      // wave the ONLY navigational entry point to `/assignments/new` lived in
+      // `assignments-list.tsx`, which `assignments/page.tsx` renders only when
+      // the register already has a row — so the first доручення in a project
+      // could not be created through the UI. Every other check in this file
+      // drives `/assignments/new` by URL, which is exactly the move an owner
+      // holding a browser cannot make, so none of them could see it.
+      //
+      // IT NEEDS ITS OWN PROJECT. The seeded world's register has had a row
+      // since `seedWorld` returned; an empty register is not a state the main
+      // project can be in, which is why `EMPTY_PROJECT_NAME` is seeded.
+      //
+      // AND IT IS FOLLOWED, NOT JUST FOUND. A control that carries the right
+      // label and the right href and lands on a broken screen is the defect
+      // wearing the fix's clothes, so the click is real and the destination is
+      // asserted — the no-baseline empty state, which is the honest answer for
+      // a project with no published contract version.
+      const entryDiag = await withPage(browser, async (page) => {
+        await page.setViewport({ width: 1280, height: 900 });
+        const registerUrl = `${server.baseUrl}/dash/projects/${emptyProjectId}/assignments`;
+        const res = await page.goto(registerUrl, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(
+            `empty register: expected 200 for ${registerUrl}, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+
+        const empty = await page.evaluate(() => ({
+          text: document.body.innerText,
+          tables: document.querySelectorAll("table").length,
+          createHrefs: [...document.querySelectorAll("a")]
+            .filter((a) => (a.textContent ?? "").trim() === "Нове доручення")
+            .map((a) => a.getAttribute("href")),
+        }));
+        // The page IS the empty state — pinned first, so the assertions below
+        // cannot pass on a register that quietly grew a row.
+        if (!empty.text.includes("Немає доручень") || empty.tables !== 0) {
+          ctx.findings.push(
+            `empty register: expected the «Немає доручень» empty state and no table on ${registerUrl} `
+            + `(tables found: ${empty.tables}) — this project is supposed to have no assignment, so `
+            + "everything below would be measuring the wrong screen");
+          return;
+        }
+        const wantHref = `/dash/projects/${emptyProjectId}/assignments/new`;
+        if (!empty.createHrefs.includes(wantHref)) {
+          ctx.findings.push(
+            `empty register: no «Нове доручення» link to ${wantHref} on a project with no доручення — `
+            + "the first assignment in a project cannot be created through the UI "
+            + `(anchors with that label found: ${JSON.stringify(empty.createHrefs)})`);
+          return;
+        }
+
+        // The 44px floor applies to it exactly as it does to the register's own
+        // copy of this control — a new control on a touch width is a new place
+        // for that floor to be missed.
+        await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+        for (const t of await measureSmallTargets(page)) {
+          ctx.findings.push(`empty register @390: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+        }
+        await page.screenshot({
+          path: path.join(SHOTS, "dash-assignments-empty-390.png"), fullPage: true,
+        });
+        await page.setViewport({ width: 1280, height: 900 });
+
+        // FOLLOWED FOR REAL, through the anchor, the way a person would.
+        const link = await visibleHandleWithText(page, "a", "Нове доручення");
+        if (!link) {
+          ctx.findings.push("empty register: the «Нове доручення» link is in the DOM but not visible");
+          return;
+        }
+        await link.click();
+        await link.dispose();
+        await page.waitForFunction(
+          (want) => location.pathname === want, { timeout: 10_000 }, wantHref,
+        ).catch(() => {});
+
+        const landed = await page.evaluate(() => ({
+          path: location.pathname,
+          heading: document.querySelector("h1")?.textContent?.trim() ?? "",
+          text: document.body.innerText,
+        }));
+        if (landed.path !== wantHref) {
+          ctx.findings.push(
+            `empty register: following «Нове доручення» left the browser on ${landed.path}, not ${wantHref}`);
+          return;
+        }
+        if (landed.heading !== "Нове доручення") {
+          ctx.findings.push(
+            `empty register: the create screen reached from the empty state has the heading `
+            + `"${landed.heading}", not «Нове доручення»`);
+        }
+        // This project has no contract at all, so the honest answer is the
+        // no-baseline empty state — never the shell's fatal error.
+        if (!landed.text.includes("У проєкті ще немає опублікованої версії договору")) {
+          ctx.findings.push(
+            "empty register: the create screen reached from the empty state did not render the "
+            + "no-baseline empty state for a project with no published contract version — page text: "
+            + `"${landed.text.replace(/\s+/g, " ").slice(0, 240)}"`);
+        }
+        await page.screenshot({
+          path: path.join(SHOTS, "dash-assignment-creation-no-baseline.png"), fullPage: true,
+        });
+      });
+      reportDiagnostics("empty register", entryDiag, ctx.findings, ctx.missingAssets);
+
+      // ── 0b. THE MONEY REFUSAL, LEGIBLE ──────────────────────────────────
+      //
+      // F2. `listPublishedBaselines` reads a project's published baselines
+      // through `blocked_value.get`, gated by `readiness.view` — a capability
+      // four responsibility presets do NOT grant alongside `project.view`. That
+      // refusal used to fold into the service's `error` arm, which the route
+      // renders as `ShellFatalError`: «Не вдалося завантажити робочий простір»,
+      // the copy for a system that broke, shown to a member who is simply not
+      // granted a read and who can create the same assignment by curl.
+      //
+      // `NO_MONEY_PROJECT_NAME` is seeded with `project.view` and
+      // `assignments.manage` and WITHOUT `readiness.view`, which is the only
+      // way to stand in that person's shoes without minting a second user.
+      const forbiddenDiag = await withPage(browser, async (page) => {
+        await page.setViewport({ width: 1280, height: 900 });
+        const url = `${server.baseUrl}/dash/projects/${noMoneyProjectId}/assignments/new`;
+        const res = await page.goto(url, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(
+            `money refusal: expected 200 for ${url}, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+        const state = await page.evaluate(() => ({
+          heading: document.querySelector("h1")?.textContent?.trim() ?? "",
+          statuses: [...document.querySelectorAll('[role="status"]')]
+            .map((n) => (n.textContent ?? "").trim()),
+          text: document.body.innerText,
+        }));
+        // The generic fatal error is what this fix removed; naming it is what
+        // makes this assertion a regression test rather than a spot check.
+        if (state.text.includes("Не вдалося завантажити робочий простір")) {
+          ctx.findings.push(
+            "money refusal: a member with project.view + assignments.manage but no readiness.view still "
+            + "gets ShellFatalError on the create screen — a permission boundary rendered as a system failure");
+        }
+        if (!state.statuses.some((t) => t.includes("Немає доступу до кошторисів цього проєкту"))) {
+          ctx.findings.push(
+            'money refusal: no [role="status"] banner naming the missing access on the create screen — '
+            + `statuses found: ${JSON.stringify(state.statuses)}`);
+        }
+        // The refusal is about the money, not about the project, so the screen
+        // still asserts which screen it is — the route's own stated rule.
+        if (state.heading !== "Нове доручення") {
+          ctx.findings.push(
+            `money refusal: expected the heading «Нове доручення» to survive the refusal, found "${state.heading}"`);
+        }
+        // The banner carries a title AND a sentence, so the state is never
+        // signalled by colour alone.
+        const banner = state.statuses.find((t) => t.includes("Немає доступу до кошторисів цього проєкту")) ?? "";
+        if (!banner.includes("Попросіть адміністратора проєкту")) {
+          ctx.findings.push(
+            "money refusal: the banner names the refusal but not what to do about it — its body did not render");
+        }
+        await page.screenshot({
+          path: path.join(SHOTS, "dash-assignment-creation-forbidden.png"), fullPage: true,
+        });
+      });
+      reportDiagnostics("money refusal", forbiddenDiag, ctx.findings, ctx.missingAssets);
+
+      const diag = await withPage(browser, async (page) => {
+        const posts = [];
+        page.on("request", (req) => {
+          if (req.method() !== "POST") return;
+          if (/^\/v1\/contracts\/[^/]+\/assignments$/.test(new URL(req.url()).pathname)) {
+            posts.push(req.url());
+          }
+        });
+
+        const url = `${server.baseUrl}/dash/projects/${projectId}/assignments/new`;
+        const res = await page.goto(url, { waitUntil: "networkidle0" });
+        if (!res || res.status() !== 200) {
+          ctx.findings.push(`assignment creation: expected 200 for ${url}, got ${res ? res.status() : "no response"}`);
+          return;
+        }
+
+        // ── 1. THE FORM RENDERS ─────────────────────────────────────────
+        const heading = await page.evaluate(() => document.querySelector("h1")?.textContent?.trim() ?? "");
+        if (heading !== "Нове доручення") {
+          ctx.findings.push(`assignment creation: expected the heading "Нове доручення", found "${heading}"`);
+        }
+        const trigger = await visibleHandleWithText(page, 'button[role="combobox"]', "Оберіть рядок");
+        const submitLabel = await visibleHandleWithText(page, 'button[type="submit"]', "Створити доручення");
+        if (!trigger || !submitLabel) {
+          ctx.findings.push(
+            `assignment creation: the form did not render (work-item picker found: ${!!trigger}, `
+            + `submit control found: ${!!submitLabel}) — the checks below could not run`,
+          );
+          await trigger?.dispose();
+          await submitLabel?.dispose();
+          return;
+        }
+        await trigger.dispose();
+        await submitLabel.dispose();
+
+        // ── §6, THE SIX WIDTHS — docs/design/02-building-ui.md §6 ────────
+        //
+        // The gate proves the rules and does not prove the thing looks
+        // right; this is the half that can be automated. Run on the form's
+        // OWN resting state, which is also its most genuinely Ukrainian one
+        // — «Рядок кошторису», «Виконавець», two «Необов'язково.» hints —
+        // never lorem, and never re-typed: it is whatever
+        // `new-assignment-form.tsx` actually renders.
+        for (const width of [1920, 1440, 1240, 768, 390, 360]) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+          const overflow = await measureHorizontalOverflow(page);
+          if (overflow) {
+            ctx.findings.push(
+              `assignment creation @${width}: the page scrolls sideways by ${overflow.overflow}px `
+              + `(viewport ${overflow.viewport}px) — ${overflow.offender}`,
+            );
+          }
+          if (touch) {
+            for (const t of await measureSmallTargets(page)) {
+              ctx.findings.push(`assignment creation @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+            }
+          }
+          await page.screenshot({
+            path: path.join(SHOTS, `dash-assignment-creation-${width}.png`), fullPage: true,
+          });
+        }
+        await page.setViewport({ width: 1280, height: 900 });
+
+        // ── §6, THE ERROR STATE, LEGIBLE WITH COLOUR REMOVED ──────────────
+        //
+        // Submitted with NOTHING chosen, so zod's own client-side refusal —
+        // never the network — is what produces it (confirmed below: this
+        // must add nothing to `posts`). `FieldError` (packages/ui/src/
+        // components/Field.tsx) pairs the red text with an `aria-hidden`
+        // «✕» glyph precisely so the message does not depend on colour to
+        // be read; the glyph's presence is the structural half of that
+        // claim, and the screenshot is the visual half.
+        const postsBeforeErrorCheck = posts.length;
+        // THE VIEWPORT IS SET BEFORE THE CLICK, NOT AFTER — measured, not
+        // assumed. An earlier draft clicked submit at the desk width and
+        // resized to 390 afterward; the screenshot then showed the PRISTINE
+        // form, byte-for-byte identical to the no-error one (diffed pixel
+        // for pixel), even though the structural check just above (same
+        // run, same `page`) found `[role="alert"]` with the right text
+        // immediately before the resize. `page.setViewport({ isMobile:
+        // true, … })` toggling `isMobile` mid-session is what erased it.
+        // Fixed by never touching `isMobile` between the click and the shot.
+        await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
+        const emptySubmit = await visibleHandle(page, 'button[type="submit"]');
+        if (!emptySubmit) {
+          ctx.findings.push("assignment creation: the submit control was not found for the error-state check");
+        } else {
+          await emptySubmit.click();
+          await emptySubmit.dispose();
+          const errorShown = await page.waitForSelector('[role="alert"]', { timeout: 5_000 })
+            .then(() => true).catch(() => false);
+          if (!errorShown) {
+            ctx.findings.push(
+              'assignment creation: submitting with no line chosen produced no [role="alert"] — the '
+              + "client-side validation error did not render",
+            );
+          } else {
+            const errorState = await page.evaluate(() => {
+              const alert = document.querySelector('[role="alert"]');
+              return {
+                text: (alert?.textContent ?? "").trim(),
+                hasGlyph: !!alert?.querySelector('[aria-hidden="true"]'),
+              };
+            });
+            if (!errorState.text.includes("Оберіть рядок кошторису")) {
+              ctx.findings.push(
+                `assignment creation: expected the Ukrainian «Оберіть рядок кошторису.» validation `
+                + `message, found "${errorState.text}"`,
+              );
+            }
+            if (!errorState.hasGlyph) {
+              ctx.findings.push(
+                "assignment creation: the field error carries no non-colour glyph — it would be "
+                + "unreadable with colour removed",
+              );
+            }
+          }
+          await page.screenshot({
+            path: path.join(SHOTS, "dash-assignment-creation-error-390.png"), fullPage: true,
+          });
+        }
+        await page.setViewport({ width: 1280, height: 900 });
+        if (posts.length !== postsBeforeErrorCheck) {
+          ctx.findings.push(
+            "assignment creation: submitting with no line chosen reached the network — client-side "
+            + "validation should have refused it before any request left the browser",
+          );
+        }
+
+        // ── §6, REDUCED MOTION IS A DIFFERENT ANIMATION, NEVER A FASTER
+        // ONE (rule 8) ─────────────────────────────────────────────────
+        //
+        // The work-item picker's popup is `animate-chip-in
+        // motion-reduce:animate-none` (packages/ui/src/components/
+        // Select.tsx) — the same treatment `top-bar.tsx`'s drawer uses,
+        // checked the same way this file already checks the drawer: under
+        // `prefers-reduced-motion: reduce` the computed animation-name must
+        // be `none`, not merely shorter.
+        await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+        await page.reload({ waitUntil: "networkidle0" });
+        const reducedTrigger = await visibleHandleWithText(page, 'button[role="combobox"]', "Оберіть рядок");
+        if (!reducedTrigger) {
+          ctx.findings.push("assignment creation: the work-item picker was not found after reload under reduced motion");
+        } else {
+          await reducedTrigger.click();
+          await reducedTrigger.dispose();
+          await page.waitForSelector('[role="listbox"]', { timeout: 5_000 }).catch(() => {});
+          // SCREENSHOT BEFORE `evaluate`, AND `fullPage: false` — measured,
+          // not assumed. Radix `Select` (unlike the drawer's `Dialog`) uses
+          // `position="item-aligned"`: it aligns the popup to the trigger
+          // AT OPEN TIME and repositions on resize/scroll. `fullPage: true`
+          // makes Puppeteer resize the page to its full scrollable height to
+          // capture it, and that resize was enough to make the popup close
+          // itself before the shot — an earlier draft's screenshot here was
+          // the pristine closed trigger, not the open popup, even though the
+          // `[role="listbox"]` had just been found. A full-page shot of a
+          // Dialog survives this (fixed positioning, not trigger-relative);
+          // an item-aligned Select popup does not.
+          await page.screenshot({
+            path: path.join(SHOTS, "dash-assignment-creation-reduced-motion.png"), fullPage: false,
+          });
+          const reducedMotion = await page.evaluate(() => {
+            const content = document.querySelector('[data-slot="select-content"]');
+            if (!content) return null;
+            const s = getComputedStyle(content);
+            return { name: s.animationName, duration: s.animationDuration };
+          });
+          if (!reducedMotion) {
+            ctx.findings.push(
+              "assignment creation: the work-item picker did not open under reduced motion, so its "
+              + "animation could not be checked",
+            );
+          } else if (reducedMotion.name !== "none") {
+            ctx.findings.push(
+              `assignment creation: the work-item picker still animates under reduced motion `
+              + `(animation-name: ${reducedMotion.name}, ${reducedMotion.duration}) — reduced motion `
+              + "must remove the animation, not shorten it",
+            );
+          }
+          await page.keyboard.press("Escape");
+        }
+        await page.emulateMediaFeatures([]);
+
+        // A FRESH, NORMAL-MOTION LOAD for the two creation checks below —
+        // the `reload()` above dropped whatever the earlier steps had
+        // selected, which is the point: the double-press proof must start
+        // from the same empty form a foreman actually opens.
+        await page.reload({ waitUntil: "networkidle0" });
+
+        // ── Choose the one seeded line ───────────────────────────────────
+        const finalTrigger = await visibleHandleWithText(page, 'button[role="combobox"]', "Оберіть рядок");
+        if (!finalTrigger) {
+          ctx.findings.push("assignment creation: the work-item picker was not found after the final reload");
+          return;
+        }
+        await finalTrigger.click();
+        await finalTrigger.dispose();
+        await page.waitForSelector('[role="listbox"]', { timeout: 5_000 }).catch(() => {});
+        const option = await visibleHandleWithText(page, '[role="option"]', workItemDescription);
+        if (!option) {
+          ctx.findings.push(
+            `assignment creation: no option "${workItemDescription}" in the work-item picker — the seeded `
+            + "line is not offered, and the creation checks below could not run",
+          );
+          return;
+        }
+        await option.click();
+        await option.dispose();
+
+        // ── 2 & 3. ONE SUBMIT CREATES ONE, AND A DOUBLE PRESS CREATES ONE ─
+        //
+        // TWO PRESSES, DELIBERATELY, and as close together as this driver
+        // can put them — see this audit's own header for why both the row
+        // count and the request count are asserted below.
+        const before = await countAssignments(workspaceId, projectId);
+        const submit = await visibleHandle(page, 'button[type="submit"]');
+        if (!submit) {
+          ctx.findings.push("assignment creation: the submit control vanished after choosing the line");
+          return;
+        }
+        await submit.click();
+        await submit.click().catch(() => {});
+        await submit.dispose();
+
+        await page.waitForFunction(
+          (want) => location.pathname === want,
+          { timeout: 10_000 }, `/dash/projects/${projectId}/assignments`,
+        ).catch(() => {});
+
+        const after = await countAssignments(workspaceId, projectId);
+        if (after !== before + 1) {
+          const banner = await page.evaluate(
+            () => document.querySelector('[role="alert"]')?.textContent?.trim() ?? null);
+          ctx.findings.push(
+            `assignment creation: expected exactly one new row in public.work_assignments (workspace `
+            + `${workspaceId}, project ${projectId}) after a submit and an immediate second press, went from `
+            + `${before} to ${after}` + (banner ? ` — banner on screen: "${banner}"` : ""),
+          );
+        }
+        if (posts.length !== 1) {
+          ctx.findings.push(
+            `assignment creation: expected exactly one POST to assignments.create to leave the browser for two `
+            + `rapid presses on the submit control, saw ${posts.length} — the button's disabled state did not `
+            + "stop the second click from firing a second request",
+          );
+        }
+
+        await page.screenshot({ path: path.join(SHOTS, "dash-assignment-creation.png"), fullPage: true });
+      });
+      reportDiagnostics("assignment creation", diag, ctx.findings, ctx.missingAssets);
     });
 
     await runAudit(ctx, "dashboard profile and sign-out", async () => {

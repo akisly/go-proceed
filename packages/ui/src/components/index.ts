@@ -28,11 +28,13 @@
  * had hand-written answers, and both are decisions for the first screen that
  * has to choose between them.
  *
- *   1. `Field` (render prop, no library) vs `FormItem`/`FormLabel`/
- *      `FormControl`/`FormDescription`/`FormMessage` (react-hook-form
- *      context). They solve the same problem — id minting, `aria-describedby`,
- *      `aria-invalid`, an error that is never colour alone — by opposite
- *      mechanisms.
+ *   1. RESOLVED 2026-08-28 by taking shadcn's own answer. `Field` is now the
+ *      shadcn Field family (ten components, presentational, paired with
+ *      react-hook-form's `Controller` per the vendor's current guide); the
+ *      render-prop `Field` this note used to describe is gone. `Form`/
+ *      `FormField`/`FormItem`/… remain exported and now have NO caller and no
+ *      planned one — shadcn's docs name that set the older pattern. Whoever
+ *      needs it decides whether it stays.
  *   2. `Textarea` is exported from `Input.tsx`; shadcn's was not taken,
  *      because replacing a shipped control is a restyle rather than an
  *      addition. shadcn's differs in `field-sizing-content` and `min-h-16`
@@ -43,7 +45,10 @@ export { cn, cx } from "./cn";
 export { Button, type ButtonProps, type ButtonVariant, type ButtonSize } from "./Button";
 export { Chip, type ChipTone } from "./Chip";
 export { Panel, PanelHeader, PanelBody } from "./Panel";
-export { Field } from "./Field";
+export {
+  Field, FieldContent, FieldDescription, FieldError, FieldGroup,
+  FieldLabel, FieldLegend, FieldSeparator, FieldSet, FieldTitle,
+} from "./Field";
 export { Input, Textarea } from "./Input";
 export { Label } from "./Label";
 export { Checkbox } from "./Checkbox";
