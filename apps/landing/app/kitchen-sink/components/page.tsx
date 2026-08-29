@@ -17,7 +17,8 @@
 import { useId, useState } from "react";
 import {
   Accordion, Banner, Button, Checkbox, Chip, DataTable, EmptyState,
-  Field, FieldDescription, FieldError, FieldLabel, Figure,
+  Field, FieldContent, FieldDescription, FieldError, FieldGroup, FieldLabel,
+  FieldLegend, FieldSeparator, FieldSet, FieldTitle, Figure,
   Input, Label, Textarea,
   Meter, Panel, PanelHeader, PanelBody, Separator, Skeleton,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
@@ -83,6 +84,10 @@ export default function ComponentSink() {
   const fixedErrorId = useId();
   const commentFieldId = useId();
   const commentDescriptionId = useId();
+  const acceptedFieldId = useId();
+  const acceptedDescriptionId = useId();
+  const partialFieldId = useId();
+  const partialDescriptionId = useId();
 
   return (
     <TooltipProvider>
@@ -279,6 +284,58 @@ export default function ComponentSink() {
               </Select>
             </div>
           </div>
+        </Case>
+
+        <Case n="14" name="FieldSet + FieldLegend + FieldGroup + FieldSeparator + FieldContent + FieldTitle" rule="Решта родини Field, яку ніщо не малювало. Компонент, який ніде не відрендерено, — це компонент, на який ніхто не дивився: саме так FieldSeparator приїхав із bg-canvas там, де таблиця замін вимагає bg-surface, і це стало видно лише тут. FieldTitle, а не FieldLabel, над фактом без контрола: мітка, якій нема що позначати, бреше зчитувачу екрана.">
+          <Panel>
+            <PanelBody>
+              <FieldSet>
+                <FieldLegend>Приймання роботи</FieldLegend>
+                <FieldGroup>
+                  {/* A FACT, NOT A CONTROL — so `FieldTitle`, never
+                    * `FieldLabel`. `htmlFor` would have nothing to point at,
+                    * and a `<label>` with no control is announced as one
+                    * anyway. This is the same pair `new-assignment-form.tsx`
+                    * renders for a single published кошторис. */}
+                  <Field>
+                    <FieldTitle>Позиція кошторису</FieldTitle>
+                    <p className="text-data text-ink">1.1 · Приклад-улаштування стяжки · м²</p>
+                  </Field>
+
+                  <Field>
+                    <FieldLabel htmlFor={acceptedFieldId}>Прийнятий обсяг</FieldLabel>
+                    <Input
+                      id={acceptedFieldId}
+                      aria-describedby={acceptedDescriptionId}
+                      inputMode="decimal"
+                      defaultValue="180"
+                    />
+                    <FieldDescription id={acceptedDescriptionId}>
+                      Одиниці — за позицією кошторису
+                    </FieldDescription>
+                  </Field>
+
+                  {/* THE SEPARATOR SITS ON A PANEL, WHICH IS WHY ITS TOKEN
+                    * MATTERS. The label punches a hole in the rule behind it
+                    * by painting what is BEHIND that rule — `bg-surface`
+                    * here, the panel's own colour. With `bg-canvas` (the page
+                    * ground, one layer further back) it draws a
+                    * paper-coloured band across a white panel. */}
+                  <FieldSeparator>або</FieldSeparator>
+
+                  <Field orientation="horizontal">
+                    <Checkbox id={partialFieldId} aria-describedby={partialDescriptionId} />
+                    <FieldContent>
+                      <FieldLabel htmlFor={partialFieldId}>Прийнято частково</FieldLabel>
+                      <FieldDescription id={partialDescriptionId}>
+                        Решту повертають виконавцю; до оплати рахується лише прийняте.
+                      </FieldDescription>
+                    </FieldContent>
+                  </Field>
+                </FieldGroup>
+              </FieldSet>
+            </PanelBody>
+          </Panel>
         </Case>
 
         <div className="border-t border-line py-14">

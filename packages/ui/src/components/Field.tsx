@@ -130,9 +130,18 @@ export function FieldSeparator({ children, className, ...rest }: ComponentProps<
     >
       <Separator className="absolute inset-0 top-1/2" />
       {children && (
+        // `bg-surface`, NOT `bg-canvas`. The span's job is to punch a hole in
+        // the rule it sits on top of, so it must paint the colour of whatever
+        // is BEHIND the separator — and a form lives on a `Panel`, which is
+        // `bg-surface`. shadcn writes `bg-background` here and the spec's
+        // substitution table maps that role to `bg-surface`; the first port of
+        // this file reached for `bg-canvas` instead, which is the page ground
+        // one layer further back, and would draw a paper-coloured band across
+        // a white panel. Nothing rendered `FieldSeparator` until the kitchen
+        // sink gained a case for it, which is why nobody had looked.
         <span
           data-slot="field-separator-content"
-          className="relative mx-auto block w-fit bg-canvas px-2 text-ink-muted"
+          className="relative mx-auto block w-fit bg-surface px-2 text-ink-muted"
         >
           {children}
         </span>
