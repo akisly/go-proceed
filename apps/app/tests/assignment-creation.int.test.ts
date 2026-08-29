@@ -150,3 +150,85 @@ describe("the body the create form builds is one assignments.create accepts", ()
     expect(stored[0]!.assignee_member_id).toBe(fx.memberId);
   });
 });
+
+/**
+ * F4, THE WHOLE-BRANCH REVIEW'S HEADLINE FINDING — and it needed the REAL
+ * route to be catchable at all.
+ *
+ * `new-assignment-form.test.tsx` proves the form puts `fieldErrors[].message`
+ * beside the field the server named. Every one of those tests hands it a
+ * FABRICATED Ukrainian message, so all of them passed while the real route was
+ * putting ENGLISH in that slot: its `invalid()` helper wrote the Ukrainian
+ * sentence into `problem.detail` and a phrase like «unknown work item in the
+ * current published version» into `fieldErrors[].message`, which is the one the
+ * office form renders under «Рядок кошторису», in blocked-red. A test that
+ * feeds a fabricated problem document cannot see that, whatever it asserts —
+ * so this drives the real handler and reads what it actually produced.
+ *
+ * BOTH SLOTS ARE ASSERTED, because both are read by a person: the form maps
+ * `fieldErrors[].message` onto the field, and falls back to `problem.detail`
+ * for the banner when a refusal names only fields the form has. Either one in
+ * English is the same defect in a different box.
+ *
+ * THE ASSERTION IS «NO LATIN WORD», NOT «EQUALS THIS SENTENCE» — the literal is
+ * checked too, but the scripts are what generalize: a future refusal that
+ * reaches for an English phrase fails here without anyone having to remember to
+ * add a case for it. A short Latin run is tolerated (a unit code, a field name
+ * a message might quote); two or more letters in a row is a word.
+ */
+const CYRILLIC = /\p{Script=Cyrillic}/u;
+const LATIN_WORD = /[A-Za-z]{2,}/;
+
+/** A well-formed guid that names nothing — the shape both refusals below need. */
+const ABSENT = "00000000-0000-4000-8000-000000000000";
+
+describe("a real refusal from this route speaks Ukrainian in the slot the form renders", () => {
+  it("refuses an unknown work item in Ukrainian, on the field and in the detail", async () => {
+    const fx = await typedBaseline();
+
+    const { POST } = await import("../app/v1/contracts/[contractId]/assignments/route");
+    const res = await POST(
+      jsonReq("http://x", { workItemId: ABSENT, assigneeMemberId: fx.memberId }),
+      { params: Promise.resolve({ contractId: fx.contractId }) },
+    );
+    expect(res.status, await res.clone().text()).toBe(422);
+
+    const body = await res.json();
+    expect(body.fieldErrors).toHaveLength(1);
+    const fieldError = body.fieldErrors[0];
+    expect(fieldError.path).toBe("workItemId");
+    expect(fieldError.message).toMatch(CYRILLIC);
+    expect(fieldError.message).not.toMatch(LATIN_WORD);
+    expect(fieldError.message).toBe(
+      "Позицію робіт не знайдено в поточній опублікованій версії договору.");
+    expect(body.detail).toMatch(CYRILLIC);
+    expect(body.detail).not.toMatch(LATIN_WORD);
+  });
+
+  /**
+   * THE SECOND REACHABLE ONE, and it takes a different path through the route:
+   * the work item resolves, the insert runs, and the composite foreign key on
+   * `(workspace_id, assignee_member_id)` is what refuses. So this covers the
+   * `catch` block's own `invalid(...)` calls, which the case above never
+   * reaches.
+   */
+  it("refuses an unknown assignee in Ukrainian, from the insert's own catch", async () => {
+    const fx = await typedBaseline();
+
+    const { POST } = await import("../app/v1/contracts/[contractId]/assignments/route");
+    const res = await POST(
+      jsonReq("http://x", { workItemId: fx.workItemId, assigneeMemberId: ABSENT }),
+      { params: Promise.resolve({ contractId: fx.contractId }) },
+    );
+    expect(res.status, await res.clone().text()).toBe(422);
+
+    const body = await res.json();
+    const fieldError = body.fieldErrors[0];
+    expect(fieldError.path).toBe("assigneeMemberId");
+    expect(fieldError.message).toMatch(CYRILLIC);
+    expect(fieldError.message).not.toMatch(LATIN_WORD);
+    expect(fieldError.message).toBe("Учасника не знайдено в цьому просторі.");
+    expect(body.detail).toMatch(CYRILLIC);
+    expect(body.detail).not.toMatch(LATIN_WORD);
+  });
+});
