@@ -109,19 +109,34 @@ async function storeMessage(
       from public.communication_messages
      where telegram_chat_binding_id=$1 and provider_message_id=$2::bigint`,
     [binding.telegram_chat_binding_id, update.replyToMessageId]);
-    await tx.query(`insert into public.communication_messages
+    const message = await tx.query<{ id: string }>(`insert into public.communication_messages
       (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text,
        author_member_id, provider_user_id, provider_display_name_snapshot,
        provider_username_snapshot, provider_message_id, provider_sent_at,
        reply_to_message_id, provider_reply_to_message_id, delivery_state)
       values ($1, $2, $3, 'inbound', $4, $5, $6, $7::bigint, $8, $9,
               $10::bigint, $11::timestamptz, $12, $13::bigint, 'received')
-      on conflict (telegram_chat_binding_id, provider_message_id) where provider_message_id is not null do nothing`, [
+      on conflict (telegram_chat_binding_id, provider_message_id) where provider_message_id is not null do nothing
+      returning id`, [
       binding.workspace_id, binding.project_id, binding.telegram_chat_binding_id,
       messageKind(update), update.text, authorMemberId, update.senderId,
       context.displayName, context.username, update.messageId, update.sentAt,
       reply?.rows[0]?.id ?? null, update.replyToMessageId,
     ]);
+    const messageId = message.rows[0]?.id;
+    if (messageId) {
+      for (const file of update.files) {
+        // This is provider metadata only, not evidence work. Task 9 consumes
+        // these service-plane handles when it adds assignment-card eligibility.
+        await tx.query(`insert into public.communication_attachments
+          (workspace_id, project_id, message_id, provider_file_id, provider_file_unique_id,
+           filename_snapshot, media_type_snapshot, byte_size, state)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, 'processing')`, [
+          binding.workspace_id, binding.project_id, messageId, file.fileId, file.fileUniqueId,
+          file.fileName, file.mimeType, file.fileSize,
+        ]);
+      }
+    }
     return authorMemberId === null ? "stored_unverified_message" : "stored_chat_message";
   });
 }
@@ -153,6 +168,8 @@ async function processMembershipChange(
   update: Extract<NormalizedTelegramUpdate, { kind: "my_chat_member" }>,
 ): Promise<string> {
   const removed = update.newStatus === "left" || update.newStatus === "kicked";
+  const restored = update.newStatus === "member" || update.newStatus === "administrator";
+  if (!removed && !restored) return "ignored_membership_status";
   return withServiceTx({ actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
     const channel = await tx.query<{ state: string }>(`update public.project_field_channels
        set state = case when $3 then 'unhealthy'::public.project_field_channel_state

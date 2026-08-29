@@ -1,8 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 
-const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL ? describe : describe.skip;
-const admin = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+const admin = process.env.TEST_DB_ADMIN_URL ?? "";
+const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL && admin ? describe : describe.skip;
 const actorUserId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const botId = "123456789";
 
@@ -159,6 +159,28 @@ databaseDescribe("Telegram inbox processing", () => {
     expect(count).toEqual({ count: "0" });
   });
 
+  it("retains normalized media metadata for later processing without creating evidence", async () => {
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('1', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId), message: {
+        message_id: 460, date: 1_700_000_000, chat: { id: -100777, type: "supergroup" }, from: { id: 77 },
+        photo: [{ file_id: "photo-file", file_unique_id: "photo-unique", width: 20, height: 10, file_size: 123 }],
+      },
+    })]);
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await processTelegramInboxBatch({ workerId: "processing-test", limit: 10 });
+    const [attachment] = await q<{
+      state: string; provider_file_id: string; provider_file_unique_id: string; media_type_snapshot: string; byte_size: string;
+      evidence_object_id: string | null; requirement_occurrence_id: string | null;
+    }>(`select state, provider_file_id, provider_file_unique_id, media_type_snapshot, byte_size::text,
+               evidence_object_id, requirement_occurrence_id
+          from public.communication_attachments where workspace_id=$1`, [workspaceId]);
+    expect(attachment).toEqual({
+      state: "processing", provider_file_id: "photo-file", provider_file_unique_id: "photo-unique",
+      media_type_snapshot: "image/jpeg", byte_size: "123", evidence_object_id: null, requirement_occurrence_id: null,
+    });
+  });
+
   it("does not retain a startgroup token as communication text", async () => {
     const rawToken = "never-store-this-token";
     await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
@@ -207,5 +229,24 @@ databaseDescribe("Telegram inbox processing", () => {
     expect(channel).toEqual({ state: "connected", locked_at: null });
     expect(events.map((event) => event.event_kind)).toEqual(["bot_removed", "bot_restored"]);
     expect(binding).toEqual({ chat_id: "-100777" });
+  });
+
+  it("does not treat restricted bot membership as a healthy restoration", async () => {
+    await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
+      values ($1, $2, $3::jsonb, repeat('2', 64), 'pending')`, [botId, updateId, JSON.stringify({
+      update_id: Number(updateId), my_chat_member: {
+        chat: { id: -100777, type: "supergroup" }, new_chat_member: { status: "restricted" },
+      },
+    })]);
+    const { processTelegramInboxBatch } = await import("../src/lib/telegram/processor");
+    await processTelegramInboxBatch({ workerId: "processing-test", limit: 10 });
+    const [channel] = await q<{ state: string }>(
+      "select state::text from public.project_field_channels where workspace_id=$1 and project_id=$2", [workspaceId, projectId],
+    );
+    const [eventCount] = await q<{ count: string }>(
+      "select count(*)::text as count from public.communication_message_events where workspace_id=$1", [workspaceId],
+    );
+    expect(channel).toEqual({ state: "connected" });
+    expect(eventCount).toEqual({ count: "0" });
   });
 });
