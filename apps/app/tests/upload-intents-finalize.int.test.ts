@@ -1,7 +1,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHash } from "node:crypto";
-import { q, truncateAll, jsonReq, matrixFixture, type MatrixFixture } from "./helpers/fixtures";
-import { putObject, objectExists } from "../src/lib/evidence-storage";
+import { Client } from "pg";
+import { q, jsonReq, matrixFixture, type MatrixFixture } from "./helpers/fixtures";
+import { dropWorkspaces } from "../../../packages/testing/src/pg";
+import { putObject, objectExists, removeObject } from "../src/lib/evidence-storage";
 import { setInspector, resetInspector, sniffMediaType } from "../src/lib/evidence-inspection";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -18,6 +20,26 @@ const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 let fx: MatrixFixture;
 let assignmentId: string;
+let fixtureWorkspaceIds: string[] = [];
+
+const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL
+  && process.env.TEST_DB_ADMIN_URL ? describe : describe.skip;
+
+async function cleanupFixtureWorkspaces(): Promise<void> {
+  if (fixtureWorkspaceIds.length === 0) return;
+  const client = new Client({ connectionString: process.env.TEST_DB_ADMIN_URL });
+  await client.connect();
+  try {
+    const workspaceIds = [...new Set(fixtureWorkspaceIds)].reverse();
+    const keys = await client.query<{ staging_storage_key: string }>(
+      `select staging_storage_key from public.upload_intents
+        where workspace_id = any($1::uuid[])`, [workspaceIds]);
+    await Promise.all(keys.rows.map(({ staging_storage_key }) => removeObject(staging_storage_key)));
+    await dropWorkspaces(client, workspaceIds);
+  } finally {
+    await client.end();
+  }
+}
 
 async function assign(f: MatrixFixture): Promise<string> {
   const { POST } = await import("../app/v1/contracts/[contractId]/assignments/route");
@@ -47,6 +69,8 @@ async function finalize(intentId: string): Promise<Response> {
 
 async function transcript(response: Response): Promise<{ status: number; headers: Record<string, string>; body: unknown }> {
   const body = await response.json() as Record<string, unknown>;
+  const responseRequestId = response.headers.get("x-request-id");
+  expect(responseRequestId).toBe(body.requestId);
   delete body.requestId;
   return {
     status: response.status,
@@ -63,17 +87,21 @@ async function staged(bytes: Uint8Array, mediaType = "image/jpeg") {
 }
 
 beforeEach(async () => {
-  await truncateAll();
+  fixtureWorkspaceIds = [];
   resetInspector();
   current = A;
   fx = await matrixFixture(A, {
     taxMode: "exclusive", taxRateBps: 2000, rows: [PRICED], capabilities: CAPS,
   });
+  fixtureWorkspaceIds.push(fx.workspaceId);
   assignmentId = await assign(fx);
 });
-afterEach(() => resetInspector());
+afterEach(async () => {
+  resetInspector();
+  await cleanupFixtureWorkspaces();
+});
 
-describe("content sniffing", () => {
+databaseDescribe("content sniffing", () => {
   it("identifies the supported families from their bytes", () => {
     expect(sniffMediaType(JPEG)).toBe("image/jpeg");
     expect(sniffMediaType(PNG)).toBe("image/png");
@@ -82,7 +110,7 @@ describe("content sniffing", () => {
   });
 });
 
-describe("upload_intents.finalize", () => {
+databaseDescribe("upload_intents.finalize", () => {
   it("creates the evidence object and marks the intent available", async () => {
     const intent = await staged(JPEG);
     const res = await finalize(intent.uploadIntentId);
@@ -351,25 +379,47 @@ describe("upload_intents.finalize", () => {
   });
 
   it.each(["available_replay", "hash_mismatch"] as const)(
-    "preserves %s status, body, and headers on retry", async (scenario) => {
-      let run: () => Promise<Response>;
+    "preserves the pre-extraction %s contract on retry", async (scenario) => {
       if (scenario === "available_replay") {
         const intent = await staged(JPEG);
-        run = () => finalize(intent.uploadIntentId);
+        const first = await transcript(await finalize(intent.uploadIntentId));
+        const second = await transcript(await finalize(intent.uploadIntentId));
+        const receiptRows = await q<{ id: string; server_received_at: Date }>(
+          `select id, server_received_at from public.evidence_objects
+            where workspace_id = $1 and storage_key = $2`,
+          [fx.workspaceId, intent.storage.key]);
+        expect(receiptRows).toHaveLength(1);
+        expect(first).toEqual({
+          status: 200,
+          headers: { "content-type": "application/json" },
+          body: {
+            uploadIntentId: intent.uploadIntentId,
+            status: "available",
+            evidenceObjectId: receiptRows[0]!.id,
+            contentHash: hashOf(JPEG),
+            serverReceivedAt: receiptRows[0]!.server_received_at.toISOString(),
+            failureCode: null,
+          },
+        });
+        // The durable receipt—not a freshly produced success—is returned to a
+        // retrying caller, including its original evidence identity and time.
+        expect(second).toEqual(first);
       } else {
         const intent = await createIntent(JPEG);
         const tampered = new Uint8Array(JPEG); tampered[tampered.length - 1] = 0x01;
         await putObject(intent.storage.key, tampered, "image/jpeg");
-        run = () => finalize(intent.uploadIntentId);
+        const expected = {
+          status: 422,
+          headers: { "content-type": "application/problem+json" },
+          body: {
+            code: "UPLOAD_CHECKSUM_MISMATCH",
+            detail: "Хеш отриманого вмісту не збігається з очікуваним. Оригінал збережено, спробуйте ще раз.",
+            fieldErrors: [], retryable: true, userAction: "retry_part",
+          },
+        };
+        expect(await transcript(await finalize(intent.uploadIntentId))).toEqual(expected);
+        expect(await transcript(await finalize(intent.uploadIntentId))).toEqual(expected);
       }
-      const first = await transcript(await run());
-      const second = await transcript(await run());
-      expect(second).toEqual(first);
-      expect(first).toMatchObject(
-        scenario === "available_replay"
-          ? { status: 200, body: { status: "available", failureCode: null } }
-          : { status: 422, body: { code: "UPLOAD_CHECKSUM_MISMATCH" } },
-      );
     },
   );
 });

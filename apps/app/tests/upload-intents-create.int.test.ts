@@ -1,8 +1,16 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createHash } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
-import { q, truncateAll, jsonReq, matrixFixture, type MatrixFixture } from "./helpers/fixtures";
-import { EVIDENCE_BUCKET } from "../src/lib/evidence-storage";
+import { Client } from "pg";
+import {
+  q, jsonReq, matrixFixture, baselineFixture, type MatrixFixture,
+} from "./helpers/fixtures";
+import { dropWorkspaces } from "../../../packages/testing/src/pg";
+import { EVIDENCE_BUCKET, removeObject } from "../src/lib/evidence-storage";
+import {
+  addLine, bindRules, createDraft, getVersion, manifestOf, publishRuleVersion,
+  publishVersion, ruleVersionBody, seedRequirementLibrary,
+} from "./helpers/manual-baseline";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
@@ -13,12 +21,47 @@ const SUPABASE_URL = process.env.SUPABASE_URL ?? "http://127.0.0.1:54321";
 const PUBLISHABLE = "sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH";
 const CAPS = ["assignments.manage", "progress.record", "evidence.record"] as const;
 const PRICED = "1.1;Мурування;м2;10;199,99;1 999,90";
+const OCCURRENCE_LINE = {
+  sourceKey: "1.1",
+  workTypeKey: "montazh-elektrotekhnichnykh-ustanovok",
+  description: "Приклад-улаштування прокладки кабелю",
+  unitCode: "м",
+  contractQuantity: "10",
+  unitPriceState: "known" as const,
+  unitPrice: "100.00",
+};
 
 const PAYLOAD = new TextEncoder().encode("Приклад-фото");
 const HASH = createHash("sha256").update(PAYLOAD).digest("hex");
 
 let fx: MatrixFixture;
 let assignmentId: string;
+let fixtureWorkspaceIds: string[] = [];
+
+const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL
+  && process.env.TEST_DB_ADMIN_URL ? describe : describe.skip;
+
+async function cleanupFixtureWorkspaces(): Promise<void> {
+  if (fixtureWorkspaceIds.length === 0) return;
+  const client = new Client({ connectionString: process.env.TEST_DB_ADMIN_URL });
+  await client.connect();
+  try {
+    const workspaceIds = [...new Set(fixtureWorkspaceIds)].reverse();
+    const keys = await client.query<{ staging_storage_key: string }>(
+      `select staging_storage_key from public.upload_intents
+        where workspace_id = any($1::uuid[])`, [workspaceIds]);
+    await Promise.all(keys.rows.map(({ staging_storage_key }) => removeObject(staging_storage_key)));
+    await dropWorkspaces(client, workspaceIds);
+  } finally {
+    await client.end();
+  }
+}
+
+async function createMatrixFixture(options: Parameters<typeof matrixFixture>[1]): Promise<MatrixFixture> {
+  const fixture = await matrixFixture(A, options);
+  fixtureWorkspaceIds.push(fixture.workspaceId);
+  return fixture;
+}
 
 const VALID = () => ({
   expectedContentHash: HASH,
@@ -53,14 +96,59 @@ async function createIntent(
 
 async function transcript(response: Response): Promise<{ status: number; headers: Record<string, string>; body: unknown }> {
   const body = await response.json() as Record<string, unknown>;
-  // Request IDs are per HTTP call, not part of the command result. Keep every
-  // other field and header so this pins the observable error/replay contract.
+  const responseRequestId = response.headers.get("x-request-id");
+  expect(responseRequestId).toBe(body.requestId);
+  // Request IDs are the only per-call fields. Every other response body field
+  // and header is preserved below as part of the characterized route contract.
   delete body.requestId;
   return {
     status: response.status,
     headers: Object.fromEntries([...response.headers].filter(([name]) => name !== "x-request-id")),
     body,
   };
+}
+
+async function wrongAssignmentOccurrence(): Promise<{
+  sourceAssignmentId: string; targetAssignmentId: string; occurrenceId: string;
+}> {
+  const foreign = await baselineFixture(A);
+  fixtureWorkspaceIds.push(foreign.workspaceId);
+  const { POST: grant } = await import("../app/v1/projects/[projectId]/access-grants/route");
+  await grant(jsonReq("http://x", {
+    memberId: foreign.memberId,
+    capabilities: ["assignments.manage", "evidence.record", "rule_bindings.manage", "requirements.assign", "project.view"],
+  }), { params: Promise.resolve({ projectId: foreign.projectId }) });
+  const library = await seedRequirementLibrary(foreign.workspaceId);
+  const rule = await publishRuleVersion(foreign.workspaceId, ruleVersionBody(library.get("Н.15/1")!));
+  if (rule.status !== 201) throw new Error(`publish rule ${rule.status} ${await rule.text()}`);
+  const ruleVersionId = (await rule.json()).ruleVersionId as string;
+  const draft = await createDraft(foreign.contractId);
+  const contractVersionId = (await draft.json()).contractVersionId as string;
+  const line = await addLine(contractVersionId, OCCURRENCE_LINE);
+  if (line.status !== 201) throw new Error(`add line ${line.status} ${await line.text()}`);
+  const workItemId = (await line.json()).workItem.workItemId as string;
+  const binding = await bindRules(contractVersionId, [ruleVersionId]);
+  if (binding.status !== 201) throw new Error(`bind rules ${binding.status} ${await binding.text()}`);
+  const view = await (await getVersion(foreign.contractId, 1)).json();
+  const published = await publishVersion(contractVersionId, manifestOf(view));
+  if (published.status !== 201) throw new Error(`publish baseline ${published.status} ${await published.text()}`);
+  const { POST: createAssignment } = await import("../app/v1/contracts/[contractId]/assignments/route");
+  const first = await createAssignment(jsonReq("http://x", { workItemId }),
+    { params: Promise.resolve({ contractId: foreign.contractId }) });
+  const firstAssignmentId = (await first.json()).assignmentId as string;
+  const occurrence = await q<{ id: string }>(
+    `select id from public.requirement_occurrences
+      where workspace_id = $1 and work_assignment_id = $2 and rule_version_id = $3`,
+    [foreign.workspaceId, firstAssignmentId, ruleVersionId]);
+  if (occurrence.length !== 1) throw new Error(`expected one foreign occurrence, got ${occurrence.length}`);
+  const target = await createAssignment(jsonReq("http://x", { workItemId }),
+    { params: Promise.resolve({ contractId: foreign.contractId }) });
+  if (target.status !== 201) throw new Error(`create target assignment ${target.status} ${await target.text()}`);
+  const targetAssignmentId = (await target.json()).assignmentId as string;
+  if (targetAssignmentId === firstAssignmentId) {
+    throw new Error("expected a distinct target assignment for wrong-occurrence characterization");
+  }
+  return { sourceAssignmentId: firstAssignmentId, targetAssignmentId, occurrenceId: occurrence[0]!.id };
 }
 
 async function publishedTemplate(
@@ -80,15 +168,16 @@ async function publishedTemplate(
 }
 
 beforeEach(async () => {
-  await truncateAll();
+  fixtureWorkspaceIds = [];
   current = A;
-  fx = await matrixFixture(A, {
+  fx = await createMatrixFixture({
     taxMode: "exclusive", taxRateBps: 2000, rows: [PRICED], capabilities: CAPS,
   });
   assignmentId = await assign(fx);
 });
+afterEach(cleanupFixtureWorkspaces);
 
-describe("upload_intents.create", () => {
+databaseDescribe("upload_intents.create", () => {
   it("authorizes an intent and returns a usable upload grant", async () => {
     const res = await createIntent(VALID());
     expect(res.status, await res.clone().text()).toBe(201);
@@ -224,7 +313,7 @@ describe("upload_intents.create", () => {
   });
 
   it("denies a caller without evidence.record", async () => {
-    const bare = await matrixFixture(A, {
+    const bare = await createMatrixFixture({
       taxMode: "exclusive", taxRateBps: 2000, rows: [PRICED],
       capabilities: ["assignments.manage"],
     });
@@ -350,34 +439,70 @@ describe("upload_intents.create", () => {
     "wrong_occurrence",
     "unsupported_media",
     "quota_exhausted",
-  ] as const)("preserves %s status, body, and headers on retry", async (scenario) => {
+  ] as const)("preserves the pre-extraction %s contract on retry", async (scenario) => {
     const key = crypto.randomUUID();
     let run: () => Promise<Response>;
+    let expected: { status: number; headers: Record<string, string>; body: Record<string, unknown> };
     switch (scenario) {
       case "unknown_assignment":
         run = () => createIntent(VALID(), "00000000-0000-0000-0000-000000000000", key);
+        expected = {
+          status: 404,
+          headers: { "content-type": "application/problem+json" },
+          body: {
+            code: "RESOURCE_NOT_FOUND", detail: "Завдання не знайдено.", fieldErrors: [],
+            retryable: false, userAction: "return_to_list",
+          },
+        };
         break;
-      case "wrong_occurrence":
-        run = () => createIntent({ ...VALID(), requirementOccurrenceId: crypto.randomUUID() }, assignmentId, key);
+      case "wrong_occurrence": {
+        const foreign = await wrongAssignmentOccurrence();
+        expect(foreign.targetAssignmentId).not.toBe(foreign.sourceAssignmentId);
+        run = () => createIntent(
+          { ...VALID(), requirementOccurrenceId: foreign.occurrenceId }, foreign.targetAssignmentId, key);
+        expected = {
+          status: 422,
+          headers: { "content-type": "application/problem+json" },
+          body: {
+            code: "VALIDATION_FAILED", detail: "Вимогу не знайдено серед обов'язків цього завдання.",
+            fieldErrors: [{ path: "requirementOccurrenceId", message: "unknown occurrence for this assignment" }],
+            retryable: false, userAction: "correct_fields",
+          },
+        };
         break;
+      }
       case "unsupported_media":
         run = () => createIntent({ ...VALID(), claimedMediaType: "application/zip" }, assignmentId, key);
+        expected = {
+          status: 422,
+          headers: { "content-type": "application/problem+json" },
+          body: {
+            code: "UPLOAD_SIZE_LIMIT",
+            detail: "Тип «application/zip» не дозволений. Дозволені: image/jpeg, image/png, image/heic, application/pdf.",
+            fieldErrors: [{ path: "claimedMediaType", message: "media type not allowed" }],
+            retryable: false, userAction: "reduce_file_or_request_policy_change",
+          },
+        };
         break;
       case "quota_exhausted":
         await q(`update public.organizations set evidence_quota_bytes = $2 where id = $1`,
           [fx.workspaceId, PAYLOAD.byteLength + 1]);
         await createIntent(VALID());
         run = () => createIntent(VALID(), assignmentId, key);
+        expected = {
+          status: 422,
+          headers: { "content-type": "application/problem+json" },
+          body: {
+            code: "UPLOAD_SIZE_LIMIT",
+            detail: `Ліміт сховища вичерпано: зайнято ${PAYLOAD.byteLength} Б із ${PAYLOAD.byteLength + 1} Б.`,
+            fieldErrors: [], retryable: false, userAction: "reduce_file_or_request_policy_change",
+          },
+        };
         break;
     }
     const first = await transcript(await run!());
     const second = await transcript(await run!());
-    expect(second).toEqual(first);
-    expect(first).toMatchObject({
-      unknown_assignment: { status: 404, body: { code: "RESOURCE_NOT_FOUND" } },
-      wrong_occurrence: { status: 422, body: { code: "VALIDATION_FAILED" } },
-      unsupported_media: { status: 422, body: { code: "UPLOAD_SIZE_LIMIT" } },
-      quota_exhausted: { status: 422, body: { code: "UPLOAD_SIZE_LIMIT" } },
-    }[scenario]);
+    expect(first).toEqual(expected!);
+    expect(second).toEqual(expected!);
   });
 });
