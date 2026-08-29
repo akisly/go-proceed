@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { processTelegramUpdate } from "./processor";
+import { runTelegramJobs } from "../../../app/internal/telegram/jobs/route";
 
 describe("processTelegramUpdate", () => {
   it("ignores unsupported updates without trying to resolve tenant scope", async () => {
@@ -45,5 +46,23 @@ describe("processTelegramUpdate", () => {
     } finally {
       vi.unstubAllEnvs();
     }
+  });
+
+  it("continues outbound work when the inbox batch fails", async () => {
+    // Break caught: an inbox exception used to return before the leased
+    // outbound queue was attempted, indefinitely delaying assignment cards.
+    let outboxCalled = false;
+    const result = await runTelegramJobs({
+      processInbox: async () => { throw new Error("inbox unavailable"); },
+      processOutbox: async () => {
+        outboxCalled = true;
+        return { accepted: 1, failed: 0, unknown: 0 };
+      },
+    });
+
+    expect(outboxCalled).toBe(true);
+    expect(result).toEqual({
+      inbox: null, outbox: { accepted: 1, failed: 0, unknown: 0 }, inboxFailed: true, outboxFailed: false,
+    });
   });
 });

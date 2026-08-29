@@ -24,6 +24,7 @@ export class TelegramApiError extends Error {
 export type SendTelegramMessageInput = {
   chatId: string;
   text: string;
+  parseMode?: "HTML";
   replyToMessageId?: string | null;
   messageThreadId?: string | null;
 };
@@ -105,6 +106,7 @@ export function createTelegramApiClient(config: TelegramConfig, fetcher: Telegra
   return {
     async sendMessage(input) {
       const body: Record<string, unknown> = { chat_id: input.chatId, text: input.text };
+      if (input.parseMode !== undefined) body.parse_mode = input.parseMode;
       if (input.replyToMessageId !== undefined && input.replyToMessageId !== null) body.reply_parameters = { message_id: input.replyToMessageId };
       if (input.messageThreadId !== undefined && input.messageThreadId !== null) body.message_thread_id = input.messageThreadId;
       const result = await post<{ message_id: string | number }>("sendMessage", body, true);

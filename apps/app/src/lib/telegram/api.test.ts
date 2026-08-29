@@ -19,6 +19,17 @@ describe("TelegramApiClient", () => {
     await expect(client.sendMessage({ chatId: "-1001", text: "Тест" })).resolves.toEqual({ messageId: "81" });
   });
 
+  it("sends an HTML parse mode only when the formatted message requests it", async () => {
+    // Break caught: escaped assignment-card markup would be displayed as
+    // literal tags instead of the provider's supported HTML formatting.
+    const fetcher = fakeTelegramFetch();
+    const client = createTelegramApiClient(config, fetcher);
+    await client.sendMessage({ chatId: "-1001", text: "<b>Картка</b>", parseMode: "HTML" });
+
+    const body = JSON.parse(String(fetcher.calls[0]?.init?.body));
+    expect(body).toMatchObject({ chat_id: "-1001", text: "<b>Картка</b>", parse_mode: "HTML" });
+  });
+
   it("classifies a timeout after dispatch as delivery_unknown", async () => {
     const client = createTelegramApiClient(config, timeoutAfterAcceptingFetch());
     await expect(client.sendMessage({ chatId: "-1001", text: "Тест" }))
