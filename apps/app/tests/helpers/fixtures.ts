@@ -1,7 +1,20 @@
 import { Client } from "pg";
 import { deflateRawSync } from "node:zlib";
 
-export const ADMIN_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+export const LOCAL_ADMIN_URL = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
+
+/**
+ * Integration fixtures must share the explicitly provisioned administrator
+ * database with their application connections and teardown. The local URL is
+ * retained only for legacy suites that intentionally run against `supabase
+ * start`; the selection happens once at module load so `q()` and callers that
+ * construct a client with `ADMIN_URL` cannot split one test across databases.
+ */
+export function adminDatabaseUrl(env: { TEST_DB_ADMIN_URL?: string } = process.env): string {
+  return env.TEST_DB_ADMIN_URL?.trim() || LOCAL_ADMIN_URL;
+}
+
+export const ADMIN_URL = adminDatabaseUrl();
 
 export async function q<T extends Record<string, unknown> = Record<string, unknown>>(
   sql: string, p: unknown[] = [],
