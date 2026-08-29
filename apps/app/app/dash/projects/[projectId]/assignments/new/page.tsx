@@ -6,16 +6,31 @@ import { listProjects } from "../../../../../../src/services/projects.service";
 import { getMeContext, listMembers } from "../../../../../../src/services/workspaces.service";
 import { NewAssignmentForm } from "../../../../../../src/components/assignments/new-assignment-form";
 import { NoBaselineEmptyState } from "../../../../../../src/components/assignments/no-baseline-empty-state";
+import { NoBaselineAccessBanner } from "../../../../../../src/components/assignments/no-baseline-access-banner";
 import { ShellFatalError } from "../../../../../../src/components/dash-shell/shell-error";
 
 /**
  * `/dash/projects/{projectId}/assignments/new` — Plan D slice A.
  *
  * THIN, like every sibling: resolve the params, call the services, render one
- * of three things (the form, the no-baseline empty state, or the shell's
- * generic fatal error). The session-expiry branch is re-checked here even
- * though `app/dash/layout.tsx` checked it once, for the reason the sibling
- * routes record: a soft navigation re-renders only this segment.
+ * of four things (the form, the no-baseline empty state, the money-access
+ * refusal, or the shell's generic fatal error). The session-expiry branch is
+ * re-checked here even though `app/dash/layout.tsx` checked it once, for the
+ * reason the sibling routes record: a soft navigation re-renders only this
+ * segment.
+ *
+ * THE FOURTH BRANCH IS NEW, AND IT WAS A FATAL ERROR UNTIL THE FINAL FIX WAVE.
+ * `listPublishedBaselines` reads the project's baselines through
+ * `blocked_value.get`, which is gated by `readiness.view` — a capability four
+ * responsibility presets do NOT grant alongside `project.view`. A member
+ * holding one of those and `assignments.manage` could create a доручення by
+ * API and got `ShellFatalError` from the screen. `NoBaselineAccessBanner`'s own
+ * header traces the reachability; `baseline.service.ts`'s header says why the
+ * arm exists at all. It sits UNDER the heading, beside the no-baseline empty
+ * state and not beside the fatal error, for this route's own stated rule: the
+ * heading is shown for every branch that establishes «you are on this screen
+ * for a project you can reach», and this reader plainly can — they arrived
+ * from that project's own register.
  *
  * THREE READS, AND THE ORDER IS FORCED for one of them: the members read is
  * keyed by WORKSPACE while this route only has a PROJECT, and the only thing
@@ -89,7 +104,9 @@ export default async function NewAssignmentPage({ params }: NewAssignmentPagePro
   if (workspaceId === undefined) return <ShellFatalError />;
 
   let content: ReactNode;
-  if (baselines.baselines.length === 0) {
+  if (baselines.kind === "forbidden") {
+    content = <NoBaselineAccessBanner />;
+  } else if (baselines.baselines.length === 0) {
     content = <NoBaselineEmptyState />;
   } else {
     const members = await listMembers(workspaceId);
