@@ -4,6 +4,7 @@ import { createTelegramApiClient } from "./api";
 import { loadTelegramConfig } from "./config";
 import {
   prepareTelegramEvidenceCandidate, processTelegramEvidenceAttachment, selectTelegramOccurrence,
+  formatTelegramEvidenceSummary,
 } from "./evidence";
 import { putObject } from "../evidence-storage";
 import { enqueueTelegramMessage } from "./delivery";
@@ -217,6 +218,32 @@ async function enqueueRequirementChoicePrompt(input: {
   });
 }
 
+async function enqueueEvidenceSummary(input: {
+  binding: ChatBinding; assignmentId: string; replyToMessageId: string | null;
+  results: Array<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>>;
+}): Promise<void> {
+  await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
+    await enqueueTelegramMessage(tx, { actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, {
+      workspaceId: input.binding.workspace_id, projectId: input.binding.project_id,
+      telegramChatBindingId: input.binding.telegram_chat_binding_id, workAssignmentId: input.assignmentId,
+      kind: "text", text: formatTelegramEvidenceSummary(input.results), replyToMessageId: input.replyToMessageId,
+    });
+  });
+}
+
+async function enqueueEvidenceProcessing(input: {
+  binding: ChatBinding; assignmentId: string; replyToMessageId: string | null;
+}): Promise<void> {
+  await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
+    await enqueueTelegramMessage(tx, { actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, {
+      workspaceId: input.binding.workspace_id, projectId: input.binding.project_id,
+      telegramChatBindingId: input.binding.telegram_chat_binding_id, workAssignmentId: input.assignmentId,
+      kind: "text", text: "Зображення обробляється. Підтвердження буде надіслано після збереження доказу.",
+      replyToMessageId: input.replyToMessageId,
+    });
+  });
+}
+
 async function prepareStoredEvidence(
   binding: ChatBinding,
   update: Extract<NormalizedTelegramUpdate, { kind: "message" }>,
@@ -239,19 +266,21 @@ async function prepareStoredEvidence(
       continue;
     }
     if (prepared.kind !== "ready") continue;
+    await enqueueEvidenceProcessing({ binding, assignmentId: prepared.assignmentId, replyToMessageId: stored.messageId });
     const result = await processTelegramEvidenceAttachment({
       actorUserId: prepared.actorUserId, requestId: crypto.randomUUID(), assignmentId: prepared.assignmentId,
       occurrenceId: prepared.occurrenceId, botId: config.botId, chatId: update.chatId,
       messageId: update.messageId, file: attachment.file, api, putObject,
     });
     await settleTelegramEvidenceAttachment({ workspaceId: binding.workspace_id, attachmentId: attachment.id, result });
+    await enqueueEvidenceSummary({ binding, assignmentId: prepared.assignmentId, replyToMessageId: stored.messageId, results: [result] });
   }
 }
 
 async function processSelectedEvidence(input: {
   workspaceId: string; assignmentId: string; occurrenceId: string; actorUserId: string;
   attachmentIds: string[]; botId: string; chatId: string;
-}): Promise<void> {
+}): Promise<Array<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>>> {
   const attachments = await withServiceTx({ actorUserId: "", organizationId: input.workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
     const result = await tx.query<{
       id: string; provider_file_id: string | null; provider_file_unique_id: string | null;
@@ -266,6 +295,7 @@ async function processSelectedEvidence(input: {
     return result.rows;
   });
   const api = createTelegramApiClient(loadTelegramConfig());
+  const results: Array<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>> = [];
   for (const attachment of attachments) {
     const file = {
       kind: attachment.media_type_snapshot === "image/jpeg" && attachment.filename_snapshot === null ? "photo" as const : "document" as const,
@@ -283,7 +313,9 @@ async function processSelectedEvidence(input: {
       messageId: attachment.provider_message_id, file, api, putObject,
     });
     await settleTelegramEvidenceAttachment({ workspaceId: input.workspaceId, attachmentId: attachment.id, result });
+    results.push(result);
   }
+  return results;
 }
 
 async function processRequirementCallback(update: Extract<NormalizedTelegramUpdate, { kind: "callback_query" }>): Promise<string> {
@@ -300,9 +332,11 @@ async function processRequirementCallback(update: Extract<NormalizedTelegramUpda
     return "rejected_requirement_choice";
   }
   await api.answerCallbackQuery({ callbackId: update.callbackId, text: "Обробляємо зображення." }).catch(() => undefined);
-  await processSelectedEvidence({ workspaceId: binding.workspace_id, assignmentId: selection.assignmentId,
+  await enqueueEvidenceProcessing({ binding, assignmentId: selection.assignmentId, replyToMessageId: null });
+  const results = await processSelectedEvidence({ workspaceId: binding.workspace_id, assignmentId: selection.assignmentId,
     occurrenceId: selection.occurrenceId, actorUserId: selection.actorUserId, attachmentIds: selection.attachmentIds,
     botId: config.botId, chatId: update.chatId });
+  await enqueueEvidenceSummary({ binding, assignmentId: selection.assignmentId, replyToMessageId: null, results });
   return "selected_requirement_occurrence";
 }
 
@@ -377,9 +411,11 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
         where workspace_id=$1 and telegram_media_group_id=$2 and state='processing'`, [group.workspace_id, group.id]);
       return rows.rows.map(({ id }) => id);
     });
-    await processSelectedEvidence({ workspaceId: group.workspace_id, assignmentId: prepared.assignmentId,
+    await enqueueEvidenceProcessing({ binding, assignmentId: prepared.assignmentId, replyToMessageId: first.message_id });
+    const results = await processSelectedEvidence({ workspaceId: group.workspace_id, assignmentId: prepared.assignmentId,
       occurrenceId: prepared.occurrenceId, actorUserId: prepared.actorUserId, attachmentIds,
       botId: loadTelegramConfig().botId, chatId: group.chat_id });
+    await enqueueEvidenceSummary({ binding, assignmentId: prepared.assignmentId, replyToMessageId: first.message_id, results });
     await withServiceTx({ actorUserId: "", organizationId: group.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
       await tx.query(`update public.telegram_media_groups set state='completed', completed_at=now()
         where id=$1 and state='processing'`, [group.id]);

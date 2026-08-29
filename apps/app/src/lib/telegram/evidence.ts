@@ -72,6 +72,31 @@ export type TelegramEvidenceProcessResult =
   | { kind: "available"; evidenceObjectId: string; uploadIntentId: string }
   | { kind: "failed"; code: string };
 
+const TELEGRAM_MESSAGE_LIMIT = 4096;
+
+function safeFailureCode(value: string): string {
+  const match = value.match(/^[a-z0-9_]+/);
+  return match?.[0] || "evidence_processing_failed";
+}
+
+/** A factual plain-text summary; success lines exist only for durable receipts. */
+export function formatTelegramEvidenceSummary(results: TelegramEvidenceProcessResult[]): string {
+  const saved = results.filter((result): result is Extract<TelegramEvidenceProcessResult, { kind: "available" }> => result.kind === "available");
+  const failed = results.filter((result): result is Extract<TelegramEvidenceProcessResult, { kind: "failed" }> => result.kind === "failed");
+  const lines = [
+    saved.length === 0 ? "Доказ не збережено." : `Збережено доказів: ${saved.length}.`,
+    ...saved.map(({ evidenceObjectId }) => `Збережено: ${evidenceObjectId}.`),
+    ...failed.map(({ code }) => `Не збережено: ${safeFailureCode(code)}.`),
+  ];
+  let text = "";
+  for (const line of lines) {
+    const next = text === "" ? line : `${text}\n${line}`;
+    if (next.length > TELEGRAM_MESSAGE_LIMIT) return text || "Доказ не збережено.";
+    text = next;
+  }
+  return text;
+}
+
 /**
  * Consume one already-authorized attachment. Callers must have resolved the
  * exact live card and chosen occurrence before this method: unbound media

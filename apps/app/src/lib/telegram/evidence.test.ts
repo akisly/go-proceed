@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   TELEGRAM_DOWNLOAD_LIMIT_BYTES,
+  formatTelegramEvidenceSummary,
   isTelegramEvidenceCandidate,
   telegramSourceVersion,
 } from "./evidence";
@@ -25,5 +26,24 @@ describe("Telegram evidence candidates", () => {
     vi.stubEnv("APP_VERSION", " 2026.08.29 ");
     expect(telegramSourceVersion()).toBe("telegram-bot/2026.08.29");
     vi.unstubAllEnvs();
+  });
+});
+
+describe("Telegram evidence receipts", () => {
+  it("names only durable evidence ids and each safe failure", () => {
+    // Break caught: a summary could otherwise claim a save before finalization
+    // or relay an unsafe/provider-derived error into the project group.
+    expect(formatTelegramEvidenceSummary([
+      { kind: "available", evidenceObjectId: "evidence-1", uploadIntentId: "intent-1" },
+      { kind: "failed", code: "provider_download_failed<script>" },
+    ])).toEqual("Збережено доказів: 1.\nЗбережено: evidence-1.\nНе збережено: provider_download_failed.");
+  });
+
+  it("keeps a large partial receipt within Telegram's text limit", () => {
+    const summary = formatTelegramEvidenceSummary(Array.from({ length: 300 }, (_, index) => (
+      { kind: "failed" as const, code: `provider_failure_${index}` }
+    )));
+    expect(summary.length).toBeLessThanOrEqual(4096);
+    expect(summary).toContain("Не збережено");
   });
 });
