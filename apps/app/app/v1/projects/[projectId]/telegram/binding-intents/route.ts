@@ -5,8 +5,11 @@ import { requireActiveMembership, requireProjectCapability } from "../../../../.
 import { HttpProblem, problem } from "../../../../../../src/lib/http";
 import { loadTelegramConfig } from "../../../../../../src/lib/telegram/config";
 import { issueTelegramToken, telegramVerifier } from "../../../../../../src/lib/telegram/tokens";
-import { telegramBindingIntentResponse, type TelegramBindingIntentResponse } from "@goproceed/contracts";
-import { withServiceTx, withTenantTx, recordAudit } from "@goproceed/database";
+import {
+  telegramBindingIntentReceipt, telegramBindingIntentResponse,
+  type TelegramBindingIntentReceipt, type TelegramBindingIntentResponse,
+} from "@goproceed/contracts";
+import { withIdempotency, withServiceTx, withTenantTx, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 
@@ -40,15 +43,14 @@ export const POST = commandRoute(createBindingIntentRequest, async (a) => {
 
   // Authorization happens in the member plane. The service transaction below
   // repeats it while locking the current project/channel state before writing.
-  await withTenantTx(ctx, (tx) => authorizeProjectAdmin(tx, a.requestId, a.userId, projectId));
+  const authorized = await withTenantTx(ctx,
+    (tx) => authorizeProjectAdmin(tx, a.requestId, a.userId, projectId));
+  const captured: { telegramUrl: string | null } = { telegramUrl: null };
 
-  const config = loadTelegramConfig();
-  const rawToken = issueTelegramToken();
-  const verifierHash = telegramVerifier(rawToken, config.linkPepper);
-  const expiresAt = new Date(Date.now() + INTENT_LIFETIME_MS);
-  const intentId = randomUUID();
-
-  const body = await withServiceTx(ctx, async (tx): Promise<TelegramBindingIntentResponse> => {
+  const out = await withServiceTx(ctx, async (tx) => withIdempotency<TelegramBindingIntentReceipt>(tx, {
+    organizationId: authorized.workspaceId, actorScope: `user:${a.userId}`,
+    operationId: "telegram_binding_intents.create", key: a.idempotencyKey, requestHash: a.requestHash,
+  }, async () => {
     const { workspaceId, memberId } = await authorizeProjectAdmin(tx, a.requestId, a.userId, projectId);
     const project = await tx.query<{ status: string }>(
       "select status from public.projects where workspace_id=$1 and id=$2 for update", [workspaceId, projectId]);
@@ -64,6 +66,11 @@ export const POST = commandRoute(createBindingIntentRequest, async (a) => {
       throw conflict(a.requestId, "Групу Telegram можна підключити лише до чернетки з неналаштованим каналом.");
     }
 
+    const config = loadTelegramConfig();
+    const rawToken = issueTelegramToken();
+    const verifierHash = telegramVerifier(rawToken, config.linkPepper);
+    const expiresAt = new Date(Date.now() + INTENT_LIFETIME_MS);
+    const intentId = randomUUID();
     await tx.query(`insert into public.telegram_binding_intents
       (id, workspace_id, project_id, requested_by_member_id, verifier_hash, expires_at)
       values ($1,$2,$3,$4,$5,$6)`, [intentId, workspaceId, projectId, memberId, verifierHash, expiresAt]);
@@ -72,14 +79,17 @@ export const POST = commandRoute(createBindingIntentRequest, async (a) => {
       details: { projectId, memberId, expiresAt: expiresAt.toISOString() },
     }, { organizationId: workspaceId });
 
-    return telegramBindingIntentResponse.parse({
-      intentId, expiresAt: expiresAt.toISOString(),
-      telegramUrl: `https://t.me/${config.botUsername}?startgroup=${rawToken}`,
-    });
-  });
+    captured.telegramUrl = `https://t.me/${config.botUsername}?startgroup=${rawToken}`;
+    return { status: 201, body: telegramBindingIntentReceipt.parse({
+      intentId, projectId, memberId, expiresAt: expiresAt.toISOString(),
+    }) };
+  }));
 
-  // Do not wrap this response in `withIdempotency`: that table persists the
-  // serialized response, while this URL intentionally contains the raw token.
-  // `commandRoute` still requires an Idempotency-Key as the command contract.
-  return { status: 201, body, expiresAt };
+  if (!out.replayed && captured.telegramUrl === null) {
+    throw new Error("fresh Telegram binding intent did not capture its one-time URL");
+  }
+  const body: TelegramBindingIntentResponse = out.replayed
+    ? telegramBindingIntentResponse.parse({ ...out.body, kind: "replayed" })
+    : telegramBindingIntentResponse.parse({ ...out.body, kind: "issued", telegramUrl: captured.telegramUrl });
+  return { status: out.status, body, expiresAt: out.expiresAt };
 });

@@ -16,9 +16,9 @@ async function q<T extends Record<string, unknown> = Record<string, unknown>>(
   finally { await c.end(); }
 }
 
-const jsonReq = (url: string, body: unknown) => new Request(url, {
+const jsonReq = (url: string, body: unknown, idempotencyKey = crypto.randomUUID()) => new Request(url, {
   method: "POST",
-  headers: { "content-type": "application/json", "idempotency-key": crypto.randomUUID() },
+  headers: { "content-type": "application/json", "idempotency-key": idempotencyKey },
   body: JSON.stringify(body),
 });
 
@@ -32,15 +32,15 @@ let workspaceId: string;
 let projectId: string;
 let memberId: string;
 
-async function createBindingIntent() {
+async function createBindingIntent(idempotencyKey?: string) {
   const { POST } = await import("../app/v1/projects/[projectId]/telegram/binding-intents/route");
-  return POST(jsonReq(`http://x/v1/projects/${projectId}/telegram/binding-intents`, {}),
+  return POST(jsonReq(`http://x/v1/projects/${projectId}/telegram/binding-intents`, {}, idempotencyKey),
     { params: Promise.resolve({ projectId }) });
 }
 
-async function createMemberLinkIntent() {
+async function createMemberLinkIntent(idempotencyKey?: string) {
   const { POST } = await import("../app/v1/projects/[projectId]/telegram/member-link-intents/route");
-  return POST(jsonReq(`http://x/v1/projects/${projectId}/telegram/member-link-intents`, {}),
+  return POST(jsonReq(`http://x/v1/projects/${projectId}/telegram/member-link-intents`, {}, idempotencyKey),
     { params: Promise.resolve({ projectId }) });
 }
 
@@ -108,6 +108,52 @@ databaseDescribe("Telegram group binding and membership links", () => {
     expect((await consumeBindingCommand({
       rawToken, chatId: "-100123", chatType: "group", title: "Будівництво", telegramUserId: "8001",
     })).kind).toBe("connected");
+  });
+
+  it("replays a group-binding receipt without the URL and rejects a changed request hash", async () => {
+    const key = crypto.randomUUID();
+    const first = await createBindingIntent(key);
+    const firstBody = await first.json();
+    expect(firstBody).toMatchObject({ kind: "issued", telegramUrl: expect.any(String) });
+    const rawToken = tokenFrom(firstBody.telegramUrl, "startgroup");
+
+    const replay = await createBindingIntent(key);
+    expect(replay.status).toBe(201);
+    expect(await replay.json()).toEqual({
+      kind: "replayed", intentId: firstBody.intentId, projectId, memberId,
+      expiresAt: firstBody.expiresAt,
+    });
+    const [intent] = await q<{ count: string }>(
+      "select count(*)::text as count from public.telegram_binding_intents where workspace_id=$1 and project_id=$2",
+      [workspaceId, projectId]);
+    expect(intent).toEqual({ count: "1" });
+    const [stored] = await q<{ count: string; response_body: unknown }>(
+      `select count(*)::text as count, (jsonb_agg(response_body) -> 0) as response_body
+         from public.idempotency_records
+        where organization_id=$1 and operation_id='telegram_binding_intents.create'`, [workspaceId]);
+    expect(stored).toMatchObject({ count: "1" });
+    expect(JSON.stringify(stored!.response_body)).not.toContain("telegramUrl");
+    expect(JSON.stringify(stored!.response_body)).not.toContain(rawToken);
+
+    const { POST } = await import("../app/v1/projects/[projectId]/telegram/binding-intents/route");
+    const changed = await POST(new Request(`http://x/v1/projects/${projectId}/telegram/binding-intents`, {
+      method: "POST", headers: { "content-type": "application/json", "idempotency-key": key }, body: "{ }",
+    }), { params: Promise.resolve({ projectId }) });
+    expect(changed.status).toBe(409);
+    expect((await changed.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+  });
+
+  it("replays a member-link receipt without a private URL", async () => {
+    const key = crypto.randomUUID();
+    const first = await createMemberLinkIntent(key);
+    const firstBody = await first.json();
+    expect(firstBody).toMatchObject({ kind: "issued", telegramUrl: expect.any(String) });
+
+    const replay = await createMemberLinkIntent(key);
+    expect(await replay.json()).toEqual({
+      kind: "replayed", intentId: firstBody.intentId, projectId, memberId,
+      expiresAt: firstBody.expiresAt,
+    });
   });
 
   it("does not link a Telegram identity to an inactive membership", async () => {

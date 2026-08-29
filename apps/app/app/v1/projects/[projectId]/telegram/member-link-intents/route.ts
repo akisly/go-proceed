@@ -5,8 +5,11 @@ import { requireActiveMembership, requireProjectCapability } from "../../../../.
 import { HttpProblem, problem } from "../../../../../../src/lib/http";
 import { loadTelegramConfig } from "../../../../../../src/lib/telegram/config";
 import { issueTelegramToken, telegramVerifier } from "../../../../../../src/lib/telegram/tokens";
-import { telegramMemberLinkIntentResponse, type TelegramMemberLinkIntentResponse } from "@goproceed/contracts";
-import { withServiceTx, withTenantTx, recordAudit } from "@goproceed/database";
+import {
+  telegramMemberLinkIntentReceipt, telegramMemberLinkIntentResponse,
+  type TelegramMemberLinkIntentReceipt, type TelegramMemberLinkIntentResponse,
+} from "@goproceed/contracts";
+import { withIdempotency, withServiceTx, withTenantTx, recordAudit } from "@goproceed/database";
 
 export const runtime = "nodejs";
 
@@ -37,16 +40,20 @@ export const POST = commandRoute(createMemberLinkIntentRequest, async (a) => {
   if (!projectId) throw notFound(a.requestId);
   const ctx = { actorUserId: a.userId, organizationId: null, requestId: a.requestId };
 
-  await withTenantTx(ctx, (tx) => authorizeCurrentProjectMember(tx, a.requestId, a.userId, projectId));
+  const authorized = await withTenantTx(ctx,
+    (tx) => authorizeCurrentProjectMember(tx, a.requestId, a.userId, projectId));
+  const captured: { telegramUrl: string | null } = { telegramUrl: null };
 
-  const config = loadTelegramConfig();
-  const rawToken = issueTelegramToken();
-  const verifierHash = telegramVerifier(rawToken, config.linkPepper);
-  const expiresAt = new Date(Date.now() + INTENT_LIFETIME_MS);
-  const intentId = randomUUID();
-
-  const body = await withServiceTx(ctx, async (tx): Promise<TelegramMemberLinkIntentResponse> => {
+  const out = await withServiceTx(ctx, async (tx) => withIdempotency<TelegramMemberLinkIntentReceipt>(tx, {
+    organizationId: authorized.workspaceId, actorScope: `user:${a.userId}`,
+    operationId: "telegram_member_link_intents.create", key: a.idempotencyKey, requestHash: a.requestHash,
+  }, async () => {
     const { workspaceId, memberId } = await authorizeCurrentProjectMember(tx, a.requestId, a.userId, projectId);
+    const config = loadTelegramConfig();
+    const rawToken = issueTelegramToken();
+    const verifierHash = telegramVerifier(rawToken, config.linkPepper);
+    const expiresAt = new Date(Date.now() + INTENT_LIFETIME_MS);
+    const intentId = randomUUID();
     await tx.query(`insert into public.telegram_member_link_intents
       (id, workspace_id, project_id, member_id, issued_by_member_id, verifier_hash, expires_at)
       values ($1,$2,$3,$4,$4,$5,$6)`, [intentId, workspaceId, projectId, memberId, verifierHash, expiresAt]);
@@ -55,13 +62,17 @@ export const POST = commandRoute(createMemberLinkIntentRequest, async (a) => {
       details: { projectId, memberId, expiresAt: expiresAt.toISOString() },
     }, { organizationId: workspaceId });
 
-    return telegramMemberLinkIntentResponse.parse({
-      intentId, expiresAt: expiresAt.toISOString(),
-      telegramUrl: `https://t.me/${config.botUsername}?start=${rawToken}`,
-    });
-  });
+    captured.telegramUrl = `https://t.me/${config.botUsername}?start=${rawToken}`;
+    return { status: 201, body: telegramMemberLinkIntentReceipt.parse({
+      intentId, projectId, memberId, expiresAt: expiresAt.toISOString(),
+    }) };
+  }));
 
-  // See the sibling binding-intent route: replay persistence would retain the
-  // raw private-link token, so the command key is validated but not replayed.
-  return { status: 201, body, expiresAt };
+  if (!out.replayed && captured.telegramUrl === null) {
+    throw new Error("fresh Telegram member-link intent did not capture its one-time URL");
+  }
+  const body: TelegramMemberLinkIntentResponse = out.replayed
+    ? telegramMemberLinkIntentResponse.parse({ ...out.body, kind: "replayed" })
+    : telegramMemberLinkIntentResponse.parse({ ...out.body, kind: "issued", telegramUrl: captured.telegramUrl });
+  return { status: out.status, body, expiresAt: out.expiresAt };
 });

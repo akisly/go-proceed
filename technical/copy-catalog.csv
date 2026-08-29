@@ -74,6 +74,7 @@ status.requirement.expired,Waiver прострочено,global,status,"requirem
 telegram.binding_intent.invalid_or_expired,Посилання для підключення Telegram прострочено або вже використано.,telegram,error,"one-time group binding command; raw token is never rendered or retained"
 telegram.binding_intent.wrong_group_type,Для підключення виберіть групу або супергрупу Telegram.,telegram,error,"startgroup was used outside a group or supergroup"
 telegram.member_link.membership_inactive,Ваше членство в робочому просторі більше не активне.,telegram,error,"private identity-link command after membership ended or was revoked"
+telegram.intent.replayed_without_url,Посилання Telegram не показано повторно. Створіть нове посилання з новим ключем ідемпотентності.,telegram,notice,"same-key replay intentionally returns a safe receipt without the one-time URL"
 status.evidence_request.open,Потрібні докази,global,status,"evidence_request state label — canonical, derived from state-catalog"
 status.evidence_request.fulfilled,Виконано,global,status,"evidence_request state label — canonical, derived from state-catalog"
 status.evidence_request.cancelled,Скасовано,global,status,"evidence_request state label — canonical, derived from state-catalog"

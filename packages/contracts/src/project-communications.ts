@@ -54,18 +54,29 @@ export const projectCommunicationPage = z.object({
 }).strict();
 export type ProjectCommunicationPage = z.infer<typeof projectCommunicationPage>;
 
-export const telegramBindingIntentResponse = z.object({
+const telegramIntentReceipt = z.object({
   intentId: z.string().guid(),
+  projectId: z.string().guid(),
+  memberId: z.string().guid(),
   expiresAt: z.string().datetime(),
-  telegramUrl: z.string().url(),
 }).strict();
+
+export const telegramBindingIntentReceipt = telegramIntentReceipt;
+export type TelegramBindingIntentReceipt = z.infer<typeof telegramBindingIntentReceipt>;
+
+export const telegramBindingIntentResponse = z.discriminatedUnion("kind", [
+  telegramIntentReceipt.extend({ kind: z.literal("issued"), telegramUrl: z.string().url() }).strict(),
+  telegramIntentReceipt.extend({ kind: z.literal("replayed") }).strict(),
+]);
 export type TelegramBindingIntentResponse = z.infer<typeof telegramBindingIntentResponse>;
 
-export const telegramMemberLinkIntentResponse = z.object({
-  intentId: z.string().guid(),
-  expiresAt: z.string().datetime(),
-  telegramUrl: z.string().url(),
-}).strict();
+export const telegramMemberLinkIntentReceipt = telegramIntentReceipt;
+export type TelegramMemberLinkIntentReceipt = z.infer<typeof telegramMemberLinkIntentReceipt>;
+
+export const telegramMemberLinkIntentResponse = z.discriminatedUnion("kind", [
+  telegramIntentReceipt.extend({ kind: z.literal("issued"), telegramUrl: z.string().url() }).strict(),
+  telegramIntentReceipt.extend({ kind: z.literal("replayed") }).strict(),
+]);
 export type TelegramMemberLinkIntentResponse = z.infer<typeof telegramMemberLinkIntentResponse>;
 
 export const projectFieldChannelHealth = z.object({

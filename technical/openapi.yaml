@@ -1709,7 +1709,7 @@
         "tags": ["Projects"],
         "operationId": "createTelegramBindingIntent",
         "summary": "Issue a one-time Telegram group-binding link for a draft project",
-        "description": "Requires project.admin. The response's Telegram URL contains a 15-minute one-time token and must not be persisted or replayed by a client.",
+        "description": "Requires project.admin. The first response is kind=issued and carries a 15-minute one-time Telegram URL. A same-key/same-body idempotency replay is kind=replayed and intentionally omits that URL; if it was lost, issue a new command with a new Idempotency-Key.",
         "parameters": [{ "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTelegramBindingIntentRequest" } } } },
         "responses": {
@@ -1720,7 +1720,7 @@
           "409": { "$ref": "#/components/responses/Conflict" },
           "422": { "$ref": "#/components/responses/Validation" }
         },
-        "x-idempotency-class": "one_time_secret_response"
+        "x-idempotency-class": "standard_30d"
       }
     },
     "/projects/{projectId}/telegram/member-link-intents": {
@@ -1728,7 +1728,7 @@
         "tags": ["Projects"],
         "operationId": "createTelegramMemberLinkIntent",
         "summary": "Issue a one-time private Telegram identity-link URL for the current member",
-        "description": "Creates an identity link only for the caller's current active membership in this project context. Display names and usernames do not authorize the link.",
+        "description": "Creates an identity link only for the caller's current active membership in this project context. Display names and usernames do not authorize the link. The first response is kind=issued and carries a one-time private URL; a same-key replay is kind=replayed and intentionally omits it.",
         "parameters": [{ "$ref": "#/components/parameters/ProjectId" }, { "$ref": "#/components/parameters/IdempotencyKey" }],
         "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CreateTelegramMemberLinkIntentRequest" } } } },
         "responses": {
@@ -1738,7 +1738,7 @@
           "404": { "$ref": "#/components/responses/NotFound" },
           "422": { "$ref": "#/components/responses/Validation" }
         },
-        "x-idempotency-class": "one_time_secret_response"
+        "x-idempotency-class": "standard_30d"
       }
     },
     "/projects/{projectId}/locations": {
@@ -12288,14 +12288,33 @@
         "properties": {}
       },
       "TelegramBindingIntentResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["intentId", "expiresAt", "telegramUrl"],
-        "properties": {
-          "intentId": { "type": "string", "format": "uuid" },
-          "expiresAt": { "type": "string", "format": "date-time" },
-          "telegramUrl": { "type": "string", "format": "uri" }
-        }
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "intentId", "projectId", "memberId", "expiresAt", "telegramUrl"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["issued"] },
+              "intentId": { "type": "string", "format": "uuid" },
+              "projectId": { "type": "string", "format": "uuid" },
+              "memberId": { "type": "string", "format": "uuid" },
+              "expiresAt": { "type": "string", "format": "date-time" },
+              "telegramUrl": { "type": "string", "format": "uri" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "intentId", "projectId", "memberId", "expiresAt"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["replayed"] },
+              "intentId": { "type": "string", "format": "uuid" },
+              "projectId": { "type": "string", "format": "uuid" },
+              "memberId": { "type": "string", "format": "uuid" },
+              "expiresAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        ]
       },
       "CreateTelegramMemberLinkIntentRequest": {
         "type": "object",
@@ -12303,14 +12322,33 @@
         "properties": {}
       },
       "TelegramMemberLinkIntentResponse": {
-        "type": "object",
-        "additionalProperties": false,
-        "required": ["intentId", "expiresAt", "telegramUrl"],
-        "properties": {
-          "intentId": { "type": "string", "format": "uuid" },
-          "expiresAt": { "type": "string", "format": "date-time" },
-          "telegramUrl": { "type": "string", "format": "uri" }
-        }
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "intentId", "projectId", "memberId", "expiresAt", "telegramUrl"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["issued"] },
+              "intentId": { "type": "string", "format": "uuid" },
+              "projectId": { "type": "string", "format": "uuid" },
+              "memberId": { "type": "string", "format": "uuid" },
+              "expiresAt": { "type": "string", "format": "date-time" },
+              "telegramUrl": { "type": "string", "format": "uri" }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["kind", "intentId", "projectId", "memberId", "expiresAt"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["replayed"] },
+              "intentId": { "type": "string", "format": "uuid" },
+              "projectId": { "type": "string", "format": "uuid" },
+              "memberId": { "type": "string", "format": "uuid" },
+              "expiresAt": { "type": "string", "format": "date-time" }
+            }
+          }
+        ]
       },
       "TenantRole": {
         "type": "string",
