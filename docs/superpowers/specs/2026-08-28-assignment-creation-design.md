@@ -215,10 +215,16 @@ resolved by deletion rather than by a coin toss.
 
 **§7.2's three obligations are not optional:** the components land in
 `packages/ui/src/components/`, are exported from `index.ts`, and are rendered
-in `/kitchen-sink/components` — all three, or `component-contract.test.ts`
-fails on the orphan. That gate is also the reason this slice fixes the
-four already-orphaned components' absence there only if the test demands it,
-and does not otherwise expand.
+in `/kitchen-sink/components` — all three.
+
+**Correction, 2026-08-29:** the sentence that followed («all three, or
+`component-contract.test.ts` fails on the orphan») was false, and it was doing
+work here — it justified fixing the four already-orphaned components «only if
+the test demands it», which is a test that does not exist. That suite checks
+file↔`index.ts` parity and never reads a kitchen sink. The scoping decision
+stands on its own footing instead: this slice does not expand to four
+components it did not author. What changes is the reason — a deliberate scope
+boundary, not a gate that would have caught them.
 
 ## 5. The assignee problem, named rather than hidden
 

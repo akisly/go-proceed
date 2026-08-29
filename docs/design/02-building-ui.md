@@ -261,8 +261,20 @@ readable fails the suite.
 ### 7.2 A component
 
 Add it to `packages/ui/src/components/`, export it from `index.ts`, render it in
-`/kitchen-sink/components` beside the rule it carries. All three, or
-`component-contract.test.ts` fails on the orphan.
+`/kitchen-sink/components` beside the rule it carries. All three.
+
+**Correction, 2026-08-29:** this paragraph used to end «All three, or
+`component-contract.test.ts` fails on the orphan», and that was false for the
+third obligation. That test asserts file↔`index.ts` parity in both directions
+(«exports every component file» / «exports nothing that has no file»); it never
+opens a kitchen sink and cannot see whether a component is rendered in one. The
+first two obligations are gated; **the kitchen-sink rendering is enforced by
+nothing.** The cost is not theoretical — slice A shipped `FieldSeparator` with
+`bg-canvas` where the substitution table says `bg-surface`, a live class that
+would have painted a band across a white panel, and it survived precisely
+because no sink rendered it and no test looked. Adding the scan to
+`component-contract.test.ts` is filed in `TODOS.md`; until it lands, treat the
+third obligation as a rule you keep by hand.
 
 Take `className` last and merge with `cx()` — never string-concatenate. And
 never pass a function-valued `className` or `children` into a Radix `asChild`:

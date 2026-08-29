@@ -866,6 +866,95 @@ helper had to be told explicitly NOT to follow it, and the next one may not be.
 The fix is to throw the domain object's id and keep the key out of the message
 entirely, in those five functions.
 
+## P3 — the kitchen-sink obligation is enforced by nothing, and two documents claimed it was
+
+**Found 2026-08-29, in the final review of Plan D slice A.**
+`docs/design/02-building-ui.md` §7.2 requires three things of a new component:
+it lands in `packages/ui/src/components/`, it is exported from `index.ts`, and
+it is rendered in `/kitchen-sink/components`. Both that file and
+`docs/superpowers/specs/2026-08-28-assignment-creation-design.md` §4 stated
+that all three are gated by `component-contract.test.ts`. **Only the first two
+are.** That suite asserts file↔`index.ts` parity in both directions and never
+opens a kitchen sink. Both sentences were corrected on 2026-08-29; this entry
+is the missing gate itself.
+
+**Why it is worth building rather than trusting.** Slice A shipped
+`packages/ui/src/components/Field.tsx` with `bg-canvas` on `FieldSeparator`'s
+label where §7.2's own substitution table maps shadcn's `bg-background` to
+`bg-surface`. `cx` is `extendTailwindMerge` with the taught config, so the
+class was live: a paper-toned band across a white panel. Nothing failed,
+because nothing rendered it. That is the exact failure mode the third
+obligation exists to prevent, and it was unguarded.
+
+**The fix is cheap where the parsing already happens.** `component-contract.
+test.ts` already parses the exported names out of `index.ts`; the addition is a
+scan of the kitchen-sink page for each of them.
+
+**It will fail on existing orphans when it lands, and that is the point.**
+`Form`/`FormField`/`FormItem` and their siblings (`packages/ui/src/components/
+index.ts:35-37`) are exported with no caller and no sink entry — the same
+condition that hid the `bg-canvas` bug. Landing the gate means either rendering
+them or retiring them, which is a decision this entry is asking for rather than
+making.
+
+## P2 — a project access grant can be issued through the product and never taken back
+
+**Found 2026-08-29, in the final review of Plan D slice A.** `/v1/projects/
+{projectId}/access-grants` carries a POST and nothing else. There is no v0.1
+operation that revokes a project access capability — `technical/openapi/
+scope-v0.1.csv` names none, and `apps/app/app/v1/projects/[projectId]/
+access-grants/route.ts` exports only `POST`.
+
+The column exists and the read path already honours it: `public.
+project_access_grants.revoked_at` is nullable (migration `0010`), the partial
+unique index is `where revoked_at is null`, and `requireProjectCapability`
+(`apps/app/src/lib/authz.ts`) filters on `revoked_at is null` on every check.
+So the STATE is modelled and enforced; only the command to reach it is missing.
+
+**Why this is a P2 and not a P3.** A mis-scoped grant in the pilot cannot be
+corrected through the product. The only route back is a superuser UPDATE — the
+same statement `apps/app/qa/field.mjs`'s `seedWorld` now has to run, which is
+where this was found. A permissions system whose grants are one-way is an
+operational finding, not a nicety: the owner who over-granted has no move that
+does not involve someone with database credentials.
+
+It also has a second cost, already paid once. Because the capability cannot be
+taken back through the API, the QA harness had to reach for raw SQL to build a
+member who genuinely lacks `readiness.view` — the harness's own boundary
+statement («never a raw SQL insert standing in for what a route would have
+done») now carries an exception it did not have before.
+
+**The fix** is an operation — `project_access.revoke`, or a DELETE on the
+existing collection — added to `scope-v0.1.csv` first, since that file owns the
+API surface. Once it exists, `seedWorld`'s SQL should become an HTTP call like
+every other step around it.
+
+## P3 — about twenty-five routes put English into `fieldErrors[].message`, and the first form to read that field just shipped
+
+**Found 2026-08-29, in the final review of Plan D slice A.** Slice A's F4 fixed
+five hand-written refusals in `apps/app/app/v1/contracts/[contractId]/
+assignments/route.ts` because the office form renders `fieldErrors[].message`
+verbatim, beside the control, in blocked-red — so an English phrase there is
+English shown to a Ukrainian-speaking foreman.
+
+That form is the FIRST surface in this codebase to read that field. The other
+routes were never wrong in practice, because nothing rendered them; they are
+wrong the moment a second form does. `access-grants/route.ts:38`,
+`progress/route.ts:98` and `contracts/route.ts:40` are three of roughly
+twenty-five.
+
+There is also a channel F4 did not close and could not: `apps/app/src/lib/
+command.ts:86-88` maps zod issues straight into `fieldErrors[].message`, so a
+body-schema failure still puts zod's own English into that slot regardless of
+what the handler does. It is unreachable from slice A's form (its Selects
+cannot produce a non-guid), which is why it is filed rather than fixed.
+
+**The fix** is not a sweep — it is a decision about where the boundary sits:
+either every `fieldErrors[].message` is user-facing copy (and `command.ts` must
+translate zod), or the field is machine-facing and forms must map `path` to
+their own copy. Slice A assumed the first. Whichever is chosen belongs in
+`docs/architecture/` before the second form is built.
+
 ## P3 — the browser pass cannot assert «no signed URL in the logs», because there are no logs
 
 **Found 2026-08-22, same research; the number corrected 2026-08-22 in the D1
