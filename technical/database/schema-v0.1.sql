@@ -3026,6 +3026,8 @@ create table public.communication_attachments (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, telegram_media_group_id uuid, provider_file_id text, provider_file_unique_id text,
   state text not null, requirement_occurrence_id uuid, evidence_object_id uuid, failure_code text, terminal_at timestamptz,
+  provider_retry_attempts integer not null, provider_next_retry_at timestamptz,
+  provider_retry_lease_token uuid, provider_retry_lease_expires_at timestamptz,
   unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, message_id) references public.communication_messages(workspace_id, project_id, id),
@@ -3037,6 +3039,8 @@ create table public.communication_attachments (
   check (state not in ('unbound','available','not_evidence','failed') or (provider_file_id is null and provider_file_unique_id is null)),
   check (state <> 'available' or evidence_object_id is not null),
   check (state <> 'failed' or failure_code is not null)
+  ,check (provider_retry_attempts >= 0 and provider_retry_attempts <= 3)
+  ,check ((provider_retry_lease_token is null) = (provider_retry_lease_expires_at is null))
 );
 create table public.telegram_requirement_choices (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,

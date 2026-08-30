@@ -73,7 +73,8 @@ export type TelegramEvidenceProcessInput = {
 
 export type TelegramEvidenceProcessResult =
   | { kind: "available"; evidenceObjectId: string; uploadIntentId: string }
-  | { kind: "failed"; code: string };
+  | { kind: "failed"; code: string }
+  | { kind: "retry"; code: string };
 
 const TELEGRAM_MESSAGE_LIMIT = 4096;
 
@@ -149,6 +150,9 @@ export async function processTelegramEvidenceAttachment(input: TelegramEvidenceP
   } catch (error) {
     if (error instanceof TelegramApiError && error.kind === "provider_limit") {
       return { kind: "failed", code: "provider_file_too_large" };
+    }
+    if (error instanceof TelegramApiError && (error.retryable || error.kind === "network_error")) {
+      return { kind: "retry", code: "provider_download_retryable" };
     }
     return { kind: "failed", code: "provider_download_failed" };
   }

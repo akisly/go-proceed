@@ -211,6 +211,23 @@ async function settleTelegramEvidenceAttachment(input: {
         where id=$1 and state='processing'`, [input.attachmentId, input.result.evidenceObjectId]);
       return;
     }
+    if (input.result.kind === "retry") {
+      // Keep the provider handles while a bounded retry is pending.  The next
+      // worker claims only this exact attachment; no success/failure receipt is
+      // queued until it reaches a terminal result.
+      await tx.query(`update public.communication_attachments
+        set provider_retry_attempts=provider_retry_attempts+1,
+            provider_next_retry_at=case when provider_retry_attempts + 1 >= 3 then null
+              else now() + make_interval(secs => (provider_retry_attempts + 1) * 30) end,
+            retry_disposition=case when provider_retry_attempts + 1 >= 3 then 'exhausted' else 'scheduled' end,
+            state=case when provider_retry_attempts + 1 >= 3 then 'failed' else 'processing' end,
+            failure_code=case when provider_retry_attempts + 1 >= 3 then $2 else null end,
+            terminal_at=case when provider_retry_attempts + 1 >= 3 then now() else null end,
+            provider_file_id=case when provider_retry_attempts + 1 >= 3 then null else provider_file_id end,
+            provider_file_unique_id=case when provider_retry_attempts + 1 >= 3 then null else provider_file_unique_id end
+        where id=$1 and state='processing'`, [input.attachmentId, input.result.code]);
+      return;
+    }
     await tx.query(`update public.communication_attachments
       set state='failed', failure_code=$2, terminal_at=now(),
           provider_file_id=null, provider_file_unique_id=null
@@ -234,7 +251,7 @@ async function enqueueRequirementChoicePrompt(input: {
 
 async function enqueueEvidenceSummary(input: {
   binding: ChatBinding; assignmentId: string; replyToMessageId: string | null;
-  results: Array<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>>;
+  results: Array<Exclude<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>, { kind: "retry" }>>;
 }): Promise<void> {
   await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
     for (const text of formatTelegramEvidenceSummaryChunks(input.results)) {
@@ -289,7 +306,9 @@ async function prepareStoredEvidence(
       messageId: update.messageId, file: attachment.file, api, putObject,
     });
     await settleTelegramEvidenceAttachment({ workspaceId: binding.workspace_id, attachmentId: attachment.id, result });
-    await enqueueEvidenceSummary({ binding, assignmentId: prepared.assignmentId, replyToMessageId: stored.messageId, results: [result] });
+    if (result.kind !== "retry") {
+      await enqueueEvidenceSummary({ binding, assignmentId: prepared.assignmentId, replyToMessageId: stored.messageId, results: [result] });
+    }
   }
 }
 
@@ -355,7 +374,9 @@ async function processRequirementCallback(update: Extract<NormalizedTelegramUpda
   const results = await processSelectedEvidence({ workspaceId: binding.workspace_id, assignmentId: selection.assignmentId,
     occurrenceId: selection.occurrenceId, actorUserId: selection.actorUserId, attachmentIds: selection.attachmentIds,
     botId: config.botId, chatId: update.chatId });
-  await enqueueEvidenceSummary({ binding, assignmentId: selection.assignmentId, replyToMessageId: null, results });
+  if (results.every((result) => result.kind !== "retry")) {
+    await enqueueEvidenceSummary({ binding, assignmentId: selection.assignmentId, replyToMessageId: null, results });
+  }
   return "selected_requirement_occurrence";
 }
 
@@ -447,7 +468,9 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
     const results = await processSelectedEvidence({ workspaceId: group.workspace_id, assignmentId: prepared.assignmentId,
       occurrenceId: prepared.occurrenceId, actorUserId: prepared.actorUserId, attachmentIds,
       botId: loadTelegramConfig().botId, chatId: group.chat_id });
-    await enqueueEvidenceSummary({ binding, assignmentId: prepared.assignmentId, replyToMessageId: first.message_id, results });
+    if (results.every((result) => result.kind !== "retry")) {
+      await enqueueEvidenceSummary({ binding, assignmentId: prepared.assignmentId, replyToMessageId: first.message_id, results });
+    }
     await withServiceTx({ actorUserId: "", organizationId: group.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
       await tx.query(`update public.telegram_media_groups
         set state=case when processing_generation=$3::bigint then 'completed' else 'open' end,
