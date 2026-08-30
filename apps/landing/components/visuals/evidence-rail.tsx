@@ -56,7 +56,7 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
                 <span
                   aria-hidden="true"
                   data-evidence-point-marker="true"
-                  className={`relative z-10 mx-auto grid size-7 place-items-center rounded-pill border text-micro font-semibold transition-colors duration-fast ${markerTone}`}
+                  className={`relative z-10 mx-auto grid size-7 place-items-center overflow-hidden rounded-pill border text-micro font-semibold transition-[background-color,border-color,color,scale] duration-fast ${markerTone}`}
                   style={{ scale: isCurrent ? 1.08 : 1 }}
                 >
                   <CrossFade
