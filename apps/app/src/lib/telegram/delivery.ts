@@ -76,16 +76,19 @@ export async function enqueueTelegramMessage(
     kind: "assignment_card" | "text";
     replyToMessageId?: string | null;
     inlineKeyboard?: Array<Array<{ text: string; callbackData: string }>>;
+    /** Ordered requirement ids actually rendered in an assignment card. */
+    occurrenceSnapshot?: string[];
   },
 ): Promise<{ messageId: string; deliveryState: "queued" }> {
   const messageId = crypto.randomUUID();
   await tx.query(`insert into public.communication_messages
     (id, workspace_id, project_id, telegram_chat_binding_id, direction, kind,
-     text, reply_to_message_id, work_assignment_id, telegram_reply_markup, delivery_state)
-    values ($1, $2, $3, $4, 'outbound', $5, $6, $7, $8, $9::jsonb, 'queued')`, [
+     text, reply_to_message_id, work_assignment_id, telegram_reply_markup, telegram_occurrence_snapshot, delivery_state)
+    values ($1, $2, $3, $4, 'outbound', $5, $6, $7, $8, $9::jsonb, $10::uuid[], 'queued')`, [
     messageId, input.workspaceId, input.projectId, input.telegramChatBindingId,
     input.kind, input.text, input.replyToMessageId ?? null, input.workAssignmentId,
     input.inlineKeyboard === undefined ? null : JSON.stringify(input.inlineKeyboard),
+    input.occurrenceSnapshot ?? null,
   ]);
   await enqueueOutbox(tx, ctx, {
     topic: OUTBOX_TOPIC,

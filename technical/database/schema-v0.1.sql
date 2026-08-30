@@ -2973,12 +2973,14 @@ create table public.telegram_media_groups (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   telegram_chat_binding_id uuid not null, provider_media_group_id text not null,
   reply_provider_message_id bigint, work_assignment_id uuid, last_part_at timestamptz not null,
-  choice_expires_at timestamptz, state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
+  choice_expires_at timestamptz, processing_lease_token uuid, processing_lease_expires_at timestamptz,
+  processing_generation bigint not null, state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
   unique (telegram_chat_binding_id, provider_media_group_id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
   check (choice_expires_at is null or choice_expires_at >= last_part_at),
+  check ((processing_lease_token is null) = (processing_lease_expires_at is null)),
   check (state in ('open','awaiting_requirement_choice','processing','completed','not_evidence','failed'))
 );
 create table public.communication_messages (
@@ -2987,7 +2989,8 @@ create table public.communication_messages (
   text text, author_member_id uuid, provider_user_id bigint, provider_display_name_snapshot text,
   provider_username_snapshot text, provider_message_id bigint, provider_sent_at timestamptz,
   server_received_at timestamptz not null, reply_to_message_id uuid,
-  provider_reply_to_message_id bigint, work_assignment_id uuid, retry_of_message_id uuid, telegram_reply_markup jsonb, delivery_state text not null,
+  provider_reply_to_message_id bigint, work_assignment_id uuid, retry_of_message_id uuid, telegram_reply_markup jsonb,
+  telegram_occurrence_snapshot uuid[], delivery_state text not null,
   unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),

@@ -100,6 +100,7 @@ export const POST = commandRoute(request, async (a) => {
     const queued = await enqueueTelegramMessage(tx, ctx, {
       workspaceId: authorized.workspaceId, projectId: authorized.projectId, telegramChatBindingId,
       workAssignmentId: assignmentId, kind: "assignment_card", text: card.text,
+      occurrenceSnapshot: occurrences.rows.map((occurrence) => occurrence.id),
     });
     return { status: 201, body: assignmentCardResponse.parse({ ...queued, assignmentId }) };
   }));

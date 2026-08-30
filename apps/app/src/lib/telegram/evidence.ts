@@ -41,17 +41,20 @@ export function telegramEvidenceIdempotencyKey(input: {
   chatId: string;
   messageId: string;
   fileUniqueId: string | null;
+  fileId?: string;
+  attachmentId?: string;
   occurrenceId: string;
 }): string {
   return createHash("sha256").update([
     "telegram", input.botId, input.chatId, input.messageId,
-    input.fileUniqueId ?? "", input.occurrenceId,
+    input.fileUniqueId ?? `file:${input.fileId ?? "missing"}`,
+    input.attachmentId ?? "", input.occurrenceId,
   ].join(":"), "utf8").digest("hex");
 }
 
-function providerDeviceCaptureId(input: { botId: string; chatId: string; messageId: string; fileUniqueId: string | null }): string {
+function providerDeviceCaptureId(input: { botId: string; chatId: string; messageId: string; fileUniqueId: string | null; fileId: string }): string {
   return createHash("sha256").update([
-    "telegram-device", input.botId, input.chatId, input.messageId, input.fileUniqueId ?? "",
+    "telegram-device", input.botId, input.chatId, input.messageId, input.fileUniqueId ?? `file:${input.fileId}`,
   ].join(":"), "utf8").digest("hex");
 }
 
@@ -80,21 +83,34 @@ function safeFailureCode(value: string): string {
 }
 
 /** A factual plain-text summary; success lines exist only for durable receipts. */
-export function formatTelegramEvidenceSummary(results: TelegramEvidenceProcessResult[]): string {
+export function formatTelegramEvidenceSummaryChunks(results: TelegramEvidenceProcessResult[]): string[] {
   const saved = results.filter((result): result is Extract<TelegramEvidenceProcessResult, { kind: "available" }> => result.kind === "available");
   const failed = results.filter((result): result is Extract<TelegramEvidenceProcessResult, { kind: "failed" }> => result.kind === "failed");
   const lines = [
-    saved.length === 0 ? "Доказ не збережено." : `Збережено доказів: ${saved.length}.`,
+    saved.length > 0 && failed.length > 0
+      ? "Частину зображень збережено; для кожного збою вказано окрему причину."
+      : saved.length === 0 ? "Доказ не збережено." : `Збережено доказів: ${saved.length}.`,
     ...saved.map(({ evidenceObjectId }) => `Збережено: ${evidenceObjectId}.`),
     ...failed.map(({ code }) => `Не збережено: ${safeFailureCode(code)}.`),
   ];
+  const chunks: string[] = [];
   let text = "";
   for (const line of lines) {
     const next = text === "" ? line : `${text}\n${line}`;
-    if (next.length > TELEGRAM_MESSAGE_LIMIT) return text || "Доказ не збережено.";
+    if (next.length > TELEGRAM_MESSAGE_LIMIT) {
+      chunks.push(text || "Доказ не збережено.");
+      text = line;
+      continue;
+    }
     text = next;
   }
-  return text;
+  chunks.push(text || "Доказ не збережено.");
+  return chunks;
+}
+
+/** Rendering helper; delivery must use chunks so no required line is lost. */
+export function formatTelegramEvidenceSummary(results: TelegramEvidenceProcessResult[]): string {
+  return formatTelegramEvidenceSummaryChunks(results).join("\n");
 }
 
 /**
@@ -121,12 +137,12 @@ export async function processTelegramEvidenceAttachment(input: TelegramEvidenceP
   const mimeType = input.file.kind === "photo" ? "image/jpeg" : input.file.mimeType!;
   const idempotencyKey = telegramEvidenceIdempotencyKey({
     botId: input.botId, chatId: input.chatId, messageId: input.messageId,
-    fileUniqueId: input.file.fileUniqueId, occurrenceId: input.occurrenceId,
+    fileUniqueId: input.file.fileUniqueId, fileId: input.file.fileId, occurrenceId: input.occurrenceId,
   });
   const body: CreateUploadIntentRequest = {
     deviceCaptureId: providerDeviceCaptureId({
       botId: input.botId, chatId: input.chatId, messageId: input.messageId,
-      fileUniqueId: input.file.fileUniqueId,
+      fileUniqueId: input.file.fileUniqueId, fileId: input.file.fileId,
     }),
     originMethod: "origin_not_distinguished",
     ...(input.file.fileName === null ? {} : { originalFilename: input.file.fileName }),
@@ -214,6 +230,11 @@ export async function prepareTelegramEvidenceCandidate(input: {
   file: TelegramFileCandidate;
 }): Promise<CandidatePreparation> {
   return withServiceTx({ actorUserId: "", organizationId: input.workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+    const attachment = await tx.query<{ state: string }>(`select state from public.communication_attachments
+      where workspace_id=$1 and project_id=$2 and id=$3`, [input.workspaceId, input.projectId, input.attachmentId]);
+    // Reclaimed inbox work can revisit a staged message, but never turns an
+    // already-selected/terminal attachment into a second prompt or receipt.
+    if (attachment.rows[0]?.state !== "staged") return { kind: "not_evidence", code: "already_processed" };
     if (!isTelegramEvidenceCandidate(input.file)) {
       await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "not_evidence", code: "unsupported_media" });
       return { kind: "not_evidence", code: "unsupported_media" };
@@ -228,7 +249,17 @@ export async function prepareTelegramEvidenceCandidate(input: {
       await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "unbound", code: "unbound_card_reply" });
       return { kind: "not_evidence", code: "unbound_card_reply" };
     }
-    const card = await tx.query<{ assignment_id: string }>(`select work_assignment_id as assignment_id
+    const capability = await tx.query<{ ok: boolean }>(`select exists(
+      select 1 from public.project_access_grants g
+       where g.workspace_id=$1 and g.project_id=$2 and g.member_id=$3
+         and g.capability='evidence.record'
+    ) as ok`, [input.workspaceId, input.projectId, actor.member_id]);
+    if (capability.rows[0]?.ok !== true) {
+      await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "unbound", code: "evidence_capability_denied" });
+      return { kind: "not_evidence", code: "evidence_capability_denied" };
+    }
+    const card = await tx.query<{ assignment_id: string; occurrence_snapshot: string[] | null }>(`select work_assignment_id as assignment_id,
+        telegram_occurrence_snapshot as occurrence_snapshot
       from public.communication_messages
       where workspace_id=$1 and project_id=$2 and telegram_chat_binding_id=$3
         and provider_message_id=$4::bigint and kind='assignment_card'
@@ -247,7 +278,12 @@ export async function prepareTelegramEvidenceCandidate(input: {
       where o.workspace_id=$1 and o.project_id=$2 and o.work_assignment_id=$3
         and o.evidence_kind in ('photo','document')
       order by o.ordinal, o.id`, [input.workspaceId, input.projectId, assignmentId]);
-    const supported = occurrences.rows.filter((occurrence) => supportsOccurrence(occurrence, input.file));
+    // The delivered card is the user-visible authorization boundary. A rule
+    // materialised after delivery is intentionally not selectable until a new
+    // card is delivered; removed occurrences disappear from this live query.
+    const supported = occurrences.rows.filter((occurrence) =>
+      (card.rows[0]?.occurrence_snapshot ?? []).includes(occurrence.occurrenceId)
+      && supportsOccurrence(occurrence, input.file));
     if (supported.length === 0) {
       await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "not_evidence", code: "requirement_policy_mismatch" });
       return { kind: "not_evidence", code: "requirement_policy_mismatch" };

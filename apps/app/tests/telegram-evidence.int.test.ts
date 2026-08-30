@@ -116,6 +116,7 @@ databaseDescribe("Telegram evidence bridge", () => {
       id = (await enqueueTelegramMessage(tx, { actorUserId: "", organizationId: rules.workspaceId, requestId: crypto.randomUUID() }, {
         workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
         workAssignmentId: world.assignmentId, kind: "assignment_card", text: "Картка завдання",
+        occurrenceSnapshot: [occurrenceId, alternateOccurrenceId],
       })).messageId;
     });
     expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-card", limit: 10, apiClient: fakeTelegramApi() }))
@@ -241,7 +242,7 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(terminal.filter((row) => row.state === "available")).toHaveLength(1); expect(terminal.filter((row) => row.state === "failed")).toHaveLength(2);
     expect(terminal.every((row) => row.provider_file_id === null)).toBe(true);
     const summaries = await client.query<{ text: string }>(`select text from public.communication_messages
-      where workspace_id=$1 and direction='outbound' and text like 'Збережено доказів:%'`, [rules.workspaceId]);
+      where workspace_id=$1 and direction='outbound' and text like 'Частину зображень збережено%'`, [rules.workspaceId]);
     expect(summaries.rows).toHaveLength(1); expect(summaries.rows[0]!.text).toContain("Не збережено: provider_download_failed.");
     expect(summaries.rows[0]!.text).toContain("Не збережено: evidence_processing_failed."); expect(summaries.rows[0]!.text).not.toContain("Збережено: null");
   });

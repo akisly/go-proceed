@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import {
   TELEGRAM_DOWNLOAD_LIMIT_BYTES,
   formatTelegramEvidenceSummary,
+  formatTelegramEvidenceSummaryChunks,
+  telegramEvidenceIdempotencyKey,
   isTelegramEvidenceCandidate,
   telegramSourceVersion,
 } from "./evidence";
@@ -27,6 +29,12 @@ describe("Telegram evidence candidates", () => {
     expect(telegramSourceVersion()).toBe("telegram-bot/2026.08.29");
     vi.unstubAllEnvs();
   });
+
+  it("keeps distinct null-unique provider files from sharing an evidence intent", () => {
+    const base = { botId: "1", chatId: "2", messageId: "3", fileUniqueId: null, occurrenceId: "occurrence" };
+    expect(telegramEvidenceIdempotencyKey({ ...base, fileId: "file-a" }))
+      .not.toBe(telegramEvidenceIdempotencyKey({ ...base, fileId: "file-b" }));
+  });
 });
 
 describe("Telegram evidence receipts", () => {
@@ -36,14 +44,16 @@ describe("Telegram evidence receipts", () => {
     expect(formatTelegramEvidenceSummary([
       { kind: "available", evidenceObjectId: "evidence-1", uploadIntentId: "intent-1" },
       { kind: "failed", code: "provider_download_failed<script>" },
-    ])).toEqual("Збережено доказів: 1.\nЗбережено: evidence-1.\nНе збережено: provider_download_failed.");
+    ])).toEqual("Частину зображень збережено; для кожного збою вказано окрему причину.\nЗбережено: evidence-1.\nНе збережено: provider_download_failed.");
   });
 
-  it("keeps a large partial receipt within Telegram's text limit", () => {
-    const summary = formatTelegramEvidenceSummary(Array.from({ length: 300 }, (_, index) => (
+  it("chunks a large partial receipt without dropping any exact safe failure", () => {
+    const results = Array.from({ length: 300 }, (_, index) => (
       { kind: "failed" as const, code: `provider_failure_${index}` }
-    )));
-    expect(summary.length).toBeLessThanOrEqual(4096);
-    expect(summary).toContain("Не збережено");
+    ));
+    const chunks = formatTelegramEvidenceSummaryChunks(results);
+    expect(chunks.every((chunk) => chunk.length <= 4096)).toBe(true);
+    expect(chunks.join("\n")).toContain("Не збережено: provider_failure_299.");
+    expect(chunks.join("\n").match(/Не збережено:/g)).toHaveLength(300);
   });
 });

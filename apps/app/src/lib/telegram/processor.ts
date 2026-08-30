@@ -4,7 +4,7 @@ import { createTelegramApiClient } from "./api";
 import { loadTelegramConfig } from "./config";
 import {
   prepareTelegramEvidenceCandidate, processTelegramEvidenceAttachment, selectTelegramOccurrence,
-  formatTelegramEvidenceSummary,
+  formatTelegramEvidenceSummaryChunks,
 } from "./evidence";
 import { putObject } from "../evidence-storage";
 import { enqueueTelegramMessage } from "./delivery";
@@ -151,9 +151,15 @@ async function storeMessage(
       context.displayName, context.username, update.messageId, update.sentAt,
       reply?.rows[0]?.id ?? null, update.replyToMessageId,
     ]);
-    const messageId = message.rows[0]?.id;
+    // A worker can crash after staging rows but before eligibility.  The
+    // provider update is idempotent, not a permission to abandon those staged
+    // handles: recover the exact persisted message and continue from it.
+    const existing = message.rows[0] ? null : await tx.query<{ id: string }>(`select id
+      from public.communication_messages where telegram_chat_binding_id=$1 and provider_message_id=$2::bigint`,
+    [binding.telegram_chat_binding_id, update.messageId]);
+    const messageId = message.rows[0]?.id ?? existing?.rows[0]?.id;
     const attachments: StoredAttachment[] = [];
-    if (messageId) {
+    if (messageId && message.rows[0]) {
       const mediaGroup = update.mediaGroupId === null ? null : await tx.query<{ id: string }>(`insert into public.telegram_media_groups
         (workspace_id, project_id, telegram_chat_binding_id, provider_media_group_id, uploader_member_id,
          reply_provider_message_id, last_part_at)
@@ -181,6 +187,14 @@ async function storeMessage(
       await enqueueTelegramProcessorOutbox(tx, binding, {
         topic: "telegram.message.normalized", messageId, providerUpdateId: update.updateId, eventKind: "message",
       });
+    } else if (messageId) {
+      const persisted = await tx.query<{ id: string; provider_file_id: string | null }>(`select id, provider_file_id
+        from public.communication_attachments where workspace_id=$1 and message_id=$2
+          and state in ('staged','awaiting_requirement_choice','processing')`, [binding.workspace_id, messageId]);
+      for (const row of persisted.rows) {
+        const file = update.files.find((candidate) => candidate.fileId === row.provider_file_id);
+        if (file) attachments.push({ id: row.id, file });
+      }
     }
     return { disposition: authorMemberId === null ? "stored_unverified_message" : "stored_chat_message", messageId: messageId ?? null, attachments };
   });
@@ -223,11 +237,13 @@ async function enqueueEvidenceSummary(input: {
   results: Array<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>>;
 }): Promise<void> {
   await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
-    await enqueueTelegramMessage(tx, { actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, {
-      workspaceId: input.binding.workspace_id, projectId: input.binding.project_id,
-      telegramChatBindingId: input.binding.telegram_chat_binding_id, workAssignmentId: input.assignmentId,
-      kind: "text", text: formatTelegramEvidenceSummary(input.results), replyToMessageId: input.replyToMessageId,
-    });
+    for (const text of formatTelegramEvidenceSummaryChunks(input.results)) {
+      await enqueueTelegramMessage(tx, { actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, {
+        workspaceId: input.binding.workspace_id, projectId: input.binding.project_id,
+        telegramChatBindingId: input.binding.telegram_chat_binding_id, workAssignmentId: input.assignmentId,
+        kind: "text", text, replyToMessageId: input.replyToMessageId,
+      });
+    }
   });
 }
 
@@ -319,17 +335,20 @@ async function processSelectedEvidence(input: {
 }
 
 async function processRequirementCallback(update: Extract<NormalizedTelegramUpdate, { kind: "callback_query" }>): Promise<string> {
-  if (update.chatId === null || update.data === null || !update.data.startsWith("req:")) return "ignored_callback_query";
   const config = loadTelegramConfig();
+  const api = createTelegramApiClient(config);
+  const reject = async (disposition: string): Promise<string> => {
+    await api.answerCallbackQuery({ callbackId: update.callbackId, text: "Вибір недійсний або вже використаний." }).catch(() => undefined);
+    return disposition;
+  };
+  if (update.chatId === null || update.data === null || !update.data.startsWith("req:")) return reject("ignored_callback_query");
   const binding = await resolveBoundChat(config.botId, update.chatId);
-  if (binding === null || binding.channel_state === "archived") return "rejected_requirement_choice";
+  if (binding === null || binding.channel_state === "archived") return reject("rejected_requirement_choice");
   const selection = await selectTelegramOccurrence({
     botId: config.botId, chatId: update.chatId, uploaderTelegramUserId: update.senderId, token: update.data.slice(4),
   });
-  const api = createTelegramApiClient(config);
   if (selection.kind === "rejected") {
-    await api.answerCallbackQuery({ callbackId: update.callbackId, text: "Вибір недійсний або вже використаний." }).catch(() => undefined);
-    return "rejected_requirement_choice";
+    return reject("rejected_requirement_choice");
   }
   await api.answerCallbackQuery({ callbackId: update.callbackId, text: "Обробляємо зображення." }).catch(() => undefined);
   await enqueueEvidenceProcessing({ binding, assignmentId: selection.assignmentId, replyToMessageId: null });
@@ -355,14 +374,17 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
       where g.state='awaiting_requirement_choice' and g.choice_expires_at <= now()`);
   });
   const groups = await withServiceTx({ actorUserId: "", organizationId: null, requestId: crypto.randomUUID() }, async (tx) => {
-    const claimed = await tx.query<{ id: string; workspace_id: string; project_id: string; telegram_chat_binding_id: string; chat_id: string }>(`
-      select g.id, g.workspace_id, g.project_id, g.telegram_chat_binding_id, b.chat_id::text
+    const claimed = await tx.query<{ id: string; workspace_id: string; project_id: string; telegram_chat_binding_id: string; chat_id: string; lease_token: string; processing_generation: string }>(`
+      select g.id, g.workspace_id, g.project_id, g.telegram_chat_binding_id, b.chat_id::text,
+             gen_random_uuid()::text as lease_token, g.processing_generation::text
       from public.telegram_media_groups g
       join public.telegram_chat_bindings b on b.workspace_id=g.workspace_id and b.project_id=g.project_id and b.id=g.telegram_chat_binding_id
-      where g.state='open' and g.last_part_at <= now() - interval '2 seconds'
+      where (g.state='open' or (g.state='processing' and g.processing_lease_expires_at <= now()))
+        and g.last_part_at <= now() - interval '2 seconds'
       order by g.last_part_at, g.id for update of g skip locked limit $1`, [limit]);
     for (const group of claimed.rows) {
-      await tx.query("update public.telegram_media_groups set state='processing' where id=$1 and state='open'", [group.id]);
+      await tx.query(`update public.telegram_media_groups set state='processing', processing_lease_token=$2::uuid,
+          processing_lease_expires_at=now() + interval '60 seconds' where id=$1`, [group.id, group.lease_token]);
     }
     return claimed.rows;
   });
@@ -382,7 +404,17 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
            order by m.provider_message_id, a.id limit 1`, [group.workspace_id, group.id]);
       return row.rows[0] ?? null;
     });
-    if (!first) continue;
+    if (!first) {
+      await withServiceTx({ actorUserId: "", organizationId: group.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
+        await tx.query(`update public.communication_attachments set state='not_evidence', terminal_at=now(),
+          provider_file_id=null, provider_file_unique_id=null
+          where workspace_id=$1 and telegram_media_group_id=$2 and state='staged'`, [group.workspace_id, group.id]);
+        await tx.query(`update public.telegram_media_groups set state='completed', completed_at=now(),
+          processing_lease_token=null, processing_lease_expires_at=null
+          where id=$1 and processing_lease_token=$2::uuid`, [group.id, group.lease_token]);
+      });
+      continue;
+    }
     const binding: ChatBinding = {
       workspace_id: group.workspace_id, project_id: group.project_id,
       telegram_chat_binding_id: group.telegram_chat_binding_id, channel_state: "active",
@@ -417,8 +449,12 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
       botId: loadTelegramConfig().botId, chatId: group.chat_id });
     await enqueueEvidenceSummary({ binding, assignmentId: prepared.assignmentId, replyToMessageId: first.message_id, results });
     await withServiceTx({ actorUserId: "", organizationId: group.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
-      await tx.query(`update public.telegram_media_groups set state='completed', completed_at=now()
-        where id=$1 and state='processing'`, [group.id]);
+      await tx.query(`update public.telegram_media_groups
+        set state=case when processing_generation=$3::bigint then 'completed' else 'open' end,
+            completed_at=case when processing_generation=$3::bigint then now() else null end,
+            processing_lease_token=null, processing_lease_expires_at=null
+        where id=$1 and state='processing' and processing_lease_token=$2::uuid`,
+      [group.id, group.lease_token, group.processing_generation]);
     });
   }
   return groups.length;
