@@ -108,9 +108,9 @@ describe("landing evidence journey", () => {
       html.indexOf('id="field-review"'),
     );
 
-    expect(section).toContain('data-evidence-motion-engine="motion"');
-    expect(section).toContain('data-evidence-stage-transition="presence"');
-    expect(section.match(/data-evidence-scroll-trigger="motion-in-view"/g) ?? []).toHaveLength(3);
+    expect(section).toContain('data-evidence-motion-engine="vocabulary"');
+    expect(section).toContain('data-evidence-stage-transition="slide-swap"');
+    expect(section.match(/data-evidence-scroll-trigger="stagger"/g) ?? []).toHaveLength(3);
     expect(section.match(/data-evidence-rail-motion="vocabulary"/g)?.length).toBeGreaterThanOrEqual(2);
     expect(section).not.toContain("transition-[opacity,transform]");
     expect(section).not.toContain("transition-colors duration-slow");
