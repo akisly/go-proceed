@@ -483,6 +483,47 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
   return groups.length;
 }
 
+/** Reclaim bounded provider-download retries without rediscovering arbitrary media. */
+export async function processDueTelegramEvidenceRetries(limit = 20): Promise<number> {
+  if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new TelegramProcessingError("invalid_retry_limit");
+  const claimed = await withServiceTx({ actorUserId: "", organizationId: null, requestId: crypto.randomUUID() }, async (tx) => {
+    const rows = await tx.query<{
+      id: string; workspace_id: string; project_id: string; provider_file_id: string; provider_file_unique_id: string | null;
+      filename_snapshot: string | null; media_type_snapshot: string | null; byte_size: number | null; requirement_occurrence_id: string;
+      provider_message_id: string; chat_id: string; bot_id: string; actor_user_id: string; work_assignment_id: string;
+    }>(`select a.id, a.workspace_id, a.project_id, a.provider_file_id, a.provider_file_unique_id,
+          a.filename_snapshot, a.media_type_snapshot, a.byte_size, a.requirement_occurrence_id,
+          m.provider_message_id::text, b.chat_id::text, b.bot_id::text, u.user_id::text as actor_user_id,
+          o.work_assignment_id::text as work_assignment_id
+        from public.communication_attachments a
+        join public.communication_messages m on m.workspace_id=a.workspace_id and m.id=a.message_id
+        join public.telegram_chat_bindings b on b.workspace_id=a.workspace_id and b.project_id=a.project_id and b.id=m.telegram_chat_binding_id
+        join public.requirement_occurrences o on o.workspace_id=a.workspace_id and o.id=a.requirement_occurrence_id
+        join public.telegram_member_links l on l.workspace_id=a.workspace_id and l.telegram_user_id=m.provider_user_id and l.revoked_at is null
+        join public.memberships u on u.organization_id=l.workspace_id and u.id=l.member_id and u.status='active'
+       where a.state='processing' and a.provider_next_retry_at <= now()
+         and (a.provider_retry_lease_expires_at is null or a.provider_retry_lease_expires_at <= now())
+         and a.requirement_occurrence_id is not null and a.provider_file_id is not null
+       order by a.provider_next_retry_at, a.id for update of a skip locked limit $1`, [limit]);
+    for (const row of rows.rows) await tx.query(`update public.communication_attachments
+      set provider_retry_lease_token=gen_random_uuid(), provider_retry_lease_expires_at=now()+interval '60 seconds', provider_next_retry_at=null
+      where id=$1`, [row.id]);
+    return rows.rows;
+  });
+  const api = createTelegramApiClient(loadTelegramConfig());
+  for (const row of claimed) {
+    const result = await processTelegramEvidenceAttachment({
+      actorUserId: row.actor_user_id, requestId: crypto.randomUUID(), assignmentId: row.work_assignment_id,
+      occurrenceId: row.requirement_occurrence_id, botId: row.bot_id, chatId: row.chat_id, messageId: row.provider_message_id,
+      file: { kind: row.filename_snapshot === null && row.media_type_snapshot === "image/jpeg" ? "photo" : "document",
+        fileId: row.provider_file_id, fileUniqueId: row.provider_file_unique_id, fileName: row.filename_snapshot,
+        mimeType: row.media_type_snapshot, fileSize: row.byte_size, width: null, height: null }, api, putObject,
+    });
+    await settleTelegramEvidenceAttachment({ workspaceId: row.workspace_id, attachmentId: row.id, result });
+  }
+  return claimed.length;
+}
+
 async function appendEdit(
   binding: ChatBinding,
   update: Extract<NormalizedTelegramUpdate, { kind: "edited_message" }>,
@@ -653,5 +694,6 @@ export async function processTelegramInboxBatch(input: {
   // A subsequent scheduled worker invocation is what supplies the quiet period;
   // processing a just-arrived part here cannot claim an incomplete album.
   await processDueTelegramMediaGroups().catch(() => undefined);
+  await processDueTelegramEvidenceRetries().catch(() => undefined);
   return result;
 }
