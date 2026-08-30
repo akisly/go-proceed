@@ -336,11 +336,18 @@ export function SlideSwap({
 export { SlideSwap } from "./SlideSwap";
 ```
 
-- [ ] **Step 5: Render it in the motion sink**
+- [ ] **Step 5: Render it in the motion sink, and correct the page's own count**
 
 Add a case with two buttons («Назад» / «Далі») driving `direction` and `activeKey`
 over three Ukrainian panels, so the difference from `CrossFade` is visible by
 pressing rather than by reading.
+
+**Then update the count in two places on that same page**, which Task 2 left at
+thirteen: the header comment at the top of the file, and the visible `<h1>`
+(«Тринадцять примітивів і жодного більше» → «Чотирнадцять…»). The page must be
+true at the commit it lands in — a heading promising «and not one more» printed
+above one more is a false claim a visitor reads. Do not skip ahead to fifteen;
+Task 4 owns its own increment.
 
 - [ ] **Step 6: Run the tests**
 
@@ -464,12 +471,27 @@ export function InViewProgress({
 export { InViewProgress } from "./InViewProgress";
 ```
 
-- [ ] **Step 5: Render it in the motion sink**
+- [ ] **Step 5: Render it in the motion sink, and correct the page's own count**
 
 Add a case wrapping a plain `<div>` whose width is
 `style={{ width: "calc(var(--gp-progress, 0) * 100%)" }}` over a `bg-line`
 track, with a Ukrainian sentence saying the primitive itself draws nothing and
 this bar is the caller's.
+
+**Then update the count in FOUR places, in two files.**
+
+On the sink page, which Task 3 left at fourteen: the header comment at the top of
+the file, and the visible `<h1>` («Чотирнадцять примітивів і жодного більше» →
+«П'ятнадцять…»).
+
+And in `packages/ui/src/motion/index.ts`, whose own header still says «TWELVE
+primitives» in two places (its opening line and «living inside these twelve
+files»). That file is the vocabulary's manifest and has been stale since Task 2 —
+the earlier ruling that the count must be true at every commit only knew about
+the page. It goes from twelve straight to fifteen here; the two intermediate
+commits cannot be made true after the fact.
+
+Fifteen is the number Task 9 records in the plan's §8.3.
 
 - [ ] **Step 6: Run the tests**
 
