@@ -1,8 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { processTelegramUpdate } from "./processor";
+import { processTelegramUpdate, telegramEvidenceTerminalCopyKey } from "./processor";
 import { runTelegramJobs } from "../../../app/internal/telegram/jobs/route";
 
 describe("processTelegramUpdate", () => {
+  it("uses unbound copy only for a false or missing card anchor", () => {
+    expect(telegramEvidenceTerminalCopyKey([{ kind: "failed", code: "unbound_card_reply" }]))
+      .toBe("telegram.evidence.unbound");
+    for (const code of ["unsupported_media", "requirement_policy_mismatch", "upload_size_limit",
+      "membership_inactive", "provider_download_failed", "provider_download_retryable"]) {
+      expect(telegramEvidenceTerminalCopyKey([{ kind: "failed", code }])).toBe("telegram.evidence.failed");
+    }
+  });
+
   it("ignores unsupported updates without trying to resolve tenant scope", async () => {
     await expect(processTelegramUpdate({
       kind: "unsupported", updateId: "99", reason: "unsupported_update_type",

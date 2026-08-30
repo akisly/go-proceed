@@ -13,7 +13,8 @@ import { normalizeTelegramUpdate, type NormalizedTelegramUpdate } from "./normal
 const INBOX_LEASE_SECONDS = 60;
 const MEDIA_GROUP_LEASE_SECONDS = 60;
 
-type AlbumClaim = { leaseToken: string; generation: number; claimedLastPartAt: string };
+type AttachmentClaim = { token: string; expiresAt: string };
+type AlbumClaim = { leaseToken: string; leaseExpiresAt: string; generation: number; claimedLastPartAt: string };
 type ReceiptSource =
   | { kind: "attachment"; id: string; generation: 0 }
   | { kind: "media_group"; id: string; generation: number };
@@ -208,59 +209,21 @@ async function storeMessage(
 
 async function settleTelegramEvidenceAttachment(input: {
   workspaceId: string; attachmentId: string; result: Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>;
-  mediaGroupId?: string | null; albumClaim?: AlbumClaim | null;
-}): Promise<void> {
-  await withServiceTx({ actorUserId: "", organizationId: input.workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
-    const claimFence = input.mediaGroupId === undefined || input.mediaGroupId === null
-      ? ""
-      : ` and exists (select 1 from public.telegram_media_groups g
-          where g.workspace_id=communication_attachments.workspace_id
-            and g.id=communication_attachments.telegram_media_group_id
-            and g.id=$3::uuid and g.state='processing'
-            and g.processing_lease_token=$4::uuid
-            and g.processing_generation=$5::bigint
-            and g.claimed_generation=$5::bigint
-            and g.last_part_at=$6::timestamptz
-            and g.claimed_last_part_at=$6::timestamptz)`;
-    const claimParams = input.mediaGroupId === undefined || input.mediaGroupId === null
-      ? [] : [input.mediaGroupId, input.albumClaim?.leaseToken ?? null,
-        input.albumClaim?.generation ?? null, input.albumClaim?.claimedLastPartAt ?? null];
-    if (input.result.kind === "available") {
-      await tx.query(`update public.communication_attachments
-        set state='available', evidence_object_id=$2, terminal_at=now(),
-            provider_file_id=null, provider_file_unique_id=null,
-            provider_next_retry_at=null, provider_retry_lease_token=null,
-            provider_retry_lease_expires_at=null
-        where id=$1 and state='processing'${claimFence}`,
-      [input.attachmentId, input.result.evidenceObjectId, ...claimParams]);
-      return;
-    }
-    if (input.result.kind === "retry") {
-      // Keep the provider handles while a bounded retry is pending.  The next
-      // worker claims only this exact attachment; no success/failure receipt is
-      // queued until it reaches a terminal result.
-      await tx.query(`update public.communication_attachments
-        set provider_retry_attempts=provider_retry_attempts+1,
-            provider_next_retry_at=case when provider_retry_attempts + 1 >= 3 then null
-              else now() + make_interval(secs => (provider_retry_attempts + 1) * 30) end,
-            retry_disposition=case when provider_retry_attempts + 1 >= 3 then 'exhausted' else 'scheduled' end,
-            state=case when provider_retry_attempts + 1 >= 3 then 'failed' else 'processing' end,
-            failure_code=case when provider_retry_attempts + 1 >= 3 then $2 else null end,
-            terminal_at=case when provider_retry_attempts + 1 >= 3 then now() else null end,
-            provider_file_id=case when provider_retry_attempts + 1 >= 3 then null else provider_file_id end,
-            provider_file_unique_id=case when provider_retry_attempts + 1 >= 3 then null else provider_file_unique_id end,
-            provider_retry_lease_token=null, provider_retry_lease_expires_at=null
-        where id=$1 and state='processing'${claimFence}`,
-      [input.attachmentId, input.result.code, ...claimParams]);
-      return;
-    }
-    await tx.query(`update public.communication_attachments
-      set state='failed', failure_code=$2, terminal_at=now(),
-          provider_file_id=null, provider_file_unique_id=null,
-          provider_next_retry_at=null, provider_retry_lease_token=null,
-          provider_retry_lease_expires_at=null
-      where id=$1 and state='processing'${claimFence}`,
-    [input.attachmentId, input.result.code, ...claimParams]);
+  attachmentClaim: AttachmentClaim; mediaGroupId?: string | null; albumClaim?: AlbumClaim | null;
+}): Promise<boolean> {
+  return withServiceTx({ actorUserId: "", organizationId: input.workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+    const settled = await tx.query<{ settled: boolean }>(`select app.settle_telegram_evidence_attachment(
+      $1::uuid,$2::uuid,$3::text,$4::uuid,$5::text,
+      $6::uuid,$7::uuid,$8::timestamptz,$9::bigint,$10::timestamptz
+    ) as settled`, [
+      input.attachmentId, input.attachmentClaim.token, input.result.kind,
+      input.result.kind === "available" ? input.result.evidenceObjectId : null,
+      input.result.kind === "available" ? null : input.result.code,
+      input.mediaGroupId ?? null, input.albumClaim?.leaseToken ?? null,
+      input.albumClaim?.leaseExpiresAt ?? null, input.albumClaim?.generation ?? null,
+      input.albumClaim?.claimedLastPartAt ?? null,
+    ]);
+    return settled.rows[0]?.settled === true;
   });
 }
 
@@ -283,35 +246,34 @@ async function enqueueEvidenceSummary(input: {
   copyKey: TelegramEvidenceCopyKey;
   results: Array<Exclude<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>, { kind: "retry" }>>;
   recipientMemberId?: string | null;
-}): Promise<void> {
-  await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
+  albumClaim?: AlbumClaim;
+}): Promise<boolean> {
+  return withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
     const chunks = input.copyKey === "telegram.evidence.unbound"
       ? ["Фото не прив’язано до чинної картки завдання та залишено лише в історії чату."]
       : formatTelegramEvidenceSummaryChunks(input.results);
     for (const [chunkIndex, text] of chunks.entries()) {
-      await tx.query(`select app.enqueue_telegram_evidence_receipt(
+      const enqueued = await tx.query<{ id: string | null }>(`select app.enqueue_telegram_evidence_receipt(
         $1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6::uuid,
-        $7::text,$8::bigint,$9::integer,$10::text,$11::uuid
-      )`, [
+        $7::text,$8::bigint,$9::integer,$10::text,$11::uuid,$12::uuid,$13::timestamptz
+      ) as id`, [
         input.binding.workspace_id, input.binding.project_id, input.binding.telegram_chat_binding_id,
         input.assignmentId, input.source.kind === "attachment" ? input.source.id : null,
         input.source.kind === "media_group" ? input.source.id : null,
         input.copyKey, input.source.generation, chunkIndex, text, input.recipientMemberId ?? null,
+        input.albumClaim?.leaseToken ?? null, input.albumClaim?.claimedLastPartAt ?? null,
       ]);
+      if (enqueued.rows[0]?.id === null) return false;
     }
+    return true;
   });
 }
 
-function terminalCopyKey(results: Array<Exclude<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>, { kind: "retry" }>>): TelegramEvidenceCopyKey {
+export function telegramEvidenceTerminalCopyKey(results: Array<Exclude<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>, { kind: "retry" }>>): TelegramEvidenceCopyKey {
   const available = results.filter(({ kind }) => kind === "available").length;
   if (available === results.length) return "telegram.evidence.complete";
   if (available > 0) return "telegram.evidence.partial";
-  const unboundCodes = new Set([
-    "unsupported_media", "unbound_card_reply", "requirement_policy_mismatch",
-    "provider_file_too_large", "provider_file_size_unknown", "scope_denied",
-    "scope_project_denied", "membership_inactive", "upload_size_limit",
-    "resource_not_found", "validation_failed", "evidence_authorization_failed",
-  ]);
+  const unboundCodes = new Set(["unbound_card_reply", "album_anchor_mismatch"]);
   return results.every((result) => result.kind === "failed" && unboundCodes.has(result.code))
     ? "telegram.evidence.unbound"
     : "telegram.evidence.failed";
@@ -355,10 +317,12 @@ async function reconcileTelegramEvidenceReceipt(input: {
   const results = snapshot.map((row) => row.state === "available"
     ? { kind: "available" as const, evidenceObjectId: row.evidence_object_id!, uploadIntentId: "durable", imageReference: row.provider_message_id }
     : { kind: "failed" as const, code: row.failure_code ?? "evidence_processing_failed", imageReference: row.provider_message_id });
-  await enqueueEvidenceSummary({
+  const enqueued = await enqueueEvidenceSummary({
     binding: input.binding, assignmentId: snapshot.find(({ work_assignment_id }) => work_assignment_id !== null)?.work_assignment_id ?? null,
-    source: input.source, copyKey: terminalCopyKey(results), results,
+    source: input.source, copyKey: telegramEvidenceTerminalCopyKey(results), results,
+    ...(input.albumClaim === undefined ? {} : { albumClaim: input.albumClaim }),
   });
+  if (!enqueued) return "stale";
   if (input.source.kind === "media_group" && input.albumClaim) {
     const completion = await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
       const result = await tx.query<{ outcome: string }>(`select app.complete_telegram_media_group_claim(
@@ -406,7 +370,7 @@ async function prepareStoredEvidence(
       continue;
     }
     if (prepared.kind !== "ready") {
-      if (update.mediaGroupId === null && prepared.code !== "album_pending" && prepared.code !== "already_processed") {
+      if (update.mediaGroupId === null && prepared.code !== "album_pending") {
         await reconcileTelegramEvidenceReceipt({
           binding, source: { kind: "attachment", id: attachment.id, generation: 0 },
         });
@@ -419,9 +383,23 @@ async function prepareStoredEvidence(
       occurrenceId: prepared.occurrenceId, botId: config.botId, chatId: update.chatId,
       messageId: update.messageId, file: attachment.file, api, putObject,
     });
-    await settleTelegramEvidenceAttachment({ workspaceId: binding.workspace_id, attachmentId: attachment.id, result });
-    await reconcileTelegramEvidenceReceipt({
+    const settled = await settleTelegramEvidenceAttachment({
+      workspaceId: binding.workspace_id, attachmentId: attachment.id, result,
+      attachmentClaim: prepared.processingLease,
+    });
+    if (settled) await reconcileTelegramEvidenceReceipt({
       binding, source: { kind: "attachment", id: attachment.id, generation: 0 },
+    });
+  }
+  if (update.mediaGroupId === null) {
+    const terminalIds = await withServiceTx({ actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => (
+      await tx.query<{ id: string }>(`select id from public.communication_attachments
+        where workspace_id=$1 and project_id=$2 and message_id=$3
+          and state in ('unbound','available','not_evidence','failed')`,
+      [binding.workspace_id, binding.project_id, stored.messageId])
+    ).rows.map(({ id }) => id));
+    for (const attachmentId of terminalIds) await reconcileTelegramEvidenceReceipt({
+      binding, source: { kind: "attachment", id: attachmentId, generation: 0 },
     });
   }
 }
@@ -429,7 +407,7 @@ async function prepareStoredEvidence(
 async function processSelectedEvidence(input: {
   workspaceId: string; assignmentId: string; occurrenceId: string; actorUserId: string;
   attachmentIds: string[]; botId: string; chatId: string;
-  mediaGroupId?: string | null; albumClaim?: AlbumClaim | null;
+  attachmentClaim: AttachmentClaim; mediaGroupId?: string | null; albumClaim?: AlbumClaim | null;
 }): Promise<Array<Awaited<ReturnType<typeof processTelegramEvidenceAttachment>>>> {
   const attachments = await withServiceTx({ actorUserId: "", organizationId: input.workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
     const result = await tx.query<{
@@ -465,6 +443,7 @@ async function processSelectedEvidence(input: {
     const result = { ...processed, imageReference: attachment.provider_message_id };
     await settleTelegramEvidenceAttachment({
       workspaceId: input.workspaceId, attachmentId: attachment.id, result,
+      attachmentClaim: input.attachmentClaim,
       ...(input.mediaGroupId === undefined ? {} : { mediaGroupId: input.mediaGroupId }),
       ...(input.albumClaim === undefined ? {} : { albumClaim: input.albumClaim }),
     });
@@ -494,6 +473,7 @@ async function processRequirementCallback(update: Extract<NormalizedTelegramUpda
   await processSelectedEvidence({ workspaceId: binding.workspace_id, assignmentId: selection.assignmentId,
     occurrenceId: selection.occurrenceId, actorUserId: selection.actorUserId, attachmentIds: selection.attachmentIds,
     botId: config.botId, chatId: update.chatId,
+    attachmentClaim: selection.processingLease,
     mediaGroupId: selection.mediaGroupId, albumClaim: selection.albumClaim });
   await reconcileTelegramEvidenceReceipt({
     binding,
@@ -514,12 +494,14 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
   const groups = await withServiceTx({ actorUserId: "", organizationId: null, requestId: crypto.randomUUID() }, async (tx) => {
     const claimed = await tx.query<{
       id: string; workspace_id: string; project_id: string; telegram_chat_binding_id: string;
-      chat_id: string; lease_token: string; processing_generation: string; claimed_last_part_at: string;
+      chat_id: string; lease_token: string; lease_expires_at: string;
+      processing_generation: string; claimed_last_part_at: string;
     }>("select * from app.claim_telegram_media_groups($1::integer,$2::integer)", [limit, MEDIA_GROUP_LEASE_SECONDS]);
     return claimed.rows.map((group) => ({
       ...group,
       albumClaim: {
         leaseToken: group.lease_token,
+        leaseExpiresAt: group.lease_expires_at,
         generation: Number(group.processing_generation),
         claimedLastPartAt: group.claimed_last_part_at,
       } satisfies AlbumClaim,
@@ -543,7 +525,14 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
            where a.workspace_id=$1 and a.telegram_media_group_id=$2 and a.state='staged'
              and a.media_type_snapshot in ('image/jpeg','image/png','image/heic')
              and a.created_at <= $3::timestamptz
-           order by m.provider_message_id, a.id limit 1`, [group.workspace_id, group.id, group.albumClaim.claimedLastPartAt]);
+             and exists (select 1 from public.telegram_media_groups g where g.id=$2
+               and g.state='processing' and g.processing_lease_token=$4::uuid
+               and g.processing_lease_expires_at=$5::timestamptz and g.processing_lease_expires_at>now()
+               and g.processing_generation=$6::bigint and g.claimed_generation=$6::bigint
+               and g.last_part_at=$3::timestamptz and g.claimed_last_part_at=$3::timestamptz)
+           order by m.provider_message_id, a.id limit 1`, [group.workspace_id, group.id,
+        group.albumClaim.claimedLastPartAt, group.albumClaim.leaseToken,
+        group.albumClaim.leaseExpiresAt, group.albumClaim.generation]);
       return row.rows[0] ?? null;
     });
     if (!first) {
@@ -551,7 +540,14 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
         await tx.query(`update public.communication_attachments set state='not_evidence', failure_code='unsupported_media', terminal_at=now(),
           provider_file_id=null, provider_file_unique_id=null
           where workspace_id=$1 and telegram_media_group_id=$2 and state='staged'
-            and created_at <= $3::timestamptz`, [group.workspace_id, group.id, group.albumClaim.claimedLastPartAt]);
+            and created_at <= $3::timestamptz and exists (
+              select 1 from public.telegram_media_groups g where g.id=$2
+                and g.state='processing' and g.processing_lease_token=$4::uuid
+                and g.processing_lease_expires_at=$5::timestamptz and g.processing_lease_expires_at>now()
+                and g.processing_generation=$6::bigint and g.claimed_generation=$6::bigint
+                and g.last_part_at=$3::timestamptz and g.claimed_last_part_at=$3::timestamptz)`,
+        [group.workspace_id, group.id, group.albumClaim.claimedLastPartAt,
+          group.albumClaim.leaseToken, group.albumClaim.leaseExpiresAt, group.albumClaim.generation]);
       });
       await reconcileTelegramEvidenceReceipt({
         binding, source: { kind: "media_group", id: group.id, generation: group.albumClaim.generation },
@@ -582,8 +578,14 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
         await tx.query(`update public.communication_attachments set state='not_evidence', failure_code=$4,
             terminal_at=now(), provider_file_id=null, provider_file_unique_id=null
           where workspace_id=$1 and telegram_media_group_id=$2 and state='staged'
-            and created_at <= $3::timestamptz`, [
+            and created_at <= $3::timestamptz and exists (
+              select 1 from public.telegram_media_groups g where g.id=$2
+                and g.state='processing' and g.processing_lease_token=$5::uuid
+                and g.processing_lease_expires_at=$6::timestamptz and g.processing_lease_expires_at>now()
+                and g.processing_generation=$7::bigint and g.claimed_generation=$7::bigint
+                and g.last_part_at=$3::timestamptz and g.claimed_last_part_at=$3::timestamptz)`, [
           group.workspace_id, group.id, group.albumClaim.claimedLastPartAt, prepared.code,
+          group.albumClaim.leaseToken, group.albumClaim.leaseExpiresAt, group.albumClaim.generation,
         ]);
       });
       await reconcileTelegramEvidenceReceipt({
@@ -595,13 +597,22 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
     const attachmentIds = await withServiceTx({ actorUserId: "", organizationId: group.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
       const rows = await tx.query<{ id: string }>(`select id from public.communication_attachments
         where workspace_id=$1 and telegram_media_group_id=$2 and state='processing'
-          and created_at <= $3::timestamptz`, [group.workspace_id, group.id, group.albumClaim.claimedLastPartAt]);
+          and created_at <= $3::timestamptz and provider_retry_lease_token=$4::uuid
+          and provider_retry_lease_expires_at=$5::timestamptz and provider_retry_lease_expires_at>now()
+          and exists (select 1 from public.telegram_media_groups g where g.id=$2
+            and g.state='processing' and g.processing_lease_token=$4::uuid
+            and g.processing_lease_expires_at=$5::timestamptz and g.processing_lease_expires_at>now()
+            and g.processing_generation=$6::bigint and g.claimed_generation=$6::bigint
+            and g.last_part_at=$3::timestamptz and g.claimed_last_part_at=$3::timestamptz)`,
+      [group.workspace_id, group.id, group.albumClaim.claimedLastPartAt,
+        group.albumClaim.leaseToken, group.albumClaim.leaseExpiresAt, group.albumClaim.generation]);
       return rows.rows.map(({ id }) => id);
     });
     await enqueueEvidenceProcessing({ binding, assignmentId: prepared.assignmentId, replyToMessageId: first.message_id });
     await processSelectedEvidence({ workspaceId: group.workspace_id, assignmentId: prepared.assignmentId,
       occurrenceId: prepared.occurrenceId, actorUserId: prepared.actorUserId, attachmentIds,
       botId: loadTelegramConfig().botId, chatId: group.chat_id,
+      attachmentClaim: { token: group.albumClaim.leaseToken, expiresAt: group.albumClaim.leaseExpiresAt },
       mediaGroupId: group.id, albumClaim: group.albumClaim });
     await reconcileTelegramEvidenceReceipt({
       binding, source: { kind: "media_group", id: group.id, generation: group.albumClaim.generation },
@@ -620,12 +631,15 @@ export async function processDueTelegramEvidenceRetries(limit = 20): Promise<num
       filename_snapshot: string | null; media_type_snapshot: string | null; byte_size: number | null; requirement_occurrence_id: string;
       provider_message_id: string; chat_id: string; bot_id: string; actor_user_id: string; work_assignment_id: string;
       telegram_chat_binding_id: string; telegram_media_group_id: string | null;
-      group_lease_token: string | null; group_generation: string | null; group_claimed_last_part_at: string | null;
+      group_lease_token: string | null; group_lease_expires_at: string | null;
+      group_generation: string | null; group_claimed_last_part_at: string | null;
+      retry_lease_token?: string; retry_lease_expires_at?: string;
     }>(`select a.id, a.workspace_id, a.project_id, a.provider_file_id, a.provider_file_unique_id,
           a.filename_snapshot, a.media_type_snapshot, a.byte_size, a.requirement_occurrence_id,
           m.provider_message_id::text, b.chat_id::text, b.bot_id::text, u.user_id::text as actor_user_id,
           o.work_assignment_id::text as work_assignment_id, m.telegram_chat_binding_id,
           a.telegram_media_group_id, g.processing_lease_token::text as group_lease_token,
+          g.processing_lease_expires_at::text as group_lease_expires_at,
           g.claimed_generation::text as group_generation,
           g.claimed_last_part_at::text as group_claimed_last_part_at
         from public.communication_attachments a
@@ -635,8 +649,11 @@ export async function processDueTelegramEvidenceRetries(limit = 20): Promise<num
         left join public.telegram_media_groups g on g.workspace_id=a.workspace_id and g.id=a.telegram_media_group_id
         join public.telegram_member_links l on l.workspace_id=a.workspace_id and l.telegram_user_id=m.provider_user_id and l.revoked_at is null
         join public.memberships u on u.organization_id=l.workspace_id and u.id=l.member_id and u.status='active'
-       where a.state='processing' and a.provider_next_retry_at <= now()
-         and (a.provider_retry_lease_expires_at is null or a.provider_retry_lease_expires_at <= now())
+       where a.state='processing'
+         and ((a.provider_next_retry_at <= now()
+             and (a.provider_retry_lease_expires_at is null or a.provider_retry_lease_expires_at <= now()))
+           or (a.provider_next_retry_at is null
+             and (a.provider_retry_lease_expires_at is null or a.provider_retry_lease_expires_at <= now())))
          and a.requirement_occurrence_id is not null and a.provider_file_id is not null
          and (a.telegram_media_group_id is null or (
            g.state='processing' and g.processing_lease_token is not null
@@ -644,10 +661,16 @@ export async function processDueTelegramEvidenceRetries(limit = 20): Promise<num
            and g.claimed_generation=g.processing_generation
            and g.claimed_last_part_at=g.last_part_at))
        order by a.provider_next_retry_at, a.id limit $1 for update of a skip locked`, [limit]);
-    for (const row of rows.rows) await tx.query(`update public.communication_attachments
-      set provider_retry_lease_token=gen_random_uuid(), provider_retry_lease_expires_at=now()+interval '60 seconds', provider_next_retry_at=null
-      where id=$1`, [row.id]);
-    return rows.rows;
+    const claimedRows = [];
+    for (const row of rows.rows) {
+      const lease = await tx.query<{ retry_lease_token: string; retry_lease_expires_at: string }>(`update public.communication_attachments
+        set provider_retry_lease_token=gen_random_uuid(), provider_retry_lease_expires_at=now()+interval '60 seconds', provider_next_retry_at=null
+        where id=$1 and state='processing'
+        returning provider_retry_lease_token::text as retry_lease_token,
+          provider_retry_lease_expires_at::text as retry_lease_expires_at`, [row.id]);
+      if (lease.rows[0]) claimedRows.push({ ...row, ...lease.rows[0] });
+    }
+    return claimedRows;
   });
   const api = createTelegramApiClient(loadTelegramConfig());
   for (const row of claimed) {
@@ -660,16 +683,20 @@ export async function processDueTelegramEvidenceRetries(limit = 20): Promise<num
     });
     const albumClaim = row.telegram_media_group_id !== null
       && row.group_lease_token !== null && row.group_generation !== null && row.group_claimed_last_part_at !== null
+      && row.group_lease_expires_at !== null
       ? {
           leaseToken: row.group_lease_token,
+          leaseExpiresAt: row.group_lease_expires_at,
           generation: Number(row.group_generation),
           claimedLastPartAt: row.group_claimed_last_part_at,
         } satisfies AlbumClaim
       : null;
-    await settleTelegramEvidenceAttachment({
+    const settled = await settleTelegramEvidenceAttachment({
       workspaceId: row.workspace_id, attachmentId: row.id, result,
+      attachmentClaim: { token: row.retry_lease_token!, expiresAt: row.retry_lease_expires_at! },
       mediaGroupId: row.telegram_media_group_id, albumClaim,
     });
+    if (!settled) continue;
     const binding: ChatBinding = {
       workspace_id: row.workspace_id, project_id: row.project_id,
       telegram_chat_binding_id: row.telegram_chat_binding_id, channel_state: "active",

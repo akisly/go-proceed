@@ -235,9 +235,10 @@ type TelegramTx = { query: <T extends Record<string, unknown> = Record<string, u
 ) => Promise<{ rows: T[] }> };
 
 type PreparedOccurrence = { occurrenceId: string; allowedMedia: unknown; label: string };
+type ProcessingLease = { token: string; expiresAt: string };
 type CandidatePreparation =
   | { kind: "not_evidence"; code: string }
-  | { kind: "ready"; assignmentId: string; occurrenceId: string; actorUserId: string }
+  | { kind: "ready"; assignmentId: string; occurrenceId: string; actorUserId: string; processingLease: ProcessingLease }
   | { kind: "awaiting_requirement_choice"; assignmentId: string; tokens: Array<{ occurrenceId: string; label: string; token: string }> };
 
 async function terminalAttachment(tx: TelegramTx, input: {
@@ -273,7 +274,7 @@ export async function prepareTelegramEvidenceCandidate(input: {
   mediaGroupId: string | null;
   telegramMediaGroupId?: string | null;
   allowMediaGroup?: boolean;
-  albumClaim?: { leaseToken: string; generation: number; claimedLastPartAt: string };
+  albumClaim?: { leaseToken: string; leaseExpiresAt: string; generation: number; claimedLastPartAt: string };
   file: TelegramFileCandidate;
 }): Promise<CandidatePreparation> {
   return withServiceTx({ actorUserId: "", organizationId: input.workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
@@ -282,13 +283,32 @@ export async function prepareTelegramEvidenceCandidate(input: {
       if (!claim) return { kind: "not_evidence", code: "album_pending" };
       const current = await tx.query<{ id: string }>(`select id from public.telegram_media_groups
         where id=$1 and state='processing' and processing_lease_token=$2::uuid
+          and processing_lease_expires_at=$5::timestamptz and processing_lease_expires_at > now()
           and claimed_generation=$3::bigint and claimed_last_part_at=$4::timestamptz
           and processing_generation=$3::bigint and last_part_at=$4::timestamptz
-        for update`, [input.telegramMediaGroupId, claim.leaseToken, claim.generation, claim.claimedLastPartAt]);
+        for update`, [input.telegramMediaGroupId, claim.leaseToken, claim.generation, claim.claimedLastPartAt, claim.leaseExpiresAt]);
       if (!current.rows[0]) return { kind: "not_evidence", code: "album_pending" };
     }
-    const attachment = await tx.query<{ state: string }>(`select state from public.communication_attachments
-      where workspace_id=$1 and project_id=$2 and id=$3`, [input.workspaceId, input.projectId, input.attachmentId]);
+    let attachment = await tx.query<{ state: string; provider_next_retry_at: string | null; provider_retry_lease_expires_at: string | null }>(
+      `select state, provider_next_retry_at::text, provider_retry_lease_expires_at::text
+         from public.communication_attachments
+        where workspace_id=$1 and project_id=$2 and id=$3 for update`,
+    [input.workspaceId, input.projectId, input.attachmentId]);
+    if ((input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined)
+      && attachment.rows[0]?.state === "processing"
+      && attachment.rows[0].provider_next_retry_at === null
+      && (attachment.rows[0].provider_retry_lease_expires_at === null
+        || new Date(attachment.rows[0].provider_retry_lease_expires_at).getTime() <= Date.now())) {
+      await tx.query(`update public.communication_attachments
+        set state='staged', requirement_occurrence_id=null,
+            provider_retry_lease_token=null, provider_retry_lease_expires_at=null
+        where id=$1 and state='processing' and provider_next_retry_at is null
+          and (provider_retry_lease_expires_at is null or provider_retry_lease_expires_at <= now())`,
+      [input.attachmentId]);
+      attachment = await tx.query(`select state, provider_next_retry_at::text,
+          provider_retry_lease_expires_at::text from public.communication_attachments where id=$1`,
+      [input.attachmentId]);
+    }
     // Reclaimed inbox work can revisit a staged message, but never turns an
     // already-selected/terminal attachment into a second prompt or receipt.
     if (attachment.rows[0]?.state !== "staged") return { kind: "not_evidence", code: "already_processed" };
@@ -309,8 +329,15 @@ export async function prepareTelegramEvidenceCandidate(input: {
     const assignmentId = resolved.rows[0]?.assignmentId;
     const actorUserId = resolved.rows[0]?.actorUserId;
     if (!assignmentId || !actorUserId) {
-      await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "unbound", code: "unbound_card_reply" });
-      return { kind: "not_evidence", code: "unbound_card_reply" };
+      const card = await tx.query<{ id: string }>(`select id from public.communication_messages
+        where workspace_id=$1 and project_id=$2 and telegram_chat_binding_id=$3
+          and provider_message_id=$4::bigint and kind='assignment_card'
+          and delivery_state='provider_accepted' and work_assignment_id is not null`,
+      [input.workspaceId, input.projectId, input.telegramChatBindingId, input.replyToProviderMessageId]);
+      const code = card.rows[0] ? "evidence_authorization_failed" : "unbound_card_reply";
+      await terminalAttachment(tx, { attachmentId: input.attachmentId,
+        state: card.rows[0] ? "not_evidence" : "unbound", code });
+      return { kind: "not_evidence", code };
     }
     // The delivered card is the user-visible authorization boundary. A rule
     // materialised after delivery is intentionally not selectable until a new
@@ -322,13 +349,23 @@ export async function prepareTelegramEvidenceCandidate(input: {
     }
     if (input.mediaGroupId !== null && input.allowMediaGroup !== true) return { kind: "not_evidence", code: "album_pending" };
     if (supported.length === 1) {
-      await tx.query(`update public.communication_attachments set state='processing', requirement_occurrence_id=$2
+      await tx.query(`update public.communication_attachments
+        set state='processing', requirement_occurrence_id=$2,
+            provider_retry_lease_token=coalesce($4::uuid, gen_random_uuid()),
+            provider_retry_lease_expires_at=coalesce($5::timestamptz, now()+interval '60 seconds')
         where ${input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined
           ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic') and created_at <= $3::timestamptz"} and state='staged'`, [
         input.telegramMediaGroupId ?? input.attachmentId, supported[0]!.occurrenceId,
         input.albumClaim?.claimedLastPartAt ?? null,
+        input.albumClaim?.leaseToken ?? null, input.albumClaim?.leaseExpiresAt ?? null,
       ]);
-      return { kind: "ready", assignmentId, occurrenceId: supported[0]!.occurrenceId, actorUserId };
+      const owner = await tx.query<{ token: string; expires_at: string }>(`select provider_retry_lease_token::text as token,
+          provider_retry_lease_expires_at::text as expires_at from public.communication_attachments
+        where id=$1 or ($2::uuid is not null and telegram_media_group_id=$2::uuid)
+        order by id limit 1`, [input.attachmentId, input.telegramMediaGroupId ?? null]);
+      if (!owner.rows[0]) return { kind: "not_evidence", code: "album_pending" };
+      return { kind: "ready", assignmentId, occurrenceId: supported[0]!.occurrenceId, actorUserId,
+        processingLease: { token: owner.rows[0].token, expiresAt: owner.rows[0].expires_at } };
     }
     const tokens: Array<{ occurrenceId: string; label: string; token: string }> = [];
     const allowedOccurrenceIds = supported.map(({ occurrenceId }) => occurrenceId);
@@ -372,10 +409,25 @@ export async function selectTelegramOccurrence(input: {
 }): Promise<{
   kind: "selected"; assignmentId: string; occurrenceId: string; actorUserId: string;
   attachmentIds: string[]; mediaGroupId: string | null;
-  albumClaim: { leaseToken: string; generation: number; claimedLastPartAt: string } | null;
+  processingLease: ProcessingLease;
+  albumClaim: { leaseToken: string; leaseExpiresAt: string; generation: number; claimedLastPartAt: string } | null;
 } | { kind: "rejected" }> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(input.token)) return { kind: "rejected" };
   return withServiceTx({ actorUserId: "", organizationId: null, requestId: crypto.randomUUID() }, async (tx) => {
+    const locator = await tx.query<{ telegram_media_group_id: string | null; media_group_generation: string | null }>(
+      `select s.telegram_media_group_id, s.media_group_generation::text
+         from public.telegram_requirement_choice_sessions s
+         join public.telegram_chat_bindings b on b.id=s.telegram_chat_binding_id
+         join public.telegram_member_links l on l.workspace_id=s.workspace_id and l.member_id=s.uploader_member_id
+        where s.token_hash=$1 and s.consumed_at is null and s.closed_at is null and s.expires_at>now()
+          and b.bot_id=$2::bigint and b.chat_id=$3::bigint and l.telegram_user_id=$4::bigint and l.revoked_at is null`,
+    [tokenHash(input.token), input.botId, input.chatId, input.uploaderTelegramUserId]);
+    if (locator.rows[0]?.telegram_media_group_id) {
+      const locked = await tx.query<{ id: string }>(`select id from public.telegram_media_groups
+        where id=$1 and state='awaiting_requirement_choice' and processing_generation=$2::bigint for update`,
+      [locator.rows[0].telegram_media_group_id, locator.rows[0].media_group_generation]);
+      if (!locked.rows[0]) return { kind: "rejected" };
+    }
     const selected = await tx.query<{
       id: string; workspace_id: string; project_id: string; telegram_chat_binding_id: string; uploader_member_id: string;
       work_assignment_id: string; candidate_occurrence_id: string; allowed_occurrence_ids: string[];
@@ -394,16 +446,9 @@ export async function selectTelegramOccurrence(input: {
             and g.state='awaiting_requirement_choice'
             and g.processing_generation=s.media_group_generation
         ))
-      for update`, [tokenHash(input.token), input.botId, input.chatId, input.uploaderTelegramUserId]);
+      for update of s`, [tokenHash(input.token), input.botId, input.chatId, input.uploaderTelegramUserId]);
     const row = selected.rows[0];
     if (!row || !row.allowed_occurrence_ids.includes(row.candidate_occurrence_id)) return { kind: "rejected" };
-    if (row.telegram_media_group_id !== null) {
-      const current = await tx.query<{ id: string }>(`select id from public.telegram_media_groups
-        where id=$1 and state='awaiting_requirement_choice'
-          and processing_generation=$2::bigint for update`,
-      [row.telegram_media_group_id, row.media_group_generation]);
-      if (!current.rows[0]) return { kind: "rejected" };
-    }
     const siblings = await tx.query<{ id: string }>(`select id from public.telegram_requirement_choice_sessions
       where workspace_id=$1 and project_id=$2 and consumed_at is null and closed_at is null
         and (telegram_media_group_id is null or media_group_generation=$5::bigint)
@@ -434,23 +479,34 @@ export async function selectTelegramOccurrence(input: {
         row.uploader_member_id, row.candidate_occurrence_id,
       ]);
     }
-    await tx.query(`update public.communication_attachments set state='processing', requirement_occurrence_id=$2
-      where id = any($1::uuid[]) and state='awaiting_requirement_choice'`, [attachments, row.candidate_occurrence_id]);
-    let albumClaim: { leaseToken: string; generation: number; claimedLastPartAt: string } | null = null;
+    let albumClaim: { leaseToken: string; leaseExpiresAt: string; generation: number; claimedLastPartAt: string } | null = null;
+    let processingLease: ProcessingLease;
     if (row.telegram_media_group_id !== null) {
-      const claimed = await tx.query<{ lease_token: string; generation: string; claimed_last_part_at: string }>(`update public.telegram_media_groups set state='processing',
+      const claimed = await tx.query<{ lease_token: string; lease_expires_at: string; generation: string; claimed_last_part_at: string }>(`update public.telegram_media_groups set state='processing',
           processing_lease_token=gen_random_uuid(), processing_lease_expires_at=now()+interval '60 seconds',
           claimed_generation=processing_generation, claimed_last_part_at=last_part_at
         where id=$1 and state='awaiting_requirement_choice' and processing_generation=$2::bigint
         returning processing_lease_token::text as lease_token,
+          processing_lease_expires_at::text as lease_expires_at,
           claimed_generation::text as generation, claimed_last_part_at::text`,
       [row.telegram_media_group_id, row.media_group_generation]);
       const claim = claimed.rows[0];
       if (!claim) return { kind: "rejected" };
-      albumClaim = { leaseToken: claim.lease_token, generation: Number(claim.generation), claimedLastPartAt: claim.claimed_last_part_at };
+      albumClaim = { leaseToken: claim.lease_token, leaseExpiresAt: claim.lease_expires_at,
+        generation: Number(claim.generation), claimedLastPartAt: claim.claimed_last_part_at };
+      processingLease = { token: claim.lease_token, expiresAt: claim.lease_expires_at };
+    } else {
+      const claim = await tx.query<{ token: string; expires_at: string }>(`select gen_random_uuid()::text as token,
+        (now()+interval '60 seconds')::text as expires_at`);
+      processingLease = { token: claim.rows[0]!.token, expiresAt: claim.rows[0]!.expires_at };
     }
+    await tx.query(`update public.communication_attachments set state='processing', requirement_occurrence_id=$2,
+        provider_retry_lease_token=$3::uuid, provider_retry_lease_expires_at=$4::timestamptz
+      where id = any($1::uuid[]) and state='awaiting_requirement_choice'`,
+    [attachments, row.candidate_occurrence_id, processingLease.token, processingLease.expiresAt]);
     return { kind: "selected", assignmentId: row.work_assignment_id, occurrenceId: row.candidate_occurrence_id,
-      actorUserId: row.user_id, attachmentIds: attachments, mediaGroupId: row.telegram_media_group_id, albumClaim };
+      actorUserId: row.user_id, attachmentIds: attachments, mediaGroupId: row.telegram_media_group_id,
+      processingLease, albumClaim };
   });
 }
 

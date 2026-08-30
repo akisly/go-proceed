@@ -2970,19 +2970,24 @@ create table public.telegram_inbox_updates (
   check ((state in ('pending','leased')) = (payload is not null))
 );
 create table public.telegram_media_groups (
-  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null, project_id uuid not null,
   telegram_chat_binding_id uuid not null, provider_media_group_id text not null,
-  reply_provider_message_id bigint, work_assignment_id uuid, last_part_at timestamptz not null,
+  uploader_member_id uuid,
+  reply_provider_message_id bigint, work_assignment_id uuid, last_part_at timestamptz not null default now(),
   choice_expires_at timestamptz, processing_lease_token uuid, processing_lease_expires_at timestamptz,
-  processing_generation bigint not null, claimed_generation bigint, claimed_last_part_at timestamptz,
-  state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
+  processing_generation bigint not null default 0, claimed_generation bigint, claimed_last_part_at timestamptz,
+  state text not null default 'open', created_at timestamptz not null default now(), completed_at timestamptz,
+  unique (workspace_id, id), unique (workspace_id, project_id, id),
   unique (telegram_chat_binding_id, provider_media_group_id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
+  foreign key (workspace_id, uploader_member_id) references public.memberships(workspace_id, id),
   foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
   check (choice_expires_at is null or choice_expires_at >= last_part_at),
   check ((processing_lease_token is null and processing_lease_expires_at is null and claimed_generation is null and claimed_last_part_at is null)
       or (processing_lease_token is not null and processing_lease_expires_at is not null and claimed_generation is not null and claimed_last_part_at is not null)),
+  check (state <> 'processing' or processing_lease_token is not null),
+  check (completed_at is null or completed_at >= created_at),
   check (state in ('open','awaiting_requirement_choice','processing','completed','not_evidence','failed'))
 );
 create table public.communication_messages (
@@ -2995,7 +3000,7 @@ create table public.communication_messages (
   telegram_occurrence_snapshot uuid[], telegram_evidence_receipt_key text, telegram_evidence_copy_key text,
   telegram_evidence_source_attachment_id uuid, telegram_evidence_source_media_group_id uuid,
   telegram_evidence_generation bigint, telegram_evidence_chunk_index integer,
-  telegram_evidence_recipient_member_id uuid, delivery_state text not null,
+  telegram_evidence_recipient_member_id uuid, delivery_state text not null, created_at timestamptz not null,
   unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
@@ -3042,10 +3047,12 @@ alter table public.evidence_objects
   add constraint evidence_objects_project_identity_key unique (workspace_id, project_id, id);
 
 create table public.communication_attachments (
-  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, telegram_media_group_id uuid, provider_file_id text, provider_file_unique_id text,
+  filename_snapshot text, media_type_snapshot text, byte_size bigint,
   state text not null, requirement_occurrence_id uuid, evidence_object_id uuid, failure_code text, terminal_at timestamptz,
-  provider_retry_attempts integer not null, provider_next_retry_at timestamptz,
+  retry_disposition text, created_at timestamptz not null default now(),
+  provider_retry_attempts integer not null default 0, provider_next_retry_at timestamptz,
   provider_retry_lease_token uuid, provider_retry_lease_expires_at timestamptz,
   unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
@@ -3059,6 +3066,7 @@ create table public.communication_attachments (
   check (state <> 'available' or evidence_object_id is not null),
   check (state <> 'failed' or failure_code is not null)
   ,check (provider_retry_attempts >= 0 and provider_retry_attempts <= 3)
+  ,check (byte_size is null or byte_size >= 0)
   ,check ((provider_retry_lease_token is null) = (provider_retry_lease_expires_at is null))
 );
 alter table public.communication_messages
@@ -3138,7 +3146,17 @@ begin
      or old.reply_to_message_id is distinct from new.reply_to_message_id
      or old.provider_reply_to_message_id is distinct from new.provider_reply_to_message_id
      or old.work_assignment_id is distinct from new.work_assignment_id
-     or old.retry_of_message_id is distinct from new.retry_of_message_id then
+     or old.retry_of_message_id is distinct from new.retry_of_message_id
+     or old.telegram_reply_markup is distinct from new.telegram_reply_markup
+     or old.telegram_occurrence_snapshot is distinct from new.telegram_occurrence_snapshot
+     or old.telegram_evidence_receipt_key is distinct from new.telegram_evidence_receipt_key
+     or old.telegram_evidence_copy_key is distinct from new.telegram_evidence_copy_key
+     or old.telegram_evidence_source_attachment_id is distinct from new.telegram_evidence_source_attachment_id
+     or old.telegram_evidence_source_media_group_id is distinct from new.telegram_evidence_source_media_group_id
+     or old.telegram_evidence_generation is distinct from new.telegram_evidence_generation
+     or old.telegram_evidence_chunk_index is distinct from new.telegram_evidence_chunk_index
+     or old.telegram_evidence_recipient_member_id is distinct from new.telegram_evidence_recipient_member_id
+     or old.created_at is distinct from new.created_at then
     raise exception 'communication message original is immutable; append an event';
   end if;
   return new;
