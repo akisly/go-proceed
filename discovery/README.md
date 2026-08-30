@@ -49,6 +49,12 @@ Baseline measured at `aa10481` after `pnpm install --frozen-lockfile`:
 
 | Package | Result |
 |---|---|
+> **Поправка 2026-08-30.** Пакет переименован из `@aktflow/discovery` в
+> `@goproceed/discovery` — он был последним под старой областью имён, потому что
+> эта ветка отошла до переименования репозитория. Команды выше уже исправлены.
+> Таблица ниже — снимок прогона от 2026-07-26 и оставлена как есть: имена
+> `@aktflow/*` в ней были верны на ту дату.
+
 | `@aktflow/domain` | 3 passed |
 | `@aktflow/contracts` | 6 passed |
 | `@aktflow/testing` | 6 passed |
@@ -76,9 +82,9 @@ outside `discovery/` means something broke — stop and investigate.
 ## Commands
 
 ```bash
-pnpm --filter @aktflow/discovery test
+pnpm --filter @goproceed/discovery test
 ```
 
 ```bash
-pnpm --filter @aktflow/discovery exec tsc --noEmit
+pnpm --filter @goproceed/discovery exec tsc --noEmit
 ```
