@@ -239,51 +239,26 @@ export async function prepareTelegramEvidenceCandidate(input: {
       await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "not_evidence", code: "unsupported_media" });
       return { kind: "not_evidence", code: "unsupported_media" };
     }
-    const member = await tx.query<{ member_id: string; user_id: string }>(`select l.member_id, m.user_id
-      from public.telegram_member_links l
-      join public.memberships m on m.organization_id=l.workspace_id and m.id=l.member_id
-      where l.workspace_id=$1 and l.telegram_user_id=$2::bigint
-        and l.revoked_at is null and m.status='active'`, [input.workspaceId, input.senderId]);
-    const actor = member.rows[0];
-    if (!actor || input.replyToProviderMessageId === null) {
+    if (input.replyToProviderMessageId === null) {
       await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "unbound", code: "unbound_card_reply" });
       return { kind: "not_evidence", code: "unbound_card_reply" };
     }
-    const capability = await tx.query<{ ok: boolean }>(`select exists(
-      select 1 from public.project_access_grants g
-       where g.workspace_id=$1 and g.project_id=$2 and g.member_id=$3
-         and g.capability='evidence.record'
-    ) as ok`, [input.workspaceId, input.projectId, actor.member_id]);
-    if (capability.rows[0]?.ok !== true) {
-      await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "unbound", code: "evidence_capability_denied" });
-      return { kind: "not_evidence", code: "evidence_capability_denied" };
-    }
-    const card = await tx.query<{ assignment_id: string; occurrence_snapshot: string[] | null }>(`select work_assignment_id as assignment_id,
-        telegram_occurrence_snapshot as occurrence_snapshot
-      from public.communication_messages
-      where workspace_id=$1 and project_id=$2 and telegram_chat_binding_id=$3
-        and provider_message_id=$4::bigint and kind='assignment_card'
-        and delivery_state='provider_accepted' and work_assignment_id is not null`, [
-      input.workspaceId, input.projectId, input.telegramChatBindingId, input.replyToProviderMessageId,
-    ]);
-    const assignmentId = card.rows[0]?.assignment_id;
-    if (!assignmentId) {
+    const resolved = await tx.query<PreparedOccurrence & { assignmentId: string; actorUserId: string }>(
+      `select assignment_id as "assignmentId", actor_user_id as "actorUserId",
+              occurrence_id as "occurrenceId", allowed_media as "allowedMedia", label
+         from app.resolve_telegram_evidence_context($1,$2,$3,$4::bigint,$5::bigint)`,
+      [input.workspaceId, input.projectId, input.telegramChatBindingId, input.senderId, input.replyToProviderMessageId],
+    );
+    const assignmentId = resolved.rows[0]?.assignmentId;
+    const actorUserId = resolved.rows[0]?.actorUserId;
+    if (!assignmentId || !actorUserId) {
       await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "unbound", code: "unbound_card_reply" });
       return { kind: "not_evidence", code: "unbound_card_reply" };
     }
-    const occurrences = await tx.query<PreparedOccurrence>(`select o.id as "occurrenceId", rv.allowed_media as "allowedMedia",
-        left(o.acceptance_criterion, 120) as label
-      from public.requirement_occurrences o
-      join public.requirement_rule_versions rv on rv.workspace_id=o.workspace_id and rv.id=o.rule_version_id
-      where o.workspace_id=$1 and o.project_id=$2 and o.work_assignment_id=$3
-        and o.evidence_kind in ('photo','document')
-      order by o.ordinal, o.id`, [input.workspaceId, input.projectId, assignmentId]);
     // The delivered card is the user-visible authorization boundary. A rule
     // materialised after delivery is intentionally not selectable until a new
     // card is delivered; removed occurrences disappear from this live query.
-    const supported = occurrences.rows.filter((occurrence) =>
-      (card.rows[0]?.occurrence_snapshot ?? []).includes(occurrence.occurrenceId)
-      && supportsOccurrence(occurrence, input.file));
+    const supported = resolved.rows.filter((occurrence) => supportsOccurrence(occurrence, input.file));
     if (supported.length === 0) {
       await terminalAttachment(tx, { attachmentId: input.attachmentId, state: "not_evidence", code: "requirement_policy_mismatch" });
       return { kind: "not_evidence", code: "requirement_policy_mismatch" };
@@ -295,7 +270,7 @@ export async function prepareTelegramEvidenceCandidate(input: {
           ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic')"} and state='staged'`, [
         input.telegramMediaGroupId ?? input.attachmentId, supported[0]!.occurrenceId,
       ]);
-      return { kind: "ready", assignmentId, occurrenceId: supported[0]!.occurrenceId, actorUserId: actor.user_id };
+      return { kind: "ready", assignmentId, occurrenceId: supported[0]!.occurrenceId, actorUserId };
     }
     const tokens: Array<{ occurrenceId: string; label: string; token: string }> = [];
     const allowedOccurrenceIds = supported.map(({ occurrenceId }) => occurrenceId);
@@ -305,7 +280,9 @@ export async function prepareTelegramEvidenceCandidate(input: {
         (workspace_id, project_id, telegram_chat_binding_id, uploader_member_id, work_assignment_id,
          communication_attachment_id, telegram_media_group_id, token_hash, candidate_occurrence_id, allowed_occurrence_ids, expires_at)
         values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now() + interval '24 hours')`, [
-        input.workspaceId, input.projectId, input.telegramChatBindingId, actor.member_id, assignmentId,
+        input.workspaceId, input.projectId, input.telegramChatBindingId,
+        (await tx.query<{ member_id: string }>(`select member_id from public.telegram_member_links
+          where workspace_id=$1 and telegram_user_id=$2::bigint and revoked_at is null`, [input.workspaceId, input.senderId])).rows[0]!.member_id, assignmentId,
         input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined ? input.attachmentId : null,
         input.telegramMediaGroupId ?? null, tokenHash(token), occurrence.occurrenceId, allowedOccurrenceIds,
       ]);
