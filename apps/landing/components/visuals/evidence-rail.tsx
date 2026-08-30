@@ -27,6 +27,13 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
           const isCurrent = index === currentIndex;
           const isComplete = index < currentIndex;
 
+          const markerTone = isCurrent
+            ? "bg-action-signal border-action-signal text-action-signal-fg"
+            : isComplete
+              ? "bg-ink border-ink text-on-inverse"
+              : "bg-surface border-line-strong text-ink-muted";
+          const indexLabelTone = isCurrent ? "text-ink" : "text-ink-muted";
+
           return (
             <li
               key={node.chapter}
@@ -49,25 +56,8 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
                 <span
                   aria-hidden="true"
                   data-evidence-point-marker="true"
-                  className="relative z-10 mx-auto grid size-7 place-items-center rounded-pill border text-micro font-semibold"
-                  style={{
-                    backgroundColor: isCurrent
-                      ? "var(--color-action-signal)"
-                      : isComplete
-                        ? "var(--color-ink)"
-                        : "var(--color-surface)",
-                    borderColor: isCurrent
-                      ? "var(--color-action-signal)"
-                      : isComplete
-                        ? "var(--color-ink)"
-                        : "var(--color-line-strong)",
-                    color: isCurrent
-                      ? "var(--color-action-signal-fg)"
-                      : isComplete
-                        ? "var(--color-on-inverse)"
-                        : "var(--color-ink-muted)",
-                    scale: isCurrent ? 1.08 : 1,
-                  }}
+                  className={`relative z-10 mx-auto grid size-7 place-items-center rounded-pill border text-micro font-semibold transition-colors duration-fast ${markerTone}`}
+                  style={{ scale: isCurrent ? 1.08 : 1 }}
                 >
                   <CrossFade
                     activeKey={isComplete ? "done" : "pending"}
@@ -78,8 +68,7 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
                 </span>
               </NodeLock>
               <span
-                className="index-label mt-2 block truncate"
-                style={{ color: isCurrent ? "var(--color-ink)" : "var(--color-ink-muted)" }}
+                className={`index-label mt-2 block truncate transition-colors duration-fast ${indexLabelTone}`}
               >
                 {node.code}
               </span>
