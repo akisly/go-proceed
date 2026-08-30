@@ -137,7 +137,10 @@ describe("the three primitives the landing needed", () => {
     const src = motionCode("TrackFill.tsx");
     expect(src).toContain("useReduced");
     expect(src).toContain("REDUCED");
-    expect(src.match(/duration:\s*[\d.]+/g) ?? []).toEqual([]);
+    // `duration: 0` is allowed and is the point: TrackFill's reduced branch
+    // applies the final state with NO transition. Zero is the absence of a
+    // timing, not a hand-typed one. Any other literal is the defect.
+    expect(src.match(/duration:\s*(?!0[,\s}])[\d.]+/g) ?? []).toEqual([]);
     expect(src).not.toMatch(/ease-in\b|cubic-bezier/);
   });
 });
@@ -393,7 +396,7 @@ Expected: FAIL — `ENOENT … InViewProgress.tsx`
 "use client";
 
 import { useEffect, useRef, type ReactNode } from "react";
-import { animate, useInView, type AnimationPlaybackControls } from "motion/react";
+import { animate, useInView, useMotionValue } from "motion/react";
 import { DURATION, EASE } from "./tokens";
 import { useReduced } from "./use-reduced";
 
@@ -426,6 +429,7 @@ export function InViewProgress({
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { amount: amount ?? 0.4, once: true });
   const reduced = useReduced();
+  const progress = useMotionValue(0);
 
   useEffect(() => {
     const node = ref.current;
@@ -438,13 +442,17 @@ export function InViewProgress({
       node.style.setProperty("--gp-progress", "0");
       return;
     }
-    const controls: AnimationPlaybackControls = animate(0, 1, {
+    // Same shape as CountUp.tsx, which is the precedent for an in-view
+    // `animate` in this package — a MotionValue driven by `animate`, the
+    // controls stopped on cleanup, and no explicit return-type annotation
+    // because inference already has it.
+    const controls = animate(progress, 1, {
       duration: DURATION.deliberate,
       ease: EASE.out,
       onUpdate: (v) => node.style.setProperty("--gp-progress", v.toFixed(4)),
     });
     return () => controls.stop();
-  }, [inView, reduced]);
+  }, [inView, reduced, progress]);
 
   return <div ref={ref} className={className}>{children}</div>;
 }
