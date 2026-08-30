@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { CreateUploadIntentRequest } from "@goproceed/contracts";
 import { withServiceTx } from "@goproceed/database";
-import { authorizeUploadIntent } from "../evidence/authorize-upload-intent";
+import { authorizeUploadIntent, preflightUploadAuthorization } from "../evidence/authorize-upload-intent";
 import { finalizeUploadIntent } from "../evidence/finalize-upload-intent";
 import { HttpProblem } from "../http";
 import { allowedMediaOf } from "../requirement-content";
@@ -122,6 +122,27 @@ export async function processTelegramEvidenceAttachment(input: TelegramEvidenceP
   if (!isTelegramEvidenceCandidate(input.file)) return { kind: "failed", code: "unsupported_media" };
   if (input.file.fileId.length === 0) return { kind: "failed", code: "provider_file_unavailable" };
 
+  const mimeType = input.file.kind === "photo" ? "image/jpeg" : input.file.mimeType!;
+  // Telegram supplies declared byte size before any byte endpoint is touched.
+  // An absent size cannot satisfy a quota preflight, so it is communication
+  // only rather than an unbounded provider download.
+  if (input.file.fileSize === null) return { kind: "failed", code: "provider_file_size_unknown" };
+  try {
+    await preflightUploadAuthorization({
+      actorUserId: input.actorUserId, requestId: input.requestId, assignmentId: input.assignmentId,
+      body: {
+        deviceCaptureId: providerDeviceCaptureId({ botId: input.botId, chatId: input.chatId, messageId: input.messageId,
+          fileUniqueId: input.file.fileUniqueId, fileId: input.file.fileId }),
+        originMethod: "origin_not_distinguished", expectedByteSize: input.file.fileSize,
+        expectedContentHash: "0".repeat(64), claimedMediaType: mimeType,
+        requirementOccurrenceId: input.occurrenceId, sourceAppVersion: telegramSourceVersion(),
+      },
+    });
+  } catch (error) {
+    if (error instanceof HttpProblem) return { kind: "failed", code: error.body.code.toLowerCase() };
+    return { kind: "failed", code: "evidence_authorization_failed" };
+  }
+
   let bytes: Uint8Array;
   try {
     bytes = await input.api.downloadFile(input.file.fileId);
@@ -134,7 +155,6 @@ export async function processTelegramEvidenceAttachment(input: TelegramEvidenceP
   if (bytes.byteLength > TELEGRAM_DOWNLOAD_LIMIT_BYTES) return { kind: "failed", code: "provider_file_too_large" };
 
   const contentHash = createHash("sha256").update(bytes).digest("hex");
-  const mimeType = input.file.kind === "photo" ? "image/jpeg" : input.file.mimeType!;
   const idempotencyKey = telegramEvidenceIdempotencyKey({
     botId: input.botId, chatId: input.chatId, messageId: input.messageId,
     fileUniqueId: input.file.fileUniqueId, fileId: input.file.fileId, occurrenceId: input.occurrenceId,

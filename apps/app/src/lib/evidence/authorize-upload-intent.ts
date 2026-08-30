@@ -18,6 +18,42 @@ export interface AuthorizeUploadIntentInput {
   requestHash: string;
 }
 
+/**
+ * Telegram/provider preflight: the same authorization gates that protect an
+ * intent, but deliberately no hash-bound row or signed grant.  A final normal
+ * authorization after bytes are hashed remains authoritative.
+ */
+export async function preflightUploadAuthorization(input: Omit<AuthorizeUploadIntentInput, "idempotencyKey" | "requestHash">): Promise<void> {
+  const { actorUserId, requestId, assignmentId, body } = input;
+  await withTenantTx({ actorUserId, organizationId: null, requestId }, async (tx) => {
+    const asg = await tx.query(`select workspace_id, project_id from public.work_assignments where id=$1`, [assignmentId]);
+    if (asg.rows.length === 0) throw new HttpProblem(404, problem("RESOURCE_NOT_FOUND", "Завдання не знайдено.",
+      { requestId, retryable: false, userAction: "return_to_list" }));
+    const { workspace_id: workspaceId, project_id: projectId } = asg.rows[0];
+    const member = await requireActiveMembership(tx, requestId, actorUserId, workspaceId);
+    await requireProjectCapability(tx, requestId, { workspaceId, projectId, memberId: member.memberId, capability: "evidence.record" });
+    if (!body.requirementOccurrenceId) throw new HttpProblem(422, problem("VALIDATION_FAILED", "Потрібна вимога для доказу.",
+      { requestId, retryable: false, userAction: "correct_fields" }));
+    const occurrence = await tx.query(`select rv.allowed_media from public.requirement_occurrences o
+      join public.requirement_rule_versions rv on rv.workspace_id=o.workspace_id and rv.id=o.rule_version_id
+      where o.workspace_id=$1 and o.project_id=$2 and o.work_assignment_id=$3 and o.id=$4`,
+    [workspaceId, projectId, assignmentId, body.requirementOccurrenceId]);
+    const media = occurrence.rows[0] && allowedMediaOf(occurrence.rows[0].allowed_media);
+    if (!media || !media.mimeTypes.includes(body.claimedMediaType) || body.expectedByteSize > media.maxByteSize) {
+      throw new HttpProblem(422, problem("UPLOAD_SIZE_LIMIT", "Файл не відповідає вимозі.",
+        { requestId, retryable: false, userAction: "reduce_file_or_request_policy_change" }));
+    }
+    await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [`evidence_quota|${workspaceId}`]);
+    const quota = await tx.query(`select o.evidence_quota_bytes, app.evidence_bytes_in_use($1) as in_use
+      from public.organizations o where o.id=$1`, [workspaceId]);
+    if (quota.rows[0]?.evidence_quota_bytes !== null
+      && BigInt(quota.rows[0].in_use) + BigInt(body.expectedByteSize) > BigInt(quota.rows[0].evidence_quota_bytes)) {
+      throw new HttpProblem(422, problem("UPLOAD_SIZE_LIMIT", "Ліміт сховища вичерпано.",
+        { requestId, retryable: false, userAction: "reduce_file_or_request_policy_change" }));
+    }
+  });
+}
+
 const FALLBACK_MEDIA = {
   mimeTypes: ["image/jpeg", "image/png", "image/heic", "application/pdf"],
   maxByteSize: 50 * 1024 * 1024,
