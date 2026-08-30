@@ -2974,13 +2974,15 @@ create table public.telegram_media_groups (
   telegram_chat_binding_id uuid not null, provider_media_group_id text not null,
   reply_provider_message_id bigint, work_assignment_id uuid, last_part_at timestamptz not null,
   choice_expires_at timestamptz, processing_lease_token uuid, processing_lease_expires_at timestamptz,
-  processing_generation bigint not null, state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
+  processing_generation bigint not null, claimed_generation bigint, claimed_last_part_at timestamptz,
+  state text not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
   unique (telegram_chat_binding_id, provider_media_group_id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
   check (choice_expires_at is null or choice_expires_at >= last_part_at),
-  check ((processing_lease_token is null) = (processing_lease_expires_at is null)),
+  check ((processing_lease_token is null and processing_lease_expires_at is null and claimed_generation is null and claimed_last_part_at is null)
+      or (processing_lease_token is not null and processing_lease_expires_at is not null and claimed_generation is not null and claimed_last_part_at is not null)),
   check (state in ('open','awaiting_requirement_choice','processing','completed','not_evidence','failed'))
 );
 create table public.communication_messages (
@@ -2990,7 +2992,10 @@ create table public.communication_messages (
   provider_username_snapshot text, provider_message_id bigint, provider_sent_at timestamptz,
   server_received_at timestamptz not null, reply_to_message_id uuid,
   provider_reply_to_message_id bigint, work_assignment_id uuid, retry_of_message_id uuid, telegram_reply_markup jsonb,
-  telegram_occurrence_snapshot uuid[], delivery_state text not null,
+  telegram_occurrence_snapshot uuid[], telegram_evidence_receipt_key text, telegram_evidence_copy_key text,
+  telegram_evidence_source_attachment_id uuid, telegram_evidence_source_media_group_id uuid,
+  telegram_evidence_generation bigint, telegram_evidence_chunk_index integer,
+  telegram_evidence_recipient_member_id uuid, delivery_state text not null,
   unique (workspace_id, id), unique (workspace_id, project_id, id),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
@@ -2998,12 +3003,26 @@ create table public.communication_messages (
   foreign key (workspace_id, project_id, reply_to_message_id) references public.communication_messages(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, retry_of_message_id) references public.communication_messages(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, telegram_evidence_source_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
+  foreign key (workspace_id, telegram_evidence_recipient_member_id) references public.memberships(workspace_id, id),
   check (direction in ('inbound','outbound','system')),
   check (delivery_state in ('received','queued','provider_accepted','failed','delivery_unknown')),
   check (direction <> 'inbound' or delivery_state = 'received'),
   check (direction <> 'outbound' or delivery_state in ('queued','provider_accepted','failed','delivery_unknown')),
-  check (retry_of_message_id is null or direction = 'outbound')
+  check (retry_of_message_id is null or direction = 'outbound'),
+  check ((telegram_evidence_receipt_key is null and telegram_evidence_copy_key is null
+      and telegram_evidence_source_attachment_id is null and telegram_evidence_source_media_group_id is null
+      and telegram_evidence_generation is null and telegram_evidence_chunk_index is null
+      and telegram_evidence_recipient_member_id is null)
+    or (direction='outbound' and kind='text' and text is not null
+      and telegram_evidence_receipt_key is not null
+      and telegram_evidence_copy_key in ('telegram.evidence.unbound','telegram.evidence.choice_expired','telegram.evidence.partial','telegram.evidence.complete','telegram.evidence.failed')
+      and ((telegram_evidence_source_attachment_id is null) <> (telegram_evidence_source_media_group_id is null))
+      and telegram_evidence_generation >= 0 and telegram_evidence_chunk_index >= 0))
 );
+create unique index communication_messages_evidence_receipt_identity_uniq
+  on public.communication_messages (workspace_id, telegram_evidence_receipt_key)
+  where telegram_evidence_receipt_key is not null;
 create table public.communication_message_events (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, event_kind text not null, text text, delivery_state text, provider_update_id bigint,
@@ -3042,6 +3061,10 @@ create table public.communication_attachments (
   ,check (provider_retry_attempts >= 0 and provider_retry_attempts <= 3)
   ,check ((provider_retry_lease_token is null) = (provider_retry_lease_expires_at is null))
 );
+alter table public.communication_messages
+  add constraint communication_messages_evidence_attachment_fkey
+  foreign key (workspace_id, project_id, telegram_evidence_source_attachment_id)
+  references public.communication_attachments(workspace_id, project_id, id);
 create table public.telegram_requirement_choices (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   communication_attachment_id uuid not null, telegram_media_group_id uuid, chooser_member_id uuid not null,
@@ -3058,7 +3081,8 @@ create table public.telegram_requirement_choice_sessions (
   telegram_chat_binding_id uuid not null, uploader_member_id uuid not null,
   work_assignment_id uuid not null, communication_attachment_id uuid, telegram_media_group_id uuid,
   token_hash text not null, candidate_occurrence_id uuid not null, allowed_occurrence_ids uuid[] not null,
-  expires_at timestamptz not null, consumed_at timestamptz, chosen_occurrence_id uuid, created_at timestamptz not null,
+  expires_at timestamptz not null, consumed_at timestamptz, chosen_occurrence_id uuid,
+  media_group_generation bigint, closed_at timestamptz, closure_reason text, created_at timestamptz not null,
   unique (workspace_id, id), unique (token_hash),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
@@ -3070,7 +3094,11 @@ create table public.telegram_requirement_choice_sessions (
   foreign key (workspace_id, project_id, chosen_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
   check (token_hash ~ '^[0-9a-f]{64}$'), check (cardinality(allowed_occurrence_ids) > 1),
   check ((communication_attachment_id is null) <> (telegram_media_group_id is null)),
-  check ((consumed_at is null) = (chosen_occurrence_id is null)), check (expires_at > created_at)
+  check ((consumed_at is null) = (chosen_occurrence_id is null)), check (expires_at > created_at),
+  check ((telegram_media_group_id is null and media_group_generation is null)
+      or (telegram_media_group_id is not null and media_group_generation is not null)),
+  check ((closed_at is null and closure_reason is null)
+      or (closed_at is not null and closure_reason in ('selected','expired','generation_reopened')))
 );
 create table public.communication_delivery_attempts (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,

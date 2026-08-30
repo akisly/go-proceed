@@ -72,9 +72,27 @@ export type TelegramEvidenceProcessInput = {
 };
 
 export type TelegramEvidenceProcessResult =
-  | { kind: "available"; evidenceObjectId: string; uploadIntentId: string }
-  | { kind: "failed"; code: string }
-  | { kind: "retry"; code: string };
+  | { kind: "available"; evidenceObjectId: string; uploadIntentId: string; imageReference?: string }
+  | { kind: "failed"; code: string; imageReference?: string }
+  | { kind: "retry"; code: string; imageReference?: string };
+
+export type TelegramEvidenceCopyKey =
+  | "telegram.evidence.unbound"
+  | "telegram.evidence.choice_expired"
+  | "telegram.evidence.partial"
+  | "telegram.evidence.complete"
+  | "telegram.evidence.failed";
+
+/** Stable receipt identity shared by TypeScript and the database enqueue RPC. */
+export function telegramEvidenceReceiptKey(input: {
+  copyKey: TelegramEvidenceCopyKey;
+  sourceKind: "attachment" | "media_group";
+  sourceId: string;
+  generation: number;
+  chunkIndex: number;
+}): string {
+  return [input.copyKey, input.sourceKind, input.sourceId, input.generation, input.chunkIndex].join(":");
+}
 
 const TELEGRAM_MESSAGE_LIMIT = 4096;
 
@@ -91,8 +109,12 @@ export function formatTelegramEvidenceSummaryChunks(results: TelegramEvidencePro
     saved.length > 0 && failed.length > 0
       ? "Частину зображень збережено; для кожного збою вказано окрему причину."
       : saved.length === 0 ? "Доказ не збережено." : `Збережено доказів: ${saved.length}.`,
-    ...saved.map(({ evidenceObjectId }) => `Збережено: ${evidenceObjectId}.`),
-    ...failed.map(({ code }) => `Не збережено: ${safeFailureCode(code)}.`),
+    ...saved.map(({ evidenceObjectId, imageReference }) => imageReference === undefined
+      ? `Збережено: ${evidenceObjectId}.`
+      : `Зображення ${imageReference}: збережено — ${evidenceObjectId}.`),
+    ...failed.map(({ code, imageReference }) => imageReference === undefined
+      ? `Не збережено: ${safeFailureCode(code)}.`
+      : `Зображення ${imageReference}: не збережено — ${safeFailureCode(code)}.`),
   ];
   const chunks: string[] = [];
   let text = "";
@@ -222,7 +244,7 @@ async function terminalAttachment(tx: TelegramTx, input: {
   attachmentId: string; state: "unbound" | "not_evidence" | "failed"; code: string;
 }): Promise<void> {
   await tx.query(`update public.communication_attachments
-    set state=$2, failure_code=case when $2='failed' then $3 else null end,
+    set state=$2, failure_code=$3,
         terminal_at=now(), provider_file_id=null, provider_file_unique_id=null
     where id=$1 and state in ('staged','awaiting_requirement_choice','processing')`,
   [input.attachmentId, input.state, input.code]);
@@ -251,9 +273,20 @@ export async function prepareTelegramEvidenceCandidate(input: {
   mediaGroupId: string | null;
   telegramMediaGroupId?: string | null;
   allowMediaGroup?: boolean;
+  albumClaim?: { leaseToken: string; generation: number; claimedLastPartAt: string };
   file: TelegramFileCandidate;
 }): Promise<CandidatePreparation> {
   return withServiceTx({ actorUserId: "", organizationId: input.workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+    if (input.telegramMediaGroupId !== null && input.telegramMediaGroupId !== undefined) {
+      const claim = input.albumClaim;
+      if (!claim) return { kind: "not_evidence", code: "album_pending" };
+      const current = await tx.query<{ id: string }>(`select id from public.telegram_media_groups
+        where id=$1 and state='processing' and processing_lease_token=$2::uuid
+          and claimed_generation=$3::bigint and claimed_last_part_at=$4::timestamptz
+          and processing_generation=$3::bigint and last_part_at=$4::timestamptz
+        for update`, [input.telegramMediaGroupId, claim.leaseToken, claim.generation, claim.claimedLastPartAt]);
+      if (!current.rows[0]) return { kind: "not_evidence", code: "album_pending" };
+    }
     const attachment = await tx.query<{ state: string }>(`select state from public.communication_attachments
       where workspace_id=$1 and project_id=$2 and id=$3`, [input.workspaceId, input.projectId, input.attachmentId]);
     // Reclaimed inbox work can revisit a staged message, but never turns an
@@ -291,8 +324,9 @@ export async function prepareTelegramEvidenceCandidate(input: {
     if (supported.length === 1) {
       await tx.query(`update public.communication_attachments set state='processing', requirement_occurrence_id=$2
         where ${input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined
-          ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic')"} and state='staged'`, [
+          ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic') and created_at <= $3::timestamptz"} and state='staged'`, [
         input.telegramMediaGroupId ?? input.attachmentId, supported[0]!.occurrenceId,
+        input.albumClaim?.claimedLastPartAt ?? null,
       ]);
       return { kind: "ready", assignmentId, occurrenceId: supported[0]!.occurrenceId, actorUserId };
     }
@@ -300,21 +334,26 @@ export async function prepareTelegramEvidenceCandidate(input: {
     const allowedOccurrenceIds = supported.map(({ occurrenceId }) => occurrenceId);
     for (const occurrence of supported) {
       const token = issueTelegramRequirementChoiceToken();
+      const mediaGroupGeneration = input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined
+        ? null : input.albumClaim!.generation;
       await tx.query(`insert into public.telegram_requirement_choice_sessions
         (workspace_id, project_id, telegram_chat_binding_id, uploader_member_id, work_assignment_id,
-         communication_attachment_id, telegram_media_group_id, token_hash, candidate_occurrence_id, allowed_occurrence_ids, expires_at)
-        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,now() + interval '24 hours')`, [
+         communication_attachment_id, telegram_media_group_id, media_group_generation,
+         token_hash, candidate_occurrence_id, allowed_occurrence_ids, expires_at)
+        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,now() + interval '24 hours')`, [
         input.workspaceId, input.projectId, input.telegramChatBindingId,
         (await tx.query<{ member_id: string }>(`select member_id from public.telegram_member_links
           where workspace_id=$1 and telegram_user_id=$2::bigint and revoked_at is null`, [input.workspaceId, input.senderId])).rows[0]!.member_id, assignmentId,
         input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined ? input.attachmentId : null,
-        input.telegramMediaGroupId ?? null, tokenHash(token), occurrence.occurrenceId, allowedOccurrenceIds,
+        input.telegramMediaGroupId ?? null, mediaGroupGeneration,
+        tokenHash(token), occurrence.occurrenceId, allowedOccurrenceIds,
       ]);
       tokens.push({ occurrenceId: occurrence.occurrenceId, label: occurrence.label, token });
     }
     await tx.query(`update public.communication_attachments set state='awaiting_requirement_choice'
       where ${input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined
-        ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic')"} and state='staged'`, [input.telegramMediaGroupId ?? input.attachmentId]);
+        ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic') and created_at <= $2::timestamptz"} and state='staged'`,
+    [input.telegramMediaGroupId ?? input.attachmentId, input.albumClaim?.claimedLastPartAt ?? null]);
     if (input.telegramMediaGroupId !== null && input.telegramMediaGroupId !== undefined) {
       await tx.query(`update public.telegram_media_groups
         set state='awaiting_requirement_choice', choice_expires_at=now() + interval '24 hours'
@@ -330,29 +369,48 @@ export async function selectTelegramOccurrence(input: {
   chatId: string;
   uploaderTelegramUserId: string;
   token: string;
-}): Promise<{ kind: "selected"; assignmentId: string; occurrenceId: string; actorUserId: string; attachmentIds: string[] } | { kind: "rejected" }> {
+}): Promise<{
+  kind: "selected"; assignmentId: string; occurrenceId: string; actorUserId: string;
+  attachmentIds: string[]; mediaGroupId: string | null;
+  albumClaim: { leaseToken: string; generation: number; claimedLastPartAt: string } | null;
+} | { kind: "rejected" }> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(input.token)) return { kind: "rejected" };
   return withServiceTx({ actorUserId: "", organizationId: null, requestId: crypto.randomUUID() }, async (tx) => {
     const selected = await tx.query<{
       id: string; workspace_id: string; project_id: string; telegram_chat_binding_id: string; uploader_member_id: string;
       work_assignment_id: string; candidate_occurrence_id: string; allowed_occurrence_ids: string[];
       communication_attachment_id: string | null; telegram_media_group_id: string | null; user_id: string;
+      media_group_generation: string | null;
     }>(`select s.*, m.user_id
       from public.telegram_requirement_choice_sessions s
       join public.telegram_chat_bindings b on b.workspace_id=s.workspace_id and b.project_id=s.project_id and b.id=s.telegram_chat_binding_id
       join public.memberships m on m.organization_id=s.workspace_id and m.id=s.uploader_member_id
       join public.telegram_member_links l on l.workspace_id=s.workspace_id and l.member_id=s.uploader_member_id
-      where s.token_hash=$1 and s.consumed_at is null and s.expires_at > now()
+      where s.token_hash=$1 and s.consumed_at is null and s.closed_at is null and s.expires_at > now()
         and b.bot_id=$2::bigint and b.chat_id=$3::bigint and l.telegram_user_id=$4::bigint
         and l.revoked_at is null and m.status='active'
+        and (s.telegram_media_group_id is null or exists (
+          select 1 from public.telegram_media_groups g where g.id=s.telegram_media_group_id
+            and g.state='awaiting_requirement_choice'
+            and g.processing_generation=s.media_group_generation
+        ))
       for update`, [tokenHash(input.token), input.botId, input.chatId, input.uploaderTelegramUserId]);
     const row = selected.rows[0];
     if (!row || !row.allowed_occurrence_ids.includes(row.candidate_occurrence_id)) return { kind: "rejected" };
+    if (row.telegram_media_group_id !== null) {
+      const current = await tx.query<{ id: string }>(`select id from public.telegram_media_groups
+        where id=$1 and state='awaiting_requirement_choice'
+          and processing_generation=$2::bigint for update`,
+      [row.telegram_media_group_id, row.media_group_generation]);
+      if (!current.rows[0]) return { kind: "rejected" };
+    }
     const siblings = await tx.query<{ id: string }>(`select id from public.telegram_requirement_choice_sessions
-      where workspace_id=$1 and project_id=$2 and consumed_at is null
+      where workspace_id=$1 and project_id=$2 and consumed_at is null and closed_at is null
+        and (telegram_media_group_id is null or media_group_generation=$5::bigint)
         and ((communication_attachment_id is not null and communication_attachment_id=$3)
           or (telegram_media_group_id is not null and telegram_media_group_id=$4)) for update`, [
       row.workspace_id, row.project_id, row.communication_attachment_id, row.telegram_media_group_id,
+      row.media_group_generation,
     ]);
     if (siblings.rows.length === 0) return { kind: "rejected" };
     const attachments = row.telegram_media_group_id === null
@@ -362,7 +420,8 @@ export async function selectTelegramOccurrence(input: {
             and state='awaiting_requirement_choice'`, [row.workspace_id, row.project_id, row.telegram_media_group_id])).rows.map(({ id }) => id);
     if (attachments.length === 0) return { kind: "rejected" };
     await tx.query(`update public.telegram_requirement_choice_sessions
-      set consumed_at=now(), chosen_occurrence_id=$2 where id = any($1::uuid[])`, [
+      set consumed_at=now(), chosen_occurrence_id=$2, closed_at=now(), closure_reason='selected'
+      where id = any($1::uuid[])`, [
       siblings.rows.map(({ id }) => id), row.candidate_occurrence_id,
     ]);
     for (const attachmentId of attachments) {
@@ -377,11 +436,21 @@ export async function selectTelegramOccurrence(input: {
     }
     await tx.query(`update public.communication_attachments set state='processing', requirement_occurrence_id=$2
       where id = any($1::uuid[]) and state='awaiting_requirement_choice'`, [attachments, row.candidate_occurrence_id]);
+    let albumClaim: { leaseToken: string; generation: number; claimedLastPartAt: string } | null = null;
     if (row.telegram_media_group_id !== null) {
-      await tx.query("update public.telegram_media_groups set state='processing' where id=$1 and state='awaiting_requirement_choice'", [row.telegram_media_group_id]);
+      const claimed = await tx.query<{ lease_token: string; generation: string; claimed_last_part_at: string }>(`update public.telegram_media_groups set state='processing',
+          processing_lease_token=gen_random_uuid(), processing_lease_expires_at=now()+interval '60 seconds',
+          claimed_generation=processing_generation, claimed_last_part_at=last_part_at
+        where id=$1 and state='awaiting_requirement_choice' and processing_generation=$2::bigint
+        returning processing_lease_token::text as lease_token,
+          claimed_generation::text as generation, claimed_last_part_at::text`,
+      [row.telegram_media_group_id, row.media_group_generation]);
+      const claim = claimed.rows[0];
+      if (!claim) return { kind: "rejected" };
+      albumClaim = { leaseToken: claim.lease_token, generation: Number(claim.generation), claimedLastPartAt: claim.claimed_last_part_at };
     }
     return { kind: "selected", assignmentId: row.work_assignment_id, occurrenceId: row.candidate_occurrence_id,
-      actorUserId: row.user_id, attachmentIds: attachments };
+      actorUserId: row.user_id, attachmentIds: attachments, mediaGroupId: row.telegram_media_group_id, albumClaim };
   });
 }
 

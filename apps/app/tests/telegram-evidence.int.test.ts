@@ -1,14 +1,18 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { withServiceTx } from "@goproceed/database";
-import { dropWorkspaces } from "../../../packages/testing/src/pg";
+import { asService, dropWorkspaces } from "../../../packages/testing/src/pg";
 import { seedRulesWorld, type RulesFixture } from "../../../packages/testing/src/m1-rules-fixture";
 import { insertOccurrence, seedOccurrenceWorld, type OccurrenceWorld } from "../../../packages/testing/src/m2-occurrences-fixture";
 import { ADMIN_URL, hasIsolatedDatabaseCredentials } from "./helpers/fixtures";
 import { enqueueTelegramMessage, deliverTelegramOutboxBatch } from "../src/lib/telegram/delivery";
 import { prepareTelegramEvidenceCandidate, selectTelegramOccurrence } from "../src/lib/telegram/evidence";
 import { normalizeTelegramUpdate } from "../src/lib/telegram/normalize";
-import { processDueTelegramMediaGroups, processTelegramUpdate } from "../src/lib/telegram/processor";
+import {
+  processDueTelegramEvidenceRetries,
+  processDueTelegramMediaGroups,
+  processTelegramUpdate,
+} from "../src/lib/telegram/processor";
 
 // This file never falls back to local Postgres: it changes real evidence and
 // outbox rows, so all three isolated URLs must exist before setup starts.
@@ -135,6 +139,29 @@ databaseDescribe("Telegram evidence bridge", () => {
     } });
   }
 
+  function documentUpdate(input: { updateId: string; messageId: string; fileId: string; replyTo: string | null; album?: string | null; mimeType?: string }) {
+    return normalizeTelegramUpdate({ update_id: input.updateId, message: {
+      message_id: input.messageId, date: 1_700_000_000, chat: { id: Number(CHAT_ID), type: "supergroup" }, from: { id: Number(UPLOADER_ID) },
+      reply_to_message: input.replyTo === null ? undefined : { message_id: input.replyTo }, media_group_id: input.album ?? undefined,
+      document: { file_id: input.fileId, file_unique_id: `${input.fileId}-unique`, file_name: `${input.fileId}.bin`, mime_type: input.mimeType ?? "application/pdf", file_size: 11 },
+    } });
+  }
+
+  async function makeAlbumsDue(): Promise<void> {
+    await client.query("update public.telegram_media_groups set last_part_at=now() - interval '3 seconds' where workspace_id=$1", [rules.workspaceId]);
+  }
+
+  async function receiptRows() {
+    return (await client.query<{
+      telegram_evidence_copy_key: string; telegram_evidence_receipt_key: string;
+      telegram_evidence_chunk_index: number; telegram_evidence_recipient_member_id: string | null; text: string;
+    }>(`select telegram_evidence_copy_key, telegram_evidence_receipt_key,
+              telegram_evidence_chunk_index, telegram_evidence_recipient_member_id, text
+         from public.communication_messages
+        where workspace_id=$1 and telegram_evidence_receipt_key is not null
+        order by telegram_evidence_receipt_key`, [rules.workspaceId])).rows;
+  }
+
   async function attachmentsFor(messageIds: string[]) {
     return (await client.query<{ id: string; state: string; evidence_object_id: string | null; provider_file_id: string | null; failure_code: string | null }>(
       `select a.id, a.state, a.evidence_object_id, a.provider_file_id, a.failure_code
@@ -161,7 +188,7 @@ databaseDescribe("Telegram evidence bridge", () => {
     const messages = await client.query<{ text: string }>(`select text from public.communication_messages
       where workspace_id=$1 and direction='outbound' and kind='text' order by created_at`, [rules.workspaceId]);
     expect(messages.rows.map((row) => row.text)).toContain("Зображення обробляється. Підтвердження буде надіслано після збереження доказу.");
-    expect(messages.rows.map((row) => row.text)).toContain(`Збережено доказів: 1.\nЗбережено: ${attachment!.evidence_object_id}.`);
+    expect(messages.rows.map((row) => row.text)).toContain(`Збережено доказів: 1.\nЗображення 702: збережено — ${attachment!.evidence_object_id}.`);
     expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-receipt", limit: 10, apiClient: fakeTelegramApi() }))
       .toEqual({ accepted: 2, failed: 0, unknown: 0 });
   });
@@ -220,7 +247,7 @@ databaseDescribe("Telegram evidence bridge", () => {
     const summaries = await client.query<{ text: string }>(`select text from public.communication_messages
       where workspace_id=$1 and direction='outbound' and text like 'Збережено доказів:%'`, [rules.workspaceId]);
     expect(summaries.rows).toHaveLength(1); expect(summaries.rows[0]!.text).toContain("Збережено доказів: 3.");
-    expect(summaries.rows[0]!.text.match(/Збережено: [0-9a-f-]{36}\./g)).toHaveLength(3);
+    expect(summaries.rows[0]!.text.match(/Зображення \d+: збережено — [0-9a-f-]{36}\./g)).toHaveLength(3);
   });
 
   it("retains successful album evidence while naming only safe terminal download and finalization failures", async () => {
@@ -243,8 +270,8 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(terminal.every((row) => row.provider_file_id === null)).toBe(true);
     const summaries = await client.query<{ text: string }>(`select text from public.communication_messages
       where workspace_id=$1 and direction='outbound' and text like 'Частину зображень збережено%'`, [rules.workspaceId]);
-    expect(summaries.rows).toHaveLength(1); expect(summaries.rows[0]!.text).toContain("Не збережено: provider_download_failed.");
-    expect(summaries.rows[0]!.text).toContain("Не збережено: evidence_processing_failed."); expect(summaries.rows[0]!.text).not.toContain("Збережено: null");
+    expect(summaries.rows).toHaveLength(1); expect(summaries.rows[0]!.text).toContain("не збережено — provider_download_failed.");
+    expect(summaries.rows[0]!.text).toContain("не збережено — evidence_processing_failed."); expect(summaries.rows[0]!.text).not.toContain("збережено — null");
   });
 
   it("never downloads unsupported, quota-refused, or revoked media and duplicate updates converge", async () => {
@@ -270,5 +297,107 @@ databaseDescribe("Telegram evidence bridge", () => {
     fakes.payloads.set("revoked", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "31", messageId: "731", fileId: "revoked", replyTo: card.providerMessageId }));
     expect(fakes.downloads).toEqual(["duplicate"]); expect(await attachmentsFor(["731"])).toMatchObject([{ state: "unbound", provider_file_id: null }]);
+  });
+
+  it("terminalizes and reports all-unsupported and mixed albums without orphaned handles", async () => {
+    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    const card = await deliverCard();
+    await processTelegramUpdate(documentUpdate({ updateId: "60", messageId: "760", fileId: "pdf-a", replyTo: card.providerMessageId, album: "unsupported-album" }));
+    await processTelegramUpdate(documentUpdate({ updateId: "61", messageId: "761", fileId: "pdf-b", replyTo: card.providerMessageId, album: "unsupported-album" }));
+    fakes.payloads.set("mixed-image", JPEG);
+    await processTelegramUpdate(imageUpdate({ updateId: "62", messageId: "762", fileId: "mixed-image", replyTo: card.providerMessageId, album: "mixed-album" }));
+    await processTelegramUpdate(documentUpdate({ updateId: "63", messageId: "763", fileId: "mixed-pdf", replyTo: card.providerMessageId, album: "mixed-album" }));
+    await makeAlbumsDue();
+
+    expect(await processDueTelegramMediaGroups()).toBe(2);
+    expect(await attachmentsFor(["760", "761"])).toEqual(expect.arrayContaining([
+      expect.objectContaining({ state: "not_evidence", provider_file_id: null }),
+      expect.objectContaining({ state: "not_evidence", provider_file_id: null }),
+    ]));
+    const mixed = await attachmentsFor(["762", "763"]);
+    expect(mixed.filter(({ state }) => state === "available")).toHaveLength(1);
+    expect(mixed.filter(({ state }) => state === "not_evidence")).toHaveLength(1);
+    expect(mixed.every(({ provider_file_id }) => provider_file_id === null)).toBe(true);
+    expect((await receiptRows()).map(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key).sort())
+      .toEqual(["telegram.evidence.partial", "telegram.evidence.unbound"]);
+  });
+
+  it("reopens a claimed generation for a late part and reclaims an expired lease", async () => {
+    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    const card = await deliverCard(); fakes.payloads.set("early", JPEG); fakes.payloads.set("late", JPEG);
+    await processTelegramUpdate(imageUpdate({ updateId: "70", messageId: "770", fileId: "early", replyTo: card.providerMessageId, album: "late-album" }));
+    await makeAlbumsDue();
+    const firstClaim = await asService<{ id: string; lease_token: string; processing_generation: string }>("", null, (service) => service.query(
+      "select id, lease_token::text, processing_generation::text from app.claim_telegram_media_groups(1, 60)",
+    ));
+    expect(firstClaim.rows).toHaveLength(1);
+    await processTelegramUpdate(imageUpdate({ updateId: "71", messageId: "771", fileId: "late", replyTo: card.providerMessageId, album: "late-album" }));
+    const reopened = await client.query<{ state: string; processing_generation: string; processing_lease_token: string | null }>(
+      "select state, processing_generation::text, processing_lease_token::text from public.telegram_media_groups where workspace_id=$1",
+      [rules.workspaceId],
+    );
+    expect(reopened.rows[0]).toMatchObject({ state: "open", processing_lease_token: null });
+    expect(Number(reopened.rows[0]!.processing_generation)).toBeGreaterThan(Number(firstClaim.rows[0]!.processing_generation));
+    await makeAlbumsDue();
+    const secondClaim = await asService<{ id: string; lease_token: string }>("", null, (service) => service.query(
+      "select id, lease_token::text from app.claim_telegram_media_groups(1, 60)",
+    ));
+    expect(secondClaim.rows[0]!.lease_token).not.toBe(firstClaim.rows[0]!.lease_token);
+    await client.query("update public.telegram_media_groups set processing_lease_expires_at=now()-interval '1 second' where id=$1", [secondClaim.rows[0]!.id]);
+    const reclaimed = await asService<{ lease_token: string }>("", null, (service) => service.query(
+      "select lease_token::text from app.claim_telegram_media_groups(1, 60)",
+    ));
+    expect(reclaimed.rows[0]!.lease_token).not.toBe(secondClaim.rows[0]!.lease_token);
+    await client.query("update public.telegram_media_groups set processing_lease_expires_at=now()-interval '1 second' where id=$1", [secondClaim.rows[0]!.id]);
+    expect(await processDueTelegramMediaGroups()).toBe(1);
+    expect(await attachmentsFor(["770", "771"])).toEqual(expect.arrayContaining([
+      expect.objectContaining({ state: "available", provider_file_id: null }),
+      expect.objectContaining({ state: "available", provider_file_id: null }),
+    ]));
+    expect((await client.query<{ state: string }>(
+      "select state from public.telegram_media_groups where id=$1", [secondClaim.rows[0]!.id],
+    )).rows[0]).toEqual({ state: "completed" });
+  });
+
+  it("enqueues one canonical unbound receipt on replay and one uploader expiry receipt on repeated cleanup", async () => {
+    const unbound = imageUpdate({ updateId: "80", messageId: "780", fileId: "unbound-replay", replyTo: null });
+    await processTelegramUpdate(unbound); await processTelegramUpdate(unbound);
+    let receipts = await receiptRows();
+    expect(receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.unbound")).toHaveLength(1);
+
+    const card = await deliverCard(); fakes.payloads.set("choice-expiry", JPEG);
+    await processTelegramUpdate(imageUpdate({ updateId: "81", messageId: "781", fileId: "choice-expiry", replyTo: card.providerMessageId, album: "expiry-album" }));
+    await makeAlbumsDue(); await processDueTelegramMediaGroups();
+    await client.query("update public.telegram_requirement_choice_sessions set expires_at=now()-interval '1 second' where workspace_id=$1", [rules.workspaceId]);
+    await processDueTelegramMediaGroups(); await processDueTelegramMediaGroups();
+    receipts = await receiptRows();
+    const expired = receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.choice_expired");
+    expect(expired).toHaveLength(1);
+    expect(expired[0]!.telegram_evidence_recipient_member_id).toBe(rules.memberId);
+    expect(await attachmentsFor(["781"])).toMatchObject([{ state: "not_evidence", provider_file_id: null }]);
+  });
+
+  it("waits for retryable album parts, then completes once on retry success or exhaustion", async () => {
+    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    const card = await deliverCard();
+    for (const [album, messageId, fileId] of [["retry-success", "790", "retry-once"], ["retry-exhaust", "791", "retry-always"]] as const) {
+      fakes.payloads.set(fileId, JPEG); fakes.failedDownloads.add(fileId);
+      await processTelegramUpdate(imageUpdate({ updateId: messageId, messageId, fileId, replyTo: card.providerMessageId, album }));
+    }
+    await makeAlbumsDue(); await processDueTelegramMediaGroups();
+    expect(await receiptRows()).toHaveLength(0);
+    expect((await client.query<{ state: string }>("select state from public.telegram_media_groups where workspace_id=$1", [rules.workspaceId])).rows.every(({ state }) => state === "processing")).toBe(true);
+
+    fakes.failedDownloads.delete("retry-once");
+    await client.query("update public.communication_attachments set provider_next_retry_at=now() where workspace_id=$1", [rules.workspaceId]);
+    await processDueTelegramEvidenceRetries();
+    expect((await receiptRows()).filter(({ text }) => text.includes("790"))).toHaveLength(1);
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      await client.query("update public.communication_attachments set provider_next_retry_at=now() where workspace_id=$1 and provider_file_id='retry-always'", [rules.workspaceId]);
+      await processDueTelegramEvidenceRetries();
+    }
+    const terminal = await attachmentsFor(["791"]);
+    expect(terminal).toMatchObject([{ state: "failed", provider_file_id: null }]);
+    expect((await receiptRows()).filter(({ text }) => text.includes("791"))).toHaveLength(1);
   });
 });

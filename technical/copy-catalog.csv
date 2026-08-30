@@ -443,3 +443,5 @@ telegram.evidence.processing,Зображення обробляється. Пі
 telegram.evidence.unbound,Фото не прив’язано до чинної картки завдання та залишено лише в історії чату.,telegram,warning,"unsupported/unbound media is not downloaded into evidence storage"
 telegram.evidence.choice_expired,Час вибору вимоги минув. Надішліть зображення ще раз у відповідь на картку завдання.,telegram,warning,"24-hour opaque requirement-choice capability expired"
 telegram.evidence.partial,Частину зображень збережено; для кожного збою вказано окрему причину.,telegram,warning,"album outcome is per image and never claims complete success prematurely"
+telegram.evidence.complete,Збережено доказів: {count}.,telegram,success,"terminal receipt base used only after every named image has a durable evidence object; count is the exact number of available outcomes"
+telegram.evidence.failed,Доказ не збережено.,telegram,error,"terminal receipt base followed by every exact safe per-image failure"

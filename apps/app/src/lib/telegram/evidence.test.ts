@@ -3,6 +3,7 @@ import {
   TELEGRAM_DOWNLOAD_LIMIT_BYTES,
   formatTelegramEvidenceSummary,
   formatTelegramEvidenceSummaryChunks,
+  telegramEvidenceReceiptKey,
   telegramEvidenceIdempotencyKey,
   isTelegramEvidenceCandidate,
   telegramSourceVersion,
@@ -38,6 +39,18 @@ describe("Telegram evidence candidates", () => {
 });
 
 describe("Telegram evidence receipts", () => {
+  it("derives one stable chunk identity from the canonical copy and durable source", () => {
+    // Break caught: a replay or cleanup pass could otherwise enqueue the same
+    // terminal chunk under a fresh random communication-message identity.
+    expect(telegramEvidenceReceiptKey({
+      copyKey: "telegram.evidence.partial",
+      sourceKind: "media_group",
+      sourceId: "5fddccaa-17ea-43f3-9d13-bafc77676ccb",
+      generation: 7,
+      chunkIndex: 2,
+    })).toBe("telegram.evidence.partial:media_group:5fddccaa-17ea-43f3-9d13-bafc77676ccb:7:2");
+  });
+
   it("names only durable evidence ids and each safe failure", () => {
     // Break caught: a summary could otherwise claim a save before finalization
     // or relay an unsafe/provider-derived error into the project group.
@@ -49,11 +62,11 @@ describe("Telegram evidence receipts", () => {
 
   it("chunks a large partial receipt without dropping any exact safe failure", () => {
     const results = Array.from({ length: 300 }, (_, index) => (
-      { kind: "failed" as const, code: `provider_failure_${index}` }
+      { kind: "failed" as const, code: `provider_failure_${index}`, imageReference: String(700 + index) }
     ));
     const chunks = formatTelegramEvidenceSummaryChunks(results);
     expect(chunks.every((chunk) => chunk.length <= 4096)).toBe(true);
-    expect(chunks.join("\n")).toContain("Не збережено: provider_failure_299.");
-    expect(chunks.join("\n").match(/Не збережено:/g)).toHaveLength(300);
+    expect(chunks.join("\n")).toContain("Зображення 999: не збережено — provider_failure_299.");
+    expect(chunks.join("\n").match(/не збережено —/g)).toHaveLength(300);
   });
 });
