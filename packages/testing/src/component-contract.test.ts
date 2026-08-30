@@ -29,6 +29,13 @@ const code = (f: string) =>
 const index = read("index.ts");
 
 describe("the inventory is closed and complete", () => {
+  /**
+   * The import line is not a rendering. Matching against the raw source lets a
+   * component that is imported and never placed in JSX satisfy this gate — and
+   * `noUnusedLocals` is off, so nothing else would catch it either.
+   */
+  const rendered = (source: string) => source.replace(/^import\s[\s\S]*?;$/gm, "");
+
   it("exports every component file, so none is orphaned", () => {
     const orphans = files
       .filter((f) => f !== "index.ts" && f !== "cn.ts")
@@ -61,8 +68,8 @@ describe("the inventory is closed and complete", () => {
    * component is on a page a human and the QA harness can both look at.
    */
   it("renders every component module in the kitchen sink", () => {
-    const sink = readFileSync(
-      join(repoRoot, "apps/landing/app/kitchen-sink/components/page.tsx"), "utf8");
+    const sink = rendered(readFileSync(
+      join(repoRoot, "apps/landing/app/kitchen-sink/components/page.tsx"), "utf8"));
 
     const perModule = [...index.matchAll(/export\s*\{([^}]*)\}\s*from\s*"\.\/([\w-]+)"/g)]
       .filter((m) => m[2] !== "cn")
@@ -96,8 +103,8 @@ describe("the inventory is closed and complete", () => {
   it("renders every motion primitive in the motion kitchen sink", () => {
     const motionIndex = readFileSync(
       join(repoRoot, "packages/ui/src/motion/index.ts"), "utf8");
-    const sink = readFileSync(
-      join(repoRoot, "apps/landing/app/kitchen-sink/page.tsx"), "utf8");
+    const sink = rendered(readFileSync(
+      join(repoRoot, "apps/landing/app/kitchen-sink/page.tsx"), "utf8"));
 
     const names = [...motionIndex.matchAll(/export\s*\{([^}]*)\}\s*from\s*"\.\/([\w-]+)"/g)]
       .filter((m) => !["tokens", "use-reduced"].includes(m[2]!))
