@@ -3,7 +3,7 @@
 /**
  * The motion vocabulary, live.
  *
- * Fourteen primitives, each rendered next to the rule it enforces. This is the
+ * Fifteen primitives, each rendered next to the rule it enforces. This is the
  * code-first equivalent of a component library page in a design tool, and it
  * is where the QA harness points its viewport, contrast and touch-target
  * passes — a primitive that is only ever exercised inside a finished block is
@@ -18,7 +18,8 @@
 
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
-  CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap, useReduced,
+  CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
+  InViewProgress, useReduced,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -91,7 +92,7 @@ export default function KitchenSink() {
         <TextBlurIn
           as="h1"
           className="display mt-4 block max-w-[16ch] text-mkt-display-1 text-ink"
-          text="Чотирнадцять примітивів і жодного більше"
+          text="П'ятнадцять примітивів і жодного більше"
         />
         <p className="measure mt-6 text-mkt-lead leading-relaxed text-ink-muted">
           Кожен блок нижче показує примітив і правило, яке він тримає.
@@ -236,6 +237,19 @@ export default function KitchenSink() {
             </div>
           </SlideSwap>
         </div>
+      </Case>
+
+      <Case n="13" name="InViewProgress" rule="Єдиний примітив без власного малюнка: публікує 0 → 1 як --gp-progress на своєму вузлі, а смугу малює виклик. Під reduced motion значення одразу 1, без анімації.">
+        <InViewProgress className="block h-2 overflow-hidden rounded-pill bg-line">
+          <div
+            aria-hidden="true"
+            className="h-full rounded-pill bg-signal"
+            style={{ width: "calc(var(--gp-progress, 0) * 100%)" }}
+          />
+        </InViewProgress>
+        <p className="measure mt-4 text-data text-ink-muted">
+          Сам примітив нічого не малює — він лише публікує число. Ця смуга належить виклику, а не бібліотеці.
+        </p>
       </Case>
     </main>
   );

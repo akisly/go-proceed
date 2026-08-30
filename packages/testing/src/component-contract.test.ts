@@ -264,4 +264,13 @@ describe("the three primitives the landing needed", () => {
     expect(reducedArms.filter((arm) => /\bx:/.test(arm))).toEqual([]);
     expect(src.match(/duration:\s*[\d.]+/g) ?? []).toEqual([]);
   });
+
+  it("InViewProgress publishes --gp-progress and never re-renders to do it", () => {
+    const src = motionCode("InViewProgress.tsx");
+    expect(src).toContain("--gp-progress");
+    expect(src).toContain("useReduced");
+    // A useState per frame is the thing this primitive exists to avoid.
+    expect(src).not.toMatch(/useState/);
+    expect(src.match(/duration:\s*[\d.]+/g) ?? []).toEqual([]);
+  });
 });
