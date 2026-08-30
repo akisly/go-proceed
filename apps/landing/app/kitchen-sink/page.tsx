@@ -200,7 +200,7 @@ export default function KitchenSink() {
         </div>
       </Case>
 
-      <Case n="12" name="SlideSwap" rule="На відміну від CrossFade, SlideSwap має напрямок: користувач натиснув «далі» або «назад», і крива приходу говорить честь про рух. На reduced motion напрямок ВІДПАДАЄ, а не скорочується — 24 px за 120 мс все ще слайд.">
+      <Case n="12" name="SlideSwap" rule="На відміну від CrossFade, SlideSwap має напрямок: користувач натиснув «далі» або «назад», і крива приходу говорить чесно про рух. На reduced motion напрямок ВІДПАДАЄ, а не скорочується — 24 px за 120 мс все ще слайд.">
         <div className="flex flex-col gap-4">
           <div className="flex gap-2">
             <button

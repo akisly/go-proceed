@@ -38,15 +38,26 @@ export function SlideSwap({
   className?: string | undefined;
 }) {
   const reduced = useReduced();
+
+  const variants = {
+    initial: (d: 1 | -1) =>
+      reduced ? { opacity: 0 } : { opacity: 0, x: d * TRAVEL },
+    animate: () =>
+      reduced ? { opacity: 1 } : { opacity: 1, x: 0 },
+    exit: (d: 1 | -1) =>
+      reduced ? { opacity: 0 } : { opacity: 0, x: d * -TRAVEL },
+  };
+
   return (
     <AnimatePresence mode="wait" initial={false} custom={direction}>
       <motion.div
         key={activeKey}
         custom={direction}
         className={className}
-        initial={reduced ? { opacity: 0 } : { opacity: 0, x: direction * TRAVEL }}
-        animate={reduced ? { opacity: 1 } : { opacity: 1, x: 0 }}
-        exit={reduced ? { opacity: 0 } : { opacity: 0, x: direction * -TRAVEL }}
+        variants={variants}
+        initial="initial"
+        animate="animate"
+        exit="exit"
         transition={
           reduced
             ? { duration: REDUCED.duration, ease: REDUCED.ease }

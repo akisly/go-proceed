@@ -255,10 +255,13 @@ describe("the three primitives the landing needed", () => {
     expect(src).toContain("useReduced");
     // The reduced branch must not translate — a direction is the thing being
     // dropped, not shortened.
-    const reducedBranch = src.slice(src.indexOf("reduced ?"));
-    // Extract just the true case of the first ternary (before the colon)
-    const firstTernary = reducedBranch.slice(0, reducedBranch.indexOf(":"));
-    expect(firstTernary).not.toMatch(/\bx:\s*[^0]/);
+    // Each arm is a flat object, so `[^}]*` ends exactly at that arm's own
+    // closing brace — no brace counting needed. The previous form sliced to the
+    // first colon in the file, which is the `opacity:` INSIDE the arm, and so
+    // could never see an `x:` at all.
+    const reducedArms = [...src.matchAll(/reduced\s*\?\s*\{[^}]*\}/g)].map((m) => m[0]);
+    expect(reducedArms.length).toBeGreaterThan(0);
+    expect(reducedArms.filter((arm) => /\bx:/.test(arm))).toEqual([]);
     expect(src.match(/duration:\s*[\d.]+/g) ?? []).toEqual([]);
   });
 });
