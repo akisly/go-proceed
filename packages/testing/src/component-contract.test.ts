@@ -36,6 +36,51 @@ describe("the inventory is closed and complete", () => {
     expect(orphans).toEqual([]);
   });
 
+  /**
+   * THE THIRD OBLIGATION, FINALLY GATED.
+   *
+   * `docs/design/02-building-ui.md` §7.2 asks three things of a component: the
+   * file, the `index.ts` export, and a rendering in `/kitchen-sink/components`
+   * «beside the rule it carries». The two tests above gate the first two. The
+   * third was gated by NOTHING until this test, and §7.2 said otherwise in
+   * writing until 2026-08-29 — so every reader was told a check existed that
+   * did not.
+   *
+   * WHAT IT COST, measured rather than imagined: slice A shipped
+   * `FieldSeparator` with `bg-canvas` where §4.1's substitution table maps
+   * shadcn's `bg-background` to `bg-surface`. `cx` is `extendTailwindMerge`
+   * with the taught config, so the class was live — a paper-toned band across
+   * a white panel — and it survived review because no sink rendered it and no
+   * test looked.
+   *
+   * THE UNIT IS THE MODULE, NOT THE EXPORTED NAME. A sink entry that renders
+   * `Dialog` necessarily exercises `DialogContent`, `DialogTitle` and the rest
+   * of its family; demanding every name appear by itself would fail on
+   * `SelectScrollDownButton` and teach people to paste names rather than
+   * render components. One name per module is the honest floor: it proves the
+   * component is on a page a human and the QA harness can both look at.
+   */
+  it("renders every component module in the kitchen sink", () => {
+    const sink = readFileSync(
+      join(repoRoot, "apps/landing/app/kitchen-sink/components/page.tsx"), "utf8");
+
+    const perModule = [...index.matchAll(/export\s*\{([^}]*)\}\s*from\s*"\.\/([\w-]+)"/g)]
+      .filter((m) => m[2] !== "cn")
+      .map((m) => ({
+        module: m[2]!,
+        names: m[1]!.split(",")
+          .map((n) => n.trim().split(/\s+as\s+/).pop()!.trim())
+          .filter((n) => n.length > 0 && !n.startsWith("type ") && /^[A-Z]/.test(n)),
+      }))
+      .filter((m) => m.names.length > 0);
+
+    const unrendered = perModule
+      .filter((m) => !m.names.some((n) => new RegExp(`\\b${n}\\b`).test(sink)))
+      .map((m) => m.module);
+
+    expect(unrendered).toEqual([]);
+  });
+
   it("exports nothing that has no file", () => {
     const referenced = [...index.matchAll(/from "\.\/([\w-]+)"/g)].map((m) => m[1]);
     const missing = referenced.filter(

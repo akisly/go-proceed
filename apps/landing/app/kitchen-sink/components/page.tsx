@@ -21,6 +21,11 @@ import {
   FieldLegend, FieldSeparator, FieldSet, FieldTitle, Figure,
   Input, Label, Textarea,
   Meter, Panel, PanelHeader, PanelBody, Separator, Skeleton,
+  Avatar, AvatarFallback,
+  Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter,
+  DialogHeader, DialogTitle, DialogTrigger,
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
+  DropdownMenuSeparator, DropdownMenuTrigger,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Tooltip, TooltipProvider,
@@ -336,6 +341,58 @@ export default function ComponentSink() {
               </FieldSet>
             </PanelBody>
           </Panel>
+        </Case>
+
+        <Case n="15" name="Dialog + DialogTrigger + DialogContent + DialogHeader + DialogTitle + DialogDescription + DialogFooter + DialogClose" rule="Єдине під /app, чому дозволено накривати вміст, — тому shadow-modal носить саме він і більше ніхто. Родина працювала у трьох екранах оболонки, але не була відрендерена тут жодного разу: рівно так FieldSeparator приїхав із чужим токеном і ніхто не подивився.">
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="outline">Завершити зміну</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Завершити зміну?</DialogTitle>
+                <DialogDescription>
+                  Незакриті приписи залишаться на об&apos;єкті до наступної зміни.
+                  Секція А · підвал · електрощитова ВРУ-1 — 3 позиції.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="ghost">Скасувати</Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button>Завершити</Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </Case>
+
+        <Case n="16" name="DropdownMenu + DropdownMenuTrigger + DropdownMenuContent + DropdownMenuLabel + DropdownMenuItem + DropdownMenuSeparator" rule="Хром рівня поповера, а не модалка: shadow-overlay, один крок від батька, — той самий, що вже носить Tooltip. Різниця з Dialog вище видно лише поруч, і саме тому обидва стоять на одній сторінці.">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline">Об&apos;єкт-простір</Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>Простори</DropdownMenuLabel>
+              <DropdownMenuItem>ТОВ «Приклад-Власна»</DropdownMenuItem>
+              <DropdownMenuItem>ЖК «Лівобережний», черга 2</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem>Налаштування профілю</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </Case>
+
+        <Case n="17" name="Avatar + AvatarFallback" rule="Лише ініціали. Джерела зображень у продукті ще немає, тому AvatarImage свідомо відсутній — компонент під майбутнє джерело це і є пастка «сорока умоглядних компонентів», про яку попереджає шапка index.ts. Ініціали передає той, хто викликає.">
+          <div className="flex items-center gap-3">
+            <Avatar>
+              <AvatarFallback>ОК</AvatarFallback>
+            </Avatar>
+            <div className="flex flex-col">
+              <span className="text-data text-ink">Олена Ковальчук</span>
+              <span className="text-meta text-ink-muted">Технічний нагляд</span>
+            </div>
+          </div>
         </Case>
 
         <div className="border-t border-line py-14">
