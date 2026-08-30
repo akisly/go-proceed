@@ -87,6 +87,27 @@ describe("the inventory is closed and complete", () => {
       (name) => !files.includes(`${name}.tsx`) && !files.includes(`${name}.ts`));
     expect(missing).toEqual([]);
   });
+
+  /**
+   * The same obligation, for the other index. §7.3 calls a thirteenth primitive
+   * «a decision», and a decision nobody can see is not one — the motion sink is
+   * where a primitive's reduced-motion branch gets looked at.
+   */
+  it("renders every motion primitive in the motion kitchen sink", () => {
+    const motionIndex = readFileSync(
+      join(repoRoot, "packages/ui/src/motion/index.ts"), "utf8");
+    const sink = readFileSync(
+      join(repoRoot, "apps/landing/app/kitchen-sink/page.tsx"), "utf8");
+
+    const names = [...motionIndex.matchAll(/export\s*\{([^}]*)\}\s*from\s*"\.\/([\w-]+)"/g)]
+      .filter((m) => !["tokens", "use-reduced"].includes(m[2]!))
+      .flatMap((m) => m[1]!.split(",")
+        .map((n) => n.trim().split(/\s+as\s+/).pop()!.trim())
+        .filter((n) => /^[A-Z]/.test(n)));
+
+    const unrendered = names.filter((n) => !new RegExp(`\\b${n}\\b`).test(sink));
+    expect(unrendered).toEqual([]);
+  });
 });
 
 describe("control size comes from tokens, never from a literal", () => {
