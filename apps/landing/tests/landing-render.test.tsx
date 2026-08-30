@@ -111,7 +111,7 @@ describe("landing evidence journey", () => {
     expect(section).toContain('data-evidence-motion-engine="motion"');
     expect(section).toContain('data-evidence-stage-transition="presence"');
     expect(section.match(/data-evidence-scroll-trigger="motion-in-view"/g) ?? []).toHaveLength(3);
-    expect(section.match(/data-evidence-rail-motion="motion"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(section.match(/data-evidence-rail-motion="vocabulary"/g)?.length).toBeGreaterThanOrEqual(2);
     expect(section).not.toContain("transition-[opacity,transform]");
     expect(section).not.toContain("transition-colors duration-slow");
   });
@@ -243,5 +243,13 @@ describe("landing evidence journey", () => {
   it("finishes with a factual product-scope footer", () => {
     expect(html).toContain("<footer");
     expect(html).toContain("Частина показаних сценаріїв перебуває у розробці");
+  });
+});
+
+describe("the evidence rail reaches Motion through the vocabulary", () => {
+  it("keeps its markers and connectors in the rendered output", () => {
+    expect(decisionRail).toContain('data-evidence-rail="true"');
+    expect(decisionRail.match(/data-evidence-point="true"/g)).toHaveLength(3);
+    expect(decisionRail.match(/data-evidence-connector="true"/g)).toHaveLength(2);
   });
 });
