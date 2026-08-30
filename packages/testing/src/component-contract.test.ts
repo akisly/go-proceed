@@ -239,6 +239,9 @@ describe("the three primitives the landing needed", () => {
     const src = motionCode("TrackFill.tsx");
     expect(src).toContain("useReduced");
     expect(src).toContain("REDUCED");
+    // `useReduced` imported and ignored would satisfy a mere toContain. The
+    // branch is the claim; assert the branch.
+    expect(src).toMatch(/reduced\s*\n?\s*\?/);
     // `duration: 0` is allowed and is the point: TrackFill's reduced branch
     // applies the final state with NO transition. Zero is the absence of a
     // timing, not a hand-typed one. Any other literal is the defect.

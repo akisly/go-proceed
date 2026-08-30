@@ -3,7 +3,7 @@
 /**
  * The motion vocabulary, live.
  *
- * Twelve primitives, each rendered next to the rule it enforces. This is the
+ * Thirteen primitives, each rendered next to the rule it enforces. This is the
  * code-first equivalent of a component library page in a design tool, and it
  * is where the QA harness points its viewport, contrast and touch-target
  * passes — a primitive that is only ever exercised inside a finished block is
@@ -73,7 +73,7 @@ export default function KitchenSink() {
         <TextBlurIn
           as="h1"
           className="display mt-4 block max-w-[16ch] text-mkt-display-1 text-ink"
-          text="Дванадцять примітивів і жодного більше"
+          text="Тринадцять примітивів і жодного більше"
         />
         <p className="measure mt-6 text-mkt-lead leading-relaxed text-ink-muted">
           Кожен блок нижче показує примітив і правило, яке він тримає.
