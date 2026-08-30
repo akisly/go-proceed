@@ -38,6 +38,11 @@ for landing tests (node environment, no jsdom).
 - **Every primitive is exported from `packages/ui/src/motion/index.ts` and rendered
   on `apps/landing/app/kitchen-sink/page.tsx`.** Task 1 makes the second one a gate.
 - **Ukrainian strings, never lorem.** «Внутрішньо готово», «Секція А · підвал».
+- **Verify with the WHOLE `@goproceed/testing` package, never one test file.**
+  Corrected 2026-08-31 mid-execution: the earlier per-task command named
+  `vitest run src/component-contract.test.ts`, and a regression in a SIBLING file
+  of the same package — `motion-audit.test.ts`'s pinned primitive set — stayed
+  invisible for two whole tasks because of it.
 - **No passthrough re-export of `motion/react` from the vocabulary.** A
   `export { motion } from "motion/react"` would satisfy the audit's regex while
   defeating its purpose; the spec §9 rules it out by name.
@@ -88,7 +93,7 @@ Add inside the existing `describe("the inventory is closed and complete", …)`:
 
 - [ ] **Step 2: Run it and confirm it PASSES**
 
-Run: `pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts`
+Run: `pnpm --filter @goproceed/testing test`
 Expected: 16/16 pass. All twelve primitives are already on that page — this test is
 a tripwire for tasks 2–4, not a red-to-green step. If it fails now, stop: a
 primitive is missing from the sink and that is a separate finding.
@@ -148,7 +153,7 @@ describe("the three primitives the landing needed", () => {
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts`
+Run: `pnpm --filter @goproceed/testing test`
 Expected: FAIL — `ENOENT: no such file or directory … TrackFill.tsx`
 
 - [ ] **Step 3: Write the primitive**
@@ -216,7 +221,7 @@ with the middle one `filled`.
 
 - [ ] **Step 6: Run the tests**
 
-Run: `pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts`
+Run: `pnpm --filter @goproceed/testing test`
 Expected: PASS, including Task 1's motion-sink gate.
 
 - [ ] **Step 7: Commit**
@@ -260,7 +265,7 @@ Add to the same describe as Task 2:
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts`
+Run: `pnpm --filter @goproceed/testing test`
 Expected: FAIL — `ENOENT … SlideSwap.tsx`
 
 - [ ] **Step 3: Write the primitive**
@@ -351,7 +356,7 @@ Task 4 owns its own increment.
 
 - [ ] **Step 6: Run the tests**
 
-Run: `pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts`
+Run: `pnpm --filter @goproceed/testing test`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
@@ -392,7 +397,7 @@ git commit -m "feat(motion): SlideSwap — the swap that knows which way the sto
 
 - [ ] **Step 2: Run it to verify it fails**
 
-Run: `pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts`
+Run: `pnpm --filter @goproceed/testing test`
 Expected: FAIL — `ENOENT … InViewProgress.tsx`
 
 - [ ] **Step 3: Write the primitive**
@@ -495,7 +500,7 @@ Fifteen is the number Task 9 records in the plan's §8.3.
 
 - [ ] **Step 6: Run the tests**
 
-Run: `pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts`
+Run: `pnpm --filter @goproceed/testing test`
 Expected: PASS.
 
 - [ ] **Step 7: Commit**
