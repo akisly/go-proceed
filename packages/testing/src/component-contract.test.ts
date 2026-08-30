@@ -227,3 +227,22 @@ describe("rulings that a variant would quietly undo", () => {
     expect(code("Skeleton.tsx")).not.toMatch(/animate-|pulse|shimmer/);
   });
 });
+
+describe("the three primitives the landing needed", () => {
+  const motionDir = join(repoRoot, "packages/ui/src/motion");
+  const motionCode = (f: string) =>
+    readFileSync(join(motionDir, f), "utf8")
+      .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, " "))
+      .replace(/^[ \t]*\/\/.*$/gm, (m) => " ".repeat(m.length));
+
+  it("TrackFill branches on reduced motion and holds no literal timing", () => {
+    const src = motionCode("TrackFill.tsx");
+    expect(src).toContain("useReduced");
+    expect(src).toContain("REDUCED");
+    // `duration: 0` is allowed and is the point: TrackFill's reduced branch
+    // applies the final state with NO transition. Zero is the absence of a
+    // timing, not a hand-typed one. Any other literal is the defect.
+    expect(src.match(/duration:\s*(?!0[,\s}])[\d.]+/g) ?? []).toEqual([]);
+    expect(src).not.toMatch(/ease-in\b|cubic-bezier/);
+  });
+});

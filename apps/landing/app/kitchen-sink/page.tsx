@@ -18,7 +18,7 @@
 
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
-  CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, useReduced,
+  CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, useReduced,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -172,6 +172,14 @@ export default function KitchenSink() {
 
       <Case n="10" name="PinnedTabs" rule="Клікабельні вкладки з автоперемиканням і прогресом. Ручний вибір перезапускає інтервал, пауза та reduced motion зупиняють ротацію.">
         <PinnedTabs tabs={TABS} />
+      </Case>
+
+      <Case n="11" name="TrackFill" rule="Стрічка прогресу, яка заповнюється тому, що користувач посунувся через послідовність, не тому, що сторінка скролилась. На відміну від LineDraw, відповідає на стан додатку, а не на позицію скролу.">
+        <div className="flex gap-2">
+          <TrackFill filled={false} className="h-1 flex-1 origin-left rounded-pill bg-line" />
+          <TrackFill filled={true} className="h-1 flex-1 origin-left rounded-pill bg-signal" />
+          <TrackFill filled={false} className="h-1 flex-1 origin-left rounded-pill bg-line" />
+        </div>
       </Case>
     </main>
   );
