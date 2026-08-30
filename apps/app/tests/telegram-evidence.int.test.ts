@@ -322,6 +322,82 @@ databaseDescribe("Telegram evidence bridge", () => {
       .toEqual(["telegram.evidence.partial", "telegram.evidence.unbound"]);
   });
 
+  it("persists every multi-chunk partial outcome once across group replay", async () => {
+    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    const card = await deliverCard(); fakes.payloads.set("chunk-image", JPEG);
+    await processTelegramUpdate(imageUpdate({ updateId: "64", messageId: "764", fileId: "chunk-image", replyTo: card.providerMessageId, album: "chunk-album" }));
+    await processTelegramUpdate(documentUpdate({ updateId: "65", messageId: "765", fileId: "chunk-pdf", replyTo: card.providerMessageId, album: "chunk-album" }));
+    await makeAlbumsDue(); await processDueTelegramMediaGroups();
+    const group = (await client.query<{ id: string; processing_generation: string }>(
+      `select id, processing_generation::text from public.telegram_media_groups
+        where workspace_id=$1 and provider_media_group_id='chunk-album'`, [rules.workspaceId],
+    )).rows[0]!;
+
+    await client.query(`with inserted_messages as (
+      insert into public.communication_messages (
+        workspace_id, project_id, telegram_chat_binding_id, direction, kind,
+        author_member_id, provider_user_id, provider_message_id,
+        provider_reply_to_message_id, delivery_state, server_received_at, created_at
+      )
+      select $1, $2, $3, 'inbound', 'document', $4, $5::bigint,
+             900000 + part, $6::bigint, 'received',
+             now() - interval '4 seconds', now() - interval '4 seconds'
+        from generate_series(1, 90) part
+      returning id
+    )
+    insert into public.communication_attachments (
+      workspace_id, project_id, message_id, telegram_media_group_id,
+      filename_snapshot, media_type_snapshot, byte_size, state,
+      failure_code, terminal_at, created_at
+    )
+    select $1, $2, id, $7, 'unsupported.pdf', 'application/pdf', 11,
+           'not_evidence', 'unsupported_media', now(), now() - interval '4 seconds'
+      from inserted_messages`, [
+      rules.workspaceId, rules.projectId, bindingId, rules.memberId,
+      UPLOADER_ID, card.providerMessageId, group.id,
+    ]);
+    await client.query(`update public.telegram_media_groups
+      set last_part_at=now()-interval '3 seconds' where id=$1`, [group.id]);
+    expect(await processDueTelegramMediaGroups()).toBe(1);
+
+    const generation = Number(group.processing_generation) + 1;
+    const chunks = (await client.query<{ id: string; telegram_evidence_chunk_index: number; text: string }>(
+      `select id, telegram_evidence_chunk_index, text from public.communication_messages
+        where workspace_id=$1 and telegram_evidence_source_media_group_id=$2
+          and telegram_evidence_generation=$3 and telegram_evidence_copy_key='telegram.evidence.partial'
+        order by telegram_evidence_chunk_index`, [rules.workspaceId, group.id, generation],
+    )).rows;
+    expect(chunks.length).toBeGreaterThan(1);
+    expect(chunks.map(({ telegram_evidence_chunk_index }) => telegram_evidence_chunk_index))
+      .toEqual(chunks.map((_, index) => index));
+    const completeText = chunks.map(({ text }) => text).join("\n");
+    for (let part = 1; part <= 90; part += 1) {
+      expect(completeText.match(new RegExp(`Зображення ${900000 + part}:`, "g"))).toHaveLength(1);
+    }
+    const outboxBefore = Number((await client.query<{ count: string }>(
+      `select count(*)::text from public.transaction_outbox
+        where organization_id=$1 and aggregate_id=any($2::text[])`,
+      [rules.workspaceId, chunks.map(({ id }) => id)],
+    )).rows[0]!.count);
+    expect(outboxBefore).toBe(chunks.length);
+
+    await client.query(`update public.telegram_media_groups
+      set state='open', completed_at=null where id=$1`, [group.id]);
+    expect(await processDueTelegramMediaGroups()).toBe(1);
+    const replayed = (await client.query<{ id: string }>(
+      `select id from public.communication_messages
+        where workspace_id=$1 and telegram_evidence_source_media_group_id=$2
+          and telegram_evidence_generation=$3 and telegram_evidence_copy_key='telegram.evidence.partial'`,
+      [rules.workspaceId, group.id, generation],
+    )).rows;
+    expect(replayed).toHaveLength(chunks.length);
+    expect(Number((await client.query<{ count: string }>(
+      `select count(*)::text from public.transaction_outbox
+        where organization_id=$1 and aggregate_id=any($2::text[])`,
+      [rules.workspaceId, replayed.map(({ id }) => id)],
+    )).rows[0]!.count)).toBe(chunks.length);
+  });
+
   it("reopens a claimed generation for a late part and reclaims an expired lease", async () => {
     await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
     const card = await deliverCard(); fakes.payloads.set("early", JPEG); fakes.payloads.set("late", JPEG);
