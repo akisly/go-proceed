@@ -248,4 +248,17 @@ describe("the three primitives the landing needed", () => {
     expect(src.match(/duration:\s*(?!0[,\s}])[\d.]+/g) ?? []).toEqual([]);
     expect(src).not.toMatch(/ease-in\b|cubic-bezier/);
   });
+
+  it("SlideSwap takes a direction and reduces to a cross-fade", () => {
+    const src = motionCode("SlideSwap.tsx");
+    expect(src).toContain("direction");
+    expect(src).toContain("useReduced");
+    // The reduced branch must not translate — a direction is the thing being
+    // dropped, not shortened.
+    const reducedBranch = src.slice(src.indexOf("reduced ?"));
+    // Extract just the true case of the first ternary (before the colon)
+    const firstTernary = reducedBranch.slice(0, reducedBranch.indexOf(":"));
+    expect(firstTernary).not.toMatch(/\bx:\s*[^0]/);
+    expect(src.match(/duration:\s*[\d.]+/g) ?? []).toEqual([]);
+  });
 });

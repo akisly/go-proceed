@@ -3,7 +3,7 @@
 /**
  * The motion vocabulary, live.
  *
- * Thirteen primitives, each rendered next to the rule it enforces. This is the
+ * Fourteen primitives, each rendered next to the rule it enforces. This is the
  * code-first equivalent of a component library page in a design tool, and it
  * is where the QA harness points its viewport, contrast and touch-target
  * passes — a primitive that is only ever exercised inside a finished block is
@@ -18,7 +18,7 @@
 
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
-  CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, useReduced,
+  CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap, useReduced,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -66,6 +66,24 @@ export default function KitchenSink() {
   const [role, setRole] = useState(ROLES[0]!.id);
   const active = ROLES.find((r) => r.id === role) ?? ROLES[0]!;
 
+  const CHAPTERS = ["Почин", "Роботи", "Закриття"];
+  const [chapterIndex, setChapterIndex] = useState(0);
+  const [slideDirection, setSlideDirection] = useState<1 | -1>(1);
+
+  const handleNextChapter = () => {
+    if (chapterIndex < CHAPTERS.length - 1) {
+      setSlideDirection(1);
+      setChapterIndex(chapterIndex + 1);
+    }
+  };
+
+  const handlePrevChapter = () => {
+    if (chapterIndex > 0) {
+      setSlideDirection(-1);
+      setChapterIndex(chapterIndex - 1);
+    }
+  };
+
   return (
     <main className="mx-auto max-w-content px-6 md:px-12">
       <header className="py-24">
@@ -73,7 +91,7 @@ export default function KitchenSink() {
         <TextBlurIn
           as="h1"
           className="display mt-4 block max-w-[16ch] text-mkt-display-1 text-ink"
-          text="Тринадцять примітивів і жодного більше"
+          text="Чотирнадцять примітивів і жодного більше"
         />
         <p className="measure mt-6 text-mkt-lead leading-relaxed text-ink-muted">
           Кожен блок нижче показує примітив і правило, яке він тримає.
@@ -179,6 +197,44 @@ export default function KitchenSink() {
           <TrackFill filled={false} className="h-1 flex-1 origin-left rounded-pill bg-line" />
           <TrackFill filled={true} className="h-1 flex-1 origin-left rounded-pill bg-signal" />
           <TrackFill filled={false} className="h-1 flex-1 origin-left rounded-pill bg-line" />
+        </div>
+      </Case>
+
+      <Case n="12" name="SlideSwap" rule="На відміну від CrossFade, SlideSwap має напрямок: користувач натиснув «далі» або «назад», і крива приходу говорить честь про рух. На reduced motion напрямок ВІДПАДАЄ, а не скорочується — 24 px за 120 мс все ще слайд.">
+        <div className="flex flex-col gap-4">
+          <div className="flex gap-2">
+            <button
+              onClick={handlePrevChapter}
+              disabled={chapterIndex === 0}
+              className="h-9 touch:h-11 rounded-control bg-action px-4 text-data font-medium text-action-fg disabled:bg-line disabled:text-ink-muted"
+            >
+              Назад
+            </button>
+            <button
+              onClick={handleNextChapter}
+              disabled={chapterIndex === CHAPTERS.length - 1}
+              className="h-9 touch:h-11 rounded-control bg-action px-4 text-data font-medium text-action-fg disabled:bg-line disabled:text-ink-muted"
+            >
+              Далі
+            </button>
+          </div>
+          <SlideSwap
+            activeKey={CHAPTERS[chapterIndex]!}
+            direction={slideDirection}
+            className="rounded-panel border border-line bg-surface p-6"
+          >
+            <div className="min-h-32 flex items-center justify-center">
+              {chapterIndex === 0 && (
+                <p className="text-data text-ink">Етап початку робіт. Всі сторони узгодили послідовність дій і готові почати.</p>
+              )}
+              {chapterIndex === 1 && (
+                <p className="text-data text-ink">Виконання робіт. Команда працює, фотографує прогрес, готує докази для наступного етапу.</p>
+              )}
+              {chapterIndex === 2 && (
+                <p className="text-data text-ink">Закриття етапу. Підрядник надіслав докази, технагляд їх перевіряє, прийняв рішення про оплату.</p>
+              )}
+            </div>
+          </SlideSwap>
         </div>
       </Case>
     </main>

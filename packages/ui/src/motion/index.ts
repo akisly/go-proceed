@@ -22,6 +22,7 @@ export { Lift } from "./Lift";
 export { Press } from "./Press";
 export { CrossFade } from "./CrossFade";
 export { TrackFill } from "./TrackFill";
+export { SlideSwap } from "./SlideSwap";
 
 export { shouldReduce, useReduced } from "./use-reduced";
 export { DURATION, EASE, STAGGER, SPRING, BLUR, REDUCED } from "./tokens";
