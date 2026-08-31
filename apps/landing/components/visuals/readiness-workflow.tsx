@@ -44,14 +44,34 @@ type ReadinessSignalProps = {
  * this diagram reads is still produced by Motion, inside `InViewProgress`.
  * The attribute names the engine, not the import site, and it is true.
  *
- * THE PHASES, which are the numbers you will read inside the expressions:
- *   0      .. 0.25   trunk draws, its traveler runs Пакет робіт → перевірка
- *   0.25   .. 0.614  the three branches draw, their travelers run to the cards
- *   0.59   .. 1      the endpoint cards pulse twice and settle
- * `0.25` and `0.614` were `cycle.trunkEnd` and `cycle.branchesEnd`; they are
- * written out at each use because a `calc()` string cannot interpolate a
- * constant without becoming a built string, and a built string is the one thing
- * this repo has already paid for.
+ * THE PHASES, in the TIME the reader experiences:
+ *   0     .. 0.25   trunk draws, its traveler runs Пакет робіт → перевірка
+ *   0.25  .. 0.614  the three branches draw, their travelers run to the cards
+ *   0.59  .. 1      the endpoint cards pulse twice and settle
+ * `0.25` and `0.614` were `cycle.trunkEnd` and `cycle.branchesEnd`.
+ *
+ * THE NUMBERS IN THE EXPRESSIONS ARE NOT THOSE NUMBERS, AND THIS IS THE WHOLE
+ * TRAP. The three phases above were tuned against a LINEAR 2.2s loop, where a
+ * constant `c` and the time-fraction `c` were the same thing. `--gp-progress`
+ * is now `InViewProgress`'s `DURATION.deliberate` ramp on `EASE.out`, so
+ * progress is `p = ease(t)` and the two have come apart: read literally, `0.25`
+ * arrives 134ms into a 640ms ramp — 86ms — and the trunk traveller, which is
+ * the one object in this diagram carrying the meaning (one work package moving
+ * from «Пакет робіт» to «Перевірка повноти»), was crossing the frame faster
+ * than a reader can follow it. The branches finished at 230ms instead of the
+ * 1351ms they were drawn for, and both pulses shared the remaining 422ms.
+ *
+ * So every breakpoint below is `ease(c)` — the progress the ramp has reached at
+ * time-fraction `c` — and the phase boundaries land back where they were tuned:
+ *   0.25 -> 0.453   0.614 -> 0.862   0.59 -> 0.845
+ * `ease` is `cubic-bezier(0.25, 0.46, 0.45, 0.94)` from `ease.out` in
+ * `packages/tokens/src/tokens.json`, evaluated at `c` and rounded to three
+ * decimals. The doc line above each constant states the domain in the same
+ * converted numbers, so nothing here says one thing and does another.
+ *
+ * Each is written out at every use because a `calc()` string cannot interpolate
+ * a constant without becoming a built string, and a built string is the one
+ * thing this repo has already paid for.
  *
  * ONE SEGMENT IS `calc(c + (d - c) * clamp(0, (p - a) / (b - a), 1))`, the CSS
  * spelling of `useTransform(p, [a, b], [c, d])`. A ramp with more than two
@@ -112,7 +132,7 @@ const layout = {
 } as const;
 
 /**
- * `useTransform(p, [0, 0.25], [0, 1])`, as a dash offset: 1 hides, 0 draws.
+ * `useTransform(p, [0, 0.453], [0, 1])`, as a dash offset: 1 hides, 0 draws.
  *
  * THE ENDPOINTS ARE `px` ON PURPOSE. `stroke-dashoffset` takes a length, and
  * SVG additionally allows a bare number there — an allowance no engine is
@@ -124,40 +144,40 @@ const layout = {
  * the whole path, so the length spelling is the same number with a type.
  */
 const trunkDrawOffset =
-  "calc(1px + (0px - 1px) * clamp(0, (var(--gp-progress, 0) - 0) / (0.25 - 0), 1))";
-/** `useTransform(p, [0.25, 0.614], [0, 1])`, as a dash offset, in `px` for the same reason. */
+  "calc(1px + (0px - 1px) * clamp(0, (var(--gp-progress, 0) - 0) / (0.453 - 0), 1))";
+/** `useTransform(p, [0.453, 0.862], [0, 1])`, as a dash offset, in `px` for the same reason. */
 const branchDrawOffset =
-  "calc(1px + (0px - 1px) * clamp(0, (var(--gp-progress, 0) - 0.25) / (0.614 - 0.25), 1))";
+  "calc(1px + (0px - 1px) * clamp(0, (var(--gp-progress, 0) - 0.453) / (0.862 - 0.453), 1))";
 /** The same trunk ramp as a distance along the path, for the traveller. */
 const trunkTravelDistance =
-  "calc(0% + (100% - 0%) * clamp(0, (var(--gp-progress, 0) - 0) / (0.25 - 0), 1))";
+  "calc(0% + (100% - 0%) * clamp(0, (var(--gp-progress, 0) - 0) / (0.453 - 0), 1))";
 /** The same branch ramp as a distance along the path, for the travellers. */
 const branchTravelDistance =
-  "calc(0% + (100% - 0%) * clamp(0, (var(--gp-progress, 0) - 0.25) / (0.614 - 0.25), 1))";
-/** `useTransform(p, [0, 0.015, 0.25, 0.64, 0.72], [0, 1, 1, 0.32, 0])`. */
+  "calc(0% + (100% - 0%) * clamp(0, (var(--gp-progress, 0) - 0.453) / (0.862 - 0.453), 1))";
+/** `useTransform(p, [0, 0.028, 0.453, 0.879, 0.923], [0, 1, 1, 0.32, 0])`. */
 const trunkOpacity =
-  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0) / (0.015 - 0), 1) + (0.32 - 1) * clamp(0, (var(--gp-progress, 0) - 0.25) / (0.64 - 0.25), 1) + (0 - 0.32) * clamp(0, (var(--gp-progress, 0) - 0.64) / (0.72 - 0.64), 1))";
-/** `useTransform(p, [0.235, 0.25, 0.614, 0.72, 0.8], [0, 1, 1, 0.28, 0])`. */
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0) / (0.028 - 0), 1) + (0.32 - 1) * clamp(0, (var(--gp-progress, 0) - 0.453) / (0.879 - 0.453), 1) + (0 - 0.32) * clamp(0, (var(--gp-progress, 0) - 0.879) / (0.923 - 0.879), 1))";
+/** `useTransform(p, [0.429, 0.453, 0.862, 0.923, 0.955], [0, 1, 1, 0.28, 0])`. */
 const branchOpacity =
-  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.235) / (0.25 - 0.235), 1) + (0.28 - 1) * clamp(0, (var(--gp-progress, 0) - 0.614) / (0.72 - 0.614), 1) + (0 - 0.28) * clamp(0, (var(--gp-progress, 0) - 0.72) / (0.8 - 0.72), 1))";
-/** `useTransform(p, [0, 0.015, 0.23, 0.25], [0, 1, 1, 0])`. */
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.429) / (0.453 - 0.429), 1) + (0.28 - 1) * clamp(0, (var(--gp-progress, 0) - 0.862) / (0.923 - 0.862), 1) + (0 - 0.28) * clamp(0, (var(--gp-progress, 0) - 0.923) / (0.955 - 0.923), 1))";
+/** `useTransform(p, [0, 0.028, 0.42, 0.453], [0, 1, 1, 0])`. */
 const trunkTravelerOpacity =
-  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0) / (0.015 - 0), 1) + (0 - 1) * clamp(0, (var(--gp-progress, 0) - 0.23) / (0.25 - 0.23), 1))";
-/** `useTransform(p, [0.235, 0.25, 0.59, 0.614], [0, 1, 1, 0])`. */
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0) / (0.028 - 0), 1) + (0 - 1) * clamp(0, (var(--gp-progress, 0) - 0.42) / (0.453 - 0.42), 1))";
+/** `useTransform(p, [0.429, 0.453, 0.845, 0.862], [0, 1, 1, 0])`. */
 const branchTravelerOpacity =
-  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.235) / (0.25 - 0.235), 1) + (0 - 1) * clamp(0, (var(--gp-progress, 0) - 0.59) / (0.614 - 0.59), 1))";
-/** `useTransform(p, [0.59, 0.635, 0.76, 0.91], [0, 1, 0.58, 0])`. */
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.429) / (0.453 - 0.429), 1) + (0 - 1) * clamp(0, (var(--gp-progress, 0) - 0.845) / (0.862 - 0.845), 1))";
+/** `useTransform(p, [0.845, 0.876, 0.94, 0.986], [0, 1, 0.58, 0])`. */
 const primaryPulseOpacity =
-  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.59) / (0.635 - 0.59), 1) + (0.58 - 1) * clamp(0, (var(--gp-progress, 0) - 0.635) / (0.76 - 0.635), 1) + (0 - 0.58) * clamp(0, (var(--gp-progress, 0) - 0.76) / (0.91 - 0.76), 1))";
-/** `useTransform(p, [0.59, 0.7, 0.91], ["scale(0.98, 0.95)", "scale(1.025, 1.035)", "scale(1.07, 1.1)"])`. */
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.845) / (0.876 - 0.845), 1) + (0.58 - 1) * clamp(0, (var(--gp-progress, 0) - 0.876) / (0.94 - 0.876), 1) + (0 - 0.58) * clamp(0, (var(--gp-progress, 0) - 0.94) / (0.986 - 0.94), 1))";
+/** `useTransform(p, [0.845, 0.913, 0.986], ["scale(0.98, 0.95)", "scale(1.025, 1.035)", "scale(1.07, 1.1)"])`. */
 const primaryPulseTransform =
-  "scale(calc(0.98 + (1.025 - 0.98) * clamp(0, (var(--gp-progress, 0) - 0.59) / (0.7 - 0.59), 1) + (1.07 - 1.025) * clamp(0, (var(--gp-progress, 0) - 0.7) / (0.91 - 0.7), 1)), calc(0.95 + (1.035 - 0.95) * clamp(0, (var(--gp-progress, 0) - 0.59) / (0.7 - 0.59), 1) + (1.1 - 1.035) * clamp(0, (var(--gp-progress, 0) - 0.7) / (0.91 - 0.7), 1)))";
-/** `useTransform(p, [0.65, 0.715, 0.84, 1], [0, 0.82, 0.36, 0])`. */
+  "scale(calc(0.98 + (1.025 - 0.98) * clamp(0, (var(--gp-progress, 0) - 0.845) / (0.913 - 0.845), 1) + (1.07 - 1.025) * clamp(0, (var(--gp-progress, 0) - 0.913) / (0.986 - 0.913), 1)), calc(0.95 + (1.035 - 0.95) * clamp(0, (var(--gp-progress, 0) - 0.845) / (0.913 - 0.845), 1) + (1.1 - 1.035) * clamp(0, (var(--gp-progress, 0) - 0.913) / (0.986 - 0.913), 1)))";
+/** `useTransform(p, [0.885, 0.92, 0.968, 1], [0, 0.82, 0.36, 0])`. */
 const secondaryPulseOpacity =
-  "calc(0 + (0.82 - 0) * clamp(0, (var(--gp-progress, 0) - 0.65) / (0.715 - 0.65), 1) + (0.36 - 0.82) * clamp(0, (var(--gp-progress, 0) - 0.715) / (0.84 - 0.715), 1) + (0 - 0.36) * clamp(0, (var(--gp-progress, 0) - 0.84) / (1 - 0.84), 1))";
-/** `useTransform(p, [0.65, 0.78, 1], ["scale(0.99, 0.97)", "scale(1.05, 1.075)", "scale(1.1, 1.16)"])`. */
+  "calc(0 + (0.82 - 0) * clamp(0, (var(--gp-progress, 0) - 0.885) / (0.92 - 0.885), 1) + (0.36 - 0.82) * clamp(0, (var(--gp-progress, 0) - 0.92) / (0.968 - 0.92), 1) + (0 - 0.36) * clamp(0, (var(--gp-progress, 0) - 0.968) / (1 - 0.968), 1))";
+/** `useTransform(p, [0.885, 0.948, 1], ["scale(0.99, 0.97)", "scale(1.05, 1.075)", "scale(1.1, 1.16)"])`. */
 const secondaryPulseTransform =
-  "scale(calc(0.99 + (1.05 - 0.99) * clamp(0, (var(--gp-progress, 0) - 0.65) / (0.78 - 0.65), 1) + (1.1 - 1.05) * clamp(0, (var(--gp-progress, 0) - 0.78) / (1 - 0.78), 1)), calc(0.97 + (1.075 - 0.97) * clamp(0, (var(--gp-progress, 0) - 0.65) / (0.78 - 0.65), 1) + (1.16 - 1.075) * clamp(0, (var(--gp-progress, 0) - 0.78) / (1 - 0.78), 1)))";
+  "scale(calc(0.99 + (1.05 - 0.99) * clamp(0, (var(--gp-progress, 0) - 0.885) / (0.948 - 0.885), 1) + (1.1 - 1.05) * clamp(0, (var(--gp-progress, 0) - 0.948) / (1 - 0.948), 1)), calc(0.97 + (1.075 - 0.97) * clamp(0, (var(--gp-progress, 0) - 0.885) / (0.948 - 0.885), 1) + (1.16 - 1.075) * clamp(0, (var(--gp-progress, 0) - 0.948) / (1 - 0.948), 1)))";
 
 export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
   const workflowRef = useRef<SVGSVGElement>(null);
