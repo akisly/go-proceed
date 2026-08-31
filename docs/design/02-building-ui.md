@@ -159,7 +159,7 @@ packages/tokens/src/tokens.json      every value, the only hand-edited token fil
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
 packages/ui/src/motion/              the fifteen motion primitives, and nothing else
-packages/ui/src/components/          the fifteen components, and nothing else
+packages/ui/src/components/          the twenty-one components, and nothing else
 apps/landing/app/                    routes and the fourteen landing blocks
 apps/app/app/                        the product shell and its screens
 packages/testing/src/*.test.ts       every contract test

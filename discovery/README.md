@@ -47,14 +47,14 @@ Child A environment takes priority.
 
 Baseline measured at `aa10481` after `pnpm install --frozen-lockfile`:
 
+> **Correction, 2026-08-30.** The package was renamed from `@aktflow/discovery`
+> to `@goproceed/discovery` — it was the last one left under the old scope,
+> because this branch forked before the repository rename. The commands above
+> are already corrected. The table below is a snapshot of the 2026-07-26 run and
+> is left as it stands: the `@aktflow/*` names in it were correct on that date.
+
 | Package | Result |
 |---|---|
-> **Поправка 2026-08-30.** Пакет переименован из `@aktflow/discovery` в
-> `@goproceed/discovery` — он был последним под старой областью имён, потому что
-> эта ветка отошла до переименования репозитория. Команды выше уже исправлены.
-> Таблица ниже — снимок прогона от 2026-07-26 и оставлена как есть: имена
-> `@aktflow/*` в ней были верны на ту дату.
-
 | `@aktflow/domain` | 3 passed |
 | `@aktflow/contracts` | 6 passed |
 | `@aktflow/testing` | 6 passed |

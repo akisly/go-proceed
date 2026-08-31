@@ -1,7 +1,7 @@
 /**
  * The motion vocabulary. FIFTEEN primitives, and a feature file may use
  * nothing else — a bespoke `motion.div` in a block component is a review
- * failure, and `apps/demo/qa/motion-audit.mjs` fails the build on one.
+ * failure, and `packages/testing/qa/motion-audit.mjs` fails the build on one.
  *
  * That is not tidiness. Every rule the system has about motion — ease-out only,
  * transform and opacity only, reveal fires once, reduced motion is a different
