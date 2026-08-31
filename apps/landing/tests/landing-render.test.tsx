@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -208,6 +210,14 @@ describe("landing evidence journey", () => {
     ]) {
       expect(workflow).toContain(detail);
     }
+  });
+
+  it("renders the readiness diagram without reaching for Motion", () => {
+    const src = readFileSync(
+      join(import.meta.dirname, "..", "components/visuals/readiness-workflow.tsx"), "utf8");
+    expect(src).not.toContain("motion/react");
+    expect(src).toContain("InViewProgress");
+    expect(src).toContain("--gp-progress");
   });
 
   it("shows provenance and the honest v0.1 product boundary", () => {
