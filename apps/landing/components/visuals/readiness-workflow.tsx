@@ -39,6 +39,11 @@ type ReadinessSignalProps = {
  * reads has to describe the behaviour the code actually has, so the attribute
  * was renamed rather than kept for the sake of keeping it.
  *
+ * `data-readiness-motion-engine="motion"` KEEPS its value under that same
+ * standard, and for the same reason rather than in spite of it: the number
+ * this diagram reads is still produced by Motion, inside `InViewProgress`.
+ * The attribute names the engine, not the import site, and it is true.
+ *
  * THE PHASES, which are the numbers you will read inside the expressions:
  *   0      .. 0.25   trunk draws, its traveler runs Пакет робіт → перевірка
  *   0.25   .. 0.614  the three branches draw, their travelers run to the cards
@@ -106,12 +111,23 @@ const layout = {
   },
 } as const;
 
-/** `useTransform(p, [0, 0.25], [0, 1])`, as a dash offset: 1 hides, 0 draws. */
+/**
+ * `useTransform(p, [0, 0.25], [0, 1])`, as a dash offset: 1 hides, 0 draws.
+ *
+ * THE ENDPOINTS ARE `px` ON PURPOSE. `stroke-dashoffset` takes a length, and
+ * SVG additionally allows a bare number there — an allowance no engine is
+ * obliged to honour INSIDE `calc()`. An engine that does not would drop the
+ * whole declaration, `stroke-dashoffset` would fall back to 0, and every
+ * signal line would render fully drawn from the first frame while its opacity
+ * still ramped: a plausible animation that has quietly lost its draw-on, with
+ * no error anywhere. `pathLength="1"` makes one user unit — one `px` here —
+ * the whole path, so the length spelling is the same number with a type.
+ */
 const trunkDrawOffset =
-  "calc(1 + (0 - 1) * clamp(0, (var(--gp-progress, 0) - 0) / (0.25 - 0), 1))";
-/** `useTransform(p, [0.25, 0.614], [0, 1])`, as a dash offset. */
+  "calc(1px + (0px - 1px) * clamp(0, (var(--gp-progress, 0) - 0) / (0.25 - 0), 1))";
+/** `useTransform(p, [0.25, 0.614], [0, 1])`, as a dash offset, in `px` for the same reason. */
 const branchDrawOffset =
-  "calc(1 + (0 - 1) * clamp(0, (var(--gp-progress, 0) - 0.25) / (0.614 - 0.25), 1))";
+  "calc(1px + (0px - 1px) * clamp(0, (var(--gp-progress, 0) - 0.25) / (0.614 - 0.25), 1))";
 /** The same trunk ramp as a distance along the path, for the traveller. */
 const trunkTravelDistance =
   "calc(0% + (100% - 0%) * clamp(0, (var(--gp-progress, 0) - 0) / (0.25 - 0), 1))";
@@ -174,7 +190,7 @@ export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
   const motionState = reduced ? "static" : entered ? "active" : "idle";
 
   return (
-    <InViewProgress>
+    <InViewProgress className="mt-8 hidden md:block">
       <svg
         ref={workflowRef}
         role="img"
@@ -184,7 +200,7 @@ export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
         data-readiness-motion-engine="motion"
         data-readiness-cycle="once"
         data-readiness-motion={motionState}
-        className="mt-8 hidden h-auto w-full md:block"
+        className="h-auto w-full"
       >
         <title id="readiness-title">Перевірка повноти пакета робіт</title>
         <desc id="readiness-desc">
