@@ -1,5 +1,6 @@
 import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
 import { Client } from "pg";
+import { createHash } from "node:crypto";
 import { ADMIN_URL, hasIsolatedDatabaseCredentials, q, jsonReq, baselineFixture, type BaselineFixture } from "./helpers/fixtures";
 import {
   addLine, bindRules, createDraft, getVersion, manifestOf, publishRuleVersion,
@@ -10,6 +11,7 @@ import {
   BOUND_RULE_VERSIONS_SQL, boundRuleVersion, planForWorkType,
 } from "../src/lib/requirement-materialisation";
 import { materialiseOccurrences } from "../src/lib/occurrence-writer";
+import { recordEvidenceDecision } from "../src/lib/evidence/record-evidence-decision";
 
 /**
  * NOTHING IN THIS FILE HAS BEEN EXECUTED. No `vitest`, no `tsc`, no `psql`, no
@@ -474,6 +476,52 @@ databaseDescribe("the escape, and the one that is never available", () => {
 });
 
 databaseDescribe("the decision, and who may not take it", () => {
+  it("keeps the shared command contract exact for accept return validation stale version and replay", async () => {
+    const acceptedBody = { outcome: "accepted" as const, issues: [], expectedVersion: null };
+    const acceptedRaw = JSON.stringify(acceptedBody);
+    const acceptedHash = createHash("sha256").update(acceptedRaw).digest("hex");
+    const acceptedInput = {
+      actorUserId: A, requestId: crypto.randomUUID(), occurrenceId: fx.occurrenceIds[0]!,
+      body: acceptedBody, idempotencyKey: `shared-contract-${crypto.randomUUID()}`, requestHash: acceptedHash,
+    };
+    const accepted = await recordEvidenceDecision(acceptedInput);
+    expect(accepted.status).toBe(201);
+    expect(Object.keys(accepted.body as Record<string, unknown>).sort()).toEqual([
+      "approverRole", "decidedAt", "decisionId", "decisionNo", "headVersion",
+      "occurrenceSatisfied", "outcome", "requirementOccurrenceId", "stageCanClose", "supersededDecisionId",
+    ].sort());
+    expect(accepted.body).toMatchObject({ requirementOccurrenceId: fx.occurrenceIds[0],
+      outcome: "accepted", decisionNo: 1, headVersion: 1, supersededDecisionId: null });
+    expect(accepted.expiresAt).toBeInstanceOf(Date);
+    const replay = await recordEvidenceDecision({ ...acceptedInput, requestId: crypto.randomUUID() });
+    expect(replay).toEqual(accepted);
+    const [storedAccepted] = await q<{ request_hash: string; idempotency_key: string }>(`select request_hash,idempotency_key
+      from public.requirement_evidence_decisions where workspace_id=$1 and requirement_occurrence_id=$2`,
+    [fx.workspaceId, fx.occurrenceIds[0]]);
+    expect(storedAccepted).toEqual({ request_hash: acceptedHash, idempotency_key: acceptedInput.idempotencyKey });
+
+    await expect(recordEvidenceDecision({ ...acceptedInput, requestId: crypto.randomUUID(),
+      idempotencyKey: `stale-contract-${crypto.randomUUID()}` }))
+      .rejects.toMatchObject({ status: 409, body: { code: "OCCURRENCE_CONFLICT" } });
+
+    const missingReason = await decide(fx.occurrenceIds[1]!, { outcome: "returned", expectedVersion: null });
+    expect(missingReason.status).toBe(422);
+    expect((await missingReason.json()).code).toBe("VALIDATION_FAILED");
+
+    const returnedBody = { outcome: "returned" as const, reason: "Потрібне повне фото ділянки.",
+      issues: [], expectedVersion: null };
+    const returnedRaw = JSON.stringify(returnedBody);
+    const returned = await recordEvidenceDecision({
+      actorUserId: A, requestId: crypto.randomUUID(), occurrenceId: fx.occurrenceIds[1]!, body: returnedBody,
+      idempotencyKey: `shared-return-${crypto.randomUUID()}`,
+      requestHash: createHash("sha256").update(returnedRaw).digest("hex"),
+    });
+    expect(returned.status).toBe(201);
+    expect(returned.body).toMatchObject({ requirementOccurrenceId: fx.occurrenceIds[1],
+      outcome: "returned", decisionNo: 1, headVersion: 1, supersededDecisionId: null });
+    expect(returned.expiresAt).toBeInstanceOf(Date);
+  });
+
   it("closes on two accepting decisions and freezes the exact set", async () => {
     for (const occurrenceId of fx.occurrenceIds) {
       const res = await decide(occurrenceId, { outcome: "accepted", expectedVersion: null });

@@ -26,6 +26,9 @@ communication_delivery_attempt.state,provider_accepted,terminal,Provider accepte
 communication_delivery_attempt.state,retryable_rejection,stored_lifecycle,Provider rejected the attempt with an explicit retry path,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_delivery_attempt.state,definitive_failure,terminal,Provider definitively rejected the outbound attempt,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 communication_delivery_attempt.state,delivery_unknown,terminal,Network outcome is unknown and retry needs duplicate acknowledgement,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_evidence_decision_attempt.status,pending,stored_lifecycle,Durable attributed decision command awaits command or finalizer convergence,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_evidence_decision_attempt.status,completed,terminal,Shared decision and exact Telegram token finalizer both committed,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
+telegram_evidence_decision_attempt.status,failed_permanent,terminal,A permanent pre-commit refusal invalidated the action without creating a decision,docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md
 workspace.status,active,stored_lifecycle,Operating workspace,docs/architecture/data-model.md
 workspace.status,suspended,stored_lifecycle,Access suspended by governance/operations,docs/architecture/data-model.md
 workspace.status,closing,stored_lifecycle,Manual closure procedure in progress,docs/architecture/files-and-storage.md

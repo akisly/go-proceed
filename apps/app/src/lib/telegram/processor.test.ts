@@ -67,11 +67,31 @@ describe("processTelegramUpdate", () => {
         outboxCalled = true;
         return { accepted: 1, failed: 0, unknown: 0 };
       },
+      processDecisionMaintenance: async () => ({
+        controls: { scanned: 2, issued: 1, skipped: 0, failed: 1 },
+        attempts: { claimed: 1, completed: 1, permanentFailed: 0, retried: 0, failed: 0 },
+      }),
     });
 
     expect(outboxCalled).toBe(true);
     expect(result).toEqual({
       inbox: null, outbox: { accepted: 1, failed: 0, unknown: 0 }, inboxFailed: true, outboxFailed: false,
+      decisionMaintenance: {
+        controls: { scanned: 2, issued: 1, skipped: 0, failed: 1 },
+        attempts: { claimed: 1, completed: 1, permanentFailed: 0, retried: 0, failed: 0 },
+      }, decisionMaintenanceFailed: false,
     });
+  });
+
+  it("reports decision maintenance failure without hiding successful inbox and outbox work", async () => {
+    const result = await runTelegramJobs({
+      processInbox: async () => ({ claimed: 0, processed: 0, failed: 0 }),
+      processOutbox: async () => ({ accepted: 0, failed: 0, unknown: 0 }),
+      processDecisionMaintenance: async () => { throw new Error("decision maintenance unavailable"); },
+    });
+    expect(result.decisionMaintenance).toBeNull();
+    expect(result.decisionMaintenanceFailed).toBe(true);
+    expect(result.inboxFailed).toBe(false);
+    expect(result.outboxFailed).toBe(false);
   });
 });

@@ -3,6 +3,10 @@ import { loadTelegramConfig } from "../../../../src/lib/telegram/config";
 import { deliverTelegramOutboxBatch } from "../../../../src/lib/telegram/delivery";
 import { sameSecret } from "../../../../src/lib/telegram/ingress";
 import { processTelegramInboxBatch } from "../../../../src/lib/telegram/processor";
+import {
+  reconcileTelegramEvidenceDecisionControls,
+  recoverTelegramEvidenceDecisionAttempts,
+} from "../../../../src/lib/telegram/decisions";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -20,18 +24,28 @@ function workerBearer(request: Request): string | null {
 
 type InboxBatch = { claimed: number; processed: number; failed: number };
 type OutboxBatch = { accepted: number; failed: number; unknown: number };
+type DecisionMaintenance = {
+  controls: { scanned: number; issued: number; skipped: number; failed: number };
+  attempts: { claimed: number; completed: number; permanentFailed: number; retried: number; failed: number };
+};
 
 /** Run the two independent leased queues before deciding the worker response. */
 export async function runTelegramJobs(input: {
   processInbox: () => Promise<InboxBatch>;
   processOutbox: () => Promise<OutboxBatch>;
-}): Promise<{ inbox: InboxBatch | null; outbox: OutboxBatch | null; inboxFailed: boolean; outboxFailed: boolean }> {
-  const [inbox, outbox] = await Promise.allSettled([input.processInbox(), input.processOutbox()]);
+  processDecisionMaintenance: () => Promise<DecisionMaintenance>;
+}): Promise<{ inbox: InboxBatch | null; outbox: OutboxBatch | null; decisionMaintenance: DecisionMaintenance | null;
+  inboxFailed: boolean; outboxFailed: boolean; decisionMaintenanceFailed: boolean }> {
+  const [inbox, outbox, maintenance] = await Promise.allSettled([
+    input.processInbox(), input.processOutbox(), input.processDecisionMaintenance(),
+  ]);
   return {
     inbox: inbox.status === "fulfilled" ? inbox.value : null,
     outbox: outbox.status === "fulfilled" ? outbox.value : null,
+    decisionMaintenance: maintenance.status === "fulfilled" ? maintenance.value : null,
     inboxFailed: inbox.status === "rejected",
     outboxFailed: outbox.status === "rejected",
+    decisionMaintenanceFailed: maintenance.status === "rejected",
   };
 }
 
@@ -56,9 +70,16 @@ export async function POST(request: Request): Promise<Response> {
   const jobs = await runTelegramJobs({
     processInbox: () => processTelegramInboxBatch({ workerId: "telegram-jobs", limit: parsed.data.inboxLimit }),
     processOutbox: () => deliverTelegramOutboxBatch({ workerId: "telegram-jobs", limit: parsed.data.outboxLimit }),
+    processDecisionMaintenance: async () => ({
+      controls: await reconcileTelegramEvidenceDecisionControls(parsed.data.inboxLimit),
+      attempts: await recoverTelegramEvidenceDecisionAttempts({
+        workerId: "telegram-decision-jobs", limit: parsed.data.inboxLimit,
+      }),
+    }),
   });
-  if (jobs.inboxFailed || jobs.outboxFailed || jobs.inbox === null || jobs.outbox === null) {
+  if (jobs.inboxFailed || jobs.outboxFailed || jobs.decisionMaintenanceFailed
+      || jobs.inbox === null || jobs.outbox === null || jobs.decisionMaintenance === null) {
     return Response.json({ code: "worker_processing_failed" }, { status: 500 });
   }
-  return Response.json({ inbox: jobs.inbox, outbox: jobs.outbox });
+  return Response.json({ inbox: jobs.inbox, outbox: jobs.outbox, decisionMaintenance: jobs.decisionMaintenance });
 }

@@ -1,11 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { HttpProblem } from "../http";
 import { recordEvidenceDecision } from "./record-evidence-decision";
 
 describe("recordEvidenceDecision", () => {
-  it("is the shared command boundary used by non-HTTP callers", () => {
-    // The integration characterization lives in m3-refusal and is deliberately
-    // credential-gated.  This protects the extraction boundary itself: Telegram
-    // must depend on the exact service, never import the member route.
-    expect(recordEvidenceDecision).toBeTypeOf("function");
+  it("returns the exact shared not-found contract before opening a tenant transaction", async () => {
+    const requestId = "10000000-0000-4000-8000-000000000001";
+    const thrown = await recordEvidenceDecision({
+      actorUserId: "10000000-0000-4000-8000-000000000002", requestId, occurrenceId: "",
+      body: { outcome: "accepted", issues: [], expectedVersion: null },
+      idempotencyKey: "shared-command-boundary", requestHash: "a".repeat(64),
+    }).catch((error: unknown) => error);
+    expect(thrown).toBeInstanceOf(HttpProblem);
+    expect(thrown).toMatchObject({ status: 404, body: {
+      code: "RESOURCE_NOT_FOUND", detail: "Вимогу не знайдено.", requestId,
+      retryable: false, userAction: "return_to_list",
+    } });
   });
 });

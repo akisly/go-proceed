@@ -15,6 +15,8 @@ telegram_requirement_choice_sessions,targets,telegram_media_groups,N:1,no,worksp
 communication_messages,receipts_for,communication_attachments,N:1,no,workspace_id+project_id+telegram_evidence_source_attachment_id -> communication_attachments(workspace_id+project_id+id),restrict,INV-097
 communication_messages,receipts_for,telegram_media_groups,N:1,no,workspace_id+project_id+telegram_evidence_source_media_group_id -> telegram_media_groups(workspace_id+project_id+id),restrict,INV-097
 communication_delivery_attempts,attempts,communication_messages,N:1,yes,workspace_id+project_id+message_id -> communication_messages(workspace_id+project_id+id),restrict,INV-093
+telegram_evidence_decision_attempts,executes,telegram_evidence_decision_tokens,1:1,yes,workspace_id+token_id -> telegram_evidence_decision_tokens(workspace_id+id),restrict,INV-098
+telegram_evidence_decision_attempts,finalizes_as,requirement_evidence_decisions,N:1,no,workspace_id+decision_id -> requirement_evidence_decisions(workspace_id+id),restrict,INV-098
 memberships,subject_of,auth.users,N:1,yes,user_id -> auth.users(id) provider-global subject only,restrict,INV-001
 invitations,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001
 parties,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-001

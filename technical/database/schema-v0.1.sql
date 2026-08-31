@@ -3142,6 +3142,37 @@ create unique index telegram_evidence_decision_review_action_uniq on public.tele
    review_source_kind,review_source_id,review_source_generation,action);
 -- This lifetime key deliberately prevents replay/expiry from reissuing the same
 -- source cycle. New evidence or a new album generation creates a new cycle.
+create table public.telegram_evidence_decision_attempts (
+  id uuid primary key, token_id uuid not null, workspace_id uuid not null,
+  project_id uuid not null, telegram_chat_binding_id uuid not null,
+  requirement_occurrence_id uuid not null, actor_user_id uuid not null,
+  actor_member_id uuid not null, action text not null, reason text,
+  return_reply_message_id uuid, attempt_started_at timestamptz not null,
+  expected_version bigint, idempotency_key text not null, request_hash text not null,
+  status text not null, decision_id uuid, failure_code text,
+  available_at timestamptz not null, attempt_count integer not null,
+  lease_id uuid, lease_expires_at timestamptz, leased_by text,
+  created_at timestamptz not null, updated_at timestamptz not null,
+  unique (workspace_id,id), unique (token_id), unique (idempotency_key),
+  foreign key (workspace_id,token_id) references public.telegram_evidence_decision_tokens(workspace_id,id),
+  foreign key (workspace_id,project_id) references public.project_field_channels(workspace_id,project_id),
+  foreign key (workspace_id,project_id,telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id,project_id,id),
+  foreign key (workspace_id,project_id,requirement_occurrence_id) references public.requirement_occurrences(workspace_id,project_id,id),
+  foreign key (workspace_id,actor_member_id) references public.memberships(workspace_id,id),
+  foreign key (return_reply_message_id) references public.communication_messages(id),
+  foreign key (workspace_id,decision_id) references public.requirement_evidence_decisions(workspace_id,id),
+  check (action in ('accepted','returned')), check (request_hash ~ '^[0-9a-f]{64}$'),
+  check (status in ('pending','completed','failed_permanent')), check (attempt_count>=0),
+  check ((action='accepted' and reason is null and return_reply_message_id is null)
+      or (action='returned' and nullif(btrim(reason),'') is not null and return_reply_message_id is not null)),
+  check ((status='completed' and decision_id is not null and failure_code is null)
+      or (status='failed_permanent' and decision_id is null and failure_code is not null)
+      or (status='pending' and decision_id is null and failure_code is null)),
+  check ((lease_id is null and lease_expires_at is null and leased_by is null)
+      or (lease_id is not null and lease_expires_at is not null and leased_by is not null))
+);
+create index telegram_evidence_decision_attempts_due_idx
+  on public.telegram_evidence_decision_attempts(available_at,id) where status='pending';
 create table public.communication_delivery_attempts (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, attempt_no integer not null, state text not null,
@@ -3264,6 +3295,31 @@ begin
 end $$;
 create trigger telegram_evidence_decision_tokens_guard before update on public.telegram_evidence_decision_tokens
   for each row execute function app.guard_telegram_evidence_decision_token();
+create or replace function app.guard_telegram_evidence_decision_attempt() returns trigger
+language plpgsql set search_path='' as $$
+begin
+  if old.token_id is distinct from new.token_id
+     or old.workspace_id is distinct from new.workspace_id
+     or old.project_id is distinct from new.project_id
+     or old.telegram_chat_binding_id is distinct from new.telegram_chat_binding_id
+     or old.requirement_occurrence_id is distinct from new.requirement_occurrence_id
+     or old.actor_user_id is distinct from new.actor_user_id
+     or old.actor_member_id is distinct from new.actor_member_id
+     or old.action is distinct from new.action or old.reason is distinct from new.reason
+     or old.return_reply_message_id is distinct from new.return_reply_message_id
+     or old.attempt_started_at is distinct from new.attempt_started_at
+     or old.expected_version is distinct from new.expected_version
+     or old.idempotency_key is distinct from new.idempotency_key
+     or old.request_hash is distinct from new.request_hash
+     or old.created_at is distinct from new.created_at then
+    raise exception 'telegram decision attempt identity immutable';
+  end if;
+  if old.status<>'pending' then raise exception 'telegram decision attempt terminal'; end if;
+  return new;
+end $$;
+create trigger telegram_evidence_decision_attempts_guard
+  before update on public.telegram_evidence_decision_attempts
+  for each row execute function app.guard_telegram_evidence_decision_attempt();
 -- Canonical service-only Telegram decision command surface. Migration 0075
 -- contains the executable SECURITY DEFINER bodies; each is revoked from
 -- public/anon/authenticated/goproceed_app and granted only to
@@ -3277,6 +3333,13 @@ create trigger telegram_evidence_decision_tokens_guard before update on public.t
 --   app.resolve_telegram_evidence_return_reply(uuid,uuid,bigint,uuid,bigint)
 --   app.finalize_telegram_evidence_decision_token(uuid,uuid,uuid,uuid)
 --   app.retry_telegram_decision_inbox(bigint,bigint,uuid,text)
+-- Migration 0077 adds durable control and decision-attempt recovery:
+--   app.list_due_telegram_evidence_decision_controls(integer)
+--   app.start_telegram_evidence_decision_attempt(uuid,uuid,uuid,bigint,text)
+--   app.claim_telegram_evidence_decision_attempts(integer,text,integer)
+--   app.finalize_telegram_evidence_decision_attempt(uuid,uuid,uuid)
+--   app.fail_telegram_evidence_decision_attempt(uuid,uuid,text)
+--   app.retry_telegram_evidence_decision_attempt(uuid,uuid,text)
 create trigger communication_message_events_append_only before update or delete on public.communication_message_events
   for each row execute function app.reject_mutation();
 create trigger telegram_requirement_choices_append_only before update or delete on public.telegram_requirement_choices
@@ -3287,7 +3350,7 @@ revoke all on table public.telegram_chat_bindings, public.telegram_binding_inten
   public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
   public.telegram_media_groups, public.communication_messages, public.communication_message_events,
   public.communication_attachments, public.telegram_requirement_choices, public.telegram_requirement_choice_sessions,
-  public.telegram_evidence_decision_tokens,
+  public.telegram_evidence_decision_tokens, public.telegram_evidence_decision_attempts,
   public.communication_delivery_attempts from public, anon, authenticated, goproceed_app;
 grant select on public.telegram_chat_bindings, public.telegram_media_groups,
   public.communication_messages, public.communication_message_events to goproceed_app;
@@ -3404,6 +3467,7 @@ alter table public.communication_attachments enable row level security;
 alter table public.telegram_requirement_choices enable row level security;
 alter table public.telegram_requirement_choice_sessions enable row level security;
 alter table public.telegram_evidence_decision_tokens enable row level security;
+alter table public.telegram_evidence_decision_attempts enable row level security;
 alter table public.communication_delivery_attempts enable row level security;
 
 -- =============================================================================

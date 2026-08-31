@@ -328,6 +328,8 @@ databaseDescribe("Telegram inbox processing", () => {
       old_claim_absent: boolean; old_issue_absent: boolean; old_finalize_absent: boolean;
       old_reserve_absent: boolean; retry_service: boolean; guard_allows_revocation_receipt: boolean;
       resolver_is_validate_only: boolean; finalize_binds_reply: boolean;
+      attempt_table_read: boolean; attempt_guard: boolean; control_recovery_service: boolean;
+      attempt_start_service: boolean; attempt_start_app: boolean; attempt_claim_service: boolean;
     }>(`select
       has_table_privilege('goproceed_service','public.telegram_evidence_decision_tokens','select') as service_table_read,
       has_function_privilege('goproceed_app',
@@ -352,17 +354,33 @@ databaseDescribe("Telegram inbox processing", () => {
       pg_get_functiondef('app.resolve_telegram_evidence_return_reply(uuid,uuid,bigint,uuid,bigint)'::regprocedure)
         !~* 'update[[:space:]]+public[.]telegram_evidence_decision_tokens' as resolver_is_validate_only,
       pg_get_functiondef('app.finalize_telegram_evidence_decision_token(uuid,uuid,uuid,uuid)'::regprocedure)
-        ~* 'set[[:space:]]+return_reply_message_id[[:space:]]*=[[:space:]]*p_reply' as finalize_binds_reply`);
+        ~* 'set[[:space:]]+return_reply_message_id[[:space:]]*=[[:space:]]*p_reply' as finalize_binds_reply,
+      has_table_privilege('goproceed_service','public.telegram_evidence_decision_attempts','select') as attempt_table_read,
+      exists(select 1 from pg_trigger where tgrelid='public.telegram_evidence_decision_attempts'::regclass
+        and not tgisinternal and tgname='telegram_evidence_decision_attempts_guard') as attempt_guard,
+      has_function_privilege('goproceed_service',
+        'app.list_due_telegram_evidence_decision_controls(integer)','execute') as control_recovery_service,
+      has_function_privilege('goproceed_service',
+        'app.start_telegram_evidence_decision_attempt(uuid,uuid,uuid,bigint,text)','execute') as attempt_start_service,
+      has_function_privilege('goproceed_app',
+        'app.start_telegram_evidence_decision_attempt(uuid,uuid,uuid,bigint,text)','execute') as attempt_start_app,
+      has_function_privilege('goproceed_service',
+        'app.claim_telegram_evidence_decision_attempts(integer,text,integer)','execute') as attempt_claim_service`);
     expect(privileges).toEqual({
       service_table_read: false, app_claim: false, service_claim: true,
       guard_count: "2", return_reply_column: true, review_context_columns: "3",
       old_claim_absent: true, old_issue_absent: true, old_finalize_absent: true,
       old_reserve_absent: true, retry_service: true, guard_allows_revocation_receipt: true,
       resolver_is_validate_only: true, finalize_binds_reply: true,
+      attempt_table_read: false, attempt_guard: true, control_recovery_service: true,
+      attempt_start_service: true, attempt_start_app: false, attempt_claim_service: true,
     });
 
     await expect(withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
       await tx.query("select id from public.telegram_evidence_decision_tokens limit 1");
+    })).rejects.toThrow(/permission denied/i);
+    await expect(withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+      await tx.query("select id from public.telegram_evidence_decision_attempts limit 1");
     })).rejects.toThrow(/permission denied/i);
 
     await expect(withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
@@ -406,6 +424,109 @@ databaseDescribe("Telegram inbox processing", () => {
       expect(row?.state).toBe(attempt < 3 ? "pending" : "failed");
       expect(row?.payload === null).toBe(attempt === 3);
     }
+  });
+
+  it("serializes opposite sibling callbacks without deadlock and lets exactly one action win", async () => {
+    const occurrenceId = crypto.randomUUID();
+    const assignmentId = crypto.randomUUID();
+    const controlMessageId = crypto.randomUUID();
+    const acceptedTokenId = crypto.randomUUID();
+    const returnedTokenId = crypto.randomUUID();
+    const adminClient = new Client({ connectionString: admin });
+    await adminClient.connect();
+    try {
+      await adminClient.query("set session_replication_role=replica");
+      await adminClient.query("update public.projects set status='active' where workspace_id=$1 and id=$2", [workspaceId, projectId]);
+      await adminClient.query(`update public.project_field_channels
+        set state='active',locked_at=now(),locked_by_member_id=$3
+        where workspace_id=$1 and project_id=$2`, [workspaceId, projectId, memberId]);
+      await adminClient.query(`insert into public.project_access_grants
+        (workspace_id,project_id,member_id,capability,granted_by)
+        values($1,$2,$3,'project.view',$4),($1,$2,$3,'evidence_decisions.decide',$4)
+        on conflict do nothing`, [workspaceId, projectId, memberId, actorUserId]);
+      await adminClient.query(`insert into public.telegram_member_links
+        (id,workspace_id,member_id,telegram_user_id,verified_at,linked_by_member_id)
+        values(gen_random_uuid(),$1,$2,77,now(),$2)`, [workspaceId, memberId]);
+      await adminClient.query(`insert into public.requirement_occurrences
+        (id,workspace_id,project_id,contract_id,work_assignment_id,rule_version_id,
+         intervention_type,blocking_scope,timing,evidence_kind,acceptance_criterion,
+         performer_role,approver_role,min_evidence_count,quantity_scope,created_by_member_id)
+        values($1,$2,$3,gen_random_uuid(),$4,gen_random_uuid(),'review','none','after',
+          'photo','synthetic callback race','performer','technical_supervision',1,'{}'::jsonb,$5)`,
+      [occurrenceId, workspaceId, projectId, assignmentId, memberId]);
+      await adminClient.query(`insert into public.communication_messages
+        (id,workspace_id,project_id,telegram_chat_binding_id,direction,kind,text,
+         provider_message_id,server_received_at,work_assignment_id,telegram_reply_markup,
+         delivery_state,created_at)
+        values($1,$2,$3,$4,'outbound','text','decision controls',9912,now(),$5,
+          '{"inline_keyboard":[]}'::jsonb,'provider_accepted',now())`,
+      [controlMessageId, workspaceId, projectId, bindingId, assignmentId]);
+      await adminClient.query(`insert into public.telegram_evidence_decision_tokens
+        (id,workspace_id,project_id,telegram_chat_binding_id,requirement_occurrence_id,
+         action,token_hash,expires_at,decision_message_id,review_source_kind,
+         review_source_id,review_source_generation)
+        values($1,$3,$4,$5,$6,'accepted',$7,now()+interval '1 hour',$9,'attachment',$10,0),
+              ($2,$3,$4,$5,$6,'returned',$8,now()+interval '1 hour',$9,'attachment',$10,0)`,
+      [acceptedTokenId, returnedTokenId, workspaceId, projectId, bindingId, occurrenceId,
+        "a".repeat(64), "b".repeat(64), controlMessageId, crypto.randomUUID()]);
+    } finally {
+      await adminClient.query("set session_replication_role=origin").catch(() => undefined);
+      await adminClient.end();
+    }
+
+    const call = async (hash: string) => {
+      const client = new Client({ connectionString: process.env.SERVICE_DB_URL!.trim() });
+      await client.connect();
+      try {
+        await client.query("set statement_timeout='5s'");
+        return (await client.query(`select id,action from app.claim_telegram_evidence_decision_token(
+          $1::text,$2::bigint,$3::bigint,$4::bigint,$5::bigint)`,
+        [hash, botId, -100777, 77, 9912])).rows;
+      } finally {
+        await client.end();
+      }
+    };
+    const [accepted, returned] = await Promise.all([call("a".repeat(64)), call("b".repeat(64))]);
+    expect(accepted.length + returned.length).toBe(1);
+    const [states] = await q<{ claimed: string; invalidated: string }>(`select
+      count(*) filter(where actor_member_id=$2)::text as claimed,
+      count(*) filter(where invalidated_at is not null)::text as invalidated
+      from public.telegram_evidence_decision_tokens where workspace_id=$1 and decision_message_id=$3`,
+    [workspaceId, memberId, controlMessageId]);
+    expect(states).toEqual({ claimed: "2", invalidated: "1" });
+
+    const durableTokenId = crypto.randomUUID();
+    const expiredTokenId = crypto.randomUUID();
+    await q(`insert into public.telegram_evidence_decision_tokens
+      (id,workspace_id,project_id,telegram_chat_binding_id,requirement_occurrence_id,
+       actor_user_id,actor_member_id,action,token_hash,expires_at,decision_message_id,
+       review_source_kind,review_source_id,review_source_generation)
+      values($1,$3,$4,$5,$6,$7,$8,'accepted',$9,clock_timestamp()+interval '300 milliseconds',$11,
+        'attachment',$12,0),
+            ($2,$3,$4,$5,$6,$7,$8,'accepted',$10,clock_timestamp()+interval '300 milliseconds',$11,
+        'attachment',$13,0)`,
+    [durableTokenId, expiredTokenId, workspaceId, projectId, bindingId, occurrenceId,
+      actorUserId, memberId, "c".repeat(64), "d".repeat(64), controlMessageId,
+      crypto.randomUUID(), crypto.randomUUID()]);
+    const startSql = `select * from app.start_telegram_evidence_decision_attempt(
+      $1::uuid,$2::uuid,null,null,$3::text)`;
+    const [started] = await withServiceTx({ actorUserId: "", organizationId: workspaceId,
+      requestId: crypto.randomUUID() }, async (tx) => (await tx.query(startSql,
+      [durableTokenId, memberId, "e".repeat(64)])).rows);
+    expect(started).toMatchObject({ token_id: durableTokenId, status: "pending" });
+    await q("select pg_sleep(0.4)");
+    const replayed = await withServiceTx({ actorUserId: "", organizationId: workspaceId,
+      requestId: crypto.randomUUID() }, async (tx) => (await tx.query(startSql,
+      [durableTokenId, memberId, "e".repeat(64)])).rows);
+    const refused = await withServiceTx({ actorUserId: "", organizationId: workspaceId,
+      requestId: crypto.randomUUID() }, async (tx) => (await tx.query(startSql,
+      [expiredTokenId, memberId, "f".repeat(64)])).rows);
+    expect(replayed).toHaveLength(1);
+    expect(refused).toEqual([]);
+    const recovered = await withServiceTx({ actorUserId: "", organizationId: workspaceId,
+      requestId: crypto.randomUUID() }, async (tx) => (await tx.query(
+      "select token_id from app.claim_telegram_evidence_decision_attempts(10,'expiry-recovery',60)" )).rows);
+    expect(recovered).toEqual([{ token_id: durableTokenId }]);
   });
 
   it("keeps a callback payload retryable when Telegram runtime construction fails", async () => {
