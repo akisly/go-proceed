@@ -40,7 +40,7 @@ create table public.telegram_evidence_decision_attempts (
   foreign key (workspace_id,project_id,requirement_occurrence_id)
     references public.requirement_occurrences(workspace_id,project_id,id),
   foreign key (workspace_id,actor_member_id)
-    references public.memberships(workspace_id,id),
+    references public.memberships(organization_id,id),
   foreign key (return_reply_message_id) references public.communication_messages(id),
   foreign key (workspace_id,decision_id)
     references public.requirement_evidence_decisions(workspace_id,id),
@@ -93,6 +93,85 @@ for each row execute function app.guard_telegram_evidence_decision_attempt();
 
 alter table public.telegram_evidence_decision_attempts enable row level security;
 revoke all on table public.telegram_evidence_decision_attempts from public,anon,authenticated,goproceed_app,goproceed_service;
+
+-- 0076 could commit the shared command and then lose its separate token
+-- finalizer. Reconcile that exact legacy idempotency identity before removing
+-- the bypass finalizer or allowing a new durable-attempt key.
+create function app.reconcile_telegram_evidence_legacy_decision(p_token uuid)
+returns text language plpgsql security definer set search_path='' as $$
+declare chosen public.telegram_evidence_decision_tokens%rowtype;
+declare legacy public.requirement_evidence_decisions%rowtype;
+declare exact_reply uuid;
+declare reply_count bigint;
+begin
+  select * into chosen from public.telegram_evidence_decision_tokens where id=p_token for update;
+  if not found or chosen.consumed_at is not null or chosen.invalidated_at is not null
+     or chosen.actor_member_id is null then return 'not_applicable'; end if;
+  select d.* into legacy
+  from public.requirement_evidence_decisions d
+  where d.workspace_id=chosen.workspace_id
+    and d.requirement_occurrence_id=chosen.requirement_occurrence_id
+    and d.decided_by_member_id=chosen.actor_member_id
+    and d.outcome::text=chosen.action::text
+    and d.idempotency_key='telegram-decision:'||chosen.id::text;
+  if not found then return 'none'; end if;
+
+  if chosen.action='returned' then
+    select count(*),min(reply.id::text)::uuid into reply_count,exact_reply
+    from public.communication_messages reply
+    join public.communication_messages prompt on prompt.id=chosen.return_prompt_message_id
+      and prompt.workspace_id=chosen.workspace_id and prompt.project_id=chosen.project_id
+      and prompt.telegram_chat_binding_id=chosen.telegram_chat_binding_id
+      and prompt.direction='outbound' and prompt.kind='text'
+      and prompt.delivery_state='provider_accepted' and prompt.provider_message_id is not null
+    where reply.workspace_id=chosen.workspace_id and reply.project_id=chosen.project_id
+      and reply.telegram_chat_binding_id=chosen.telegram_chat_binding_id
+      and reply.direction='inbound' and reply.kind='text' and reply.delivery_state='received'
+      and reply.reply_to_message_id=prompt.id
+      and reply.provider_reply_to_message_id=prompt.provider_message_id
+      and reply.author_member_id=chosen.actor_member_id
+      and nullif(btrim(reply.text),'') is not distinct from nullif(btrim(legacy.reason),'');
+    if reply_count<>1 then
+      update public.telegram_evidence_decision_tokens token
+        set invalidated_at=coalesce(token.invalidated_at,clock_timestamp())
+        where token.decision_message_id=chosen.decision_message_id and token.consumed_at is null;
+      return 'invalidated_unproven_reply';
+    end if;
+  end if;
+
+  update public.telegram_evidence_decision_tokens token
+    set return_reply_message_id=exact_reply,consumed_at=clock_timestamp(),decision_id=legacy.id
+    where token.id=chosen.id;
+  update public.telegram_evidence_decision_tokens token
+    set invalidated_at=coalesce(token.invalidated_at,clock_timestamp())
+    where token.decision_message_id=chosen.decision_message_id
+      and token.id<>chosen.id and token.consumed_at is null;
+  return 'finalized';
+end $$;
+
+revoke all on function app.reconcile_telegram_evidence_legacy_decision(uuid)
+  from public,anon,authenticated,goproceed_app,goproceed_service;
+
+do $$
+declare candidate record;
+begin
+  for candidate in
+    select t.id from public.telegram_evidence_decision_tokens t
+    join public.requirement_evidence_decisions d
+      on d.workspace_id=t.workspace_id
+     and d.requirement_occurrence_id=t.requirement_occurrence_id
+     and d.decided_by_member_id=t.actor_member_id
+     and d.outcome::text=t.action::text
+     and d.idempotency_key='telegram-decision:'||t.id::text
+    where t.consumed_at is null and t.invalidated_at is null
+  loop
+    perform app.reconcile_telegram_evidence_legacy_decision(candidate.id);
+  end loop;
+end $$;
+
+revoke all on function app.finalize_telegram_evidence_decision_token(uuid,uuid,uuid,uuid)
+  from public,anon,authenticated,goproceed_app,goproceed_service;
+drop function app.finalize_telegram_evidence_decision_token(uuid,uuid,uuid,uuid);
 
 create or replace function app.prepare_telegram_evidence_decision_issue(
   p_workspace uuid,p_project uuid,p_binding uuid,p_occurrence uuid,
@@ -307,6 +386,7 @@ begin
     raise exception 'telegram decision attempt requires service principal';
   end if;
   if p_request_hash !~ '^[0-9a-f]{64}$' then return; end if;
+  perform app.reconcile_telegram_evidence_legacy_decision(p_token);
   select * into chosen from public.telegram_evidence_decision_tokens where public.telegram_evidence_decision_tokens.id=p_token for update;
   if not found or chosen.actor_member_id is distinct from p_actor or chosen.consumed_at is not null
      or chosen.invalidated_at is not null then return; end if;
@@ -406,7 +486,7 @@ begin
   if attempt.status<>'pending' or not ((attempt.lease_id is null and p_lease is null)
       or (attempt.lease_id=p_lease and attempt.lease_expires_at>clock_timestamp())) then return false; end if;
   select * into chosen from public.telegram_evidence_decision_tokens where id=attempt.token_id for update;
-  if not found or chosen.actor_member_id<>attempt.actor_member_id or chosen.action<>attempt.action
+  if not found or chosen.actor_member_id<>attempt.actor_member_id or chosen.action::text<>attempt.action
      or chosen.invalidated_at is not null or attempt.attempt_started_at>chosen.expires_at then return false; end if;
   if chosen.consumed_at is not null then
     if chosen.decision_id<>p_decision then return false; end if;

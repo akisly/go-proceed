@@ -3158,7 +3158,7 @@ create table public.telegram_evidence_decision_attempts (
   foreign key (workspace_id,project_id) references public.project_field_channels(workspace_id,project_id),
   foreign key (workspace_id,project_id,telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id,project_id,id),
   foreign key (workspace_id,project_id,requirement_occurrence_id) references public.requirement_occurrences(workspace_id,project_id,id),
-  foreign key (workspace_id,actor_member_id) references public.memberships(workspace_id,id),
+  foreign key (workspace_id,actor_member_id) references public.memberships(organization_id,id),
   foreign key (return_reply_message_id) references public.communication_messages(id),
   foreign key (workspace_id,decision_id) references public.requirement_evidence_decisions(workspace_id,id),
   check (action in ('accepted','returned')), check (request_hash ~ '^[0-9a-f]{64}$'),
@@ -3331,9 +3331,9 @@ create trigger telegram_evidence_decision_attempts_guard
 --   app.prepare_telegram_decision_return_prompt(uuid,uuid)
 --   app.bind_telegram_decision_return_prompt(uuid,uuid,uuid)
 --   app.resolve_telegram_evidence_return_reply(uuid,uuid,bigint,uuid,bigint)
---   app.finalize_telegram_evidence_decision_token(uuid,uuid,uuid,uuid)
 --   app.retry_telegram_decision_inbox(bigint,bigint,uuid,text)
 -- Migration 0077 adds durable control and decision-attempt recovery:
+--   app.reconcile_telegram_evidence_legacy_decision(uuid) (internal; no application role may execute)
 --   app.list_due_telegram_evidence_decision_controls(integer)
 --   app.start_telegram_evidence_decision_attempt(uuid,uuid,uuid,bigint,text)
 --   app.claim_telegram_evidence_decision_attempts(integer,text,integer)
