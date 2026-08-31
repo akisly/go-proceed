@@ -3219,7 +3219,7 @@ overflow at 390/360 — back at risk. Left as it is, deliberately.
 
 ---
 
-## P2 — the 2026-08-27 landing merge imports `motion/react` directly, and the motion gate has been red since (found 2026-08-28)
+## P2 (CLOSED 2026-08-31) — the 2026-08-27 landing merge imports `motion/react` directly, and the motion gate has been red since (found 2026-08-28)
 
 **What:** `apps/landing/components/visuals/evidence-rail.tsx:4` and `apps/landing/components/visuals/readiness-workflow.tsx:11` (458 lines between them, landed with the `codex/landing-evidence-journey` merge, last touched by `bbfc705`) import `AnimatePresence`/`motion` from `motion/react` directly and build bespoke `motion.span` choreography. `packages/ui/src/motion/index.ts`'s own header is categorical: twelve primitives, «a feature file may use nothing else — a bespoke `motion.div` in a block component is a review failure», and repo `CLAUDE.md` rule 3 says the same in three lines. There is no passthrough export to swap to; this is a rewrite, not an import edit.
 
@@ -3240,6 +3240,41 @@ suite is 625/626 with that single failure, and all three imports are present
 unchanged at `aa8f412`, so no slice since has introduced or removed one.
 
 **Same day, same surface, same slice:** `@goproceed/landing`'s OWN test task is also red on `main` — two named cases, measured 2026-08-28: `tests/landing-craft.test.tsx` «keeps a wide-screen gap between the handoff line and review card» (expected 1 matching element, got 0 — plausibly the `bbfc705` border adjustment) and `tests/landing-render.test.tsx` «renders an honest accessible pilot form» (the `#pilot` section lost its `aria-live="polite"`). Both belong to the landing slice this entry describes; whoever takes it fixes the three causes together and leaves `pnpm turbo run test --concurrency=1` genuinely green.
+
+**CLOSED 2026-08-31.** The three offending files — the two `visuals/` imports
+this entry named plus the `blocks/evidence-journey-client.tsx` the 2026-08-29
+correction above added — were rewritten onto the vocabulary across this
+plan's slice, and the vocabulary itself grew by three primitives (`SlideSwap`,
+`TrackFill`, `InViewProgress`) to hold the choreography those files needed:
+a direction-aware swap, a state-driven progress fill, and a progress number
+for a drawing the vocabulary should not own. That is the §7.3 path this entry
+named as the alternative to a rewrite — a primitive genuinely missing, not a
+rewrite avoiding one — and the decision is recorded in the plan's §8.3 and the
+substitution table in `docs/design/02-building-ui.md` §4.1, in the same change.
+
+Measured 2026-08-31, by me, before writing this closure:
+
+- `node packages/testing/qa/motion-audit.mjs` → `motion-audit: clean`. This is
+  the exact script the one remaining vitest failure below wraps.
+- `pnpm --filter @goproceed/landing test` → **44/44**, 8 files — including
+  `tests/landing-craft.test.tsx` (6/6) and `tests/landing-render.test.tsx`
+  (20/20), the two cases the paragraph above names as red. Both are green now.
+- `grep -n "motion/react"` on all three named files (`evidence-rail.tsx`,
+  `readiness-workflow.tsx`, `evidence-journey-client.tsx`) returns nothing —
+  the imports are gone.
+- `@goproceed/testing` — **NOT re-run by me.** This clone shares a local
+  Postgres another effort is using, and I was told not to run that suite.
+  The last actual measurement is Task 4's, from earlier the same day
+  (commit `db73540`, 2026-08-31): 630 passed / 631, the ONE failure being
+  `motion-audit.test.ts > motion audit — the product > finds nothing`,
+  reporting exactly these three files. That script now runs clean, per the
+  first bullet above — so the failure this entry is about is fixed. I am
+  stating it that way, as a fixed audit re-run directly, rather than
+  claiming a re-measured 631/631 I did not produce myself.
+
+The 2026-08-29 correction above — **three offenders, not two** — is now moot:
+all three are fixed, and this closure is written against all three, not the
+original two.
 
 ## Residuals left by the project-sourced-requirements slice (2026-08-27)
 

@@ -504,7 +504,7 @@ Every animated thing in either app comes from this list. A bespoke
 `motion.div` in a feature file is not a review failure — it is a **build**
 failure: rule 5 of the motion audit fails any file outside
 `packages/ui/src/motion` that imports `motion/react`. That is deliberate. Every
-rule in §8.2 holds because it lives inside these twelve files; a hand-written
+rule in §8.2 holds because it lives inside these fifteen files; a hand-written
 `motion.div` in a block is a rule that has to be remembered instead of one that
 holds.
 
@@ -521,6 +521,10 @@ holds.
 | `<PinnedTabs>` | sticky container; active index from scroll progress; underline `layoutId` transition `duration.base`/`ease.out` | B07 |
 | `<Lift>` | hover `y -3`, `elevation.raised`, `duration.fast`, `ease.out` | folio cards, pricing |
 | `<Press>` | `scale .98` on `:active`, `spring.press`, instant | every control |
+| `<CrossFade>` | outgoing `opacity→0` + `x -12`, incoming `opacity→1` + `x 12→0`, `duration.base`, `ease.soft` | B09 role tabs |
+| `<TrackFill>` | `scaleX 0→1` from `origin-left`, driven by state (`filled: boolean`), never scroll position; `duration.base`, `ease.enter`. Reduced: final state, no transition. | B06 evidence rail |
+| `<SlideSwap>` | outgoing/incoming `opacity` + `x ±24px` keyed by `direction: 1 \| -1`; `duration.base`, `ease.enter`. Reduced: direction dropped, becomes a cross-fade. | B06 evidence-journey step |
+| `<InViewProgress>` | renders no visual of its own; publishes `--gp-progress` 0→1 on its subtree via `useInView` + `animate`, `duration.deliberate`, `ease.out`, once. Reduced: publishes 1 immediately, never animates. | B06 readiness diagram |
 
 Two implementation notes worth keeping, because both were found by the compiler
 rather than by review:
@@ -533,7 +537,31 @@ rather than by review:
 - **`useReduced()` treats Motion's `null` as reduced.** `useReducedMotion()`
   returns `null` until the media query has been read; treating that as "no
   preference" shows one frame of exactly the motion the user opted out of.
-| `<CrossFade>` | outgoing `opacity→0` + `x -12`, incoming `opacity→1` + `x 12→0`, `duration.base`, `ease.soft` | B09 role tabs |
+
+> **Update, 2026-08-30.** Twelve became fifteen. The landing evidence journey
+> needed three choreographies this vocabulary had no word for:
+>
+> - **`<SlideSwap>`** — a swap that has a direction, because the reader caused
+>   it. Deliberately a separate word from `<CrossFade>`, whose header argues a
+>   cross-fade has no direction — so giving it an arrival curve would say
+>   something untrue. Reduced motion drops the direction entirely and becomes
+>   a cross-fade.
+> - **`<TrackFill>`** — a progress line driven by application state rather
+>   than scroll position. The sibling of `<LineDraw>` and deliberately not a
+>   variant of it: one word with two triggers would make every call site
+>   ambiguous about what advances it. Reduced motion applies the final state
+>   with no transition.
+> - **`<InViewProgress>`** — the only word in the vocabulary that renders no
+>   visual of its own; it publishes a 0→1 value into the CSS custom property
+>   `--gp-progress` for its subtree. It exists because `readiness-workflow.tsx`
+>   is a diagram of one product concept — moving that drawing into this
+>   package would put a domain picture into a general vocabulary, while
+>   leaving it alone kept `motion/react` in `apps/landing`, which rule 5
+>   forbids. So the vocabulary supplies the number and the landing keeps the
+>   picture. Reduced motion publishes 1 immediately and never animates.
+>
+> Each is a decision under §7.3, not merely an addition — this note is that
+> decision, recorded in the same change that made it.
 
 ### 8.4 App motion — deliberately smaller
 
@@ -628,7 +656,7 @@ Switch, Textarea, DatePicker, Dialog, Drawer, Popover, DropdownMenu, Tabs,
 Accordion, Toast, Skeleton, Pagination, Breadcrumb, Avatar, ProgressBar,
 Timeline, Stepper, FileDrop, EvidenceThumb, CommandPalette (⌘K).
 
-*Marketing-only (`apps/landing`):* the fourteen blocks in §9 plus the twelve
+*Marketing-only (`apps/landing`):* the fourteen blocks in §9 plus the fifteen
 motion primitives in §8.3.
 
 ---
@@ -647,7 +675,7 @@ rule added here gets a test, or it is not a rule.
 | `primitive-leak.test.ts` | No `var(--gp-<ramp>-<step>)` under `apps/**` or in `packages/ui/src/base.css`. The exclusion list must name files that still exist, so an exclusion cannot outlive its file. | vitest (node) — **built, 2 tests** |
 | **`motion-audit.mjs`** *(new)* | No `transition: all`; no transition on a property outside `transform`/`opacity`/`filter`/`color`/`background-color`/`border-color`/`box-shadow`; every animated component has a `prefers-reduced-motion` branch; no `animation-iteration-count: infinite` outside the marquee allowlist. | CI |
 | `qa/verify.mjs` (puppeteer) | Rendered layout, contrast, touch targets, focus cycle, **at 1920 / 1440 / 1240 / 768 / 390 / 360**. The 768–1240 icon rail keeps its dedicated pass. | CI |
-| `motion-audit.mjs` | Five rules: no `transition: all`; no transition on a layout property; no ease-in; no perpetual animation outside the marquee; `motion/react` imported only by the twelve primitives. Comments are stripped before scanning, so the audit does not flag its own documentation. | CI + vitest — **built, 13 tests, including a fixture tree that proves each rule still fires** |
+| `motion-audit.mjs` | Five rules: no `transition: all`; no transition on a layout property; no ease-in; no perpetual animation outside the marquee; `motion/react` imported only by the fifteen primitives. Comments are stripped before scanning, so the audit does not flag its own documentation. | CI + vitest — **built, 13 tests, including a fixture tree that proves each rule still fires** |
 | `tw-merge.test.ts` | The class merge is taught this theme: a size and a colour sharing the `text-` prefix both survive; two values from one namespace collapse; arbitrary values still work; the config names every size and radius in the source. | vitest (node) — **built, 7 tests** |
 | `component-contract.test.ts` | No component hard-codes a control height, carries a colour in an inline style, names a raw hex, defines its own focus ring, or has a destructive variant; the five status tones agree across Chip, Banner and Meter; the meter divides by count not percentage; the money figure's qualifier is required; portalled content carries its own font. | vitest (node) — **built, 14 tests** |
 | `motion-contract.test.ts` | The JS spelling of every duration, curve and spring matches tokens.json; no easing in the system starts slow (`y1 < x1`) except the one symmetric cross-fade curve; the reduced-motion ceiling is the same number in CSS and in JS. | vitest (node) — **built, 6 tests** |
