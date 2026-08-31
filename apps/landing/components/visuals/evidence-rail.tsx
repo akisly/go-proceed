@@ -48,7 +48,7 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
                 >
                   <TrackFill
                     filled={index <= currentIndex}
-                    className="absolute inset-0 origin-left bg-ink"
+                    className="absolute inset-0 bg-ink"
                   />
                 </span>
               )}

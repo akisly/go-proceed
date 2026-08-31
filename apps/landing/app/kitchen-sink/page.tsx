@@ -195,9 +195,9 @@ export default function KitchenSink() {
 
       <Case n="11" name="TrackFill" rule="Стрічка прогресу, яка заповнюється тому, що користувач посунувся через послідовність, не тому, що сторінка скролилась. На відміну від LineDraw, відповідає на стан додатку, а не на позицію скролу.">
         <div className="flex gap-2">
-          <TrackFill filled={false} className="h-1 flex-1 origin-left rounded-pill bg-line" />
-          <TrackFill filled={true} className="h-1 flex-1 origin-left rounded-pill bg-signal" />
-          <TrackFill filled={false} className="h-1 flex-1 origin-left rounded-pill bg-line" />
+          <TrackFill filled={false} className="h-1 flex-1 rounded-pill bg-line" />
+          <TrackFill filled={true} className="h-1 flex-1 rounded-pill bg-signal" />
+          <TrackFill filled={false} className="h-1 flex-1 rounded-pill bg-line" />
         </div>
       </Case>
 
