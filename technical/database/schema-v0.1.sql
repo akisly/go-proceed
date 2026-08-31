@@ -3113,22 +3113,29 @@ create table public.telegram_evidence_decision_tokens (
   telegram_chat_binding_id uuid not null, requirement_occurrence_id uuid not null,
   actor_user_id uuid, actor_member_id uuid, action text not null,
   token_hash text not null, expires_at timestamptz not null, consumed_at timestamptz,
-  return_prompt_message_id uuid, decision_message_id uuid, decision_id uuid, created_at timestamptz not null,
+  return_prompt_message_id uuid, return_reply_message_id uuid, decision_message_id uuid,
+  decision_id uuid, invalidated_at timestamptz, created_at timestamptz not null,
   unique (workspace_id, id), unique (token_hash),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
   foreign key (workspace_id, actor_member_id) references public.memberships(workspace_id, id),
   foreign key (return_prompt_message_id) references public.communication_messages(id),
+  foreign key (return_reply_message_id) references public.communication_messages(id),
   foreign key (decision_message_id) references public.communication_messages(id),
   foreign key (workspace_id, decision_id) references public.requirement_evidence_decisions(workspace_id, id),
   check (action in ('accepted','returned')), check (token_hash ~ '^[0-9a-f]{64}$'), check (expires_at > created_at),
   check ((action = 'accepted' and return_prompt_message_id is null) or action = 'returned'),
   check ((actor_user_id is null) = (actor_member_id is null)),
-  check ((consumed_at is null) = (decision_id is null))
+  check ((consumed_at is null) = (decision_id is null)),
+  check (not (consumed_at is not null and invalidated_at is not null)),
+  check (consumed_at is null or actor_member_id is not null),
+  check (return_reply_message_id is null
+    or (action='returned' and return_prompt_message_id is not null and actor_member_id is not null))
 );
 create unique index telegram_evidence_decision_active_action_uniq on public.telegram_evidence_decision_tokens
-  (workspace_id, telegram_chat_binding_id, requirement_occurrence_id, action) where consumed_at is null;
+  (workspace_id, telegram_chat_binding_id, requirement_occurrence_id, action)
+  where consumed_at is null and invalidated_at is null;
 create table public.communication_delivery_attempts (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, attempt_no integer not null, state text not null,
@@ -3184,6 +3191,82 @@ begin
 end $$;
 create trigger communication_messages_guard before update or delete on public.communication_messages
   for each row execute function app.guard_communication_message();
+create or replace function app.guard_telegram_evidence_decision_token() returns trigger
+language plpgsql set search_path='' as $$
+begin
+  if old.workspace_id is distinct from new.workspace_id
+     or old.project_id is distinct from new.project_id
+     or old.telegram_chat_binding_id is distinct from new.telegram_chat_binding_id
+     or old.requirement_occurrence_id is distinct from new.requirement_occurrence_id
+     or old.action is distinct from new.action or old.token_hash is distinct from new.token_hash
+     or old.created_at is distinct from new.created_at or old.expires_at is distinct from new.expires_at
+     or old.decision_message_id is distinct from new.decision_message_id then
+    raise exception 'telegram decision token identity immutable';
+  end if;
+  if old.actor_member_id is not null and
+     (old.actor_member_id is distinct from new.actor_member_id
+       or old.actor_user_id is distinct from new.actor_user_id) then
+    raise exception 'telegram decision token actor immutable once claimed';
+  end if;
+  if old.return_prompt_message_id is not null
+     and old.return_prompt_message_id is distinct from new.return_prompt_message_id then
+    raise exception 'telegram decision prompt immutable';
+  end if;
+  if old.return_reply_message_id is not null
+     and old.return_reply_message_id is distinct from new.return_reply_message_id then
+    raise exception 'telegram decision return reply immutable';
+  end if;
+  if old.invalidated_at is not null and old.invalidated_at is distinct from new.invalidated_at then
+    raise exception 'telegram decision invalidation immutable';
+  end if;
+  if old.consumed_at is not null then raise exception 'telegram decision token terminal'; end if;
+  if new.actor_member_id is not null and not exists (
+    select 1 from public.memberships m where m.workspace_id=new.workspace_id
+      and m.id=new.actor_member_id and m.user_id=new.actor_user_id and m.status='active'
+  ) then raise exception 'telegram decision actor pair invalid'; end if;
+  if new.decision_message_id is null or not exists (
+    select 1 from public.communication_messages m where m.id=new.decision_message_id
+      and m.workspace_id=new.workspace_id and m.project_id=new.project_id
+      and m.telegram_chat_binding_id=new.telegram_chat_binding_id
+      and m.direction='outbound' and m.kind='text' and m.telegram_reply_markup is not null
+  ) then raise exception 'telegram decision control message invalid'; end if;
+  if new.return_prompt_message_id is not null and not exists (
+    select 1 from public.communication_messages m where m.id=new.return_prompt_message_id
+      and m.workspace_id=new.workspace_id and m.project_id=new.project_id
+      and m.telegram_chat_binding_id=new.telegram_chat_binding_id
+      and m.direction='outbound' and m.kind='text'
+  ) then raise exception 'telegram decision return prompt invalid'; end if;
+  if new.return_reply_message_id is not null and not exists (
+    select 1 from public.communication_messages r where r.id=new.return_reply_message_id
+      and r.workspace_id=new.workspace_id and r.project_id=new.project_id
+      and r.telegram_chat_binding_id=new.telegram_chat_binding_id
+      and r.direction='inbound' and r.kind='text' and r.delivery_state='received'
+      and r.reply_to_message_id=new.return_prompt_message_id
+      and r.author_member_id=new.actor_member_id
+  ) then raise exception 'telegram decision return reply invalid'; end if;
+  if new.consumed_at is not null and new.action='returned' and not exists (
+    select 1 from public.communication_messages p where p.id=new.return_prompt_message_id
+      and p.workspace_id=new.workspace_id and p.project_id=new.project_id
+      and p.telegram_chat_binding_id=new.telegram_chat_binding_id
+      and p.direction='outbound' and p.kind='text'
+      and p.delivery_state='provider_accepted' and p.provider_message_id is not null
+  ) then raise exception 'telegram decision return prompt was not delivered'; end if;
+  return new;
+end $$;
+create trigger telegram_evidence_decision_tokens_guard before update on public.telegram_evidence_decision_tokens
+  for each row execute function app.guard_telegram_evidence_decision_token();
+-- Canonical service-only Telegram decision command surface. Migration 0075
+-- contains the executable SECURITY DEFINER bodies; each is revoked from
+-- public/anon/authenticated/goproceed_app and granted only to
+-- goproceed_service. The bodies lock the exact control pair and derive every
+-- tenant/member/message identifier from durable rows:
+--   app.prepare_telegram_evidence_decision_issue(uuid,uuid,uuid,uuid)
+--   app.issue_telegram_evidence_decision_tokens(uuid,uuid,uuid,uuid,uuid,text,text)
+--   app.claim_telegram_evidence_decision_token(text,bigint,bigint,bigint,bigint)
+--   app.prepare_telegram_decision_return_prompt(uuid,uuid)
+--   app.bind_telegram_decision_return_prompt(uuid,uuid,uuid)
+--   app.reserve_telegram_evidence_return_reply(uuid,uuid,bigint,uuid,bigint)
+--   app.finalize_telegram_evidence_decision_token(uuid,uuid,uuid)
 create trigger communication_message_events_append_only before update or delete on public.communication_message_events
   for each row execute function app.reject_mutation();
 create trigger telegram_requirement_choices_append_only before update or delete on public.telegram_requirement_choices
@@ -3204,8 +3287,7 @@ grant select (id, workspace_id, project_id, message_id, telegram_media_group_id,
   on public.communication_attachments to goproceed_app;
 grant select, insert, update on public.telegram_chat_bindings, public.telegram_binding_intents,
   public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
-  public.telegram_media_groups, public.communication_messages, public.communication_attachments, public.telegram_requirement_choice_sessions,
-  public.telegram_evidence_decision_tokens
+  public.telegram_media_groups, public.communication_messages, public.communication_attachments, public.telegram_requirement_choice_sessions
   to goproceed_service;
 grant select, insert on public.communication_message_events, public.telegram_requirement_choices,
   public.communication_delivery_attempts to goproceed_service;

@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { withServiceTx, withTenantTx } from "@goproceed/database";
+import { ADMIN_URL, hasIsolatedDatabaseCredentials } from "./helpers/fixtures";
 
-const admin = process.env.TEST_DB_ADMIN_URL ?? "";
-const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL && admin ? describe : describe.skip;
+const admin = ADMIN_URL;
+const databaseDescribe = hasIsolatedDatabaseCredentials() ? describe : describe.skip;
 const actorUserId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const botId = "123456789";
 
@@ -318,6 +319,50 @@ databaseDescribe("Telegram inbox processing", () => {
     await expect(withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
       await tx.query(rpc, [workspaceId, crypto.randomUUID(), "telegram.message.normalized", messageId, providerUpdateId, "message"]);
     })).rejects.toThrow(/aggregate does not match tenant/i);
+  });
+
+  it("exposes decision tokens only through the bounded service RPC surface", async () => {
+    const [privileges] = await q<{
+      service_table_read: boolean; app_claim: boolean; service_claim: boolean;
+      guard_count: string; return_reply_column: boolean;
+    }>(`select
+      has_table_privilege('goproceed_service','public.telegram_evidence_decision_tokens','select') as service_table_read,
+      has_function_privilege('goproceed_app',
+        'app.claim_telegram_evidence_decision_token(text,bigint,bigint,bigint,bigint)','execute') as app_claim,
+      has_function_privilege('goproceed_service',
+        'app.claim_telegram_evidence_decision_token(text,bigint,bigint,bigint,bigint)','execute') as service_claim,
+      (select count(*)::text from pg_trigger where tgrelid='public.telegram_evidence_decision_tokens'::regclass
+        and not tgisinternal and tgname in ('telegram_evidence_decision_token_guard','telegram_evidence_decision_token_guard_v2')) as guard_count,
+      exists(select 1 from information_schema.columns where table_schema='public'
+        and table_name='telegram_evidence_decision_tokens' and column_name='return_reply_message_id') as return_reply_column`);
+    expect(privileges).toEqual({
+      service_table_read: false, app_claim: false, service_claim: true,
+      guard_count: "2", return_reply_column: true,
+    });
+
+    await expect(withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+      await tx.query("select id from public.telegram_evidence_decision_tokens limit 1");
+    })).rejects.toThrow(/permission denied/i);
+
+    await expect(withServiceTx({ actorUserId: "", organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+      const result = await tx.query("select * from app.prepare_telegram_evidence_decision_issue($1::uuid,$2::uuid,$3::uuid,$4::uuid)",
+        [workspaceId, projectId, bindingId, crypto.randomUUID()]);
+      expect(result.rows).toEqual([]);
+      const unlinked = await tx.query(`select * from app.claim_telegram_evidence_decision_token(
+        $1::text,$2::bigint,$3::bigint,$4::bigint,$5::bigint)`,
+      ["f".repeat(64), botId, -100777, 777777, 888888]);
+      expect(unlinked.rows).toEqual([]);
+      const wrongReply = await tx.query(`select * from app.reserve_telegram_evidence_return_reply(
+        $1::uuid,$2::uuid,$3::bigint,$4::uuid,$5::bigint)`,
+      [workspaceId, bindingId, 777777, crypto.randomUUID(), 888888]);
+      expect(wrongReply.rows).toEqual([]);
+    })).resolves.toBeUndefined();
+
+    await expect(withTenantTx({ actorUserId, organizationId: workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
+      await tx.query(`select * from app.claim_telegram_evidence_decision_token(
+        $1::text,$2::bigint,$3::bigint,$4::bigint,$5::bigint)`,
+      ["f".repeat(64), botId, -100777, 777777, 888888]);
+    })).rejects.toThrow(/permission denied/i);
   });
 
   it("does not retain a startgroup token as communication text", async () => {

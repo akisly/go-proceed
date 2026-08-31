@@ -934,9 +934,10 @@ export async function processTelegramUpdate(
     await prepareStoredEvidence(binding, update, stored);
     // Free text remains communication.  The only text that can decide is a
     // nonblank reply from the same linked actor to the exact delivered prompt.
-    await processTelegramDecisionReturnReply({
+    if (stored.messageId !== null) await processTelegramDecisionReturnReply({
       workspaceId: binding.workspace_id, telegramChatBindingId: binding.telegram_chat_binding_id,
-      senderId: update.senderId, replyToMessageId: update.replyToMessageId, text: update.text,
+      senderId: update.senderId, messageId: stored.messageId,
+      replyToMessageId: update.replyToMessageId, text: update.text,
     });
     return stored.disposition;
   }
