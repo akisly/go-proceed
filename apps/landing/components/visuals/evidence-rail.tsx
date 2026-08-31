@@ -10,6 +10,18 @@ const railNodes = [
   { chapter: "decision", code: "DR-0091", label: "Рішення → CL-017" },
 ] as const;
 
+/**
+ * BOTH CSS TRANSITIONS BELOW NAME `ease-out`, and they have to name it.
+ *
+ * A `transition-*` with a `duration-*` and no `ease-*` does not fall back to
+ * nothing — Tailwind resolves it to `--default-transition-timing-function`,
+ * `cubic-bezier(.4, 0, .2, 1)`, which is the ease-in-out family that
+ * `motion-audit` rule 3 fails BY NAME when a file writes it out. Arriving via a
+ * default made it invisible to the audit and to the contract test both, so the
+ * only reader who could have caught it was one who knew Tailwind's default by
+ * heart. The rail these replaced used `ease.out`; `.ease-out { --tw-ease:
+ * var(--gp-ease-out) }` is in the emitted CSS.
+ */
 export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
   const currentIndex = railNodes.findIndex((node) => node.chapter === active);
 
@@ -56,7 +68,7 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
                 <span
                   aria-hidden="true"
                   data-evidence-point-marker="true"
-                  className={`relative z-10 mx-auto grid size-7 place-items-center overflow-hidden rounded-pill border text-micro font-semibold transition-[background-color,border-color,color,scale] duration-fast ${markerTone}`}
+                  className={`relative z-10 mx-auto grid size-7 place-items-center overflow-hidden rounded-pill border text-micro font-semibold transition-[background-color,border-color,color,scale] duration-fast ease-out ${markerTone}`}
                   style={{ scale: isCurrent ? 1.08 : 1 }}
                 >
                   <CrossFade
@@ -68,7 +80,7 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
                 </span>
               </NodeLock>
               <span
-                className={`index-label mt-2 block truncate transition-colors duration-fast ${indexLabelTone}`}
+                className={`index-label mt-2 block truncate transition-colors duration-fast ease-out ${indexLabelTone}`}
               >
                 {node.code}
               </span>
