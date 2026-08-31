@@ -182,6 +182,19 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(await attachmentsFor(["701"])).toMatchObject([{ state: "unbound", provider_file_id: null }]);
   });
 
+  it("leaves every no-card album part unbound before any provider download", async () => {
+    fakes.payloads.set("unbound-album-a", JPEG); fakes.payloads.set("unbound-album-b", JPEG);
+    await processTelegramUpdate(imageUpdate({ updateId: "3", messageId: "703", fileId: "unbound-album-a", replyTo: null, album: "unbound-album" }));
+    await processTelegramUpdate(imageUpdate({ updateId: "4", messageId: "704", fileId: "unbound-album-b", replyTo: null, album: "unbound-album" }));
+    await makeAlbumsDue();
+    expect(await processDueTelegramMediaGroups()).toBe(1);
+    expect(fakes.downloads).toEqual([]);
+    expect(await attachmentsFor(["703", "704"])).toEqual(expect.arrayContaining([
+      expect.objectContaining({ state: "unbound", failure_code: "unbound_card_reply", provider_file_id: null }),
+      expect.objectContaining({ state: "unbound", failure_code: "unbound_card_reply", provider_file_id: null }),
+    ]));
+  });
+
   it("uses the exact delivered card to create durable evidence, clear handles, and send the terminal receipt", async () => {
     await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
     const card = await deliverCard(); fakes.payloads.set("one-live", JPEG);
@@ -245,6 +258,8 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(await processTelegramUpdate(normalizeTelegramUpdate({ update_id: "20", callback_query: {
       id: "album-choice", from: { id: Number(UPLOADER_ID) }, data: callback, message: { message_id: 799, chat: { id: Number(CHAT_ID), type: "supergroup" } },
     } }))).toBe("selected_requirement_occurrence");
+    expect(fakes.callbacks.filter(({ callbackId }) => callbackId === "album-choice"))
+      .toEqual([{ callbackId: "album-choice", text: "Обробляємо зображення." }]);
     const terminal = await attachmentsFor(["710", "711", "712"]);
     expect(terminal.filter((row) => row.state === "available")).toHaveLength(3); expect(terminal.filter((row) => row.state === "failed")).toHaveLength(0);
     expect(new Set(terminal.map((row) => row.evidence_object_id))).toHaveLength(3);
@@ -469,6 +484,17 @@ databaseDescribe("Telegram evidence bridge", () => {
     const replacement = (await asService<{ lease_token: string }>("", null, (service) => service.query(
       "select lease_token::text from app.claim_telegram_media_groups(1,60)",
     ))).rows[0]!;
+    const stalePrepared = await prepareTelegramEvidenceCandidate({
+      workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
+      messageId: card.id, attachmentId: first.id, senderId: UPLOADER_ID,
+      replyToProviderMessageId: card.providerMessageId, mediaGroupId: "fenced-album",
+      telegramMediaGroupId: claim.id, allowMediaGroup: true,
+      albumClaim: { leaseToken: claim.lease_token, leaseExpiresAt: claim.lease_expires_at,
+        generation: Number(claim.processing_generation), claimedLastPartAt: claim.claimed_last_part_at },
+      file: { kind: "photo", fileId: "fenced-a", fileUniqueId: "fenced-a-unique", fileName: null,
+        mimeType: "image/jpeg", fileSize: JPEG.byteLength, width: 1, height: 1 },
+    });
+    expect(stalePrepared).toEqual({ kind: "not_evidence", code: "album_pending" });
     const stale = await asService<{ settled: boolean }>("", null, (service) => service.query(
       `select app.settle_telegram_evidence_attachment($1,$2,'failed',null,'stale_worker',$3,$2,$4,$5,$6) as settled`,
       [first.id, claim.lease_token, claim.id, claim.lease_expires_at, claim.processing_generation, claim.claimed_last_part_at],
@@ -583,14 +609,33 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(fakes.downloads).toEqual(["anchor-ok"]);
     const outcomes = await attachmentsFor(["800", "801", "802", "803"]);
     expect(outcomes.find((row) => row.state === "available")).toBeTruthy();
+    expect(await attachmentsFor(["801"])).toMatchObject([{ state: "unbound", failure_code: "unbound_card_reply" }]);
     expect(outcomes.map(({ failure_code }) => failure_code)).toEqual(expect.arrayContaining([
       null, "unbound_card_reply", "album_anchor_mismatch", "album_uploader_mismatch",
     ]));
     expect(outcomes.every(({ provider_file_id }) => provider_file_id === null)).toBe(true);
     const partial = (await receiptRows()).filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.partial");
     expect(partial).toHaveLength(1);
+    expect(partial[0]!.text).toContain("unbound_card_reply");
     expect(partial[0]!.text).toContain("album_anchor_mismatch");
     expect(partial[0]!.text).toContain("album_uploader_mismatch");
+  });
+
+  it("reports a previously-terminal album with mismatched common context as safe failure", async () => {
+    const card = await deliverCard();
+    await processTelegramUpdate(documentUpdate({ updateId: "104", messageId: "804", fileId: "terminal-card", replyTo: card.providerMessageId, album: "terminal-context" }));
+    await processTelegramUpdate(documentUpdate({ updateId: "105", messageId: "805", fileId: "terminal-no-card", replyTo: null, album: "terminal-context" }));
+    await makeAlbumsDue();
+    expect(await processDueTelegramMediaGroups()).toBe(1);
+    expect(fakes.downloads).toEqual([]);
+    expect(await attachmentsFor(["804", "805"])).toEqual(expect.arrayContaining([
+      expect.objectContaining({ state: "not_evidence", provider_file_id: null }),
+      expect.objectContaining({ state: "not_evidence", provider_file_id: null }),
+    ]));
+    const receipts = await receiptRows();
+    expect(receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.failed")).toHaveLength(1);
+    expect(receipts.find(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.failed")?.text)
+      .toContain("album_anchor_mismatch");
   });
 
   it("enqueues one canonical unbound receipt on replay and one uploader expiry receipt on repeated cleanup", async () => {
@@ -643,5 +688,56 @@ databaseDescribe("Telegram evidence bridge", () => {
     const terminal = await attachmentsFor(["791"]);
     expect(terminal).toMatchObject([{ state: "failed", provider_file_id: null }]);
     expect((await receiptRows()).filter(({ text }) => text.includes("791"))).toHaveLength(1);
+  });
+
+  it("does not download due retries after identity relink or delivered-card invalidation", async () => {
+    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    const firstCard = await deliverCard();
+    fakes.payloads.set("retry-relinked", JPEG); fakes.retryableDownloads.add("retry-relinked");
+    await processTelegramUpdate(imageUpdate({ updateId: "110", messageId: "810", fileId: "retry-relinked", replyTo: firstCard.providerMessageId }));
+    expect(fakes.downloads).toEqual(["retry-relinked"]);
+
+    const relinkedUser = crypto.randomUUID(); const relinkedMember = crypto.randomUUID();
+    await client.query(`insert into auth.users (id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
+      values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now());
+      insert into public.memberships (id,organization_id,user_id,role,status) values ($3,$4,$1,'member','active');
+      insert into public.project_access_grants (workspace_id,project_id,member_id,capability,granted_by)
+      values ($4,$5,$3,'evidence.record',$1);
+      update public.telegram_member_links set member_id=$3,linked_by_member_id=$3 where workspace_id=$4 and telegram_user_id=$6::bigint;
+      update public.communication_attachments set provider_next_retry_at=now()
+       where workspace_id=$4 and provider_file_id='retry-relinked'`, [
+      relinkedUser, `${relinkedUser}@fixture.test`, relinkedMember, rules.workspaceId, rules.projectId, UPLOADER_ID,
+    ]);
+    await processDueTelegramEvidenceRetries();
+    expect(fakes.downloads).toEqual(["retry-relinked"]);
+    expect(await attachmentsFor(["810"])).toMatchObject([{
+      state: "failed", failure_code: "evidence_authorization_failed", provider_file_id: null,
+    }]);
+
+    await client.query(`update public.telegram_member_links set member_id=$1,linked_by_member_id=$1
+      where workspace_id=$2 and telegram_user_id=$3::bigint`, [rules.memberId, rules.workspaceId, UPLOADER_ID]);
+    const staleCard = await deliverCard();
+    fakes.payloads.set("retry-stale-card", JPEG); fakes.retryableDownloads.add("retry-stale-card");
+    await processTelegramUpdate(imageUpdate({ updateId: "111", messageId: "811", fileId: "retry-stale-card", replyTo: staleCard.providerMessageId }));
+    expect(fakes.downloads).toEqual(["retry-relinked", "retry-stale-card"]);
+    await client.query(`update public.communication_messages set delivery_state='failed'
+      where id=$1;
+      update public.communication_attachments set provider_next_retry_at=now()
+       where workspace_id=$2 and provider_file_id='retry-stale-card'`, [staleCard.id, rules.workspaceId]);
+    await processDueTelegramEvidenceRetries();
+    expect(fakes.downloads).toEqual(["retry-relinked", "retry-stale-card"]);
+    expect(await attachmentsFor(["811"])).toMatchObject([{
+      state: "failed", failure_code: "evidence_authorization_failed", provider_file_id: null,
+    }]);
+  });
+
+  it("attempts one generic callback acknowledgement when context resolution throws", async () => {
+    const result = await processTelegramUpdate({
+      kind: "callback_query", updateId: "112", callbackId: "callback-db-error", senderId: UPLOADER_ID,
+      chatId: "999999999999999999999999999999", messageId: "812", data: `req:${"a".repeat(43)}`,
+    });
+    expect(result).toBe("failed_requirement_choice");
+    expect(fakes.callbacks.filter(({ callbackId }) => callbackId === "callback-db-error"))
+      .toEqual([{ callbackId: "callback-db-error", text: "Не вдалося обробити вибір. Спробуйте ще раз." }]);
   });
 });

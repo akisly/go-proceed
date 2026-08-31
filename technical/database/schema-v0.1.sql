@@ -3126,7 +3126,7 @@ create table public.communication_delivery_attempts (
 -- Events, requirement choices and delivery attempts are append-only. Terminal
 -- attachment checks clear both provider file identifiers. Raw inbox payloads and
 -- both `claim_*` functions are service-plane only; claims reject null or lease seconds
--- outside the explicit 1..900-second bound and use FOR UPDATE SKIP LOCKED.
+-- outside the explicit 1..300-second bound and use FOR UPDATE SKIP LOCKED.
 create or replace function app.guard_communication_message() returns trigger
 language plpgsql set search_path = '' as $$
 begin

@@ -349,23 +349,22 @@ export async function prepareTelegramEvidenceCandidate(input: {
     }
     if (input.mediaGroupId !== null && input.allowMediaGroup !== true) return { kind: "not_evidence", code: "album_pending" };
     if (supported.length === 1) {
-      await tx.query(`update public.communication_attachments
+      const leased = await tx.query<{ id: string; token: string; expires_at: string }>(`update public.communication_attachments
         set state='processing', requirement_occurrence_id=$2,
             provider_retry_lease_token=coalesce($4::uuid, gen_random_uuid()),
             provider_retry_lease_expires_at=coalesce($5::timestamptz, now()+interval '60 seconds')
         where ${input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined
-          ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic') and created_at <= $3::timestamptz"} and state='staged'`, [
+          ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic') and created_at <= $3::timestamptz"} and state='staged'
+        returning id,provider_retry_lease_token::text as token,
+          provider_retry_lease_expires_at::text as expires_at`, [
         input.telegramMediaGroupId ?? input.attachmentId, supported[0]!.occurrenceId,
         input.albumClaim?.claimedLastPartAt ?? null,
         input.albumClaim?.leaseToken ?? null, input.albumClaim?.leaseExpiresAt ?? null,
       ]);
-      const owner = await tx.query<{ token: string; expires_at: string }>(`select provider_retry_lease_token::text as token,
-          provider_retry_lease_expires_at::text as expires_at from public.communication_attachments
-        where id=$1 or ($2::uuid is not null and telegram_media_group_id=$2::uuid)
-        order by id limit 1`, [input.attachmentId, input.telegramMediaGroupId ?? null]);
-      if (!owner.rows[0]) return { kind: "not_evidence", code: "album_pending" };
+      const owner = leased.rows.find(({ id }) => id === input.attachmentId);
+      if (!owner || owner.id !== input.attachmentId) return { kind: "not_evidence", code: "album_pending" };
       return { kind: "ready", assignmentId, occurrenceId: supported[0]!.occurrenceId, actorUserId,
-        processingLease: { token: owner.rows[0].token, expiresAt: owner.rows[0].expires_at } };
+        processingLease: { token: owner.token, expiresAt: owner.expires_at } };
     }
     const tokens: Array<{ occurrenceId: string; label: string; token: string }> = [];
     const allowedOccurrenceIds = supported.map(({ occurrenceId }) => occurrenceId);
