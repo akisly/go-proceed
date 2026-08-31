@@ -3111,19 +3111,24 @@ create table public.telegram_requirement_choice_sessions (
 create table public.telegram_evidence_decision_tokens (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   telegram_chat_binding_id uuid not null, requirement_occurrence_id uuid not null,
-  actor_user_id uuid not null, actor_member_id uuid not null, action text not null,
+  actor_user_id uuid, actor_member_id uuid, action text not null,
   token_hash text not null, expires_at timestamptz not null, consumed_at timestamptz,
-  return_prompt_message_id uuid, decision_id uuid, created_at timestamptz not null,
+  return_prompt_message_id uuid, decision_message_id uuid, decision_id uuid, created_at timestamptz not null,
   unique (workspace_id, id), unique (token_hash),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
   foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
   foreign key (workspace_id, actor_member_id) references public.memberships(workspace_id, id),
   foreign key (return_prompt_message_id) references public.communication_messages(id),
+  foreign key (decision_message_id) references public.communication_messages(id),
   foreign key (workspace_id, decision_id) references public.requirement_evidence_decisions(workspace_id, id),
   check (action in ('accepted','returned')), check (token_hash ~ '^[0-9a-f]{64}$'), check (expires_at > created_at),
-  check ((action = 'accepted' and return_prompt_message_id is null) or action = 'returned')
+  check ((action = 'accepted' and return_prompt_message_id is null) or action = 'returned'),
+  check ((actor_user_id is null) = (actor_member_id is null)),
+  check ((consumed_at is null) = (decision_id is null))
 );
+create unique index telegram_evidence_decision_active_action_uniq on public.telegram_evidence_decision_tokens
+  (workspace_id, telegram_chat_binding_id, requirement_occurrence_id, action) where consumed_at is null;
 create table public.communication_delivery_attempts (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, attempt_no integer not null, state text not null,

@@ -10,6 +10,7 @@ import { putObject } from "../evidence-storage";
 import { enqueueTelegramMessage } from "./delivery";
 import { normalizeTelegramUpdate, type NormalizedTelegramUpdate } from "./normalize";
 import { isTelegramDecisionCallback, processTelegramDecisionCallback, processTelegramDecisionReturnReply } from "./decisions";
+import { issueTelegramEvidenceDecisionCallbacks } from "./decisions";
 
 const INBOX_LEASE_SECONDS = 60;
 const MEDIA_GROUP_LEASE_SECONDS = 60;
@@ -295,9 +296,9 @@ async function reconcileTelegramEvidenceReceipt(input: {
   const snapshot = await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
     const rows = await tx.query<{
       state: string; evidence_object_id: string | null; failure_code: string | null;
-      provider_message_id: string; work_assignment_id: string | null;
+      provider_message_id: string; work_assignment_id: string | null; requirement_occurrence_id: string | null;
     }>(input.source.kind === "attachment"
-      ? `select a.state, a.evidence_object_id, a.failure_code, m.provider_message_id::text,
+          ? `select a.state, a.evidence_object_id, a.failure_code, a.requirement_occurrence_id::text, m.provider_message_id::text,
             coalesce(o.work_assignment_id, card.work_assignment_id)::text as work_assignment_id
           from public.communication_attachments a
           join public.communication_messages m on m.workspace_id=a.workspace_id and m.id=a.message_id
@@ -306,7 +307,7 @@ async function reconcileTelegramEvidenceReceipt(input: {
             and card.telegram_chat_binding_id=m.telegram_chat_binding_id
             and card.provider_message_id=m.provider_reply_to_message_id and card.kind='assignment_card'
          where a.workspace_id=$1 and a.id=$2`
-      : `select a.state, a.evidence_object_id, a.failure_code, m.provider_message_id::text,
+          : `select a.state, a.evidence_object_id, a.failure_code, a.requirement_occurrence_id::text, m.provider_message_id::text,
             coalesce(o.work_assignment_id, card.work_assignment_id)::text as work_assignment_id
           from public.communication_attachments a
           join public.communication_messages m on m.workspace_id=a.workspace_id and m.id=a.message_id
@@ -333,6 +334,13 @@ async function reconcileTelegramEvidenceReceipt(input: {
     ...(input.albumClaim === undefined ? {} : { albumClaim: input.albumClaim }),
   });
   if (!enqueued) return "stale";
+  // Decision controls are published only after an exact occurrence has a
+  // durable available evidence object; retry/replay sees the existing active
+  // token pair and does not enqueue another keyboard.
+  for (const row of snapshot) if (row.state === "available" && row.requirement_occurrence_id !== null) {
+    await issueTelegramEvidenceDecisionCallbacks({ workspaceId: input.binding.workspace_id, projectId: input.binding.project_id,
+      telegramChatBindingId: input.binding.telegram_chat_binding_id, occurrenceId: row.requirement_occurrence_id });
+  }
   if (input.source.kind === "media_group" && input.albumClaim) {
     const completion = await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
       const result = await tx.query<{ outcome: string }>(`select app.complete_telegram_media_group_claim(
