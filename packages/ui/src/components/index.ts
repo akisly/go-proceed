@@ -31,10 +31,15 @@
  *   1. RESOLVED 2026-08-28 by taking shadcn's own answer. `Field` is now the
  *      shadcn Field family (ten components, presentational, paired with
  *      react-hook-form's `Controller` per the vendor's current guide); the
- *      render-prop `Field` this note used to describe is gone. `Form`/
- *      `FormField`/`FormItem`/… remain exported and now have NO caller and no
- *      planned one — shadcn's docs name that set the older pattern. Whoever
- *      needs it decides whether it stays.
+ *      render-prop `Field` this note used to describe is gone.
+ *
+ *      RETIRED 2026-08-30. `Form`/`FormField`/`FormItem`/… were left exported
+ *      with no caller and no planned one, and the question «whoever needs it
+ *      decides whether it stays» was answered by the kitchen-sink gate below:
+ *      an export nothing renders is an export nobody looks at, which is
+ *      exactly how `FieldSeparator` shipped with the wrong token. A grep of
+ *      every `from "@goproceed/ui/components"` import in the repo found zero
+ *      uses of the family, so the file is deleted rather than showcased.
  *   2. `Textarea` is exported from `Input.tsx`; shadcn's was not taken,
  *      because replacing a shipped control is a restyle rather than an
  *      addition. shadcn's differs in `field-sizing-content` and `min-h-16`
@@ -67,9 +72,6 @@ export {
   DataTable, dataTableFeatures,
   type DataTableProps, type DataTableColumnDef, type DataTableFeatures, type SortingState,
 } from "./DataTable";
-export {
-  Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage, useFormField,
-} from "./Form";
 export {
   Select, SelectGroup, SelectValue, SelectTrigger, SelectContent, SelectLabel, SelectItem,
   SelectSeparator, SelectScrollUpButton, SelectScrollDownButton,

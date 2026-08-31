@@ -47,6 +47,12 @@ Child A environment takes priority.
 
 Baseline measured at `aa10481` after `pnpm install --frozen-lockfile`:
 
+> **Correction, 2026-08-30.** The package was renamed from `@aktflow/discovery`
+> to `@goproceed/discovery` — it was the last one left under the old scope,
+> because this branch forked before the repository rename. The commands above
+> are already corrected. The table below is a snapshot of the 2026-07-26 run and
+> is left as it stands: the `@aktflow/*` names in it were correct on that date.
+
 | Package | Result |
 |---|---|
 | `@aktflow/domain` | 3 passed |
@@ -76,9 +82,9 @@ outside `discovery/` means something broke — stop and investigate.
 ## Commands
 
 ```bash
-pnpm --filter @aktflow/discovery test
+pnpm --filter @goproceed/discovery test
 ```
 
 ```bash
-pnpm --filter @aktflow/discovery exec tsc --noEmit
+pnpm --filter @goproceed/discovery exec tsc --noEmit
 ```

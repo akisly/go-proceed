@@ -97,8 +97,8 @@ describe("motion audit — the rules actually fire", () => {
 });
 
 describe("the vocabulary is closed", () => {
-  it("exports exactly twelve primitives", () => {
-    // A thirteenth is a decision, not an addition: it means the vocabulary was
+  it("exports exactly fifteen primitives", () => {
+    // A sixteenth is a decision, not an addition: it means the vocabulary was
     // missing something, and the plan's motion section has to say what and
     // why. Failing here is the prompt to write that down.
     const index = readFileSync(join(repoRoot, "packages/ui/src/motion/index.ts"), "utf8");
@@ -109,6 +109,7 @@ describe("the vocabulary is closed", () => {
     expect(new Set(exported)).toEqual(new Set([
       "Reveal", "Stagger", "TextBlurIn", "ScrollTint", "LineDraw", "NodeLock",
       "CountUp", "Marquee", "PinnedTabs", "Lift", "Press", "CrossFade",
+      "TrackFill", "SlideSwap", "InViewProgress",
     ]));
   });
 

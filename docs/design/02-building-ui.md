@@ -148,6 +148,9 @@ nothing, fails a test, or silently drops a class.
 | a status shown only by colour | colour **plus** its `ui_uk` label | Printed, photographed in sunlight, or colour-blind — all real here |
 | `text-ink-subtle` for body copy | `text-ink-muted` | Subtle clears only the large-text threshold |
 | `text-micro` under `/app` | `text-meta` | The QA harness fails anything under 12px there |
+| `<AnimatePresence custom={dir}>` | `SlideSwap` | Rule 5, build failure |
+| a state-driven `motion.span` progress line | `TrackFill` | Rule 5; `LineDraw` is the scroll one |
+| `useTransform` in a landing visual | `InViewProgress` + `calc(var(--gp-progress))` | Rule 5 |
 
 ### 4.2 Where code goes
 
@@ -155,8 +158,8 @@ nothing, fails a test, or silently drops a class.
 packages/tokens/src/tokens.json      every value, the only hand-edited token file
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
-packages/ui/src/motion/              the twelve motion primitives, and nothing else
-packages/ui/src/components/          the fifteen components, and nothing else
+packages/ui/src/motion/              the fifteen motion primitives, and nothing else
+packages/ui/src/components/          the twenty-one components, and nothing else
 apps/landing/app/                    routes and the fourteen landing blocks
 apps/app/app/                        the product shell and its screens
 packages/testing/src/*.test.ts       every contract test
@@ -281,7 +284,7 @@ never pass a function-valued `className` or `children` into a Radix `asChild`:
 Slot merges by string concatenation, so the function is stringified into the
 class attribute. React does not warn and TypeScript cannot see it.
 
-### 7.3 A thirteenth motion primitive
+### 7.3 A new motion primitive
 
 Not an addition — a decision. It means the vocabulary was missing something, so
 the plan's §8.3 has to say what and why in the same change. The test that fails

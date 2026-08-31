@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -108,10 +110,10 @@ describe("landing evidence journey", () => {
       html.indexOf('id="field-review"'),
     );
 
-    expect(section).toContain('data-evidence-motion-engine="motion"');
-    expect(section).toContain('data-evidence-stage-transition="presence"');
-    expect(section.match(/data-evidence-scroll-trigger="motion-in-view"/g) ?? []).toHaveLength(3);
-    expect(section.match(/data-evidence-rail-motion="motion"/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(section).toContain('data-evidence-motion-engine="vocabulary"');
+    expect(section).toContain('data-evidence-stage-transition="slide-swap"');
+    expect(section.match(/data-evidence-scroll-trigger="stagger"/g) ?? []).toHaveLength(3);
+    expect(section.match(/data-evidence-rail-motion="vocabulary"/g)?.length).toBeGreaterThanOrEqual(2);
     expect(section).not.toContain("transition-[opacity,transform]");
     expect(section).not.toContain("transition-colors duration-slow");
   });
@@ -175,7 +177,7 @@ describe("landing evidence journey", () => {
 
     expect(workflow).toContain('data-readiness-workflow="true"');
     expect(workflow).toContain('data-readiness-motion-engine="motion"');
-    expect(workflow).toContain('data-readiness-cycle="infinite"');
+    expect(workflow).toContain('data-readiness-cycle="once"');
     expect(workflow).toContain("Пакет робіт");
     expect(workflow).toContain("Перевірка повноти");
     expect(workflow.match(/data-readiness-trunk="true"/g) ?? []).toHaveLength(1);
@@ -208,6 +210,14 @@ describe("landing evidence journey", () => {
     ]) {
       expect(workflow).toContain(detail);
     }
+  });
+
+  it("renders the readiness diagram without reaching for Motion", () => {
+    const src = readFileSync(
+      join(import.meta.dirname, "..", "components/visuals/readiness-workflow.tsx"), "utf8");
+    expect(src).not.toContain("motion/react");
+    expect(src).toContain("InViewProgress");
+    expect(src).toContain("--gp-progress");
   });
 
   it("shows provenance and the honest v0.1 product boundary", () => {
@@ -243,5 +253,56 @@ describe("landing evidence journey", () => {
   it("finishes with a factual product-scope footer", () => {
     expect(html).toContain("<footer");
     expect(html).toContain("Частина показаних сценаріїв перебуває у розробці");
+  });
+});
+
+describe("the evidence rail reaches Motion through the vocabulary", () => {
+  const requirementRail = renderToStaticMarkup(<EvidenceRail active="requirement" />);
+
+  it("keeps its markers and connectors in the rendered output", () => {
+    expect(decisionRail).toContain('data-evidence-rail="true"');
+    expect(decisionRail.match(/data-evidence-point="true"/g)).toHaveLength(3);
+    expect(decisionRail.match(/data-evidence-connector="true"/g)).toHaveLength(2);
+  });
+
+  /**
+   * THE TEST ABOVE CANNOT FAIL ON THE THING THIS BLOCK IS NAMED FOR. Three
+   * markers and two connectors is what the rail rendered BEFORE the rewrite,
+   * from hand-written spans, and it is what it renders after — so the block
+   * claimed the rail reaches Motion through the vocabulary while asserting
+   * nothing the vocabulary produces. Rather than rename the block to what its
+   * one test actually pinned (the rail's shape), the claim is made testable:
+   * the shape assertion stays, and this asserts the vocabulary.
+   *
+   * `TrackFill` is a `motion.span` with `initial={false}`, so the server writes
+   * its TARGET into the markup: `transform:scaleX(0)` for a segment the reader
+   * has not reached, and `transform:none` — Motion's spelling of `scaleX(1)` —
+   * once they have. A static span cannot produce either, and neither can a
+   * `TrackFill` whose `filled` stops tracking `currentIndex`.
+   */
+  it("fills each connector from TrackFill's state, not from a static class", () => {
+    const segments = (html: string, transform: string) =>
+      html.match(new RegExp(`data-evidence-connector="true"[^>]*><span[^>]*style="transform:${transform}"`, "g")) ?? [];
+
+    // At the first chapter both segments are still ahead of the reader.
+    expect(segments(requirementRail, "scaleX\\(0\\)")).toHaveLength(2);
+    expect(segments(requirementRail, "none")).toHaveLength(0);
+    // At the last, both are behind and filled.
+    expect(segments(decisionRail, "none")).toHaveLength(2);
+    expect(segments(decisionRail, "scaleX\\(0\\)")).toHaveLength(0);
+  });
+
+  /**
+   * `CrossFade` swaps the numeral for the check inside the marker, and its own
+   * `mode="wait"` wrapper is what carries the `opacity` the server writes. The
+   * pre-rewrite rail rendered the numeral and the check from a ternary with no
+   * wrapper at all.
+   */
+  it("swaps the numeral for the check through CrossFade", () => {
+    const marker = /data-evidence-point-marker="true"[^>]*>(<div class="grid place-items-center" style="opacity:1">.*?<\/div>)/g;
+    const insides = [...decisionRail.matchAll(marker)].map((m) => m[1]!);
+    expect(insides).toHaveLength(3);
+    expect(insides.filter((i) => i.includes("lucide-check"))).toHaveLength(2);
+    expect(insides[2]).toContain(">3<");
   });
 });
