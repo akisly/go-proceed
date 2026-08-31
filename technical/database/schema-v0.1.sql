@@ -3114,7 +3114,9 @@ create table public.telegram_evidence_decision_tokens (
   actor_user_id uuid, actor_member_id uuid, action text not null,
   token_hash text not null, expires_at timestamptz not null, consumed_at timestamptz,
   return_prompt_message_id uuid, return_reply_message_id uuid, decision_message_id uuid,
-  decision_id uuid, invalidated_at timestamptz, created_at timestamptz not null,
+  decision_id uuid, invalidated_at timestamptz,
+  review_source_kind text not null, review_source_id uuid not null, review_source_generation bigint not null,
+  created_at timestamptz not null,
   unique (workspace_id, id), unique (token_hash),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
   foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
@@ -3131,11 +3133,15 @@ create table public.telegram_evidence_decision_tokens (
   check (not (consumed_at is not null and invalidated_at is not null)),
   check (consumed_at is null or actor_member_id is not null),
   check (return_reply_message_id is null
-    or (action='returned' and return_prompt_message_id is not null and actor_member_id is not null))
+    or (action='returned' and return_prompt_message_id is not null and actor_member_id is not null)),
+  check (review_source_kind in ('legacy','attachment','media_group') and review_source_generation>=0
+    and (review_source_kind<>'attachment' or review_source_generation=0))
 );
-create unique index telegram_evidence_decision_active_action_uniq on public.telegram_evidence_decision_tokens
-  (workspace_id, telegram_chat_binding_id, requirement_occurrence_id, action)
-  where consumed_at is null and invalidated_at is null;
+create unique index telegram_evidence_decision_review_action_uniq on public.telegram_evidence_decision_tokens
+  (workspace_id,telegram_chat_binding_id,requirement_occurrence_id,
+   review_source_kind,review_source_id,review_source_generation,action);
+-- This lifetime key deliberately prevents replay/expiry from reissuing the same
+-- source cycle. New evidence or a new album generation creates a new cycle.
 create table public.communication_delivery_attempts (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, attempt_no integer not null, state text not null,
@@ -3200,7 +3206,10 @@ begin
      or old.requirement_occurrence_id is distinct from new.requirement_occurrence_id
      or old.action is distinct from new.action or old.token_hash is distinct from new.token_hash
      or old.created_at is distinct from new.created_at or old.expires_at is distinct from new.expires_at
-     or old.decision_message_id is distinct from new.decision_message_id then
+     or old.decision_message_id is distinct from new.decision_message_id
+     or old.review_source_kind is distinct from new.review_source_kind
+     or old.review_source_id is distinct from new.review_source_id
+     or old.review_source_generation is distinct from new.review_source_generation then
     raise exception 'telegram decision token identity immutable';
   end if;
   if old.actor_member_id is not null and
@@ -3222,7 +3231,7 @@ begin
   if old.consumed_at is not null then raise exception 'telegram decision token terminal'; end if;
   if new.actor_member_id is not null and not exists (
     select 1 from public.memberships m where m.workspace_id=new.workspace_id
-      and m.id=new.actor_member_id and m.user_id=new.actor_user_id and m.status='active'
+      and m.id=new.actor_member_id and m.user_id=new.actor_user_id
   ) then raise exception 'telegram decision actor pair invalid'; end if;
   if new.decision_message_id is null or not exists (
     select 1 from public.communication_messages m where m.id=new.decision_message_id
@@ -3260,13 +3269,14 @@ create trigger telegram_evidence_decision_tokens_guard before update on public.t
 -- public/anon/authenticated/goproceed_app and granted only to
 -- goproceed_service. The bodies lock the exact control pair and derive every
 -- tenant/member/message identifier from durable rows:
---   app.prepare_telegram_evidence_decision_issue(uuid,uuid,uuid,uuid)
---   app.issue_telegram_evidence_decision_tokens(uuid,uuid,uuid,uuid,uuid,text,text)
+--   app.prepare_telegram_evidence_decision_issue(uuid,uuid,uuid,uuid,text,uuid,bigint)
+--   app.issue_telegram_evidence_decision_tokens(uuid,uuid,uuid,uuid,text,uuid,bigint,uuid,text,text)
 --   app.claim_telegram_evidence_decision_token(text,bigint,bigint,bigint,bigint)
 --   app.prepare_telegram_decision_return_prompt(uuid,uuid)
 --   app.bind_telegram_decision_return_prompt(uuid,uuid,uuid)
---   app.reserve_telegram_evidence_return_reply(uuid,uuid,bigint,uuid,bigint)
---   app.finalize_telegram_evidence_decision_token(uuid,uuid,uuid)
+--   app.resolve_telegram_evidence_return_reply(uuid,uuid,bigint,uuid,bigint)
+--   app.finalize_telegram_evidence_decision_token(uuid,uuid,uuid,uuid)
+--   app.retry_telegram_decision_inbox(bigint,bigint,uuid,text)
 create trigger communication_message_events_append_only before update or delete on public.communication_message_events
   for each row execute function app.reject_mutation();
 create trigger telegram_requirement_choices_append_only before update or delete on public.telegram_requirement_choices

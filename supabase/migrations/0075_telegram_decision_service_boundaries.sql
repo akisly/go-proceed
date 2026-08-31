@@ -156,7 +156,12 @@ begin
 end $$;
 
 drop function app.claim_telegram_evidence_decision_token(text,bigint,bigint,bigint);
-drop function app.resolve_telegram_evidence_return_reply(uuid,uuid,bigint,bigint);
+-- 0074 never created this resolver name on the final reviewed branch. Keep the
+-- clean chain tolerant while still removing it from any intermediate database
+-- that did receive an earlier draft. This committed migration had never been
+-- applied anywhere when corrected; without IF EXISTS the whole 0075 transaction
+-- aborts before the valid old claim-overload drop can commit.
+drop function if exists app.resolve_telegram_evidence_return_reply(uuid,uuid,bigint,bigint);
 create function app.claim_telegram_evidence_decision_token(
   p_hash text, p_bot bigint, p_chat bigint, p_sender bigint, p_message bigint
 ) returns table(

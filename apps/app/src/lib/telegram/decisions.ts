@@ -24,13 +24,16 @@ export function isTelegramDecisionCallback(data: string | null): boolean {
  */
 export async function issueTelegramEvidenceDecisionCallbacks(input: {
   workspaceId: string; projectId: string; telegramChatBindingId: string; occurrenceId: string;
+  reviewSource: { kind: "attachment" | "media_group"; id: string; generation: number };
 }): Promise<void> {
   const accepted = token();
   const returned = token();
   await withServiceTx(context(input.workspaceId), async (tx) => {
     const prepared = await tx.query<{ work_assignment_id: string; already_issued: boolean }>(
-      "select * from app.prepare_telegram_evidence_decision_issue($1::uuid,$2::uuid,$3::uuid,$4::uuid)",
-      [input.workspaceId, input.projectId, input.telegramChatBindingId, input.occurrenceId],
+      `select * from app.prepare_telegram_evidence_decision_issue(
+        $1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::text,$6::uuid,$7::bigint)`,
+      [input.workspaceId, input.projectId, input.telegramChatBindingId, input.occurrenceId,
+        input.reviewSource.kind, input.reviewSource.id, input.reviewSource.generation],
     );
     const row = prepared.rows[0];
     if (!row || row.already_issued) return;
@@ -48,8 +51,10 @@ export async function issueTelegramEvidenceDecisionCallbacks(input: {
       inlineKeyboard: controls.inlineKeyboard,
     });
     const issued = await tx.query<{ issued: boolean }>(
-      "select app.issue_telegram_evidence_decision_tokens($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6::text,$7::text) as issued",
+      `select app.issue_telegram_evidence_decision_tokens(
+        $1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::text,$6::uuid,$7::bigint,$8::uuid,$9::text,$10::text) as issued`,
       [input.workspaceId, input.projectId, input.telegramChatBindingId, input.occurrenceId,
+        input.reviewSource.kind, input.reviewSource.id, input.reviewSource.generation,
         message.messageId, tokenHash(accepted), tokenHash(returned)],
     );
     if (issued.rows[0]?.issued !== true) throw new Error("telegram_decision_issue_raced");
@@ -90,8 +95,18 @@ export type TelegramDecisionDependencies = {
   resolveReturnReply?: (input: ReturnReplyInput) => Promise<TelegramDecisionTokenRow | null>;
   readHeadVersion?: (row: TelegramDecisionTokenRow) => Promise<number | null>;
   recordDecision?: typeof recordEvidenceDecision;
-  finalizeDecision?: (row: TelegramDecisionTokenRow, decisionId: string) => Promise<void>;
+  finalizeDecision?: (row: TelegramDecisionTokenRow, decisionId: string, replyMessageId: string | null) => Promise<void>;
 };
+
+export class TelegramDecisionTransientError extends Error {
+  readonly code = "telegram_decision_transient";
+  readonly original: unknown;
+  constructor(original: unknown) {
+    super("telegram_decision_transient");
+    this.name = "TelegramDecisionTransientError";
+    this.original = original;
+  }
+}
 
 async function claimToken(update: Callback, botId: string): Promise<TelegramDecisionTokenRow | null> {
   const callbackData = update.data;
@@ -135,7 +150,7 @@ async function resolveReturnReply(input: ReturnReplyInput): Promise<TelegramDeci
   if (input.replyToMessageId === null) return null;
   return withServiceTx(context(input.workspaceId), async (tx) => {
     const rows = await tx.query<TelegramDecisionTokenRow>(
-      "select * from app.reserve_telegram_evidence_return_reply($1::uuid,$2::uuid,$3::bigint,$4::uuid,$5::bigint)",
+      "select * from app.resolve_telegram_evidence_return_reply($1::uuid,$2::uuid,$3::bigint,$4::uuid,$5::bigint)",
       [input.workspaceId, input.telegramChatBindingId, input.senderId, input.messageId, input.replyToMessageId],
     );
     return rows.rows[0] ?? null;
@@ -153,11 +168,11 @@ async function readHeadVersion(row: TelegramDecisionTokenRow): Promise<number | 
   });
 }
 
-async function finalizeDecision(row: TelegramDecisionTokenRow, decisionId: string): Promise<void> {
+async function finalizeDecision(row: TelegramDecisionTokenRow, decisionId: string, replyMessageId: string | null): Promise<void> {
   await withServiceTx(context(row.workspace_id), async (tx) => {
     const finalized = await tx.query<{ finalized: boolean }>(
-      "select app.finalize_telegram_evidence_decision_token($1::uuid,$2::uuid,$3::uuid) as finalized",
-      [row.id, row.actor_member_id, decisionId],
+      "select app.finalize_telegram_evidence_decision_token($1::uuid,$2::uuid,$3::uuid,$4::uuid) as finalized",
+      [row.id, row.actor_member_id, decisionId, replyMessageId],
     );
     if (finalized.rows[0]?.finalized !== true) throw new Error("telegram_decision_finalize_rejected");
   });
@@ -191,7 +206,12 @@ export async function processTelegramDecisionCallback(
   update: Callback,
   deps: TelegramDecisionDependencies = {},
 ): Promise<string> {
-  const activeRuntime = runtime(deps);
+  let activeRuntime: ReturnType<typeof runtime>;
+  try {
+    activeRuntime = runtime(deps);
+  } catch (error) {
+    throw new TelegramDecisionTransientError(error);
+  }
   let acknowledged = false;
   const acknowledge = async (text: string) => {
     if (acknowledged) throw new Error("telegram_callback_acknowledged_twice");
@@ -234,17 +254,27 @@ export async function processTelegramDecisionCallback(
       idempotencyKey: `telegram-decision:${row.id}`,
       requestHash: tokenHash(`${row.id}:accepted`),
     });
-    await finalize(row, decisionId(result));
+    await finalize(row, decisionId(result), null);
     await acknowledge("Рішення зафіксовано.");
     return "decision_accepted";
   } catch (error) {
-    if (acknowledged) throw error;
+    if (acknowledged) throw error instanceof TelegramDecisionTransientError
+      ? error : new TelegramDecisionTransientError(error);
     if (permanentDecisionFailure(error)) {
-      await acknowledge("Дія недійсна або вже використана.");
+      try {
+        await acknowledge("Дія недійсна або вже використана.");
+      } catch (ackError) {
+        throw new TelegramDecisionTransientError(ackError);
+      }
       return "decision_callback_rejected";
     }
-    await acknowledge("Не вдалося виконати дію. Спробуйте ще раз.");
-    throw error;
+    try {
+      await acknowledge("Не вдалося виконати дію. Спробуйте ще раз.");
+    } catch (ackError) {
+      throw new TelegramDecisionTransientError(ackError);
+    }
+    throw error instanceof TelegramDecisionTransientError
+      ? error : new TelegramDecisionTransientError(error);
   }
 }
 
@@ -259,9 +289,9 @@ export async function processTelegramDecisionReturnReply(
   const head = deps.readHeadVersion ?? readHeadVersion;
   const record = deps.recordDecision ?? recordEvidenceDecision;
   const finalize = deps.finalizeDecision ?? finalizeDecision;
-  const row = await resolve(input);
-  if (!row) return null;
   try {
+    const row = await resolve(input);
+    if (!row) return null;
     const expectedVersion = await head(row);
     const result = await record({
       actorUserId: row.actor_user_id,
@@ -271,10 +301,11 @@ export async function processTelegramDecisionReturnReply(
       idempotencyKey: `telegram-decision:${row.id}`,
       requestHash: tokenHash(`${row.id}:returned:${reason}`),
     });
-    await finalize(row, decisionId(result));
+    await finalize(row, decisionId(result), input.messageId);
     return "decision_returned";
   } catch (error) {
     if (permanentDecisionFailure(error)) return "decision_return_rejected";
-    throw error;
+    throw error instanceof TelegramDecisionTransientError
+      ? error : new TelegramDecisionTransientError(error);
   }
 }

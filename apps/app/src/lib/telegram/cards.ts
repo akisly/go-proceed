@@ -75,12 +75,12 @@ export function formatTelegramReceipt(detail: string): TelegramFormattedMessage 
 }
 
 /** Explicit controls only: ordinary chat text is never an evidence decision. */
-export function formatEvidenceDecisionActions(input: { acceptedCallback: string; returnedCallback: string }): TelegramFormattedMessage & {
+export function formatEvidenceDecisionActions(input: { acceptedCallback: string; returnedCallback: string }): {
+  text: string;
   inlineKeyboard: Array<Array<{ text: string; callbackData: string }>>;
 } {
   return {
-    text: "<b>GoProceed</b>\nОберіть явну дію щодо доказів.",
-    parseMode: "HTML",
+    text: "GoProceed\nОберіть явну дію щодо доказів.",
     inlineKeyboard: [[
       { text: "Прийняти", callbackData: input.acceptedCallback },
       { text: "Повернути", callbackData: input.returnedCallback },

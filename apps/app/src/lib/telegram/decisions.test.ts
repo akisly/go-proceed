@@ -1,9 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
 import { HttpProblem, problem } from "../http";
+import { formatEvidenceDecisionActions } from "./cards";
 import {
   isTelegramDecisionCallback,
   processTelegramDecisionCallback,
   processTelegramDecisionReturnReply,
+  TelegramDecisionTransientError,
   type TelegramDecisionDependencies,
 } from "./decisions";
 
@@ -37,6 +39,12 @@ describe("Telegram evidence decisions", () => {
     expect(isTelegramDecisionCallback("req:opaque-selection-token")).toBe(false);
   });
 
+  it("renders decision controls as plain text because text delivery has no HTML parse mode", () => {
+    const rendered = formatEvidenceDecisionActions({ acceptedCallback: "dec:accepted", returnedCallback: "dec:returned" });
+    expect(rendered.text).toBe("GoProceed\nОберіть явну дію щодо доказів.");
+    expect(rendered).not.toHaveProperty("parseMode");
+  });
+
   it("treats ordinary ok text as chat, never a return decision", async () => {
     await expect(processTelegramDecisionReturnReply({
       workspaceId: "workspace", telegramChatBindingId: "binding", senderId: "7",
@@ -57,6 +65,7 @@ describe("Telegram evidence decisions", () => {
     expect(deps.recordDecision).toHaveBeenCalledWith(expect.objectContaining({ actorUserId: tokenRow.actor_user_id,
       occurrenceId: tokenRow.requirement_occurrence_id, body: { outcome: "accepted", issues: [], expectedVersion: null } }));
     expect(deps.finalizeDecision).toHaveBeenCalledTimes(1);
+    expect(deps.finalizeDecision).toHaveBeenCalledWith(tokenRow, "10000000-0000-4000-8000-000000000009", null);
     expect(deps.api?.answerCallbackQuery).toHaveBeenCalledTimes(1);
   });
 
@@ -99,7 +108,9 @@ describe("Telegram evidence decisions", () => {
   it("surfaces transient command failure after one acknowledgement attempt", async () => {
     const failure = new Error("database unavailable");
     const deps = callbackDeps({ recordDecision: vi.fn(async () => { throw failure; }) });
-    await expect(processTelegramDecisionCallback(callback, deps)).rejects.toBe(failure);
+    const thrown = await processTelegramDecisionCallback(callback, deps).catch((error: unknown) => error);
+    expect(thrown).toBeInstanceOf(TelegramDecisionTransientError);
+    expect((thrown as TelegramDecisionTransientError).original).toBe(failure);
     expect(deps.finalizeDecision).not.toHaveBeenCalled();
     expect(deps.api?.answerCallbackQuery).toHaveBeenCalledTimes(1);
   });
@@ -108,15 +119,39 @@ describe("Telegram evidence decisions", () => {
     const failure = new Error("telegram unavailable");
     const sender = vi.fn(async () => { throw failure; });
     const deps = callbackDeps({ api: { answerCallbackQuery: sender } });
-    await expect(processTelegramDecisionCallback(callback, deps)).rejects.toBe(failure);
+    const thrown = await processTelegramDecisionCallback(callback, deps).catch((error: unknown) => error);
+    expect(thrown).toBeInstanceOf(TelegramDecisionTransientError);
+    expect((thrown as TelegramDecisionTransientError).original).toBe(failure);
     expect(sender).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces config/client factory failure instead of reporting a fictitious acknowledgement", async () => {
     const failure = new Error("missing Telegram config");
+    const sender = vi.fn(async (): Promise<void> => undefined);
     const factory = vi.fn(() => { throw failure; });
-    await expect(processTelegramDecisionCallback(callback, { createApi: factory })).rejects.toBe(failure);
+    const thrown = await processTelegramDecisionCallback(callback, { createApi: factory }).catch((error: unknown) => error);
+    expect(thrown).toBeInstanceOf(TelegramDecisionTransientError);
+    expect((thrown as TelegramDecisionTransientError).original).toBe(failure);
     expect(factory).toHaveBeenCalledTimes(1);
+    expect(sender).not.toHaveBeenCalled();
+  });
+
+  it("replays the exact return message after a transient failure and finalizes once", async () => {
+    const failure = new Error("pool timeout");
+    const record = vi.fn()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce({ status: 201, body: { decisionId: "10000000-0000-4000-8000-000000000009" } });
+    const deps = callbackDeps({ recordDecision: record });
+    const input = { workspaceId: tokenRow.workspace_id, telegramChatBindingId: tokenRow.telegram_chat_binding_id,
+      senderId: "7", messageId: "10000000-0000-4000-8000-000000000010", replyToMessageId: "12", text: "Недоліки" };
+    const first = await processTelegramDecisionReturnReply(input, deps).catch((error: unknown) => error);
+    expect(first).toBeInstanceOf(TelegramDecisionTransientError);
+    expect((first as TelegramDecisionTransientError).original).toBe(failure);
+    await expect(processTelegramDecisionReturnReply(input, deps)).resolves.toBe("decision_returned");
+    expect(deps.resolveReturnReply).toHaveBeenCalledTimes(2);
+    expect(deps.finalizeDecision).toHaveBeenCalledTimes(1);
+    expect(deps.finalizeDecision).toHaveBeenCalledWith(tokenRow,
+      "10000000-0000-4000-8000-000000000009", input.messageId);
   });
 
   it("terminalizes permanent return refusal but preserves transient failure for inbox retry", async () => {
@@ -128,6 +163,18 @@ describe("Telegram evidence decisions", () => {
     await expect(processTelegramDecisionReturnReply(input, permanent)).resolves.toBe("decision_return_rejected");
     const failure = new Error("pool timeout");
     const transient = callbackDeps({ recordDecision: vi.fn(async () => { throw failure; }) });
-    await expect(processTelegramDecisionReturnReply(input, transient)).rejects.toBe(failure);
+    const thrown = await processTelegramDecisionReturnReply(input, transient).catch((error: unknown) => error);
+    expect(thrown).toBeInstanceOf(TelegramDecisionTransientError);
+    expect((thrown as TelegramDecisionTransientError).original).toBe(failure);
+  });
+
+  it("classifies return-reply resolver infrastructure failure as retryable", async () => {
+    const failure = new Error("service pool unavailable");
+    const deps = callbackDeps({ resolveReturnReply: vi.fn(async () => { throw failure; }) });
+    const input = { workspaceId: tokenRow.workspace_id, telegramChatBindingId: tokenRow.telegram_chat_binding_id,
+      senderId: "7", messageId: "10000000-0000-4000-8000-000000000010", replyToMessageId: "12", text: "Недоліки" };
+    const thrown = await processTelegramDecisionReturnReply(input, deps).catch((error: unknown) => error);
+    expect(thrown).toBeInstanceOf(TelegramDecisionTransientError);
+    expect((thrown as TelegramDecisionTransientError).original).toBe(failure);
   });
 });

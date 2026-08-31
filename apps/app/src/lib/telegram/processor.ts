@@ -9,7 +9,10 @@ import {
 import { putObject } from "../evidence-storage";
 import { enqueueTelegramMessage } from "./delivery";
 import { normalizeTelegramUpdate, type NormalizedTelegramUpdate } from "./normalize";
-import { isTelegramDecisionCallback, processTelegramDecisionCallback, processTelegramDecisionReturnReply } from "./decisions";
+import {
+  isTelegramDecisionCallback, processTelegramDecisionCallback, processTelegramDecisionReturnReply,
+  TelegramDecisionTransientError,
+} from "./decisions";
 import { issueTelegramEvidenceDecisionCallbacks } from "./decisions";
 
 const INBOX_LEASE_SECONDS = 60;
@@ -335,11 +338,13 @@ async function reconcileTelegramEvidenceReceipt(input: {
   });
   if (!enqueued) return "stale";
   // Decision controls are published only after an exact occurrence has a
-  // durable available evidence object; retry/replay sees the existing active
-  // token pair and does not enqueue another keyboard.
+  // durable available evidence object. Receipt replay for the same source and
+  // generation sees its lifetime context key and never emits another keyboard;
+  // a later attachment or album generation is a new review cycle.
   for (const row of snapshot) if (row.state === "available" && row.requirement_occurrence_id !== null) {
     await issueTelegramEvidenceDecisionCallbacks({ workspaceId: input.binding.workspace_id, projectId: input.binding.project_id,
-      telegramChatBindingId: input.binding.telegram_chat_binding_id, occurrenceId: row.requirement_occurrence_id });
+      telegramChatBindingId: input.binding.telegram_chat_binding_id, occurrenceId: row.requirement_occurrence_id,
+      reviewSource: input.source });
   }
   if (input.source.kind === "media_group" && input.albumClaim) {
     const completion = await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
@@ -946,6 +951,7 @@ export async function processTelegramUpdate(
 }
 
 function safeTelegramProcessingCode(error: unknown): string {
+  if (error instanceof TelegramDecisionTransientError) return error.code;
   return error instanceof TelegramProcessingError ? error.code : "processing_failed";
 }
 
@@ -973,6 +979,18 @@ async function failTelegramInbox(item: ClaimedInboxUpdate, code: string): Promis
   });
 }
 
+async function retryTelegramDecisionInbox(item: ClaimedInboxUpdate, code: string): Promise<"retry_scheduled" | "failed"> {
+  return withServiceTx({ actorUserId: "", organizationId: null, requestId: crypto.randomUUID() }, async (tx) => {
+    const result = await tx.query<{ outcome: "retry_scheduled" | "failed" }>(
+      "select app.retry_telegram_decision_inbox($1::bigint,$2::bigint,$3::uuid,$4::text) as outcome",
+      [item.bot_id, item.update_id, item.lease_id, code],
+    );
+    const outcome = result.rows[0]?.outcome;
+    if (outcome !== "retry_scheduled" && outcome !== "failed") throw new Error("telegram_decision_retry_rejected");
+    return outcome;
+  });
+}
+
 export async function processTelegramInboxBatch(input: {
   workerId: string;
   limit: number;
@@ -988,7 +1006,11 @@ export async function processTelegramInboxBatch(input: {
     } catch (error) {
       result.failed += 1;
       try {
-        await failTelegramInbox(item, safeTelegramProcessingCode(error));
+        if (error instanceof TelegramDecisionTransientError) {
+          await retryTelegramDecisionInbox(item, safeTelegramProcessingCode(error));
+        } else {
+          await failTelegramInbox(item, safeTelegramProcessingCode(error));
+        }
       } catch {
         // A lost/expired lease is already safe: its terminal receipt cannot be
         // changed by this worker, and no error details are exposed.
