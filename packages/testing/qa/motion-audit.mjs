@@ -23,7 +23,7 @@
  *    symmetric.
  * 4. **No perpetual animation outside the marquee.** One ambient animation per
  *    product is a decision; two is a habit.
- * 5. **Motion for React is imported only by the twelve primitives.** Every rule
+ * 5. **Motion for React is imported only by the fifteen primitives.** Every rule
  *    above, plus reveal-fires-once and reduced-motion-is-a-different-animation,
  *    holds because it lives inside those files. A hand-written `motion.div` in
  *    a block is a rule that has to be remembered instead of one that holds.

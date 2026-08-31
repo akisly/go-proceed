@@ -96,9 +96,9 @@ describe("the inventory is closed and complete", () => {
   });
 
   /**
-   * The same obligation, for the other index. §7.3 calls a thirteenth primitive
-   * «a decision», and a decision nobody can see is not one — the motion sink is
-   * where a primitive's reduced-motion branch gets looked at.
+   * The same obligation, for the other index. §7.3, "A new motion primitive",
+   * calls it «a decision», and a decision nobody can see is not one — the
+   * motion sink is where a primitive's reduced-motion branch gets looked at.
    */
   it("renders every motion primitive in the motion kitchen sink", () => {
     const motionIndex = readFileSync(
