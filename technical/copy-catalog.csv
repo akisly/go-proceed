@@ -445,3 +445,5 @@ telegram.evidence.choice_expired,Час вибору вимоги минув. Н
 telegram.evidence.partial,Частину зображень збережено; для кожного збою вказано окрему причину.,telegram,warning,"album outcome is per image and never claims complete success prematurely"
 telegram.evidence.complete,Збережено доказів: {count}.,telegram,success,"terminal receipt base used only after every named image has a durable evidence object; count is the exact number of available outcomes"
 telegram.evidence.failed,Доказ не збережено.,telegram,error,"terminal receipt base for policy authorization quota size provider and exhausted failures followed by every exact safe per-image reason"
+telegram.decision.reason_required,Вкажіть причину повернення у відповіді на це повідомлення.,telegram,notice,"a return callback never decides: only the same linked PTV actor's nonblank reply to the exact durable bot prompt can record the return"
+telegram.decision.recorded,Рішення зафіксовано.,telegram,success,"explicit opaque callback accepted after shared current authorization and self-decision checks"

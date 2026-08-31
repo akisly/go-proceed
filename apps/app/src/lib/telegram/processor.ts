@@ -9,6 +9,7 @@ import {
 import { putObject } from "../evidence-storage";
 import { enqueueTelegramMessage } from "./delivery";
 import { normalizeTelegramUpdate, type NormalizedTelegramUpdate } from "./normalize";
+import { isTelegramDecisionCallback, processTelegramDecisionCallback, processTelegramDecisionReturnReply } from "./decisions";
 
 const INBOX_LEASE_SECONDS = 60;
 const MEDIA_GROUP_LEASE_SECONDS = 60;
@@ -909,7 +910,11 @@ export async function processTelegramUpdate(
   context: RawCommandContext = { token: null, title: null, displayName: null, username: null },
 ): Promise<string> {
   if (update.kind === "unsupported") return "ignored_unsupported_update";
-  if (update.kind === "callback_query") return processRequirementCallback(update);
+  if (update.kind === "callback_query") {
+    return isTelegramDecisionCallback(update.data)
+      ? processTelegramDecisionCallback(update)
+      : processRequirementCallback(update);
+  }
   if (update.kind === "message" && update.command !== null) return processStartCommand(update, context);
 
   const chatId = update.chatId;
@@ -919,6 +924,12 @@ export async function processTelegramUpdate(
   if (update.kind === "message") {
     const stored = await storeMessage(binding, update, context);
     await prepareStoredEvidence(binding, update, stored);
+    // Free text remains communication.  The only text that can decide is a
+    // nonblank reply from the same linked actor to the exact delivered prompt.
+    await processTelegramDecisionReturnReply({
+      workspaceId: binding.workspace_id, telegramChatBindingId: binding.telegram_chat_binding_id,
+      senderId: update.senderId, replyToMessageId: update.replyToMessageId, text: update.text,
+    });
     return stored.disposition;
   }
   if (update.kind === "edited_message") return appendEdit(binding, update);

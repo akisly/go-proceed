@@ -3108,6 +3108,22 @@ create table public.telegram_requirement_choice_sessions (
   check ((closed_at is null and closure_reason is null)
       or (closed_at is not null and closure_reason in ('selected','expired','generation_reopened')))
 );
+create table public.telegram_evidence_decision_tokens (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  telegram_chat_binding_id uuid not null, requirement_occurrence_id uuid not null,
+  actor_user_id uuid not null, actor_member_id uuid not null, action text not null,
+  token_hash text not null, expires_at timestamptz not null, consumed_at timestamptz,
+  return_prompt_message_id uuid, decision_id uuid, created_at timestamptz not null,
+  unique (workspace_id, id), unique (token_hash),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
+  foreign key (workspace_id, actor_member_id) references public.memberships(workspace_id, id),
+  foreign key (return_prompt_message_id) references public.communication_messages(id),
+  foreign key (workspace_id, decision_id) references public.requirement_evidence_decisions(workspace_id, id),
+  check (action in ('accepted','returned')), check (token_hash ~ '^[0-9a-f]{64}$'), check (expires_at > created_at),
+  check ((action = 'accepted' and return_prompt_message_id is null) or action = 'returned')
+);
 create table public.communication_delivery_attempts (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
   message_id uuid not null, attempt_no integer not null, state text not null,
@@ -3173,6 +3189,7 @@ revoke all on table public.telegram_chat_bindings, public.telegram_binding_inten
   public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
   public.telegram_media_groups, public.communication_messages, public.communication_message_events,
   public.communication_attachments, public.telegram_requirement_choices, public.telegram_requirement_choice_sessions,
+  public.telegram_evidence_decision_tokens,
   public.communication_delivery_attempts from public, anon, authenticated, goproceed_app;
 grant select on public.telegram_chat_bindings, public.telegram_media_groups,
   public.communication_messages, public.communication_message_events to goproceed_app;
@@ -3182,7 +3199,8 @@ grant select (id, workspace_id, project_id, message_id, telegram_media_group_id,
   on public.communication_attachments to goproceed_app;
 grant select, insert, update on public.telegram_chat_bindings, public.telegram_binding_intents,
   public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
-  public.telegram_media_groups, public.communication_messages, public.communication_attachments, public.telegram_requirement_choice_sessions
+  public.telegram_media_groups, public.communication_messages, public.communication_attachments, public.telegram_requirement_choice_sessions,
+  public.telegram_evidence_decision_tokens
   to goproceed_service;
 grant select, insert on public.communication_message_events, public.telegram_requirement_choices,
   public.communication_delivery_attempts to goproceed_service;
@@ -3288,6 +3306,7 @@ alter table public.communication_message_events enable row level security;
 alter table public.communication_attachments enable row level security;
 alter table public.telegram_requirement_choices enable row level security;
 alter table public.telegram_requirement_choice_sessions enable row level security;
+alter table public.telegram_evidence_decision_tokens enable row level security;
 alter table public.communication_delivery_attempts enable row level security;
 
 -- =============================================================================
