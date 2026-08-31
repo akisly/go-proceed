@@ -33,6 +33,12 @@ type ReadinessSignalProps = {
  * `calc()` reading that number. Nothing here imports Motion for React; the
  * vocabulary supplies the number and the landing keeps the picture.
  *
+ * IT RUNS ONCE, and `data-readiness-cycle` says so. It used to say `infinite`,
+ * which was true of the `repeat: Infinity` loop this file held and is not true
+ * of `InViewProgress`, which animates to 1 and stops. A hook the QA harness
+ * reads has to describe the behaviour the code actually has, so the attribute
+ * was renamed rather than kept for the sake of keeping it.
+ *
  * THE PHASES, which are the numbers you will read inside the expressions:
  *   0      .. 0.25   trunk draws, its traveler runs Пакет робіт → перевірка
  *   0.25   .. 0.614  the three branches draw, their travelers run to the cards
@@ -176,7 +182,7 @@ export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
         viewBox="0 0 760 320"
         data-readiness-workflow="true"
         data-readiness-motion-engine="motion"
-        data-readiness-cycle="infinite"
+        data-readiness-cycle="once"
         data-readiness-motion={motionState}
         className="mt-8 hidden h-auto w-full md:block"
       >

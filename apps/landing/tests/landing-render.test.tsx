@@ -177,7 +177,7 @@ describe("landing evidence journey", () => {
 
     expect(workflow).toContain('data-readiness-workflow="true"');
     expect(workflow).toContain('data-readiness-motion-engine="motion"');
-    expect(workflow).toContain('data-readiness-cycle="infinite"');
+    expect(workflow).toContain('data-readiness-cycle="once"');
     expect(workflow).toContain("Пакет робіт");
     expect(workflow).toContain("Перевірка повноти");
     expect(workflow.match(/data-readiness-trunk="true"/g) ?? []).toHaveLength(1);
