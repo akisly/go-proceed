@@ -866,6 +866,95 @@ helper had to be told explicitly NOT to follow it, and the next one may not be.
 The fix is to throw the domain object's id and keep the key out of the message
 entirely, in those five functions.
 
+## P3 — the kitchen-sink obligation is enforced by nothing, and two documents claimed it was
+
+**Found 2026-08-29, in the final review of Plan D slice A.**
+`docs/design/02-building-ui.md` §7.2 requires three things of a new component:
+it lands in `packages/ui/src/components/`, it is exported from `index.ts`, and
+it is rendered in `/kitchen-sink/components`. Both that file and
+`docs/superpowers/specs/2026-08-28-assignment-creation-design.md` §4 stated
+that all three are gated by `component-contract.test.ts`. **Only the first two
+are.** That suite asserts file↔`index.ts` parity in both directions and never
+opens a kitchen sink. Both sentences were corrected on 2026-08-29; this entry
+is the missing gate itself.
+
+**Why it is worth building rather than trusting.** Slice A shipped
+`packages/ui/src/components/Field.tsx` with `bg-canvas` on `FieldSeparator`'s
+label where §7.2's own substitution table maps shadcn's `bg-background` to
+`bg-surface`. `cx` is `extendTailwindMerge` with the taught config, so the
+class was live: a paper-toned band across a white panel. Nothing failed,
+because nothing rendered it. That is the exact failure mode the third
+obligation exists to prevent, and it was unguarded.
+
+**The fix is cheap where the parsing already happens.** `component-contract.
+test.ts` already parses the exported names out of `index.ts`; the addition is a
+scan of the kitchen-sink page for each of them.
+
+**It will fail on existing orphans when it lands, and that is the point.**
+`Form`/`FormField`/`FormItem` and their siblings (`packages/ui/src/components/
+index.ts:35-37`) are exported with no caller and no sink entry — the same
+condition that hid the `bg-canvas` bug. Landing the gate means either rendering
+them or retiring them, which is a decision this entry is asking for rather than
+making.
+
+## P2 — a project access grant can be issued through the product and never taken back
+
+**Found 2026-08-29, in the final review of Plan D slice A.** `/v1/projects/
+{projectId}/access-grants` carries a POST and nothing else. There is no v0.1
+operation that revokes a project access capability — `technical/openapi/
+scope-v0.1.csv` names none, and `apps/app/app/v1/projects/[projectId]/
+access-grants/route.ts` exports only `POST`.
+
+The column exists and the read path already honours it: `public.
+project_access_grants.revoked_at` is nullable (migration `0010`), the partial
+unique index is `where revoked_at is null`, and `requireProjectCapability`
+(`apps/app/src/lib/authz.ts`) filters on `revoked_at is null` on every check.
+So the STATE is modelled and enforced; only the command to reach it is missing.
+
+**Why this is a P2 and not a P3.** A mis-scoped grant in the pilot cannot be
+corrected through the product. The only route back is a superuser UPDATE — the
+same statement `apps/app/qa/field.mjs`'s `seedWorld` now has to run, which is
+where this was found. A permissions system whose grants are one-way is an
+operational finding, not a nicety: the owner who over-granted has no move that
+does not involve someone with database credentials.
+
+It also has a second cost, already paid once. Because the capability cannot be
+taken back through the API, the QA harness had to reach for raw SQL to build a
+member who genuinely lacks `readiness.view` — the harness's own boundary
+statement («never a raw SQL insert standing in for what a route would have
+done») now carries an exception it did not have before.
+
+**The fix** is an operation — `project_access.revoke`, or a DELETE on the
+existing collection — added to `scope-v0.1.csv` first, since that file owns the
+API surface. Once it exists, `seedWorld`'s SQL should become an HTTP call like
+every other step around it.
+
+## P3 — about twenty-five routes put English into `fieldErrors[].message`, and the first form to read that field just shipped
+
+**Found 2026-08-29, in the final review of Plan D slice A.** Slice A's F4 fixed
+five hand-written refusals in `apps/app/app/v1/contracts/[contractId]/
+assignments/route.ts` because the office form renders `fieldErrors[].message`
+verbatim, beside the control, in blocked-red — so an English phrase there is
+English shown to a Ukrainian-speaking foreman.
+
+That form is the FIRST surface in this codebase to read that field. The other
+routes were never wrong in practice, because nothing rendered them; they are
+wrong the moment a second form does. `access-grants/route.ts:38`,
+`progress/route.ts:98` and `contracts/route.ts:40` are three of roughly
+twenty-five.
+
+There is also a channel F4 did not close and could not: `apps/app/src/lib/
+command.ts:86-88` maps zod issues straight into `fieldErrors[].message`, so a
+body-schema failure still puts zod's own English into that slot regardless of
+what the handler does. It is unreachable from slice A's form (its Selects
+cannot produce a non-guid), which is why it is filed rather than fixed.
+
+**The fix** is not a sweep — it is a decision about where the boundary sits:
+either every `fieldErrors[].message` is user-facing copy (and `command.ts` must
+translate zod), or the field is machine-facing and forms must map `path` to
+their own copy. Slice A assumed the first. Whichever is chosen belongs in
+`docs/architecture/` before the second form is built.
+
 ## P3 — the browser pass cannot assert «no signed URL in the logs», because there are no logs
 
 **Found 2026-08-22, same research; the number corrected 2026-08-22 in the D1
@@ -3130,7 +3219,7 @@ overflow at 390/360 — back at risk. Left as it is, deliberately.
 
 ---
 
-## P2 — the 2026-08-27 landing merge imports `motion/react` directly, and the motion gate has been red since (found 2026-08-28)
+## P2 (CLOSED 2026-08-31) — the 2026-08-27 landing merge imports `motion/react` directly, and the motion gate has been red since (found 2026-08-28)
 
 **What:** `apps/landing/components/visuals/evidence-rail.tsx:4`, `apps/landing/components/visuals/readiness-workflow.tsx:11` and `apps/landing/components/blocks/evidence-journey-client.tsx:9` (655 lines across the three — 118 + 340 + 197 — landed with the `codex/landing-evidence-journey` merge, all three last touched by `bbfc705`, which is also the commit that introduced the third file's violation: `motion/react` is absent from `evidence-journey-client.tsx` at `74c9818` and present at `bbfc705`, the same commit that rewrote 242 lines of it) import `AnimatePresence`/`motion` from `motion/react` directly — `evidence-journey-client.tsx` also takes `MotionConfig`, `useInView` and `Variants` — and build bespoke `motion.span`/`motion.div` choreography. `packages/ui/src/motion/index.ts`'s own header is categorical: twelve primitives, «a feature file may use nothing else — a bespoke `motion.div` in a block component is a review failure», and repo `CLAUDE.md` rule 3 says the same in three lines. There is no passthrough export to swap to; this is a rewrite, not an import edit.
 
@@ -3142,7 +3231,52 @@ overflow at 390/360 — back at risk. Left as it is, deliberately.
 
 **The fix is a landing-visual slice, not a chore:** each visual's choreography must be re-expressed in the primitive vocabulary (`CrossFade` for the `AnimatePresence` swaps, `Reveal`/`Stagger` for entrances) — or, if the choreography genuinely has no primitive, that is §7.3's «a thirteenth primitive is a decision» path, with the plan's §8.3 updated in the same change. Either way the §6 pass applies: six viewports and reduced-motion-as-different-animation, because these are the landing's animated centrepieces. Not folded into the 2026-08-28 residuals branch, which touches no landing surface.
 
+**Correction, 2026-08-29 — there are THREE offenders, not two.** Re-measured
+on the slice-A branch with `pnpm turbo run test --concurrency=1`:
+`motion-audit.test.ts > finds nothing` reports
+`apps/landing/components/blocks/evidence-journey-client.tsx:9` alongside the two
+`visuals/` files named above. The count is what a reader would have used to size
+the fix — a `blocks/` file was never in scope as this entry was written, and the
+audit's own output is the authority. Everything else in this entry stands: the
+suite is 625/626 with that single failure, and all three imports are present
+unchanged at `aa8f412`, so no slice since has introduced or removed one.
+
 **Same day, same surface, same slice:** `@goproceed/landing`'s OWN test task is also red on `main` — two named cases, measured 2026-08-28: `tests/landing-craft.test.tsx` «keeps a wide-screen gap between the handoff line and review card» (expected 1 matching element, got 0 — plausibly the `bbfc705` border adjustment) and `tests/landing-render.test.tsx` «renders an honest accessible pilot form» (the `#pilot` section lost its `aria-live="polite"`). Both belong to the landing slice this entry describes; whoever takes it fixes the three causes together and leaves `pnpm turbo run test --concurrency=1` genuinely green.
+
+**CLOSED 2026-08-31.** The three offending files — the two `visuals/` imports
+this entry named plus the `blocks/evidence-journey-client.tsx` the 2026-08-29
+correction above added — were rewritten onto the vocabulary across this
+plan's slice, and the vocabulary itself grew by three primitives (`SlideSwap`,
+`TrackFill`, `InViewProgress`) to hold the choreography those files needed:
+a direction-aware swap, a state-driven progress fill, and a progress number
+for a drawing the vocabulary should not own. That is the §7.3 path this entry
+named as the alternative to a rewrite — a primitive genuinely missing, not a
+rewrite avoiding one — and the decision is recorded in the plan's §8.3 and the
+substitution table in `docs/design/02-building-ui.md` §4.1, in the same change.
+
+Measured 2026-08-31, by me, before writing this closure:
+
+- `node packages/testing/qa/motion-audit.mjs` → `motion-audit: clean`. This is
+  the exact script the one remaining vitest failure below wraps.
+- `pnpm --filter @goproceed/landing test` → **44/44**, 8 files — including
+  `tests/landing-craft.test.tsx` (6/6) and `tests/landing-render.test.tsx`
+  (20/20), the two cases the paragraph above names as red. Both are green now.
+- `grep -n "motion/react"` on all three named files (`evidence-rail.tsx`,
+  `readiness-workflow.tsx`, `evidence-journey-client.tsx`) returns nothing —
+  the imports are gone.
+- `@goproceed/testing` — **NOT re-run by me.** This clone shares a local
+  Postgres another effort is using, and I was told not to run that suite.
+  The last actual measurement is Task 4's, from earlier the same day
+  (commit `db73540`, 2026-08-31): 630 passed / 631, the ONE failure being
+  `motion-audit.test.ts > motion audit — the product > finds nothing`,
+  reporting exactly these three files. That script now runs clean, per the
+  first bullet above — so the failure this entry is about is fixed. I am
+  stating it that way, as a fixed audit re-run directly, rather than
+  claiming a re-measured 631/631 I did not produce myself.
+
+The 2026-08-29 correction above — **three offenders, not two** — is now moot:
+all three are fixed, and this closure is written against all three, not the
+original two.
 
 ## Residuals left by the project-sourced-requirements slice (2026-08-27)
 

@@ -1,4 +1,6 @@
-import { meContextResponse, type MeContextResponse } from "@goproceed/contracts";
+import {
+  meContextResponse, type MeContextResponse, type MemberRow, type MembersListResponse,
+} from "@goproceed/contracts";
 import { apiGet, isSessionExpired } from "../lib/api";
 
 /**
@@ -31,6 +33,40 @@ export async function getMeContext(): Promise<MeContextResult> {
     const body = await apiGet<unknown>("/v1/me/context");
     const meContext = meContextResponse.parse(body);
     return { kind: "ok", meContext };
+  } catch (error) {
+    if (isSessionExpired(error)) return { kind: "session_expired" };
+    return { kind: "error", error };
+  }
+}
+
+export type MembersResult =
+  | { kind: "ok"; members: MemberRow[] }
+  | { kind: "session_expired" }
+  | { kind: "error"; error: unknown };
+
+/**
+ * The workspace's members — the assignee picker's source. Members are read
+ * per WORKSPACE while a project route only has a PROJECT id; the caller joins
+ * this against `listProjects()`'s `workspaceId` column first.
+ *
+ * NO NAME AND NO EMAIL, and that is the route's shape rather than an omission
+ * here: `GET /v1/workspaces/{workspaceId}/members`
+ * (`app/v1/workspaces/[workspaceId]/members/route.ts`) selects
+ * `id, user_id, role, status` and nothing else. Every screen that shows a
+ * person therefore shows a role and an id fragment until slice D4 settles
+ * what identity to display — see the spec's §5.
+ *
+ * `MemberRow`/`MembersListResponse` come from `@goproceed/contracts` rather
+ * than a local redeclaration — same reasoning `projects.service.ts` gives for
+ * importing `ProjectListRow` instead of inventing a second copy of a shape
+ * the contracts package already owns.
+ */
+export async function listMembers(workspaceId: string): Promise<MembersResult> {
+  try {
+    const { members } = await apiGet<MembersListResponse>(
+      `/v1/workspaces/${workspaceId}/members`,
+    );
+    return { kind: "ok", members };
   } catch (error) {
     if (isSessionExpired(error)) return { kind: "session_expired" };
     return { kind: "error", error };

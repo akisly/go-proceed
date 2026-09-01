@@ -1,15 +1,7 @@
 "use client";
 
-import { useReduced } from "@goproceed/ui/motion";
-import {
-  animate,
-  motion,
-  useInView,
-  useMotionValue,
-  useTransform,
-  type MotionValue,
-} from "motion/react";
-import { useEffect, useRef } from "react";
+import { InViewProgress, useReduced } from "@goproceed/ui/motion";
+import { useEffect, useRef, useState } from "react";
 
 type ReadinessWorkflowNode = {
   id: "ready" | "review" | "blocked";
@@ -24,22 +16,85 @@ type ReadinessWorkflowProps = {
 
 type ReadinessSignalProps = {
   d: string;
+  drawOffset: string;
   fillClassName: string;
   id: "trunk" | ReadinessWorkflowNode["id"];
-  opacity: MotionValue<number>;
-  progress: MotionValue<number>;
-  start: readonly [number, number];
+  opacity: string;
   strokeClassName: string;
-  travelerOpacity: MotionValue<number>;
+  travelDistance: string;
+  travelerOpacity: string;
 };
 
-const cycle = {
-  duration: 2.2,
-  pause: 1.8,
-  trunkEnd: 0.25,
-  branchesEnd: 0.614,
-} as const;
-
+/**
+ * HOW THIS DIAGRAM MOVES, NOW THAT IT HOLDS NO ANIMATION OF ITS OWN
+ * -----------------------------------------------------------------
+ * `<InViewProgress>` publishes one number, `--gp-progress`, from 0 to 1 on the
+ * wrapper once the diagram scrolls into view, and every moving part below is a
+ * `calc()` reading that number. Nothing here imports Motion for React; the
+ * vocabulary supplies the number and the landing keeps the picture.
+ *
+ * IT RUNS ONCE, and `data-readiness-cycle` says so. It used to say `infinite`,
+ * which was true of the `repeat: Infinity` loop this file held and is not true
+ * of `InViewProgress`, which animates to 1 and stops. A hook the QA harness
+ * reads has to describe the behaviour the code actually has, so the attribute
+ * was renamed rather than kept for the sake of keeping it.
+ *
+ * `data-readiness-motion-engine="motion"` KEEPS its value under that same
+ * standard, and for the same reason rather than in spite of it: the number
+ * this diagram reads is still produced by Motion, inside `InViewProgress`.
+ * The attribute names the engine, not the import site, and it is true.
+ *
+ * THE PHASES, in the TIME the reader experiences:
+ *   0     .. 0.25   trunk draws, its traveler runs Пакет робіт → перевірка
+ *   0.25  .. 0.614  the three branches draw, their travelers run to the cards
+ *   0.59  .. 1      the endpoint cards pulse twice and settle
+ * `0.25` and `0.614` were `cycle.trunkEnd` and `cycle.branchesEnd`.
+ *
+ * THE NUMBERS IN THE EXPRESSIONS ARE NOT THOSE NUMBERS, AND THIS IS THE WHOLE
+ * TRAP. The three phases above were tuned against a LINEAR 2.2s loop, where a
+ * constant `c` and the time-fraction `c` were the same thing. `--gp-progress`
+ * is now `InViewProgress`'s `DURATION.deliberate` ramp on `EASE.out`, so
+ * progress is `p = ease(t)` and the two have come apart: read literally, `0.25`
+ * arrives 134ms into a 640ms ramp — 86ms — and the trunk traveller, which is
+ * the one object in this diagram carrying the meaning (one work package moving
+ * from «Пакет робіт» to «Перевірка повноти»), was crossing the frame faster
+ * than a reader can follow it. The branches finished at 230ms instead of the
+ * 1351ms they were drawn for, and both pulses shared the remaining 422ms.
+ *
+ * So every breakpoint below is `ease(c)` — the progress the ramp has reached at
+ * time-fraction `c` — and the phase boundaries land back where they were tuned:
+ *   0.25 -> 0.453   0.614 -> 0.862   0.59 -> 0.845
+ * `ease` is `cubic-bezier(0.25, 0.46, 0.45, 0.94)` from `ease.out` in
+ * `packages/tokens/src/tokens.json`, evaluated at `c` and rounded to three
+ * decimals. The doc line above each constant states the domain in the same
+ * converted numbers, so nothing here says one thing and does another.
+ *
+ * Each is written out at every use because a `calc()` string cannot interpolate
+ * a constant without becoming a built string, and a built string is the one
+ * thing this repo has already paid for.
+ *
+ * ONE SEGMENT IS `calc(c + (d - c) * clamp(0, (p - a) / (b - a), 1))`, the CSS
+ * spelling of `useTransform(p, [a, b], [c, d])`. A ramp with more than two
+ * stops is the SUM of its segments, and a segment whose output does not change
+ * contributes nothing and is left out.
+ *
+ * WHY `stroke-dashoffset` RATHER THAN A LENGTH. Motion's `pathLength` is the
+ * same trick underneath: `pathLength="1"` makes the dash units a fraction of
+ * the path, `stroke-dasharray: 1` is one dash and one gap, and an offset of 1
+ * hides the line while 0 draws it whole.
+ *
+ * WHY `offset-path` FOR THE TRAVELLERS. The dot used to be placed by
+ * `getPointAtLength`, which is exactly what `offset-distance` means: a
+ * percentage along the same path. `cx`/`cy` sit at `r` so the circle's fill box
+ * starts at the local origin, which keeps the dot on the path under both
+ * readings of the reference box in CSS Motion Path.
+ *
+ * REDUCED MOTION. `InViewProgress` publishes 1 immediately, and every animated
+ * value above reaches 0 opacity at 1 exactly as it does at 0 — the signal
+ * overlays, the travellers and both pulses are invisible, and what remains is
+ * the static diagram. That is the same picture the old `active === false`
+ * branch drew, so `motionState === "static"` and `--gp-progress: 1` agree.
+ */
 const layout = {
   ready: {
     cardY: 24,
@@ -76,264 +131,257 @@ const layout = {
   },
 } as const;
 
+/**
+ * `useTransform(p, [0, 0.453], [0, 1])`, as a dash offset: 1 hides, 0 draws.
+ *
+ * THE ENDPOINTS ARE `px` ON PURPOSE. `stroke-dashoffset` takes a length, and
+ * SVG additionally allows a bare number there — an allowance no engine is
+ * obliged to honour INSIDE `calc()`. An engine that does not would drop the
+ * whole declaration, `stroke-dashoffset` would fall back to 0, and every
+ * signal line would render fully drawn from the first frame while its opacity
+ * still ramped: a plausible animation that has quietly lost its draw-on, with
+ * no error anywhere. `pathLength="1"` makes one user unit — one `px` here —
+ * the whole path, so the length spelling is the same number with a type.
+ */
+const trunkDrawOffset =
+  "calc(1px + (0px - 1px) * clamp(0, (var(--gp-progress, 0) - 0) / (0.453 - 0), 1))";
+/** `useTransform(p, [0.453, 0.862], [0, 1])`, as a dash offset, in `px` for the same reason. */
+const branchDrawOffset =
+  "calc(1px + (0px - 1px) * clamp(0, (var(--gp-progress, 0) - 0.453) / (0.862 - 0.453), 1))";
+/** The same trunk ramp as a distance along the path, for the traveller. */
+const trunkTravelDistance =
+  "calc(0% + (100% - 0%) * clamp(0, (var(--gp-progress, 0) - 0) / (0.453 - 0), 1))";
+/** The same branch ramp as a distance along the path, for the travellers. */
+const branchTravelDistance =
+  "calc(0% + (100% - 0%) * clamp(0, (var(--gp-progress, 0) - 0.453) / (0.862 - 0.453), 1))";
+/** `useTransform(p, [0, 0.028, 0.453, 0.879, 0.923], [0, 1, 1, 0.32, 0])`. */
+const trunkOpacity =
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0) / (0.028 - 0), 1) + (0.32 - 1) * clamp(0, (var(--gp-progress, 0) - 0.453) / (0.879 - 0.453), 1) + (0 - 0.32) * clamp(0, (var(--gp-progress, 0) - 0.879) / (0.923 - 0.879), 1))";
+/** `useTransform(p, [0.429, 0.453, 0.862, 0.923, 0.955], [0, 1, 1, 0.28, 0])`. */
+const branchOpacity =
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.429) / (0.453 - 0.429), 1) + (0.28 - 1) * clamp(0, (var(--gp-progress, 0) - 0.862) / (0.923 - 0.862), 1) + (0 - 0.28) * clamp(0, (var(--gp-progress, 0) - 0.923) / (0.955 - 0.923), 1))";
+/** `useTransform(p, [0, 0.028, 0.42, 0.453], [0, 1, 1, 0])`. */
+const trunkTravelerOpacity =
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0) / (0.028 - 0), 1) + (0 - 1) * clamp(0, (var(--gp-progress, 0) - 0.42) / (0.453 - 0.42), 1))";
+/** `useTransform(p, [0.429, 0.453, 0.845, 0.862], [0, 1, 1, 0])`. */
+const branchTravelerOpacity =
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.429) / (0.453 - 0.429), 1) + (0 - 1) * clamp(0, (var(--gp-progress, 0) - 0.845) / (0.862 - 0.845), 1))";
+/** `useTransform(p, [0.845, 0.876, 0.94, 0.986], [0, 1, 0.58, 0])`. */
+const primaryPulseOpacity =
+  "calc(0 + (1 - 0) * clamp(0, (var(--gp-progress, 0) - 0.845) / (0.876 - 0.845), 1) + (0.58 - 1) * clamp(0, (var(--gp-progress, 0) - 0.876) / (0.94 - 0.876), 1) + (0 - 0.58) * clamp(0, (var(--gp-progress, 0) - 0.94) / (0.986 - 0.94), 1))";
+/** `useTransform(p, [0.845, 0.913, 0.986], ["scale(0.98, 0.95)", "scale(1.025, 1.035)", "scale(1.07, 1.1)"])`. */
+const primaryPulseTransform =
+  "scale(calc(0.98 + (1.025 - 0.98) * clamp(0, (var(--gp-progress, 0) - 0.845) / (0.913 - 0.845), 1) + (1.07 - 1.025) * clamp(0, (var(--gp-progress, 0) - 0.913) / (0.986 - 0.913), 1)), calc(0.95 + (1.035 - 0.95) * clamp(0, (var(--gp-progress, 0) - 0.845) / (0.913 - 0.845), 1) + (1.1 - 1.035) * clamp(0, (var(--gp-progress, 0) - 0.913) / (0.986 - 0.913), 1)))";
+/** `useTransform(p, [0.885, 0.92, 0.968, 1], [0, 0.82, 0.36, 0])`. */
+const secondaryPulseOpacity =
+  "calc(0 + (0.82 - 0) * clamp(0, (var(--gp-progress, 0) - 0.885) / (0.92 - 0.885), 1) + (0.36 - 0.82) * clamp(0, (var(--gp-progress, 0) - 0.92) / (0.968 - 0.92), 1) + (0 - 0.36) * clamp(0, (var(--gp-progress, 0) - 0.968) / (1 - 0.968), 1))";
+/** `useTransform(p, [0.885, 0.948, 1], ["scale(0.99, 0.97)", "scale(1.05, 1.075)", "scale(1.1, 1.16)"])`. */
+const secondaryPulseTransform =
+  "scale(calc(0.99 + (1.05 - 0.99) * clamp(0, (var(--gp-progress, 0) - 0.885) / (0.948 - 0.885), 1) + (1.1 - 1.05) * clamp(0, (var(--gp-progress, 0) - 0.948) / (1 - 0.948), 1)), calc(0.97 + (1.075 - 0.97) * clamp(0, (var(--gp-progress, 0) - 0.885) / (0.948 - 0.885), 1) + (1.16 - 1.075) * clamp(0, (var(--gp-progress, 0) - 0.948) / (1 - 0.948), 1)))";
+
 export function ReadinessWorkflow({ nodes }: ReadinessWorkflowProps) {
   const workflowRef = useRef<SVGSVGElement>(null);
-  const inView = useInView(workflowRef, { amount: 0.4, once: true });
   const reduced = useReduced();
-  const cycleProgress = useMotionValue(0);
-  const active = inView && !reduced;
+  const [entered, setEntered] = useState(false);
   const total = nodes.reduce((sum, node) => sum + Number.parseInt(node.value, 10), 0);
 
+  // `data-readiness-motion` reports which of three states the diagram is in;
+  // it does not drive the drawing, which `--gp-progress` owns. The threshold
+  // is `InViewProgress`'s own default `amount`, so the reported state and the
+  // published number turn over together rather than disagreeing by a scroll.
   useEffect(() => {
-    if (!active) {
-      cycleProgress.set(0);
-      return;
-    }
+    const node = workflowRef.current;
+    if (!node || reduced) return;
 
-    cycleProgress.set(0);
-    const controls = animate(cycleProgress, 1, {
-      duration: cycle.duration,
-      ease: "linear",
-      repeat: Infinity,
-      repeatDelay: cycle.pause,
-      repeatType: "loop",
-    });
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting && entry.intersectionRatio >= 0.4)) {
+          setEntered(true);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.4 },
+    );
+    observer.observe(node);
 
-    return () => controls.stop();
-  }, [active, cycleProgress]);
+    return () => observer.disconnect();
+  }, [reduced]);
 
-  const trunkProgress = useTransform(
-    cycleProgress,
-    [0, cycle.trunkEnd],
-    [0, 1],
-    { clamp: true },
-  );
-  const branchProgress = useTransform(
-    cycleProgress,
-    [cycle.trunkEnd, cycle.branchesEnd],
-    [0, 1],
-    { clamp: true },
-  );
-  const trunkOpacity = useTransform(
-    cycleProgress,
-    [0, 0.015, cycle.trunkEnd, 0.64, 0.72],
-    [0, 1, 1, 0.32, 0],
-  );
-  const branchOpacity = useTransform(
-    cycleProgress,
-    [0.235, cycle.trunkEnd, cycle.branchesEnd, 0.72, 0.8],
-    [0, 1, 1, 0.28, 0],
-  );
-  const trunkTravelerOpacity = useTransform(
-    cycleProgress,
-    [0, 0.015, 0.23, cycle.trunkEnd],
-    [0, 1, 1, 0],
-  );
-  const branchTravelerOpacity = useTransform(
-    cycleProgress,
-    [0.235, cycle.trunkEnd, 0.59, cycle.branchesEnd],
-    [0, 1, 1, 0],
-  );
-  const primaryPulseOpacity = useTransform(
-    cycleProgress,
-    [0.59, 0.635, 0.76, 0.91],
-    [0, 1, 0.58, 0],
-  );
-  const primaryPulseTransform = useTransform(
-    cycleProgress,
-    [0.59, 0.7, 0.91],
-    ["scale(0.98, 0.95)", "scale(1.025, 1.035)", "scale(1.07, 1.1)"],
-  );
-  const secondaryPulseOpacity = useTransform(
-    cycleProgress,
-    [0.65, 0.715, 0.84, 1],
-    [0, 0.82, 0.36, 0],
-  );
-  const secondaryPulseTransform = useTransform(
-    cycleProgress,
-    [0.65, 0.78, 1],
-    ["scale(0.99, 0.97)", "scale(1.05, 1.075)", "scale(1.1, 1.16)"],
-  );
-
-  const motionState = reduced ? "static" : active ? "active" : "idle";
+  const motionState = reduced ? "static" : entered ? "active" : "idle";
 
   return (
-    <svg
-      ref={workflowRef}
-      role="img"
-      aria-labelledby="readiness-title readiness-desc"
-      viewBox="0 0 760 320"
-      data-readiness-workflow="true"
-      data-readiness-motion-engine="motion"
-      data-readiness-cycle="infinite"
-      data-readiness-motion={motionState}
-      className="mt-8 hidden h-auto w-full md:block"
-    >
-      <title id="readiness-title">Перевірка повноти пакета робіт</title>
-      <desc id="readiness-desc">
-        Один пакет робіт проходить перевірку повноти та розподіляється на три незалежні результати: готово, на розгляді або заблоковано.
-      </desc>
+    <InViewProgress className="mt-8 hidden md:block">
+      <svg
+        ref={workflowRef}
+        role="img"
+        aria-labelledby="readiness-title readiness-desc"
+        viewBox="0 0 760 320"
+        data-readiness-workflow="true"
+        data-readiness-motion-engine="motion"
+        data-readiness-cycle="once"
+        data-readiness-motion={motionState}
+        className="h-auto w-full"
+      >
+        <title id="readiness-title">Перевірка повноти пакета робіт</title>
+        <desc id="readiness-desc">
+          Один пакет робіт проходить перевірку повноти та розподіляється на три незалежні результати: готово, на розгляді або заблоковано.
+        </desc>
 
-      <g fill="none" strokeLinecap="round" vectorEffect="non-scaling-stroke">
-        <path
-          d="M182 160H306"
-          data-readiness-trunk="true"
-          className="stroke-line-strong"
-          strokeWidth="1.5"
-        />
-        {nodes.map((node) => (
+        <g fill="none" strokeLinecap="round" vectorEffect="non-scaling-stroke">
           <path
-            key={`base-${node.id}`}
-            d={layout[node.id].path}
-            data-readiness-branch={node.id}
+            d="M182 160H306"
+            data-readiness-trunk="true"
             className="stroke-line-strong"
             strokeWidth="1.5"
           />
-        ))}
+          {nodes.map((node) => (
+            <path
+              key={`base-${node.id}`}
+              d={layout[node.id].path}
+              data-readiness-branch={node.id}
+              className="stroke-line-strong"
+              strokeWidth="1.5"
+            />
+          ))}
 
-        <ReadinessSignal
-          d="M182 160H306"
-          fillClassName="fill-ink-muted"
-          id="trunk"
-          opacity={trunkOpacity}
-          progress={trunkProgress}
-          start={[182, 160]}
-          strokeClassName="stroke-ink-muted"
-          travelerOpacity={trunkTravelerOpacity}
-        />
-        {nodes.map((node) => (
           <ReadinessSignal
-            key={`signal-${node.id}`}
-            d={layout[node.id].path}
-            fillClassName={layout[node.id].signalFill}
-            id={node.id}
-            opacity={branchOpacity}
-            progress={branchProgress}
-            start={[366, 160]}
-            strokeClassName={layout[node.id].signalStroke}
-            travelerOpacity={branchTravelerOpacity}
+            d="M182 160H306"
+            drawOffset={trunkDrawOffset}
+            fillClassName="fill-ink-muted"
+            id="trunk"
+            opacity={trunkOpacity}
+            strokeClassName="stroke-ink-muted"
+            travelDistance={trunkTravelDistance}
+            travelerOpacity={trunkTravelerOpacity}
           />
-        ))}
-      </g>
-
-      <g>
-        <rect x="22" y="118" width="160" height="84" rx="14" className="fill-surface stroke-line-strong" />
-        <text x="42" y="148" className="fill-ink-muted font-mono text-[13px] font-semibold uppercase tracking-[0.1em]">
-          Пакет робіт
-        </text>
-        <text x="42" y="181" className="fill-ink font-mono text-[28px] font-semibold">
-          {total}
-        </text>
-        <text x="82" y="180" className="fill-ink-muted text-[15px]">
-          роботи
-        </text>
-      </g>
-
-      <g>
-        <text x="336" y="112" textAnchor="middle" className="fill-ink-muted font-mono text-[13px] font-semibold uppercase tracking-[0.1em]">
-          Перевірка повноти
-        </text>
-        <circle cx="336" cy="160" r="30" className="fill-surface stroke-line-strong" strokeWidth="1.5" />
-        <circle cx="336" cy="160" r="8" className="fill-action-signal" />
-        <path d="m331 160 3.5 3.5 7-8" className="fill-none stroke-action-signal-fg" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-      </g>
-
-      {nodes.map((node) => {
-        const styles = layout[node.id];
-        const textY = styles.cardY + 29;
-
-        return (
-          <g key={node.id} data-readiness-endpoint={node.id} aria-label={node.detail}>
-            <rect
-              x="508"
-              y={styles.cardY}
-              width="230"
-              height="78"
-              rx="14"
-              className={`${styles.surface} ${styles.border}`}
+          {nodes.map((node) => (
+            <ReadinessSignal
+              key={`signal-${node.id}`}
+              d={layout[node.id].path}
+              drawOffset={branchDrawOffset}
+              fillClassName={layout[node.id].signalFill}
+              id={node.id}
+              opacity={branchOpacity}
+              strokeClassName={layout[node.id].signalStroke}
+              travelDistance={branchTravelDistance}
+              travelerOpacity={branchTravelerOpacity}
             />
-            <motion.rect
-              x="508"
-              y={styles.cardY}
-              width="230"
-              height="78"
-              rx="14"
-              data-readiness-pulse={`${node.id}-primary`}
-              className={`readiness-workflow-endpoint-pulse fill-none ${styles.pulseStroke}`}
-              strokeWidth="3"
-              style={{ opacity: primaryPulseOpacity, transform: primaryPulseTransform }}
-            />
-            <motion.rect
-              x="508"
-              y={styles.cardY}
-              width="230"
-              height="78"
-              rx="14"
-              data-readiness-pulse={`${node.id}-secondary`}
-              className={`readiness-workflow-endpoint-pulse fill-none ${styles.pulseStroke}`}
-              strokeWidth="2"
-              style={{ opacity: secondaryPulseOpacity, transform: secondaryPulseTransform }}
-            />
-            <text x="528" y={textY + 13} className={`${styles.foreground} font-mono text-[26px] font-semibold`}>
-              {node.value}
-            </text>
-            <text x="582" y={textY} className="fill-ink text-[15px] font-semibold">
-              {node.label}
-            </text>
-            <text x="582" y={textY + 19} className="fill-ink-muted text-[13px]">
-              <tspan x="582">{styles.detailLines[0]}</tspan>
-              <tspan x="582" dy="15">{styles.detailLines[1]}</tspan>
-            </text>
-          </g>
-        );
-      })}
-    </svg>
+          ))}
+        </g>
+
+        <g>
+          <rect x="22" y="118" width="160" height="84" rx="14" className="fill-surface stroke-line-strong" />
+          <text x="42" y="148" className="fill-ink-muted font-mono text-[13px] font-semibold uppercase tracking-[0.1em]">
+            Пакет робіт
+          </text>
+          <text x="42" y="181" className="fill-ink font-mono text-[28px] font-semibold">
+            {total}
+          </text>
+          <text x="82" y="180" className="fill-ink-muted text-[15px]">
+            роботи
+          </text>
+        </g>
+
+        <g>
+          <text x="336" y="112" textAnchor="middle" className="fill-ink-muted font-mono text-[13px] font-semibold uppercase tracking-[0.1em]">
+            Перевірка повноти
+          </text>
+          <circle cx="336" cy="160" r="30" className="fill-surface stroke-line-strong" strokeWidth="1.5" />
+          <circle cx="336" cy="160" r="8" className="fill-action-signal" />
+          <path d="m331 160 3.5 3.5 7-8" className="fill-none stroke-action-signal-fg" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+        </g>
+
+        {nodes.map((node) => {
+          const styles = layout[node.id];
+          const textY = styles.cardY + 29;
+
+          return (
+            <g key={node.id} data-readiness-endpoint={node.id} aria-label={node.detail}>
+              <rect
+                x="508"
+                y={styles.cardY}
+                width="230"
+                height="78"
+                rx="14"
+                className={`${styles.surface} ${styles.border}`}
+              />
+              <rect
+                x="508"
+                y={styles.cardY}
+                width="230"
+                height="78"
+                rx="14"
+                data-readiness-pulse={`${node.id}-primary`}
+                className={`readiness-workflow-endpoint-pulse fill-none ${styles.pulseStroke}`}
+                strokeWidth="3"
+                style={{ opacity: primaryPulseOpacity, transform: primaryPulseTransform }}
+              />
+              <rect
+                x="508"
+                y={styles.cardY}
+                width="230"
+                height="78"
+                rx="14"
+                data-readiness-pulse={`${node.id}-secondary`}
+                className={`readiness-workflow-endpoint-pulse fill-none ${styles.pulseStroke}`}
+                strokeWidth="2"
+                style={{ opacity: secondaryPulseOpacity, transform: secondaryPulseTransform }}
+              />
+              <text x="528" y={textY + 13} className={`${styles.foreground} font-mono text-[26px] font-semibold`}>
+                {node.value}
+              </text>
+              <text x="582" y={textY} className="fill-ink text-[15px] font-semibold">
+                {node.label}
+              </text>
+              <text x="582" y={textY + 19} className="fill-ink-muted text-[13px]">
+                <tspan x="582">{styles.detailLines[0]}</tspan>
+                <tspan x="582" dy="15">{styles.detailLines[1]}</tspan>
+              </text>
+            </g>
+          );
+        })}
+      </svg>
+    </InViewProgress>
   );
 }
 
 function ReadinessSignal({
   d,
+  drawOffset,
   fillClassName,
   id,
   opacity,
-  progress,
-  start,
   strokeClassName,
+  travelDistance,
   travelerOpacity,
 }: ReadinessSignalProps) {
-  const pathRef = useRef<SVGPathElement>(null);
-  const travelerX = useTransform(progress, (value) => {
-    const path = pathRef.current;
-    return path
-      ? path.getPointAtLength(path.getTotalLength() * value).x
-      : start[0];
-  });
-  const travelerY = useTransform(progress, (value) => {
-    const path = pathRef.current;
-    return path
-      ? path.getPointAtLength(path.getTotalLength() * value).y
-      : start[1];
-  });
-
   return (
     <>
-      <motion.path
-        ref={pathRef}
+      <path
         d={d}
         data-readiness-signal={id}
         className={strokeClassName}
         strokeWidth="2.5"
-        style={{ opacity, pathLength: progress }}
+        pathLength={1}
+        style={{ opacity, strokeDasharray: "1", strokeDashoffset: drawOffset }}
       />
-      <motion.circle
-        cx={travelerX}
-        cy={travelerY}
+      <circle
+        cx="5.5"
+        cy="5.5"
         r="5.5"
         aria-hidden="true"
         data-readiness-traveler={id}
         className={`${fillClassName} stroke-surface`}
         strokeWidth="2.5"
-        style={{ opacity: travelerOpacity }}
+        style={{
+          opacity: travelerOpacity,
+          offsetPath: `path('${d}')`,
+          offsetDistance: travelDistance,
+          offsetRotate: "0deg",
+          offsetAnchor: "center",
+          transformBox: "fill-box",
+          transformOrigin: "center",
+        }}
       />
     </>
   );

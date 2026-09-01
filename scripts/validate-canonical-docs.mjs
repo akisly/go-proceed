@@ -148,6 +148,34 @@ const ROLE_RECORD_DIRS = [
   // argument. Its package name, lockfile and Chrome-path env var keep the old
   // spelling deliberately.
   "prototype/",
+  // Dated review reports — the child-a hardening round of 2026-07-26, rescued
+  // into git on 2026-08-29 from a tree that was about to be deleted. They
+  // record what the design was called and measured on that day; rewriting the
+  // name would falsify a review. Added 2026-08-30, when that rescue first
+  // brought them under the walk.
+  "docs/reviews/",
+  // The Child B discovery research: dated handoffs, the ProZorro extraction
+  // spike, the source registry, the reply-classification corpus and its eval
+  // fixtures. All record work done in July under the old product name. Added
+  // 2026-08-30, when the feat/phase1-child-b-outreach merge brought them under
+  // the walk. `discovery/templates/` is deliberately NOT covered — see
+  // ROLE_RECORD_EXCEPTIONS below.
+  "discovery/",
+];
+
+/**
+ * PATHS A RECORD DIRECTORY COVERS BUT MUST NOT EXEMPT.
+ *
+ * `discovery/` is a research record, with one exception that is not a record at
+ * all: `discovery/templates/` holds the outreach letters themselves — copy that
+ * goes to a real person. Seven of them introduce the product as «AktFlow» and
+ * link `https://aktflow-demo.vercel.app/`, a demo deleted on 2026-08-20 with
+ * `apps/demo`. Naming a retired product to a prospect, and pointing them at a
+ * dead URL, is exactly the defect this validator exists to catch — so the
+ * exemption stops at the directory boundary and the finding stays visible.
+ */
+const ROLE_RECORD_EXCEPTIONS = [
+  "discovery/templates/",
 ];
 const ROLE_RECORD_FILES = new Set([
   // A dated package review: it records what the roles were called on the day it
@@ -212,6 +240,7 @@ const OLD_ROLE_RE = /\baktflow_(app_login|app|service_login|service|worker)\b|ak
 const ROLE_RULE_DEFINITION = "scripts/validate-canonical-docs.mjs";
 
 export function isRoleRecordPath(relPath) {
+  if (ROLE_RECORD_EXCEPTIONS.some((d) => relPath.startsWith(d))) return false;
   return relPath === ROLE_RULE_DEFINITION
     || ROLE_RECORD_DIRS.some((d) => relPath.startsWith(d))
     || ROLE_RECORD_FILES.has(relPath);

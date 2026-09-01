@@ -23,7 +23,7 @@ import { cx } from "./cn";
  * already uses for its own Radix `data-state` transition. This is a Radix
  * primitive's own open/close state, not a scroll-linked or imperative
  * animation, so it stays a CSS utility rather than reaching for one of the
- * twelve `@goproceed/ui/motion` primitives, which are for the JS-driven
+ * fifteen `@goproceed/ui/motion` primitives, which are for the JS-driven
  * vocabulary (reveals, staggers, counters) that this is not.
  */
 export const Dialog = RadixDialog.Root;

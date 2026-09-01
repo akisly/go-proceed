@@ -36,11 +36,15 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.6",
     "@types/node": "24.9.2",
     "@types/pg": "^8.23.1",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "exceljs": "4.4.0",
+    "jsdom": "^30.0.1",
     "pg": "^8.23.0",
     "puppeteer": "25.8.0",
     "vitest": "3.2.4"

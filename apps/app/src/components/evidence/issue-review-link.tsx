@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import type { ExternalLinkDelivery } from "@goproceed/contracts";
-import { Banner, Button, Field, Input } from "@goproceed/ui/components";
+import {
+  Banner, Button, Field, FieldDescription, FieldLabel, Input,
+} from "@goproceed/ui/components";
 
 import { issueReviewLink } from "../../services/grants.service";
 
@@ -104,6 +106,11 @@ type State =
   | { phase: "failed"; message: string };
 
 export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
+  // Minted here, not inside `Field` — the shadcn family is presentational and
+  // does not mint ids the way the retired render-prop `Field` did internally.
+  const emailId = useId();
+  const roleId = useId();
+  const roleDescriptionId = useId();
   const [state, setState] = useState<State>({ phase: "form" });
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("");
@@ -229,42 +236,44 @@ export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
       </div>
 
       <form className="flex max-w-measure flex-col gap-3" onSubmit={submit}>
-        <Field label="Пошта одержувача" required>
-          {({ id, describedBy, invalid }) => (
-            <Input
-              id={id}
-              type="email"
-              required
-              autoComplete="email"
-              inputMode="email"
-              placeholder="tehnahliad@example.com"
-              value={email}
-              disabled={pending}
-              aria-invalid={invalid}
-              {...(describedBy ? { "aria-describedby": describedBy } : {})}
-              onChange={(e) => setEmail(e.target.value)}
-            />
-          )}
+        <Field>
+          <FieldLabel htmlFor={emailId}>
+            Пошта одержувача
+            <span className="ml-1 text-status-blocked-fg" aria-hidden="true">*</span>
+            <span className="sr-only"> (обов’язкове)</span>
+          </FieldLabel>
+          <Input
+            id={emailId}
+            type="email"
+            required
+            autoComplete="email"
+            inputMode="email"
+            placeholder="tehnahliad@example.com"
+            value={email}
+            disabled={pending}
+            onChange={(e) => setEmail(e.target.value)}
+          />
         </Field>
 
-        <Field
-          label="Роль одержувача"
-          description="Як одержувач представляється. Це не підтвердження особи й не повноваження поза цим посиланням."
-          required
-        >
-          {({ id, describedBy, invalid }) => (
-            <Input
-              id={id}
-              type="text"
-              required
-              placeholder="технічний нагляд"
-              value={role}
-              disabled={pending}
-              aria-invalid={invalid}
-              {...(describedBy ? { "aria-describedby": describedBy } : {})}
-              onChange={(e) => setRole(e.target.value)}
-            />
-          )}
+        <Field>
+          <FieldLabel htmlFor={roleId}>
+            Роль одержувача
+            <span className="ml-1 text-status-blocked-fg" aria-hidden="true">*</span>
+            <span className="sr-only"> (обов’язкове)</span>
+          </FieldLabel>
+          <Input
+            id={roleId}
+            type="text"
+            required
+            placeholder="технічний нагляд"
+            value={role}
+            disabled={pending}
+            aria-describedby={roleDescriptionId}
+            onChange={(e) => setRole(e.target.value)}
+          />
+          <FieldDescription id={roleDescriptionId}>
+            Як одержувач представляється. Це не підтвердження особи й не повноваження поза цим посиланням.
+          </FieldDescription>
         </Field>
 
         <div>

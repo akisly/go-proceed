@@ -72,7 +72,7 @@ export function FieldReviewVisual() {
       <div ref={handoffRef} className="relative mx-auto flex w-full max-w-[300px] items-center justify-center py-4 wide:h-full wide:max-w-none wide:py-0" aria-hidden="true">
         <span
           data-handoff-line="true"
-          className={`absolute left-0 right-0 top-1/2 h-px origin-left bg-line-inverse transition-transform duration-slow ease-out motion-reduce:scale-x-100 motion-reduce:transition-none ${
+          className={`absolute left-0 right-0 top-1/2 h-px origin-left bg-line-inverse transition-transform duration-slow ease-out wide:right-8 motion-reduce:scale-x-100 motion-reduce:transition-none ${
             handoffDrawn ? "scale-x-100" : "scale-x-0"
           }`}
         />

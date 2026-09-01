@@ -135,11 +135,9 @@ export function PilotEnquiryForm() {
         )}
       </div>
 
-      {status && (
-        <p aria-live="polite" className="mt-4 min-h-6 text-meta font-medium text-ink-muted">
-          {status}
-        </p>
-      )}
+      <p aria-live="polite" className="mt-4 min-h-6 text-meta font-medium text-ink-muted">
+        {status}
+      </p>
 
       {message && (
         <details className="mt-4 border-t border-line pt-4">

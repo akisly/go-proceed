@@ -2,8 +2,12 @@ import type { AssignmentSummary, ListAssignmentsResponse } from "@goproceed/cont
 import { apiGet, isSessionExpired } from "../lib/api";
 
 /**
- * The assignments domain's one service module — see `workspaces.service.ts`'s
+ * The assignments domain's read service module — see `workspaces.service.ts`'s
  * header for why this returns a discriminated result rather than throwing.
+ *
+ * The write (`createAssignment`) lives in `assignment-create.service.ts` because
+ * that module is client-only (`"use client"`) and cannot import from `lib/api.ts`
+ * (which imports `next/headers`, making it server-only at module scope).
  *
  * PER-PROJECT, NOT CROSS-WORKSPACE. Unlike `projects.service.ts`'s
  * `listProjects()`, `GET /v1/projects/{projectId}/assignments` takes a

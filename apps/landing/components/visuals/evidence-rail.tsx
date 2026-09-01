@@ -1,7 +1,7 @@
 "use client";
 
 import { Check } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { CrossFade, NodeLock, TrackFill } from "@goproceed/ui/motion";
 import type { JourneyChapter } from "../../content/landing-content";
 
 const railNodes = [
@@ -10,16 +10,25 @@ const railNodes = [
   { chapter: "decision", code: "DR-0091", label: "Рішення → CL-017" },
 ] as const;
 
-const easeEnter = [0.165, 0.84, 0.44, 1] as const;
-const easeOut = [0.25, 0.46, 0.45, 0.94] as const;
-
+/**
+ * BOTH CSS TRANSITIONS BELOW NAME `ease-out`, and they have to name it.
+ *
+ * A `transition-*` with a `duration-*` and no `ease-*` does not fall back to
+ * nothing — Tailwind resolves it to `--default-transition-timing-function`,
+ * `cubic-bezier(.4, 0, .2, 1)`, which is the ease-in-out family that
+ * `motion-audit` rule 3 fails BY NAME when a file writes it out. Arriving via a
+ * default made it invisible to the audit and to the contract test both, so the
+ * only reader who could have caught it was one who knew Tailwind's default by
+ * heart. The rail these replaced used `ease.out`; `.ease-out { --tw-ease:
+ * var(--gp-ease-out) }` is in the emitted CSS.
+ */
 export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
   const currentIndex = railNodes.findIndex((node) => node.chapter === active);
 
   return (
     <div
       data-evidence-rail="true"
-      data-evidence-rail-motion="motion"
+      data-evidence-rail-motion="vocabulary"
       data-evidence-active={active}
       role="img"
       aria-label="Маршрут доказу: R-041, EV-0248, DR-0091, CL-017"
@@ -29,6 +38,13 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
         {railNodes.map((node, index) => {
           const isCurrent = index === currentIndex;
           const isComplete = index < currentIndex;
+
+          const markerTone = isCurrent
+            ? "bg-action-signal border-action-signal text-action-signal-fg"
+            : isComplete
+              ? "bg-ink border-ink text-on-inverse"
+              : "bg-surface border-line-strong text-ink-muted";
+          const indexLabelTone = isCurrent ? "text-ink" : "text-ink-muted";
 
           return (
             <li
@@ -42,72 +58,32 @@ export function EvidenceRail({ active }: { active: JourneyChapter["id"] }) {
                   data-evidence-connector="true"
                   className="absolute right-1/2 top-3.5 z-0 h-px w-full overflow-hidden bg-line-strong"
                 >
-                  <motion.span
-                    className="absolute inset-0 origin-left bg-ink"
-                    initial={false}
-                    animate={{
-                      scaleX: index <= currentIndex ? 1 : 0,
-                    }}
-                    transition={{
-                      duration: 0.4,
-                      ease: easeEnter,
-                    }}
+                  <TrackFill
+                    filled={index <= currentIndex}
+                    className="absolute inset-0 bg-ink"
                   />
                 </span>
               )}
-              <motion.span
-                aria-hidden="true"
-                data-evidence-point-marker="true"
-                className="relative z-10 mx-auto grid size-7 place-items-center rounded-pill border text-micro font-semibold"
-                initial={false}
-                animate={{
-                  backgroundColor: isCurrent
-                    ? "var(--color-action-signal)"
-                    : isComplete
-                      ? "var(--color-ink)"
-                      : "var(--color-surface)",
-                  borderColor: isCurrent
-                    ? "var(--color-action-signal)"
-                    : isComplete
-                      ? "var(--color-ink)"
-                      : "var(--color-line-strong)",
-                  color: isCurrent
-                    ? "var(--color-action-signal-fg)"
-                    : isComplete
-                      ? "var(--color-on-inverse)"
-                      : "var(--color-ink-muted)",
-                  scale: isCurrent ? 1.08 : 1,
-                }}
-                transition={{
-                  backgroundColor: { duration: 0.24, ease: easeOut },
-                  borderColor: { duration: 0.24, ease: easeOut },
-                  color: { duration: 0.24, ease: easeOut },
-                  scale: { type: "spring", duration: 0.42, bounce: 0.12 },
-                }}
-              >
-                <AnimatePresence initial={false} mode="wait">
-                  <motion.span
-                    key={isComplete ? "complete" : "index"}
+              <NodeLock index={index}>
+                <span
+                  aria-hidden="true"
+                  data-evidence-point-marker="true"
+                  className={`relative z-10 mx-auto grid size-7 place-items-center overflow-hidden rounded-pill border text-micro font-semibold transition-[background-color,border-color,color,scale] duration-fast ease-out ${markerTone}`}
+                  style={{ scale: isCurrent ? 1.08 : 1 }}
+                >
+                  <CrossFade
+                    activeKey={isComplete ? "done" : "pending"}
                     className="grid place-items-center"
-                    initial={{ opacity: 0, scale: 0.86 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.92 }}
-                    transition={{ duration: 0.18, ease: easeOut }}
                   >
                     {isComplete ? <Check className="size-3.5" strokeWidth={2} /> : index + 1}
-                  </motion.span>
-                </AnimatePresence>
-              </motion.span>
-              <motion.span
-                className="index-label mt-2 block truncate"
-                initial={false}
-                animate={{
-                  color: isCurrent ? "var(--color-ink)" : "var(--color-ink-muted)",
-                }}
-                transition={{ duration: 0.24, ease: easeOut }}
+                  </CrossFade>
+                </span>
+              </NodeLock>
+              <span
+                className={`index-label mt-2 block truncate transition-colors duration-fast ease-out ${indexLabelTone}`}
               >
                 {node.code}
-              </motion.span>
+              </span>
               <span className="mt-1 hidden text-micro text-ink-muted sm:block">{node.label}</span>
             </li>
           );

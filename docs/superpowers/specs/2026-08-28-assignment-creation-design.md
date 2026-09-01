@@ -133,16 +133,46 @@ One error channel, two sources, no adapter. `Field` also ships `role="group"`
 and `FieldError` ships `role="alert"`, so the accessibility this form needs
 arrives with the component instead of being re-derived.
 
-**What holds the form state, since `Field` deliberately does not.** The
-registry's own docs answer it — «See the Form documentation for building forms
-with the Field component and React Hook Form» — and the usage they show is
-`useForm` driving the values while `Field` draws them:
-`<FieldError errors={errors.username} />`. So: **react-hook-form used directly,
-with `zodResolver` over the same `createAssignmentRequest` the wire uses**, and
-the `Form*` context components not involved. That keeps one schema in both
-places rather than restating the rules, and both packages
-(`react-hook-form`, `@hookform/resolvers`) are already installed and have never
-had a call site. What the owner's instruction rejected is the `Form*` component
+**What holds the form state, since `Field` deliberately does not.** Read from
+the vendor's current React Hook Form guide on 2026-08-28, not inferred:
+react-hook-form stays and the `Form*` component set goes. The guide's own
+words — «This form leverages React Hook Form for performant, flexible form
+handling. We'll build our form using the `<Field />` component, which gives you
+complete flexibility over the markup and styling» — and it states that the
+Field family is the current approach rather than the older
+`FormField`/`FormItem`/`FormControl` pattern.
+
+**The binding shape, verbatim from that guide**, so the implementer copies it
+rather than inventing one:
+
+```tsx
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Controller, useForm } from "react-hook-form";
+import { Field, FieldDescription, FieldError, FieldGroup, FieldLabel } from "…/field";
+
+<Controller
+  name="title"
+  control={form.control}
+  render={({ field, fieldState }) => (
+    <Field data-invalid={fieldState.invalid}>
+      <FieldLabel htmlFor={field.name}>Bug Title</FieldLabel>
+      <Input {...field} aria-invalid={fieldState.invalid} />
+      {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+    </Field>
+  )}
+/>
+```
+
+Three details that are the guide's and not decoration: `Controller`, not
+`FormField`; `data-invalid` on `Field` **and** `aria-invalid` on the control,
+which is where `Field`'s `data-[invalid=true]` styling and the screen reader
+each get their signal; and `FieldError` fed an array, which is also how the
+server's mapped `fieldErrors` enter — one component, two sources.
+
+`zodResolver` runs the same `createAssignmentRequest` the wire uses, so the
+rules are stated once. Both packages are already installed
+(`react-hook-form 7.86`, `@hookform/resolvers 5.9`) and neither has ever had a
+call site; this is the first. What the owner's instruction rejected is the `Form*` component
 set; the library underneath it is what shadcn's own Field documentation pairs
 with, and this spec follows that pairing.
 
@@ -185,10 +215,16 @@ resolved by deletion rather than by a coin toss.
 
 **§7.2's three obligations are not optional:** the components land in
 `packages/ui/src/components/`, are exported from `index.ts`, and are rendered
-in `/kitchen-sink/components` — all three, or `component-contract.test.ts`
-fails on the orphan. That gate is also the reason this slice fixes the
-four already-orphaned components' absence there only if the test demands it,
-and does not otherwise expand.
+in `/kitchen-sink/components` — all three.
+
+**Correction, 2026-08-29:** the sentence that followed («all three, or
+`component-contract.test.ts` fails on the orphan») was false, and it was doing
+work here — it justified fixing the four already-orphaned components «only if
+the test demands it», which is a test that does not exist. That suite checks
+file↔`index.ts` parity and never reads a kitchen sink. The scoping decision
+stands on its own footing instead: this slice does not expand to four
+components it did not author. What changes is the reason — a deliberate scope
+boundary, not a gate that would have caught them.
 
 ## 5. The assignee problem, named rather than hidden
 

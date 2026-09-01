@@ -63,6 +63,10 @@ export default async function ProjectAssignmentsPage({ params }: AssignmentsPage
     redirect(`/login?next=${encodeURIComponent(`/dash/projects/${projectId}/assignments`)}`);
   }
   if (result.kind === "error") return <ShellFatalError />;
-  if (result.assignments.length === 0) return <NoAssignmentsEmptyState />;
-  return <AssignmentsList assignments={result.assignments} />;
+  // `projectId` REACHES BOTH BRANCHES, not just the list one. The empty state
+  // carries the same «Нове доручення» control the register does, because it is
+  // the state a fresh pilot's FIRST assignment has to be created from — see
+  // `no-assignments-empty-state.tsx`'s own header.
+  if (result.assignments.length === 0) return <NoAssignmentsEmptyState projectId={projectId} />;
+  return <AssignmentsList assignments={result.assignments} projectId={projectId} />;
 }
