@@ -561,6 +561,11 @@ databaseDescribe("Telegram inbox processing", () => {
       const client = new Client({ connectionString: process.env.SERVICE_DB_URL!.trim() });
       await client.connect();
       try {
+        // SERVICE_DB_URL logs in as goproceed_service_login, which is NOINHERIT:
+        // it can BECOME goproceed_service but does not hold its privileges until
+        // it does. Without this the call is "permission denied for schema app".
+        // withServiceTx does the same thing; this raw connection bypasses it.
+        await client.query("set role goproceed_service");
         await client.query("set statement_timeout='5s'");
         return (await client.query(`select id,action from app.claim_telegram_evidence_decision_token(
           $1::text,$2::bigint,$3::bigint,$4::bigint,$5::bigint)`,

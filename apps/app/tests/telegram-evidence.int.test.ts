@@ -24,6 +24,12 @@ const fakes = vi.hoisted(() => ({
   failedDownloads: new Set<string>(), retryableDownloads: new Set<string>(), failNextWrite: false,
   sent: [] as Array<{ chatId: string; text: string; replyToMessageId?: string | null; inlineKeyboard?: unknown }>,
   callbacks: [] as Array<{ callbackId: string; text?: string }>, nextProviderMessageId: 70_000, nextKey: 0,
+  // app.finalize_upload_intent verifies the object EXISTS in storage.objects
+  // before it will mark evidence available. The in-memory mock satisfied every
+  // application-side read and none of that, so no Telegram evidence could ever
+  // reach 'available'. Routed through the hoisted object because the vi.mock
+  // factory is hoisted above `client`.
+  writeStorageObject: null as null | ((key: string, size: number) => Promise<void>),
 }));
 
 vi.mock("../src/lib/evidence-storage", () => ({
@@ -33,6 +39,7 @@ vi.mock("../src/lib/evidence-storage", () => ({
   putObject: async (key: string, bytes: Uint8Array) => {
     if (fakes.failNextWrite) { fakes.failNextWrite = false; throw new Error("storage write refused"); }
     fakes.stored.set(key, bytes);
+    await fakes.writeStorageObject?.(key, bytes.byteLength);
   },
   downloadObject: async (key: string) => {
     const value = fakes.stored.get(key); if (!value) throw new Error("missing memory object"); return value;
@@ -92,6 +99,10 @@ databaseDescribe("Telegram evidence bridge", () => {
     fakes.retryableDownloads.clear();
     fakes.failNextWrite = false; fakes.sent.length = 0; fakes.callbacks.length = 0; fakes.nextKey = 0;
     client = new Client({ connectionString: ADMIN_URL }); await client.connect();
+    fakes.writeStorageObject = async (key, size) => {
+      await client.query(`insert into storage.objects (bucket_id, name, metadata)
+        values ('evidence', $1, jsonb_build_object('size', $2::int)) on conflict do nothing`, [key, size]);
+    };
     rules = await seedRulesWorld(client, { workspaceId: crypto.randomUUID(), userId: crypto.randomUUID(), suffix: "TG-EVIDENCE" });
     world = await seedOccurrenceWorld(client, rules);
     occurrenceId = await insertOccurrence(client, world);
@@ -116,6 +127,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   afterEach(async () => {
+    fakes.writeStorageObject = null;
     if (rules?.workspaceId) await dropWorkspaces(client, [rules.workspaceId]);
     await client.end();
   });
@@ -318,7 +330,10 @@ databaseDescribe("Telegram evidence bridge", () => {
     fakes.payloads.set("duplicate", JPEG); const update = imageUpdate({ updateId: "30", messageId: "730", fileId: "duplicate", replyTo: card.providerMessageId });
     await client.query("update public.organizations set evidence_quota_bytes=1 where id=$1", [rules.workspaceId]);
     await processTelegramUpdate(update); await processTelegramUpdate(update);
-    expect(fakes.downloads).toEqual(["duplicate"]); expect(await attachmentsFor(["730"])).toMatchObject([{ state: "failed", provider_file_id: null }]);
+    // 6b619ef moved the quota preflight AHEAD of the provider download, so a
+    // duplicate is refused before a byte is fetched. The preflight is right;
+    // the expectation predated it.
+    expect(fakes.downloads).toEqual([]); expect(await attachmentsFor(["730"])).toMatchObject([{ state: "failed", provider_file_id: null }]);
     const count = await client.query<{ n: number }>(`select count(*)::int as n from public.communication_messages
       where workspace_id=$1 and direction='outbound' and kind='text'`, [rules.workspaceId]);
     expect(count.rows[0]!.n).toBe(2);
@@ -326,7 +341,10 @@ databaseDescribe("Telegram evidence bridge", () => {
     await client.query("update public.telegram_member_links set revoked_at=now() where workspace_id=$1", [rules.workspaceId]);
     fakes.payloads.set("revoked", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "31", messageId: "731", fileId: "revoked", replyTo: card.providerMessageId }));
-    expect(fakes.downloads).toEqual(["duplicate"]); expect(await attachmentsFor(["731"])).toMatchObject([{ state: "unbound", provider_file_id: null }]);
+    // 6b619ef moved the quota preflight AHEAD of the provider download, so a
+    // duplicate is refused before a byte is fetched. The preflight is right;
+    // the expectation predated it.
+    expect(fakes.downloads).toEqual([]); expect(await attachmentsFor(["731"])).toMatchObject([{ state: "unbound", provider_file_id: null }]);
   });
 
   it("terminalizes and reports all-unsupported and mixed albums without orphaned handles", async () => {
@@ -601,15 +619,18 @@ databaseDescribe("Telegram evidence bridge", () => {
     await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard(); const otherCard = await deliverCard();
     const secondUser = crypto.randomUUID(); const secondMember = crypto.randomUUID(); const secondSender = "902";
+    // One statement per query. A parameterised call goes through the extended
+    // protocol, which parses exactly one command — four semicolon-separated
+    // statements raise 42601 before any of them runs.
     await client.query(`insert into auth.users (id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
-      values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now());
-      insert into public.memberships (id,organization_id,user_id,role,status) values ($3,$4,$1,'member','active');
-      insert into public.project_access_grants (workspace_id,project_id,member_id,capability,granted_by)
-      values ($4,$5,$3,'evidence.record',$1);
-      insert into public.telegram_member_links (workspace_id,member_id,telegram_user_id,linked_by_member_id)
-      values ($4,$3,$6::bigint,$3)`, [
-      secondUser, `${secondUser}@fixture.test`, secondMember, rules.workspaceId, rules.projectId, secondSender,
-    ]);
+      values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now())`,
+    [secondUser, `${secondUser}@fixture.test`]);
+    await client.query(`insert into public.memberships (id,organization_id,user_id,role,status)
+      values ($1,$2,$3,'member','active')`, [secondMember, rules.workspaceId, secondUser]);
+    await client.query(`insert into public.project_access_grants (workspace_id,project_id,member_id,capability,granted_by)
+      values ($1,$2,$3,'evidence.record',$4)`, [rules.workspaceId, rules.projectId, secondMember, secondUser]);
+    await client.query(`insert into public.telegram_member_links (workspace_id,member_id,telegram_user_id,linked_by_member_id)
+      values ($1,$2,$3::bigint,$2)`, [rules.workspaceId, secondMember, secondSender]);
     for (const fileId of ["anchor-ok", "anchor-none", "anchor-other", "uploader-other"]) fakes.payloads.set(fileId, JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "100", messageId: "800", fileId: "anchor-ok", replyTo: card.providerMessageId, album: "anchor-album" }));
     await processTelegramUpdate(imageUpdate({ updateId: "101", messageId: "801", fileId: "anchor-none", replyTo: null, album: "anchor-album" }));
@@ -708,16 +729,18 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(fakes.downloads).toEqual(["retry-relinked"]);
 
     const relinkedUser = crypto.randomUUID(); const relinkedMember = crypto.randomUUID();
+    // Same reason as the anchor fixture above: one statement per query.
     await client.query(`insert into auth.users (id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
-      values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now());
-      insert into public.memberships (id,organization_id,user_id,role,status) values ($3,$4,$1,'member','active');
-      insert into public.project_access_grants (workspace_id,project_id,member_id,capability,granted_by)
-      values ($4,$5,$3,'evidence.record',$1);
-      update public.telegram_member_links set member_id=$3,linked_by_member_id=$3 where workspace_id=$4 and telegram_user_id=$6::bigint;
-      update public.communication_attachments set provider_next_retry_at=now()
-       where workspace_id=$4 and provider_file_id='retry-relinked'`, [
-      relinkedUser, `${relinkedUser}@fixture.test`, relinkedMember, rules.workspaceId, rules.projectId, UPLOADER_ID,
-    ]);
+      values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now())`,
+    [relinkedUser, `${relinkedUser}@fixture.test`]);
+    await client.query(`insert into public.memberships (id,organization_id,user_id,role,status)
+      values ($1,$2,$3,'member','active')`, [relinkedMember, rules.workspaceId, relinkedUser]);
+    await client.query(`insert into public.project_access_grants (workspace_id,project_id,member_id,capability,granted_by)
+      values ($1,$2,$3,'evidence.record',$4)`, [rules.workspaceId, rules.projectId, relinkedMember, relinkedUser]);
+    await client.query(`update public.telegram_member_links set member_id=$1,linked_by_member_id=$1
+      where workspace_id=$2 and telegram_user_id=$3::bigint`, [relinkedMember, rules.workspaceId, UPLOADER_ID]);
+    await client.query(`update public.communication_attachments set provider_next_retry_at=now()
+      where workspace_id=$1 and provider_file_id='retry-relinked'`, [rules.workspaceId]);
     await processDueTelegramEvidenceRetries();
     expect(fakes.downloads).toEqual(["retry-relinked"]);
     expect(await attachmentsFor(["810"])).toMatchObject([{
