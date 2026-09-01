@@ -278,9 +278,12 @@ async function sweep(
         out[t] = r.rows[0]!.n;
         await x.query("release savepoint probe");
       } catch (e) {
-        // 42501 is «no privilege on the table», which is a different and
-        // stronger answer than «the policy matched nothing»: it means the
-        // GRANT was never made, so no future policy can open it either.
+        // 42501 is «no SELECT on any column of the table», which is a
+        // different and stronger answer than «the policy matched nothing»: no
+        // GRANT — table-level or column-level — was ever made, so no future
+        // policy can open it either. A column-level grant on even ONE column
+        // lets `count(*)` through (see the oracle in §3), so a table can be
+        // «denied» here only when goproceed_app holds nothing on it at all.
         const code = (e as { code?: string }).code;
         out[t] = code === "42501" ? "denied" : `error:${code}`;
         await x.query("rollback to savepoint probe");
@@ -417,9 +420,22 @@ describe("§2 — no permissive policy can be satisfied without a subject", () =
 describe("§3 — what a live external session reaches, over every table there is", () => {
   it("reaches exactly eight tables, with exactly these rows", async () => {
     const tables = await baseTables();
+    // THE ORACLE MUST ASK THE QUESTION THE PROBE ASKS. The probe is
+    // `select count(*)`, which names no column, and PostgreSQL permits such a
+    // statement when the role holds SELECT on ANY one column of the table
+    // (executor ExecCheckOneRelPerms, «as per SQL spec»). `has_table_privilege`
+    // answers only for the table-level ACL and reports false for a table whose
+    // grant is column-level — so it predicted «denied» for
+    // `communication_attachments` (0062:564-567, fifteen named columns) while
+    // the probe was permitted and returned 0. `has_any_column_privilege` is
+    // true for a table-level grant OR for a column-level grant on at least one
+    // column, which is exactly the executor's rule. Caught by CI run
+    // 33552629223, the first to reach this file with a column-level grant in
+    // the chain; what the fence on the withheld columns is worth is proved
+    // separately below («a column-level grant is a fence, not a door»).
     const priv = await c.query<{ t: string; sel: boolean }>(
       `select cl.relname as t,
-              has_table_privilege('goproceed_app', 'public.' || quote_ident(cl.relname), 'select') as sel
+              has_any_column_privilege('goproceed_app', cl.oid, 'select') as sel
          from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
         where n.nspname = 'public' and cl.relkind in ('r','p')`);
     const noSelect = new Set(priv.rows.filter((x) => !x.sel).map((x) => x.t));
@@ -465,6 +481,80 @@ describe("§3 — what a live external session reaches, over every table there i
     expect(actual).toEqual(expected);
   });
 
+  it("a column-level grant is a fence, not a door: count(*) passes, the withheld columns do not", async () => {
+    // Every table where goproceed_app holds SELECT on SOME columns but not on
+    // the table — derived from the catalog, so the next column-level grant is
+    // in scope the day it lands. Today that is exactly one table, and the
+    // count is pinned the way §2 pins the blanket policies: a second one must
+    // be added here on purpose, with its withheld columns named.
+    //
+    // BY OID, NOT BY NAME. A privilege function in the WHERE clause is not
+    // guaranteed to run after `n.nspname = 'public'` — the planner may call it
+    // first, and `'public.' || relname` for a row from another schema raises
+    // 42P01 («relation "public.instances" does not exist», CI run
+    // 33562008121, for auth.instances). `cl.oid` names the very row being
+    // scanned and cannot miss.
+    const granted = await c.query<{ t: string }>(
+      `select cl.relname as t
+         from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
+        where n.nspname = 'public' and cl.relkind in ('r','p')
+          and not has_table_privilege('goproceed_app', cl.oid, 'select')
+          and has_any_column_privilege('goproceed_app', cl.oid, 'select')
+        order by 1`);
+    expect(granted.rows.map((x) => x.t)).toEqual(["communication_attachments"]);
+
+    // DA-148 (technical/data-access-surface.csv) and INV-094 (P0,
+    // technical/database/invariant-catalog.csv) both say the provider file
+    // handles are excluded from the member grant. The four provider_retry_*
+    // columns 0069 added are withheld too, but by that migration issuing no
+    // grant rather than by any document deciding it — so they are asserted as
+    // «not readable», never as «meant to be withheld».
+    const MUST_BE_WITHHELD = ["provider_file_id", "provider_file_unique_id"];
+
+    for (const { t } of granted.rows) {
+      const cols = await c.query<{ col: string; ok: boolean }>(
+        `select a.attname as col,
+                has_column_privilege('goproceed_app', a.attrelid, a.attname, 'select') as ok
+           from pg_attribute a
+          where a.attrelid = ('public.' || quote_ident($1))::regclass
+            and a.attnum > 0 and not a.attisdropped
+          order by a.attnum`, [t]);
+      const withheld = cols.rows.filter((x) => !x.ok).map((x) => x.col);
+      for (const must of MUST_BE_WITHHELD) expect({ t, withheld }).toMatchObject({ t, withheld: expect.arrayContaining([must]) });
+
+      // As the reviewer's plane: the column-free probe is permitted (that is
+      // the whole finding), and every withheld column is refused at the ACL,
+      // before any policy — 42501, not an empty result.
+      const reached: Record<string, string | number> = {};
+      await asExternalSession(sessionId, WS_A, async (x) => {
+        const out = reached;
+        await x.query("savepoint fence");
+        try {
+          const r = await x.query<{ n: number }>(`select count(*)::int as n from public."${t}"`);
+          out["count(*)"] = r.rows[0]!.n;
+          await x.query("release savepoint fence");
+        } catch (e) {
+          out["count(*)"] = `error:${(e as { code?: string }).code}`;
+          await x.query("rollback to savepoint fence");
+        }
+        for (const col of withheld) {
+          await x.query("savepoint fence");
+          try {
+            await x.query(`select "${col}" from public."${t}"`);
+            out[col] = "PERMITTED";
+            await x.query("release savepoint fence");
+          } catch (e) {
+            out[col] = (e as { code?: string }).code === "42501" ? "denied" : `error:${(e as { code?: string }).code}`;
+            await x.query("rollback to savepoint fence");
+          }
+        }
+      });
+      const expectedFence: Record<string, string | number> = { "count(*)": 0 };
+      for (const col of withheld) expectedFence[col] = "denied";
+      expect({ t, reached }).toEqual({ t, reached: expectedFence });
+    }
+  });
+
   it("and the one occurrence it reaches is the granted one", async () => {
     const r = await asExternalSession<{ id: string }>(sessionId, WS_A, (x) =>
       x.query("select id from public.requirement_occurrences"));
@@ -490,7 +580,13 @@ describe("§3 — what a live external session reaches, over every table there i
     const weak = ["valuation_allocations", "progress_entries", "progress_allocation_heads",
                   "stage_closures", "stage_closure_occurrences", "statutory_acts",
                   "statutory_act_versions", "readiness_projection", "blocked_reasons",
-                  "capture_events", "requirement_exceptions", "requirement_exception_heads"];
+                  "capture_events", "requirement_exceptions", "requirement_exception_heads",
+                  // The 0062 family. Nothing this file seeds reaches them — an
+                  // attachment row is unrepresentable here, because its FK runs
+                  // through project_field_channels (0062:233-234) and only
+                  // telegram-rls.test.ts inserts one, dropping it in afterAll.
+                  "telegram_chat_bindings", "telegram_media_groups", "communication_messages",
+                  "communication_message_events", "communication_attachments"];
     for (const t of weak) {
       const r = await c.query<{ n: number }>(`select count(*)::int as n from public."${t}"`);
       expect({ t, empty: r.rows[0]!.n === 0 }).toEqual({ t, empty: true });
@@ -501,9 +597,22 @@ describe("§3 — what a live external session reaches, over every table there i
 describe("§4 — a transaction with neither subject reaches nothing at all", () => {
   it("sweeps every base table as the anonymous plane and finds no row anywhere", async () => {
     const tables = await baseTables();
+    // THE ORACLE MUST ASK THE QUESTION THE PROBE ASKS. The probe is
+    // `select count(*)`, which names no column, and PostgreSQL permits such a
+    // statement when the role holds SELECT on ANY one column of the table
+    // (executor ExecCheckOneRelPerms, «as per SQL spec»). `has_table_privilege`
+    // answers only for the table-level ACL and reports false for a table whose
+    // grant is column-level — so it predicted «denied» for
+    // `communication_attachments` (0062:564-567, fifteen named columns) while
+    // the probe was permitted and returned 0. `has_any_column_privilege` is
+    // true for a table-level grant OR for a column-level grant on at least one
+    // column, which is exactly the executor's rule. Caught by CI run
+    // 33552629223, the first to reach this file with a column-level grant in
+    // the chain; what the fence on the withheld columns is worth is proved
+    // separately below («a column-level grant is a fence, not a door»).
     const priv = await c.query<{ t: string; sel: boolean }>(
       `select cl.relname as t,
-              has_table_privilege('goproceed_app', 'public.' || quote_ident(cl.relname), 'select') as sel
+              has_any_column_privilege('goproceed_app', cl.oid, 'select') as sel
          from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
         where n.nspname = 'public' and cl.relkind in ('r','p')`);
     const expected: Record<string, Reach> = {};
