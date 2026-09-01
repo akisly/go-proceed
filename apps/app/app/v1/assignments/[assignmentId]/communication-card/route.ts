@@ -63,7 +63,14 @@ export const POST = commandRoute(request, async (a) => {
       join public.telegram_chat_bindings b on b.workspace_id=a.workspace_id and b.project_id=a.project_id
       where a.id=$1 and a.workspace_id=$2 and p.status='active' and c.channel='telegram'
         and c.state='active' and c.locked_at is not null and b.disconnected_at is null and b.bot_id=$3::bigint
-      for update of b, c`, [assignmentId, authorized.workspaceId, config.botId]);
+      -- Locks b only. Naming c here made PostgreSQL apply
+      -- pfc_update's USING to the scan, and pfc_update demands project.admin —
+      -- so a member holding communication.reply matched zero rows and every
+      -- call 409'd before reaching the behaviour it was asked for. The channel
+      -- predicates stay as read-only preconditions under pfc_select, and the
+      -- channel row is re-locked and re-evaluated at send time inside
+      -- app.prepare_telegram_delivery, which is where eligibility belongs.
+      for update of b`, [assignmentId, authorized.workspaceId, config.botId]);
     const telegramChatBindingId = binding.rows[0]?.id;
     if (!telegramChatBindingId) throw unavailable(a.requestId);
 

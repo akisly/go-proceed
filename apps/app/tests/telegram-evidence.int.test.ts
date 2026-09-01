@@ -154,6 +154,15 @@ databaseDescribe("Telegram evidence bridge", () => {
   }
 
   async function makeAlbumsDue(): Promise<void> {
+    // The parts age WITH the group. Production writes group.last_part_at and
+    // attachment.created_at inside one transaction, from one now(), and every
+    // stage of the album pipeline fences on `created_at <= claimed_last_part_at`.
+    // Rewinding only the group put the cut-off three seconds before every part,
+    // so nothing was ever claimed, prepared, downloaded or terminalised — and
+    // the pipeline reported an empty album rather than an error.
+    await client.query(`update public.communication_attachments
+        set created_at = least(created_at, now() - interval '4 seconds')
+      where workspace_id=$1 and telegram_media_group_id is not null`, [rules.workspaceId]);
     await client.query("update public.telegram_media_groups set last_part_at=now() - interval '3 seconds' where workspace_id=$1", [rules.workspaceId]);
   }
 
@@ -248,7 +257,7 @@ databaseDescribe("Telegram evidence bridge", () => {
       fakes.payloads.set(fileId, JPEG);
       await processTelegramUpdate(imageUpdate({ updateId: String(10 + offset), messageId: String(710 + offset), fileId, replyTo: card.providerMessageId, album: "album-1" }));
     }
-    await client.query("update public.telegram_media_groups set last_part_at=now() - interval '3 seconds' where workspace_id=$1", [rules.workspaceId]);
+    await makeAlbumsDue();
     expect(await processDueTelegramMediaGroups()).toBe(1); expect(fakes.downloads).toEqual([]);
     expect(await attachmentsFor(["710", "711", "712"])).toEqual(expect.arrayContaining([
       expect.objectContaining({ state: "awaiting_requirement_choice" }), expect.objectContaining({ state: "awaiting_requirement_choice" }), expect.objectContaining({ state: "awaiting_requirement_choice" }),
@@ -277,7 +286,7 @@ databaseDescribe("Telegram evidence bridge", () => {
       fakes.payloads.set(fileId, JPEG);
       await processTelegramUpdate(imageUpdate({ updateId: String(40 + offset), messageId: String(740 + offset), fileId, replyTo: card.providerMessageId, album: "album-partial" }));
     }
-    await client.query("update public.telegram_media_groups set last_part_at=now() - interval '3 seconds' where workspace_id=$1", [rules.workspaceId]);
+    await makeAlbumsDue();
     expect(await processDueTelegramMediaGroups()).toBe(1);
     const prompt = await client.query<{ telegram_reply_markup: Array<Array<{ callbackData: string }>> }>(`select telegram_reply_markup
       from public.communication_messages where workspace_id=$1 and direction='outbound' and telegram_reply_markup is not null`, [rules.workspaceId]);

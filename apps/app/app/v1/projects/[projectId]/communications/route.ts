@@ -98,7 +98,14 @@ async function activeTelegramBinding(
      where p.workspace_id=$1 and p.id=$2 and p.status='active'
        and c.channel='telegram' and c.state='active' and c.locked_at is not null
        and b.disconnected_at is null and b.bot_id=$3::bigint
-     for update of c,b`, [authorized.workspaceId, authorized.projectId, botId]);
+     -- Locks b only. Naming c here made PostgreSQL apply
+     -- pfc_update's USING to the scan, and pfc_update demands project.admin —
+     -- so a member holding communication.reply matched zero rows and every
+     -- call 409'd before reaching the behaviour it was asked for. The channel
+     -- predicates stay as read-only preconditions under pfc_select, and the
+     -- channel row is re-locked and re-evaluated at send time inside
+     -- app.prepare_telegram_delivery, which is where eligibility belongs.
+     for update of b`, [authorized.workspaceId, authorized.projectId, botId]);
   const bindingId = binding.rows[0]?.id;
   if (!bindingId) throw unavailable(requestId);
   return bindingId;

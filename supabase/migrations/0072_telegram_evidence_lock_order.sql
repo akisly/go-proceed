@@ -110,10 +110,17 @@ begin
     select * into v_group from public.telegram_media_groups where workspace_id=p_workspace_id
       and project_id=p_project_id and id=p_source_media_group_id for update;
     if not found then return null; end if;
+    -- The `processing_lease_expires_at is distinct from p_group_lease_expires_at`
+    -- fence that stood here is gone with the parameter it named. This migration
+    -- dropped p_group_lease_expires_at from THIS function's signature (the two
+    -- siblings above keep it) and from the caller's argument list
+    -- (processor.ts:270 passes exactly thirteen), but left the reference behind,
+    -- so every call raised 42703 before touching a row: no album receipt of any
+    -- kind — complete, partial, failed or unbound — has ever been enqueued.
+    -- The lease is still fenced, by token identity and by expiry against now().
     if p_copy_key <> 'telegram.evidence.choice_expired' and (
       v_group.state<>'processing'
       or v_group.processing_lease_token is distinct from p_group_lease_token
-      or v_group.processing_lease_expires_at is distinct from p_group_lease_expires_at
       or v_group.processing_lease_expires_at<=now()
       or v_group.processing_generation is distinct from p_generation
       or v_group.claimed_generation is distinct from p_generation

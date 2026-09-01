@@ -861,15 +861,16 @@ async function processMembershipChange(
   const restored = update.newStatus === "member" || update.newStatus === "administrator";
   if (!removed && !restored) return "ignored_membership_status";
   return withServiceTx({ actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
-    const channel = await tx.query<{ state: string }>(`update public.project_field_channels
-       set state = case when $3 then 'unhealthy'::public.project_field_channel_state
-                        when locked_at is null then 'connected'::public.project_field_channel_state
-                        else 'active'::public.project_field_channel_state end,
-           last_healthy_at = case when $3 then last_healthy_at else now() end,
-           updated_at = now()
-     where workspace_id=$1 and project_id=$2 and state <> 'archived'
-     returning state::text`, [binding.workspace_id, binding.project_id, removed]);
-    if (!channel.rows[0]) return "ignored_archived_channel";
+    // Through the definer, not inline. project_field_channels carries only
+    // member policies and pfc_update demands project.admin, so this UPDATE
+    // resolved app.current_actor() to NULL, matched nothing, and returned the
+    // disposition below — a channel that lost its bot was never marked
+    // unhealthy, and the miss was indistinguishable from an archived channel.
+    const channel = await tx.query<{ state: string | null }>(
+      "select app.set_project_field_channel_health($1::uuid, $2::uuid, $3::boolean) as state",
+      [binding.workspace_id, binding.project_id, removed]);
+    // `select f()` always returns a row, so the absence is in the column.
+    if (!channel.rows[0]?.state) return "ignored_archived_channel";
     const message = await tx.query<{ id: string }>(`insert into public.communication_messages
       (workspace_id, project_id, telegram_chat_binding_id, direction, kind, provider_message_id, delivery_state)
       values ($1, $2, $3, 'system', 'system', $4::bigint, 'received')
