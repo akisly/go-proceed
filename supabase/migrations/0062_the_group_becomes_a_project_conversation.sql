@@ -495,6 +495,33 @@ begin
   if updated = 0 then raise exception 'telegram inbox fail rejected: lease mismatch or terminal row'; end if;
 end $$;
 
+-- The one ingress write that used to need a table policy. It is here for the
+-- same reason app.claim/complete/fail_telegram_inbox are here: this table is
+-- written before a tenant exists to name, so no policy over it can name a
+-- subject, and a policy that cannot name a subject should not exist. With this
+-- function the table keeps RLS and carries no policy and no grant at all — the
+-- posture outbox_dead_letters has held since 0037 and 0077:94-95 gave
+-- telegram_evidence_decision_attempts.
+create or replace function app.enqueue_telegram_inbox_update(
+  p_bot_id bigint, p_update_id bigint, p_payload jsonb, p_payload_hash text
+) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not pg_has_role(session_user, 'goproceed_service', 'member') then
+    raise exception 'telegram inbox ingress requires the service principal';
+  end if;
+  if p_bot_id is null or p_update_id is null or p_payload is null then
+    raise exception 'telegram inbox ingress identity is required';
+  end if;
+  if p_payload_hash is null or p_payload_hash !~ '^[0-9a-f]{64}$' then
+    raise exception 'telegram inbox payload hash is malformed';
+  end if;
+  insert into public.telegram_inbox_updates
+    (bot_id, update_id, payload, payload_hash, state)
+  values (p_bot_id, p_update_id, p_payload, p_payload_hash, 'pending')
+  on conflict (bot_id, update_id) do nothing;
+end $$;
+
 create or replace function app.claim_outbox_topic(
   p_topic text, p_batch integer, p_worker text, p_lease_seconds integer
 ) returns setof public.transaction_outbox
@@ -534,10 +561,58 @@ grant select (id, workspace_id, project_id, message_id, telegram_media_group_id,
   on public.communication_attachments to goproceed_app;
 
 grant select, insert, update on public.telegram_chat_bindings, public.telegram_binding_intents,
-  public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
+  public.telegram_member_link_intents, public.telegram_member_links,
   public.telegram_media_groups, public.communication_messages, public.communication_attachments to goproceed_service;
 grant select, insert on public.communication_message_events, public.telegram_requirement_choices,
   public.communication_delivery_attempts to goproceed_service;
+
+-- ===========================================================================
+-- The service plane's subject.
+--
+-- Three planes write to this database and until now only two could be named in
+-- a policy. `app.current_actor()` reads the member plane's subject and
+-- `app.current_external_session()` the external plane's; the service plane had
+-- nothing, which is why every service policy written before this one said
+-- `true`. It is not that the service plane has no subject — `withServiceTx` has
+-- set `app.organization_id` on every service transaction since v0.0
+-- (packages/database/src/tx.ts:37) — it is that no function exposed it, so the
+-- author of this migration had nothing to name.
+--
+-- WHAT THIS IS AND IS NOT. It is a DECLARATION, not an authorization. Every
+-- member policy joins `app.current_actor()` to a row in public.memberships, so
+-- a forged actor id buys nothing without a membership. This helper has no such
+-- join available, because the service principal's whole purpose is to act where
+-- no membership exists. What it buys is confinement: a service transaction
+-- touches only the ONE workspace it named before it started, so a query that
+-- forgets its tenant filter returns and writes nothing instead of crossing
+-- tenants. A bare connection that never set the GUC gets NULL, and
+-- `workspace_id = NULL` is NULL, which RLS treats as not-true — it sees nothing
+-- and writes nothing.
+-- ===========================================================================
+create or replace function app.service_workspace() returns uuid
+language sql stable as $$
+  select nullif(current_setting('app.organization_id', true), '')::uuid
+$$;
+
+comment on function app.service_workspace() is
+  'The workspace a service transaction declared before it began (withServiceTx, '
+  'packages/database/src/tx.ts:37). NULL on any transaction that declared none, '
+  'including a bare connection. A DECLARATION, not an authorization: unlike '
+  'app.current_actor() there is no membership row to check it against, so it '
+  'confines a service statement to one tenant, it does not prove the service '
+  'was entitled to that tenant.';
+
+revoke all on function app.service_workspace() from public;
+grant execute on function app.service_workspace() to goproceed_service;
+
+
+-- telegram_inbox_updates is closed to direct SQL from every role. It carries no
+-- policy (there is no tenancy column to name a subject with) and now no grant
+-- either, so RLS-with-no-policy is what denies and the absent grant is what
+-- makes that denial unconditional. Every path in is a SECURITY DEFINER:
+-- app.enqueue/claim/complete/fail_telegram_inbox and
+-- app.retry_telegram_decision_inbox (0076). Same posture as 0077:95.
+revoke all on table public.telegram_inbox_updates from goproceed_service;
 
 alter table public.telegram_chat_bindings enable row level security;
 alter table public.telegram_binding_intents enable row level security;
@@ -562,22 +637,88 @@ create policy communication_message_events_read on public.communication_message_
 create policy communication_attachments_read on public.communication_attachments for select to goproceed_app
   using (app.has_project_capability(workspace_id, project_id, array['project.view', 'project.admin']));
 
-create policy telegram_chat_bindings_service on public.telegram_chat_bindings for all to goproceed_service using (true) with check (true);
-create policy telegram_binding_intents_service on public.telegram_binding_intents for all to goproceed_service using (true) with check (true);
-create policy telegram_member_link_intents_service on public.telegram_member_link_intents for all to goproceed_service using (true) with check (true);
-create policy telegram_member_links_service on public.telegram_member_links for all to goproceed_service using (true) with check (true);
-create policy telegram_inbox_updates_service on public.telegram_inbox_updates for all to goproceed_service using (true) with check (true);
-create policy telegram_media_groups_service on public.telegram_media_groups for all to goproceed_service using (true) with check (true);
-create policy communication_messages_service on public.communication_messages for all to goproceed_service using (true) with check (true);
-create policy communication_message_events_service on public.communication_message_events for all to goproceed_service using (true) with check (true);
-create policy communication_attachments_service on public.communication_attachments for all to goproceed_service using (true) with check (true);
-create policy telegram_requirement_choices_service on public.telegram_requirement_choices for all to goproceed_service using (true) with check (true);
-create policy communication_delivery_attempts_service on public.communication_delivery_attempts for all to goproceed_service using (true) with check (true);
+-- ===========================================================================
+-- Service-plane policies, tenant-confined.
+--
+-- The eleven policies that stood here said `for all to goproceed_service using
+-- (true) with check (true)`, which is not a policy — it is RLS turned off for
+-- one role, written so that `relrowsecurity` stays true and §1 of
+-- packages/testing/src/m5-external-rls.test.ts still passes. §2 of that file
+-- pins the set of blanket policies to exactly two, both from 0045, and these
+-- eleven broke that pin the day they landed. The pin is right.
+--
+-- The two survivors earn `true` by the test 0045 wrote down (0045:1643-1648):
+-- the operation has no subject to resolve, AND a foreign key makes the
+-- cross-tenant row unrepresentable. Ten of the eleven fail the first half. A
+-- telegram message is normalized by a transaction that resolved its binding
+-- first; an attachment is settled by a transaction handed a workspace; a
+-- delivery attempt is appended by a transaction that claimed one outbox row
+-- belonging to one tenant. Each had a subject and no function with which to say
+-- so. That function is now app.service_workspace().
+--
+-- These are only as strong as the declaration: a transaction that declared no
+-- workspace matches no row and writes no row. See §6 of the design note for the
+-- call sites that had to start declaring one.
+-- ===========================================================================
+create policy telegram_chat_bindings_service on public.telegram_chat_bindings
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy telegram_binding_intents_service on public.telegram_binding_intents
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy telegram_member_link_intents_service on public.telegram_member_link_intents
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy telegram_member_links_service on public.telegram_member_links
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy telegram_media_groups_service on public.telegram_media_groups
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy communication_messages_service on public.communication_messages
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy communication_message_events_service on public.communication_message_events
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy communication_attachments_service on public.communication_attachments
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy telegram_requirement_choices_service on public.telegram_requirement_choices
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
+
+create policy communication_delivery_attempts_service on public.communication_delivery_attempts
+  for all to goproceed_service
+  using (workspace_id = app.service_workspace())
+  with check (workspace_id = app.service_workspace());
 
 revoke all on function app.resolve_telegram_chat(bigint, bigint) from public, anon, authenticated, goproceed_app;
 revoke all on function app.consume_telegram_binding_intent(text, bigint, bigint, text, text, bigint) from public, anon, authenticated, goproceed_app;
 revoke all on function app.consume_telegram_member_link_intent(text, bigint, text, text) from public, anon, authenticated, goproceed_app;
 revoke all on function app.claim_telegram_inbox(integer, text, integer) from public, anon, authenticated, goproceed_app;
+revoke all on function app.enqueue_telegram_inbox_update(bigint, bigint, jsonb, text)
+  from public, anon, authenticated, goproceed_app;
+grant execute on function app.enqueue_telegram_inbox_update(bigint, bigint, jsonb, text)
+  to goproceed_service;
+
 revoke all on function app.complete_telegram_inbox(bigint, bigint, uuid, text) from public, anon, authenticated, goproceed_app;
 revoke all on function app.fail_telegram_inbox(bigint, bigint, uuid, text) from public, anon, authenticated, goproceed_app;
 revoke all on function app.claim_outbox_topic(text, integer, text, integer) from public, anon, authenticated, goproceed_app;

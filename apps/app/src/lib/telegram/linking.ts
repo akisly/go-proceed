@@ -1,4 +1,4 @@
-import { withServiceTx, recordAudit } from "@goproceed/database";
+import { adoptServiceWorkspace, withServiceTx, recordAudit } from "@goproceed/database";
 import { loadTelegramConfig } from "./config";
 import { telegramVerifier } from "./tokens";
 
@@ -41,11 +41,6 @@ export async function consumeBindingCommand(input: ConsumeBindingCommandInput): 
   const requestId = input.requestId ?? crypto.randomUUID();
 
   return withServiceTx({ actorUserId: "", organizationId: null, requestId }, async (tx) => {
-    // Retain only non-secret audit metadata. The consuming function is still
-    // the one that locks and consumes this row, so this lookup has no bearing
-    // on authorization or the atomic state transition.
-    const intent = await tx.query<{ id: string }>(
-      "select id from public.telegram_binding_intents where verifier_hash=$1", [verifier]);
     const result = await tx.query<{
       workspace_id: string; project_id: string; telegram_chat_binding_id: string | null; outcome: BindingOutcome;
     }>(`select * from app.consume_telegram_binding_intent(
@@ -54,6 +49,18 @@ export async function consumeBindingCommand(input: ConsumeBindingCommandInput): 
     if (result.rows.length === 0) return { kind: "invalid_or_expired" };
 
     const row = result.rows[0]!;
+    // The tenant is the OUTPUT of the consume above, so it could not be declared
+    // when the transaction opened. Declared now, before anything reads a table:
+    // telegram_binding_intents is confined by telegram_binding_intents_service
+    // (0062), and the probe below would otherwise return nothing, silently.
+    await adoptServiceWorkspace(tx, row.workspace_id);
+
+    // Retain only non-secret audit metadata. The consuming function is still
+    // the one that locks and consumes this row, so this lookup has no bearing
+    // on authorization or the atomic state transition.
+    const intent = await tx.query<{ id: string }>(
+      "select id from public.telegram_binding_intents where workspace_id=$1 and verifier_hash=$2",
+      [row.workspace_id, verifier]);
     if (intent.rows[0]) {
       await recordAudit(tx, { actorUserId: "", organizationId: row.workspace_id, requestId }, {
         action: "telegram_binding_intent.consumed", object_type: "telegram_binding_intent", object_id: intent.rows[0].id,
@@ -77,8 +84,6 @@ export async function consumeMemberLinkCommand(input: ConsumeMemberLinkCommandIn
   const requestId = input.requestId ?? crypto.randomUUID();
 
   return withServiceTx({ actorUserId: "", organizationId: null, requestId }, async (tx) => {
-    const intent = await tx.query<{ id: string }>(
-      "select id from public.telegram_member_link_intents where verifier_hash=$1", [verifier]);
     const result = await tx.query<{
       workspace_id: string; member_id: string; telegram_member_link_id: string | null; outcome: MemberLinkOutcome;
     }>(`select * from app.consume_telegram_member_link_intent(
@@ -87,6 +92,13 @@ export async function consumeMemberLinkCommand(input: ConsumeMemberLinkCommandIn
     if (result.rows.length === 0) return { kind: "invalid_or_expired" };
 
     const row = result.rows[0]!;
+    // Same reason as consumeBindingCommand above: the tenant is resolved by the
+    // definer, and telegram_member_link_intents is confined from here on.
+    await adoptServiceWorkspace(tx, row.workspace_id);
+
+    const intent = await tx.query<{ id: string }>(
+      "select id from public.telegram_member_link_intents where workspace_id=$1 and verifier_hash=$2",
+      [row.workspace_id, verifier]);
     if (intent.rows[0]) {
       await recordAudit(tx, { actorUserId: "", organizationId: row.workspace_id, requestId }, {
         action: "telegram_member_link_intent.consumed", object_type: "telegram_member_link_intent", object_id: intent.rows[0].id,

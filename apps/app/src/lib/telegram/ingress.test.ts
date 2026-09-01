@@ -72,7 +72,7 @@ describe("Telegram webhook ingress", () => {
     expect(response.status).toBe(200);
     expect(query).toHaveBeenCalledTimes(1);
     const [sql, values] = (query.mock.calls as unknown as Array<[string, unknown[]]>)[0]!;
-    expect(sql).toContain("insert into public.telegram_inbox_updates");
+    expect(sql).toContain("app.enqueue_telegram_inbox_update");
     expect(values).toEqual([
       "123456789", "42", JSON.parse(raw), createHash("sha256").update(raw).digest("hex"),
     ]);

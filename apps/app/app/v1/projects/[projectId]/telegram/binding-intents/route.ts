@@ -47,7 +47,7 @@ export const POST = commandRoute(createBindingIntentRequest, async (a) => {
     (tx) => authorizeProjectAdmin(tx, a.requestId, a.userId, projectId));
   const captured: { telegramUrl: string | null } = { telegramUrl: null };
 
-  const out = await withServiceTx(ctx, async (tx) => withIdempotency<TelegramBindingIntentReceipt>(tx, {
+  const out = await withServiceTx({ ...ctx, organizationId: authorized.workspaceId }, async (tx) => withIdempotency<TelegramBindingIntentReceipt>(tx, {
     organizationId: authorized.workspaceId, actorScope: `user:${a.userId}`,
     operationId: "telegram_binding_intents.create", key: a.idempotencyKey, requestHash: a.requestHash,
   }, async () => {

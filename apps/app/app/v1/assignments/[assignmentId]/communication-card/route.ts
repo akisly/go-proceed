@@ -47,7 +47,7 @@ export const POST = commandRoute(request, async (a) => {
   const ctx = { actorUserId: a.userId, organizationId: null, requestId: a.requestId };
   const authorized = await withTenantTx(ctx, (tx) => authorizeAssignment(tx, a.requestId, a.userId, assignmentId));
 
-  const result = await withServiceTx(ctx, async (tx) => withIdempotency(tx, {
+  const result = await withServiceTx({ ...ctx, organizationId: authorized.workspaceId }, async (tx) => withIdempotency(tx, {
     organizationId: authorized.workspaceId,
     actorScope: `user:${a.userId}`,
     operationId: "assignment_communication_cards.publish",

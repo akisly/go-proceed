@@ -80,7 +80,7 @@ export const POST = commandRoute(retryProjectCommunicationRequest, async (a) => 
   const initiallyAuthorized = await withTenantTx(ctx, (tx) => authorizeProject(
     tx, a.requestId, a.userId, projectId,
   ));
-  const result = await withServiceTx(ctx, async (tx) => withIdempotency(tx, {
+  const result = await withServiceTx({ ...ctx, organizationId: initiallyAuthorized.workspaceId }, async (tx) => withIdempotency(tx, {
     organizationId: initiallyAuthorized.workspaceId,
     actorScope: `user:${a.userId}`,
     operationId: "project_communications.retry",

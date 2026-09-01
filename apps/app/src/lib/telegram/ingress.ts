@@ -108,10 +108,14 @@ export async function acceptTelegramUpdate(request: Request): Promise<Response> 
 
   const payloadHash = createHash("sha256").update(raw).digest("hex");
   await withServiceTx({ actorUserId: "", organizationId: null, requestId: crypto.randomUUID() }, async (tx) => {
-    await tx.query(`insert into public.telegram_inbox_updates
-      (bot_id, update_id, payload, payload_hash, state)
-      values ($1, $2, $3, $4, 'pending')
-      on conflict (bot_id, update_id) do nothing`, [config.botId, updateId, payload, payloadHash]);
+    // Ingress has no tenant yet — the update has not been resolved to a chat
+    // binding — so there is no workspace to declare and no policy that could
+    // name one. `app.enqueue_telegram_inbox_update` is SECURITY DEFINER for that
+    // reason, and it is why telegram_inbox_updates carries RLS with no policy
+    // and no grant: nothing reaches it except the definer functions.
+    await tx.query(
+      "select app.enqueue_telegram_inbox_update($1::bigint, $2::bigint, $3::jsonb, $4::text)",
+      [config.botId, updateId, payload, payloadHash]);
   });
   return empty(200);
 }
