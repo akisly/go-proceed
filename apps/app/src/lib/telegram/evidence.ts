@@ -349,18 +349,26 @@ export async function prepareTelegramEvidenceCandidate(input: {
     }
     if (input.mediaGroupId !== null && input.allowMediaGroup !== true) return { kind: "not_evidence", code: "album_pending" };
     if (supported.length === 1) {
+      // The album cut-off is the LAST parameter and is appended only on the
+      // album branch. It used to sit at $3 and be passed unconditionally, so on
+      // the single-attachment branch — where the ternary emits `id=$1` and $3
+      // appears nowhere — Postgres had a parameter it could not type and
+      // answered 42P18 before touching a row. Every single-image evidence path
+      // died there.
+      const albumGroupId = input.telegramMediaGroupId ?? null;
+      const leaseParams: Array<string | null> = [
+        albumGroupId ?? input.attachmentId, supported[0]!.occurrenceId,
+        input.albumClaim?.leaseToken ?? null, input.albumClaim?.leaseExpiresAt ?? null,
+      ];
+      if (albumGroupId !== null) leaseParams.push(input.albumClaim?.claimedLastPartAt ?? null);
       const leased = await tx.query<{ id: string; token: string; expires_at: string }>(`update public.communication_attachments
         set state='processing', requirement_occurrence_id=$2,
-            provider_retry_lease_token=coalesce($4::uuid, gen_random_uuid()),
-            provider_retry_lease_expires_at=coalesce($5::timestamptz, now()+interval '60 seconds')
-        where ${input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined
-          ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic') and created_at <= $3::timestamptz"} and state='staged'
+            provider_retry_lease_token=coalesce($3::uuid, gen_random_uuid()),
+            provider_retry_lease_expires_at=coalesce($4::timestamptz, now()+interval '60 seconds')
+        where ${albumGroupId === null
+          ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic') and created_at <= $5::timestamptz"} and state='staged'
         returning id,provider_retry_lease_token::text as token,
-          provider_retry_lease_expires_at::text as expires_at`, [
-        input.telegramMediaGroupId ?? input.attachmentId, supported[0]!.occurrenceId,
-        input.albumClaim?.claimedLastPartAt ?? null,
-        input.albumClaim?.leaseToken ?? null, input.albumClaim?.leaseExpiresAt ?? null,
-      ]);
+          provider_retry_lease_expires_at::text as expires_at`, leaseParams);
       const owner = leased.rows.find(({ id }) => id === input.attachmentId);
       if (!owner || owner.id !== input.attachmentId) return { kind: "not_evidence", code: "album_pending" };
       return { kind: "ready", assignmentId, occurrenceId: supported[0]!.occurrenceId, actorUserId,
