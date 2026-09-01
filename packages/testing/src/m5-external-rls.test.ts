@@ -435,7 +435,7 @@ describe("§3 — what a live external session reaches, over every table there i
     // separately below («a column-level grant is a fence, not a door»).
     const priv = await c.query<{ t: string; sel: boolean }>(
       `select cl.relname as t,
-              has_any_column_privilege('goproceed_app', 'public.' || quote_ident(cl.relname), 'select') as sel
+              has_any_column_privilege('goproceed_app', cl.oid, 'select') as sel
          from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
         where n.nspname = 'public' and cl.relkind in ('r','p')`);
     const noSelect = new Set(priv.rows.filter((x) => !x.sel).map((x) => x.t));
@@ -487,12 +487,19 @@ describe("§3 — what a live external session reaches, over every table there i
     // in scope the day it lands. Today that is exactly one table, and the
     // count is pinned the way §2 pins the blanket policies: a second one must
     // be added here on purpose, with its withheld columns named.
+    //
+    // BY OID, NOT BY NAME. A privilege function in the WHERE clause is not
+    // guaranteed to run after `n.nspname = 'public'` — the planner may call it
+    // first, and `'public.' || relname` for a row from another schema raises
+    // 42P01 («relation "public.instances" does not exist», CI run
+    // 33562008121, for auth.instances). `cl.oid` names the very row being
+    // scanned and cannot miss.
     const granted = await c.query<{ t: string }>(
       `select cl.relname as t
          from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
         where n.nspname = 'public' and cl.relkind in ('r','p')
-          and not has_table_privilege('goproceed_app', 'public.' || quote_ident(cl.relname), 'select')
-          and has_any_column_privilege('goproceed_app', 'public.' || quote_ident(cl.relname), 'select')
+          and not has_table_privilege('goproceed_app', cl.oid, 'select')
+          and has_any_column_privilege('goproceed_app', cl.oid, 'select')
         order by 1`);
     expect(granted.rows.map((x) => x.t)).toEqual(["communication_attachments"]);
 
@@ -507,7 +514,7 @@ describe("§3 — what a live external session reaches, over every table there i
     for (const { t } of granted.rows) {
       const cols = await c.query<{ col: string; ok: boolean }>(
         `select a.attname as col,
-                has_column_privilege('goproceed_app', 'public.' || quote_ident($1), a.attname, 'select') as ok
+                has_column_privilege('goproceed_app', a.attrelid, a.attname, 'select') as ok
            from pg_attribute a
           where a.attrelid = ('public.' || quote_ident($1))::regclass
             and a.attnum > 0 and not a.attisdropped
@@ -605,7 +612,7 @@ describe("§4 — a transaction with neither subject reaches nothing at all", ()
     // separately below («a column-level grant is a fence, not a door»).
     const priv = await c.query<{ t: string; sel: boolean }>(
       `select cl.relname as t,
-              has_any_column_privilege('goproceed_app', 'public.' || quote_ident(cl.relname), 'select') as sel
+              has_any_column_privilege('goproceed_app', cl.oid, 'select') as sel
          from pg_class cl join pg_namespace n on n.oid = cl.relnamespace
         where n.nspname = 'public' and cl.relkind in ('r','p')`);
     const expected: Record<string, Reach> = {};
