@@ -116,7 +116,7 @@ describe("project field channel", () => {
       select p.status, c.state, c.locked_at, o.organization_id, o.topic
         from public.projects p
         join public.project_field_channels c on c.workspace_id=p.workspace_id and c.project_id=p.id
-        join public.transaction_outbox o on o.aggregate_id=p.id
+        join public.transaction_outbox o on o.aggregate_id=p.id::text and o.topic='project.activated'
        where p.id=$1`, [projectId]);
     expect(committed).toMatchObject({
       status: "active", state: "active", organization_id: workspaceId, topic: "project.activated",
