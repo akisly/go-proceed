@@ -127,9 +127,19 @@ $ cat .supabase-cli-version
 2.115.0
 ```
 
-No test suite was run in this worktree. `node_modules` is absent, which is the
-same condition [test-strategy.md](test-strategy.md):595-597 names as the reason
-it states no baseline. That condition still holds.
+No test suite was run in this worktree. `node_modules` is absent, and that
+condition still holds — every §6.1 command resolving a binary through it is
+recorded `NOT PROVEN — environmental` here for that reason, not because it
+failed.
+
+What changed on 2026-09-01 is that the absence stopped being the whole story.
+[test-strategy.md](test-strategy.md) §Baseline used to name no baseline for the
+same reason; it now records one, from CI run 33540108319 at `18411ea` — 176
+files, 2174 tests, both jobs green. So this runbook distinguishes two things
+that used to be one: **unproven in this worktree** (still true, and stated
+wherever it applies) and **unproven anywhere** (no longer true of the suites,
+still true of the motion gate and the field client's browser harness, neither
+of which is in any CI job).
 
 ---
 
@@ -142,10 +152,23 @@ it states no baseline. That condition still holds.
 | 60 migrations on disk, `0001`–`0060` | measured; last file `0060_the_retirement_that_raced_itself.sql` |
 | 65 catalogued v0.1 operations, split 35/9/6/6/6/3 across M1–M6 | measured from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) |
 | M0 has **zero** recorded evidence entries | 32 unchecked gate items, 0 checked, in [production-readiness.md](production-readiness.md):133-140 and its gate sections |
-| The canonical-docs gate is **RED on `main`** — 13 findings, all in `discovery/templates/` | measured, exit 1; the exception is deliberate, see [validate-canonical-docs.mjs](../../scripts/validate-canonical-docs.mjs):169-179 |
+| The canonical-docs gate is **GREEN** — `canonical documentation: OK`, exit 0 | measured. It was RED with 13 findings, all in `discovery/templates/`, until commit `18dd086` (2026-09-01) renamed the product in the seven letters and made the deleted demo's URL an owner-blocked `{{demo_url}}` placeholder. The directory's exclusion from the `discovery/` record exemption is deliberate — [validate-canonical-docs.mjs](../../scripts/validate-canonical-docs.mjs):169-179 |
 | The ДБН Додаток Н library is exactly twelve rows, all `VERIFIED_PRIMARY`, each carrying URL + retrieval date + SHA-256 | [dbn-a31-5-2016-dodatok-n.csv](../../technical/requirements/dbn-a31-5-2016-dodatok-n.csv):1-13 |
 | All eight discovery assumptions A-1…A-8 are `Unvalidated`; every evidence column is `none` **except A-8's Reply, which is `founder-reported`** | [validated-assumptions.md](../discovery/validated-assumptions.md):33-40 (A-8 at :40) |
 | The local Supabase CLI (2.114.0) is behind the pin (2.115.0) | measured; `pnpm db:check-cli` warns on exactly this |
+
+**And, as of 2026-09-01, a green CI baseline exists — the first this package has
+had.** It is not measured in this checkout; it is measured by a public,
+re-runnable CI job, which is the stronger of the two:
+`ci` run **33540108319**, head SHA **`18411ea`**, both jobs `success` —
+**176 test files, 2174 tests, all passed** across eight suites, plus
+`validate:canonical-docs` OK, `typecheck`, `build`, the CLI pin assertion, and
+`pnpm --filter @goproceed/app qa` at **8 of 8 audits, zero findings**. The
+verbatim counts, the per-package split and — importantly — the three commands
+the baseline does **not** cover are recorded in
+[test-strategy.md](test-strategy.md) §Baseline. Read that list before citing
+this row: the motion gate and the field client's browser harness are in no CI
+job and did not run.
 
 ### 1.2 Asserted by a dated operator record — not reproduced here
 
@@ -175,7 +198,10 @@ passing suite, a test count, or a green baseline as a present fact»). It also
 predates `0060` (added 2026-08-28) and the nineteen PRs #37–#55 merged through
 2026-08-31, including the whole landing/motion series. In this worktree it is
 `NOT PROVEN — environmental` (`node_modules` absent, measured). **It is not a
-current green baseline and this runbook does not carry one.**
+current green baseline** — but one now exists elsewhere: CI run 33540108319 at
+`18411ea`, recorded in §1.1 and in [test-strategy.md](test-strategy.md)
+§Baseline. What the HANDOFF row cannot do is stand in for it, which is the point
+this paragraph was always making.
 
 The narrow true statement about the migration chain is the one at
 `HANDOFF-2026-08-27.md`:147 — **«the migration chain is applied nowhere but
@@ -1464,7 +1490,10 @@ Two live examples this runbook must itself obey:
 
 - **Every command in §6.1 that resolves a binary out of `node_modules`** — not
   just Group B — is `NOT PROVEN — environmental` **in this worktree today**,
-  because `node_modules` is absent. That is **Group A's `pnpm turbo run
+  because `node_modules` is absent. **In CI they are proven**, as of run
+  33540108319 (§1.1) — which is exactly why the vocabulary distinguishes
+  «the environment could not run it» from «it failed»: the same commands went
+  green the moment an environment could. That is **Group A's `pnpm turbo run
   typecheck`, all of Group B, all of Group C, and Group D's commands 3, 4 and
   5**. Measured 2026-09-01 at `7397d7d`: `ls -d node_modules` → «No such file
   or directory»; `which turbo` → not found; `which vitest` → not found; `pnpm
