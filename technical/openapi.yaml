@@ -1741,6 +1741,70 @@
         "x-idempotency-class": "standard_30d"
       }
     },
+    "/projects/{projectId}/communications": {
+      "get": {
+        "tags": ["Projects", "Telegram"],
+        "operationId": "listProjectCommunications",
+        "summary": "List the normalized Telegram timeline for one project",
+        "description": "Requires project.view. Messages are ordered newest-first by the stable (serverReceivedAt,messageId) cursor pair. The response includes append-only edits, safe attachment metadata, exact internal links, and delivery projection, but never provider file handles, link verifiers, chat identifiers, or bot credentials.",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProjectId" },
+          { "$ref": "#/components/parameters/Cursor" },
+          { "$ref": "#/components/parameters/Limit" }
+        ],
+        "responses": {
+          "200": { "description": "Project communication page", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectCommunicationPage" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "422": { "$ref": "#/components/responses/Validation" }
+        }
+      },
+      "post": {
+        "tags": ["Projects", "Telegram"],
+        "operationId": "replyToProjectCommunication",
+        "summary": "Queue a web reply to the project's locked Telegram group",
+        "description": "Requires project.view and communication.reply plus an active project and healthy locked Telegram binding. The caller cannot choose another channel or recipient. The immutable outbound message and communication.telegram.send outbox row commit in one idempotent transaction; queued does not mean delivered or read.",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProjectId" },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/PostProjectCommunicationRequest" } } } },
+        "responses": {
+          "201": { "description": "Telegram-fixed reply queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectCommunicationCommandResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/Validation" }
+        },
+        "x-idempotency-class": "standard_30d"
+      }
+    },
+    "/projects/{projectId}/communications/{messageId}/retry": {
+      "post": {
+        "tags": ["Projects", "Telegram"],
+        "operationId": "retryProjectCommunication",
+        "summary": "Create a new warned delivery retry",
+        "description": "Requires project.view and communication.reply. Only failed or delivery_unknown outbound messages in this exact project may be retried. A retry creates a new provider identity linked by retryOfMessageId. delivery_unknown additionally requires acknowledgePossibleDuplicate=true because Telegram may already have accepted the original request.",
+        "parameters": [
+          { "$ref": "#/components/parameters/ProjectId" },
+          { "name": "messageId", "in": "path", "required": true, "schema": { "type": "string", "format": "uuid" } },
+          { "$ref": "#/components/parameters/IdempotencyKey" }
+        ],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/RetryProjectCommunicationRequest" } } } },
+        "responses": {
+          "201": { "description": "New Telegram delivery identity queued", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProjectCommunicationCommandResponse" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "403": { "$ref": "#/components/responses/Forbidden" },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "409": { "$ref": "#/components/responses/Conflict" },
+          "422": { "$ref": "#/components/responses/Validation" }
+        },
+        "x-idempotency-class": "standard_30d",
+        "x-duplicate-acknowledgement": "acknowledgePossibleDuplicate=true is mandatory for delivery_unknown"
+      }
+    },
     "/integrations/telegram/webhook": {
       "post": {
         "tags": ["Integrations"],
@@ -12335,6 +12399,105 @@
           "channelState": { "type": ["string", "null"], "enum": ["unbound", "connected", "active", "unhealthy", "archived", null] },
           "lockedAt": { "type": ["string", "null"], "format": "date-time" },
           "version": { "type": "integer", "minimum": 1 }
+        }
+      },
+      "PostProjectCommunicationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["text"],
+        "properties": {
+          "text": { "type": "string", "minLength": 1, "maxLength": 4096 },
+          "replyToMessageId": { "type": "string", "format": "uuid" }
+        }
+      },
+      "RetryProjectCommunicationRequest": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "acknowledgePossibleDuplicate": {
+            "type": "boolean",
+            "description": "Must be true when the source delivery state is delivery_unknown."
+          }
+        }
+      },
+      "ProjectCommunicationCommandResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["messageId", "channel", "deliveryState", "replyToMessageId", "retryOfMessageId"],
+        "properties": {
+          "messageId": { "type": "string", "format": "uuid" },
+          "channel": { "type": "string", "enum": ["telegram"] },
+          "deliveryState": { "type": "string", "enum": ["queued"] },
+          "replyToMessageId": { "type": ["string", "null"], "format": "uuid" },
+          "retryOfMessageId": { "type": ["string", "null"], "format": "uuid" }
+        }
+      },
+      "ProjectCommunicationEvent": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["eventId", "kind", "text", "deliveryState", "serverReceivedAt"],
+        "properties": {
+          "eventId": { "type": "string", "format": "uuid" },
+          "kind": { "type": "string", "enum": ["edited", "delivery_state_changed", "bot_removed", "bot_restored"] },
+          "text": { "type": ["string", "null"] },
+          "deliveryState": { "type": ["string", "null"], "enum": ["received", "queued", "provider_accepted", "failed", "delivery_unknown", null] },
+          "serverReceivedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ProjectCommunicationAttachment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["attachmentId", "filename", "mediaType", "byteSize", "state", "requirementOccurrenceId", "evidenceObjectId", "evidenceDecisionId", "failureCode"],
+        "properties": {
+          "attachmentId": { "type": "string", "format": "uuid" },
+          "filename": { "type": ["string", "null"] },
+          "mediaType": { "type": ["string", "null"] },
+          "byteSize": { "type": ["string", "null"], "pattern": "^[0-9]+$" },
+          "state": { "type": "string", "enum": ["staged", "unbound", "awaiting_requirement_choice", "processing", "available", "not_evidence", "failed"] },
+          "requirementOccurrenceId": { "type": ["string", "null"], "format": "uuid" },
+          "evidenceObjectId": { "type": ["string", "null"], "format": "uuid" },
+          "evidenceDecisionId": { "type": ["string", "null"], "format": "uuid" },
+          "failureCode": { "type": ["string", "null"] }
+        }
+      },
+      "ProjectCommunicationMessage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["messageId", "source", "direction", "kind", "author", "text", "replyToMessageId", "retryOfMessageId", "workAssignmentId", "providerSentAt", "serverReceivedAt", "deliveryState", "events", "attachments"],
+        "properties": {
+          "messageId": { "type": "string", "format": "uuid" },
+          "source": { "type": "string", "enum": ["telegram"] },
+          "direction": { "type": "string", "enum": ["inbound", "outbound", "system"] },
+          "kind": { "type": "string", "enum": ["text", "photo", "document", "assignment_card", "system", "unsupported"] },
+          "author": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["memberId", "displayName", "role", "verified"],
+            "properties": {
+              "memberId": { "type": ["string", "null"], "format": "uuid" },
+              "displayName": { "type": ["string", "null"] },
+              "role": { "type": ["string", "null"], "enum": ["owner", "admin", "member", "auditor", null] },
+              "verified": { "type": "boolean" }
+            }
+          },
+          "text": { "type": ["string", "null"] },
+          "replyToMessageId": { "type": ["string", "null"], "format": "uuid" },
+          "retryOfMessageId": { "type": ["string", "null"], "format": "uuid" },
+          "workAssignmentId": { "type": ["string", "null"], "format": "uuid" },
+          "providerSentAt": { "type": ["string", "null"], "format": "date-time" },
+          "serverReceivedAt": { "type": "string", "format": "date-time" },
+          "deliveryState": { "type": "string", "enum": ["received", "queued", "provider_accepted", "failed", "delivery_unknown"] },
+          "events": { "type": "array", "items": { "$ref": "#/components/schemas/ProjectCommunicationEvent" } },
+          "attachments": { "type": "array", "items": { "$ref": "#/components/schemas/ProjectCommunicationAttachment" } }
+        }
+      },
+      "ProjectCommunicationPage": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["messages", "nextCursor"],
+        "properties": {
+          "messages": { "type": "array", "maxItems": 100, "items": { "$ref": "#/components/schemas/ProjectCommunicationMessage" } },
+          "nextCursor": { "type": ["string", "null"], "maxLength": 512 }
         }
       },
       "AssignmentCardResponse": {

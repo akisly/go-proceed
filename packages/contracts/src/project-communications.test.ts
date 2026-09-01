@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  projectCommunicationPage, telegramBindingIntentResponse, telegramMemberLinkIntentResponse,
+  projectCommunicationPage, projectCommunicationCommandResponse,
+  retryProjectCommunicationRequest, telegramBindingIntentResponse, telegramMemberLinkIntentResponse,
 } from "./project-communications";
 
 describe("project communications contracts", () => {
@@ -8,10 +9,11 @@ describe("project communications contracts", () => {
     const page = projectCommunicationPage.parse({
       messages: [{
         messageId: crypto.randomUUID(), direction: "inbound", kind: "text",
-        author: { memberId: null, displayName: "Іван", verified: false },
+        source: "telegram",
+        author: { memberId: null, displayName: "Іван", role: null, verified: false },
         text: "Роботу завершено", replyToMessageId: null, providerSentAt: null,
         serverReceivedAt: new Date().toISOString(), deliveryState: "received",
-        attachments: [],
+        retryOfMessageId: null, workAssignmentId: null, events: [], attachments: [],
       }],
       nextCursor: null,
     });
@@ -24,15 +26,29 @@ describe("project communications contracts", () => {
     expect(projectCommunicationPage.parse({
       messages: [{
         messageId: crypto.randomUUID(), direction: "inbound", kind: "photo",
-        author: { memberId: null, displayName: null, verified: false }, text: null,
+        source: "telegram",
+        author: { memberId: null, displayName: null, role: null, verified: false }, text: null,
         replyToMessageId: null, providerSentAt: null, serverReceivedAt: new Date().toISOString(),
-        deliveryState: "received", attachments: [{
+        deliveryState: "received", retryOfMessageId: null, workAssignmentId: null, events: [], attachments: [{
           attachmentId: crypto.randomUUID(), filename: null, mediaType: "image/jpeg", byteSize: "123",
-          state: "staged", requirementOccurrenceId: null, evidenceObjectId: null, failureCode: null,
+          state: "staged", requirementOccurrenceId: null, evidenceObjectId: null,
+          evidenceDecisionId: null, failureCode: null,
         }],
       }],
       nextCursor: null,
     }).messages[0]?.attachments[0]?.state).toBe("staged");
+  });
+
+  it("defines Telegram-fixed reply receipts and an explicit unknown-delivery acknowledgement", () => {
+    const receipt = projectCommunicationCommandResponse.parse({
+      messageId: crypto.randomUUID(), channel: "telegram", deliveryState: "queued",
+      replyToMessageId: null, retryOfMessageId: null,
+    });
+    expect(receipt.channel).toBe("telegram");
+    expect(receipt).not.toHaveProperty("recipient");
+    expect(retryProjectCommunicationRequest.parse({ acknowledgePossibleDuplicate: true }))
+      .toEqual({ acknowledgePossibleDuplicate: true });
+    expect(() => retryProjectCommunicationRequest.parse({ acknowledgePossibleDuplicate: "yes" })).toThrow();
   });
 
   it("distinguishes a newly issued Telegram URL from its token-free idempotency replay", () => {

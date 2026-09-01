@@ -74,7 +74,9 @@ export async function enqueueTelegramMessage(
     workAssignmentId: string | null;
     text: string;
     kind: "assignment_card" | "text";
+    authorMemberId?: string | null;
     replyToMessageId?: string | null;
+    retryOfMessageId?: string | null;
     inlineKeyboard?: Array<Array<{ text: string; callbackData: string }>>;
     /** Ordered requirement ids actually rendered in an assignment card. */
     occurrenceSnapshot?: string[];
@@ -83,10 +85,12 @@ export async function enqueueTelegramMessage(
   const messageId = crypto.randomUUID();
   await tx.query(`insert into public.communication_messages
     (id, workspace_id, project_id, telegram_chat_binding_id, direction, kind,
-     text, reply_to_message_id, work_assignment_id, telegram_reply_markup, telegram_occurrence_snapshot, delivery_state)
-    values ($1, $2, $3, $4, 'outbound', $5, $6, $7, $8, $9::jsonb, $10::uuid[], 'queued')`, [
+     text, author_member_id, reply_to_message_id, retry_of_message_id, work_assignment_id,
+     telegram_reply_markup, telegram_occurrence_snapshot, delivery_state)
+    values ($1, $2, $3, $4, 'outbound', $5, $6, $7, $8, $9, $10, $11::jsonb, $12::uuid[], 'queued')`, [
     messageId, input.workspaceId, input.projectId, input.telegramChatBindingId,
-    input.kind, input.text, input.replyToMessageId ?? null, input.workAssignmentId,
+    input.kind, input.text, input.authorMemberId ?? null, input.replyToMessageId ?? null,
+    input.retryOfMessageId ?? null, input.workAssignmentId,
     input.inlineKeyboard === undefined ? null : JSON.stringify(input.inlineKeyboard),
     input.occurrenceSnapshot ?? null,
   ]);

@@ -158,7 +158,7 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29** — see the notes under the table. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01** — see the notes under the table. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
@@ -169,8 +169,8 @@ in each API slice below. The table columns come from ADR-006 decision 4.
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
-| `v0.1-M6` | 10 | 0 | — |
-| Total | 70 | 26 | 26 |
+| `v0.1-M6` | 13 | 0 | — |
+| Total | 75 | 26 | 26 |
 
 *The «v0.1 tables» column is ADR-006 decision 4's build list and stays at
 its 26. `project_sourced_requirement_items` is a twenty-seventh v0.1 table,
@@ -188,7 +188,7 @@ by SQL (`TODOS.md`, formerly «P3 — dead surface added by the M1 migrations»,
 whose own 2026-08-08 escalation said exactly this). No new table: both existed
 since migration 0010 with RLS and grants and were counted in the 26 all along.*
 
-*`v0.1-M6` has ten operations as of 2026-08-29. `evidence.list` (Plan D slice D1, Task 3), `external.evidence_bytes` (the same slice, Task 4), the project Telegram channel commands, `telegram_webhook.accept`, and `assignment_communication_cards.publish` all share the tag — a compromise: M6 is nominally "the blocked money" and these operational channel reads/writes are not that, but the alternative (`v0.1-M7`) would need its own entry in ADR-006 decision 4's and [roadmap.md](../product/roadmap.md)'s milestone tables, which restructures the delivery taxonomy to accommodate one slice. `blocked_value.get` is no longer the only `v0.1-M6` row — see the two corrections below, in the M6 section itself. No new table accompanies the evidence reads, and the Telegram ingress uses the already-deployed inbox table; `evidence.list` is a join over `upload_intents` and `evidence_objects`, and `external.evidence_bytes` reads one `evidence_objects` row and streams the object storage already holds. `telegram_webhook.accept` verifies the provider secret, bounds raw input to 1 MiB, and persists a pending update before acknowledgement; it resolves no tenant scope. `assignment_communication_cards.publish` atomically records a queued card and its Telegram delivery intent; provider acceptance is later work. The tag records the slice that built each operation rather than re-stating a shipped milestone's operation list after the fact.*
+*`v0.1-M6` has thirteen operations as of 2026-09-01. `evidence.list` (Plan D slice D1, Task 3), `external.evidence_bytes` (the same slice, Task 4), the project Telegram channel commands, `telegram_webhook.accept`, `assignment_communication_cards.publish`, and the three `project_communications.*` timeline/reply/retry operations all share the tag — a compromise: M6 is nominally "the blocked money" and these operational channel reads/writes are not that, but the alternative (`v0.1-M7`) would need its own entry in ADR-006 decision 4's and [roadmap.md](../product/roadmap.md)'s milestone tables, which restructures the delivery taxonomy to accommodate one slice. `blocked_value.get` is no longer the only `v0.1-M6` row — see the two corrections below, in the M6 section itself. No new table accompanies the evidence or communication reads, and the Telegram ingress uses the already-deployed inbox table; `evidence.list` is a join over `upload_intents` and `evidence_objects`, and `external.evidence_bytes` reads one `evidence_objects` row and streams the object storage already holds. `telegram_webhook.accept` verifies the provider secret, bounds raw input to 1 MiB, and persists a pending update before acknowledgement; it resolves no tenant scope. Assignment cards and project communication replies/retries atomically record a queued immutable message and its Telegram delivery intent; provider acceptance is later work. The tag records the slice that built each operation rather than re-stating a shipped milestone's operation list after the fact.*
 
 **Telegram ingress release blocker — Task 13 must configure and verify an edge
 limit of 120 requests/minute with burst 30 before this public webhook is

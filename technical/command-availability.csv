@@ -16,6 +16,7 @@ CA-014,40,commercial_correction,trial|active|suspended|closing,pilot|trialing|ac
 CA-015,45,organization_settings_mutation,trial|active,pilot|trialing|active|grace,*,*,*,allow,invalidate_if_auth_context_changes,T-COMMAND-AVAILABILITY-001,Does not include lifecycle ownership billing or security commands which use dedicated classes.
 CA-016,50,period_reopen,trial|active,pilot|trialing|active,active,active,closed,allow,none,T-PERIOD-CYCLE-001|T-COMMAND-AVAILABILITY-001,Also requires no submission external decision acceptance receivable or payment dependency.
 CA-017,50,archive_or_complete,trial|active,pilot|trialing|active,draft|active|paused|completed,draft|active|completed|terminated,*,allow,invalidate,T-LEASE-PARENT-001|T-CONTRACT-LIFECYCLE-001,Impact preview and exact dependency guards decide the particular lifecycle command.
+CA-018,40,project_communication_reply,trial|active,pilot|trialing|active,active,*,*,allow,none,T-TG-005|T-COMMAND-AVAILABILITY-001,Requires current project.view plus communication.reply and the same active healthy locked Telegram binding; a delivery_unknown manual retry additionally requires acknowledgePossibleDuplicate=true because provider acceptance may already have happened.
 CA-901,900,read_scoped,*,*,*,*,*,deny,none,T-COMMAND-AVAILABILITY-001,Default deny after higher-priority allow rules.
 CA-902,900,export,*,*,*,*,*,deny,none,T-COMMAND-AVAILABILITY-001,Default deny after higher-priority allow rules.
 CA-903,900,payment_recovery,*,*,*,*,*,deny,none,T-COMMAND-AVAILABILITY-001,Default deny after higher-priority allow rules.
@@ -31,3 +32,4 @@ CA-912,900,commercial_correction,*,*,*,*,*,deny,none,T-COMMAND-AVAILABILITY-001,
 CA-913,900,organization_settings_mutation,*,*,*,*,*,deny,none,T-COMMAND-AVAILABILITY-001,Default deny after higher-priority allow rule.
 CA-914,900,period_reopen,*,*,*,*,*,deny,none,T-COMMAND-AVAILABILITY-001,Default deny after eligible reopen rule.
 CA-915,900,archive_or_complete,*,*,*,*,*,deny,invalidate,T-COMMAND-AVAILABILITY-001,Default deny after lifecycle guard rule.
+CA-916,900,project_communication_reply,*,*,*,*,*,deny,none,T-TG-005|T-COMMAND-AVAILABILITY-001,Default deny prevents replies and manual retries when the project or its one locked Telegram channel is not active and healthy.
