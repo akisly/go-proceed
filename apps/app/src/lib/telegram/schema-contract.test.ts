@@ -9,6 +9,22 @@ const evidence = readFileSync(resolve(process.cwd(), "src/lib/telegram/evidence.
 const processor = readFileSync(resolve(process.cwd(), "src/lib/telegram/processor.ts"), "utf8");
 
 describe("Telegram evidence canonical schema contract", () => {
+  it("keeps the decision-attempt membership FK aligned with the canonical membership key", () => {
+    const memberships = schema.slice(
+      schema.indexOf("create table public.memberships ("),
+      schema.indexOf("create table public.invitations ("),
+    );
+    const attempts = schema.slice(
+      schema.indexOf("create table public.telegram_evidence_decision_attempts ("),
+      schema.indexOf("create index telegram_evidence_decision_attempts_due_idx"),
+    );
+
+    expect(memberships).toContain("unique (workspace_id, id)");
+    expect(attempts).toContain(
+      "foreign key (workspace_id,actor_member_id) references public.memberships(workspace_id,id)",
+    );
+  });
+
   it("keeps runtime message receipt metadata immutable in the canonical guard", () => {
     for (const column of [
       "telegram_reply_markup", "telegram_occurrence_snapshot", "telegram_evidence_receipt_key",

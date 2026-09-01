@@ -3158,7 +3158,7 @@ create table public.telegram_evidence_decision_attempts (
   foreign key (workspace_id,project_id) references public.project_field_channels(workspace_id,project_id),
   foreign key (workspace_id,project_id,telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id,project_id,id),
   foreign key (workspace_id,project_id,requirement_occurrence_id) references public.requirement_occurrences(workspace_id,project_id,id),
-  foreign key (workspace_id,actor_member_id) references public.memberships(organization_id,id),
+  foreign key (workspace_id,actor_member_id) references public.memberships(workspace_id,id),
   foreign key (return_reply_message_id) references public.communication_messages(id),
   foreign key (workspace_id,decision_id) references public.requirement_evidence_decisions(workspace_id,id),
   check (action in ('accepted','returned')), check (request_hash ~ '^[0-9a-f]{64}$'),
