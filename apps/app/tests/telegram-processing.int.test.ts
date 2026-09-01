@@ -166,7 +166,7 @@ databaseDescribe("Telegram inbox processing", () => {
     expect(count).toEqual({ count: "0" });
   });
 
-  it("retains normalized media metadata for later processing without creating evidence", async () => {
+  it("retains normalized media metadata on a card-less photo it terminalises without evidence", async () => {
     await q(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state)
       values ($1, $2, $3::jsonb, repeat('1', 64), 'pending')`, [botId, updateId, JSON.stringify({
       update_id: Number(updateId), message: {
@@ -182,8 +182,13 @@ databaseDescribe("Telegram inbox processing", () => {
     }>(`select state, provider_file_id, provider_file_unique_id, media_type_snapshot, byte_size::text,
                evidence_object_id, requirement_occurrence_id
           from public.communication_attachments where workspace_id=$1`, [workspaceId]);
+    // Task 9 made the evidence bridge inline: a photo that replies to no live
+    // card is terminalised inside the same batch, not left staged for a later
+    // pass. `terminalAttachment` clears both provider identifiers on the way
+    // out (evidence.ts:249) while the normalised metadata snapshot survives —
+    // which is the property this test exists to hold.
     expect(attachment).toEqual({
-      state: "staged", provider_file_id: "photo-file", provider_file_unique_id: "photo-unique",
+      state: "unbound", provider_file_id: null, provider_file_unique_id: null,
       media_type_snapshot: "image/jpeg", byte_size: "123", evidence_object_id: null, requirement_occurrence_id: null,
     });
   });
@@ -525,10 +530,11 @@ databaseDescribe("Telegram inbox processing", () => {
         (id,workspace_id,member_id,telegram_user_id,verified_at,linked_by_member_id)
         values(gen_random_uuid(),$1,$2,77,now(),$2)`, [workspaceId, memberId]);
       await adminClient.query(`insert into public.requirement_occurrences
-        (id,workspace_id,project_id,contract_id,work_assignment_id,rule_version_id,
-         intervention_type,blocking_scope,timing,evidence_kind,acceptance_criterion,
+        (id,workspace_id,project_id,contract_id,contract_version_id,work_assignment_id,stage_key,
+         rule_version_id,intervention_type,blocking_scope,timing,evidence_kind,acceptance_criterion,
          performer_role,approver_role,min_evidence_count,quantity_scope,created_by_member_id)
-        values($1,$2,$3,gen_random_uuid(),$4,gen_random_uuid(),'review','none','after',
+        values($1,$2,$3,gen_random_uuid(),gen_random_uuid(),$4,'synthetic-callback-race',
+          gen_random_uuid(),'review','none','after',
           'photo','synthetic callback race','performer','technical_supervision',1,'{}'::jsonb,$5)`,
       [occurrenceId, workspaceId, projectId, assignmentId, memberId]);
       await adminClient.query(`insert into public.communication_messages

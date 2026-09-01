@@ -4,7 +4,7 @@ import { withServiceTx } from "@goproceed/database";
 import { TelegramApiError } from "../src/lib/telegram/api";
 import { asService, dropWorkspaces } from "../../../packages/testing/src/pg";
 import { seedRulesWorld, type RulesFixture } from "../../../packages/testing/src/m1-rules-fixture";
-import { insertOccurrence, seedOccurrenceWorld, type OccurrenceWorld } from "../../../packages/testing/src/m2-occurrences-fixture";
+import { deleteOccurrence, insertOccurrence, seedOccurrenceWorld, type OccurrenceWorld } from "../../../packages/testing/src/m2-occurrences-fixture";
 import { ADMIN_URL, hasIsolatedDatabaseCredentials } from "./helpers/fixtures";
 import { enqueueTelegramMessage, deliverTelegramOutboxBatch } from "../src/lib/telegram/delivery";
 import { prepareTelegramEvidenceCandidate, selectTelegramOccurrence } from "../src/lib/telegram/evidence";
@@ -98,6 +98,7 @@ databaseDescribe("Telegram evidence bridge", () => {
     alternateOccurrenceId = await insertOccurrence(client, world, {
       ruleVersionId: world.permissiveRuleVersionId, workStageId: world.permissiveStageId,
       stageIsConcealed: false, stageKey: world.permissiveStageKey, ordinal: 2,
+      blockingScope: "blocks_both", timing: "after",
     });
     await client.query(`insert into public.project_access_grants
       (workspace_id, project_id, member_id, capability, granted_by)
@@ -196,7 +197,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("uses the exact delivered card to create durable evidence, clear handles, and send the terminal receipt", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard(); fakes.payloads.set("one-live", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "2", messageId: "702", fileId: "one-live", replyTo: card.providerMessageId }));
     const [attachment] = await attachmentsFor(["702"]);
@@ -295,7 +296,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("never downloads unsupported, quota-refused, or revoked media and duplicate updates converge", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard();
     // Store a real staged attachment: the pre-download guard is part of the behavior, not a unit-only branch.
     await processTelegramUpdate(normalizeTelegramUpdate({ update_id: "29", message: { message_id: 729, date: 1_700_000_000,
@@ -320,7 +321,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("terminalizes and reports all-unsupported and mixed albums without orphaned handles", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard();
     await processTelegramUpdate(documentUpdate({ updateId: "60", messageId: "760", fileId: "pdf-a", replyTo: card.providerMessageId, album: "unsupported-album" }));
     await processTelegramUpdate(documentUpdate({ updateId: "61", messageId: "761", fileId: "pdf-b", replyTo: card.providerMessageId, album: "unsupported-album" }));
@@ -343,7 +344,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("persists every multi-chunk partial outcome once across group replay", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard(); fakes.payloads.set("chunk-image", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "64", messageId: "764", fileId: "chunk-image", replyTo: card.providerMessageId, album: "chunk-album" }));
     await processTelegramUpdate(documentUpdate({ updateId: "65", messageId: "765", fileId: "chunk-pdf", replyTo: card.providerMessageId, album: "chunk-album" }));
@@ -419,7 +420,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("reopens a claimed generation for a late part and reclaims an expired lease", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard(); fakes.payloads.set("early", JPEG); fakes.payloads.set("late", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "70", messageId: "770", fileId: "early", replyTo: card.providerMessageId, album: "late-album" }));
     await makeAlbumsDue();
@@ -456,7 +457,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("fences an expired prepared album worker and lets the new claimant recover every part", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard(); fakes.payloads.set("fenced-a", JPEG); fakes.payloads.set("fenced-b", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "72", messageId: "772", fileId: "fenced-a", replyTo: card.providerMessageId, album: "fenced-album" }));
     await processTelegramUpdate(imageUpdate({ updateId: "73", messageId: "773", fileId: "fenced-b", replyTo: card.providerMessageId, album: "fenced-album" }));
@@ -532,7 +533,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("recovers direct processing-orphan replay and terminal-before-receipt replay", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard(); fakes.payloads.set("orphan", JPEG);
     const orphanUpdate = imageUpdate({ updateId: "83", messageId: "783", fileId: "orphan", replyTo: card.providerMessageId });
     const messageId = (await client.query<{ id: string }>(`insert into public.communication_messages
@@ -588,7 +589,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("authorizes every album part against the same card anchor and uploader", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard(); const otherCard = await deliverCard();
     const secondUser = crypto.randomUUID(); const secondMember = crypto.randomUUID(); const secondSender = "902";
     await client.query(`insert into auth.users (id,instance_id,aud,role,email,encrypted_password,created_at,updated_at)
@@ -657,7 +658,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("waits for retryable album parts, then completes once on retry success or exhaustion", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const card = await deliverCard();
     for (const [album, messageId, fileId] of [["retry-success", "790", "retry-once"], ["retry-exhaust", "791", "retry-always"]] as const) {
       fakes.payloads.set(fileId, JPEG); fakes.retryableDownloads.add(fileId);
@@ -691,7 +692,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   it("does not download due retries after identity relink or delivered-card invalidation", async () => {
-    await client.query("delete from public.requirement_occurrences where id=$1", [alternateOccurrenceId]);
+    await deleteOccurrence(client, alternateOccurrenceId);
     const firstCard = await deliverCard();
     fakes.payloads.set("retry-relinked", JPEG); fakes.retryableDownloads.add("retry-relinked");
     await processTelegramUpdate(imageUpdate({ updateId: "110", messageId: "810", fileId: "retry-relinked", replyTo: firstCard.providerMessageId }));

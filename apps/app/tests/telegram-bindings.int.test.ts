@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
+import { dropWorkspaces } from "../../../packages/testing/src/pg";
 import { consumeBindingCommand, consumeMemberLinkCommand } from "../src/lib/telegram/linking";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -81,7 +82,15 @@ databaseDescribe("Telegram group binding and membership links", () => {
   });
 
   afterEach(async () => {
-    if (workspaceId) await q("delete from public.organizations where id=$1", [workspaceId]);
+    // `delete from public.organizations` is not a teardown: nothing references
+    // that table with `on delete cascade`, so the statement raises and every
+    // tenant row this suite created survives into the next test — and, on a
+    // shared database, into every other suite's evidence. `dropWorkspaces`
+    // knows the order.
+    if (!workspaceId) return;
+    const c = new Client({ connectionString: admin });
+    await c.connect();
+    try { await dropWorkspaces(c, [workspaceId]); } finally { await c.end(); }
   });
 
   it("consumes a group-binding token exactly once", async () => {
