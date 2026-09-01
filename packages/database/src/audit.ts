@@ -20,6 +20,23 @@ export async function recordAudit(
 ): Promise<void> {
   const organizationId = opts.organizationId ?? ctx.organizationId;
   if (!organizationId) throw new Error("recordAudit requires an organization id");
+  const actorType = opts.actorType ?? "user";
+  if (actorType === "system" || actorType === "worker") {
+    // The service plane, which has no account and therefore no membership to
+    // satisfy `audit_insert` (0006) and no session to satisfy
+    // `audit_insert_external` (0049). It writes through a definer that forces
+    // actor_user_id null, refuses any actor_type that could read as a person's
+    // act, and refuses any workspace other than the one the transaction
+    // declared. Branching here rather than at each call site so a new
+    // service-plane audit cannot be written without the guard.
+    await tx.query(
+      `select app.record_service_audit($1::uuid, $2::text, $3::text, $4::text,
+         $5::text, $6::text, $7::jsonb, $8::bigint, $9::text)`,
+      [organizationId, actorType, intent.action, intent.object_type, intent.object_id,
+       ctx.requestId, intent.details, opts.objectVersion ?? null, opts.reasonCode ?? null],
+    );
+    return;
+  }
   await tx.query(
     `insert into public.audit_events
        (organization_id, actor_user_id, actor_type, action, object_type, object_id,
@@ -32,7 +49,7 @@ export async function recordAudit(
     // `actor_type` has carried 'external' since 0002, so the shape was always
     // there; the coercion is what makes it reachable. An empty string is never
     // a valid actor on the member plane either, so nothing else changes.
-    [organizationId, ctx.actorUserId || null, opts.actorType ?? "user",
+    [organizationId, ctx.actorUserId || null, actorType,
      intent.action, intent.object_type, intent.object_id,
      ctx.requestId, intent.details, opts.objectVersion ?? null, opts.reasonCode ?? null],
   );

@@ -400,9 +400,15 @@ begin
   update public.telegram_binding_intents
      set consumed_at = now(), consumed_by_telegram_user_id = p_telegram_user_id
    where id = i.id;
-  update public.project_field_channels
+  -- Aliased, and every column qualified. This function `returns table
+  -- (workspace_id uuid, project_id uuid, ...)`, so those two names are OUT
+  -- parameters in scope for its whole body: an unqualified `where workspace_id
+  -- = ...` is ambiguous between the out parameter and the column, and plpgsql
+  -- raises 42702 rather than guessing. It raises on the SUCCESS path only,
+  -- which is why every refusal test passed and no group could ever be bound.
+  update public.project_field_channels c
      set state = 'connected', last_healthy_at = now(), updated_at = now()
-   where workspace_id = i.workspace_id and project_id = i.project_id;
+   where c.workspace_id = i.workspace_id and c.project_id = i.project_id;
   return query select b.workspace_id, b.project_id, b.id, 'connected';
 end $$;
 

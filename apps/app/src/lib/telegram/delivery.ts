@@ -94,13 +94,30 @@ export async function enqueueTelegramMessage(
     input.inlineKeyboard === undefined ? null : JSON.stringify(input.inlineKeyboard),
     input.occurrenceSnapshot ?? null,
   ]);
-  await enqueueOutbox(tx, ctx, {
-    topic: OUTBOX_TOPIC,
-    aggregate_type: "communication_message",
-    aggregate_id: messageId,
-    payload_version: 1,
-    payload: { messageId, projectId: input.projectId },
-  }, { organizationId: input.workspaceId });
+  if (ctx.actorUserId === "") {
+    // Service plane. There is no member, so `outbox_insert` — which requires an
+    // active membership matching app.current_actor() — can never pass, and must
+    // not be weakened to make it. The definer fixes the topic, derives the
+    // payload, and refuses any workspace other than the one this transaction
+    // declared.
+    await tx.query(
+      "select app.enqueue_communication_delivery_outbox($1::uuid, $2::uuid, $3::uuid)",
+      [input.workspaceId, input.projectId, messageId]);
+  } else {
+    // Member plane: the communication-card, communications and retry routes,
+    // which pass a real actor. UNCHANGED ON PURPOSE. `outbox_insert` checks
+    // this user's active membership against the organization_id being written,
+    // and that check is the only thing standing between a route-layer mistake
+    // and an outbox row for a workspace the caller is not a member of. Routing
+    // this branch through the definer too would silently delete it.
+    await enqueueOutbox(tx, ctx, {
+      topic: OUTBOX_TOPIC,
+      aggregate_type: "communication_message",
+      aggregate_id: messageId,
+      payload_version: 1,
+      payload: { messageId, projectId: input.projectId },
+    }, { organizationId: input.workspaceId });
+  }
   return { messageId, deliveryState: "queued" };
 }
 
