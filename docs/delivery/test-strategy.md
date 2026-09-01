@@ -592,13 +592,55 @@ invalidation of A-3 — never as a bug, and never deleted.
 - Quarantine ledger: any temporarily skipped non-security test carries owner,
   reason, expiry, and removal condition in the repo. A security or
   tenant-isolation test in that ledger fails the build (proof 4).
-- **Baseline honesty: this document names no baseline.** `node_modules` is
-  absent from this worktree, so nothing here has been executed to produce a
-  current number; the last recorded run predates migrations `0036`–`0040` and
-  the suites added with them; and the two figures previously in circulation
-  disagree with each other, which the
-  [package review](package-review-2026-08-04.md) §4 records as its own finding.
-  Pass/fail counts are recorded verbatim **from a dated run that a reader can
-  reproduce**, distinguishing environmental from code failures. Until such a run
-  exists, no document in this package may state a passing suite, a test count,
-  or a green baseline as a present fact.
+- **The rule, unchanged.** Pass/fail counts are recorded verbatim **from a
+  dated run that a reader can reproduce**, distinguishing environmental from
+  code failures. No document in this package may state a passing suite, a test
+  count, or a green baseline as a present fact except by pointing at such a run.
+
+### Baseline (recorded 2026-09-01)
+
+**Until 2026-09-01 this document named no baseline**, and said so: `node_modules`
+was absent from the worktree, the last recorded run predated migrations
+`0036`–`0040` and the suites added with them, and the two figures previously in
+circulation disagreed with each other — which the
+[package review](package-review-2026-08-04.md) §4 records as its own finding.
+That is now closed by a run, not by an assertion.
+
+**Run:** GitHub Actions `ci`, run id **33540108319**, workflow event
+`pull_request` (PR #56), head SHA **`18411ea`**, 2026-09-01T17:50:16Z →
+18:03:24Z, conclusion `success`. Both jobs green: `verify` and `app-qa`.
+The log is public and the run is re-runnable, which is what makes this
+reproducible rather than merely dated.
+
+`pnpm turbo run test --concurrency=1` — **176 files, 2174 tests, all passed**,
+across eight suites. Counts are verbatim from the run log; the per-package
+attribution was cross-checked against test files on disk at `18411ea` and
+matches for all eight:
+
+| Suite | Test files | Tests |
+|---|---|---|
+| `@goproceed/app` | 90 | 1034 |
+| `@goproceed/testing` | 40 | 631 |
+| `@goproceed/mobile` | 14 | 150 |
+| `@goproceed/contracts` | 6 | 131 |
+| `@goproceed/domain` | 10 | 102 |
+| `@goproceed/discovery` | 6 | 73 |
+| `@goproceed/landing` | 8 | 46 |
+| `@goproceed/database` | 2 | 7 |
+| **Total** | **176** | **2174** |
+
+Also green in the same run: `pnpm validate:canonical-docs`
+(`canonical documentation: OK`), `pnpm turbo run typecheck`,
+`pnpm turbo run build`, the Supabase CLI pin assertion
+(`want 2.115.0, have 2.115.0`), and `pnpm --filter @goproceed/app qa` —
+**8 of 8 expected audits ran, zero findings**.
+
+**What this baseline does NOT cover, and must not be read as covering.** Three
+commands this repository owns are in no CI job and therefore did not run:
+`node packages/testing/qa/motion-audit.mjs` (the motion gate — the known CI gap
+recorded in [02-building-ui.md](../design/02-building-ui.md) §5),
+`pnpm --filter @goproceed/mobile qa` (the field client's browser harness — the
+150 `@goproceed/mobile` tests above are its unit suite, not that harness), and
+`pnpm --filter @goproceed/tokens generate`. It is also a CI baseline only: no
+run has been reproduced in a local worktree, and it says nothing about staging
+or about any environment holding real data.
