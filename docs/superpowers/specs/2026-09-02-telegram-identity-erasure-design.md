@@ -133,9 +133,10 @@ the next migration number is `0081`. Every fact below about guards, columns
 and grants was read from `0062`, `0067`–`0070`, `0078` and confirmed on the
 local stack on 2026-09-02:
 
-- `app.guard_communication_message` guards 27 columns (0070:426-451), four of
+- `app.guard_communication_message` guards 26 columns (0070:426-451), four of
   which erasure changes: `text`, `provider_user_id`,
   `provider_display_name_snapshot`, `provider_username_snapshot`.
+  (26, read from 0070 on 2026-09-03; an earlier draft said 27.)
 - `app.reject_mutation` on `communication_message_events` raises on any
   UPDATE or DELETE (0062:350-358); `event_kind = 'edited'` rows carry `text`.
 - `telegram_member_links`: `telegram_user_id bigint not null`,

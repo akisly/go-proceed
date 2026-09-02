@@ -966,6 +966,48 @@ which is exactly what §2.1 and §2.2 exist to catch.
 
 ---
 
+## 7. Manual erasure of a Telegram identity
+
+M0 gate 4 asks for a manual deletion procedure exercised on synthetic data.
+This is the identity-level half of it — one person, one workspace — added
+with migration `0081`. Workspace closure is a separate procedure and is not
+written yet.
+
+**What it does.** Every message that person sent in the workspace's project
+groups keeps its row and its links to attachments, cards and decisions, but
+its `provider_user_id` becomes a negative surrogate, its name and username
+snapshots become NULL, its text becomes `[текст стерто на запит]`, its edit
+history is redacted the same way, its member link is revoked and surrogated,
+and its attachment filenames are cleared. One audit row `telegram_identity.erased`
+records the surrogate and the counts — never the identifier. The registry
+`app.telegram_erasures` keeps a peppered HMAC so a repeat is idempotent.
+
+**Run it** on a machine holding the target environment's `SERVICE_DB_URL` and
+`TELEGRAM_LINK_PEPPER` (the same values the app deploys with):
+
+```bash
+pnpm --filter @goproceed/app exec node scripts/telegram-erase-identity.mjs \
+  --workspace <workspace uuid> --telegram-user-id <telegram user id>
+```
+
+It prints one JSON line: `surrogate_user_id`, `messages`, `events`, `links`,
+`attachments`, `pending_updates_for_subject`, `already_erased`. Exit 1 with
+the message on any error; nothing is half-erased — the whole transaction rolls
+back.
+
+**If `pending_updates_for_subject` is not 0**, the worker still holds updates
+from this person. The erasure that ran is complete; run the same command again
+after `POST /internal/telegram/jobs` has drained the inbox. The HMAC yields the
+same surrogate.
+
+**Record** the date, workspace, surrogate and counts where the partner's
+requests are tracked. Never record the identifier next to the surrogate.
+
+**Never** run this against a database you have not been asked to run it
+against; there is no dry run, and erased rows are not restorable by design.
+
+---
+
 ## Status
 
 **2026-08-19 — provisioned, deployed, and public at the Vercel alias; the §6

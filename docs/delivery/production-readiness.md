@@ -209,6 +209,14 @@ row is a gate this document owes on its own account.
 - [ ] A versioned retention schedule for originals, derivatives, imports,
       statutory act versions, scan-blocked content, staging data, audit-safe
       deletion metadata, and backups.
+      - **Evidence, 2026-09-03:** the schedule has a mechanism —
+        `app.retention_policy` (0081 §1) and `app.apply_communication_retention`
+        (0081 §5, pg_cron `communication-retention`) — for the telegram and
+        communication tables of the retention catalog
+        (`technical/data-retention-catalog.csv`), confined per data class by a
+        scope argument on the internal erasure function (`communication` or
+        `identity`; the request path uses `all`). Every duration is NULL; the
+        schedule itself is still owed.
 - [ ] Security and audit telemetry: access, purpose, and retention bounds
       declared and restricted.
 
@@ -234,6 +242,14 @@ row in the schedule in the version that ships it.
 - [ ] Manual workspace closure/deletion procedure with authorization,
       separation of duties where applicable, dry-run inventory, export offer,
       confirmation, and recorded outcome.
+      - **Evidence, 2026-09-03:** the identity-level half exists and was
+        exercised on synthetic data — `app.erase_telegram_identity` (0081 §4),
+        which requires the session to have declared the workspace (checked
+        against `app.service_workspace()`, raising otherwise) and a 64-hex
+        HMAC, both of which the operator script supplies — procedure in
+        [README-staging.md](../../infra/README-staging.md) §7, exercise
+        `packages/testing/src/telegram-erasure.test.ts` §4, CI run
+        `<pending>`. Workspace closure is still owed.
 - [ ] Deletion followed by restore does not resurrect deleted content
       (tombstones reapplied before restored data is reachable).
 
