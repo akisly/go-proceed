@@ -210,13 +210,22 @@ create trigger communication_message_events_append_only
 -- app.record_service_audit would — actor_type 'system', no actor — without
 -- that function's pg_has_role gate, because §5's retention job runs as the
 -- database owner under pg_cron and could not pass it. erase_telegram_identity_
--- internal is the transformation: registry, markers, four updates in the
--- order the guards require, audit, markers cleared. erase_telegram_identity
--- is the one callable surface, for the service principal, with the origin
--- fixed to a data-subject request and the declared workspace checked — never
--- set — against app.service_workspace(), the same shape app.record_service_
--- audit uses for its own workspace argument. Only that last function has an
--- EXECUTE grant.
+-- internal is the transformation: registry, markers, the updates the guards
+-- require, audit, markers cleared — gated by a scope. Scope 'all' (the
+-- request path, always) runs every rewrite. Scope 'communication' runs only
+-- the messages/events/attachment-filename rewrite; scope 'identity' runs
+-- only the member-link rewrite. Retention confines each data class to its
+-- own catalog tables this way — customer_communication never touches
+-- telegram_member_links (an active link is operational, never aged out by
+-- spec §7.5), and customer_identity never touches messages, events, or
+-- attachments — while the registry allocation, the markers, the
+-- pending-updates count, and the audit row run for every scope regardless; a
+-- step the scope skips simply counts zero. erase_telegram_identity is the
+-- one callable surface, for the service principal, with the origin fixed to
+-- a data-subject request, the scope fixed to 'all', and the declared
+-- workspace checked — never set — against app.service_workspace(), the same
+-- shape app.record_service_audit uses for its own workspace argument. Only
+-- that last function has an EXECUTE grant.
 -- ===========================================================================
 
 create or replace function app.write_erasure_audit(
@@ -232,8 +241,10 @@ begin
 end $$;
 revoke all on function app.write_erasure_audit(uuid, bigint, jsonb, text) from public, anon, authenticated, goproceed_app, goproceed_service;
 
+drop function if exists app.erase_telegram_identity_internal(uuid, bigint, text, text);
+
 create or replace function app.erase_telegram_identity_internal(
-  p_workspace uuid, p_telegram_user_id bigint, p_subject_hmac text, p_origin text
+  p_workspace uuid, p_telegram_user_id bigint, p_subject_hmac text, p_origin text, p_scope text
 ) returns table (
   surrogate_user_id bigint, messages bigint, events bigint, links bigint,
   attachments bigint, pending_updates_for_subject bigint, already_erased boolean
@@ -254,6 +265,9 @@ begin
   end if;
   if (p_origin = 'data_subject_request') <> (p_subject_hmac is not null) then
     raise exception 'a data-subject request carries an HMAC and a retention run carries none';
+  end if;
+  if p_scope not in ('all', 'communication', 'identity') then
+    raise exception 'unknown erasure scope %', p_scope;
   end if;
 
   -- The registry. A request re-run finds its surrogate by HMAC; a retention
@@ -279,34 +293,40 @@ begin
   perform set_config('app.erasure_subject', p_telegram_user_id::text, true);
   perform set_config('app.erasure_surrogate', v_surrogate::text, true);
 
-  update public.communication_messages
-     set provider_user_id = v_surrogate,
-         provider_display_name_snapshot = null,
-         provider_username_snapshot = null,
-         text = case when text is null then null else '[текст стерто на запит]' end
-   where workspace_id = p_workspace and provider_user_id = p_telegram_user_id;
-  get diagnostics v_messages = row_count;
+  if p_scope in ('all', 'communication') then
+    update public.communication_messages
+       set provider_user_id = v_surrogate,
+           provider_display_name_snapshot = null,
+           provider_username_snapshot = null,
+           text = case when text is null then null else '[текст стерто на запит]' end
+     where workspace_id = p_workspace and provider_user_id = p_telegram_user_id;
+    get diagnostics v_messages = row_count;
 
-  update public.communication_message_events e
-     set text = '[текст стерто на запит]'
-    from public.communication_messages m
-   where e.message_id = m.id and m.workspace_id = p_workspace
-     and m.provider_user_id = v_surrogate
-     and e.event_kind = 'edited' and e.text is distinct from '[текст стерто на запит]';
-  get diagnostics v_events = row_count;
+    update public.communication_message_events e
+       set text = '[текст стерто на запит]'
+      from public.communication_messages m
+     where e.message_id = m.id and m.workspace_id = p_workspace
+       and m.provider_user_id = v_surrogate
+       and e.event_kind = 'edited' and e.text is distinct from '[текст стерто на запит]';
+    get diagnostics v_events = row_count;
+  end if;
 
-  update public.telegram_member_links
-     set telegram_user_id = v_surrogate, display_name_snapshot = null,
-         username_snapshot = null, revoked_at = coalesce(revoked_at, now())
-   where workspace_id = p_workspace and telegram_user_id = p_telegram_user_id;
-  get diagnostics v_links = row_count;
+  if p_scope in ('all', 'identity') then
+    update public.telegram_member_links
+       set telegram_user_id = v_surrogate, display_name_snapshot = null,
+           username_snapshot = null, revoked_at = coalesce(revoked_at, now())
+     where workspace_id = p_workspace and telegram_user_id = p_telegram_user_id;
+    get diagnostics v_links = row_count;
+  end if;
 
-  update public.communication_attachments a
-     set filename_snapshot = null
-    from public.communication_messages m
-   where a.message_id = m.id and a.workspace_id = p_workspace
-     and m.provider_user_id = v_surrogate and a.filename_snapshot is not null;
-  get diagnostics v_attachments = row_count;
+  if p_scope in ('all', 'communication') then
+    update public.communication_attachments a
+       set filename_snapshot = null
+      from public.communication_messages m
+     where a.message_id = m.id and a.workspace_id = p_workspace
+       and m.provider_user_id = v_surrogate and a.filename_snapshot is not null;
+    get diagnostics v_attachments = row_count;
+  end if;
 
   -- What arrives after this transaction is not this transaction's to rewrite:
   -- the four shapes api.ts's allowed_updates admits, counted so the operator
@@ -329,7 +349,7 @@ begin
   perform app.write_erasure_audit(p_workspace, v_surrogate,
     jsonb_build_object('surrogate', v_surrogate, 'messages', v_messages, 'events', v_events,
                        'links', v_links, 'attachments', v_attachments, 'origin', p_origin,
-                       'pending_updates_for_subject', v_pending),
+                       'scope', p_scope, 'pending_updates_for_subject', v_pending),
     p_origin);
 
   perform set_config('app.erasure_subject', '', true);
@@ -337,7 +357,7 @@ begin
 
   return query select v_surrogate, v_messages, v_events, v_links, v_attachments, v_pending, v_existed;
 end $$;
-revoke all on function app.erase_telegram_identity_internal(uuid, bigint, text, text) from public, anon, authenticated, goproceed_app, goproceed_service;
+revoke all on function app.erase_telegram_identity_internal(uuid, bigint, text, text, text) from public, anon, authenticated, goproceed_app, goproceed_service;
 
 create or replace function app.erase_telegram_identity(
   p_workspace uuid, p_telegram_user_id bigint, p_subject_hmac text
@@ -356,7 +376,7 @@ begin
   if p_workspace is distinct from app.service_workspace() then
     raise exception 'erasure workspace is not the declared workspace';
   end if;
-  return query select * from app.erase_telegram_identity_internal(p_workspace, p_telegram_user_id, p_subject_hmac, 'data_subject_request');
+  return query select * from app.erase_telegram_identity_internal(p_workspace, p_telegram_user_id, p_subject_hmac, 'data_subject_request', 'all');
 end $$;
 revoke all on function app.erase_telegram_identity(uuid, bigint, text) from public, anon, authenticated;
 grant execute on function app.erase_telegram_identity(uuid, bigint, text) to goproceed_service;
@@ -365,9 +385,13 @@ grant execute on function app.erase_telegram_identity(uuid, bigint, text) to gop
 -- 5. Retention by age
 --
 -- Reads app.retention_policy; a NULL duration means the class is skipped and
--- reports zero. customer_communication and customer_identity apply §4's
--- transformation to subjects old enough — the same rewrite, registered with
--- origin 'retention' and no HMAC, because the pepper is not in this database.
+-- reports zero. Each of customer_communication and customer_identity calls
+-- §4's transformation with its own scope, so each touches only the catalog
+-- tables its class owns: customer_communication passes scope 'communication'
+-- (messages, edit events, attachment filenames — never telegram_member_links,
+-- which spec §7.5 calls operational and never aged out) and customer_identity
+-- passes scope 'identity' (member links only). Both register with origin
+-- 'retention' and no HMAC, because the pepper is not in this database.
 -- operational_security deletes what the catalog says is hash-and-disposition
 -- only: terminal inbox rows and spent intents. Batched by p_batch subjects or
 -- rows per call; a backlog converges over nights. Scheduled exactly as
@@ -381,10 +405,19 @@ declare
   v_dur interval;
   v_n bigint;
   v_row record;
+  v_saved_org text;
 begin
   if p_batch is null or p_batch < 1 or p_batch > 100000 then
     raise exception 'retention batch must be between 1 and 100000';
   end if;
+
+  -- I3: this GUC is transaction-local (set_config(..., true)) inside the
+  -- erasure it drives, but the function itself may run inside a caller's own
+  -- transaction (a test, an admin session) that already had app.organization_id
+  -- set for its own reasons. Save it here and put it back at the end rather
+  -- than blanking it, so this call is not observed to have cleared a setting
+  -- it did not own.
+  v_saved_org := current_setting('app.organization_id', true);
 
   -- customer_communication: senders whose newest message is older than the duration.
   select p.duration into v_dur from app.retention_policy p where p.data_class = 'customer_communication';
@@ -399,13 +432,15 @@ begin
        limit p_batch
     loop
       perform set_config('app.organization_id', v_row.workspace_id::text, true);
-      perform app.erase_telegram_identity_internal(v_row.workspace_id, v_row.provider_user_id, null, 'retention');
+      perform app.erase_telegram_identity_internal(v_row.workspace_id, v_row.provider_user_id, null, 'retention', 'communication');
       v_n := v_n + 1;
     end loop;
   end if;
   data_class := 'customer_communication'; affected := v_n; return next;
 
-  -- customer_identity: revoked links older than the duration whose subject wrote nothing recent enough to have kept them.
+  -- customer_identity: revoked links older than the duration. Ages by
+  -- revoked_at alone and touches telegram_member_links only — never
+  -- messages, events, or attachments, which are customer_communication's.
   select p.duration into v_dur from app.retention_policy p where p.data_class = 'customer_identity';
   v_n := 0;
   if v_dur is not null then
@@ -416,20 +451,28 @@ begin
        limit p_batch
     loop
       perform set_config('app.organization_id', v_row.workspace_id::text, true);
-      perform app.erase_telegram_identity_internal(v_row.workspace_id, v_row.telegram_user_id, null, 'retention');
+      perform app.erase_telegram_identity_internal(v_row.workspace_id, v_row.telegram_user_id, null, 'retention', 'identity');
       v_n := v_n + 1;
     end loop;
   end if;
   data_class := 'customer_identity'; affected := v_n; return next;
 
-  -- operational_security: hash-and-disposition rows past their duration.
+  -- operational_security: bounds row growth in ingress/intent tables past
+  -- their duration; it never clears a payload — every terminal (processed or
+  -- failed) telegram_inbox_updates row already carries payload = NULL by the
+  -- table's own CHECK ((state in ('pending','leased')) = (payload is not
+  -- null)) — and it never touches a pending or leased row, which that same
+  -- CHECK requires to still carry one. A terminal row with no processed_at
+  -- (never actually observed, but not excluded by the schema) is aged by
+  -- received_at instead, so it is not immortal.
   select p.duration into v_dur from app.retention_policy p where p.data_class = 'operational_security';
   v_n := 0;
   if v_dur is not null then
     with del as (
       delete from public.telegram_inbox_updates u
        where u.ctid in (select u2.ctid from public.telegram_inbox_updates u2
-                         where u2.state in ('processed', 'failed') and u2.processed_at < now() - v_dur
+                         where u2.state in ('processed', 'failed')
+                           and coalesce(u2.processed_at, u2.received_at) < now() - v_dur
                          limit p_batch)
       returning 1)
     select count(*) into v_n from del;
@@ -448,7 +491,7 @@ begin
   end if;
   data_class := 'operational_security'; affected := v_n; return next;
 
-  perform set_config('app.organization_id', '', true);
+  perform set_config('app.organization_id', coalesce(v_saved_org, ''), true);
   return;
 end $$;
 revoke all on function app.apply_communication_retention(integer) from public, anon, authenticated, goproceed_app, goproceed_service;

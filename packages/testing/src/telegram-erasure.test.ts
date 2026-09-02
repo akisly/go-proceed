@@ -42,6 +42,12 @@ async function messageRow(id: string): Promise<Record<string, unknown>> {
   return r.rows[0]!;
 }
 
+/** One telegram_member_links row, by member, as a comparable object. */
+async function linkRow(memberId: string): Promise<Record<string, unknown>> {
+  const r = await admin.query("select * from public.telegram_member_links where workspace_id = $1 and member_id = $2", [WS_A, memberId]);
+  return r.rows[0]!;
+}
+
 beforeAll(async () => {
   admin = await adminClient();
   await admin.query(`insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
@@ -88,6 +94,13 @@ afterAll(async () => {
   // dropWorkspaces (./pg) scans schema `public` only; the registry lives in
   // schema `app` (§1) and needs its own cleanup so a repeat run starts clean.
   await admin.query("delete from app.telegram_erasures where workspace_id = any($1::uuid[])", [[WS_A, WS_B]]);
+  // §5's telegram_inbox_updates seeds carry no workspace_id/organization_id
+  // column (it is service-plane ingress, keyed by bot_id+update_id), so
+  // dropWorkspaces cannot reach them; each §5 case is normally self-cleaning
+  // (the retention job deletes the terminal row, the test's own `finally`
+  // deletes the pending one), but this unconditional delete is the backstop
+  // for an interrupted run — same discipline as the registry delete above.
+  await admin.query("delete from public.telegram_inbox_updates where bot_id = 123456789 and update_id in (9000001, 9000002)");
   await dropWorkspaces(admin, [WS_A, WS_B]);
   await admin.end();
 });
@@ -346,6 +359,21 @@ describe("§4 — one identity, erased on request", () => {
     });
     expect(r.rows[0]).toEqual({ s: "", g: "" });
   });
+
+  // §5's fix round: erase_telegram_identity_internal gained a fifth
+  // parameter, p_scope, validated before any table is touched. Called
+  // directly (not through the wrapper, which always passes 'all'), as
+  // admin/owner — the retention job's own calling convention.
+  it("erase_telegram_identity_internal rejects an unknown scope", async () => {
+    let error: { code?: string; message?: string } | undefined;
+    try {
+      await admin.query("select * from app.erase_telegram_identity_internal($1::uuid, $2::bigint, null, 'retention', 'bogus')", [WS_A, BYSTANDER.toString()]);
+    } catch (e) {
+      error = e as { code?: string; message?: string };
+    }
+    expect(error?.code).toBe("P0001");
+    expect(error?.message).toMatch(/unknown erasure scope bogus/);
+  });
 });
 
 describe("§5 — retention by age", () => {
@@ -378,7 +406,34 @@ describe("§5 — retention by age", () => {
     expect(await messageRow(retiredMessageId)).toEqual(before);
   });
 
-  it("redacts a sender whose messages are older than the customer_communication duration, with no HMAC in the registry", async () => {
+  it("refuses a batch of 0 or null", async () => {
+    expect(await sqlstate(() => admin.query("select * from app.apply_communication_retention(0)"))).toBe("P0001");
+    expect(await sqlstate(() => admin.query("select * from app.apply_communication_retention(null)"))).toBe("P0001");
+  });
+
+  it("redacts a sender whose messages are older than the customer_communication duration, with no HMAC in the registry — and never touches that sender's active member link (class confinement)", async () => {
+    const ACTIVE_LINK_USER = "d1d1d1d1-2222-4222-8222-222222222222";
+    // Defensive cleanup, same discipline as elsewhere in this file: a prior
+    // interrupted run could leave this fixed identity behind.
+    await admin.query("delete from public.telegram_member_links where workspace_id = $1 and telegram_user_id = $2", [WS_A, RETIRED.toString()]);
+    await admin.query("delete from public.memberships where organization_id = $1 and user_id = $2", [WS_A, ACTIVE_LINK_USER]);
+    await admin.query(`insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+      values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'erasure-active-link@example.test', '', now(), now())
+      on conflict (id) do nothing`, [ACTIVE_LINK_USER]);
+    const activeLinkMember = await admin.query<{ id: string }>(
+      "insert into public.memberships (organization_id, user_id, role, status) values ($1, $2, 'member', 'active') returning id",
+      [WS_A, ACTIVE_LINK_USER]);
+    const activeLinkMemberId = activeLinkMember.rows[0]!.id;
+    // RETIRED's OWN active link — never revoked — sharing the same identity
+    // the stale message belongs to. spec §7.5: "Active links are operational
+    // and are never aged out"; this is what pins that the communication
+    // branch (scope 'communication') leaves it alone.
+    await admin.query(`insert into public.telegram_member_links
+      (workspace_id, member_id, telegram_user_id, display_name_snapshot, username_snapshot, linked_by_member_id)
+      values ($1, $2, $3, 'Іван Старий', 'staryi', $2)`,
+      [WS_A, activeLinkMemberId, RETIRED.toString()]);
+    const linkBefore = await linkRow(activeLinkMemberId);
+
     await setDuration("customer_communication", "365 days");
     try {
       const r = await run();
@@ -389,6 +444,14 @@ describe("§5 — retention by age", () => {
       const reg = await admin.query<{ origin: string; subject_hmac: string | null }>(
         "select origin, subject_hmac from app.telegram_erasures where workspace_id = $1 and surrogate_user_id = $2", [WS_A, m.provider_user_id]);
       expect(reg.rows).toEqual([{ origin: "retention", subject_hmac: null }]);
+
+      // Class confinement: the same identity's active link is untouched —
+      // still the raw telegram_user_id, still revoked_at NULL, snapshots
+      // unchanged — byte-identical to before the run.
+      const linkAfter = await linkRow(activeLinkMemberId);
+      expect(linkAfter).toEqual(linkBefore);
+      expect(linkAfter.telegram_user_id).toBe(RETIRED.toString());
+      expect(linkAfter.revoked_at).toBeNull();
 
       // A second run must allocate no new surrogate: not just "affected: 0" on
       // the report, but the registry itself must be unchanged in row count.
@@ -402,7 +465,7 @@ describe("§5 — retention by age", () => {
     } finally { await setDuration("customer_communication", null); }
   });
 
-  it("redacts a member link whose revocation is older than the customer_identity duration, with no HMAC in the registry", async () => {
+  it("redacts a member link whose revocation is older than the customer_identity duration, with no HMAC in the registry — and never touches that same identity's fresh message (class confinement)", async () => {
     const STALE_LINK = 700004n;
     const STALE_USER = "e1e1e1e1-2222-4222-8222-222222222222";
     // Defensive cleanup: a prior interrupted run (RED-step artifact, crash)
@@ -424,13 +487,23 @@ describe("§5 — retention by age", () => {
       (workspace_id, member_id, telegram_user_id, display_name_snapshot, username_snapshot, linked_by_member_id, verified_at, revoked_at)
       values ($1, $2, $3, 'Стара Ланка', 'stara', $2, now() - interval '500 days', now() - interval '400 days')`,
       [WS_A, staleMemberId, STALE_LINK.toString()]);
+    // The same identity ALSO sent a message just now (server_received_at =
+    // now()) — class confinement (scope 'identity') must leave it alone,
+    // exactly as spec §7.5 confines customer_communication to messages/
+    // events/attachments and customer_identity to links.
+    const staleMessage = await admin.query<{ id: string }>(`insert into public.communication_messages
+      (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text, provider_user_id,
+       provider_display_name_snapshot, provider_username_snapshot, server_received_at, delivery_state)
+      values ($1, $2, $3, 'inbound', 'text', 'Свіже повідомлення', $4, 'Стара Ланка', 'stara', now(), 'received') returning id`,
+      [WS_A, projectId, bindingId, STALE_LINK.toString()]);
+    const staleMessageId = staleMessage.rows[0]!.id;
+    const messageBefore = await messageRow(staleMessageId);
 
     await setDuration("customer_identity", "365 days");
     try {
       const r = await run();
       const found = r.rows.find((x) => x.data_class === "customer_identity")!;
-      expect(found.data_class).toBe("customer_identity");
-      expect(Number(found.affected)).toBeGreaterThan(0);
+      expect(found).toEqual({ data_class: "customer_identity", affected: "1" });
 
       const link = await admin.query<{ telegram_user_id: string; display_name_snapshot: string | null; username_snapshot: string | null }>(
         "select telegram_user_id::text, display_name_snapshot, username_snapshot from public.telegram_member_links where workspace_id = $1 and member_id = $2",
@@ -443,6 +516,10 @@ describe("§5 — retention by age", () => {
         "select origin, subject_hmac from app.telegram_erasures where workspace_id = $1 and surrogate_user_id = $2",
         [WS_A, link.rows[0]!.telegram_user_id]);
       expect(reg.rows).toEqual([{ origin: "retention", subject_hmac: null }]);
+
+      // Class confinement: the fresh message is byte-identical to before —
+      // raw provider_user_id, original text, unchanged snapshots.
+      expect(await messageRow(staleMessageId)).toEqual(messageBefore);
     } finally { await setDuration("customer_identity", null); }
   });
 
