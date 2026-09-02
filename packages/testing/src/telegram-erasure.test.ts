@@ -275,8 +275,30 @@ describe("§4 — one identity, erased on request", () => {
     expect(r.rows[0]).toMatchObject({ already_erased: true, surrogate_user_id: first.rows[0]!.surrogate_user_id, messages: "0", events: "0", links: "0", attachments: "0" });
   });
 
-  it("refuses the member plane and a caller with no service membership", async () => {
+  it("refuses the member plane", async () => {
     expect(await sqlstate(() => asActor(OWNER, WS_A, (c) => c.query("select * from app.erase_telegram_identity($1::uuid, 1::bigint, repeat('a', 64))", [WS_A])))).toBe("42501");
+  });
+
+  // The wrapper checks the caller's declared tenant (app.service_workspace(),
+  // from the session's own app.organization_id) against the argument, rather
+  // than overwriting it — the same shape app.record_service_audit uses. A
+  // valid-looking HMAC is required so this reaches THAT check rather than
+  // the HMAC-format check above it.
+  it("refuses a workspace that does not match the session's declared tenant", async () => {
+    let error: { code?: string; message?: string } | undefined;
+    try {
+      await asService("", WS_A, (c) =>
+        c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)",
+          [WS_B, SUBJECT.toString(), subjectHmac(PEPPER, WS_B, SUBJECT)]));
+    } catch (e) {
+      error = e as { code?: string; message?: string };
+    }
+    expect(error?.code).toBe("P0001");
+    expect(error?.message).toMatch(/erasure workspace is not the declared workspace/);
+
+    const registered = await admin.query<{ count: string }>(
+      "select count(*)::text as count from app.telegram_erasures where workspace_id = $1", [WS_B]);
+    expect(registered.rows[0]!.count).toBe("0");
   });
 
   // Placed before "clears both markers" (below), which erases BYSTANDER for
@@ -286,22 +308,31 @@ describe("§4 — one identity, erased on request", () => {
   // should exist as a result of this call.
   it("a failure raised before the transformation runs leaves the registry, the audit trail, and the bystander's row untouched", async () => {
     const before = await messageRow(bystanderMessageId);
+    const registryCountBefore = await admin.query<{ count: string }>(
+      "select count(*)::text as count from app.telegram_erasures where workspace_id = $1", [WS_A]);
     const auditBefore = await admin.query<{ count: string }>(
       "select count(*)::text as count from public.audit_events where organization_id = $1 and action = 'telegram_identity.erased'", [WS_A]);
 
-    const code = await sqlstate(() => asService("", WS_A, (c) =>
-      c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)", [WS_A, BYSTANDER.toString(), null])));
-    expect(code).toBe("P0001");
+    let error: { code?: string; message?: string } | undefined;
+    try {
+      await asService("", WS_A, (c) =>
+        c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)", [WS_A, BYSTANDER.toString(), null]));
+    } catch (e) {
+      error = e as { code?: string; message?: string };
+    }
+    expect(error?.code).toBe("P0001");
+    // Distinguishes the wrapper's own HMAC-format check from the internal
+    // function's origin/HMAC-pairing check — both are P0001 today.
+    expect(error?.message).toMatch(/subject HMAC the application computed/);
 
     expect(await messageRow(bystanderMessageId)).toEqual(before);
     const bystanderNow = await admin.query<{ provider_user_id: string }>(
       "select provider_user_id::text from public.communication_messages where id = $1", [bystanderMessageId]);
     expect(bystanderNow.rows[0]!.provider_user_id).toBe(BYSTANDER.toString());
 
-    const registered = await admin.query<{ count: string }>(
-      "select count(*)::text as count from app.telegram_erasures where workspace_id = $1 and subject_hmac = $2",
-      [WS_A, subjectHmac(PEPPER, WS_A, BYSTANDER)]);
-    expect(registered.rows[0]!.count).toBe("0");
+    const registryCountAfter = await admin.query<{ count: string }>(
+      "select count(*)::text as count from app.telegram_erasures where workspace_id = $1", [WS_A]);
+    expect(registryCountAfter.rows[0]!.count).toBe(registryCountBefore.rows[0]!.count);
 
     const auditAfter = await admin.query<{ count: string }>(
       "select count(*)::text as count from public.audit_events where organization_id = $1 and action = 'telegram_identity.erased'", [WS_A]);

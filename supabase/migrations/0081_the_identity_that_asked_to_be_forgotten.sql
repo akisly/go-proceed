@@ -213,8 +213,10 @@ create trigger communication_message_events_append_only
 -- internal is the transformation: registry, markers, four updates in the
 -- order the guards require, audit, markers cleared. erase_telegram_identity
 -- is the one callable surface, for the service principal, with the origin
--- fixed to a data-subject request. Only that last function has an EXECUTE
--- grant.
+-- fixed to a data-subject request and the declared workspace checked — never
+-- set — against app.service_workspace(), the same shape app.record_service_
+-- audit uses for its own workspace argument. Only that last function has an
+-- EXECUTE grant.
 -- ===========================================================================
 
 create or replace function app.write_erasure_audit(
@@ -316,9 +318,11 @@ begin
                   u.payload #>> '{callback_query,from,id}', u.payload #>> '{my_chat_member,from,id}')
          = p_telegram_user_id::text;
 
+  -- erased_at is NOT touched here: it is the column's own `default now()`
+  -- from the INSERT above, i.e. the first erasure's timestamp, and a repeat
+  -- call (idempotent or retention-after-request) must not move it forward.
   update app.telegram_erasures e
-     set erased_at = now(),
-         messages_count = e.messages_count + v_messages, events_count = e.events_count + v_events,
+     set messages_count = e.messages_count + v_messages, events_count = e.events_count + v_events,
          links_count = e.links_count + v_links, attachments_count = e.attachments_count + v_attachments
    where e.workspace_id = p_workspace and e.surrogate_user_id = v_surrogate;
 
@@ -349,7 +353,9 @@ begin
   if p_subject_hmac is null or p_subject_hmac !~ '^[0-9a-f]{64}$' then
     raise exception 'erasure needs the subject HMAC the application computed';
   end if;
-  perform set_config('app.organization_id', p_workspace::text, true);
+  if p_workspace is distinct from app.service_workspace() then
+    raise exception 'erasure workspace is not the declared workspace';
+  end if;
   return query select * from app.erase_telegram_identity_internal(p_workspace, p_telegram_user_id, p_subject_hmac, 'data_subject_request');
 end $$;
 revoke all on function app.erase_telegram_identity(uuid, bigint, text) from public, anon, authenticated;
