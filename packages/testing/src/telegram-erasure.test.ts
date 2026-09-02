@@ -389,9 +389,61 @@ describe("§5 — retention by age", () => {
       const reg = await admin.query<{ origin: string; subject_hmac: string | null }>(
         "select origin, subject_hmac from app.telegram_erasures where workspace_id = $1 and surrogate_user_id = $2", [WS_A, m.provider_user_id]);
       expect(reg.rows).toEqual([{ origin: "retention", subject_hmac: null }]);
+
+      // A second run must allocate no new surrogate: not just "affected: 0" on
+      // the report, but the registry itself must be unchanged in row count.
+      const registryBefore = await admin.query<{ count: string }>(
+        "select count(*)::text as count from app.telegram_erasures where workspace_id = any($1::uuid[])", [[WS_A, WS_B]]);
       const again = await run();
       expect(again.rows.find((x) => x.data_class === "customer_communication")).toEqual({ data_class: "customer_communication", affected: "0" });
+      const registryAfter = await admin.query<{ count: string }>(
+        "select count(*)::text as count from app.telegram_erasures where workspace_id = any($1::uuid[])", [[WS_A, WS_B]]);
+      expect(registryAfter.rows[0]!.count).toBe(registryBefore.rows[0]!.count);
     } finally { await setDuration("customer_communication", null); }
+  });
+
+  it("redacts a member link whose revocation is older than the customer_identity duration, with no HMAC in the registry", async () => {
+    const STALE_LINK = 700004n;
+    const STALE_USER = "e1e1e1e1-2222-4222-8222-222222222222";
+    // Defensive cleanup: a prior interrupted run (RED-step artifact, crash)
+    // could leave this fixed identity behind; start from a known-clean slate,
+    // same discipline as the manual recovery this fix round is answering.
+    await admin.query("delete from public.telegram_member_links where workspace_id = $1 and telegram_user_id = $2", [WS_A, STALE_LINK.toString()]);
+    await admin.query("delete from public.memberships where organization_id = $1 and user_id = $2", [WS_A, STALE_USER]);
+    await admin.query(`insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+      values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'erasure-stale@example.test', '', now(), now())
+      on conflict (id) do nothing`, [STALE_USER]);
+    const member = await admin.query<{ id: string }>(
+      "insert into public.memberships (organization_id, user_id, role, status) values ($1, $2, 'member', 'active') returning id",
+      [WS_A, STALE_USER]);
+    const staleMemberId = member.rows[0]!.id;
+    // verified_at must precede revoked_at (the table's own check constraint),
+    // so both are backdated: verified 500 days ago, revoked 400 days ago —
+    // older than the 365-day duration this case sets below.
+    await admin.query(`insert into public.telegram_member_links
+      (workspace_id, member_id, telegram_user_id, display_name_snapshot, username_snapshot, linked_by_member_id, verified_at, revoked_at)
+      values ($1, $2, $3, 'Стара Ланка', 'stara', $2, now() - interval '500 days', now() - interval '400 days')`,
+      [WS_A, staleMemberId, STALE_LINK.toString()]);
+
+    await setDuration("customer_identity", "365 days");
+    try {
+      const r = await run();
+      const found = r.rows.find((x) => x.data_class === "customer_identity")!;
+      expect(found.data_class).toBe("customer_identity");
+      expect(Number(found.affected)).toBeGreaterThan(0);
+
+      const link = await admin.query<{ telegram_user_id: string; display_name_snapshot: string | null; username_snapshot: string | null }>(
+        "select telegram_user_id::text, display_name_snapshot, username_snapshot from public.telegram_member_links where workspace_id = $1 and member_id = $2",
+        [WS_A, staleMemberId]);
+      expect(link.rows).toHaveLength(1);
+      expect(Number(link.rows[0]!.telegram_user_id)).toBeLessThan(0);
+      expect(link.rows[0]).toMatchObject({ display_name_snapshot: null, username_snapshot: null });
+
+      const reg = await admin.query<{ origin: string; subject_hmac: string | null }>(
+        "select origin, subject_hmac from app.telegram_erasures where workspace_id = $1 and surrogate_user_id = $2",
+        [WS_A, link.rows[0]!.telegram_user_id]);
+      expect(reg.rows).toEqual([{ origin: "retention", subject_hmac: null }]);
+    } finally { await setDuration("customer_identity", null); }
   });
 
   it("deletes terminal inbox rows older than the operational_security duration and leaves pending ones", async () => {
