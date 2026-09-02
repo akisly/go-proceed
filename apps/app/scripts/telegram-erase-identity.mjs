@@ -45,8 +45,20 @@ export function subjectHmac(pepper, workspace, telegramUserId) {
   return createHmac("sha256", pepper).update(`erasure:${workspace}:${telegramUserId}`, "utf8").digest("hex");
 }
 
-export async function erase({ serviceDbUrl, workspace, telegramUserId, hmac }) {
-  const client = new pg.Client({ connectionString: serviceDbUrl });
+// `clientFactory` is an optional injection point for tests: when omitted,
+// `erase` builds its own `pg.Client` exactly as before (the default is
+// preserved — nothing about the real call path changes).
+/**
+ * @param {{
+ *   serviceDbUrl?: string,
+ *   workspace: string,
+ *   telegramUserId: string,
+ *   hmac: string,
+ *   clientFactory?: () => { connect: () => Promise<void>, query: (text: string, params?: unknown[]) => Promise<{ rows: any[] }>, end: () => Promise<void> },
+ * }} args
+ */
+export async function erase({ serviceDbUrl, workspace, telegramUserId, hmac, clientFactory }) {
+  const client = clientFactory ? clientFactory() : new pg.Client({ connectionString: serviceDbUrl });
   await client.connect();
   try {
     await client.query("begin");
