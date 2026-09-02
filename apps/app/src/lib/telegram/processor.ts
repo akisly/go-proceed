@@ -4,6 +4,7 @@ import { createTelegramApiClient } from "./api";
 import { loadTelegramConfig } from "./config";
 import {
   prepareTelegramEvidenceCandidate, processTelegramEvidenceAttachment, selectTelegramOccurrence,
+  terminalizeStagedNonAlbumAttachments,
   formatTelegramEvidenceSummaryChunks, type TelegramEvidenceCopyKey,
 } from "./evidence";
 import { putObject } from "../evidence-storage";
@@ -429,12 +430,42 @@ async function revalidateTelegramEvidenceRetryContext(row: DueEvidenceRetryRow):
   });
 }
 
-async function prepareStoredEvidence(
+/**
+ * Exported for the unit test of its failure path only; not part of the
+ * module's surface.
+ * @internal
+ */
+export async function prepareStoredEvidence(
   binding: ChatBinding,
   update: Extract<NormalizedTelegramUpdate, { kind: "message" }>,
   stored: { messageId: string | null; attachments: StoredAttachment[] },
 ): Promise<void> {
   if (stored.messageId === null) return;
+  const messageId = stored.messageId;
+  try {
+    await prepareEachAttachment(binding, update, { messageId, attachments: stored.attachments });
+  } catch (error) {
+    // storeMessage has already committed the attachments as `staged` with
+    // their provider handles. Whatever threw, the inbox row is about to go
+    // `failed` and never be re-leased, so this is the last transaction that
+    // will ever see these rows: clear the handles now (INV-094), then let the
+    // error reach the batch loop unchanged. If this clearing itself fails the
+    // original error still wins — it names the cause, this does not.
+    try {
+      await withServiceTx({ actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() },
+        (tx) => terminalizeStagedNonAlbumAttachments(tx, {
+          workspaceId: binding.workspace_id, messageId, code: "processing_aborted",
+        }));
+    } catch { /* the original error is the one to surface */ }
+    throw error;
+  }
+}
+
+async function prepareEachAttachment(
+  binding: ChatBinding,
+  update: Extract<NormalizedTelegramUpdate, { kind: "message" }>,
+  stored: { messageId: string; attachments: StoredAttachment[] },
+): Promise<void> {
   const config = loadTelegramConfig();
   const api = createTelegramApiClient(config);
   for (const attachment of stored.attachments) {

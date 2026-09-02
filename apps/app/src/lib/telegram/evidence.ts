@@ -241,6 +241,32 @@ type CandidatePreparation =
   | { kind: "ready"; assignmentId: string; occurrenceId: string; actorUserId: string; processingLease: ProcessingLease }
   | { kind: "awaiting_requirement_choice"; assignmentId: string; tokens: Array<{ occurrenceId: string; label: string; token: string }> };
 
+/**
+ * The handles a failed message must not keep.
+ *
+ * storeMessage commits every attachment as `staged` with its provider handle,
+ * in its own transaction; the handle is normally cleared by the terminal
+ * transition inside prepareTelegramEvidenceCandidate, a later transaction. A
+ * non-transient throw between the two leaves the row `staged` forever: the
+ * inbox row goes `failed` and is never re-leased (0062:458), nothing sweeps
+ * `staged` by age, and the CHECK at 0062:242-244 only clears handles at a
+ * terminal state — so a live Telegram file_id outlived INV-094's promise.
+ * This is the terminal transition for that case. Album parts are excluded on
+ * purpose: they are staged until the group is claimed and have their own
+ * machinery (0071).
+ */
+export async function terminalizeStagedNonAlbumAttachments(tx: TelegramTx, input: {
+  workspaceId: string; messageId: string; code: string;
+}): Promise<number> {
+  const r = await tx.query<{ id: string }>(`update public.communication_attachments
+    set state='failed', failure_code=$3,
+        terminal_at=now(), provider_file_id=null, provider_file_unique_id=null
+    where workspace_id=$1 and message_id=$2 and state='staged' and telegram_media_group_id is null
+    returning id`,
+  [input.workspaceId, input.messageId, input.code]);
+  return r.rows.length;
+}
+
 async function terminalAttachment(tx: TelegramTx, input: {
   attachmentId: string; state: "unbound" | "not_evidence" | "failed"; code: string;
 }): Promise<void> {
