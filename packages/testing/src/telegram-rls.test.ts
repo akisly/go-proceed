@@ -61,20 +61,27 @@ describe("Telegram communication RLS", () => {
  * empty actor — was refused by its own policy on every insert; 0080 rewrites
  * it as `workspace_id = app.service_workspace()`, like its ten siblings.
  *
- * No fixture beyond this file's is needed, because PostgreSQL orders the
- * checks: NOT NULL and CHECK first, then RLS WITH CHECK, then the foreign
- * keys (AFTER triggers). A well-formed row with garbage foreign keys therefore
- * fails with 42501 when the policy refuses it and with 23503 when the policy
- * admits it — the error code says which fence stopped the row. Before 0080
- * the declared-workspace row failed with 42501; that is the red this test
- * was written against.
+ * No fixture beyond this file's is needed, because of the order PostgreSQL
+ * applies the fences on INSERT: RLS WITH CHECK first, then CHECK constraints,
+ * then the foreign keys (AFTER triggers). A CHECK-valid row with garbage
+ * foreign keys therefore fails with 42501 when the policy refuses it and with
+ * 23503 when the policy admits it — the error code says which fence stopped
+ * the row. That order is measured, not recalled: at 0079 the declared-workspace
+ * row failed with 42501 although it also violated a CHECK (the policy ran
+ * first); at 0080 the same row failed with 23514 in CI run 33619255955 (the
+ * policy admitted it, the CHECK ran before any foreign key); with the CHECK
+ * satisfied — telegram_media_group_id and media_group_generation set together,
+ * per telegram_requirement_choice_sessions_generation_check — the foreign keys
+ * are what remains. Before 0080 the first case below was red; that is the red
+ * this test was written against.
  */
 describe("§ service policy on telegram_requirement_choice_sessions", () => {
   const wellFormed = (workspaceId: string) => ({
     sql: `insert into public.telegram_requirement_choice_sessions
       (workspace_id, project_id, telegram_chat_binding_id, uploader_member_id, work_assignment_id,
-       telegram_media_group_id, token_hash, candidate_occurrence_id, allowed_occurrence_ids, expires_at)
-      values ($1, $2, $3, $4, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), gen_random_uuid(),
+       telegram_media_group_id, media_group_generation, token_hash, candidate_occurrence_id,
+       allowed_occurrence_ids, expires_at)
+      values ($1, $2, $3, $4, gen_random_uuid(), gen_random_uuid(), 1, repeat('a', 64), gen_random_uuid(),
               array[gen_random_uuid(), gen_random_uuid()], now() + interval '1 hour')`,
     params: [workspaceId, projectId, bindingId, ownerMemberId],
   });
