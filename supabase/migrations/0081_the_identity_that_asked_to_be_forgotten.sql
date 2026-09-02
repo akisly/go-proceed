@@ -158,3 +158,47 @@ begin
   end if;
   return new;
 end $$;
+
+-- ===========================================================================
+-- 3. A guard of its own for edit events
+--
+-- communication_message_events was append-only through app.reject_mutation,
+-- the function 0006 gave audit_events and that three tables share. The
+-- function stays as it is — audit_events keeps it — and the events table gets
+-- its own guard: the same refusal, plus one admitted shape. An edited event's
+-- text may become the marker when the parent message already carries the
+-- surrogate named in app.erasure_surrogate and no other column changes. The
+-- parent is checked by surrogate, which is why app.erase_telegram_identity
+-- rewrites messages before events.
+-- ===========================================================================
+
+create or replace function app.guard_communication_message_event() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if tg_op = 'UPDATE'
+     and coalesce(current_setting('app.erasure_surrogate', true), '') <> ''
+     and old.event_kind = 'edited'
+     and new.text = '[текст стерто на запит]'
+     and exists (select 1 from public.communication_messages m
+                  where m.id = old.message_id
+                    and m.provider_user_id::text = current_setting('app.erasure_surrogate', true))
+     and old.id is not distinct from new.id
+     and old.workspace_id is not distinct from new.workspace_id
+     and old.project_id is not distinct from new.project_id
+     and old.message_id is not distinct from new.message_id
+     and old.event_kind is not distinct from new.event_kind
+     and old.delivery_state is not distinct from new.delivery_state
+     and old.provider_event_at is not distinct from new.provider_event_at
+     and old.server_received_at is not distinct from new.server_received_at
+     and old.created_at is not distinct from new.created_at
+     and old.provider_update_id is not distinct from new.provider_update_id then
+    return new;
+  end if;
+  raise exception 'append-only relation %.% cannot be % (correct via successor fact)',
+    tg_table_schema, tg_table_name, lower(tg_op);
+end $$;
+
+drop trigger if exists communication_message_events_append_only on public.communication_message_events;
+create trigger communication_message_events_append_only
+  before update or delete on public.communication_message_events
+  for each row execute function app.guard_communication_message_event();

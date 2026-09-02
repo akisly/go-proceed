@@ -177,3 +177,46 @@ describe("§2 — the message guard admits the redaction and nothing else", () =
     expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query("delete from public.communication_messages where id = $1", [subjectMessageIds[0]]))).toBe("P0001");
   });
 });
+
+describe("§3 — the edit-event guard admits the redaction of an already-redacted message's edit", () => {
+  const SURROGATE = -424242n;
+  let eventId: string;
+  beforeAll(async () => {
+    const r = await admin.query<{ id: string }>("select id from public.communication_message_events where message_id = $1 and event_kind = 'edited'", [subjectMessageIds[0]]);
+    eventId = r.rows[0]!.id;
+  });
+
+  /** The parent must already carry the surrogate; do that first, in the same transaction. */
+  const parentThenEvent = (c: Client, eventSql: string) => c.query(`update public.communication_messages
+       set provider_user_id = ${SURROGATE}, provider_display_name_snapshot = null,
+           provider_username_snapshot = null, text = case when text is null then null else '${MARKER}' end
+     where id = $1`, [subjectMessageIds[0]]).then(() => c.query(eventSql, [eventId]));
+
+  it("admits text → marker on an edited event whose parent carries the surrogate", async () => {
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => parentThenEvent(c,
+      `update public.communication_message_events set text = '${MARKER}' where id = $1`))).toBe("ok");
+  });
+
+  it("refuses the same UPDATE when the parent still carries the real id", async () => {
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query(
+      `update public.communication_message_events set text = '${MARKER}' where id = $1`, [eventId]))).toBe("P0001");
+  });
+
+  it("refuses a text other than the marker, and any other column, and DELETE", async () => {
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => parentThenEvent(c,
+      "update public.communication_message_events set text = 'інше' where id = $1"))).toBe("P0001");
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => parentThenEvent(c,
+      `update public.communication_message_events set text = '${MARKER}', event_kind = 'edited', provider_update_id = 5 where id = $1`))).toBe("P0001");
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => parentThenEvent(c,
+      "delete from public.communication_message_events where id = $1"))).toBe("P0001");
+  });
+
+  it("audit_events is still append-only through the untouched app.reject_mutation", async () => {
+    const r = await admin.query<{ f: string }>(`select p.proname as f from pg_trigger t
+      join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'public.audit_events'::regclass and not t.tgisinternal`);
+    expect(r.rows.map((x) => x.f)).toEqual(["reject_mutation"]);
+    const e = await admin.query<{ f: string }>(`select p.proname as f from pg_trigger t
+      join pg_proc p on p.oid = t.tgfoid where t.tgrelid = 'public.communication_message_events'::regclass and not t.tgisinternal`);
+    expect(e.rows.map((x) => x.f)).toEqual(["guard_communication_message_event"]);
+  });
+});
