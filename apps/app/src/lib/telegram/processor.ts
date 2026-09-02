@@ -445,12 +445,18 @@ export async function prepareStoredEvidence(
   try {
     await prepareEachAttachment(binding, update, { messageId, attachments: stored.attachments });
   } catch (error) {
+    // A transient decision error is what the batch loop retries
+    // (processTelegramInboxBatch): the inbox row goes back to `pending` and
+    // this message is prepared again, so its staged attachments must stay
+    // exactly as they are. Nothing on this path throws that class today; the
+    // check is here so that the day something does, the retry finds its rows.
+    if (error instanceof TelegramDecisionTransientError) throw error;
     // storeMessage has already committed the attachments as `staged` with
-    // their provider handles. Whatever threw, the inbox row is about to go
-    // `failed` and never be re-leased, so this is the last transaction that
-    // will ever see these rows: clear the handles now (INV-094), then let the
-    // error reach the batch loop unchanged. If this clearing itself fails the
-    // original error still wins — it names the cause, this does not.
+    // their provider handles. Whatever else threw, the inbox row is about to
+    // go `failed` and never be re-leased, so this is the last transaction
+    // that will ever see these rows: clear the handles now (INV-094), then let
+    // the error reach the batch loop unchanged. If this clearing itself fails
+    // the original error still wins — it names the cause, this does not.
     try {
       await withServiceTx({ actorUserId: "", organizationId: binding.workspace_id, requestId: crypto.randomUUID() },
         (tx) => terminalizeStagedNonAlbumAttachments(tx, {

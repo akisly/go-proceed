@@ -29,6 +29,8 @@ vi.mock("./evidence", async (importOriginal) => ({
 }));
 
 import { prepareStoredEvidence } from "./processor";
+import { TelegramDecisionTransientError } from "./decisions";
+import { prepareTelegramEvidenceCandidate } from "./evidence";
 
 function env(): void {
   vi.stubEnv("TELEGRAM_BOT_TOKEN", "t".repeat(32));
@@ -65,6 +67,14 @@ describe("prepareStoredEvidence — the handles a failed message must not keep",
     env(); fake.queries.length = 0; fake.setFailNext(true);
     await expect(prepareStoredEvidence(binding, update, { messageId: "m-1", attachments: [{ id: "a-1", file }] }))
       .rejects.toThrow("boom");
+    expect(fake.queries).toEqual([]);
+  });
+
+  it("leaves staged attachments alone when the error is the transient kind the batch loop retries", async () => {
+    env(); fake.queries.length = 0;
+    vi.mocked(prepareTelegramEvidenceCandidate).mockRejectedValueOnce(new TelegramDecisionTransientError(new Error("provider busy")));
+    await expect(prepareStoredEvidence(binding, update, { messageId: "m-1", attachments: [{ id: "a-1", file }] }))
+      .rejects.toBeInstanceOf(TelegramDecisionTransientError);
     expect(fake.queries).toEqual([]);
   });
 
