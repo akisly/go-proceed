@@ -394,7 +394,12 @@ duration leaves a class's tables alone whatever the other classes do. The
 internal function takes a scope argument (`all` on the request path,
 `communication` / `identity` here) so each branch states what it may reach.
 Found when the Task 5 review reproduced an active link revoked under a
-message-text duration; recorded in the plan's ledger as a ruling.]
+message-text duration; recorded in the plan's ledger as a ruling. One
+consequence, accepted: «a new surrogate per subject» above is per subject
+*per class* — a stale subject's messages and its revoked link may carry two
+different surrogates, because retention rows have no HMAC to find each other
+by. Retention intends to sever that link; the request path, which runs every
+step under one surrogate, does not have this property.]
 
 Scheduled as in `0007`: `cron.schedule('communication-retention', '23 3 * * *',
 'select app.apply_communication_retention(5000)')` inside the same
