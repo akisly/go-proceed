@@ -220,3 +220,67 @@ describe("§3 — the edit-event guard admits the redaction of an already-redact
     expect(e.rows.map((x) => x.f)).toEqual(["guard_communication_message_event"]);
   });
 });
+
+describe("§4 — one identity, erased on request", () => {
+  const call = (hmac: string) => asService<{
+    surrogate_user_id: string; messages: string; events: string; links: string; attachments: string;
+    pending_updates_for_subject: string; already_erased: boolean;
+  }>("", WS_A, (c) => c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)",
+    [WS_A, SUBJECT.toString(), hmac]));
+
+  it("rewrites every row of the subject and none of the bystander, and records itself", async () => {
+    const before = await messageRow(bystanderMessageId);
+    const r = await call(subjectHmac(PEPPER, WS_A, SUBJECT));
+    const out = r.rows[0]!;
+    expect(out.already_erased).toBe(false);
+    expect(Number(out.surrogate_user_id)).toBeLessThan(0);
+    expect({ m: out.messages, e: out.events, l: out.links, a: out.attachments }).toEqual({ m: "2", e: "1", l: "1", a: "1" });
+
+    const msgs = await admin.query<{ provider_user_id: string; provider_display_name_snapshot: string | null; provider_username_snapshot: string | null; text: string | null }>(
+      "select provider_user_id::text, provider_display_name_snapshot, provider_username_snapshot, text from public.communication_messages where id = any($1::uuid[]) order by created_at", [subjectMessageIds]);
+    expect(msgs.rows).toEqual([
+      { provider_user_id: out.surrogate_user_id, provider_display_name_snapshot: null, provider_username_snapshot: null, text: MARKER },
+      { provider_user_id: out.surrogate_user_id, provider_display_name_snapshot: null, provider_username_snapshot: null, text: null },
+    ]);
+    const ev = await admin.query<{ text: string }>("select text from public.communication_message_events where message_id = $1 and event_kind = 'edited'", [subjectMessageIds[0]]);
+    expect(ev.rows).toEqual([{ text: MARKER }]);
+    const link = await admin.query<{ telegram_user_id: string; display_name_snapshot: string | null; username_snapshot: string | null; revoked: boolean }>(
+      "select telegram_user_id::text, display_name_snapshot, username_snapshot, revoked_at is not null as revoked from public.telegram_member_links where workspace_id = $1 and member_id = $2", [WS_A, ownerMemberId]);
+    expect(link.rows).toEqual([{ telegram_user_id: out.surrogate_user_id, display_name_snapshot: null, username_snapshot: null, revoked: true }]);
+    const att = await admin.query<{ filename_snapshot: string | null; provider_file_id: string | null }>(
+      "select filename_snapshot, provider_file_id from public.communication_attachments where message_id = $1", [subjectMessageIds[0]]);
+    expect(att.rows).toEqual([{ filename_snapshot: null, provider_file_id: "file-x" }]);
+
+    expect(await messageRow(bystanderMessageId)).toEqual(before);
+
+    const reg = await admin.query<{ subject_hmac: string; origin: string; surrogate_user_id: string }>(
+      "select subject_hmac, origin, surrogate_user_id::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
+    expect(reg.rows).toEqual([{ subject_hmac: subjectHmac(PEPPER, WS_A, SUBJECT), origin: "data_subject_request", surrogate_user_id: out.surrogate_user_id }]);
+
+    const audit = await admin.query<{ action: string; actor_type: string; actor_user_id: string | null; object_id: string; details: Record<string, unknown>; body: string }>(
+      `select action, actor_type, actor_user_id, object_id, details, row_to_json(a)::text as body
+         from public.audit_events a where organization_id = $1 and action = 'telegram_identity.erased'`, [WS_A]);
+    expect(audit.rows).toHaveLength(1);
+    expect(audit.rows[0]).toMatchObject({ actor_type: "system", actor_user_id: null, object_id: out.surrogate_user_id });
+    expect(audit.rows[0]!.details).toMatchObject({ messages: 2, events: 1, links: 1, attachments: 1, origin: "data_subject_request" });
+    expect(audit.rows[0]!.body).not.toContain(SUBJECT.toString());
+  });
+
+  it("is idempotent: a second call returns the same surrogate and touches nothing", async () => {
+    const first = await admin.query<{ surrogate_user_id: string }>("select surrogate_user_id::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
+    const r = await call(subjectHmac(PEPPER, WS_A, SUBJECT));
+    expect(r.rows[0]).toMatchObject({ already_erased: true, surrogate_user_id: first.rows[0]!.surrogate_user_id, messages: "0", events: "0", links: "0", attachments: "0" });
+  });
+
+  it("refuses the member plane and a caller with no service membership", async () => {
+    expect(await sqlstate(() => asActor(OWNER, WS_A, (c) => c.query("select * from app.erase_telegram_identity($1::uuid, 1::bigint, repeat('a', 64))", [WS_A])))).toBe("42501");
+  });
+
+  it("clears both markers before returning", async () => {
+    const r = await asService<{ s: string | null; g: string | null }>("", WS_A, async (c) => {
+      await c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)", [WS_A, BYSTANDER.toString(), subjectHmac(PEPPER, WS_A, BYSTANDER)]);
+      return c.query("select current_setting('app.erasure_subject', true) as s, current_setting('app.erasure_surrogate', true) as g");
+    });
+    expect(r.rows[0]).toEqual({ s: "", g: "" });
+  });
+});

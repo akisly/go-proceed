@@ -202,3 +202,155 @@ drop trigger if exists communication_message_events_append_only on public.commun
 create trigger communication_message_events_append_only
   before update or delete on public.communication_message_events
   for each row execute function app.guard_communication_message_event();
+
+-- ===========================================================================
+-- 4. The erasure
+--
+-- Three functions. write_erasure_audit inserts the audit row the way
+-- app.record_service_audit would — actor_type 'system', no actor — without
+-- that function's pg_has_role gate, because §5's retention job runs as the
+-- database owner under pg_cron and could not pass it. erase_telegram_identity_
+-- internal is the transformation: registry, markers, four updates in the
+-- order the guards require, audit, markers cleared. erase_telegram_identity
+-- is the one callable surface, for the service principal, with the origin
+-- fixed to a data-subject request. Only that last function has an EXECUTE
+-- grant.
+-- ===========================================================================
+
+create or replace function app.write_erasure_audit(
+  p_workspace uuid, p_surrogate bigint, p_details jsonb, p_reason text
+) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  insert into public.audit_events
+    (organization_id, actor_user_id, actor_type, action, object_type, object_id,
+     request_id, details, object_version, reason_code)
+  values (p_workspace, null, 'system', 'telegram_identity.erased', 'telegram_identity',
+          p_surrogate::text, gen_random_uuid()::text, p_details, null, p_reason);
+end $$;
+revoke all on function app.write_erasure_audit(uuid, bigint, jsonb, text) from public, anon, authenticated, goproceed_app, goproceed_service;
+
+create or replace function app.erase_telegram_identity_internal(
+  p_workspace uuid, p_telegram_user_id bigint, p_subject_hmac text, p_origin text
+) returns table (
+  surrogate_user_id bigint, messages bigint, events bigint, links bigint,
+  attachments bigint, pending_updates_for_subject bigint, already_erased boolean
+)
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_surrogate bigint;
+  v_existed boolean := false;
+  v_messages bigint := 0; v_events bigint := 0; v_links bigint := 0; v_attachments bigint := 0;
+  v_pending bigint := 0;
+  v_try integer;
+begin
+  if p_telegram_user_id is null or p_telegram_user_id <= 0 then
+    raise exception 'erasure needs a real Telegram identifier';
+  end if;
+  if p_origin not in ('data_subject_request', 'retention') then
+    raise exception 'erasure origin must be data_subject_request or retention';
+  end if;
+  if (p_origin = 'data_subject_request') <> (p_subject_hmac is not null) then
+    raise exception 'a data-subject request carries an HMAC and a retention run carries none';
+  end if;
+
+  -- The registry. A request re-run finds its surrogate by HMAC; a retention
+  -- run has no HMAC and always registers afresh.
+  if p_subject_hmac is not null then
+    select e.surrogate_user_id into v_surrogate
+      from app.telegram_erasures e
+     where e.workspace_id = p_workspace and e.subject_hmac = p_subject_hmac;
+    v_existed := found;
+  end if;
+  if v_surrogate is null then
+    for v_try in 1..8 loop
+      v_surrogate := -(1 + floor(random() * 4611686018427387903))::bigint;
+      exit when not exists (select 1 from app.telegram_erasures e
+                             where e.workspace_id = p_workspace and e.surrogate_user_id = v_surrogate);
+      v_surrogate := null;
+    end loop;
+    if v_surrogate is null then raise exception 'could not allocate a surrogate identifier'; end if;
+    insert into app.telegram_erasures (workspace_id, subject_hmac, surrogate_user_id, origin)
+    values (p_workspace, p_subject_hmac, v_surrogate, p_origin);
+  end if;
+
+  perform set_config('app.erasure_subject', p_telegram_user_id::text, true);
+  perform set_config('app.erasure_surrogate', v_surrogate::text, true);
+
+  update public.communication_messages
+     set provider_user_id = v_surrogate,
+         provider_display_name_snapshot = null,
+         provider_username_snapshot = null,
+         text = case when text is null then null else '[текст стерто на запит]' end
+   where workspace_id = p_workspace and provider_user_id = p_telegram_user_id;
+  get diagnostics v_messages = row_count;
+
+  update public.communication_message_events e
+     set text = '[текст стерто на запит]'
+    from public.communication_messages m
+   where e.message_id = m.id and m.workspace_id = p_workspace
+     and m.provider_user_id = v_surrogate
+     and e.event_kind = 'edited' and e.text is distinct from '[текст стерто на запит]';
+  get diagnostics v_events = row_count;
+
+  update public.telegram_member_links
+     set telegram_user_id = v_surrogate, display_name_snapshot = null,
+         username_snapshot = null, revoked_at = coalesce(revoked_at, now())
+   where workspace_id = p_workspace and telegram_user_id = p_telegram_user_id;
+  get diagnostics v_links = row_count;
+
+  update public.communication_attachments a
+     set filename_snapshot = null
+    from public.communication_messages m
+   where a.message_id = m.id and a.workspace_id = p_workspace
+     and m.provider_user_id = v_surrogate and a.filename_snapshot is not null;
+  get diagnostics v_attachments = row_count;
+
+  -- What arrives after this transaction is not this transaction's to rewrite:
+  -- the four shapes api.ts's allowed_updates admits, counted so the operator
+  -- knows to run again once the worker has drained them.
+  select count(*) into v_pending
+    from public.telegram_inbox_updates u
+   where u.state in ('pending', 'leased')
+     and coalesce(u.payload #>> '{message,from,id}', u.payload #>> '{edited_message,from,id}',
+                  u.payload #>> '{callback_query,from,id}', u.payload #>> '{my_chat_member,from,id}')
+         = p_telegram_user_id::text;
+
+  update app.telegram_erasures e
+     set erased_at = now(),
+         messages_count = e.messages_count + v_messages, events_count = e.events_count + v_events,
+         links_count = e.links_count + v_links, attachments_count = e.attachments_count + v_attachments
+   where e.workspace_id = p_workspace and e.surrogate_user_id = v_surrogate;
+
+  perform app.write_erasure_audit(p_workspace, v_surrogate,
+    jsonb_build_object('surrogate', v_surrogate, 'messages', v_messages, 'events', v_events,
+                       'links', v_links, 'attachments', v_attachments, 'origin', p_origin,
+                       'pending_updates_for_subject', v_pending),
+    p_origin);
+
+  perform set_config('app.erasure_subject', '', true);
+  perform set_config('app.erasure_surrogate', '', true);
+
+  return query select v_surrogate, v_messages, v_events, v_links, v_attachments, v_pending, v_existed;
+end $$;
+revoke all on function app.erase_telegram_identity_internal(uuid, bigint, text, text) from public, anon, authenticated, goproceed_app, goproceed_service;
+
+create or replace function app.erase_telegram_identity(
+  p_workspace uuid, p_telegram_user_id bigint, p_subject_hmac text
+) returns table (
+  surrogate_user_id bigint, messages bigint, events bigint, links bigint,
+  attachments bigint, pending_updates_for_subject bigint, already_erased boolean
+)
+language plpgsql security definer set search_path = '' as $$
+begin
+  if not pg_has_role(session_user, 'goproceed_service', 'member') then
+    raise exception 'erasure requires the service principal' using errcode = '42501';
+  end if;
+  if p_subject_hmac is null or p_subject_hmac !~ '^[0-9a-f]{64}$' then
+    raise exception 'erasure needs the subject HMAC the application computed';
+  end if;
+  perform set_config('app.organization_id', p_workspace::text, true);
+  return query select * from app.erase_telegram_identity_internal(p_workspace, p_telegram_user_id, p_subject_hmac, 'data_subject_request');
+end $$;
+revoke all on function app.erase_telegram_identity(uuid, bigint, text) from public, anon, authenticated;
+grant execute on function app.erase_telegram_identity(uuid, bigint, text) to goproceed_service;
