@@ -249,7 +249,15 @@ row in the schedule in the version that ships it.
         HMAC, both of which the operator script supplies — procedure in
         [README-staging.md](../../infra/README-staging.md) §7, exercise
         `packages/testing/src/telegram-erasure.test.ts` §4, CI run
-        `<pending>`. Workspace closure is still owed.
+        [`33696166331`](https://github.com/akisly/go-proceed/actions/runs/33696166331)
+        (commit `60959f8`): `verify` red with exactly the eighteen
+        pre-existing `apps/app` failures the branch already carried at its
+        baseline ([run `33685727480`](https://github.com/akisly/go-proceed/actions/runs/33685727480)
+        on `4846e85`, PR #62), none of them this slice's;
+        `telegram-erasure.test.ts` (27) and `erase-identity-cli.test.ts` (5)
+        both ran and passed in the run; `app-qa` green. See the gate record,
+        [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md).
+        Workspace closure is still owed.
 - [ ] Deletion followed by restore does not resurrect deleted content
       (tombstones reapplied before restored data is reachable).
 

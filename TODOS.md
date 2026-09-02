@@ -3309,3 +3309,91 @@ The slice that added [ADR-010](docs/decisions/ADR-010-project-sourced-requiremen
 **9. (CLOSED 2026-08-28) The external-plane test drivers exist in three near-duplicate copies.** `apps/app/tests/m5-external.int.test.ts` (`exchange` / `cookieOf` / `scope`), `apps/app/tests/external-evidence.int.test.ts` (`issue`, plus an inline exchange and cookie read) and `apps/app/tests/project-sourced-chain.int.test.ts` (`issueGrant` / `exchange` / `cookieOf` / `externalScope`) each carry their own copy of the same four moves, including the `EXTERNAL_SESSION_COOKIE` regex that matches the opaque session value rather than a token. The chain suite's header says why it mirrored rather than imported: neither existing suite exports its copy and that slice could not restructure either. Extraction to `apps/app/tests/helpers/` — beside `fixtures.ts` and `manual-baseline.ts` — is the follow-up, and it must keep each suite's deliberate differences (m5's `origin` override is what its cross-origin refusals are made of).
 
 **CLOSED 2026-08-28 by `apps/app/tests/helpers/external-plane.ts`** — `issueGrant` / `tokenOf` / `exchange` / `cookieOf` / `externalScope`, plus the shared `EXTERNAL_TEST_ORIGIN` / `EXTERNAL_TEST_APPROVER` constants all three suites restated. The deliberate differences survived as parameters, not forks: m5's cross-origin refusals pass `exchange(token, origin)` (the request URL stays on the real origin while the header lies), its cookieless read passes `externalScope(null)`, and external-evidence's varying recipients ride the body override `issueGrant` merges over the shared default. Deliberately NOT extracted: m5's `submit` (one consumer; its CSRF/content-type/origin knobs are that suite's refusal matrix) and both `openLink` composites (they assert on the way through, and an assertion inside a shared helper is a hidden test). The chain suite's mirror-not-import header — the paragraph this entry quotes — is replaced by the extraction note. All three suites green (40/40) with `tsc` clean.
+
+## P2 — retention durations are owed (0081 shipped inert)
+
+Migration `0081_the_identity_that_asked_to_be_forgotten.sql` builds the retention
+mechanism and seeds it with nothing that runs. Closing this section is an owner
+decision (a real duration per class), not an engineering task.
+
+**1. All three rows of `app.retention_policy` carry `duration = NULL`.**
+`customer_communication`, `customer_identity`, `operational_security` — seeded
+NULL by 0081 §1 and untouched since. `app.apply_communication_retention` (0081
+§5, scheduled nightly at 03:23 as `communication-retention`) checks each row
+and does nothing for a NULL duration; the cron job runs and reports zero
+affected rows for every class until an owner picks a number and a migration
+sets it.
+
+**2. `technical/data-retention-catalog.csv` rows 3–14 (`communication_messages`
+through `communication_delivery_attempts`) all carry `policy_status =
+duration_external_gate`.** Verified 2026-09-03: every one of the twelve data
+rows in that range reads `duration_external_gate` in its `policy_status`
+column. The catalog's own notes column already point at 0081's mechanism; the
+gate itself is the missing duration, not missing code.
+
+**3. Two tables carry no retention row at all.** `telegram_requirement_choice_sessions`
+and `telegram_evidence_decision_tokens` are absent from
+`technical/data-retention-catalog.csv` entirely — verified 2026-09-03, `grep`
+for both names against the catalog returns nothing. Both exist in
+`technical/database/entity-catalog.csv` (class `communication`, retention
+class `external_gate_retention`, spec
+`docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md`) — that
+design document, not an ADR, is where their retention intent is recorded
+today. (The plan for this slice cited "ADR-011's open items" for these two
+tables; no ADR-011 exists in `docs/decisions/` — the nearest match is a
+same-numbered legacy ADR about generic-package-plus-adapters, unrelated. This
+entry cites the source actually found rather than repeat the plan's
+citation.) Neither table's retention is reachable through 0081's scope
+argument (`communication` / `identity`) as written — they need their own row
+and, if the owner wants them swept by the same mechanism, their own scope or
+a dedicated cleanup.
+
+**4. The raw Telegram id survives in two intent tables after a request-driven
+erasure, until `operational_security` has a duration.** `app.erase_telegram_identity`
+rewrites `communication_messages`, `communication_message_events`,
+`communication_attachments` and `telegram_member_links` for the subject, but
+`telegram_binding_intents.consumed_by_telegram_user_id` and
+`telegram_member_link_intents.consumed_by_telegram_user_id` are untouched —
+0081 §5 only reaches them through `operational_security`'s age-based delete
+(hash-and-disposition only; it never rewrites, only deletes whole rows past
+the duration). With `operational_security` NULL, a raw identifier an erased
+subject once consumed a binding or member-link intent with stays in the
+database indefinitely, readable by anyone with `goproceed_service` access to
+those two tables, even though the person requested erasure. Closing this
+needs an owner decision on the `operational_security` duration (item 1
+above); it is called out here separately because it is the one place a
+raw Telegram id, not a hash or a surrogate, outlives a request-driven erasure.
+
+## P3 — workspace closure procedure
+
+**M0 gate 4's first checkbox in `docs/delivery/production-readiness.md` §4
+("Manual workspace closure/deletion procedure...") stays open.** 0081 and this
+slice deliver the identity-level half only — one Telegram identity erased on
+request or by age, procedure in `infra/README-staging.md` §7 — not
+workspace-level closure (authorization, separation of duties, dry-run
+inventory, export offer, confirmation, recorded outcome for an entire
+workspace). The evidence note added under that checkbox on 2026-09-03 says so
+in place; this entry is the pointer for a reader of `TODOS.md` who has not
+opened that file.
+
+## Parked findings from the erasure slice, not fixed (0081, 2026-09-03)
+
+**A `goproceed_service` session can set both markers (`app.erasure_subject`,
+`app.erasure_surrogate`) itself and issue the admitted UPDATE on
+`communication_messages` directly, bypassing the registry and the audit
+row `app.erase_telegram_identity` would otherwise write.** This is a property
+of the guard's approach — it recognises a transformation shape rather than
+gating on the caller having gone through the definer — and of the service
+plane being the trust boundary: any code running as `goproceed_service`
+is already trusted for everything else that role can do. The definer
+(`app.erase_telegram_identity` / `_internal`) is the only place that binds
+the redaction, the registry insert/update, and the audit row into one
+transaction, and that binding is tested on the *rejection* path only (a
+non-definer UPDATE attempting the same shape is refused) — no test exercises
+a `goproceed_service` session recreating the shape by hand and confirms it
+succeeds without registry or audit. If a `/v1` route is ever built on top of
+the service plane for this (a future workspace-closure or self-service
+erasure route), that route's design should either accept this as within the
+service plane's existing trust boundary or add a mechanism narrower than
+"any `goproceed_service` session" before exposing it further. Design note,
+not a defect in 0081 as shipped.
