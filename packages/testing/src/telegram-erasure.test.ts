@@ -1,7 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
+import { exec } from "node:child_process";
+import { promisify } from "node:util";
 import type { Client, QueryResult } from "pg";
 import { adminClient, asActor, asService, dropWorkspaces } from "./pg";
+
+const execAsync = promisify(exec);
 
 /**
  * THE ERASURE PROCEDURE, EXERCISED ON SYNTHETIC DATA — M0 gate 4's «manual
@@ -85,6 +89,21 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  // dropWorkspaces (./pg) scans schema `public` only; the registry lives in
+  // schema `app` (§1) and needs its own cleanup so a repeat run starts clean.
+  //
+  // NOT admin.query: app.telegram_erasures grants nothing to the `postgres`
+  // role this suite's `admin` client connects as — confirmed with
+  // `select has_table_privilege('postgres', 'app.telegram_erasures',
+  // 'delete')` => false; its SELECT access (used elsewhere in this file)
+  // comes from the built-in `pg_read_all_data` role, not a table grant, and
+  // that role has no write counterpart here. Only the table owner,
+  // `supabase_admin`, can delete from it, reachable only the way this slice's
+  // own migration is applied — `docker exec … psql -U supabase_admin` — so
+  // cleanup goes through that same channel rather than through `admin`.
+  await execAsync(
+    `docker exec -i supabase_db_goproceed psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -c "delete from app.telegram_erasures where workspace_id in ('${WS_A}', '${WS_B}')"`,
+  );
   await dropWorkspaces(admin, [WS_A, WS_B]);
   await admin.end();
 });
@@ -274,6 +293,35 @@ describe("§4 — one identity, erased on request", () => {
 
   it("refuses the member plane and a caller with no service membership", async () => {
     expect(await sqlstate(() => asActor(OWNER, WS_A, (c) => c.query("select * from app.erase_telegram_identity($1::uuid, 1::bigint, repeat('a', 64))", [WS_A])))).toBe("42501");
+  });
+
+  // Placed before "clears both markers" (below), which erases BYSTANDER for
+  // real — this case needs BYSTANDER still intact. A NULL HMAC is rejected by
+  // app.erase_telegram_identity's own validation before it ever calls the
+  // internal transformation, so nothing — registry, audit, or redaction —
+  // should exist as a result of this call.
+  it("a failure raised before the transformation runs leaves the registry, the audit trail, and the bystander's row untouched", async () => {
+    const before = await messageRow(bystanderMessageId);
+    const auditBefore = await admin.query<{ count: string }>(
+      "select count(*)::text as count from public.audit_events where organization_id = $1 and action = 'telegram_identity.erased'", [WS_A]);
+
+    const code = await sqlstate(() => asService("", WS_A, (c) =>
+      c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)", [WS_A, BYSTANDER.toString(), null])));
+    expect(code).toBe("P0001");
+
+    expect(await messageRow(bystanderMessageId)).toEqual(before);
+    const bystanderNow = await admin.query<{ provider_user_id: string }>(
+      "select provider_user_id::text from public.communication_messages where id = $1", [bystanderMessageId]);
+    expect(bystanderNow.rows[0]!.provider_user_id).toBe(BYSTANDER.toString());
+
+    const registered = await admin.query<{ count: string }>(
+      "select count(*)::text as count from app.telegram_erasures where workspace_id = $1 and subject_hmac = $2",
+      [WS_A, subjectHmac(PEPPER, WS_A, BYSTANDER)]);
+    expect(registered.rows[0]!.count).toBe("0");
+
+    const auditAfter = await admin.query<{ count: string }>(
+      "select count(*)::text as count from public.audit_events where organization_id = $1 and action = 'telegram_identity.erased'", [WS_A]);
+    expect(auditAfter.rows[0]!.count).toBe(auditBefore.rows[0]!.count);
   });
 
   it("clears both markers before returning", async () => {
