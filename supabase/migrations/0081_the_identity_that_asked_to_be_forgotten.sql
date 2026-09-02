@@ -360,3 +360,109 @@ begin
 end $$;
 revoke all on function app.erase_telegram_identity(uuid, bigint, text) from public, anon, authenticated;
 grant execute on function app.erase_telegram_identity(uuid, bigint, text) to goproceed_service;
+
+-- ===========================================================================
+-- 5. Retention by age
+--
+-- Reads app.retention_policy; a NULL duration means the class is skipped and
+-- reports zero. customer_communication and customer_identity apply §4's
+-- transformation to subjects old enough — the same rewrite, registered with
+-- origin 'retention' and no HMAC, because the pepper is not in this database.
+-- operational_security deletes what the catalog says is hash-and-disposition
+-- only: terminal inbox rows and spent intents. Batched by p_batch subjects or
+-- rows per call; a backlog converges over nights. Scheduled exactly as
+-- 0007 schedules idempotency-purge.
+-- ===========================================================================
+
+create or replace function app.apply_communication_retention(p_batch integer default 5000)
+returns table (data_class text, affected bigint)
+language plpgsql security definer set search_path = '' as $$
+declare
+  v_dur interval;
+  v_n bigint;
+  v_row record;
+begin
+  if p_batch is null or p_batch < 1 or p_batch > 100000 then
+    raise exception 'retention batch must be between 1 and 100000';
+  end if;
+
+  -- customer_communication: senders whose newest message is older than the duration.
+  select p.duration into v_dur from app.retention_policy p where p.data_class = 'customer_communication';
+  v_n := 0;
+  if v_dur is not null then
+    for v_row in
+      select m.workspace_id, m.provider_user_id
+        from public.communication_messages m
+       where m.provider_user_id > 0
+       group by m.workspace_id, m.provider_user_id
+      having max(m.server_received_at) < now() - v_dur
+       limit p_batch
+    loop
+      perform set_config('app.organization_id', v_row.workspace_id::text, true);
+      perform app.erase_telegram_identity_internal(v_row.workspace_id, v_row.provider_user_id, null, 'retention');
+      v_n := v_n + 1;
+    end loop;
+  end if;
+  data_class := 'customer_communication'; affected := v_n; return next;
+
+  -- customer_identity: revoked links older than the duration whose subject wrote nothing recent enough to have kept them.
+  select p.duration into v_dur from app.retention_policy p where p.data_class = 'customer_identity';
+  v_n := 0;
+  if v_dur is not null then
+    for v_row in
+      select l.workspace_id, l.telegram_user_id
+        from public.telegram_member_links l
+       where l.telegram_user_id > 0 and l.revoked_at is not null and l.revoked_at < now() - v_dur
+       limit p_batch
+    loop
+      perform set_config('app.organization_id', v_row.workspace_id::text, true);
+      perform app.erase_telegram_identity_internal(v_row.workspace_id, v_row.telegram_user_id, null, 'retention');
+      v_n := v_n + 1;
+    end loop;
+  end if;
+  data_class := 'customer_identity'; affected := v_n; return next;
+
+  -- operational_security: hash-and-disposition rows past their duration.
+  select p.duration into v_dur from app.retention_policy p where p.data_class = 'operational_security';
+  v_n := 0;
+  if v_dur is not null then
+    with del as (
+      delete from public.telegram_inbox_updates u
+       where u.ctid in (select u2.ctid from public.telegram_inbox_updates u2
+                         where u2.state in ('processed', 'failed') and u2.processed_at < now() - v_dur
+                         limit p_batch)
+      returning 1)
+    select count(*) into v_n from del;
+    with del as (
+      delete from public.telegram_binding_intents i
+       where i.ctid in (select i2.ctid from public.telegram_binding_intents i2
+                         where coalesce(i2.consumed_at, i2.expires_at) < now() - v_dur limit p_batch)
+      returning 1)
+    select v_n + count(*) into v_n from del;
+    with del as (
+      delete from public.telegram_member_link_intents i
+       where i.ctid in (select i2.ctid from public.telegram_member_link_intents i2
+                         where coalesce(i2.consumed_at, i2.expires_at) < now() - v_dur limit p_batch)
+      returning 1)
+    select v_n + count(*) into v_n from del;
+  end if;
+  data_class := 'operational_security'; affected := v_n; return next;
+
+  perform set_config('app.organization_id', '', true);
+  return;
+end $$;
+revoke all on function app.apply_communication_retention(integer) from public, anon, authenticated, goproceed_app, goproceed_service;
+
+do $$
+declare has_pg_cron boolean;
+begin
+  select exists (select 1 from pg_extension where extname = 'pg_cron') into has_pg_cron;
+  if has_pg_cron then
+    if exists (select 1 from cron.job where jobname = 'communication-retention') then
+      perform cron.unschedule('communication-retention');
+    end if;
+    perform cron.schedule('communication-retention', '23 3 * * *', $c$select app.apply_communication_retention(5000)$c$);
+  else
+    raise notice 'pg_cron not available: communication-retention not scheduled';
+  end if;
+end $$;

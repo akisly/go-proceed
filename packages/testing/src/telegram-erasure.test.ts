@@ -347,3 +347,71 @@ describe("§4 — one identity, erased on request", () => {
     expect(r.rows[0]).toEqual({ s: "", g: "" });
   });
 });
+
+describe("§5 — retention by age", () => {
+  const RETIRED = 700003n;
+  let retiredMessageId: string;
+  const setDuration = (cls: string, d: string | null) =>
+    admin.query("update app.retention_policy set duration = $2::interval, updated_at = now() where data_class = $1", [cls, d]);
+  const run = () => admin.query<{ data_class: string; affected: string }>("select * from app.apply_communication_retention(100) order by 1");
+
+  beforeAll(async () => {
+    const r = await admin.query<{ id: string }>(`insert into public.communication_messages
+      (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text, provider_user_id,
+       provider_display_name_snapshot, provider_username_snapshot, server_received_at, delivery_state)
+      values ($1, $2, $3, 'inbound', 'text', 'Старе повідомлення', $4, 'Іван Старий', 'staryi', now() - interval '400 days', 'received') returning id`,
+      [WS_A, projectId, bindingId, RETIRED.toString()]);
+    retiredMessageId = r.rows[0]!.id;
+    await admin.query(`insert into public.telegram_inbox_updates (bot_id, update_id, payload, payload_hash, state, processed_at, disposition)
+      values (123456789, 9000001, null, repeat('b', 64), 'processed', now() - interval '400 days', 'ignored'),
+             (123456789, 9000002, '{"update_id": 9000002}'::jsonb, repeat('c', 64), 'pending', null, null)`);
+  });
+
+  it("does nothing while every duration is NULL", async () => {
+    const before = await messageRow(retiredMessageId);
+    const r = await run();
+    expect(r.rows).toEqual([
+      { data_class: "customer_communication", affected: "0" },
+      { data_class: "customer_identity", affected: "0" },
+      { data_class: "operational_security", affected: "0" },
+    ]);
+    expect(await messageRow(retiredMessageId)).toEqual(before);
+  });
+
+  it("redacts a sender whose messages are older than the customer_communication duration, with no HMAC in the registry", async () => {
+    await setDuration("customer_communication", "365 days");
+    try {
+      const r = await run();
+      expect(r.rows.find((x) => x.data_class === "customer_communication")).toEqual({ data_class: "customer_communication", affected: "1" });
+      const m = await messageRow(retiredMessageId);
+      expect(Number(m.provider_user_id)).toBeLessThan(0);
+      expect(m.text).toBe(MARKER);
+      const reg = await admin.query<{ origin: string; subject_hmac: string | null }>(
+        "select origin, subject_hmac from app.telegram_erasures where workspace_id = $1 and surrogate_user_id = $2", [WS_A, m.provider_user_id]);
+      expect(reg.rows).toEqual([{ origin: "retention", subject_hmac: null }]);
+      const again = await run();
+      expect(again.rows.find((x) => x.data_class === "customer_communication")).toEqual({ data_class: "customer_communication", affected: "0" });
+    } finally { await setDuration("customer_communication", null); }
+  });
+
+  it("deletes terminal inbox rows older than the operational_security duration and leaves pending ones", async () => {
+    await setDuration("operational_security", "30 days");
+    try {
+      const r = await run();
+      expect(r.rows.find((x) => x.data_class === "operational_security")).toEqual({ data_class: "operational_security", affected: "1" });
+      const left = await admin.query<{ update_id: string; state: string }>(
+        "select update_id::text, state from public.telegram_inbox_updates where update_id in (9000001, 9000002) order by 1");
+      expect(left.rows).toEqual([{ update_id: "9000002", state: "pending" }]);
+    } finally {
+      await setDuration("operational_security", null);
+      await admin.query("delete from public.telegram_inbox_updates where update_id = 9000002");
+    }
+  });
+
+  it("is scheduled under pg_cron as communication-retention", async () => {
+    const r = await admin.query<{ n: number }>("select count(*)::int as n from pg_extension where extname = 'pg_cron'");
+    if (r.rows[0]!.n === 0) return; // the local stack may run without pg_cron; CI's does not
+    const job = await admin.query<{ schedule: string; command: string }>("select schedule, command from cron.job where jobname = 'communication-retention'");
+    expect(job.rows).toEqual([{ schedule: "23 3 * * *", command: "select app.apply_communication_retention(5000)" }]);
+  });
+});
