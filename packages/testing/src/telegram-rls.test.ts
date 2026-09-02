@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { adminClient, asActor, dropWorkspaces } from "./pg";
+import { adminClient, asActor, asService, dropWorkspaces } from "./pg";
 import type { Client } from "pg";
 
 const WS_A = "cccccccc-1111-1111-1111-111111111111";
@@ -9,6 +9,7 @@ const UNRELATED = "ffffffff-1111-1111-1111-111111111111";
 let admin: Client;
 let projectId: string;
 let ownerMemberId: string;
+let bindingId: string;
 
 beforeAll(async () => {
   admin = await adminClient();
@@ -26,6 +27,7 @@ beforeAll(async () => {
   const binding = await admin.query<{ id: string }>(`insert into public.telegram_chat_bindings
     (workspace_id, project_id, bot_id, chat_id, chat_type, connected_by_member_id)
     values ($1, $2, 123456789, -100998, 'supergroup', $3) returning id`, [WS_A, projectId, ownerMemberId]);
+  bindingId = binding.rows[0]!.id;
   await admin.query(`insert into public.communication_messages
     (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text, server_received_at, delivery_state)
     values ($1, $2, $3, 'inbound', 'text', 'Тест', now(), 'received')`, [WS_A, projectId, binding.rows[0]!.id]);
@@ -47,5 +49,55 @@ describe("Telegram communication RLS", () => {
   it("an anonymous transaction cannot enumerate communication rows", async () => {
     const visible = await asActor("", null, (c) => c.query("select id from public.communication_messages"));
     expect(visible.rows).toEqual([]);
+  });
+});
+
+/**
+ * THE SERVICE POLICY ON telegram_requirement_choice_sessions, BOTH WAYS.
+ *
+ * 0068:40-67 wrote that policy as three EXISTS over tables that carry only
+ * `to goproceed_app` policies keyed on app.current_actor(). goproceed_service
+ * INHERITS goproceed_app, so the service plane — which always runs with an
+ * empty actor — was refused by its own policy on every insert; 0080 rewrites
+ * it as `workspace_id = app.service_workspace()`, like its ten siblings.
+ *
+ * No fixture beyond this file's is needed, because PostgreSQL orders the
+ * checks: NOT NULL and CHECK first, then RLS WITH CHECK, then the foreign
+ * keys (AFTER triggers). A well-formed row with garbage foreign keys therefore
+ * fails with 42501 when the policy refuses it and with 23503 when the policy
+ * admits it — the error code says which fence stopped the row. Before 0080
+ * the declared-workspace row failed with 42501; that is the red this test
+ * was written against.
+ */
+describe("§ service policy on telegram_requirement_choice_sessions", () => {
+  const wellFormed = (workspaceId: string) => ({
+    sql: `insert into public.telegram_requirement_choice_sessions
+      (workspace_id, project_id, telegram_chat_binding_id, uploader_member_id, work_assignment_id,
+       telegram_media_group_id, token_hash, candidate_occurrence_id, allowed_occurrence_ids, expires_at)
+      values ($1, $2, $3, $4, gen_random_uuid(), gen_random_uuid(), repeat('a', 64), gen_random_uuid(),
+              array[gen_random_uuid(), gen_random_uuid()], now() + interval '1 hour')`,
+    params: [workspaceId, projectId, bindingId, ownerMemberId],
+  });
+
+  async function codeOf(workspaceRow: string, workspaceGuc: string): Promise<string> {
+    const row = wellFormed(workspaceRow);
+    try {
+      await asService("", workspaceGuc, (c) => c.query(row.sql, row.params));
+      return "inserted";
+    } catch (e) {
+      return (e as { code?: string }).code ?? "unknown";
+    }
+  }
+
+  it("admits a row for the workspace the service transaction declared (the foreign keys, not the policy, stop it)", async () => {
+    expect(await codeOf(WS_A, WS_A)).toBe("23503");
+  });
+
+  it("refuses a row for any other workspace at the policy, before a foreign key is looked at", async () => {
+    expect(await codeOf(WS_B, WS_A)).toBe("42501");
+  });
+
+  it("refuses every row when no workspace is declared", async () => {
+    expect(await codeOf(WS_A, "")).toBe("42501");
   });
 });
