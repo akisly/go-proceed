@@ -119,3 +119,61 @@ describe("§1 — the registry and the policy exist, in schema app, reachable by
     ]);
   });
 });
+
+/** Run `fn` as admin in a transaction with the two markers set, then roll back. */
+async function underMarkers(subject: bigint, surrogate: bigint, fn: (c: Client) => Promise<unknown>): Promise<string> {
+  const c = await adminClient();
+  try {
+    await c.query("begin");
+    await c.query("select set_config('app.erasure_subject', $1, true), set_config('app.erasure_surrogate', $2, true)",
+      [subject.toString(), surrogate.toString()]);
+    try { await fn(c); return "ok"; } catch (e) { return (e as { code?: string }).code ?? "unknown"; }
+  } finally { await c.query("rollback").catch(() => undefined); await c.end(); }
+}
+
+describe("§2 — the message guard admits the redaction and nothing else", () => {
+  const SURROGATE = -424242n;
+  const redaction = (extra = "") => `update public.communication_messages
+     set provider_user_id = ${SURROGATE}, provider_display_name_snapshot = null,
+         provider_username_snapshot = null,
+         text = case when text is null then null else '${MARKER}' end ${extra}
+   where id = $1`;
+
+  it("admits the exact redaction of the subject's message under the markers", async () => {
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query(redaction(), [subjectMessageIds[0]]))).toBe("ok");
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query(redaction(), [subjectMessageIds[1]]))).toBe("ok");
+  });
+
+  it("refuses the same UPDATE without the markers", async () => {
+    const c = await adminClient();
+    try {
+      await c.query("begin");
+      const code = await sqlstate(() => c.query(redaction(), [subjectMessageIds[0]]));
+      expect(code).toBe("P0001");
+    } finally { await c.query("rollback").catch(() => undefined); await c.end(); }
+  });
+
+  it("refuses a text that is not the marker", async () => {
+    const sql = `update public.communication_messages set provider_user_id = ${SURROGATE},
+      provider_display_name_snapshot = null, provider_username_snapshot = null, text = 'щось інше' where id = $1`;
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query(sql, [subjectMessageIds[0]]))).toBe("P0001");
+  });
+
+  it("refuses the redaction when any other guarded column changes with it", async () => {
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query(redaction(", kind = 'photo'"), [subjectMessageIds[0]]))).toBe("P0001");
+  });
+
+  it("refuses the redaction of a message that is not the subject's", async () => {
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query(redaction(), [bystanderMessageId]))).toBe("P0001");
+  });
+
+  it("refuses a surrogate other than the one the marker names", async () => {
+    const sql = `update public.communication_messages set provider_user_id = -1, provider_display_name_snapshot = null,
+      provider_username_snapshot = null, text = case when text is null then null else '${MARKER}' end where id = $1`;
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query(sql, [subjectMessageIds[0]]))).toBe("P0001");
+  });
+
+  it("still refuses DELETE under the markers", async () => {
+    expect(await underMarkers(SUBJECT, SURROGATE, (c) => c.query("delete from public.communication_messages where id = $1", [subjectMessageIds[0]]))).toBe("P0001");
+  });
+});
