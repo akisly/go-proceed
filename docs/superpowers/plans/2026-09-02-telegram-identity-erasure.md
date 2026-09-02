@@ -47,10 +47,12 @@ export SUPABASE_DB_URL=postgresql://postgres:postgres@127.0.0.1:54322/postgres
 **Applying the migration locally.** The owner's working database is the same local stack. `supabase db reset` rebuilds it from every migration and is the honest way to apply `0081`; it also wipes local state the owner may be using on the Telegram branch. Ask before running it. The alternative that touches nothing else is to apply each section by hand inside a transaction while developing —
 
 ```bash
-docker exec -i supabase_db_goproceed psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -1 -f - < supabase/migrations/0081_the_identity_that_asked_to_be_forgotten.sql
+docker exec -i supabase_db_goproceed psql -U postgres -d postgres -v ON_ERROR_STOP=1 -1 -f - < supabase/migrations/0081_the_identity_that_asked_to_be_forgotten.sql
 ```
 
 — which is idempotent for this file (every statement is `create or replace`, `create table if not exists`, `drop trigger if exists`, `insert … on conflict do nothing`) and is what the steps below assume. CI applies it through `db reset` regardless.
+
+Apply as `postgres`, not `supabase_admin`. `supabase db reset` creates every object as `postgres`; a hand-apply as the superuser leaves `0081`'s tables and functions owned by `supabase_admin`, and then owner-only semantics (`app.write_erasure_audit`, the pg_cron job) and the suite's teardown behave differently from CI. Found 2026-09-03 in Task 4's fix loop, when `admin` could not delete from `app.telegram_erasures`; the local objects were re-owned to `postgres` by hand.
 
 ## File Structure
 
@@ -316,7 +318,7 @@ revoke all on table app.retention_policy from public, anon, authenticated, gopro
 
 Run:
 ```bash
-docker exec -i supabase_db_goproceed psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -1 -f - < supabase/migrations/0081_the_identity_that_asked_to_be_forgotten.sql
+docker exec -i supabase_db_goproceed psql -U postgres -d postgres -v ON_ERROR_STOP=1 -1 -f - < supabase/migrations/0081_the_identity_that_asked_to_be_forgotten.sql
 pnpm --filter @goproceed/testing exec vitest run src/telegram-erasure.test.ts
 ```
 Expected: §1's three cases PASS.
@@ -530,7 +532,7 @@ diff /tmp/g0070.txt /tmp/g0081.txt && echo "guard comparison identical"
 
 Run:
 ```bash
-docker exec -i supabase_db_goproceed psql -U supabase_admin -d postgres -v ON_ERROR_STOP=1 -1 -f - < supabase/migrations/0081_the_identity_that_asked_to_be_forgotten.sql
+docker exec -i supabase_db_goproceed psql -U postgres -d postgres -v ON_ERROR_STOP=1 -1 -f - < supabase/migrations/0081_the_identity_that_asked_to_be_forgotten.sql
 pnpm --filter @goproceed/testing exec vitest run src/telegram-erasure.test.ts
 ```
 Expected: §1 and §2 PASS (§2: 1 admission, 6 refusals).
