@@ -384,6 +384,18 @@ class with a non-NULL duration:
   where coalesce(consumed_at, expires_at) < now() - duration`, each limited
   to `p_batch` by ctid subselect.
 
+[Clarified 2026-09-03, during execution. «Steps 3–11» above means the class's
+own tables. `customer_communication` runs steps 3–6 and 8–11 — messages, edit
+events, attachment filenames, registry row, audit — and never step 7: the
+link belongs to `customer_identity`, and an active link is never aged out, as
+the next bullet says. `customer_identity` runs steps 3, 7, 10 and 11 — the
+link rewrite, registry row, audit — and never touches a message. So a NULL
+duration leaves a class's tables alone whatever the other classes do. The
+internal function takes a scope argument (`all` on the request path,
+`communication` / `identity` here) so each branch states what it may reach.
+Found when the Task 5 review reproduced an active link revoked under a
+message-text duration; recorded in the plan's ledger as a ruling.]
+
 Scheduled as in `0007`: `cron.schedule('communication-retention', '23 3 * * *',
 'select app.apply_communication_retention(5000)')` inside the same
 pg_cron-availability block, unscheduling first so re-running the migration is
