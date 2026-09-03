@@ -12,7 +12,10 @@
 // line and exits 0; any error exits 1 with its message. A non-zero
 // pending_updates_for_subject means the worker still holds updates from this
 // person — run again once /internal/telegram/jobs has drained them; the
-// erasure that ran is complete.
+// erasure that ran is complete. That counter is per bot, not per workspace
+// (telegram_inbox_updates carries no tenant column): a person active in
+// another workspace on the same bot keeps it above zero, and that alone is
+// not a reason to run this again.
 import { createHmac } from "node:crypto";
 import { pathToFileURL } from "node:url";
 import pg from "pg";

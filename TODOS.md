@@ -3365,6 +3365,37 @@ needs an owner decision on the `operational_security` duration (item 1
 above); it is called out here separately because it is the one place a
 raw Telegram id, not a hash or a surrogate, outlives a request-driven erasure.
 
+**5. `technical/data-retention-catalog.csv` rows for five tables claimed a
+mechanism that does not reach them, corrected 2026-09-03.**
+`telegram_chat_bindings`, `telegram_media_groups`,
+`telegram_requirement_choices`, `telegram_evidence_decision_attempts` and
+`communication_delivery_attempts` are none of the seven tables
+`app.apply_communication_retention` (0081 §5) ever writes to
+(`communication_messages`, `communication_message_events`,
+`communication_attachments`, `telegram_member_links`,
+`telegram_inbox_updates`, `telegram_binding_intents`,
+`telegram_member_link_intents`), yet each carried the same "Duration comes
+from app.retention_policy (0081) applied by app.apply_communication_retention"
+paragraph the seven do. Their notes now say `app.retention_policy` holds the
+duration gate but `app.apply_communication_retention` has no branch that
+reaches them yet. Closing this is a decision, not a bug fix: either extend
+the retention mechanism with branches for these tables' classes, or record
+that their retention rides on their own catalog answer instead.
+
+**6. A repeat erasure after the subject re-links is refused, not resolved.**
+`app.erase_telegram_identity_internal` (0081 §4) now raises before any write
+when the same workspace holds both a link row still carrying the surrogate
+from an earlier erasure and a new link row for the same raw
+`telegram_user_id` — the `unique (workspace_id, telegram_user_id)` constraint
+on `telegram_member_links` would otherwise turn the second erasure's UPDATE
+into a bare `23505`. The two options an owner could pick between: collapse
+the older surrogated link row (losing its distinct erasure record) or give
+each erased link its own per-subject surrogate rather than reusing one
+surrogate for the whole workspace (`app.telegram_erasures`'s
+`unique (workspace_id, subject_hmac)` would need to change shape). Until one
+is chosen the definer refuses with a message naming this entry;
+`packages/testing/src/telegram-erasure.test.ts` §4 pins the refusal.
+
 ## P3 — workspace closure procedure
 
 **M0 gate 4's first checkbox in `docs/delivery/production-readiness.md` §4

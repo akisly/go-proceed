@@ -5,10 +5,11 @@
 --   1. app.telegram_erasures — the surrogate registry — and
 --      app.retention_policy, seeded with three NULL durations (inert);
 --   2. app.guard_communication_message learns to recognise exactly one
---      transformation — pseudonym plus redaction, under two transaction-local
---      markers — and refuses everything else as before;
---   3. app.guard_communication_message_event — the same for edit events,
---      leaving app.reject_mutation untouched for audit_events;
+--      transformation — pseudonym plus redaction — and refuses everything
+--      else as before, admitting it under both transaction-local markers;
+--   3. app.guard_communication_message_event — the analogous admission for
+--      edit events, under the surrogate marker alone, leaving
+--      app.reject_mutation untouched for audit_events;
 --   4. app.erase_telegram_identity — the definer the operator calls — and the
 --      owner-only helpers it is built from;
 --   5. app.apply_communication_retention and its pg_cron schedule.
@@ -288,6 +289,32 @@ begin
     if v_surrogate is null then raise exception 'could not allocate a surrogate identifier'; end if;
     insert into app.telegram_erasures (workspace_id, subject_hmac, surrogate_user_id, origin)
     values (p_workspace, p_subject_hmac, v_surrogate, p_origin);
+  end if;
+
+  -- I2: the surrogate is now known but nothing has been written yet. A
+  -- person can link again after an earlier erasure (a new
+  -- telegram_member_links row, raw telegram_user_id) and then be erased
+  -- again; the same HMAC yields the same surrogate, and the links UPDATE
+  -- below would try to give the new row the surrogate the old row already
+  -- holds, colliding on telegram_member_links' unique (workspace_id,
+  -- telegram_user_id) with a bare 23505. Checked here, before any write of
+  -- this call (including the messages UPDATE, which precedes the links
+  -- UPDATE for scope 'all'), so the whole transaction rolls back with a
+  -- clear, actionable message instead of an opaque constraint violation
+  -- partway through. Scoped to ('all', 'identity') because only those scopes
+  -- reach telegram_member_links at all. Ruling: do not change the data
+  -- semantics here (TODOS.md P2, "a repeat erasure after the subject
+  -- re-links is refused, not resolved") — refuse until the owner decides.
+  if p_scope in ('all', 'identity') then
+    if exists (
+      select 1 from public.telegram_member_links l
+      where l.workspace_id = p_workspace and l.telegram_user_id = p_telegram_user_id
+    ) and exists (
+      select 1 from public.telegram_member_links l
+      where l.workspace_id = p_workspace and l.telegram_user_id = v_surrogate
+    ) then
+      raise exception 'the subject was linked again after an earlier erasure in this workspace; a repeat erasure of the link needs the owner''s decision (TODOS.md, retention and erasure residue)';
+    end if;
   end if;
 
   perform set_config('app.erasure_subject', p_telegram_user_id::text, true);

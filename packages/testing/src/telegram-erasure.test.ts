@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { createHmac } from "node:crypto";
-import type { Client, QueryResult } from "pg";
+import type { Client } from "pg";
 import { adminClient, asActor, asService, dropWorkspaces } from "./pg";
 
 /**
@@ -282,10 +282,12 @@ describe("§4 — one identity, erased on request", () => {
     expect(audit.rows[0]!.body).not.toContain(SUBJECT.toString());
   });
 
-  it("is idempotent: a second call returns the same surrogate and touches nothing", async () => {
-    const first = await admin.query<{ surrogate_user_id: string }>("select surrogate_user_id::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
+  it("is idempotent: a second call returns the same surrogate and touches nothing, and erased_at does not move", async () => {
+    const first = await admin.query<{ surrogate_user_id: string; erased_at: string }>("select surrogate_user_id::text, erased_at::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
     const r = await call(subjectHmac(PEPPER, WS_A, SUBJECT));
     expect(r.rows[0]).toMatchObject({ already_erased: true, surrogate_user_id: first.rows[0]!.surrogate_user_id, messages: "0", events: "0", links: "0", attachments: "0" });
+    const second = await admin.query<{ erased_at: string }>("select erased_at::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
+    expect(second.rows[0]!.erased_at).toBe(first.rows[0]!.erased_at);
   });
 
   it("refuses the member plane", async () => {
@@ -373,6 +375,45 @@ describe("§4 — one identity, erased on request", () => {
     }
     expect(error?.code).toBe("P0001");
     expect(error?.message).toMatch(/unknown erasure scope bogus/);
+  });
+
+  // I2: SUBJECT was erased earlier in this describe block (the first case),
+  // so a link row for SUBJECT already exists carrying the surrogate. A
+  // person can link again after that — a second telegram_member_links row,
+  // a fresh member, the raw id — and then be erased again; the same HMAC
+  // resolves to the same surrogate, and the links UPDATE would try to give
+  // this new row the surrogate the old row already holds, colliding on
+  // telegram_member_links' unique (workspace_id, telegram_user_id). The
+  // definer now refuses this before any write.
+  it("refuses a repeat erasure after the subject linked again, before any write", async () => {
+    const RELINK_USER = "f1f1f1f1-2222-4222-8222-222222222222";
+    await admin.query(`insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+      values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'erasure-relink@example.test', '', now(), now())
+      on conflict (id) do nothing`, [RELINK_USER]);
+    const member = await admin.query<{ id: string }>(
+      "insert into public.memberships (organization_id, user_id, role, status) values ($1, $2, 'member', 'active') returning id",
+      [WS_A, RELINK_USER]);
+    const relinkMemberId = member.rows[0]!.id;
+    await admin.query(`insert into public.telegram_member_links
+      (workspace_id, member_id, telegram_user_id, display_name_snapshot, username_snapshot, linked_by_member_id)
+      values ($1, $2, $3, 'Петро Петренко', 'petrenko', $2)`, [WS_A, relinkMemberId, SUBJECT.toString()]);
+    const linkBefore = await linkRow(relinkMemberId);
+    const registryCountBefore = await admin.query<{ count: string }>(
+      "select count(*)::text as count from app.telegram_erasures where workspace_id = $1", [WS_A]);
+
+    let error: { code?: string; message?: string } | undefined;
+    try {
+      await call(subjectHmac(PEPPER, WS_A, SUBJECT));
+    } catch (e) {
+      error = e as { code?: string; message?: string };
+    }
+    expect(error?.code).toBe("P0001");
+    expect(error?.message).toMatch(/the subject was linked again after an earlier erasure in this workspace/);
+
+    expect(await linkRow(relinkMemberId)).toEqual(linkBefore);
+    const registryCountAfter = await admin.query<{ count: string }>(
+      "select count(*)::text as count from app.telegram_erasures where workspace_id = $1", [WS_A]);
+    expect(registryCountAfter.rows[0]!.count).toBe(registryCountBefore.rows[0]!.count);
   });
 });
 

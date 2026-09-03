@@ -312,6 +312,17 @@ Body, in order:
     the surrogate and counts and never the original id.
 11. `set_config('app.erasure_subject', '', true)`, the same for the surrogate.
 
+[Clarified 2026-09-03, during execution. Step 2 above does not match what
+shipped: the wrapper never calls `set_config('app.organization_id', …)`. It
+instead checks `p_workspace` against `app.service_workspace()` — the GUC the
+caller's own session already declared — and raises
+`'erasure workspace is not the declared workspace'` on a mismatch. Every
+caller declares the workspace before calling, exactly as
+`apps/app/scripts/telegram-erase-identity.mjs` does. The internal function,
+`app.erase_telegram_identity_internal`, also carries a fifth argument,
+`p_scope` (`'all' | 'communication' | 'identity'`), that gates which of steps
+5–8 run; the wrapper always passes `'all'`.]
+
 ### 7.4 The recognised transformation
 
 `app.guard_communication_message()` (0070:419-454) gains one branch before
@@ -357,6 +368,14 @@ end if;
 
 The parent is checked by surrogate, which is why messages are rewritten
 before events (§6, step 4 then 5).
+
+[Clarified 2026-09-03, during execution. The events branch above did not
+ship inside `app.reject_mutation()`. It shipped as its own function,
+`app.guard_communication_message_event()`, and the
+`communication_message_events_append_only` trigger was repointed from
+`app.reject_mutation()` to it — that table only. `app.reject_mutation()` is
+untouched and still guards `audit_events`, `telegram_requirement_choices`
+and `communication_delivery_attempts` exactly as before.]
 
 ### 7.5 `app.apply_communication_retention`
 

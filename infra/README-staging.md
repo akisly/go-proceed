@@ -998,7 +998,15 @@ back.
 **If `pending_updates_for_subject` is not 0**, the worker still holds updates
 from this person. The erasure that ran is complete; run the same command again
 after `POST /internal/telegram/jobs` has drained the inbox. The HMAC yields the
-same surrogate.
+same surrogate. This counter is per bot, not per workspace — a person still
+active in another workspace on the same bot keeps it above zero, and that
+alone is not a reason to run the command again.
+
+**If the command fails with «the subject was linked again after an earlier
+erasure in this workspace…»**, the person linked again after being erased
+and the definer refuses the new link's erasure until the owner decides how
+to handle it (`TODOS.md` P2, "a repeat erasure after the subject re-links is
+refused, not resolved") — nothing was written by that call.
 
 **Record** the date, workspace, surrogate and counts where the partner's
 requests are tracked. Never record the identifier next to the surrogate.
