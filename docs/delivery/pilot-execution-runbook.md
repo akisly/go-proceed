@@ -473,7 +473,7 @@ have acceptance evidence that **cannot be produced without something external**
 not a purely internal precondition, and a plan that treats it as one will read
 M6's opening as nearer than it is. Both sides are on the page rather than
 resolved: [roadmap.md](../product/roadmap.md):908-913 states the condition and
-[version-0.1.md](version-0.1.md):557-567 and :743-752 state what satisfying it
+[version-0.1.md](version-0.1.md):557-567 and :754-763 state what satisfying it
 costs.
 
 ### P2 — the ADR-009 delivery front (Plans B, C, D)
@@ -1393,7 +1393,7 @@ Eight `*-gate.md` records exist under `docs/superpowers/plans/evidence/` (with t
 [2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md).
 The format below is transcribed from those records, not designed here.
 
-**The chain lapsed and resumed.** From 2026-08-03 to 2026-09-02 no record was written while fifty-three PRs (#7 through #61 — measured 2026-09-03 as the distinct `Merge pull request #N` subjects of `git log --merges --since=2026-08-03 --until=2026-09-03`; the 2026-09-01 revision's «nineteen, #37–#55» counted only the billing-pause window) merged. On 2026-09-03 the erasure slice wrote [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md) in the rename-slice-3 shape, with a «Deviations from the plan» section the template below now carries. The channel itself (PR #58, nineteen migrations) still has **no gate record**: ADR-011 §"Status against the runtime" is the nearest thing, and it is an ADR, not a record. The reason is stated at
+**The chain lapsed and resumed.** From 2026-08-03 to 2026-09-02 no record was written while fifty-three PRs (#7 through #61 — measured 2026-09-03 as the distinct `Merge pull request #N` subjects of `git log --merges --since=2026-08-03 --until=2026-09-03T00:00:00` — the time matters: a bare `--until=2026-09-03` is inclusive of that whole day and would count #58 and #64–#66; the 2026-09-01 revision's «nineteen, #37–#55» counted only the billing-pause window) merged. On 2026-09-03 the erasure slice wrote [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md) in the rename-slice-3 shape, with a «Deviations from the plan» section the template below now carries. The channel itself (PR #58, nineteen migrations) still has **no gate record**: ADR-011 §"Status against the runtime" is the nearest thing, and it is an ADR, not a record. The reason is stated at
 [TODOS.md](../../TODOS.md):3089-3092 — the agent harness refuses report `.md`
 files, so findings that would have lived in the session directory were filed in
 `TODOS.md` instead. **Whether that substitution is a decision or a drift is
