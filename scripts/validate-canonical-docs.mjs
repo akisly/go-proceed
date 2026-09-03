@@ -1402,7 +1402,7 @@ function main() {
   // deliberately narrow rather than admitting an open "v0.N" pattern that would
   // let a typo pass.
   const MILESTONES = new Set([
-    "v0.0", "v0.1-M1", "v0.1-M2", "v0.1-M3", "v0.1-M4", "v0.1-M5", "v0.1-M6", "v0.2",
+    "v0.0", "v0.1-M1", "v0.1-M2", "v0.1-M3", "v0.1-M4", "v0.1-M5", "v0.1-M6", "v0.1-M7", "v0.2",
   ]);
   for (const p of ["technical/openapi/scope-v0.1.csv", "technical/permissions/capabilities.csv", "technical/events/event-catalog.csv"]) {
     if (!existsSync(join(ROOT, p))) continue;

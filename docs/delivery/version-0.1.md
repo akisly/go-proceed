@@ -1,4 +1,4 @@
-# v0.1 delivery gates — M0–M6 vertical slices
+# v0.1 delivery gates — M0–M7 vertical slices
 
 **Status:** Approved
 
@@ -68,8 +68,9 @@ steps, and nothing outside them is v0.1:
 6. **The money.** The owner sees what is blocked and how much money sits behind
    it, broken down by cause.
 
-Seven milestones deliver them: **M0** makes the environment fit to hold someone
-else's data, and **M1–M6** are one step each.
+Eight milestones deliver them: **M0** makes the environment fit to hold someone
+else's data, and **M1–M7** are one step each (M7 added 2026-09-03 by
+[ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decision 9).
 [ADR-007](../decisions/ADR-007-pilot-field-client.md) makes the M2 field client a
 PWA served from `apps/app` and takes `apps/mobile` off the v0.1 path without
 deleting it.
@@ -169,7 +170,8 @@ in each API slice below. The table columns come from ADR-006 decision 4.
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
-| `v0.1-M6` | 13 | 0 | — |
+| `v0.1-M6` | 3 | 0 | — |
+| `v0.1-M7` | 10 | 0 | — |
 | Total | 75 | 26 | 26 |
 
 *The «v0.1 tables» column is ADR-006 decision 4's build list and stays at
@@ -189,6 +191,8 @@ whose own 2026-08-08 escalation said exactly this). No new table: both existed
 since migration 0010 with RLS and grants and were counted in the 26 all along.*
 
 *`v0.1-M6` has thirteen operations as of 2026-09-01. `evidence.list` (Plan D slice D1, Task 3), `external.evidence_bytes` (the same slice, Task 4), the project Telegram channel commands, `telegram_webhook.accept`, `assignment_communication_cards.publish`, and the three `project_communications.*` timeline/reply/retry operations all share the tag — a compromise: M6 is nominally "the blocked money" and these operational channel reads/writes are not that, but the alternative (`v0.1-M7`) would need its own entry in ADR-006 decision 4's and [roadmap.md](../product/roadmap.md)'s milestone tables, which restructures the delivery taxonomy to accommodate one slice. `blocked_value.get` is no longer the only `v0.1-M6` row — see the two corrections below, in the M6 section itself. No new table accompanies the evidence or communication reads, and the Telegram ingress uses the already-deployed inbox table; `evidence.list` is a join over `upload_intents` and `evidence_objects`, and `external.evidence_bytes` reads one `evidence_objects` row and streams the object storage already holds. `telegram_webhook.accept` verifies the provider secret, bounds raw input to 1 MiB, and persists a pending update before acknowledgement; it resolves no tenant scope. Assignment cards and project communication replies/retries atomically record a queued immutable message and its Telegram delivery intent; provider acceptance is later work. The tag records the slice that built each operation rather than re-stating a shipped milestone's operation list after the fact.*
+
+*Corrected 2026-09-03: ADR-011 decision 9 made the alternative the decision. The ten channel operations (`project_field_channel.configure`, `project_field_channel.get`, `projects.activate`, `telegram_binding_intents.create`, `telegram_member_link_intents.create`, `telegram_webhook.accept`, `assignment_communication_cards.publish`, `project_communications.list`, `.reply`, `.retry`) are `v0.1-M7`; M6 keeps `blocked_value.get`, `evidence.list` and `external.evidence_bytes`. The compromise above is history, kept as the record of why the question was asked.*
 
 **Telegram ingress release blocker — Task 13 must configure and verify an edge
 limit of 120 requests/minute with burst 30 before this public webhook is
@@ -851,6 +855,38 @@ settled it stands unchanged and settles the next disagreement the same way.
 - **Exclusions:** no seven-state value-at-risk projection, no acceptance
   projection, no tax-basis machinery, no receivables, invoices, payments, or FX.
   `value_at_risk.get` and `acceptance.get` are v0.2.
+
+## v0.1-M7 — The channel
+
+*Added 2026-09-03 by [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md)
+decision 9; the design is
+[2026-08-28-telegram-project-channel-design.md](../superpowers/specs/2026-08-28-telegram-project-channel-design.md).*
+
+- **User outcome:** a project's site participants, PTV staff and the GoProceed
+  bot share one closed Telegram group chosen before activation; evidence is a
+  photo sent as a reply to an assignment card; a PTV reply from the web returns
+  to that group; one person who wrote there can be forgotten on request.
+- **Schema slice:** fifteen tables outside ADR-006 decision 4's twenty-six,
+  built by migrations `0061` through `0081` and tagged `v0.1-M7` in
+  [entity-catalog.csv](../../technical/database/entity-catalog.csv), plus the
+  two `app`-schema tables of `0081` (the surrogate registry and the retention
+  policy). The validator's two-way build-list check does not cover this
+  milestone; ADR-010's accounting pattern carries the fifteen.
+- **API slice:** the ten operations named in the correction under the
+  operations-per-milestone table above, authorised by ADR-011; nine on the
+  member plane, `telegram_webhook.accept` on the provider ingress.
+- **Exit gates:** ADR-011 decision 10 — the M0 gates the channel engages
+  (1, 2, 3, 4, 5, 7, 8, 9, 11 and 12) close with recorded evidence; the
+  identity-level deletion procedure of gate 4 is exercised
+  ([2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md));
+  and before any environment enables the webhook: Task 13's edge rate limit,
+  the real-group staging pass, the scheduler, and the assignment card carrying
+  the verification tag and the source of every normative string it renders
+  (gate 9, ADR-011 open item 9). M0's real-data rule applies as it does to M6:
+  no real group until M0 is closed.
+- **Evidence today:** built and merged to `main` (`7bf8e4b`, 2026-09-03);
+  the erasure gate record is the only gate record; deployed nowhere; the
+  webhook is enabled in no environment.
 
 ## Cross-milestone rules
 

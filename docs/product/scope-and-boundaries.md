@@ -190,7 +190,7 @@ v0.0 does not claim that the v0.1 domain already exists.
 
 ## v0.1 included capabilities
 
-v0.1 is delivered through **seven milestones**
+v0.1 is delivered through **eight milestones** (seven by ADR-006 decision 3; M7 added 2026-09-03 by [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decision 9)
 ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 3): M0 *fit to
 hold someone else's data*, M1 *the object and what it owes*, M2 *the phone*, M3
 *the refusal*, M4 *the act*, M5 *the link*, M6 *the blocked money*. Every
@@ -795,7 +795,9 @@ in v0.1 either way.
 - SaaS subscription billing;
 - custom entitlement packaging;
 - customer support access or impersonation;
-- public webhooks and third-party integrations;
+- public webhooks and third-party integrations (the Telegram webhook of
+  `v0.1-M7` is the product's own ingress to its own bot, not a public webhook —
+  [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md), 2026-09-03);
 - custom role builder;
 - sequential enterprise approval routing — ADR-005 assigns v0.3 as the owning
   version;

@@ -189,6 +189,10 @@ the same tests as an imported line.
 Seven milestones. One is new; four survive with changed contents; one splits;
 one moves out of v0.1 entirely.
 
+[Amended 2026-09-03 by [ADR-011](ADR-011-telegram-locked-project-channel.md)
+decision 9: eight — `v0.1-M7 — The channel`, the Telegram project channel of
+the 2026-08-28 design, is added after M6 and re-cuts none of the seven.]
+
 | Old milestone (ADR-004:48-53) | Fate |
 |---|---|
 | — | **New: M0 — Fit to hold someone else's data.** Decision 7 |
@@ -280,6 +284,7 @@ has to guess:
 | M4 — The act | `statutory_acts`, `statutory_act_versions` | none |
 | M5 — The link | `external_access_grants`, `external_sessions`, `external_decision_batches` | none |
 | M6 — The blocked money | none. It is a query over `blocked_reasons` and `work_items` | — |
+| M7 — The channel (added 2026-09-03, ADR-011 decision 9) | fifteen communication tables outside this list, from project_field_channels (0061) to the erasure registry (0081), tagged v0.1-M7 in the entity catalog; not counted in the twenty-six | — |
 
 Five consequences of that list, each of which amends ADR-005 and none of which
 makes anything overridable:

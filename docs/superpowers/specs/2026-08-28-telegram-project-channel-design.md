@@ -4,7 +4,7 @@
 
 **Status:** approved by the owner in conversation, section by section
 
-**Applies to:** first messaging-channel release
+**Applies to:** `v0.1-M7 — The channel` (ADR-011 decision 9, 2026-09-03; was «first messaging-channel release»)
 
 **Read with:**
 [`../../decisions/ADR-007-pilot-field-client.md`](../../decisions/ADR-007-pilot-field-client.md),
