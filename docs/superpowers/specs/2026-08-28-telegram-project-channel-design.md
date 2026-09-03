@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-28
 
-**Status:** approved by the owner in conversation, section by section
+**Status:** approved by the owner in conversation, section by section (2026-08-28); decision 8 as re-worded by `22b5d71` and the attachment-lifecycle wording of `fe809a2` ratified by the owner on 2026-09-03 (ADR-011, open item 1)
 
 **Applies to:** `v0.1-M7 — The channel` (ADR-011 decision 9, 2026-09-03; was «first messaging-channel release»)
 
