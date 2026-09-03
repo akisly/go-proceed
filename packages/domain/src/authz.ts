@@ -55,7 +55,8 @@ export type ProjectCapability =
   // (`externalGrantPermissions` in @goproceed/contracts), never by a
   // public.project_access_grants row. Putting them here would make an external
   // capability grantable to a member.
-  | "packages.submit";
+  | "packages.submit"
+  | "communication.reply";
 
 // owner/admin for requirement_rules.manage, matching the RLS policies migration
 // 0041:774-776 writes on public.requirement_rule_versions

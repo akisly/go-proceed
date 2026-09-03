@@ -1,5 +1,7 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { q, truncateAll, jsonReq, baselineFixture, type BaselineFixture } from "./helpers/fixtures";
+import { afterEach, describe, it, expect, vi, beforeEach } from "vitest";
+import { Client } from "pg";
+import { createHash } from "node:crypto";
+import { ADMIN_URL, hasIsolatedDatabaseCredentials, q, jsonReq, baselineFixture, type BaselineFixture } from "./helpers/fixtures";
 import {
   addLine, bindRules, createDraft, getVersion, manifestOf, publishRuleVersion,
   publishVersion, ruleVersionBody, seedRequirementLibrary,
@@ -9,6 +11,7 @@ import {
   BOUND_RULE_VERSIONS_SQL, boundRuleVersion, planForWorkType,
 } from "../src/lib/requirement-materialisation";
 import { materialiseOccurrences } from "../src/lib/occurrence-writer";
+import { recordEvidenceDecision } from "../src/lib/evidence/record-evidence-decision";
 
 /**
  * NOTHING IN THIS FILE HAS BEEN EXECUTED. No `vitest`, no `tsc`, no `psql`, no
@@ -65,6 +68,13 @@ import { materialiseOccurrences } from "../src/lib/occurrence-writer";
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 let current = A;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
+
+// This legacy suite historically reset the local developer database before
+// every case.  Telegram work must never do that: it runs only against an
+// explicitly supplied isolated database, and removes only the workspace each
+// case generated.  The predicate trims all three credentials and ADMIN_URL is
+// the same canonical target used by q() and teardown.
+const databaseDescribe = hasIsolatedDatabaseCredentials() ? describe : describe.skip;
 
 /**
  * NONE OF THE FOUR M3 CAPABILITIES IS IN ANY ROW OF
@@ -274,12 +284,36 @@ function changedTables(before: Record<string, number>, after: Record<string, num
 
 let fx: Fx;
 beforeEach(async () => {
-  await truncateAll();
   current = A;
   fx = await baseline();
 });
 
-describe("stage_closures.create — the refusal", () => {
+afterEach(async () => {
+  if (!fx?.workspaceId) return;
+  const client = new Client({ connectionString: ADMIN_URL });
+  await client.connect();
+  try {
+    // This is scoped to the exact generated tenant.  The catalog supplies the
+    // identifiers, so no untrusted identifier is interpolated into SQL.
+    await client.query("set session_replication_role = replica");
+    const scoped = await client.query<{ table_name: string; column_name: string }>(`
+      select c.table_name, c.column_name
+        from information_schema.columns c
+        join information_schema.tables t on t.table_schema=c.table_schema and t.table_name=c.table_name
+       where c.table_schema='public' and t.table_type='BASE TABLE'
+         and c.table_name <> 'organizations'
+         and c.column_name in ('workspace_id', 'organization_id')`);
+    for (const { table_name, column_name } of scoped.rows) {
+      await client.query(`delete from public.${table_name} where ${column_name}=$1`, [fx.workspaceId]);
+    }
+    await client.query("delete from public.organizations where id=$1", [fx.workspaceId]);
+  } finally {
+    await client.query("set session_replication_role = origin").catch(() => undefined);
+    await client.end();
+  }
+});
+
+databaseDescribe("stage_closures.create — the refusal", () => {
   it("refuses with the catalogued code and names every unmet requirement", async () => {
     const res = await closeStage(fx.workStageId);
     expect(res.status).toBe(409);
@@ -373,7 +407,7 @@ describe("stage_closures.create — the refusal", () => {
   });
 });
 
-describe("the escape, and the one that is never available", () => {
+databaseDescribe("the escape, and the one that is never available", () => {
   it("rejects not_applicable on a hold, by the command itself", async () => {
     // INV-063 and version-0.1.md §M3's exit gate AND security test. 422 and not
     // 403: the action is refused for every actor and every role, so it is a fact
@@ -441,7 +475,53 @@ describe("the escape, and the one that is never available", () => {
   });
 });
 
-describe("the decision, and who may not take it", () => {
+databaseDescribe("the decision, and who may not take it", () => {
+  it("keeps the shared command contract exact for accept return validation stale version and replay", async () => {
+    const acceptedBody = { outcome: "accepted" as const, issues: [], expectedVersion: null };
+    const acceptedRaw = JSON.stringify(acceptedBody);
+    const acceptedHash = createHash("sha256").update(acceptedRaw).digest("hex");
+    const acceptedInput = {
+      actorUserId: A, requestId: crypto.randomUUID(), occurrenceId: fx.occurrenceIds[0]!,
+      body: acceptedBody, idempotencyKey: `shared-contract-${crypto.randomUUID()}`, requestHash: acceptedHash,
+    };
+    const accepted = await recordEvidenceDecision(acceptedInput);
+    expect(accepted.status).toBe(201);
+    expect(Object.keys(accepted.body as Record<string, unknown>).sort()).toEqual([
+      "approverRole", "decidedAt", "decisionId", "decisionNo", "headVersion",
+      "occurrenceSatisfied", "outcome", "requirementOccurrenceId", "stageCanClose", "supersededDecisionId",
+    ].sort());
+    expect(accepted.body).toMatchObject({ requirementOccurrenceId: fx.occurrenceIds[0],
+      outcome: "accepted", decisionNo: 1, headVersion: 1, supersededDecisionId: null });
+    expect(accepted.expiresAt).toBeInstanceOf(Date);
+    const replay = await recordEvidenceDecision({ ...acceptedInput, requestId: crypto.randomUUID() });
+    expect(replay).toEqual(accepted);
+    const [storedAccepted] = await q<{ request_hash: string; idempotency_key: string }>(`select request_hash,idempotency_key
+      from public.requirement_evidence_decisions where workspace_id=$1 and requirement_occurrence_id=$2`,
+    [fx.workspaceId, fx.occurrenceIds[0]]);
+    expect(storedAccepted).toEqual({ request_hash: acceptedHash, idempotency_key: acceptedInput.idempotencyKey });
+
+    await expect(recordEvidenceDecision({ ...acceptedInput, requestId: crypto.randomUUID(),
+      idempotencyKey: `stale-contract-${crypto.randomUUID()}` }))
+      .rejects.toMatchObject({ status: 409, body: { code: "OCCURRENCE_CONFLICT" } });
+
+    const missingReason = await decide(fx.occurrenceIds[1]!, { outcome: "returned", expectedVersion: null });
+    expect(missingReason.status).toBe(422);
+    expect((await missingReason.json()).code).toBe("VALIDATION_FAILED");
+
+    const returnedBody = { outcome: "returned" as const, reason: "Потрібне повне фото ділянки.",
+      issues: [], expectedVersion: null };
+    const returnedRaw = JSON.stringify(returnedBody);
+    const returned = await recordEvidenceDecision({
+      actorUserId: A, requestId: crypto.randomUUID(), occurrenceId: fx.occurrenceIds[1]!, body: returnedBody,
+      idempotencyKey: `shared-return-${crypto.randomUUID()}`,
+      requestHash: createHash("sha256").update(returnedRaw).digest("hex"),
+    });
+    expect(returned.status).toBe(201);
+    expect(returned.body).toMatchObject({ requirementOccurrenceId: fx.occurrenceIds[1],
+      outcome: "returned", decisionNo: 1, headVersion: 1, supersededDecisionId: null });
+    expect(returned.expiresAt).toBeInstanceOf(Date);
+  });
+
   it("closes on two accepting decisions and freezes the exact set", async () => {
     for (const occurrenceId of fx.occurrenceIds) {
       const res = await decide(occurrenceId, { outcome: "accepted", expectedVersion: null });
@@ -574,7 +654,7 @@ describe("the decision, and who may not take it", () => {
   });
 });
 
-describe("INV-065 — the gate never refuses to record a fact", () => {
+databaseDescribe("INV-065 — the gate never refuses to record a fact", () => {
   it("records performed quantity while the stage is blocked", async () => {
     expect((await closeStage(fx.workStageId)).status).toBe(409);
 
@@ -609,7 +689,7 @@ describe("INV-065 — the gate never refuses to record a fact", () => {
   });
 });
 
-describe("readiness.get and blocked_reasons.get agree with the command", () => {
+databaseDescribe("readiness.get and blocked_reasons.get agree with the command", () => {
   it("reports the same verdict the closure enforces, before and after", async () => {
     const before = await readiness(fx.projectId);
     expect(before.source).toBe("computed");
@@ -684,7 +764,7 @@ describe("readiness.get and blocked_reasons.get agree with the command", () => {
  * by hand to every actor, which is the shape of a gap a fixture hides. These two
  * cases use a member who holds NO hand-issued capability at all.
  */
-describe("the money reads and the project admin", () => {
+databaseDescribe("the money reads and the project admin", () => {
   const C = "cccccccc-cccc-cccc-cccc-cccccccccccc";
 
   async function joinAs(user: string, capabilities: string[]): Promise<void> {
@@ -766,7 +846,7 @@ describe("the money reads and the project admin", () => {
  * Three commands act on one work assignment and two of them refused a
  * non-`active` one. The third is the one that moves the money.
  */
-describe("the closure and the assignment behind it", () => {
+databaseDescribe("the closure and the assignment behind it", () => {
   async function satisfyByException(): Promise<void> {
     for (const occurrenceId of fx.occurrenceIds) {
       const res = await except(occurrenceId,
@@ -856,7 +936,7 @@ describe("the closure and the assignment behind it", () => {
  * visible». It was visible only in `stage_closure_occurrences`; the audit row
  * and the durable event said a stage closed and not that it closed on a waiver.
  */
-describe("the closure records how many obligations were escaped rather than met", () => {
+databaseDescribe("the closure records how many obligations were escaped rather than met", () => {
   it("counts decisions and exceptions in the audit row and in the outbox payload", async () => {
     const waived = await except(fx.occurrenceIds[0]!,
       { action: "waiver", reason: "Приклад-відмова від вимоги.", expectedVersion: null });
@@ -914,7 +994,7 @@ describe("the closure records how many obligations were escaped rather than met"
   });
 });
 
-describe("ADR-008 — the carve happens at admission, and a refusal carves nothing", () => {
+databaseDescribe("ADR-008 — the carve happens at admission, and a refusal carves nothing", () => {
   /**
    * `admission-valuation.int.test.ts` carries the price/tax/basis matrix, and it
    * runs over a VACUOUS stage — one with no obligation at all, which is the only
@@ -1029,7 +1109,7 @@ describe("ADR-008 — the carve happens at admission, and a refusal carves nothi
   });
 });
 
-describe("work_stages.create", () => {
+databaseDescribe("work_stages.create", () => {
   it("creates an EMPTY stage and says so", async () => {
     const { POST } = await import("../app/v1/assignments/[assignmentId]/stages/route");
     // ON THE UNCOVERED ASSIGNMENT. Migration 0051 §2's guard refuses a stage key

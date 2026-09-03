@@ -72,6 +72,8 @@ create type membership_status       as enum ('active','suspended','ended');
 create type invitation_status       as enum ('pending','accepted','revoked','expired');
 create type party_status            as enum ('draft','active','archived');
 create type project_status          as enum ('draft','active','archived');
+create type field_communication_channel as enum ('telegram');
+create type project_field_channel_state as enum ('unbound','connected','active','unhealthy','archived');
 create type project_party_role      as enum ('customer','technical_supervision','designer','general_contractor','performer','other');
 create type responsibility_kind     as enum ('performer','progress_recorder','evidence_recorder','evidence_custodian','requirement_owner','package_compiler','internal_verifier','package_submitter','acceptance_liaison','commercial_observer');
 create type contract_status         as enum ('draft','active','archived');
@@ -305,6 +307,24 @@ create table public.projects (
 );
 comment on table public.projects is
   'Construction object. Not owned by one legal entity; contracts of different own parties may coexist (ADR-002). Creation atomically grants creator project-admin access (INV-019).';
+
+create table public.project_field_channels (
+  workspace_id uuid not null,
+  project_id uuid not null,
+  channel field_communication_channel not null,
+  state project_field_channel_state not null default 'unbound',
+  locked_at timestamptz,
+  locked_by_member_id uuid,
+  last_healthy_at timestamptz,
+  version bigint not null default 1,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (workspace_id, project_id),
+  foreign key (workspace_id, project_id) references public.projects (workspace_id, id),
+  foreign key (workspace_id, locked_by_member_id) references public.memberships (workspace_id, id),
+  check ((locked_at is null and locked_by_member_id is null)
+      or (locked_at is not null and locked_by_member_id is not null))
+);
 
 create table public.project_parties (
   id uuid not null default gen_random_uuid(),
@@ -2431,6 +2451,10 @@ comment on table public.transaction_outbox is
 create index outbox_available_idx
   on public.transaction_outbox (workspace_id, available_at, id)
   where delivered_at is null;
+create unique index transaction_outbox_telegram_processor_identity_uniq
+  on public.transaction_outbox
+    (workspace_id, topic, aggregate_type, aggregate_id, (payload ->> 'providerUpdateId'), (payload ->> 'eventKind'))
+  where topic in ('telegram.message.normalized', 'telegram.channel.health_changed');
 
 create table public.jobs (
   id uuid not null default gen_random_uuid(),
@@ -2891,6 +2915,456 @@ create trigger dead_letters_append_only before update or delete on public.dead_l
 -- =============================================================================
 -- 12. RLS AND GRANTS (coverage rule; concrete policies ship per migration slice)
 -- =============================================================================
+-- Telegram project communication (migration 0062). The source of truth is the
+-- normalized conversation; provider handles and raw webhook JSON are never a
+-- member-plane projection. Every project-scoped relation uses workspace_id +
+-- project_id and the relevant parent identity as its composite key.
+create table public.telegram_chat_bindings (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  bot_id bigint not null, chat_id bigint not null, chat_type text not null,
+  title_snapshot text, connected_by_member_id uuid not null, connected_at timestamptz not null,
+  disconnected_at timestamptz, migrated_from_chat_id bigint,
+  unique (workspace_id, id), unique (workspace_id, project_id, id),
+  unique (bot_id, chat_id), unique (workspace_id, project_id),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, connected_by_member_id) references public.memberships(workspace_id, id),
+  check (chat_type in ('group', 'supergroup')),
+  check (migrated_from_chat_id is null or migrated_from_chat_id <> chat_id)
+);
+create table public.telegram_binding_intents (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  requested_by_member_id uuid not null, verifier_hash text not null,
+  expires_at timestamptz not null, consumed_at timestamptz, consumed_by_telegram_user_id bigint,
+  created_at timestamptz not null, unique (workspace_id, id), unique (verifier_hash),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, requested_by_member_id) references public.memberships(workspace_id, id),
+  check (expires_at > created_at),
+  check ((consumed_at is null) = (consumed_by_telegram_user_id is null))
+);
+create table public.telegram_member_link_intents (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  member_id uuid not null, issued_by_member_id uuid not null, verifier_hash text not null,
+  expires_at timestamptz not null, consumed_at timestamptz, consumed_by_telegram_user_id bigint,
+  created_at timestamptz not null, unique (workspace_id, id), unique (verifier_hash),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, member_id) references public.memberships(workspace_id, id),
+  foreign key (workspace_id, issued_by_member_id) references public.memberships(workspace_id, id),
+  check (expires_at > created_at),
+  check ((consumed_at is null) = (consumed_by_telegram_user_id is null))
+);
+create table public.telegram_member_links (
+  id uuid primary key, workspace_id uuid not null, member_id uuid not null,
+  telegram_user_id bigint not null, verified_at timestamptz not null,
+  revoked_at timestamptz, linked_by_member_id uuid not null, unique (workspace_id, id),
+  unique (workspace_id, telegram_user_id), unique (workspace_id, member_id),
+  foreign key (workspace_id, member_id) references public.memberships(workspace_id, id),
+  foreign key (workspace_id, linked_by_member_id) references public.memberships(workspace_id, id)
+);
+create table public.telegram_inbox_updates (
+  bot_id bigint not null, update_id bigint not null, payload jsonb,
+  payload_hash text not null, state text not null, lease_id uuid, lease_expires_at timestamptz,
+  leased_by text, attempts integer not null, disposition text, last_error_code text,
+  primary key (bot_id, update_id),
+  check (state in ('pending','leased','processed','failed')),
+  check ((state = 'leased') = (lease_id is not null and lease_expires_at is not null and leased_by is not null)),
+  check ((state in ('pending','leased')) = (payload is not null))
+);
+create table public.telegram_media_groups (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null, project_id uuid not null,
+  telegram_chat_binding_id uuid not null, provider_media_group_id text not null,
+  uploader_member_id uuid,
+  reply_provider_message_id bigint, work_assignment_id uuid, last_part_at timestamptz not null default now(),
+  choice_expires_at timestamptz, processing_lease_token uuid, processing_lease_expires_at timestamptz,
+  processing_generation bigint not null default 0, claimed_generation bigint, claimed_last_part_at timestamptz,
+  state text not null default 'open', created_at timestamptz not null default now(), completed_at timestamptz,
+  unique (workspace_id, id), unique (workspace_id, project_id, id),
+  unique (telegram_chat_binding_id, provider_media_group_id),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
+  foreign key (workspace_id, uploader_member_id) references public.memberships(workspace_id, id),
+  foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
+  check (choice_expires_at is null or choice_expires_at >= last_part_at),
+  check ((processing_lease_token is null and processing_lease_expires_at is null and claimed_generation is null and claimed_last_part_at is null)
+      or (processing_lease_token is not null and processing_lease_expires_at is not null and claimed_generation is not null and claimed_last_part_at is not null)),
+  check (state <> 'processing' or processing_lease_token is not null),
+  check (completed_at is null or completed_at >= created_at),
+  check (state in ('open','awaiting_requirement_choice','processing','completed','not_evidence','failed'))
+);
+create table public.communication_messages (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  telegram_chat_binding_id uuid not null, direction text not null, kind text not null,
+  text text, author_member_id uuid, provider_user_id bigint, provider_display_name_snapshot text,
+  provider_username_snapshot text, provider_message_id bigint, provider_sent_at timestamptz,
+  server_received_at timestamptz not null, reply_to_message_id uuid,
+  provider_reply_to_message_id bigint, work_assignment_id uuid, retry_of_message_id uuid, telegram_reply_markup jsonb,
+  telegram_occurrence_snapshot uuid[], telegram_evidence_receipt_key text, telegram_evidence_copy_key text,
+  telegram_evidence_source_attachment_id uuid, telegram_evidence_source_media_group_id uuid,
+  telegram_evidence_generation bigint, telegram_evidence_chunk_index integer,
+  telegram_evidence_recipient_member_id uuid, delivery_state text not null, created_at timestamptz not null,
+  unique (workspace_id, id), unique (workspace_id, project_id, id),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
+  foreign key (workspace_id, author_member_id) references public.memberships(workspace_id, id),
+  foreign key (workspace_id, project_id, reply_to_message_id) references public.communication_messages(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, retry_of_message_id) references public.communication_messages(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, telegram_evidence_source_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
+  foreign key (workspace_id, telegram_evidence_recipient_member_id) references public.memberships(workspace_id, id),
+  check (direction in ('inbound','outbound','system')),
+  check (delivery_state in ('received','queued','provider_accepted','failed','delivery_unknown')),
+  check (direction <> 'inbound' or delivery_state = 'received'),
+  check (direction <> 'outbound' or delivery_state in ('queued','provider_accepted','failed','delivery_unknown')),
+  check (retry_of_message_id is null or direction = 'outbound'),
+  check ((telegram_evidence_receipt_key is null and telegram_evidence_copy_key is null
+      and telegram_evidence_source_attachment_id is null and telegram_evidence_source_media_group_id is null
+      and telegram_evidence_generation is null and telegram_evidence_chunk_index is null
+      and telegram_evidence_recipient_member_id is null)
+    or (direction='outbound' and kind='text' and text is not null
+      and telegram_evidence_receipt_key is not null
+      and telegram_evidence_copy_key in ('telegram.evidence.unbound','telegram.evidence.choice_expired','telegram.evidence.partial','telegram.evidence.complete','telegram.evidence.failed')
+      and ((telegram_evidence_source_attachment_id is null) <> (telegram_evidence_source_media_group_id is null))
+      and telegram_evidence_generation >= 0 and telegram_evidence_chunk_index >= 0))
+);
+create unique index communication_messages_evidence_receipt_identity_uniq
+  on public.communication_messages (workspace_id, telegram_evidence_receipt_key)
+  where telegram_evidence_receipt_key is not null;
+create table public.communication_message_events (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  message_id uuid not null, event_kind text not null, text text, delivery_state text, provider_update_id bigint,
+  server_received_at timestamptz not null, unique (workspace_id, id), unique (workspace_id, project_id, id),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, message_id) references public.communication_messages(workspace_id, project_id, id),
+  check (event_kind in ('edited','delivery_state_changed','bot_removed','bot_restored')),
+  check ((event_kind = 'edited' and text is not null and delivery_state is null)
+      or (event_kind = 'delivery_state_changed' and text is null and delivery_state is not null)
+      or (event_kind in ('bot_removed','bot_restored') and text is null and delivery_state is null))
+);
+create unique index communication_message_events_provider_edit_identity_uniq
+  on public.communication_message_events (workspace_id, project_id, message_id, provider_update_id)
+  where event_kind = 'edited' and provider_update_id is not null;
+
+alter table public.evidence_objects
+  add constraint evidence_objects_project_identity_key unique (workspace_id, project_id, id);
+
+create table public.communication_attachments (
+  id uuid primary key default gen_random_uuid(), workspace_id uuid not null, project_id uuid not null,
+  message_id uuid not null, telegram_media_group_id uuid, provider_file_id text, provider_file_unique_id text,
+  filename_snapshot text, media_type_snapshot text, byte_size bigint,
+  state text not null, requirement_occurrence_id uuid, evidence_object_id uuid, failure_code text, terminal_at timestamptz,
+  retry_disposition text, created_at timestamptz not null default now(),
+  provider_retry_attempts integer not null default 0, provider_next_retry_at timestamptz,
+  provider_retry_lease_token uuid, provider_retry_lease_expires_at timestamptz,
+  unique (workspace_id, id), unique (workspace_id, project_id, id),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, message_id) references public.communication_messages(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, telegram_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, evidence_object_id) references public.evidence_objects(workspace_id, project_id, id),
+  check (state in ('staged','unbound','awaiting_requirement_choice','processing','available','not_evidence','failed')),
+  check ((state in ('unbound','available','not_evidence','failed')) = (terminal_at is not null)),
+  check (state not in ('unbound','available','not_evidence','failed') or (provider_file_id is null and provider_file_unique_id is null)),
+  check (state <> 'available' or evidence_object_id is not null),
+  check (state <> 'failed' or failure_code is not null)
+  ,check (provider_retry_attempts >= 0 and provider_retry_attempts <= 3)
+  ,check (byte_size is null or byte_size >= 0)
+  ,check ((provider_retry_lease_token is null) = (provider_retry_lease_expires_at is null))
+);
+alter table public.communication_messages
+  add constraint communication_messages_evidence_attachment_fkey
+  foreign key (workspace_id, project_id, telegram_evidence_source_attachment_id)
+  references public.communication_attachments(workspace_id, project_id, id);
+create table public.telegram_requirement_choices (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  communication_attachment_id uuid not null, telegram_media_group_id uuid, chooser_member_id uuid not null,
+  requirement_occurrence_id uuid not null, chosen_at timestamptz not null,
+  unique (workspace_id, id), unique (workspace_id, project_id, id),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, communication_attachment_id) references public.communication_attachments(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, telegram_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
+  foreign key (workspace_id, chooser_member_id) references public.memberships(workspace_id, id),
+  foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id)
+);
+create table public.telegram_requirement_choice_sessions (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  telegram_chat_binding_id uuid not null, uploader_member_id uuid not null,
+  work_assignment_id uuid not null, communication_attachment_id uuid, telegram_media_group_id uuid,
+  token_hash text not null, candidate_occurrence_id uuid not null, allowed_occurrence_ids uuid[] not null,
+  expires_at timestamptz not null, consumed_at timestamptz, chosen_occurrence_id uuid,
+  media_group_generation bigint, closed_at timestamptz, closure_reason text, created_at timestamptz not null,
+  unique (workspace_id, id), unique (token_hash),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
+  foreign key (workspace_id, uploader_member_id) references public.memberships(workspace_id, id),
+  foreign key (workspace_id, project_id, work_assignment_id) references public.work_assignments(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, communication_attachment_id) references public.communication_attachments(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, telegram_media_group_id) references public.telegram_media_groups(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, candidate_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, chosen_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
+  check (token_hash ~ '^[0-9a-f]{64}$'), check (cardinality(allowed_occurrence_ids) > 1),
+  check ((communication_attachment_id is null) <> (telegram_media_group_id is null)),
+  check ((consumed_at is null) = (chosen_occurrence_id is null)), check (expires_at > created_at),
+  check ((telegram_media_group_id is null and media_group_generation is null)
+      or (telegram_media_group_id is not null and media_group_generation is not null)),
+  check ((closed_at is null and closure_reason is null)
+      or (closed_at is not null and closure_reason in ('selected','expired','generation_reopened')))
+);
+create table public.telegram_evidence_decision_tokens (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  telegram_chat_binding_id uuid not null, requirement_occurrence_id uuid not null,
+  actor_user_id uuid, actor_member_id uuid, action text not null,
+  token_hash text not null, expires_at timestamptz not null, consumed_at timestamptz,
+  return_prompt_message_id uuid, return_reply_message_id uuid, decision_message_id uuid,
+  decision_id uuid, invalidated_at timestamptz,
+  review_source_kind text not null, review_source_id uuid not null, review_source_generation bigint not null,
+  created_at timestamptz not null,
+  unique (workspace_id, id), unique (token_hash),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id, project_id, id),
+  foreign key (workspace_id, project_id, requirement_occurrence_id) references public.requirement_occurrences(workspace_id, project_id, id),
+  foreign key (workspace_id, actor_member_id) references public.memberships(workspace_id, id),
+  foreign key (return_prompt_message_id) references public.communication_messages(id),
+  foreign key (return_reply_message_id) references public.communication_messages(id),
+  foreign key (decision_message_id) references public.communication_messages(id),
+  foreign key (workspace_id, decision_id) references public.requirement_evidence_decisions(workspace_id, id),
+  check (action in ('accepted','returned')), check (token_hash ~ '^[0-9a-f]{64}$'), check (expires_at > created_at),
+  check ((action = 'accepted' and return_prompt_message_id is null) or action = 'returned'),
+  check ((actor_user_id is null) = (actor_member_id is null)),
+  check ((consumed_at is null) = (decision_id is null)),
+  check (not (consumed_at is not null and invalidated_at is not null)),
+  check (consumed_at is null or actor_member_id is not null),
+  check (return_reply_message_id is null
+    or (action='returned' and return_prompt_message_id is not null and actor_member_id is not null)),
+  check (review_source_kind in ('legacy','attachment','media_group') and review_source_generation>=0
+    and (review_source_kind<>'attachment' or review_source_generation=0))
+);
+create unique index telegram_evidence_decision_review_action_uniq on public.telegram_evidence_decision_tokens
+  (workspace_id,telegram_chat_binding_id,requirement_occurrence_id,
+   review_source_kind,review_source_id,review_source_generation,action);
+-- This lifetime key deliberately prevents replay/expiry from reissuing the same
+-- source cycle. New evidence or a new album generation creates a new cycle.
+create table public.telegram_evidence_decision_attempts (
+  id uuid primary key, token_id uuid not null, workspace_id uuid not null,
+  project_id uuid not null, telegram_chat_binding_id uuid not null,
+  requirement_occurrence_id uuid not null, actor_user_id uuid not null,
+  actor_member_id uuid not null, action text not null, reason text,
+  return_reply_message_id uuid, attempt_started_at timestamptz not null,
+  expected_version bigint, idempotency_key text not null, request_hash text not null,
+  status text not null, decision_id uuid, failure_code text,
+  available_at timestamptz not null, attempt_count integer not null,
+  lease_id uuid, lease_expires_at timestamptz, leased_by text,
+  created_at timestamptz not null, updated_at timestamptz not null,
+  unique (workspace_id,id), unique (token_id), unique (idempotency_key),
+  foreign key (workspace_id,token_id) references public.telegram_evidence_decision_tokens(workspace_id,id),
+  foreign key (workspace_id,project_id) references public.project_field_channels(workspace_id,project_id),
+  foreign key (workspace_id,project_id,telegram_chat_binding_id) references public.telegram_chat_bindings(workspace_id,project_id,id),
+  foreign key (workspace_id,project_id,requirement_occurrence_id) references public.requirement_occurrences(workspace_id,project_id,id),
+  foreign key (workspace_id,actor_member_id) references public.memberships(workspace_id,id),
+  foreign key (return_reply_message_id) references public.communication_messages(id),
+  foreign key (workspace_id,decision_id) references public.requirement_evidence_decisions(workspace_id,id),
+  check (action in ('accepted','returned')), check (request_hash ~ '^[0-9a-f]{64}$'),
+  check (status in ('pending','completed','failed_permanent')), check (attempt_count>=0),
+  check ((action='accepted' and reason is null and return_reply_message_id is null)
+      or (action='returned' and nullif(btrim(reason),'') is not null and return_reply_message_id is not null)),
+  check ((status='completed' and decision_id is not null and failure_code is null)
+      or (status='failed_permanent' and decision_id is null and failure_code is not null)
+      or (status='pending' and decision_id is null and failure_code is null)),
+  check ((lease_id is null and lease_expires_at is null and leased_by is null)
+      or (lease_id is not null and lease_expires_at is not null and leased_by is not null))
+);
+create index telegram_evidence_decision_attempts_due_idx
+  on public.telegram_evidence_decision_attempts(available_at,id) where status='pending';
+create table public.communication_delivery_attempts (
+  id uuid primary key, workspace_id uuid not null, project_id uuid not null,
+  message_id uuid not null, attempt_no integer not null, state text not null,
+  provider_message_id bigint, error_code text, attempted_at timestamptz not null, completed_at timestamptz, unique (workspace_id, id),
+  unique (workspace_id, project_id, id), unique (workspace_id, message_id, attempt_no),
+  foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
+  foreign key (workspace_id, project_id, message_id) references public.communication_messages(workspace_id, project_id, id),
+  check (state in ('provider_accepted','retryable_rejection','definitive_failure','delivery_unknown')),
+  check (completed_at is null or completed_at >= attempted_at),
+  check ((state = 'provider_accepted' and provider_message_id is not null and error_code is null)
+      or (state <> 'provider_accepted' and provider_message_id is null))
+);
+
+-- Communication originals reject UPDATE/DELETE except their delivery-provider
+-- projection; edits and delivery transitions append communication_message_events.
+-- Events, requirement choices and delivery attempts are append-only. Terminal
+-- attachment checks clear both provider file identifiers. Raw inbox payloads and
+-- both `claim_*` functions are service-plane only; claims reject null or lease seconds
+-- outside the explicit 1..300-second bound and use FOR UPDATE SKIP LOCKED.
+create or replace function app.guard_communication_message() returns trigger
+language plpgsql set search_path = '' as $$
+begin
+  if tg_op = 'DELETE'
+     or old.id is distinct from new.id
+     or old.workspace_id is distinct from new.workspace_id
+     or old.project_id is distinct from new.project_id
+     or old.telegram_chat_binding_id is distinct from new.telegram_chat_binding_id
+     or old.direction is distinct from new.direction
+     or old.kind is distinct from new.kind
+     or old.text is distinct from new.text
+     or old.author_member_id is distinct from new.author_member_id
+     or old.provider_user_id is distinct from new.provider_user_id
+     or old.provider_display_name_snapshot is distinct from new.provider_display_name_snapshot
+     or old.provider_username_snapshot is distinct from new.provider_username_snapshot
+     or old.server_received_at is distinct from new.server_received_at
+     or old.reply_to_message_id is distinct from new.reply_to_message_id
+     or old.provider_reply_to_message_id is distinct from new.provider_reply_to_message_id
+     or old.work_assignment_id is distinct from new.work_assignment_id
+     or old.retry_of_message_id is distinct from new.retry_of_message_id
+     or old.telegram_reply_markup is distinct from new.telegram_reply_markup
+     or old.telegram_occurrence_snapshot is distinct from new.telegram_occurrence_snapshot
+     or old.telegram_evidence_receipt_key is distinct from new.telegram_evidence_receipt_key
+     or old.telegram_evidence_copy_key is distinct from new.telegram_evidence_copy_key
+     or old.telegram_evidence_source_attachment_id is distinct from new.telegram_evidence_source_attachment_id
+     or old.telegram_evidence_source_media_group_id is distinct from new.telegram_evidence_source_media_group_id
+     or old.telegram_evidence_generation is distinct from new.telegram_evidence_generation
+     or old.telegram_evidence_chunk_index is distinct from new.telegram_evidence_chunk_index
+     or old.telegram_evidence_recipient_member_id is distinct from new.telegram_evidence_recipient_member_id
+     or old.created_at is distinct from new.created_at then
+    raise exception 'communication message original is immutable; append an event';
+  end if;
+  return new;
+end $$;
+create trigger communication_messages_guard before update or delete on public.communication_messages
+  for each row execute function app.guard_communication_message();
+create or replace function app.guard_telegram_evidence_decision_token() returns trigger
+language plpgsql set search_path='' as $$
+begin
+  if old.workspace_id is distinct from new.workspace_id
+     or old.project_id is distinct from new.project_id
+     or old.telegram_chat_binding_id is distinct from new.telegram_chat_binding_id
+     or old.requirement_occurrence_id is distinct from new.requirement_occurrence_id
+     or old.action is distinct from new.action or old.token_hash is distinct from new.token_hash
+     or old.created_at is distinct from new.created_at or old.expires_at is distinct from new.expires_at
+     or old.decision_message_id is distinct from new.decision_message_id
+     or old.review_source_kind is distinct from new.review_source_kind
+     or old.review_source_id is distinct from new.review_source_id
+     or old.review_source_generation is distinct from new.review_source_generation then
+    raise exception 'telegram decision token identity immutable';
+  end if;
+  if old.actor_member_id is not null and
+     (old.actor_member_id is distinct from new.actor_member_id
+       or old.actor_user_id is distinct from new.actor_user_id) then
+    raise exception 'telegram decision token actor immutable once claimed';
+  end if;
+  if old.return_prompt_message_id is not null
+     and old.return_prompt_message_id is distinct from new.return_prompt_message_id then
+    raise exception 'telegram decision prompt immutable';
+  end if;
+  if old.return_reply_message_id is not null
+     and old.return_reply_message_id is distinct from new.return_reply_message_id then
+    raise exception 'telegram decision return reply immutable';
+  end if;
+  if old.invalidated_at is not null and old.invalidated_at is distinct from new.invalidated_at then
+    raise exception 'telegram decision invalidation immutable';
+  end if;
+  if old.consumed_at is not null then raise exception 'telegram decision token terminal'; end if;
+  if new.actor_member_id is not null and not exists (
+    select 1 from public.memberships m where m.workspace_id=new.workspace_id
+      and m.id=new.actor_member_id and m.user_id=new.actor_user_id
+  ) then raise exception 'telegram decision actor pair invalid'; end if;
+  if new.decision_message_id is null or not exists (
+    select 1 from public.communication_messages m where m.id=new.decision_message_id
+      and m.workspace_id=new.workspace_id and m.project_id=new.project_id
+      and m.telegram_chat_binding_id=new.telegram_chat_binding_id
+      and m.direction='outbound' and m.kind='text' and m.telegram_reply_markup is not null
+  ) then raise exception 'telegram decision control message invalid'; end if;
+  if new.return_prompt_message_id is not null and not exists (
+    select 1 from public.communication_messages m where m.id=new.return_prompt_message_id
+      and m.workspace_id=new.workspace_id and m.project_id=new.project_id
+      and m.telegram_chat_binding_id=new.telegram_chat_binding_id
+      and m.direction='outbound' and m.kind='text'
+  ) then raise exception 'telegram decision return prompt invalid'; end if;
+  if new.return_reply_message_id is not null and not exists (
+    select 1 from public.communication_messages r where r.id=new.return_reply_message_id
+      and r.workspace_id=new.workspace_id and r.project_id=new.project_id
+      and r.telegram_chat_binding_id=new.telegram_chat_binding_id
+      and r.direction='inbound' and r.kind='text' and r.delivery_state='received'
+      and r.reply_to_message_id=new.return_prompt_message_id
+      and r.author_member_id=new.actor_member_id
+  ) then raise exception 'telegram decision return reply invalid'; end if;
+  if new.consumed_at is not null and new.action='returned' and not exists (
+    select 1 from public.communication_messages p where p.id=new.return_prompt_message_id
+      and p.workspace_id=new.workspace_id and p.project_id=new.project_id
+      and p.telegram_chat_binding_id=new.telegram_chat_binding_id
+      and p.direction='outbound' and p.kind='text'
+      and p.delivery_state='provider_accepted' and p.provider_message_id is not null
+  ) then raise exception 'telegram decision return prompt was not delivered'; end if;
+  return new;
+end $$;
+create trigger telegram_evidence_decision_tokens_guard before update on public.telegram_evidence_decision_tokens
+  for each row execute function app.guard_telegram_evidence_decision_token();
+create or replace function app.guard_telegram_evidence_decision_attempt() returns trigger
+language plpgsql set search_path='' as $$
+begin
+  if old.token_id is distinct from new.token_id
+     or old.workspace_id is distinct from new.workspace_id
+     or old.project_id is distinct from new.project_id
+     or old.telegram_chat_binding_id is distinct from new.telegram_chat_binding_id
+     or old.requirement_occurrence_id is distinct from new.requirement_occurrence_id
+     or old.actor_user_id is distinct from new.actor_user_id
+     or old.actor_member_id is distinct from new.actor_member_id
+     or old.action is distinct from new.action or old.reason is distinct from new.reason
+     or old.return_reply_message_id is distinct from new.return_reply_message_id
+     or old.attempt_started_at is distinct from new.attempt_started_at
+     or old.expected_version is distinct from new.expected_version
+     or old.idempotency_key is distinct from new.idempotency_key
+     or old.request_hash is distinct from new.request_hash
+     or old.created_at is distinct from new.created_at then
+    raise exception 'telegram decision attempt identity immutable';
+  end if;
+  if old.status<>'pending' then raise exception 'telegram decision attempt terminal'; end if;
+  return new;
+end $$;
+create trigger telegram_evidence_decision_attempts_guard
+  before update on public.telegram_evidence_decision_attempts
+  for each row execute function app.guard_telegram_evidence_decision_attempt();
+-- Canonical service-only Telegram decision command surface. Migration 0075
+-- contains the executable SECURITY DEFINER bodies; each is revoked from
+-- public/anon/authenticated/goproceed_app and granted only to
+-- goproceed_service. The bodies lock the exact control pair and derive every
+-- tenant/member/message identifier from durable rows:
+--   app.prepare_telegram_evidence_decision_issue(uuid,uuid,uuid,uuid,text,uuid,bigint)
+--   app.issue_telegram_evidence_decision_tokens(uuid,uuid,uuid,uuid,text,uuid,bigint,uuid,text,text)
+--   app.claim_telegram_evidence_decision_token(text,bigint,bigint,bigint,bigint)
+--   app.prepare_telegram_decision_return_prompt(uuid,uuid)
+--   app.bind_telegram_decision_return_prompt(uuid,uuid,uuid)
+--   app.resolve_telegram_evidence_return_reply(uuid,uuid,bigint,uuid,bigint)
+--   app.retry_telegram_decision_inbox(bigint,bigint,uuid,text)
+-- Migration 0077 adds durable control and decision-attempt recovery:
+--   app.reconcile_telegram_evidence_legacy_decision(uuid) (internal; no application role may execute)
+--   app.list_due_telegram_evidence_decision_controls(integer)
+--   app.start_telegram_evidence_decision_attempt(uuid,uuid,uuid,bigint,text)
+--   app.claim_telegram_evidence_decision_attempts(integer,text,integer)
+--   app.finalize_telegram_evidence_decision_attempt(uuid,uuid,uuid)
+--   app.fail_telegram_evidence_decision_attempt(uuid,uuid,text)
+--   app.retry_telegram_evidence_decision_attempt(uuid,uuid,text)
+create trigger communication_message_events_append_only before update or delete on public.communication_message_events
+  for each row execute function app.reject_mutation();
+create trigger telegram_requirement_choices_append_only before update or delete on public.telegram_requirement_choices
+  for each row execute function app.reject_mutation();
+create trigger communication_delivery_attempts_append_only before update or delete on public.communication_delivery_attempts
+  for each row execute function app.reject_mutation();
+revoke all on table public.telegram_chat_bindings, public.telegram_binding_intents,
+  public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
+  public.telegram_media_groups, public.communication_messages, public.communication_message_events,
+  public.communication_attachments, public.telegram_requirement_choices, public.telegram_requirement_choice_sessions,
+  public.telegram_evidence_decision_tokens, public.telegram_evidence_decision_attempts,
+  public.communication_delivery_attempts from public, anon, authenticated, goproceed_app;
+grant select on public.telegram_chat_bindings, public.telegram_media_groups,
+  public.communication_messages, public.communication_message_events to goproceed_app;
+grant select (id, workspace_id, project_id, message_id, telegram_media_group_id,
+  filename_snapshot, media_type_snapshot, byte_size, state, requirement_occurrence_id,
+  evidence_object_id, failure_code, retry_disposition, created_at, terminal_at)
+  on public.communication_attachments to goproceed_app;
+grant select, insert, update on public.telegram_chat_bindings, public.telegram_binding_intents,
+  public.telegram_member_link_intents, public.telegram_member_links, public.telegram_inbox_updates,
+  public.telegram_media_groups, public.communication_messages, public.communication_attachments, public.telegram_requirement_choice_sessions
+  to goproceed_service;
+grant select, insert on public.communication_message_events, public.telegram_requirement_choices,
+  public.communication_delivery_attempts to goproceed_service;
+
 -- Every tenant table reachable by an exposed role gets RLS (INV-060). Future
 -- object privileges are deny-by-default via ALTER DEFAULT PRIVILEGES for every
 -- actual migration-owner role discovered from pg_class/pg_default_acl
@@ -2981,6 +3455,20 @@ alter table public.blocked_reasons enable row level security;
 alter table public.package_review_status_projection enable row level security;
 alter table public.acceptance_projection enable row level security;
 alter table public.value_at_risk_projection enable row level security;
+alter table public.telegram_chat_bindings enable row level security;
+alter table public.telegram_binding_intents enable row level security;
+alter table public.telegram_member_link_intents enable row level security;
+alter table public.telegram_member_links enable row level security;
+alter table public.telegram_inbox_updates enable row level security;
+alter table public.telegram_media_groups enable row level security;
+alter table public.communication_messages enable row level security;
+alter table public.communication_message_events enable row level security;
+alter table public.communication_attachments enable row level security;
+alter table public.telegram_requirement_choices enable row level security;
+alter table public.telegram_requirement_choice_sessions enable row level security;
+alter table public.telegram_evidence_decision_tokens enable row level security;
+alter table public.telegram_evidence_decision_attempts enable row level security;
+alter table public.communication_delivery_attempts enable row level security;
 
 -- =============================================================================
 -- END OF TARGET DESIGN

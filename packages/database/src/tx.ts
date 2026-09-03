@@ -175,3 +175,25 @@ export async function withServiceTx<T>(
     }
   });
 }
+
+/**
+ * Declare the workspace a service transaction is acting for, once it has been
+ * RESOLVED rather than supplied — a Telegram verifier hash, a bot/chat pair.
+ * `withServiceTx` sets `app.organization_id` from the context it was given,
+ * which for these paths is null because the tenant is the OUTPUT of the first
+ * statement, not an input to it.
+ *
+ * This is a declaration, exactly like the one `withServiceTx` makes, and it
+ * carries the same weight: `app.service_workspace()` confines every subsequent
+ * statement to this workspace. It does not authorize anything, and it MUST be
+ * called with a workspace a SECURITY DEFINER lookup just returned — never with
+ * one parsed out of provider input. Nothing in the database enforces that
+ * discipline; a caller that passes a webhook-supplied workspace gets exactly
+ * the cross-tenant write the confinement was meant to stop.
+ *
+ * `set_config(..., true)` is transaction-local and is rolled back with the
+ * transaction, so nothing reaches the pooled connection (see runTx's note).
+ */
+export async function adoptServiceWorkspace(tx: Tx, workspaceId: string): Promise<void> {
+  await tx.query("select set_config('app.organization_id', $1, true)", [workspaceId]);
+}

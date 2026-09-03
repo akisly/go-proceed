@@ -213,6 +213,24 @@ describe("field capture — the three routes, driven as uploadCapture drives the
     expect(new Date(rows[0]!.claimed_capture_time).getTime())
       .not.toBe(new Date(rows[0]!.server_received_at).getTime());
   });
+
+  it("replays the durable available receipt without changing the field-capture contract", async () => {
+    const file = new File([JPEG], "фото.jpg", { type: "image/jpeg", lastModified: Date.now() });
+    const body = buildCreateIntentBody({
+      file, occurrenceId: fx.occurrenceId, expectedContentHash: hashOf(JPEG), deviceCaptureId: crypto.randomUUID(),
+    });
+    const created = await (await createIntent(body, fx.assignmentId)).json() as CreateUploadIntentResponse;
+    await putToSignedUrl(created.upload.signedUrl, JPEG, "image/jpeg");
+
+    const first = await finalize(created.uploadIntentId);
+    const second = await finalize(created.uploadIntentId);
+    const firstBody = await first.json() as FinalizeUploadIntentResponse;
+    const secondBody = await second.json() as FinalizeUploadIntentResponse;
+
+    expect([first.status, second.status]).toEqual([200, 200]);
+    expect(secondBody).toEqual(firstBody);
+    expect(second.headers.get("content-type")).toBe(first.headers.get("content-type"));
+  });
 });
 
 describe("origin method — native_camera is unreachable through the field path (INV-086)", () => {

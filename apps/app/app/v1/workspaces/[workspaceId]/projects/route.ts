@@ -23,8 +23,8 @@ export const POST = commandRoute(createProjectRequest, async (a) => {
       const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
       requireWorkspaceCapability(a.requestId, m.role, "projects.create");
       await tx.query(
-        `insert into public.projects (id, workspace_id, name, code, address, description, created_by)
-         values ($1,$2,$3,$4,$5,$6,$7)`,
+        `insert into public.projects (id, workspace_id, name, code, address, description, status, created_by)
+         values ($1,$2,$3,$4,$5,$6,'draft',$7)`,
         [projectId, workspaceId, a.body.name, a.body.code ?? null, a.body.address ?? null,
          a.body.description ?? null, a.userId]);
       // INV-019: project creation atomically grants the creator explicit

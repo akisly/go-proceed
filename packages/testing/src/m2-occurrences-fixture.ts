@@ -224,6 +224,23 @@ export async function insertOccurrence(
 }
 
 /**
+ * `requirement_occurrences` is append-only: `requirement_occurrences_immutable`
+ * is a BEFORE DELETE OR UPDATE trigger whose function raises unconditionally,
+ * with no role or GUC escape. A suite that needs an occurrence GONE — rather
+ * than superseded — must lift the trigger around the delete, which is what the
+ * M2 suites already do privately. Exported here so a caller cannot express the
+ * delete without the lift, and so the lift is always restored on failure.
+ */
+export async function deleteOccurrence(c: Client, id: string): Promise<void> {
+  await c.query("alter table public.requirement_occurrences disable trigger user");
+  try {
+    await c.query("delete from public.requirement_occurrences where id=$1", [id]);
+  } finally {
+    await c.query("alter table public.requirement_occurrences enable trigger user");
+  }
+}
+
+/**
  * A published baseline with two bound rule versions, one assignment on it and
  * one stage of each concealment — enough for every refusal in the M2 suites to
  * have a positive control beside it.

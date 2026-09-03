@@ -26,3 +26,7 @@ it("keeps the grant API enum and the database constraint in agreement", async ()
 
   expect(inApi).toEqual(inDatabase);
 });
+
+it("names the field-channel reply capability in the grant vocabulary", () => {
+  expect(projectCapability.options).toContain("communication.reply");
+});

@@ -15,3 +15,4 @@ authenticated_api_read,per_tenant,600,1m,120,429_retry_after,Baseline read budge
 authenticated_api_write,per_tenant,120,1m,30,429_retry_after,Baseline write budget
 uploadIntent,per_tenant,300,1h,50,429_retry_after,Paired with storage quota
 webhookInbound,per_endpoint,120,1m,30,429_and_signature_reject,Inbound provider callbacks
+telegramWebhookIngress,per_endpoint,120,1m,30,edge_empty_429_then_telegram_retry,RELEASE BLOCKER: Task 13 must configure and verify this edge 120/minute burst-30 rule before operational enablement; the app route does not meter requests and the edge returns an empty 429 for Telegram retry
