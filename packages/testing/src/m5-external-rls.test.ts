@@ -505,11 +505,15 @@ describe("§3 — what a live external session reaches, over every table there i
 
     // DA-148 (technical/data-access-surface.csv) and INV-094 (P0,
     // technical/database/invariant-catalog.csv) both say the provider file
-    // handles are excluded from the member grant. The four provider_retry_*
-    // columns 0069 added are withheld too, but by that migration issuing no
-    // grant rather than by any document deciding it — so they are asserted as
-    // «not readable», never as «meant to be withheld».
-    const MUST_BE_WITHHELD = ["provider_file_id", "provider_file_unique_id"];
+    // handles are excluded from the member grant. The four retry-lease
+    // columns 0069 added were withheld by that migration issuing no grant;
+    // since 2026-09-03 (ADR-011 open item 5) DA-148 says they are withheld
+    // on purpose, so they are asserted here as «meant to be withheld» too.
+    const MUST_BE_WITHHELD = [
+      "provider_file_id", "provider_file_unique_id",
+      "provider_retry_attempts", "provider_next_retry_at",
+      "provider_retry_lease_token", "provider_retry_lease_expires_at",
+    ];
 
     for (const { t } of granted.rows) {
       const cols = await c.query<{ col: string; ok: boolean }>(
