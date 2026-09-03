@@ -550,7 +550,7 @@ environments* if the borrowed word gets in the way.
 
 | Role | Owns | Gate | When it activates |
 |---|---|---|---|
-| **Security reviewer** | The external-plane surface, RLS policies, grants, migration code | `/cso` for security-sensitive slices ([CLAUDE.md](../../CLAUDE.md):18) | Any slice touching `external_access_grants`, `external_sessions`, RLS, capability presets, or the HMAC key handling. **QA may not automatically modify auth, RLS, grants, or migration code** ([CLAUDE.md](../../CLAUDE.md):23) |
+| **Security reviewer** | The external-plane surface, RLS policies, grants, migration code | `/cso` for security-sensitive slices ([CLAUDE.md](../../CLAUDE.md):18) | Any slice touching `external_access_grants`, `external_sessions`, RLS, capability presets, or the HMAC key handling. **QA may modify RLS policies and grants, and the migration carrying them, as its own commit naming the test it answers; QA still does not modify auth code** ([CLAUDE.md](../../CLAUDE.md):23-28, changed 2026-09-02) |
 
 ### 3.3 Growth tier — **not yet activatable, and this is not a scheduling problem**
 
@@ -580,15 +580,15 @@ No role in this roster is authorised to:
 - expand v0.1 scope (only an ADR can — §9.1);
 - weaken a refusal (only a superseding ADR can — [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md):884-901);
 - let gstack expand an already approved scope ([CLAUDE.md](../../CLAUDE.md):22);
-- let QA modify auth, RLS, grants, or migration code ([CLAUDE.md](../../CLAUDE.md):23);
-- override the approved design and implementation plan when workflows conflict ([CLAUDE.md](../../CLAUDE.md):24).
+- let QA modify auth code ([CLAUDE.md](../../CLAUDE.md):23-28). Since 2026-09-02 QA **may** modify RLS policies and grants, and the migration carrying them — as its own commit naming the test it answers;
+- override the approved design and implementation plan when workflows conflict ([CLAUDE.md](../../CLAUDE.md):29).
 
 ---
 
 ## §4. The slice loop
 
 The repeatable unit of work. Superpowers is primary; gstack is seven named gates
-and nothing more ([CLAUDE.md](../../CLAUDE.md):1-24).
+and nothing more ([CLAUDE.md](../../CLAUDE.md):1-29).
 
 **How much of this loop the repository actually does, stated rather than
 implied.** Steps 1, 5, 7 and 9 are proven in practice — the worktrees, the 33
@@ -603,7 +603,7 @@ rather than smoothed.
 ### 4.0 The prohibitions, before anything else
 
 1. **Do not let gstack expand an already approved scope.**
-2. **Do not let QA automatically modify auth, RLS, grants, or migration code.**
+2. **QA may modify RLS policies and grants, and the migration that carries them** — as its own commit naming the test it answers, keeping or explicitly revising the paperwork the schema rests on. **QA still does not modify auth code.** (Changed 2026-09-02; until then this line forbade QA from touching auth, RLS, grants or migration code — the rule PR #58's comment cites.)
 3. **When workflows conflict, the approved design and implementation plan take
    precedence.**
 4. **Touching `apps/landing/**`, `apps/app/app/**`, `packages/ui/**` or

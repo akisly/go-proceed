@@ -20,8 +20,21 @@ Use gstack only as explicit quality gates:
 - /ship for approved delivery
 
 Do not let gstack expand an already approved scope.
-Do not let QA automatically modify auth, RLS, grants, or migration code.
+QA may modify RLS policies and grants, and the migration that carries them —
+in this repository they are expressible nowhere else. Every such change is its
+own commit naming the test it answers, and it keeps or explicitly revises the
+paperwork the schema rests on (`technical/data-access-surface.csv`,
+`technical/database/invariant-catalog.csv`, the slice's spec). QA still does
+not modify auth code.
 When workflows conflict, the approved design and implementation plan take precedence.
+
+[Changed 2026-09-02: until this date the middle line read «Do not let QA
+automatically modify auth, RLS, grants, or migration code.» The owner lifted
+the RLS-and-grants half after PR #58's first CI run found the tenant-isolation
+sweep and the schema disagreeing on one column-level grant, and the
+prohibition left that fix in nobody's hands. RLS and grants live only in
+`supabase/migrations/`, so the permission has to reach the migration that
+carries them or it is empty. Auth code stays out of QA's hands.]
 
 ## UI and the design system
 
