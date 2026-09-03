@@ -3340,10 +3340,11 @@ class `external_gate_retention`, spec
 `docs/superpowers/specs/2026-08-28-telegram-project-channel-design.md`) — that
 design document, not an ADR, is where their retention intent is recorded
 today. (The plan for this slice cited "ADR-011's open items" for these two
-tables; no ADR-011 exists in `docs/decisions/` — the nearest match is a
-same-numbered legacy ADR about generic-package-plus-adapters, unrelated. This
-entry cites the source actually found rather than repeat the plan's
-citation.) Neither table's retention is reachable through 0081's scope
+tables. That ADR — `ADR-011-telegram-locked-project-channel.md` — is not on
+this branch: it is pending on PR #64 (`claude/adr-011-telegram-channel`),
+Draft, with its open items unanswered. This entry cites the source present
+on this branch; when #64 merges, the ADR's decisions supersede it.) Neither
+table's retention is reachable through 0081's scope
 argument (`communication` / `identity`) as written — they need their own row
 and, if the owner wants them swept by the same mechanism, their own scope or
 a dedicated cleanup.
