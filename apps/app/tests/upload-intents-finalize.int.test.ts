@@ -71,7 +71,12 @@ async function finalize(intentId: string): Promise<Response> {
 async function transcript(response: Response): Promise<{ status: number; headers: Record<string, string>; body: unknown }> {
   const body = await response.json() as Record<string, unknown>;
   const responseRequestId = response.headers.get("x-request-id");
-  expect(responseRequestId).toBe(body.requestId);
+  // Every response carries the request id in its header. A problem body
+  // repeats it (packages/contracts' problem shape); a success body does not —
+  // FinalizeUploadIntentResponse has no requestId field — so the equality is
+  // asserted only where the body claims one.
+  expect(responseRequestId).toBeTruthy();
+  if ("requestId" in body) expect(body.requestId).toBe(responseRequestId);
   delete body.requestId;
   return {
     status: response.status,

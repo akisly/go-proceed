@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Client } from "pg";
 import { dropWorkspaces } from "../../../../../packages/testing/src/pg";
@@ -34,8 +35,8 @@ databaseDescribe("shared evidence services", () => {
     await grantM2Capabilities(client, fixture);
     assignmentId = await seedAssignment(client, fixture);
     await client.query(`insert into public.telegram_member_links
-      (workspace_id, member_id, telegram_user_id, verified_at)
-      values ($1, $2, 81001, now())`, [fixture.workspaceId, fixture.memberId]);
+      (workspace_id, member_id, telegram_user_id, verified_at, linked_by_member_id)
+      values ($1, $2, 81001, now(), $2)`, [fixture.workspaceId, fixture.memberId]);
   });
 
   afterEach(async () => {
@@ -59,7 +60,7 @@ databaseDescribe("shared evidence services", () => {
         originMethod: "origin_not_distinguished",
       },
       idempotencyKey: crypto.randomUUID(),
-      requestHash: crypto.randomUUID().replaceAll("-", ""),
+      requestHash: crypto.createHash("sha256").update(crypto.randomUUID()).digest("hex"),
     });
     const authorizedBody = authorized.body as { storage: { key: string }; uploadIntentId: string };
     await putObject(authorizedBody.storage.key, bytes, "image/jpeg");

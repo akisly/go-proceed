@@ -28,18 +28,13 @@ databaseDescribe("Telegram assignment-card publication", () => {
   let fixture: M2Fixture;
   let assignmentId = "";
 
-  beforeEach(async () => {
-    vi.stubEnv("TELEGRAM_BOT_TOKEN", "t".repeat(32));
-    vi.stubEnv("TELEGRAM_BOT_ID", "123456789");
-    vi.stubEnv("TELEGRAM_BOT_USERNAME", "GoProceedTestBot");
-    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "w".repeat(32));
-    vi.stubEnv("TELEGRAM_WORKER_SECRET", "r".repeat(32));
-    vi.stubEnv("TELEGRAM_LINK_PEPPER", "p".repeat(32));
-    vi.stubEnv("APP_PUBLIC_ORIGIN", "https://app.goproceed.test");
-    actorUserId = crypto.randomUUID();
-    client = await admin();
+  // One world per case. The oversized-card case reseeds with a long work-item
+  // description, because a published version's lines are immutable (INV-015)
+  // and the card's title is the work item's description.
+  async function seedWorld(workItemDescription?: string): Promise<void> {
     fixture = await seedM2World(client, {
       workspaceId: crypto.randomUUID(), userId: actorUserId, email: "unused@example.test", suffix: "TG-CARD",
+      ...(workItemDescription === undefined ? {} : { workItemDescription }),
     });
     await grantM2Capabilities(client, fixture);
     assignmentId = await seedAssignment(client, fixture);
@@ -51,6 +46,19 @@ databaseDescribe("Telegram assignment-card publication", () => {
       (workspace_id, project_id, bot_id, chat_id, chat_type, connected_by_member_id)
       values ($1, $2, 123456789, -100123, 'supergroup', $3)`,
     [fixture.workspaceId, fixture.projectId, fixture.memberId]);
+  }
+
+  beforeEach(async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "t".repeat(32));
+    vi.stubEnv("TELEGRAM_BOT_ID", "123456789");
+    vi.stubEnv("TELEGRAM_BOT_USERNAME", "GoProceedTestBot");
+    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "w".repeat(32));
+    vi.stubEnv("TELEGRAM_WORKER_SECRET", "r".repeat(32));
+    vi.stubEnv("TELEGRAM_LINK_PEPPER", "p".repeat(32));
+    vi.stubEnv("APP_PUBLIC_ORIGIN", "https://app.goproceed.test");
+    actorUserId = crypto.randomUUID();
+    client = await admin();
+    await seedWorld();
   });
 
   afterEach(async () => {
@@ -93,9 +101,8 @@ databaseDescribe("Telegram assignment-card publication", () => {
   it("rejects an oversized card rather than dropping ordered occurrences", async () => {
     // Break caught: a successful-looking card that omits a requirement creates
     // an evidence reply surface that no longer matches the assignment.
-    await client.query("update public.work_items set description=$1 where workspace_id=$2 and id=$3", [
-      "Надто довга робота ".repeat(400), fixture.workspaceId, fixture.workItemId,
-    ]);
+    await dropWorkspaces(client, [fixture.workspaceId]);
+    await seedWorld("Надто довга робота ".repeat(400));
     const { POST } = await import("../app/v1/assignments/[assignmentId]/communication-card/route");
     const response = await POST(jsonRequest(assignmentId, crypto.randomUUID()), { params: Promise.resolve({ assignmentId }) });
 
