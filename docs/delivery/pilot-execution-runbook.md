@@ -28,7 +28,7 @@ filled — and into one pilot with one named company and one adversarial
 ### What it refuses to do
 
 - **It does not decide scope.** Adding a capability to v0.1 requires an ADR, not
-  a runbook line ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):684-687).
+  a runbook line ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):689-692).
   Where this document names work, that work is already authorised by a numbered
   decision, and the decision is cited beside it.
 - **It does not define the two headline success measures.** First-time
@@ -40,7 +40,7 @@ filled — and into one pilot with one named company and one adversarial
   ([ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md):95-96);
   the delivery view states the same rule in its own words — «No slice of the
   implementation may write those definitions»
-  ([version-0.1.md](version-0.1.md):811). This runbook does not invent one
+  ([version-0.1.md](version-0.1.md):822). This runbook does not invent one
   either, and records M6 as un-closable until
   [glossary.md](../domain/glossary.md) supplies both.
 - **It does not claim a green baseline.** [test-strategy.md](test-strategy.md):595-604
@@ -52,7 +52,7 @@ filled — and into one pilot with one named company and one adversarial
   [docs/README.md](../README.md):28-75 the applied database outranks the target
   design, which outranks the public API, which outranks release contents, which
   outranks ADRs. A later Approved ADR does **not** automatically win — see
-  [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):588-623, which records
+  [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):593-628, which records
   that an un-recut level-2 domain document resolves the contradiction *against*
   the ADR. §9 carries this as a hard guardrail.
 - **It does not invent process.** Where the repository defines nothing, this
@@ -72,7 +72,7 @@ filled — and into one pilot with one named company and one adversarial
    document wins until an explicit correction lands there.
 5. The team is **one person**. §3's roles are agent functions executed on that
    person's behalf. Naming anyone else would be fiction
-   ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):475-479).
+   ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):480-484).
 
 ### Read these first, in this order
 
@@ -264,14 +264,14 @@ baseline of anything and is not used as one here.
 | «Migrations `0041`–`0050` are ten files… none applied anywhere — not once»; «The runtime is 33 tables defined by 40 migrations» | [version-0.1.md](version-0.1.md):103-116, [production-readiness.md](production-readiness.md):133-147, both **Last reviewed 2026-08-08** | 81 files on `main`; applied through `0058` on staging (2026-08-19) and through `0081` on local dev (measured 2026-09-03) |
 | «**Approved is not deployed.**», under «## Nothing below is **closed**» | [production-readiness.md](production-readiness.md):133-135 | Provisioned and public per [README-staging.md](../../infra/README-staging.md) §Status — through `0058` |
 | «nothing in this repo automates it, and nothing in this repo has run it yet»; «58 files, `0001` through `0058`» | [README-staging.md](../../infra/README-staging.md):4-11, **never corrected** — while §Status records the provisioning | 81 files; the runbook itself says to read the number from `ls`, and this row is why. C-11 |
-| «The scope lists **58 operations** in `scope-v0.1.csv`» | [technical/openapi/README.md](../../technical/openapi/README.md):29; [test-strategy.md](test-strategy.md):342 | **75**, measured; the progression is at [version-0.1.md](version-0.1.md):161. C-14 |
+| «The scope lists **58 operations** in `scope-v0.1.csv`» | [technical/openapi/README.md](../../technical/openapi/README.md):29; [test-strategy.md](test-strategy.md):342 | **75**, measured; the progression is at [version-0.1.md](version-0.1.md):162. C-14 |
 | A **green** baseline: «176 files, 2174 tests, all passed» from run 33540108319 | [test-strategy.md](test-strategy.md) §Baseline, recorded 2026-09-01 | That run skipped 125 cases for want of `TEST_DB_ADMIN_URL`. Since #62 they run and eighteen fail, on `main` before and after the channel. The baseline is **red with a named set**, and the section must say so. **C-16** |
 | «The outbox has no consumer» / «Outbox/job claiming and delivery: **None.**» | [jobs-events-and-audit.md](../architecture/jobs-events-and-audit.md):45, [tenancy-and-security.md](../architecture/tenancy-and-security.md):243 — **both precedence level 2** | `apps/app/src/lib/telegram/delivery.ts` claims `communication.telegram.send` and delivers. ADR-011 records the contradiction (its §"Contradictions", item 3) and, by [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):600-612, both documents **outrank ADR-011 until edited**. **C-17** |
-| «Seventeen of the twenty-six v0.1 tables still have no table in any APPLIED migration» | [version-0.1.md](version-0.1.md):130-131 | 53 tables live on staging through `0058`; the fifteen channel tables and the two `app`-schema tables of `0081` live only on local dev |
+| «Seventeen of the twenty-six v0.1 tables still have no table in any APPLIED migration» | [version-0.1.md](version-0.1.md):131-132 | 53 tables live on staging through `0058`; the fifteen channel tables and the two `app`-schema tables of `0081` live only on local dev |
 | `statutory_acts.render` «refuses by design» for want of the В.1/В.2 field list and the ДБН retrieval record | [production-readiness.md](production-readiness.md):149-155 | Both landed 2026-08-10. The mechanism described is still accurate; its factual premise is not. C-2 |
 | «`progress.adjust` — NOT implemented as decided, and this is a live P0» | [ADR-008](../decisions/ADR-008-valuation-carves-at-admission.md):194-205 | The direction gate is in the source and the test was inverted with it. Not a present-tense P0. C-6 |
-| «M6 cannot **open** without a definition of the two measures» | [roadmap.md](../product/roadmap.md):354, :404; [glossary.md](../domain/glossary.md):253 | Corrected in place at [version-0.1.md](version-0.1.md):802-807: M6 was built; «M6 cannot **CLOSE** without them». C-4 |
-| «M2's `origin_not_distinguished` token has not landed» | [version-0.1.md](version-0.1.md):519-525, [roadmap.md](../product/roadmap.md):657-667 | The literal exists in `packages/contracts/src/uploads.ts` and migration `0043`'s CHECK; INV-086 now names **two** senders of it, the PWA and the Telegram bridge (amended 2026-09-03) |
+| «M6 cannot **open** without a definition of the two measures» | [roadmap.md](../product/roadmap.md):354, :404; [glossary.md](../domain/glossary.md):253 | Corrected in place at [version-0.1.md](version-0.1.md):813-818: M6 was built; «M6 cannot **CLOSE** without them». C-4 |
+| «M2's `origin_not_distinguished` token has not landed» | [version-0.1.md](version-0.1.md):530-536, [roadmap.md](../product/roadmap.md):660-670 | The literal exists in `packages/contracts/src/uploads.ts` and migration `0043`'s CHECK; INV-086 now names **two** senders of it, the PWA and the Telegram bridge (amended 2026-09-03) |
 | «ADR-010 is the highest today» and «every ADR on disk simply carries `Status: Approved`» | this runbook's own §4.1 step 5b, 2026-09-01 revision | ADR-011 is the highest; it was `Draft` from 2026-09-02 to 2026-09-03 and moved to Approved on recorded rulings. Corrected in §4.1 below rather than left as a dated observation |
 | «`apps/demo/src/domain/format.ts` — port `pluralUk`/`rowsUk` from there»; «every screen under `apps/app/app/(dash)/**`» | [03-ui-references.md](../design/03-ui-references.md) §6 and :4 | `apps/demo` was deleted 2026-08-20; the route is `/dash`. C-9 |
 | «D1–D4 remain» | [TODOS.md](../../TODOS.md):741-745 | D1, D2 and D3 landed (PRs #46, #48, #54). Only D4 has no route. C-12 |
@@ -279,7 +279,7 @@ baseline of anything and is not used as one here.
 
 ### 1.5 Corrections owed
 
-[version-0.1.md](version-0.1.md):886-891 states the rule this table obeys:
+[version-0.1.md](version-0.1.md):929-934 states the rule this table obeys:
 «This document is the delivery view; it does not silently rewrite the artifacts
 it now disagrees with. Each is a correction owed, and delivery of a slice that
 depends on one stops until it lands.» And: **a row leaves the table when it
@@ -301,7 +301,7 @@ moved; two rows are added.
 | C-11 | [README-staging.md](../../infra/README-staging.md):4-11, :102, :173, :184, §Status | «58 files» → 81; §Status's «58/58» is a 2026-08-19 fact that must be dated as one, beside the sentence that twenty-three migrations have no apply record; and §4.5:510's branch-only `vercel.json` claim, merged 2026-08-21 | Any operator following §2, §4.5 or §Status literally |
 | C-12 | [TODOS.md](../../TODOS.md):741-745 | «D1–D4 remain» → only D4 remains | Sprint ordering |
 | C-13 | [2026-08-01-b0-procurement.md](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) and [TODOS.md](../../TODOS.md) | Both record two unprocured devices; stale on the iPhone half (measurements of 2026-08-21), current on the Android half | Any statement that the parity gate is blocked *by hardware* |
-| C-14 | [technical/openapi/README.md](../../technical/openapi/README.md):29 and [test-strategy.md](test-strategy.md):342 | «58 operations» → 75, per [version-0.1.md](version-0.1.md):161 | Any statement of the v0.1 route-set size |
+| C-14 | [technical/openapi/README.md](../../technical/openapi/README.md):29 and [test-strategy.md](test-strategy.md):342 | «58 operations» → 75, per [version-0.1.md](version-0.1.md):162 | Any statement of the v0.1 route-set size |
 | C-15 | [README-staging.md](../../infra/README-staging.md) §Status | Custom SMTP listed as open while :899-926 record Brevo done 2026-08-19/20 and depend on it | Any operator reading §Status as the state of email delivery |
 | **C-16** | [test-strategy.md](test-strategy.md) §Baseline | The 2026-09-01 «green baseline» skipped 125 cases; the baseline since 2026-09-03 is **red with eighteen named cases** on `main`, and the section must record that run and that reading (§1.1) | Every gate record's CI row, which today cites this runbook instead |
 | **C-17** | [jobs-events-and-audit.md](../architecture/jobs-events-and-audit.md):45 and [tenancy-and-security.md](../architecture/tenancy-and-security.md):243 | «The outbox has no consumer» / «None.» — against `delivery.ts`. Both are level 2 and outrank ADR-011 until edited ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):600-612), so ADR-011's own consumer statement is the one that loses today | M7's monitoring gate (§5.8) and any architecture-sourced statement about the outbox |
@@ -374,7 +374,7 @@ are corrections to an earlier drawing of this diagram that contradicted the
 tables beneath it, and both are stated rather than smoothed:
 
 - **M6 does not close before the pilot; it closes *by* the pilot.**
-  [version-0.1.md](version-0.1.md):835-842 makes M6's acceptance evidence «the
+  [version-0.1.md](version-0.1.md):846-853 makes M6's acceptance evidence «the
   pilot loop, end to end, on a named object with a named adversarial технагляд
   … measured against a pre-gate baseline», and its **closing** evidence «the
   pilot findings document, plus the M0 evidence verified as still holding
@@ -390,11 +390,11 @@ tables beneath it, and both are stated rather than smoothed:
 
 > **M6 cannot open until M0 is closed, and closure means recorded evidence per
 > item, not a checklist someone has read.**
-> — [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):475-476, repeated
+> — [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):480-481, repeated
 > **verbatim** at [production-readiness.md](production-readiness.md):98-99 and
-> [scope-and-boundaries.md](../product/scope-and-boundaries.md):256-257.
+> [scope-and-boundaries.md](../product/scope-and-boundaries.md):258-259.
 
-[roadmap.md](../product/roadmap.md):491-493 is **not** a verbatim repeat and the
+[roadmap.md](../product/roadmap.md):494-496 is **not** a verbatim repeat and the
 difference is worth keeping: it carries the rule in the words of protection 5 —
 «**M6 cannot open until this milestone is closed.** Real customer data entering
 an environment that has not closed M0 is a boundary violation regardless of
@@ -406,7 +406,7 @@ this passage. C-7 already records that the roadmap carries no content dated
 after 2026-08-08.
 
 And its replacement-rule teeth
-([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):674-708, protection 5):
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):679-713, protection 5):
 
 > **M0 cannot be reordered behind M6.** Real customer data entering an
 > environment that has not closed M0 is a boundary violation *regardless of
@@ -419,8 +419,8 @@ not allowed to be last.
 
 | | |
 |---|---|
-| **Outcome** | The environment is fit to hold a real subcontractor's personal data and a real customer's commercial data **before any of it arrives** ([version-0.1.md](version-0.1.md):261-264) |
-| **Entry evidence** | The twelve exit gates transcribed into a per-item record naming the artifact that will close each and the form that artifact takes. «Nothing else, because every item is inside the builder's control — which is why this milestone can open first» ([roadmap.md](../product/roadmap.md):438-445). **That per-item record does not exist yet.** |
+| **Outcome** | The environment is fit to hold a real subcontractor's personal data and a real customer's commercial data **before any of it arrives** ([version-0.1.md](version-0.1.md):272-275) |
+| **Entry evidence** | The twelve exit gates transcribed into a per-item record naming the artifact that will close each and the form that artifact takes. «Nothing else, because every item is inside the builder's control — which is why this milestone can open first» ([roadmap.md](../product/roadmap.md):441-448). **That per-item record does not exist yet.** |
 | **Exit gates** | Twelve. Twelve is eight plus four. §5 enumerates them. |
 | **Acceptance evidence** | One dated evidence entry per gate in [version-0.1.md](version-0.1.md) §M0 — **all fourteen gates 1–14 of [production-readiness.md](production-readiness.md)**, per :305-313 — plus one executed restore exercise in an isolated environment and one executed deletion-then-restore test proving tombstones are reapplied before restored data is reachable |
 | **Blocks** | P4a (M6 open), and therefore P5 |
@@ -439,7 +439,7 @@ four», or reaches sixteen, or counts a merged pair as one gate, is contradictin
 ### P1b — M1–M5 and M7 closure
 
 **This phase exists because P4a's entry evidence names it and nothing else in
-this runbook did.** [roadmap.md](../product/roadmap.md):905-910 makes «M1–M5
+this runbook did.** [roadmap.md](../product/roadmap.md):908-913 makes «M1–M5
 closed» an entry condition for M6, and §8.6 step 5 gates real customer data on
 it. Neither P1, P2 nor P3 contains it. The repository is not silent about what
 closure means per milestone — [version-0.1.md](version-0.1.md) carries an
@@ -458,11 +458,11 @@ are zero of them.
 
 | Milestone | Acceptance evidence, transcribed | Roadmap gates | Status | Next action |
 |---|---|---|---|---|
-| **M1 — the object** | «create a project and a contract; type twenty work lines by hand; correct one; remove one; be refused publication until a rule-version set is bound; publish; prove the published version immutable and the hand-typed line indistinguishable in provenance quality from an imported one; then run the frozen importer on a synthetic file and prove an object created by import still works end to end» ([version-0.1.md](version-0.1.md):412-417) | entry :501-521, exit :522-568 | **BUILT / UNRECORDED** — the routes and suites exist; no dated closure record does | Run the scenario against a stack that is up, record it in the Q-2 artifact once that artifact is decided |
-| **M2 — the phone** | «**on one physical supported iPhone and one lower-resource physical Android device** — still required, and now the only way to know what the client actually does … Record, per browser and OS version, the measured behaviour of the `capture` hint, of image-metadata stripping or transcoding, and of site-storage eviction: none of it may be asserted from memory in any customer-facing artifact.» Closing evidence is «the device-matrix recording plus that measurement table» ([version-0.1.md](version-0.1.md):546-558) | entry :576-601, exit :602-698 | **OPEN — external dependency.** This is the same measurement §8.3 sub-item 4 is blocked on. An iPhone produced measurements on 2026-08-21 (C-13); **no Android measurement exists** | Sub-items 2 and 4 of §8.3 are iPhone-measurable today; the Android half needs the device |
-| **M3 — the refusal** | «on a hand-typed baseline, create a stage; be refused its closure and read the `blocked_reason` object with the money behind it; record an `accept_risk` exception and watch the refusal lift while the exception stays visible and attributed; decide the occurrence internally and close; verify readiness recomputes and every blocker drills to authoritative facts» ([version-0.1.md](version-0.1.md):614-619) | entry :707-723, exit :724-772 | **BUILT / UNRECORDED** — `m3-refusal.int.test.ts` and `m3-closure-rls` exist (§6.3 proof 1) | Same as M1 |
-| **M4 — the act** | «close a satisfied stage; compose the act; freeze it; render twice and diff the bytes; attempt to type a quantity and be stopped by **the absence of the field** rather than by validation; check the render field by field against the В.1/В.2 list.» And, in the same block: «**Entry evidence still owed and still absent:** one signed акт на закриття прихованих робіт from the target workflow, sanitized» ([version-0.1.md](version-0.1.md):681-688) | entry :779-795, exit :796-827 | **PARTIAL** — the В.1/В.2 list landed 2026-08-10 (§6.3 proof 2), so the render half is testable; the sanitized real act is still absent, and it comes from a partner | The byte-diff and field-by-field check can run today; the entry evidence is a P3 ask |
-| **M5 — the link** | «an **adversarial** технагляд (ADR-006 decision 9) opens the link with no account, reads the requirement in the standard's own wording with the photo, and returns it with a reason; the return is visible as a refusal on the closure; the crew corrects and the decision is retaken» ([version-0.1.md](version-0.1.md):743-749) | entry :833-850, exit :851-897 | **OPEN — external dependency.** The acceptance evidence names a **real person from outside**, which makes M5 closure a P5 activity in the same way M6's is | Nothing inside the builder's control. It is filled by P3's second field |
+| **M1 — the object** | «create a project and a contract; type twenty work lines by hand; correct one; remove one; be refused publication until a rule-version set is bound; publish; prove the published version immutable and the hand-typed line indistinguishable in provenance quality from an imported one; then run the frozen importer on a synthetic file and prove an object created by import still works end to end» ([version-0.1.md](version-0.1.md):423-428) | entry :501-521, exit :522-568 | **BUILT / UNRECORDED** — the routes and suites exist; no dated closure record does | Run the scenario against a stack that is up, record it in the Q-2 artifact once that artifact is decided |
+| **M2 — the phone** | «**on one physical supported iPhone and one lower-resource physical Android device** — still required, and now the only way to know what the client actually does … Record, per browser and OS version, the measured behaviour of the `capture` hint, of image-metadata stripping or transcoding, and of site-storage eviction: none of it may be asserted from memory in any customer-facing artifact.» Closing evidence is «the device-matrix recording plus that measurement table» ([version-0.1.md](version-0.1.md):557-569) | entry :576-601, exit :602-698 | **OPEN — external dependency.** This is the same measurement §8.3 sub-item 4 is blocked on. An iPhone produced measurements on 2026-08-21 (C-13); **no Android measurement exists** | Sub-items 2 and 4 of §8.3 are iPhone-measurable today; the Android half needs the device |
+| **M3 — the refusal** | «on a hand-typed baseline, create a stage; be refused its closure and read the `blocked_reason` object with the money behind it; record an `accept_risk` exception and watch the refusal lift while the exception stays visible and attributed; decide the occurrence internally and close; verify readiness recomputes and every blocker drills to authoritative facts» ([version-0.1.md](version-0.1.md):625-630) | entry :707-723, exit :724-772 | **BUILT / UNRECORDED** — `m3-refusal.int.test.ts` and `m3-closure-rls` exist (§6.3 proof 1) | Same as M1 |
+| **M4 — the act** | «close a satisfied stage; compose the act; freeze it; render twice and diff the bytes; attempt to type a quantity and be stopped by **the absence of the field** rather than by validation; check the render field by field against the В.1/В.2 list.» And, in the same block: «**Entry evidence still owed and still absent:** one signed акт на закриття прихованих робіт from the target workflow, sanitized» ([version-0.1.md](version-0.1.md):692-699) | entry :779-795, exit :796-827 | **PARTIAL** — the В.1/В.2 list landed 2026-08-10 (§6.3 proof 2), so the render half is testable; the sanitized real act is still absent, and it comes from a partner | The byte-diff and field-by-field check can run today; the entry evidence is a P3 ask |
+| **M5 — the link** | «an **adversarial** технагляд (ADR-006 decision 9) opens the link with no account, reads the requirement in the standard's own wording with the photo, and returns it with a reason; the return is visible as a refusal on the closure; the crew corrects and the decision is retaken» ([version-0.1.md](version-0.1.md):754-760) | entry :833-850, exit :851-897 | **OPEN — external dependency.** The acceptance evidence names a **real person from outside**, which makes M5 closure a P5 activity in the same way M6's is | Nothing inside the builder's control. It is filled by P3's second field |
 | **M7 — the channel** (added 2026-09-03, [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decision 9) | ADR-011 decision 10: the M0 gates the channel engages (1, 2, 3, 4, 5, 7, 8, 9, 11, 12) close with recorded evidence; the identity-level deletion procedure of gate 4 is exercised; and **before any environment enables the webhook**: Task 13's edge rate limit, the real-group staging pass, the scheduler, and the assignment card carrying the verification tag and source of every normative string it renders (ADR-011 open item 9). The spec's own rule: «No completion claim is made from green mocks alone; the real-group staging pass is required before the feature is described as operational» | [version-0.1.md](version-0.1.md) §v0.1-M7 | **BUILT / UNRECORDED on the unit half; RED on the integration half.** One gate record exists (the erasure procedure, 2026-09-03); the four webhook-enable blockers are all open; fourteen of CI's eighteen red cases are the channel's evidence bridge (§1.1) | Fix the eighteen; land the card slice; then Task 13, the scheduler and the real-group pass, in that order — none of them a real group |
 
 **M7 and M0 are coupled twice over.** The channel is the first milestone whose acceptance evidence *is* M0 evidence — decision 10 closes it with the M0 gates it engages — and the first with a rule that runs across environments rather than across code: «no real group until M0 is closed» is the same sentence as protection 5's, applied to a Telegram group instead of a spreadsheet. A plan that schedules «enable the webhook on staging» before §5's gates 2, 4, 8, 9 and 11 have records is scheduling a boundary violation.
@@ -472,8 +472,8 @@ have acceptance evidence that **cannot be produced without something external**
 (two physical devices; one adversarial технагляд). «M1–M5 closed» is therefore
 not a purely internal precondition, and a plan that treats it as one will read
 M6's opening as nearer than it is. Both sides are on the page rather than
-resolved: [roadmap.md](../product/roadmap.md):905-910 states the condition and
-[version-0.1.md](version-0.1.md):546-556 and :743-752 state what satisfying it
+resolved: [roadmap.md](../product/roadmap.md):908-913 states the condition and
+[version-0.1.md](version-0.1.md):557-567 and :743-752 state what satisfying it
 costs.
 
 ### P2 — the ADR-009 delivery front (Plans B, C, D)
@@ -500,13 +500,13 @@ not in the ADR.
 ### P3 — the pilot object fill
 
 This is **discovery work, not delivery work**
-([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):481-500). It cannot be
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):486-505). It cannot be
 done by writing code and it does not get faster by building more.
 
 | | |
 |---|---|
 | **Outcome** | All six fields of the ADR-006 decision 8 pilot object are filled |
-| **Entry evidence** | The *reply* is not inside the builder's control — «A condition that requires a conversation nobody has had is not an entry condition; it is a wish» ([roadmap.md](../product/roadmap.md):336-362). **The asking is.** [2026-08-23-validation-push.md](../discovery/2026-08-23-validation-push.md) holds three asks ordered by cost-to-say-yes (:49-81) and four drafted materials — the follow-up to the 21 (:82), the one-file ask (:115), a 20-minute artifact-first interview guide (:137), the demo (:174) — all `Status: Draft for the owner. Nothing here has been sent.` The work exists and is unsent; §5.15 carries it as a task table |
+| **Entry evidence** | The *reply* is not inside the builder's control — «A condition that requires a conversation nobody has had is not an entry condition; it is a wish» ([roadmap.md](../product/roadmap.md):339-365). **The asking is.** [2026-08-23-validation-push.md](../discovery/2026-08-23-validation-push.md) holds three asks ordered by cost-to-say-yes (:49-81) and four drafted materials — the follow-up to the 21 (:82), the one-file ask (:115), a 20-minute artifact-first interview guide (:137), the demo (:174) — all `Status: Draft for the owner. Nothing here has been sent.` The work exists and is unsent; §5.15 carries it as a task table |
 | **Exit gate** | Six fields filled, in writing, in a named artifact. **That artifact does not exist** — see §10, Q-1. Note that [2026-08-23-validation-push.md](../discovery/2026-08-23-validation-push.md):191-201 («How this gets recorded») partly answers Q-1 and is the nearest thing the repository has to a proposal |
 | **Blocks** | P4a (M6 open). **It also unfreezes import**: Material 2, the one-file ask, is exactly the request the cross-phase rule below says is the only thing that unfreezes it |
 | **Current status** | Every field empty as of 2026-08-06; no ADR records any of them filled since. All eight assumptions still `Unvalidated` (measured). |
@@ -515,17 +515,17 @@ done by writing code and it does not get faster by building more.
 
 | | |
 |---|---|
-| **Entry evidence** | M0 closed with a recorded artifact per item; **every** field of the pilot object filled; M1–M5 closed ([roadmap.md](../product/roadmap.md):905-910) — see P1b for what that last condition actually costs |
+| **Entry evidence** | M0 closed with a recorded artifact per item; **every** field of the pilot object filled; M1–M5 closed ([roadmap.md](../product/roadmap.md):908-913) — see P1b for what that last condition actually costs |
 | **Already built** | `blocked_value.get` is routed with an integration suite. M6 was built without either headline measure and its suite asserts their **absence** ([ADR-008](../decisions/ADR-008-valuation-carves-at-admission.md):151-161) |
-| **Exit gates** | The sum is over work lines under a blocked stage, at the published-baseline price, attributed once per assignment (INV-070), broken down by `blocked_reason.code`, summed within one baseline and never across currencies; missing price, zero price and over-contract performance stay distinct and are reported *beside* the sum; blocked value is exposure, never a receivable; it is reported beside the two headline measures and **never as the hero number** ([version-0.1.md](version-0.1.md):770-787) |
+| **Exit gates** | The sum is over work lines under a blocked stage, at the published-baseline price, attributed once per assignment (INV-070), broken down by `blocked_reason.code`, summed within one baseline and never across currencies; missing price, zero price and over-contract performance stay distinct and are reported *beside* the sum; blocked value is exposure, never a receivable; it is reported beside the two headline measures and **never as the hero number** ([version-0.1.md](version-0.1.md):781-798) |
 | **The single cannot-close blocker** | The two headline measures have no v0.1 definition. C-5. |
 
 ### P4b — M6 closes, and it closes inside the pilot
 
 | | |
 |---|---|
-| **Acceptance evidence** | «the pilot loop, end to end, on a named object with a named adversarial технагляд — a hand-typed baseline, an occurrence read on the phone before work started, a refused closure, an attributed exception, a satisfied closure and its act, an external return and its correction, and the blocked-money screen — measured against a pre-gate baseline … taken **before the gate is switched on**» ([version-0.1.md](version-0.1.md):835-841) |
-| **Closing evidence** | «the pilot findings document, plus the M0 evidence verified as still holding throughout the pilot» ([version-0.1.md](version-0.1.md):842). Neither artifact exists; §8.7 is where they are specified and Q-1/Q-6 are where their homes are still open |
+| **Acceptance evidence** | «the pilot loop, end to end, on a named object with a named adversarial технагляд — a hand-typed baseline, an occurrence read on the phone before work started, a refused closure, an attributed exception, a satisfied closure and its act, an external return and its correction, and the blocked-money screen — measured against a pre-gate baseline … taken **before the gate is switched on**» ([version-0.1.md](version-0.1.md):846-852) |
+| **Closing evidence** | «the pilot findings document, plus the M0 evidence verified as still holding throughout the pilot» ([version-0.1.md](version-0.1.md):853). Neither artifact exists; §8.7 is where they are specified and Q-1/Q-6 are where their homes are still open |
 | **Runs during** | P5. This is not a phase that precedes the pilot and it must not be scheduled as one |
 
 ### P5 — the pilot
@@ -535,7 +535,7 @@ done by writing code and it does not get faster by building more.
 | **Entry** | P1, P1b, P3 and **P4a** complete. Not P4b — M6's own acceptance evidence is this phase |
 | **Shape** | One named company, one named object, one named person who agreed. One технагляд, **named and adversarial**. Sample written down *before the first act*. Stopping conditions named in advance, in both directions. |
 | **Exit** | Not a date. Either a stopping condition fires, or the sample is complete. |
-| **Failure handling** | «A технагляд who refuses to open the link, refuses to decide inside it, or demands paper **invalidates A-3** and is written into [validated-assumptions.md](../discovery/validated-assumptions.md) as an invalidation» — recorded as a result, not as a bug ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):502-531) |
+| **Failure handling** | «A технагляд who refuses to open the link, refuses to decide inside it, or demands paper **invalidates A-3** and is written into [validated-assumptions.md](../discovery/validated-assumptions.md) as an invalidation» — recorded as a result, not as a bug ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):507-536) |
 
 ### Cross-phase rules
 
@@ -544,11 +544,11 @@ done by writing code and it does not get faster by building more.
   **also** closes with at least one refusal proved by test — a closure denied and
   named, a `not_applicable` rejected on a `hold`, an external decision returned.
   «A screen that displays «не готово» closes nothing.»
-  ([version-0.1.md](version-0.1.md):848-858)
+  ([version-0.1.md](version-0.1.md):891-901)
 - **Discovery entry evidence precedes each irreversible schema or UX freeze.**
 - **Import is frozen, not deleted.** One real sanitized кошторис, АВР or
   interim-works file from a named company unfreezes it, and nothing else does
-  ([version-0.1.md](version-0.1.md):145-152). One file is enough to unfreeze; it
+  ([version-0.1.md](version-0.1.md):146-153). One file is enough to unfreeze; it
   is not enough to validate.
 
 ---
@@ -556,7 +556,7 @@ done by writing code and it does not get faster by building more.
 ## §3. Roles
 
 **These are agent roles executed on behalf of one human owner. They are not
-staff.** There is one person on this project; [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):475-479
+staff.** There is one person on this project; [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):480-484
 says naming anyone else would be fiction. What the roster buys is *separation of
 concerns inside one head* — which artifact a given pass is accountable for, and
 which gate it must clear before the next pass starts. It buys no headcount, no
@@ -605,7 +605,7 @@ environments* if the borrowed word gets in the way.
 | Role | What it would own | What must be true first |
 |---|---|---|
 | **Growth / outreach** | [outreach-log.md](../discovery/outreach-log.md), [2026-08-23-validation-push.md](../discovery/2026-08-23-validation-push.md)'s three asks and four materials, the seven letters under `discovery/templates/`, the landing page's claims | A production URL to point at. There is none: the seven letters are the *entire* current red of the canonical-docs gate, and the commit that narrowed the gate to them says the fix «needs an answer this commit cannot supply — what outreach should point at now» ([validate-canonical-docs.mjs](../../scripts/validate-canonical-docs.mjs):169-179). `https://goproceed-app.vercel.app` now exists; whether it is the answer is an owner decision, not a code change. **The four drafted materials do not wait on that decision** — Material 1, the follow-up to the 21, needs only a send. |
-| **Pilot partner management** | The pilot object's six fields | A reply. **And the count that is usually quoted here needs its correction quoted beside it, not after it.** [version-0.1.md](version-0.1.md):135-142 records «21 evidenced sends, zero replies, zero interviews, zero named projects, zero pilot commitments, zero willingness-to-pay signals». [outreach-log.md](../discovery/outreach-log.md):66 records all 21 on **one day, 2026-07-28**, with no follow-up recorded since (that file's own **Last reviewed is 2026-07-30**) — **35 days with one touch** as of 2026-09-01, extending the «26 days» that document itself counted on 2026-08-23. [2026-08-23-validation-push.md](../discovery/2026-08-23-validation-push.md):11-25 names the standing reading as an error in terms: «That is a fair count and a misleading conclusion… Zero replies to a single cold email is the expected outcome of a single cold email; it is not information about the market». **This runbook relies on the second reading**: the zero is not a market signal, it is an unsent follow-up. |
+| **Pilot partner management** | The pilot object's six fields | A reply. **And the count that is usually quoted here needs its correction quoted beside it, not after it.** [version-0.1.md](version-0.1.md):136-143 records «21 evidenced sends, zero replies, zero interviews, zero named projects, zero pilot commitments, zero willingness-to-pay signals». [outreach-log.md](../discovery/outreach-log.md):66 records all 21 on **one day, 2026-07-28**, with no follow-up recorded since (that file's own **Last reviewed is 2026-07-30**) — **35 days with one touch** as of 2026-09-01, extending the «26 days» that document itself counted on 2026-08-23. [2026-08-23-validation-push.md](../discovery/2026-08-23-validation-push.md):11-25 names the standing reading as an error in terms: «That is a fair count and a misleading conclusion… Zero replies to a single cold email is the expected outcome of a single cold email; it is not information about the market». **This runbook relies on the second reading**: the zero is not a market signal, it is an unsent follow-up. |
 | **Support / onboarding** | Anything a real user needs when something goes wrong | A real user. There are none, and M0's twelve gates are what has to close before there may be. **This stops being true on the pilot's first day** — §8.7 is where the support path is owed, and readiness gate 7 (incident path) is recorded OPEN at §5.13. |
 
 The honest statement, corrected: **the growth tier's work is drafted and
@@ -754,7 +754,7 @@ A standing Global Constraint every slice from ~2026-08-20 to 2026-09-01 carried:
 | `/plan-eng-review` | after an approved design | 2026-07-31 ([2026-07-31-m2a-gate.md](../superpowers/plans/evidence/2026-07-31-m2a-gate.md):36-43) |
 | `/plan-design-review` | user-facing flows | 2026-07-31 |
 | `/review` | after implementation | 2026-07-31 as a gstack verdict. Since then the whole-branch review is a subagent pass recorded in the gate record's «Reviews» table (2026-09-03) |
-| `/cso` | security-sensitive slices | **2026-09-02**, over the channel branch: two MEDIUM findings and four defects, all four «fix now» by the owner, landed in #62 and #65 (the erasure slice is finding #1's answer) |
+| `/cso` | security-sensitive slices | **2026-09-02**, over the channel branch. **The report itself is untracked** (`.gstack/` is git-ignored); what the tree holds is its consequence: PR #62's description names the three defects it fixes as «Fix now» decisions on that report, and PR #65 and [2026-09-02-telegram-identity-erasure-design.md](../superpowers/specs/2026-09-02-telegram-identity-erasure-design.md):38 name finding #1 (MEDIUM, VERIFIED) as the erasure slice's reason. Any count beyond those comes from PR descriptions, not from a file in `docs/` |
 | `/qa-only` | staging verification | none recorded |
 | `/ship` | approved delivery | none recorded |
 
@@ -764,7 +764,7 @@ A standing Global Constraint every slice from ~2026-08-20 to 2026-09-01 carried:
 
 [docs/README.md](../README.md):167-176, change control, step 2: **Approved
 product and domain documents are updated BEFORE implementation planning.**
-[ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):588-623 states the
+[ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):593-628 states the
 consequence in terms — making those edits «is a condition of this decision
 taking effect, not a follow-up task». **Six** of the fifteen corrections in §1.5
 are traceable to that step being deferred — C-1, C-2, C-3, C-4, C-7 and C-8, all
@@ -783,12 +783,12 @@ then leaving the loop unchanged is how it got broken fifteen times.
 ## §5. The twelve M0 gates, as an executable checklist
 
 M0 has **twelve** exit gates
-([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):417-469). Twelve is eight
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):422-474). Twelve is eight
 plus four. [production-readiness.md](production-readiness.md) carries them as
 **fourteen** numbered gates with the mapping at :167-180; that document's gates
 7, 9 and 13 carry no M0 row and are obligations it owes on its own account.
 **All fourteen still need a dated evidence entry**
-([version-0.1.md](version-0.1.md):305-313). One numbering is the decision's; the
+([version-0.1.md](version-0.1.md):316-324). One numbering is the decision's; the
 other is the readiness document's. Keep them distinct and never present fourteen
 as an M0 count.
 
@@ -857,7 +857,7 @@ route exists under `apps/app/app/v1`.
 
 This is deliberate and it is recorded: the export is **an operator-run procedure
 in v0.1**; making it a member-plane operation would add a row to the route set,
-«and that is not decided here» ([version-0.1.md](version-0.1.md):203-206).
+«and that is not decided here» ([version-0.1.md](version-0.1.md):214-217).
 
 What the gate asks for: an export reproducing authorized originals and the
 statutory act version with manifest, hashes, provenance and **named omissions**,
@@ -877,7 +877,7 @@ output counts as «produced and reopened». All three are undefined in repo.
 | Half | Status | Evidence today |
 |---|---|---|
 | Restricted audit trail | **BUILT / UNRECORDED** | `public.audit_events` exists with `organization_id`, `actor_type`, `action`, `object`, `request_id`, `details`, `reason_code` and a `prev_row_hash`/`row_hash` chain, tenant-restricted (migration `0002`). The service plane writes to it only through definers (`0078`), and an erasure writes one row that carries the surrogate and never the identifier (`0081` §4) |
-| «each event carrying a declared purpose and retention» ([roadmap.md](../product/roadmap.md):457-458) | **OPEN** | `audit_events` carries no purpose column and no retention column |
+| «each event carrying a declared purpose and retention» ([roadmap.md](../product/roadmap.md):460-461) | **OPEN** | `audit_events` carries no purpose column and no retention column |
 | Security telemetry | **OPEN** | No `security_events` table exists in any migration, although the retention catalog lists one |
 
 **Next action:** decide whether purpose/retention are per-event columns or a
@@ -1054,7 +1054,7 @@ in the evidence entry with the risk named); then item 3, then this half.
 ### 5.13 — The three readiness gates with no M0 row
 
 They still need dated evidence entries
-([version-0.1.md](version-0.1.md):305-313), and they are not M0 exit gates.
+([version-0.1.md](version-0.1.md):316-324), and they are not M0 exit gates.
 
 | Readiness gate | Status | Note |
 |---|---|---|
@@ -1393,7 +1393,7 @@ Eight `*-gate.md` records exist under `docs/superpowers/plans/evidence/` (with t
 [2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md).
 The format below is transcribed from those records, not designed here.
 
-**The chain lapsed and resumed.** From 2026-08-03 to 2026-09-02 no record was written while twenty-two PRs (#37–#61) merged. On 2026-09-03 the erasure slice wrote [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md) in the rename-slice-3 shape, with a «Deviations from the plan» section the template below now carries. The channel itself (PR #58, nineteen migrations) still has **no gate record**: ADR-011 §"Status against the runtime" is the nearest thing, and it is an ADR, not a record. The reason is stated at
+**The chain lapsed and resumed.** From 2026-08-03 to 2026-09-02 no record was written while fifty-three PRs (#7 through #61 — measured 2026-09-03 as the distinct `Merge pull request #N` subjects of `git log --merges --since=2026-08-03 --until=2026-09-03`; the 2026-09-01 revision's «nineteen, #37–#55» counted only the billing-pause window) merged. On 2026-09-03 the erasure slice wrote [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md) in the rename-slice-3 shape, with a «Deviations from the plan» section the template below now carries. The channel itself (PR #58, nineteen migrations) still has **no gate record**: ADR-011 §"Status against the runtime" is the nearest thing, and it is an ADR, not a record. The reason is stated at
 [TODOS.md](../../TODOS.md):3089-3092 — the agent harness refuses report `.md`
 files, so findings that would have lived in the session directory were filed in
 `TODOS.md` instead. **Whether that substitution is a decision or a drift is
@@ -1408,7 +1408,7 @@ contract.
 |---|---|
 | A slice that lands code, a migration, or a catalog change | **Yes** |
 | A slice that only edits documentation | **Yes** — the four `docs-slice*` records are precedent |
-| Closing an M0 gate | **Yes**, and additionally a dated entry in [version-0.1.md](version-0.1.md) §M0 per [production-readiness.md](production-readiness.md):383-391 |
+| Closing an M0 gate | **Yes**, and additionally a dated entry in [version-0.1.md](version-0.1.md) §M0 per [production-readiness.md](production-readiness.md):407-415 |
 | Closing a milestone (M1–M6) | **Yes.** Note that *how* a milestone is formally closed — who signs it, where it is recorded — is **undefined in repo** for M1–M6. Only M0 has a concrete mechanism (fourteen dated entries). §10 Q-2 |
 | A fix round inside an open slice | No — those are commits (`fix(<scope>): fix round N — <what was wrong>`), and the slice's single record covers them |
 
@@ -1699,7 +1699,7 @@ withdrawn claims stay withdrawn.
 
 «The pilot is an object, not a date.» Every field was **empty as of
 2026-08-06**, and no ADR records any of them filled since
-([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):481-500).
+([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):486-505).
 
 | Field | What fills it | Blocked on |
 |---|---|---|
@@ -1734,7 +1734,7 @@ and records what the resulting evidence will not prove.** Not a backlog item.
 ### 8.6 The one decision procedure: may real company data enter?
 
 Run this in order. **Any NO stops.** No step may be waived by a schedule, a
-document, or a partner's impatience — [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):674-708
+document, or a partner's impatience — [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):679-713
 protection 5 makes that a boundary violation «regardless of which document or
 schedule requests it».
 
@@ -1750,7 +1750,7 @@ schedule requests it».
 | 7 | Is the технагляд named **and adversarial** — or does a superseding ADR record what a loyal one will not prove? | [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 9 | **NO** |
 | 8 | Are the stopping conditions written down, in both directions, **before** the first act? | the same artifact | **NO** |
 | 9 | Does the pilot's field client have a measured parity gate — or is the pilot running on the `apps/app` PWA, which stays deployed until it does? | [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):113-128 | **PWA.** Legitimate; the pilot is never blocked on this |
-| 10 | Does anything in the demo, the landing page, a screen or a sales sentence claim a payment-presentation refusal that does not exist? | [version-0.1.md](version-0.1.md):865-870 | Must be re-checked before the first customer sees anything. **Owner and procedure: the role §3.3 parks as «not yet activatable» owns «the landing page's claims», so on the day this step runs the owner runs it directly.** The check itself is: grep `apps/landing`, the six `page.tsx` under `apps/app/app/dash`, and every outreach letter under `discovery/templates/` for the positioning sentence, and confirm each occurrence carries the explicit «payment-presentation eligibility is not in v0.1» statement §9.3 requires. **No script does this** — undefined in repo, and it is the one step of this procedure with no mechanical form |
+| 10 | Does anything in the demo, the landing page, a screen or a sales sentence claim a payment-presentation refusal that does not exist? | [version-0.1.md](version-0.1.md):908-913 | Must be re-checked before the first customer sees anything. **Owner and procedure: the role §3.3 parks as «not yet activatable» owns «the landing page's claims», so on the day this step runs the owner runs it directly.** The check itself is: grep `apps/landing`, the six `page.tsx` under `apps/app/app/dash`, and every outreach letter under `discovery/templates/` for the positioning sentence, and confirm each occurrence carries the explicit «payment-presentation eligibility is not in v0.1» statement §9.3 requires. **No script does this** — undefined in repo, and it is the one step of this procedure with no mechanical form |
 
 **Answer today: NO, at steps 1, 2, 3, 4, 5, 5b, 6, 7 and 8.** The shortest honest path
 to YES is P1 (§5.14's ordering) and P3 (§5.15, §8.4) run in parallel, because
@@ -1763,7 +1763,7 @@ standing obligations from Approved documents live entirely on the far side of
 that moment and appeared nowhere in this runbook before.
 
 **(a) M0 is a continuing obligation, not a one-time gate.**
-[production-readiness.md](production-readiness.md):390-391: «**Gates stay
+[production-readiness.md](production-readiness.md):414-415: «**Gates stay
 verified throughout the pilot; a regression reopens the gate and blocks new
 pilot data.**» So §8.6 is not a door that closes behind you. The fourteen
 readiness entries have to be re-verified during the pilot, and a regression in
@@ -1772,7 +1772,7 @@ undefined in repo** and this document does not invent one; what is not optional
 is that a regression reopens the gate.
 
 **(b) M6's closing evidence is an artifact nobody has specified.**
-[version-0.1.md](version-0.1.md):842 makes it «**the pilot findings document**,
+[version-0.1.md](version-0.1.md):853 makes it «**the pilot findings document**,
 plus the M0 evidence verified as still holding throughout the pilot». That
 document has no home, no template and no named writer — the same shape of gap as
 Q-1 and Q-6, and it is added to Q-1's scope rather than given an invented format
@@ -1824,8 +1824,8 @@ failure §0 refuses. It records the obligations and points at the questions.
 > row», and «it is only one more table» are each **explicitly not reasons**. The
 > test is [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 1: **name
 > the numbered step it is necessary for.**
-> — [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):684-687;
-> [version-0.1.md](version-0.1.md):860-863
+> — [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):689-692;
+> [version-0.1.md](version-0.1.md):903-906
 
 The six numbered steps, and nothing outside them is v0.1:
 
@@ -1859,12 +1859,12 @@ guess (:134-140).
 | **Weakening the gate.** Making a `hold` markable `not_applicable`; allowing manual override of a derived readiness state; letting freeze *filter* instead of *refuse*; restoring `evidence_blocked` below the packaging states — each is a boundary change | [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md):884-901 |
 | Reversing an owner assumption — requires editing the assumption section in the same change | same |
 | Any change to regulatory content — governed by [hidden-works-content-rules.md](../product/hidden-works-content-rules.md), which binds **at every precedence level, including over ADRs** | [docs/README.md](../README.md):156-165; [ADR-010](../decisions/ADR-010-project-sourced-requirements.md):54-64 |
-| Adding a capability to v0.1 | [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):684-687 |
+| Adding a capability to v0.1 | [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):689-692 |
 | **Moving the pilot later** | same, protection 2 |
 | **Unfreezing import** — requires *the file*: one real sanitized кошторис, АВР or interim-works file, recorded in [validated-assumptions.md](../discovery/validated-assumptions.md) with the named company and date | same, protection 3 |
 | Choosing a **loyal** технагляд for the first pilot — requires an ADR superseding decision 9 that records what the resulting evidence will not prove | same, protection 4 |
 | **Reordering M0 behind M6** | same, protection 5 |
-| Re-asserting a withdrawn provenance claim (camera-only capture; camera-vs-gallery discrimination; tamper-evident provenance; verified capture-time GPS) — an ADR, **not a UI change** | [ADR-007](../decisions/ADR-007-pilot-field-client.md):572-593 |
+| Re-asserting a withdrawn provenance claim (camera-only capture; camera-vs-gallery discrimination; tamper-evident provenance; verified capture-time GPS) — an ADR, **not a UI change** | [ADR-007](../decisions/ADR-007-pilot-field-client.md):591-612 |
 | Claiming a durable pending original — INV-013/014/053 may **not** be re-scoped back onto the browser path by a catalog edit | same |
 | A client-specific field on an evidence object, upload intent or requirement occurrence — the domain and the API stay client-agnostic | same |
 | Moving the valuation carve back into the recording path, or adding a readiness predicate to `progress.record`. **«A performance argument is not sufficient: the ordering is the product's central claim about itself.»** | [ADR-008](../decisions/ADR-008-valuation-carves-at-admission.md):163-169 |
@@ -1885,7 +1885,7 @@ and hidden-works-content-rules.md's precedence over ADRs.
 higher-numbered ADR does **not** automatically win. By
 [docs/README.md](../README.md)'s own ordering, product scope and roadmap sit at
 level 4 and the approved domain and architecture designs at level 2 — both above
-ADRs at level 5. [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):588-623:
+ADRs at level 5. [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):593-628:
 «an unedited `docs/domain/` document therefore outranks this ADR and ADR-007 by
 the package's own rules… **the contradiction is resolved AGAINST this ADR and
 not by it.**» Making those edits is a condition of the decision taking effect,
@@ -1896,7 +1896,7 @@ tables in play run on opposite conventions, so the rule is not generic.**
 
 ADR-007's table is a **snapshot frozen at approval**: «Each row below was a
 correction owed **when this ADR was approved on 2026-08-06**»
-([ADR-007](../decisions/ADR-007-pilot-field-client.md):522-524). Its reading
+([ADR-007](../decisions/ADR-007-pilot-field-client.md):541-543). Its reading
 rule, quoted in its own direction:
 
 > **Read the right-hand column as the end state each document must reach, never
@@ -1905,10 +1905,10 @@ rule, quoted in its own direction:
 > false by being satisfied, but a reader who treats it as current state will
 > halt planning on a premise that may already be closed — **which is the failure
 > this package has had twice.**
-> — [ADR-007](../decisions/ADR-007-pilot-field-client.md):526-531
+> — [ADR-007](../decisions/ADR-007-pilot-field-client.md):545-550
 
 **§1.5's register runs the opposite convention** and says so:
-[version-0.1.md](version-0.1.md):891 — «**A row leaves this table when it
+[version-0.1.md](version-0.1.md):934 — «**A row leaves this table when it
 lands**, because a correction recorded as owed after it is done stops delivery
 on nothing and buries the rows that genuinely do.» So §1.5 **is** current state
 and may be read as one; ADR-007's table is not and must not be.
@@ -1924,18 +1924,18 @@ the failure §0's honesty contract exists to prevent.
 
 | Prohibition | Source |
 |---|---|
-| The positioning sentence «Ми не блокуємо роботу на майданчику — ми не даємо її пред'явити до оплати, поки доказ не отримано і не погоджено» may be used **only alongside an explicit statement that payment-presentation eligibility is not in v0.1**, and **no demonstration, landing page, screen or sales sentence may show a payment-presentation refusal that does not exist** | [version-0.1.md](version-0.1.md):865-870; [roadmap.md](../product/roadmap.md):209-220 |
-| No UI, package, render, demo or sales sentence claims camera-only capture for a blocking requirement, camera-versus-gallery discrimination, tamper-evident provenance, or verified capture-time GPS. What **may** be claimed: a client-computed content hash verified at finalization, a server receipt time, and a device-claimed capture time stored beside it and **explicitly labelled untrusted** | [ADR-007](../decisions/ADR-007-pilot-field-client.md):243-276 |
-| A level-3 `LINK_CONFIRMATION` record is **never labelled, exported, or demonstrated as a signature.** КЕП is v0.2 | [version-0.1.md](version-0.1.md):717-735 |
-| Blocked value is **exposure, never a receivable.** v0.1 creates no accounting entry, no payment obligation, no cross-currency total | [version-0.1.md](version-0.1.md):770-787; [ADR-001](../decisions/ADR-001-product-boundary.md) |
+| The positioning sentence «Ми не блокуємо роботу на майданчику — ми не даємо її пред'явити до оплати, поки доказ не отримано і не погоджено» may be used **only alongside an explicit statement that payment-presentation eligibility is not in v0.1**, and **no demonstration, landing page, screen or sales sentence may show a payment-presentation refusal that does not exist** | [version-0.1.md](version-0.1.md):908-913; [roadmap.md](../product/roadmap.md):212-223 |
+| No UI, package, render, demo or sales sentence claims camera-only capture for a blocking requirement, camera-versus-gallery discrimination, tamper-evident provenance, or verified capture-time GPS. What **may** be claimed: a client-computed content hash verified at finalization, a server receipt time, and a device-claimed capture time stored beside it and **explicitly labelled untrusted** | [ADR-007](../decisions/ADR-007-pilot-field-client.md):256-295 |
+| A level-3 `LINK_CONFIRMATION` record is **never labelled, exported, or demonstrated as a signature.** КЕП is v0.2 | [version-0.1.md](version-0.1.md):728-746 |
+| Blocked value is **exposure, never a receivable.** v0.1 creates no accounting entry, no payment obligation, no cross-currency total | [version-0.1.md](version-0.1.md):781-798; [ADR-001](../decisions/ADR-001-product-boundary.md) |
 | Blocked value is reported **beside** first-time acceptance rate and days-to-signature and **never as the hero number** | [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md):700-709 |
-| Manual work-line entry is a **first-class capability, not a stopgap** — no document, screen, error message or export may describe it as one | [version-0.1.md](version-0.1.md):153-156 |
+| Manual work-line entry is a **first-class capability, not a stopgap** — no document, screen, error message or export may describe it as one | [version-0.1.md](version-0.1.md):154-157 |
 | `PROJECT_DOCUMENTATION` names an **origin, not a verification strength**. No claim that the product verified anything | [ADR-010](../decisions/ADR-010-project-sourced-requirements.md):142-211 |
-| No Додаток Г, no КБ-2в (Додаток 36), no КБ-3 (Додаток 37), no КЕП in v0.1 | [version-0.1.md](version-0.1.md):688-694 |
-| Nothing is printed for the технагляд's кваліфікаційний сертифікат серія/номер until [hidden-works-content-rules.md](../product/hidden-works-content-rules.md) allow-lists that field | [version-0.1.md](version-0.1.md):658-662 |
+| No Додаток Г, no КБ-2в (Додаток 36), no КБ-3 (Додаток 37), no КЕП in v0.1 | [version-0.1.md](version-0.1.md):699-705 |
+| Nothing is printed for the технагляд's кваліфікаційний сертифікат серія/номер until [hidden-works-content-rules.md](../product/hidden-works-content-rules.md) allow-lists that field | [version-0.1.md](version-0.1.md):669-673 |
 | No document may describe the bypass reason-code vocabulary as a closed set until it is enumerated in [state-catalog.csv](../../technical/states/state-catalog.csv) and [glossary.md](../domain/glossary.md). (Moot in v0.1 — [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 4 removes the bypass entirely) | [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md):362-396 |
-| **No notice of any kind exists in v0.1.** The witness notice event moved to v0.2 with witness, and «no document may describe a v0.1 notice of any kind» | [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):368, :579-586 |
-| No slice may write a v0.1 definition of the two headline measures | [version-0.1.md](version-0.1.md):811 |
+| **No notice of any kind exists in v0.1.** The witness notice event moved to v0.2 with witness, and «no document may describe a v0.1 notice of any kind» | [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):373, :579-586 |
+| No slice may write a v0.1 definition of the two headline measures | [version-0.1.md](version-0.1.md):822 |
 | Telegram is a transport; PostgreSQL is the source of truth for scope, identity, authorship, evidence association, decisions, delivery state and audit; **Telegram is never the only copy of an accepted evidence original**; and the channel is «not a generic messenger bridge» | [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) §"Owner-approved on 2026-08-28", the two travelling sentences |
 | No document describes the channel as operational, deployed or monitored: it is merged, deployed nowhere, its webhook enabled nowhere, its retention inert, and its integration suites red | ADR-011 §"Status against the runtime"; §1.1 and §1.3 of this runbook |
 
@@ -1943,7 +1943,7 @@ the failure §0's honesty contract exists to prevent.
 
 Recorded here «because work written during a pilot is the work most likely to be
 looked at later, and **both are silent failures if forgotten**»
-([version-0.1.md](version-0.1.md):872-884).
+([version-0.1.md](version-0.1.md):915-927).
 
 | # | Migration | Test it needs |
 |---|---|---|
@@ -1966,7 +1966,7 @@ reads as a third obligation on first pass and is not one.
   requirements, but the frozen importer writes no work type and a published line
   is immutable. «An imported кошторис materialises nothing and the only remedy
   is a successor version typed by hand, one line at a time»
-  ([version-0.1.md](version-0.1.md):486-496).
+  ([version-0.1.md](version-0.1.md):497-507).
 - **A constraint asymmetry worth a rule.**
   `requirement_rule_versions_one_provenance_check` makes citing **both** a
   library item and a project-sourced item unstorable, and leaves citing
@@ -1996,8 +1996,8 @@ Q-9, Q-10, Q-11, Q-12, Q-15 and Q-17 — it is the owner deciding, not an agent 
 | # | Question | Who | Blocks |
 |---|---|---|---|
 | **Q-1** | **Where does the pilot object live?** [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 8 defines six fields and their required contents. No file holds them. Its existence as an artifact is undefined in repo | Sprint Prioritizer / **owner decision** | P3, and therefore M6 open |
-| **Q-2** | **How is a milestone formally closed?** [version-0.1.md](version-0.1.md):848-858 states what closure *requires*; no artifact records a dated closure for any milestone and no procedure says who signs one or where. Only M0 has a mechanism | Senior PM / **owner decision** | M1–M5 closure, and therefore M6 |
-| **Q-3** | **What is the domain?** Three surfaces on `*.vercel.app`; `{{APP_HOSTNAME}}`, `{{LANDING_HOSTNAME}}` and `{{CONTACT_EMAIL}}` unresolved; neither well-known file exists. [ADR-007](../decisions/ADR-007-pilot-field-client.md):504-511 records the decision as open and [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):136-140 adds a third hostname to it. **No ADR takes it** | **Owner decision** | M0 item 1, M5 entry evidence, the seven outreach letters (the whole current red of the docs gate) |
+| **Q-2** | **How is a milestone formally closed?** [version-0.1.md](version-0.1.md):891-901 states what closure *requires*; no artifact records a dated closure for any milestone and no procedure says who signs one or where. Only M0 has a mechanism | Senior PM / **owner decision** | M1–M5 closure, and therefore M6 |
+| **Q-3** | **What is the domain?** Three surfaces on `*.vercel.app`; `{{APP_HOSTNAME}}`, `{{LANDING_HOSTNAME}}` and `{{CONTACT_EMAIL}}` unresolved; neither well-known file exists. [ADR-007](../decisions/ADR-007-pilot-field-client.md):523-530 records the decision as open and [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):136-140 adds a third hostname to it. **No ADR takes it** | **Owner decision** | M0 item 1, M5 entry evidence, the seven outreach letters (the whole current red of the docs gate) |
 | **Q-4** | **What are the pilot retention durations?** Every one of 126 rows is `duration_external_gate` under V-003, whose owner is «counsel/accountant» and whose target is «before GA retention». Whether V-003 is even the right gate for a *pilot* is unstated | **Owner decision** | M0 item 2, and item 4's shape |
 | **Q-5** | **Is «on every printed page» satisfiable without a paginator?** There is no print or PDF surface; `act-content-fidelity.test.ts` names the gap itself — «a model without a paginator» | UX Architect + Backend Architect | M0 item 6, M4 acceptance |
 | **Q-6** | **Where does a gate record go today — and is the 2026-09-03 form the rule?** The directory resumed on 2026-09-03 after a month's gap, in the rename-slice-3 shape plus a «Deviations» section; the channel's own nineteen migrations still have no record. Still unanswered: where a step-2 brainstorm record, a step-4/6 review verdict and an aborted slice go (§4.1); and whether the ADR approval form ADR-011 records — rulings in conversation, transcribed with the date — is the procedure or one more instance of not having one | Evidence Collector / **owner decision** | Every future slice's evidence |
