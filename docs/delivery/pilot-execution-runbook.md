@@ -4,7 +4,7 @@
 
 **Applies to:** v0.1
 
-**Last reviewed:** 2026-09-01
+**Last reviewed:** 2026-09-03
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-004](../decisions/ADR-004-roadmap-demo-and-documentation.md),
@@ -13,14 +13,15 @@
 [ADR-007](../decisions/ADR-007-pilot-field-client.md),
 [ADR-008](../decisions/ADR-008-valuation-carves-at-admission.md),
 [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md),
-[ADR-010](../decisions/ADR-010-project-sourced-requirements.md)
+[ADR-010](../decisions/ADR-010-project-sourced-requirements.md),
+[ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md)
 
 ---
 
 ## §0. What this runbook is, and what it refuses to do
 
 This is the repeatable procedure for taking GoProceed from the tree at commit
-`7397d7d` through v0.1 completion — M0 closed, M1–M6 closed, the pilot object
+`1c418fb` through v0.1 completion — M0 closed, M1–M7 closed, the pilot object
 filled — and into one pilot with one named company and one adversarial
 технагляд. It is a **delivery view**. It has no authority of its own.
 
@@ -94,17 +95,18 @@ opens it without the sources below will read transcriptions as decisions.
 
 ### Dated reproducible run behind §1
 
-Everything in §1 marked *measured* came from this run:
+Everything in §1 marked *measured* came from this run, in this checkout, with
+`node_modules` installed (`pnpm install --frozen-lockfile` → exit 0):
 
 ```
 $ date -u +%Y-%m-%dT%H:%M:%SZ
-2026-09-01T16:51:01Z
+2026-09-03T10:10:11Z
 $ git rev-parse --short HEAD
-7397d7d
+1c418fb
 $ ls supabase/migrations/*.sql | wc -l
-60
+81
 $ ls supabase/migrations | tail -1
-0060_the_retirement_that_raced_itself.sql
+0081_the_identity_that_asked_to_be_forgotten.sql
 $ tail -n +2 technical/openapi/scope-v0.1.csv | awk -F, '{print $NF}' | sort | uniq -c
   35 v0.1-M1
    9 v0.1-M2
@@ -112,132 +114,168 @@ $ tail -n +2 technical/openapi/scope-v0.1.csv | awk -F, '{print $NF}' | sort | u
    6 v0.1-M4
    6 v0.1-M5
    3 v0.1-M6
+  10 v0.1-M7
 $ grep -c '^- \[ \]' docs/delivery/production-readiness.md
 32
 $ grep -c '^- \[x\]' docs/delivery/production-readiness.md
 0
 $ node scripts/validate-canonical-docs.mjs; echo "EXIT=$?"
-canonical documentation: 13 problem(s)
-EXIT=1
-$ ls -d node_modules
-ls: node_modules: No such file or directory
+canonical documentation: OK
+EXIT=0
+$ grep -H '^\*\*Status:\*\*' docs/decisions/ADR-0*.md | grep -vc Approved
+0
+$ ls docs/superpowers/plans/evidence/*-gate.md | wc -l
+8
+$ ls docs/superpowers/plans/evidence/*-gate.md | tail -1
+docs/superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md
+$ ls docs/superpowers/plans/20*.md | wc -l
+35
+$ ls docs/superpowers/specs/ | grep -c design.md
+19
+$ git log --merges 7397d7d..HEAD --format=%s | wc -l
+12
+$ grep "^## P[0-3]" TODOS.md | grep -vi CLOSED | wc -l
+35
 $ supabase --version
 2.114.0
 $ cat .supabase-cli-version
 2.115.0
+$ docker exec -i supabase_db_goproceed psql -U postgres -d postgres -Atc "select max(version) from supabase_migrations.schema_migrations"
+0081
 ```
 
-No test suite was run in this worktree. `node_modules` is absent, and that
-condition still holds — every §6.1 command resolving a binary through it is
-recorded `NOT PROVEN — environmental` here for that reason, not because it
-failed.
+The full suite was run in this checkout too, after the transcript above:
 
-What changed on 2026-09-01 is that the absence stopped being the whole story.
-[test-strategy.md](test-strategy.md) §Baseline used to name no baseline for the
-same reason; it now records one, from CI run 33540108319 at `18411ea` — 176
-files, 2174 tests, both jobs green. So this runbook distinguishes two things
-that used to be one: **unproven in this worktree** (still true, and stated
-wherever it applies) and **unproven anywhere** (no longer true of the suites,
-still true of the motion gate and the field client's browser harness, neither
-of which is in any CI job).
+```
+$ pnpm turbo run test --concurrency=1
+2026-09-03T10:12:51Z  (start)
+ Tasks:    8 successful, 8 total
+@goproceed/testing:test:   Test Files  42 passed (42)      Tests  666 passed (666)
+@goproceed/app:test:       Test Files  106 passed | 7 skipped (113)
+@goproceed/app:test:       Tests  1084 passed | 125 skipped (1209)
+@goproceed/contracts 136, @goproceed/domain 102, @goproceed/mobile 150,
+@goproceed/discovery 73, @goproceed/landing 46, @goproceed/database 7 — all passed
+exit=0
+```
+
+The isolated `apps/app` suites skip locally by design — their `beforeEach`
+truncates the only local database and they run only where
+`TEST_DB_ADMIN_URL` is set, which since #62 is CI and nowhere else. So a local
+green is a green of everything *except* the suites that are red in CI, and
+§1.1 states both halves rather than one.
+
+What changed since the 2026-09-01 revision of this block: `node_modules` is
+present, so nothing below is `NOT PROVEN — environmental` for that reason any
+more; the tree is twenty-one migrations longer; and the CI baseline is no longer
+green — see §1.1 for why that is a gain in what is known, not a loss in what
+works.
 
 ---
 
-## §1. Where GoProceed actually stands, 2026-09-01
+## §1. Where GoProceed actually stands, 2026-09-03
 
 ### 1.1 Proven — measured today, in this checkout
 
 | Fact | Evidence |
 |---|---|
-| 60 migrations on disk, `0001`–`0060` | measured; last file `0060_the_retirement_that_raced_itself.sql` |
-| 65 catalogued v0.1 operations, split 35/9/6/6/6/3 across M1–M6 | measured from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) |
-| M0 has **zero** recorded evidence entries | 32 unchecked gate items, 0 checked, in [production-readiness.md](production-readiness.md):133-140 and its gate sections |
-| The canonical-docs gate is **GREEN** — `canonical documentation: OK`, exit 0 | measured. It was RED with 13 findings, all in `discovery/templates/`, until commit `18dd086` (2026-09-01) renamed the product in the seven letters and made the deleted demo's URL an owner-blocked `{{demo_url}}` placeholder. The directory's exclusion from the `discovery/` record exemption is deliberate — [validate-canonical-docs.mjs](../../scripts/validate-canonical-docs.mjs):169-179 |
+| 81 migrations on disk, `0001`–`0081` | measured; last file `0081_the_identity_that_asked_to_be_forgotten.sql`. Twenty-one landed since the 2026-09-01 revision: `0061`–`0079` (the Telegram channel, PR #58), `0080` (the choice-session policy, #62), `0081` (erasure and retention, #65) |
+| 75 catalogued v0.1 operations, split 35/9/6/6/6/3/10 across M1–M7 | measured from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv). The ten `v0.1-M7` rows are the channel's; M6 keeps three |
+| Eight milestones, M0–M7. `v0.1-M7 — The channel` exists since 2026-09-03 | [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decision 9, ruled by the owner; one row each in [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 4's table, [roadmap.md](../product/roadmap.md) and [version-0.1.md](version-0.1.md); fifteen entity rows tagged `v0.1-M7` (measured) |
+| Eleven ADRs, **all `Status: Approved`** — ADR-011 since 2026-09-03, on the owner's nine rulings recorded in its §"Open items — ruled by the owner on 2026-09-03" | measured; the approval procedure is still undefined in repo (Q-6) and this is one more recorded instance of the only form it has ever taken: rulings in conversation, transcribed with the date |
+| M0 has **zero** closed gates. 32 unchecked items, 0 checked | measured. Two gates now carry dated **evidence notes** under their unchecked boxes — gate 2 (the retention mechanism exists, inert) and gate 4 (the identity-level deletion procedure, exercised on synthetic data) at [production-readiness.md](production-readiness.md):212, :245-259 — which is what an evidence entry looks like on the way to a tick, and is not a tick |
+| The canonical-docs gate is **GREEN** — `canonical documentation: OK`, exit 0 | measured, and green on every CI run since 2026-09-01 |
+| The evidence chain resumed: the newest gate record is dated **2026-09-03** | [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md), the eighth `*-gate.md` and the first since 2026-08-03. It uses §7's vocabulary as written, including `PASS (assisted)` for a CI run read against a known-red baseline |
 | The ДБН Додаток Н library is exactly twelve rows, all `VERIFIED_PRIMARY`, each carrying URL + retrieval date + SHA-256 | [dbn-a31-5-2016-dodatok-n.csv](../../technical/requirements/dbn-a31-5-2016-dodatok-n.csv):1-13 |
-| All eight discovery assumptions A-1…A-8 are `Unvalidated`; every evidence column is `none` **except A-8's Reply, which is `founder-reported`** | [validated-assumptions.md](../discovery/validated-assumptions.md):33-40 (A-8 at :40) |
+| All eight discovery assumptions A-1…A-8 are `Unvalidated`; every evidence column is `none` **except A-8's Reply, which is `founder-reported`** — and ADR-011 decision 11 now records that the channel was built **on the owner's instruction, before validation**, and that A-8 is never cited as evidence for it | [validated-assumptions.md](../discovery/validated-assumptions.md):33-40 (A-8 at :40); [ADR-007](../decisions/ADR-007-pilot-field-client.md) as amended 2026-09-03 |
 | The local Supabase CLI (2.114.0) is behind the pin (2.115.0) | measured; `pnpm db:check-cli` warns on exactly this |
+| Local dev carries `0081` | measured against the local container's `supabase_migrations.schema_migrations` |
 
-**And, as of 2026-09-01, a green CI baseline exists — the first this package has
-had.** It is not measured in this checkout; it is measured by a public,
-re-runnable CI job, which is the stronger of the two:
-`ci` run **33540108319**, head SHA **`18411ea`**, both jobs `success` —
-**176 test files, 2174 tests, all passed** across eight suites, plus
-`validate:canonical-docs` OK, `typecheck`, `build`, the CLI pin assertion, and
-`pnpm --filter @goproceed/app qa` at **8 of 8 audits, zero findings**. The
-verbatim counts, the per-package split and — importantly — the three commands
-the baseline does **not** cover are recorded in
-[test-strategy.md](test-strategy.md) §Baseline. Read that list before citing
-this row: the motion gate and the field client's browser harness are in no CI
-job and did not run.
+**The CI baseline is red, and the red is older than the channel.** This is the
+one row a reader must not skim. Until 2026-09-02 `.github/workflows/ci.yml`
+never set `TEST_DB_ADMIN_URL`, so the eight isolated `apps/app` suites — 125
+cases — were **skipped** on every run, including the green baseline run
+33540108319 that [test-strategy.md](test-strategy.md) §Baseline still records.
+PR #62 set the variable (`ci.yml`:61-68, `turbo.json`:42). The suites now run,
+and **eighteen** of their cases fail: fourteen in
+`tests/telegram-evidence.int.test.ts`, one each in
+`tests/telegram-delivery.int.test.ts`, `tests/project-communications.int.test.ts`,
+`tests/upload-intents-finalize.int.test.ts` and
+`src/lib/evidence/evidence-service.test.ts`. They fail **identically** on `main`
+before the channel merged (baseline PR #63) and after it (run 33736763584 at
+`7bf8e4b`; run 33742738613 at `1c418fb`: `app-qa` success, `verify` failure, the same eighteen titles; `packages/testing` 42 files passed; `apps/app` 5 files failed, 108 passed); every slice merged
+since was read against that set and added nothing. `app-qa` is green
+throughout; `packages/testing` is green throughout — 42 files, including the 28
+erasure cases and the tenant-isolation sweeps. So the honest statement is:
+**`verify` is red on `main` with a known, fixed set, and the set predates every
+change this runbook describes.** Fixing the eighteen is its own slice
+([TODOS.md](../../TODOS.md) P1, 2026-09-03). Until it lands, every gate record
+says `PASS (assisted)` for CI with the set named — never a bare PASS — and
+[test-strategy.md](test-strategy.md) §Baseline is owed a correction (C-16):
+the run it names was green because it skipped, not because it passed.
 
 ### 1.2 Asserted by a dated operator record — not reproduced here
 
 Not measured by this runbook — **asserted by a dated record written by the
 operator who ran it**, which is a stronger source than the delivery docs and a
 weaker one than a live catalog query. The word in the heading is *asserted*
-deliberately: nothing in this subsection was re-run in this worktree, and
-[test-strategy.md](test-strategy.md):601-604 forbids any document in this
+deliberately: nothing in this subsection was re-run against a hosted project,
+and [test-strategy.md](test-strategy.md):601-604 forbids any document in this
 package from turning an assertion of that kind into a present-tense claim.
 
 | Fact | Source | Date |
 |---|---|---|
-| Supabase staging project `asrvzhjaueyvrfozxpzo` (eu-north-1): 58/58 migrations, `pg_cron` present, 140 policies, 53/53 public tables with RLS, both `goproceed_*_login` passwords set | [infra/README-staging.md](../../infra/README-staging.md):971-984 | 2026-08-19 |
-| Vercel `goproceed-app`, root `apps/app`, region `arn1`, twelve preflight-checked variables; `GET /login` answers 200 over TLS at `https://goproceed-app.vercel.app`; the owner has signed in once | same, :971-984 | 2026-08-19 |
-| Vercel `goproceed-landing` (`prj_hoBlVEmml70Ap5X2alvKtPUToQpj`), zero environment variables, HTTP/2 200 | same, :462-487 | 2026-08-20 |
-| Vercel `goproceed-field` (`prj_q0pHp3k54YSlqw0CZUIylZ56FGBg`), root `apps/mobile`; CORS measured on the wire — `OPTIONS /v1/projects` echoes the exact origin, and a 401 still carries the `access-control-allow-origin` header | same, :505-508, :703-716 | 2026-08-21 |
-**One row that does not belong in the table above, and why.**
-`HANDOFF-2026-08-27.md`:234-239 **asserts** a clean `supabase db reset` from
-zero through `0059` on local dev, `pnpm validate:canonical-docs` OK,
-`pnpm turbo run typecheck` green and `pnpm turbo run test --concurrency=1`
-«green across all packages», dated 2026-08-27. That is prose: **no output, no
-pass/fail count and no transcript was recorded**, so it is not a dated
-reproducible run in the sense [test-strategy.md](test-strategy.md):601-604
-requires («Pass/fail counts are recorded verbatim from a dated run that a reader
-can reproduce… Until such a run exists, no document in this package may state a
-passing suite, a test count, or a green baseline as a present fact»). It also
-predates `0060` (added 2026-08-28) and the nineteen PRs #37–#55 merged through
-2026-08-31, including the whole landing/motion series. In this worktree it is
-`NOT PROVEN — environmental` (`node_modules` absent, measured). **It is not a
-current green baseline** — but one now exists elsewhere: CI run 33540108319 at
-`18411ea`, recorded in §1.1 and in [test-strategy.md](test-strategy.md)
-§Baseline. What the HANDOFF row cannot do is stand in for it, which is the point
-this paragraph was always making.
+| Supabase staging project `asrvzhjaueyvrfozxpzo` (eu-north-1): 58/58 migrations, `pg_cron` present, 140 policies, 53/53 public tables with RLS, both `goproceed_*_login` passwords set | [infra/README-staging.md](../../infra/README-staging.md) §Status | 2026-08-19 |
+| Vercel `goproceed-app`, root `apps/app`, region `arn1`, twelve preflight-checked variables; `GET /login` answers 200 over TLS at `https://goproceed-app.vercel.app`; the owner has signed in once | same | 2026-08-19 |
+| Vercel `goproceed-landing`, zero environment variables, HTTP/2 200 | same, :462-487 | 2026-08-20 |
+| Vercel `goproceed-field`, root `apps/mobile`; CORS measured on the wire — `OPTIONS /v1/projects` echoes the exact origin, and a 401 still carries the `access-control-allow-origin` header | same, :505-508, :703-716 | 2026-08-21 |
+| The Telegram channel's ten operations, fifteen tables and its erasure procedure are **built and CI-proven on `packages/testing`; deployed nowhere; the webhook enabled in no environment** | [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) §"Status against the runtime", addendum 2026-09-03 | 2026-09-03 |
 
-The narrow true statement about the migration chain is the one at
-`HANDOFF-2026-08-27.md`:147 — **«the migration chain is applied nowhere but
-local dev»** plus a staging push through `0058`. Not «never executed». Not
-«green in production».
+**The migration gap, stated as a number.** The last recorded apply to a hosted
+project is `0058` (2026-08-19). The tree holds `0081`. **Twenty-three
+migrations — `0059` through `0081` — have no apply record anywhere**, and
+among them are the channel's nineteen, the choice-session policy fix and the
+erasure slice. Nothing in this runbook may describe any of that as «on
+staging»; §8.1 carries what applying them costs and Q-9 carries what is
+undefined about doing it.
+
+`HANDOFF-2026-08-27.md`:234-239 still **asserts** a clean `supabase db reset`
+through `0059` on local dev, dated 2026-08-27, with no output, no counts and no
+transcript. It is prose, not a dated reproducible run
+([test-strategy.md](test-strategy.md):601-604), it predates `0060`–`0081`, and
+the local database it describes now carries `0081` (measured, §0). It is not a
+baseline of anything and is not used as one here.
 
 ### 1.3 Written but unproven
 
 | Thing | Why it is unproven |
 |---|---|
-| Whether M1–M6 are code-complete — «every catalogued operation has a route, every build-list table has DDL, every milestone has a suite» | Asserted at [2026-08-06-v0.1-implementation-progress.md](../superpowers/plans/2026-08-06-v0.1-implementation-progress.md):487-503 («**No delivery work remains.**»), and that source disqualifies itself twelve lines on, at :492-494: «**Execution.** Nothing in this repository has been run… until they have been run and their output read, no statement in this document about behaviour is more than a claim derived from reading.» It also says at :497-499 that «No delivery work remains» **must not be read as M4 being closed**. And the catalog moved after its date: [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) gained the evidence-by-assignment operations on 2026-08-22 and `project_requirements.*` on 2026-08-24, so a 2026-08-06 document cannot certify coverage over today's 65 rows. The routes for the newer rows do exist on disk (`apps/app/app/v1/workspaces/[workspaceId]/project-requirements/route.ts`, `apps/app/app/v1/project-requirements/[itemId]/`) — **operation↔route coverage as a whole is not re-measured here.** |
-| Whether staging is at head | No document records a `supabase db push` after 2026-08-19. `0059` landed 2026-08-27, `0060` on 2026-08-28. **Inference from silence: staging is at `0058`, two migrations behind.** Not verified. Settle it with `select max(version) from supabase_migrations.schema_migrations` against staging before assuming either way. |
-| Whether CI has produced a signal since the billing pause | CI was **scheduled** to unpause 2026-09-01 — today (`HANDOFF-2026-08-27.md`:174-175: «The first push after that date is the first real CI signal since the pause; a red X before it is billing, not code»). **Whether billing actually resumed is recorded nowhere in this repository — undefined in repo.** **Nineteen** PRs (#37–#55) merged during the pause — measured 2026-09-01 at `7397d7d` with `git log --format='%s' --merges \| grep -cE "Merge pull request #(3[7-9]\|4[0-9]\|5[0-5]) "` → `19`. No CI run is recorded for any of them. |
-| Whether `progress.adjust`'s ADR-008 fix works | The route now reads `(rootAdmitted && delta < 0n)` and the test assertion was inverted in the same change, but the route header ends «NOTHING HERE WAS EXECUTED». Written, not proven by a run. |
-| Whether the Expo-web field client reaches parity | The parity gate is a measurement on two physical phones ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):113-128), and **three of its five sub-items are unmeasured** (§8.3). On the hardware itself the repository disagrees with itself and this runbook does not resolve it silently: [2026-08-01-b0-procurement.md](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) (dated 2026-08-01) and [TODOS.md](../../TODOS.md):1788 record both devices as unprocured, while [README-staging.md](../../infra/README-staging.md):922-926 and :941-949 carry measurements **taken on an iPhone on 2026-08-21** that cannot be taken without one. **No Android measurement exists anywhere in the repository.** C-13. |
-| Whether the manifest is served as `application/manifest+json` from the field origin | [README-staging.md](../../infra/README-staging.md):576-583 writes the check as a to-be-run instruction. No measured result exists anywhere in the repo. |
+| Whether M1–M6 are code-complete — «every catalogued operation has a route, every build-list table has DDL, every milestone has a suite» | Asserted at [2026-08-06-v0.1-implementation-progress.md](../superpowers/plans/2026-08-06-v0.1-implementation-progress.md):487-503 («**No delivery work remains.**»), and that source disqualifies itself twelve lines on, at :492-494: «**Execution.** Nothing in this repository has been run… until they have been run and their output read, no statement in this document about behaviour is more than a claim derived from reading.» The catalog has moved from 58 to 75 rows since its date. **Operation↔route coverage as a whole is not re-measured here.** |
+| Whether **M7** works end to end | Not unproven — **half-proven and half-red**, and this row exists so the two halves are not averaged. The unit and `packages/testing` halves are green in CI (the guards, the RLS sweeps, the erasure suite, the CLI test). The integration halves under `apps/app/tests/` are **among the eighteen red cases** (§1.1): `telegram-evidence.int` (fourteen), `telegram-delivery.int` and `project-communications.int` (one each). ADR-011 §"Status against the runtime" records the same suites as *skipped* on 2026-09-02; since #62 they run and fail. «CI green» was never true of those invariants and is not true now. And the spec's own rule stands: «No completion claim is made from green mocks alone; the real-group staging pass is required before the feature is described as operational» |
+| Whether staging is at head | It is not, and the number is known: twenty-three behind (§1.2). What is unproven is the state *between* — whether `0058` is still exactly where staging stands. Settle it with `select max(version) from supabase_migrations.schema_migrations` against staging before any push (§8.1) |
+| Whether `progress.adjust`'s ADR-008 fix works | The route reads `(rootAdmitted && delta < 0n)` and the test assertion was inverted in the same change; the route header ends «NOTHING HERE WAS EXECUTED». Its suite is not among the eighteen, so it runs green in CI — which proves the assertion as written, not that the assertion is the right one. [ADR-008](../decisions/ADR-008-valuation-carves-at-admission.md):194-205 still calls it a live P0 (C-6) |
+| Whether the Expo-web field client reaches parity | The parity gate is a measurement on two physical phones ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):113-128), and **three of its five sub-items are unmeasured** (§8.3). The repository disagrees with itself on the hardware: [2026-08-01-b0-procurement.md](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) and [TODOS.md](../../TODOS.md) record both devices as unprocured, while [README-staging.md](../../infra/README-staging.md):922-926 and :941-949 carry iPhone measurements dated 2026-08-21. **No Android measurement exists anywhere.** C-13. ADR-011 open item 8 adds one fact: the field client **stays available on a Telegram-locked project**, so the parity gate's meaning is unchanged by the channel |
+| Whether the manifest is served as `application/manifest+json` from the field origin | [README-staging.md](../../infra/README-staging.md):576-583 writes the check as a to-be-run instruction. No measured result exists |
+| Whether retention ever runs | `app.apply_communication_retention` is scheduled nightly and does nothing: all three rows of `app.retention_policy` carry `duration = NULL` (0081 §1, unchanged). Proven inert by test; **retention under a real duration in a real environment is `NOT PROVEN — environmental`** by the gate record's own row, and stays so until the owner lands a duration (Q-4) |
 
 ### 1.4 Stale — what the docs claim that the tree contradicts
 
 | Claim | Where | Current truth |
 |---|---|---|
-| «Migrations `0041`–`0050` are ten files… none applied anywhere — not once» | [version-0.1.md](version-0.1.md):109-116, [production-readiness.md](production-readiness.md):144-147, both **Last reviewed 2026-08-08** | 60 files on `main`; applied through `0058` on staging (2026-08-19) and through `0059` on local dev (2026-08-27) |
-| «**Approved is not deployed.**», under the heading «## Nothing below is **closed**» | [production-readiness.md](production-readiness.md):133, :135 | Provisioned and public per [README-staging.md](../../infra/README-staging.md) §Status, :971-984 |
-| «nothing in this repo automates it, and nothing in this repo has run it yet» | [README-staging.md](../../infra/README-staging.md):4-5, the opening paragraph, **never corrected** — while the same document's §Status at :971-984 records the provisioning | same |
-| «Nothing below is deployed» — the sibling heading, quoted here as its own fragment rather than folded into the readiness row above, because it is a different document | [version-0.1.md](version-0.1.md):102 | same |
-| «The scope lists **58 operations** in `scope-v0.1.csv`» | [technical/openapi/README.md](../../technical/openapi/README.md):29, **Last reviewed 2026-08-06**; [test-strategy.md](test-strategy.md):342, **Last reviewed 2026-08-08** | **65**, measured. [version-0.1.md](version-0.1.md):161 already carries the corrected progression — «58 operations in v0.1; 60 as of 2026-08-18; 62 as of 2026-08-22; 65 as of 2026-08-24» — which makes the other two demonstrably stale rather than merely older. C-14 |
-| «Seventeen of the twenty-six v0.1 tables still have no table in any APPLIED migration» | [version-0.1.md](version-0.1.md):130-131 | 53 tables live on staging through `0058`; the 54th (`project_sourced_requirement_items`, `0059`) has no staging-apply record |
-| `statutory_acts.render` «refuses by design» for want of the В.1/В.2 field list and the ДБН retrieval record | [production-readiness.md](production-readiness.md):149-155 | Both landed 2026-08-10. `DODATOK_V_TEMPLATE.fieldList` is populated; `DBN_RETRIEVAL_RECORD` is non-null. The *mechanism* in that paragraph is still accurate — nulling the record makes the render refuse again — but its factual premise is not. |
-| «`progress.adjust` — NOT implemented as decided, and this is a live P0» | [ADR-008](../decisions/ADR-008-valuation-carves-at-admission.md):194-205 | The direction gate ADR-008 prescribed is in the source and the test was inverted in the same change. **Do not carry this as a present-tense P0.** |
-| «M6 cannot **open** without a definition of the two measures» | [roadmap.md](../product/roadmap.md):933-943, [glossary.md](../domain/glossary.md):253 | Corrected in place at [version-0.1.md](version-0.1.md):802-807: M6 was built anyway; «M6 cannot **CLOSE** without them». The route and its suite exist. |
-| «M2's `origin_not_distinguished` token has not landed, so this gate cannot close» | [version-0.1.md](version-0.1.md):519-525, [roadmap.md](../product/roadmap.md):657-667 | The literal exists in `packages/contracts/src/uploads.ts` and in migration `0043`'s `capture_origin` CHECK; INV-086 carries the rule |
-| «`apps/demo/src/domain/format.ts` — port `pluralUk`/`rowsUk` from there» | [03-ui-references.md](../design/03-ui-references.md) §6, Last reviewed 2026-08-19 | `apps/demo` was deleted 2026-08-20. Reachable only through git history. |
-| «every screen under `apps/app/app/(dash)/**`» | [03-ui-references.md](../design/03-ui-references.md):4 | The route is `/dash` as a real segment — `(dash)` collides with the field client's `(app)` and Next refuses the build ([2026-08-21-plan-d-dashboard.md](../superpowers/plans/2026-08-21-plan-d-dashboard.md):20-25) |
-| «D1–D4 remain» | [TODOS.md](../../TODOS.md):741-745, written 2026-08-22 | D1 merged in PR #46, D2 in PR #48, D3 (list + create) across PR #46 and PR #54. Only **D4 (members & access)** has no route. |
-| «The legacy Makefile drives the prototype package validator used by CI» | `README.md`:163-164 | No CI job invokes `make`. `make validate` is now a pure alias for the canonical-docs validator; `package-validate` was deleted 2026-08-20 with `prototype/`. |
-| The 33-table / 40-migration baseline «and no document in this package may state another one» | [docs/README.md](../README.md):180-188, Last reviewed 2026-08-06 | Stale by twenty migrations. The clause makes the staleness binding on anything that inherits from it, which is why it is listed here rather than quietly worked around. |
+| «Migrations `0041`–`0050` are ten files… none applied anywhere — not once»; «The runtime is 33 tables defined by 40 migrations» | [version-0.1.md](version-0.1.md):103-116, [production-readiness.md](production-readiness.md):133-147, both **Last reviewed 2026-08-08** | 81 files on `main`; applied through `0058` on staging (2026-08-19) and through `0081` on local dev (measured 2026-09-03) |
+| «**Approved is not deployed.**», under «## Nothing below is **closed**» | [production-readiness.md](production-readiness.md):133-135 | Provisioned and public per [README-staging.md](../../infra/README-staging.md) §Status — through `0058` |
+| «nothing in this repo automates it, and nothing in this repo has run it yet»; «58 files, `0001` through `0058`» | [README-staging.md](../../infra/README-staging.md):4-11, **never corrected** — while §Status records the provisioning | 81 files; the runbook itself says to read the number from `ls`, and this row is why. C-11 |
+| «The scope lists **58 operations** in `scope-v0.1.csv`» | [technical/openapi/README.md](../../technical/openapi/README.md):29; [test-strategy.md](test-strategy.md):342 | **75**, measured; the progression is at [version-0.1.md](version-0.1.md):161. C-14 |
+| A **green** baseline: «176 files, 2174 tests, all passed» from run 33540108319 | [test-strategy.md](test-strategy.md) §Baseline, recorded 2026-09-01 | That run skipped 125 cases for want of `TEST_DB_ADMIN_URL`. Since #62 they run and eighteen fail, on `main` before and after the channel. The baseline is **red with a named set**, and the section must say so. **C-16** |
+| «The outbox has no consumer» / «Outbox/job claiming and delivery: **None.**» | [jobs-events-and-audit.md](../architecture/jobs-events-and-audit.md):45, [tenancy-and-security.md](../architecture/tenancy-and-security.md):243 — **both precedence level 2** | `apps/app/src/lib/telegram/delivery.ts` claims `communication.telegram.send` and delivers. ADR-011 records the contradiction (its §"Contradictions", item 3) and, by [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):600-612, both documents **outrank ADR-011 until edited**. **C-17** |
+| «Seventeen of the twenty-six v0.1 tables still have no table in any APPLIED migration» | [version-0.1.md](version-0.1.md):130-131 | 53 tables live on staging through `0058`; the fifteen channel tables and the two `app`-schema tables of `0081` live only on local dev |
+| `statutory_acts.render` «refuses by design» for want of the В.1/В.2 field list and the ДБН retrieval record | [production-readiness.md](production-readiness.md):149-155 | Both landed 2026-08-10. The mechanism described is still accurate; its factual premise is not. C-2 |
+| «`progress.adjust` — NOT implemented as decided, and this is a live P0» | [ADR-008](../decisions/ADR-008-valuation-carves-at-admission.md):194-205 | The direction gate is in the source and the test was inverted with it. Not a present-tense P0. C-6 |
+| «M6 cannot **open** without a definition of the two measures» | [roadmap.md](../product/roadmap.md):354, :404; [glossary.md](../domain/glossary.md):253 | Corrected in place at [version-0.1.md](version-0.1.md):802-807: M6 was built; «M6 cannot **CLOSE** without them». C-4 |
+| «M2's `origin_not_distinguished` token has not landed» | [version-0.1.md](version-0.1.md):519-525, [roadmap.md](../product/roadmap.md):657-667 | The literal exists in `packages/contracts/src/uploads.ts` and migration `0043`'s CHECK; INV-086 now names **two** senders of it, the PWA and the Telegram bridge (amended 2026-09-03) |
+| «ADR-010 is the highest today» and «every ADR on disk simply carries `Status: Approved`» | this runbook's own §4.1 step 5b, 2026-09-01 revision | ADR-011 is the highest; it was `Draft` from 2026-09-02 to 2026-09-03 and moved to Approved on recorded rulings. Corrected in §4.1 below rather than left as a dated observation |
+| «`apps/demo/src/domain/format.ts` — port `pluralUk`/`rowsUk` from there»; «every screen under `apps/app/app/(dash)/**`» | [03-ui-references.md](../design/03-ui-references.md) §6 and :4 | `apps/demo` was deleted 2026-08-20; the route is `/dash`. C-9 |
+| «D1–D4 remain» | [TODOS.md](../../TODOS.md):741-745 | D1, D2 and D3 landed (PRs #46, #48, #54). Only D4 has no route. C-12 |
+| The 33-table / 40-migration baseline «and no document in this package may state another one» | [docs/README.md](../README.md):180-188 | Stale by forty-one migrations. The clause makes the staleness binding on anything that inherits from it |
 
 ### 1.5 Corrections owed
 
@@ -245,52 +283,58 @@ local dev»** plus a staging push through `0058`. Not «never executed». Not
 «This document is the delivery view; it does not silently rewrite the artifacts
 it now disagrees with. Each is a correction owed, and delivery of a slice that
 depends on one stops until it lands.» And: **a row leaves the table when it
-lands**, because a correction recorded as owed after it is done buries the rows
-that genuinely do.
+lands.** Re-measured 2026-09-03: **none of C-1…C-15 has left the table**; C-7
+moved; two rows are added.
 
 | # | Owed by | Correction | Blocks |
 |---|---|---|---|
-| C-1 | [production-readiness.md](production-readiness.md) | The headline «nothing is deployed / 0041–0050 applied nowhere» paragraph, against [README-staging.md](../../infra/README-staging.md) §Status | Any M0 gate closure that cites deployment state |
+| C-1 | [production-readiness.md](production-readiness.md) | The headline «33 tables, 40 migrations / 0041–0050 applied nowhere» paragraph, against [README-staging.md](../../infra/README-staging.md) §Status and the 81-file tree | Any M0 gate closure that cites deployment state |
 | C-2 | [production-readiness.md](production-readiness.md):149-155 | The two act-render blockers closed 2026-08-10 | M4 acceptance evidence |
-| C-3 | [version-0.1.md](version-0.1.md):102-133, :193-201 | The three-state «Applied / written and never run / neither» vocabulary, against a 60-migration tree with a staging push | Any statement about what exists in a shared environment |
-| C-4 | [roadmap.md](../product/roadmap.md):933-943 and [glossary.md](../domain/glossary.md):253 | «M6 does not open» → «M6 does not close» | M6 closure attempt |
+| C-3 | [version-0.1.md](version-0.1.md):103-133, :193-201 | The three-state «Applied / written and never run / neither» vocabulary, against an 81-migration tree with a staging push through `0058` | Any statement about what exists in a shared environment |
+| C-4 | [roadmap.md](../product/roadmap.md):354, :404 and [glossary.md](../domain/glossary.md):253 | «M6 does not open» → «M6 does not close» | M6 closure attempt |
 | C-5 | [glossary.md](../domain/glossary.md) | The v0.1 definitions of first-time acceptance rate and days-to-signature — **owed, and no other document may supply them** | M6 closure, the pilot pre-gate baseline |
 | C-6 | [ADR-008](../decisions/ADR-008-valuation-carves-at-admission.md):194-205 | §"Status of this decision against the runtime" item 3 is stale; the code no longer contradicts the ADR | Nothing — but it misleads every reader |
-| C-7 | [roadmap.md](../product/roadmap.md) | Carries no content dated after 2026-08-08 at all: no ADR-009, no ADR-010, no three-surface split, no Plan D | Any roadmap-sourced statement of v0.1 scope |
+| C-7 | [roadmap.md](../product/roadmap.md) | **Moved, not landed.** It gained the M7 row and section on 2026-09-03 and still carries no ADR-009 or ADR-010 content — no three-surface split, no Plan D, no project-sourced requirements (measured: zero mentions of either ADR) | Any roadmap-sourced statement of v0.1 scope |
 | C-8 | six files named at [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):154 | `glossary.md`, `roadmap.md`, `vision-and-positioning.md`, `personas-and-workflows.md`, `test-strategy.md`, `execution-and-evidence.md` still describe `apps/mobile` as v0.3 | Plan C landing |
 | C-9 | [03-ui-references.md](../design/03-ui-references.md) | `(dash)` → `/dash`; the deleted `apps/demo` reference; no `**Last reviewed:**` field at all | Any dashboard slice reading it as procedure |
-| C-10 | [04-role-pain-map.md](../design/04-role-pain-map.md) | No `**Applies to:**`, no `**Last reviewed:**`, no `**Related decisions:**` — it violates [docs/README.md](../README.md):87-119 and the validator does not check it because it is not on the REQUIRED list | Nothing mechanical; a real unrecorded exemption |
-| C-11 | [README-staging.md](../../infra/README-staging.md):7-11, :102, :173, :184 | «58 files, `0001` through `0058`» → 60; and §4.5:510's «`apps/mobile/vercel.json` exists only on branch `claude/expo-field-client`» → merged 2026-08-21 in PR #37, contradicted 190 lines later by the same section's own measurements | Any operator following §2 or §4.5 literally |
+| C-10 | [04-role-pain-map.md](../design/04-role-pain-map.md) | No `**Applies to:**`, no `**Last reviewed:**`, no `**Related decisions:**` — it violates [docs/README.md](../README.md):87-119 and the validator does not check it | Nothing mechanical; a real unrecorded exemption |
+| C-11 | [README-staging.md](../../infra/README-staging.md):4-11, :102, :173, :184, §Status | «58 files» → 81; §Status's «58/58» is a 2026-08-19 fact that must be dated as one, beside the sentence that twenty-three migrations have no apply record; and §4.5:510's branch-only `vercel.json` claim, merged 2026-08-21 | Any operator following §2, §4.5 or §Status literally |
 | C-12 | [TODOS.md](../../TODOS.md):741-745 | «D1–D4 remain» → only D4 remains | Sprint ordering |
-| C-13 | [2026-08-01-b0-procurement.md](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) and [TODOS.md](../../TODOS.md):1788-1796 | Both record two unprocured devices. Stale on the **iPhone** half: [README-staging.md](../../infra/README-staging.md):922-926 and :941-949 carry iPhone measurements dated 2026-08-21. Current on the **Android** half — no Android measurement exists anywhere | Any statement that the parity gate is blocked *by hardware*; §5.14 and §2 sequencing, because §8.3 sub-items 2 and 4 are iPhone-measurable today |
-| C-14 | [technical/openapi/README.md](../../technical/openapi/README.md):29 and [test-strategy.md](test-strategy.md):342 | «58 operations» → 65, per [version-0.1.md](version-0.1.md):161. The canonical-docs validator's silence is not evidence they are right — it checks per-milestone counts against the CSV, not these two prose sentences | Any statement of the v0.1 route-set size, and any milestone-scope argument that counts operations |
-| C-15 | [README-staging.md](../../infra/README-staging.md):980-982 | §Status lists custom SMTP as «still open», while the same document at :899-901 records **Brevo custom SMTP done 2026-08-19/20** and then depends on it for the measurements at :911 and :926 | Any operator reading §Status as the current state of email delivery — it says no invited foreman can receive a code, and that is not what the rest of the document records |
+| C-13 | [2026-08-01-b0-procurement.md](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) and [TODOS.md](../../TODOS.md) | Both record two unprocured devices; stale on the iPhone half (measurements of 2026-08-21), current on the Android half | Any statement that the parity gate is blocked *by hardware* |
+| C-14 | [technical/openapi/README.md](../../technical/openapi/README.md):29 and [test-strategy.md](test-strategy.md):342 | «58 operations» → 75, per [version-0.1.md](version-0.1.md):161 | Any statement of the v0.1 route-set size |
+| C-15 | [README-staging.md](../../infra/README-staging.md) §Status | Custom SMTP listed as open while :899-926 record Brevo done 2026-08-19/20 and depend on it | Any operator reading §Status as the state of email delivery |
+| **C-16** | [test-strategy.md](test-strategy.md) §Baseline | The 2026-09-01 «green baseline» skipped 125 cases; the baseline since 2026-09-03 is **red with eighteen named cases** on `main`, and the section must record that run and that reading (§1.1) | Every gate record's CI row, which today cites this runbook instead |
+| **C-17** | [jobs-events-and-audit.md](../architecture/jobs-events-and-audit.md):45 and [tenancy-and-security.md](../architecture/tenancy-and-security.md):243 | «The outbox has no consumer» / «None.» — against `delivery.ts`. Both are level 2 and outrank ADR-011 until edited ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):600-612), so ADR-011's own consumer statement is the one that loses today | M7's monitoring gate (§5.8) and any architecture-sourced statement about the outbox |
 
 **None of these is a licence to skip the work.** The rule is that a slice
 depending on a stale artifact stops until the correction lands — not that the
-runbook may read past it. **Landing C-1…C-15 is itself work with an owner and a
-place in the loop** — §4.1 step 4.5 is where a slice consults this register, and
-§5.15 gives the register a task table of its own.
+runbook may read past it. §4.1 step 4.5 is where a slice consults this
+register, and §5.15 gives the register a task table of its own. **A rewrite of
+this runbook is not a correction of any of them**: this document is a delivery
+view and lands none of the rows above by restating them.
 
 ### 1.6 Open defects in [TODOS.md](../../TODOS.md), and which phase owns each
 
 §3.1 makes the Senior PM accountable for «TODOS.md residual entries» and §4.3
 records that filing residuals there is what replaced the gstack verdict chain.
-Neither says what is *in* the file. Three entries bear directly on the pilot and
-appear in no other section of this runbook; each is a failure a real партнер can
-hit on day one.
+Measured 2026-09-03: **35** open entries, **two** P1. Six bear directly on the
+pilot and appear in no other section of this runbook; each is a failure a real
+партнер or a real person in a Telegram group can hit on day one.
 
 | Entry | What it is | Phase that owns it | Pilot impact |
 |---|---|---|---|
-| [TODOS.md](../../TODOS.md):900-930 (P2) | «a project access grant can be issued through the product and never taken back» — `/v1/projects/{projectId}/access-grants` exports only `POST`; no v0.1 operation revokes a project access capability, and the only route back is a superuser `UPDATE` | P2 (the delivery front), and §8.7 as an operating procedure | **Blocks pilot operability.** A mis-scoped grant during a pilot cannot be corrected through the product |
-| [TODOS.md](../../TODOS.md):2248-2257 (P1) | The external review shell's auto-exchange is **closed in code 2026-08-08, NEVER EXECUTED**; the residue named there is external-plane throttling, «which does not exist» — on the exact surface the технагляд uses | P1 (readiness gate 8 is where the absent rate limiter is already recorded) and §8.7 | A gateway that clicks every button still burns the grant; recovery is `external_grants.revoke_reissue`, which §6.1 records as reaching no browser at all |
-| [TODOS.md](../../TODOS.md):1706 (P2) | «the evidence purge worker still runs nowhere» — with `0031`, unpurged bytes count against a workspace quota, so a quota'd workspace eventually stops accepting uploads | P1 item 12's resource-exhaustion half (§5.12) and §8.7 | Deferred with the risk named, or it becomes a mid-pilot upload failure |
+| P1 — eighteen `apps/app` cases fail in CI (2026-09-03) | The set of §1.1, red on `main` since the isolated suites started running; fourteen of the eighteen are the channel's evidence bridge | P1 (readiness gate 11 cannot cite a red integration suite as isolation evidence) and P1b (M7's integration half) | **Blocks any «CI green» claim** and every gate record's CI row until fixed |
+| P2 — retention durations are owed (0081 shipped inert) | Three `NULL` rows in `app.retention_policy`; twelve catalog rows at `duration_external_gate`; two tables with no row | P1 (M0 item 2) | No retention runs; an erased identity's raw id survives in two intent columns until `operational_security` has a duration |
+| P2 — the assignment card renders a normative string without its tag and source (ADR-011 open item 9) | `cards.ts` renders `criterion — normRef` with neither; the owner ruled the card carries both before a real group sees it | P1 (M0 item 9) and P1b (M7's webhook-enable blockers) | **Blocks enabling the webhook anywhere** |
+| P2 — a project access grant can be issued through the product and never taken back | No v0.1 operation revokes a project access capability; the only route back is a superuser `UPDATE` | P2, and §8.7 as an operating procedure | A mis-scoped grant during a pilot cannot be corrected through the product |
+| P1 — the external review shell's auto-exchange, closed in code 2026-08-08, NEVER EXECUTED | The residue is external-plane throttling «which does not exist» — on the surface the технагляд uses | P1 (readiness gate 8) and §8.7 | A gateway that clicks every button burns the grant; recovery is `external_grants.revoke_reissue`, which reaches no browser |
+| P2 — the evidence purge worker still runs nowhere | With `0031`, unpurged bytes count against a workspace quota | P1 item 12's resource-exhaustion half (§5.12) and §8.7 | A quota'd workspace eventually stops accepting uploads |
 
-This is **not** a survey of the whole file. Measured 2026-09-01 at `7397d7d`
-with `grep "^## P[0-3]" TODOS.md | grep -vi "CLOSED" | wc -l` → **30** open
-entries: one P1 (the ADR-009 three-surface tracker at :665), ten P2 and
-nineteen P3. Triaging all thirty is not done here and is not this document's to
-do. The three above are the ones no other section of this runbook reaches.
+Three erasure-slice entries are not in the table because they are decisions or
+notes rather than day-one failures, and §5.2 carries them: the parked findings
+of 0081 (a service session can set the erasure markers itself; the raw id in
+two intent columns), the workspace-closure procedure (P3), and the missing
+test pin for the Telegram sender of `origin_not_distinguished`.
 
 ---
 
@@ -312,8 +356,9 @@ this document writes «phase P2» or «TODOS P2» rather than a bare token.
   P1   M0 closure ─────────────────────────────┐
        (12 gates, evidence per item)           │
                                                │
-  P1b  M1–M5 closure ──────────────────────────┤
-       (acceptance evidence per milestone)     ├──► P4a  M6 OPENS ──► P5  Pilot
+  P1b  M1–M5 and M7 closure ───────────────────┤
+       (acceptance evidence per milestone;      ├──► P4a  M6 OPENS ──► P5  Pilot
+        M7 also: the webhook-enable blockers)   │
                                                │                        │
   P3   Pilot-object fill (discovery) ──────────┘                        │
        (six fields, none of them code)                                  │
@@ -391,7 +436,7 @@ evidence entries» under-collects by two. A document that says «twelve *plus*
 four», or reaches sixteen, or counts a merged pair as one gate, is contradicting
 [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 7.
 
-### P1b — M1–M5 closure
+### P1b — M1–M5 and M7 closure
 
 **This phase exists because P4a's entry evidence names it and nothing else in
 this runbook did.** [roadmap.md](../product/roadmap.md):905-910 makes «M1–M5
@@ -418,8 +463,11 @@ are zero of them.
 | **M3 — the refusal** | «on a hand-typed baseline, create a stage; be refused its closure and read the `blocked_reason` object with the money behind it; record an `accept_risk` exception and watch the refusal lift while the exception stays visible and attributed; decide the occurrence internally and close; verify readiness recomputes and every blocker drills to authoritative facts» ([version-0.1.md](version-0.1.md):614-619) | entry :707-723, exit :724-772 | **BUILT / UNRECORDED** — `m3-refusal.int.test.ts` and `m3-closure-rls` exist (§6.3 proof 1) | Same as M1 |
 | **M4 — the act** | «close a satisfied stage; compose the act; freeze it; render twice and diff the bytes; attempt to type a quantity and be stopped by **the absence of the field** rather than by validation; check the render field by field against the В.1/В.2 list.» And, in the same block: «**Entry evidence still owed and still absent:** one signed акт на закриття прихованих робіт from the target workflow, sanitized» ([version-0.1.md](version-0.1.md):681-688) | entry :779-795, exit :796-827 | **PARTIAL** — the В.1/В.2 list landed 2026-08-10 (§6.3 proof 2), so the render half is testable; the sanitized real act is still absent, and it comes from a partner | The byte-diff and field-by-field check can run today; the entry evidence is a P3 ask |
 | **M5 — the link** | «an **adversarial** технагляд (ADR-006 decision 9) opens the link with no account, reads the requirement in the standard's own wording with the photo, and returns it with a reason; the return is visible as a refusal on the closure; the crew corrects and the decision is retaken» ([version-0.1.md](version-0.1.md):743-749) | entry :833-850, exit :851-897 | **OPEN — external dependency.** The acceptance evidence names a **real person from outside**, which makes M5 closure a P5 activity in the same way M6's is | Nothing inside the builder's control. It is filled by P3's second field |
+| **M7 — the channel** (added 2026-09-03, [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decision 9) | ADR-011 decision 10: the M0 gates the channel engages (1, 2, 3, 4, 5, 7, 8, 9, 11, 12) close with recorded evidence; the identity-level deletion procedure of gate 4 is exercised; and **before any environment enables the webhook**: Task 13's edge rate limit, the real-group staging pass, the scheduler, and the assignment card carrying the verification tag and source of every normative string it renders (ADR-011 open item 9). The spec's own rule: «No completion claim is made from green mocks alone; the real-group staging pass is required before the feature is described as operational» | [version-0.1.md](version-0.1.md) §v0.1-M7 | **BUILT / UNRECORDED on the unit half; RED on the integration half.** One gate record exists (the erasure procedure, 2026-09-03); the four webhook-enable blockers are all open; fourteen of CI's eighteen red cases are the channel's evidence bridge (§1.1) | Fix the eighteen; land the card slice; then Task 13, the scheduler and the real-group pass, in that order — none of them a real group |
 
-**The consequence P4a's entry condition hides.** Two of these five — M2 and M5 —
+**M7 and M0 are coupled twice over.** The channel is the first milestone whose acceptance evidence *is* M0 evidence — decision 10 closes it with the M0 gates it engages — and the first with a rule that runs across environments rather than across code: «no real group until M0 is closed» is the same sentence as protection 5's, applied to a Telegram group instead of a spreadsheet. A plan that schedules «enable the webhook on staging» before §5's gates 2, 4, 8, 9 and 11 have records is scheduling a boundary violation.
+
+**The consequence P4a's entry condition hides.** Two of these six — M2 and M5 —
 have acceptance evidence that **cannot be produced without something external**
 (two physical devices; one adversarial технагляд). «M1–M5 closed» is therefore
 not a purely internal precondition, and a plan that treats it as one will read
@@ -593,12 +641,7 @@ and nothing more ([CLAUDE.md](../../CLAUDE.md):1-29).
 **How much of this loop the repository actually does, stated rather than
 implied.** Steps 1, 5, 7 and 9 are proven in practice — the worktrees, the 33
 dated plans on disk, the commits and the fix-round messages are all there.
-Steps 4, 6 and 10 are **asserted but lapsed**: §4.3 records that no gstack
-verdict appears in any artifact after 2026-07-31. Step 11 is lapsed too: §7.1
-records that the newest gate record on disk is dated 2026-08-03, with nineteen
-PRs merged since. So four of the steps below have produced no artifact in a
-month. That is not a reason to delete the loop; it is Q-6, and it is marked here
-rather than smoothed.
+Steps 4 and 6 are **asserted but lapsed**: §4.3 records that no `/plan-ceo-review` or `/plan-eng-review` verdict appears in any artifact after 2026-07-31. Step 10 ran again on 2026-09-02 (`/cso`, §4.3) and step 11 produced a record again on 2026-09-03 (§7.1), after a month in which neither did. Two of the steps below have still produced no artifact since July. That is not a reason to delete the loop; it is Q-6, and it is marked here rather than smoothed.
 
 ### 4.0 The prohibitions, before anything else
 
@@ -641,7 +684,7 @@ rather than smoothed.
 | 4 | **Product gate** — the test for «product-level decision» is §9.1's: **if the slice would need an ADR to be authorised, or changes what a screen claims, it is product-level**; a slice that only implements an already-numbered ADR-006 decision-1 step is not | `/plan-ceo-review` | A recorded verdict. **No destination exists for it before the step-11 record does** — park it in the plan file's own header until then. Lapsed since 2026-07-30/31 (§4.3) | Sprint Prioritizer |
 | **4.5** | **Corrections check** — this step is new and it exists because §4.4 names the rule this repository breaks most often | Read §1.5 | If any row's **Blocks** column names this slice's subject, **land that correction first, in its own commit, and strike the row** (a row leaves the table when it lands). Then update the Approved product or domain document the slice changes **before** writing the plan ([docs/README.md](../README.md):169-171, change control step 2) | Reality Checker / Senior PM |
 | 5 | **Implementation plan** | `superpowers:writing-plans` | `docs/superpowers/plans/YYYY-MM-DD-<slug>.md`, in §4.2's shape | Senior PM |
-| **5b** | **ADR, where §9.1's test demands one** | written by hand | `docs/decisions/ADR-0NN-<slug>.md`, next free number (ADR-010 is the highest today). **The approval procedure — who moves an ADR from Draft to Approved, and where that is recorded — is undefined in repo**; every ADR on disk simply carries `Status: Approved` with no recorded approver. Filed with Q-6 | Backend Architect / **owner** |
+| **5b** | **ADR, where §9.1's test demands one** | written by hand | `docs/decisions/ADR-0NN-<slug>.md`, next free number (ADR-011 is the highest today). **The approval procedure — who moves an ADR from Draft to Approved, and where that is recorded — is undefined in repo**; the only form it has ever taken is the one ADR-011 records: the owner rules in conversation, one item at a time, and the ADR transcribes the rulings with the date and moves to Approved on that transcript (its §"Open items — ruled by the owner on 2026-09-03"). Filed with Q-6 | Backend Architect / **owner** |
 | 6 | **Engineering gate** | `/plan-eng-review` (after an approved design); `/plan-design-review` for user-facing flows | Verdict + findings. Same destination problem as step 4 | Senior PM / UX Architect |
 | 7 | **Execute** | `superpowers:subagent-driven-development` or `superpowers:executing-plans`; TDD inside each task via `superpowers:test-driven-development`; `superpowers:systematic-debugging` on any failure | Code, migrations, tests | Frontend / Backend |
 | 8 | **UI gate** (where applicable) | §6.1 **Group D**, which transcribes the five commands of [02-building-ui.md](../design/02-building-ui.md):193-210, then §6's viewport pass. **Command 3 of that gate is a Group B command** — the database must already be up (§6.6) | Pasted output | Frontend |
@@ -701,15 +744,7 @@ $ c=0; for f in 20*.md; do sed -n '3p' "$f" | grep -qi "REQUIRED SUB-SKILL" && c
   soft spots, stated rather than cast
 ```
 
-A standing Global Constraint every slice since ~2026-08-20 carries: «CI is
-billing-paused until 2026-09-01. Verify locally in CI's shape; a red check
-before then is billing, not code.» That date is **today**, but the constraint
-does not expire by the calendar: nothing in this repository records that billing
-actually resumed — no run, no receipt, no note — so whether CI is unpaused is
-**undefined in repo**. Treat the constraint as expired **only once a run
-exists**. Either way, the first push after 2026-09-01 is the first real signal
-since the pause, and a red check on it is code until a billing record says
-otherwise.
+A standing Global Constraint every slice from ~2026-08-20 to 2026-09-01 carried: «CI is billing-paused until 2026-09-01. Verify locally in CI's shape; a red check before then is billing, not code.» **It has expired, by the rule this paragraph set for it — a run exists.** CI ran on every push since 2026-09-01 (§6.2 lists the runs); a red check today is code, and §1.1 names which code. Plans written after 2026-09-03 must not carry the constraint.
 
 ### 4.3 Where gstack runs, and where it demonstrably has not
 
@@ -718,18 +753,12 @@ otherwise.
 | `/plan-ceo-review` | product-level decisions | 2026-07-30/31 |
 | `/plan-eng-review` | after an approved design | 2026-07-31 ([2026-07-31-m2a-gate.md](../superpowers/plans/evidence/2026-07-31-m2a-gate.md):36-43) |
 | `/plan-design-review` | user-facing flows | 2026-07-31 |
-| `/review` | after implementation | 2026-07-31 |
-| `/cso` | security-sensitive slices | one JSON, 2026-07-30 |
+| `/review` | after implementation | 2026-07-31 as a gstack verdict. Since then the whole-branch review is a subagent pass recorded in the gate record's «Reviews» table (2026-09-03) |
+| `/cso` | security-sensitive slices | **2026-09-02**, over the channel branch: two MEDIUM findings and four defects, all four «fix now» by the owner, landed in #62 and #65 (the erasure slice is finding #1's answer) |
 | `/qa-only` | staging verification | none recorded |
 | `/ship` | approved delivery | none recorded |
 
-**No gstack verdict is recorded in any artifact after 2026-07-31.** What
-replaced it in practice is per-task fix rounds plus a whole-branch final review
-landing as a `docs:` commit that corrects records and files residuals in
-[TODOS.md](../../TODOS.md) — for example commit `5c650b5` (2026-08-29), «the gate
-that never existed», which filed three findings, two of which are open today.
-Whether that substitution is a decision or a drift is **undefined in repo** and
-is filed as §10 Q-6.
+**No `/plan-ceo-review`, `/plan-eng-review` or `/plan-design-review` verdict is recorded in any artifact after 2026-07-31.** `/cso` ran on 2026-09-02 and its findings drove two merged PRs, which is the first gstack gate with a recorded consequence in a month. What replaced the review gates in practice is per-task subagent review plus a whole-branch final review, both recorded in the gate record's «Reviews» table since 2026-09-03, and residuals filed in [TODOS.md](../../TODOS.md). Whether that substitution is a decision or a drift is **undefined in repo** and is filed as §10 Q-6.
 
 ### 4.4 The rule this repository breaks most often
 
@@ -804,8 +833,8 @@ direction.
 
 | Half | Status | Evidence today |
 |---|---|---|
-| Documented retention periods | **PARTIAL** | [technical/data-retention-catalog.csv](../../technical/data-retention-catalog.csv) classifies 126 objects — but **every row's `policy_status` is `duration_external_gate`**, i.e. no duration is decided anywhere; and the catalog is pre-re-cut, naming objects ADR-006 decision 5 moved to v0.2 |
-| Manual closure/deletion procedure with authorization, separation of duties, dry-run inventory, export offer, confirmation, recorded outcome | **OPEN** | No procedure document; no `deletion_jobs` table; no tombstone column; no closure operation in [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) |
+| Documented retention periods | **PARTIAL** — mechanism built, every duration NULL | [technical/data-retention-catalog.csv](../../technical/data-retention-catalog.csv) still carries `duration_external_gate` on every row. Since 2026-09-03 a mechanism exists for the communication classes — `app.retention_policy` (three rows, all `NULL`) and `app.apply_communication_retention`, scheduled nightly and inert until a duration lands by migration; the catalog notes say which of its rows the mechanism reaches and which it does not ([TODOS.md](../../TODOS.md) P2, retention durations) |
+| Manual closure/deletion procedure with authorization, separation of duties, dry-run inventory, export offer, confirmation, recorded outcome | **PARTIAL** — the identity-level half exists and was exercised | Since 2026-09-03: one Telegram identity can be erased on request (`app.erase_telegram_identity`, the operator script in [README-staging.md](../../infra/README-staging.md) §7) and the procedure was exercised on synthetic data with a gate record ([2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md)). **Workspace-level closure — authorization, separation of duties, dry-run inventory, export offer, recorded outcome for a whole workspace — is still OPEN** ([TODOS.md](../../TODOS.md) P3, workspace closure) |
 | Deletion-then-restore test proving tombstones are reapplied before restored data is reachable | **OPEN** | Requires both a deletion path and a restore path; neither exists |
 
 **A live contradiction to fix, not to work around.** The Hard Rule at
@@ -816,8 +845,7 @@ null default 7` — a duration invented in code with no approved schedule behind
 it. Closing this gate means either the schedule ratifies 7, or the column
 changes.
 
-**Next action:** decide pilot durations (§10 Q-4), version the catalog, then
-write the procedure.
+**Next action:** decide pilot durations (§10 Q-4) — the three communication classes first, because a mechanism is waiting on them — version the catalog, then write the workspace-level procedure.
 
 ### 5.3 — Item 3: workspace export
 
@@ -848,7 +876,7 @@ output counts as «produced and reopened». All three are undefined in repo.
 
 | Half | Status | Evidence today |
 |---|---|---|
-| Restricted audit trail | **BUILT / UNRECORDED** | `public.audit_events` exists with `organization_id`, `actor_type`, `action`, `object`, `request_id`, `details`, `reason_code` and a `prev_row_hash`/`row_hash` chain, tenant-restricted (migration `0002`) |
+| Restricted audit trail | **BUILT / UNRECORDED** | `public.audit_events` exists with `organization_id`, `actor_type`, `action`, `object`, `request_id`, `details`, `reason_code` and a `prev_row_hash`/`row_hash` chain, tenant-restricted (migration `0002`). The service plane writes to it only through definers (`0078`), and an erasure writes one row that carries the surrogate and never the identifier (`0081` §4) |
 | «each event carrying a declared purpose and retention» ([roadmap.md](../product/roadmap.md):457-458) | **OPEN** | `audit_events` carries no purpose column and no retention column |
 | Security telemetry | **OPEN** | No `security_events` table exists in any migration, although the retention catalog lists one |
 
@@ -926,13 +954,7 @@ code. The external exchange route states it in terms: «distributed-abuse
 alerting on this exact endpoint. NONE OF IT EXISTS — this product has no rate
 limiter for any surface.»
 
-The compounding fact: **the outbox has no consumer at all**. Migration `0036`
-retired the `0005` cron drain (it raced the `0008` claim protocol), and
-`supabase/functions/outbox-drain` is explicitly not deployed. The upload-purge
-worker likewise has no deployed runner. The queue those metrics would watch
-never drains — which is *correct* on staging today (§6.6 of the staging
-checklist was inverted on 2026-08-19 to expect `processed_at` to stay NULL
-forever) and is exactly why a dashboard closes nothing.
+The compounding fact has changed shape since 2026-09-01 and the two halves must be kept apart. **A consumer now exists in code**: `apps/app/src/lib/telegram/delivery.ts` claims the `communication.telegram.send` topic and delivers cards and replies (the two level-2 architecture documents that still say «no consumer» are C-17). **No consumer runs anywhere**: nothing schedules it — ADR-011 decision 10 names «the scheduler» as one of the four blockers before any environment enables the webhook — `supabase/functions/outbox-drain` is explicitly not deployed, and the upload-purge worker has no runner. So on staging the queue still never drains (the staging checklist's inverted step 6 still holds) and a dashboard still closes nothing; what is new is that «monitored» now has a concrete consumer to monitor once one runs.
 
 **Next action:** decide what «monitored» means for a pilot with one workspace —
 a runner plus alerts, or a documented acceptance that nothing drains and the
@@ -943,7 +965,7 @@ written.
 
 *(readiness gate 10, first bullet — **enforced in storage, not in a template**)*
 
-**Status: BUILT / UNRECORDED. This is the strongest-built gate on the list.**
+**Status: PARTIAL since 2026-09-03.** Until the channel, this was the strongest-built gate on the list, and its storage half still is. The channel added a **renderer the gate had not met**: the Telegram assignment card (`apps/app/src/lib/telegram/cards.ts`, fed by the card route) renders `criterion — normRef` with **neither the tag nor the source**, and [hidden-works-content-rules.md](../product/hidden-works-content-rules.md) — which binds at every precedence level — carries no Telegram sentence. The owner ruled on 2026-09-03 (ADR-011 open item 9) that the card carries both before a real group sees it; the slice is in [TODOS.md](../../TODOS.md) P2 and is one of the four blockers before any environment enables the webhook. The storage half, unchanged:
 
 - `requirement_library_items.verification text not null check (verification in
   ('VERIFIED_PRIMARY','VERIFIED_SECONDARY'))` — `UNVERIFIED` is deliberately
@@ -1004,9 +1026,11 @@ and decide whether the date's provenance is itself an artifact under
 
 | Half | Status |
 |---|---|
-| RLS suites exist per milestone | **BUILT** — `rls.test.ts` plus `m1-rls-baseline`, `m1-rls-workspace`, `m1-rules-rls`, `m2-rls`, `m2-occurrences-rls`, `m3-closure-rls`, `m4-act-rls`, `m5-external-rls`, plus `m2-policy-gaps.test.ts` for write paths the first suite missed |
+| RLS suites exist per milestone | **BUILT** — `rls.test.ts` plus `m1-rls-baseline`, `m1-rls-workspace`, `m1-rules-rls`, `m2-rls`, `m2-occurrences-rls`, `m3-closure-rls`, `m4-act-rls`, `m5-external-rls`, plus `m2-policy-gaps.test.ts` for write paths the first suite missed; since 2026-09-01 also `telegram-rls.test.ts` and, in `m5-external-rls`, the column-level-grant case («a column-level grant is a fence, not a door») and INV-099's erasure sweep in `telegram-erasure.test.ts` |
 | A mechanical assertion that RLS is *enabled* everywhere | **BUILT** — every `public` relation with `relrowsecurity` false must be an empty list |
 | «a positive AND negative policy test per exposed tenant relation, **checked against the module list rather than sampled**» (INV-060) | **OPEN** — no mechanical checker exists. INV-060 appears in [invariant-catalog.csv](../../technical/database/invariant-catalog.csv) and three prose documents and in **zero test files** |
+
+**One thing this gate cannot cite today.** The channel's integration suites under `apps/app/tests/` are red in CI (§1.1); a gate-11 evidence entry that reaches for them as isolation evidence is reaching for a failing run. The `packages/testing` sweeps are green and are the evidence this gate has.
 
 **Next action:** write the coverage checker, or record explicitly that coverage
 is asserted by review rather than by a checker — and say so in the evidence
@@ -1069,6 +1093,7 @@ unsaid is not honesty.
 | 10 | Item 8 (monitoring) | **S** if the answer is «documented acceptance»; **L** if it is a runner plus alerts | Needs the «what does monitored mean for one workspace» decision first |
 | 11 | Item 6's dashboard assurance level + the print question | **S** for the dashboard line; the print half is **L** and entangled with a paginator that does not exist | Small, but entangled with a paginator that does not exist |
 | 12 | Readiness gates 7, 9, 13 entries | **S** — writing | Bookkeeping once the rest is decided |
+| **0** | **The eighteen red cases** ([TODOS.md](../../TODOS.md) P1) | **M** — fourteen are one suite's | Placed before everything else because no gate record can say PASS for CI until it lands, and item 11 cannot cite the channel's isolation suites while they fail. It is not an M0 gate; it is what every gate's CI row waits on |
 
 ### 5.15 — The work outside M0, as task lists
 
@@ -1086,6 +1111,18 @@ vocabulary is §5's; **Size** is S/M/L with the reason and is not a date.
 | §8.3 sub-item 4 — ADR-007's two required measurements per engine | **OPEN** | EXIF strip/transcode comparison and `capture`-attribute behaviour, recorded in the M2 measurement table | **S** per engine | **Measurable today on iPhone**; the Android half waits |
 | §8.3 sub-item 5 — add to home screen, reopen, session survives | **OPEN** | The same table, plus the Ukrainian «Add to Home Screen» label verified on a Ukrainian-locale iPhone | **S** | Same |
 | Retiring the `apps/app` PWA field pages | **BLOCKED by construction** | The closed parity gate | **S** | Nothing until the gate closes — and the standing rule forbids doing it first |
+
+**M7 — the channel, to «operational» (phase P1b).** The channel is merged and deployed nowhere; ADR-011 decision 10 fixes what must be true before any environment enables the webhook. None of these is a real group.
+
+| Unit | Status | The artifact that closes it | Size | Next action |
+|---|---|---|---|---|
+| The eighteen red cases | **OPEN** | A green `verify` on `main`, then a gate record whose CI row says PASS without «assisted» | **M** | First; see §5.14 order 0 |
+| The card carries the tag and the source (ADR-011 open item 9) | **OPEN — ruled** | `cards.ts` + the card route + one Telegram sentence in [hidden-works-content-rules.md](../product/hidden-works-content-rules.md), with a test that a row without a verified source renders the substitute and no criterion | **S** | Land it as its own slice; it is gate 9's M7 half |
+| Task 13 — the edge rate limit on the webhook | **OPEN** | The limit, its test, and the staging QA walk the plan names | **M** | After the card; before any environment enables the webhook |
+| The scheduler — something runs `delivery.ts` and the purge worker | **OPEN — undefined in repo** (Q-12, Q-9) | A runner, its deployment record, and the monitoring decision of §5.8 | **M**, and it is a decision first | Decide «what runs it» before building it |
+| The real-group staging pass | **OPEN — external** | The spec's own gate: one real group, the walk, the record | **S** to run, **blocked** by the three rows above and by M0's real-data rule | Not before M0 closes |
+| Retention durations for the three communication classes | **OPEN — owner** | One migration setting `app.retention_policy` durations, per Q-4 | **S** to write, an owner decision to make | The mechanism waits on the number |
+| The ADR-009/ADR-010 half of C-7, and C-17 | **OPEN** | The roadmap and the two architecture documents rewritten so that no level-2 document contradicts ADR-011 | **M** | Change control step 2, after the fact |
 
 **Plan D4 — members & access (phase P2).**
 
@@ -1151,10 +1188,10 @@ pnpm db:local-credentials
 | Command | Proves | Does NOT prove |
 |---|---|---|
 | `pnpm db:local-credentials` | Nothing — it **sets** the dev-only passwords for `goproceed_app_login` and `goproceed_service_login` and **refuses any non-loopback hostname**. It exists so no Supabase tooling path can plant a known password on a reachable database | — |
-| `pnpm turbo run test --concurrency=1` | The unit, migration, invariant, refusal, RLS, API-integration, storage, external-link, import-fuzz, blocked-money, rounding/property and design-system contract suites across **eight packages** (seven with test files; `@goproceed/discovery` runs `vitest run --passWithNoTests`) — including the motion audit's logic, via `packages/testing/src/motion-audit.test.ts`. `@goproceed/ui` and `@goproceed/tokens` declare `typecheck` only, which is why the sibling «ten packages» figure for typecheck is larger and is exact | Anything in a browser. Anything in `supabase/functions/outbox-drain` (unreachable — no `package.json`, outside the pnpm workspace globs). And, because of the [turbo.json](../../turbo.json) `inputs` gap in §6.4, a **cached green result can be replayed** after a `packages/ui` component change |
+| `pnpm turbo run test --concurrency=1` | The unit, migration, invariant, refusal, RLS, API-integration, storage, external-link, import-fuzz, blocked-money, rounding/property and design-system contract suites across **eight packages** — **locally without the eight isolated `apps/app` suites**, which skip unless `TEST_DB_ADMIN_URL` is set, and it must not be set against the only local database (their `beforeEach` truncates it); CI sets it since #62 and is the only place they run (seven with test files; `@goproceed/discovery` runs `vitest run --passWithNoTests`) — including the motion audit's logic, via `packages/testing/src/motion-audit.test.ts`. `@goproceed/ui` and `@goproceed/tokens` declare `typecheck` only, which is why the sibling «ten packages» figure for typecheck is larger and is exact | Anything in a browser. Anything in `supabase/functions/outbox-drain` (unreachable — no `package.json`, outside the pnpm workspace globs). And, because of the [turbo.json](../../turbo.json) `inputs` gap in §6.4, a **cached green result can be replayed** after a `packages/ui` component change |
 | `pnpm test` | — | **Do not use.** It is the same turbo task **without** `--concurrency=1`, which lets one package's truncate race another's in-flight transaction |
 | `pnpm turbo run build` | That Tailwind compiled what you wrote and every Next/tsup build succeeded; `apps/app`'s `prebuild` runs the deploy preflight | — |
-| `pnpm --filter @goproceed/testing test` | The design-system contract suite — 40 files. **29 of them need Postgres**; only 11 are DB-free | — |
+| `pnpm --filter @goproceed/testing test` | The design-system contract suite and the database sweeps — 42 files (measured 2026-09-03; 40 on 2026-09-01), most of them needing Postgres | — |
 | `pnpm db:catalog-snapshot` | Nothing — it **dumps** tables/RLS/policies/grants/functions/roles/triggers/default-ACLs/cron so drift becomes diffable | — |
 
 **Group C — browser and deploy.** Preconditions, in order — **neither QA
@@ -1271,12 +1308,7 @@ Three details worth not re-deriving:
 `demo-qa` and `package-validate` were removed 2026-08-20 **with their subjects**
 and are deliberately not replaced.
 
-**Current CI status: unknown**, and the unpause is unknown too. CI was
-*scheduled* to unpause 2026-09-01 (`HANDOFF-2026-08-27.md`:174-175); nothing in
-this repository records that billing resumed — **undefined in repo**. No run is
-recorded for any of the nineteen PRs #37–#55. The first push after today is the
-first real signal, and until one exists, a red check cannot be attributed to
-either cause with confidence.
+**Current CI status: known, and red with a named set.** CI has run on every push since 2026-09-01. Runs read for this revision: 33540108319 (`18411ea`, 2026-09-01, both jobs green — with the isolated suites skipped); 33736763584 (`7bf8e4b`, the channel merge) and 33742738613 (`1c418fb`, this revision's head) — `app-qa` green, `verify` red with the eighteen cases of §1.1, identical across runs. The `verify` job now sets `TEST_DB_ADMIN_URL` ([ci.yml](../../.github/workflows/ci.yml):61-68) so the isolated suites run; that is the whole reason the colour changed, and it changed on `main` before any channel code merged (baseline PR #63).
 
 ### 6.3 The four "what proves the gate" proofs
 
@@ -1287,7 +1319,7 @@ pilot demonstrates something other than the product.»
 |---|---|---|
 | 1 | **A `hold` requirement blocks closure.** The closure command REFUSES, and **the shape of the refusal is half the test**: a named problem code plus a `blocked_reason` naming the occurrence, rule version, missing evidence by kind and acceptance criterion, owed `approver_role`, `since`, and blocked value by currency. **A generic 403 fails the test even though it refused.** The negative half is equally load-bearing: while blocked, recording performed quantity, capturing evidence and recording coverage stay permitted (INV-065) | Suites exist (`m3-refusal.int.test.ts`, `m3-closure-rls`) |
 | 2 | **The act contains no field outside Додаток В.** The *negative* half is writable now (prohibitions D/E/F, exactly three signatory slots, no free-text quantity field). The *positive* half — the field set is exactly В.1/В.2 in the standard's order — was blocked because no enumerated field list was committed, and «no test may substitute a field list typed from memory» | **The premise changed 2026-08-10**: `technical/requirements/dbn-a31-5-2016-dodatok-v.csv` now holds 51 В.1/В.2 rows, all `VERIFIED_PRIMARY`, compared back byte-for-byte by `dodatok-v-fidelity.test.ts`. [test-strategy.md](test-strategy.md):172-186 owes this correction |
-| 3 | **No regulatory string renders without its verification tag.** Storage half (NOT NULL + CHECK make an unsourced string unstorable, therefore unrenderable) and render half. Content fixtures include Н.14 = 5 items, Н.15 = 7, **the marazm.org.ua ten-position list as a hostile fixture that must fail closed**, «орієнтовн» never rendered, the довідковий disclaimer uncollapsed, `UNVERIFIED` rows having no renderable form at all | Storage half proven (§5.9) |
+| 3 | **No regulatory string renders without its verification tag.** Storage half (NOT NULL + CHECK make an unsourced string unstorable, therefore unrenderable) and render half — **which since the channel has a third renderer, the Telegram card, that renders neither (§5.9).** Content fixtures include Н.14 = 5 items, Н.15 = 7, **the marazm.org.ua ten-position list as a hostile fixture that must fail closed**, «орієнтовн» never rendered, the довідковий disclaimer uncollapsed, `UNVERIFIED` rows having no renderable form at all | Storage half proven (§5.9) |
 | 4 | **Tenant isolation**, and the tests that cannot be quarantined | Partial (§5.11) |
 
 ### 6.4 The two known CI gaps, and which to close first
@@ -1357,16 +1389,11 @@ holds.
 
 ### 7.1 The format is not new and must not be reinvented
 
-Nine gate records exist under `docs/superpowers/plans/evidence/`. The strictest
-and most complete is
+Eight `*-gate.md` records exist under `docs/superpowers/plans/evidence/` (with two companion records beside them). The strictest and most complete is
 [2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md).
 The format below is transcribed from those records, not designed here.
 
-**The chain has lapsed.** The newest evidence record on disk is dated
-**2026-08-03**. **Nineteen** PRs (#37–#55) have merged since — measured
-2026-09-01 at `7397d7d`, `git log --format='%s' --merges | grep -cE "Merge pull
-request #(3[7-9]|4[0-9]|5[0-5]) "` → `19` — and none produced a record
-in that directory or anywhere in `docs/delivery/`. The reason is stated at
+**The chain lapsed and resumed.** From 2026-08-03 to 2026-09-02 no record was written while twenty-two PRs (#37–#61) merged. On 2026-09-03 the erasure slice wrote [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md) in the rename-slice-3 shape, with a «Deviations from the plan» section the template below now carries. The channel itself (PR #58, nineteen migrations) still has **no gate record**: ADR-011 §"Status against the runtime" is the nearest thing, and it is an ADR, not a record. The reason is stated at
 [TODOS.md](../../TODOS.md):3089-3092 — the agent harness refuses report `.md`
 files, so findings that would have lived in the session directory were filed in
 `TODOS.md` instead. **Whether that substitution is a decision or a drift is
@@ -1453,6 +1480,12 @@ optional extra.>
 
 ## What this slice does **not** make true
 
+## Deviations from the plan, ruled during execution
+
+<Every ruling the controller made where the plan and the spec, or the plan and
+the code, disagreed — what was decided, why, what it costs if wrong. The
+2026-09-03 erasure record is the precedent.>
+
 ## Known limitations, stated rather than implied
 
 ## Claims in this slice's own documents that do not reproduce
@@ -1462,9 +1495,7 @@ optional extra.>
 
 ### 7.4 The result vocabulary
 
-Six tokens, used exactly. They are used in the nine existing records and defined
-nowhere; this table is the first definition and is offered as a proposal, not as
-an authority.
+Six tokens, used exactly. They are used in the existing records and defined nowhere else; this table is the first definition and is offered as a proposal, not as an authority. The 2026-09-03 record is the first to use `PASS (assisted)` for a CI run read against a known-red baseline — the assistance being the named set of pre-existing failures — and that reading is the one §1.1 prescribes until the set is fixed.
 
 | Token | Means |
 |---|---|
@@ -1488,31 +1519,8 @@ it is why that record is worth reading before writing a new one.
 
 Two live examples this runbook must itself obey:
 
-- **Every command in §6.1 that resolves a binary out of `node_modules`** — not
-  just Group B — is `NOT PROVEN — environmental` **in this worktree today**,
-  because `node_modules` is absent. **In CI they are proven**, as of run
-  33540108319 (§1.1) — which is exactly why the vocabulary distinguishes
-  «the environment could not run it» from «it failed»: the same commands went
-  green the moment an environment could. That is **Group A's `pnpm turbo run
-  typecheck`, all of Group B, all of Group C, and Group D's commands 3, 4 and
-  5**. Measured 2026-09-01 at `7397d7d`: `ls -d node_modules` → «No such file
-  or directory»; `which turbo` → not found; `which vitest` → not found; `pnpm
-  turbo run typecheck` → `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "turbo"
-  not found`. An earlier revision of this bullet scoped the claim to Group B,
-  which would have let a reader take a `pnpm turbo run typecheck` failure for
-  code rather than environment — the exact misreading this section exists to
-  prevent.
-- **Four commands DID run here, and this document claims the credit rather than
-  leaving it unclaimed.** They need no install because they use node builtins
-  or a globally-installed binary. Reproduced 2026-09-01 at `7397d7d`:
-  `node scripts/validate-canonical-docs.mjs` → «canonical documentation: 13
-  problem(s)», all in `discovery/templates/`, **EXIT=1**;
-  `node packages/testing/qa/motion-audit.mjs` → `motion-audit: clean`, exit 0;
-  `pnpm db:check-cli` → exit 0 with the «local 2.114.0, CI pins 2.115.0»
-  warning (it shells straight to `node scripts/check-supabase-cli.mjs`);
-  `pnpm --filter @goproceed/tokens generate` → wrote its seven outputs, and
-  `git status --porcelain` stayed clean afterwards, which is itself the useful
-  result: the committed generated files match `tokens.json`.
+- **The 2026-09-01 revision of this bullet recorded every `node_modules` command as `NOT PROVEN — environmental`, because the worktree had no `node_modules`.** This revision's checkout has one (§0), the commands ran, and §0 records their output — which is the vocabulary doing its job in the other direction: the same commands that were environmental non-proof went to PASS the moment an environment could run them, and nothing about the code changed in between. The distinction to carry forward is a different one now: **the eight isolated `apps/app` suites are `NOT RUN` locally by design** (they truncate the only local database) and **red in CI** (§1.1). A local green is therefore a green of everything except them, and a record that says PASS for `pnpm turbo run test --concurrency=1` locally must say so in the same row.
+- **Retention under a real duration is `NOT PROVEN — environmental` in every environment**, and the erasure gate record says so in its own row: no duration has landed anywhere, so the nightly job has never erased a row. The command that settles it is a migration the owner has not written (Q-4), which is the environmental cause.
 - The Plan C parity gate is `NOT PROVEN — environmental` until two physical
   phones exist. A passing headless harness and a passing laptop smoke test are
   evidence *toward* it and are not a substitute for it
@@ -1543,8 +1551,11 @@ Preconditions, from [README-staging.md](../../infra/README-staging.md):
   up before pushing). It is the version every migration has been proved against
   in CI.
 - **Read the number from `ls supabase/migrations | wc -l`, never from a
-  document.** The runbook says 58 and the tree holds 60; the runbook itself
-  defends against this at :10-11.
+  document.** The runbook says 58 and the tree holds 81; the runbook itself
+  defends against this at :10-11 (C-11).
+- **Twenty-three migrations are waiting, and three of them change what a role may do.** `0059`–`0081` have no apply record. Among them: nineteen create the channel's fifteen tables, its definers and its pg_cron job; `0080` replaces one RLS policy; `0081` creates two tables in schema `app`, two SECURITY DEFINER erasure functions with EXECUTE granted to `goproceed_service` only, and a nightly cron job that is inert until a duration lands. A push of this range is the largest single change staging has received since provisioning, and §8.6 step 4 must be answered against the *post-push* head, not the pre-push one.
+- **Push applies as the CLI's role, and that is the role the objects must be owned by.** Found 2026-09-03 on local dev: a hand-apply of `0081` as `supabase_admin` left its tables and functions superuser-owned, and owner-only functions and test teardown then behaved differently from `db reset`, which creates everything as `postgres`. On a hosted project use `supabase db push` and nothing else; if a hand-apply is ever unavoidable, it is `-U postgres`.
+- **Enabling the webhook is not a deploy step.** A pushed `0062`–`0081` is a schema, not a running channel: the webhook route exists in `apps/app` and answers, but ADR-011 decision 10 forbids enabling it — registering the URL with the bot, binding a real group — in any environment until Task 13's edge limit, the scheduler, the real-group pass and the card's tag-and-source have landed, and M0's real-data rule forbids a real group until M0 closes. **The variables the route needs (`TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_LINK_PEPPER` and their siblings — seven, per ADR-011 gate 7) are not in the twelve the deploy preflight enforces**, so a production build passes the preflight with none of them set; that is correct today and must be revisited the day the webhook is enabled anywhere.
 
 **Three commands that must never run against a hosted project** (:193-217):
 
@@ -1558,7 +1569,7 @@ Preconditions, from [README-staging.md](../../infra/README-staging.md):
 «Applied migrations remain **append-only history**; corrections use new
 migrations» ([docs/README.md](../README.md):172-173, change control step 4). The
 chain is applied through `0058` on a shared database. There is no editing a
-migration that has run — a correction is `0061`.
+migration that has run — a correction is `0082`.
 
 **The Branching hazard is live, not hypothetical.**
 [supabase/config.toml](../../supabase/config.toml):77-79 currently reads
@@ -1613,7 +1624,7 @@ touches a hosted project; **(c) rollback** — what to do about a bad migration,
 given `db reset --linked` is prohibited with no alternative given and
 [docs/README.md](../README.md):172-173 makes applied migrations append-only, so
 the answer is a forward-fix migration and that has never been written down.
-This is why `0059` and `0060` have no apply record.
+This is why `0059` through `0081` have no apply record.
 
 **Also missing:** no committed catalog snapshot of staging exists, although
 `scripts/snapshot-db-catalog.mjs`'s own header instructs «Run per environment
@@ -1732,15 +1743,16 @@ schedule requests it».
 | 1 | Do **all fourteen** readiness gates carry a dated evidence entry in [version-0.1.md](version-0.1.md) §M0? | that section | **NO** — zero entries |
 | 2 | Has **one restore exercise** been executed in an isolated environment and recorded? | readiness gate 5 | **NO** |
 | 3 | Has a **deletion-then-restore test** proved tombstones are reapplied before restored data is reachable? | readiness gate 4 | **NO** |
-| 4 | Is the environment the data will enter the one the evidence was recorded against? | [README-staging.md](../../infra/README-staging.md) §Status + a live `select max(version) from supabase_migrations.schema_migrations` | **UNKNOWN** — staging is inferred to be two migrations behind head, unverified |
+| 4 | Is the environment the data will enter the one the evidence was recorded against? | [README-staging.md](../../infra/README-staging.md) §Status + a live `select max(version) from supabase_migrations.schema_migrations` | **NO** — staging's last recorded apply is `0058`; the tree is at `0081`; nothing the evidence of 2026-09-03 exercised (the erasure procedure, the guards, the registry) exists on any hosted project |
 | 5 | Are M1–M5 closed with acceptance evidence? | each milestone's acceptance-evidence list; §2's **P1b** transcribes all five | **NO** — none closed, and «code-complete» is asserted by a 2026-08-06 document that disqualifies its own behavioural claims (§1.3). Two of the five (M2, M5) have acceptance evidence that needs something external |
+| **5b** | Is M7 operational by its own spec's rule — the real-group staging pass done, after the four webhook-enable blockers of ADR-011 decision 10? **And is the answer NO the right one at this step** — a real group is real data, so this row cannot be YES before rows 1–3 are | ADR-011 decision 10; §5.15's M7 table | **NO**, and must stay NO until rows 1–3 are YES — the order of this table is the rule |
 | 6 | Are all six pilot-object fields filled, in writing, before the first act? | the artifact that does not exist yet | **NO** |
 | 7 | Is the технагляд named **and adversarial** — or does a superseding ADR record what a loyal one will not prove? | [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 9 | **NO** |
 | 8 | Are the stopping conditions written down, in both directions, **before** the first act? | the same artifact | **NO** |
 | 9 | Does the pilot's field client have a measured parity gate — or is the pilot running on the `apps/app` PWA, which stays deployed until it does? | [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):113-128 | **PWA.** Legitimate; the pilot is never blocked on this |
 | 10 | Does anything in the demo, the landing page, a screen or a sales sentence claim a payment-presentation refusal that does not exist? | [version-0.1.md](version-0.1.md):865-870 | Must be re-checked before the first customer sees anything. **Owner and procedure: the role §3.3 parks as «not yet activatable» owns «the landing page's claims», so on the day this step runs the owner runs it directly.** The check itself is: grep `apps/landing`, the six `page.tsx` under `apps/app/app/dash`, and every outreach letter under `discovery/templates/` for the positioning sentence, and confirm each occurrence carries the explicit «payment-presentation eligibility is not in v0.1» statement §9.3 requires. **No script does this** — undefined in repo, and it is the one step of this procedure with no mechanical form |
 
-**Answer today: NO, at steps 1, 2, 3, 5, 6, 7 and 8.** The shortest honest path
+**Answer today: NO, at steps 1, 2, 3, 4, 5, 5b, 6, 7 and 8.** The shortest honest path
 to YES is P1 (§5.14's ordering) and P3 (§5.15, §8.4) run in parallel, because
 they block each other on nothing.
 
@@ -1786,6 +1798,8 @@ by the owner**, and that is the honest answer until a screen calls the
 operation. Same shape for a mis-scoped project access grant, which
 [TODOS.md](../../TODOS.md):900-930 records as revocable only by a superuser
 `UPDATE`.
+
+**(f) Forgetting one person who wrote in the group.** The first data-subject request a pilot receives is the one the identity-level procedure of [README-staging.md](../../infra/README-staging.md) §7 answers: one workspace, one Telegram user id, the operator script, one JSON line, one audit row that carries the surrogate and never the identifier. Its limits are stated there and in the gate record: the raw id survives in two intent columns until `operational_security` has a duration; a person who linked again after an earlier erasure is refused with a message naming the owner's decision, not served; pending inbox updates are counted per bot, not per workspace. Workspace-level closure is still owed (§5.2).
 
 **(e) Writing down an A-3 invalidation.** §2's P5 failure-handling row already
 names it: a технагляд who refuses to open the link, refuses to decide inside it,
@@ -1833,6 +1847,8 @@ Related: **a screen** additionally needs a row in
 demand-scan sentence describing its pain. If neither exists, the screen is a
 guess (:134-140).
 
+**The test has been applied once at scale and the answer is on record.** The Telegram channel added fifteen tables and ten operations to v0.1 with no numbered step of its own; [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) §"Relationship to ADR-006 decision 1" answers the test step by step — the channel is the transport of steps 2 and 3 on the owner's instruction of 2026-08-28 — and decision 9 gave it a milestone rather than hiding it in M6. A reader who wants to know what «name the numbered step» looks like when the capability is large should read that section, not this paragraph.
+
 ### 9.2 Every "requires an ADR, not a backlog item" rule
 
 | Rule | Source |
@@ -1855,6 +1871,9 @@ guess (:134-140).
 | Reverting to a single deployed surface, or moving the field client back into `apps/app` **before the parity gate is measured** | [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):156-162 |
 | A third `/v1` or `/external` operation added for a dashboard slice — the 2026-08-22 amendment «authorises these two and nothing else»; a later slice needs **its own dated amendment** | [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):167-228 |
 | A dashboard screen for project-sourced requirements — needs an ADR-010 amendment, a [04-role-pain-map.md](../design/04-role-pain-map.md) row, and the [02-building-ui.md](../design/02-building-ui.md) procedure | [ADR-010](../decisions/ADR-010-project-sourced-requirements.md):142-211 |
+| A second communication channel, channel switching after activation, importing earlier Telegram history, a fourth deployed surface for the group, an eleventh channel operation, or a channel screen on the dashboard — each needs a dated ADR-011 amendment (and, for a screen, the ADR-009 amendment, the role-pain row and the UI procedure) | [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decisions 1, 2, 7; §"Relationship to ADR-009"; §"What this decision does NOT authorise" |
+| Enabling the Telegram webhook in any environment before Task 13's edge limit, the scheduler, the real-group staging pass and the card's tag-and-source have landed — and a real group before M0 closes | [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decision 10; [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) protection 5 |
+| Removing the field client from a Telegram-locked project | [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) open item 8, ruled 2026-09-03 |
 
 **Note the asymmetry a reader will otherwise miss:** ADR-002, ADR-003 and
 ADR-010 carry **no Replacement rule section at all**. Their clauses have no
@@ -1917,6 +1936,8 @@ the failure §0's honesty contract exists to prevent.
 | No document may describe the bypass reason-code vocabulary as a closed set until it is enumerated in [state-catalog.csv](../../technical/states/state-catalog.csv) and [glossary.md](../domain/glossary.md). (Moot in v0.1 — [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 4 removes the bypass entirely) | [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md):362-396 |
 | **No notice of any kind exists in v0.1.** The witness notice event moved to v0.2 with witness, and «no document may describe a v0.1 notice of any kind» | [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md):368, :579-586 |
 | No slice may write a v0.1 definition of the two headline measures | [version-0.1.md](version-0.1.md):811 |
+| Telegram is a transport; PostgreSQL is the source of truth for scope, identity, authorship, evidence association, decisions, delivery state and audit; **Telegram is never the only copy of an accepted evidence original**; and the channel is «not a generic messenger bridge» | [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) §"Owner-approved on 2026-08-28", the two travelling sentences |
+| No document describes the channel as operational, deployed or monitored: it is merged, deployed nowhere, its webhook enabled nowhere, its retention inert, and its integration suites red | ADR-011 §"Status against the runtime"; §1.1 and §1.3 of this runbook |
 
 ### 9.4 The two migrations owed to v0.2
 
@@ -1969,8 +1990,8 @@ reads as a third obligation on first pass and is not one.
 
 Each is undefined in repo. The «who» column names the role (§3) that must
 produce the answer; on a one-person project that is the owner wearing that role,
-and for the **nine rows carrying «owner decision»** — Q-1, Q-2, Q-3, Q-4, Q-6,
-Q-9, Q-10, Q-11 and Q-15 — it is the owner deciding, not an agent inferring.
+and for the **eleven rows carrying «owner decision»** — Q-1, Q-2, Q-3, Q-4, Q-6,
+Q-9, Q-10, Q-11, Q-12, Q-15 and Q-17 — it is the owner deciding, not an agent inferring.
 
 | # | Question | Who | Blocks |
 |---|---|---|---|
@@ -1979,16 +2000,17 @@ Q-9, Q-10, Q-11 and Q-15 — it is the owner deciding, not an agent inferring.
 | **Q-3** | **What is the domain?** Three surfaces on `*.vercel.app`; `{{APP_HOSTNAME}}`, `{{LANDING_HOSTNAME}}` and `{{CONTACT_EMAIL}}` unresolved; neither well-known file exists. [ADR-007](../decisions/ADR-007-pilot-field-client.md):504-511 records the decision as open and [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):136-140 adds a third hostname to it. **No ADR takes it** | **Owner decision** | M0 item 1, M5 entry evidence, the seven outreach letters (the whole current red of the docs gate) |
 | **Q-4** | **What are the pilot retention durations?** Every one of 126 rows is `duration_external_gate` under V-003, whose owner is «counsel/accountant» and whose target is «before GA retention». Whether V-003 is even the right gate for a *pilot* is unstated | **Owner decision** | M0 item 2, and item 4's shape |
 | **Q-5** | **Is «on every printed page» satisfiable without a paginator?** There is no print or PDF surface; `act-content-fidelity.test.ts` names the gap itself — «a model without a paginator» | UX Architect + Backend Architect | M0 item 6, M4 acceptance |
-| **Q-6** | **Where does a gate record go today?** The directory stops at 2026-08-03; **nineteen** PRs merged since with no record. It also has no answer for where a step-2 brainstorm record, a step-4/6 review verdict, an ADR approval, or an aborted slice goes (§4.1). The de-facto replacement (a `docs:` final-review commit plus [TODOS.md](../../TODOS.md) residuals) is described nowhere as a rule, and no evidence-record template or validator exists | Evidence Collector / **owner decision** | Every future slice's evidence |
+| **Q-6** | **Where does a gate record go today — and is the 2026-09-03 form the rule?** The directory resumed on 2026-09-03 after a month's gap, in the rename-slice-3 shape plus a «Deviations» section; the channel's own nineteen migrations still have no record. Still unanswered: where a step-2 brainstorm record, a step-4/6 review verdict and an aborted slice go (§4.1); and whether the ADR approval form ADR-011 records — rulings in conversation, transcribed with the date — is the procedure or one more instance of not having one | Evidence Collector / **owner decision** | Every future slice's evidence |
 | **Q-7** | **Does the ДБН retrieval record satisfy «committed under `technical/requirements/`»** when the record as a record lives in `apps/app/src/lib/statutory-act-form.ts` and the directory holds only the two CSVs repeating its three facts per row? | Reality Checker | M0 item 9's evidence entry |
 | **Q-8** | **What is the quarantine ledger?** Two Approved documents make it an enforcement point. No file, no format, no reader. Nothing detects a skipped test at all | DevOps Automator | Nothing today; a real hole in gate 4 of §6.3 |
-| **Q-9** | **Three narrow things, not «there is no procedure».** The repeat-apply procedure exists ([README-staging.md](../../infra/README-staging.md):162, :165-186) and so does the head check (:184, verbatim). What is undefined in repo is **(a) who** runs `supabase db push` after a migration merges, **(b) on what trigger** — nothing automates it and no CI job touches a hosted project, and **(c) what the rollback for a bad migration is**, given `db reset --linked` is prohibited and applied migrations are append-only ([docs/README.md](../README.md):172-173). Also open: whether a **separate production project** is owed before or after the pilot, since the pilot rides the single staging/pilot project today ([system-overview.md](../architecture/system-overview.md):583). This is why `0059`/`0060` have no apply record | DevOps Automator / **owner decision** for the production-project half | Every future deploy; step 4 of §8.6 |
+| **Q-9** | **Three narrow things, not «there is no procedure».** The repeat-apply procedure exists ([README-staging.md](../../infra/README-staging.md):162, :165-186) and so does the head check (:184, verbatim). What is undefined in repo is **(a) who** runs `supabase db push` after a migration merges, **(b) on what trigger** — nothing automates it and no CI job touches a hosted project, and **(c) what the rollback for a bad migration is**, given `db reset --linked` is prohibited and applied migrations are append-only ([docs/README.md](../README.md):172-173). Also open: whether a **separate production project** is owed before or after the pilot, since the pilot rides the single staging/pilot project today ([system-overview.md](../architecture/system-overview.md):583). This is why `0059`–`0081` have no apply record, and why the largest push since provisioning is unscheduled | DevOps Automator / **owner decision** for the production-project half | Every future deploy; step 4 of §8.6 |
 | **Q-10** | **Is magic-byte content-type enforcement plus a bounded allow-list accepted AS the malware control for a pilot, or is an engine owed?** An ADR-shaped decision nobody has written | **Owner decision** (ADR) | M0 item 12 |
 | **Q-11** | **Does export land inside M0, or in a milestone M0 then gates?** Gate 3 has no operation, no route, no manifest format, no hash/provenance format, no «named omissions» vocabulary — and item 12's second half is unbuildable until it exists | Backend Architect / **owner decision** | M0 items 3 and 12 |
-| **Q-12** | **What does «monitored» mean for a one-workspace pilot** whose outbox has no consumer by design and whose purge worker has no runner? A dashboard closes nothing | DevOps Automator | M0 item 8 |
+| **Q-12** | **What does «monitored» mean for a one-workspace pilot** — and **what runs the consumer?** `delivery.ts` exists and nothing schedules it; the purge worker has no runner; ADR-011 decision 10 names «the scheduler» as a webhook-enable blocker without saying what it is (pg_cron, a Vercel cron, a worker). A dashboard closes nothing | DevOps Automator / **owner decision** | M0 item 8; M7's operational status |
 | **Q-13** | **Where do [README-staging.md](../../infra/README-staging.md) §6's steps 1–8 staging curls get recorded?** (That document's §6, not this runbook's §6.) «A checked box with no evidence is not verification» — but there is no named ops log, no file, and no PR convention | DevOps Automator | §8.2 |
 | **Q-14** | **Do the two design documents get metadata, or a recorded exemption?** [03-ui-references.md](../design/03-ui-references.md) and [04-role-pain-map.md](../design/04-role-pain-map.md) are Approved, are named by [CLAUDE.md](../../CLAUDE.md) as required reading, and violate [docs/README.md](../README.md):87-119 — while the validator stays silent because neither is on its REQUIRED list. **The validator's silence is not authority** | Senior PM | Nothing mechanical; an unrecorded exemption |
 | **Q-15** | **What identity does the members screen show, and does supplying it need a new operation?** [2026-08-21-plan-d-dashboard.md](../superpowers/plans/2026-08-21-plan-d-dashboard.md):73: `GET /v1/workspaces/{ws}/members` returns «no email, no name», so «the office user would be granting capabilities to UUIDs… Deciding what identity to show is product work, not layout». If the answer needs a third operation, it needs **its own dated ADR-009 amendment** — the 2026-08-22 amendment «authorises these two and nothing else» (§9.2) | **Owner decision** | Phase P2 / Plan D4. It is why D4 is last, and the [04-role-pain-map.md](../design/04-role-pain-map.md) row it would otherwise be waiting on already exists (:72) |
+| **Q-17** | **When is a Telegram bot allowed a real group?** ADR-011 decision 10 orders the blockers; M0's rule forbids real data first; nothing says who registers the webhook URL, on which bot, with which secret, and where that act is recorded — the seven channel variables are outside the deploy preflight (§8.1) | DevOps Automator / **owner decision** | M7's real-group pass; §8.6 step 5b |
 | **Q-16** | **Is there a supply-chain gate, or a recorded acceptance that there is none?** `.github/` holds `workflows/ci.yml` and nothing else — no dependabot config, no `pnpm audit` step, no lockfile-diff review (measured 2026-09-01). M0 exists to make an environment fit to hold someone else's personal data; an unreviewed dependency graph is the same class of hole as the absent quarantine ledger | DevOps Automator | Nothing mechanical today; §6.4's gap table |
 
 ### Two questions this runbook deliberately does **not** ask
@@ -2006,12 +2028,13 @@ Q-9, Q-10, Q-11 and Q-15 — it is the owner deciding, not an agent inferring.
 ---
 
 *This document is `Status: Draft`. It has had no owner review, no `/plan-ceo-review`
-and no `/review`. Its §1 measurements were taken on 2026-09-01 at commit
-`7397d7d` and are reproducible from the transcript in §0. Everything else in it
+and no `/review`. Its §1 measurements were taken on 2026-09-03 at commit
+`1c418fb` and are reproducible from the transcript in §0; the 2026-09-01
+revision's measurements at `7397d7d` are superseded, not contradicted. Everything else in it
 is a reading of documents that are cited by line, and where those documents
 disagree, both sides are named in §1.4 and §1.5 rather than resolved silently.*
 
-*This revision applied four adversarial reviews. Where a review found this
+*The 2026-09-03 revision rewrote §1 against the merged channel (PRs #58, #62, #64, #65, #66), ADR-011's nine rulings and the red CI baseline, and touched §2, §4–§10 only where those facts reach. The 2026-09-01 revision applied four adversarial reviews. Where a review found this
 document had stated something backwards, overstated a hole, or rounded a count,
 the correction is recorded in place rather than made quietly — see §7.5's
 scoping note, §8.1's «stated narrowly» paragraph, §9.2's reading rule, and
