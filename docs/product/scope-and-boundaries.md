@@ -190,12 +190,14 @@ v0.0 does not claim that the v0.1 domain already exists.
 
 ## v0.1 included capabilities
 
-v0.1 is delivered through **seven milestones**
-([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 3): M0 *fit to
-hold someone else's data*, M1 *the object and what it owes*, M2 *the phone*, M3
-*the refusal*, M4 *the act*, M5 *the link*, M6 *the blocked money*. Every
-capability below names the milestone that owns it, and every one of them is here
-because a numbered step cannot happen without it.
+v0.1 is delivered through **eight milestones** — seven by
+[ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 3, and M7 added on
+2026-09-03 by [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md)
+decision 9: M0 *fit to hold someone else's data*, M1 *the object and what it
+owes*, M2 *the phone*, M3 *the refusal*, M4 *the act*, M5 *the link*, M6 *the
+blocked money*, M7 *the channel*. Every capability below names the milestone
+that owns it, and every one of them is here because a numbered step cannot
+happen without it.
 
 ### M0 — Fit to hold someone else's data
 
@@ -619,6 +621,34 @@ compliant технагляд produces a clean run, a happy customer, and no evid
 whatsoever about the product's only differentiator. Choosing a loyal технагляд
 for the first pilot requires an ADR that supersedes that decision.
 
+### M7 — The channel
+
+*Added 2026-09-03 by [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md)
+decision 9; the design is
+[2026-08-28-telegram-project-channel-design.md](../superpowers/specs/2026-08-28-telegram-project-channel-design.md).*
+
+- A project chooses one field-communication channel before activation and
+  cannot switch or supplement it afterwards; Telegram is the only channel
+  implemented; one closed group per project, shared by site participants, PTV
+  staff and the one official GoProceed bot.
+- Evidence is a photo sent as a reply to an assignment card in that group; an
+  unbound photo stays visible in the conversation and is not evidence. PTV may
+  reply in the group or from the web, and a web reply returns only to that
+  project's group.
+- GoProceed mirrors the conversation from the moment the bot is connected and
+  imports no earlier history; edits append history and rewrite no committed
+  evidence or decision; ordinary group deletions are not reported by the Bot API
+  and are not mirrored.
+- One person who wrote in the group can be forgotten on request by the operator
+  procedure of [README-staging.md](../../infra/README-staging.md) §7; retention
+  by age exists and runs nothing until the owner lands a duration.
+- The Telegram webhook is the product's own ingress to its own bot, not a public
+  webhook; the field client stays available on a Telegram-locked project.
+- Before any environment enables the webhook: Task 13's edge rate limit, the
+  real-group staging pass, the scheduler, and the assignment card carrying the
+  verification tag and the source of every normative string it renders
+  (ADR-011 decision 10 and open item 9). M0's real-data rule applies.
+
 ## Size decision: what left v0.1, and what it costs
 
 **The previous version of this section said "Nothing was removed. v0.1 is now
@@ -795,7 +825,9 @@ in v0.1 either way.
 - SaaS subscription billing;
 - custom entitlement packaging;
 - customer support access or impersonation;
-- public webhooks and third-party integrations;
+- public webhooks and third-party integrations (the Telegram webhook of
+  `v0.1-M7` is the product's own ingress to its own bot, not a public webhook —
+  [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md), 2026-09-03);
 - custom role builder;
 - sequential enterprise approval routing — ADR-005 assigns v0.3 as the owning
   version;

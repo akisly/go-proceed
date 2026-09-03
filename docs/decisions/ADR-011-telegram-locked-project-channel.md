@@ -1,10 +1,10 @@
 # ADR-011: Telegram as the locked project channel
 
-**Status:** Draft
+**Status:** Approved
 
 **Applies to:** v0.1
 
-**Last reviewed:** 2026-09-02
+**Last reviewed:** 2026-09-03
 
 **Related decisions:** [ADR-005](ADR-005-readiness-gate-and-hidden-works.md),
 [ADR-006](ADR-006-pilot-shaped-v0.1.md),
@@ -203,6 +203,10 @@ spec's Status line (:5) was re-dated for neither. A document approved
 approval, and the owner's confirmation of decision 8 as it now reads and of
 the attachment-lifecycle wording is owed alongside decisions 9–11.
 
+[Ratified 2026-09-03: the owner confirmed decision 8 as `22b5d71` words it and
+the attachment-lifecycle wording of `fe809a2`, both as written. The spec's
+Status line carries the same date.]
+
 Two sentences of the spec's §1 travel with the eight rows because the eight
 depend on them: «Telegram is a transport and interaction surface. PostgreSQL
 remains the source of truth for project scope, message identity, authorship,
@@ -211,13 +215,13 @@ storage remains the source of evidence bytes. Telegram is never the only copy
 of an accepted evidence original» (:31-35), and «This is not a generic
 messenger bridge» (:24).
 
-### Proposed — the owner has not yet ruled
+### Proposed on 2026-09-02 — ruled by the owner on 2026-09-03 (decisions 9–11)
 
 > **Decisions 9, 10 and 11 are proposals.** Each states what the owner must
 > choose, what each choice costs, and — where this document has a view — a
 > recommendation. None is in force.
 
-#### 9. The version boundary — PROPOSED, awaiting the owner
+#### 9. The version boundary — ACCEPTED 2026-09-03: (b), `v0.1-M7 — The channel`
 
 The boundary is stated three ways today and they cannot all stand:
 
@@ -290,7 +294,7 @@ scope-and-boundaries.md:798 lists «public webhooks and third-party
 integrations» under «Not included in v0.1» (:692, :793) and outranks this
 document at level 4 ([docs/README.md](../README.md):64-68).
 
-#### 10. What M0 now carries — PROPOSED, awaiting the owner
+#### 10. What M0 now carries — ACCEPTED 2026-09-03, as proposed
 
 M0 is «fit to hold someone else's data», twelve gates, «eight plus four»
 (ADR-006:417-448), and «M6 cannot open until M0 is closed» (:475). The spec
@@ -437,7 +441,7 @@ the scheduler (plan:1590-1594) are M0 evidence for gates 8 and 12, owed
 before any environment enables the webhook, and that merging the branch
 neither claims them nor requires them.
 
-#### 11. The premise of ADR-007 — PROPOSED, awaiting the owner
+#### 11. The premise of ADR-007 — ACCEPTED 2026-09-03; ADR-007 carries the three amendments
 
 **What changes.** ADR-007's binding constraint — «capture must take fewer
 actions than sending a photo to a Telegram group» (:139-140) — was a benchmark
@@ -819,36 +823,66 @@ Added by this ADR:
   specification intact. Nineteen migrations and fifteen tables are not cheap
   to reverse, and this ADR does not pretend otherwise.
 
-## Open items awaiting the owner
+## Open items — ruled by the owner on 2026-09-03
 
-Everything the owner must still rule on, in one place; the arguments stay
-where they are made.
+Everything the owner had to rule on, in one place, with the ruling under each
+item; the arguments stay where they are made. The rulings were given in
+conversation, one item at a time, and this section is their only record — the
+same form of record the 2026-08-28 approval has (§"Authority").
 
 1. **Decision 8 as re-worded** by `22b5d71`, and the attachment-lifecycle
    wording of `fe809a2` — §"Owner-approved on 2026-08-28".
-2. **Decision 9**, the version boundary; this document recommends (b),
-   `v0.1-M7`.
-3. **Decision 10**, what M0 now carries — gates 1, 2, 3, 4, 5, 7, 8, 9, 11
-   and 12 engaged, 6 and 10 not — and whether Task 13's edge limit, the
-   real-group staging pass and the scheduler are M0 evidence owed before any
-   environment enables the webhook.
+   **Ruled: ratified, both as written.**
+2. **Decision 9**, the version boundary.
+   **Ruled: (b), `v0.1-M7 — The channel`.** ADR-006 decision 3's «Seven
+   milestones» becomes eight by this ADR, on purpose; ADR-006 decision 4's
+   table, roadmap.md's table and version-0.1.md's count table each gain the
+   row; the ten operations, the four event rows, the eight invariants
+   (INV-092 to INV-099 — the argument above counted seven before INV-099
+   existed) and the fifteen entity rows re-tag to `v0.1-M7`; the validator's milestone
+   allow-list admits the tag and its two-way build-list check does not
+   (ADR-010's accounting pattern carries the fifteen tables).
+3. **Decision 10**, what M0 now carries.
+   **Ruled: as proposed** — gates 1, 2, 3, 4, 5, 7, 8, 9, 11 and 12 engaged,
+   6 and 10 not; Task 13's edge limit, the real-group staging pass and the
+   scheduler are blockers for enabling the webhook in any environment, not
+   for closing M0.
 4. **Decision 11**, the amendment of ADR-007 on three passages.
-5. **The `provider_retry_*` columns** — whether they join DA-148's withheld
-   set on purpose (§"Costs, accepted", provider handles).
-6. **`telegram_requirement_choice_sessions`** — whether its existence-based
-   service policy (`0068`:40-70) stays as the one exception to the
-   `app.service_workspace()` confinement (§"Costs, accepted", one bot for all
-   groups).
-7. **INV-086's sibling** — a second invariant, or an amendment naming both
-   senders of `origin_not_distinguished` (§"Relationship to ADR-007", Origin
-   and INV-086).
-8. **Whether the field client is absent on a Telegram-locked project** — the
-   spec is silent (§"Relationship to ADR-009", second item).
-9. **The gate 9 rendering gap** — the card carries the tag and the source, or
-   the owner records that it may not render the criterion text until it does
-   (decision 10, gate 9).
+   **Ruled: accepted on all three.** ADR-007 carries the dated amendments.
+5. **The `provider_retry_*` columns.**
+   **Ruled: withheld on purpose.** DA-148 names the four columns of `0069`
+   beside the two provider handles, and the m5 sweep asserts them as «meant
+   to be withheld». No grant changes.
+6. **`telegram_requirement_choice_sessions`.**
+   **Answered by code, not by ruling:** migration `0080` (#62, merged
+   2026-09-03) replaced the existence-based policy with the
+   `app.service_workspace()` confinement its ten siblings use; the exception
+   no longer exists.
+7. **INV-086's sibling.**
+   **Ruled: amend INV-086** to name both senders of `origin_not_distinguished`
+   — the PWA's intent builder and the Telegram bridge's `evidence.ts` — with
+   the `0043` CHECK as the fence they share; no second invariant.
+8. **Whether the field client is absent on a Telegram-locked project.**
+   **Ruled: it stays available.** The channel decision governs communication,
+   not capture; ADR-009's parity rule and ADR-007 decisions 1–2 are untouched;
+   no code changes.
+9. **The gate 9 rendering gap.**
+   **Ruled: the card carries the verification tag and the source** before a
+   real group sees it — `cards.ts`, the card route and one Telegram sentence
+   in hidden-works-content-rules.md; a webhook-enable blocker beside Task 13,
+   recorded in TODOS.md.
 
 ## Status against the runtime
+
+**Addendum 2026-09-03.** The branch was merged to `main` through #58
+(`7bf8e4b`) after #60, #61, #62, #64 and #65 landed on it; migrations `0061`
+through `0081` are on `main`. CI on the merged head (run 33735473898):
+`app-qa` green; `verify` red with eighteen `apps/app` cases that were failing
+on `main` before this branch and became visible only when #62 wired
+`TEST_DB_ADMIN_URL` into CI (baseline #63); the branch added none. Still
+deployed nowhere; Task 13, the real-group staging pass and the scheduler are
+still owed before any environment enables the webhook (decision 10). The
+bullets below are the 2026-09-02 reading and stay as dated history.
 
 - **Built and CI-proven on one branch.** `claude/d3-0-decision-slice` at
   `7817abe`; CI run 33567446293, conclusion `success`, both jobs successful
@@ -923,9 +957,13 @@ where they are made.
 4. Three milestone tags for one slice — spec:7,
    `technical/openapi/scope-v0.1.csv`:67-76,
    `technical/database/entity-catalog.csv`:10-24 — see decision 9.
+   [Resolved 2026-09-03 by decision 9(b): one tag, `v0.1-M7`.]
 5. [scope-and-boundaries.md](../product/scope-and-boundaries.md):798 «public
    webhooks and third-party integrations» under «Not included in v0.1» vs
    `technical/openapi/scope-v0.1.csv`:72. Level 4 wins until edited.
+   [Amended 2026-09-03: scope-and-boundaries.md now names the Telegram
+   webhook as the v0.1-M7 ingress and keeps «public webhooks and third-party
+   integrations» excluded as a class.]
 6. `technical/openapi/scope-v0.1.csv`:72 plane `provider` vs
    `technical/permissions/capabilities.csv`:48 plane `service` vs the four
    planes of [technical/openapi/README.md](../../technical/openapi/README.md):74-83.
@@ -938,7 +976,8 @@ where they are made.
 8. Decision 8's wording postdates the approval it sits under (`2e7e3f0` then
    `22b5d71`, both 2026-08-28), and `fe809a2` (2026-08-29) edited the approved
    document's attachment section after that; the Status line at spec:5 is
-   unchanged through all three.
+   unchanged through all three. [Resolved 2026-09-03: ratified — open item 1;
+   the Status line is re-dated.]
 9. ADR-007:139-140 measures «fewer actions than sending a photo to a Telegram
    group»; the demand scan measures «no more effort than sending a photo»
    ([research-ua-demand-2026-08-21.md](../discovery/research-ua-demand-2026-08-21.md):66).
@@ -964,8 +1003,13 @@ where they are made.
     yet in force ([docs/README.md](../README.md):80) — because the procedure
     for moving it to Approved is undefined; only the owner can change it, by
     confirming decisions 8–11 and the items under §"Open items awaiting the
-    owner".
+    owner". [Ruled 2026-09-03: the owner ruled on all nine items in conversation;
+    §"Open items — ruled by the owner on 2026-09-03" is the record, and this
+    document moved to Approved on it. The procedure is still undefined in the
+    repo; this is one more instance of the same form of record.]
 13. [pilot-execution-runbook.md](../delivery/pilot-execution-runbook.md):644
     says «ADR-010 is the highest today» and that «every ADR on disk simply
     carries `Status: Approved`»; this file makes both clauses stale on the day
     it lands. The runbook line is a dated observation and is not edited here.
+    [Noted 2026-09-03: the runbook is to be rewritten against `main`; that
+    rewrite owns the correction.]

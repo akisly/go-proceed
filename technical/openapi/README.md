@@ -113,7 +113,7 @@ the runtime baseline is recorded in
 - `idempotency` — `required` (Idempotency-Key header), `natural` (safe method),
   `single_use` (token exchange: one concurrent winner, replays get a generic
   invalid-link response).
-- `milestone` — v0.1 internal milestone (**M0–M6**,
+- `milestone` — v0.1 internal milestone (**M0–M7** — M7 added 2026-09-03 by ADR-011 decision 9,
   [ADR-006](../../docs/decisions/ADR-006-pilot-shaped-v0.1.md) decision 3; M0
   has no row here because it adds no operation). **This column is authoritative
   here, not derived from the roadmap.** `scope-v0.1.csv` is precedence level 3

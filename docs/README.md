@@ -201,7 +201,8 @@ the new-build count from 14 to 17. Objects
 moved out of v0.1 entirely have no tables either — internal review, packages and
 claim segments, `commercial_decision`, acceptance, and the
 seven-state value-at-risk projection are **v0.2**. Milestone
-numbering runs **M0–M6**, not M1–M6; M0 adds no table. The
+numbering runs **M0–M7**, not M1–M7 (M7, the channel, added 2026-09-03 by
+ADR-011); M0 adds no table. The
 migration inventory and known gaps are recorded in
 [`migration/goproceed-canonical-v0.1`](../migration/goproceed-canonical-v0.1/README.md).
 

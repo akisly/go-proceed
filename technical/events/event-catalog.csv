@@ -3,7 +3,7 @@ workspace.created,domain_event,1,workspace,consumer + outbox_event_id + effect_k
 invitation.issued,domain_event,1,workspace,notification: recipient + kind + source fact,bff.invitations.create,notification_creator email_delivery,v0.1-M1
 invitation.accepted,domain_event,1,workspace,consumer + outbox_event_id + effect_kind,bff.invitations.accept,notification_creator,v0.1-M1
 project.created,domain_event,1,project,consumer + outbox_event_id + effect_kind,bff.projects.create,projection_rebuilder,v0.1-M1
-project.activated,domain_event,1,project,consumer + outbox_event_id + effect_kind,bff.projects.activate,projection_rebuilder notification_creator,v0.1-M6
+project.activated,domain_event,1,project,consumer + outbox_event_id + effect_kind,bff.projects.activate,projection_rebuilder notification_creator,v0.1-M7
 contract.created,domain_event,1,contract,consumer + outbox_event_id + effect_kind,bff.contracts.create,projection_rebuilder,v0.1-M1
 contract_version.published,domain_event,1,contract_version,projection: kind + watermark + algorithm + scope. CORRECTED 2026-08-06: this row recorded the manual-baseline producer as not yet catalogued — contract_versions.publish is a v0.1-M1 row of technical/openapi/scope-v0.1.csv and is the ADR-006 decision 2 route. Both producers refuse a version with no bound rule-version set (INV-083),bff.contract_versions.publish bff.import_batches.publish,projection_rebuilder notification_creator,v0.1-M1
 work_assignment.created,domain_event,1,work_assignment,consumer + outbox_event_id + effect_kind,bff.assignments.create,notification_creator,v0.1-M2
@@ -39,8 +39,8 @@ audit.member_command,audit_action,1,per-command target,append-only audit row per
 audit.external_command,audit_action,1,per-command target,append-only audit row with grant/session identity,bff.external_plane,none (accountability evidence only),v0.1-M5
 audit.service_command,audit_action,1,per-job target,append-only audit row with service principal + causation,workers,none (accountability evidence only),v0.0
 audit.security_signal,audit_action,1,security scope,append-only signal without sensitive row contents,bff workers,operations_alerting,v0.1-M5
-telegram.message.normalized,domain_event,1,communication_message,provider update id + normalized message identity,worker.telegram_processor,projection_rebuilder,v0.1-M6
-telegram.channel.health_changed,domain_event,1,project_field_channel,provider update id + bound chat identity,worker.telegram_processor,projection_rebuilder operations_alerting,v0.1-M6
-communication.telegram.send,delivery_topic,1,communication_message,delivery: queued message identity + locked Telegram binding,bff.assignment_communication_cards.publish,telegram_delivery_worker,v0.1-M6
+telegram.message.normalized,domain_event,1,communication_message,provider update id + normalized message identity,worker.telegram_processor,projection_rebuilder,v0.1-M7
+telegram.channel.health_changed,domain_event,1,project_field_channel,provider update id + bound chat identity,worker.telegram_processor,projection_rebuilder operations_alerting,v0.1-M7
+communication.telegram.send,delivery_topic,1,communication_message,delivery: queued message identity + locked Telegram binding,bff.assignment_communication_cards.publish,telegram_delivery_worker,v0.1-M7
 delivery.notification_email,delivery_topic,1,notification,delivery: notification + channel + generation,worker.notification_deliver,email_provider_adapter,v0.0
 delivery.protected_link_email,delivery_topic,1,external_access_grant,one-time in-memory post-commit send; NEVER outbox/job (INV-044). Producer corrected 2026-08-06 — this is the ONLY delivery path ADR-006 step 5 has and it was attributed to bff.external_grants.issue which is a v0.2 row of scope-v0.2.csv; in v0.1 the personal link is issued by bff.occurrence_grants.issue,bff.occurrence_grants.issue bff.external_grants.issue,email_provider_adapter,v0.1-M5

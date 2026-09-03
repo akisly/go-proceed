@@ -65,7 +65,8 @@ evidence that a gate exists. The anti-pattern register in
 that shipped exactly that and called it a gate; a milestone below closes on the
 refusal or it does not close.
 
-**Milestones inside v0.1 are M0–M6**, re-cut by
+**Milestones inside v0.1 are M0–M7** (M7 added 2026-09-03 by
+[ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decision 9), re-cut by
 [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md) decision 3. M0 may be built
 in parallel with M1–M5, but M6 cannot open until M0 is closed, and M0 may never
 be reordered behind M6.
@@ -172,6 +173,7 @@ M6), one splits (old M3), and one moves out of v0.1 entirely (old M4).
 | M4 — immutable package generation | **Moves to v0.2 entire.** What survives in v0.1 is the statutory act, which becomes the new M4, *The act* |
 | M5 — protected external access and partial decisions | **Survives, halved**, as *The link*. The evidence decision on a requirement occurrence survives; the commercial decision and everything segment-shaped moves to v0.2 |
 | M6 — value at risk and pilot hardening | **Survives, replaced in content**, as *The blocked money*. The seven-state projection moves to v0.2; the sum, the breakdown by cause, and the pilot survive |
+| — | **New: M7 — The channel.** Added 2026-09-03 by [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) decision 9: the Telegram project channel of the 2026-08-28 design, its own milestone because it builds fifteen tables and ten operations |
 
 **The authority for this re-cut is the owner's instruction of 2026-08-06**,
 carried by [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md). It is **not**
@@ -195,6 +197,7 @@ step above cannot happen without it.
 | M4 — The act | `statutory_acts`, `statutory_act_versions` | none |
 | M5 — The link | `external_access_grants`, `external_sessions`, `external_decision_batches` | none |
 | M6 — The blocked money | none. It is a query over `blocked_reasons` and `work_items` | — |
+| M7 — The channel (added 2026-09-03, ADR-011 decision 9) | fifteen communication tables outside ADR-006 decision 4's list, from project_field_channels (0061) to the erasure registry (0081), tagged v0.1-M7 in the entity catalog | — |
 
 ### The gate, and which milestone owns it
 
@@ -961,6 +964,18 @@ subcontractor runs all six steps on one named object with an adversarial
 - pilot findings, unresolved operating constraints, and **what the pilot did not
   answer** are documented, against the stopping conditions written down in
   advance.
+
+### v0.1-M7 — The channel
+
+*Added 2026-09-03 by [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md)
+decision 9.* One closed Telegram group per project, chosen before activation;
+evidence as a reply to an assignment card; PTV replies from the web returning
+to the group; one person forgettable on request. The decisions, the M0 gates it
+engages and the blockers before any environment enables the webhook are in
+ADR-011; the design is
+[2026-08-28-telegram-project-channel-design.md](../superpowers/specs/2026-08-28-telegram-project-channel-design.md);
+delivery is [version-0.1.md](../delivery/version-0.1.md) §"v0.1-M7". Merged to
+`main` on 2026-09-03 and deployed nowhere.
 
 ## v0.2 — The commercial half, and pilot hardening
 

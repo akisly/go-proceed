@@ -3429,3 +3429,41 @@ erasure route), that route's design should either accept this as within the
 service plane's existing trust boundary or add a mechanism narrower than
 "any `goproceed_service` session" before exposing it further. Design note,
 not a defect in 0081 as shipped.
+
+## P1 — eighteen `apps/app` cases fail in CI, and were failing on main before the channel landed (2026-09-03)
+
+PR #62 wired `TEST_DB_ADMIN_URL` into `.github/workflows/ci.yml` and
+`turbo.json`, so the isolated `apps/app` suites run in CI for the first time.
+Eighteen of their cases fail, on `main` as on every branch since: fourteen in
+`tests/telegram-evidence.int.test.ts`, one each in
+`tests/telegram-delivery.int.test.ts`, `tests/project-communications.int.test.ts`,
+`tests/upload-intents-finalize.int.test.ts` and
+`src/lib/evidence/evidence-service.test.ts`. The baseline run that proved they
+predate the channel merge is on PR #63; every later run was read against that
+set and added nothing (PR #58's description carries the reading). `verify` is
+red on `main` until they are fixed, and every gate record written meanwhile
+says PASS (assisted) for CI with this set named. Fixing them is its own slice:
+start from the failure messages of run 33735473898, not from this note.
+
+## P2 — the assignment card renders a normative string without its tag and its source (ADR-011 open item 9, 2026-09-03)
+
+M0 gate 9 — «no normative string renderable without its `verification` tag
+and its source» — reaches the Telegram card: the card route selects
+`acceptance_criterion` and `norm_ref`, and `apps/app/src/lib/telegram/cards.ts`
+renders `criterion — normRef` into the message with neither. The owner ruled
+on 2026-09-03 that the card carries both before a real group sees it. The
+slice: the card route and `cards.ts` render the tag and the source with the
+criterion; `docs/product/hidden-works-content-rules.md` gains its Telegram
+sentence; a test pins that a card for a row without a verified source renders
+the substitute text and no criterion. This is a blocker for enabling the
+webhook in any environment, beside Task 13's edge rate limit, the real-group
+staging pass and the scheduler (ADR-011 decision 10).
+
+## P3 — the Telegram sender of `origin_not_distinguished` has no test pin (INV-086, 2026-09-03)
+
+INV-086 now names two senders. The PWA's is pinned by
+`apps/app/src/lib/capture/upload.test.ts` and `tests/field-capture.int.test.ts`;
+the Telegram bridge's is structural only — `evidence.ts` writes the literal in
+both intent builders. Owed: one case in `tests/telegram-evidence.int.test.ts`
+asserting the persisted `origin_method` after a bridge-received photo. That
+suite is among the eighteen above; land the pin when it is green again.
