@@ -423,7 +423,9 @@ export async function prepareTelegramEvidenceCandidate(input: {
     await tx.query(`update public.communication_attachments set state='awaiting_requirement_choice'
       where ${input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined
         ? "id=$1" : "telegram_media_group_id=$1 and media_type_snapshot in ('image/jpeg','image/png','image/heic') and created_at <= $2::timestamptz"} and state='staged'`,
-    [input.telegramMediaGroupId ?? input.attachmentId, input.albumClaim?.claimedLastPartAt ?? null]);
+    input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined
+      ? [input.attachmentId]
+      : [input.telegramMediaGroupId, input.albumClaim?.claimedLastPartAt ?? null]);
     if (input.telegramMediaGroupId !== null && input.telegramMediaGroupId !== undefined) {
       await tx.query(`update public.telegram_media_groups
         set state='awaiting_requirement_choice', choice_expires_at=now() + interval '24 hours'
