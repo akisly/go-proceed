@@ -837,8 +837,9 @@ same form of record the 2026-08-28 approval has (§"Authority").
    **Ruled: (b), `v0.1-M7 — The channel`.** ADR-006 decision 3's «Seven
    milestones» becomes eight by this ADR, on purpose; ADR-006 decision 4's
    table, roadmap.md's table and version-0.1.md's count table each gain the
-   row; the ten operations, the four event rows, the seven invariants and the
-   fifteen entity rows re-tag to `v0.1-M7`; the validator's milestone
+   row; the ten operations, the four event rows, the eight invariants
+   (INV-092 to INV-099 — the argument above counted seven before INV-099
+   existed) and the fifteen entity rows re-tag to `v0.1-M7`; the validator's milestone
    allow-list admits the tag and its two-way build-list check does not
    (ADR-010's accounting pattern carries the fifteen tables).
 3. **Decision 10**, what M0 now carries.
@@ -1002,7 +1003,7 @@ bullets below are the 2026-09-02 reading and stay as dated history.
     yet in force ([docs/README.md](../README.md):80) — because the procedure
     for moving it to Approved is undefined; only the owner can change it, by
     confirming decisions 8–11 and the items under §"Open items awaiting the
-    owner". [2026-09-03: the owner ruled on all nine items in conversation;
+    owner". [Ruled 2026-09-03: the owner ruled on all nine items in conversation;
     §"Open items — ruled by the owner on 2026-09-03" is the record, and this
     document moved to Approved on it. The procedure is still undefined in the
     repo; this is one more instance of the same form of record.]
@@ -1010,5 +1011,5 @@ bullets below are the 2026-09-02 reading and stay as dated history.
     says «ADR-010 is the highest today» and that «every ADR on disk simply
     carries `Status: Approved`»; this file makes both clauses stale on the day
     it lands. The runbook line is a dated observation and is not edited here.
-    [2026-09-03: the runbook is to be rewritten against `main`; that rewrite
-    owns the correction.]
+    [Noted 2026-09-03: the runbook is to be rewritten against `main`; that
+    rewrite owns the correction.]

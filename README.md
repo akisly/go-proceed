@@ -101,7 +101,7 @@ ADRs → legacy (non-normative).
 | Product: vision, scope, personas, roadmap | [docs/product/](docs/product/) |
 | Domain: glossary, model, evidence, packages, VaR | [docs/domain/](docs/domain/) |
 | Architecture: system, data, security, storage, jobs | [docs/architecture/](docs/architecture/) |
-| Delivery gates: v0.0, v0.1 M0–M6, v0.2 transfer record, tests, readiness | [docs/delivery/](docs/delivery/) |
+| Delivery gates: v0.0, v0.1 M0–M7, v0.2 transfer record, tests, readiness | [docs/delivery/](docs/delivery/) |
 | Discovery evidence (honest counts) | [docs/discovery/](docs/discovery/) |
 | Decisions | [docs/decisions/](docs/decisions/) + [decision register](migration/goproceed-canonical-v0.1/decision-register.md) |
 | Machine-readable v0.1 target contracts | [technical/database/](technical/database/), [technical/openapi/](technical/openapi/), [technical/permissions/](technical/permissions/), [technical/states/](technical/states/), [technical/events/](technical/events/), [technical/templates/](technical/templates/) |
@@ -153,7 +153,7 @@ missing. Their history is in git if a screen ever needs to be recovered.
 **v0.0 foundation hardening** per [docs/delivery/version-0.0.md](docs/delivery/version-0.0.md):
 environment/build policy, green baseline, tenant isolation for
 audit/idempotency/outbox, serialized bootstrap, deny-by-default grants,
-seed-credential safety, and migration safety rails. v0.1 **M0–M6** follow per
+seed-credential safety, and migration safety rails. v0.1 **M0–M7** follow per
 [docs/delivery/version-0.1.md](docs/delivery/version-0.1.md); M0 is the
 cross-cutting minimum that makes the environment fit to hold someone else's
 data, and **M6 cannot open until M0 is closed**.
