@@ -189,10 +189,10 @@ databaseDescribe("project communication member API", () => {
     const rows = await client.query<{ messages: string; outbox: string; author_member_id: string }>(`select
       count(*)::text as messages,
       (select count(*)::text from public.transaction_outbox
-        where organization_id=$1 and topic='communication.telegram.send' and aggregate_id=$2) as outbox,
+        where organization_id=$1 and topic='communication.telegram.send' and aggregate_id=$3) as outbox,
       min(author_member_id::text) as author_member_id
       from public.communication_messages where workspace_id=$1 and id=$2`, [
-      primary.workspaceId, firstBody.messageId,
+      primary.workspaceId, firstBody.messageId, String(firstBody.messageId),
     ]);
     expect(rows.rows[0]).toEqual({ messages: "1", outbox: "1", author_member_id: primary.memberId });
   });

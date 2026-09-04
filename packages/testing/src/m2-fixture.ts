@@ -26,6 +26,8 @@ export interface SeedOptions {
   userId: string;
   email: string;
   suffix: string;
+  /** The single work item's description; defaults to a short labelled line. A test that needs a card too long for Telegram seeds it here, because a published version's lines are immutable (INV-015). */
+  workItemDescription?: string;
   taxMode?: string;
   taxRateBps?: number | null;
   unitPriceState?: "known" | "zero" | "missing";
@@ -138,7 +140,7 @@ export async function seedM2World(c: Client, o: SeedOptions): Promise<M2Fixture>
              $14,$15,$16,$17,$18)
      returning id`,
     [o.workspaceId, projectId, contractId, contractVersionId,
-     `Приклад-позиція-${o.suffix}`, unitId, contractQuantity,
+     o.workItemDescription ?? `Приклад-позиція-${o.suffix}`, unitId, contractQuantity,
      unitPriceState, priced ? "100" : null, priced ? "net" : null,
      valuationBasis, taxMode, taxRateBps,
      valuationBasis === "approved_source_amount" ? gross.toString() : null,

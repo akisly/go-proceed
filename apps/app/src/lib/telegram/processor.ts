@@ -549,7 +549,7 @@ async function processSelectedEvidence(input: {
       fileUniqueId: attachment.provider_file_unique_id,
       fileName: attachment.filename_snapshot,
       mimeType: attachment.media_type_snapshot,
-      fileSize: attachment.byte_size,
+      fileSize: attachment.byte_size === null ? null : Number(attachment.byte_size), // bigint arrives as a string
       width: null,
       height: null,
     };
@@ -629,7 +629,14 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
       id: string; workspace_id: string; project_id: string; telegram_chat_binding_id: string;
       chat_id: string; lease_token: string; lease_expires_at: string;
       processing_generation: string; claimed_last_part_at: string;
-    }>("select * from app.claim_telegram_media_groups($1::integer,$2::integer)", [limit, MEDIA_GROUP_LEASE_SECONDS]);
+    }>(`select id, workspace_id, project_id, telegram_chat_binding_id, chat_id::text, lease_token::text,
+                  lease_expires_at::text, processing_generation::text, claimed_last_part_at::text
+             from app.claim_telegram_media_groups($1::integer,$2::integer)`, [limit, MEDIA_GROUP_LEASE_SECONDS]);
+    // The two timestamps travel back into equality predicates (`g.last_part_at=$3`,
+    // `g.processing_lease_expires_at=$5`). Read as timestamptz, node-pg hands
+    // them over as Dates with millisecond precision and the round trip loses
+    // the microseconds Postgres stored, so the fences never match. Text keeps
+    // every digit — the same reason evidence.ts reads its claim columns as text.
     return claimed.rows.map((group) => ({
       ...group,
       albumClaim: {
@@ -675,10 +682,14 @@ export async function processDueTelegramMediaGroups(limit = 20): Promise<number>
       });
       continue;
     }
+    // byte_size is a bigint, and node-pg hands bigints over as strings;
+    // isTelegramEvidenceCandidate checks Number.isSafeInteger, which is false
+    // for every string, so an album part read back from the table was refused
+    // as unsupported_media while the same file arriving as an update passed.
     const file = {
       kind: first.filename_snapshot === null && first.media_type_snapshot === "image/jpeg" ? "photo" as const : "document" as const,
       fileId: first.provider_file_id, fileUniqueId: first.provider_file_unique_id,
-      fileName: first.filename_snapshot, mimeType: first.media_type_snapshot, fileSize: first.byte_size,
+      fileName: first.filename_snapshot, mimeType: first.media_type_snapshot, fileSize: first.byte_size === null ? null : Number(first.byte_size),
       width: null, height: null,
     };
     const prepared = await prepareTelegramEvidenceCandidate({
@@ -822,7 +833,7 @@ export async function processDueTelegramEvidenceRetries(limit = 20): Promise<num
           occurrenceId: row.requirement_occurrence_id, botId: row.bot_id, chatId: row.chat_id, messageId: row.provider_message_id,
           file: { kind: row.filename_snapshot === null && row.media_type_snapshot === "image/jpeg" ? "photo" : "document",
             fileId: row.provider_file_id, fileUniqueId: row.provider_file_unique_id, fileName: row.filename_snapshot,
-            mimeType: row.media_type_snapshot, fileSize: row.byte_size, width: null, height: null }, api, putObject,
+            mimeType: row.media_type_snapshot, fileSize: row.byte_size === null ? null : Number(row.byte_size), width: null, height: null }, api, putObject,
         })
       : { kind: "failed" as const, code: "evidence_authorization_failed" };
     const albumClaim = row.telegram_media_group_id !== null
