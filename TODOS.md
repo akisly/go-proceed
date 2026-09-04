@@ -3430,7 +3430,29 @@ service plane's existing trust boundary or add a mechanism narrower than
 "any `goproceed_service` session" before exposing it further. Design note,
 not a defect in 0081 as shipped.
 
-## P1 — eighteen `apps/app` cases fail in CI, and were failing on main before the channel landed (2026-09-03)
+## P1 (CLOSED 2026-09-04) — eighteen `apps/app` cases fail in CI, and were failing on main before the channel landed (2026-09-03)
+
+**Closed 2026-09-04 by the album state-machine session** (branch
+`claude/vigorous-elbakyan-0f49e5`, gate record
+`docs/superpowers/plans/evidence/2026-09-04-telegram-album-state-machine-gate.md`).
+The eleven that PR #68 left are green locally, each with a root cause:
+five expectations predated designed behaviour or carried fixture bugs
+(items 1, 2, 3, 4, 7, 9, and the fixture half of 11 — the decision keyboard
+as a third delivery, a receipt still queued when a card's batch was
+counted, four outbound texts the design asks for, the CHECK
+`expires_at > created_at` and 0071's terminal expiry, a claim read as
+millisecond Dates, PDF parts terminal before any context check), and two
+production defects in the service plane, each fixed by a migration:
+**0082** — `public.memberships` carries member-plane policies only, so the
+inline author lookup found no member and every `author_member_id` and album
+`uploader_member_id` was NULL (items 8 and 2; also the callback locator's
+`memberships` join); **0083** — the retry claim scanned with no workspace
+declared and joined four member-plane tables, so no scheduled retry was
+ever attempted (items 10 and 11). The callback locator (items 4, 5, 6) now
+declares its workspace through `app.resolve_telegram_chat` before it looks
+for a session. The section below is kept as the record of what was
+measured before the fix.
+
 
 PR #62 wired `TEST_DB_ADMIN_URL` into `.github/workflows/ci.yml` and
 `turbo.json`, so the isolated `apps/app` suites run in CI for the first time.
