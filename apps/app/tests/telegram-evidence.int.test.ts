@@ -856,6 +856,32 @@ databaseDescribe("Telegram evidence bridge", () => {
     }]);
   });
 
+  it("records a bridge-received photo with origin_not_distinguished on the intent and the evidence object (INV-086)", async () => {
+    // The Telegram bridge is INV-086's second sender: evidence.ts builds the
+    // preflight body and the CreateUploadIntentRequest with the literal and
+    // carries no parameter through which another value could be routed. The
+    // PWA sender is pinned in field-capture.int.test.ts; this pins the bridge
+    // on both of its paths — a direct card reply and an album part — at the
+    // persisted rows, not at the literal in the source.
+    await deleteOccurrence(client, alternateOccurrenceId);
+    const card = await deliverCard();
+    fakes.payloads.set("origin-direct", JPEG); fakes.payloads.set("origin-album", JPEG);
+    await processTelegramUpdate(imageUpdate({ updateId: "120", messageId: "820", fileId: "origin-direct", replyTo: card.providerMessageId }));
+    await processTelegramUpdate(imageUpdate({ updateId: "121", messageId: "821", fileId: "origin-album", replyTo: card.providerMessageId, album: "origin-album" }));
+    await makeAlbumsDue(); expect(await processDueTelegramMediaGroups()).toBe(1);
+    const rows = (await client.query<{ provider_message_id: string; intent_origin: string; evidence_origin: string }>(
+      `select m.provider_message_id::text, i.origin_method as intent_origin, e.origin_method as evidence_origin
+         from public.communication_attachments a
+         join public.communication_messages m on m.workspace_id=a.workspace_id and m.id=a.message_id
+         join public.evidence_objects e on e.id=a.evidence_object_id
+         join public.upload_intents i on i.id=e.upload_intent_id
+        where a.workspace_id=$1 and a.state='available' order by m.provider_message_id`, [rules.workspaceId])).rows;
+    expect(rows).toEqual([
+      { provider_message_id: "820", intent_origin: "origin_not_distinguished", evidence_origin: "origin_not_distinguished" },
+      { provider_message_id: "821", intent_origin: "origin_not_distinguished", evidence_origin: "origin_not_distinguished" },
+    ]);
+  });
+
   it("attempts one generic callback acknowledgement when context resolution throws", async () => {
     const result = await processTelegramUpdate({
       kind: "callback_query", updateId: "112", callbackId: "callback-db-error", senderId: UPLOADER_ID,
