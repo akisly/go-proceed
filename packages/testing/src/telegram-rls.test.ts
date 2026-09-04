@@ -108,3 +108,107 @@ describe("§ service policy on telegram_requirement_choice_sessions", () => {
     expect(await codeOf(WS_A, "")).toBe("42501");
   });
 });
+
+/**
+ * THE LINKED MEMBER THE SERVICE PLANE COULD NOT SEE (0082).
+ *
+ * public.memberships carries member-plane policies only — m_select and
+ * m_select_workspace, both resolving app.current_actor() — and
+ * goproceed_service INHERITS goproceed_app, so a service transaction (always
+ * an empty actor) reads no membership whatever workspace it declares. The
+ * first case pins that fact, because it is the reason the definer exists:
+ * processor.ts resolved the author of every inbound Telegram message with an
+ * inline join to this table and found no one. app.resolve_telegram_linked_member
+ * is the bounded lookup that replaces the join — declared workspace only,
+ * service principal only, one row or none.
+ */
+describe("§ app.resolve_telegram_linked_member (0082)", () => {
+  const TELEGRAM_USER = "700100";
+  const resolve = (declared: string, workspace: string) => asService<{ member_id: string; user_id: string }>("", declared, (c) => c.query(
+    "select member_id, user_id from app.resolve_telegram_linked_member($1::uuid, $2::bigint)", [workspace, TELEGRAM_USER],
+  ));
+
+  beforeAll(async () => {
+    await admin.query(`insert into public.telegram_member_links (workspace_id, member_id, telegram_user_id, linked_by_member_id)
+      values ($1, $2, $3::bigint, $2)`, [WS_A, ownerMemberId, TELEGRAM_USER]);
+  });
+
+  it("the inline read it replaces sees no membership from the service plane, even for the declared workspace", async () => {
+    const seen = await asService("", WS_A, (c) => c.query("select id from public.memberships where organization_id=$1", [WS_A]));
+    expect(seen.rows).toEqual([]);
+  });
+
+  it("resolves the linked, active member and their user for the declared workspace", async () => {
+    expect((await resolve(WS_A, WS_A)).rows).toEqual([{ member_id: ownerMemberId, user_id: OWNER }]);
+  });
+
+  it("refuses any workspace but the declared one, and refuses when none is declared", async () => {
+    await expect(resolve(WS_A, WS_B)).rejects.toMatchObject({ code: "P0001" });
+    await expect(resolve("", WS_A)).rejects.toMatchObject({ code: "P0001" });
+  });
+
+  it("resolves nothing for a revoked link, and nothing for a membership that is not active", async () => {
+    await admin.query("update public.telegram_member_links set revoked_at=now() where workspace_id=$1 and telegram_user_id=$2::bigint", [WS_A, TELEGRAM_USER]);
+    expect((await resolve(WS_A, WS_A)).rows).toEqual([]);
+    await admin.query("update public.telegram_member_links set revoked_at=null where workspace_id=$1 and telegram_user_id=$2::bigint", [WS_A, TELEGRAM_USER]);
+    await admin.query("update public.memberships set status='suspended' where id=$1", [ownerMemberId]);
+    expect((await resolve(WS_A, WS_A)).rows).toEqual([]);
+    await admin.query("update public.memberships set status='active' where id=$1", [ownerMemberId]);
+    expect((await resolve(WS_A, WS_A)).rows).toHaveLength(1);
+  });
+
+  it("is not executable from the member plane", async () => {
+    await expect(asActor(OWNER, WS_A, (c) => c.query(
+      "select * from app.resolve_telegram_linked_member($1::uuid, $2::bigint)", [WS_A, TELEGRAM_USER],
+    ))).rejects.toMatchObject({ code: "42501" });
+  });
+});
+
+/**
+ * THE RETRY THAT CLAIMED NOTHING (0083).
+ *
+ * processDueTelegramEvidenceRetries scanned communication_attachments inline
+ * with no workspace declared (the queue spans tenants) and INNER JOINed
+ * project_field_channels and requirement_occurrences — member-plane tables.
+ * The first case pins the join that could never match: with the workspace
+ * declared, the service plane still reads no project_field_channels row,
+ * although this file's fixture inserted one. The definers replace the scan
+ * (cross-tenant, service principal only) and the per-row recheck (declared
+ * workspace only).
+ */
+describe("§ the retry claim and revalidation definers (0083)", () => {
+  const revalidate = (declared: string, workspace: string) => asService<{ ok: boolean }>("", declared, (c) => c.query(
+    `select app.revalidate_telegram_evidence_retry($1::uuid, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(),
+       $2::uuid, 1, -100998, 123456789, null, null, null, null, gen_random_uuid()) as ok`, [workspace, bindingId],
+  ));
+
+  it("the inline join the claim relied on sees no project_field_channels row from the service plane, even for the declared workspace", async () => {
+    const seen = await asService("", WS_A, (c) => c.query("select project_id from public.project_field_channels where workspace_id=$1", [WS_A]));
+    expect(seen.rows).toEqual([]);
+  });
+
+  it("the claim runs for the service principal with no workspace declared, and leases nothing that is not due", async () => {
+    const claimed = await asService("", null, (c) => c.query("select id from app.claim_telegram_evidence_retries(20, 60)"));
+    expect(claimed.rows).toEqual([]);
+  });
+
+  it("the claim refuses bounds outside the lease policy", async () => {
+    await expect(asService("", null, (c) => c.query("select id from app.claim_telegram_evidence_retries(0, 60)"))).rejects.toMatchObject({ code: "P0001" });
+    await expect(asService("", null, (c) => c.query("select id from app.claim_telegram_evidence_retries(20, 301)"))).rejects.toMatchObject({ code: "P0001" });
+  });
+
+  it("revalidation answers false for an attachment that does not exist, and refuses any workspace but the declared one", async () => {
+    expect((await revalidate(WS_A, WS_A)).rows).toEqual([{ ok: false }]);
+    await expect(revalidate(WS_A, WS_B)).rejects.toMatchObject({ code: "P0001" });
+    await expect(revalidate("", WS_A)).rejects.toMatchObject({ code: "P0001" });
+  });
+
+  it("neither definer is executable from the member plane", async () => {
+    await expect(asActor(OWNER, WS_A, (c) => c.query("select id from app.claim_telegram_evidence_retries(20, 60)")))
+      .rejects.toMatchObject({ code: "42501" });
+    await expect(asActor(OWNER, WS_A, (c) => c.query(
+      `select app.revalidate_telegram_evidence_retry($1::uuid, gen_random_uuid(), gen_random_uuid(), gen_random_uuid(),
+         $2::uuid, 1, -100998, 123456789, null, null, null, null, gen_random_uuid())`, [WS_A, bindingId],
+    ))).rejects.toMatchObject({ code: "42501" });
+  });
+});

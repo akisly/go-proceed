@@ -225,41 +225,72 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(fakes.downloads).toEqual(["one-live"]);
     expect(attachment).toMatchObject({ state: "available", provider_file_id: null });
     expect(attachment!.evidence_object_id).toMatch(/^[0-9a-f-]{36}$/);
-    const messages = await client.query<{ text: string }>(`select text from public.communication_messages
-      where workspace_id=$1 and direction='outbound' and kind='text' order by created_at`, [rules.workspaceId]);
+    const messages = await client.query<{ text: string; telegram_reply_markup: Array<Array<{ text: string; callbackData: string }>> | null }>(
+      `select text, telegram_reply_markup from public.communication_messages
+        where workspace_id=$1 and direction='outbound' and kind='text' order by created_at`, [rules.workspaceId]);
     expect(messages.rows.map((row) => row.text)).toContain("Зображення обробляється. Підтвердження буде надіслано після збереження доказу.");
     expect(messages.rows.map((row) => row.text)).toContain(`Збережено доказів: 1.\nЗображення 702: збережено — ${attachment!.evidence_object_id}.`);
+    // The third outbound text is the decision keyboard. Accept and return are
+    // explicit actions (2026-08-28 design §8.4), published once an occurrence
+    // holds a durable available object (processor.ts, reconcile); it landed
+    // on 2026-08-31 (19f05ff), after this case counted two deliveries.
+    const keyboard = messages.rows.find((row) => row.telegram_reply_markup !== null);
+    expect(keyboard?.telegram_reply_markup?.[0]?.map(({ text, callbackData }) => [text, callbackData.slice(0, 4)]))
+      .toEqual([["Прийняти", "dec:"], ["Повернути", "dec:"]]);
+    expect(messages.rows).toHaveLength(3);
     expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-receipt", limit: 10, apiClient: fakeTelegramApi() }))
-      .toEqual({ accepted: 2, failed: 0, unknown: 0 });
+      .toEqual({ accepted: 3, failed: 0, unknown: 0 });
   });
 
   it("binds opaque multiple-occurrence choices to uploader and group and rejects wrong, expired, and replayed callbacks", async () => {
     const card = await deliverCard();
-    const message = await client.query<{ id: string }>(`insert into public.communication_messages
-      (workspace_id, project_id, telegram_chat_binding_id, direction, kind, provider_user_id, provider_message_id, provider_reply_to_message_id, delivery_state)
-      values ($1,$2,$3,'inbound','photo',$4::bigint,703,$5::bigint,'received') returning id`,
-    [rules.workspaceId, rules.projectId, bindingId, UPLOADER_ID, card.providerMessageId]);
-    const attachment = await client.query<{ id: string }>(`insert into public.communication_attachments
-      (workspace_id, project_id, message_id, provider_file_id, provider_file_unique_id, media_type_snapshot, byte_size, state)
-      values ($1,$2,$3,'choice-file','choice-unique','image/jpeg',$4,'staged') returning id`,
-    [rules.workspaceId, rules.projectId, message.rows[0]!.id, JPEG.byteLength]);
-    const candidate = { kind: "photo" as const, fileId: "choice-file", fileUniqueId: "choice-unique", fileName: null, mimeType: "image/jpeg", fileSize: JPEG.byteLength, width: 1, height: 1 };
-    const prepared = await prepareTelegramEvidenceCandidate({ workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
-      messageId: message.rows[0]!.id, attachmentId: attachment.rows[0]!.id, senderId: UPLOADER_ID, replyToProviderMessageId: card.providerMessageId, mediaGroupId: null, file: candidate });
+    // The rows storeMessage would write for a linked uploader's card reply:
+    // author_member_id is the linked member, as linkedMemberId() resolves it.
+    async function stagedReply(providerMessageId: string, fileId: string): Promise<{ messageId: string; attachmentId: string }> {
+      const message = await client.query<{ id: string }>(`insert into public.communication_messages
+        (workspace_id, project_id, telegram_chat_binding_id, direction, kind, author_member_id, provider_user_id, provider_message_id, provider_reply_to_message_id, delivery_state)
+        values ($1,$2,$3,'inbound','photo',$4,$5::bigint,$6::bigint,$7::bigint,'received') returning id`,
+      [rules.workspaceId, rules.projectId, bindingId, rules.memberId, UPLOADER_ID, providerMessageId, card.providerMessageId]);
+      const attachment = await client.query<{ id: string }>(`insert into public.communication_attachments
+        (workspace_id, project_id, message_id, provider_file_id, provider_file_unique_id, media_type_snapshot, byte_size, state)
+        values ($1,$2,$3,$4,$5,'image/jpeg',$6,'staged') returning id`,
+      [rules.workspaceId, rules.projectId, message.rows[0]!.id, fileId, `${fileId}-unique`, JPEG.byteLength]);
+      return { messageId: message.rows[0]!.id, attachmentId: attachment.rows[0]!.id };
+    }
+    async function prepare(reply: { messageId: string; attachmentId: string }, fileId: string) {
+      return prepareTelegramEvidenceCandidate({ workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
+        messageId: reply.messageId, attachmentId: reply.attachmentId, senderId: UPLOADER_ID, replyToProviderMessageId: card.providerMessageId, mediaGroupId: null,
+        file: { kind: "photo" as const, fileId, fileUniqueId: `${fileId}-unique`, fileName: null, mimeType: "image/jpeg", fileSize: JPEG.byteLength, width: 1, height: 1 } });
+    }
+    const first = await stagedReply("703", "choice-file");
+    const prepared = await prepare(first, "choice-file");
     expect(prepared.kind).toBe("awaiting_requirement_choice");
     if (prepared.kind !== "awaiting_requirement_choice") throw new Error("expected choice");
     const token = prepared.tokens[0]!.token; const before = await attachmentsFor(["703"]);
     expect(await selectTelegramOccurrence({ botId: BOT_ID, chatId: "-100992", uploaderTelegramUserId: UPLOADER_ID, token })).toEqual({ kind: "rejected" });
     expect(await selectTelegramOccurrence({ botId: BOT_ID, chatId: CHAT_ID, uploaderTelegramUserId: "902", token })).toEqual({ kind: "rejected" });
-    await client.query(`update public.telegram_requirement_choice_sessions set expires_at=now() - interval '1 second'
+    // Age the session as a whole: the table's CHECK keeps expires_at after
+    // created_at, so moving expires_at alone into the past is refused (23514).
+    await client.query(`update public.telegram_requirement_choice_sessions
+      set created_at=now()-interval '25 hours', expires_at=now()-interval '1 hour'
       where token_hash = encode(digest($1, 'sha256'), 'hex')`, [token]);
     expect(await selectTelegramOccurrence({ botId: BOT_ID, chatId: CHAT_ID, uploaderTelegramUserId: UPLOADER_ID, token })).toEqual({ kind: "rejected" });
     expect(await attachmentsFor(["703"])).toEqual(before);
-    const fresh = await prepareTelegramEvidenceCandidate({ workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
-      messageId: message.rows[0]!.id, attachmentId: attachment.rows[0]!.id, senderId: UPLOADER_ID, replyToProviderMessageId: card.providerMessageId, mediaGroupId: null, file: candidate });
+    // An expired choice is terminal (0071, app.expire_telegram_evidence_choices;
+    // design §8.3: no selection within 24 hours closes the attachment as
+    // not_evidence and the user must reply again in the correct context). The
+    // same attachment is never offered a second prompt.
+    await processDueTelegramMediaGroups();
+    expect(await attachmentsFor(["703"])).toMatchObject([{ state: "not_evidence", failure_code: "choice_expired", provider_file_id: null }]);
+    expect(await prepare(first, "choice-file")).toEqual({ kind: "not_evidence", code: "already_processed" });
+    expect((await receiptRows()).filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.choice_expired"))
+      .toMatchObject([{ telegram_evidence_recipient_member_id: rules.memberId }]);
+    // The reply the user sends again carries its own choice.
+    const second = await stagedReply("704", "choice-file-again");
+    const fresh = await prepare(second, "choice-file-again");
     if (fresh.kind !== "awaiting_requirement_choice") throw new Error("expected fresh choice");
     expect((await selectTelegramOccurrence({ botId: BOT_ID, chatId: CHAT_ID, uploaderTelegramUserId: UPLOADER_ID, token: fresh.tokens[0]!.token })).kind).toBe("selected");
-    expect(await attachmentsFor(["703"])).toMatchObject([{ state: "processing" }]);
+    expect(await attachmentsFor(["704"])).toMatchObject([{ state: "processing" }]);
     expect(await selectTelegramOccurrence({ botId: BOT_ID, chatId: CHAT_ID, uploaderTelegramUserId: UPLOADER_ID, token: fresh.tokens[0]!.token })).toEqual({ kind: "rejected" });
   });
 
@@ -334,17 +365,36 @@ databaseDescribe("Telegram evidence bridge", () => {
     // duplicate is refused before a byte is fetched. The preflight is right;
     // the expectation predated it.
     expect(fakes.downloads).toEqual([]); expect(await attachmentsFor(["730"])).toMatchObject([{ state: "failed", provider_file_id: null }]);
-    const count = await client.query<{ n: number }>(`select count(*)::int as n from public.communication_messages
-      where workspace_id=$1 and direction='outbound' and kind='text'`, [rules.workspaceId]);
-    expect(count.rows[0]!.n).toBe(2);
+    // Four outbound texts, each one the design asks for (2026-08-28 §8.3: the
+    // bot reports an exact failure such as unsupported type or the provider
+    // download limit, and reports `processing` before a quota refusal). The
+    // count of two was written on 2026-08-29 (49ab4ce), when only the ready
+    // path spoke; terminal receipts for not_evidence attachments arrived with
+    // 0070 (9936e5f) the day after. The second, duplicate update converges:
+    // nothing is added for it.
+    const outbound = await client.query<{ text: string }>(`select m.text
+      from public.communication_messages m
+      where m.workspace_id=$1 and m.direction='outbound' and m.kind='text' order by m.created_at`, [rules.workspaceId]);
+    expect(outbound.rows.map(({ text }) => text)).toEqual([
+      "Доказ не збережено.\nЗображення 729: не збережено — unsupported_media.",
+      "Доказ не збережено.\nЗображення 728: не збережено — unsupported_media.",
+      "Зображення обробляється. Підтвердження буде надіслано після збереження доказу.",
+      "Доказ не збережено.\nЗображення 730: не збережено — upload_size_limit.",
+    ]);
     await client.query("update public.organizations set evidence_quota_bytes=null where id=$1", [rules.workspaceId]);
     await client.query("update public.telegram_member_links set revoked_at=now() where workspace_id=$1", [rules.workspaceId]);
     fakes.payloads.set("revoked", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "31", messageId: "731", fileId: "revoked", replyTo: card.providerMessageId }));
-    // 6b619ef moved the quota preflight AHEAD of the provider download, so a
-    // duplicate is refused before a byte is fetched. The preflight is right;
-    // the expectation predated it.
-    expect(fakes.downloads).toEqual([]); expect(await attachmentsFor(["731"])).toMatchObject([{ state: "unbound", provider_file_id: null }]);
+    // A revoked link replying to a LIVE card is refused evidence, not filed
+    // as unbound: design §11 «Unlinked participant — mirror the message as
+    // unverified communication; refuse evidence», and §8.3 reserves `unbound`
+    // for an image not replying to a live assignment card. The card-exists
+    // branch (evidence.ts, `card.rows[0] ? "evidence_authorization_failed" :
+    // "unbound_card_reply"`) landed with a145414 on 2026-08-31, after this
+    // case was written; the grants case in this file pins the same outcome.
+    expect(fakes.downloads).toEqual([]); expect(await attachmentsFor(["731"])).toMatchObject([{
+      state: "not_evidence", failure_code: "evidence_authorization_failed", provider_file_id: null,
+    }]);
   });
 
   it("terminalizes and reports all-unsupported and mixed albums without orphaned handles", async () => {
@@ -489,9 +539,17 @@ databaseDescribe("Telegram evidence bridge", () => {
     await processTelegramUpdate(imageUpdate({ updateId: "72", messageId: "772", fileId: "fenced-a", replyTo: card.providerMessageId, album: "fenced-album" }));
     await processTelegramUpdate(imageUpdate({ updateId: "73", messageId: "773", fileId: "fenced-b", replyTo: card.providerMessageId, album: "fenced-album" }));
     await makeAlbumsDue();
+    // The two timestamps go back into equality fences (`processing_lease_expires_at=$5`,
+    // `claimed_last_part_at=$4` in prepareTelegramEvidenceCandidate). Read with
+    // `select *`, node-pg returns them as Dates with millisecond precision, the
+    // microseconds Postgres stored are gone, and the fence at evidence.ts's
+    // «current» lookup matched nothing — so this case's first `prepare` came
+    // back `album_pending` before any of the fencing it exists to prove ran.
+    // Text keeps every digit; it is how the processor reads the same claim.
     const claim = (await asService<{
       id: string; lease_token: string; lease_expires_at: string; processing_generation: string; claimed_last_part_at: string;
-    }>("", null, (service) => service.query("select * from app.claim_telegram_media_groups(1,60)"))).rows[0]!;
+    }>("", null, (service) => service.query(`select id, lease_token::text, lease_expires_at::text,
+      processing_generation::text, claimed_last_part_at::text from app.claim_telegram_media_groups(1,60)`))).rows[0]!;
     const first = (await client.query<{ id: string }>(`select a.id from public.communication_attachments a
       join public.communication_messages m on m.id=a.message_id where a.telegram_media_group_id=$1
       order by m.provider_message_id limit 1`, [claim.id])).rows[0]!;
@@ -506,8 +564,10 @@ databaseDescribe("Telegram evidence bridge", () => {
         mimeType: "image/jpeg", fileSize: JPEG.byteLength, width: 1, height: 1 },
     });
     expect(prepared.kind).toBe("ready");
-    await client.query(`update public.telegram_media_groups set processing_lease_expires_at=now()-interval '1 second' where id=$1;
-      update public.communication_attachments set provider_retry_lease_expires_at=now()-interval '1 second'
+    // One statement per query (the extended protocol parses exactly one
+    // command; two raise 42601 before either runs — same as the anchor fixture).
+    await client.query("update public.telegram_media_groups set processing_lease_expires_at=now()-interval '1 second' where id=$1", [claim.id]);
+    await client.query(`update public.communication_attachments set provider_retry_lease_expires_at=now()-interval '1 second'
        where telegram_media_group_id=$1 and state='processing'`, [claim.id]);
     const replacement = (await asService<{ lease_token: string }>("", null, (service) => service.query(
       "select lease_token::text from app.claim_telegram_media_groups(1,60)",
@@ -663,10 +723,20 @@ databaseDescribe("Telegram evidence bridge", () => {
       expect.objectContaining({ state: "not_evidence", provider_file_id: null }),
       expect.objectContaining({ state: "not_evidence", provider_file_id: null }),
     ]));
+    // Both parts are PDFs. The design keeps PDFs as communication and never
+    // as evidence (2026-08-28, «Evidence media in the first release»), so each
+    // part is terminal `unsupported_media` the moment it is stored — before
+    // the album is claimed. The claim's context classification
+    // (0071, app.claim_telegram_media_groups) runs only on parts still
+    // `staged`, so nothing here is ever named `album_anchor_mismatch`; the
+    // one safe failure receipt names each part with its exact, true reason.
+    expect(await attachmentsFor(["804", "805"])).toMatchObject([
+      { failure_code: "unsupported_media" }, { failure_code: "unsupported_media" },
+    ]);
     const receipts = await receiptRows();
     expect(receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.failed")).toHaveLength(1);
     expect(receipts.find(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.failed")?.text)
-      .toContain("album_anchor_mismatch");
+      .toBe("Доказ не збережено.\nЗображення 804: не збережено — unsupported_media.\nЗображення 805: не збережено — unsupported_media.");
   });
 
   it("enqueues one canonical unbound receipt on replay and one uploader expiry receipt on repeated cleanup", async () => {
@@ -674,11 +744,24 @@ databaseDescribe("Telegram evidence bridge", () => {
     await processTelegramUpdate(unbound); await processTelegramUpdate(unbound);
     let receipts = await receiptRows();
     expect(receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.unbound")).toHaveLength(1);
+    // The unbound receipt is queued for delivery like any outbound message.
+    // deliverCard() below asserts the whole batch count, and that receipt was
+    // still in the outbox when the card went out — so the card's batch
+    // accepted two. Deliver the receipt first, and prove it is what went out.
+    expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-unbound", limit: 10, apiClient: fakeTelegramApi() }))
+      .toEqual({ accepted: 1, failed: 0, unknown: 0 });
+    expect((await client.query<{ delivery_state: string }>(`select delivery_state from public.communication_messages
+      where workspace_id=$1 and telegram_evidence_copy_key='telegram.evidence.unbound'`, [rules.workspaceId])).rows)
+      .toEqual([{ delivery_state: "provider_accepted" }]);
 
     const card = await deliverCard(); fakes.payloads.set("choice-expiry", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "81", messageId: "781", fileId: "choice-expiry", replyTo: card.providerMessageId, album: "expiry-album" }));
     await makeAlbumsDue(); await processDueTelegramMediaGroups();
-    await client.query("update public.telegram_requirement_choice_sessions set expires_at=now()-interval '1 second' where workspace_id=$1", [rules.workspaceId]);
+    // Age the whole session, not one column: the table's CHECK keeps
+    // expires_at after created_at, so moving expires_at alone into the past is
+    // refused (23514) and the case never reached the cleanup it is about.
+    await client.query(`update public.telegram_requirement_choice_sessions
+      set created_at=now()-interval '25 hours', expires_at=now()-interval '1 hour' where workspace_id=$1`, [rules.workspaceId]);
     await processDueTelegramMediaGroups(); await processDueTelegramMediaGroups();
     receipts = await receiptRows();
     const expired = receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.choice_expired");
@@ -711,7 +794,12 @@ databaseDescribe("Telegram evidence bridge", () => {
     fakes.retryableDownloads.delete("retry-once");
     await client.query("update public.communication_attachments set provider_next_retry_at=now() where workspace_id=$1", [rules.workspaceId]);
     await processDueTelegramEvidenceRetries();
-    expect((await receiptRows()).filter(({ text }) => text.includes("790"))).toHaveLength(1);
+    // The retry must be a real second download that succeeds — a receipt
+    // alone would also be written for a retry refused before download.
+    expect(fakes.downloads.filter((fileId) => fileId === "retry-once")).toHaveLength(2);
+    expect(await attachmentsFor(["790"])).toMatchObject([{ state: "available", provider_file_id: null }]);
+    expect((await receiptRows()).filter(({ text }) => text.includes("790")))
+      .toMatchObject([{ telegram_evidence_copy_key: "telegram.evidence.complete" }]);
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await client.query("update public.communication_attachments set provider_next_retry_at=now() where workspace_id=$1 and provider_file_id='retry-always'", [rules.workspaceId]);
       await processDueTelegramEvidenceRetries();
@@ -749,14 +837,18 @@ databaseDescribe("Telegram evidence bridge", () => {
 
     await client.query(`update public.telegram_member_links set member_id=$1,linked_by_member_id=$1
       where workspace_id=$2 and telegram_user_id=$3::bigint`, [rules.memberId, rules.workspaceId, UPLOADER_ID]);
+    // 810's processing notice and its failure receipt are still queued;
+    // deliverCard() asserts the whole batch, so deliver them first.
+    expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-retry", limit: 10, apiClient: fakeTelegramApi() }))
+      .toEqual({ accepted: 2, failed: 0, unknown: 0 });
     const staleCard = await deliverCard();
     fakes.payloads.set("retry-stale-card", JPEG); fakes.retryableDownloads.add("retry-stale-card");
     await processTelegramUpdate(imageUpdate({ updateId: "111", messageId: "811", fileId: "retry-stale-card", replyTo: staleCard.providerMessageId }));
     expect(fakes.downloads).toEqual(["retry-relinked", "retry-stale-card"]);
-    await client.query(`update public.communication_messages set delivery_state='failed'
-      where id=$1;
-      update public.communication_attachments set provider_next_retry_at=now()
-       where workspace_id=$2 and provider_file_id='retry-stale-card'`, [staleCard.id, rules.workspaceId]);
+    // One statement per query, as everywhere else in this file.
+    await client.query("update public.communication_messages set delivery_state='failed' where id=$1", [staleCard.id]);
+    await client.query(`update public.communication_attachments set provider_next_retry_at=now()
+       where workspace_id=$1 and provider_file_id='retry-stale-card'`, [rules.workspaceId]);
     await processDueTelegramEvidenceRetries();
     expect(fakes.downloads).toEqual(["retry-relinked", "retry-stale-card"]);
     expect(await attachmentsFor(["811"])).toMatchObject([{

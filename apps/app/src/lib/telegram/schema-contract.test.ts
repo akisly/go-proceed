@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 const schema = readFileSync(resolve(process.cwd(), "../../technical/database/schema-v0.1.sql"), "utf8");
 const migration = readFileSync(resolve(process.cwd(), "../../supabase/migrations/0071_telegram_evidence_claim_fences.sql"), "utf8");
 const lockOrderMigration = readFileSync(resolve(process.cwd(), "../../supabase/migrations/0072_telegram_evidence_lock_order.sql"), "utf8");
+const retryMigration = readFileSync(resolve(process.cwd(), "../../supabase/migrations/0083_the_retry_that_claimed_nothing.sql"), "utf8");
 const evidence = readFileSync(resolve(process.cwd(), "src/lib/telegram/evidence.ts"), "utf8");
 const processor = readFileSync(resolve(process.cwd(), "src/lib/telegram/processor.ts"), "utf8");
 
@@ -74,15 +75,29 @@ describe("Telegram evidence canonical schema contract", () => {
   });
 
   it("revalidates persisted retry identity and delivered-card context before download", () => {
-    expect(processor).toContain("l.telegram_user_id=m.provider_user_id and l.member_id=m.author_member_id");
-    expect(processor).toContain("g.uploader_member_id=m.author_member_id");
-    expect(processor).toContain("g.reply_provider_message_id=m.provider_reply_to_message_id");
-    expect(processor).toContain("u.user_id=$12::uuid");
-    expect(processor).toContain("card.provider_message_id=m.provider_reply_to_message_id");
-    expect(processor).toContain("card.telegram_occurrence_snapshot @> array[o.id]");
+    // The predicate lives in 0083's definer since the retry moved behind the
+    // service principal; the processor keeps the call sites.
+    const revalidate = retryMigration.slice(retryMigration.indexOf("create function app.revalidate_telegram_evidence_retry"));
+    expect(revalidate).toContain("l.telegram_user_id = m.provider_user_id and l.member_id = m.author_member_id");
+    expect(revalidate).toContain("g.uploader_member_id = m.author_member_id");
+    expect(revalidate).toContain("g.reply_provider_message_id = m.provider_reply_to_message_id");
+    expect(revalidate).toContain("u.user_id = p_actor_user_id");
+    expect(revalidate).toContain("card.provider_message_id = m.provider_reply_to_message_id");
+    expect(revalidate).toContain("card.telegram_occurrence_snapshot @> array[o.id]");
+    expect(revalidate).toContain("p_workspace_id is distinct from app.service_workspace()");
+    expect(processor).toContain("select app.revalidate_telegram_evidence_retry(");
     expect(processor).toContain("row.context_valid && row.actor_user_id !== null");
-    expect(processor).toContain("revalidateTelegramEvidenceRetryContext");
     expect(processor).toContain("await revalidateTelegramEvidenceRetryContext(row)");
+  });
+
+  it("claims due retries through the cross-tenant definer, group lock before attachment lock", () => {
+    const claim = retryMigration.slice(retryMigration.indexOf("create function app.claim_telegram_evidence_retries"),
+      retryMigration.indexOf("create function app.revalidate_telegram_evidence_retry"));
+    expect(claim.indexOf("from public.telegram_media_groups g")).toBeGreaterThan(-1);
+    expect(claim.lastIndexOf("from public.telegram_media_groups g")).toBeLessThan(claim.lastIndexOf("update public.communication_attachments a"));
+    expect(claim).toContain("p_lease_seconds > 300");
+    expect(processor).toContain("select * from app.claim_telegram_evidence_retries($1::integer, $2::integer)");
+    expect(processor).not.toContain("where a.state='processing'\n         and ((a.provider_next_retry_at <= now()");
   });
 
   it("proves one common delivered card and uploader across every album part", () => {
