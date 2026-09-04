@@ -94,7 +94,7 @@ were set as CI sets them.
 | Mutation: `adoptServiceWorkspace` call removed from `selectTelegramOccurrence` → «waits two seconds for a three-image album…» red | **PASS (negative)** |
 | Mutation: `app.revalidate_telegram_evidence_retry` redefined to `select false` → «waits for retryable album parts…» red | **PASS (negative)** — after the case was strengthened; see below |
 | The eleven, each traced to what the code produces before the assertion was touched | **PASS** — the two probes under «Read this first» and the per-case history in the commits (`git log -L` on each changed line; `git log -S` on each moved branch) |
-| CI on the PR, read against the eighteen-case baseline run `33685727480` | **NOT RUN at the time of writing** — the PR is opened by the commit after this one; the reading of its `verify` run is appended below under «CI reading» once it exists |
+| CI on the PR, read against the eighteen-case baseline run `33685727480` | **PASS** — run [`33870171989`](https://github.com/akisly/go-proceed/actions/runs/33870171989) on PR #69: `verify` success, `app-qa` success; see «CI reading» below |
 
 The first two full-suite passes made while writing this record (14:29 and
 14:37) each had exactly one red case, `schema-contract.test.ts` «revalidates
@@ -145,6 +145,31 @@ case run again.
 
 No mutation left the mutated function in place; the final full-suite pair
 was run after the last restoration.
+
+## CI reading
+
+Run [`33870171989`](https://github.com/akisly/go-proceed/actions/runs/33870171989)
+(PR #69, head `f120495` plus the docs commit), read from the run's own log
+(`gh run view --log`, ANSI stripped), not from the icon:
+
+| Package | CI | Local (each of the two final runs) |
+|---|---|---|
+| contracts | 136 passed | 136 |
+| discovery | 73 passed | 73 |
+| mobile | 150 passed | 150 |
+| testing | 676 passed | 676 |
+| domain | 102 passed | 102 |
+| landing | 46 passed | 46 |
+| database | 7 passed | 7 |
+| app | 1210 passed | 1210 |
+
+`tests/telegram-evidence.int.test.ts (20 tests)` ✓ in 5342 ms — it ran, it
+was not `describe.skip`ped; `src/telegram-rls.test.ts (15 tests)` ✓;
+`src/lib/telegram/schema-contract.test.ts (11 tests)` ✓. Zero `×` marks in
+the log. Against the eighteen-case baseline run `33685727480` (PR #63) and
+PR #68's eleven (run `33811646042`): no remaining title. `verify` is green
+on this branch for the first time since the isolated suites started running
+in CI (PR #62).
 
 ## Deviations
 
