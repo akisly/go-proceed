@@ -3445,6 +3445,77 @@ red on `main` until they are fixed, and every gate record written meanwhile
 says PASS (assisted) for CI with this set named. Fixing them is its own slice:
 start from the failure messages of run 33735473898, not from this note.
 
+**Progress, 2026-09-04 (PR #68).** Seven of the eighteen closed with a root
+cause each: three production defects in the Telegram evidence path (a
+two-parameter bind on a one-parameter statement in the single-attachment
+choice UPDATE; the album claim's `timestamptz` columns read as
+millisecond Dates and compared with `=` against microsecond rows; `byte_size`
+arriving as a string and failing `Number.isSafeInteger`), and four cases that
+carried their own bugs (a `uuid = text` bind, a link row without
+`linked_by_member_id`, a mutation of a published work item, a transcript
+helper expecting `requestId` in a success body). CI on that branch: eighteen
+→ eleven, zero new (run 33811646042 against baseline 33685727480).
+
+**What the deep session on the album state machine inherits — the eleven,
+all in `apps/app/tests/telegram-evidence.int.test.ts`, with what was
+measured, not guessed.** Reproduce locally with the four isolated URLs set
+(`TEST_DB_ADMIN_URL` = the local admin URL; the suite truncates the local
+database, which held one organization and no projects on 2026-09-03) and
+`pnpm --filter @goproceed/app exec vitest run tests/telegram-evidence.int.test.ts`.
+
+1. *uses the exact delivered card…* — expects two deliveries, gets three:
+   the third is the accept/return keyboard (`formatEvidenceDecisionActions`,
+   issued by `processor.ts` once an occurrence has a durable available
+   object). The 2026-08-28 design names accept and return as explicit
+   actions; the count predates the keyboard. Decide, then change the number.
+2. *enqueues one canonical unbound receipt on replay…* — `deliverCard`
+   expects one accepted delivery and finds two: the unbound receipt from the
+   step before is still queued when the card goes out. Same family as 1.
+3. *never downloads unsupported, quota-refused…* — expects two outbound
+   texts, gets four: two «not saved» receipts, the processing notice the
+   duplicate earned once, and its quota refusal. Whether a photo the quota
+   preflight refuses should still get a processing notice is the question.
+4. *binds opaque multiple-occurrence choices…* — the case expires a choice
+   by setting `expires_at` into the past and expects `prepare` to issue a
+   fresh choice for the same attachment; `0071`'s expiry makes an expired
+   choice terminal (`choice_expired`, «send the image again»), so `prepare`
+   answers `already_processed`. The premise predates `0071`; note also the
+   table's CHECK `expires_at > created_at`, which the case's UPDATE violates.
+5. *waits two seconds for a three-image album…* — reaches the album choice
+   callback and is refused: `selectTelegramOccurrence`'s locator finds no
+   session by `token_hash`, although the stored hash equals SHA-256 of the
+   token in the prompt's first button. Instrument `tokenHash` at insert and
+   at select for an album session before touching anything else.
+6. *retains successful album evidence…* — zero parts reach `available`;
+   downstream of 5.
+7. *fences an expired prepared album worker…* — the case reads its own claim
+   with `select *`, so `claimed_last_part_at` comes back as a millisecond
+   Date and the fence at `evidence.ts` («current» row lookup) finds nothing;
+   read the claim columns `::text` in the case, as the processor now does.
+8. *authorizes every album part against the same card anchor and uploader* —
+   the other uploader's part is downloaded. The mismatch codes
+   (`album_uploader_mismatch`, `album_anchor_mismatch`) are assigned only by
+   `app.terminalize_telegram_media_group_staged` on parts still `staged`;
+   the «ready» transition moves every part of the album to `processing`
+   first, so nothing is left staged to classify. The transition needs the
+   author and reply-anchor predicates, or the terminalize call must run
+   before it.
+9. *reports a previously-terminal album with mismatched common context…* —
+   the fixture sends `application/pdf` documents; the design keeps PDFs but
+   never treats them as evidence, so both parts end `unsupported_media`
+   before any context check. Send a supported document (`image/png`) if the
+   case is about context, as its title says.
+10. *waits for retryable album parts…* and 11. *does not download due
+    retries after identity relink…* — `processDueTelegramEvidenceRetries`
+    claims nothing: with the isolated env the step-by-step join count was
+    zero already at `communication_attachments` with `state='processing'`,
+    i.e. the due attachment was not in that state when the claim ran, or
+    the claim ran in a workspace context that could not see it. Print the
+    attachment row and the claim's outer SELECT count together, first.
+
+A wrong assertion in this file weakens the exact isolation the suite proves;
+none of the eleven was changed by guessing.
+
 ## P2 — the assignment card renders a normative string without its tag and its source (ADR-011 open item 9, 2026-09-03)
 
 M0 gate 9 — «no normative string renderable without its `verification` tag
