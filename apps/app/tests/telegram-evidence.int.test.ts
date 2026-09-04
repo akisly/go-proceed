@@ -343,17 +343,36 @@ databaseDescribe("Telegram evidence bridge", () => {
     // duplicate is refused before a byte is fetched. The preflight is right;
     // the expectation predated it.
     expect(fakes.downloads).toEqual([]); expect(await attachmentsFor(["730"])).toMatchObject([{ state: "failed", provider_file_id: null }]);
-    const count = await client.query<{ n: number }>(`select count(*)::int as n from public.communication_messages
-      where workspace_id=$1 and direction='outbound' and kind='text'`, [rules.workspaceId]);
-    expect(count.rows[0]!.n).toBe(2);
+    // Four outbound texts, each one the design asks for (2026-08-28 §8.3: the
+    // bot reports an exact failure such as unsupported type or the provider
+    // download limit, and reports `processing` before a quota refusal). The
+    // count of two was written on 2026-08-29 (49ab4ce), when only the ready
+    // path spoke; terminal receipts for not_evidence attachments arrived with
+    // 0070 (9936e5f) the day after. The second, duplicate update converges:
+    // nothing is added for it.
+    const outbound = await client.query<{ text: string }>(`select m.text
+      from public.communication_messages m
+      where m.workspace_id=$1 and m.direction='outbound' and m.kind='text' order by m.created_at`, [rules.workspaceId]);
+    expect(outbound.rows.map(({ text }) => text)).toEqual([
+      "Доказ не збережено.\nЗображення 729: не збережено — unsupported_media.",
+      "Доказ не збережено.\nЗображення 728: не збережено — unsupported_media.",
+      "Зображення обробляється. Підтвердження буде надіслано після збереження доказу.",
+      "Доказ не збережено.\nЗображення 730: не збережено — upload_size_limit.",
+    ]);
     await client.query("update public.organizations set evidence_quota_bytes=null where id=$1", [rules.workspaceId]);
     await client.query("update public.telegram_member_links set revoked_at=now() where workspace_id=$1", [rules.workspaceId]);
     fakes.payloads.set("revoked", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "31", messageId: "731", fileId: "revoked", replyTo: card.providerMessageId }));
-    // 6b619ef moved the quota preflight AHEAD of the provider download, so a
-    // duplicate is refused before a byte is fetched. The preflight is right;
-    // the expectation predated it.
-    expect(fakes.downloads).toEqual([]); expect(await attachmentsFor(["731"])).toMatchObject([{ state: "unbound", provider_file_id: null }]);
+    // A revoked link replying to a LIVE card is refused evidence, not filed
+    // as unbound: design §11 «Unlinked participant — mirror the message as
+    // unverified communication; refuse evidence», and §8.3 reserves `unbound`
+    // for an image not replying to a live assignment card. The card-exists
+    // branch (evidence.ts, `card.rows[0] ? "evidence_authorization_failed" :
+    // "unbound_card_reply"`) landed with a145414 on 2026-08-31, after this
+    // case was written; the grants case in this file pins the same outcome.
+    expect(fakes.downloads).toEqual([]); expect(await attachmentsFor(["731"])).toMatchObject([{
+      state: "not_evidence", failure_code: "evidence_authorization_failed", provider_file_id: null,
+    }]);
   });
 
   it("terminalizes and reports all-unsupported and mixed albums without orphaned handles", async () => {
