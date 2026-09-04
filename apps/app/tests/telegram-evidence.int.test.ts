@@ -693,11 +693,24 @@ databaseDescribe("Telegram evidence bridge", () => {
     await processTelegramUpdate(unbound); await processTelegramUpdate(unbound);
     let receipts = await receiptRows();
     expect(receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.unbound")).toHaveLength(1);
+    // The unbound receipt is queued for delivery like any outbound message.
+    // deliverCard() below asserts the whole batch count, and that receipt was
+    // still in the outbox when the card went out — so the card's batch
+    // accepted two. Deliver the receipt first, and prove it is what went out.
+    expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-unbound", limit: 10, apiClient: fakeTelegramApi() }))
+      .toEqual({ accepted: 1, failed: 0, unknown: 0 });
+    expect((await client.query<{ delivery_state: string }>(`select delivery_state from public.communication_messages
+      where workspace_id=$1 and telegram_evidence_copy_key='telegram.evidence.unbound'`, [rules.workspaceId])).rows)
+      .toEqual([{ delivery_state: "provider_accepted" }]);
 
     const card = await deliverCard(); fakes.payloads.set("choice-expiry", JPEG);
     await processTelegramUpdate(imageUpdate({ updateId: "81", messageId: "781", fileId: "choice-expiry", replyTo: card.providerMessageId, album: "expiry-album" }));
     await makeAlbumsDue(); await processDueTelegramMediaGroups();
-    await client.query("update public.telegram_requirement_choice_sessions set expires_at=now()-interval '1 second' where workspace_id=$1", [rules.workspaceId]);
+    // Age the whole session, not one column: the table's CHECK keeps
+    // expires_at after created_at, so moving expires_at alone into the past is
+    // refused (23514) and the case never reached the cleanup it is about.
+    await client.query(`update public.telegram_requirement_choice_sessions
+      set created_at=now()-interval '25 hours', expires_at=now()-interval '1 hour' where workspace_id=$1`, [rules.workspaceId]);
     await processDueTelegramMediaGroups(); await processDueTelegramMediaGroups();
     receipts = await receiptRows();
     const expired = receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.choice_expired");
