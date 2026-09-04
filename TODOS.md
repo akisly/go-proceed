@@ -3552,11 +3552,33 @@ the substitute text and no criterion. This is a blocker for enabling the
 webhook in any environment, beside Task 13's edge rate limit, the real-group
 staging pass and the scheduler (ADR-011 decision 10).
 
-## P3 — the Telegram sender of `origin_not_distinguished` has no test pin (INV-086, 2026-09-03)
+## P3 (CLOSED 2026-09-04) — the Telegram sender of `origin_not_distinguished` has no test pin (INV-086, 2026-09-03)
+
+**Closed 2026-09-04:** `apps/app/tests/telegram-evidence.int.test.ts`
+«records a bridge-received photo with origin_not_distinguished on the intent
+and the evidence object (INV-086)» — a direct card reply and an album part,
+asserted on `upload_intents.origin_method` and `evidence_objects.origin_method`;
+red when the body builder's literal is mutated to `native_camera`. INV-086's
+`test_evidence` column names it. What follows is the item as it stood.
+
 
 INV-086 now names two senders. The PWA's is pinned by
 `apps/app/src/lib/capture/upload.test.ts` and `tests/field-capture.int.test.ts`;
 the Telegram bridge's is structural only — `evidence.ts` writes the literal in
 both intent builders. Owed: one case in `tests/telegram-evidence.int.test.ts`
-asserting the persisted `origin_method` after a bridge-received photo. That
-suite is among the eighteen above; land the pin when it is green again.
+asserting the persisted `origin_method` after a bridge-received photo.
+
+**Unblocked 2026-09-04.** The suite was among the eighteen above; PR #69
+(merged as `9b9bf65`) made it green in CI — run 33870171989, `verify`
+success, `tests/telegram-evidence.int.test.ts` 20/20, not skipped. Nothing
+now stands between this item and its case. The pin itself is still owed:
+one `it` in that file that sends a photo in reply to a delivered card,
+reads the `upload_intents` row the bridge created (join through
+`communication_attachments.evidence_object_id`, or by the idempotency key
+`telegramEvidenceIdempotencyKey` derives), and asserts
+`origin_method = 'origin_not_distinguished'` — the literal `evidence.ts`
+writes in both `preflightUploadAuthorization` and the `CreateUploadIntentRequest`
+body. The single-image case «uses the exact delivered card…» already
+reaches `available` and is the natural neighbour; a photo through the album
+path (`processDueTelegramMediaGroups`) would pin the second builder. INV-086's
+`test_evidence` column gains the case name when it lands.
