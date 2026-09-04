@@ -489,9 +489,17 @@ databaseDescribe("Telegram evidence bridge", () => {
     await processTelegramUpdate(imageUpdate({ updateId: "72", messageId: "772", fileId: "fenced-a", replyTo: card.providerMessageId, album: "fenced-album" }));
     await processTelegramUpdate(imageUpdate({ updateId: "73", messageId: "773", fileId: "fenced-b", replyTo: card.providerMessageId, album: "fenced-album" }));
     await makeAlbumsDue();
+    // The two timestamps go back into equality fences (`processing_lease_expires_at=$5`,
+    // `claimed_last_part_at=$4` in prepareTelegramEvidenceCandidate). Read with
+    // `select *`, node-pg returns them as Dates with millisecond precision, the
+    // microseconds Postgres stored are gone, and the fence at evidence.ts's
+    // «current» lookup matched nothing — so this case's first `prepare` came
+    // back `album_pending` before any of the fencing it exists to prove ran.
+    // Text keeps every digit; it is how the processor reads the same claim.
     const claim = (await asService<{
       id: string; lease_token: string; lease_expires_at: string; processing_generation: string; claimed_last_part_at: string;
-    }>("", null, (service) => service.query("select * from app.claim_telegram_media_groups(1,60)"))).rows[0]!;
+    }>("", null, (service) => service.query(`select id, lease_token::text, lease_expires_at::text,
+      processing_generation::text, claimed_last_part_at::text from app.claim_telegram_media_groups(1,60)`))).rows[0]!;
     const first = (await client.query<{ id: string }>(`select a.id from public.communication_attachments a
       join public.communication_messages m on m.id=a.message_id where a.telegram_media_group_id=$1
       order by m.provider_message_id limit 1`, [claim.id])).rows[0]!;
@@ -506,8 +514,10 @@ databaseDescribe("Telegram evidence bridge", () => {
         mimeType: "image/jpeg", fileSize: JPEG.byteLength, width: 1, height: 1 },
     });
     expect(prepared.kind).toBe("ready");
-    await client.query(`update public.telegram_media_groups set processing_lease_expires_at=now()-interval '1 second' where id=$1;
-      update public.communication_attachments set provider_retry_lease_expires_at=now()-interval '1 second'
+    // One statement per query (the extended protocol parses exactly one
+    // command; two raise 42601 before either runs — same as the anchor fixture).
+    await client.query("update public.telegram_media_groups set processing_lease_expires_at=now()-interval '1 second' where id=$1", [claim.id]);
+    await client.query(`update public.communication_attachments set provider_retry_lease_expires_at=now()-interval '1 second'
        where telegram_media_group_id=$1 and state='processing'`, [claim.id]);
     const replacement = (await asService<{ lease_token: string }>("", null, (service) => service.query(
       "select lease_token::text from app.claim_telegram_media_groups(1,60)",
