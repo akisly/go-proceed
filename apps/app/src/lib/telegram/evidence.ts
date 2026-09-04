@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { CreateUploadIntentRequest } from "@goproceed/contracts";
-import { withServiceTx } from "@goproceed/database";
+import { adoptServiceWorkspace, withServiceTx } from "@goproceed/database";
 import { authorizeUploadIntent, preflightUploadAuthorization } from "../evidence/authorize-upload-intent";
 import { finalizeUploadIntent } from "../evidence/finalize-upload-intent";
 import { HttpProblem } from "../http";
@@ -449,14 +449,31 @@ export async function selectTelegramOccurrence(input: {
 } | { kind: "rejected" }> {
   if (!/^[A-Za-z0-9_-]{43}$/.test(input.token)) return { kind: "rejected" };
   return withServiceTx({ actorUserId: "", organizationId: null, requestId: crypto.randomUUID() }, async (tx) => {
+    // A callback carries a bot/chat pair, not a tenant; the tenant is the
+    // OUTPUT of the first statement. Every telegram service policy is
+    // `workspace_id = app.service_workspace()` (0062, 0080), so before the
+    // workspace is declared this transaction sees no session at all — the
+    // locator below matched nothing, whatever its token hash, and every
+    // album and multi-occurrence choice was answered «rejected». The binding
+    // comes from the definer that crosses tenants for exactly this purpose,
+    // and the uploader from 0082's: public.memberships carries member-plane
+    // policies only and the join this used to make found no member.
+    const chat = await tx.query<{ workspace_id: string; telegram_chat_binding_id: string }>(
+      "select workspace_id, telegram_chat_binding_id from app.resolve_telegram_chat($1::bigint, $2::bigint)",
+      [input.botId, input.chatId]);
+    const bound = chat.rows[0];
+    if (!bound) return { kind: "rejected" };
+    await adoptServiceWorkspace(tx, bound.workspace_id);
+    const uploader = (await tx.query<{ member_id: string; user_id: string }>(
+      "select member_id, user_id from app.resolve_telegram_linked_member($1::uuid, $2::bigint)",
+      [bound.workspace_id, input.uploaderTelegramUserId])).rows[0];
+    if (!uploader) return { kind: "rejected" };
+    const sessionParams = [tokenHash(input.token), bound.workspace_id, bound.telegram_chat_binding_id, uploader.member_id];
     const locator = await tx.query<{ telegram_media_group_id: string | null; media_group_generation: string | null }>(
       `select s.telegram_media_group_id, s.media_group_generation::text
          from public.telegram_requirement_choice_sessions s
-         join public.telegram_chat_bindings b on b.id=s.telegram_chat_binding_id
-         join public.telegram_member_links l on l.workspace_id=s.workspace_id and l.member_id=s.uploader_member_id
-        where s.token_hash=$1 and s.consumed_at is null and s.closed_at is null and s.expires_at>now()
-          and b.bot_id=$2::bigint and b.chat_id=$3::bigint and l.telegram_user_id=$4::bigint and l.revoked_at is null`,
-    [tokenHash(input.token), input.botId, input.chatId, input.uploaderTelegramUserId]);
+        where s.token_hash=$1 and s.workspace_id=$2 and s.telegram_chat_binding_id=$3 and s.uploader_member_id=$4
+          and s.consumed_at is null and s.closed_at is null and s.expires_at>now()`, sessionParams);
     if (locator.rows[0]?.telegram_media_group_id) {
       const locked = await tx.query<{ id: string }>(`select id from public.telegram_media_groups
         where id=$1 and state='awaiting_requirement_choice' and processing_generation=$2::bigint for update`,
@@ -466,22 +483,19 @@ export async function selectTelegramOccurrence(input: {
     const selected = await tx.query<{
       id: string; workspace_id: string; project_id: string; telegram_chat_binding_id: string; uploader_member_id: string;
       work_assignment_id: string; candidate_occurrence_id: string; allowed_occurrence_ids: string[];
-      communication_attachment_id: string | null; telegram_media_group_id: string | null; user_id: string;
+      communication_attachment_id: string | null; telegram_media_group_id: string | null;
       media_group_generation: string | null;
-    }>(`select s.*, m.user_id
+    }>(`select s.*
       from public.telegram_requirement_choice_sessions s
       join public.telegram_chat_bindings b on b.workspace_id=s.workspace_id and b.project_id=s.project_id and b.id=s.telegram_chat_binding_id
-      join public.memberships m on m.organization_id=s.workspace_id and m.id=s.uploader_member_id
-      join public.telegram_member_links l on l.workspace_id=s.workspace_id and l.member_id=s.uploader_member_id
-      where s.token_hash=$1 and s.consumed_at is null and s.closed_at is null and s.expires_at > now()
-        and b.bot_id=$2::bigint and b.chat_id=$3::bigint and l.telegram_user_id=$4::bigint
-        and l.revoked_at is null and m.status='active'
+      where s.token_hash=$1 and s.workspace_id=$2 and s.telegram_chat_binding_id=$3 and s.uploader_member_id=$4
+        and s.consumed_at is null and s.closed_at is null and s.expires_at > now()
         and (s.telegram_media_group_id is null or exists (
           select 1 from public.telegram_media_groups g where g.id=s.telegram_media_group_id
             and g.state='awaiting_requirement_choice'
             and g.processing_generation=s.media_group_generation
         ))
-      for update of s`, [tokenHash(input.token), input.botId, input.chatId, input.uploaderTelegramUserId]);
+      for update of s`, sessionParams);
     const row = selected.rows[0];
     if (!row || !row.allowed_occurrence_ids.includes(row.candidate_occurrence_id)) return { kind: "rejected" };
     const siblings = await tx.query<{ id: string }>(`select id from public.telegram_requirement_choice_sessions
@@ -540,7 +554,7 @@ export async function selectTelegramOccurrence(input: {
       where id = any($1::uuid[]) and state='awaiting_requirement_choice'`,
     [attachments, row.candidate_occurrence_id, processingLease.token, processingLease.expiresAt]);
     return { kind: "selected", assignmentId: row.work_assignment_id, occurrenceId: row.candidate_occurrence_id,
-      actorUserId: row.user_id, attachmentIds: attachments, mediaGroupId: row.telegram_media_group_id,
+      actorUserId: uploader.user_id, attachmentIds: attachments, mediaGroupId: row.telegram_media_group_id,
       processingLease, albumClaim };
   });
 }
