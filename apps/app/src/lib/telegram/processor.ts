@@ -117,13 +117,20 @@ async function resolveBoundChat(botId: string, chatId: string): Promise<ChatBind
   });
 }
 
+/**
+ * Through the definer, not an inline join. public.memberships carries
+ * member-plane policies only (m_select, m_select_workspace — both keyed on
+ * app.current_actor(), which a service transaction leaves empty), and
+ * goproceed_service inherits goproceed_app, so the join this used to make
+ * found no membership for anyone: every author_member_id and every album's
+ * uploader_member_id was NULL, a linked member's message was filed as
+ * unverified, and a second member's album part passed the uploader check
+ * (0071) as NULL = NULL. app.resolve_telegram_linked_member (0082) is bounded
+ * to the workspace this transaction declared.
+ */
 async function linkedMemberId(tx: { query: <T extends Record<string, unknown>>(sql: string, params?: unknown[]) => Promise<{ rows: T[] }> }, workspaceId: string, senderId: string): Promise<string | null> {
-  const result = await tx.query<{ member_id: string }>(`select l.member_id
-    from public.telegram_member_links l
-    join public.memberships m on m.organization_id=l.workspace_id and m.id=l.member_id
-   where l.workspace_id=$1 and l.telegram_user_id=$2::bigint
-     and l.revoked_at is null and m.status='active'
-   limit 1`, [workspaceId, senderId]);
+  const result = await tx.query<{ member_id: string }>(
+    "select member_id from app.resolve_telegram_linked_member($1::uuid, $2::bigint)", [workspaceId, senderId]);
   return result.rows[0]?.member_id ?? null;
 }
 
