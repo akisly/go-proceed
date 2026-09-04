@@ -832,14 +832,18 @@ databaseDescribe("Telegram evidence bridge", () => {
 
     await client.query(`update public.telegram_member_links set member_id=$1,linked_by_member_id=$1
       where workspace_id=$2 and telegram_user_id=$3::bigint`, [rules.memberId, rules.workspaceId, UPLOADER_ID]);
+    // 810's processing notice and its failure receipt are still queued;
+    // deliverCard() asserts the whole batch, so deliver them first.
+    expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-retry", limit: 10, apiClient: fakeTelegramApi() }))
+      .toEqual({ accepted: 2, failed: 0, unknown: 0 });
     const staleCard = await deliverCard();
     fakes.payloads.set("retry-stale-card", JPEG); fakes.retryableDownloads.add("retry-stale-card");
     await processTelegramUpdate(imageUpdate({ updateId: "111", messageId: "811", fileId: "retry-stale-card", replyTo: staleCard.providerMessageId }));
     expect(fakes.downloads).toEqual(["retry-relinked", "retry-stale-card"]);
-    await client.query(`update public.communication_messages set delivery_state='failed'
-      where id=$1;
-      update public.communication_attachments set provider_next_retry_at=now()
-       where workspace_id=$2 and provider_file_id='retry-stale-card'`, [staleCard.id, rules.workspaceId]);
+    // One statement per query, as everywhere else in this file.
+    await client.query("update public.communication_messages set delivery_state='failed' where id=$1", [staleCard.id]);
+    await client.query(`update public.communication_attachments set provider_next_retry_at=now()
+       where workspace_id=$1 and provider_file_id='retry-stale-card'`, [rules.workspaceId]);
     await processDueTelegramEvidenceRetries();
     expect(fakes.downloads).toEqual(["retry-relinked", "retry-stale-card"]);
     expect(await attachmentsFor(["811"])).toMatchObject([{
