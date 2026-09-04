@@ -794,7 +794,12 @@ databaseDescribe("Telegram evidence bridge", () => {
     fakes.retryableDownloads.delete("retry-once");
     await client.query("update public.communication_attachments set provider_next_retry_at=now() where workspace_id=$1", [rules.workspaceId]);
     await processDueTelegramEvidenceRetries();
-    expect((await receiptRows()).filter(({ text }) => text.includes("790"))).toHaveLength(1);
+    // The retry must be a real second download that succeeds — a receipt
+    // alone would also be written for a retry refused before download.
+    expect(fakes.downloads.filter((fileId) => fileId === "retry-once")).toHaveLength(2);
+    expect(await attachmentsFor(["790"])).toMatchObject([{ state: "available", provider_file_id: null }]);
+    expect((await receiptRows()).filter(({ text }) => text.includes("790")))
+      .toMatchObject([{ telegram_evidence_copy_key: "telegram.evidence.complete" }]);
     for (let attempt = 0; attempt < 2; attempt += 1) {
       await client.query("update public.communication_attachments set provider_next_retry_at=now() where workspace_id=$1 and provider_file_id='retry-always'", [rules.workspaceId]);
       await processDueTelegramEvidenceRetries();
