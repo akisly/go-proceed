@@ -225,12 +225,21 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(fakes.downloads).toEqual(["one-live"]);
     expect(attachment).toMatchObject({ state: "available", provider_file_id: null });
     expect(attachment!.evidence_object_id).toMatch(/^[0-9a-f-]{36}$/);
-    const messages = await client.query<{ text: string }>(`select text from public.communication_messages
-      where workspace_id=$1 and direction='outbound' and kind='text' order by created_at`, [rules.workspaceId]);
+    const messages = await client.query<{ text: string; telegram_reply_markup: Array<Array<{ text: string; callbackData: string }>> | null }>(
+      `select text, telegram_reply_markup from public.communication_messages
+        where workspace_id=$1 and direction='outbound' and kind='text' order by created_at`, [rules.workspaceId]);
     expect(messages.rows.map((row) => row.text)).toContain("Зображення обробляється. Підтвердження буде надіслано після збереження доказу.");
     expect(messages.rows.map((row) => row.text)).toContain(`Збережено доказів: 1.\nЗображення 702: збережено — ${attachment!.evidence_object_id}.`);
+    // The third outbound text is the decision keyboard. Accept and return are
+    // explicit actions (2026-08-28 design §8.4), published once an occurrence
+    // holds a durable available object (processor.ts, reconcile); it landed
+    // on 2026-08-31 (19f05ff), after this case counted two deliveries.
+    const keyboard = messages.rows.find((row) => row.telegram_reply_markup !== null);
+    expect(keyboard?.telegram_reply_markup?.[0]?.map(({ text, callbackData }) => [text, callbackData.slice(0, 4)]))
+      .toEqual([["Прийняти", "dec:"], ["Повернути", "dec:"]]);
+    expect(messages.rows).toHaveLength(3);
     expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-receipt", limit: 10, apiClient: fakeTelegramApi() }))
-      .toEqual({ accepted: 2, failed: 0, unknown: 0 });
+      .toEqual({ accepted: 3, failed: 0, unknown: 0 });
   });
 
   it("binds opaque multiple-occurrence choices to uploader and group and rejects wrong, expired, and replayed callbacks", async () => {
