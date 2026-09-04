@@ -244,31 +244,53 @@ databaseDescribe("Telegram evidence bridge", () => {
 
   it("binds opaque multiple-occurrence choices to uploader and group and rejects wrong, expired, and replayed callbacks", async () => {
     const card = await deliverCard();
-    const message = await client.query<{ id: string }>(`insert into public.communication_messages
-      (workspace_id, project_id, telegram_chat_binding_id, direction, kind, provider_user_id, provider_message_id, provider_reply_to_message_id, delivery_state)
-      values ($1,$2,$3,'inbound','photo',$4::bigint,703,$5::bigint,'received') returning id`,
-    [rules.workspaceId, rules.projectId, bindingId, UPLOADER_ID, card.providerMessageId]);
-    const attachment = await client.query<{ id: string }>(`insert into public.communication_attachments
-      (workspace_id, project_id, message_id, provider_file_id, provider_file_unique_id, media_type_snapshot, byte_size, state)
-      values ($1,$2,$3,'choice-file','choice-unique','image/jpeg',$4,'staged') returning id`,
-    [rules.workspaceId, rules.projectId, message.rows[0]!.id, JPEG.byteLength]);
-    const candidate = { kind: "photo" as const, fileId: "choice-file", fileUniqueId: "choice-unique", fileName: null, mimeType: "image/jpeg", fileSize: JPEG.byteLength, width: 1, height: 1 };
-    const prepared = await prepareTelegramEvidenceCandidate({ workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
-      messageId: message.rows[0]!.id, attachmentId: attachment.rows[0]!.id, senderId: UPLOADER_ID, replyToProviderMessageId: card.providerMessageId, mediaGroupId: null, file: candidate });
+    // The rows storeMessage would write for a linked uploader's card reply:
+    // author_member_id is the linked member, as linkedMemberId() resolves it.
+    async function stagedReply(providerMessageId: string, fileId: string): Promise<{ messageId: string; attachmentId: string }> {
+      const message = await client.query<{ id: string }>(`insert into public.communication_messages
+        (workspace_id, project_id, telegram_chat_binding_id, direction, kind, author_member_id, provider_user_id, provider_message_id, provider_reply_to_message_id, delivery_state)
+        values ($1,$2,$3,'inbound','photo',$4,$5::bigint,$6::bigint,$7::bigint,'received') returning id`,
+      [rules.workspaceId, rules.projectId, bindingId, rules.memberId, UPLOADER_ID, providerMessageId, card.providerMessageId]);
+      const attachment = await client.query<{ id: string }>(`insert into public.communication_attachments
+        (workspace_id, project_id, message_id, provider_file_id, provider_file_unique_id, media_type_snapshot, byte_size, state)
+        values ($1,$2,$3,$4,$5,'image/jpeg',$6,'staged') returning id`,
+      [rules.workspaceId, rules.projectId, message.rows[0]!.id, fileId, `${fileId}-unique`, JPEG.byteLength]);
+      return { messageId: message.rows[0]!.id, attachmentId: attachment.rows[0]!.id };
+    }
+    async function prepare(reply: { messageId: string; attachmentId: string }, fileId: string) {
+      return prepareTelegramEvidenceCandidate({ workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
+        messageId: reply.messageId, attachmentId: reply.attachmentId, senderId: UPLOADER_ID, replyToProviderMessageId: card.providerMessageId, mediaGroupId: null,
+        file: { kind: "photo" as const, fileId, fileUniqueId: `${fileId}-unique`, fileName: null, mimeType: "image/jpeg", fileSize: JPEG.byteLength, width: 1, height: 1 } });
+    }
+    const first = await stagedReply("703", "choice-file");
+    const prepared = await prepare(first, "choice-file");
     expect(prepared.kind).toBe("awaiting_requirement_choice");
     if (prepared.kind !== "awaiting_requirement_choice") throw new Error("expected choice");
     const token = prepared.tokens[0]!.token; const before = await attachmentsFor(["703"]);
     expect(await selectTelegramOccurrence({ botId: BOT_ID, chatId: "-100992", uploaderTelegramUserId: UPLOADER_ID, token })).toEqual({ kind: "rejected" });
     expect(await selectTelegramOccurrence({ botId: BOT_ID, chatId: CHAT_ID, uploaderTelegramUserId: "902", token })).toEqual({ kind: "rejected" });
-    await client.query(`update public.telegram_requirement_choice_sessions set expires_at=now() - interval '1 second'
+    // Age the session as a whole: the table's CHECK keeps expires_at after
+    // created_at, so moving expires_at alone into the past is refused (23514).
+    await client.query(`update public.telegram_requirement_choice_sessions
+      set created_at=now()-interval '25 hours', expires_at=now()-interval '1 hour'
       where token_hash = encode(digest($1, 'sha256'), 'hex')`, [token]);
     expect(await selectTelegramOccurrence({ botId: BOT_ID, chatId: CHAT_ID, uploaderTelegramUserId: UPLOADER_ID, token })).toEqual({ kind: "rejected" });
     expect(await attachmentsFor(["703"])).toEqual(before);
-    const fresh = await prepareTelegramEvidenceCandidate({ workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
-      messageId: message.rows[0]!.id, attachmentId: attachment.rows[0]!.id, senderId: UPLOADER_ID, replyToProviderMessageId: card.providerMessageId, mediaGroupId: null, file: candidate });
+    // An expired choice is terminal (0071, app.expire_telegram_evidence_choices;
+    // design §8.3: no selection within 24 hours closes the attachment as
+    // not_evidence and the user must reply again in the correct context). The
+    // same attachment is never offered a second prompt.
+    await processDueTelegramMediaGroups();
+    expect(await attachmentsFor(["703"])).toMatchObject([{ state: "not_evidence", failure_code: "choice_expired", provider_file_id: null }]);
+    expect(await prepare(first, "choice-file")).toEqual({ kind: "not_evidence", code: "already_processed" });
+    expect((await receiptRows()).filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.choice_expired"))
+      .toMatchObject([{ telegram_evidence_recipient_member_id: rules.memberId }]);
+    // The reply the user sends again carries its own choice.
+    const second = await stagedReply("704", "choice-file-again");
+    const fresh = await prepare(second, "choice-file-again");
     if (fresh.kind !== "awaiting_requirement_choice") throw new Error("expected fresh choice");
     expect((await selectTelegramOccurrence({ botId: BOT_ID, chatId: CHAT_ID, uploaderTelegramUserId: UPLOADER_ID, token: fresh.tokens[0]!.token })).kind).toBe("selected");
-    expect(await attachmentsFor(["703"])).toMatchObject([{ state: "processing" }]);
+    expect(await attachmentsFor(["704"])).toMatchObject([{ state: "processing" }]);
     expect(await selectTelegramOccurrence({ botId: BOT_ID, chatId: CHAT_ID, uploaderTelegramUserId: UPLOADER_ID, token: fresh.tokens[0]!.token })).toEqual({ kind: "rejected" });
   });
 
