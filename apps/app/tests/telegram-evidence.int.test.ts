@@ -723,10 +723,20 @@ databaseDescribe("Telegram evidence bridge", () => {
       expect.objectContaining({ state: "not_evidence", provider_file_id: null }),
       expect.objectContaining({ state: "not_evidence", provider_file_id: null }),
     ]));
+    // Both parts are PDFs. The design keeps PDFs as communication and never
+    // as evidence (2026-08-28, «Evidence media in the first release»), so each
+    // part is terminal `unsupported_media` the moment it is stored — before
+    // the album is claimed. The claim's context classification
+    // (0071, app.claim_telegram_media_groups) runs only on parts still
+    // `staged`, so nothing here is ever named `album_anchor_mismatch`; the
+    // one safe failure receipt names each part with its exact, true reason.
+    expect(await attachmentsFor(["804", "805"])).toMatchObject([
+      { failure_code: "unsupported_media" }, { failure_code: "unsupported_media" },
+    ]);
     const receipts = await receiptRows();
     expect(receipts.filter(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.failed")).toHaveLength(1);
     expect(receipts.find(({ telegram_evidence_copy_key }) => telegram_evidence_copy_key === "telegram.evidence.failed")?.text)
-      .toContain("album_anchor_mismatch");
+      .toBe("Доказ не збережено.\nЗображення 804: не збережено — unsupported_media.\nЗображення 805: не збережено — unsupported_media.");
   });
 
   it("enqueues one canonical unbound receipt on replay and one uploader expiry receipt on repeated cleanup", async () => {
