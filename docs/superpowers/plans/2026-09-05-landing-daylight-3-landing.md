@@ -72,10 +72,18 @@ describe("landing copy — the Daylight page", () => {
   });
 
   it.each([
-    "польова вебпрограма", "оплат", "кеп", "офлайн", "клієнт", "економія", "%",
+    "польова вебпрограма", "кеп", "офлайн", "клієнти", "клієнтів", "економія", "%",
     "тов ", "llc", "грн", "usd", "€", "$",
   ])("does not publish «%s»", (claim) => {
     expect(everything.toLowerCase()).not.toContain(claim.toLowerCase());
+  });
+
+  it("never speaks of payment — «передоплати» in the free-pilot terms is the one allowed stem", () => {
+    // \b is ASCII-only in JS; a Cyrillic word boundary is «not a letter or apostrophe».
+    const payment = /(^|[^\p{L}'’])оплат/giu;
+    const hits = [...everything.matchAll(payment)].map((m) => m[0]);
+    expect(hits).toEqual([]);
+    expect(everything).toContain("передоплати");
   });
 
   it("names no electrical audience, while the example work stays cable trays", () => {
@@ -542,7 +550,7 @@ export const PILOT_LIMITS: Record<keyof PilotFields, number> = { name: 120, comp
 
 /** Strip control characters, trim, cap the length. Never throws on a non-string. */
 export function cleanField(value: unknown, max: number): string {
-  return String(value ?? "").replace(/[ -]/g, "").trim().slice(0, max);
+  return String(value ?? "").replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, max);
 }
 
 export function validatePilotFields(input: unknown): { ok: true; fields: PilotFields } | { ok: false; error: "required" } {
@@ -618,6 +626,7 @@ describe("pilot request", () => {
     expect(ok.ok && ok.fields.name).toBe("Ірина");
     expect(ok.ok && ok.fields.context.length).toBe(2000);
     expect(cleanField(42, 10)).toBe("42");
+    expect(cleanField("a\u0007b", 10)).toBe("ab");
   });
 });
 ```

@@ -496,8 +496,10 @@ control characters stripped), `PILOT_EMAIL`.
 **Forbidden in public copy** (pinned by `landing-content.test.ts` over every
 string in both content files): `електромонтаж` in any audience phrase
 (`Монтаж кабельних трас` as the example work is allowed and asserted
-separately), `польова вебпрограма`, `оплат`, `КЕП`, `офлайн`, `клієнт`,
-`економія`, `%`, any price other than «безкоштовний», any company name in the
+separately), `польова вебпрограма`, `оплат` as a word (the stem inside
+«передоплати» in the free-pilot terms is the one allowed form), `КЕП`,
+`офлайн`, `клієнти`/`клієнтів` (customers — «поштовий клієнт», the mail
+client, is not a customer claim), `економія`, `%`, any price other than «безкоштовний», any company name in the
 author block, and any testimonial. **Required:** «Чернетка акта не є
 підписаним документом», «потребує з'єднання» (or «активного з'єднання»),
 «пілот безкоштовний», «без договору і передоплати», «Telegram-бот»,
