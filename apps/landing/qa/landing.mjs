@@ -1,12 +1,14 @@
 #!/usr/bin/env node
 // Builds and starts the landing, then photographs it at seven widths, checks
 // for horizontal overflow and console errors, repeats under reduced motion,
-// and writes public/og.png from /og. Run: pnpm --filter @goproceed/landing qa
+// measures the Border Beam on the settled product frame, and writes
+// public/og.png from /og. Run: pnpm --filter @goproceed/landing qa
 import { spawn } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
+import sharp from "sharp";
 
 const app = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(app, "qa-output");
@@ -85,8 +87,63 @@ try {
     console.log(`${reduced ? "reduced " : ""}${width}px: ${ok ? "ok" : "PROBLEM"} scrollWidth=${overflow.scrollWidth} wide=${overflow.wide.length} errors=${errors.length} settledAtLoad=${settledAtLoad === null ? "n/a" : settledAtLoad}`);
   }
 
+  // THE BORDER BEAM, MEASURED. It is a decorative overlay that no other gate
+  // can see: it renders in the kitchen sink and, while `@utility beam` sat at
+  // `inset: -1px`, all but invisibly on the page — the Board is `relative
+  // overflow-hidden` on the very element that hosts the ring, an absolutely
+  // positioned child's containing block is the padding box, and `overflow`
+  // clips to that same box, so the whole visible band lay in the clipped
+  // region. Nothing failed; a screenshot at seven widths cannot tell.
+  //
+  // So: settle the frame, screenshot the beam element itself (an element
+  // handle, NOT `page.screenshot({clip})` — clip is document-relative while
+  // `getBoundingClientRect` is viewport-relative, and the page is scrolled by
+  // then), and count the non-neutral pixels in a 2px band around its whole
+  // perimeter. The whole perimeter because the conic gradient paints a ~28 %
+  // arc that rotates: which side carries the light depends on when the shutter
+  // opened, but some side always does while the animation runs.
+  //
+  // Measured on this machine at 1440, full motion, over a full 7s revolution:
+  // 460–1051 painted with `inset: 0`, and 64 with `inset: -1px` (the corner
+  // slivers the parent's rounded clip leaves behind). The floor is 200 — an
+  // order of magnitude below the healthy range and three times the clipped
+  // one — rather than «greater than zero», which the broken version passed.
+  const BEAM_FLOOR = 200;
+  async function beamPixels() {
+    const page = await browser.newPage();
+    await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+    await page.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
+    const settled = await page.evaluate(async () => {
+      const el = document.querySelector(".beam");
+      if (!el) return false;
+      el.parentElement.scrollIntoView({ block: "center" });
+      await new Promise((r) => setTimeout(r, 700));
+      return document.querySelector('[data-settled="true"]') !== null;
+    });
+    const handle = settled ? await page.$(".beam") : null;
+    if (handle === null) { await page.close(); return null; }
+    const shot = await handle.screenshot();
+    await page.close();
+    const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
+    const BAND = 2;
+    let painted = 0;
+    for (let y = 0; y < info.height; y++) {
+      for (let x = 0; x < info.width; x++) {
+        if (!(x < BAND || y < BAND || x >= info.width - BAND || y >= info.height - BAND)) continue;
+        const i = (y * info.width + x) * info.channels;
+        // paper, white and ink are all near-neutral; the beam is cobalt
+        if (Math.abs(data[i] - data[i + 1]) > 8 || Math.abs(data[i + 1] - data[i + 2]) > 8 || Math.abs(data[i] - data[i + 2]) > 8) painted++;
+      }
+    }
+    return painted;
+  }
+
   for (const w of WIDTHS) await audit(w, false);
   for (const w of [1440, 390]) await audit(w, true);
+
+  report.beamPixels = await beamPixels();
+  const beamOk = typeof report.beamPixels === "number" && report.beamPixels >= BEAM_FLOOR;
+  console.log(`border beam at 1440 (full motion): ${beamOk ? "ok" : "PROBLEM"} paintedPixels=${report.beamPixels} floor=${BEAM_FLOOR}`);
 
   const og = await browser.newPage();
   await og.setViewport({ width: 1200, height: 630, deviceScaleFactor: 1 });
@@ -95,7 +152,7 @@ try {
   console.log("wrote public/og.png");
 
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
-  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok);
+  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && beamOk;
   console.log(allOk ? "landing qa: ok" : "landing qa: PROBLEMS — see qa-output/report.json");
   exitCode = allOk ? 0 : 1;
 } catch (err) {

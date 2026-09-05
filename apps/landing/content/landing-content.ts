@@ -1,6 +1,12 @@
+import type { CompareRowKey } from "@goproceed/ui/components";
+
 export type NavItem = { label: string; href: `#${string}` };
 export type Fact = { value: string; label: string };
-export type CompareRowContent = { key: "photo" | "requirement" | "decision" | "closure" | "act"; question: string; answer: string; ref?: string };
+// The key set is closed and it is closed in `packages/ui/src/base.css`, where
+// the five `:has()` pairing selectors are written by hand. Importing the union
+// rather than restating it means a sixth row fails typecheck instead of
+// rendering a dead prop.
+export type CompareRowContent = { key: CompareRowKey; question: string; answer: string; ref?: string };
 export type RoleCell = { id: string; title: string; subtitle: string; pain: string; gets: readonly string[] };
 export type RouteStep = { index: string; eyebrow: string; title: string; titleAccent: string; body: string; note: string };
 export type Channel = { id: "telegram" | "app" | "web"; index: string; status: { tone: "ready" | "review"; label: string }; title: string; body: string; foot: string };
@@ -180,7 +186,9 @@ export const landingContent = {
     limits: {
       eyebrow: "Межі v0.1",
       title: "Що GoProceed робить зараз, і чого не обіцяє",
+      doesTitle: "Що робить",
       does: ["Вимога прив'язана до роботи до старту", "Онлайн-фіксація з телефону", "Зовнішній розгляд без доступу до проєкту", "Записане блокування закриття"],
+      doesNotTitle: "Чого не обіцяє",
       doesNot: ["Матеріал без мережі не зберігається", "Чернетка акта не є підписаним документом", "Фізичну роботу не зупиняє"],
     },
   },
@@ -221,6 +229,7 @@ export const landingContent = {
       copy: "Скопіювати текст заявки",
       copied: "Скопійовано",
       sent: "Заявку надіслано. Відповім протягом робочого дня на вказаний контакт.",
+      mailNote: "Або напишіть напряму:",
       failed: "Не вдалося надіслати автоматично. Текст заявки скопійовано — надішліть його на",
       failedTail: "або натисніть «Відкрити поштовий клієнт».",
       mail: "Відкрити поштовий клієнт",

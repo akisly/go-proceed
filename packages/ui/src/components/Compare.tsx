@@ -2,7 +2,16 @@ import type { ReactNode } from "react";
 import { Check } from "lucide-react";
 import { cx } from "./cn";
 
-export type CompareRow = { key: string; question: string; answer: string; ref?: string | undefined };
+/**
+ * The row keys are a CLOSED set, and the reason lives in `base.css`: the
+ * «було / стало» pairing is five hand-written `:has()` selectors naming these
+ * five keys, not JavaScript. A sixth key would compile, render, typecheck and
+ * pass the render gate while silently doing nothing, so the union is exported
+ * and a new row has to fail typecheck here and send the reader to `base.css`.
+ */
+export type CompareRowKey = "photo" | "requirement" | "decision" | "closure" | "act";
+
+export type CompareRow = { key: CompareRowKey; question: string; answer: string; ref?: string | undefined };
 
 /**
  * «Було і стало» as two sheets — the prototype's ninth iteration. The same

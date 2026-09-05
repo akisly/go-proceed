@@ -15,6 +15,20 @@ describe("Button size=\"lg\"", () => {
     expect(html).toContain("h-(--gp-control-height-marketing)");
     expect(html).toContain("touch:h-(--gp-control-height-touch)");
   });
+  // Spec §4: `radius.control` (6px) is the app's; the marketing button carries
+  // `radius.panel` (10px). The size map's `rounded-panel` has to survive
+  // tw-merge's radius group against BASE's `rounded-control` — assert the
+  // merged output, not the map, because that is where the two can disagree.
+  it("carries the panel radius, and the other sizes keep control", () => {
+    const lg = renderToStaticMarkup(<Button size="lg">Обговорити пілот</Button>);
+    expect(lg).toContain("rounded-panel");
+    expect(lg).not.toContain("rounded-control");
+    for (const size of ["default", "sm", "icon"] as const) {
+      const html = renderToStaticMarkup(<Button size={size}>Далі</Button>);
+      expect(html).toContain("rounded-control");
+      expect(html).not.toContain("rounded-panel");
+    }
+  });
 });
 
 describe("Chip dot", () => {

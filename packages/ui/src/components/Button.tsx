@@ -43,8 +43,16 @@ const VARIANT = {
 const SIZE = {
   default: "h-(--gp-control-height-desk) touch:h-(--gp-control-height-touch) px-4 text-data",
   sm: "h-(--gp-control-height-desk-sm) touch:h-(--gp-control-height-touch) px-3 text-meta",
-  /** Marketing controls: the prototype's 42px. The touch floor still wins under pointer:coarse. */
-  lg: "h-(--gp-control-height-marketing) touch:h-(--gp-control-height-touch) px-5 text-data",
+  /**
+   * Marketing controls: the prototype's 42px. The touch floor still wins under
+   * pointer:coarse. `rounded-panel` (10px) is the ONLY size that overrides
+   * BASE's `rounded-control` (6px): spec §4 keeps `control` for the app and
+   * gives the marketing button `panel`, because the prototype's `.btn` is 9px
+   * and `panel` is the token nearest it. The override works because
+   * `tw-merge.generated.ts` groups every `rounded-*` role in one class group,
+   * so the later class wins instead of both surviving.
+   */
+  lg: "h-(--gp-control-height-marketing) touch:h-(--gp-control-height-touch) px-5 text-data rounded-panel",
   icon: "size-(--gp-control-height-desk) touch:size-(--gp-control-height-touch) p-0",
 } as const;
 

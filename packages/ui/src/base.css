@@ -179,7 +179,15 @@
 
 @utility beam {
   position: absolute;
-  inset: -1px;
+  /* `inset: 0`, NOT `-1px`. An absolutely-positioned child's containing block
+   * is the parent's padding box and `overflow: hidden` clips to that same box,
+   * so a ring drawn 1px outside it is cut away in full by any clipping parent —
+   * measured at 0 painted pixels inside `visuals/board.tsx`, which is
+   * `relative overflow-hidden` on the element that hosts the beam. Drawn on the
+   * innermost 1px instead, the ring renders under a clipping parent and an
+   * unclipped one alike, so the utility carries no undocumented
+   * "your parent must not clip" contract. */
+  inset: 0;
   border-radius: inherit;
   padding: 1px;
   pointer-events: none;
