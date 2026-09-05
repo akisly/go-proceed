@@ -115,3 +115,74 @@ The tree moved since round 1 (commits `fbe1ced`, `5e4198c`, `fc58acf`), but only
 kitchen sink — none of which changes what the field client or the office dashboard renders (the
 field client still imports its own private `Button`), so this remains a valid "before" capture of
 `apps/app` on Daylight.
+
+### Task 5 — first daylight run (2026-09-05, HEAD 24fd9f3)
+
+Local stack unchanged from round 2: Docker up, `supabase_db_goproceed` healthy at migration 0083,
+Mailpit at 54324, `apps/app/.env.local` present. `pnpm --filter @goproceed/app build` then
+`pnpm --filter @goproceed/app qa`, both run with the daylight visual audit wired in (nine routes,
+six widths, reduced motion at 1440/390, the sign-out confirm dialog, and the anonymous `/login` +
+OTP code step).
+
+The run is red — 120 findings, not zero. Two of them predate the daylight audit and are a
+regression of Task 4, not new-audit input:
+
+```
+/a/fe12d03c-62f4-4232-a194-59594a275c8b @375: touch target below 44px — "← Мої доручення" 103x20
+/a/fe12d03c-62f4-4232-a194-59594a275c8b @375: anchor "← Мої доручення" (href=/) renders with user-agent link styling — color rgb(36, 64, 217), text-decoration underline; app/globals.css's `a` reset has been lost
+```
+
+Both come from the pre-existing "obligation screen" audit (untouched by Task 5, `qa/field.mjs`
+lines 1861-1993), at its own long-standing 375px mobile check — not from anything this task added.
+The baseline (round 2, HEAD fc58acf, pre-Task-4) was zero findings, so this is new behaviour
+introduced by Task 4's migration of the field client onto `@goproceed/ui`: the obligation screen's
+"← Мої доручення" back link is a bare `<a>` outside `[data-slot="button"]`, and it now renders
+with User-Agent link styling and a 103×20 touch target, where the pre-migration `app/globals.css`
+reset apparently covered it. Per this task's brief, no app file is touched to fix it — recorded
+here as a concern for Task 4's owner; `qa/field.mjs` itself is not implicated.
+
+The remaining 118 findings are all inside "daylight visual audit" itself — Task 6's input, not
+this task's failure. They cluster into three shapes across the nine routes: (1) a handful of
+768px touch targets under 44px in the dash shell's tab bar and the seeded email chip; (2) a
+"signal budget" finding on every authenticated route and width, `--gp-action-signal` resolving to
+a colour that a very large fraction of the page's elements (39 to 141, growing with page
+complexity) also carry as their own background — almost certainly the check's own resolved-colour
+comparison catching a shared transparent/background-role value rather than a genuine signal-colour
+misuse, but that determination is Task 6's, not this one's; and (3) one hard failure, "sign-out
+confirm @390: no visible profile control" — `visibleHandle` found no rendered
+`button[aria-label="Профіль і вихід"]` at 390px, so that width's inspect+screenshot pair was
+skipped (`continue`), which is why the screenshot count below is 75 rather than the expected 76.
+No status-colour-alone finding and no font-face finding fired anywhere in this run — the Onest
+face and the status/colour rule both held on all nine routes at all six widths, including reduced
+motion.
+
+Harness tail, verbatim (`pnpm --filter @goproceed/app qa 2>&1 | tail -30`):
+
+```
+/dash/settings/profile (reduced motion) @1440: 104 elements carry the signal background (html, head, meta) — at most one per screen
+/dash/settings/profile (reduced motion) @390: 104 elements carry the signal background (html, head, meta) — at most one per screen
+sign-out confirm @1440: 116 elements carry the signal background (html, head, meta) — at most one per screen
+sign-out confirm @390: no visible profile control
+/login @1920: 39 elements carry the signal background (html, head, meta) — at most one per screen
+/login @1440: 39 elements carry the signal background (html, head, meta) — at most one per screen
+/login @1240: 39 elements carry the signal background (html, head, meta) — at most one per screen
+/login @768: 39 elements carry the signal background (html, head, meta) — at most one per screen
+/login @390: 39 elements carry the signal background (html, head, meta) — at most one per screen
+/login @360: 39 elements carry the signal background (html, head, meta) — at most one per screen
+/login (reduced motion) @1440: 39 elements carry the signal background (html, head, meta) — at most one per screen
+/login (reduced motion) @390: 39 elements carry the signal background (html, head, meta) — at most one per screen
+/login (code step) @1440: 42 elements carry the signal background (html, head, meta) — at most one per screen
+/login (code step) @390: 42 elements carry the signal background (html, head, meta) — at most one per screen
+/Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/apps/app:
+ ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @goproceed/app@0.0.0 qa: `node qa/field.mjs`
+Exit status 1
+```
+
+`ls apps/app/qa-output/screenshots/daylight | wc -l` → **75** (expected 76; the missing one is
+`dash-sign-out-390.png`, accounted for above). `pgrep -fl "next start"` after the run: empty — the
+harness's spawned server was killed as expected.
+
+`node_modules/.pnpm/puppeteer-core@25.8.0_yauzl@2.10.0/node_modules/puppeteer-core/lib/puppeteer/api/Page.d.ts`
+(puppeteer-core 25.8.0) confirms the three calls this audit uses: `setViewport(viewport)`,
+`emulateMediaFeatures(features?)`, and `screenshot(options)` with a `fullPage` option — all used
+as documented, no shape surprises against the installed version.
