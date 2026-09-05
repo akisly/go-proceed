@@ -111,3 +111,25 @@ describe("roles and route", () => {
     expect(route).toContain("Це чернетка для підпису, а не підписаний документ.");
   });
 });
+
+describe("position, capture, provenance", () => {
+  const position = section("position", "capture");
+  const capture = section("capture", "trust");
+  const trust = section("trust", "pilot");
+  it("states the position with three pills", () => {
+    expect(position).toContain(landingContent.position.quote);
+    expect(position.match(/data-position-pill=/g)).toHaveLength(3);
+  });
+  it("shows the two foreman channels, the office web app and the converging record", () => {
+    for (const ch of landingContent.capture.channels) expect(capture).toContain(ch.title);
+    expect(capture).toContain("Збережено як");
+    expect(capture).toContain("очікує мережу");
+    expect(capture).toContain("EV-0248");
+  });
+  it("renders the access matrix, immutability and the limits of v0.1", () => {
+    expect(trust.match(/data-slot="bento-cell"/g)).toHaveLength(3);
+    expect(trust.match(/data-access=/g)).toHaveLength(28);
+    expect(trust).toContain("Історія подій не редагується, лише доповнюється");
+    expect(trust).toContain("Чернетка акта не є підписаним документом");
+  });
+});
