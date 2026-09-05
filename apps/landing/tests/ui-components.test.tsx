@@ -2,6 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule } from "@goproceed/ui/components";
+import { ScrollSettle } from "@goproceed/ui/motion";
 
 describe("Button size=\"lg\"", () => {
   it("takes its height from the marketing control token", () => {
@@ -67,5 +68,16 @@ describe("FeatureGrid", () => {
     expect(html.match(/data-spotlight="true"/g)).toHaveLength(4);
     expect(html).toContain("md:grid-cols-2");
     expect(html).toContain("wide:grid-cols-4");
+  });
+});
+
+describe("ScrollSettle", () => {
+  it("renders one wrapper with data-settled=\"false\" on the server, and the beam inert", () => {
+    const html = renderToStaticMarkup(
+      <ScrollSettle><div><i className="beam" aria-hidden="true" />кадр</div></ScrollSettle>,
+    );
+    expect(html).toContain('data-settled="false"');
+    expect(html).not.toContain('data-settled="true"');
+    expect(html).toContain('class="beam"');
   });
 });
