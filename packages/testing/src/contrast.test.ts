@@ -64,6 +64,8 @@ const PAIRS: Array<[label: string, fg: string, bg: string, min: number]> = [
   ["ready chip", "status-ready-fg", "status-ready-surface", 4.5],
   ["attention chip", "status-attention-fg", "status-attention-surface", 4.5],
   ["blocked chip", "status-blocked-fg", "status-blocked-surface", 4.5],
+  ["destructive action's label at rest", "status-blocked-fg", "bg-surface", 4.5],
+  ["destructive action's label on hover", "action-primary-fg", "status-blocked-fg", 4.5],
   ["review chip", "status-review-fg", "status-review-surface", 4.5],
   ["idle chip", "status-idle-fg", "status-idle-surface", 4.5],
   ["evidence satisfied on the canvas", "evidence-satisfied", "bg-canvas", 4.5],
