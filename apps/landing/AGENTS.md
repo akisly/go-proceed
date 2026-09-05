@@ -18,5 +18,12 @@ chat it may write to) and/or `RESEND_API_KEY` + `PILOT_TO_EMAIL` (+
 for a local run. With no channel the handler answers 503 and the page falls
 back to copying the request text and opening the mail client to the address
 in `content/pilot-request.ts`. The rate limit (5 per 10 min per IP) is per
-instance and resets on a cold start. Tests: `tests/pilot-route.test.ts`,
+instance, bounded at 500 keys, and resets on a cold start; rejected requests
+cost the limiter nothing. Both outbound calls and the browser's own fetch carry
+an `AbortSignal.timeout` (8 s / 15 s). The contact field feeds Resend's
+`reply_to` only when it is a single well-formed address. The form also carries
+`method="post" action="/api/pilot"`, so a visitor without JavaScript never
+puts their name into a URL — they land on the handler's JSON problem (a 4xx,
+nothing delivered) and have to go back; the visible pilot address next to the
+form is the no-script path that works. Tests: `tests/pilot-route.test.ts`,
 `tests/pilot-form.test.tsx`.

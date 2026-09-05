@@ -2,7 +2,7 @@
   <!-- Android adaptive icon: 108dp canvas, 72dp displayed, 66dp SAFE CIRCLE.
        The mark must therefore stay inside radius 0.306 of the width, not the
        0.4 that the PWA maskable icon (80% safe circle) allows — .60 puts the
-       rounded square's outermost corner at 0.306. The 78% figure belongs to
+       rounded square's outermost corner at 0.307 (measured 0.3068). The 78% figure belongs to
        goproceed-maskable-icon.svg and is correct there. -->
   <defs>
     <mask id="dot" maskUnits="userSpaceOnUse" x="0" y="0" width="1024" height="1024">

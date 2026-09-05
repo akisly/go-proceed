@@ -171,7 +171,7 @@ const amber = ramp([
   ["amber-200", 0.9002, 0.041211, 57.72, "Attention chip border."],
   ["amber-300", 0.8134, 0.083056, 54.22, "Attention foreground in dark mode (6.90:1 on amber-900)."],
   ["amber-500", 0.6823, 0.15117, 51.96, "Icon and bar weight; never text."],
-  ["amber-600", 0.6123, 0.148425, 49.89, "The prototype's warn #C8641F: the draft stamp, the rule box's border. 3.9:1 on white — icons and strokes, NOT text."],
+  ["amber-600", 0.6123, 0.148425, 49.89, "The prototype's warn #C8641F: the draft stamp, the rule box's border. 3.96:1 on white — icons and strokes, NOT text."],
   ["amber-700", 0.5319, 0.129258, 48.79, "Attention as TEXT: 4.87:1 on amber-100."],
   ["amber-800", 0.4389, 0.103138, 49.64, "The evidence-pending foreground (7.44:1 on canvas)."],
   ["amber-900", 0.328, 0.066775, 53, "Attention ground in dark mode."],

@@ -3671,3 +3671,11 @@ and two of the reviewers' Recommendations worth the same treatment. All P3.
 - `apps/landing/AGENTS.md` — documents the rate limit but not the 500-key bound added after it, which is the half with a threat model behind it.
 - `turbo.json:24-28` — the five pilot secrets are in `build.env` for no build-time reader (the route is dynamic, none is `NEXT_PUBLIC_`), so rotating the Telegram token invalidates the build cache of every package in the workspace. `dev.env` is correct and necessary.
 - `docs/superpowers/specs/2026-07-29-goproceed-baseline-zero-design.md:94` — an English dated correction inserted into a Russian table row, where the branch's other Russian document took its correction in Russian. Cosmetic.
+
+#### From the re-review of the fix wave (2026-09-05)
+
+- `apps/landing/qa/landing.mjs` — the Border Beam probe is valid only inside the ~14 s the ring animates after `data-settled` latches; on a loaded machine the gate could fail green code. Read `getAnimations()[0].currentTime` and restart or seek the animation before the shot.
+- `apps/landing/app/api/pilot/route.ts` — a visitor without JavaScript who submits the form lands on the handler's raw JSON problem with no way back. Branch on `Accept: text/html` to a 303 back to `/#pilot` (documented as-is in `apps/landing/AGENTS.md`).
+- `apps/landing/components/visuals/access-matrix.tsx` — the sr-only `<caption>` repeats the visible `<h3>` above the table.
+- `apps/landing/components/blocks/nav.tsx` — `<li className="contents">` drops the listitem role in Safari < 17 and pre-89 Chromium; a flex `<ul>` with plain `<li>` avoids it.
+- `apps/mobile/assets/splash-icon.png` — now rendered from the maskable file with an opaque `#15161A` field that only matches `app.json`'s splash background by coincidence; give the splash a transparent source of its own.
