@@ -200,7 +200,7 @@
       "amber-600": {
         "$type": "color",
         "$value": "#C8641F",
-        "$description": "The prototype's warn #C8641F: the draft stamp, the rule box's border. 3.9:1 on white — icons and strokes, NOT text."
+        "$description": "The prototype's warn #C8641F: the draft stamp, the rule box's border. 3.96:1 on white — icons and strokes, NOT text."
       },
       "amber-700": {
         "$type": "color",

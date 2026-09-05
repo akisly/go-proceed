@@ -76,10 +76,14 @@ spacing:
   xl: "32px"
   section-lg: "112px"
 components:
+  # Both button entries describe the MARKETING button — `<Button size="lg">`,
+  # the 42px control. `rounded.panel` is that size only; every app size
+  # (`default`, `sm`, `icon`) keeps `rounded.control` from the component's BASE.
   button-ink:
     backgroundColor: "{colors.ink}"
     textColor: "{colors.surface}"
     typography: "{typography.data}"
+    size: "lg"
     rounded: "{rounded.panel}"
     padding: "0 20px"
     height: "42px"
@@ -88,6 +92,7 @@ components:
     textColor: "{colors.ink}"
     border: "1px solid {colors.line-strong}"
     typography: "{typography.data}"
+    size: "lg"
     rounded: "{rounded.panel}"
     padding: "0 20px"
     height: "42px"
@@ -180,17 +185,27 @@ brand, a link, a focus ring, or the accent phrase in a heading.
 
 ### Secondary
 
-- **Ready, Review, and Attention families** (`ready-*`, `review-*`,
-  `attention-*`): paired surface and foreground roles that always accompany a
-  written state, never color alone. `blocked-*` is unchanged from the prior
-  system — one meaning, one red, across the app and the landing.
+- **Ready, Review, and Attention families** (`status-ready`,
+  `status-ready-line`, `status-ready-fg`, and the same three for
+  `status-review` and `status-attention`): paired surface and foreground roles
+  that always accompany a written state, never color alone. `blocked-*` is
+  unchanged from the prior system — one meaning, one red, across the app and
+  the landing.
 
 ### Neutral
 
-- **Paper** (`paper`): the warm page canvas, hue ≈ 95.
+The names in this section are the UTILITY names, so `bg-canvas` and
+`text-status-ready-fg` are what a file writes. *[Correction, 2026-09-05: they
+were `paper`, `paper-subtle`, `ready-*` and `attention-*` here — none of which
+is reachable as a utility. A reader following the old prose wrote
+`bg-paper-subtle`, which compiles to nothing and renders unstyled with no
+warning: rule 4's exact failure mode, in the document that teaches rule 4.]*
+
+- **Paper** (`canvas`): the warm page canvas, hue ≈ 95.
 - **Clean Sheet** (`surface`): white — product frames, forms, cards laid over
   the canvas.
-- **Paper Wash** (`paper-subtle`): sunken wells, the "was" card, inset grounds.
+- **Paper Wash** (`subtle` for zebra rows, the "was" card and inset grounds;
+  `sunken` for the inactive segment, ghost hover and idle status ground).
 - **Ink** (`ink`): primary copy and the primary action fill, hue ≈ 270 — cool
   where the paper is warm.
 - **Document Ink** (`ink-secondary`, `ink-muted`): secondary prose and the
@@ -276,11 +291,18 @@ document cells, rows and textual sections stay flat.
 ## Shapes
 
 Radius is graduated by what it is rounding: `field` (8px) for inputs and
-inline evidence tiles, `panel` (10px) for buttons and the UI windows inside a
-route card, `card` (12px) for the figure and the pilot form, `surface` (14px)
-for route cards, the role grid, bento cells and compare cards, `section`
-(16px) for the closing CTA card, and `pill` (999px) for status chips, the
-announcement pill and the floating nav.
+inline evidence tiles, `panel` (10px) for the marketing `lg` button and the UI
+windows inside a route card, `card` (12px) for the figure and the pilot form,
+`surface` (14px) for route cards, the role grid, bento cells and compare
+cards, `section` (16px) for the closing CTA card, and `pill` (999px) for
+status chips, the announcement pill and the floating nav.
+
+*[Correction, 2026-09-05: this line and the two `rounded: "{rounded.panel}"`
+entries above said «buttons», unqualified, while `Button`'s BASE gave every
+size `rounded-control` (6px) — three documents promising a pixel the code did
+not keep. `SIZE.lg` now carries `rounded-panel`; the app sizes keep `control`,
+which is what §4 of the spec always said. The prototype's own `.btn` is 9px,
+mapped to the existing 10px token rather than adding a fifth radius.]*
 
 **The Document Edge Rule.** Round the outer instrument, not every internal
 partition. A table rule or a nested key-value row keeps its edge crisp.
@@ -312,7 +334,7 @@ partition. A table rule or a nested key-value row keeps its edge crisp.
   surface`, with a pointer spotlight on hover.
 - **Bento cell:** `surface` background, strong-line border, `rounded-surface`;
   one cell may span two rows.
-- **Compare card:** a "was" card (dashed, on `paper-subtle`) beside a "now"
+- **Compare card:** a "was" card (dashed, on `subtle`) beside a "now"
   card (`border-accent`-tinted, lifted with `shadow-float`, never a coloured
   shadow).
 

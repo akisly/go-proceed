@@ -100,7 +100,7 @@ to point at, and so a chart or a generated asset can walk a scale.
 | `amber-200` | `#F4D8C4` | 0.9002, 0.041211, 57.72 | 1.24 | 13.31 | Attention chip border. |
 | `amber-300` | `#EDB48F` | 0.8134, 0.083056, 54.22 | 1.67 | 9.92 | Attention foreground in dark mode (6.90:1 on amber-900). |
 | `amber-500` | `#E07A32` | 0.6823, 0.15117, 51.96 | 2.75 | 6.03 | Icon and bar weight; never text. |
-| `amber-600` | `#C8641F` | 0.6123, 0.148425, 49.89 | 3.63 | 4.56 | The prototype's warn #C8641F: the draft stamp, the rule box's border. 3.9:1 on white — icons and strokes, NOT text. |
+| `amber-600` | `#C8641F` | 0.6123, 0.148425, 49.89 | 3.63 | 4.56 | The prototype's warn #C8641F: the draft stamp, the rule box's border. 3.96:1 on white — icons and strokes, NOT text. |
 | `amber-700` | `#A6511A` | 0.5319, 0.129258, 48.79 | 5.05 | 3.28 | Attention as TEXT: 4.87:1 on amber-100. |
 | `amber-800` | `#7E3E14` | 0.4389, 0.103138, 49.64 | 7.44 | 2.23 | The evidence-pending foreground (7.44:1 on canvas). |
 | `amber-900` | `#4F2A10` | 0.328, 0.066775, 53 | 11.52 | 1.44 | Attention ground in dark mode. |

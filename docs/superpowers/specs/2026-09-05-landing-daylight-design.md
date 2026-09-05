@@ -258,7 +258,7 @@ Changed or added in `semantic.color`; every role keeps a light/dark pair and a
 | `status-attention-*` | amber-100 / amber-200 / amber-700 | |
 | `status-blocked-*` | unchanged (danger) | see §7.4 |
 | `evidence-satisfied` / `-pending` | green-700 / amber-800 | |
-| `viz-1…5` | cobalt-600, green-600, amber-600, danger-500, violet-500 | |
+| `viz-1…5` | cobalt-600, green-600, amber-600, danger-600, violet-500 | *[corrected 2026-09-05: the fourth was written `danger-500`; `tokens.json` has always had `danger-600`, and `viz-*` was untouched by this branch — the spec row was loose, not the token]* |
 
 `text-primary`, `text-secondary`, `text-muted`, `text-subtle`, `border-*`,
 `bg-surface`, `bg-muted`, `bg-overlay`, `text-on-inverse*` keep their step
@@ -297,7 +297,7 @@ and is unaffected.
 |---|---|---|
 | `radius.control` | 6px (kept, app) | |
 | `radius.field` | 8px | inputs, the UI-window inner cards |
-| `radius.panel` | 10px | UI windows inside the route cards, buttons (`.btn` 10px) |
+| `radius.panel` | 10px | UI windows inside the route cards, the marketing `lg` button *[corrected 2026-09-05: this row said «buttons» unqualified and gave the prototype's `.btn` as 10px. The prototype's `.btn` is **9px** (`design-references/contest-2026-09/daylight/index.html`), mapped to the existing 10px `panel` token rather than adding a fifth radius; and only `Button`'s `lg` size carries it — the app sizes (`default`, `sm`, `icon`) keep `radius.control` 6px, which is what the row above always said. `Button.tsx` `SIZE.lg` and `apps/landing/tests/ui-components.test.tsx` hold the line.]* |
 | `radius.card` | 12px | `--r: 12px` — the fig, form, pneed cells |
 | `radius.surface` | 14px | route cards, role grid, bento cells, compare cards, channel cards, the board |
 | `radius.section` | 16px | the CTA card |
@@ -371,7 +371,7 @@ filled cobalt. Scaled to the 1024 grid of the existing brand files.
 | `goproceed-landing-icon.svg` | the favicon: **white tile** `rx` ≈ 25 %, mark at 80 % (F10) |
 | `goproceed-app-icon.svg` | ink tile, paper strokes, cobalt dot (the app icon) |
 | `goproceed-maskable-icon.svg` | same at 78 % safe area |
-| `goproceed-adaptive-foreground.svg` | paper strokes + cobalt dot at 78 % |
+| `goproceed-adaptive-foreground.svg` | paper strokes + cobalt dot at **60 %** *[corrected 2026-09-05: this said 78 %, the figure that is correct for the row above it. The PWA maskable icon has an 80 % safe area (radius 0.4 of the canvas); Android's adaptive icon draws a 108dp canvas, displays 72dp and guarantees only the central **66dp** — radius 0.306. At 78 % the mark's outermost corner measured 0.399 of the width on the rendered PNG, past both the safe circle and the 0.333 hard crop, so a circular launcher mask sliced the rounded square's corners off. At 60 % it measures 0.307. The monochrome twin carries the same scale; `goproceed-maskable-icon.svg` stays at 78 %.]* |
 | `goproceed-adaptive-monochrome.svg` | white, dot ring masked out |
 | `goproceed-mask.svg` | black on transparent (Safari pinned tab) |
 | `goproceed-solid-background.svg` | ink |

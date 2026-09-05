@@ -99,7 +99,7 @@ fail the colour audit.
 | Skill | Why not |
 |---|---|
 | `high-end-visual-design` | Its "Variance Mandate" is *never generate the same layout twice*. A design system's entire value is that the same decision produces the same result. Directly opposed |
-| `minimalist-ui` | Bans Inter. This product's UI face **is** Inter, chosen for Cyrillic and tabular figures |
+| `minimalist-ui` | Bans a prescribed typeface. This product has one, chosen for Cyrillic and tabular figures. *[Correction, 2026-09-05: the face is **Onest**, not Inter — Daylight made it the one typeface on every token-driven surface (`01-tokens.md` §typography, §9 of this file). The field client's routes keep Inter until their migration. The refusal stands on the same ground: a skill that bans the system's chosen face is arguing with the system.]* |
 | `brand-guidelines` | Applies *Anthropic's* brand |
 | `web-artifacts-builder` | For claude.ai artifacts, not a Next app |
 | `figma:*` | Figma is deferred (plan §3). The DTCG file generates and waits |
@@ -162,7 +162,7 @@ packages/tokens/src/tokens.json      every value, the only hand-edited token fil
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
 packages/ui/src/motion/              the sixteen motion primitives, and nothing else
-packages/ui/src/components/          the twenty-one components, and nothing else
+packages/ui/src/components/          the twenty-seven components, and nothing else
 apps/landing/app/                    routes and the fourteen landing blocks
 apps/app/app/                        the product shell and its screens
 packages/testing/src/*.test.ts       every contract test

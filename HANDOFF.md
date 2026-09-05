@@ -34,10 +34,12 @@ Evidence Atlas's paper/carbon/lime everywhere a role is named, so `apps/app`
 and `apps/mobile` re-coloured through their existing role names with no
 per-screen edit. `ScrollSettle` joined the motion vocabulary as its sixteenth
 word — the Container Scroll product-frame entry, finite and flat below `md`
-and under reduced motion. Seven components landed in `packages/ui`: `Pill`,
-`SectionRule`, `FeatureGrid`/`FeatureCell`, `Bento`/`BentoCell`,
-`ComparePair`/`CompareCard`, `Stepper`/`Step`, plus `Accordion`'s new
-`marker` prop and `Chip`'s new `dot` prop. The brand mark (rounded square,
+and under reduced motion. Six components landed in `packages/ui` — twelve
+exported symbols: `Pill`/`PillContent`, `SectionRule`,
+`FeatureGrid`/`FeatureCell`, `Bento`/`BentoCell`,
+`ComparePair`/`CompareCard`/`CompareArrow`, `Stepper`/`Step`, plus
+`Accordion`'s new `marker` prop, `Chip`'s new `dot` prop and `Button`'s new
+`lg` size. The brand mark (rounded square,
 ink chevron, cobalt dot) replaced the lime-dot ring everywhere: landing,
 `apps/app/public/*`, and `apps/mobile/assets/*`, from one SVG source.
 
@@ -77,12 +79,15 @@ the old palette until the rewrite plan's Phase 4. `TODOS.md`'s «Opened by
 the Daylight landing (2026-09-05)» section files this as a P2 (six-viewport
 visual pass of `/dash/**` and mobile, sign-out dialog and OTP form named as
 the first two screens to check), a second P2 for the legacy stylesheet
-itself, and eight P3s: everything D4 declined to carry over, the
+itself, and ten P3s: everything D4 declined to carry over, the
 per-instance rate limit, a literal `1240px` media query in
 `landing-route-card`, `FeatureCell`'s icon-box size, two stale motion
 docstrings, a literal channel badge, the pilot form's raw-vs-cleaned mailto
 fields, an unstyled `figcaption` rule, the rate limiter's insertion-order
-eviction risk, and one stale test title.
+eviction risk, and one stale test title. A second sub-heading, «Final review
+minors (2026-09-05)», holds the fifty-four parked from the whole-branch
+review — its seventeen Importants were all fixed on the branch (rulings
+R1–R12), and every Minor it left is a line there.
 
 **Where to look.** The spec is
 `docs/superpowers/specs/2026-09-05-landing-daylight-design.md`; the three
