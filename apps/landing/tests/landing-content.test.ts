@@ -27,10 +27,15 @@ describe("landing copy — the Daylight page", () => {
   });
 
   it.each([
-    "польова вебпрограма", "оплат", "кеп", "офлайн", "клієнт", "економія", "%",
+    "польова вебпрограма", "кеп", "офлайн", "клієнти", "клієнтів", "економія", "%",
     "тов ", "llc", "грн", "usd", "€", "$",
   ])("does not publish «%s»", (claim) => {
     expect(everything.toLowerCase()).not.toContain(claim.toLowerCase());
+  });
+
+  it("never speaks of payment — but requires free-pilot transmission", () => {
+    expect(everything).toContain("передоплати");
+    expect(everything.match(/(^|[^\p{L}''])оплат/giu)).toBeNull();
   });
 
   it("names no electrical audience, while the example work stays cable trays", () => {

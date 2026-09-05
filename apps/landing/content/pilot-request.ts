@@ -6,10 +6,7 @@ export const PILOT_LIMITS: Record<keyof PilotFields, number> = { name: 120, comp
 
 /** Strip control characters, trim, cap the length. Never throws on a non-string. */
 export function cleanField(value: unknown, max: number): string {
-  return String(value ?? "")
-    .replace(/[\x00-\x1F\x7F]+/g, "")
-    .trim()
-    .slice(0, max);
+  return String(value ?? "").replace(/[ -]/g, "").trim().slice(0, max);
 }
 
 export function validatePilotFields(input: unknown): { ok: true; fields: PilotFields } | { ok: false; error: "required" } {
