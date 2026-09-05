@@ -73,7 +73,7 @@ export function PilotForm() {
       aria-label="Заявка на пілот GoProceed"
       data-form-state={state}
       noValidate
-      className="grid gap-3 rounded-surface border border-line-strong bg-surface p-5 shadow-float md:sticky md:top-24 md:p-7"
+      className="grid gap-3 rounded-surface border border-line-strong bg-surface p-5 shadow-float wide:sticky wide:top-24 md:p-7"
     >
       <AuthorNote />
       <h3 className="text-h3 font-semibold text-ink">{f.title}</h3>
