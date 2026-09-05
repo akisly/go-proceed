@@ -21,6 +21,7 @@
  * as real CSS into the production bundle. */
 @source not "../tests";
 @source not "../.next";
+@source not "../qa";
 
 /* The display face is loaded here and nowhere else. It is marketing-only —
  * never below --text-mkt-display-3, never inside the application shell, never

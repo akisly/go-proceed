@@ -9,7 +9,8 @@
     "build:sites": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext build",
     "start": "next start",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "qa": "node qa/landing.mjs"
   },
   "dependencies": {
     "@fontsource-variable/jetbrains-mono": "5.3.0",
@@ -34,6 +35,7 @@
     "@vitejs/plugin-react": "6.0.2",
     "@vitejs/plugin-rsc": "0.5.26",
     "jsdom": "^30.0.1",
+    "puppeteer": "25.8.0",
     "react-server-dom-webpack": "19.2.8",
     "tailwindcss": "^4.3.3",
     "vinext": "1.0.0-beta.2",

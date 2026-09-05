@@ -196,6 +196,9 @@ importers:
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
+      puppeteer:
+        specifier: 25.8.0
+        version: 25.8.0(yauzl@2.10.0)
       react-server-dom-webpack:
         specifier: 19.2.8
         version: 19.2.8(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(webpack@5.109.2(esbuild@0.28.1)(lightningcss@1.33.0))
