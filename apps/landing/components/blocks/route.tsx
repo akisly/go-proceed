@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Stagger, StaggerItem } from "@goproceed/ui/motion";
+import { Reveal } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import { AccentText } from "./accent-text";
 import { SectionHead } from "./section-head";
@@ -26,11 +26,11 @@ export function Route() {
             ))}
           </p>
         </SectionHead>
-        <Stagger className="grid gap-4">
+        <div className="grid gap-4">
           {r.steps.map((step, i) => {
             const flip = i % 2 === 1;
             return (
-              <StaggerItem key={step.index}>
+              <Reveal key={step.index} y={0}>
                 <article
                   data-route-card={flip ? "flip" : "card"}
                   className="landing-route-card grid overflow-hidden rounded-surface border border-line-strong bg-surface shadow-float wide:min-h-[min(600px,calc(100vh-130px))] wide:grid-cols-2"
@@ -54,10 +54,10 @@ export function Route() {
                     {MEDIA[i]}
                   </div>
                 </article>
-              </StaggerItem>
+              </Reveal>
             );
           })}
-        </Stagger>
+        </div>
       </div>
     </section>
   );
