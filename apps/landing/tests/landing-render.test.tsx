@@ -153,3 +153,17 @@ describe("pilot", () => {
     expect(pilot).not.toContain(landingContent.pilot.form.sent);
   });
 });
+
+describe("faq and cta", () => {
+  it("asks the seven questions in an accordion with the plus marker", () => {
+    const faq = section("faq", "cta-final");
+    expect(faq.match(/data-accordion-marker="plus"/g)).toHaveLength(7);
+    expect(faq).toContain("Скільки коштує пілот і хто відповідає?");
+  });
+  it("closes with the light card, the pilot link and the copy-link button", () => {
+    const cta = section("cta-final");
+    expect(cta).toContain('data-accent="true">на одному пакеті робіт</span>');
+    expect(cta).toContain('href="#pilot"');
+    expect(cta).toContain(landingContent.cta.share);
+  });
+});
