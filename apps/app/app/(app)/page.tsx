@@ -12,7 +12,7 @@ import {
   buildMyAssignmentsScreen, failedProjectMessage, rowSubtitle,
   type ProjectAssignments,
 } from "../../src/lib/field/assignments";
-import { Button } from "../../src/ui/button";
+import { Button } from "@goproceed/ui/components";
 
 /**
  * «Мої доручення» — the screen a foreman lands on the instant he signs in.
@@ -107,17 +107,17 @@ export default async function MyAssignmentsPage() {
   // it would also make this page impossible to get back to.
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col gap-6 px-4 py-8">
-      <h1 className="text-h1 font-display font-semibold text-foreground">Мої доручення</h1>
+      <h1 className="text-h1 font-semibold text-ink">Мої доручення</h1>
       {failedNotice}
       <ul className="flex flex-col gap-3">
         {screen.rows.map((row) => (
           <li key={row.assignmentId}>
             <Link
               href={`/a/${row.assignmentId}`}
-              className="flex flex-col gap-1 rounded-panel border border-border bg-surface p-4 transition-colors hover:bg-surface-muted"
+              className="flex flex-col gap-1 rounded-panel border border-line bg-surface p-4 transition-colors hover:bg-subtle"
             >
-              <span className="text-body font-medium text-foreground">{row.description}</span>
-              <span className="text-data text-foreground-secondary">
+              <span className="text-body font-medium text-ink">{row.description}</span>
+              <span className="text-data text-ink-secondary">
                 {rowSubtitle(row, screen.showProjectName)}
               </span>
             </Link>
@@ -161,8 +161,8 @@ async function loadAssignmentsByProject(projects: ProjectListRow[]): Promise<Pro
 function EmptyState({ message, children }: { message: string; children?: ReactNode }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-6 px-4 py-8">
-      <h1 className="text-h1 font-display font-semibold text-foreground">Мої доручення</h1>
-      <p className="text-body text-foreground-secondary">{message}</p>
+      <h1 className="text-h1 font-semibold text-ink">Мої доручення</h1>
+      <p className="text-body text-ink-secondary">{message}</p>
       {children}
     </main>
   );
@@ -171,8 +171,8 @@ function EmptyState({ message, children }: { message: string; children?: ReactNo
 function ErrorState() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-6 px-4 py-8">
-      <h1 className="text-h1 font-display font-semibold text-foreground">Мої доручення</h1>
-      <p className="text-body text-foreground-secondary">
+      <h1 className="text-h1 font-semibold text-ink">Мої доручення</h1>
+      <p className="text-body text-ink-secondary">
         Не вдалося завантажити ваші доручення. Спробуйте ще раз.
       </p>
       <Button asChild variant="outline" className="self-start">
@@ -195,7 +195,7 @@ function FailedProjectsNotice({ projects }: { projects: ProjectListRow[] }) {
       {projects.map((project) => (
         <li
           key={project.projectId}
-          className="rounded-panel border border-warning bg-warning-surface p-3 text-data text-warning-foreground"
+          className="rounded-panel border border-status-attention-line bg-status-attention p-3 text-data text-status-attention-fg"
         >
           {failedProjectMessage(project)}
         </li>

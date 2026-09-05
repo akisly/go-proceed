@@ -6,12 +6,6 @@ import { listProjects } from "../../src/services/projects.service";
 import { accountInitial, accountLabel, getSessionIdentity } from "../../src/services/session.service";
 import { DashLayout } from "../../src/layouts/dash-layout";
 import { ShellFatalError } from "../../src/components/dash-shell/shell-error";
-// The dashboard runs on @goproceed/ui/base.css, whose --gp-font-sans is Onest
-// since the Daylight tokens (2026-09-05); the face is loaded here, at the
-// dashboard's own layout, so the field-client pages — still on the legacy
-// stylesheet and Inter — do not pay for a second family.
-import "@fontsource-variable/onest";
-import "./dash-theme.css";
 
 /**
  * The office dashboard's route entry — Plan D slice D0, task 2.
@@ -63,6 +57,11 @@ import "./dash-theme.css";
  * the App Router gives a layout no way to hand a value to its page — that
  * call is deduplicated inside the service by React's `cache()`, not by
  * repeating the round trip.
+ *
+ * Since 2026-09-05 the dashboard shares the app's one stylesheet
+ * (`app/globals.css`, on `@goproceed/ui/base.css`); the separate
+ * `dash-theme.css` entry and its heading-font override are gone with the
+ * legacy sheet they existed to undo.
  */
 export default async function DashRouteLayout({ children }: { children: ReactNode }) {
   const meResult = await getMeContext();

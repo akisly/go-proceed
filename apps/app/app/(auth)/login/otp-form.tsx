@@ -7,7 +7,7 @@ import { supabaseBrowser } from "../../../src/lib/supabase-browser";
 import { otpErrorMessage } from "../../../src/lib/otp-error";
 import { safeNext } from "../../../src/lib/safe-next";
 import { SubmitGuard } from "../../../src/lib/submit-guard";
-import { Button } from "../../../src/ui/button";
+import { Button, Input, Label } from "@goproceed/ui/components";
 
 type Phase = "email" | "code";
 
@@ -145,14 +145,12 @@ export function OtpForm({ next }: OtpFormProps) {
   if (phase === "code") {
     return (
       <form onSubmit={verifyCode} className="flex flex-col gap-4" noValidate>
-        <p className="text-body text-foreground-secondary">
-          Код надіслано на <span className="font-medium text-foreground">{email}</span>.
+        <p className="text-body text-ink-secondary">
+          Код надіслано на <span className="font-medium text-ink">{email}</span>.
         </p>
         <div className="flex flex-col gap-1">
-          <label htmlFor="otp-code" className="text-data font-medium text-foreground">
-            Код із листа
-          </label>
-          <input
+          <Label htmlFor="otp-code">Код із листа</Label>
+          <Input
             id="otp-code"
             name="code"
             type="text"
@@ -164,11 +162,10 @@ export function OtpForm({ next }: OtpFormProps) {
             autoFocus
             value={code}
             onChange={(event) => setCode(event.target.value)}
-            className="h-11 rounded-control border border-border bg-surface px-3 text-body text-foreground"
           />
         </div>
         {error ? (
-          <p role="alert" className="text-data text-destructive">
+          <p role="alert" className="text-data text-status-blocked-fg">
             {error}
           </p>
         ) : null}
@@ -194,10 +191,8 @@ export function OtpForm({ next }: OtpFormProps) {
   return (
     <form onSubmit={requestCode} className="flex flex-col gap-4" noValidate>
       <div className="flex flex-col gap-1">
-        <label htmlFor="otp-email" className="text-data font-medium text-foreground">
-          Електронна пошта
-        </label>
-        <input
+        <Label htmlFor="otp-email">Електронна пошта</Label>
+        <Input
           id="otp-email"
           name="email"
           type="email"
@@ -206,11 +201,10 @@ export function OtpForm({ next }: OtpFormProps) {
           autoFocus
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          className="h-11 rounded-control border border-border bg-surface px-3 text-body text-foreground"
         />
       </div>
       {error ? (
-        <p role="alert" className="text-data text-destructive">
+        <p role="alert" className="text-data text-status-blocked-fg">
           {error}
         </p>
       ) : null}

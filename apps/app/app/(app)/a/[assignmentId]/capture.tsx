@@ -8,7 +8,7 @@ import {
 } from "../../../../src/lib/capture/state";
 import { uploadCapture } from "../../../../src/lib/capture/upload";
 import { AttemptGuard } from "../../../../src/lib/capture/attempt";
-import { Button } from "../../../../src/ui/button";
+import { Button } from "@goproceed/ui/components";
 
 /**
  * THE CAPTURE ISLAND — ADR-007 decision 4, obligation 2 of 2, and the
@@ -235,8 +235,8 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
   const inputId = `capture-${occurrenceId}`;
 
   return (
-    <div className="flex flex-col gap-3 rounded-panel border border-border bg-surface p-4">
-      <label htmlFor={inputId} className="text-data font-medium text-foreground">
+    <div className="flex flex-col gap-3 rounded-panel border border-line bg-surface p-4">
+      <label htmlFor={inputId} className="text-data font-medium text-ink">
         {saved ? "Фото збережено" : "Додати фото"}
       </label>
 
@@ -260,10 +260,10 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
           event.target.value = "";
           if (file) void handleFile(file);
         }}
-        className="text-data text-foreground file:mr-3 file:h-11 file:rounded-control file:border file:border-border file:bg-surface file:px-3 file:text-data file:font-medium disabled:opacity-50"
+        className="text-data text-ink file:mr-3 file:h-(--gp-control-height-touch) file:rounded-control file:border file:border-line file:bg-surface file:px-3 file:text-data file:font-medium disabled:opacity-50"
       />
 
-      <p aria-live="polite" className="text-data text-foreground-secondary">
+      <p aria-live="polite" className="text-data text-ink-secondary">
         {CLIENT_STATE_LABEL[state]}
       </p>
 
@@ -299,11 +299,11 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
        * discard control must NOT follow it into `failed`.
        */}
       {serverDoesNotHaveThePhoto(hold) && (
-        <p className="text-data text-destructive">{UNSAVED_PHOTO_WARNING}</p>
+        <p className="text-data text-status-blocked-fg">{UNSAVED_PHOTO_WARNING}</p>
       )}
 
       {message && (
-        <p role="alert" className="text-data text-destructive">
+        <p role="alert" className="text-data text-status-blocked-fg">
           {message}
         </p>
       )}
@@ -316,11 +316,12 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
        *
        * `<Button variant="destructive">`, NOT A HAND-ROLLED `<button>`. This
        * control shipped with its own inline destructive styling, which is
-       * precisely the drift `src/ui/button.tsx` exists to prevent — and its
+       * precisely the drift @goproceed/ui's Button exists to prevent — and its
        * own comment had said no destructive variant was needed because
        * "nothing under /app/** deletes or discards anything", which stopped
        * being true the moment this screen landed. The variant went in; this is
-       * its call site.
+       * @goproceed/ui's Button, whose contract test counts this as the
+       * variant's one call site.
        */}
       {canDiscard && (
         <Button type="button" variant="destructive" size="sm" className="self-start" onClick={handleDiscard}>
@@ -329,7 +330,7 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
       )}
 
       {saved && receipt && (
-        <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-data text-foreground-secondary">
+        <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-data text-ink-secondary">
           {/*
            * ALL THREE CLAIMS ADR-007 DECISION 5 PERMITS, EACH LABELLED, NONE
            * MERGED. The decision names exactly three — the device's own
@@ -346,17 +347,15 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
            * anywhere claims the hash binds the camera's output, only that the
            * bytes the server stored are the bytes this page uploaded.
            */}
-          <dt className="text-foreground-muted">Час пристрою (не перевірено)</dt>
+          <dt className="text-ink-muted">Час пристрою (не перевірено)</dt>
           <dd>{formatClaimed(receipt.claimedCaptureTime)}</dd>
-          <dt className="text-foreground-muted">Підтверджено сервером</dt>
+          <dt className="text-ink-muted">Підтверджено сервером</dt>
           <dd>{formatClaimed(receipt.serverReceivedAt)}</dd>
-          <dt className="text-foreground-muted">Контрольна сума файлу (SHA-256)</dt>
+          <dt className="text-ink-muted">Контрольна сума файлу (SHA-256)</dt>
           {/*
-            * `break-all`, and no `font-mono`: `globals.css` clears the
-            * `--font-*` namespace (`--font-*: initial`) and defines only
-            * `--font-display`/`--font-sans`, so a `font-mono` class here would
-            * generate nothing at all and read as styling that is being applied
-            * when it is not.
+            * `break-all`, and no `font-mono` — the hash is a figure to copy,
+            * not code to read, and the system's mono face is for indices
+            * (`02-building-ui.md` §9).
             */}
           <dd className="break-all">{receipt.contentHash}</dd>
         </dl>

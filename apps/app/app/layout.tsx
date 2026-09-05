@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/inter";
+import "@fontsource-variable/onest";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -61,21 +61,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="uk">
       {/*
-       * `goproceed-app` on <body>, not on a per-screen root element.
-       *
-       * `globals.css`'s `.goproceed-app`-scoped `base` layer is where the
-       * themed focus-visible ring, the `prefers-reduced-motion` override, the
-       * base font-family/size, and the heading/paragraph/border resets all
-       * live — none of that is optional polish for a foreman reading a phone
-       * outdoors. The retired apps/demo applied the class per-page rather than on <body>,
-       * because it also serves public marketing routes that must stay on the
-       * frozen legacy stylesheet; apps/app has no such routes; every screen
-       * here is the field client. Scoping per-screen would only recreate the
-       * chance that a future screen forgets the class and silently ships
-       * with no focus ring — putting it on <body> once removes that failure
-       * mode entirely.
+       * No scope class on <body> since 2026-09-05. The base rules — focus
+       * ring, reduced motion, the face, the resets — come from
+       * `@goproceed/ui/base.css` through `./globals.css`, and they are global
+       * by design: every route in this app is on the one system.
        */}
-      <body className="goproceed-app">{children}</body>
+      <body>{children}</body>
     </html>
   );
 }
