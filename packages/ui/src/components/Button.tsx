@@ -43,6 +43,8 @@ const VARIANT = {
 const SIZE = {
   default: "h-(--gp-control-height-desk) touch:h-(--gp-control-height-touch) px-4 text-data",
   sm: "h-(--gp-control-height-desk-sm) touch:h-(--gp-control-height-touch) px-3 text-meta",
+  /** Marketing controls: the prototype's 42px. The touch floor still wins under pointer:coarse. */
+  lg: "h-(--gp-control-height-marketing) touch:h-(--gp-control-height-touch) px-5 text-data",
   icon: "size-(--gp-control-height-desk) touch:size-(--gp-control-height-touch) p-0",
 } as const;
 

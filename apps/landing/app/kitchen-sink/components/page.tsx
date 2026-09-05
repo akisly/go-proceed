@@ -117,6 +117,7 @@ export default function ComponentSink() {
             <Button variant="link">Всередині речення</Button>
             <Button variant="outline" size="sm">Малий</Button>
             <Button variant="outline" disabled>Вимкнено</Button>
+            <Button size="lg">Маркетинговий</Button>
           </div>
         </Case>
 
@@ -129,6 +130,7 @@ export default function ComponentSink() {
             <Chip tone="idle">Не розпочато</Chip>
             <Chip tone="neutral">v0.1 · пілот</Chip>
             <Chip tone="idle" interactive>Фільтр — це контрол</Chip>
+            <Chip tone="review" dot>на розгляді</Chip>
           </div>
         </Case>
 
@@ -229,6 +231,8 @@ export default function ComponentSink() {
 
         <Case n="09" name="Accordion" rule="Єдиний виняток із заборони анімувати layout: grid-template-rows 0fr→1fr не вимагає вимірювання. Аудит знає про цей виняток поіменно, тож він видимий, а не проліз крізь дірку в регулярці.">
           <Accordion entries={FAQ} className="max-w-2xl" />
+          <p className="index-label mt-8">marker="plus"</p>
+          <Accordion entries={FAQ} marker="plus" className="max-w-2xl" />
         </Case>
 
         <Case n="10" name="Tooltip + Separator" rule="Тултип заслуговує місце рівно в одній ситуації — іконкова рейка 768–1240px. Порталований контент несе font-sans сам, бо портал виходить із базового шару. Separator через Radix, щоб decorative було рішенням, а не випадковістю.">
