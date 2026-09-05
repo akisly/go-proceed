@@ -271,3 +271,22 @@ for Task 6 to triage from this run. The two Task 4 regression findings (the obli
 `ls apps/app/qa-output/screenshots/daylight | wc -l` → **76** (the expected count; `dash-sign-out-390.png`
 is present — the drawer fix let that width's profile control be found).
 `pgrep -fl "next start"` after the run: empty.
+
+## Task 6 — the visual pass (2026-09-05, captures at b9def69)
+
+**Reviewed by the controller** against `DESIGN.md` Do/Don't, `docs/design/02-building-ui.md` §6 and §9, and the rewrite plan §10. The captures are `apps/app/qa-output/screenshots/daylight/` at commit b9def69 (76 files: 9 routes × 6 widths, 9 × 2 reduced-motion, the sign-out confirm at 1440/390, the OTP code step at 1440/390); the «before» set is `apps/app/qa-output-before/` from the round-2 baseline (673f9b3). Read in the plan's order: the sign-out confirm and the OTP code step first, then the dash shell, register and money screen, the creation and evidence screens, the three field screens against their before-captures, and the reduced-motion passes — 28 captures opened, the rest covered by the audit's assertions (overflow, touch floor, UA links, the signal budget, status-with-text, the face).
+
+**Machine assertions:** `pnpm --filter @goproceed/app qa` → `QA passed: 9 of 9 expected audits ran … zero findings` (tail pasted under «Task 5 — fix round 1»).
+
+| # | Route @ width | Defect | Rule | Fix | Disposition |
+|---|---|---|---|---|---|
+| 1 | `/a/{id}` @375, @390 | the back link «← Мої доручення» rendered 103×20 and was reported as UA-styled: the shared Button's `link` variant had no touch floor and emitted no `data-slot` | «never below 44px on touch» (system.md §5, Button.tsx) | `touch:min-h-(--gp-control-height-touch)` on `link`; `data-slot="button"` on both render paths | fixed here (177dcbe) |
+| 2 | every authenticated route, every width | 118 findings from the new audit — the probe read `--gp-action-signal` (the variable is `--gp-action-signal-bg`), treated 768 as touch, and looked for the profile control outside the drawer at 390 | the audit's own defects, not the app's | the audit corrected | fixed here (b9def69) |
+| 3 | `apps/app/app/globals.css` header; four comments in `src/components/**`; `qa/field.mjs:1175` | the header does not name four legacy rules and their disposition (`svg{flex-shrink:0}`, the `border-color` default, `table{border-spacing:0}`, `h1–h3{letter-spacing}`); four comments describe the legacy stylesheet in the present tense | documentation accuracy (Task 4 review, Low ×2) | one sentence in the header; the comments repointed; `/dash-theme/` added to the retired list | fixed here (Task 6 fix commit) |
+| 4 | `/dash/**` rail, every width | the four nav items read as disabled grey with no active marker | rewrite plan §10.1 (active item `text.primary` + 3px signal bar) | none here: the items are deliberate `disabled` placeholders until slices D1–D4 (`sidebar.tsx`, «all four become real links in D1–D4»); identical in the before-capture | TODOS |
+| 5 | `/dash/projects/{id}/assignments` @390, @360 | the register is a horizontally scrolling table inside the panel, not the `< md` card rendering | rewrite plan §10.2 / system.md §5 «three renderings» | none here: structural, pre-existing, not palette-caused | TODOS |
+| 6 | `/` («Мої доручення») @390 | the row subtitle renders a bare «м» for a work item with no quantity | copy/data, present in the before-capture | none here | TODOS |
+
+**What reads right:** warm paper canvas and white panels with `line` rules; ink primary buttons («Вийти», «Нове доручення», «Відправити на перевірку») and exactly one cobalt signal per screen (the OTP submit); Onest on every heading and body, `tabular` figures on the money screen with `MoneySummary` the only 32px figure; the focus ring in cobalt on the OTP input and the dialog's «Скасувати»; the drawer over the canvas with `shadow-modal` and static under reduced motion; the field screens byte-identical in copy and layout to their before-captures with the palette and face swapped — the obligation card, the requirement box on `subtle`, the «Не надіслано» state, the disclaimer under a `line` rule. The dash captures are identical before and after: it was already on the roles.
+
+**Not looked at (out of scope by spec §8):** `apps/mobile`; the external plane's own screens (its `app/external/**` files carry no legacy name — measured in Task 2's scan).
