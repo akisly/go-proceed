@@ -62,3 +62,56 @@ deterministic baseline defect in the pre-migration app against local Supabase at
 not a flake. This migration must not make it worse; it is not this task's job to fix it.
 
 Captures kept in `apps/app/qa-output-before/` (git-ignored): 11 screenshots.
+
+### Baseline, round 2 (2026-09-05, HEAD fc58acf) — after the environment fix
+
+The round-1 red run traced to `apps/app/.env.local` being absent in this worktree: `next start`
+never reads `.env.example`, so `APP_DB_URL`/`SERVICE_DB_URL` were unset, `packages/database`'s
+`getPool()` threw `APP_DB_URL is not set` inside every write route, and `POST /v1/workspaces`
+answered `500 INTERNAL_ERROR` — see `task-1-diagnosis.md` for the full elimination (schema at
+0083, both DB roles present, the identical `POST /v1/workspaces` call returning `201` once those
+two vars were supplied by hand). The controller has since created `apps/app/.env.local`
+(git-ignored) carrying the two local dev URLs, which fixed that route. Docker and the local
+Supabase stack were already up (core containers — db, studio, pg_meta, storage, rest, realtime,
+inbucket, auth, kong, vector, analytics — all healthy; only `imgproxy`/`edge_runtime`/`pooler` are
+stopped, which nothing here touches) and DB is still at migration 0083.
+
+Re-running `pnpm --filter @goproceed/app build` and `qa` with only that fix applied reproduced a
+**second, independent** environment gap: the harness's `sign-in` audit crashed with the same
+`Waiting for selector #otp-code failed` timeout as round 1, even though `seedWorld` now succeeded
+(real UUIDs in every URL, not `undefined`) — proof this second failure is not a consequence of the
+round-1 defect, just a coincidentally identical symptom. Cause: `NEXT_PUBLIC_SUPABASE_URL` and
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` are inlined into the client bundle at `next build` time, and
+`qa/field.mjs`'s `startNextServer()` only ever sets them (along with `NEXT_PUBLIC_APP_ORIGIN` and
+the `EXTERNAL_LINK_*`/`EXTERNAL_SESSION_*` keys) for the **spawned `next start`** — never for the
+separate `build` step, which is why `task-1-diagnosis.md` already flagged those two as
+harness-provided only at run time. Neither var was exported in this shell, so the build left
+`src/lib/supabase-browser.ts`'s `createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, …)`
+unresolved; confirmed by grepping the built chunk for the literal env-var name instead of a URL.
+In the browser this means `supabaseBrowser()` is constructed with `undefined` and
+`signInWithOtp()` throws synchronously inside `otp-form.tsx`'s `requestCode` (a bare `try/finally`,
+no `catch`), so the form's phase never advances past the email screen and `#otp-code` never
+appears — exactly the observed timeout. `.github/workflows/ci.yml`'s `app-qa` job already documents
+this: it sets `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and
+`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_ACJWlzQHlZjBrEguHvfOxg_3BJgxAaH` (the same
+value `supabase status` issues locally) as job-level env specifically because "this job's build
+MUST use the real local publishable key: qa/field.mjs signs a real user in through the browser".
+Remedy: export those same two variables in the shell before `pnpm --filter @goproceed/app build`,
+matching CI. No app file, no `qa/field.mjs`, no migration, and no RLS/grant change was touched —
+this is a build-environment gap identical in kind to the `.env.local` one, not a second app defect.
+
+Harness tail, verbatim, from the run kept as this round's baseline (rebuilt with
+`NEXT_PUBLIC_SUPABASE_URL`/`NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` exported):
+
+```
+QA passed: 8 of 8 expected audits ran (unauthenticated surface, sign-in, my assignments list, obligation screen, capture in-flight banner, evidence, the review link, and the external plane, assignment creation, dashboard profile and sign-out), zero findings. See qa-output/qa-report.json for the full report and qa-output/screenshots/ for evidence.
+```
+
+Captures kept in `apps/app/qa-output-before/` (git-ignored, overwritten from round 1): **42**
+screenshots.
+
+The tree moved since round 1 (commits `fbe1ced`, `5e4198c`, `fc58acf`), but only inside
+`packages/testing`, `packages/ui`'s `Button` (a new `destructive` variant), and the landing's
+kitchen sink — none of which changes what the field client or the office dashboard renders (the
+field client still imports its own private `Button`), so this remains a valid "before" capture of
+`apps/app` on Daylight.
