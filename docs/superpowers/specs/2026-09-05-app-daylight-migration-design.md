@@ -25,7 +25,7 @@ The rewrite plan's phase P4 («retokenise the shell, then the register, then the
 
 ## 2. Facts the design rests on (measured 2026-09-05, commit efc2cdb)
 
-- F1. The field client is five files: `app/(app)/page.tsx` (205 lines), `app/(app)/a/[assignmentId]/page.tsx` (248), `app/(app)/a/[assignmentId]/capture.tsx` (366), `app/(auth)/login/page.tsx` (32), `app/(auth)/login/otp-form.tsx` (222) — plus `src/ui/button.tsx` (106) and `src/ui/cn.ts` (43). Together they use **seventeen** colour/typography utilities, all from the legacy `@theme` (§3.2 lists them).
+- F1. The field client is five files: `app/(app)/page.tsx` (205 lines), `app/(app)/a/[assignmentId]/page.tsx` (248), `app/(app)/a/[assignmentId]/capture.tsx` (366), `app/(auth)/login/page.tsx` (32), `app/(auth)/login/otp-form.tsx` (222) — plus `src/ui/button.tsx` (106) and `src/ui/cn.ts` (43). Together they use **seventeen** colour/typography utilities, all from the legacy `@theme` (§4.1 maps them).
 - F2. Nothing outside `src/ui/button.tsx` references a legacy-only token (`bg-carbon*`, `bg-accent*`, `text-accent-ink`, `ease-out-strong`, `rail-hover/line`, `readiness-*`, `evidence-*`, `info-*`, `success-*`, `shadow-drawer/raised`, `animate-chip-in`, `--spacing-strip`). The dashboard's `rail-width`/`rail-icons` come from `packages/ui`'s generated theme, not from `globals.css`.
 - F3. `class-variance-authority`, `@radix-ui/react-slot`, `clsx` and `tailwind-merge` have no importer in `apps/app` outside `src/ui/`. `@fontsource-variable/inter` has exactly one (`app/layout.tsx`).
 - F4. Tailwind v4 Preflight (imported by `@goproceed/ui/base.css`) already provides everything `globals.css`'s `.goproceed-app` base layer re-implements: `box-sizing: border-box`, zero margins and padding, `a { color: inherit; text-decoration: inherit }`, `button/input/select/textarea { font: inherit }`, `ol,ul { list-style: none }`, `table { border-collapse: collapse }`, `svg { display: block }`. `base.css` itself carries the focus ring, the reduced-motion block, `body` colour/family/features, and tabular figures on `th, td, output, time, data`.
@@ -52,7 +52,7 @@ Same path (no import changes, history stays attached), new content, about forty 
 @source not "../qa";
 @source not "../.next";
 
-/* The one rule base.css does not carry: doc 05's figure attributes. */
+/* The one rule base.css does not carry: the product's figure hooks. */
 @layer base {
   [data-money], [data-numeric] { font-variant-numeric: tabular-nums; }
 }
