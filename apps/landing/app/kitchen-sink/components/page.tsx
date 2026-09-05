@@ -26,6 +26,7 @@ import {
   DialogHeader, DialogTitle, DialogTrigger,
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
+  FeatureGrid, FeatureCell,
   Pill, PillContent, SectionRule,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
@@ -408,6 +409,16 @@ export default function ComponentSink() {
 
         <Case n="19" name="SectionRule" rule="Нумерована лінія між розділами: волосяна лінія та моно-підпис на тлі паперу. Декоративна, aria-hidden — заголовок розділу несе секція, що йде далі.">
           <div className="py-6"><SectionRule index="01" label="Проблема" /></div>
+        </Case>
+
+        <Case n="20" name="FeatureGrid + FeatureCell" rule="21st.dev Grid Feature Cards: один контейнер, комірки через 1px-зазор кольору лінії, під курсором проявляється точкова підкладка. Нахилу немає — це не 3D, а світло.">
+          <FeatureGrid columns={4}>
+            {[["ПТВ", "виробничо-технічний відділ"], ["Майстер", "дільниці"], ["Власник", "комерційний директор"], ["Технагляд", "зовнішній розгляд"]].map(([t, s]) => (
+              <FeatureCell key={t} title={t!} subtitle={s} footer={<span>→ доказ знаходиться по роботі</span>}>
+                Дні на пошук фото по чатах, переписування у Word.
+              </FeatureCell>
+            ))}
+          </FeatureGrid>
         </Case>
 
         <div className="border-t border-line py-14">

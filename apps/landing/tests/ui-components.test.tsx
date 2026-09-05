@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Accordion, Button, Chip, Pill, PillContent, SectionRule } from "@goproceed/ui/components";
+import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule } from "@goproceed/ui/components";
 
 describe("Button size=\"lg\"", () => {
   it("takes its height from the marketing control token", () => {
@@ -51,5 +51,21 @@ describe("SectionRule", () => {
     expect(html).toContain('data-section-rule="01"');
     expect(html).toContain("01 · Проблема");
     expect(html).toContain("index-label");
+  });
+});
+
+describe("FeatureGrid", () => {
+  it("renders four cells in one bordered container with a spotlight layer each", () => {
+    const html = renderToStaticMarkup(
+      <FeatureGrid columns={4}>
+        {["ПТВ", "Майстер", "Власник", "Технагляд"].map((t) => (
+          <FeatureCell key={t} title={t} subtitle="роль">біль</FeatureCell>
+        ))}
+      </FeatureGrid>,
+    );
+    expect(html.match(/data-slot="feature-cell"/g)).toHaveLength(4);
+    expect(html.match(/data-spotlight="true"/g)).toHaveLength(4);
+    expect(html).toContain("md:grid-cols-2");
+    expect(html).toContain("wide:grid-cols-4");
   });
 });

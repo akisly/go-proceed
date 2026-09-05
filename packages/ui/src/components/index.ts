@@ -67,6 +67,7 @@ export { Meter, type MeterSegment } from "./Meter";
 export { Figure } from "./Figure";
 export { Pill, PillContent } from "./Pill";
 export { SectionRule } from "./SectionRule";
+export { FeatureGrid, FeatureCell } from "./FeatureGrid";
 export {
   Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption,
 } from "./Table";

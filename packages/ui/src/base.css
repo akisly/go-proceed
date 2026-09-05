@@ -199,6 +199,19 @@
   animation: gp-beam 7s linear 2;
 }
 
+/* The dot-pattern spotlight under a feature cell's pointer. Two custom
+ * properties the cell writes on pointer move; the mask is what makes it a
+ * spotlight rather than a second background. */
+@utility spotlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(var(--gp-border-strong) 1px, transparent 1.2px);
+  background-size: 14px 14px;
+  -webkit-mask-image: radial-gradient(240px circle at var(--gp-spot-x, 50%) var(--gp-spot-y, 50%), #000, transparent 70%);
+  mask-image: radial-gradient(240px circle at var(--gp-spot-x, 50%) var(--gp-spot-y, 50%), #000, transparent 70%);
+}
+
 /* Duration utilities are named rather than numeric. `duration-150` would
  * compile perfectly and mean nothing; `duration-fast` is the 160ms that the
  * whole system's hover and press feedback shares, and changing it changes it
