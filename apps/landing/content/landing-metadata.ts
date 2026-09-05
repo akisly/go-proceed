@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 
-const title = "GoProceed | Від вимоги до доказу й акта";
+const title = "GoProceed — робота готова до приймання, коли доказ на місці";
 const description =
-  "GoProceed пов’язує вимоги, польові докази, рішення технічного нагляду та чернетки актів для будівельних робіт.";
+  "GoProceed для підрядників, які здають приховані роботи: вимога, доказ із майданчика і рішення технагляду в одному маршруті, який закінчується чернеткою акта.";
 
 export function createLandingMetadata(origin: string): Metadata {
   return {
@@ -20,7 +20,7 @@ export function createLandingMetadata(origin: string): Metadata {
           url: "/og.png",
           width: 1200,
           height: 630,
-          alt: "GoProceed: від вимоги до доказу й акта",
+          alt: "GoProceed: робота готова до приймання, коли доказ на місці",
         },
       ],
     },

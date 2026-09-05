@@ -5,8 +5,10 @@ const metadata = createLandingMetadata("https://goproceed.example");
 
 describe("landing metadata", () => {
   it("describes the evidence product without unsupported commercial claims", () => {
-    expect(metadata.title).toBe("GoProceed | Від вимоги до доказу й акта");
-    expect(metadata.description).toContain("будівельних робіт");
+    expect(metadata.title).toBe("GoProceed — робота готова до приймання, коли доказ на місці");
+    expect(metadata.description).toContain(
+      "GoProceed для підрядників, які здають приховані роботи: вимога, доказ із майданчика і рішення технагляду в одному маршруті, який закінчується чернеткою акта.",
+    );
     expect(metadata.description?.toLowerCase()).not.toContain("оплат");
   });
 
@@ -17,7 +19,7 @@ describe("landing metadata", () => {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "GoProceed: від вимоги до доказу й акта",
+        alt: "GoProceed: робота готова до приймання, коли доказ на місці",
       },
     ]);
   });
