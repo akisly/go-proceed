@@ -9,7 +9,7 @@ export function NavFloat() {
         className="mx-auto flex h-16 max-w-content items-center gap-6"
       >
         <a href="#product" className="flex min-h-11 items-center gap-2 rounded-pill text-ink">
-          <BrandMark className="size-8 shrink-0" priority />
+          <BrandMark className="size-8 shrink-0" />
           <span className="text-h3 font-semibold tracking-tight landing-marker-accent">
             GoProceed
           </span>
