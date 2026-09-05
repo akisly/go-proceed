@@ -14,10 +14,71 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Fifteen pieces of work. Each is below, under its own
+Sixteen pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with:
 as of 0a.14 the origin EXISTS and is public, and what the warning still guards
 is the §6 evidence and custom SMTP.
+
+---
+
+### 0a.16 — apps/app on Daylight: the field client left its legacy stylesheet, the dashboard had its visual pass
+
+**What shipped.** `apps/app` now has one Tailwind entry point:
+`apps/app/app/globals.css` (60 lines) on `@import "@goproceed/ui/base.css";`.
+Deleted: `app/dash/dash-theme.css` (the second entry file that pinned
+`--font-display` back for `/dash/**`), `src/ui/button.tsx` and `src/ui/cn.ts`
+(the field client's own Button and `cn` helper). Five dependencies left
+`apps/app`'s `package.json`: `@fontsource-variable/inter`,
+`@radix-ui/react-slot`, `class-variance-authority`, `clsx`, `tailwind-merge`.
+The five field-client files (`app/(app)/page.tsx`,
+`app/(app)/a/[assignmentId]/page.tsx` and `capture.tsx`,
+`app/(auth)/login/page.tsx` and `otp-form.tsx`) now read the role vocabulary
+(spec §4.1) and the shared `Button`/`Input`/`Label`. `packages/ui`'s `Button`
+gained a `destructive` variant (outlined, one counted call site —
+«Скасувати фото» in `capture.tsx`) and its `link` variant now carries the
+44px touch floor and `data-slot="button"` on both render paths (it had
+neither, and `field.mjs`'s UA-styling check could not see it as a button).
+Two contrast pairs joined `packages/testing/src/contrast.test.ts` for the new
+variant (label at rest, label on hover), and
+`packages/testing/src/app-entry.test.ts` (4 tests) is the gate that keeps
+`apps/app` at one stylesheet and blocks every retired token name and
+package import from coming back.
+
+**What the owner decided** (spec `2026-09-05-app-daylight-migration-design.md`
+§2). D1 — scope is the two Daylight P2s, without `apps/mobile`; the mobile
+pass belongs to the future proper Expo application. D2 — one entry point:
+`globals.css` rewritten in place, the two legacy files deleted, the five
+field-client files moved to the roles — not the alias-in-place alternative,
+which would have kept two entry points and two Buttons for good. D3 — a
+`destructive` Button variant added to `packages/ui` rather than kept private
+to the field client, since it already had an irreversible action needing one.
+D4 — Onest on the field client too, for the same reason Onest was picked for
+the rest of the system: one variable font on a foreman's connection.
+
+**What the pass found and fixed** (`docs/superpowers/plans/evidence/2026-09-05-app-daylight-gate.md`,
+«Task 6 — the visual pass»). The audit: 9 routes × 6 widths + 2 reduced-motion
+passes, 76 captures, `pnpm --filter @goproceed/app qa` → `QA passed: 9 of 9`.
+The controller's review found six items, three fixed on this branch: the
+`link` Button's missing touch floor (`/a/{id}` back link measured 103×20),
+118 findings that were the audit's own three defects (a wrong CSS variable
+name, 768 misread as touch, the profile control missed at 390's drawer), and
+the stylesheet header/four comments not naming their retired rules or
+disposition. Three went to `TODOS.md` because none is palette-caused: the
+`/dash/**` rail's four nav items are deliberate `disabled` placeholders until
+slices D1–D4, the assignments register renders a scrolling table rather than
+the `< md` card layout at narrow widths, and one work item's subtitle shows
+a bare «м» with no quantity — all three present in the before-captures.
+
+**What is open.** The `apps/mobile` half of the Daylight visual-pass P2 (its
+icons and `app.json` colours moved with PR #71; its screens have not been
+looked at — owner decision: in the Expo application's own scope, not before).
+The three Task 6 findings above, now in `TODOS.md` under «Opened by the
+Daylight landing (2026-09-05)» → «From the daylight visual pass
+(2026-09-05)». One thing the next session needs to know: the QA harness
+needs `apps/app/.env.local` with `APP_DB_URL`/`SERVICE_DB_URL` and both
+`NEXT_PUBLIC_SUPABASE_*` values at *build* time — CI exports them, a fresh
+worktree does not, and the QA run fails in a way that does not obviously
+point back to the missing env file.
 
 ---
 

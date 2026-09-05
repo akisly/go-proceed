@@ -1,5 +1,25 @@
 # GoProceed internal dashboard — design system
 
+> **Superseded, 2026-09-05.** The system this file describes — Evidence Atlas
+> paper/carbon/lime, Inter, the dark rail, the hand-rolled `@theme` in
+> `apps/app/app/globals.css` — no longer exists in the tree. The design system
+> is `DESIGN.md` (the Daylight finish) and `docs/design/02-building-ui.md`
+> (the procedure and the gate); the tokens are `packages/tokens/src/tokens.json`,
+> read through `docs/design/01-tokens.md`. This file stays for its **rulings
+> that survived the palette** and are enforced elsewhere:
+>
+> - Button sizes carry two numbers and the small one is never below 44px on
+>   touch (§5 «Button» — now `packages/ui/src/components/Button.tsx`, the
+>   `touch` variant, `component-contract.test.ts`).
+> - WorkRegister's three renderings are three hierarchies, not one DOM with
+>   CSS (§5 «WorkRegister» — `apps/app/src/components/assignments/*`).
+> - Tooltip is mounted only in the icon-rail band, and the label stays in the
+>   DOM at every width (§5 «Tooltip»).
+> - Density is decided once, in the base layer, and the default is prose
+>   (§3 «Density» — `base.css`'s `body`).
+>
+> Every value below is historical. Do not use a number from this file.
+
 Source of truth for every rewritten `/app/**` route. Values here are decided,
 not suggested: if this file names a number, use that number.
 

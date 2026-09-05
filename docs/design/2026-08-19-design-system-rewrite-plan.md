@@ -635,7 +635,9 @@ guardrail.
 The 240 / 68 / drawer geometry is unchanged. Under D2 the rail becomes
 `bg.canvas` with `border.default` on its right edge, `text.secondary` labels,
 `text.primary` on the active item, and the same **3px `bg.signal` active bar,
-absolutely positioned**. The `rail-*` token family collapses into the standard
+absolutely positioned**. *[Shipped: `apps/app/src/components/dash-shell/sidebar.tsx`
+is `bg-canvas` with the signal bar; measured in the 2026-09-05 visual pass.]*
+The `rail-*` token family collapses into the standard
 neutral scale — five tokens deleted, not renamed.
 
 Consequence to accept openly: `elevation.modal` on the off-canvas drawer now
@@ -716,7 +718,7 @@ fixtures as production CSS. Measure the rendered element, not the declaration.
 | **P2a — motion** ✅ | Done 2026-08-19. Twelve primitives on `motion` v12, the motion audit, the token bridge and its contract test, `/kitchen-sink` rendering every primitive with its rule. **113 tests green.** Typecheck clean under `strict` + `noUncheckedIndexedAccess` + `exactOptionalPropertyTypes`. | Done. Outstanding: `pnpm install` for `motion`, and the six-viewport QA pass, which needs the app running. |
 | **P2b — components** ✅ | Done 2026-08-19. Fifteen components, one dependency (`radix-ui`), the generated tailwind-merge config, and `/kitchen-sink/components` rendering each next to the ruling it carries. **135 tests green.** The motion audit gained rule 2b — Tailwind's `transition-[…]` arbitrary utility, which rule 2 could not see and which an accordion drove straight through. | Done except the six-viewport QA pass, which needs the app running. |
 | **P3 — landing** | Build B01–B14 in `apps/landing`. Retire the frozen public routes one at a time (D5), each with the computed-property equivalence proof. | Landing ships at all six viewports; Lighthouse ≥95 on performance and accessibility; the 156 KB sheet is gone. |
-| **P4 — app** | Retokenise the shell (D2), then the register, then the dashboard. One PR per surface with before/after chrome measurements. | Rows-in-fold at 1440×900 is **not worse** than today's 14 on `/app/work`. Every §5 ruling still holds. |
+| **P4 — app** | Retokenise the shell (D2), then the register, then the dashboard. *[2026-09-05: the shell and dashboard were built on the roles from the start (Plan D); the field client, which this row did not foresee as separate, migrated on 2026-09-05 — spec `2026-09-05-app-daylight-migration-design.md`. Rows-in-fold and the shell measurements are in that spec's evidence file.]* | Rows-in-fold at 1440×900 is **not worse** than today's 14 on `/app/work`. Every §5 ruling still holds. |
 | **P5 — mobile** | RN token parity from the same source; the four elevations reach `boxShadow`. | `apps/mobile` token proof screen matches web values. |
 | **P6 — freeze** | `docs/design/*` becomes source of truth; `.interface-design/system.md` reduced to a pointer + its surviving rulings (D7). | `validate-canonical-docs.mjs` passes; no document names a token the source does not define. |
 
