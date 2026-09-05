@@ -13,17 +13,45 @@ import { useReduced } from "./use-reduced";
  * permitted scroll-linked elements (`02-building-ui.md` §4.3 rule 9; the
  * other is `ScrollTint`). A page may not use both in one fold.
  *
- * Three states the caller can rely on:
- *   - full motion: perspective, tilt, flattens over `["start end", "start 35%"]`
- *     of the wrapper's entry — the prototype's measured range;
- *   - below the `md` breakpoint (a media query, read once): flat, no
- *     perspective — a tilted frame on a phone shows a sliver of product;
- *   - reduced motion: flat from the first paint, and `data-settled="true"` at
- *     once, so anything keyed to the settle (the beam) knows not to wait.
+ * ONE DOM SHAPE, ALWAYS. Earlier this component returned a different element
+ * tree for the reduced/narrow branch than for the animated one, which meant
+ * the tree Motion's conservative pre-hydration `useReduced()` picked on the
+ * server did not match the tree an ordinary full-motion visitor got on their
+ * first client render — React remounted the subtree the instant hydration
+ * settled, and `data-settled` visibly flipped `"true"` → `"false"` before
+ * animating back to `"true"`. There is now exactly one returned shape —
+ * `<div data-settled><motion.div>{children}</motion.div></div>` — and every
+ * hook (`useScroll`, `useTransform`, `useMotionValueEvent`) runs
+ * unconditionally on every render.
  *
- * `data-settled` flips to "true" the first time progress reaches 1 and never
- * flips back: the beam utility (`base.css`) keys its two passes off it, and a
- * reader scrolling up should not restart an entrance.
+ * `data-settled` CONTRACT:
+ *   - `"false"` on the server render and on the very first client paint —
+ *     always, regardless of the visitor's actual preference or viewport.
+ *   - becomes `"true"` the first time any of the following holds:
+ *       (a) the RESOLVED OS `prefers-reduced-motion: reduce` preference —
+ *           read by this component's own `matchMedia` effect
+ *           (`useResolvedReduce`), not through `useReduced()`'s conservative
+ *           `!hydrated || preference !== false` default, which is `true`
+ *           before hydration for every visitor and would make `data-settled`
+ *           lie about visitors who did not ask for reduced motion;
+ *       (b) the viewport is narrow (`useNarrow()`, unchanged from before —
+ *           a live media-query read below the `md` breakpoint);
+ *       (c) scroll progress into the wrapper reached 1 (the existing
+ *           `useMotionValueEvent` watch on `scrollYProgress`).
+ *   - the scroll-landed component of this (c) is a `useState` that is only
+ *     ever set to `true`, never back to `false` — a reader scrolling back up
+ *     must not restart the entrance. (a) and (b) are live, derived flags
+ *     rather than latched state, folded in with `||` at render time.
+ *
+ * The TRANSFORM is a separate decision from `data-settled`, and deliberately
+ * uses `useReduced()` (not the resolved-preference effect above) because
+ * conservative-until-hydrated is the right call for what actually renders:
+ * animating for a visitor who asked for no motion, even for one frame, is
+ * the flash the preference exists to prevent. When `useReduced()` or
+ * `useNarrow()` is true the `motion.div` gets the constant flat pose
+ * (`rotateX: 0, scale: 1`); otherwise it gets the two `useTransform`
+ * MotionValues driven by scroll. Motion v12 supports switching a style
+ * value between a plain number and a MotionValue on the same element.
  */
 export function ScrollSettle({
   children, className,
@@ -31,33 +59,60 @@ export function ScrollSettle({
   children: ReactNode;
   className?: string | undefined;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
   const reduced = useReduced();
   const narrow = useNarrow();
-  if (reduced || narrow) {
-    return (
-      <div className={className} data-settled="true">
-        {children}
-      </div>
-    );
-  }
-  return <AnimatedSettle className={className}>{children}</AnimatedSettle>;
-}
+  const resolvedReduce = useResolvedReduce();
+  const [landed, setLanded] = useState(false);
 
-function AnimatedSettle({ children, className }: { children: ReactNode; className?: string | undefined }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [settled, setSettled] = useState(false);
   const { scrollYProgress } = useScroll({ target: ref, offset: ["start end", "start 0.35"] });
   const rotateX = useTransform(scrollYProgress, [0, 1], [18, 0]);
   const scale = useTransform(scrollYProgress, [0, 1], [0.94, 1]);
-  useMotionValueEvent(scrollYProgress, "change", (v) => { if (v >= 1) setSettled(true); });
+  useMotionValueEvent(scrollYProgress, "change", (v) => {
+    if (v >= 1) setLanded(true);
+  });
+
+  const settled = landed || narrow || resolvedReduce === true;
+  const flat = reduced || narrow;
 
   return (
-    <div ref={ref} className={className} data-settled={settled ? "true" : "false"} style={{ perspective: 1500 }}>
-      <motion.div style={{ rotateX, scale, transformOrigin: "50% 0%", transformStyle: "preserve-3d" }}>
+    <div
+      ref={ref}
+      className={className}
+      data-settled={settled ? "true" : "false"}
+      style={{ perspective: 1500 }}
+    >
+      <motion.div
+        style={{
+          rotateX: flat ? 0 : rotateX,
+          scale: flat ? 1 : scale,
+          transformOrigin: "50% 0%",
+          transformStyle: "preserve-3d",
+        }}
+      >
         {children}
       </motion.div>
     </div>
   );
+}
+
+/**
+ * The RESOLVED `prefers-reduced-motion: reduce` preference, read directly —
+ * not through `useReduced()`, whose pre-hydration default (`true`) exists to
+ * pick the same branch the server picked, not to answer "does this visitor
+ * actually prefer reduced motion". `null` until the effect runs (server and
+ * first client paint), then the real answer, live-updated on `change`.
+ */
+function useResolvedReduce(): boolean | null {
+  const [resolved, setResolved] = useState<boolean | null>(null);
+  useEffect(() => {
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setResolved(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return resolved;
 }
 
 /** True below the `md` breakpoint. Read from the token so the number is typed nowhere here. */
