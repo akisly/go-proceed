@@ -88,3 +88,51 @@ pnpm --filter @goproceed/app exec vitest run --exclude "**/*.int.test.ts"
  Test Files  57 passed | 1 skipped (58)
       Tests  524 passed | 1 skipped (525)
 ```
+
+## Plan 2 — components (2026-09-05, HEAD b565641)
+
+### Command 1: `pnpm --filter @goproceed/tokens generate`
+
+```
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/ui/src/tokens.generated.css
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/ui/src/theme.generated.css
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/tokens/src/tokens.generated.ts
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/tokens/src/tokens.dtcg.json
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/testing/qa/palette.generated.mjs — 59 approved triplets
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/docs/design/01-tokens.md
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/ui/src/tw-merge.generated.ts
+```
+
+### Command 2: `node packages/testing/qa/motion-audit.mjs`
+
+```
+motion-audit: clean
+```
+
+### Command 3: `pnpm --filter @goproceed/testing exec vitest run src/token-fidelity.test.ts src/motion-audit.test.ts src/primitive-leak.test.ts src/component-contract.test.ts src/error-catalog-fidelity.test.ts src/tw-merge.test.ts src/copy-catalog-fidelity.test.ts src/contrast.test.ts src/motion-contract.test.ts src/palette-derivation.test.ts src/status-label-fidelity.test.ts`
+
+```
+Test Files  11 passed (11)
+Tests  155 passed (155)
+```
+
+### Command 4: `pnpm turbo run typecheck`
+
+```
+Tasks:    10 successful, 10 total
+```
+
+### Command 5: `pnpm --filter @goproceed/landing build`
+
+```
+✓ Compiled successfully in 854ms
+```
+
+### Command 6: `pnpm --filter @goproceed/landing test`
+
+```
+Test Files  10 passed (10)
+Tests  62 passed (62)
+```
+
+Sink visual pass: done by the controller in the Browser pane (see the ledger).
