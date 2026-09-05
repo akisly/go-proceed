@@ -423,3 +423,7 @@ apple-icon.png               after   pixel(0,0) = [255,255,255,255]
 Android displays the central 72dp of 108 (hard crop at 0.333) and guarantees
 the 66dp safe circle (0.306). 0.399 was past both. The maskable icon stays at
 78 %, which is right for the PWA's 80 % safe area.
+
+### Fold captures (for the PR)
+
+`2026-09-05-landing-daylight-1440-fold.png` and `2026-09-05-landing-daylight-390-fold.png` beside this file are the first viewport frames of the final QA run (commit 0c0a885), the 1440 and 390 passes with full motion.
