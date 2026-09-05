@@ -112,6 +112,8 @@ describe("ComparePair", () => {
     expect(html).toContain('data-compare-tone="now"');
     expect(html).toContain("EV-0248 · 14:32");
     expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain("bg-sunken");
+    expect(html).not.toContain("bg-muted");
   });
 });
 

@@ -136,3 +136,17 @@ Tests  62 passed (62)
 ```
 
 Sink visual pass: done by the controller in the Browser pane (see the ledger).
+
+**After the Task 11 fix (commit 7b69da8):**
+
+Landing test suite: `pnpm --filter @goproceed/landing exec vitest run tests/ui-components.test.tsx` → Test Files 1 passed (1), Tests 11 passed (11).
+
+Testing suite: `pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts` → Test Files 1 passed (1), Tests 19 passed (19).
+
+Motion audit: `node packages/testing/qa/motion-audit.mjs` → motion-audit: clean.
+
+Typecheck: `pnpm --filter @goproceed/landing typecheck` → clean.
+
+Build: `pnpm --filter @goproceed/landing build` → ✓ Compiled successfully in 340ms.
+
+Grep result: `.bg-sunken{background-color:var(--gp-bg-muted)}`
