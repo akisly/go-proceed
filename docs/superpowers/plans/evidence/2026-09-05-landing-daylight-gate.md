@@ -80,3 +80,11 @@ Tests  150 passed (150)
 ```
 ✓ Compiled successfully
 ```
+
+**Controller check on 6b (2026-09-05).** The `apps/app` failures are the `*.int.test.ts` suites that connect to the local database; run without them the app's unit suites are green:
+
+```
+pnpm --filter @goproceed/app exec vitest run --exclude "**/*.int.test.ts"
+ Test Files  57 passed | 1 skipped (58)
+      Tests  524 passed | 1 skipped (525)
+```
