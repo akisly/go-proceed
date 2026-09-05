@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import LandingPage from "../app/page";
 import { landingContent } from "../content/landing-content";
 
-export const html = renderToStaticMarkup(<LandingPage />);
+export const html = renderToStaticMarkup(<LandingPage />).replace(/&#x27;/g, "'");
 export const section = (id: string, next?: string) =>
   html.slice(html.indexOf(`id="${id}"`), next ? html.indexOf(`id="${next}"`) : undefined);
 
@@ -91,12 +91,23 @@ describe("problem and compare", () => {
   it("pairs five rows across the two cards and states both outcomes", () => {
     expect(compare.match(/data-compare-row=/g)).toHaveLength(10);
     expect(compare).toContain(landingContent.compare.was.outcome);
-    // now.outcome contains "пам'ять" — React's static-markup renderer escapes
-    // the apostrophe in text children to &#x27; (verified: this is not a
-    // component bug, `renderToStaticMarkup(<p>{"a'b"}</p>)` does the same).
-    // task-16's hero test avoids this by never toContain-ing hero.lead, which
-    // has the same apostrophe; here the outcome is the one thing worth
-    // asserting, so decode that one entity instead of skipping the check.
-    expect(compare.replace(/&#x27;/g, "'")).toContain(landingContent.compare.now.outcome);
+    expect(compare).toContain(landingContent.compare.now.outcome);
+  });
+});
+
+describe("roles and route", () => {
+  const roles = section("roles", "stages");
+  const route = section("stages", "position");
+  it("renders the four role cells with pains and gains", () => {
+    expect(roles.match(/data-slot="feature-cell"/g)).toHaveLength(4);
+    for (const cell of landingContent.roles.cells) { expect(roles).toContain(cell.title); expect(roles).toContain(cell.pain); }
+    expect(roles).toContain("Telegram-бот або мобільний застосунок, без форм");
+  });
+  it("stacks five route cards, alternating sides, each with its window", () => {
+    expect(route.match(/data-route-card=/g)).toHaveLength(5);
+    expect(route.match(/data-route-card="flip"/g)).toHaveLength(2);
+    for (const s of landingContent.route.steps) expect(route).toContain(s.eyebrow);
+    for (const code of ["R-041 · Кабельний лоток до закриття стелі", "Зняти фото", "goproceed.app/r/7k2…f9", "Закриття · CL-017", "ЧЕРНЕТКА"]) expect(route).toContain(code);
+    expect(route).toContain("Це чернетка для підпису, а не підписаний документ.");
   });
 });

@@ -1,10 +1,37 @@
+import { Building2, ClipboardList, ShieldCheck, Smartphone } from "lucide-react";
+import { FeatureCell, FeatureGrid } from "@goproceed/ui/components";
+import { Reveal } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
+import { SectionHead } from "./section-head";
+
+const ICON = {
+  pto: <ClipboardList aria-hidden="true" strokeWidth={1.6} />,
+  foreman: <Smartphone aria-hidden="true" strokeWidth={1.6} />,
+  owner: <Building2 aria-hidden="true" strokeWidth={1.6} />,
+  supervision: <ShieldCheck aria-hidden="true" strokeWidth={1.6} />,
+} as const;
 
 export function Roles() {
+  const r = landingContent.roles;
   return (
-    <section id="roles" className="scroll-mt-20 px-4 py-16 md:px-8 md:py-28">
+    <section id="roles" className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto max-w-marketing">
-        <h2 className="display text-mkt-display-2 text-ink">{landingContent.roles.title}</h2>
+        <SectionHead eyebrow={r.eyebrow} title={r.title} titleAccent={r.titleAccent} lead={r.lead} />
+        <Reveal y={0}>
+          <FeatureGrid columns={4}>
+            {r.cells.map((cell) => (
+              <FeatureCell
+                key={cell.id}
+                icon={ICON[cell.id as keyof typeof ICON]}
+                title={cell.title}
+                subtitle={cell.subtitle}
+                footer={cell.gets.map((g) => <span key={g}><span className="text-ink-muted">→ </span>{g}</span>)}
+              >
+                {cell.pain}
+              </FeatureCell>
+            ))}
+          </FeatureGrid>
+        </Reveal>
       </div>
     </section>
   );
