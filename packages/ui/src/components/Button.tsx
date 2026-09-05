@@ -32,7 +32,8 @@ import { cx } from "./cn";
  * and outdoors. The floor is expressed with the `touch` variant — a capability
  * query — rather than with a breakpoint, because it is a fact about the
  * pointing device and a touch laptop at 1440px needs it too. Both numbers come
- * from `component.control-height-*`; neither is typed here.
+ * from `component.control-height-*`; neither is typed here. `link` has no
+ * height of its own but keeps the touch floor as a minimum.
  *
  * No focus ring in the variants. `base.css` gives every focusable element in
  * the product one treatment, so two of them cannot disagree.
@@ -89,7 +90,12 @@ export type ButtonProps = {
 export function Button({
   variant = "primary", size = "default", asChild = false, className, children, ...rest
 }: ButtonProps) {
-  const classes = cx(BASE, VARIANT[variant], variant === "link" ? "h-auto px-0" : SIZE[size], className);
+  const classes = cx(
+    BASE,
+    VARIANT[variant],
+    variant === "link" ? "h-auto px-0 touch:min-h-(--gp-control-height-touch)" : SIZE[size],
+    className,
+  );
 
   if (asChild) {
     // NEVER pass a function-valued className or children through Slot. Radix
@@ -98,8 +104,16 @@ export function Button({
     // it. v1 shipped exactly that with react-router's NavLink and lost both
     // branches of an active/inactive colour ternary while the layout still
     // looked right.
-    return <Slot.Root className={classes}>{children}</Slot.Root>;
+    return (
+      <Slot.Root data-slot="button" className={classes}>
+        {children}
+      </Slot.Root>
+    );
   }
 
-  return <Press className={classes} {...rest}>{children}</Press>;
+  return (
+    <Press data-slot="button" className={classes} {...rest}>
+      {children}
+    </Press>
+  );
 }
