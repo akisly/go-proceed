@@ -13,6 +13,6 @@
     "isolatedModules": true,
     "plugins": [{ "name": "next" }]
   },
-  "include": ["src", "app", "next-env.d.ts", ".next/types/**/*.ts"],
+  "include": ["src", "app", "next-env.d.ts", "image-types.d.ts", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]
 }
