@@ -21,6 +21,13 @@
  * `button/input/select/textarea { font: inherit }`, `ol,ul { list-style:
  * none }`, `table { border-collapse: collapse }`, `svg { display: block }`.
  * Dropped with no call site: `text-wrap: pretty/balance`, `--spacing-strip`.
+ * Also retired, deliberately: the legacy layer's svg { flex-shrink: 0 } (every
+ * icon in this app carries shrink-0 itself), its * { border-color } default
+ * (every border utility here names its colour; Preflight's currentColor
+ * default is the system's), table { border-spacing: 0 } (inert under
+ * border-collapse), and h1-h3 { letter-spacing: -0.015em } (product headings
+ * take body tracking by base.css's ruling; the tighter tracking is the
+ * marketing .display class only).
  *
  * Every number in this app comes from a token or it does not appear. There is
  * no `@theme` here and there must never be one: a second theme block is how

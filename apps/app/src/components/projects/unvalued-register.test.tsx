@@ -25,10 +25,11 @@ import { UnvaluedRegister } from "./unvalued-register";
  * dropped.
  *
  * NO LITERAL TAILWIND CLASS STRINGS — assembled at runtime, per
- * `02-building-ui.md` §4.3 rule 7 and `base.css`'s own note. `dash-theme.css`
- * excludes `apps/app/tests` and `apps/app/qa` from Tailwind's scan but NOT
- * `apps/app/src/**`, so a literal class written here would be emitted as real
- * production CSS.
+ * `02-building-ui.md` §4.3 rule 7 and `app/globals.css`'s own `@source`
+ * directives. Until 2026-09-05, the deleted `app/dash/dash-theme.css` excluded
+ * `apps/app/tests` and `apps/app/qa` from Tailwind's scan but NOT
+ * `apps/app/src/**`; the single entry point `app/globals.css` now does the
+ * same. A literal class written here would be emitted as real production CSS.
  */
 
 const TABULAR = ["tabular", "text-right"].join(" ");

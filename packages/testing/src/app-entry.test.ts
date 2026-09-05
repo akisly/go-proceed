@@ -27,6 +27,7 @@ const RETIRED: RegExp[] = [
   /\btext-destructive\b/, /-warning-/, /\bbg-carbon\b/, /\bbg-accent\b(?!-soft)/, /\btext-accent-ink\b/,
   /readiness-/, /\bfont-display\b/, /goproceed-app/, /\bease-out-strong\b/,
   /\bshadow-drawer\b/, /\banimate-chip-in\b/,
+  /\/dash-theme\//, // the second entry file, deleted 2026-09-05, must not come back
 ];
 
 /** Packages the legacy Button/cn pulled in; the shared package owns them now. */
