@@ -950,7 +950,7 @@ export function CompareCard({
         ))}
       </ul>
       <footer className={cx("flex min-h-[74px] items-center border-t border-line px-5 py-4 text-data font-medium",
-        now ? "bg-status-ready text-status-ready-fg" : "bg-muted text-ink-muted")}>
+        now ? "bg-status-ready text-status-ready-fg" : "bg-sunken text-ink-muted")}>
         {outcome}
       </footer>
     </article>
