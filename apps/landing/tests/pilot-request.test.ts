@@ -31,7 +31,7 @@ describe("pilot request", () => {
     expect(ok.ok && ok.fields.name).toBe("Ірина");
     expect(ok.ok && ok.fields.context.length).toBe(2000);
     expect(cleanField(42, 10)).toBe("42");
-    expect(cleanField("ab", 10)).toBe("ab");
+    expect(cleanField("a\u0007b", 10)).toBe("ab");
     expect(cleanField("Ірина Петренко +380-67", 40)).toBe("Ірина Петренко +380-67");
   });
 });
