@@ -21,8 +21,8 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-sm flex-col justify-center gap-8 px-4 py-12">
       <div className="flex flex-col gap-2">
-        <h1 className="text-h1 font-display font-semibold text-foreground">GoProceed</h1>
-        <p className="text-body text-foreground-secondary">
+        <h1 className="text-h1 font-semibold text-ink">GoProceed</h1>
+        <p className="text-body text-ink-secondary">
           Вхід за одноразовим кодом, який ми надішлемо на вашу електронну пошту.
         </p>
       </div>

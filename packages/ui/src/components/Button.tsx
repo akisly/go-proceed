@@ -6,7 +6,7 @@ import { Press } from "../motion/Press";
 import { cx } from "./cn";
 
 /**
- * Five variants, and the set is closed.
+ * Six variants, and the set is closed.
  *
  * `primary` — Ink. Under D1 the action colour is near-black, not the brand
  *   lime. That is what removes the readable-accent problem from the system
@@ -17,17 +17,24 @@ import { cx } from "./cn";
  * `outline` — the workhorse.
  * `ghost` — chrome.
  * `link` — inline, inside a sentence.
- *
- * There is NO `destructive` variant. Nothing under `/app/**` deletes anything,
- * so a destructive variant could only ever be used by being reached for
- * wrongly — and a variant that exists is a variant that will be used.
+ * `destructive` — irreversible, and only irreversible. Outlined at rest,
+ *   filled on hover: the border and the ink carry it, so beside a signal
+ *   primary it does not out-shout the action the person is there to take.
+ *   [Added 2026-09-05. This paragraph used to say there was NO destructive
+ *   variant because nothing under /app/** deletes anything. The field
+ *   client's «Скасувати фото» drops a photo the server never received, and
+ *   it had kept a private Button for that one control. One Button now; the
+ *   contract test counts the variant's call sites — one — so a second
+ *   irreversible action is a deliberate edit to that number.]
  *
  * SIZES CARRY TWO NUMBERS AND THE SMALL ONE IS NEVER BELOW 44px ON TOUCH.
  * WCAG 2.5.5's 44px is a floor, not a preference, and this audience is gloved
  * and outdoors. The floor is expressed with the `touch` variant — a capability
  * query — rather than with a breakpoint, because it is a fact about the
  * pointing device and a touch laptop at 1440px needs it too. Both numbers come
- * from `component.control-height-*`; neither is typed here.
+ * from `component.control-height-*`; neither is typed here. `link` has no
+ * height of its own but keeps the VERTICAL touch floor as a minimum; its
+ * width is the sentence's, so a min-width would break inline links.
  *
  * No focus ring in the variants. `base.css` gives every focusable element in
  * the product one treatment, so two of them cannot disagree.
@@ -38,6 +45,9 @@ const VARIANT = {
   outline: "border border-line-strong bg-surface text-ink hover:bg-action-ghost-hover",
   ghost: "text-ink-secondary hover:bg-action-ghost-hover",
   link: "text-link underline underline-offset-4 hover:text-ink",
+  destructive:
+    "border border-status-blocked-line bg-surface text-status-blocked-fg " +
+    "hover:bg-status-blocked-fg hover:text-action-fg",
 } as const;
 
 const SIZE = {
@@ -81,7 +91,12 @@ export type ButtonProps = {
 export function Button({
   variant = "primary", size = "default", asChild = false, className, children, ...rest
 }: ButtonProps) {
-  const classes = cx(BASE, VARIANT[variant], variant === "link" ? "h-auto px-0" : SIZE[size], className);
+  const classes = cx(
+    BASE,
+    VARIANT[variant],
+    variant === "link" ? "h-auto px-0 touch:min-h-(--gp-control-height-touch)" : SIZE[size],
+    className,
+  );
 
   if (asChild) {
     // NEVER pass a function-valued className or children through Slot. Radix
@@ -90,8 +105,16 @@ export function Button({
     // it. v1 shipped exactly that with react-router's NavLink and lost both
     // branches of an active/inactive colour ternary while the layout still
     // looked right.
-    return <Slot.Root className={classes}>{children}</Slot.Root>;
+    return (
+      <Slot.Root data-slot="button" className={classes}>
+        {children}
+      </Slot.Root>
+    );
   }
 
-  return <Press className={classes} {...rest}>{children}</Press>;
+  return (
+    <Press data-slot="button" className={classes} {...rest}>
+      {children}
+    </Press>
+  );
 }

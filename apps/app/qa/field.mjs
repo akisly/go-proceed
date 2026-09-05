@@ -1172,7 +1172,7 @@ async function measureHorizontalOverflow(page) {
  * directly readable.
  *
  * `[data-slot="button"]` anchors are exempt: `<Button asChild>` renders a real
- * link with button styling, and `src/ui/button.tsx`'s `link` variant underlines
+ * link with button styling, and `@goproceed/ui`'s Button `link` variant underlines
  * ON PURPOSE. Exempting them by the attribute the component itself sets — not
  * by a class-name guess — means a hand-rolled anchor that merely looks like a
  * button is still caught.
@@ -1196,6 +1196,29 @@ async function measureUaStyledLinks(page) {
       })
       .filter((l) => l.color === UA_LINK_BLUE || l.decoration.includes("underline"));
   });
+}
+
+/**
+ * The product renders in Onest, headings and body alike. A face that reverts
+ * — to a UA serif, to a system sans — is silent in every other gate; only a
+ * rendered page can see it.
+ */
+async function assertOnest(ctx, page, label) {
+  const faces = await page.evaluate(() => {
+    const h = document.querySelector("h1, h2");
+    return {
+      heading: h ? getComputedStyle(h).fontFamily : null,
+      body: getComputedStyle(document.body).fontFamily,
+    };
+  });
+  if (faces.heading === null) {
+    ctx.findings.push(`${label}: no <h1>/<h2> to check the heading face against`);
+  } else if (!/Onest/i.test(faces.heading)) {
+    ctx.findings.push(`${label}: the heading renders in "${faces.heading}" — must be Onest`);
+  }
+  if (!/Onest/i.test(faces.body)) {
+    ctx.findings.push(`${label}: the body renders in "${faces.body}" — must be Onest`);
+  }
 }
 
 /**
@@ -1509,6 +1532,11 @@ const EXPECTED_AUDITS = [
   // is the write half) rather than beside "my assignments list", which reads
   // a different screen entirely.
   "assignment creation",
+  // BEFORE SIGN-OUT, LIKE EVERYTHING AUTHENTICATED. Nine routes, six widths,
+  // two reduced-motion passes; screenshots for the controller, assertions
+  // for the machine. Added 2026-09-05 with the field client's migration onto
+  // @goproceed/ui — the first pass that can cover the field screens at all.
+  "daylight visual audit",
   // LAST, AND ITS POSITION IN THIS LIST IS LOAD-BEARING — see the audit's own
   // header. Its final act destroys the session every audit above needs.
   "dashboard profile and sign-out",
@@ -3253,6 +3281,178 @@ async function main() {
       reportDiagnostics("assignment creation", diag, ctx.findings, ctx.missingAssets);
     });
 
+    await runAudit(ctx, "daylight visual audit", async () => {
+      // ═══════════════════════════════════════════════════════════════════
+      // THE SIX-VIEWPORT PASS UNDER THE DAYLIGHT PALETTE — spec
+      // 2026-09-05-app-daylight-migration-design.md §5.2.
+      //
+      // The tokens moved system-wide on 2026-09-05 and every surface
+      // re-coloured through its roles with nobody looking. This audit is the
+      // looking: nine routes × six widths, plus reduced motion at 1440 and
+      // 390, a full-page capture of each for the controller's review, and
+      // the assertions a machine can make — overflow, the touch floor, UA
+      // link styling, the signal budget, status-never-colour-alone, the face.
+      //
+      // Runs BEFORE the sign-out audit because eight of the nine routes need
+      // the session that audit destroys. The unauthenticated /login is
+      // captured through a second browser context with an empty cookie jar,
+      // so the signed-in page's session cannot leak into it.
+      // ═══════════════════════════════════════════════════════════════════
+      const DAYLIGHT_WIDTHS = [1920, 1440, 1240, 768, 390, 360];
+      const DAYLIGHT_REDUCED = [1440, 390];
+      const daylightShots = path.join(SHOTS, "daylight");
+      await mkdir(daylightShots, { recursive: true });
+
+      const routes = [
+        { slug: "login", path: "/login", anonymous: true },
+        { slug: "field-assignments", path: "/" },
+        { slug: "field-obligation", path: `/a/${assignmentId}` },
+        { slug: "dash-home", path: "/dash" },
+        { slug: "dash-project", path: `/dash/projects/${projectId}` },
+        { slug: "dash-register", path: `/dash/projects/${projectId}/assignments` },
+        { slug: "dash-new-assignment", path: `/dash/projects/${emptyProjectId}/assignments/new` },
+        { slug: "dash-evidence", path: `/dash/assignments/${assignmentId}` },
+        { slug: "dash-profile", path: "/dash/settings/profile" },
+      ];
+
+      const inspect = async (page, label, width) => {
+        const overflow = await measureHorizontalOverflow(page);
+        if (overflow) {
+          ctx.findings.push(`${label} @${width}: scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
+        }
+        if (width < 768) {
+          for (const t of await measureSmallTargets(page)) {
+            ctx.findings.push(`${label} @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+          }
+        }
+        for (const link of await measureUaStyledLinks(page)) {
+          ctx.findings.push(`${label} @${width}: anchor "${link.label}" renders with user-agent link styling (${link.color}, ${link.decoration})`);
+        }
+        const budget = await page.evaluate(() => {
+          const signal = getComputedStyle(document.documentElement).getPropertyValue("--gp-action-signal-bg").trim();
+          const probe = document.createElement("i");
+          probe.style.backgroundColor = signal;
+          document.body.append(probe);
+          const resolved = getComputedStyle(probe).backgroundColor;
+          probe.remove();
+          if (!resolved || resolved === "rgba(0, 0, 0, 0)") {
+            return { unresolved: true };
+          }
+          const hits = [...document.querySelectorAll("*")].filter((el) => getComputedStyle(el).backgroundColor === resolved);
+          return { resolved, count: hits.length, samples: hits.slice(0, 3).map((el) => {
+            const cls = el.getAttribute("class") ?? "";
+            return `${el.tagName.toLowerCase()}${cls ? "." + cls.split(" ")[0] : ""}`;
+          }) };
+        });
+        if (budget.unresolved) {
+          ctx.findings.push(`${label} @${width}: signal probe: --gp-action-signal-bg did not resolve`);
+        } else if (budget.count > 1) {
+          ctx.findings.push(`${label} @${width}: ${budget.count} elements carry the signal background (${budget.samples.join(", ")}) — at most one per screen`);
+        }
+        const silentStatus = await page.evaluate(() =>
+          [...document.querySelectorAll('[class*="bg-status-"]')]
+            .filter((el) => (el.textContent ?? "").trim().length === 0 && !el.querySelector("img, svg[aria-label]"))
+            .map((el) => `${el.tagName.toLowerCase()}.${(el.getAttribute("class") ?? "").split(" ").find((c) => c.startsWith("bg-status-"))}`));
+        for (const s of silentStatus) {
+          ctx.findings.push(`${label} @${width}: ${s} carries a status colour and no text — status is never colour alone`);
+        }
+        await assertOnest(ctx, page, `${label} @${width}`);
+      };
+
+      const walkRoute = async (page, route) => {
+        for (const width of DAYLIGHT_WIDTHS) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+          const res = await page.goto(`${server.baseUrl}${route.path}`, { waitUntil: "networkidle0" });
+          if (!res || res.status() !== 200) {
+            ctx.findings.push(`${route.path} @${width}: expected 200, got ${res ? res.status() : "no response"}`);
+            continue;
+          }
+          await waitForAnimations(page);
+          await inspect(page, route.path, width);
+          await page.screenshot({ path: path.join(daylightShots, `${route.slug}-${width}.png`), fullPage: true });
+        }
+        await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+        for (const width of DAYLIGHT_REDUCED) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+          const res = await page.goto(`${server.baseUrl}${route.path}`, { waitUntil: "networkidle0" });
+          if (!res || res.status() !== 200) {
+            ctx.findings.push(`${route.path} (reduced motion) @${width}: expected 200, got ${res ? res.status() : "no response"}`);
+            continue;
+          }
+          await waitForAnimations(page);
+          await inspect(page, `${route.path} (reduced motion)`, width);
+          await page.screenshot({ path: path.join(daylightShots, `${route.slug}-${width}-reduced.png`), fullPage: true });
+        }
+        await page.emulateMediaFeatures([]);
+      };
+
+      // The signed-in routes, in the default context.
+      const diagnostics = await withPage(browser, async (page) => {
+        for (const route of routes.filter((r) => !r.anonymous)) await walkRoute(page, route);
+
+        // The sign-out confirm, open, at 1440 and 390 — the first screen the
+        // TODOS entry named. Opened the way the sign-out audit opens it,
+        // cancelled the way it cancels it, so the session survives.
+        for (const width of [1440, 390]) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+          await page.goto(`${server.baseUrl}/dash/settings/profile`, { waitUntil: "networkidle0" });
+          // Below 768 the profile control sits inside the mobile drawer — open
+          // it first, the same way the sign-out audit's own drawer opens it.
+          if (touch) {
+            await page.click('button[aria-label="Відкрити меню"]');
+            await page.waitForSelector('[role="dialog"]');
+            await waitForAnimations(page);
+          }
+          const trigger = await visibleHandle(
+            page,
+            touch ? '[role="dialog"] button[aria-label="Профіль і вихід"]' : 'button[aria-label="Профіль і вихід"]',
+          );
+          if (!trigger) { ctx.findings.push(`sign-out confirm @${width}: no visible profile control`); continue; }
+          await trigger.click();
+          await trigger.dispose();
+          const item = await visibleHandleWithText(page, '[role="menuitem"]', "Вийти");
+          if (!item) { ctx.findings.push(`sign-out confirm @${width}: no «Вийти» item`); continue; }
+          await item.click();
+          await page.waitForFunction(
+            () => [...document.querySelectorAll('[role="dialog"]')].some((d) => (d.innerText ?? "").includes("Вийти з системи?")),
+            { timeout: 5_000 });
+          await waitForAnimations(page);
+          await inspect(page, "sign-out confirm", width);
+          await page.screenshot({ path: path.join(daylightShots, `dash-sign-out-${width}.png`), fullPage: true });
+          const cancel = await visibleHandleWithText(page, '[role="dialog"] button', "Скасувати");
+          if (cancel) { await cancel.click(); await cancel.dispose(); }
+          await page.keyboard.press("Escape");
+        }
+      });
+      reportDiagnostics("daylight visual audit", diagnostics, ctx.findings, ctx.missingAssets);
+
+      // /login and the OTP second step, in a context that has never signed in.
+      const anonymous = await browser.createBrowserContext();
+      try {
+        const page = await anonymous.newPage();
+        await walkRoute(page, routes[0]);
+        // The second step: type an address, request a code, capture the form
+        // that asks for it. The code itself is never entered here.
+        for (const width of [1440, 390]) {
+          const touch = width < 768;
+          await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
+          await page.goto(`${server.baseUrl}/login`, { waitUntil: "networkidle0" });
+          await page.type("#otp-email", email);
+          await page.click('button[type="submit"]');
+          await page.waitForSelector("#otp-code", { timeout: 15_000 });
+          await waitForAnimations(page);
+          await inspect(page, "/login (code step)", width);
+          await page.screenshot({ path: path.join(daylightShots, `login-code-${width}.png`), fullPage: true });
+        }
+        await page.close();
+      } finally {
+        await anonymous.close();
+      }
+    });
+
     await runAudit(ctx, "dashboard profile and sign-out", async () => {
       // ═══════════════════════════════════════════════════════════════════
       // THE OFFICE DASHBOARD — Plan D slice D0. This file is no longer only
@@ -3817,33 +4017,14 @@ async function main() {
           ctx.findings.push("/dash/settings/profile: a raw membership role identifier is on screen — membership-labels.ts is not being applied");
         }
 
-        // THE DASH RENDERS IN ONEST — BOTH HEADINGS AND BODY — AND THIS
-        // ASSERTION EXISTS BECAUSE THE FACE HAS BEEN LOST TWICE ALREADY.
-        // [Corrected 2026-09-05: this probe asserted Inter, and the display
-        // serif it guarded against no longer exists anywhere in the system.
-        // Daylight made Onest the one typeface on every token-driven surface;
-        // `apps/app/app/dash/layout.tsx` imports it and `theme.generated.css`
-        // + `dash-theme.css` point `--font-sans` and `--font-display` at it.]
-        //
-        // The failure mode this now catches is the OTHER direction: the field
-        // client's routes keep the legacy `globals.css`, which declares Inter
-        // on `:root` of the same document, and both stylesheets compile
-        // perfectly whichever order Next emits them in. Only a rendered page
-        // can tell whether the dash chunk is still the later one — so both
-        // faces are read here, because `--font-sans` rides the identical
-        // cascade and would revert silently with the headings.
-        const faces = await page.evaluate(() => {
-          const h = document.querySelector("h1");
-          return { heading: h ? getComputedStyle(h).fontFamily : null, body: getComputedStyle(document.body).fontFamily };
-        });
-        if (faces.heading === null) {
-          ctx.findings.push("/dash/settings/profile: no <h1> to check the heading face against");
-        } else if (!/Onest/i.test(faces.heading) || /Source Serif|Georgia|(^|,)\s*serif\s*$/i.test(faces.heading)) {
-          ctx.findings.push(`/dash/settings/profile: the heading renders in "${faces.heading}" — the dash shell's headings must be Onest; \`--font-display\` has reverted to the field client's Inter (see dash-theme.css)`);
-        }
-        if (!/Onest/i.test(faces.body)) {
-          ctx.findings.push(`/dash/settings/profile: the body renders in "${faces.body}" — the dash shell's body must be Onest; \`--font-sans\` has reverted to the field client's Inter (see theme.generated.css)`);
-        }
+        // ONE FACE, EVERY SCREEN. [Corrected 2026-09-05: the cascade race this
+        // probe used to guard — two stylesheets, two `--font-display` values on
+        // one `:root` — no longer exists. apps/app has one entry point
+        // (app/globals.css on @goproceed/ui/base.css) since the field client
+        // migrated. The probe stays because the face has been lost twice
+        // already; it now runs on every route in the daylight visual audit,
+        // and here once more on the screen where it was first lost.]
+        await assertOnest(ctx, page, "/dash/settings/profile");
         await page.screenshot({ path: path.join(SHOTS, "dash-profile.png"), fullPage: true });
 
         // ── 4. Sign-out: not until confirmed, and then for real ────────────

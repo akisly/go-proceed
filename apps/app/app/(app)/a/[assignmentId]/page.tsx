@@ -5,7 +5,7 @@ import type { ListRequirementOccurrencesResponse } from "@goproceed/contracts";
 import { apiGet, ApiError } from "../../../../src/lib/api";
 import { buildObligationScreen, type ObligationItem } from "../../../../src/lib/field/obligations";
 import { normRefVerificationLabel } from "../../../../src/lib/norm-ref-labels";
-import { Button } from "../../../../src/ui/button";
+import { Button } from "@goproceed/ui/components";
 import { CaptureIsland } from "./capture";
 
 /**
@@ -58,10 +58,10 @@ export default async function ObligationPage({ params }: ObligationPageProps) {
          * for this screen is a foreman on a phone, often gloved, not a mouse
          * user for whom a small text link is enough.
          */}
-        <Button asChild variant="link" size="sm" className="self-start px-0 text-data">
+        <Button asChild variant="link" className="self-start text-data">
           <Link href="/">← Мої доручення</Link>
         </Button>
-        <h1 className="text-h1 font-display font-semibold text-foreground">
+        <h1 className="text-h1 font-semibold text-ink">
           Обов&#39;язкові фіксації
         </h1>
       </div>
@@ -73,7 +73,7 @@ export default async function ObligationPage({ params }: ObligationPageProps) {
        * be read on its own as "nothing is required here" (context item 5),
        * and this sentence is what stops that misreading.
        */}
-      <p className="text-body text-foreground-secondary">{screen.coverageMessage}</p>
+      <p className="text-body text-ink-secondary">{screen.coverageMessage}</p>
 
       {screen.items.length > 0 && (
         <ol className="flex flex-col gap-4">
@@ -98,7 +98,7 @@ export default async function ObligationPage({ params }: ObligationPageProps) {
        * above (`screen.disclaimer` is assigned unconditionally, not per
        * branch).
        */}
-      <p className="border-t border-border pt-4 text-data text-foreground-secondary">
+      <p className="border-t border-line pt-4 text-data text-ink-secondary">
         {screen.disclaimer}
       </p>
     </main>
@@ -109,8 +109,8 @@ function ObligationCard(
   { item, index, assignmentId }: { item: ObligationItem; index: number; assignmentId: string },
 ) {
   return (
-    <li className="flex flex-col gap-3 rounded-panel border border-border bg-surface p-4">
-      <span className="text-meta font-medium uppercase tracking-wide text-foreground-muted">
+    <li className="flex flex-col gap-3 rounded-panel border border-line bg-surface p-4">
+      <span className="text-meta font-medium uppercase tracking-wide text-ink-muted">
         {index + 1}. {item.timingLabel}
       </span>
 
@@ -120,7 +120,7 @@ function ObligationCard(
        * truncation — `acceptanceCriterion` is rendered exactly as
        * `buildObligationScreen` returned it.
        */}
-      <p className="text-body text-foreground">{item.acceptanceCriterion}</p>
+      <p className="text-body text-ink">{item.acceptanceCriterion}</p>
 
       {item.normRef && (
         // Text, verification tag and source travel together — never the text
@@ -136,7 +136,7 @@ function ObligationCard(
         // disclaimer-visibility check exists to catch. Not applied to
         // `normRef.text`: that is prose, it breaks on its own, and no class
         // here alters the string itself (INV-073).
-        <div className="flex flex-col gap-1 rounded-control bg-surface-muted p-3 text-data text-foreground-secondary">
+        <div className="flex flex-col gap-1 rounded-control bg-subtle p-3 text-data text-ink-secondary">
           <p>{item.normRef.text}</p>
           {/*
            * The tag renders as its Ukrainian LABEL, not the storage token
@@ -145,22 +145,22 @@ function ObligationCard(
            * is not. Same change in the Expo copy's assignment.tsx — the
            * obligations.ts header's both-files rule.
            */}
-          <p className="text-meta break-words text-foreground-muted">
+          <p className="text-meta break-words text-ink-muted">
             {normRefVerificationLabel(item.normRef.verification)} · {item.normRef.source}
           </p>
         </div>
       )}
 
-      <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-data text-foreground-secondary">
-        <dt className="text-foreground-muted">Вид доказу</dt>
+      <dl className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1 text-data text-ink-secondary">
+        <dt className="text-ink-muted">Вид доказу</dt>
         <dd>{item.evidenceKindLabel}</dd>
 
-        <dt className="text-foreground-muted">Кількість матеріалів</dt>
+        <dt className="text-ink-muted">Кількість матеріалів</dt>
         <dd>{formatEvidenceCount(item.minEvidenceCount, item.maxEvidenceCount)}</dd>
 
         {item.allowedMedia && (
           <>
-            <dt className="text-foreground-muted">Формати файлів</dt>
+            <dt className="text-ink-muted">Формати файлів</dt>
             <dd>{item.allowedMedia.mimeTypes.join(", ")}</dd>
           </>
         )}
@@ -234,10 +234,10 @@ function problemDetail(err: unknown): string | null {
 function ErrorState({ detail }: { detail: string | null }) {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-lg flex-col justify-center gap-6 px-4 py-8">
-      <h1 className="text-h1 font-display font-semibold text-foreground">
+      <h1 className="text-h1 font-semibold text-ink">
         Обов&#39;язкові фіксації
       </h1>
-      <p className="text-body text-foreground-secondary">
+      <p className="text-body text-ink-secondary">
         {detail ?? "Не вдалося завантажити перелік обов'язкових фіксацій. Спробуйте ще раз."}
       </p>
       <Button asChild variant="outline" className="self-start">

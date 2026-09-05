@@ -67,9 +67,11 @@ import { Button, EmptyState } from "@goproceed/ui/components";
  *      `.max-w-md{max-width:var(--container-md)}` is the same chunk
  *      `apps/app/app/(app)/page` (the field client's root route) loads, so it
  *      is the global `app/globals.css` chunk leaking onto dash pages through
- *      the shared root layout — the exact cross-stylesheet coupling
- *      `dash-theme.css`'s header declares out of scope, not something this
- *      route's own stylesheet provides;
+ *      the shared root layout — until 2026-09-05, a dedicated
+ *      `app/dash/dash-theme.css` imported the real system for `/dash/**` only,
+ *      and its header declared such cross-stylesheet coupling out of scope;
+ *      that file was deleted in the migration to a single entry point, but the
+ *      coupling it warned against remains here in this comment's own logic;
  *   3. the dash chunk does contain `.max-w-112{max-width:calc(var(--spacing) *
  *      112)}` and its own `--spacing:.25rem`
  *      (`packages/ui/src/theme.generated.css:32` is the source — corrected from

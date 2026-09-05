@@ -108,3 +108,4 @@ discovery/outreach-log.csv
 discovery/suppression.csv
 discovery/drafts/
 discovery/*.db
+apps/app/qa-output-before/

@@ -114,11 +114,12 @@ export function SignOutDialog({
         // So `max-w-sm` emits NO rule in the dash stylesheet — verified by
         // grepping the built chunk, the same way the Georgia bug was — and
         // the 384px this dialog had was borrowed from the field client's
-        // pre-token `app/globals.css`, which only happens to be on the same
-        // document. That is precisely the cross-stylesheet coupling
-        // `dash-theme.css`'s header declares out of scope. `max-w-96` is the
-        // SPACING scale, which this theme keeps intact, and resolves to the
-        // same 384px on the dash stylesheet's own terms.
+        // pre-token `app/globals.css`. Until 2026-09-05, a dedicated
+        // `app/dash/dash-theme.css` warned this cross-stylesheet coupling was
+        // out of scope. That file was deleted in the migration to a single
+        // entry point. `max-w-96` is the SPACING scale, which this theme keeps
+        // intact, and resolves to the same 384px on the dash stylesheet's own
+        // terms.
         //
         // None of the three container roles means "a confirm dialog", so this
         // is a missing role (§3.3 question 2) and it is filed in the task

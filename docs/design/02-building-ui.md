@@ -90,7 +90,7 @@ fail the colour audit.
 | `superpowers:requesting-code-review` | before merging a block or a component | |
 | `design-taste-frontend` | composing a **landing** block's visual arrangement | Anti-slop, contextual, and it says outright it is *not* for dashboards or data tables — so it never touches `/app` |
 | `image-to-code` | a landing block whose composition you cannot picture | Image-first: generate the section reference, then implement it. Use for hero/CTA composition only |
-| `redesign-existing-projects` | Phase 4, restyling `apps/app` | Audit-first, improves in place rather than rewriting — which is the constraint on `/app` |
+| `redesign-existing-projects` | Phase 4, restyling `apps/app` | Audit-first, improves in place rather than rewriting — which is the constraint on `/app` *[2026-09-05: the field client migrated onto the roles (spec `2026-09-05-app-daylight-migration-design.md`); the skill's remaining use is a dashboard screen that reads wrong, never a stylesheet.]* |
 | `claude-in-chrome` | the §6 visual pass | The only way to actually see the six viewports |
 | `dataviz` | before the first line of any chart | The token source already carries `viz-1`…`viz-5`; read the skill, then use those roles |
 
@@ -340,6 +340,10 @@ right-aligned, because 620/620 and 180/150 must differ in *shape*.
 
 *[Correction, 2026-09-05: Onest for display and everything else, JetBrains
 Mono for indices; the serif is retired. Weights 400 / 500 / 600 / 700.]*
+
+*[Correction, 2026-09-05, later the same day: Onest on the field client too —
+`apps/app` has one stylesheet, `app/globals.css` on `@goproceed/ui/base.css`;
+the legacy sheet and its Inter are gone.]*
 
 **The signal is rationed.** Lime is the next action or a verified state, never
 decoration, never a second button on the same screen, never above 5% of a
