@@ -91,7 +91,7 @@ Founder сообщил об отправке outreach 50 компаниям. В�
 
 | Поверхность | Постоянство | Назначение | Ограничения |
 |---|---|---|---|
-| `apps/landing` | постоянная | главный публичный сайт GoProceed | static-first; без Supabase server client и product API *(corrected 2026-09-05: one contact-forwarding route handler, `app/api/pilot`, exists; still no product API and no Supabase client — spec 2026-09-05 §2 D2)*
+| `apps/landing` | постоянная | главный публичный сайт GoProceed | static-first; без Supabase server client и product API *(corrected 2026-09-05: one contact-forwarding route handler, `app/api/pilot`, exists; still no product API and no Supabase client — spec 2026-09-05 §2 D2)* |
 | `apps/app` | постоянная | authenticated web-продукт и будущий public `/demo` | единственная production web-поверхность |
 | `apps/mobile` | с `0.1.0` | online field companion, позже offline | один Expo codebase; Android-first acceptance |
 | `apps/demo` | временная | текущий discovery demo для outreach | только синтетические данные; сохраняется до parity нового `/demo` |

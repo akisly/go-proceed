@@ -349,6 +349,8 @@ and the button shortens to «Пілот».
 
 - **Don't** add a second accent colour, a gradient fill, or a lime survivor
   anywhere in the system — cobalt is the only accent hue.
+- **Don't** reach for brutalism — no raw borders as decoration, no oversized
+  display type, no deliberate roughness. The system is quiet by contract.
 - **Don't** use 3D, tilt, or pointer-driven perspective on any surface. The
   product frame settles once on scroll entry; it never tracks the pointer.
 - **Don't** run any animation forever except the marquee — the Border Beam is
