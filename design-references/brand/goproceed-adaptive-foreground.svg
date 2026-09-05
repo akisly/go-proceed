@@ -1,5 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <g transform="translate(512 512) scale(.78) translate(-512 -512)">
+  <!-- Android adaptive icon: 108dp canvas, 72dp displayed, 66dp SAFE CIRCLE.
+       The mark must therefore stay inside radius 0.306 of the width, not the
+       0.4 that the PWA maskable icon (80% safe circle) allows — .60 puts the
+       rounded square's outermost corner at 0.306. The 78% figure belongs to
+       goproceed-maskable-icon.svg and is correct there. -->
+  <g transform="translate(512 512) scale(.60) translate(-512 -512)">
     <rect x="106.67" y="106.67" width="810.67" height="810.67" rx="213.33" fill="none" stroke="#F6F5F1" stroke-width="76.8"/>
     <path d="M277.33 661.33 512 341.33l136.53 187.73" fill="none" stroke="#F6F5F1" stroke-width="76.8" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="716.8" cy="665.6" r="81.07" fill="#2B4BFF"/>

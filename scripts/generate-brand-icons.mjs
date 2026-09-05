@@ -31,7 +31,9 @@ async function ico(source, size, out) {
 
 // apps/landing — the favicon is the mark on a WHITE tile (spec F10).
 await png("goproceed-landing-icon.svg", 512, "apps/landing/app/icon.png");
-await png("goproceed-landing-icon.svg", 180, "apps/landing/app/apple-icon.png");
+// The apple-touch icon is FULL BLEED (rx 0): iOS masks the corners itself and
+// paints transparency black, so the rounded tile showed a dark arc at each one.
+await png("goproceed-apple-icon.svg", 180, "apps/landing/app/apple-icon.png");
 await ico("goproceed-landing-icon.svg", 64, "apps/landing/app/favicon.ico");
 
 // apps/app — the ink tile.
@@ -50,5 +52,8 @@ await png("goproceed-app-icon.svg", 1024, "apps/mobile/assets/icon.png");
 await png("goproceed-adaptive-foreground.svg", 1024, "apps/mobile/assets/android-icon-foreground.png");
 await png("goproceed-adaptive-monochrome.svg", 1024, "apps/mobile/assets/android-icon-monochrome.png");
 await png("goproceed-solid-background.svg", 1024, "apps/mobile/assets/android-icon-background.png");
-await png("goproceed-adaptive-foreground.svg", 1024, "apps/mobile/assets/splash-icon.png");
+// The splash mark comes from the MASKABLE file, not the adaptive foreground:
+// the adaptive foreground is scaled to Android's 66dp safe circle, and the
+// splash screen has no launcher mask to survive, so it would only shrink.
+await png("goproceed-maskable-icon.svg", 1024, "apps/mobile/assets/splash-icon.png");
 await png("goproceed-landing-icon.svg", 48, "apps/mobile/assets/favicon.png");
