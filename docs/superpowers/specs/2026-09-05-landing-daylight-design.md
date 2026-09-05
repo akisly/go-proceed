@@ -35,8 +35,8 @@ sit untracked at `design-contest/`).
 
 The owner ran a design contest (`design-contest/`, nine iterations, 2026-09-04
 → 2026-09-05) and approved the light «daylight» prototype:
-`design-contest/daylight/index.html` (one file: markup, CSS, GSAP/Lenis
-animation, three endpoint helpers), `design-contest/daylight/api/pilot.js` (a
+`design-references/contest-2026-09/daylight/index.html` (one file: markup, CSS, GSAP/Lenis
+animation, three endpoint helpers), `design-references/contest-2026-09/daylight/api/pilot.js` (a
 Vercel serverless handler: Telegram/Resend delivery, honeypot, rate limit),
 `vercel.json`, `.env.example`, and `assets/*.jpg` (crops of the approved
 synthetic photographs from `design-references/evidence-atlas/assets`).
