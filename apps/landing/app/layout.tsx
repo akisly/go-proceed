@@ -14,12 +14,12 @@ import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
 const DESIGN_CONTRACT = `<!--
-THESIS: One evidence route turns fragmented construction proof into an accountable decision trail; this page refuses the feature-catalogue pattern.
-OWN-WORLD: Paper, carbon, blueprint lines, field evidence and a single safety-lime signal.
-STORY: The visitor follows R-041 through EV-0248 and DR-0091 to a readiness decision, then sees the honest product boundary and pilot action.
-FIRST VIEWPORT: One promise, one live dossier and two real anchors; no decorative feature grid.
-FORM: Evidence Journey, top-ranked and user-approved-evidence-journey-2026-08-25.
-FINISH: Unreviewed and undocumented is unfinished; the build ends with a finish review, verdict and DESIGN.md.
+THESIS: The work is ready for acceptance when the proof is in place; the page shows one work package travelling from requirement to draft act.
+OWN-WORLD: Warm paper, cool ink, one cobalt mark; Onest and JetBrains Mono; recognisable 21st.dev blocks, no brutalism, no 3D.
+STORY: Problem (Рис. 01) → було і стало → roles → the five-card route → position → capture channels → provenance → the free pilot → questions → CTA.
+FIRST VIEWPORT: One promise, three entry facts, the product frame settling into the page.
+FORM: Daylight, design-contest/daylight iteration nine, owner-approved 2026-09-05.
+FINISH: Unreviewed and undocumented is unfinished; the build ends with the seven-width QA pass and DESIGN.md.
 -->`;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -43,11 +43,12 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   // this attribute is the switch that turns it on when that decision is taken.
   return (
     <html lang="uk" data-theme="light">
-      <body>
+      <body className="landing-body">
         <template
-          data-impeccable-contract="user-approved-evidence-journey-2026-08-25"
+          data-impeccable-contract="user-approved-daylight-2026-09-05"
           dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }}
         />
+        <div aria-hidden="true" className="landing-dot-field" />
         {children}
       </body>
     </html>

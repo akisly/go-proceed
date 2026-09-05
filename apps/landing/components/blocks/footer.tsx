@@ -1,39 +1,40 @@
 import { landingContent } from "../../content/landing-content";
+import { PILOT_EMAIL } from "../../content/pilot-request";
 import { BrandMark } from "../brand-mark";
 
-const footerLinks = [
-  { label: "Продукт", href: "#product" },
-  { label: "Маршрут", href: "#workflow" },
-  { label: "Рішення", href: "#field-review" },
-  { label: "Стан", href: "#readiness" },
-  { label: "Пілот", href: "#pilot" },
-] as const;
-
 export function Footer() {
+  const f = landingContent.footer;
   return (
-    <footer className="border-t border-line bg-canvas px-5 py-10 md:px-8 wide:px-12">
-      <div className="mx-auto grid max-w-content gap-8 wide:grid-cols-[1fr_auto] wide:items-start">
-        <div>
-          <a href="#product" className="inline-flex min-h-11 items-center gap-3 text-ink">
-            <BrandMark className="size-9 shrink-0" />
-            <span className="text-h3 font-semibold">{landingContent.footer.line}</span>
-          </a>
-          <p className="mt-4 max-w-[66ch] text-meta leading-relaxed text-ink-muted">
-            {landingContent.footer.disclaimer}
-          </p>
-        </div>
-
-        <nav aria-label="Навігація у футері" className="flex flex-wrap gap-x-6 gap-y-3 wide:justify-end">
-          {footerLinks.map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="inline-flex min-h-11 items-center text-meta font-medium text-ink-muted transition-colors duration-fast ease-out hover:text-ink"
-            >
-              {item.label}
-            </a>
+    <footer className="border-t border-line px-4 py-10 text-data text-ink-muted md:px-8">
+      <div className="mx-auto max-w-marketing">
+        <div className="mb-8 grid gap-8 md:grid-cols-2 wide:grid-cols-[1.4fr_1fr_1fr_1fr]">
+          <div>
+            <p className="mb-2.5 flex items-center gap-2.5 text-body font-semibold text-ink"><BrandMark />{landingContent.nav.brand}</p>
+            <p className="max-w-[40ch] leading-relaxed">{f.tagline}</p>
+          </div>
+          {f.columns.map((col) => (
+            <nav key={col.title} aria-label={col.title}>
+              <h4 className="mb-3 text-meta font-semibold text-ink">{col.title}</h4>
+              {col.links.map((l) => (
+                <a
+                  key={l.label}
+                  href={l.href === "mailto" ? `mailto:${PILOT_EMAIL}` : l.href}
+                  className="block py-1 transition-colors duration-fast ease-out hover:text-ink"
+                >
+                  {l.label}
+                </a>
+              ))}
+            </nav>
           ))}
-        </nav>
+          <div>
+            <h4 className="mb-3 text-meta font-semibold text-ink">{f.trust.title}</h4>
+            {f.trust.items.map((t) => <p key={t} className="py-1">{t}</p>)}
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+          <span>{f.copyright}</span>
+          <p className="max-w-[70ch] text-meta text-ink-subtle">{f.disclaimer}</p>
+        </div>
       </div>
     </footer>
   );

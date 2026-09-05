@@ -12,8 +12,8 @@ describe("landing design contract", () => {
       </RootLayout>,
     );
 
-    expect(html).toContain('data-impeccable-contract="user-approved-evidence-journey-2026-08-25"');
-    expect(html).toContain("THESIS: One evidence route");
+    expect(html).toContain('data-impeccable-contract="user-approved-daylight-2026-09-05"');
+    expect(html).toContain("THESIS: The work is ready");
     expect(html).toContain("FINISH: Unreviewed and undocumented is unfinished");
   });
 });
