@@ -71,20 +71,19 @@ describe("every primitive colour is derived, not picked", () => {
 
 describe("brand continuity survives the revision", () => {
   /**
-   * v1's four brand colours are not copied into v2 — they are what the new
-   * ramps produce at their own steps. That is a much stronger claim than
-   * "we kept them", and it is only true while the OKLCH triples are what they
-   * are, so it is asserted rather than described.
-   *
-   * signal-500 is the interesting one: #C6FF34 sits precisely on the sRGB
-   * gamut boundary at OKLCH L 0.9281 H 125, so the maximum-chroma step of a
-   * lime ramp at that lightness IS the brand colour.
+   * The Daylight anchors are not copied into the source — they are what the
+   * cobalt/green/amber/neutral ramps produce at their own steps. That is a
+   * much stronger claim than "we kept them", and it is only true while the
+   * OKLCH triples are what they are, so it is asserted rather than described.
    */
   const ANCHORS: Array<[token: string, legacy: string, was: string]> = [
-    ["signal-500", "#C6FF34", "Lime — brand, action, readiness"],
-    ["amber-500", "#F2B84B", "Amber — warning / at risk"],
-    ["danger-500", "#E45C55", "Red — blocked / destructive"],
-    ["blue-700", "#3756A1", "Blue — informational / submitted"],
+    ["cobalt-500", "#2B4BFF", "Cobalt — the mark, the signal action, the review state (Daylight, 2026-09-05)"],
+    ["cobalt-400", "#5568DE", "Accent — the highlighted phrase in a display heading"],
+    ["green-500", "#1E8F5A", "Ok — icons and check marks"],
+    ["amber-600", "#C8641F", "Warn — the draft stamp and the rule box"],
+    ["danger-500", "#E45C55", "Red — blocked / destructive (unchanged from v1)"],
+    ["neutral-25", "#F6F5F1", "Paper — the canvas"],
+    ["neutral-975", "#15161A", "Ink — text and the primary action"],
   ];
 
   for (const [token, legacy, was] of ANCHORS) {
@@ -92,22 +91,24 @@ describe("brand continuity survives the revision", () => {
       expect(colors[token]!.hex).toBe(legacy);
     });
   }
-
-  it("signal-500 is the gamut maximum at its lightness and hue", () => {
-    const [L, C, H] = colors["signal-500"]!.oklch;
-    expect(C).toBeCloseTo(maxChroma(L, H), 3);
-  });
 });
 
-describe("the ink is warm, and measurably so", () => {
-  it("carries the same hue as the paper it sits on", () => {
-    // v1's #171717 was a hue-less grey on a hue-less paper. The warmth here is
-    // deliberate and small — it reads as paper, not as beige — and asserting
-    // the hue keeps a later "tidy-up" from flattening it back to grey without
-    // saying so.
-    expect(colors["neutral-975"]!.oklch[2]).toBe(colors["neutral-25"]!.oklch[2]);
-    expect(colors["neutral-975"]!.oklch[1]).toBeGreaterThan(0);
-    expect(colors["neutral-975"]!.oklch[1]).toBeLessThan(0.01);
+describe("paper is warm and ink is cool, and measurably so", () => {
+  it("keeps the paper warm and the ink cool", () => {
+    // Daylight, 2026-09-05: the prototype pairs a warm paper (#F6F5F1, hue ≈ 95)
+    // with a cool ink (#15161A, hue ≈ 274). Both carry a small chroma on
+    // purpose — neither is a hue-less grey — and asserting the hues keeps a
+    // later tidy-up from flattening either back to grey without saying so.
+    const paper = colors["neutral-25"]!.oklch;
+    const ink = colors["neutral-975"]!.oklch;
+    expect(paper[2]).toBeGreaterThan(60);
+    expect(paper[2]).toBeLessThan(120);
+    expect(ink[2]).toBeGreaterThan(240);
+    expect(ink[2]).toBeLessThan(300);
+    for (const [, c] of [paper, ink].map((t) => [t[0], t[1]] as const)) {
+      expect(c).toBeGreaterThan(0);
+      expect(c).toBeLessThan(0.02);
+    }
   });
 
   it("keeps ink and paper far enough apart to carry the whole scale", () => {

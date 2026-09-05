@@ -35,6 +35,7 @@
   --container-measure: 680px;
   --container-content: 1240px;
   --container-nav: 880px;
+  --container-marketing: 1180px;
 }
 
 /* 3 — roles. `inline` so the utility carries the role variable itself and
@@ -150,6 +151,9 @@
   --color-viz-3: var(--gp-viz-3);
   --color-viz-4: var(--gp-viz-4);
   --color-viz-5: var(--gp-viz-5);
+  --color-accent: var(--gp-text-accent);
+  --color-line-accent: var(--gp-border-accent);
+  --color-accent-soft: var(--gp-bg-accent-soft);
 }
 
 

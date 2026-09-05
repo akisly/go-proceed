@@ -71,6 +71,8 @@ const PAIRS: Array<[label: string, fg: string, bg: string, min: number]> = [
   ["evidence blocking on the canvas", "evidence-blocking", "bg-canvas", 4.5],
   ["the focus ring against a surface", "border-focus", "bg-surface", 3.0],
   ["the focus ring against the canvas", "border-focus", "bg-canvas", 3.0],
+  ["the accent phrase in a display heading, on the canvas (large text)", "text-accent", "bg-canvas", 3.0],
+  ["the accent phrase in a display heading, on a surface (large text)", "text-accent", "bg-surface", 3.0],
 ];
 
 /** Structural lines: not a 1.4.11 case, but a border nobody can see is a
@@ -81,6 +83,7 @@ const LINES: Array<[label: string, fg: string, bg: string, min: number]> = [
   ["the default border on a surface", "border-default", "bg-surface", 1.2],
   ["the strong border on a surface", "border-strong", "bg-surface", 1.5],
   ["the inverse hairline on the inverse surface", "border-inverse", "bg-inverse", 1.5],
+  ["the accent edge of a selected card on a surface", "border-accent", "bg-surface", 3.0],
 ];
 
 for (const theme of ["light", "dark"] as Theme[]) {
