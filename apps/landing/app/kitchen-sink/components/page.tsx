@@ -29,6 +29,7 @@ import {
   FeatureGrid, FeatureCell,
   Pill, PillContent, SectionRule,
   Bento, BentoCell,
+  ComparePair, CompareCard, CompareArrow,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Tooltip, TooltipProvider,
@@ -428,6 +429,26 @@ export default function ComponentSink() {
             <BentoCell eyebrow="Незмінність" title="Що не можна виправити заднім числом"><p className="text-data text-ink-secondary">Фото не можна замінити або відкріпити від роботи після завантаження.</p></BentoCell>
             <BentoCell eyebrow="Межі v0.1" title="Що GoProceed робить зараз, і чого не обіцяє"><p className="text-data text-ink-secondary">Чернетка акта не є підписаним документом.</p></BentoCell>
           </Bento>
+        </Case>
+
+        <Case n="22" name="ComparePair + CompareCard + CompareArrow" rule="«Було і стало» як два аркуші. Той самий перелік питань в обох картках; наведення на рядок підсвічує його пару в іншій картці через CSS :has(), без JavaScript.">
+          <ComparePair>
+            <CompareCard
+              tone="was"
+              eyebrow="Зараз"
+              title="Чати, диск, пам'ять"
+              rows={[{ key: "photo", question: "Де фото?", answer: "У чаті бригади" }]}
+              outcome="Акт повертають."
+            />
+            <CompareArrow />
+            <CompareCard
+              tone="now"
+              eyebrow="З GoProceed"
+              title="Один запис"
+              rows={[{ key: "photo", question: "Де фото?", answer: "На роботі W-014", ref: "EV-0248 · 14:32" }]}
+              outcome="Акт не повертають."
+            />
+          </ComparePair>
         </Case>
 
         <div className="border-t border-line py-14">

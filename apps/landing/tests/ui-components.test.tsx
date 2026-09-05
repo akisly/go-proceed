@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule, Bento, BentoCell } from "@goproceed/ui/components";
+import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule, Bento, BentoCell, ComparePair, CompareCard, CompareArrow } from "@goproceed/ui/components";
 import { ScrollSettle } from "@goproceed/ui/motion";
 
 describe("Button size=\"lg\"", () => {
@@ -94,5 +94,23 @@ describe("Bento", () => {
     expect(html.match(/data-slot="bento-cell"/g)).toHaveLength(3);
     expect(html.match(/md:row-span-2/g)).toHaveLength(1);
     expect(html).toContain("Хто що бачить");
+  });
+});
+
+describe("ComparePair", () => {
+  const rows = [{ key: "photo", question: "Де фото?", answer: "У чаті бригади" }];
+  it("renders both cards, the arrow, and paired rows by key", () => {
+    const html = renderToStaticMarkup(
+      <ComparePair>
+        <CompareCard tone="was" eyebrow="Зараз" title="Чати, диск, пам'ять" rows={rows} outcome="Акт повертають." />
+        <CompareArrow />
+        <CompareCard tone="now" eyebrow="З GoProceed" title="Один запис" rows={[{ ...rows[0]!, answer: "На роботі W-014", ref: "EV-0248 · 14:32" }]} outcome="Акт не повертають." />
+      </ComparePair>,
+    );
+    expect(html.match(/data-compare-row="photo"/g)).toHaveLength(2);
+    expect(html).toContain('data-compare-tone="was"');
+    expect(html).toContain('data-compare-tone="now"');
+    expect(html).toContain("EV-0248 · 14:32");
+    expect(html).toContain('aria-hidden="true"');
   });
 });

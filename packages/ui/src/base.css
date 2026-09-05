@@ -212,6 +212,17 @@
   mask-image: radial-gradient(240px circle at var(--gp-spot-x, 50%) var(--gp-spot-y, 50%), #000, transparent 70%);
 }
 
+/* The «було / стало» pairing: a hovered row lights its twin in the other card.
+ * `:has()` on the pair container keeps both cards server-rendered; the wash is
+ * a background-color transition, rule 2 territory. */
+.compare-pair:has([data-compare-row="photo"]:hover) [data-compare-row="photo"],
+.compare-pair:has([data-compare-row="requirement"]:hover) [data-compare-row="requirement"],
+.compare-pair:has([data-compare-row="decision"]:hover) [data-compare-row="decision"],
+.compare-pair:has([data-compare-row="closure"]:hover) [data-compare-row="closure"],
+.compare-pair:has([data-compare-row="act"]:hover) [data-compare-row="act"] {
+  background-color: var(--gp-bg-accent-soft);
+}
+
 /* Duration utilities are named rather than numeric. `duration-150` would
  * compile perfectly and mean nothing; `duration-fast` is the 160ms that the
  * whole system's hover and press feedback shares, and changing it changes it
