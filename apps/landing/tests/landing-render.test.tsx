@@ -133,3 +133,23 @@ describe("position, capture, provenance", () => {
     expect(trust).toContain("Чернетка акта не є підписаним документом");
   });
 });
+
+describe("pilot", () => {
+  const pilot = section("pilot", "faq");
+  it("walks the four steps, the three cards and the author note", () => {
+    expect(pilot.match(/data-slot="step"/g)).toHaveLength(4);
+    for (const box of [landingContent.pilot.needs, landingContent.pilot.gets, landingContent.pilot.terms]) expect(pilot).toContain(box.title);
+    expect(pilot).toContain(landingContent.pilot.author.signature);
+    expect(pilot).toContain("пілот безкоштовний");
+  });
+  it("renders an honest form: labelled fields, a hidden honeypot, a live region, no success text", () => {
+    expect(pilot).toContain("<form");
+    expect(pilot).toContain('name="name"');
+    expect(pilot).toContain('name="contact"');
+    expect(pilot).toContain('name="website"');
+    expect(pilot).toContain('tabindex="-1"');
+    expect(pilot).toContain('aria-live="polite"');
+    expect(pilot).toContain('data-form-state="idle"');
+    expect(pilot).not.toContain(landingContent.pilot.form.sent);
+  });
+});
