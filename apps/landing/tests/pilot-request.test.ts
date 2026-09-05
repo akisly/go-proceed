@@ -27,14 +27,11 @@ describe("pilot request", () => {
     expect(validatePilotFields({ name: "", contact: "x" })).toEqual({ ok: false, error: "required" });
     expect(validatePilotFields({ name: "x", contact: "" })).toEqual({ ok: false, error: "required" });
     expect(validatePilotFields(null)).toEqual({ ok: false, error: "required" });
-    const ok = validatePilotFields({
-      name: "  Ірина ",
-      contact: "x",
-      context: "a".repeat(2500),
-    });
+    const ok = validatePilotFields({ name: " Ірина\u0000 ", contact: "+380", context: "a".repeat(5000) });
     expect(ok.ok && ok.fields.name).toBe("Ірина");
     expect(ok.ok && ok.fields.context.length).toBe(2000);
     expect(cleanField(42, 10)).toBe("42");
-    expect(cleanField("ab", 10)).toBe("ab");
+    expect(cleanField("ab", 10)).toBe("ab");
+    expect(cleanField("Ірина Петренко +380-67", 40)).toBe("Ірина Петренко +380-67");
   });
 });
