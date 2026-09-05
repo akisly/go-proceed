@@ -65,6 +65,8 @@ export { Tooltip, TooltipProvider } from "./Tooltip";
 export { Accordion, type AccordionEntry } from "./Accordion";
 export { Meter, type MeterSegment } from "./Meter";
 export { Figure } from "./Figure";
+export { Pill, PillContent } from "./Pill";
+export { SectionRule } from "./SectionRule";
 export {
   Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption,
 } from "./Table";

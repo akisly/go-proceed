@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Accordion, Button, Chip } from "@goproceed/ui/components";
+import { Accordion, Button, Chip, Pill, PillContent, SectionRule } from "@goproceed/ui/components";
 
 describe("Button size=\"lg\"", () => {
   it("takes its height from the marketing control token", () => {
@@ -27,5 +27,29 @@ describe("Accordion marker", () => {
   });
   it("keeps the chevron by default", () => {
     expect(renderToStaticMarkup(<Accordion entries={entries} />)).toContain("lucide-chevron-down");
+  });
+});
+
+describe("Pill", () => {
+  it("renders the badge and a trailing arrow, as a link when asChild", () => {
+    const html = renderToStaticMarkup(
+      <Pill asChild>
+        <a href="#pilot"><PillContent badge="Безкоштовний пілот">для субпідрядників</PillContent></a>
+      </Pill>,
+    );
+    expect(html).toContain('<a href="#pilot"');
+    expect(html).toContain("Безкоштовний пілот");
+    expect(html).toContain('data-slot="pill"');
+    expect(html).toContain("→");
+  });
+});
+
+describe("SectionRule", () => {
+  it("is decorative and carries its index and label in mono", () => {
+    const html = renderToStaticMarkup(<SectionRule index="01" label="Проблема" />);
+    expect(html).toContain('aria-hidden="true"');
+    expect(html).toContain('data-section-rule="01"');
+    expect(html).toContain("01 · Проблема");
+    expect(html).toContain("index-label");
   });
 });

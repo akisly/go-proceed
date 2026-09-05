@@ -26,6 +26,7 @@ import {
   DialogHeader, DialogTitle, DialogTrigger,
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
+  Pill, PillContent, SectionRule,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Tooltip, TooltipProvider,
@@ -397,6 +398,16 @@ export default function ComponentSink() {
               <span className="text-meta text-ink-muted">Технічний нагляд</span>
             </div>
           </div>
+        </Case>
+
+        <Case n="18" name="Pill" rule="Анонс над hero (21st.dev Announcement): тёмний бейдж, рядок і стрілка, що зсувається при наведенні. Одна фраза, одне посилання; як посилання — через asChild, ніколи div з onClick.">
+          <Pill asChild>
+            <a href="#pilot"><PillContent badge="Безкоштовний пілот">для субпідрядників із прихованими роботами</PillContent></a>
+          </Pill>
+        </Case>
+
+        <Case n="19" name="SectionRule" rule="Нумерована лінія між розділами: волосяна лінія та моно-підпис на тлі паперу. Декоративна, aria-hidden — заголовок розділу несе секція, що йде далі.">
+          <div className="py-6"><SectionRule index="01" label="Проблема" /></div>
         </Case>
 
         <div className="border-t border-line py-14">
