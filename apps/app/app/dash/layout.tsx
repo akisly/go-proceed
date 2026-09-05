@@ -6,6 +6,11 @@ import { listProjects } from "../../src/services/projects.service";
 import { accountInitial, accountLabel, getSessionIdentity } from "../../src/services/session.service";
 import { DashLayout } from "../../src/layouts/dash-layout";
 import { ShellFatalError } from "../../src/components/dash-shell/shell-error";
+// The dashboard runs on @goproceed/ui/base.css, whose --gp-font-sans is Onest
+// since the Daylight tokens (2026-09-05); the face is loaded here, at the
+// dashboard's own layout, so the field-client pages — still on the legacy
+// stylesheet and Inter — do not pay for a second family.
+import "@fontsource-variable/onest";
 import "./dash-theme.css";
 
 /**

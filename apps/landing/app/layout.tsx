@@ -3,14 +3,13 @@ import { headers } from "next/headers";
 import type { ReactNode } from "react";
 import { createLandingMetadata } from "../content/landing-metadata";
 
-// Three families, loaded as variable fonts and subset by @fontsource:
-//   Inter        — all UI, all body copy, every figure
-//   Source Serif — display headings only (D3), never below mkt-display-3
-//   JetBrains Mono — index labels, evidence IDs, figure captions (D4)
-// Manrope is gone: display duty moved to the serif, and three families that do
-// two jobs is one family too many.
-import "@fontsource-variable/inter";
-import "@fontsource-variable/source-serif-4";
+// Two families, loaded as variable fonts and subset by @fontsource:
+//   Onest          — every heading, all body copy, all UI, every figure
+//   JetBrains Mono — index labels, evidence IDs, figure captions
+// Daylight (2026-09-05): the serif display face and Inter are gone; the
+// prototype sets everything in Onest. Verified on @fontsource-variable/onest
+// 5.3.1: wght 100–900, `tnum`, Іі Її Єє Ґґ.
+import "@fontsource-variable/onest";
 import "@fontsource-variable/jetbrains-mono";
 import "./globals.css";
 
