@@ -219,7 +219,7 @@ are chosen so that no consumer has to be renamed: `neutral-*`, `amber-*`,
 
 | Ramp | Change | Anchor steps (hex is illustrative; the triple is the source) |
 |---|---|---|
-| `neutral` | re-tuned to the prototype: warm paper, cool ink. Steps are independent triples, so the light end sits at hue ≈ 95 and the dark end at hue ≈ 270 — the ruling on each step says so. | 0 `#FFFFFF` · 25 `#F6F5F1` paper · 50 `#EFEEE8` paper-2 · 100 `≈#E9E8E2` · 150 `≈#E2E1DE` · 200 `≈#D9D9D6` (line, ≈ ink at 9 % on paper) · 300 `≈#CFCFCC` (line-2, ≈ ink at 16 %) · 400 `#A9ACB3` ink-4 · 500 `#7A7E87` ink-3 · 600 `≈#6A6E77` (body-text floor, see §7.3) · 700 `#4E5158` ink-2 · 800 `≈#3A3D45` · 900 `#2A2C33` (ink hover) · 950 `≈#1E1F24` · 975 `#15161A` ink |
+| `neutral` | re-tuned to the prototype: warm paper, cool ink. Steps are independent triples, so the light end sits at hue ≈ 95 and the dark end at hue ≈ 270 — the ruling on each step says so. | 0 `#FFFFFF` · 25 `#F6F5F1` paper · 50 `#EFEEE8` paper-2 · 100 `≈#E9E8E2` · 150 `≈#E2E1DE` · 200 `≈#D9D9D6` (line, ≈ ink at 9 % on paper) · 300 `≈#CFCFCC` (line-2, ≈ ink at 16 %) · 400 `#A9ACB3` ink-4 · 500 `#7A7E87` ink-3 · 600 `≈#5E626B` (body-text floor, see §7.3) · 700 `#4E5158` ink-2 · 800 `≈#3A3D45` · 900 `#2A2C33` (ink hover) · 950 `≈#1E1F24` · 975 `#15161A` ink |
 | `cobalt` | **new — THE MARK.** Replaces `signal` as the accent and `blue` as the review/focus/link hue. | 50 `≈#F4F6FF` · 100 `≈#EAEDFF` (soft, = cobalt at 10 % on white) · 200 `≈#D5DBFF` · 300 `#9AAAFF` (the accent on ink; dark-mode fg) · 400 `#5568DE` **accent** (large text only, 4.4:1 on paper) · 500 `#2B4BFF` **mark** (5.4:1 on paper, 5.9:1 on white) · 600 `≈#2440D9` hover / link · 700 `≈#1E36B8` review text · 800 `≈#172A8C` · 900 `≈#101D5E` |
 | `green` | **new** — «ok». The ready state stops being lime. | 50 · 100 `≈#E8F4EE` chip ground · 200 · 300 · 500 `#1E8F5A` ok (icons, dots — 4.1:1, **not** text on white) · 600 · 700 `≈#17754A` ready as text (≥4.5:1 on white and on green-100) · 800 · 900 |
 | `amber` | re-hued to the prototype's warn orange | 500 `≈#E07A32` icon · 600 `#C8641F` warn (3.9:1 — icons and stamps, **not** text) · 700 `≈#A6511A` attention text · 100 `≈#FAEFE8` chip ground (= warn at 10 %) |
@@ -462,7 +462,7 @@ renamed, with the marker CSS gone).
 |---|---|---|---|
 | 7.1 | GSAP/Lenis choreography, tilt, magnetic, drift | see §6.2 and D4 | rules 4–5, F7 |
 | 7.2 | Beam runs forever | two passes on settle | rule 4 |
-| 7.3 | `--ink-3 #7A7E87` for captions and metadata (3.7:1 on paper) | `text-muted` is one step darker (`≈#6A6E77`, ≥4.5:1); `#7A7E87` is `text-subtle`, large/non-text only | `contrast.test.ts` — muted copy on canvas ≥ 4.5:1 |
+| 7.3 | `--ink-3 #7A7E87` for captions and metadata (3.7:1 on paper) | `text-muted` is one step darker (`≈#5E626B`, ≥4.5:1 on every ground it lands on); `#7A7E87` is `text-subtle`, large/non-text only | `contrast.test.ts` — muted copy on canvas ≥ 4.5:1 |
 | 7.4 | «Заблоковано» tags in warn orange | `status-blocked` stays the app's red; the two blocked cards on the board read in red | one role, one meaning across app and landing; orange is «attention» there |
 | 7.5 | `.cmp-card.now` cobalt-tinted shadow | `shadow-float` (neutral) | four shadows, none coloured |
 | 7.6 | breakpoints at 560/640/800/860/900/960/1180 | `md` 768 and `wide` 1240 | two breakpoints, by ruling |
