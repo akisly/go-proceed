@@ -496,3 +496,13 @@ canonical documentation: OK
 Gate green at `db80308`. Both Importants from the final review are closed with measured evidence
 (§5b, §5c above); nine of the ten Minors are fixed in code or docs (M3–M11); M12 is left as is per
 the review's own recommendation.
+
+### The twelve non-database suites and the motion audit on the final HEAD (2026-09-06)
+
+```
+ Test Files  12 passed (12)
+      Tests  165 passed (165)
+motion-audit: clean
+```
+
+`pnpm --filter @goproceed/tokens generate` → `git status --short` empty.
