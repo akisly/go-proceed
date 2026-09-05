@@ -21,7 +21,7 @@
  *     reference wraps its table in. `DataTable.tsx` says what each would cost.
  *   Toast — nothing in v0.1 is transient enough to need one, and a refusal the
  *     user must be able to re-read must not be able to disappear.
- *   Breadcrumb, Pagination, Timeline, Stepper — no screen needs them yet.
+ *   Breadcrumb, Pagination, Timeline — no screen needs them yet; `Stepper` arrived 2026-09-05 with the landing's pilot plan.
  *
  * TWO DUPLICATIONS THIS PACKAGE CARRIES ON PURPOSE, named so they cannot go
  * unnoticed. Both are the cost of taking shadcn into a package that already
@@ -70,6 +70,7 @@ export { SectionRule } from "./SectionRule";
 export { FeatureGrid, FeatureCell } from "./FeatureGrid";
 export { Bento, BentoCell } from "./Bento";
 export { ComparePair, CompareCard, CompareArrow, type CompareRow } from "./Compare";
+export { Stepper, Step } from "./Stepper";
 export {
   Table, TableHeader, TableBody, TableFooter, TableHead, TableRow, TableCell, TableCaption,
 } from "./Table";

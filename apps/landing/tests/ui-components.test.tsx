@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule, Bento, BentoCell, ComparePair, CompareCard, CompareArrow } from "@goproceed/ui/components";
+import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule, Bento, BentoCell, ComparePair, CompareCard, CompareArrow, Stepper, Step } from "@goproceed/ui/components";
 import { ScrollSettle } from "@goproceed/ui/motion";
 
 describe("Button size=\"lg\"", () => {
@@ -112,5 +112,19 @@ describe("ComparePair", () => {
     expect(html).toContain('data-compare-tone="now"');
     expect(html).toContain("EV-0248 · 14:32");
     expect(html).toContain('aria-hidden="true"');
+  });
+});
+
+describe("Stepper", () => {
+  it("renders steps with a progress-driven line and dots", () => {
+    const html = renderToStaticMarkup(
+      <Stepper>
+        <Step index={0} count={2} when="День 1" title="Реєстр">Дві години.</Step>
+        <Step index={1} count={2} when="Тиждень 1" title="Майданчик">Знімає.</Step>
+      </Stepper>,
+    );
+    expect(html.match(/data-slot="step"/g)).toHaveLength(2);
+    expect(html).toContain("--gp-progress");
+    expect(html).toContain('data-stepper-line="true"');
   });
 });

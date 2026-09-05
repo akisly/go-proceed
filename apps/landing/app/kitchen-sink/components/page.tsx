@@ -30,6 +30,7 @@ import {
   Pill, PillContent, SectionRule,
   Bento, BentoCell,
   ComparePair, CompareCard, CompareArrow,
+  Stepper, Step,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Tooltip, TooltipProvider,
@@ -449,6 +450,15 @@ export default function ComponentSink() {
               outcome="Акт не повертають."
             />
           </ComparePair>
+        </Case>
+
+        <Case n="23" name="Stepper + Step" rule="План пілота як вертикальний степпер (21st.dev Steppers), за часом, а не за скролом: InViewProgress публікує 0 → 1 у --gp-progress, лінія заповнюється scaleY, точки спалахують на своїх порогах. Під reduced motion план одразу повний.">
+          <Stepper>
+            <Step index={0} count={4} when="День 1 · об'єкт і реєстр" title="Заносимо один пакет робіт і вимоги до нього">Разом із ПТВ: роботи, місця, пункти ДБН. Дві години.</Step>
+            <Step index={1} count={4} when="Тиждень 1 · майданчик" title="Майстер знімає докази за вимогами">Через Telegram-бот або мобільний застосунок, на своєму телефоні.</Step>
+            <Step index={2} count={4} when="Тиждень 2 · зовнішній розгляд" title="Технагляд приймає або повертає по посиланню">Перший запис закриття з підставою.</Step>
+            <Step index={3} count={4} when="Підсумок" title="Чернетка акта і рішення про продовження">Збираємо Додаток В із фактів і чесно називаємо межі v0.1.</Step>
+          </Stepper>
         </Case>
 
         <div className="border-t border-line py-14">
