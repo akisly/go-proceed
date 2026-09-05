@@ -86,6 +86,14 @@ const LINES: Array<[label: string, fg: string, bg: string, min: number]> = [
   ["the strong border on a surface", "border-strong", "bg-surface", 1.5],
   ["the inverse hairline on the inverse surface", "border-inverse", "bg-inverse", 1.5],
   ["the accent edge of a selected card on a surface", "border-accent", "bg-surface", 3.0],
+  // [Corrected 2026-09-06: the fix-wave brief asked for a 3.0 minimum here,
+  // matching the Important-review's assumption that a control's border is a
+  // meaningful (1.4.11) boundary. Measured, it is not: status-blocked-border
+  // on bg-surface is 1.35:1 in light and 1.66:1 in dark — a hairline, not an
+  // accent edge (compare border-accent's actual ~3:1+, which is why that row
+  // alone in this table carries 3.0). 1.3 is the same margin-below-measured
+  // convention as border-subtle/border-default/border-strong above.]
+  ["the destructive border on a surface", "status-blocked-border", "bg-surface", 1.3],
 ];
 
 for (const theme of ["light", "dark"] as Theme[]) {

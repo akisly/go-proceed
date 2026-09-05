@@ -58,7 +58,7 @@ export default async function ObligationPage({ params }: ObligationPageProps) {
          * for this screen is a foreman on a phone, often gloved, not a mouse
          * user for whom a small text link is enough.
          */}
-        <Button asChild variant="link" size="sm" className="self-start px-0 text-data">
+        <Button asChild variant="link" className="self-start text-data">
           <Link href="/">← Мої доручення</Link>
         </Button>
         <h1 className="text-h1 font-semibold text-ink">

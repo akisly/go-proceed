@@ -33,7 +33,8 @@ import { cx } from "./cn";
  * query — rather than with a breakpoint, because it is a fact about the
  * pointing device and a touch laptop at 1440px needs it too. Both numbers come
  * from `component.control-height-*`; neither is typed here. `link` has no
- * height of its own but keeps the touch floor as a minimum.
+ * height of its own but keeps the VERTICAL touch floor as a minimum; its
+ * width is the sentence's, so a min-width would break inline links.
  *
  * No focus ring in the variants. `base.css` gives every focusable element in
  * the product one treatment, so two of them cannot disagree.

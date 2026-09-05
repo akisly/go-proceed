@@ -786,8 +786,9 @@ async function measureHorizontalOverflow(page) {
  * NO ANCHOR MAY RENDER WITH USER-AGENT LINK STYLING — ported verbatim from
  * apps/app/qa/field.mjs (field.mjs:732-751; see that file's own comment for
  * the full history: a missing `a` reset there once turned every list row
- * blue-and-underlined). `[data-slot="button"]` is apps/app's own
- * `<Button asChild>` marker (`src/ui/button.tsx`) and this client has no such
+ * blue-and-underlined). `[data-slot="button"]` is `@goproceed/ui`'s Button
+ * marker (`packages/ui/src/components/Button.tsx`, rendered on both the
+ * `asChild` and default paths) and this client has no such
  * component — the exemption clause below is kept anyway, unchanged, so this
  * stays a byte-for-byte port rather than a divergent copy; it simply never
  * matches anything here, so no anchor in this client is exempt from the

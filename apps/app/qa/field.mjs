@@ -1211,7 +1211,9 @@ async function assertOnest(ctx, page, label) {
       body: getComputedStyle(document.body).fontFamily,
     };
   });
-  if (faces.heading !== null && !/Onest/i.test(faces.heading)) {
+  if (faces.heading === null) {
+    ctx.findings.push(`${label}: no <h1>/<h2> to check the heading face against`);
+  } else if (!/Onest/i.test(faces.heading)) {
     ctx.findings.push(`${label}: the heading renders in "${faces.heading}" — must be Onest`);
   }
   if (!/Onest/i.test(faces.body)) {
@@ -3337,7 +3339,10 @@ async function main() {
             return { unresolved: true };
           }
           const hits = [...document.querySelectorAll("*")].filter((el) => getComputedStyle(el).backgroundColor === resolved);
-          return { resolved, count: hits.length, samples: hits.slice(0, 3).map((el) => `${el.tagName.toLowerCase()}${el.className ? "." + String(el.className).split(" ")[0] : ""}`) };
+          return { resolved, count: hits.length, samples: hits.slice(0, 3).map((el) => {
+            const cls = el.getAttribute("class") ?? "";
+            return `${el.tagName.toLowerCase()}${cls ? "." + cls.split(" ")[0] : ""}`;
+          }) };
         });
         if (budget.unresolved) {
           ctx.findings.push(`${label} @${width}: signal probe: --gp-action-signal-bg did not resolve`);
@@ -3347,7 +3352,7 @@ async function main() {
         const silentStatus = await page.evaluate(() =>
           [...document.querySelectorAll('[class*="bg-status-"]')]
             .filter((el) => (el.textContent ?? "").trim().length === 0 && !el.querySelector("img, svg[aria-label]"))
-            .map((el) => `${el.tagName.toLowerCase()}.${String(el.className).split(" ").find((c) => c.startsWith("bg-status-"))}`));
+            .map((el) => `${el.tagName.toLowerCase()}.${(el.getAttribute("class") ?? "").split(" ").find((c) => c.startsWith("bg-status-"))}`));
         for (const s of silentStatus) {
           ctx.findings.push(`${label} @${width}: ${s} carries a status colour and no text — status is never colour alone`);
         }
@@ -3371,7 +3376,11 @@ async function main() {
         for (const width of DAYLIGHT_REDUCED) {
           const touch = width < 768;
           await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
-          await page.goto(`${server.baseUrl}${route.path}`, { waitUntil: "networkidle0" });
+          const res = await page.goto(`${server.baseUrl}${route.path}`, { waitUntil: "networkidle0" });
+          if (!res || res.status() !== 200) {
+            ctx.findings.push(`${route.path} (reduced motion) @${width}: expected 200, got ${res ? res.status() : "no response"}`);
+            continue;
+          }
           await waitForAnimations(page);
           await inspect(page, `${route.path} (reduced motion)`, width);
           await page.screenshot({ path: path.join(daylightShots, `${route.slug}-${width}-reduced.png`), fullPage: true });
@@ -3403,6 +3412,7 @@ async function main() {
           );
           if (!trigger) { ctx.findings.push(`sign-out confirm @${width}: no visible profile control`); continue; }
           await trigger.click();
+          await trigger.dispose();
           const item = await visibleHandleWithText(page, '[role="menuitem"]', "Вийти");
           if (!item) { ctx.findings.push(`sign-out confirm @${width}: no «Вийти» item`); continue; }
           await item.click();

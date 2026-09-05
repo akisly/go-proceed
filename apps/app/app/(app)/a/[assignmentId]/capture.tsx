@@ -8,7 +8,7 @@ import {
 } from "../../../../src/lib/capture/state";
 import { uploadCapture } from "../../../../src/lib/capture/upload";
 import { AttemptGuard } from "../../../../src/lib/capture/attempt";
-import { Button } from "@goproceed/ui/components";
+import { Button, Label } from "@goproceed/ui/components";
 
 /**
  * THE CAPTURE ISLAND — ADR-007 decision 4, obligation 2 of 2, and the
@@ -236,9 +236,9 @@ export function CaptureIsland({ assignmentId, occurrenceId, accept = "image/*" }
 
   return (
     <div className="flex flex-col gap-3 rounded-panel border border-line bg-surface p-4">
-      <label htmlFor={inputId} className="text-data font-medium text-ink">
+      <Label htmlFor={inputId}>
         {saved ? "Фото збережено" : "Додати фото"}
-      </label>
+      </Label>
 
       {/*
        * `capture="environment"` is a HINT to mobile browsers to open the
