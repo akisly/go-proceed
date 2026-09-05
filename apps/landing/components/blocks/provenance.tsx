@@ -27,14 +27,30 @@ export function Provenance() {
                   {p.immutability.items.map((t) => <li key={t} className="grid grid-cols-[16px_1fr] gap-2.5"><Check aria-hidden="true" strokeWidth={2} className="mt-0.5 size-3.5 rounded-control border-[1.5px] border-ink p-px text-ink" />{t}</li>)}
                 </ul>
               </BentoCell>
+              {/* Seven items in a row, of which the last three INVERT the first
+                * four, and the only thing that told them apart was a decorative
+                * marker: an empty ring for «робить», an aria-hidden Minus for
+                * «не обіцяє». Neither is announced, so a screen reader heard
+                * «Записане блокування закриття» run straight into «Фізичну
+                * роботу не зупиняє» with nothing marking the turn. Each half now
+                * carries a heading and the list points at it.
+                *
+                * `h4`, not `h3`: BentoCell's own title is the h3 above these
+                * two, and a sub-list of it is not its sibling. */}
               <BentoCell eyebrow={p.limits.eyebrow} title={p.limits.title}>
                 <div className="grid gap-3.5 md:grid-cols-2">
-                  <ul className="grid gap-2 text-data text-ink-secondary">
-                    {p.limits.does.map((t) => <li key={t} className="grid grid-cols-[14px_1fr] gap-2"><i className="mt-0.5 size-3 rounded-pill border-[1.5px] border-status-ready-fg" />{t}</li>)}
-                  </ul>
-                  <ul className="grid gap-2 text-data text-ink-secondary">
-                    {p.limits.doesNot.map((t) => <li key={t} className="grid grid-cols-[14px_1fr] gap-2"><Minus aria-hidden="true" strokeWidth={1.75} className="mt-0.5 size-3 rounded-pill border-[1.5px] border-line-strong text-ink-subtle" />{t}</li>)}
-                  </ul>
+                  <div className="grid gap-2">
+                    <h4 id="limits-does" className="text-meta font-semibold uppercase tracking-wide text-ink-muted">{p.limits.doesTitle}</h4>
+                    <ul aria-labelledby="limits-does" className="grid gap-2 text-data text-ink-secondary">
+                      {p.limits.does.map((t) => <li key={t} className="grid grid-cols-[14px_1fr] gap-2"><i aria-hidden="true" className="mt-0.5 size-3 rounded-pill border-[1.5px] border-status-ready-fg" />{t}</li>)}
+                    </ul>
+                  </div>
+                  <div className="grid gap-2">
+                    <h4 id="limits-does-not" className="text-meta font-semibold uppercase tracking-wide text-ink-muted">{p.limits.doesNotTitle}</h4>
+                    <ul aria-labelledby="limits-does-not" className="grid gap-2 text-data text-ink-secondary">
+                      {p.limits.doesNot.map((t) => <li key={t} className="grid grid-cols-[14px_1fr] gap-2"><Minus aria-hidden="true" strokeWidth={1.75} className="mt-0.5 size-3 rounded-pill border-[1.5px] border-line-strong text-ink-subtle" />{t}</li>)}
+                    </ul>
+                  </div>
                 </div>
               </BentoCell>
           </Bento>

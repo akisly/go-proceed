@@ -50,6 +50,12 @@ export function PilotForm() {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(all),
+        // Fifteen seconds — comfortably longer than the handler's own eight, so
+        // a slow-but-alive delivery still wins. Without it a connection that
+        // opens and never answers left the button disabled on «Надсилаю…»
+        // indefinitely and the clipboard fallback out of reach; the abort
+        // throws, and the catch below is already the failed state.
+        signal: AbortSignal.timeout(15_000),
       });
       const json = (await response.json().catch(() => ({}))) as { ok?: boolean };
       if (response.ok && json.ok) { setState("sent"); form.reset(); return; }
@@ -67,7 +73,17 @@ export function PilotForm() {
   }
 
   return (
+    /* `method="post" action="/api/pilot"` is what a visitor WITHOUT JavaScript
+     * gets. A form with neither submits a default GET to the current URL, which
+     * puts the applicant's name, company and phone into the address bar, the
+     * browser history, the Referer of every later request and the CDN log —
+     * and delivers nothing while doing it. The POST reaches the handler, which
+     * answers a 4xx problem for a form-encoded body (tests/pilot-route.test.ts)
+     * rather than claiming to have sent anything; the address below the buttons
+     * is the route that actually works without JS. */
     <form
+      method="post"
+      action="/api/pilot"
       onSubmit={onSubmit}
       onChange={(e) => setFields(read(e.currentTarget))}
       aria-label="Заявка на пілот GoProceed"
@@ -124,6 +140,13 @@ export function PilotForm() {
             <span className="mt-2 block"><Button asChild variant="outline" size="sm"><a href={buildPilotMailto(fields)}>{f.mail}</a></Button></span>
           </>
         )}
+      </p>
+      {/* Spec §9.1: the address is visible in the copy under the form, always —
+        * not only in the failed state, which only JavaScript can produce. One
+        * line, and a link rather than a second call to action. */}
+      <p className="text-data text-ink-secondary">
+        {f.mailNote}{" "}
+        <a className="font-medium underline underline-offset-4 hover:text-ink" href={`mailto:${PILOT_EMAIL}`}>{PILOT_EMAIL}</a>
       </p>
       <p className="text-meta text-ink-subtle">{f.fine}</p>
     </form>

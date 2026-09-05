@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import LandingPage from "../app/page";
 import { landingContent } from "../content/landing-content";
+import { PILOT_EMAIL } from "../content/pilot-request";
 
 export const html = renderToStaticMarkup(<LandingPage />).replace(/&#x27;/g, "'");
 export const section = (id: string, next?: string) =>
@@ -134,6 +135,52 @@ describe("position, capture, provenance", () => {
   });
 });
 
+// The four semantics the whole-branch review found wrong: a matrix whose dots
+// announced nothing, two inverted lists with no labels, six requirement sources
+// hidden outright, and a `role="list"` with no list items in it.
+describe("what assistive technology is told", () => {
+  const trust = section("trust", "pilot");
+  const a = landingContent.provenance.access;
+
+  it("renders the access matrix as a real table with headers and spoken levels", () => {
+    expect(trust).toContain("<table");
+    // one header row of four roles plus seven data rows
+    expect(trust.match(/<th[^>]*scope="col"/g)).toHaveLength(4);
+    expect(trust.match(/<th[^>]*scope="row"/g)).toHaveLength(a.rows.length);
+    expect(trust.match(/<tr/g)).toHaveLength(a.rows.length + 1);
+    expect(trust.match(/data-access=/g)).toHaveLength(28);
+    // every cell says its level in words, not only in colour
+    const spoken = trust.match(/<span class="sr-only">/g) ?? [];
+    expect(spoken.length).toBeGreaterThanOrEqual(28);
+    for (const level of ["full", "own", "none"] as const) expect(trust).toContain(a.legend[level]);
+    // an `aria-label` on a bare <i> is prohibited by the generic role: gone
+    expect(trust).not.toMatch(/<i[^>]*aria-label/);
+  });
+
+  it("labels the two halves of the v0.1 limits so the polarity is announced", () => {
+    const l = landingContent.provenance.limits;
+    expect(trust).toContain(l.doesTitle);
+    expect(trust).toContain(l.doesNotTitle);
+    expect(trust.match(/<ul[^>]*aria-labelledby=/g)?.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("keeps the six requirement sources readable and names the strip", () => {
+    // slice to the strip's own closing tag: the decorative section rule that
+    // follows it is legitimately aria-hidden and would mask the assertion
+    const strip = section("sources", "problem");
+    const sources = strip.slice(0, strip.indexOf("</section>"));
+    expect(sources).not.toContain('aria-hidden="true"');
+    expect(sources).toContain(`aria-label="${landingContent.sources.label}"`);
+    for (const item of landingContent.sources.items) expect(sources).toContain(item.code);
+  });
+
+  it("does not claim a list of links that has no list items", () => {
+    const nav = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+    if (nav.includes('role="list"')) expect(nav).toMatch(/role="listitem"/);
+    else expect(nav).toContain("<ul");
+  });
+});
+
 describe("pilot", () => {
   const pilot = section("pilot", "faq");
   it("walks the four steps, the three cards and the author note", () => {
@@ -151,6 +198,20 @@ describe("pilot", () => {
     expect(pilot).toContain('aria-live="polite"');
     expect(pilot).toContain('data-form-state="idle"');
     expect(pilot).not.toContain(landingContent.pilot.form.sent);
+  });
+  // Spec §9.1: with JavaScript unavailable the form still renders, the address
+  // is visible in the copy under it, and nothing claims to have sent anything.
+  // Without a method the default submit is a GET, which puts the applicant's
+  // name and phone into the address bar, the history and every later Referer.
+  it("posts to the handler without JavaScript and shows the address unconditionally", () => {
+    expect(pilot).toContain('method="post"');
+    expect(pilot).toContain('action="/api/pilot"');
+    expect(pilot).not.toMatch(/<form[^>]*method="get"/);
+    expect(pilot).toContain(`mailto:${PILOT_EMAIL}`);
+    expect(pilot).toContain(PILOT_EMAIL);
+    expect(pilot).toContain(landingContent.pilot.form.mailNote);
+    // the address line is copy, not a second call to action
+    expect(pilot).not.toContain("bg-action-signal");
   });
 });
 

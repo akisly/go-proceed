@@ -33,18 +33,23 @@ export function Nav() {
           <BrandMark />
           {landingContent.nav.brand}
         </a>
-        <div className="hidden gap-0.5 md:flex" role="list">
+        {/* A real `<ul>`. `role="list"` over bare anchors is axe's
+          * `aria-required-children`: a list with no list items, which screen
+          * readers announce as empty and which can suppress the anchors' own
+          * position information. `contents` keeps the flex row identical. */}
+        <ul className="hidden gap-0.5 md:flex">
           {landingContent.nav.items.map((item) => (
+            <li key={item.href} className="contents">
             <a
-              key={item.href}
               href={item.href}
               aria-current={active === item.href ? "true" : undefined}
               className="landing-nav-link relative px-[0.6875rem] py-2 text-data text-ink-secondary transition-colors duration-fast ease-out hover:text-ink aria-[current=true]:text-ink"
             >
               {item.label}
             </a>
+            </li>
           ))}
-        </div>
+        </ul>
         <Button asChild size="sm" className="ml-2.5">
           <a href="#pilot">
             <span className="hidden md:inline">{landingContent.nav.action}</span>

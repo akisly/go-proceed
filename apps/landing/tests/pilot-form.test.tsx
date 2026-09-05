@@ -59,6 +59,28 @@ describe("PilotForm", () => {
     expect(screen.getByRole("status")).toHaveTextContent(PILOT_EMAIL);
   });
 
+  // A stalled connection used to leave the button disabled on «Надсилаю…»
+  // for as long as the platform allowed, with no way to reach the fallback.
+  it("aborts a stalled request and lands in the failed state", async () => {
+    const fetchMock = vi.fn().mockImplementation((_url: string, init: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        const signal = init.signal!;
+        signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+    const user = userEvent.setup();
+    render(<PilotForm />);
+    await fill(user);
+    await user.click(screen.getByRole("button", { name: f.submit }));
+
+    const init = fetchMock.mock.calls[0]![1] as RequestInit;
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+    (init.signal as AbortSignal).dispatchEvent(new Event("abort"));
+
+    await waitFor(() => expect(screen.getByRole("form")).toHaveAttribute("data-form-state", "failed"));
+    expect(writeText).toHaveBeenCalled();
+  });
+
   it("does not post when a required field is empty, and focuses it", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
