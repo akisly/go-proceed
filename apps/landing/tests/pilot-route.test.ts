@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { deliverPilotRequest } from "../app/api/pilot/deliver";
-import { resetRateLimit } from "../app/api/pilot/rate-limit";
+import { bucketSize, rateLimited, resetRateLimit } from "../app/api/pilot/rate-limit";
 import { POST } from "../app/api/pilot/route";
 
 const fields = { name: "Ірина", company: "", contact: "iryna@example.com", role: "Керівник ПТВ", context: "БЦ" };
@@ -97,5 +97,19 @@ describe("POST /api/pilot", () => {
     for (let i = 0; i < 5; i++) expect((await post(fields, "2.2.2.2")).status).toBe(200);
     expect((await post(fields, "2.2.2.2")).status).toBe(429);
     expect((await post(fields, "3.3.3.3")).status).toBe(200);
+  });
+});
+
+describe("rateLimited", () => {
+  it("bounds the map at 500 addresses and keeps enforcing limits after eviction", () => {
+    for (let i = 0; i < 600; i++) rateLimited(`10.0.${Math.floor(i / 256)}.${i % 256}`);
+    expect(bucketSize()).toBeLessThanOrEqual(500);
+
+    expect(rateLimited("192.168.1.1")).toBe(false); // a fresh IP is still allowed
+
+    const repeatIp = "192.168.1.2";
+    for (let i = 0; i < 5; i++) expect(rateLimited(repeatIp)).toBe(false);
+    expect(rateLimited(repeatIp)).toBe(true); // the 6th call is still blocked after eviction ran
+    expect(bucketSize()).toBeLessThanOrEqual(500);
   });
 });

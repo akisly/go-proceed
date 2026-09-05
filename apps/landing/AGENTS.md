@@ -19,4 +19,4 @@ for a local run. With no channel the handler answers 503 and the page falls
 back to copying the request text and opening the mail client to the address
 in `content/pilot-request.ts`. The rate limit (5 per 10 min per IP) is per
 instance and resets on a cold start. Tests: `tests/pilot-route.test.ts`,
-`tests/pilot-form.test.ts`.
+`tests/pilot-form.test.tsx`.
