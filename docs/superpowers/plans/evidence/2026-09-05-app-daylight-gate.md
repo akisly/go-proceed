@@ -186,3 +186,88 @@ harness's spawned server was killed as expected.
 (puppeteer-core 25.8.0) confirms the three calls this audit uses: `setViewport(viewport)`,
 `emulateMediaFeatures(features?)`, and `screenshot(options)` with a `fullPage` option — all used
 as documented, no shape surprises against the installed version.
+
+### Task 5 — fix round 1 (2026-09-05, HEAD e26bd3c)
+
+Controller ruling on the first daylight run's three defects (R5) plus the Task 4 `link`-variant
+regression (R6). Two files touched: `packages/ui/src/components/Button.tsx` and
+`apps/app/qa/field.mjs`.
+
+**Part A — `packages/ui/src/components/Button.tsx`.** The `link` variant composed `h-auto px-0`
+with no touch floor, so `<Button asChild variant="link" size="sm">` around the field client's
+"← Мої доручення" back link measured 103×20 at 375px — under the 44px floor the component's own
+docstring promises. Fixed by making the `link` branch `"h-auto px-0
+touch:min-h-(--gp-control-height-touch)"` (a token via `min-h-(…)`, Tailwind 4 syntax for
+`min-height: var(…)`; `@custom-variant touch (@media (pointer: coarse))` already exists in
+`base.css:49`). Separately, `data-slot="button"` is now rendered on both the `asChild` path
+(`<Slot.Root data-slot="button" …>`) and the default path (`<Press data-slot="button" …>`) —
+`Press.tsx` already spreads unknown props (including `data-*`, which TypeScript's JSX checker
+allows on any component regardless of its declared prop type) onto the underlying `<button>` /
+`motion.button`, so no change was needed inside `Press.tsx` itself. The docstring's size paragraph
+gained one sentence: "`link` has no height of its own but keeps the touch floor as a minimum."
+
+```
+pnpm --filter @goproceed/testing exec vitest run src/component-contract.test.ts src/tw-merge.test.ts
+  Test Files  2 passed (2)
+       Tests  26 passed (26)
+
+pnpm --filter @goproceed/ui typecheck
+  tsc --noEmit — no output, exit 0
+
+pnpm --filter @goproceed/landing test
+  Test Files  10 passed (10)
+       Tests  96 passed (96)
+```
+
+**Part B — `apps/app/qa/field.mjs`.** Three defects in the daylight visual audit itself, fixed
+without touching any app component:
+
+1. The signal-budget probe read `--gp-action-signal`, which does not exist —
+   `packages/ui/src/tokens.generated.css:179` defines `--gp-action-signal-bg`. Fixed to read the
+   right variable, and guarded: if the resolved colour is empty or `rgba(0, 0, 0, 0)`, the probe
+   now pushes one finding (`"… signal probe: --gp-action-signal-bg did not resolve"`) instead of
+   walking the DOM and reporting a huge, meaningless element count.
+2. `width <= 768` treated 768 (the `md` breakpoint, the icon-rail DESK state) as touch. All five
+   occurrences inside the new audit — the `inspect` touch-floor check, both `walkRoute` loops, the
+   sign-out-confirm loop, and the anonymous code-step loop — now read `width < 768`, matching every
+   other touch check already in the file.
+3. Below 768 the profile control lives inside the mobile drawer. The sign-out-confirm loop now
+   opens the drawer first when `width < 768` (`click 'button[aria-label="Відкрити меню"]'` →
+   `waitForSelector('[role="dialog"]')` → `waitForAnimations`) and then looks for the profile
+   trigger scoped to the dialog (`'[role="dialog"] button[aria-label="Профіль і вихід"]'`); the
+   1440 path is unchanged.
+4. In passing: the `measureUaStyledLinks` docstring's `src/ui/button.tsx` reference (a Task 4
+   leftover — that private component no longer exists) was reworded to `@goproceed/ui`'s Button
+   `link` variant.
+
+Local stack unchanged: Docker up, `supabase_db_goproceed` healthy at migration 0083, Mailpit at
+54324, `apps/app/.env.local` present.
+
+```
+pnpm --filter @goproceed/app build
+  ✓ Compiled successfully — no errors
+
+pnpm --filter @goproceed/app qa
+```
+
+Harness tail, verbatim:
+
+```
+> @goproceed/app@0.0.0 qa /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/apps/app
+> node qa/field.mjs
+
+QA passed: 9 of 9 expected audits ran (unauthenticated surface, sign-in, my assignments list, obligation screen, capture in-flight banner, evidence, the review link, and the external plane, assignment creation, daylight visual audit, dashboard profile and sign-out), zero findings. See qa-output/qa-report.json for the full report and qa-output/screenshots/ for evidence.
+```
+
+**Zero findings remain.** All three of the new audit's own defects (shapes 1-3 in the first-run
+entry above) were caused by the bugs just fixed — the signal-budget storm was the wrong variable
+name resolving to nothing and matching everything; the 768px tab-bar findings were the icon-rail's
+DESK state being probed as touch; the `sign-out confirm @390` hard failure was the profile control
+being looked for outside the drawer that now hides it. Fixing the audit's own defects, rather than
+the app, made all 118 daylight findings disappear along with them — there is nothing left over
+for Task 6 to triage from this run. The two Task 4 regression findings (the obligation screen's
+"← Мої доручення" link) are also gone, fixed by Part A's touch floor and `data-slot` change.
+
+`ls apps/app/qa-output/screenshots/daylight | wc -l` → **76** (the expected count; `dash-sign-out-390.png`
+is present — the drawer fix let that width's profile control be found).
+`pgrep -fl "next start"` after the run: empty.

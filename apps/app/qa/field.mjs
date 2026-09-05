@@ -1172,7 +1172,7 @@ async function measureHorizontalOverflow(page) {
  * directly readable.
  *
  * `[data-slot="button"]` anchors are exempt: `<Button asChild>` renders a real
- * link with button styling, and `src/ui/button.tsx`'s `link` variant underlines
+ * link with button styling, and `@goproceed/ui`'s Button `link` variant underlines
  * ON PURPOSE. Exempting them by the attribute the component itself sets — not
  * by a class-name guess — means a hand-rolled anchor that merely looks like a
  * button is still caught.
@@ -3318,7 +3318,7 @@ async function main() {
         if (overflow) {
           ctx.findings.push(`${label} @${width}: scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
         }
-        if (width <= 768) {
+        if (width < 768) {
           for (const t of await measureSmallTargets(page)) {
             ctx.findings.push(`${label} @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
           }
@@ -3327,16 +3327,21 @@ async function main() {
           ctx.findings.push(`${label} @${width}: anchor "${link.label}" renders with user-agent link styling (${link.color}, ${link.decoration})`);
         }
         const budget = await page.evaluate(() => {
-          const signal = getComputedStyle(document.documentElement).getPropertyValue("--gp-action-signal").trim();
+          const signal = getComputedStyle(document.documentElement).getPropertyValue("--gp-action-signal-bg").trim();
           const probe = document.createElement("i");
           probe.style.backgroundColor = signal;
           document.body.append(probe);
           const resolved = getComputedStyle(probe).backgroundColor;
           probe.remove();
+          if (!resolved || resolved === "rgba(0, 0, 0, 0)") {
+            return { unresolved: true };
+          }
           const hits = [...document.querySelectorAll("*")].filter((el) => getComputedStyle(el).backgroundColor === resolved);
           return { resolved, count: hits.length, samples: hits.slice(0, 3).map((el) => `${el.tagName.toLowerCase()}${el.className ? "." + String(el.className).split(" ")[0] : ""}`) };
         });
-        if (budget.count > 1) {
+        if (budget.unresolved) {
+          ctx.findings.push(`${label} @${width}: signal probe: --gp-action-signal-bg did not resolve`);
+        } else if (budget.count > 1) {
           ctx.findings.push(`${label} @${width}: ${budget.count} elements carry the signal background (${budget.samples.join(", ")}) — at most one per screen`);
         }
         const silentStatus = await page.evaluate(() =>
@@ -3351,7 +3356,7 @@ async function main() {
 
       const walkRoute = async (page, route) => {
         for (const width of DAYLIGHT_WIDTHS) {
-          const touch = width <= 768;
+          const touch = width < 768;
           await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
           const res = await page.goto(`${server.baseUrl}${route.path}`, { waitUntil: "networkidle0" });
           if (!res || res.status() !== 200) {
@@ -3364,7 +3369,7 @@ async function main() {
         }
         await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
         for (const width of DAYLIGHT_REDUCED) {
-          const touch = width <= 768;
+          const touch = width < 768;
           await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
           await page.goto(`${server.baseUrl}${route.path}`, { waitUntil: "networkidle0" });
           await waitForAnimations(page);
@@ -3382,10 +3387,20 @@ async function main() {
         // TODOS entry named. Opened the way the sign-out audit opens it,
         // cancelled the way it cancels it, so the session survives.
         for (const width of [1440, 390]) {
-          const touch = width <= 768;
+          const touch = width < 768;
           await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
           await page.goto(`${server.baseUrl}/dash/settings/profile`, { waitUntil: "networkidle0" });
-          const trigger = await visibleHandle(page, 'button[aria-label="Профіль і вихід"]');
+          // Below 768 the profile control sits inside the mobile drawer — open
+          // it first, the same way the sign-out audit's own drawer opens it.
+          if (touch) {
+            await page.click('button[aria-label="Відкрити меню"]');
+            await page.waitForSelector('[role="dialog"]');
+            await waitForAnimations(page);
+          }
+          const trigger = await visibleHandle(
+            page,
+            touch ? '[role="dialog"] button[aria-label="Профіль і вихід"]' : 'button[aria-label="Профіль і вихід"]',
+          );
           if (!trigger) { ctx.findings.push(`sign-out confirm @${width}: no visible profile control`); continue; }
           await trigger.click();
           const item = await visibleHandleWithText(page, '[role="menuitem"]', "Вийти");
@@ -3412,7 +3427,7 @@ async function main() {
         // The second step: type an address, request a code, capture the form
         // that asks for it. The code itself is never entered here.
         for (const width of [1440, 390]) {
-          const touch = width <= 768;
+          const touch = width < 768;
           await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
           await page.goto(`${server.baseUrl}/login`, { waitUntil: "networkidle0" });
           await page.type("#otp-email", email);
