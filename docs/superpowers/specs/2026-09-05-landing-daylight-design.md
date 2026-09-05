@@ -2,9 +2,10 @@
 
 **Date:** 2026-09-05
 
-**Status:** Draft — awaiting the owner's answers on the five decisions in §2.
-Everything else in this document is the recommended design and changes only if
-an answer in §2 changes it.
+**Status:** Approved by the owner on 2026-09-05 — all five decisions in §2
+taken as recommended (D1 system-wide palette and typeface; D2 route handler in
+`apps/landing`; D3 the mark everywhere; D4 no GSAP/Lenis, finite beam; D5
+`design-contest` tracked under `design-references/contest-2026-09/`).
 
 **Applies to:** `apps/landing`, `packages/ui`, `packages/tokens`,
 `design-references/brand`, and the documents that describe them. Nothing under
@@ -24,8 +25,9 @@ stands and is extended by one word (§6.2).
 (the procedure and the gate — it wins on every conflict of method),
 [`PRODUCT.md`](../../../PRODUCT.md) (what may not be claimed),
 [`docs/design/04-role-pain-map.md`](../../design/04-role-pain-map.md) (the role
-copy's source), `design-contest/README.md` (the nine iterations and their
-reasons — untracked, see §2 D5).
+copy's source), `design-references/contest-2026-09/daylight/README.md` (the nine iterations
+and their reasons — tracked under D5; until that commit lands the same files
+sit untracked at `design-contest/`).
 
 ---
 
@@ -66,10 +68,11 @@ the 2026-08-25 spec wherever they differ, and the content tests in §9 pin them:
 
 ---
 
-## 2. Decisions that need the owner
+## 2. Decisions the owner took (2026-09-05)
 
-Each carries the recommended answer. The spec below is written to the
-recommendation; a different answer changes the marked sections.
+Each was presented with a recommendation and an alternative; the owner took
+the recommendation in every case. The reasoning is kept so the alternative
+stays visible.
 
 ### D1 — The palette and the typeface: the whole system, or the landing only?
 
