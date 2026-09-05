@@ -133,3 +133,26 @@ split into `apps/admin` / `apps/space` — ADR-009 keeps the dashboard inside
 `apps/app` — three pages exist today, all of them the field client's. Rather
 than invent a shell, we take one that is already coherent, and spend the saved
 effort on the domain: the screens in [`04-role-pain-map.md`](04-role-pain-map.md).
+
+## Landing references — 21st.dev patterns (added 2026-09-05)
+
+**Status:** Approved (owner decision, 2026-09-05, with the Daylight prototype)
+**Applies to:** `apps/landing/**`
+
+The landing is built after recognisable community components from
+[21st.dev](https://21st.dev), taken as **structure** and restyled in token
+roles — no registry install, no pasted CSS variables, no raw hex (the same
+rule the dashboard applies to shadcn). Each block names its source:
+
+| Block | Pattern | What we take | What we do not |
+|---|---|---|---|
+| Hero pill | Announcement | badge + copy + arrow, `asChild` link | its gradient border |
+| Product frame | Container Scroll Animation + Border Beam | the tilt-and-settle entry (`ScrollSettle`), the ring of light (finite, two passes) | the perpetual beam; pointer tilt |
+| Background | Dot Pattern | the dot field with a radial mask | any animated variant |
+| Roles | Grid Feature Cards | 1px-gap cells, pointer spotlight | 3D hover |
+| Provenance | Bento Grid | a two-row cell beside two stacked cells | icon-led filler cells |
+| Route | Fora's sticky feature stack | five sticky cards, sides alternating | the scale/veil scrub (scroll-linked budget) |
+| Pilot plan | Steppers | vertical steps with a progress line | timed autoplay |
+| Closing | Cta-4 | light card, copy left, actions right | a second signal button |
+
+Spec: `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` §6.

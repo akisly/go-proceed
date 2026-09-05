@@ -25,13 +25,15 @@ const TONE = {
 export type ChipTone = keyof typeof TONE;
 
 export function Chip({
-  tone = "idle", children, className, interactive = false,
+  tone = "idle", children, className, interactive = false, dot = false,
 }: {
   tone?: ChipTone | undefined;
   children: ReactNode;
   className?: string | undefined;
   /** A chip inside a filter is a control and takes the touch floor. */
   interactive?: boolean | undefined;
+  /** A leading dot in the chip's own colour — the landing's status tags carry one. Never the only signal: the label still names the state. */
+  dot?: boolean | undefined;
 }) {
   return (
     <span
@@ -44,6 +46,7 @@ export function Chip({
         className,
       )}
     >
+      {dot && <i aria-hidden="true" data-chip-dot="true" className="size-1.5 shrink-0 rounded-pill bg-current opacity-80" />}
       {children}
     </span>
   );

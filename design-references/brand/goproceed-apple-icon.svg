@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- The iOS home-screen tile: FULL BLEED, rx 0. iOS applies its own ~22.4%
+       superellipse mask and renders any transparency as black, so a rounded
+       white tile (the favicon's shape, rx 25%) showed a thin dark arc at each
+       corner. The rounded tile is still right for the browser tab; this file
+       exists so the two are not the same file. -->
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <g transform="translate(512 512) scale(.8) translate(-512 -512)">
+    <rect x="106.67" y="106.67" width="810.67" height="810.67" rx="213.33" fill="none" stroke="#15161A" stroke-width="76.8"/>
+    <path d="M277.33 661.33 512 341.33l136.53 187.73" fill="none" stroke="#15161A" stroke-width="76.8" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="716.8" cy="665.6" r="81.07" fill="#2B4BFF"/>
+  </g>
+</svg>

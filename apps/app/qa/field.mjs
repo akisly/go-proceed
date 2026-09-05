@@ -3817,24 +3817,32 @@ async function main() {
           ctx.findings.push("/dash/settings/profile: a raw membership role identifier is on screen — membership-labels.ts is not being applied");
         }
 
-        // THE HEADINGS ARE INTER, NOT THE DISPLAY SERIF, AND THIS ASSERTION
-        // EXISTS BECAUSE THEY WERE NOT. `packages/ui/src/base.css` rules the
-        // display face "marketing-only … never inside the application shell",
-        // and `apps/app` does not install `@fontsource-variable/source-serif-4`
-        // at all — yet every dash heading rendered in Georgia, because
-        // `globals.css` and `dash-theme.css` both declare `--font-display` on
-        // `:root` of the same document and the dash chunk is the later one.
-        // `dash-theme.css` pins it back; nothing but a rendered page can tell
-        // whether that pin still holds, since both stylesheets compile
-        // perfectly either way.
-        const headingFont = await page.evaluate(() => {
+        // THE DASH RENDERS IN ONEST — BOTH HEADINGS AND BODY — AND THIS
+        // ASSERTION EXISTS BECAUSE THE FACE HAS BEEN LOST TWICE ALREADY.
+        // [Corrected 2026-09-05: this probe asserted Inter, and the display
+        // serif it guarded against no longer exists anywhere in the system.
+        // Daylight made Onest the one typeface on every token-driven surface;
+        // `apps/app/app/dash/layout.tsx` imports it and `theme.generated.css`
+        // + `dash-theme.css` point `--font-sans` and `--font-display` at it.]
+        //
+        // The failure mode this now catches is the OTHER direction: the field
+        // client's routes keep the legacy `globals.css`, which declares Inter
+        // on `:root` of the same document, and both stylesheets compile
+        // perfectly whichever order Next emits them in. Only a rendered page
+        // can tell whether the dash chunk is still the later one — so both
+        // faces are read here, because `--font-sans` rides the identical
+        // cascade and would revert silently with the headings.
+        const faces = await page.evaluate(() => {
           const h = document.querySelector("h1");
-          return h ? getComputedStyle(h).fontFamily : null;
+          return { heading: h ? getComputedStyle(h).fontFamily : null, body: getComputedStyle(document.body).fontFamily };
         });
-        if (headingFont === null) {
+        if (faces.heading === null) {
           ctx.findings.push("/dash/settings/profile: no <h1> to check the heading face against");
-        } else if (!/Inter/i.test(headingFont) || /Source Serif|Georgia|(^|,)\s*serif\s*$/i.test(headingFont)) {
-          ctx.findings.push(`/dash/settings/profile: the heading renders in "${headingFont}" — the app shell's headings must be Inter; \`--font-display\` has been lost to packages/ui's display serif again (see dash-theme.css)`);
+        } else if (!/Onest/i.test(faces.heading) || /Source Serif|Georgia|(^|,)\s*serif\s*$/i.test(faces.heading)) {
+          ctx.findings.push(`/dash/settings/profile: the heading renders in "${faces.heading}" — the dash shell's headings must be Onest; \`--font-display\` has reverted to the field client's Inter (see dash-theme.css)`);
+        }
+        if (!/Onest/i.test(faces.body)) {
+          ctx.findings.push(`/dash/settings/profile: the body renders in "${faces.body}" — the dash shell's body must be Onest; \`--font-sans\` has reverted to the field client's Inter (see theme.generated.css)`);
         }
         await page.screenshot({ path: path.join(SHOTS, "dash-profile.png"), fullPage: true });
 

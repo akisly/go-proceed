@@ -163,6 +163,74 @@
   &:hover { animation-play-state: paused; }
 }
 
+/* Border Beam — 21st.dev's ring of light that runs around a frame's edge.
+ * A conic gradient masked to a 1px ring, rotated by a registered custom
+ * property so the angle itself animates. It runs TWICE, keyed off the
+ * `data-settled` attribute `ScrollSettle` sets when the frame has landed, and
+ * never again: rule 4 permits one perpetual animation in the product and it is
+ * the marquee. Under reduced motion the unlayered block below drops the
+ * iteration count to one and the duration to nothing, so the ring is simply
+ * absent. */
+@property --gp-beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@utility beam {
+  position: absolute;
+  /* `inset: 0`, NOT `-1px`. An absolutely-positioned child's containing block
+   * is the parent's padding box and `overflow: hidden` clips to that same box,
+   * so a ring drawn 1px outside it is cut away in full by any clipping parent —
+   * measured at 0 painted pixels inside `visuals/board.tsx`, which is
+   * `relative overflow-hidden` on the element that hosts the beam. Drawn on the
+   * innermost 1px instead, the ring renders under a clipping parent and an
+   * unclipped one alike, so the utility carries no undocumented
+   * "your parent must not clip" contract. */
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--gp-beam-angle),
+    transparent 0 72%,
+    var(--gp-bg-signal) 86%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+}
+
+[data-settled="true"] .beam {
+  animation: gp-beam 7s linear 2;
+}
+
+/* The dot-pattern spotlight under a feature cell's pointer. Two custom
+ * properties the cell writes on pointer move; the mask is what makes it a
+ * spotlight rather than a second background. */
+@utility spotlight {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: radial-gradient(var(--gp-border-strong) 1px, transparent 1.2px);
+  background-size: 14px 14px;
+  -webkit-mask-image: radial-gradient(240px circle at var(--gp-spot-x, 50%) var(--gp-spot-y, 50%), #000, transparent 70%);
+  mask-image: radial-gradient(240px circle at var(--gp-spot-x, 50%) var(--gp-spot-y, 50%), #000, transparent 70%);
+}
+
+/* The «було / стало» pairing: a hovered row lights its twin in the other card.
+ * `:has()` on the pair container keeps both cards server-rendered; the wash is
+ * a background-color transition, rule 2 territory. */
+.compare-pair:has([data-compare-row="photo"]:hover) [data-compare-row="photo"],
+.compare-pair:has([data-compare-row="requirement"]:hover) [data-compare-row="requirement"],
+.compare-pair:has([data-compare-row="decision"]:hover) [data-compare-row="decision"],
+.compare-pair:has([data-compare-row="closure"]:hover) [data-compare-row="closure"],
+.compare-pair:has([data-compare-row="act"]:hover) [data-compare-row="act"] {
+  background-color: var(--gp-bg-accent-soft);
+}
+
 /* Duration utilities are named rather than numeric. `duration-150` would
  * compile perfectly and mean nothing; `duration-fast` is the 160ms that the
  * whole system's hover and press feedback shares, and changing it changes it
@@ -186,6 +254,11 @@
   @keyframes gp-marquee {
     from { transform: translateX(0); }
     to   { transform: translateX(-50%); }
+  }
+
+  @keyframes gp-beam {
+    from { opacity: 1; --gp-beam-angle: 0deg; }
+    to   { opacity: 1; --gp-beam-angle: 360deg; }
   }
 }
 

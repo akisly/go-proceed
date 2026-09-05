@@ -1,61 +1,39 @@
-import { ArrowDown } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { Button, Pill, PillContent } from "@goproceed/ui/components";
+import { Reveal, TextBlurIn } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
-import { MarkerText } from "../marker-text";
-import { LiveDossier } from "../visuals/live-dossier";
-
-const hero = landingContent.hero;
+import { ProductFrame } from "../visuals/product-frame";
 
 export function Hero() {
+  const h = landingContent.hero;
   return (
-    <section
-      id="product"
-      className="relative overflow-hidden px-5 pb-20 pt-28 md:px-8 md:pb-28 md:pt-36 wide:px-12"
-    >
-      <div
-        className="landing-hero-field absolute inset-0 -z-10"
-        aria-hidden="true"
-        data-hero-grid-flow="true"
-      />
-      <div className="mx-auto max-w-content">
-        <div
-          className="flex flex-col items-center text-center"
-          data-hero-alignment="center"
-          data-hero-copy-stack="true"
-        >
-          <h1 className="display max-w-[40ch] text-mkt-display-2 text-ink">
-            <MarkerText accent={hero.titleAccent} text={hero.title} />
+    <section id="hero" className="px-4 pt-32 md:px-8 md:pt-36">
+      <div className="mx-auto max-w-marketing">
+        <div className="mx-auto grid max-w-[780px] justify-items-center text-center">
+          <Reveal>
+            <Pill asChild>
+              <a href={h.pill.href}><PillContent badge={h.pill.badge}>{h.pill.text}</PillContent></a>
+            </Pill>
+          </Reveal>
+          <h1 className="display mt-5 max-w-[16ch] text-mkt-display-1 tracking-tightest text-ink">
+            <TextBlurIn text={h.title.slice(0, h.title.indexOf(h.titleAccent))} />
+            <span className="text-accent" data-accent="true">{h.titleAccent}</span>
+            <TextBlurIn text={h.title.slice(h.title.indexOf(h.titleAccent) + h.titleAccent.length)} delay={0.4} />
           </h1>
-
-          <p
-            className="measure mt-7 max-w-[68ch] text-mkt-lead leading-relaxed text-ink-muted"
-            data-hero-description="true"
-          >
-            {hero.lead}
-          </p>
-
-          <div
-            className="mt-8 flex flex-wrap items-center justify-center gap-3"
-            data-hero-actions="true"
-          >
-            <a
-              href="#pilot"
-              className="inline-flex min-h-11 items-center justify-center rounded-control bg-action-signal px-5 text-data font-semibold text-action-signal-fg transition-colors duration-fast ease-out hover:bg-action-signal-hover focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-            >
-              {hero.primaryAction}
-            </a>
-            <a
-              href="#workflow"
-              className="inline-flex min-h-11 items-center justify-center gap-2 rounded-control px-4 text-data font-semibold text-ink underline decoration-line-strong underline-offset-4 transition-colors duration-fast ease-out hover:text-link focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus"
-            >
-              {hero.secondaryAction}
-              <ArrowDown aria-hidden="true" className="size-4" strokeWidth={1.75} />
-            </a>
-          </div>
+          <Reveal delay={0.15}><p className="measure mt-5 text-mkt-lead leading-relaxed text-ink-secondary">{h.lead}</p></Reveal>
+          <Reveal delay={0.25} className="mt-6 flex flex-wrap justify-center gap-2.5">
+            <Button asChild size="lg"><a href="#pilot">{h.primaryAction}</a></Button>
+            <Button asChild size="lg" variant="outline">
+              <a href={h.secondaryHref}>{h.secondaryAction}<ArrowRight aria-hidden="true" className="size-4" strokeWidth={1.6} /></a>
+            </Button>
+          </Reveal>
+          <Reveal delay={0.3} className="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-left text-data text-ink-muted">
+            {h.facts.map((f) => (
+              <p key={f.value}><b className="block font-medium text-ink">{f.value}</b>{f.label}</p>
+            ))}
+          </Reveal>
         </div>
-
-        <div className="mt-12 md:mt-16">
-          <LiveDossier />
-        </div>
+        <ProductFrame />
       </div>
     </section>
   );

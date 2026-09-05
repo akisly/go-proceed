@@ -1,12 +1,12 @@
 /**
- * The motion vocabulary. FIFTEEN primitives, and a feature file may use
+ * The motion vocabulary. SIXTEEN primitives, and a feature file may use
  * nothing else — a bespoke `motion.div` in a block component is a review
  * failure, and `packages/testing/qa/motion-audit.mjs` fails the build on one.
  *
  * That is not tidiness. Every rule the system has about motion — ease-out only,
  * transform and opacity only, reveal fires once, reduced motion is a different
  * animation rather than a faster one, exactly two scroll-linked elements — is
- * enforced by living inside these fifteen files. A `motion.div` written by hand
+ * enforced by living inside these sixteen files. A `motion.div` written by hand
  * in a block is a rule that has to be remembered instead of one that holds.
  */
 export { Reveal } from "./Reveal";
@@ -24,6 +24,7 @@ export { CrossFade } from "./CrossFade";
 export { TrackFill } from "./TrackFill";
 export { SlideSwap } from "./SlideSwap";
 export { InViewProgress } from "./InViewProgress";
+export { ScrollSettle } from "./ScrollSettle";
 
 export { shouldReduce, useReduced } from "./use-reduced";
 export { DURATION, EASE, STAGGER, SPRING, BLUR, REDUCED } from "./tokens";

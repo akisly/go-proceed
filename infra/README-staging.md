@@ -465,6 +465,11 @@ production branch `main`. Created 2026-08-20 via the Vercel MCP
 (`create_git_project`/`deploy_to_vercel` tools) with the owner watching; no manual
 dashboard configuration was performed.
 
+**Environment (added 2026-09-05, the Daylight landing):** the pilot form's
+handler reads `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `RESEND_API_KEY`,
+`PILOT_TO_EMAIL`, `PILOT_FROM_EMAIL` — set at least one channel's pair in the
+dashboard for Production. Owner action; nothing else in the project changed.
+
 **First production deployment:** `dpl_CnUUmJCiCcJfd5qt4j8mN1fhkZU1`, deployed from
 commit `c77891f` (2026-08-20, before `apps/landing/vercel.json` had merged).
 Vercel's pnpm-workspace auto-detection installed at the repo root automatically,

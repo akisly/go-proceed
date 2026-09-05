@@ -1,0 +1,1179 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GoProceed — робота готова до приймання, коли доказ на місці</title>
+<meta name="description" content="GoProceed для підрядників, які здають приховані роботи: вимога, доказ із майданчика і рішення технагляду в одному маршруті, який закінчується чернеткою акта.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none'%3E%3Crect width='24' height='24' rx='6' fill='%23FFFFFF'/%3E%3Crect x='2.5' y='2.5' width='19' height='19' rx='5' stroke='%2315161A' stroke-width='1.8'/%3E%3Cpath d='M6.5 15.5 12 8l3.2 4.4' stroke='%2315161A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='16.8' cy='15.6' r='1.9' fill='%232B4BFF'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F6F5F1; --paper-2:#EFEEE8; --white:#FFFFFF; --ink:#15161A; --ink-2:#4E5158; --ink-3:#7A7E87; --ink-4:#A9ACB3;
+  --line:rgba(21,22,26,.09); --line-2:rgba(21,22,26,.16);
+  --cobalt:#2B4BFF; --acc:#5568DE; --cobalt-soft:rgba(43,75,255,.1); --ok:#1E8F5A; --ok-soft:rgba(30,143,90,.1); --warn:#C8641F; --warn-soft:rgba(200,100,31,.1);
+  --sans:"Onest",system-ui,-apple-system,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+  --ease:cubic-bezier(.22,1,.36,1); --sh:0 20px 50px -30px rgba(21,22,26,.22),0 1px 2px rgba(21,22,26,.05);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--paper);color-scheme:light}
+html,body{overflow-x:clip}
+body{font-family:var(--sans);color:var(--ink);background:var(--paper);-webkit-font-smoothing:antialiased;line-height:1.5;font-size:16px;position:relative}
+a{color:inherit;text-decoration:none}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg,img{display:block;max-width:100%}
+::selection{background:rgba(43,75,255,.18)}
+:focus-visible{outline:2px solid var(--cobalt);outline-offset:3px;border-radius:6px}
+main,header,footer{position:relative;z-index:1}
+/* background system */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg .grid{position:absolute;inset:0;background-image:linear-gradient(rgba(21,22,26,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(21,22,26,.05) 1px,transparent 1px),linear-gradient(rgba(21,22,26,.02) 1px,transparent 1px),linear-gradient(90deg,rgba(21,22,26,.02) 1px,transparent 1px);background-size:144px 144px,144px 144px,24px 24px,24px 24px;mask-image:radial-gradient(ellipse 90% 80% at 50% 35%,#000 20%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse 90% 80% at 50% 35%,#000 20%,transparent 100%)}
+.bg .glow{position:absolute;border-radius:50%;filter:blur(70px);will-change:transform;opacity:.7}
+.bg .g1{width:64vw;height:64vw;max-width:1000px;max-height:1000px;right:-26vw;top:-22vw;background:radial-gradient(circle,rgba(56,150,214,.17),rgba(56,150,214,.05) 40%,transparent 65%)}
+.bg .g2{width:48vw;height:48vw;left:-20vw;top:34vh;background:radial-gradient(circle,rgba(90,110,235,.12),transparent 62%)}
+.bg .g3{width:40vw;height:40vw;left:-14vw;top:80vh;background:radial-gradient(circle,rgba(40,170,170,.10),transparent 62%)}
+.frame-lines{position:fixed;inset:0;z-index:0;pointer-events:none}
+.frame-lines i{position:absolute;top:0;bottom:0;width:1px;background:var(--line)}
+.frame-lines i:first-child{left:calc(50% - min(590px,50% - clamp(16px,3vw,40px)))}
+.frame-lines i:last-child{right:calc(50% - min(590px,50% - clamp(16px,3vw,40px)))}
+.sep{position:relative;height:1px;background:var(--line);z-index:1}
+.sep .wrap{position:relative;height:1px}
+.sep .wrap::before,.sep .wrap::after{content:"";position:absolute;top:-6px;width:13px;height:13px;background:linear-gradient(var(--ink-3),var(--ink-3)) center/1px 100% no-repeat,linear-gradient(var(--ink-3),var(--ink-3)) center/100% 1px no-repeat}
+.sep .wrap::before{left:-6px}.sep .wrap::after{right:-6px}
+.sep b{position:absolute;left:14px;top:-9px;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);background:var(--paper);padding:2px 6px;font-weight:400}
+/* floating paths */
+.paths{display:none;position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.paths svg{width:100%;height:100%}
+.paths path{fill:none;stroke:var(--ink);stroke-width:1;opacity:.07;stroke-linecap:round}
+.paths path.c{stroke:var(--cobalt);opacity:.16}
+/* standards row (static) */
+.marq{border-top:1px solid var(--line);padding:0;position:relative}
+.marq .lab{width:min(1180px,100% - clamp(32px,6vw,80px));margin:0 auto;padding:14px 0 0;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4)}
+.marq .track{width:min(1180px,100% - clamp(32px,6vw,80px));margin:0 auto;display:grid;grid-template-columns:repeat(6,1fr);padding:10px 0 16px}
+.marq span{display:grid;gap:2px;font-size:12px;line-height:1.35;color:var(--ink-3);padding:0 14px 0 0;border-left:1px solid var(--line);padding-left:12px}
+.marq span:first-child{border-left:0;padding-left:0}
+.marq span:nth-child(n+7){display:none}
+.marq span b{color:var(--ink);font-weight:500;font-family:var(--mono);font-size:11px;letter-spacing:.04em}
+@media(max-width:900px){.marq .track{grid-template-columns:repeat(3,1fr);row-gap:12px}.marq span:nth-child(4){border-left:0;padding-left:0}}
+@media(max-width:560px){.marq .track{grid-template-columns:repeat(2,1fr)}.marq span:nth-child(4){border-left:1px solid var(--line);padding-left:12px}.marq span:nth-child(odd){border-left:0;padding-left:0}}
+
+.wrap{width:min(1180px,100% - clamp(32px,6vw,80px));margin-inline:auto}
+h1,h2,h3{font-weight:600;letter-spacing:-.03em;line-height:1.05;text-wrap:balance}
+h1{font-size:clamp(38px,4.9vw,62px);letter-spacing:-.035em}
+h2{font-size:clamp(28px,3.3vw,44px)}
+h3{font-size:19px;letter-spacing:-.015em}
+.mute{color:var(--ink-3)}
+.lead{font-size:clamp(16px,1.25vw,19px);color:var(--ink-2);max-width:50ch;line-height:1.6}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3);display:inline-flex;align-items:center;gap:8px;font-weight:500}
+.eyebrow::before{content:"";width:6px;height:6px;border-radius:1px;background:var(--ink-4)}
+.btn{display:inline-flex;align-items:center;gap:8px;height:42px;padding:0 18px;border-radius:9px;font-weight:500;font-size:14px;transition:transform .5s var(--ease),background .3s,box-shadow .5s var(--ease),border-color .3s;white-space:nowrap}
+.btn-ink{background:var(--ink);color:#fff}
+.btn-ink:hover{background:#2A2C33}
+.btn-line{border:1px solid var(--line-2);background:rgba(255,255,255,.6)}
+.btn-line:hover{border-color:var(--ink)}
+.btn svg{width:15px;height:15px}
+.mono{font-family:var(--mono);font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3)}
+
+/* drafting guides */
+.guides{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.hero .guides{display:none}
+.guides svg{width:100%;height:100%}
+.guides line,.guides path,.guides circle{stroke:rgba(21,22,26,.09);stroke-width:1;fill:none;vector-effect:non-scaling-stroke}
+.guides .c{stroke:rgba(43,75,255,.28)}
+.guides text{font-family:var(--mono);font-size:10px;fill:rgba(21,22,26,.35);letter-spacing:.08em}
+
+/* flat nav (Linear/Fora) */
+.nav{position:fixed;top:0;left:0;right:0;z-index:40;border-bottom:1px solid var(--line);background:rgba(246,245,241,.86);backdrop-filter:blur(14px) saturate(1.2);transition:background .3s,border-color .3s}
+.nav.stuck{background:rgba(246,245,241,.86);border-color:var(--line)}
+.nav .bar{width:min(1180px,100% - clamp(32px,6vw,80px));margin:0 auto;height:58px;display:flex;align-items:center;gap:6px}
+.logo{display:flex;align-items:center;gap:9px;font-weight:600;font-size:15px;letter-spacing:-.01em;margin-right:auto}
+.logo svg{width:28px;height:28px}
+.links{display:flex;gap:2px}
+.links a{position:relative;padding:8px 11px;font-size:13.5px;color:var(--ink-2);transition:color .2s}
+.links a::after{content:"";position:absolute;left:11px;right:11px;bottom:3px;height:1.5px;background:var(--ink);transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease)}
+.links a:hover{color:var(--ink)}
+.links a:hover::after{transform:scaleX(1)}
+.links a.on{color:var(--ink)}
+.links a.on::after{transform:scaleX(1);background:var(--acc)}
+.nav .btn{height:34px;padding:0 13px;font-size:13px;border-radius:8px;margin-left:10px}
+@media(max-width:860px){.links{display:none}}
+
+/* hero */
+.hero{position:relative;padding:140px 0 0;overflow:hidden}
+.hero .wrap{position:relative;z-index:2}
+.hero .dim{position:absolute;left:0;right:0;bottom:-66px;height:20px;pointer-events:none;font-family:var(--mono);font-size:10px;letter-spacing:.1em;color:var(--ink-4);display:flex;align-items:center;justify-content:center}
+.hero .dim::before,.hero .dim::after{content:"";flex:1;height:1px;background:var(--line-2);position:relative}
+.hero .dim span{padding:0 10px}
+.hero .dim::before{margin-left:1px}
+.hero .dim i{position:absolute;top:4px;width:1px;height:12px;background:var(--line-2)}
+.hero .dim i:first-child{left:0}.hero .dim i:last-child{right:0}
+.tag.rv::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;animation:pulse 1.6s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1.1)}}
+@media(max-width:900px){.hero .dim{display:none}}
+.hero .guides{inset:0 0 0 0}
+.hero-grid{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:clamp(24px,4vw,60px);align-items:center}
+.hero h1 .m{color:var(--acc)}
+h2 em{font-style:normal;color:var(--acc)}
+.cta h2 em{color:#9AAAFF}
+.hero .lead{margin:24px 0 30px}
+.hero-cta{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:22px}
+.hero .facts{display:flex;gap:22px;flex-wrap:wrap;font-size:13px;color:var(--ink-3)}
+.hero .facts b{display:block;color:var(--ink);font-weight:500;font-size:14px}
+.hero-ui{position:relative;padding-top:40px}
+.board{position:relative;background:var(--white);border-radius:12px;border:1px solid var(--line);box-shadow:var(--sh);overflow:hidden;will-change:transform}
+.board::after{content:"";position:absolute;inset:auto -20% -60% -20%;height:80%;background:radial-gradient(ellipse at 50% 100%,rgba(43,75,255,.1),transparent 60%);pointer-events:none}
+.b-top{display:flex;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+.b-top b{color:var(--ink);font-weight:500}
+.b-top .tabs{display:flex;gap:4px}
+.b-top .tabs span{padding:4px 9px;border-radius:7px}
+.b-top .tabs span.on{background:var(--paper-2);color:var(--ink)}
+.cols{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:12px;position:relative;z-index:1}
+.col{display:grid;gap:8px;align-content:start}
+.col .h{display:flex;justify-content:space-between;font-size:12px;color:var(--ink-3);padding:2px 4px}
+.col .h b{font-weight:500;color:var(--ink)}
+.col .h i{font-style:normal;font-family:var(--mono);font-size:11px}
+.card{border:1px solid var(--line);border-radius:8px;padding:10px 11px;background:var(--white);font-size:12px;display:grid;gap:5px}
+.card .code{font-family:var(--mono);font-size:10.5px;color:var(--ink-3)}
+.card .t{font-weight:500;color:var(--ink);line-height:1.3}
+.card .r{display:flex;justify-content:space-between;color:var(--ink-3);font-size:11px}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:2px 7px;border-radius:99px;font-weight:500}
+.tag.ok{background:var(--ok-soft);color:var(--ok)}.tag.rv{background:var(--cobalt-soft);color:var(--cobalt)}.tag.bl{background:var(--warn-soft);color:var(--warn)}
+.card.sel{border-color:var(--cobalt);box-shadow:0 0 0 3px var(--cobalt-soft)}
+.receipt{position:absolute;right:-8%;bottom:-9%;width:min(224px,50%);background:var(--white);border-radius:10px;border:1px solid var(--line);box-shadow:var(--sh);padding:14px;font-size:12px;will-change:transform;z-index:3}
+.receipt .k{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:8px;display:flex;justify-content:space-between}
+.receipt .ph{height:96px;border-radius:8px;background:linear-gradient(180deg,rgba(0,0,0,0) 45%,rgba(0,0,0,.45)),url(assets/photo-tray-thumb.jpg) center/cover;position:relative;margin-bottom:10px}
+.receipt .ph::after{content:"14:32 · ВРУ-1 · Секція А";position:absolute;left:8px;bottom:6px;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:#fff}
+.receipt .row{display:flex;justify-content:space-between;gap:8px;padding:5px 0;border-top:1px dashed var(--line-2);color:var(--ink-3)}
+.receipt .row b{color:var(--ink);font-weight:500;text-align:right}
+.float{position:absolute;padding:7px 11px;border-radius:8px;background:var(--white);border:1px solid var(--line);box-shadow:0 14px 30px -14px rgba(21,22,26,.35);font-size:12.5px;color:var(--ink-2);will-change:transform;white-space:nowrap;z-index:3}
+.float b{color:var(--ink);font-weight:500}
+.f1{left:-5%;bottom:-5%}.f2{left:-7%;top:-9%}
+.hero-base{height:0;margin-top:clamp(96px,10vw,120px)}
+@media(max-width:900px){.hero-grid{grid-template-columns:1fr}.receipt{position:relative;right:auto;top:auto;width:100%;margin:14px 0 0}.float{display:none}.cols{grid-template-columns:1fr 1fr}.cols .col:nth-child(1){display:none}}
+
+/* route line */
+.route{padding:clamp(40px,5vw,64px) 0 clamp(20px,3vw,32px);position:relative}
+.route .line{position:relative;height:96px}
+.route svg{width:100%;height:100%;overflow:visible}
+.route svg path{fill:none;stroke:var(--line-2);stroke-width:1.5}
+.route svg path.draw{stroke:var(--ink)}
+.route svg circle{fill:var(--cobalt);stroke:var(--paper);stroke-width:3}
+.route .cap{display:flex;justify-content:space-between;font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4);margin-bottom:8px}
+.route .pts{display:grid;grid-template-columns:repeat(5,1fr);margin-top:-8px}
+.route .pt{display:grid;gap:4px;justify-items:center;text-align:center;font-size:13px;color:var(--ink-2)}
+.route .pt i{width:10px;height:10px;border-radius:50%;background:var(--paper);border:2px solid var(--ink);margin-bottom:6px;transform:scale(.6);opacity:.4;transition:transform .5s var(--ease),opacity .5s}
+.route .pt.on i{transform:scale(1);opacity:1}
+.route .pt b{font-weight:500;color:var(--ink)}
+.route .pt span{font-size:11.5px;color:var(--ink-3)}
+@media(max-width:640px){.route .pts{grid-template-columns:repeat(5,1fr);font-size:11px}.route .pt span{display:none}}
+
+/* intro statement */
+.intro{padding:clamp(80px,9vw,120px) 0 clamp(70px,8vw,100px);position:relative}
+.intro p{font-size:clamp(24px,2.8vw,36px);font-weight:600;letter-spacing:-.03em;line-height:1.18;max-width:22ch}
+.intro p .w{display:inline-block;opacity:.14}
+.intro .aside{max-width:34ch;color:var(--ink-2);font-size:15px;margin-top:26px;line-height:1.6}
+.intro .g2>*{min-width:0}
+.intro .g2{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:clamp(30px,5vw,70px);align-items:end}
+.intro p{max-width:20ch}
+.fig{position:relative;margin-top:clamp(28px,4vw,48px);border:1px solid var(--line);border-radius:12px;background:var(--white);overflow:hidden}
+.fig-cap{display:flex;justify-content:space-between;gap:16px;padding:12px 16px;border-bottom:1px solid var(--line);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+.fig-cap b{color:var(--ink);font-weight:500}
+.fig-body{display:grid;grid-template-columns:minmax(0,.95fr) 56px minmax(0,1.05fr);align-items:stretch;min-height:400px}
+.chat{position:relative;border-right:1px solid var(--line);background:var(--paper);display:flex;flex-direction:column;min-width:0}
+.chat-h{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:12px;color:var(--ink-3);background:var(--white)}
+.chat-h b{color:var(--ink);font-weight:500}
+.chat-vp{position:relative;flex:1;overflow:hidden;mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 88%,transparent 100%);-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12%,#000 88%,transparent 100%)}
+.chat-list{position:absolute;left:0;right:0;top:0;padding:14px 12px;display:grid;gap:8px;will-change:transform}
+.msg{max-width:84%;font-size:12px;line-height:1.4;color:var(--ink-2);display:grid;gap:5px}
+.msg .b{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:7px 10px;position:relative}
+.msg.me{justify-self:end}.msg.me .b{background:#EEF0F4}
+.msg .who{font-size:10.5px;color:var(--ink-4);font-family:var(--mono);letter-spacing:.04em}
+.msg .ph{width:170px;height:100px;border-radius:6px;background:url(assets/photo-tray-card.jpg) 20% 70%/220% auto;margin-bottom:6px;filter:saturate(.7) contrast(.95)}
+.msg .ph.tray{background:url(assets/photo-tray-thumb.jpg) center/cover;filter:none}
+.msg .t{font-family:var(--mono);font-size:10px;color:var(--ink-4);text-align:right}
+.msg.hit .b{border-color:var(--cobalt);box-shadow:0 0 0 3px var(--cobalt-soft)}
+.msg .miss{display:none;gap:4px;flex-wrap:wrap;margin-top:4px}
+.msg.hit .miss{display:flex}
+.msg .miss i{font-style:normal;font-size:10px;padding:2px 6px;border-radius:4px;background:var(--warn-soft);color:var(--warn);font-family:var(--mono)}
+.chat-scan{position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(43,75,255,.35);pointer-events:none}
+.chat-scan::before,.chat-scan::after{content:"";position:absolute;top:-3px;width:7px;height:7px;background:var(--cobalt);border-radius:50%}
+.chat-scan::before{left:-3px}.chat-scan::after{right:-3px}
+.chat-f{padding:10px 14px;border-top:1px solid var(--line);font-size:11.5px;color:var(--ink-3);background:var(--white);display:flex;gap:8px;align-items:center}
+.chat-f b{color:var(--ink);font-weight:500}
+.chat-f i{width:14px;height:14px;border:1.5px solid var(--ink-3);border-radius:50%;position:relative;flex:none}
+.chat-f i::after{content:"";position:absolute;right:-5px;bottom:-4px;width:6px;height:1.5px;background:var(--ink-3);transform:rotate(45deg)}
+.fig-link{position:relative;display:grid;place-items:center;background:var(--paper-2)}
+.fig-link svg{width:100%;height:100%;position:absolute;inset:0}
+.fig-link path{fill:none;stroke:var(--ink-4);stroke-width:1.2;stroke-dasharray:3 5}
+.fig-link .arrow{position:relative;width:22px;height:22px;border-radius:50%;background:var(--white);border:1px solid var(--line-2);display:grid;place-items:center;font-size:12px;color:var(--ink)}
+.rec2{padding:14px 18px 16px;display:grid;gap:0;align-content:start;min-width:0}
+.rec2-h b{white-space:nowrap}
+.rec2 .r{grid-template-columns:96px 1fr}
+.rec2-h{display:flex;justify-content:space-between;align-items:center;font-size:12px;color:var(--ink-3);padding-bottom:10px;border-bottom:1px solid var(--line)}
+.rec2-h b{font-family:var(--mono);color:var(--ink);font-weight:500;font-size:12.5px}
+.rec2 .ph{height:150px;border-radius:8px;margin:12px 0 6px;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.45)),url(assets/photo-tray-wide.jpg) center/cover;position:relative}
+.rec2 .ph::after{content:"14:32 · ВРУ-1 · Секція А · вісь Б-4";position:absolute;left:8px;bottom:6px;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:#fff}
+.rec2 .r{display:grid;grid-template-columns:86px 1fr;gap:10px;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+.rec2 .r:first-of-type{border-top:0}
+.rec2 .r b{color:var(--ink);font-weight:500}
+.rec2 .r b.acc{color:var(--cobalt)}
+.rec2 .r.ok b{color:var(--ok)}
+.fig-foot{padding:10px 16px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-3);display:flex;gap:18px;flex-wrap:wrap}
+.fig-foot span::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;margin-right:7px;vertical-align:middle}
+.fig-foot span.a::before{background:var(--warn)}.fig-foot span.b::before{background:var(--cobalt)}
+@media(max-width:860px){.fig-body{grid-template-columns:1fr;min-height:0}.fig-link{height:48px}.fig-link svg{display:none}.chat{border-right:0;border-bottom:1px solid var(--line);height:420px}}
+/* stages: Fora-style sticky feature stack */
+.stages{position:relative;padding:clamp(40px,6vw,80px) 0 clamp(20px,3vw,40px)}
+.stages .head{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,.95fr);gap:40px;align-items:end;margin-bottom:clamp(30px,4vw,50px)}
+.stages .head h2{max-width:16ch}
+.codes{display:flex;flex-wrap:wrap;gap:6px;margin-top:16px}
+.codes span{font-size:12px;color:var(--ink-3);border:1px solid var(--line);border-radius:6px;padding:4px 10px;background:rgba(255,255,255,.6)}
+.codes b{font-family:var(--mono);color:var(--ink);font-weight:500;margin-right:6px}
+.fstack{display:grid;gap:18px}
+.fcard{position:sticky;top:90px;min-height:min(600px,calc(100vh - 130px));border-radius:14px;border:1px solid var(--line);background:var(--white);box-shadow:var(--sh);display:grid;grid-template-columns:1fr 1fr;overflow:hidden;will-change:transform,opacity;transform-origin:50% 0}
+.fcard .veil{position:absolute;inset:0;background:var(--paper);opacity:0;pointer-events:none;z-index:5;border-radius:inherit}
+.fcard.flip .ftext{order:2}.fcard.flip .fmedia{order:1;border-left:0;border-right:1px solid var(--line)}
+.ftext{padding:clamp(28px,4vw,56px);display:flex;flex-direction:column;gap:18px}
+.ftext .eyebrow{font-size:13px}
+.ftext h3{font-size:clamp(24px,2.6vw,34px);letter-spacing:-.025em;line-height:1.1;max-width:16ch}
+.ftext h3 em{font-style:normal;color:var(--acc)}
+.ftext p{color:var(--ink-2);font-size:15px;max-width:44ch;line-height:1.6}
+.ftext .note{margin-top:auto;padding-top:24px;display:flex;gap:10px;align-items:center;font-size:13px;color:var(--ink-3)}
+.ftext .note i{width:14px;height:14px;flex:none;background:linear-gradient(var(--ink-3),var(--ink-3)) center/1px 100% no-repeat,linear-gradient(var(--ink-3),var(--ink-3)) center/100% 1px no-repeat}
+.fmedia{position:relative;padding:clamp(20px,3vw,40px);display:grid;place-items:center;border-left:1px solid var(--line);overflow:hidden;isolation:isolate;perspective:1200px}
+.fmedia::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(21,22,26,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(21,22,26,.05) 1px,transparent 1px);background-size:28px 28px;mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,#000 30%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse 80% 80% at 50% 50%,#000 30%,transparent 100%);z-index:-1}
+.fmedia.t1{background:linear-gradient(160deg,rgba(238,241,255,.92),rgba(246,245,241,.9)),url(assets/photo-blueprint.jpg) center/cover}
+.fmedia.t2{background:linear-gradient(200deg,#FBF3E6 0%,#F6F5F1 55%,#EEF1FF 100%)}
+.fmedia.t3{background:linear-gradient(160deg,#E9F5EE 0%,#F6F5F1 60%,#EEF1FF 100%)}
+.fmedia.t4{background:linear-gradient(200deg,#EEF1FF 0%,#F6F5F1 50%,#E9F5EE 100%)}
+.fmedia.t5{background:linear-gradient(160deg,#F6F1E6 0%,#F6F5F1 60%,#EEF1FF 100%)}
+.fmedia .glowc{position:absolute;width:70%;aspect-ratio:1;border-radius:50%;filter:blur(50px);z-index:-1;opacity:.7}
+.t1 .glowc{background:rgba(43,75,255,.16);right:-20%;bottom:-30%}.t2 .glowc{background:rgba(214,150,60,.18);left:-20%;top:-30%}.t3 .glowc{background:rgba(30,143,90,.14);right:-20%;top:-25%}.t4 .glowc{background:rgba(43,75,255,.14);left:-20%;bottom:-30%}.t5 .glowc{background:rgba(214,150,60,.16);right:-15%;bottom:-25%}
+.fmedia .ui{width:100%;max-width:460px;background:var(--white);border:1px solid var(--line);border-radius:10px;box-shadow:var(--sh);overflow:hidden;will-change:transform}
+.ui .s-top{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line);font-size:13px;color:var(--ink-3);gap:12px}
+.ui .s-top b{color:var(--ink);font-weight:500}
+.ui .s-bd{padding:18px;display:grid;gap:12px;font-size:13.5px;color:var(--ink-2)}
+@media(max-width:900px){.stages .head{grid-template-columns:1fr}.fcard{position:relative;top:auto;grid-template-columns:1fr;min-height:0}.fcard.flip .ftext{order:1}.fcard.flip .fmedia{order:2;border-right:0;border-top:1px solid var(--line)}.fmedia{border-left:0;border-top:1px solid var(--line)}.ftext{padding:24px 20px}.s-phone{grid-template-columns:1fr}.ph-mini{max-width:200px}}
+.kv{display:grid;grid-template-columns:130px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line)}
+.kv span:first-child{color:var(--ink-3)}
+.kv b{font-weight:500;color:var(--ink)}
+.rule{padding:12px 14px;border-radius:10px;background:var(--warn-soft);color:var(--ink-2);font-size:13px;border:1px solid rgba(200,100,31,.2)}
+.rule b{color:var(--warn);font-weight:500}
+.s-phone{display:grid;grid-template-columns:200px 1fr;gap:20px;align-items:start}
+.ph-mini{aspect-ratio:9/17;border-radius:24px;background:var(--ink);padding:8px;box-shadow:0 20px 40px -20px rgba(21,22,26,.6)}
+.ph-mini .scr{background:var(--paper);border-radius:18px;height:100%;padding:26px 10px 10px;display:grid;gap:6px;align-content:start;font-size:10.5px;color:var(--ink-2)}
+.ph-mini .scr .t{font-weight:600;color:var(--ink);font-size:11px}
+.ph-mini .box{background:var(--white);border:1px solid var(--line);border-radius:8px;padding:7px 8px;display:grid;gap:2px}
+.ph-mini .box b{font-weight:500;color:var(--ink);font-size:10.5px}
+.ph-mini .cam{position:relative;border-radius:8px;height:86px;display:grid;place-items:end start;padding:6px;color:#fff;font-size:9.5px;background:linear-gradient(180deg,rgba(0,0,0,0) 40%,rgba(0,0,0,.5)),url(assets/photo-tray-thumb.jpg) center/cover;overflow:hidden}
+.ph-mini .cam::before{content:"";position:absolute;inset:10px;border:1px solid rgba(255,255,255,.7);border-radius:4px;mask:linear-gradient(#000 0 0) padding-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;padding:1px;opacity:.9;clip-path:polygon(0 0,18% 0,18% 1px,1px 1px,1px 18%,0 18%,0 100%,18% 100%,18% calc(100% - 1px),1px calc(100% - 1px),1px 82%,0 82%,100% 82%,calc(100% - 1px) 82%,calc(100% - 1px) calc(100% - 1px),82% calc(100% - 1px),82% 100%,100% 100%,100% 0,82% 0,82% 1px,calc(100% - 1px) 1px,calc(100% - 1px) 18%,100% 18%)}
+.ph-mini .go{background:var(--ink);color:#fff;border-radius:7px;text-align:center;padding:6px;font-weight:500;font-size:10.5px}
+.ext{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ext .url{display:flex;gap:8px;align-items:center;padding:8px 12px;background:var(--paper-2);font-family:var(--mono);font-size:11px;color:var(--ink-3)}
+.ext .url i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.ext .bd{padding:14px;display:grid;gap:10px}
+.ext .acts{display:flex;gap:8px;flex-wrap:wrap}
+.ext .acts span{border:1px solid var(--line-2);border-radius:8px;padding:7px 12px;font-size:13px}
+.ext .acts span.on{background:var(--ink);color:#fff;border-color:transparent;font-weight:500}
+.log{display:grid;gap:8px}
+.log div{display:grid;grid-template-columns:64px 1fr;gap:12px;font-size:13px;color:var(--ink-2)}
+.log div i{font-family:var(--mono);font-size:11px;color:var(--ink-3);padding-top:2px}
+.log div b{font-weight:500;color:var(--ink)}
+.act{border:1px solid var(--line);border-radius:10px;padding:16px 18px;background:#FBFAF7;font-size:13px;position:relative}
+.act h5{font-size:14px;font-weight:600;margin-bottom:10px}
+.act .l{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:6px 0;border-top:1px dashed var(--line-2);color:var(--ink-2)}
+.act .l b{font-weight:500;color:var(--ink)}
+.act .stamp{position:absolute;right:16px;top:12px;border:1.5px solid var(--warn);color:var(--warn);border-radius:6px;padding:3px 8px;font-family:var(--mono);font-size:10px;letter-spacing:.12em;transform:rotate(5deg)}
+
+/* quote block: centered testimonial pattern */
+.dome{position:relative;padding:clamp(40px,6vw,80px) 0 0}
+.dome .arcwrap{width:min(1180px,100% - clamp(32px,6vw,80px));margin:0 auto}
+.dome .arc{position:relative;border-top:1px solid var(--line);padding:clamp(56px,7vw,96px) clamp(16px,4vw,60px) clamp(20px,3vw,40px);text-align:center}
+.dome .qmark{position:absolute;top:clamp(20px,3vw,40px);font-family:var(--sans);font-weight:700;font-size:clamp(120px,16vw,220px);line-height:.8;color:var(--acc);opacity:.12;pointer-events:none;user-select:none}
+.dome .qmark.l{left:clamp(8px,2vw,24px)}.dome .qmark.r{right:clamp(8px,2vw,24px)}
+.dome .arc .in{display:grid;gap:22px;justify-items:center;max-width:860px;margin:0 auto;position:relative}
+.dome .arc p.q{font-size:clamp(24px,3vw,40px);font-weight:500;letter-spacing:-.025em;line-height:1.25;border:0;text-wrap:balance}
+.dome .arc p.q .w{display:inline-block;opacity:.14}
+.dome .arc p.q .dim .w{color:var(--ink-3)}
+.dome .arc p.q em{font-style:normal;color:var(--acc)}
+.qpills{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:6px}
+.qp{display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 14px 0 10px;border-radius:99px;border:1px solid var(--line-2);background:var(--white);font-size:13px;color:var(--ink-2)}
+.qp i{width:16px;height:16px;border-radius:50%;border:1.5px solid var(--ink-4);position:relative;flex:none}
+.qp.no i{border-color:var(--ink-4);background:linear-gradient(135deg,transparent 44%,var(--ink-4) 44% 56%,transparent 56%)}
+.qp.yes i{border-color:var(--ok);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%231E8F5A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 8.2l2.3 2.3 4.7-5'/%3E%3C/svg%3E") center/100% no-repeat}
+.qp.lock i{border-color:var(--ink-3);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%234E5158' stroke-width='1.5' stroke-linecap='round'%3E%3Crect x='4.5' y='7' width='7' height='5.5' rx='1.2'/%3E%3Cpath d='M6 7V5.5a2 2 0 0 1 4 0V7'/%3E%3C/svg%3E") center/100% no-repeat}
+.dome-base{height:clamp(24px,3vw,40px)}
+@media(max-width:600px){.dome .qmark{display:none}}
+
+/* channels */
+.chan{background:var(--white);padding:clamp(60px,8vw,110px) 0 clamp(70px,9vw,120px);position:relative}
+.chan .head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:end;margin-bottom:clamp(30px,4vw,50px)}
+.chan .head h2{max-width:20ch}
+.cards3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;perspective:1600px}
+.ch{position:relative;border-radius:14px;border:1px solid var(--line);background:var(--paper);padding:22px;min-height:400px;display:grid;grid-template-rows:auto 1fr auto;gap:16px;overflow:hidden;isolation:isolate;transform-style:preserve-3d;will-change:transform}
+.ch::before{content:"";position:absolute;inset:0;background:radial-gradient(420px circle at var(--mx,50%) var(--my,50%),rgba(43,75,255,.12),transparent 55%);opacity:0;transition:opacity .4s;pointer-events:none;z-index:0}
+.ch:hover::before{opacity:1}
+.ch>*{position:relative;z-index:1}
+.ch .top{display:flex;justify-content:space-between;align-items:center}
+.ch .top .mono{color:var(--ink-3)}
+.ch h3{font-size:19px;max-width:16ch;margin-top:8px}
+.ch p{font-size:14px;color:var(--ink-2);margin-top:8px;max-width:34ch}
+.ch .dev{display:grid;place-items:center;padding:8px 0}
+.ch .foot{display:flex;gap:8px;align-items:center;font-size:12.5px;color:var(--ink-3)}
+.dev .win{width:100%;border-radius:10px;background:var(--white);border:1px solid var(--line);box-shadow:var(--sh);padding:10px;display:grid;gap:6px;font-size:11px;color:var(--ink-2)}
+.dev .win .bar{display:flex;gap:4px}.dev .win .bar i{width:7px;height:7px;border-radius:50%;background:var(--line-2)}
+.dev .win .row{display:flex;justify-content:space-between;padding:6px 8px;border:1px solid var(--line);border-radius:6px}
+.dev .win .row b{font-weight:500;color:var(--ink)}
+.dev .tg{width:min(200px,80%);border-radius:14px;background:#E9EEF5;padding:10px;display:grid;gap:6px;font-size:10.5px}
+.dev .tg .m{padding:6px 8px;border-radius:9px;max-width:90%;line-height:1.35}
+.dev .tg .me{background:#DCF1C8;align-self:end;justify-self:end;border-bottom-right-radius:3px}
+.dev .tg .bot{background:var(--white);justify-self:start;border-bottom-left-radius:3px}
+.dev .tg .ph{height:64px;border-radius:5px;background:url(assets/photo-tray-thumb.jpg) center/cover;margin-bottom:4px}
+.dev .app{width:min(150px,60%);aspect-ratio:9/16;border-radius:20px;background:var(--ink);padding:6px;position:relative}
+.dev .app .scr{background:var(--paper);border-radius:15px;height:100%;padding:20px 8px 8px;display:grid;gap:5px;align-content:start;font-size:9.5px;color:var(--ink-3)}
+.dev .app .scr div{background:var(--white);border:1px solid var(--line);border-radius:6px;padding:5px 6px}
+.dev .app .scr b{display:block;color:var(--ink);font-weight:500}
+.dev .app .soon{position:absolute;inset:0;display:grid;place-items:center;background:rgba(246,245,241,.45);backdrop-filter:blur(2px);border-radius:20px}
+.dev .app .soon span{background:var(--ink);color:#fff;border-radius:99px;padding:5px 10px;font-size:11px;font-weight:500}
+.conv{margin-top:0;display:grid;justify-items:center;gap:0}
+.conv .l{display:none}
+.conv svg{width:100%;height:96px;display:block}
+.conv svg path{fill:none;stroke:var(--ink-4);stroke-width:1.2;stroke-dasharray:4 7;animation:flow 1.6s linear infinite}
+@keyframes flow{to{stroke-dashoffset:-22}}
+@media(max-width:960px){.conv svg{display:none}.conv{margin-top:24px}}
+.conv .chip{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line-2);background:var(--paper);border-radius:99px;padding:8px 14px;font-size:13px;color:var(--ink-2);flex-wrap:wrap;justify-content:center;text-align:center}
+.conv .chip i{width:7px;height:7px;border-radius:50%;background:var(--ok)}
+.conv .chip b{color:var(--ink);font-weight:500;white-space:nowrap}
+@media(max-width:960px){.cards3{grid-template-columns:1fr}.chan .head{grid-template-columns:1fr}.ch{min-height:0}}
+
+/* receipts stack */
+.rec{padding:clamp(72px,8vw,112px) 0;position:relative}
+.rec .head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:end;margin-bottom:clamp(30px,4vw,50px)}
+.rec .head h2{max-width:14ch}
+.rstack{position:relative;display:grid;gap:18px}
+.rcard{position:sticky;top:100px;background:var(--white);border:1px solid var(--line);border-radius:14px;box-shadow:var(--sh);padding:clamp(20px,3vw,32px);display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.2fr);gap:clamp(20px,4vw,50px);will-change:transform;transform-origin:50% 0}
+.rcard .mono{margin-bottom:10px}
+.rcard h3{font-size:clamp(20px,2.2vw,26px);max-width:18ch}
+.rcard p{color:var(--ink-2);font-size:14.5px;margin-top:10px;max-width:40ch}
+.rcard .tbl{display:grid;font-size:13.5px}
+.rcard .tbl div{display:grid;grid-template-columns:120px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line);color:var(--ink-3)}
+.rcard .tbl div b{color:var(--ink);font-weight:500}
+.rcard .tl{display:grid;gap:8px;font-size:13px;color:var(--ink-2)}
+.rcard .tl div{display:grid;grid-template-columns:52px 1fr;gap:10px}
+.rcard .tl i{font-family:var(--mono);font-size:11px;color:var(--ink-3);padding-top:2px}
+.rcard ul{list-style:none;display:grid;gap:8px;font-size:14px;color:var(--ink-2)}
+.rcard ul li{display:grid;grid-template-columns:18px 1fr;gap:8px}
+.rcard ul li::before{content:"";width:14px;height:14px;border-radius:50%;border:1.5px solid var(--ink);margin-top:3px}
+.rcard ul.no li::before{border-color:var(--ink-4);background:linear-gradient(135deg,transparent 45%,var(--ink-4) 45% 55%,transparent 55%)}
+@media(max-width:860px){.rec .head{grid-template-columns:1fr}.rcard{grid-template-columns:1fr;position:relative;top:auto}}
+
+/* faq */
+.faq{padding:clamp(72px,8vw,112px) 0 clamp(40px,5vw,60px)}
+.faq .g{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:40px}
+.faq h2{max-width:12ch}
+.qa{border-top:1px solid var(--line)}
+.q{border-bottom:1px solid var(--line)}
+.q button{width:100%;display:flex;justify-content:space-between;align-items:center;gap:20px;padding:20px 0;text-align:left;font-size:17px;font-weight:500}
+.q button i{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-2);display:grid;place-items:center;flex:none;transition:transform .5s var(--ease),background .3s}
+.q button i::before{content:"";width:10px;height:1.5px;background:var(--ink);position:absolute}
+.q button i::after{content:"";width:1.5px;height:10px;background:var(--ink);position:absolute;transition:transform .5s var(--ease)}
+.q button i{position:relative}
+.q.open button i{background:var(--ink);border-color:var(--ink)}
+.q.open button i::before,.q.open button i::after{background:#fff}
+.q.open button i::after{transform:rotate(90deg)}
+.q .a{height:0;overflow:hidden}
+.q .a p{padding:0 0 22px;color:var(--ink-2);max-width:60ch;font-size:15px}
+@media(max-width:860px){.faq .g{grid-template-columns:1fr}}
+
+/* cta */
+.cta{padding:clamp(30px,4vw,50px) 0 clamp(60px,8vw,100px)}
+.cta .box{position:relative;border-radius:16px;background:var(--ink);color:#fff;padding:clamp(40px,6vw,90px) clamp(24px,5vw,80px);overflow:hidden;display:grid;gap:18px;justify-items:start}
+.cta .box .guides line,.cta .box .guides path{stroke:rgba(255,255,255,.12)}
+.cta .box .guides .c{stroke:rgba(140,160,255,.5)}
+.cta .box .guides text{fill:rgba(255,255,255,.4)}
+.cta h2{max-width:16ch;position:relative}
+.cta p{color:rgba(255,255,255,.7);max-width:50ch;position:relative}
+.cta .btns{display:flex;gap:10px;flex-wrap:wrap;position:relative}
+.cta .btn-w{background:#fff;color:var(--ink)}
+.cta .btn-w:hover{transform:translateY(-2px)}
+.cta .btn-o{border:1px solid rgba(255,255,255,.25);color:#fff}
+.cta .btn-o:hover{border-color:#fff;transform:translateY(-2px)}
+footer{padding:40px 0 40px;font-size:13px;color:var(--ink-3);border-top:1px solid var(--line)}
+footer .cols4{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:30px;margin-bottom:34px}
+footer .cols4 h4{font-size:12px;font-weight:600;color:var(--ink);margin-bottom:12px;letter-spacing:.02em}
+footer .cols4 a,footer .cols4 span{display:block;padding:4px 0;color:var(--ink-3)}
+footer .cols4 a:hover{color:var(--ink)}
+footer .brand{display:flex;align-items:center;gap:9px;font-weight:600;color:var(--ink);font-size:15px;margin-bottom:10px}
+footer .brand svg{width:28px;height:28px}
+footer .bot{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center;padding-top:20px;border-top:1px solid var(--line)}
+footer .dis{font-size:12px;color:var(--ink-4);max-width:70ch}
+@media(max-width:800px){footer .cols4{grid-template-columns:1fr 1fr}}
+
+
+/* roles */
+.roles{padding:clamp(72px,8vw,112px) 0}
+.roles .head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:end;margin-bottom:clamp(30px,4vw,50px)}
+.roles .head h2{max-width:15ch}
+.rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.role{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:22px 20px 20px;display:grid;gap:12px;align-content:start;min-height:320px;box-shadow:0 1px 2px rgba(21,22,26,.04);transition:transform .5s var(--ease),box-shadow .5s var(--ease)}
+.role:hover{transform:translateY(-2px);box-shadow:var(--sh)}
+.role .who{display:flex;align-items:center;gap:10px;font-weight:600;font-size:15px}
+.role .who i{width:32px;height:32px;border-radius:10px;background:var(--paper-2);display:grid;place-items:center;font-family:var(--mono);font-size:11px;color:var(--cobalt);font-style:normal}
+.role .pain{color:var(--ink-2);font-size:14px;line-height:1.55}
+.role .pain b{color:var(--ink);font-weight:600}
+.role .get{margin-top:auto;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2);display:grid;gap:5px}
+.role .get span::before{content:"→ ";color:var(--cobalt)}
+.role .src{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4)}
+@media(max-width:960px){.rgrid{grid-template-columns:1fr 1fr}.roles .head{grid-template-columns:1fr}}@media(max-width:600px){.rgrid{grid-template-columns:1fr}.role{min-height:0}}
+/* compare: two sheets */
+.cmp{padding:clamp(72px,8vw,112px) 0}
+.cmp .head{max-width:720px;margin-bottom:clamp(30px,4vw,50px)}
+.cmp-g{display:grid;grid-template-columns:1fr 1fr;gap:18px;perspective:1600px}
+.sheetc{border-radius:14px;padding:clamp(18px,2.4vw,28px);display:grid;gap:0;will-change:transform}
+.sheetc.was{background:var(--paper-2);border:1px dashed var(--line-2);color:var(--ink-3)}
+.sheetc.now{background:var(--white);border:1px solid var(--line);box-shadow:var(--sh);color:var(--ink)}
+.sheetc h3{font-size:14px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase;font-weight:500;margin-bottom:12px}
+.sheetc.now h3{color:var(--cobalt)}
+.sheetc .r{display:grid;grid-template-columns:120px 1fr;gap:12px;padding:11px 0;border-top:1px solid var(--line);font-size:14px;line-height:1.5}
+.sheetc .r span:first-child{font-weight:500;color:var(--ink-3)}
+.sheetc.now .r span:first-child{color:var(--ink-2)}
+.sheetc .c{font-family:var(--mono);font-size:12px;color:var(--cobalt)}
+@media(max-width:800px){.cmp-g{grid-template-columns:1fr}}
+/* pilot */
+.pilot{padding:clamp(72px,8vw,112px) 0}
+.pilot .head{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:40px;align-items:end;margin-bottom:clamp(30px,4vw,50px)}
+.pilot .head h2{max-width:15ch}
+.pgrid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,.9fr);gap:clamp(24px,4vw,60px);align-items:start}
+.steps{position:relative;display:grid;padding-left:36px}
+.steps::before{content:"";position:absolute;left:9px;top:12px;bottom:12px;width:2px;background:var(--line)}
+.steps .prog{position:absolute;left:9px;top:12px;width:2px;height:0;background:var(--ink)}
+.pstep{position:relative;padding:0 0 28px}
+.pstep::before{content:"";position:absolute;left:-32px;top:5px;width:12px;height:12px;border-radius:50%;background:var(--paper);border:2px solid var(--ink-4);transition:background .4s,border-color .4s}
+.pstep.on::before{background:var(--ink);border-color:var(--ink)}
+.pstep .when{font-family:var(--mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-bottom:6px}
+.pstep h3{font-size:18px;margin-bottom:6px}
+.pstep p{color:var(--ink-2);font-size:14.5px;max-width:44ch}
+.pneed{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:8px}
+.pneed div{background:var(--white);border:1px solid var(--line);border-radius:10px;padding:14px 16px;font-size:13.5px;color:var(--ink-2);display:grid;gap:6px}
+.pneed div b{color:var(--ink);font-weight:600}
+.pneed div span::before{content:"· "}
+.pneed .wide{grid-column:1/-1}
+.author{display:grid;grid-template-columns:44px 1fr;gap:14px;padding:14px 16px;border:1px solid var(--line);border-radius:12px;background:var(--paper);margin-bottom:6px}
+.author .av{width:44px;height:44px;border-radius:50%;background:var(--ink);color:#fff;display:grid;place-items:center;font-weight:600;font-size:13px;letter-spacing:.02em}
+.author b{display:block;font-size:13.5px;margin-bottom:4px}
+.author p{font-size:13px;color:var(--ink-2);line-height:1.5}
+.author .sig{display:block;margin-top:8px;font-size:11.5px;color:var(--ink-3)}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.form .ok.err{background:var(--warn-soft);border-color:rgba(200,100,31,.3)}
+.form .btn.busy{opacity:.6;pointer-events:none}
+.fbtns{display:grid;grid-template-columns:1fr auto;gap:8px}
+.fbtns .btn{width:100%}
+@media(max-width:560px){.fbtns{grid-template-columns:1fr}}
+.form{background:var(--white);border:1px solid var(--line);border-radius:14px;padding:clamp(20px,2.6vw,30px);display:grid;gap:12px;box-shadow:var(--sh);position:sticky;top:96px}
+.form h3{font-size:19px}
+.form p.n{font-size:13px;color:var(--ink-3)}
+.form label{display:grid;gap:6px;font-size:12.5px;color:var(--ink-2);font-weight:500}
+.form .two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.form input,.form select,.form textarea{width:100%;height:42px;padding:0 12px;border-radius:8px;border:1px solid var(--line-2);background:var(--paper);color:var(--ink);font:inherit;font-size:14px;font-weight:400;transition:border-color .3s,box-shadow .3s}
+.form textarea{height:96px;padding:10px 12px;resize:vertical}
+.form select{appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='none' stroke='%237A7E87' stroke-width='1.6'%3E%3Cpath d='M2 4l4 4 4-4'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+.form input:focus,.form select:focus,.form textarea:focus{outline:0;border-color:var(--cobalt);box-shadow:0 0 0 3px var(--cobalt-soft)}
+.form .btn{width:100%;justify-content:center;margin-top:4px}
+.form .ok{display:none;padding:12px 14px;border-radius:10px;background:var(--ok-soft);border:1px solid rgba(30,143,90,.25);font-size:13px}
+.form .ok.show{display:block}
+.form .fine{font-size:11.5px;color:var(--ink-4)}
+@media(max-width:900px){.pgrid{grid-template-columns:1fr}.pilot .head{grid-template-columns:1fr}.form{position:relative;top:auto}.pneed{grid-template-columns:1fr}.form .two{grid-template-columns:1fr}}
+
+
+/* ===== minimal UI/UX pass, blocks rebuilt after 21st.dev components ===== */
+:root{--r:12px}
+.bg .glow{display:none}
+.bg .grid{background-image:radial-gradient(rgba(21,22,26,.22) 1px,transparent 1.2px);background-size:22px 22px;mask-image:radial-gradient(ellipse 70% 55% at 50% 0%,#000 20%,transparent 100%);-webkit-mask-image:radial-gradient(ellipse 70% 55% at 50% 0%,#000 20%,transparent 100%);opacity:.9}
+.frame-lines{display:none}
+.sep .wrap::before,.sep .wrap::after{display:none}
+.sep b{left:0;padding-left:0}
+/* hero centered (Announcement pill + Container Scroll + Border Beam) */
+.hero{padding:132px 0 0;overflow:visible}
+.hero-c{max-width:780px;margin:0 auto;text-align:center;display:grid;justify-items:center}
+.pill{display:inline-flex;align-items:center;gap:8px;height:32px;padding:0 12px 0 5px;border-radius:99px;border:1px solid var(--line-2);background:var(--white);font-size:13px;color:var(--ink-2);transition:border-color .2s}
+.pill span{height:22px;padding:0 9px;border-radius:99px;background:var(--ink);color:#fff;font-size:11.5px;font-weight:500;display:inline-flex;align-items:center}
+.pill i{font-style:normal;color:var(--ink-3);transition:transform .2s}
+.pill:hover{border-color:var(--ink)}.pill:hover i{transform:translateX(2px)}
+.hero h1{margin-top:22px;font-size:clamp(38px,5.2vw,66px);letter-spacing:-.035em;max-width:16ch}
+.hero .lead{margin:20px auto 26px;text-align:center;max-width:58ch}
+.hero-cta{justify-content:center;margin-bottom:22px}
+.hero .facts{justify-content:center;text-align:left}
+.hero h1 .mk{color:var(--acc);background:none;padding:0}
+.stage{position:relative;perspective:1500px;margin-top:clamp(44px,6vw,72px);padding-bottom:92px}
+.stage-in{position:relative;transform-style:preserve-3d;transform:rotateX(18deg) scale(.94);transform-origin:50% 0;will-change:transform;max-width:1040px;margin:0 auto}
+.board{border:1px solid var(--line-2);border-radius:14px;box-shadow:0 30px 70px -40px rgba(21,22,26,.3);overflow:visible}
+.board::after{display:none}
+.board .cols{border-radius:0 0 14px 14px;overflow:hidden}
+.beam{position:absolute;inset:-1px;border-radius:15px;padding:1px;pointer-events:none;z-index:6;background:conic-gradient(from var(--a,0deg),transparent 0 72%,rgba(43,75,255,.85) 86%,transparent 100%);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:beam 7s linear infinite}
+@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes beam{to{--a:360deg}}
+.receipt{position:absolute;right:-3%;bottom:-78px;width:236px;border-radius:12px;box-shadow:0 24px 60px -30px rgba(21,22,26,.35);border:1px solid var(--line-2);transform:translateZ(40px)}
+.float{border-radius:99px;box-shadow:0 12px 30px -16px rgba(21,22,26,.35);border:1px solid var(--line-2)}
+.f1{left:-1%;bottom:-36px}.f2{left:1%;top:-46px}
+.hero .dim{bottom:-6px}
+.hero-base{margin-top:clamp(56px,7vw,80px)}
+@media(max-width:1180px){.receipt{right:0}.f1{left:0}.f2{left:0}}
+@media(max-width:900px){.stage-in{transform:none}.receipt{position:relative;right:auto;bottom:auto;width:100%;margin-top:14px;transform:none}.float{display:none}.hero h1{max-width:none}}
+@media(prefers-reduced-motion:reduce){.beam{animation:none}.stage-in{transform:none}}
+/* buttons minimal */
+.btn{height:42px;border-radius:10px;font-weight:500;box-shadow:none;transition:background .2s,border-color .2s,transform .3s var(--ease)}
+.btn-ink{background:var(--ink);color:#fff;border:1px solid var(--ink)}
+.btn-ink:hover{background:#2A2C33;transform:translateY(-1px)}
+.btn-line{background:var(--white);border:1px solid var(--line-2);color:var(--ink)}
+.btn-line:hover{border-color:var(--ink);transform:translateY(-1px)}
+.nav .btn{height:34px;box-shadow:none}
+/* surfaces */
+.fcard,.fmedia .ui,.ch,.form,.fig,.pneed div,.cmp-t,.ext,.act,.codes span,.dev .win,.card{border-radius:var(--r);box-shadow:none;border-color:var(--line-2)}
+.fcard{border-top:1px solid var(--line-2)}
+.fmedia .ui,.dev .win,.card{border-radius:10px}
+.fcard{box-shadow:0 20px 50px -40px rgba(21,22,26,.25)}
+.stepline .num{font-family:var(--mono);font-size:12px;color:var(--ink-3);border:1px solid var(--line-2);border-radius:6px;padding:2px 7px;letter-spacing:.06em}
+.ftext .note{border-top:1px solid var(--line)}
+.ftext .note i{border-radius:3px}
+.ftext h3 em,h2 em{color:var(--acc);background:none;font-style:normal;padding:0}
+/* tags soft */
+.tag{border-radius:99px;font-family:var(--sans);font-size:11px;text-transform:none;letter-spacing:0;padding:2px 8px;gap:5px}
+.tag::before{content:"";width:5px;height:5px;border-radius:50%;background:currentColor;opacity:.8}
+.tg{display:inline-block;font-style:normal;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--paper-2);color:var(--ink-2);margin-left:6px;vertical-align:1px;border:0}
+.tg.ok{background:var(--ok-soft);color:var(--ok)}.tg.rv{background:var(--cobalt-soft);color:var(--cobalt)}
+.log div{grid-template-columns:56px 1fr;padding:8px 0;border-top:1px solid var(--line)}
+.log div:first-child{border-top:0}.log div i{color:var(--ink)}
+.act .stamp{border:1.5px solid var(--warn);border-radius:6px;transform:rotate(4deg);box-shadow:none;background:var(--white)}
+.ui .s-top span,.rec2-h span,.chat-h span{font-size:11.5px;color:var(--ink-3);border:0;padding:0;text-transform:none;letter-spacing:0;font-family:var(--sans)}
+/* roles → grid feature cards */
+.rgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--line-2);border:1px solid var(--line-2);border-radius:14px;overflow:hidden}
+.role{position:relative;background:var(--white);border:0;border-radius:0;padding:26px 24px 26px;min-height:0;display:grid;gap:14px;align-content:start;box-shadow:none;transition:none;isolation:isolate}
+.role::before{content:"";position:absolute;inset:0;background-image:radial-gradient(rgba(21,22,26,.18) 1px,transparent 1.2px);background-size:14px 14px;mask-image:radial-gradient(240px circle at var(--mx,50%) var(--my,50%),#000,transparent 70%);-webkit-mask-image:radial-gradient(240px circle at var(--mx,50%) var(--my,50%),#000,transparent 70%);opacity:0;transition:opacity .35s;z-index:-1}
+.role:hover::before{opacity:1}
+.role:hover{transform:none;box-shadow:none}
+.role .ic{width:36px;height:36px;border-radius:9px;border:1px solid var(--line-2);display:grid;place-items:center;color:var(--ink);background:var(--white)}
+.role .ic svg{width:18px;height:18px}
+.role .who{font-weight:600;font-size:16px;display:grid;gap:2px;letter-spacing:-.01em}
+.role .who span{font-weight:400;font-size:12.5px;color:var(--ink-3)}
+.role .pain{font-size:13.5px;color:var(--ink-2);line-height:1.55}
+.role .get{margin-top:4px;padding-top:12px;border-top:1px solid var(--line);font-size:13px;color:var(--ink-2);display:grid;gap:6px}
+.role .get span::before{content:"→ ";color:var(--ink-3)}
+@media(max-width:960px){.rgrid{grid-template-columns:1fr 1fr}}@media(max-width:600px){.rgrid{grid-template-columns:1fr}}
+/* rec → bento */
+.bento{display:grid;grid-template-columns:1.25fr 1fr;grid-auto-rows:auto;gap:14px}
+.bcell{background:var(--white);border:1px solid var(--line-2);border-radius:14px;padding:clamp(20px,2.6vw,28px);display:grid;gap:14px;align-content:start}
+.bcell.big{grid-row:span 2;grid-template-columns:minmax(0,.85fr) minmax(0,1.25fr);gap:clamp(20px,3vw,40px);align-items:start}
+.bcell h3{font-size:clamp(18px,1.7vw,22px);max-width:20ch;margin-top:8px}
+.bcell p{color:var(--ink-2);font-size:14px;margin-top:8px}
+.bcell .bph{height:170px;border-radius:10px;margin-top:18px;background:linear-gradient(180deg,rgba(0,0,0,0) 50%,rgba(0,0,0,.45)),url(assets/photo-tray-card.jpg) center/cover;position:relative}
+.bcell .bph::after{content:"14:32 · ВРУ-1 · Секція А · вісь Б-4";position:absolute;left:8px;bottom:6px;font-family:var(--mono);font-size:9px;letter-spacing:.06em;color:#fff}
+.bcell p.small{font-size:12.5px;color:var(--ink-3)}
+.bcell .tbl{display:grid;font-size:13.5px}
+.bcell .tbl div{display:grid;grid-template-columns:110px 1fr;gap:10px;padding:9px 0;border-top:1px solid var(--line);color:var(--ink-3)}
+.bcell .tbl div:first-child{border-top:0}.bcell .tbl div b{color:var(--ink);font-weight:500}
+.bcell .tl{display:grid;font-size:13px;color:var(--ink-2)}
+.bcell .tl div{display:grid;grid-template-columns:52px 1fr;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.bcell .tl div:first-child{border-top:0}.bcell .tl i{font-family:var(--mono);font-size:11px;color:var(--ink);padding-top:2px}
+.acc{display:grid;font-size:13px;align-self:start}
+.acc-h,.acc-r{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(4,minmax(0,1fr));align-items:center;gap:6px;padding:12px 0;border-top:1px solid var(--line)}
+.acc-h{border-top:0;padding-top:0}
+.acc-h span{font-family:var(--mono);font-size:9.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);text-align:center;line-height:1.2;overflow-wrap:anywhere}
+.acc-h span:first-child{text-align:left}
+.acc-r span{color:var(--ink-2)}
+.acc-r i,.acc-l i{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--ink-4);display:block;margin:0 auto;box-sizing:border-box}
+.acc-r i.y,.acc-l i.y{background:var(--ok);border-color:var(--ok)}
+.acc-r i.p,.acc-l i.p{background:linear-gradient(90deg,var(--ok) 50%,transparent 50%);border-color:var(--ok)}
+.acc-l{display:flex;flex-wrap:wrap;gap:14px;padding-top:12px;font-size:11.5px;color:var(--ink-3)}
+.acc-l span{display:inline-flex;align-items:center;gap:6px}
+.acc-l i{margin:0}
+.imm{list-style:none;display:grid;gap:9px;font-size:13.5px;color:var(--ink-2)}
+.imm li{display:grid;grid-template-columns:16px 1fr;gap:9px}
+.imm li::before{content:"";width:12px;height:12px;border-radius:3px;border:1.5px solid var(--ink);margin-top:4px;background:linear-gradient(var(--ink),var(--ink)) center/6px 1.5px no-repeat}
+.bcell .lim{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.bcell ul{list-style:none;display:grid;gap:7px;font-size:13px;color:var(--ink-2)}
+.bcell ul li{display:grid;grid-template-columns:14px 1fr;gap:8px}
+.bcell ul li::before{content:"";width:12px;height:12px;border-radius:50%;border:1.5px solid var(--ok);margin-top:3px}
+.bcell ul.no li::before{border-color:var(--ink-4);background:linear-gradient(135deg,transparent 45%,var(--ink-4) 45% 55%,transparent 55%)}
+@media(max-width:860px){.bento{grid-template-columns:1fr}.bcell.big{grid-row:auto;grid-template-columns:1fr}.bcell .lim{grid-template-columns:1fr}}
+/* compare: now vs with GoProceed */
+.cmp .head{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:40px;align-items:end}
+.cmp .head h2{max-width:22ch}
+@media(max-width:860px){.cmp .head{grid-template-columns:1fr}}
+.cmp2{display:grid;grid-template-columns:minmax(0,1fr) 56px minmax(0,1fr);gap:0;align-items:stretch;margin-top:clamp(28px,4vw,44px)}
+.cmp-card{border:1px solid var(--line-2);border-radius:14px;background:var(--white);display:grid;grid-template-rows:auto 1fr auto;overflow:hidden}
+.cmp-card.was{background:var(--paper);border-style:dashed}
+.cmp-card.now{border-color:rgba(43,75,255,.35);box-shadow:0 30px 70px -40px rgba(43,75,255,.35),0 1px 2px rgba(21,22,26,.05);transform:translateY(-12px)}
+.cmp-top{display:grid;gap:2px;padding:18px 22px 14px;border-bottom:1px solid var(--line)}
+.cmp-top span{font-family:var(--mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-3)}
+.cmp-card.now .cmp-top span{color:var(--cobalt)}
+.cmp-top b{font-size:16px;font-weight:600}
+.cmp-card ul{list-style:none;display:grid}
+.cmp-card li{display:grid;grid-template-columns:22px 1fr;gap:12px;padding:14px 22px;border-top:1px solid var(--line);transition:background .25s;min-height:100px;align-content:start}
+.cmp-card li:first-child{border-top:0}
+.cmp-card li.pair{background:rgba(43,75,255,.045)}
+.cmp-card li i{width:20px;height:20px;border-radius:50%;margin-top:2px;flex:none;border:1.5px solid var(--ink-4);background:linear-gradient(135deg,transparent 44%,var(--ink-4) 44% 56%,transparent 56%)}
+.cmp-card.now li i{border-color:var(--ok);background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%231E8F5A' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4.5 8.2l2.3 2.3 4.7-5'/%3E%3C/svg%3E") center/100% no-repeat;transform:scale(0);transition:transform .5s var(--ease)}
+.cmp-card.now li.in i{transform:scale(1)}
+.cmp-card li b{display:block;font-size:13.5px;font-weight:600;margin-bottom:2px}
+.cmp-card.was li b{color:var(--ink-2)}
+.cmp-card li span{font-size:13.5px;line-height:1.5;color:var(--ink-3)}
+.cmp-card.now li span{color:var(--ink-2)}
+.cmp-card li em{display:block;font-style:normal;font-family:var(--mono);font-size:11.5px;color:var(--cobalt);margin-top:3px}
+.cmp-out{padding:16px 22px;border-top:1px solid var(--line);font-size:14px;font-weight:500;color:var(--ink-3);background:var(--paper-2);min-height:74px;display:flex;align-items:center}
+.cmp-out.ok{color:var(--ok);background:var(--ok-soft)}
+.cmp-arrow{display:grid;place-items:center}
+.cmp-arrow span{width:34px;height:34px;border-radius:50%;background:var(--white);border:1px solid var(--line-2);display:grid;place-items:center;font-size:16px;color:var(--ink)}
+@media(max-width:820px){.cmp2{grid-template-columns:1fr}.cmp-arrow{height:44px}.cmp-arrow span{transform:rotate(90deg)}.cmp-card.now{transform:none}}
+
+/* cta light card (Cta 4) */
+.cta .box{background:var(--white);color:var(--ink);border:1px solid var(--line-2);border-radius:16px;padding:clamp(28px,4vw,48px);display:grid;grid-template-columns:minmax(0,1.3fr) auto;gap:32px;align-items:center;justify-items:start}
+.cta .box .guides{display:none}
+.cta h2{font-size:clamp(26px,3vw,38px);max-width:18ch}
+.cta p{color:var(--ink-2);max-width:48ch;margin-top:12px}
+.cta .btns{justify-self:end}
+.cta h2 em{color:var(--acc);background:none}
+@media(max-width:800px){.cta .box{grid-template-columns:1fr}.cta .btns{justify-self:start}}
+/* misc minimal */
+.marq{border-top:1px solid var(--line)}
+.dome .arc{border-top:1px solid var(--line)}
+footer{border-top:1px solid var(--line)}
+.form input:focus,.form select:focus,.form textarea:focus{border-color:var(--ink);box-shadow:0 0 0 3px rgba(21,22,26,.06)}
+.q button i{border-radius:50%}
+
+.lm{display:block;overflow:hidden;padding-bottom:.12em;margin-bottom:-.12em}
+[data-up]{will-change:transform,opacity}
+@media(prefers-reduced-motion:reduce){.intro p .w,.dome .arc p.q .w{opacity:1}}
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="grid"></div><div class="glow g1" id="g1"></div><div class="glow g2" id="g2"></div><div class="glow g3" id="g3"></div></div>
+<div class="frame-lines" aria-hidden="true"><i></i><i></i></div>
+
+<template id="guides-tpl">
+<svg viewBox="0 0 1600 900" preserveAspectRatio="none" aria-hidden="true">
+  <line x1="0" y1="900" x2="1600" y2="0"/><line x1="0" y1="0" x2="1600" y2="900"/>
+  <line x1="200" y1="0" x2="200" y2="900"/><line x1="1400" y1="0" x2="1400" y2="900"/><line x1="0" y1="700" x2="1600" y2="700"/>
+  <circle cx="800" cy="450" r="260"/><circle class="c" cx="200" cy="700" r="5"/><circle class="c" cx="1400" cy="700" r="5"/>
+  <text x="208" y="690">A</text><text x="1408" y="690">Б</text><text x="1408" y="120">+3.300</text>
+</svg>
+</template>
+
+<header class="nav" id="nav">
+  <div class="bar">
+    <a class="logo" href="#top" aria-label="GoProceed">
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" stroke="#15161A" stroke-width="1.8"/><path d="M6.5 15.5 12 8l3.2 4.4" stroke="#15161A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16.8" cy="15.6" r="1.9" fill="#2B4BFF"/></svg>
+      GoProceed
+    </a>
+    <nav class="links" aria-label="Розділи"><a href="#compare">Що зміниться</a><a href="#roles">Для кого</a><a href="#stages">Як працює</a><a href="#faq">Питання</a></nav>
+    <a class="btn btn-ink" href="#pilot">Обговорити пілот</a>
+  </div>
+</header>
+
+<main id="top">
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap">
+    <div class="hero-c">
+      <a class="pill" href="#pilot" data-up><span>Безкоштовний пілот</span>для субпідрядників із прихованими роботами<i>→</i></a>
+      <h1 id="h1">Робота готова до приймання, коли <span class="mk">доказ</span> на місці.</h1>
+      <p class="lead" data-up>GoProceed показує майстру потрібний кадр до закриття конструкції і передає його технагляду разом із вимогою. Акт збирається з фактів, а не з чатів, тож на нараді сперечаються про посилання, а не про пам'ять.</p>
+      <div class="hero-cta" data-up><a class="btn btn-ink" href="#pilot">Обговорити пілот</a><a class="btn btn-line" href="#compare">Що зміниться на нараді <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 8h10M9 4l4 4-4 4"/></svg></a></div>
+      <div class="facts" data-up><div><b>ПТВ: дві години</b>на старті пілота</div><div><b>Майстер: свій телефон</b>Telegram-бот або мобільний застосунок</div><div><b>Технагляд: одне посилання</b>без облікового запису</div></div>
+    </div>
+    <div class="stage" id="stage">
+      <div class="stage-in" id="stage-in">
+        <div class="board" id="board" role="img" aria-label="Стан пакету робіт у веб-застосунку GoProceed"><i class="beam" aria-hidden="true"></i>
+          <div class="b-top"><span><b>БЦ Поділ</b> · Приховані роботи · Секція А</span><div class="tabs"><span>Список</span><span class="on">Стан</span><span>Акти</span></div></div>
+          <div class="cols">
+            <div class="col"><div class="h"><b>Готово</b><i>12</i></div>
+              <div class="card"><span class="code">W-012 · R-038</span><span class="t">Армування плити, захватка 2</span><div class="r"><span class="tag ok">закриття дозволено</span></div></div>
+              <div class="card"><span class="code">W-016 · R-044</span><span class="t">Гідроізоляція санвузлів, 4 поверх</span><div class="r"><span class="tag ok">закриття дозволено</span></div></div>
+              <div class="card"><span class="code">W-019 · R-046</span><span class="t">Закладні у стінах, секція Б</span><div class="r"><span class="tag ok">закриття дозволено</span></div></div>
+            </div>
+            <div class="col"><div class="h"><b>На розгляді</b><i>07</i></div>
+              <div class="card sel"><span class="code">W-014 · R-041</span><span class="t">Монтаж кабельних трас</span><div class="r"><span class="tag rv">EV-0248 · 14:32</span></div></div>
+              <div class="card"><span class="code">W-017 · R-047</span><span class="t">Трубопроводи в стяжці, коридор</span><div class="r"><span class="tag rv">очікує рішення</span></div></div>
+            </div>
+            <div class="col"><div class="h"><b>Заблоковано</b><i>03</i></div>
+              <div class="card"><span class="code">W-015 · R-052</span><span class="t">Утеплення фасаду, осі 1–4</span><div class="r"><span class="tag bl">1 з 2 матеріалів</span></div></div>
+              <div class="card"><span class="code">W-021 · R-055</span><span class="t">Гільзи у перекритті, зона С</span><div class="r"><span class="tag bl">доказу немає</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="receipt" id="receipt" data-depth="-0.3">
+          <div class="k"><span>EV-0248</span><span>сьогодні · 14:32</span></div>
+          <div class="ph"></div>
+          <div class="row"><span>Робота</span><b>W-014 · ВРУ-1</b></div>
+          <div class="row"><span>Вимога</span><b>R-041 · до закриття стелі</b></div>
+          <div class="row"><span>Автор</span><b>Майстер дільниці</b></div>
+          <div class="row"><span>Стан</span><b style="color:var(--cobalt)">Очікує рішення</b></div>
+        </div>
+        <div class="float f1" data-depth="0.35"><b>CL-017</b> · запис закриття дозволено · 16:19</div>
+        <div class="float f2" data-depth="0.25">Технагляд · <b>прийнято о 16:18</b></div>
+      </div>
+      <div class="dim" aria-hidden="true"><i></i><span>W-014 · ВРУ-1 · секція А · відм. +3.300</span><i></i></div>
+    </div>
+  </div>
+  <div class="hero-base"></div>
+</section>
+<div class="marq" aria-hidden="true"><div class="lab">Джерела вимог</div><div class="track">
+  <span><b>ДБН А.3.1-5:2016</b> Організація будівельного виробництва</span><span><b>Додаток В</b> Акт освідчення прихованих робіт</span><span><b>ДБН В.2.6-98:2009</b> Бетонні та залізобетонні конструкції</span><span><b>ПКМУ № 903</b> Порядок прийняття в експлуатацію</span><span><b>ДБН В.2.6-31:2021</b> Теплова ізоляція та енергоефективність</span><span><b>ДБН В.2.5-64:2012</b> Внутрішній водопровід та каналізація</span>
+  <span><b>ДБН А.3.1-5:2016</b> Організація будівельного виробництва</span><span><b>Додаток В</b> Акт освідчення прихованих робіт</span><span><b>ДБН В.2.6-98:2009</b> Бетонні та залізобетонні конструкції</span><span><b>ПКМУ № 903</b> Порядок прийняття в експлуатацію</span><span><b>ДБН В.2.6-31:2021</b> Теплова ізоляція та енергоефективність</span><span><b>ДБН В.2.5-64:2012</b> Внутрішній водопровід та каналізація</span>
+</div></div>
+
+<div class="sep" aria-hidden="true"><div class="wrap"><b>01 · Проблема</b></div></div>
+<!-- INTRO -->
+<section class="intro">
+  <div class="wrap">
+    <div class="g2">
+      <p id="intro">Кожен, хто закривав конструкцію без фото, знає, скільки коштує потім довести, що під нею все зроблено.</p>
+      <p class="aside" data-up>GoProceed не зупиняє бригаду і не замінює кошторис. Він тримає разом три факти, без яких приймання перетворюється на суперечку: вимогу, доказ і рішення.</p>
+    </div>
+    <div class="fig" id="fig">
+        <div class="fig-cap"><span><b>Рис. 01</b> · той самий кадр</span><span>у чаті бригади → у записі GoProceed</span></div>
+        <div class="fig-body">
+          <div class="chat"><div class="chat-h"><b>Бригада · Л-3</b><span>47 учасників</span></div>
+            <div class="chat-vp"><div class="chat-list" id="chat-list"><div class="msg  "><span class="who">Олег Т.</span><div class="b">Привезли лотки на 4-й, розвантажили біля ліфта<div class="t">09:12</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b"><div class="ph "></div><div class="t">10:05</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b">штроба по Б-3 готова<div class="t">10:05</div></div></div><div class="msg me "><span class="who">Марина (ПТВ)</span><div class="b">Хто сьогодні на об'єкті? Потрібен акт по гільзах<div class="t">11:40</div></div></div><div class="msg  "><span class="who">Олег Т.</span><div class="b">+<div class="t">11:41</div></div></div><div class="msg  target"><span class="who">Ігор К.</span><div class="b"><div class="ph tray"></div>Лоток над ВРУ поставили, можна закривати?<div class="miss"><i>без осі</i><i>без вимоги</i><i>без рішення</i></div><div class="t">14:32</div></div></div><div class="msg  "><span class="who">Сергій Р.</span><div class="b">де ключі від щитової?<div class="t">14:50</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b">у Олега<div class="t">14:51</div></div></div><div class="msg me "><span class="who">Марина (ПТВ)</span><div class="b">Завтра бетон о 8, стелю на 4-му закриваємо після обіду<div class="t">16:02</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b"><div class="ph "></div><div class="t">16:40</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b">кріплення, теж 4-й<div class="t">16:40</div></div></div><div class="msg  "><span class="who">Сергій Р.</span><div class="b">ок<div class="t">16:41</div></div></div><div class="msg  "><span class="who">Олег Т.</span><div class="b">Стелю закрили, 4-й готовий<div class="t">18:15</div></div></div><div class="msg  "><span class="who">Олег Т.</span><div class="b">Привезли лотки на 4-й, розвантажили біля ліфта<div class="t">09:12</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b"><div class="ph "></div><div class="t">10:05</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b">штроба по Б-3 готова<div class="t">10:05</div></div></div><div class="msg me "><span class="who">Марина (ПТВ)</span><div class="b">Хто сьогодні на об'єкті? Потрібен акт по гільзах<div class="t">11:40</div></div></div><div class="msg  "><span class="who">Олег Т.</span><div class="b">+<div class="t">11:41</div></div></div><div class="msg  target"><span class="who">Ігор К.</span><div class="b"><div class="ph tray"></div>Лоток над ВРУ поставили, можна закривати?<div class="miss"><i>без осі</i><i>без вимоги</i><i>без рішення</i></div><div class="t">14:32</div></div></div><div class="msg  "><span class="who">Сергій Р.</span><div class="b">де ключі від щитової?<div class="t">14:50</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b">у Олега<div class="t">14:51</div></div></div><div class="msg me "><span class="who">Марина (ПТВ)</span><div class="b">Завтра бетон о 8, стелю на 4-му закриваємо після обіду<div class="t">16:02</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b"><div class="ph "></div><div class="t">16:40</div></div></div><div class="msg  "><span class="who">Ігор К.</span><div class="b">кріплення, теж 4-й<div class="t">16:40</div></div></div><div class="msg  "><span class="who">Сергій Р.</span><div class="b">ок<div class="t">16:41</div></div></div><div class="msg  "><span class="who">Олег Т.</span><div class="b">Стелю закрили, 4-й готовий<div class="t">18:15</div></div></div></div><div class="chat-scan" aria-hidden="true"></div></div>
+            <div class="chat-f"><i></i><span>пошук «лоток»: <b>1 фото</b> серед 214 повідомлень · час є, осі й вимоги немає</span></div>
+          </div>
+          <div class="fig-link" aria-hidden="true"><svg viewBox="0 0 56 380" preserveAspectRatio="none"><path d="M0 190 C 20 190 36 190 56 190"/></svg><span class="arrow">→</span></div>
+          <div class="rec2" id="rec2">
+            <div class="rec2-h"><b>EV-0248</b><span>запис доказу · очікує рішення</span></div>
+            <div class="ph"></div>
+            <div class="r"><span>Робота</span><b>W-014 · Монтаж кабельних трас</b></div>
+            <div class="r"><span>Вимога</span><b>R-041 · лоток до закриття стелі</b></div>
+            <div class="r"><span>Місце</span><b>ВРУ-1 · Секція А · вісь Б-4 · +3.300</b></div>
+            <div class="r"><span>Автор</span><b>Ігор К. · майстер дільниці</b></div>
+            <div class="r"><span>Час</span><b>20.08.2026 · 14:32</b></div>
+            <div class="r ok"><span>Рішення</span><b>DR-0091 · прийнято технаглядом · 16:18</b></div>
+          </div>
+        </div>
+        <div class="fig-foot"><span class="a">у чаті: фото є, але без осі, вимоги й рішення</span><span class="b">у записі: те саме фото відповідає на всі питання наради</span></div>
+      </div>
+  </div>
+</section>
+
+<div class="sep" aria-hidden="true"><div class="wrap"><b>02 · Було і стало</b></div></div>
+<!-- COMPARE -->
+<section class="cmp" id="compare">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="eyebrow" data-up>Було і стало</span><h2 class="lines" style="margin-top:14px">На нараді більше не сперечаються про те, <em>що вже сховано</em></h2></div>
+      <p class="lead" data-up>Затримка приймання затримує гроші. Ось той самий етап W-014: як його доводять зараз і на що посилаються з GoProceed.</p>
+    </div>
+    <div class="cmp2" id="cmpg">
+      <article class="cmp-card was">
+        <div class="cmp-top"><span>Зараз</span><b>Чати, диск, пам'ять</b></div>
+        <ul>
+          <li data-i="1"><i></i><div><b>Де фото?</b><span>У чаті бригади або на телефоні того, хто знімав</span></div></li>
+          <li data-i="2"><i></i><div><b>За якою вимогою?</b><span>У проєкті, у листуванні із замовником або в пам'яті ПТВ</span></div></li>
+          <li data-i="3"><i></i><div><b>Хто прийняв і коли?</b><span>Усно на майданчику, іноді голосовим</span></div></li>
+          <li data-i="4"><i></i><div><b>Коли закрили?</b><span>Приблизно, за спогадами і датою фото</span></div></li>
+          <li data-i="5"><i></i><div><b>Що в акті?</b><span>Переписують вручну, часто після повернення</span></div></li>
+        </ul>
+        <div class="cmp-out">Акт повертають. Нарада йде по колу. Гроші чекають.</div>
+      </article>
+      <div class="cmp-arrow" aria-hidden="true"><span>→</span></div>
+      <article class="cmp-card now">
+        <div class="cmp-top"><span>З GoProceed</span><b>Один запис на кожну роботу</b></div>
+        <ul>
+          <li data-i="1"><i></i><div><b>Де фото?</b><span>На роботі W-014, з часом і місцем <em>EV-0248 · 14:32 · ВРУ-1</em></span></div></li>
+          <li data-i="2"><i></i><div><b>За якою вимогою?</b><span>Вимога прив'язана до роботи ще до старту <em>R-041 · ДБН А.3.1-5</em></span></div></li>
+          <li data-i="3"><i></i><div><b>Хто прийняв і коли?</b><span>Рішення технагляду з автором і часом <em>DR-0091 · 16:18</em></span></div></li>
+          <li data-i="4"><i></i><div><b>Коли закрили?</b><span>Запис закриття посилається на рішення <em>CL-017 · 16:19</em></span></div></li>
+          <li data-i="5"><i></i><div><b>Що в акті?</b><span>Чернетка Додатка В зібрана з фактів, кожне поле має походження</span></div></li>
+        </ul>
+        <div class="cmp-out ok">Суперечка про посилання, а не про пам'ять. Акт не повертають за браком доказу.</div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<div class="sep" aria-hidden="true"><div class="wrap"><b>03 · Ролі</b></div></div>
+<!-- ROLES -->
+<section class="roles" id="roles">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="eyebrow" data-up>Для кого</span><h2 class="lines" style="margin-top:14px">Кожна роль отримує своє, <em>і ні від кого не вимагається зайвого</em></h2></div>
+      <p class="lead" data-up>Ролі й болі взяті зі сканування попиту серед українських субпідрядників, які здають приховані роботи: від монолітчиків до інженерних мереж. Правило одне: майстру не можна додавати роботу після того, як фото вже надіслано.</p>
+    </div>
+    <div class="rgrid" id="rgrid">
+      <article class="role" data-spot><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M4 12h10M4 19h7"/></svg></div><div class="who">ПТВ <span>виробничо-технічний відділ</span></div><p class="pain">Дні на пошук фото по чатах, переписування у Word, дзвінки виконробу перед місячною папкою, повернення від замовника.</p><div class="get"><span>доказ знаходиться по роботі, а не по стрічці чату</span><span>чернетка акта з того, що вже записано</span><span>повернення видно з причинами</span></div></article>
+      <article class="role" data-spot><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M8 6V4h8v2M12 10v5M9.5 12.5h5"/></svg></div><div class="who">Майстер <span>дільниці</span></div><p class="pain">Обов'язок знімати і вести журнали, але нульова терпимість до адміністрування. Друге поле після того самого фото — вже мінус.</p><div class="get"><span>один екран: що зняти, до якого моменту</span><span>жодних форм після фото</span><span>Telegram-бот або мобільний застосунок, без форм</span></div></article>
+      <article class="role" data-spot><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-6h6v6"/></svg></div><div class="who">Власник <span>комерційний директор</span></div><p class="pain">Затримка приймання затримує гроші. Потрібно бачити, який обсяг заблокований, чому і як довго.</p><div class="get"><span>стан пакету за причинами, не за кольором</span><span>заблоковані роботи з назвою вимоги</span><span>час від фіксації до рішення</span></div></article>
+      <article class="role" data-spot><div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4z"/><path d="m9 12 2 2 4-4"/></svg></div><div class="who">Технагляд <span>зовнішній розгляд</span></div><p class="pain">Відповідальність без інструменту і небажання входити в чужий проєкт або відкривати обліковий запис.</p><div class="get"><span>одне посилання на одну вимогу</span><span>нейтральна квитанція з джерелами</span><span>прийняти, повернути або уточнити за хвилину</span></div></article>
+    </div>
+  </div>
+</section>
+
+<div class="sep" aria-hidden="true"><div class="wrap"><b>04 · Маршрут</b></div></div>
+
+
+
+<!-- STAGES -->
+<section class="stages" id="stages">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="eyebrow" data-up>Один маршрут</span><h2 class="lines" style="margin-top:14px">Одна робота проходить весь шлях. <em>Без втрати контексту.</em></h2></div>
+      <div><p class="lead" data-up>Вимога, кадр, рішення, закриття і чернетка акта тримаються разом на одній роботі. Ніхто не переказує контекст усно, і нікому не треба шукати, з чого все почалось.</p>
+        <div class="codes" data-up><span><b>W</b>робота</span><span><b>R</b>вимога</span><span><b>EV</b>доказ</span><span><b>DR</b>рішення</span><span><b>CL</b>закриття</span></div></div>
+    </div>
+    <div class="fstack" id="fstack">
+      <article class="fcard"><i class="veil" aria-hidden="true"></i>
+        <div class="ftext"><div class="stepline"><span class="num">01</span><span class="eyebrow">Вимога відома до робіт</span></div><h3>Пункт ДБН прив'язаний до роботи <em>ще до першого фото</em></h3><p>ПТВ один раз вказує, що саме блокує закриття: джерело, місце, момент і скільки матеріалів потрібно. Далі ця вимога супроводжує роботу до акта.</p><div class="note"><i></i>Вимогу не треба згадувати на майданчику. Вона вже там.</div></div>
+        <div class="fmedia t1"><div class="glowc"></div><div class="ui">
+          <div class="s-top"><b>R-041 · Кабельний лоток до закриття стелі</b><span>блокуюча</span></div>
+          <div class="s-bd">
+            <div class="kv"><span>Джерело</span><b>ДБН А.3.1-5:2016, п. 6.3</b></div>
+            <div class="kv"><span>Робота</span><b>W-014 · Монтаж кабельних трас</b></div>
+            <div class="kv"><span>Місце</span><b>ВРУ-1 · Секція А · відм. +3.300</b></div>
+            <div class="kv"><span>Момент</span><b>до закриття стелі</b></div>
+            <div class="kv"><span>Матеріали</span><b>2 фото · загальний вигляд і кріплення</b></div>
+            <div class="rule"><b>Правило.</b> W-014 не може бути записана закритою, поки R-041 не має прийнятого доказу.</div>
+          </div></div></div>
+      </article>
+      <article class="fcard flip"><i class="veil" aria-hidden="true"></i>
+        <div class="ftext"><div class="stepline"><span class="num">02</span><span class="eyebrow">Фіксація з майданчика</span></div><h3>Майстер бачить <em>потрібний кадр</em>, а не «завантажте фото»</h3><p>Телефон показує вимогу і кадр у контексті роботи. Час, місце й автор записуються самі. Жодних полів після того, як фото вже зроблено.</p><div class="note"><i></i>Один екран, одна кнопка, один запис EV.</div></div>
+        <div class="fmedia t2"><div class="glowc"></div><div class="ui">
+          <div class="s-top"><b>Фіксація · мобільний застосунок</b><span>сьогодні · 14:32</span></div>
+          <div class="s-bd"><div class="s-phone">
+            <div class="ph-mini"><div class="scr"><span class="t">W-014 · Кабельні траси</span><div class="box"><span>Вимога R-041</span><b>Лоток до закриття стелі</b></div><div class="cam">Загальний вигляд · 1 з 2</div><div class="go">Зняти фото</div></div></div>
+            <div><div class="kv" style="border:0;padding-top:0"><span>Час</span><b>14:32 · сьогодні</b></div><div class="kv"><span>Місце</span><b>ВРУ-1 · Секція А</b></div><div class="kv"><span>Автор</span><b>Майстер дільниці</b></div><div class="kv"><span>Код</span><b>EV-0248</b></div></div>
+          </div></div></div></div>
+      </article>
+      <article class="fcard"><i class="veil" aria-hidden="true"></i>
+        <div class="ftext"><div class="stepline"><span class="num">03</span><span class="eyebrow">Зовнішній перегляд</span></div><h3>Технагляд вирішує по посиланню, <em>без облікового запису</em></h3><p>Одна вимога, її матеріали й історія. Прийняти, повернути або запитати уточнення. Рішення зберігається з автором і часом, а не в голосовому.</p><div class="note"><i></i>Нейтральна квитанція замість доступу до чужого проєкту.</div></div>
+        <div class="fmedia t3"><div class="glowc"></div><div class="ui">
+          <div class="s-top"><b>Зовнішній перегляд</b><span>без облікового запису</span></div>
+          <div class="s-bd"><div class="ext"><div class="url"><i></i>goproceed.app/r/7k2…f9 · доступ до R-041</div><div class="bd">
+            <div class="kv" style="border:0;padding-top:0"><span>Вимога</span><b>Кабельний лоток до закриття стелі</b></div>
+            <div class="kv"><span>Матеріали</span><b>2 фото · EV-0248 · 14:32</b></div>
+            <div class="acts"><span class="on">Прийняти</span><span>Повернути</span><span>Запитати уточнення</span></div>
+          </div></div><p style="font-size:13px">Рішення DR-0091 · О. Мельник · 16:18</p></div></div></div>
+      </article>
+      <article class="fcard flip"><i class="veil" aria-hidden="true"></i>
+        <div class="ftext"><div class="stepline"><span class="num">04</span><span class="eyebrow">Закриття записано</span></div><h3>Запис закриття <em>посилається на рішення</em>, а не на пам'ять</h3><p>Без прийнятого рішення GoProceed відмовляє у записі закриття. Порядок і час подій фіксує система, тож на нараді немає чого відновлювати.</p><div class="note"><i></i>Фізичну роботу ніхто не зупиняє. Зупиняється лише запис без підстави.</div></div>
+        <div class="fmedia t4"><div class="glowc"></div><div class="ui">
+          <div class="s-top"><b>Закриття · CL-017</b><span>дозволено</span></div>
+          <div class="s-bd"><div class="log">
+            <div><i>14:32</i><span><b>EV-0248</b> · матеріал додано <em class="tg">майстер</em><em class="tg rv">на розгляді</em></span></div>
+            <div><i>14:33</i><span>походження зафіксовано <em class="tg">система</em><em class="tg">застосунок</em></span></div>
+            <div><i>16:18</i><span><b>DR-0091</b> · матеріал прийнято <em class="tg">технагляд</em><em class="tg ok">прийнято</em></span></div>
+            <div><i>16:19</i><span><b>CL-017</b> · запис закриття дозволено <em class="tg">система</em><em class="tg ok">закрито</em></span></div>
+          </div><div class="rule" style="background:var(--ok-soft);border-color:rgba(30,143,90,.25)"><b style="color:var(--ok)">Запис закриття</b> посилається на рішення DR-0091.</div></div></div></div>
+      </article>
+      <article class="fcard"><i class="veil" aria-hidden="true"></i>
+        <div class="ftext"><div class="stepline"><span class="num">05</span><span class="eyebrow">Чернетка акта</span></div><h3>Додаток В збирається <em>з чотирьох фактів</em>, не переписується</h3><p>Роботи, вимога, докази, рішення й закриття підставляються з того, що вже записано. Кожен рядок знає своє походження.</p><div class="note"><i></i>Це чернетка для підпису, а не підписаний документ.</div></div>
+        <div class="fmedia t5"><div class="glowc"></div><div class="ui">
+          <div class="s-top"><b>Чернетка акта · Додаток В</b><span>з 4 фактів</span></div>
+          <div class="s-bd"><div class="act"><span class="stamp">ЧЕРНЕТКА</span><h5>Акт освідчення прихованих робіт</h5>
+            <div class="l"><span>Роботи</span><b>Монтаж кабельних трас, ВРУ-1, секція А</b></div>
+            <div class="l"><span>Вимога</span><b>ДБН А.3.1-5:2016 · R-041</b></div>
+            <div class="l"><span>Докази</span><b>EV-0248 · 2 фото · 14:32</b></div>
+            <div class="l"><span>Рішення</span><b>DR-0091 · прийнято технаглядом · 16:18</b></div>
+            <div class="l"><span>Закриття</span><b>CL-017 · 16:19</b></div>
+          </div></div></div></div>
+      </article>
+    </div>
+  </div>
+</section>
+
+<!-- DOME -->
+<section class="dome">
+  <div class="arcwrap"><div class="arc" id="arc">
+    <span class="qmark l" aria-hidden="true">“</span><span class="qmark r" aria-hidden="true">”</span>
+    <div class="in">
+      <span class="eyebrow" data-up>Позиція GoProceed</span>
+      <p class="q" id="quote"><span class="dim">Ми не зупиняємо роботу на майданчику —</span> ми не даємо записати її закритою, поки <em>доказ</em> не отримано і не погоджено технаглядом.</p>
+      <div class="qpills" data-up>
+        <span class="qp no"><i></i>не зупиняє фізичну роботу</span>
+        <span class="qp yes"><i></i>не дає записати закриття без доказу</span>
+        <span class="qp lock"><i></i>фото не можна замінити або відкріпити пізніше</span>
+      </div>
+    </div>
+  </div></div>
+</section>
+<div class="dome-base"></div>
+
+<div class="sep" aria-hidden="true"><div class="wrap"><b>05 · Фіксація</b></div></div>
+<!-- CHANNELS -->
+<section class="chan" id="capture">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="eyebrow" data-up>Фіксація з майданчика</span><h2 class="lines" style="margin-top:14px">Два способи надіслати доказ. <em>Один запис у веб-застосунку</em></h2></div>
+      <p class="lead" data-up>Майстер знімає там, де йому зручно: у Telegram або в мобільному застосунку. Обидва бачать ту саму вимогу і віддають кадр у той самий запис EV, з яким далі працюють ПТВ, керівник і технагляд у веб-застосунку.</p>
+    </div>
+    <div class="cards3" id="cards3">
+      <article class="ch" data-spot>
+        <div class="top"><span class="mono">01 · Telegram-бот · майстер</span><span class="tag ok">доступно</span></div>
+        <div><h3>Для бригади, яка вже живе в месенджері</h3><p>Бот отримує фото, питає одне: до якої роботи воно належить, і повертає код EV. Жодних встановлень і форм. Потребує з'єднання.</p></div>
+        <div class="dev"><div class="tg"><div class="m me"><div class="ph"></div>Лоток над ВРУ-1, секція А</div><div class="m bot">Знайшов W-014. Це для R-041 «до закриття стелі»?</div><div class="m me">Так</div><div class="m bot">Збережено як <b>EV-0248</b>. Передано на розгляд.</div></div></div>
+        <div class="foot">→ EV-0248 у веб-застосунку</div>
+      </article>
+      <article class="ch" data-spot>
+        <div class="top"><span class="mono">02 · Мобільний застосунок · майстер</span><span class="tag rv">пілот</span></div>
+        <div><h3>Показує, що зняти, і тримає чергу, поки немає мережі</h3><p>iOS та Android. Вимога і потрібний кадр у контексті роботи; кадр стає доказом, щойно завантажиться. Для пілота обираємо роботи з покриттям.</p></div>
+        <div class="dev"><div class="app"><div class="scr"><span>W-014 · R-041</span><div><b>Загальний вигляд</b>1 з 2 · зняти</div><div><b>Черга відправки</b>EV-0251 · очікує мережу</div></div></div></div>
+        <div class="foot">→ той самий EV-0248</div>
+      </article>
+      <article class="ch" data-spot>
+        <div class="top"><span class="mono">03 · Веб-застосунок · офіс</span><span class="tag ok">доступно</span></div>
+        <div><h3>Для ПТВ і керівника: реєстр, вимоги, рішення, акти</h3><p>Сюди приходить кожен EV. ПТВ бачить стан за причинами, готує вимоги і чернетки актів; технагляд отримує звідси посилання на одну вимогу.</p></div>
+        <div class="dev"><div class="win"><div class="bar"><i></i><i></i><i></i></div><div class="row"><span>W-014 · R-041</span><b>на розгляді</b></div><div class="row"><span>EV-0248 · 14:32</span><b>доказ</b></div><div class="row"><span>DR-0091 · технагляд</span><b>прийнято</b></div></div></div>
+        <div class="foot">→ рішення, закриття, акт</div>
+      </article>
+    </div>
+    <div class="conv" data-up><svg viewBox="0 0 1000 96" preserveAspectRatio="none" aria-hidden="true"><path d="M167 0C167 70 500 30 500 96"/><path d="M500 0V96"/><path d="M833 0C833 70 500 30 500 96"/></svg><span class="chip"><i></i><b>EV-0248</b> · один запис у веб-застосунку · очікує рішення технагляду</span></div>
+  </div>
+</section>
+
+<div class="sep" aria-hidden="true"><div class="wrap"><b>06 · Походження</b></div></div>
+<!-- RECEIPTS -->
+<section class="rec" id="trust">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="eyebrow" data-up>Походження</span><h2 class="lines" style="margin-top:14px">Кому що видно, і <em>що не можна підробити</em></h2></div>
+      <p class="lead" data-up>Довіра до запису тримається на двох речах: хто має до нього доступ і що в ньому не можна змінити після факту.</p>
+    </div>
+    <div class="bento" id="rstack">
+      <article class="bcell big"><div><span class="mono">Доступ · хто що бачить</span><h3>Кожна роль бачить рівно стільки, скільки їй потрібно</h3><p>Майстер не бачить реєстру, технагляд не заходить у проєкт, а ПТВ і керівник працюють з усім пакетом у веб-застосунку.</p><p class="small">Технагляд отримує одне посилання на одну вимогу і не потребує облікового запису.</p></div>
+        <div class="acc"><div class="acc-h"><span></span><span>Майстер</span><span>ПТВ</span><span>Керівник</span><span>Технагляд</span></div>
+          <div class="acc-r"><span>Реєстр робіт</span><i></i><i class="y"></i><i class="y"></i><i></i></div>
+          <div class="acc-r"><span>Вимоги до роботи</span><i class="p"></i><i class="y"></i><i class="y"></i><i class="p"></i></div>
+          <div class="acc-r"><span>Фото-докази</span><i class="p"></i><i class="y"></i><i class="y"></i><i class="p"></i></div>
+          <div class="acc-r"><span>Рішення технагляду</span><i></i><i class="y"></i><i class="y"></i><i class="y"></i></div>
+          <div class="acc-r"><span>Стан за причинами</span><i></i><i class="y"></i><i class="y"></i><i></i></div>
+          <div class="acc-r"><span>Чернетка акта</span><i></i><i class="y"></i><i class="y"></i><i></i></div>
+          <div class="acc-r"><span>Історія подій</span><i></i><i class="y"></i><i class="y"></i><i class="p"></i></div>
+          <div class="acc-l"><span><i class="y"></i>весь пакет</span><span><i class="p"></i>лише своя робота або вимога</span><span><i></i>немає</span></div>
+        </div></article>
+      <article class="bcell"><span class="mono">Незмінність</span><h3>Що не можна виправити заднім числом</h3>
+        <ul class="imm"><li>Фото не можна замінити або відкріпити від роботи після завантаження</li><li>Час, місце і автора ставить система, а не той, хто заповнює акт</li><li>Запис закриття посилається на конкретне рішення технагляду</li><li>Історія подій не редагується, лише доповнюється</li></ul></article>
+      <article class="bcell"><span class="mono">Межі v0.1</span><h3>Що GoProceed робить зараз, і чого не обіцяє</h3>
+        <div class="lim"><ul><li>Вимога прив'язана до роботи до старту</li><li>Онлайн-фіксація з телефону</li><li>Зовнішній розгляд без доступу до проєкту</li><li>Записане блокування закриття</li></ul><ul class="no"><li>Матеріал без мережі не зберігається</li><li>Чернетка акта не є підписаним документом</li><li>Фізичну роботу не зупиняє</li></ul></div></article>
+    </div>
+  </div>
+</section>
+
+
+<div class="sep" aria-hidden="true"><div class="wrap"><b>07 · Пілот</b></div></div>
+<!-- PILOT -->
+<section class="pilot" id="pilot">
+  <div class="wrap">
+    <div class="head">
+      <div><span class="eyebrow" data-up>Пілот</span><h2 class="lines" style="margin-top:14px">Як проходить пілот <em>на одному пакеті робіт</em></h2></div>
+      <p class="lead" data-up>Орієнтовний план на два тижні. Без інтеграцій, без міграції даних, без демо-акаунтів із вигаданими об'єктами: працюємо на вашому пакеті робіт.</p>
+    </div>
+    <div class="pgrid">
+      <div>
+        <div class="steps" id="psteps"><div class="prog" id="pprog"></div>
+          <div class="pstep"><div class="when">День 1 · об'єкт і реєстр</div><h3>Заносимо один пакет робіт і вимоги до нього</h3><p>Разом із ПТВ: роботи, місця, пункти ДБН і проєктні рішення, які блокують закриття. Дві години.</p></div>
+          <div class="pstep"><div class="when">Тиждень 1 · майданчик</div><h3>Майстер знімає докази за вимогами</h3><p>Через Telegram-бот або мобільний застосунок, на своєму телефоні. Ми дивимось, де процес ламається, і правимо.</p></div>
+          <div class="pstep"><div class="when">Тиждень 2 · зовнішній розгляд</div><h3>Технагляд приймає або повертає по посиланню</h3><p>Перший запис закриття з підставою. Якщо технагляд відмовляється від посилання, ми дізнаємось про це на пілоті, а не після впровадження.</p></div>
+          <div class="pstep"><div class="when">Підсумок</div><h3>Чернетка акта і рішення про продовження</h3><p>Збираємо Додаток В із фактів, показуємо, що заблоковано і чому, і чесно називаємо межі v0.1.</p></div>
+        </div>
+        <div class="pneed" data-up>
+          <div><b>Що потрібно від вас</b><span>один об'єкт і один пакет робіт</span><span>ПТВ на дві години</span><span>майстер із телефоном</span><span>контакт технагляду: він отримає одне посилання і за хвилину прийме або поверне, без реєстрації</span></div>
+          <div><b>Що ви отримаєте</b><span>реєстр із вимогами, доказами й рішеннями</span><span>чернетку акта за Додатком В</span><span>стан пакету за причинами</span><span>список меж v0.1 без прикрас</span></div>
+          <div class="wide"><b>Умови</b><span>пілот безкоштовний: два тижні на одному пакеті робіт, без договору і передоплати</span><span>продовження після двох тижнів — окреме рішення, нічого не вмикається автоматично</span><span>якщо майстер не знімає за вимогами без нагадувань, ми це побачимо на першому тижні і скажемо чесно</span></div>
+        </div>
+      </div>
+      <form class="form" id="pilot-form" novalidate>
+        <div class="author" id="author"><div class="av" aria-hidden="true">GP</div><div><b>Від автора</b><p>Я роблю GoProceed сам і читаю кожну заявку особисто. Без відділу продажів і без демо-акаунтів: пілот проходить на вашому пакеті робіт, і якщо на першому тижні видно, що бригада не знімає, я скажу це прямо, а не тягнутиму впровадження.</p><span class="sig">Автор GoProceed · відповідаю протягом робочого дня</span></div></div>
+        <h3>Опишіть об'єкт і пакет робіт</h3>
+        <p class="n">Заявка приходить мені одразу. Якщо відправка з якоїсь причини не спрацює, сторінка запропонує скопіювати текст і надіслати його поштою.</p>
+        <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+        <div class="two"><label>Ім'я<input name="name" required autocomplete="name" placeholder="Ірина"></label><label>Компанія<input name="company" autocomplete="organization" placeholder="БудМонтаж Сервіс"></label></div>
+        <div class="two"><label>Роль<select name="role"><option>Власник / керівник</option><option>Керівник ПТВ</option><option>Майстер</option><option>Технагляд</option><option>Інша роль</option></select></label><label>Телефон або Telegram<input name="contact" required placeholder="+380… або @нік"></label></div>
+        <label>Об'єкт і пакет робіт<textarea name="context" placeholder="ЖК або БЦ, монолітні роботи чи інженерні мережі, технагляд від замовника…"></textarea></label>
+        <div class="fbtns"><button class="btn btn-ink" type="submit">Надіслати запит на пілот</button><button class="btn btn-line" type="button" id="copy-req">Скопіювати текст заявки</button></div>
+        <div class="ok" id="form-ok">Заявку надіслано. Відповім протягом робочого дня на вказаний контакт.</div>
+        <div class="ok err" id="form-err">Не вдалося надіслати автоматично. Текст заявки скопійовано — надішліть його на <a href="mailto:akisliy2306@gmail.com">akisliy2306@gmail.com</a> або натисніть «Відкрити поштовий клієнт».<div style="margin-top:8px"><a class="btn btn-line" id="mail-fallback" href="#">Відкрити поштовий клієнт</a></div></div>
+        <span class="fine">Демонстраційні дані на сторінці не є даними замовників. Пілот проводиться на ваших роботах.</span>
+      </form>
+    </div>
+  </div>
+</section>
+
+<div class="sep" aria-hidden="true"><div class="wrap"><b>08 · Питання</b></div></div>
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <div class="wrap">
+    <div class="g">
+      <div><span class="eyebrow" data-up>Питання</span><h2 class="lines" style="margin-top:14px">Що зазвичай питають <em>перед пілотом</em></h2></div>
+      <div class="qa" id="qa">
+        <div class="q"><button aria-expanded="false">GoProceed замінює чати, диск і кошторисну систему?<i></i></button><div class="a"><p>Ні. Він утримує доказовий контур роботи: вимогу, фіксацію, рішення, закриття й факти для чернетки акта. Інші інструменти можуть залишатися у своєму призначенні.</p></div></div>
+        <div class="q"><button aria-expanded="false">Технагляду потрібен доступ до внутрішнього проєкту?<i></i></button><div class="a"><p>Ні. Зовнішній перегляд показує конкретну вимогу, матеріали й історію рішення без доступу до решти робочого простору.</p></div></div>
+        <div class="q"><button aria-expanded="false">Чи можна фіксувати матеріали без мережі?<i></i></button><div class="a"><p>Фіксація потребує з'єднання: незавантажений оригінал не вважається збереженим доказом. У мобільному застосунку є черга відправки, тож кадр піде, щойно з'явиться мережа; для пілота обираємо роботи з покриттям.</p></div></div>
+        <div class="q"><button aria-expanded="false">Що, як бригада не буде цим користуватись?<i></i></button><div class="a"><p>Майстер не отримує нових форм: у Telegram-боті або мобільному застосунку телефон показує один кадр, який треба зняти, і одну кнопку. Вимоги заносить ПТВ заздалегідь. Якщо на першому тижні пілота майстер не знімає без нагадувань, ми бачимо це в реєстрі і зупиняємось, а не тягнемо впровадження.</p></div></div>
+        <div class="q"><button aria-expanded="false">Технагляд замовника не хоче посилання. Що тоді?<i></i></button><div class="a"><p>Посилання відкриває одну вимогу з матеріалами, без реєстрації і без доступу до вашого проєкту. Якщо технагляд усе одно відмовляється, це з'ясовується на другому тижні пілота, і ми чесно кажемо, що GoProceed для цього об'єкта поки не підходить.</p></div></div>
+        <div class="q"><button aria-expanded="false">Скільки коштує пілот і хто відповідає?<i></i></button><div class="a"><p>Пілот безкоштовний: два тижні на одному пакеті робіт, без договору і передоплати. Продовження після пілота є окремим рішенням і не вмикається автоматично. Відповідає автор продукту особисто, без відділу продажів. Фото зберігаються разом із полями і не можуть бути замінені або відкріплені від роботи пізніше.</p></div></div>
+        <div class="q"><button aria-expanded="false">Чернетка акта є готовим підписаним документом?<i></i></button><div class="a"><p>Ні. Це підготовлена чернетка з записаних фактів. Перевірка й формальне підписання залишаються окремими діями відповідальних сторін.</p></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CTA -->
+<section class="cta" id="cta-final">
+  <div class="wrap">
+    <div class="box">
+      <div><h2 class="lines">Перевірте маршрут <em>на одному пакеті робіт</em></h2><p data-up>Візьмемо одну чинну вимогу, один польовий сценарій і один зовнішній розгляд. Цього достатньо, щоб побачити, де процес зберігає доказовість.</p></div>
+      <div class="btns" data-up><a class="btn btn-ink" href="#pilot">Заповнити запит на пілот</a><button class="btn btn-line" type="button" id="share-link">Скопіювати посилання для ПТВ</button></div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="cols4">
+      <div><div class="brand"><svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2.5" y="2.5" width="19" height="19" rx="5" stroke="#15161A" stroke-width="1.8"/><path d="M6.5 15.5 12 8l3.2 4.4" stroke="#15161A" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="16.8" cy="15.6" r="1.9" fill="#2B4BFF"/></svg>GoProceed</div><span>Доказовий контур будівельних робіт: вимога, доказ, рішення, закриття, чернетка акта.</span></div>
+      <div><h4>Продукт</h4><a href="#stages">Маршрут</a><a href="#capture">Фіксація з майданчика</a><a href="#trust">Походження і межі v0.1</a><a href="#roles">Для кого</a></div>
+      <div><h4>Пілот</h4><a href="#pilot">Як проходить</a><a href="#compare">Було і стало</a><a href="#faq">Питання</a><a href="mailto:akisliy2306@gmail.com">Написати</a></div>
+      <div><h4>Довіра</h4><span>Технагляд без облікового запису</span><span>Демо на реальних формах: ДБН А.3.1-5:2016, Додаток В</span><span>Межі версії названі поруч із перевагами</span></div>
+    </div>
+    <div class="bot">
+      <span>© 2026 GoProceed</span>
+      <span class="dis">Демонстраційні дані. Частина показаних сценаріїв перебуває у розробці. Чернетка акта не є підписаним документом.</span>
+    </div>
+  </div>
+</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.15.0/SplitText.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.3.26/dist/lenis.min.js"></script>
+<script>
+(function(){
+  gsap.registerPlugin(ScrollTrigger, SplitText);
+  const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const mobile=matchMedia('(max-width: 900px)').matches;
+  const tpl=document.getElementById('guides-tpl');
+  document.querySelectorAll('[data-guides]').forEach(el=>el.appendChild(tpl.content.cloneNode(true)));
+
+  if(!reduce && window.Lenis){
+    const lenis=new Lenis({lerp:.1,smoothWheel:true});
+    lenis.on('scroll',ScrollTrigger.update);
+    gsap.ticker.add(t=>lenis.raf(t*1000)); gsap.ticker.lagSmoothing(0);
+    document.querySelectorAll('a[href^="#"]').forEach(a=>a.addEventListener('click',e=>{const id=a.getAttribute('href');if(id.length>1&&document.querySelector(id)){e.preventDefault();lenis.scrollTo(id,{offset:-90});}}));
+  }
+  const nav=document.getElementById('nav');
+  document.querySelectorAll('.links a[href^="#"]').forEach(a=>{const t=document.querySelector(a.getAttribute('href'));if(!t)return;ScrollTrigger.create({trigger:t,start:'top 45%',end:'bottom 45%',onToggle:st=>a.classList.toggle('on',st.isActive)});});
+  ScrollTrigger.create({start:'top -30',onUpdate:s=>nav.classList.toggle('stuck',s.scroll()>30)});
+
+  /* FAQ (works without fonts) */
+  document.querySelectorAll('#qa .q').forEach(q=>{
+    const b=q.querySelector('button'),a=q.querySelector('.a');
+    b.addEventListener('click',()=>{const open=q.classList.toggle('open');b.setAttribute('aria-expanded',open);gsap.to(a,{height:open?'auto':0,duration:.6,ease:'expo.out'});});
+  });
+
+
+  /* pilot form → /api/pilot (server), fallback: copy + mailto */
+  const pf=document.getElementById('pilot-form');
+  if(pf){
+    const g=(k)=>(new FormData(pf).get(k)||'').toString().trim();
+    const buildText=()=>['Нова заявка на пілот GoProceed','',`Ім'я: ${g('name')||'—'}`,`Компанія: ${g('company')||'—'}`,`Контакт: ${g('contact')||'—'}`,`Роль: ${g('role')||'—'}`,`Об'єкт і пакет робіт: ${g('context')||'—'}`].join('\n');
+    const mailto=()=>'mailto:akisliy2306@gmail.com?subject='+encodeURIComponent('Пілот GoProceed — нова заявка')+'&body='+encodeURIComponent(buildText());
+    const ok=document.getElementById('form-ok'),err=document.getElementById('form-err'),btn=pf.querySelector('button[type=submit]');
+    document.getElementById('mail-fallback').addEventListener('click',e=>{e.preventDefault();location.href=mailto();});
+    pf.addEventListener('submit',async e=>{e.preventDefault();ok.classList.remove('show');err.classList.remove('show');
+      if(!g('name')||!g('contact')){pf.querySelector(g('name')?'[name=contact]':'[name=name]').focus();return;}
+      btn.classList.add('busy');const label=btn.textContent;btn.textContent='Надсилаю…';
+      try{
+        const r=await fetch('/api/pilot',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({name:g('name'),company:g('company'),contact:g('contact'),role:g('role'),context:g('context'),website:g('website')})});
+        const j=await r.json().catch(()=>({}));
+        if(r.ok&&j.ok){ok.classList.add('show');pf.reset();}
+        else throw new Error(j.error||r.status);
+      }catch(_){
+        try{await navigator.clipboard.writeText(buildText()+'\n\nНадіслати на: akisliy2306@gmail.com');}catch(__){}
+        err.classList.add('show');
+      }
+      btn.classList.remove('busy');btn.textContent=label;});
+    const cp=document.getElementById('copy-req');if(cp)cp.addEventListener('click',()=>{navigator.clipboard&&navigator.clipboard.writeText(buildText()+'\n\nНадіслати на: akisliy2306@gmail.com').then(()=>{cp.textContent='Скопійовано';setTimeout(()=>cp.textContent='Скопіювати текст заявки',2000);});});
+  }
+  const sh=document.getElementById('share-link');if(sh)sh.addEventListener('click',()=>{const t='GoProceed — приймання прихованих робіт з доказом. Подивись «Було і стало» і план пілота: '+location.href.split('#')[0]+'#compare';navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>{sh.textContent='Посилання скопійовано';setTimeout(()=>sh.textContent='Скопіювати посилання для ПТВ',2200);});});
+
+  document.fonts.ready.then(init);
+  function mask(lines){lines.forEach(l=>{const m=document.createElement('span');m.className='lm';l.parentNode.insertBefore(m,l);m.appendChild(l);l.style.display='block';});}
+
+  function init(){
+    document.querySelectorAll('.lines').forEach(el=>{const s=new SplitText(el,{type:'lines'});mask(s.lines);
+      gsap.from(s.lines,{yPercent:110,duration:1.1,ease:'expo.out',stagger:.08,scrollTrigger:{trigger:el,start:'top 86%',once:true}});});
+    document.querySelectorAll('[data-up]').forEach(el=>gsap.from(el,{y:18,opacity:0,duration:.9,ease:'power3.out',scrollTrigger:{trigger:el,start:'top 92%',once:true}}));
+
+    /* hero */
+    const h1=new SplitText('#h1',{type:'lines'});mask(h1.lines);
+    gsap.timeline({defaults:{ease:'expo.out'}})
+      .from(h1.lines,{yPercent:110,duration:1.2,stagger:.09},.1)
+      .from('#stage',{y:60,opacity:0,duration:1.4},.35)
+      .from('#receipt',{y:40,x:20,opacity:0,duration:1.2},.7)
+      .from('.hero .float',{y:20,opacity:0,duration:1,stagger:.1},.9);
+    if(!reduce&&!mobile){
+      gsap.to('#stage-in',{rotateX:0,scale:1,ease:'none',scrollTrigger:{trigger:'#stage',start:'top 90%',end:'top 35%',scrub:.4}});
+      document.querySelectorAll('[data-depth]').forEach(el=>{const d=+el.dataset.depth;const sec=el.closest('section');
+        gsap.fromTo(el,{y:d*80},{y:d*-80,ease:'none',scrollTrigger:{trigger:sec,start:'top bottom',end:'bottom top',scrub:true}});});
+    }
+
+    /* background glows follow scroll */
+    if(!reduce){
+      gsap.to('#g1',{y:()=>innerHeight*1.1,x:-60,ease:'none',scrollTrigger:{start:0,end:'max',scrub:1.2}});
+      gsap.to('#g2',{y:()=>-innerHeight*1.2,ease:'none',scrollTrigger:{start:0,end:'max',scrub:1.5}});
+      gsap.to('#g3',{y:()=>-innerHeight*.6,x:80,ease:'none',scrollTrigger:{start:0,end:'max',scrub:1.8}});
+      gsap.to('.bg .grid',{backgroundPosition:'0 -600px, 0 -600px, 0 -600px, 0 -600px',ease:'none',scrollTrigger:{start:0,end:'max',scrub:2}});
+    }
+    /* floating paths in hero */
+    (function(){const box=document.getElementById('paths');if(!box)return;const W=1600,H=900;let svg='<svg viewBox="0 0 '+W+' '+H+'" preserveAspectRatio="none">';
+      for(let i=0;i<9;i++){const y=120+i*90,a=40+i*12;const d=`M-100 ${y} C ${W*.2} ${y-a}, ${W*.35} ${y+a}, ${W*.5} ${y} S ${W*.8} ${y-a}, ${W+100} ${y+a*.4}`;svg+=`<path class="${i%3===1?'c':''}" d="${d}"/>`;}
+      box.innerHTML=svg+'</svg>';
+      const ps=box.querySelectorAll('path');ps.forEach((p,i)=>{const L=p.getTotalLength();p.style.strokeDasharray=L*.35+' '+L*.65;p.style.strokeDashoffset=L;
+        if(!reduce){gsap.to(p,{strokeDashoffset:-L,duration:26+i*3,ease:'none',repeat:-1});gsap.to(p,{y:(i%2?-14:14),duration:6+i,yoyo:true,repeat:-1,ease:'sine.inOut'});}else{p.style.strokeDasharray='none';}});
+      if(!reduce) gsap.to(box,{y:-120,ease:'none',scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:true}});
+    })();
+    /* hero counters + card stagger + idle drift + pointer tilt */
+    document.querySelectorAll('.board .col .h i').forEach(el=>{const v=+el.textContent;const o={n:0};gsap.to(o,{n:v,duration:1.6,delay:.8,ease:'power2.out',onUpdate:()=>el.textContent=String(Math.round(o.n)).padStart(2,'0')});});
+    gsap.from('.board .card',{y:14,opacity:0,duration:.8,ease:'power3.out',stagger:.06,delay:.7});
+    if(!reduce){gsap.to('#receipt',{rotate:1.2,duration:4,yoyo:true,repeat:-1,ease:'sine.inOut'});gsap.to('.hero .f1',{rotate:-1,duration:5,yoyo:true,repeat:-1,ease:'sine.inOut'});gsap.to('.hero .f2',{rotate:1,duration:6,yoyo:true,repeat:-1,ease:'sine.inOut'});}
+    if(!reduce&&!mobile){const bx=gsap.quickTo('#board','rotateY',{duration:1,ease:'power3'}),by=gsap.quickTo('#board','rotateX',{duration:1,ease:'power3'});
+      document.querySelector('.hero').addEventListener('pointermove',e=>{const r=innerWidth;bx(((e.clientX/r)-.5)*4);by(-((e.clientY/innerHeight)-.5)*3);});}
+
+    /* intro words */
+    const intro=document.getElementById('intro');const iw=new SplitText(intro,{type:'words',wordsClass:'w'});
+    gsap.to(iw.words,{opacity:1,stagger:.04,ease:'none',scrollTrigger:{trigger:intro,start:'top 85%',end:'bottom 60%',scrub:reduce?false:.5}});
+
+    /* stages: sticky feature stack (Fora) */
+    const fc=gsap.utils.toArray('.fcard');
+    gsap.from(fc,{y:40,opacity:0,duration:1.1,ease:'expo.out',stagger:.08,scrollTrigger:{trigger:'#fstack',start:'top 85%',once:true}});
+    if(!reduce&&!mobile){fc.forEach((c,i)=>{if(i===fc.length-1)return;
+      gsap.to(c,{scale:.955,y:-14,ease:'none',scrollTrigger:{trigger:fc[i+1],start:'top 90%',end:'top 96px',scrub:true}});
+      gsap.to(c.querySelector('.veil'),{opacity:.7,ease:'none',scrollTrigger:{trigger:fc[i+1],start:'top 80%',end:'top 96px',scrub:true}});});
+      fc.forEach(c=>{const ui=c.querySelector('.ui');gsap.fromTo(ui,{y:14,rotateX:-3},{y:-14,rotateX:2,ease:'none',scrollTrigger:{trigger:c,start:'top bottom',end:'bottom top',scrub:true}});});}
+    /* dome grows */
+    const q=document.getElementById('quote');const qw=new SplitText(q,{type:'words',wordsClass:'w'});
+    gsap.to(qw.words,{opacity:1,stagger:.035,ease:'none',scrollTrigger:{trigger:'#arc',start:'top 85%',end:'top 45%',scrub:reduce?false:.5}});
+
+    /* channel cards: stagger + spotlight + tilt */
+    gsap.from('.ch',{y:50,opacity:0,duration:1.2,ease:'expo.out',stagger:.12,scrollTrigger:{trigger:'#cards3',start:'top 82%',once:true}});
+    if(!reduce&&!mobile){document.querySelectorAll('[data-spot]').forEach(c=>{
+      const rx=gsap.quickTo(c,'rotateX',{duration:.6,ease:'power3'}),ry=gsap.quickTo(c,'rotateY',{duration:.6,ease:'power3'});
+      c.addEventListener('pointermove',e=>{const r=c.getBoundingClientRect();const px=(e.clientX-r.left)/r.width,py=(e.clientY-r.top)/r.height;c.style.setProperty('--mx',px*100+'%');c.style.setProperty('--my',py*100+'%');rx(-(py-.5)*5);ry((px-.5)*6);});
+      c.addEventListener('pointerleave',()=>{rx(0);ry(0);});});}
+
+    gsap.from('.bcell',{y:30,opacity:0,duration:1,ease:'expo.out',stagger:.1,scrollTrigger:{trigger:'#rstack',start:'top 82%',once:true}});
+    gsap.from('.role',{y:20,opacity:0,duration:.9,ease:'expo.out',stagger:.06,scrollTrigger:{trigger:'#rgrid',start:'top 92%',once:true}});
+    gsap.from('.cmp-card.was',{x:-20,opacity:0,duration:.9,ease:'expo.out',scrollTrigger:{trigger:'#cmpg',start:'top 88%',once:true}});
+    gsap.from('.cmp-card.now',{x:20,opacity:0,duration:.9,ease:'expo.out',delay:.1,scrollTrigger:{trigger:'#cmpg',start:'top 88%',once:true}});
+    ScrollTrigger.create({trigger:'.cmp-card.now',start:'top 75%',once:true,onEnter:()=>document.querySelectorAll('.cmp-card.now li').forEach((li,i)=>setTimeout(()=>li.classList.add('in'),350+i*140))});
+    document.querySelectorAll('#cmpg li[data-i]').forEach(li=>{const k=li.dataset.i;li.addEventListener('pointerenter',()=>document.querySelectorAll('#cmpg li[data-i="'+k+'"]').forEach(x=>x.classList.add('pair')));li.addEventListener('pointerleave',()=>document.querySelectorAll('#cmpg li[data-i="'+k+'"]').forEach(x=>x.classList.remove('pair')));});
+    const ps=gsap.utils.toArray('.pstep');
+    ScrollTrigger.create({trigger:'#psteps',start:'top 70%',end:'bottom 60%',scrub:true,onUpdate:s=>{const h=document.getElementById('psteps').clientHeight-24;document.getElementById('pprog').style.height=(s.progress*h)+'px';ps.forEach((p,i)=>p.classList.toggle('on',s.progress>=i/ps.length+.02));}});
+    if(!reduce&&!mobile){document.querySelectorAll('.btn').forEach(b=>{const x=gsap.quickTo(b,'x',{duration:.5,ease:'power3'}),y=gsap.quickTo(b,'y',{duration:.5,ease:'power3'});
+      b.addEventListener('pointermove',e=>{const r=b.getBoundingClientRect();x((e.clientX-r.left-r.width/2)*.18);y((e.clientY-r.top-r.height/2)*.25);});b.addEventListener('pointerleave',()=>{x(0);y(0);});});}
+    ScrollTrigger.refresh();
+  }
+})();
+</script>
+</body>
+</html>

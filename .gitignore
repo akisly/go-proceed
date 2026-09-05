@@ -98,6 +98,10 @@ apps/app/qa-output/
 apps/mobile/qa-output/
 apps/mobile/dist/
 
+# apps/landing/qa/landing.mjs writes screenshots and report.json here on every
+# run — the same reasoning as apps/mobile above.
+apps/landing/qa-output/
+
 # Child B discovery — personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)
 discovery/leads.csv
 discovery/outreach-log.csv

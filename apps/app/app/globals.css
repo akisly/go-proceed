@@ -29,6 +29,10 @@
  * follow it, because one typeface loads faster on a construction site's mobile
  * connection. That was an owner decision, not an oversight, and deleting the
  * demo does not reopen it.
+ * [Correction, 2026-09-05: still standing for THIS stylesheet, which the
+ * field-client pages use. The dashboard under /dash/** runs on
+ * @goproceed/ui/base.css and loads Onest from its own layout; this sheet is
+ * not on the token system and keeps Inter until the Phase 4 restyle.]
  * ========================================================================= */
 
 @layer theme, base, components, utilities;

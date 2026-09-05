@@ -24,10 +24,12 @@ export type AccordionEntry = { id: string; question: string; answer: string };
  * a checklist: two open answers means the reader lost the one they came for.
  */
 export function Accordion({
-  entries, className,
+  entries, className, marker = "chevron",
 }: {
   entries: AccordionEntry[];
   className?: string | undefined;
+  /** `plus` — the landing's circled plus that fills with ink when open. */
+  marker?: "chevron" | "plus" | undefined;
 }) {
   return (
     <RadixAccordion.Root type="single" collapsible className={cx("w-full", className)}>
@@ -36,17 +38,31 @@ export function Accordion({
           <RadixAccordion.Header>
             <RadixAccordion.Trigger
               className={cx(
-                "group flex w-full items-center justify-between gap-4 py-4 text-left",
+                "group flex w-full items-center justify-between gap-5 py-5 text-left",
                 "text-body font-medium text-ink transition-colors duration-fast ease-out",
                 "hover:text-ink-secondary",
               )}
             >
               {entry.question}
-              <ChevronDown
-                aria-hidden="true"
-                strokeWidth={1.75}
-                className="size-4 shrink-0 text-ink-muted transition-transform duration-base ease-out group-data-[state=open]:rotate-180"
-              />
+              {marker === "plus" ? (
+                <span
+                  aria-hidden="true"
+                  data-accordion-marker="plus"
+                  className={cx(
+                    "relative grid size-(--gp-control-height-desk-sm) shrink-0 place-items-center rounded-pill border border-line-strong",
+                    "transition-colors duration-base ease-out group-data-[state=open]:border-action group-data-[state=open]:bg-action",
+                  )}
+                >
+                  <i className="absolute h-px w-2.5 bg-ink transition-colors duration-base ease-out group-data-[state=open]:bg-action-fg" />
+                  <i className="absolute h-2.5 w-px bg-ink transition-[transform,background-color] duration-base ease-out group-data-[state=open]:rotate-90 group-data-[state=open]:bg-action-fg" />
+                </span>
+              ) : (
+                <ChevronDown
+                  aria-hidden="true"
+                  strokeWidth={1.75}
+                  className="size-4 shrink-0 text-ink-muted transition-transform duration-base ease-out group-data-[state=open]:rotate-180"
+                />
+              )}
             </RadixAccordion.Trigger>
           </RadixAccordion.Header>
           <RadixAccordion.Content
@@ -57,7 +73,7 @@ export function Accordion({
             )}
           >
             <div className="min-h-0">
-              <p className="measure pb-4 text-data text-ink-muted">{entry.answer}</p>
+              <p className="measure pb-5 text-body leading-relaxed text-ink-secondary">{entry.answer}</p>
             </div>
           </RadixAccordion.Content>
         </RadixAccordion.Item>

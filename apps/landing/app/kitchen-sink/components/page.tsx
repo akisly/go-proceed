@@ -26,6 +26,11 @@ import {
   DialogHeader, DialogTitle, DialogTrigger,
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel,
   DropdownMenuSeparator, DropdownMenuTrigger,
+  FeatureGrid, FeatureCell,
+  Pill, PillContent, SectionRule,
+  Bento, BentoCell,
+  ComparePair, CompareCard, CompareArrow,
+  Stepper, Step,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Tooltip, TooltipProvider,
@@ -117,6 +122,7 @@ export default function ComponentSink() {
             <Button variant="link">Всередині речення</Button>
             <Button variant="outline" size="sm">Малий</Button>
             <Button variant="outline" disabled>Вимкнено</Button>
+            <Button size="lg">Маркетинговий</Button>
           </div>
         </Case>
 
@@ -129,6 +135,7 @@ export default function ComponentSink() {
             <Chip tone="idle">Не розпочато</Chip>
             <Chip tone="neutral">v0.1 · пілот</Chip>
             <Chip tone="idle" interactive>Фільтр — це контрол</Chip>
+            <Chip tone="review" dot>на розгляді</Chip>
           </div>
         </Case>
 
@@ -229,6 +236,8 @@ export default function ComponentSink() {
 
         <Case n="09" name="Accordion" rule="Єдиний виняток із заборони анімувати layout: grid-template-rows 0fr→1fr не вимагає вимірювання. Аудит знає про цей виняток поіменно, тож він видимий, а не проліз крізь дірку в регулярці.">
           <Accordion entries={FAQ} className="max-w-2xl" />
+          <p className="index-label mt-8">marker="plus"</p>
+          <Accordion entries={FAQ} marker="plus" className="max-w-2xl" />
         </Case>
 
         <Case n="10" name="Tooltip + Separator" rule="Тултип заслуговує місце рівно в одній ситуації — іконкова рейка 768–1240px. Порталований контент несе font-sans сам, бо портал виходить із базового шару. Separator через Radix, щоб decorative було рішенням, а не випадковістю.">
@@ -393,6 +402,63 @@ export default function ComponentSink() {
               <span className="text-meta text-ink-muted">Технічний нагляд</span>
             </div>
           </div>
+        </Case>
+
+        <Case n="18" name="Pill" rule="Анонс над hero (21st.dev Announcement): тёмний бейдж, рядок і стрілка, що зсувається при наведенні. Одна фраза, одне посилання; як посилання — через asChild, ніколи div з onClick.">
+          <Pill asChild>
+            <a href="#pilot"><PillContent badge="Безкоштовний пілот">для субпідрядників із прихованими роботами</PillContent></a>
+          </Pill>
+        </Case>
+
+        <Case n="19" name="SectionRule" rule="Нумерована лінія між розділами: волосяна лінія та моно-підпис на тлі паперу. Декоративна, aria-hidden — заголовок розділу несе секція, що йде далі.">
+          <div className="py-6"><SectionRule index="01" label="Проблема" /></div>
+        </Case>
+
+        <Case n="20" name="FeatureGrid + FeatureCell" rule="21st.dev Grid Feature Cards: один контейнер, комірки через 1px-зазор кольору лінії, під курсором проявляється точкова підкладка. Нахилу немає — це не 3D, а світло.">
+          <FeatureGrid columns={4}>
+            {[["ПТВ", "виробничо-технічний відділ"], ["Майстер", "дільниці"], ["Власник", "комерційний директор"], ["Технагляд", "зовнішній розгляд"]].map(([t, s]) => (
+              <FeatureCell key={t} title={t!} subtitle={s} footer={<span>→ доказ знаходиться по роботі</span>}>
+                Дні на пошук фото по чатах, переписування у Word.
+              </FeatureCell>
+            ))}
+          </FeatureGrid>
+        </Case>
+
+        <Case n="21" name="Bento + BentoCell" rule="21st.dev Bento Grid у єдиному потрібному варіанті: широка комірка на два ряди поруч із двома складеними. Структура — це лінія, тіней немає.">
+          <Bento>
+            <BentoCell span="rows-2" eyebrow="Доступ · хто що бачить" title="Кожна роль бачить рівно стільки, скільки їй потрібно"><p className="text-data text-ink-secondary">Майстер не бачить реєстру, технагляд не заходить у проєкт.</p></BentoCell>
+            <BentoCell eyebrow="Незмінність" title="Що не можна виправити заднім числом"><p className="text-data text-ink-secondary">Фото не можна замінити або відкріпити від роботи після завантаження.</p></BentoCell>
+            <BentoCell eyebrow="Межі v0.1" title="Що GoProceed робить зараз, і чого не обіцяє"><p className="text-data text-ink-secondary">Чернетка акта не є підписаним документом.</p></BentoCell>
+          </Bento>
+        </Case>
+
+        <Case n="22" name="ComparePair + CompareCard + CompareArrow" rule="«Було і стало» як два аркуші. Той самий перелік питань в обох картках; наведення на рядок підсвічує його пару в іншій картці через CSS :has(), без JavaScript.">
+          <ComparePair>
+            <CompareCard
+              tone="was"
+              eyebrow="Зараз"
+              title="Чати, диск, пам'ять"
+              rows={[{ key: "photo", question: "Де фото?", answer: "У чаті бригади" }]}
+              outcome="Акт повертають."
+            />
+            <CompareArrow />
+            <CompareCard
+              tone="now"
+              eyebrow="З GoProceed"
+              title="Один запис"
+              rows={[{ key: "photo", question: "Де фото?", answer: "На роботі W-014", ref: "EV-0248 · 14:32" }]}
+              outcome="Акт не повертають."
+            />
+          </ComparePair>
+        </Case>
+
+        <Case n="23" name="Stepper + Step" rule="План пілота як вертикальний степпер (21st.dev Steppers), за часом, а не за скролом: InViewProgress публікує 0 → 1 у --gp-progress, лінія заповнюється scaleY, точки спалахують на своїх порогах. Під reduced motion план одразу повний.">
+          <Stepper>
+            <Step index={0} count={4} when="День 1 · об'єкт і реєстр" title="Заносимо один пакет робіт і вимоги до нього">Разом із ПТВ: роботи, місця, пункти ДБН. Дві години.</Step>
+            <Step index={1} count={4} when="Тиждень 1 · майданчик" title="Майстер знімає докази за вимогами">Через Telegram-бот або мобільний застосунок, на своєму телефоні.</Step>
+            <Step index={2} count={4} when="Тиждень 2 · зовнішній розгляд" title="Технагляд приймає або повертає по посиланню">Перший запис закриття з підставою.</Step>
+            <Step index={3} count={4} when="Підсумок" title="Чернетка акта і рішення про продовження">Збираємо Додаток В із фактів і чесно називаємо межі v0.1.</Step>
+          </Stepper>
         </Case>
 
         <div className="border-t border-line py-14">

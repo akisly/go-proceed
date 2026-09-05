@@ -1,308 +1,230 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import LandingPage from "../app/page";
-import { EvidenceRail } from "../components/visuals/evidence-rail";
+import { landingContent } from "../content/landing-content";
+import { PILOT_EMAIL } from "../content/pilot-request";
 
-const html = renderToStaticMarkup(<LandingPage />);
-const decisionRail = renderToStaticMarkup(<EvidenceRail active="decision" />);
+export const html = renderToStaticMarkup(<LandingPage />).replace(/&#x27;/g, "'");
+export const section = (id: string, next?: string) =>
+  html.slice(html.indexOf(`id="${id}"`), next ? html.indexOf(`id="${next}"`) : undefined);
 
-describe("landing evidence journey", () => {
-  it("uses one consistent project mark and one main heading", () => {
+describe("the Daylight page — skeleton", () => {
+  it("has one main heading, a skip link and the mark twice", () => {
     expect(html.match(/<h1/g)).toHaveLength(1);
-    expect(html.match(/data-brand-mark="true"/g)?.length).toBeGreaterThanOrEqual(2);
     expect(html).toContain('href="#main-content"');
-    expect(html).toContain('id="main-content"');
+    expect(html.match(/data-brand-mark="true"/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
-  it("renders six purposeful scenes in reading order", () => {
-    const ids = ["product", "workflow", "field-review", "readiness", "trust", "pilot"];
+  it("renders the twelve sections in the prototype's order", () => {
+    const ids = ["hero", "sources", "problem", "compare", "roles", "stages", "position", "capture", "trust", "pilot", "faq", "cta-final"];
     let cursor = -1;
-
     for (const id of ids) {
-      const next = html.indexOf(`id="${id}"`);
-      expect(next).toBeGreaterThan(cursor);
-      cursor = next;
-    }
-
-    expect(html).not.toContain('id="proof"');
-    expect(html).not.toContain('id="roles"');
-    expect(html).not.toContain('data-tour-mode="timed-tabs"');
-    expect(html).not.toContain('aria-label="Порівняння доказового контуру"');
-  });
-
-  it("opens with one focused evidence dossier and working pilot actions", () => {
-    const hero = html.slice(html.indexOf('id="product"'), html.indexOf('id="workflow"'));
-
-    expect(hero).toContain('aria-label="Досьє доказу EV-0248"');
-    expect(hero).toContain("R-041");
-    expect(hero).toContain("EV-0248");
-    expect(hero).toContain("Очікує рішення");
-    expect(hero).toContain('href="#pilot"');
-    expect(html.match(/href="#pilot"/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(html).not.toContain('aria-disabled="true"');
-  });
-
-  it("centers the wider hero thesis, description and actions as one visual group", () => {
-    const hero = html.slice(html.indexOf('id="product"'), html.indexOf('id="workflow"'));
-
-    expect(hero).toContain('data-hero-copy-stack="true"');
-    expect(hero).toContain('data-hero-alignment="center"');
-    expect(hero).toContain('data-hero-description="true"');
-    expect(hero).toContain('data-hero-actions="true"');
-    expect(hero).toContain('data-marker-accent="true"');
-    expect(hero).toContain(">до доказу,</span>");
-    expect(hero).toContain("items-center");
-    expect(hero).toContain("text-center");
-    expect(hero).toContain("max-w-[40ch]");
-    expect(hero).not.toContain("max-w-[30ch]");
-    expect(hero).toContain("max-w-[68ch]");
-    expect(hero).toContain("justify-center");
-    expect(hero).toContain("text-mkt-display-2");
-    expect(hero).not.toContain("text-mkt-display-1");
-  });
-
-  it("marks the thesis phrase in every primary section heading", () => {
-    expect(html.match(/data-marker-accent="true"/g)).toHaveLength(6);
-
-    for (const phrase of [
-      "до доказу,",
-      "без втрати контексту",
-      "переданий контекст",
-      "причинами",
-      "походження",
-      "одному пакеті робіт",
-    ]) {
-      expect(html).toContain(`data-marker-accent="true">${phrase}</span>`);
-    }
-
-    expect(html.match(/data-section-heading-width="wide"/g)).toHaveLength(5);
-  });
-
-  it("lets the blueprint field span the full hero before it dissolves", () => {
-    const hero = html.slice(html.indexOf('id="product"'), html.indexOf('id="workflow"'));
-
-    expect(hero).toContain('data-hero-grid-flow="true"');
-    expect(hero).toContain("landing-hero-field absolute inset-0");
-    expect(hero).not.toContain("h-[68%]");
-  });
-
-  it("server-renders the evidence route without autoplay", () => {
-    const section = html.slice(
-      html.indexOf('id="workflow"'),
-      html.indexOf('id="field-review"'),
-    );
-
-    for (const id of ["R-041", "EV-0248", "DR-0091", "CL-017"]) {
-      expect(section).toContain(id);
-    }
-
-    expect(section.match(/data-journey-chapter=/g)).toHaveLength(3);
-    expect(section).not.toContain("Пауза");
-    expect(section).not.toContain('role="tablist"');
-  });
-
-  it("drives the evidence journey with Motion instead of CSS transitions", () => {
-    const section = html.slice(
-      html.indexOf('id="workflow"'),
-      html.indexOf('id="field-review"'),
-    );
-
-    expect(section).toContain('data-evidence-motion-engine="vocabulary"');
-    expect(section).toContain('data-evidence-stage-transition="slide-swap"');
-    expect(section.match(/data-evidence-scroll-trigger="stagger"/g) ?? []).toHaveLength(3);
-    expect(section.match(/data-evidence-rail-motion="vocabulary"/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(section).not.toContain("transition-[opacity,transform]");
-    expect(section).not.toContain("transition-colors duration-slow");
-  });
-
-  it("keeps one evidence point per journey chapter", () => {
-    expect(decisionRail.match(/data-evidence-point="true"/g) ?? []).toHaveLength(3);
-    expect(decisionRail).toContain("R-041");
-    expect(decisionRail).toContain("EV-0248");
-    expect(decisionRail).toContain("DR-0091");
-    expect(decisionRail).toContain("CL-017");
-  });
-
-  it("gives every journey chapter heading a wider reading measure", () => {
-    const section = html.slice(
-      html.indexOf('id="workflow"'),
-      html.indexOf('id="field-review"'),
-    );
-
-    expect(section.match(/<h3 class="display mt-6 max-w-\[22ch\]/g) ?? []).toHaveLength(3);
-  });
-
-  it("keeps evidence connectors behind their points", () => {
-    expect(
-      decisionRail.match(/data-evidence-connector="true" class="[^"]*\bz-0\b/g) ?? [],
-    ).toHaveLength(2);
-    expect(
-      decisionRail.match(/data-evidence-point-marker="true" class="[^"]*\bz-10\b/g) ?? [],
-    ).toHaveLength(3);
-  });
-
-  it("shows the field hand-off and online-only boundary", () => {
-    const section = html.slice(
-      html.indexOf('id="field-review"'),
-      html.indexOf('id="readiness"'),
-    );
-
-    expect(section).toContain("Без облікового запису");
-    expect(section).toContain("активного з’єднання");
-    expect(section).toContain("Майстер");
-    expect(section).toContain("ПТВ");
-    expect(section).toContain("Технагляд");
-  });
-
-  it("labels project state as demonstration data", () => {
-    expect(html).toContain('aria-label="Стан демонстраційного пакета робіт"');
-    expect(html).toContain("Демонстраційні дані");
-    expect(html).toContain("Готово");
-    expect(html).toContain("На розгляді");
-    expect(html).toContain("Заблоковано");
-  });
-
-  it("shows readiness as one check with three independent outcomes", () => {
-    const section = html.slice(
-      html.indexOf('id="readiness"'),
-      html.indexOf('id="trust"'),
-    );
-    const workflow = section.slice(
-      section.indexOf("<svg"),
-      section.indexOf("</svg>") + "</svg>".length,
-    );
-
-    expect(workflow).toContain('data-readiness-workflow="true"');
-    expect(workflow).toContain('data-readiness-motion-engine="motion"');
-    expect(workflow).toContain('data-readiness-cycle="once"');
-    expect(workflow).toContain("Пакет робіт");
-    expect(workflow).toContain("Перевірка повноти");
-    expect(workflow.match(/data-readiness-trunk="true"/g) ?? []).toHaveLength(1);
-    expect(workflow.match(/data-readiness-branch=/g) ?? []).toHaveLength(3);
-    expect(workflow.match(/data-readiness-endpoint=/g) ?? []).toHaveLength(3);
-    expect(workflow.match(/data-readiness-signal=/g) ?? []).toHaveLength(4);
-    expect(workflow.match(/data-readiness-traveler=/g) ?? []).toHaveLength(4);
-    expect(workflow.match(/data-readiness-pulse=/g) ?? []).toHaveLength(6);
-    expect(workflow).not.toContain("<animateMotion");
-    expect(workflow).not.toContain("<animate ");
-    expect(workflow).toContain('data-readiness-signal="trunk" class="stroke-ink-muted"');
-    expect(workflow).toContain('data-readiness-traveler="trunk" class="fill-ink-muted stroke-surface"');
-
-    for (const [id, lineTone, dotTone, pulseTone] of [
-      ["ready", "status-ready-fg", "status-ready-fg", "action-signal"],
-      ["review", "status-review-fg", "status-review-fg", "status-review"],
-      ["blocked", "status-blocked-fg", "status-blocked-fg", "status-blocked"],
-    ] as const) {
-      expect(workflow).toContain(`data-readiness-signal="${id}" class="stroke-${lineTone}"`);
-      expect(workflow).toContain(`data-readiness-traveler="${id}" class="fill-${dotTone} stroke-surface"`);
-      expect(workflow).toContain(`data-readiness-pulse="${id}-primary"`);
-      expect(workflow).toContain(`data-readiness-pulse="${id}-secondary"`);
-      expect(workflow.match(new RegExp(`data-readiness-pulse="${id}-(?:primary|secondary)"[^>]*stroke-${pulseTone}`, "g")) ?? []).toHaveLength(2);
-    }
-
-    for (const detail of [
-      "усі блокуючі вимоги виконані",
-      "рішення ще не зафіксоване",
-      "є невиконана блокуюча вимога",
-    ]) {
-      expect(workflow).toContain(detail);
+      const at = html.indexOf(`id="${id}"`);
+      expect(at, id).toBeGreaterThan(cursor);
+      cursor = at;
     }
   });
 
-  it("renders the readiness diagram without reaching for Motion", () => {
-    const src = readFileSync(
-      join(import.meta.dirname, "..", "components/visuals/readiness-workflow.tsx"), "utf8");
-    expect(src).not.toContain("motion/react");
-    expect(src).toContain("InViewProgress");
-    expect(src).toContain("--gp-progress");
+  it("numbers the eight section rules 01–08 in order", () => {
+    expect(html.match(/data-section-rule="\d\d"/g)).toEqual(
+      ["01", "02", "03", "04", "05", "06", "07", "08"].map((n) => `data-section-rule="${n}"`),
+    );
   });
 
-  it("shows provenance and the honest v0.1 product boundary", () => {
-    expect(html).toContain('aria-label="Квитанція походження EV-0248"');
-    expect(html).toContain("Квитанція доказу · EV-0248");
-    expect(html).toContain("verified-stamp-uk.png");
-    expect(html).not.toContain("Evidence receipt");
-    expect(html).toContain("Працює у поточному контурі");
-    expect(html).toContain("Не заявляємо");
-    expect(html).toContain("Чернетка акта не є підписаним документом");
+  it("puts the four header links in page order and the ink action", () => {
+    const nav = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+    for (const item of landingContent.nav.items) expect(nav).toContain(`href="${item.href}"`);
+    expect(nav.indexOf('href="#compare"')).toBeLessThan(nav.indexOf('href="#roles"'));
+    expect(nav.indexOf('href="#roles"')).toBeLessThan(nav.indexOf('href="#stages"'));
+    expect(nav.indexOf('href="#stages"')).toBeLessThan(nav.indexOf('href="#faq"'));
+    expect(nav).toContain(landingContent.nav.action);
+    expect(nav).not.toContain("bg-action-signal");
   });
 
-  it("renders an honest accessible pilot form", () => {
-    const pilot = html.slice(html.indexOf('id="pilot"'), html.indexOf("<footer"));
-
-    expect(pilot).toContain("<form");
-    expect(pilot).toContain('name="name"');
-    expect(pilot).toContain('name="contact"');
-    expect(pilot).toContain('required=""');
-    expect(pilot).toContain('aria-live="polite"');
-    expect(pilot).toContain("поштовий клієнт");
-    expect(pilot).not.toContain("Заявку надіслано");
+  it("uses no signal button anywhere on the page", () => {
+    expect(html).not.toContain("bg-action-signal");
   });
 
-  it("keeps the factual FAQ in the closing scene", () => {
-    const pilot = html.slice(html.indexOf('id="pilot"'), html.indexOf("<footer"));
-
-    expect(pilot).toContain("Чи можна фіксувати матеріали без мережі?");
-    expect(pilot).toContain("Чернетка акта є готовим підписаним документом?");
-    expect(pilot).toContain("<details");
-  });
-
-  it("finishes with a factual product-scope footer", () => {
-    expect(html).toContain("<footer");
-    expect(html).toContain("Частина показаних сценаріїв перебуває у розробці");
+  it("ends with the factual footer", () => {
+    const footer = html.slice(html.indexOf("<footer"));
+    expect(footer).toContain(landingContent.footer.disclaimer);
+    expect(footer).toContain("mailto:akisliy2306@gmail.com");
+    expect(footer).toContain("© 2026 GoProceed");
   });
 });
 
-describe("the evidence rail reaches Motion through the vocabulary", () => {
-  const requirementRail = renderToStaticMarkup(<EvidenceRail active="requirement" />);
+describe("hero and sources", () => {
+  const hero = section("hero", "sources");
+  it("opens with the pill, the accented promise, two actions and three facts", () => {
+    expect(hero).toContain('data-slot="pill"');
+    expect(hero).toContain('data-accent="true">доказ</span>');
+    expect(hero).toContain('href="#pilot"');
+    expect(hero).toContain('href="#compare"');
+    for (const f of landingContent.hero.facts) expect(hero).toContain(f.value);
+  });
+  it("shows the board with three columns, the selected card, the receipt and the beam", () => {
+    expect(hero).toContain('aria-label="Стан пакету робіт у веб-застосунку GoProceed"');
+    expect(hero).toContain("Готово");
+    expect(hero).toContain("На розгляді");
+    expect(hero).toContain("Заблоковано");
+    expect(hero).toContain('data-board-card="selected"');
+    expect(hero).toContain('aria-label="Квитанція доказу EV-0248"');
+    expect(hero).toContain('class="beam"');
+    expect(hero).toContain(landingContent.hero.dimension);
+  });
+  it("lists the six requirement sources", () => {
+    const sources = section("sources", "problem");
+    for (const s of landingContent.sources.items) expect(sources).toContain(s.code);
+  });
+});
 
-  it("keeps its markers and connectors in the rendered output", () => {
-    expect(decisionRail).toContain('data-evidence-rail="true"');
-    expect(decisionRail.match(/data-evidence-point="true"/g)).toHaveLength(3);
-    expect(decisionRail.match(/data-evidence-connector="true"/g)).toHaveLength(2);
+describe("problem and compare", () => {
+  const problem = section("problem", "compare");
+  const compare = section("compare", "roles");
+  it("tints the statement and shows Рис. 01 with the found message and the record", () => {
+    expect(problem).toContain(landingContent.problem.statement);
+    expect(problem).toContain("Рис. 01");
+    expect(problem).toContain('data-message="hit"');
+    for (const m of ["без осі", "без вимоги", "без рішення"]) expect(problem).toContain(m);
+    expect(problem).toContain("DR-0091 · прийнято технаглядом · 16:18");
+  });
+  it("pairs five rows across the two cards and states both outcomes", () => {
+    expect(compare.match(/data-compare-row=/g)).toHaveLength(10);
+    expect(compare).toContain(landingContent.compare.was.outcome);
+    expect(compare).toContain(landingContent.compare.now.outcome);
+  });
+});
+
+describe("roles and route", () => {
+  const roles = section("roles", "stages");
+  const route = section("stages", "position");
+  it("renders the four role cells with pains and gains", () => {
+    expect(roles.match(/data-slot="feature-cell"/g)).toHaveLength(4);
+    for (const cell of landingContent.roles.cells) { expect(roles).toContain(cell.title); expect(roles).toContain(cell.pain); }
+    expect(roles).toContain("Telegram-бот або мобільний застосунок, без форм");
+  });
+  it("stacks five route cards, alternating sides, each with its window", () => {
+    expect(route.match(/data-route-card=/g)).toHaveLength(5);
+    expect(route.match(/data-route-card="flip"/g)).toHaveLength(2);
+    for (const s of landingContent.route.steps) expect(route).toContain(s.eyebrow);
+    for (const code of ["R-041 · Кабельний лоток до закриття стелі", "Зняти фото", "goproceed.app/r/7k2…f9", "Закриття · CL-017", "ЧЕРНЕТКА"]) expect(route).toContain(code);
+    expect(route).toContain("Це чернетка для підпису, а не підписаний документ.");
+  });
+});
+
+describe("position, capture, provenance", () => {
+  const position = section("position", "capture");
+  const capture = section("capture", "trust");
+  const trust = section("trust", "pilot");
+  it("states the position with three pills", () => {
+    expect(position).toContain(landingContent.position.quote);
+    expect(position.match(/data-position-pill=/g)).toHaveLength(3);
+  });
+  it("shows the two foreman channels, the office web app and the converging record", () => {
+    for (const ch of landingContent.capture.channels) expect(capture).toContain(ch.title);
+    expect(capture).toContain("Збережено як");
+    expect(capture).toContain("очікує мережу");
+    expect(capture).toContain("EV-0248");
+  });
+  it("renders the access matrix, immutability and the limits of v0.1", () => {
+    expect(trust.match(/data-slot="bento-cell"/g)).toHaveLength(3);
+    expect(trust.match(/data-access=/g)).toHaveLength(28);
+    expect(trust).toContain("Історія подій не редагується, лише доповнюється");
+    expect(trust).toContain("Чернетка акта не є підписаним документом");
+  });
+});
+
+// The four semantics the whole-branch review found wrong: a matrix whose dots
+// announced nothing, two inverted lists with no labels, six requirement sources
+// hidden outright, and a `role="list"` with no list items in it.
+describe("what assistive technology is told", () => {
+  const trust = section("trust", "pilot");
+  const a = landingContent.provenance.access;
+
+  it("renders the access matrix as a real table with headers and spoken levels", () => {
+    expect(trust).toContain("<table");
+    // one header row of four roles plus seven data rows
+    expect(trust.match(/<th[^>]*scope="col"/g)).toHaveLength(4);
+    expect(trust.match(/<th[^>]*scope="row"/g)).toHaveLength(a.rows.length);
+    expect(trust.match(/<tr/g)).toHaveLength(a.rows.length + 1);
+    expect(trust.match(/data-access=/g)).toHaveLength(28);
+    // every cell says its level in words, not only in colour
+    const spoken = trust.match(/<span class="sr-only">/g) ?? [];
+    expect(spoken.length).toBeGreaterThanOrEqual(28);
+    for (const level of ["full", "own", "none"] as const) expect(trust).toContain(a.legend[level]);
+    // an `aria-label` on a bare <i> is prohibited by the generic role: gone
+    expect(trust).not.toMatch(/<i[^>]*aria-label/);
   });
 
-  /**
-   * THE TEST ABOVE CANNOT FAIL ON THE THING THIS BLOCK IS NAMED FOR. Three
-   * markers and two connectors is what the rail rendered BEFORE the rewrite,
-   * from hand-written spans, and it is what it renders after — so the block
-   * claimed the rail reaches Motion through the vocabulary while asserting
-   * nothing the vocabulary produces. Rather than rename the block to what its
-   * one test actually pinned (the rail's shape), the claim is made testable:
-   * the shape assertion stays, and this asserts the vocabulary.
-   *
-   * `TrackFill` is a `motion.span` with `initial={false}`, so the server writes
-   * its TARGET into the markup: `transform:scaleX(0)` for a segment the reader
-   * has not reached, and `transform:none` — Motion's spelling of `scaleX(1)` —
-   * once they have. A static span cannot produce either, and neither can a
-   * `TrackFill` whose `filled` stops tracking `currentIndex`.
-   */
-  it("fills each connector from TrackFill's state, not from a static class", () => {
-    const segments = (html: string, transform: string) =>
-      html.match(new RegExp(`data-evidence-connector="true"[^>]*><span[^>]*style="transform:${transform}"`, "g")) ?? [];
-
-    // At the first chapter both segments are still ahead of the reader.
-    expect(segments(requirementRail, "scaleX\\(0\\)")).toHaveLength(2);
-    expect(segments(requirementRail, "none")).toHaveLength(0);
-    // At the last, both are behind and filled.
-    expect(segments(decisionRail, "none")).toHaveLength(2);
-    expect(segments(decisionRail, "scaleX\\(0\\)")).toHaveLength(0);
+  it("labels the two halves of the v0.1 limits so the polarity is announced", () => {
+    const l = landingContent.provenance.limits;
+    expect(trust).toContain(l.doesTitle);
+    expect(trust).toContain(l.doesNotTitle);
+    expect(trust.match(/<ul[^>]*aria-labelledby=/g)?.length).toBeGreaterThanOrEqual(2);
   });
 
-  /**
-   * `CrossFade` swaps the numeral for the check inside the marker, and its own
-   * `mode="wait"` wrapper is what carries the `opacity` the server writes. The
-   * pre-rewrite rail rendered the numeral and the check from a ternary with no
-   * wrapper at all.
-   */
-  it("swaps the numeral for the check through CrossFade", () => {
-    const marker = /data-evidence-point-marker="true"[^>]*>(<div class="grid place-items-center" style="opacity:1">.*?<\/div>)/g;
-    const insides = [...decisionRail.matchAll(marker)].map((m) => m[1]!);
-    expect(insides).toHaveLength(3);
-    expect(insides.filter((i) => i.includes("lucide-check"))).toHaveLength(2);
-    expect(insides[2]).toContain(">3<");
+  it("keeps the six requirement sources readable and names the strip", () => {
+    // slice to the strip's own closing tag: the decorative section rule that
+    // follows it is legitimately aria-hidden and would mask the assertion
+    const strip = section("sources", "problem");
+    const sources = strip.slice(0, strip.indexOf("</section>"));
+    expect(sources).not.toContain('aria-hidden="true"');
+    expect(sources).toContain(`aria-label="${landingContent.sources.label}"`);
+    for (const item of landingContent.sources.items) expect(sources).toContain(item.code);
+  });
+
+  it("does not claim a list of links that has no list items", () => {
+    const nav = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+    if (nav.includes('role="list"')) expect(nav).toMatch(/role="listitem"/);
+    else expect(nav).toContain("<ul");
+  });
+});
+
+describe("pilot", () => {
+  const pilot = section("pilot", "faq");
+  it("walks the four steps, the three cards and the author note", () => {
+    expect(pilot.match(/data-slot="step"/g)).toHaveLength(4);
+    for (const box of [landingContent.pilot.needs, landingContent.pilot.gets, landingContent.pilot.terms]) expect(pilot).toContain(box.title);
+    expect(pilot).toContain(landingContent.pilot.author.signature);
+    expect(pilot).toContain("пілот безкоштовний");
+  });
+  it("renders an honest form: labelled fields, a hidden honeypot, a live region, no success text", () => {
+    expect(pilot).toContain("<form");
+    expect(pilot).toContain('name="name"');
+    expect(pilot).toContain('name="contact"');
+    expect(pilot).toContain('name="website"');
+    expect(pilot).toContain('tabindex="-1"');
+    expect(pilot).toContain('aria-live="polite"');
+    expect(pilot).toContain('data-form-state="idle"');
+    expect(pilot).not.toContain(landingContent.pilot.form.sent);
+  });
+  // Spec §9.1: with JavaScript unavailable the form still renders, the address
+  // is visible in the copy under it, and nothing claims to have sent anything.
+  // Without a method the default submit is a GET, which puts the applicant's
+  // name and phone into the address bar, the history and every later Referer.
+  it("posts to the handler without JavaScript and shows the address unconditionally", () => {
+    expect(pilot).toContain('method="post"');
+    expect(pilot).toContain('action="/api/pilot"');
+    expect(pilot).not.toMatch(/<form[^>]*method="get"/);
+    expect(pilot).toContain(`mailto:${PILOT_EMAIL}`);
+    expect(pilot).toContain(PILOT_EMAIL);
+    expect(pilot).toContain(landingContent.pilot.form.mailNote);
+    // the address line is copy, not a second call to action
+    expect(pilot).not.toContain("bg-action-signal");
+  });
+});
+
+describe("faq and cta", () => {
+  it("asks the seven questions in an accordion with the plus marker", () => {
+    const faq = section("faq", "cta-final");
+    expect(faq.match(/data-accordion-marker="plus"/g)).toHaveLength(7);
+    expect(faq).toContain("Скільки коштує пілот і хто відповідає?");
+  });
+  it("closes with the light card, the pilot link and the copy-link button", () => {
+    const cta = section("cta-final");
+    expect(cta).toContain('data-accent="true">на одному пакеті робіт</span>');
+    expect(cta).toContain('href="#pilot"');
+    expect(cta).toContain(landingContent.cta.share);
   });
 });

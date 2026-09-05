@@ -14,10 +14,91 @@ it supersedes.
 
 ## 0a. Latest: the seven P1 residuals, the six orphaned capabilities, and the GoProceed rename finished end to end. The P0 is untouched and is still first.
 
-Fourteen pieces of work. Each is below, under its own
+Fifteen pieces of work. Each is below, under its own
 heading, newest first — and read the P0 warning in §0 whichever you start with:
 as of 0a.14 the origin EXISTS and is public, and what the warning still guards
 is the §6 evidence and custom SMTP.
+
+---
+
+### 0a.15 — the Daylight landing: prototype ported, palette and mark system-wide, the form has a server side
+
+**What shipped.** `apps/landing` is the owner-approved «Daylight» prototype
+(`design-references/contest-2026-09/daylight/`), rebuilt inside the real
+application on Next 16.3.1/React 19.2.8/Tailwind 4.3.3 — one page, in the
+prototype's section order, with its own `POST /api/pilot` route handler
+(Telegram + Resend delivery, honeypot, per-instance rate limit). The palette
+moved system-wide through `packages/tokens/src/tokens.json`: warm paper
+(`#F6F5F1`), cool ink (`#15161A`) and one cobalt mark (`#2B4BFF`) replaced
+Evidence Atlas's paper/carbon/lime everywhere a role is named, so `apps/app`
+and `apps/mobile` re-coloured through their existing role names with no
+per-screen edit. `ScrollSettle` joined the motion vocabulary as its sixteenth
+word — the Container Scroll product-frame entry, finite and flat below `md`
+and under reduced motion. Six components landed in `packages/ui` — twelve
+exported symbols: `Pill`/`PillContent`, `SectionRule`,
+`FeatureGrid`/`FeatureCell`, `Bento`/`BentoCell`,
+`ComparePair`/`CompareCard`/`CompareArrow`, `Stepper`/`Step`, plus
+`Accordion`'s new `marker` prop, `Chip`'s new `dot` prop and `Button`'s new
+`lg` size. The brand mark (rounded square,
+ink chevron, cobalt dot) replaced the lime-dot ring everywhere: landing,
+`apps/app/public/*`, and `apps/mobile/assets/*`, from one SVG source.
+
+**What the owner decided (§2 of the spec, all five recommendations taken).**
+D1 — the palette and typeface move system-wide through `tokens.json`, not a
+landing-only scope, so the dashboard and mobile inherit through their roles.
+D2 — the pilot form's server side is one route handler inside `apps/landing`
+itself (`app/api/pilot/route.ts`), not `apps/app` or the Cloudflare worker;
+the «static-first, no product API, no Supabase client» invariant gets a
+dated correction naming this one contact-forwarding exception.
+D3 — the new mark replaces the old one everywhere in this slice, not just
+the landing, so one mark ships rather than two side by side.
+D4 — no GSAP, no Lenis; the prototype's choreography is re-expressed in the
+existing motion vocabulary plus `ScrollSettle`, and the Border Beam is
+finite (two passes, then it stops) rather than perpetual.
+D5 — the design contest is tracked at
+`design-references/contest-2026-09/daylight/`, not left untracked.
+
+**What was measured.** The gate's five commands (`02-building-ui.md` §5) are
+green; `node packages/testing/qa/motion-audit.mjs` reports `motion-audit:
+clean`. The landing's own puppeteer QA (`apps/landing/qa/landing.mjs`) is
+green at 1920/1440/1240/1024/768/390/360, plus a reduced-motion pass at
+1440 and 390 — `ScrollSettle`'s `data-settled` attribute is `false` on load
+at ≥768 full-motion and already `true` under reduced motion at every width
+checked, matching its contract. The landing's vitest suite is 10 files, 83
+tests, all green. `packages/testing`'s eleven suites that do not need a
+database are 155/155 green (the DB-backed suites need local Supabase, which
+is off by default in this environment — see the memory note). `apps/app`'s
+unit suites, run without the database (`.int.test.ts` files excluded), are
+524 passed, 1 skipped, 0 failed.
+
+**What did not move.** `apps/app/app/globals.css` is a legacy stylesheet
+with its own hard-coded Evidence Atlas hex and Inter; only the dashboard
+under `/dash/**` (`dash-theme.css` → `@goproceed/ui/base.css`) and
+`apps/mobile` are on the token system today. The field-client pages keep
+the old palette until the rewrite plan's Phase 4. `TODOS.md`'s «Opened by
+the Daylight landing (2026-09-05)» section files this as a P2 (six-viewport
+visual pass of `/dash/**` and mobile, sign-out dialog and OTP form named as
+the first two screens to check), a second P2 for the legacy stylesheet
+itself, and ten P3s: everything D4 declined to carry over, the
+per-instance rate limit, a literal `1240px` media query in
+`landing-route-card`, `FeatureCell`'s icon-box size, two stale motion
+docstrings, a literal channel badge, the pilot form's raw-vs-cleaned mailto
+fields, an unstyled `figcaption` rule, the rate limiter's insertion-order
+eviction risk, and one stale test title. A second sub-heading, «Final review
+minors (2026-09-05)», holds the fifty-four parked from the whole-branch
+review — its seventeen Importants were all fixed on the branch (rulings
+R1–R12), and every Minor it left is a line there.
+
+**Where to look.** The spec is
+`docs/superpowers/specs/2026-09-05-landing-daylight-design.md`; the three
+prior specs it supersedes or extends are named in its own header. The
+`.superpowers/sdd/2026-09-05-landing-daylight-*` directories (foundation,
+components, landing) hold every task brief and report for this slice,
+including the QA evidence (`task-23-report.md`) and this documentation pass
+(`task-24-report.md`). `DESIGN.md` and `docs/design/01-tokens.md` are the
+current design system; `docs/design/02-building-ui.md` and
+`docs/design/03-ui-references.md` are the procedure and the 21st.dev
+references this slice added.
 
 ---
 
