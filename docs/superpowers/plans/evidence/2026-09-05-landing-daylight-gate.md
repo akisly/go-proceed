@@ -257,3 +257,169 @@ canonical documentation: OK
 ### §6 visual pass
 
 The Browser pane of this session renders hidden (blank screenshots, `innerHeight 0`), so the pass was made on the puppeteer captures in `apps/landing/qa-output/` — every viewport-sized frame down each page at 1920 · 1440 · 1240 · 1024 · 768 · 390 · 360 and the two reduced-motion passes. Checked: no horizontal overflow at any width (`scrollWidth` equals the viewport, `wide=0` above); the fold holds the pill, the promise, both buttons and the three facts at 1440 and 390; the header button is the touch height at 390; every status chip carries its label; under reduced motion the product frame is flat at first paint (`settledAtLoad=true`) and the Border Beam never starts. Fixed during the pass, earlier on the branch: the pilot grid overflowing at 768 (now switches at `wide:`), the ScrollTint words jamming together, and the route stack's Stagger hiding cards below the fold (now per-card Reveal).
+
+## Plan 3 — landing, after the final review fixes (2026-09-05, HEAD e56526c)
+
+The whole-branch review (four areas) found 0 Critical, 17 Important and 58
+Minor. All seventeen Importants were fixed under the controller's rulings
+R1–R12 across five commits (`fix(ui)`, `fix(landing)`, `fix(brand)`,
+`fix(app)`, `docs(design)`); R13 parked every remaining Minor as one line in
+`TODOS.md` under «Final review minors (2026-09-05)». The Plan 1 substitution
+ruling above still applies — the local Supabase stack is off, so the database
+suites are excluded and CI runs them.
+
+The gate below is the same nine commands, re-run at this HEAD.
+
+### Command 1: `pnpm --filter @goproceed/tokens generate` — then `git status`
+
+```
+wrote packages/ui/src/tokens.generated.css
+wrote packages/ui/src/theme.generated.css
+wrote packages/tokens/src/tokens.generated.ts
+wrote packages/tokens/src/tokens.dtcg.json
+wrote packages/testing/qa/palette.generated.mjs — 59 approved triplets
+wrote docs/design/01-tokens.md
+wrote packages/ui/src/tw-merge.generated.ts
+
+$ git status --short
+(no output)
+```
+
+The only token change in this wave is `amber-600`'s ruling text («3.9:1» →
+«3.96:1», the measured value), so `01-tokens.md` and `tokens.dtcg.json` moved
+with it and are committed; nothing else regenerated differently.
+
+### Command 2: `node packages/testing/qa/motion-audit.mjs`
+
+```
+motion-audit: clean
+```
+
+### Command 3: the eleven non-database `packages/testing` suites
+
+```
+ ✓ src/token-fidelity.test.ts (15 tests) 222ms
+ ✓ src/motion-audit.test.ts (13 tests) 58ms
+ ✓ src/primitive-leak.test.ts (2 tests) 30ms
+ ✓ src/component-contract.test.ts (19 tests) 10ms
+ ✓ src/error-catalog-fidelity.test.ts (1 test) 6ms
+ ✓ src/tw-merge.test.ts (7 tests) 6ms
+ ✓ src/copy-catalog-fidelity.test.ts (4 tests) 3ms
+ ✓ src/contrast.test.ts (74 tests) 3ms
+ ✓ src/motion-contract.test.ts (6 tests) 3ms
+ ✓ src/palette-derivation.test.ts (12 tests) 3ms
+ ✓ src/status-label-fidelity.test.ts (2 tests) 2ms
+
+ Test Files  11 passed (11)
+      Tests  155 passed (155)
+```
+
+### Command 4: `pnpm turbo run typecheck`
+
+```
+ Tasks:    10 successful, 10 total
+Cached:    9 cached, 10 total
+  Time:    1.321s
+```
+
+### Command 5: `pnpm --filter @goproceed/landing build`
+
+```
+✓ Generating static pages using 11 workers (10/10) in 373ms
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /api/pilot
+├ ○ /apple-icon.png
+├ ○ /icon.png
+├ ƒ /kitchen-sink
+├ ƒ /kitchen-sink/components
+└ ƒ /og
+```
+
+### Command 6: `pnpm --filter @goproceed/landing test`
+
+```
+ ✓ tests/metadata.test.ts (3 tests) 2ms
+ ✓ tests/pilot-request.test.ts (4 tests) 2ms
+ ✓ tests/landing-content.test.ts (21 tests) 5ms
+ ✓ tests/pilot-route.test.ts (17 tests) 15ms
+ ✓ tests/design-contract.test.tsx (3 tests) 4ms
+ ✓ tests/use-reduced.test.ts (2 tests) 1ms
+ ✓ tests/brand-mark.test.tsx (3 tests) 1ms
+ ✓ tests/ui-components.test.tsx (13 tests) 20ms
+ ✓ tests/landing-render.test.tsx (25 tests) 5ms
+ ✓ tests/pilot-form.test.tsx (5 tests) 494ms
+
+ Test Files  10 passed (10)
+      Tests  96 passed (96)
+```
+
+83 → 96. The thirteen new tests are the ones the rulings asked for, each
+written failing first: the `lg` button's `rounded-panel` and the other three
+sizes' `rounded-control` (R1); a form-encoded body answered 4xx and never 500,
+and the address visible under the form with `method="post" action="/api/pilot"`
+(R3); five smuggled contacts refused as `reply_to` and one plain address still
+accepted (R4); an abort signal on both outbound fetches and on the client's,
+with the abort landing in the failed state (R5); a hundred rejected calls
+leaving the bucket at LIMIT entries and a key forgotten after its window (R6);
+and four accessibility assertions — the table's headers and spoken levels, the
+two labelled limit lists, the six sources readable and named, and no
+`role="list"` without list items (R7).
+
+### Command 7: `pnpm --filter @goproceed/app exec vitest run --exclude "**/*.int.test.ts"`
+
+```
+ Test Files  57 passed | 1 skipped (58)
+      Tests  524 passed | 1 skipped (525)
+```
+
+### Command 8: `pnpm --filter @goproceed/landing qa`
+
+```
+1920px: ok scrollWidth=1920 wide=0 errors=0 settledAtLoad=false
+1440px: ok scrollWidth=1440 wide=0 errors=0 settledAtLoad=false
+1240px: ok scrollWidth=1240 wide=0 errors=0 settledAtLoad=false
+1024px: ok scrollWidth=1024 wide=0 errors=0 settledAtLoad=false
+768px: ok scrollWidth=768 wide=0 errors=0 settledAtLoad=false
+390px: ok scrollWidth=390 wide=0 errors=0 settledAtLoad=n/a
+360px: ok scrollWidth=360 wide=0 errors=0 settledAtLoad=n/a
+reduced 1440px: ok scrollWidth=1440 wide=0 errors=0 settledAtLoad=true
+reduced 390px: ok scrollWidth=390 wide=0 errors=0 settledAtLoad=true
+border beam at 1440 (full motion): ok paintedPixels=674 floor=200
+wrote public/og.png
+landing qa: ok
+orphans: 0
+```
+
+The beam line is new (R8). It settles the product frame, screenshots the beam
+element through an element handle and counts non-neutral pixels in a 2px band
+around its whole perimeter. Measured on this machine across a full 7s
+revolution: 460–1051 with `inset: 0`, 64 with `inset: -1px` — hence a floor of
+200 rather than «greater than zero», which the broken version would have
+passed. `overflow-hidden` on the hosting element had been eating the ring, and
+no width, screenshot or contract test could see it.
+
+### Command 9: `pnpm validate:canonical-docs`
+
+```
+canonical documentation: OK
+```
+
+### Icons, measured rather than eyeballed
+
+`sharp` on the regenerated PNGs, alpha bounding box and maximum radial
+distance from the centre as a fraction of the width:
+
+```
+android-icon-foreground.png  before  bbox 165,165–858,858  maxR 408.3  0.399
+android-icon-foreground.png  after   bbox 245,245–778,778  maxR 314.2  0.307
+android-icon-monochrome.png  after   bbox 245,245–778,778  maxR 314.2  0.307
+apple-icon.png               before  pixel(0,0) = [0,0,0,0]
+apple-icon.png               after   pixel(0,0) = [255,255,255,255]
+```
+
+Android displays the central 72dp of 108 (hard crop at 0.333) and guarantees
+the 66dp safe circle (0.306). 0.399 was past both. The maskable icon stays at
+78 %, which is right for the PWA's 80 % safe area.
