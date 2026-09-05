@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import { readFileSync, readdirSync, statSync } from "node:fs";
+import { join, relative } from "node:path";
 
 /**
  * Rulings this repository has already paid for, asserted against the component
@@ -35,6 +35,16 @@ const strip = (source: string) =>
     .replace(/^import\s[\s\S]*?;$/gm, (m) => m.replace(/[^\n]/g, " "));
 
 const code = (f: string) => strip(read(f));
+
+function* walkTsx(path: string): Generator<string, void, unknown> {
+  let st;
+  try { st = statSync(path); } catch { return; }
+  if (st.isFile()) { if (path.endsWith(".tsx")) yield path; return; }
+  for (const entry of readdirSync(path)) {
+    if (entry === "node_modules" || entry === ".next") continue;
+    yield* walkTsx(join(path, entry));
+  }
+}
 
 const index = read("index.ts");
 
@@ -194,11 +204,26 @@ describe("colour cannot escape the token layer", () => {
 });
 
 describe("rulings that a variant would quietly undo", () => {
-  it("Button has no destructive variant", () => {
-    // Nothing under /app/** deletes anything, so a destructive variant could
-    // only ever be used by being reached for wrongly — and a variant that
-    // exists is a variant that will be used.
-    expect(code("Button.tsx")).not.toMatch(/destructive/i);
+  it("Button's destructive variant has exactly one call site", () => {
+    // [Correction, 2026-09-05.] This ruling used to read «Button has no
+    // destructive variant: nothing under /app/** deletes anything». That
+    // stopped being true when the field client's capture island shipped
+    // «Скасувати фото» — it drops a photo the server does not have,
+    // irreversibly — and the field client answered by keeping a private
+    // Button with the variant (apps/app/src/ui/button.tsx, deleted 2026-09-05).
+    // One Button for the system, then; and the variant is held to the shape
+    // of the old ruling by COUNTING its call sites. A second irreversible
+    // action is a deliberate act that edits this number, never a drift.
+    expect(code("Button.tsx")).toMatch(/destructive:/);
+    const callSites: string[] = [];
+    for (const root of ["apps/app/app", "apps/app/src", "apps/landing/app", "apps/landing/components"]) {
+      for (const file of walkTsx(join(repoRoot, root))) {
+        if (file.includes("kitchen-sink") || /\.test\.tsx?$/.test(file)) continue;
+        const text = readFileSync(file, "utf8");
+        if (/variant=["']destructive["']/.test(text)) callSites.push(relative(repoRoot, file));
+      }
+    }
+    expect(callSites).toEqual(["apps/app/app/(app)/a/[assignmentId]/capture.tsx"]);
   });
 
   it("Button defines no focus ring of its own", () => {

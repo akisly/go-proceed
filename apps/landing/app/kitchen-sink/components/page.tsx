@@ -113,13 +113,14 @@ export default function ComponentSink() {
           </p>
         </header>
 
-        <Case n="01" name="Button" rule="П’ять варіантів, набір закритий. Немає destructive: під /app/** нічого не видаляється, тож він міг би бути використаний лише помилково. Сигнальна дія — рівно одна на екран.">
+        <Case n="01" name="Button" rule="Шість варіантів, набір закритий. destructive — лише для незворотної дії, і в продукті рівно один виклик: контракт-тест їх рахує. Сигнальна дія — не більше однієї на екран.">
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="primary">Первинна</Button>
             <Button variant="signal">Сигнальна</Button>
             <Button variant="outline">Робоча конячка</Button>
             <Button variant="ghost">Хром</Button>
             <Button variant="link">Всередині речення</Button>
+            <Button variant="destructive" size="sm">Скасувати фото</Button>
             <Button variant="outline" size="sm">Малий</Button>
             <Button variant="outline" disabled>Вимкнено</Button>
             <Button size="lg">Маркетинговий</Button>
