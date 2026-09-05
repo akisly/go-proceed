@@ -27,6 +27,7 @@ await new Promise((r) => setTimeout(r, 4000));
 
 const report = { widths: {}, reduced: {}, errors: [] };
 let browser;
+let exitCode = 1;
 
 try {
   browser = await puppeteer.launch({
@@ -96,11 +97,14 @@ try {
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
   const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok);
   console.log(allOk ? "landing qa: ok" : "landing qa: PROBLEMS — see qa-output/report.json");
-  process.exit(allOk ? 0 : 1);
+  exitCode = allOk ? 0 : 1;
 } catch (err) {
   console.error("landing qa: crashed", err);
-  process.exit(1);
+  exitCode = 1;
 } finally {
+  // process.exit() inside the try would skip this block and orphan the server —
+  // the exit happens after the teardown, never before it.
   await browser?.close?.();
   server.kill();
 }
+process.exit(exitCode);
