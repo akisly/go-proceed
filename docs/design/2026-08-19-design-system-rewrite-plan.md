@@ -593,6 +593,10 @@ a register you cannot read.
 
 ## 9. Landing block catalogue — `apps/landing`
 
+> **Superseded 2026-09-05.** The landing block catalogue is now §3 of
+> `docs/superpowers/specs/2026-09-05-landing-daylight-design.md`; this table
+> is kept as the record of the Evidence Journey page.
+
 Fourteen blocks. Each is a component in `apps/landing/components/blocks/`, each
 takes a typed content prop, and **no block invents a product claim**: copy comes
 from `docs/product/vision-and-positioning.md` and carries its version marker.

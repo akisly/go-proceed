@@ -347,6 +347,12 @@ the six-viewport visual pass of the dashboard and the field client under the
 new palette, and names the two screens most likely to need a hand: the
 sign-out dialog and the OTP form, which use the `signal` button variant.
 
+**Correction, found in Plan 1 Task 3 (2026-09-05):** `apps/app/app/globals.css`
+is a legacy stylesheet with its own hard-coded theme; only the dashboard under
+`/dash/**` (`dash-theme.css` → `@goproceed/ui/base.css`) and `apps/mobile` are
+on the token system. The field-client pages of `apps/app` keep the Evidence
+Atlas palette and Inter until the Phase 4 restyle; the P2 in TODOS names them.
+
 ---
 
 ## 5. Brand mark

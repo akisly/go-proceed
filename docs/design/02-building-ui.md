@@ -151,6 +151,9 @@ nothing, fails a test, or silently drops a class.
 | `<AnimatePresence custom={dir}>` | `SlideSwap` | Rule 5, build failure |
 | a state-driven `motion.span` progress line | `TrackFill` | Rule 5; `LineDraw` is the scroll one |
 | `useTransform` in a landing visual | `InViewProgress` + `calc(var(--gp-progress))` | Rule 5 |
+| `text-accent` on body copy | `text-accent` only inside a display heading | It clears 3:1, not 4.5:1 — large text only |
+| `h-11` on a marketing control | `size="lg"` on `Button`; `h-(--gp-control-height-marketing)` on an input | The literal stops tracking the token |
+| a lime fill, `bg-signal` as decoration | `bg-action-signal` on at most one action, or ink | The mark is cobalt since 2026-09-05 and the landing uses none |
 
 ### 4.2 Where code goes
 
@@ -186,7 +189,7 @@ Terse on purpose; each is enforced by a named test.
    Tailwind emits your fixture as production CSS
 8. Reduced motion is a **different** animation, never a faster one
 9. At most two scroll-linked elements per page, and never in one fold
-10. Exactly one `bg-action-signal` per screen
+10. At most one `bg-action-signal` per screen *(corrected 2026-09-05: was «exactly one»; the Daylight landing's primary is ink and carries none)*
 
 ---
 
@@ -335,9 +338,15 @@ fit — the shell already spends its budget down to 237px before the first row.
 mono for indices. Four weights: 400 / 510 / 590 / 680. Every figure tabular and
 right-aligned, because 620/620 and 180/150 must differ in *shape*.
 
+*[Correction, 2026-09-05: Onest for display and everything else, JetBrains
+Mono for indices; the serif is retired. Weights 400 / 500 / 600 / 700.]*
+
 **The signal is rationed.** Lime is the next action or a verified state, never
 decoration, never a second button on the same screen, never above 5% of a
 viewport. It is the only colour in the product that means something specific.
+
+*[Correction, 2026-09-05: the signal is cobalt, not lime — the same ration
+applies.]*
 
 **Motion is a consequence, not an entrance.** Something moves because a state
 became durable — evidence was accepted, a stage closed, a line connected. A
