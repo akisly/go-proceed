@@ -20,12 +20,13 @@ import { join, relative } from "node:path";
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 const appRoot = join(repoRoot, "apps/app");
 
-/** Names the legacy `@theme` defined and the roles replaced (spec §4.1). */
-const RETIRED = [
-  "text-foreground", "bg-surface-muted", "bg-surface-sunken", "border-border",
-  "text-destructive", "-warning-", "bg-carbon", "bg-accent", "text-accent-ink",
-  "readiness-", "font-display", "goproceed-app", "ease-out-strong",
-  "shadow-drawer", "animate-chip-in",
+/** Names the legacy `@theme` defined and the roles replaced (spec §4.1). Regular
+ * expressions, because `bg-accent` must not catch the system's own `bg-accent-soft`. */
+const RETIRED: RegExp[] = [
+  /\btext-foreground\b/, /\bbg-surface-muted\b/, /\bbg-surface-sunken\b/, /\bborder-border\b/,
+  /\btext-destructive\b/, /-warning-/, /\bbg-carbon\b/, /\bbg-accent\b(?!-soft)/, /\btext-accent-ink\b/,
+  /readiness-/, /\bfont-display\b/, /goproceed-app/, /\bease-out-strong\b/,
+  /\bshadow-drawer\b/, /\banimate-chip-in\b/,
 ];
 
 /** Packages the legacy Button/cn pulled in; the shared package owns them now. */
@@ -61,7 +62,7 @@ describe("apps/app has one stylesheet, and it is the system's", () => {
     for (const file of sources()) {
       const text = readFileSync(file, "utf8");
       for (const name of RETIRED) {
-        if (text.includes(name)) findings.push(`${relative(repoRoot, file)}: ${name}`);
+        if (name.test(text)) findings.push(`${relative(repoRoot, file)}: ${name.source}`);
       }
     }
     expect(findings).toEqual([]);
@@ -78,5 +79,14 @@ describe("apps/app has one stylesheet, and it is the system's", () => {
       }
     }
     expect(findings).toEqual([]);
+  });
+
+  it("the retired list does not catch the system's own accent-soft role", () => {
+    const hit = (s: string) => RETIRED.some((r) => r.test(s));
+    expect(hit("bg-accent-soft")).toBe(false);
+    expect(hit("bg-accent")).toBe(true);
+    expect(hit("hover:bg-accent-hover")).toBe(true);
+    expect(hit("text-foreground-secondary")).toBe(true);
+    expect(hit("font-display")).toBe(true);
   });
 });
