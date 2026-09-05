@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { Fragment, useRef } from "react";
 import { motion, useScroll, useTransform } from "motion/react";
 import { useReduced } from "./use-reduced";
 
@@ -54,10 +54,12 @@ function AnimatedScrollTint({
       <span className="sr-only">{text}</span>
       <span aria-hidden="true">
         {words.map((word, i) => (
-          <Word key={`${word}-${i}`} progress={scrollYProgress} index={i} total={words.length}>
-            {word}
+          <Fragment key={`${word}-${i}`}>
+            <Word progress={scrollYProgress} index={i} total={words.length}>
+              {word}
+            </Word>
             {i < words.length - 1 ? " " : ""}
-          </Word>
+          </Fragment>
         ))}
       </span>
     </p>

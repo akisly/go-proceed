@@ -1,8 +1,13 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule, Bento, BentoCell, ComparePair, CompareCard, CompareArrow, Stepper, Step } from "@goproceed/ui/components";
-import { ScrollSettle } from "@goproceed/ui/motion";
+import { ScrollSettle, ScrollTint } from "@goproceed/ui/motion";
+
+vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
+  useReduced: () => false,
+  shouldReduce: () => false,
+}));
 
 describe("Button size=\"lg\"", () => {
   it("takes its height from the marketing control token", () => {
@@ -79,6 +84,28 @@ describe("ScrollSettle", () => {
     expect(html).toContain('data-settled="false"');
     expect(html).not.toContain('data-settled="true"');
     expect(html).toContain('class="beam"');
+  });
+});
+
+describe("ScrollTint", () => {
+  it("keeps the separating space outside each word's inline-block span, not collapsed inside it", () => {
+    const text = "Кожен, хто закривав конструкцію";
+    const words = text.split(" ");
+    const html = renderToStaticMarkup(<ScrollTint text={text} />);
+    const visible = html.slice(html.indexOf('aria-hidden="true"'));
+
+    // A space that sits INSIDE the inline-block (the defect) is invisible to
+    // a fully-tag-stripped string comparison — the browser collapses it, but
+    // renderToStaticMarkup still serializes the character, so a naive
+    // "does the text contain the sentence" check passes on both the buggy
+    // and the fixed markup. What must never appear is a word span whose own
+    // text content ends in whitespace before its closing tag.
+    expect(visible).not.toMatch(/\s<\/span>/);
+
+    // The separator must instead be a sibling text node between two word
+    // spans — once for every gap between words.
+    const gaps = visible.match(/<\/span> <span/g) ?? [];
+    expect(gaps).toHaveLength(words.length - 1);
   });
 });
 
