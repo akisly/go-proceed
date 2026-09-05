@@ -28,6 +28,7 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
   FeatureGrid, FeatureCell,
   Pill, PillContent, SectionRule,
+  Bento, BentoCell,
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Tooltip, TooltipProvider,
@@ -419,6 +420,14 @@ export default function ComponentSink() {
               </FeatureCell>
             ))}
           </FeatureGrid>
+        </Case>
+
+        <Case n="21" name="Bento + BentoCell" rule="21st.dev Bento Grid у єдиному потрібному варіанті: широка комірка на два ряди поруч із двома складеними. Структура — це лінія, тіней немає.">
+          <Bento>
+            <BentoCell span="rows-2" eyebrow="Доступ · хто що бачить" title="Кожна роль бачить рівно стільки, скільки їй потрібно"><p className="text-data text-ink-secondary">Майстер не бачить реєстру, технагляд не заходить у проєкт.</p></BentoCell>
+            <BentoCell eyebrow="Незмінність" title="Що не можна виправити заднім числом"><p className="text-data text-ink-secondary">Фото не можна замінити або відкріпити від роботи після завантаження.</p></BentoCell>
+            <BentoCell eyebrow="Межі v0.1" title="Що GoProceed робить зараз, і чого не обіцяє"><p className="text-data text-ink-secondary">Чернетка акта не є підписаним документом.</p></BentoCell>
+          </Bento>
         </Case>
 
         <div className="border-t border-line py-14">

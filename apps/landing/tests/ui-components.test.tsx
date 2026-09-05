@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule } from "@goproceed/ui/components";
+import { Accordion, Button, Chip, FeatureGrid, FeatureCell, Pill, PillContent, SectionRule, Bento, BentoCell } from "@goproceed/ui/components";
 import { ScrollSettle } from "@goproceed/ui/motion";
 
 describe("Button size=\"lg\"", () => {
@@ -79,5 +79,20 @@ describe("ScrollSettle", () => {
     expect(html).toContain('data-settled="false"');
     expect(html).not.toContain('data-settled="true"');
     expect(html).toContain('class="beam"');
+  });
+});
+
+describe("Bento", () => {
+  it("lets one cell span two rows", () => {
+    const html = renderToStaticMarkup(
+      <Bento>
+        <BentoCell span="rows-2" eyebrow="Доступ" title="Хто що бачить">матриця</BentoCell>
+        <BentoCell eyebrow="Незмінність">список</BentoCell>
+        <BentoCell eyebrow="Межі v0.1">список</BentoCell>
+      </Bento>,
+    );
+    expect(html.match(/data-slot="bento-cell"/g)).toHaveLength(3);
+    expect(html.match(/md:row-span-2/g)).toHaveLength(1);
+    expect(html).toContain("Хто що бачить");
   });
 });
