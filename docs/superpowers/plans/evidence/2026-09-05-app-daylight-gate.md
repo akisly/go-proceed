@@ -290,3 +290,76 @@ is present — the drawer fix let that width's profile control be found).
 **What reads right:** warm paper canvas and white panels with `line` rules; ink primary buttons («Вийти», «Нове доручення», «Відправити на перевірку») and exactly one cobalt signal per screen (the OTP submit); Onest on every heading and body, `tabular` figures on the money screen with `MoneySummary` the only 32px figure; the focus ring in cobalt on the OTP input and the dialog's «Скасувати»; the drawer over the canvas with `shadow-modal` and static under reduced motion; the field screens byte-identical in copy and layout to their before-captures with the palette and face swapped — the obligation card, the requirement box on `subtle`, the «Не надіслано» state, the disclaimer under a `line` rule. The dash captures are identical before and after: it was already on the roles.
 
 **Not looked at (out of scope by spec §8):** `apps/mobile`; the external plane's own screens (its `app/external/**` files carry no legacy name — measured in Task 2's scan).
+
+## Task 8 — the gate (2026-09-06, HEAD 9d47fd3)
+
+**Ruling (carried from the landing work).** The local stack is up for the browser harness, but `packages/testing`'s database suites and `apps/app`'s `*.int.test.ts` stay CI's: the eleven non-database suites plus the new `app-entry.test.ts` stand in for `pnpm --filter @goproceed/testing test`, and the app's unit suites run with the integration files excluded.
+
+### 1. `pnpm --filter @goproceed/tokens generate` → `git status --short`
+
+```
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/ui/src/tokens.generated.css
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/ui/src/theme.generated.css
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/tokens/src/tokens.generated.ts
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/tokens/src/tokens.dtcg.json
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/testing/qa/palette.generated.mjs — 59 approved triplets
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/docs/design/01-tokens.md
+wrote /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a/packages/ui/src/tw-merge.generated.ts
+```
+
+`git status --short` afterwards: empty.
+
+### 2. `node packages/testing/qa/motion-audit.mjs`
+
+```
+motion-audit: clean
+```
+
+### 3. the twelve non-database `packages/testing` suites
+
+```
+ Test Files  12 passed (12)
+      Tests  163 passed (163)
+```
+
+### 4. `pnpm turbo run typecheck`
+
+```
+ Tasks:    10 successful, 10 total
+```
+
+### 5. `pnpm --filter @goproceed/app build`
+
+```
+✓ Compiled successfully in 1010ms
+```
+
+### 6. `pnpm --filter @goproceed/app exec vitest run --exclude "**/*.int.test.ts"`
+
+```
+ Test Files  57 passed | 1 skipped (58)
+      Tests  524 passed | 1 skipped (525)
+```
+
+### 7. `pnpm --filter @goproceed/landing test`
+
+```
+ Test Files  10 passed (10)
+      Tests  96 passed (96)
+```
+
+### 8. `pnpm --filter @goproceed/app qa`
+
+```
+QA passed: 9 of 9 expected audits ran (unauthenticated surface, sign-in, my assignments list, obligation screen, capture in-flight banner, evidence, the review link, and the external plane, assignment creation, daylight visual audit, dashboard profile and sign-out), zero findings. See qa-output/qa-report.json for the full report and qa-output/screenshots/ for evidence.
+```
+
+`pgrep -fl "next start"` afterwards: empty.
+
+### 9. `pnpm validate:canonical-docs`
+
+```
+> goproceed@ validate:canonical-docs /Users/akisliy/Downloads/GoProceed/.claude/worktrees/practical-chatterjee-c8d64a
+> node scripts/validate-canonical-docs.mjs
+canonical documentation: OK
+```
