@@ -17,15 +17,15 @@ export const demoRecords = {
         { code: "W-012 · R-038", title: "Армування плити, захватка 2", tag: "закриття дозволено", tone: "ready" },
         { code: "W-016 · R-044", title: "Гідроізоляція санвузлів, 4 поверх", tag: "закриття дозволено", tone: "ready" },
         { code: "W-019 · R-046", title: "Закладні у стінах, секція Б", tag: "закриття дозволено", tone: "ready" },
-      ] },
+      ] as readonly BoardCard[] },
       { id: "review", label: "На розгляді", count: 7, tone: "review", cards: [
         { code: "W-014 · R-041", title: "Монтаж кабельних трас", tag: "EV-0248 · 14:32", tone: "review", selected: true },
         { code: "W-017 · R-047", title: "Трубопроводи в стяжці, коридор", tag: "очікує рішення", tone: "review" },
-      ] },
+      ] as readonly BoardCard[] },
       { id: "blocked", label: "Заблоковано", count: 3, tone: "blocked", cards: [
         { code: "W-015 · R-052", title: "Утеплення фасаду, осі 1–4", tag: "1 з 2 матеріалів", tone: "blocked" },
         { code: "W-021 · R-055", title: "Гільзи у перекритті, зона С", tag: "доказу немає", tone: "blocked" },
-      ] },
+      ] as readonly BoardCard[] },
     ] satisfies readonly { id: string; label: string; count: number; tone: BoardTone; cards: readonly BoardCard[] }[],
   },
   receipt: {

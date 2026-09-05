@@ -52,3 +52,28 @@ describe("the Daylight page — skeleton", () => {
     expect(footer).toContain("© 2026 GoProceed");
   });
 });
+
+describe("hero and sources", () => {
+  const hero = section("hero", "sources");
+  it("opens with the pill, the accented promise, two actions and three facts", () => {
+    expect(hero).toContain('data-slot="pill"');
+    expect(hero).toContain('data-accent="true">доказ</span>');
+    expect(hero).toContain('href="#pilot"');
+    expect(hero).toContain('href="#compare"');
+    for (const f of landingContent.hero.facts) expect(hero).toContain(f.value);
+  });
+  it("shows the board with three columns, the selected card, the receipt and the beam", () => {
+    expect(hero).toContain('aria-label="Стан пакету робіт у веб-застосунку GoProceed"');
+    expect(hero).toContain("Готово");
+    expect(hero).toContain("На розгляді");
+    expect(hero).toContain("Заблоковано");
+    expect(hero).toContain('data-board-card="selected"');
+    expect(hero).toContain('aria-label="Квитанція доказу EV-0248"');
+    expect(hero).toContain('class="beam"');
+    expect(hero).toContain(landingContent.hero.dimension);
+  });
+  it("lists the six requirement sources", () => {
+    const sources = section("sources", "problem");
+    for (const s of landingContent.sources.items) expect(sources).toContain(s.code);
+  });
+});
