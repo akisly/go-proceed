@@ -334,6 +334,85 @@ motion-audit: clean
 ✓ Compiled successfully in 1010ms
 ```
 
+### 5b. `pnpm --filter @goproceed/landing build`
+
+The whole-branch final review (Important 1) found that the landing's own build — the fifth of
+`docs/design/02-building-ui.md` §5's five gate commands — had never been run against this branch:
+the sink now renders `<Button variant="destructive" size="sm">` and the `link` variant's new
+`touch:min-h-(--gp-control-height-touch)`, and neither selector was in the landing's last-built
+stylesheet. Run here for the first time since those changes landed.
+
+```
+▲ Next.js 16.3.1 (Turbopack)
+✓ Running next.config.ts took 80ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 791ms
+  Running TypeScript ...
+  Finished TypeScript in 1611ms ...
+  Collecting page data using 11 workers ...
+  Generating static pages using 11 workers (10/10) in 388ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /api/pilot
+├ ○ /apple-icon.png
+├ ○ /icon.png
+├ ƒ /kitchen-sink
+├ ƒ /kitchen-sink/components
+└ ƒ /og
+```
+
+Next 16.3.1/Turbopack emits the built CSS at `apps/landing/.next/static/chunks/*.css` (a single
+hashed file, `3gzon2pj8xz4d.css` on this build — the dev-mode split files under `.next/dev/` are
+not the production artefact):
+
+```
+grep -o 'hover\:bg-status-blocked-fg\|hover\:text-action-fg\|touch\:min-h-\(--gp-control-height-touch\)' apps/landing/.next/static/chunks/*.css | sort | uniq -c
+   1 hover\:bg-status-blocked-fg
+   1 hover\:text-action-fg
+   1 touch\:min-h-\(--gp-control-height-touch\)
+```
+
+All three selectors the destructive variant and the `link` touch floor depend on are present,
+each exactly once, in the landing's actual built stylesheet. Important 1 is closed: this is no
+longer "the app build proves it's generatable from the same source" but the landing's own build
+proving it directly.
+
+### 5c. field-client first-load JS, before (673f9b3) and after
+
+The final review (Important 2) found the field client's client payload had changed with no
+before/after measured: the shared `Button` reaches `Press` → `motion/react`, where the old
+private `apps/app/src/ui/button.tsx` reached only cva + `@radix-ui/react-slot` + clsx +
+tailwind-merge, with no animation runtime at all. Next 16.3.1 prints no per-route "First Load JS"
+table (confirmed: `pnpm --filter @goproceed/app build` output has no such section, on either
+build below), so this measures the way the reviewer did — summing the byte size of every chunk
+each route's `.next/server/app/<route>/page_client-reference-manifest.js` references.
+
+"Before" is a temporary worktree at `673f9b3` (Task 1 round 2's baseline commit, pre-migration —
+see `git worktree add … 673f9b3` above), with this worktree's `apps/app/.env.local` copied in
+(same env, so the Supabase URL/key inlined at build time do not confound the comparison),
+`pnpm install --offline` (resolved from the existing store, no network needed), then
+`pnpm --filter @goproceed/app build`. "After" is this worktree's own fresh
+`pnpm --filter @goproceed/app build`, HEAD at the time of this fix wave.
+
+| Route | Before (673f9b3) | After (this branch) | Delta |
+|---|---:|---:|---:|
+| `/` | 23,252 B (`2_i7spsvwtpw1.js` 14,383 + `0oslnbnz23807.js` 8,869) | 396,231 B (adds `1p1acnyw-adey.js` 372,979) | **+372,979 B** |
+| `/a/[assignmentId]` | 63,650 B (`2lsupwbd-o014.js` 32,736 + `2y1a54vw9xrx_.js` 16,531 + `2_i7spsvwtpw1.js` 14,383) | 404,454 B (`1p1acnyw-adey.js` 372,979 + `3kqmoyn_8s-g6.js` 17,092 + `2_i7spsvwtpw1.js` 14,383) | **+340,804 B** |
+| `/login` | 304,584 B (`0c0wcd9dtgb4i.js` 251,297 + `2lsupwbd-o014.js` 32,736 + `2_i7spsvwtpw1.js` 14,383 + `11-n3zou-ai54.js` 6,168) | 643,979 B (`1p1acnyw-adey.js` 372,979 + `0c0wcd9dtgb4i.js` 251,297 + `2_i7spsvwtpw1.js` 14,383 + `0-lc3xh2upi6s.js` 5,320) | **+339,395 B** |
+
+`1p1acnyw-adey.js` (372,979 B) is the shared chunk carrying `@goproceed/ui`'s `Button` → `Press` →
+`motion/react`, plus radix and lucide — it now shows up on all three routes, where before each
+route pulled a smaller route-local chunk built from the private `src/ui/button.tsx` (no motion
+runtime). The three routes' own remaining chunks shrank slightly in exchange (e.g. `/login`'s
+`0c0wcd9dtgb4i.js` is unchanged at 251,297 B in both — that one predates the migration and is
+unrelated to Button). Net: **+339 KB to +373 KB of first-load JS on each of the three field-client
+routes**, all of it the one shared `Press`/motion chunk. Recorded as an accepted cost (ruling R10)
+with a `TODOS.md` P3 naming the number to watch.
+
 ### 6. `pnpm --filter @goproceed/app exec vitest run --exclude "**/*.int.test.ts"`
 
 ```
@@ -363,3 +442,57 @@ QA passed: 9 of 9 expected audits ran (unauthenticated surface, sign-in, my assi
 > node scripts/validate-canonical-docs.mjs
 canonical documentation: OK
 ```
+
+### After the final review fixes (2026-09-06, HEAD db80308)
+
+The final whole-branch review (opus, `efc2cdb..43d6b3f`) closed with 0 Critical, 2 Important
+(I1 the landing build not run — closed above at §5b; I2 the field-client payload unmeasured —
+closed above at §5c) and 10 Minor. This fix wave closes M3–M11 (M12 left as is, per the review's
+own "leave it or drop it") in two commits — `fix(app): …` for the code (`Button.tsx`,
+`capture.tsx`, `page.tsx`, `field.mjs`, `field-web.mjs`, `contrast.test.ts`) and
+`docs(design): …` for the documents (`system.md`, `HANDOFF.md`, `TODOS.md`) — then re-ran the
+full gate against `db80308`.
+
+One deviation from the fix-wave brief, recorded rather than silently applied: M9 specified a 3.0
+minimum for the new destructive-border LINES row. Measured before adding it,
+`status-blocked-border` on `bg-surface` is 1.35:1 in light and 1.66:1 in dark — nowhere near 3.0 —
+so the row was added at 1.3 (the same margin-below-measured convention already used by
+`border-subtle`/`border-default`/`border-strong` in the same table) instead of the literal value
+given, which would have shipped a failing test. See the commit message and the row's own comment.
+
+```
+pnpm --filter @goproceed/testing exec vitest run src/app-entry.test.ts src/contrast.test.ts src/component-contract.test.ts
+ Test Files  3 passed (3)
+      Tests  103 passed (103)
+
+pnpm --filter @goproceed/ui typecheck
+  tsc --noEmit — no output, exit 0
+
+pnpm turbo run typecheck
+ Tasks:    10 successful, 10 total
+
+pnpm --filter @goproceed/app exec vitest run --exclude "**/*.int.test.ts"
+ Test Files  57 passed | 1 skipped (58)
+      Tests  524 passed | 1 skipped (525)
+
+pnpm --filter @goproceed/landing test
+ Test Files  10 passed (10)
+      Tests  96 passed (96)
+
+pnpm --filter @goproceed/app build
+✓ Compiled successfully
+
+pnpm --filter @goproceed/app qa
+QA passed: 9 of 9 expected audits ran (unauthenticated surface, sign-in, my assignments list, obligation screen, capture in-flight banner, evidence, the review link, and the external plane, assignment creation, daylight visual audit, dashboard profile and sign-out), zero findings. See qa-output/qa-report.json for the full report and qa-output/screenshots/ for evidence.
+```
+
+`pgrep -fl "next start"` afterwards: empty.
+
+```
+pnpm validate:canonical-docs
+canonical documentation: OK
+```
+
+Gate green at `db80308`. Both Importants from the final review are closed with measured evidence
+(§5b, §5c above); nine of the ten Minors are fixed in code or docs (M3–M11); M12 is left as is per
+the review's own recommendation.
