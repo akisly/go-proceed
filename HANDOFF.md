@@ -56,8 +56,10 @@ D4 — Onest on the field client too, for the same reason Onest was picked for
 the rest of the system: one variable font on a foreman's connection.
 
 **What the pass found and fixed** (`docs/superpowers/plans/evidence/2026-09-05-app-daylight-gate.md`,
-«Task 6 — the visual pass»). The audit: 9 routes × 6 widths + 2 reduced-motion
-passes, 76 captures, `pnpm --filter @goproceed/app qa` → `QA passed: 9 of 9`.
+«Task 6 — the visual pass»). The audit: 9 routes × 6 widths (54), the
+reduced-motion pass at 1440 and 390 per route (18), the sign-out confirm and
+the OTP code step at both widths (4) — 76 captures,
+`pnpm --filter @goproceed/app qa` → `QA passed: 9 of 9`.
 The controller's review found six items, three fixed on this branch: the
 `link` Button's missing touch floor (`/a/{id}` back link measured 103×20),
 118 findings that were the audit's own three defects (a wrong CSS variable

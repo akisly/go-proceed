@@ -3604,6 +3604,7 @@ path (`processDueTelegramMediaGroups`) would pin the second builder. INV-086's
 - **P3 — the `/dash/**` rail's four nav items read as disabled grey with no active marker** (`sidebar.tsx`), against rewrite plan §10.1. Not a defect here: they are deliberate `disabled` placeholders until slices D1–D4 make them real links; identical in the before-capture.
 - **P3 — the assignments register is a horizontally-scrolling table at 390/360**, not the `< md` card rendering system.md §5 «three renderings» calls for (`/dash/projects/{id}/assignments`, `apps/app/app/dash/projects/[projectId]/assignments/page.tsx`). Structural and pre-existing, not palette-caused.
 - **P3 — «Мої доручення» renders a bare «м» subtitle at 390** for a work item with no quantity. Copy/data, present in the before-capture, not caused by the migration.
+- **P3 — the field client's three routes now load the shared Button's `Press` (motion) chunk** — measured +339–373 KB of first-load JS on `/`, `/a/[assignmentId]` and `/login` (`docs/superpowers/plans/evidence/2026-09-05-app-daylight-gate.md` §5c, before/after at commit `673f9b3` vs this branch) — accepted as the cost of one Button for the system; if the number matters on a site connection, a non-motion Button path or a lazy `Press` is the fix.
 
 ### Final review minors (2026-09-05)
 
