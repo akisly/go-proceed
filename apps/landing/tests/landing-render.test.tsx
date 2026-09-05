@@ -77,3 +77,26 @@ describe("hero and sources", () => {
     for (const s of landingContent.sources.items) expect(sources).toContain(s.code);
   });
 });
+
+describe("problem and compare", () => {
+  const problem = section("problem", "compare");
+  const compare = section("compare", "roles");
+  it("tints the statement and shows Рис. 01 with the found message and the record", () => {
+    expect(problem).toContain(landingContent.problem.statement);
+    expect(problem).toContain("Рис. 01");
+    expect(problem).toContain('data-message="hit"');
+    for (const m of ["без осі", "без вимоги", "без рішення"]) expect(problem).toContain(m);
+    expect(problem).toContain("DR-0091 · прийнято технаглядом · 16:18");
+  });
+  it("pairs five rows across the two cards and states both outcomes", () => {
+    expect(compare.match(/data-compare-row=/g)).toHaveLength(10);
+    expect(compare).toContain(landingContent.compare.was.outcome);
+    // now.outcome contains "пам'ять" — React's static-markup renderer escapes
+    // the apostrophe in text children to &#x27; (verified: this is not a
+    // component bug, `renderToStaticMarkup(<p>{"a'b"}</p>)` does the same).
+    // task-16's hero test avoids this by never toContain-ing hero.lead, which
+    // has the same apostrophe; here the outcome is the one thing worth
+    // asserting, so decode that one entity instead of skipping the check.
+    expect(compare.replace(/&#x27;/g, "'")).toContain(landingContent.compare.now.outcome);
+  });
+});
