@@ -25,7 +25,11 @@ export const metadata: Metadata = {
       {
         rel: "mask-icon",
         url: "/safari-pinned-tab.svg",
-        color: "#B9F33D",
+        // Ink. [Corrected 2026-09-05: this was `#B9F33D`, the v1 lime. Safari
+        // TINTS the pinned-tab SVG with this value, so the Daylight mark the
+        // brand pipeline draws into that file was still being painted in a
+        // colour DESIGN.md now says exists nowhere in the system.]
+        color: "#15161A",
       },
     ],
   },
@@ -46,7 +50,11 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#191A1A",
+  // [Corrected 2026-09-05: was `#191A1A`. `public/manifest.webmanifest` moved
+  // to `#15161A` with the Daylight palette, and a meta `theme-color` that names
+  // a different ink from the manifest's `theme_color` is two answers to one
+  // question.]
+  themeColor: "#15161A",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
