@@ -158,7 +158,7 @@ nothing, fails a test, or silently drops a class.
 packages/tokens/src/tokens.json      every value, the only hand-edited token file
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
-packages/ui/src/motion/              the fifteen motion primitives, and nothing else
+packages/ui/src/motion/              the sixteen motion primitives, and nothing else
 packages/ui/src/components/          the twenty-one components, and nothing else
 apps/landing/app/                    routes and the fourteen landing blocks
 apps/app/app/                        the product shell and its screens

@@ -563,6 +563,20 @@ rather than by review:
 > Each is a decision under §7.3, not merely an addition — this note is that
 > decision, recorded in the same change that made it.
 
+> **Update, 2026-09-05.** Fifteen became sixteen. The Daylight landing's hero
+> is 21st.dev's «Container Scroll» — the product frame enters tilted and
+> flattens as it scrolls in — and no word said that:
+>
+> - **`<ScrollSettle>`** — a scroll-linked settle (`rotateX 18→0`, `scale
+>   .94→1`) over the wrapper's entry. Deliberately scroll-linked rather than
+>   in-view: the frame is *set down by the reader's hand*, which is the
+>   sentence the prototype's motion says. It is one of the two scroll-linked
+>   elements a page may carry (rule 9); the other is `<ScrollTint>`. Below
+>   `md` and under reduced motion the frame is flat from the first paint and
+>   `data-settled` is true at once. The Border Beam (`base.css` `beam`) keys
+>   two passes off that attribute and stops — rule 4 keeps the marquee the
+>   only perpetual animation.
+
 ### 8.4 App motion — deliberately smaller
 
 The internal product gets four behaviours and no more:

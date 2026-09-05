@@ -3,7 +3,7 @@
 /**
  * The motion vocabulary, live.
  *
- * Fifteen primitives, each rendered next to the rule it enforces. This is the
+ * Sixteen primitives, each rendered next to the rule it enforces. This is the
  * code-first equivalent of a component library page in a design tool, and it
  * is where the QA harness points its viewport, contrast and touch-target
  * passes — a primitive that is only ever exercised inside a finished block is
@@ -19,7 +19,7 @@
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
-  InViewProgress, useReduced,
+  InViewProgress, ScrollSettle, useReduced,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -92,7 +92,7 @@ export default function KitchenSink() {
         <TextBlurIn
           as="h1"
           className="display mt-4 block max-w-[16ch] text-mkt-display-1 text-ink"
-          text="П'ятнадцять примітивів і жодного більше"
+          text="Шістнадцять примітивів і жодного більше"
         />
         <p className="measure mt-6 text-mkt-lead leading-relaxed text-ink-muted">
           Кожен блок нижче показує примітив і правило, яке він тримає.
@@ -250,6 +250,16 @@ export default function KitchenSink() {
         <p className="measure mt-4 text-data text-ink-muted">
           Сам примітив нічого не малює — він лише публікує число. Ця смуга належить виклику, а не бібліотеці.
         </p>
+      </Case>
+
+      <Case n="14" name="ScrollSettle" rule="Кадр продукту в'їжджає нахиленим і вирівнюється по скролу — 21st.dev Container Scroll. Другий і останній scroll-linked елемент сторінки; нижче md і під reduced motion кадр плаский одразу. Промінь по рамці робить два оберти після посадки і зупиняється: вічна анімація тут лише одна, і це стрічка.">
+        <ScrollSettle className="mx-auto max-w-content">
+          <div className="relative rounded-surface border border-line-strong bg-surface p-8 shadow-float">
+            <i className="beam" aria-hidden="true" />
+            <p className="index-label">Стан пакету робіт</p>
+            <p className="mt-3 text-data text-ink-muted">Готово 12 · На розгляді 07 · Заблоковано 03</p>
+          </div>
+        </ScrollSettle>
       </Case>
     </main>
   );

@@ -163,6 +163,42 @@
   &:hover { animation-play-state: paused; }
 }
 
+/* Border Beam — 21st.dev's ring of light that runs around a frame's edge.
+ * A conic gradient masked to a 1px ring, rotated by a registered custom
+ * property so the angle itself animates. It runs TWICE, keyed off the
+ * `data-settled` attribute `ScrollSettle` sets when the frame has landed, and
+ * never again: rule 4 permits one perpetual animation in the product and it is
+ * the marquee. Under reduced motion the unlayered block below drops the
+ * iteration count to one and the duration to nothing, so the ring is simply
+ * absent. */
+@property --gp-beam-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+@utility beam {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  pointer-events: none;
+  background: conic-gradient(
+    from var(--gp-beam-angle),
+    transparent 0 72%,
+    var(--gp-bg-signal) 86%,
+    transparent 100%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  opacity: 0;
+}
+
+[data-settled="true"] .beam {
+  animation: gp-beam 7s linear 2;
+}
+
 /* Duration utilities are named rather than numeric. `duration-150` would
  * compile perfectly and mean nothing; `duration-fast` is the 160ms that the
  * whole system's hover and press feedback shares, and changing it changes it
@@ -186,6 +222,11 @@
   @keyframes gp-marquee {
     from { transform: translateX(0); }
     to   { transform: translateX(-50%); }
+  }
+
+  @keyframes gp-beam {
+    from { opacity: 1; --gp-beam-angle: 0deg; }
+    to   { opacity: 1; --gp-beam-angle: 360deg; }
   }
 }
 
