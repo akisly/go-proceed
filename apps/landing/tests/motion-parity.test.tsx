@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   LineReveal, splitAccent, Depth, Tilt, Magnetic,
   ScrollStack, ScrollStackCard, ScrollStackMedia, ScrollProgress,
+  ScrollTint, Reveal, Stagger, StaggerItem,
 } from "@goproceed/ui/motion";
 import { Stepper, Step } from "@goproceed/ui/components";
 
@@ -89,5 +90,26 @@ describe("ScrollProgress", () => {
     );
     expect(stepper).toContain('data-scroll-progress=""');
     expect(stepper).toContain("scaleY(var(--gp-progress, 0))");
+  });
+});
+
+describe("changed words", () => {
+  it("ScrollTint dims the prefix words and fades by opacity, not colour", () => {
+    const html = renderToStaticMarkup(<ScrollTint text="Ми не зупиняємо роботу — ми не даємо записати" dimUntil={4} />);
+    const visible = html.slice(html.indexOf('aria-hidden="true"'));
+    expect(visible.match(/text-ink-muted/g)).toHaveLength(4);
+    expect(visible).toContain("opacity:0.14");
+    expect(visible).not.toContain("color:var(--gp-text-subtle)");
+  });
+  it("ScrollTint marks the accent phrase in both branches, never both dim and accent", () => {
+    expect(renderToStaticMarkup(<ScrollTint text="поки доказ не отримано" accent="доказ" />).match(/text-accent/g)).toHaveLength(1);
+  });
+  it("Reveal takes a horizontal offset and a size", () => {
+    const html = renderToStaticMarkup(<Reveal x={-20} y={0} size="stately"><p>картка</p></Reveal>);
+    expect(html).toContain("translateX(-20px)");
+  });
+  it("StaggerItem can arrive from scale 0", () => {
+    const html = renderToStaticMarkup(<Stagger delay={0.35} step="loose"><StaggerItem from="scale"><i /></StaggerItem></Stagger>);
+    expect(html).toContain("scale(0)");
   });
 });
