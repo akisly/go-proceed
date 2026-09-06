@@ -135,14 +135,17 @@ try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
     await page.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
-    const settled = await page.evaluate(async () => {
+    // The ring runs from first paint now (spec 2026-09-06 §5.1) — it no longer
+    // waits on `ScrollSettle`'s latch, so the measurement only needs the beam
+    // element scrolled into view, not `data-settled="true"`.
+    const present = await page.evaluate(async () => {
       const el = document.querySelector(".beam");
       if (!el) return false;
       el.parentElement.scrollIntoView({ block: "center" });
       await new Promise((r) => setTimeout(r, 700));
-      return document.querySelector('[data-settled="true"]') !== null;
+      return true;
     });
-    const handle = settled ? await page.$(".beam") : null;
+    const handle = present ? await page.$(".beam") : null;
     if (handle === null) { await page.close(); return null; }
     const shot = await handle.screenshot();
     await page.close();
@@ -167,6 +170,64 @@ try {
   const beamOk = typeof report.beamPixels === "number" && report.beamPixels >= BEAM_FLOOR;
   console.log(`border beam at 1440 (full motion): ${beamOk ? "ok" : "PROBLEM"} paintedPixels=${report.beamPixels} floor=${BEAM_FLOOR}`);
 
+  // PARITY CHECKS (spec 2026-09-06 §9). Each is a fact the seven screenshots
+  // cannot show: a transform that changes with the scroll, an attribute that
+  // flips with the viewport, a CSS variable that reaches 1.
+  async function parity() {
+    const out = {};
+    const wide = await browser.newPage();
+    await wide.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+    await wide.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 300));
+    const depthAtTop = await wide.evaluate(() => [...document.querySelectorAll("[data-depth]")].map((el) => getComputedStyle(el).transform));
+    await wide.evaluate(() => window.scrollTo(0, 600));
+    await new Promise((r) => setTimeout(r, 400));
+    const depthScrolled = await wide.evaluate(() => [...document.querySelectorAll("[data-depth]")].map((el) => getComputedStyle(el).transform));
+    out.depthLayers = depthAtTop.length;
+    out.depthMoves = depthAtTop.length === 3 && depthAtTop.some((t, i) => t !== depthScrolled[i]);
+    out.tiltOnWide = await wide.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
+    out.magneticOnWide = await wide.evaluate(() => document.querySelectorAll('[data-magnetic="on"]').length);
+    out.stackOnWide = await wide.evaluate(() => document.querySelector("[data-scroll-stack]")?.getAttribute("data-scroll-stack"));
+    // `html { scroll-behavior: smooth }` (globals.css) is deliberate (spec
+    // 2026-09-06 R1) — but it means a `scrollIntoView` followed a tick later
+    // by a `scrollBy` interrupts the first animation mid-flight: the second
+    // call's delta is added to wherever the smooth scroll happened to be,
+    // landing far short of the pilot section over a ~13,000px-tall page. One
+    // evaluate computes the absolute target and jumps with `behavior:
+    // "instant"`, which overrides the CSS property (the two-argument
+    // `scrollTo(x, y)` form used elsewhere in this file does not — it defers
+    // to CSS — but those checks only need *some* scroll delta, not a landing
+    // 10,000+px down the page, so the smooth animation being incomplete after
+    // the wait does not matter there).
+    await wide.evaluate(() => {
+      const el = document.querySelector("#pilot");
+      if (!el) return;
+      const target = el.getBoundingClientRect().bottom + window.scrollY - window.innerHeight + 400;
+      window.scrollTo({ top: target, behavior: "instant" });
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    out.stepperProgress = await wide.evaluate(() => Number(document.querySelector("[data-scroll-progress]")?.style.getPropertyValue("--gp-progress") ?? "0"));
+    out.pulsing = await wide.evaluate(() => document.querySelectorAll(".pulse-dot").length);
+    out.flowing = await wide.evaluate(() => document.querySelectorAll(".flow-dash").length);
+    await wide.close();
+
+    const narrow = await browser.newPage();
+    await narrow.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    await narrow.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 300));
+    out.tiltOnNarrow = await narrow.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
+    out.depthFlatNarrow = await narrow.evaluate(() => [...document.querySelectorAll("[data-depth]")].every((el) => getComputedStyle(el).transform === "none"));
+    out.stackOnNarrow = await narrow.evaluate(() => document.querySelector("[data-scroll-stack]")?.getAttribute("data-scroll-stack"));
+    await narrow.close();
+    return out;
+  }
+  report.parity = await parity();
+  const p = report.parity;
+  const parityOk = p.depthMoves && p.tiltOnWide === 8 && p.magneticOnWide === 7 && p.stackOnWide === "on"
+    && p.stepperProgress >= 0.99 && p.pulsing === 3 && p.flowing === 3
+    && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off";
+  console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
+
   const og = await browser.newPage();
   await og.setViewport({ width: 1200, height: 630, deviceScaleFactor: 1 });
   await og.goto(`http://localhost:${PORT}/og`, { waitUntil: "networkidle0" });
@@ -174,7 +235,7 @@ try {
   console.log("wrote public/og.png");
 
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
-  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && beamOk;
+  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && beamOk && parityOk;
   console.log(allOk ? "landing qa: ok" : "landing qa: PROBLEMS — see qa-output/report.json");
   exitCode = allOk ? 0 : 1;
 } catch (err) {
