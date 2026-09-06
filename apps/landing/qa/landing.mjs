@@ -137,12 +137,29 @@ try {
     await page.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
     // The ring runs from first paint now (spec 2026-09-06 §5.1) — it no longer
     // waits on `ScrollSettle`'s latch, so the measurement only needs the beam
-    // element scrolled into view, not `data-settled="true"`.
+    // element scrolled into view, not `data-settled="true"` — AND the frame's
+    // own entrance to have landed. The frame rises 60px over `grand` after a
+    // .35s delay (product-frame.tsx's `Reveal`), and since the hydration-gate
+    // fix (2026-09-06, later) that rise really happens: an element handle
+    // screenshot clips to a box measured an instant before the shot, so a
+    // ring still travelling shifts a few pixels between the two and the 2px
+    // perimeter band lands beside it — paintedPixels=0 with the beam plainly
+    // running. A fixed 700ms was that defect. Instead, poll until the beam's
+    // box has not moved for two reads AND every ancestor is at full opacity,
+    // capped at 4s so a broken entrance still fails loudly (as 0 pixels).
     const present = await page.evaluate(async () => {
       const el = document.querySelector(".beam");
       if (!el) return false;
       el.parentElement.scrollIntoView({ block: "center" });
-      await new Promise((r) => setTimeout(r, 700));
+      const box = () => { const r = el.getBoundingClientRect(); return `${r.top.toFixed(1)}:${r.height.toFixed(1)}`; };
+      const opaque = () => { for (let n = el; n; n = n.parentElement) if (parseFloat(getComputedStyle(n).opacity) < 1) return false; return true; };
+      let prev = box();
+      for (let waited = 0; waited < 4000; waited += 100) {
+        await new Promise((r) => setTimeout(r, 100));
+        const next = box();
+        if (next === prev && opaque()) break;
+        prev = next;
+      }
       return true;
     });
     const handle = present ? await page.$(".beam") : null;

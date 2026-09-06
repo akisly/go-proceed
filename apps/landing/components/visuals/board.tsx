@@ -25,9 +25,9 @@ export function Board() {
           <div key={col.id} className={i === 0 ? "hidden grid content-start gap-2 md:grid" : "grid content-start gap-2"}>
             <div className="flex justify-between px-1 text-meta text-ink-muted">
               <b className="font-medium text-ink">{col.label}</b>
-              <CountUp value={col.count} format={two} className="tabular font-mono" />
+              <CountUp on="load" delay={0.8} value={col.count} format={two} className="tabular font-mono" />
             </div>
-            <Stagger delay={0.7} className="grid gap-2">
+            <Stagger on="load" delay={0.7} className="grid gap-2">
               {col.cards.map((card) => (
                 <StaggerItem key={card.code} size="stately">
                   <article

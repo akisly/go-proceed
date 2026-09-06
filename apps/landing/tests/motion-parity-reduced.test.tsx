@@ -64,3 +64,17 @@ describe("LineReveal under reduced motion", () => {
     expect(visible.querySelectorAll("[data-accent='true']")).toHaveLength(2);
   });
 });
+
+describe("the entrance primitives under reduced motion", () => {
+  it("carry no transform in their hidden state — the resting target that re-applies the transform for everyone else never reaches a reduced reader", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { NodeLock, Reveal, Stagger, StaggerItem } = await import("@goproceed/ui/motion");
+    const reveal = renderToStaticMarkup(<Reveal x={-20} y={16}><p>картка</p></Reveal>);
+    const stagger = renderToStaticMarkup(<Stagger><StaggerItem from="scale"><i /></StaggerItem><StaggerItem><i /></StaggerItem></Stagger>);
+    const node = renderToStaticMarkup(<NodeLock><i /></NodeLock>);
+    for (const html of [reveal, stagger, node]) {
+      expect(html).toContain("opacity:0");
+      expect(html).not.toContain("transform");
+    }
+  });
+});
