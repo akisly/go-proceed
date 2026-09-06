@@ -19,7 +19,7 @@
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
-  InViewProgress, ScrollSettle, LineReveal, useReduced,
+  InViewProgress, ScrollSettle, LineReveal, Depth, useReduced,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -264,6 +264,13 @@ export default function KitchenSink() {
 
       <Case n="15" name="LineReveal" rule="Заголовок виїжджає з масок рядок за рядком, 1200 мс, ease-out-expo, крок 80 мс. Рядки знаходяться за розкладкою (offsetTop), не SplitText; під reduced motion — один fade.">
         <LineReveal as="p" className="display max-w-[20ch] text-mkt-display-2 text-ink" text="На нараді більше не сперечаються про те, що вже сховано" accent="що вже сховано" />
+      </Case>
+
+      <Case n="16" name="Depth" rule="Шар рухається проти скролу в межах своєї секції: від depth·80px до depth·−80px. Нижче md і під reduced motion — нерухомий, той самий DOM.">
+        <section className="relative h-64 overflow-hidden rounded-panel border border-line bg-surface">
+          <Depth depth={-0.3} className="absolute left-6 top-6 rounded-card border border-line-strong bg-canvas px-3 py-2 text-data text-ink">depth −0.3</Depth>
+          <Depth depth={0.35} className="absolute bottom-6 right-6 rounded-pill border border-line-strong bg-canvas px-3 py-1.5 text-data text-ink">depth 0.35</Depth>
+        </section>
       </Case>
     </main>
   );

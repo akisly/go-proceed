@@ -26,6 +26,7 @@ export { SlideSwap } from "./SlideSwap";
 export { InViewProgress } from "./InViewProgress";
 export { ScrollSettle } from "./ScrollSettle";
 export { LineReveal, splitAccent, type AccentWord } from "./LineReveal";
+export { Depth } from "./Depth";
 
 export { shouldReduce, useReduced } from "./use-reduced";
 export { DURATION, EASE, STAGGER, SPRING, BLUR, REDUCED } from "./tokens";

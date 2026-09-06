@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { LineReveal, splitAccent } from "@goproceed/ui/motion";
+import { LineReveal, splitAccent, Depth } from "@goproceed/ui/motion";
 
 vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
   useReduced: () => false,
@@ -27,5 +27,14 @@ describe("LineReveal", () => {
     expect(splitAccent("Робота готова, коли доказ на місці.", "доказ").map((w) => w.accent))
       .toEqual([false, false, false, true, false, false]);
     expect(splitAccent("Без акценту").every((w) => !w.accent)).toBe(true);
+  });
+});
+
+describe("Depth", () => {
+  it("renders one wrapper carrying its depth and no offset on the server", () => {
+    const html = renderToStaticMarkup(<Depth depth={-0.3} className="absolute"><span>квитанція</span></Depth>);
+    expect(html).toContain('data-depth="-0.3"');
+    expect(html).toContain('class="absolute');
+    expect(html).not.toMatch(/translateY\(-?[1-9]/);
   });
 });
