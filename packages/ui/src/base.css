@@ -173,14 +173,16 @@
   &:hover { animation-play-state: paused; }
 }
 
-/* Border Beam — 21st.dev's ring of light that runs around a frame's edge.
- * A conic gradient masked to a 1px ring, rotated by a registered custom
- * property so the angle itself animates. It runs TWICE, keyed off the
- * `data-settled` attribute `ScrollSettle` sets when the frame has landed, and
- * never again: rule 4 permits one perpetual animation in the product and it is
- * the marquee. Under reduced motion the unlayered block below drops the
- * iteration count to one and the duration to nothing, so the ring is simply
- * absent. */
+/* Border Beam — 21st.dev's ring of light that runs around a frame's edge
+ * (Magic UI border-beam is the reference; ours stays a CSS conic ring). A
+ * conic gradient masked to a 1px ring, rotated by a registered custom
+ * property so the angle itself animates. INFINITE from the first paint, as the
+ * prototype runs it (index.html l.514, `beam 7s linear infinite`) — one of the
+ * five named loops (spec 2026-09-06 §5.1). Until 2026-09-06 it ran twice after
+ * `data-settled`; `ScrollSettle` still sets that attribute for the QA harness,
+ * the ring no longer waits for it. Under reduced motion the unlayered block
+ * below drops the iteration count to one and the duration to nothing, so the
+ * ring is simply absent. */
 @property --gp-beam-angle {
   syntax: "<angle>";
   inherits: false;
@@ -210,11 +212,7 @@
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  opacity: 0;
-}
-
-[data-settled="true"] .beam {
-  animation: gp-beam 7s linear 2;
+  animation: gp-beam 7s linear infinite;
 }
 
 /* The dot-pattern spotlight under a feature cell's pointer. Two custom
@@ -229,6 +227,54 @@
   -webkit-mask-image: radial-gradient(240px circle at var(--gp-spot-x, 50%) var(--gp-spot-y, 50%), #000, transparent 70%);
   mask-image: radial-gradient(240px circle at var(--gp-spot-x, 50%) var(--gp-spot-y, 50%), #000, transparent 70%);
 }
+
+/* The review dot's pulse — the prototype's `.tag.rv::before` (index.html
+ * l.112–113). Named loop 3 of 5. `ease.soft` is the system's symmetric curve;
+ * a heartbeat has no direction. */
+@utility pulse-dot {
+  animation: gp-pulse 1.6s var(--gp-ease-soft) infinite;
+}
+
+/* The hero's idle drift — the receipt and the two pills breathe by a degree
+ * (index.html l.1138: rotate ±1.2° over 4s, ∓1° over 5s, ±1° over 6s, yoyo).
+ * Named loop 4 of 5. Three phases so the three layers never move in step. */
+@utility drift-a { animation: gp-drift-a 4s var(--gp-ease-soft) infinite alternate; }
+@utility drift-b { animation: gp-drift-b 5s var(--gp-ease-soft) infinite alternate; }
+@utility drift-c { animation: gp-drift-c 6s var(--gp-ease-soft) infinite alternate; }
+
+/* The dashed lines converging on one EV record (index.html l.343–344):
+ * `stroke-dashoffset` walks −22 every 1.6s so the dashes travel toward the
+ * record. Named loop 5 of 5. */
+@utility flow-dash {
+  stroke-dasharray: 4 7;
+  animation: gp-flow 1.6s linear infinite;
+}
+
+/* The route cards' tinted media grounds (index.html l.247–253), in roles.
+ * Each is a gradient of the soft status grounds over the canvas at partial
+ * alpha; card 1 sits over the blueprint photograph, which the block renders
+ * beneath with next/image. The sand of the prototype maps to the attention
+ * ground — the nearest role, and no new colour is added for a background. */
+@utility media-tint-1 { background-image: linear-gradient(160deg, color-mix(in srgb, var(--gp-bg-accent-soft) 92%, transparent), color-mix(in srgb, var(--gp-bg-canvas) 90%, transparent)); }
+@utility media-tint-2 { background-image: linear-gradient(200deg, var(--gp-status-attention-surface) 0%, var(--gp-bg-canvas) 55%, var(--gp-bg-accent-soft) 100%); }
+@utility media-tint-3 { background-image: linear-gradient(160deg, var(--gp-status-ready-surface) 0%, var(--gp-bg-canvas) 60%, var(--gp-bg-accent-soft) 100%); }
+@utility media-tint-4 { background-image: linear-gradient(200deg, var(--gp-bg-accent-soft) 0%, var(--gp-bg-canvas) 50%, var(--gp-status-ready-surface) 100%); }
+@utility media-tint-5 { background-image: linear-gradient(160deg, var(--gp-status-attention-surface) 0%, var(--gp-bg-canvas) 60%, var(--gp-bg-accent-soft) 100%); }
+
+/* The blurred glow behind a route card's UI panel (`.glowc`, l.252–253). */
+@utility media-glow {
+  position: absolute;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  filter: blur(50px);
+  opacity: 0.7;
+  z-index: -1;
+  pointer-events: none;
+}
+@utility media-glow-cobalt { background: color-mix(in srgb, var(--gp-bg-signal) 16%, transparent); }
+@utility media-glow-sand { background: color-mix(in srgb, var(--gp-status-attention-fg) 18%, transparent); }
+@utility media-glow-green { background: color-mix(in srgb, var(--gp-status-ready-fg) 14%, transparent); }
 
 /* The «було / стало» pairing: a hovered row lights its twin in the other card.
  * `:has()` on the pair container keeps both cards server-rendered; the wash is
@@ -269,9 +315,18 @@
   }
 
   @keyframes gp-beam {
-    from { opacity: 1; --gp-beam-angle: 0deg; }
-    to   { opacity: 1; --gp-beam-angle: 360deg; }
+    from { --gp-beam-angle: 0deg; }
+    to   { --gp-beam-angle: 360deg; }
   }
+
+  @keyframes gp-pulse {
+    0%, 100% { opacity: 0.3; transform: scale(0.8); }
+    50%      { opacity: 1;   transform: scale(1.1); }
+  }
+  @keyframes gp-drift-a { from { transform: rotate(0deg); } to { transform: rotate(1.2deg); } }
+  @keyframes gp-drift-b { from { transform: rotate(0deg); } to { transform: rotate(-1deg); } }
+  @keyframes gp-drift-c { from { transform: rotate(0deg); } to { transform: rotate(1deg); } }
+  @keyframes gp-flow { to { stroke-dashoffset: -22; } }
 }
 
 /* ---------------------------------------------------------------------------

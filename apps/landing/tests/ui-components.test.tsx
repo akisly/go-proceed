@@ -36,6 +36,14 @@ describe("Chip dot", () => {
     expect(renderToStaticMarkup(<Chip tone="review" dot>на розгляді</Chip>)).toContain('data-chip-dot="true"');
     expect(renderToStaticMarkup(<Chip tone="review">на розгляді</Chip>)).not.toContain("data-chip-dot");
   });
+
+  it("pulses the dot only when asked, and only with a dot", () => {
+    const pulsing = renderToStaticMarkup(<Chip tone="review" dot pulse>на розгляді</Chip>);
+    expect(pulsing).toContain('data-chip-dot="true"');
+    expect(pulsing).toContain("pulse-dot");
+    expect(renderToStaticMarkup(<Chip tone="review" dot>на розгляді</Chip>)).not.toContain("pulse-dot");
+    expect(renderToStaticMarkup(<Chip tone="review" pulse>на розгляді</Chip>)).not.toContain("pulse-dot");
+  });
 });
 
 describe("Accordion marker", () => {
