@@ -4,11 +4,13 @@ import type { ReactNode } from "react";
 import { motion } from "motion/react";
 import { DURATION, EASE, STAGGER, REDUCED } from "./tokens";
 import { useReduced } from "./use-reduced";
+import { useResolvedReduce } from "./use-gates";
 
 const container = (step: number, delay: number) => ({
   still: {},
   hidden: {},
   shown: { transition: { staggerChildren: step, delayChildren: 0.04 + delay } },
+  enter: { transition: { staggerChildren: step, delayChildren: 0.04 + delay } },
 });
 
 const child = (reduced: boolean, y: number, from: "rise" | "scale", size: "slow" | "stately" | "grand") => ({
@@ -19,6 +21,13 @@ const child = (reduced: boolean, y: number, from: "rise" | "scale", size: "slow"
     : from === "scale"
       ? { opacity: 1, scale: 1, transition: { duration: DURATION.deliberate, ease: EASE.emphatic } }
       : { opacity: 1, y: 0, transition: { duration: DURATION[size], ease: EASE.enter } },
+  // `on="load"`: the same arrival as explicit keyframes, so the start is
+  // stated rather than read off the reduced snapshot Motion took at mount.
+  enter: reduced
+    ? { opacity: [0, 1], transition: { duration: REDUCED.duration, ease: REDUCED.ease } }
+    : from === "scale"
+      ? { opacity: [0, 1], scale: [0, 1], transition: { duration: DURATION.deliberate, ease: EASE.emphatic } }
+      : { opacity: [0, 1], y: [y, 0], transition: { duration: DURATION[size], ease: EASE.enter } },
 });
 
 /**
@@ -48,18 +57,33 @@ const child = (reduced: boolean, y: number, from: "rise" | "scale", size: "slow"
  * changes and Motion re-applies `hidden` to every child — instantly, at
  * opacity 0, so nothing is seen — and `shown` has a real transform to leave
  * from. A reduced reader rests on `still`, which never names a transform.
+ *
+ * `on="load"` — the prototype's timeline (the hero's pills at .9 s, the
+ * board's cards at .7 s): the parent rests until the reduced-motion
+ * preference has RESOLVED (`useResolvedReduce`), then animates to `enter`
+ * instead of waiting for a quarter of itself to be in view. See `Reveal`.
  */
 export function Stagger({
-  children, step = "default", delay = 0, className,
+  children, step = "default", delay = 0, on = "view", className,
 }: {
   children: ReactNode;
   step?: keyof typeof STAGGER | undefined;
   /** Seconds before the first child — the compare checks wait .35s after the card lands (prototype l.1168). */
   delay?: number | undefined;
+  /** `view` (default): when a quarter of it is in view. `load`: on a timer from the moment the page is ready. */
+  on?: "view" | "load" | undefined;
   className?: string | undefined;
 }) {
   const reduced = useReduced();
+  const resolved = useResolvedReduce();
   const rest = reduced ? "still" : "hidden";
+  if (on === "load") {
+    return (
+      <motion.div className={className} variants={container(STAGGER[step], delay)} initial={rest} animate={resolved === null ? rest : "enter"}>
+        {children}
+      </motion.div>
+    );
+  }
   return (
     <motion.div
       className={className}

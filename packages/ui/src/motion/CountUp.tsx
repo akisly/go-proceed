@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useInView, useMotionValue, animate } from "motion/react";
 import { DURATION, EASE } from "./tokens";
 import { useReduced } from "./use-reduced";
+import { useResolvedReduce } from "./use-gates";
 
 /**
  * A figure that counts up when it enters view.
@@ -28,29 +29,41 @@ import { useReduced } from "./use-reduced";
  *    never announced mid-count.
  */
 export function CountUp({
-  value, format, className,
+  value, format, className, on = "view", delay = 0,
 }: {
   value: number;
   /** e.g. `(n) => new Intl.NumberFormat("uk-UA").format(Math.round(n))` */
   format: (n: number) => string;
   className?: string | undefined;
+  /** `view` (default): when most of it is in view. `load`: on a timer from the moment the page is ready — the board's column counts (prototype l.1132: from .8 s). */
+  on?: "view" | "load" | undefined;
+  /** Seconds before the count starts. */
+  delay?: number | undefined;
 }) {
   const reduced = useReduced();
+  const resolved = useResolvedReduce();
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.6 });
   const motionValue = useMotionValue(0);
   const [shown, setShown] = useState(() => format(reduced ? value : 0));
+  const go = on === "load" ? resolved === false : inView;
 
   useEffect(() => {
     if (reduced) { setShown(format(value)); return; }
-    if (!inView) return;
+    if (!go) return;
+    // The server sent the final figure (its branch is the reduced one), so
+    // the count is scheduled from zero NOW — while the figure is still
+    // hidden behind its frame's entrance — rather than at the first tick
+    // after `delay`, where the reader would see it drop to zero and climb.
+    setShown(format(0));
     const controls = animate(motionValue, value, {
       duration: DURATION.deliberate,
       ease: EASE.emphatic,
+      delay,
       onUpdate: (n) => setShown(format(n)),
     });
     return () => controls.stop();
-  }, [inView, reduced, value, format, motionValue]);
+  }, [go, reduced, value, format, motionValue, delay]);
 
   return (
     <span ref={ref} className={className}>

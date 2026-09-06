@@ -42,3 +42,26 @@ export function usePointerFine(): boolean {
   }, []);
   return fine;
 }
+
+/**
+ * The RESOLVED `prefers-reduced-motion: reduce` preference, read directly —
+ * not through `useReduced()`, whose pre-hydration default (`true`) exists to
+ * pick the same branch the server picked, not to answer "does this visitor
+ * actually prefer reduced motion". `null` on the server and at first paint,
+ * then the real answer, live-updated on `change`. A word that must act the
+ * moment the answer is known reads this: `ScrollSettle`'s latch, and every
+ * entrance `on="load"` (`Reveal`, `Stagger`, `CountUp`), which rests hidden
+ * while it is `null` and starts its timeline the render it resolves.
+ */
+export function useResolvedReduce(): boolean | null {
+  const [resolved, setResolved] = useState<boolean | null>(null);
+  useEffect(() => {
+    if (typeof window.matchMedia !== "function") { setResolved(false); return; }
+    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const update = () => setResolved(query.matches);
+    update();
+    query.addEventListener("change", update);
+    return () => query.removeEventListener("change", update);
+  }, []);
+  return resolved;
+}

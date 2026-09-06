@@ -1,6 +1,7 @@
 "use client";
 
 import { Fragment, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { motion, useInView } from "motion/react";
 import { DURATION, EASE, STAGGER, REDUCED } from "./tokens";
 import { useReduced } from "./use-reduced";
@@ -34,8 +35,15 @@ export function splitAccent(text: string, accent?: string | undefined): AccentWo
  * `offsetTop`. The grouping runs in a layout effect, so on hydration it
  * happens before the first paint and the reader never sees the flat state;
  * a `ResizeObserver` and `document.fonts.ready` re-run it, because line breaks
- * move when the viewport or the typeface does. During a re-measure the words
- * are briefly flat again — one frame, on resize only.
+ * move when the viewport or the typeface does. A re-measure never paints the
+ * flat state either: both of its updates go through `flushSync`, so the
+ * masks come off, the words are laid out and measured, and the masks go
+ * back on inside one callback, before the browser's next paint. It used to
+ * unmount the masks and measure on the next animation frame, and that
+ * frame painted the whole heading flat at full opacity — on the hero, where
+ * `fonts.ready` re-measures once Onest has swapped in, the reader saw the
+ * headline flash complete and then rise line by line, «two animations»
+ * (2026-09-06).
  *
  * ONE ACCESSIBLE NODE. The real text sits in an `sr-only` span; every visual
  * piece is `aria-hidden`. Screen readers hear the heading once, intact.
@@ -80,7 +88,6 @@ export function LineReveal({
     if (reduced) { setLines(null); return; }
     const el = ref.current;
     if (!el) return;
-    let frame = 0;
     let alive = true;
     // `lastWidth` is the span's own width (`getBoundingClientRect().width`)
     // at the last completed measurement, and `currentGroups` the line groups
@@ -111,18 +118,22 @@ export function LineReveal({
     const groupsEqual = (a: number[][], b: number[][]) =>
       a.length === b.length && a.every((g, i) => g.length === b[i]!.length && g.every((v, j) => v === b[i]![j]));
     const measure = () => {
-      if (!alive) return;
       lastWidth = el.getBoundingClientRect().width;
       currentGroups = computeGroups();
-      setLines(currentGroups);
+      return currentGroups;
     };
+    // The first measurement, inside this layout effect: the update flushes
+    // before paint on its own (and `flushSync` is not allowed here).
+    setLines(measure());
+    // Every later one runs from an observer or a promise, where nothing
+    // would flush before paint — so both updates are forced through
+    // synchronously and the flat state exists only inside this function.
     const remeasure = () => {
       if (!alive) return;
-      setLines(null);
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(measure);
+      flushSync(() => setLines(null));
+      const groups = measure();
+      flushSync(() => setLines(groups));
     };
-    measure();
     const observer = new ResizeObserver((entries) => {
       const width = entries[0]?.contentRect.width;
       if (width !== undefined && width === lastWidth) return;
@@ -136,7 +147,7 @@ export function LineReveal({
       if (width === lastWidth && groupsEqual(groups, currentGroups)) return;
       remeasure();
     });
-    return () => { alive = false; observer.disconnect(); cancelAnimationFrame(frame); };
+    return () => { alive = false; observer.disconnect(); };
   }, [reduced, words]);
 
   const word = (i: number) => {

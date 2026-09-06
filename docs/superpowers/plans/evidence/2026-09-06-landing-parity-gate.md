@@ -719,3 +719,129 @@ canonical documentation: OK
 ```
 
 Step 1 (`tokens generate`) does not apply — `tokens.json` is untouched.
+
+## Addendum — the hero: one headline flash, and a frame that waited for scroll (2026-09-06, later still)
+
+### The report
+
+«The hero animation feels like two animations fighting — it jumps; and the
+dashboard card under the text should be visible right away.»
+
+### Measured — a per-frame recorder injected before hydration (1440×900, production build)
+
+`requestAnimationFrame` logger installed via `evaluateOnNewDocument`, so it
+sees every painted frame from before the bundle runs. Rows where anything
+changed:
+
+```
+t(ms)  h1                      pill/lead/cta/facts opacity   frame opacity
+  69   reduced  o=0.00         0.00 0.00 0.00 0.00           0.00
+ 219   lines: 76/76/76 px      0.00 …                        0.00
+ 228   FLAT     o=1.00   ← one frame: the whole headline, bare, at full opacity
+ 235   lines: 76/76/76 px      0.03 …                        0.00
+ 367   lines: 71/76/76         0.53 0.00 …                   0.00
+ …     lines rise, reveals enter cleanly and in order …
+1167   lines: 0/1/1            1.00 1.00 0.99 0.98           0.00
+ …                                                           0.00 — for ever
+```
+
+Two facts, two defects:
+
+1. **The headline flashed complete for one frame, then rose line by line.**
+   `LineReveal` measures its lines in a layout effect (never painted), but
+   its *re-measure* — which `document.fonts.ready` triggers on the hero
+   once Onest has swapped in — did `setLines(null)` and measured on the
+   next animation frame. The frame in between painted the flat words with
+   no masks at full opacity. That is the «two animations».
+2. **The frame never appeared at load.** Its `Reveal` fires at 35 %
+   visibility; at 1440×900 the frame's top sits at 764 px, so 136 px of it
+   are ever in the fold and the threshold is never met. Once the reader
+   scrolled, the rise (60 px over `grand`) played on top of `ScrollSettle`'s
+   scroll-linked flattening — two motions on one element — and the receipt,
+   pills, board cards and counts each waited for their own quarter-in-view.
+   The prototype (index.html l.1109–1113, l.1132) runs all of these on a
+   **timeline from load**: `#stage` at .35 s, `#receipt` at .7 s, the floats
+   at .9 s, the counters from .8 s.
+
+A third, found on the way: the board's `CountUp` showed the final figure
+(the server's reduced branch) until it came into view, then dropped to zero
+and climbed — a visible 12 → 0 → 12 on scroll.
+
+### The fix
+
+- `LineReveal`: a re-measure runs both of its updates through `flushSync`
+  — masks off, measure, masks on — inside the observer's callback, before
+  the browser's next paint. The flat state is never painted. Test:
+  `motion-load-entrance.test.tsx` captures the `ResizeObserver` callback,
+  fires it inside `act`, and asserts the masks are present the moment it
+  returns (it failed before the change: 0 masks).
+- `Reveal`, `Stagger`, `CountUp` gain `on="load"`: rest hidden until the
+  reduced-motion preference has RESOLVED (`useResolvedReduce`, moved from
+  `ScrollSettle` into `use-gates.ts` and shared), then enter on their
+  `delay` as explicit keyframes (`opacity: [0, 1]`, `y: [y, 0]`; Stagger
+  through a fourth label, `enter`), so the start is stated rather than read
+  off the snapshot Motion took at mount. A reduced reader gets the 120 ms
+  fade; `CountUp` under reduced still snaps to the final figure. Tests:
+  both `on="load"` primitives reach opacity 1 under an
+  `IntersectionObserver` that never reports; `on="view"` still waits.
+- `CountUp` sets the figure to zero the moment the count is *scheduled*
+  (the frame is still invisible then), not at the first tick after `delay`.
+- `product-frame.tsx` and `board.tsx`: the frame, receipt, pills, cards
+  and counts are `on="load"` with the prototype's delays (.35 / .7 / .9 /
+  .7 / .8 s).
+
+### Measured — after (same recorder)
+
+```
+t(ms)  h1               frame o / y     receipt  pill   card   counts
+  78   reduced o=0.00   0.00 / 0        0.00     0.00   0.00   12/07/03 (SSR)
+ 261                                                            00/00/00
+ 409   lines 72/76/76   0.00 / 60       0.00     0.00   0.00
+ 657   lines 15/26/44   0.18 / 52       0.00     0.00   0.00
+1007   lines 2/3/4      0.80 / 13       0.18     0.00   0.05
+1040                                                            01/01/00 → counting
+1207   lines 0/1/1      0.91 / 6        0.63     0.05   0.67
+1607   lines 0/0/0      0.99 / 0        0.93     0.89   0.97
+1974                    1.00 / 0        1.00     1.00   1.00
+frames: 186   flat frames: 0
+```
+
+No flat frame. The frame rises from .35 s after the gate resolves, without
+a scroll; the receipt, pills, cards and counts follow on the prototype's
+timeline. The four text reveals are unchanged.
+
+### The gate
+
+- `node packages/testing/qa/motion-audit.mjs` → `motion-audit: clean`
+- the database-free contract set → `Test Files 12 passed · Tests 168 passed`
+- `pnpm turbo run typecheck` → `Tasks: 10 successful, 10 total`
+- `pnpm --filter @goproceed/landing test` → `Test Files 14 passed · Tests 138 passed`
+- `pnpm --filter @goproceed/landing qa`:
+
+```
+1920px: ok scrollWidth=1920 wide=0 errors=0 settledAtLoad=false
+1440px: ok scrollWidth=1440 wide=0 errors=0 settledAtLoad=false
+1240px: ok scrollWidth=1240 wide=0 errors=0 settledAtLoad=false
+1024px: ok scrollWidth=1024 wide=0 errors=0 settledAtLoad=false
+768px: ok scrollWidth=768 wide=0 errors=0 settledAtLoad=false
+390px: ok scrollWidth=390 wide=0 errors=0 settledAtLoad=n/a
+360px: ok scrollWidth=360 wide=0 errors=0 settledAtLoad=n/a
+reduced 1440px: ok scrollWidth=1440 wide=0 errors=0 settledAtLoad=true
+reduced 390px: ok scrollWidth=390 wide=0 errors=0 settledAtLoad=true
+border beam at 1440 (full motion): ok paintedPixels=790 floor=200
+parity: ok {"depthLayers":3,"depthMoves":true,"tiltOnWide":8,"tiltChainsOk":8,"magneticOnWide":7,"stackOnWide":"on","stepperProgress":1,"pulsing":3,"flowing":3,"tiltOnNarrow":0,"depthFlatNarrow":true,"stackOnNarrow":"off"}
+landing qa: ok
+```
+
+  `reduced-1440-00.png`: the frame, pill and counts are on the page at
+  load under reduced motion (the 120 ms fade of `on="load"`), flat and
+  un-tilted, counts at their final figures.
+- `pnpm validate:canonical-docs` → `canonical documentation: OK`
+- `pnpm --filter @goproceed/landing build`:
+
+```
+✓ Compiled successfully in 491ms
+  Running TypeScript ...
+  Finished TypeScript in 1261ms ...
+✓ Generating static pages using 11 workers (10/10) in 442ms
+```

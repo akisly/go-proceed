@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, useMotionValueEvent, useScroll, useTransform } from "motion/react";
 import { useReduced } from "./use-reduced";
+import { useResolvedReduce } from "./use-gates";
 
 /**
  * The product frame settling into the page — 21st.dev's «Container Scroll».
@@ -34,7 +35,7 @@ import { useReduced } from "./use-reduced";
  *     `true` on the first of:
  *       (a) the RESOLVED OS `prefers-reduced-motion: reduce` preference —
  *           read by this component's own `matchMedia` effect
- *           (`useResolvedReduce`), not through `useReduced()`'s conservative
+ *           (`useResolvedReduce`, use-gates.ts), not through `useReduced()`'s conservative
  *           `!hydrated || preference !== false` default, which is `true`
  *           before hydration for every visitor and would make `data-settled`
  *           lie about visitors who did not ask for reduced motion;
@@ -105,25 +106,6 @@ export function ScrollSettle({
       </motion.div>
     </div>
   );
-}
-
-/**
- * The RESOLVED `prefers-reduced-motion: reduce` preference, read directly —
- * not through `useReduced()`, whose pre-hydration default (`true`) exists to
- * pick the same branch the server picked, not to answer "does this visitor
- * actually prefer reduced motion". `null` until the effect runs (server and
- * first client paint), then the real answer, live-updated on `change`.
- */
-function useResolvedReduce(): boolean | null {
-  const [resolved, setResolved] = useState<boolean | null>(null);
-  useEffect(() => {
-    const query = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const update = () => setResolved(query.matches);
-    update();
-    query.addEventListener("change", update);
-    return () => query.removeEventListener("change", update);
-  }, []);
-  return resolved;
 }
 
 /** True below the `md` breakpoint. Read from the token so the number is typed nowhere here. */
