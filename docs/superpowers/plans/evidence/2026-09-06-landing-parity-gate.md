@@ -25,7 +25,7 @@
 | 1d | Board | beam → infinite, from load; counters/cards keep, durations → tokens |
 | 1e | Idle drift | CSS `gp-drift` keyframes, three phase utilities, `ease.soft` |
 | 1f | Board tilt | new **`Tilt area="section"`** around the board |
-| 1g | Pulse | `Chip pulse` on every `.tag.rv`: the board's two review cards and the Фіксація «пілот» chip. Not the receipt's state row (text, no dot) and not the route window's «на розгляді» tag |
+| 1g | Pulse | `Chip pulse` on every `.tag.rv`: the board's two review cards and the Фіксація «пілот» chip. Not the receipt's state row (text, no dot) and not the route window's «на розгляді» tag — that one is `.tg.rv` (l.545), which the prototype does not pulse |
 | 2 | Sources `sources.tsx` | **parity — no change** |
 | 3a | Problem statement `problem.tsx` | `ScrollTint` switches to **opacity .14→1** |
 | 3b | Рис. 01 `fig-01.tsx` | **parity — no change** |
@@ -197,7 +197,7 @@ Before: `db7ba8c` (`origin/main` at spec time). After: this branch, HEAD at comm
 | Pair | Before | After | What changed |
 |---|---|---|---|
 | Hero fold | ![before](2026-09-06-landing-parity/before/1440-00.png) | ![after](2026-09-06-landing-parity/after/1440-00.png) | Pixel-identical at rest — the hero's `LineReveal`, `Depth` and idle drift are scroll/time-driven and settle to the same static frame; the difference is in motion, not layout (see the parity JSON above and the pills pair below). |
-| Board with pills (clearest static difference) | ![before](2026-09-06-landing-parity/before/1440-01.png) | ![after](2026-09-06-landing-parity/after/1440-01.png) | Frames render the same content; the after-version's board runs the infinite border beam and idle drift on the receipt/pills from first paint, and pulses the review-tag dot — none of which a still frame can show directly, which is exactly why Task 17 adds DOM-level parity checks rather than relying on screenshots here. |
+| Board with pills (clearest static difference) | ![before](2026-09-06-landing-parity/before/1440-01.png) | ![after](2026-09-06-landing-parity/after/1440-01.png) | Before — no pills (boxless `Stagger`, never intersected); after — the CL-017 pill at the board's bottom-left corner (the second pill sits above the board, outside this frame), the receipt mid-entrance at the bottom-right. |
 | Route section, card 01 (blueprint) | ![before](2026-09-06-landing-parity/before/1440-03.png) | ![after](2026-09-06-landing-parity/after/1440-03.png) | Both land on the «Було / стало» (compare) section at this scroll offset — pixel-identical, since compare's `ScrollTint`/`Reveal` choreography also settles to a static end frame. The route section itself is one step further down; see the next pair. |
 | Route section, card 01 (blueprint), later scroll offset | ![before](2026-09-06-landing-parity/before/1440-06.png) | ![after](2026-09-06-landing-parity/after/1440-06.png) | **Visible static difference.** Before: the route card's media half is a plain light panel. After: the restored `ScrollStackMedia` renders the tinted blueprint photo (`media-tint-1` + `media-glow-1`) behind the card content — R5's "five tinted media grounds with their glow." |
 | Capture section (Фіксація) | ![before](2026-09-06-landing-parity/before/1440-11.png) | ![after](2026-09-06-landing-parity/after/1440-11.png) | Pixel-identical at rest — the three channel cards' `Tilt` is pointer-driven and the converging dashed paths' `gp-flow` is a running stroke-offset animation; both settle to the same static frame when idle. |
