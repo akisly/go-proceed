@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import { LineReveal, ScrollStack, ScrollStackCard, ScrollStackMedia } from "@goproceed/ui/motion";
+import { ScrollStack, ScrollStackCard, ScrollStackMedia } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import photoBlueprint from "../../public/images/photo-blueprint.jpg";
 import { SectionHead } from "./section-head";
