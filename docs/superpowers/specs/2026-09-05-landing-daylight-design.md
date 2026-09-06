@@ -451,7 +451,7 @@ chat and the access matrix are one screen's domain picture each.
 | Lenis, parallax, tilt, magnetic, idle drift, pulsing dot, dashed flow | dropped (D4) [2026-09-06: all restored but Lenis — see the parity spec §3] |
 
 The two scroll-linked elements are in different folds (hero; problem
-statement) — rule 9 holds.
+statement) — rule 9 holds. [2026-09-06: rule 9 was rewritten by the parity slice — scroll-linked compositions are the ones the parity spec §3 names, one per section; see docs/superpowers/specs/2026-09-06-landing-prototype-parity-design.md §8]
 
 ### 6.3 Background
 
@@ -574,7 +574,7 @@ gains a «Pilot form delivery» section below the generated Next block.
 | `landing-content.test.ts` | section keys in order; the forbidden and required strings of §8; F1–F6 |
 | `landing-render.test.tsx` | one `h1`; the fourteen section ids in order; four nav links in page order; the board's three columns and the selected card; the five route cards with their codes; the access matrix rows; seven FAQ entries; the form's fields, honeypot attributes, `aria-live`; the footer disclaimer; no `aria-disabled` |
 | `metadata.test.ts` | title, description, OG image, icons |
-| `design-contract.test.tsx` | the new contract id `user-approved-daylight-2026-09-05` |
+| `design-contract.test.tsx` | the new contract id `user-approved-daylight-2026-09-05` [2026-09-06: now `user-approved-daylight-parity-2026-09-06`, and the FORM line names the parity spec] |
 | `pilot-request.test.ts` | message, mailto, validation, control-character stripping |
 | `pilot-route.test.ts` | 405 / 400 / honeypot-200-no-delivery / 429 / 503 / 502 / 200-via, with injected `fetch` and env |
 | `pilot-form.test.tsx` | sent state; failed state shows the address, the mail button and copies the text; required focus; copy button |

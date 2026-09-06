@@ -703,7 +703,7 @@ Switch, Textarea, DatePicker, Dialog, Drawer, Popover, DropdownMenu, Tabs,
 Accordion, Toast, Skeleton, Pagination, Breadcrumb, Avatar, ProgressBar,
 Timeline, Stepper, FileDrop, EvidenceThumb, CommandPalette (⌘K).
 
-*Marketing-only (`apps/landing`):* the fourteen blocks in §9 plus the fifteen
+*Marketing-only (`apps/landing`):* the fourteen blocks in §9 plus the fifteen [2026-09-06: twenty-two]
 motion primitives in §8.3.
 
 ---
@@ -722,7 +722,7 @@ rule added here gets a test, or it is not a rule.
 | `primitive-leak.test.ts` | No `var(--gp-<ramp>-<step>)` under `apps/**` or in `packages/ui/src/base.css`. The exclusion list must name files that still exist, so an exclusion cannot outlive its file. | vitest (node) — **built, 2 tests** |
 | **`motion-audit.mjs`** *(new)* | No `transition: all`; no transition on a property outside `transform`/`opacity`/`filter`/`color`/`background-color`/`border-color`/`box-shadow`; every animated component has a `prefers-reduced-motion` branch; no `animation-iteration-count: infinite` outside the marquee allowlist [2026-09-06: five named loops now — marquee, beam, pulse, drift, flow; see §8.3's update block]. | CI |
 | `qa/verify.mjs` (puppeteer) | Rendered layout, contrast, touch targets, focus cycle, **at 1920 / 1440 / 1240 / 768 / 390 / 360**. The 768–1240 icon rail keeps its dedicated pass. | CI |
-| `motion-audit.mjs` | Five rules: no `transition: all`; no transition on a layout property; no ease-in; no perpetual animation outside the marquee [2026-09-06: five named loops now — marquee, beam, pulse, drift, flow; see §8.3's update block]; `motion/react` imported only by the fifteen primitives. Comments are stripped before scanning, so the audit does not flag its own documentation. | CI + vitest — **built, 13 tests, including a fixture tree that proves each rule still fires** |
+| `motion-audit.mjs` | Five rules: no `transition: all`; no transition on a layout property; no ease-in; no perpetual animation outside the marquee [2026-09-06: five named loops now — marquee, beam, pulse, drift, flow; see §8.3's update block]; `motion/react` imported only by the fifteen primitives [2026-09-06: twenty-two]. Comments are stripped before scanning, so the audit does not flag its own documentation. | CI + vitest — **built, 13 tests, including a fixture tree that proves each rule still fires** |
 | `tw-merge.test.ts` | The class merge is taught this theme: a size and a colour sharing the `text-` prefix both survive; two values from one namespace collapse; arbitrary values still work; the config names every size and radius in the source. | vitest (node) — **built, 7 tests** |
 | `component-contract.test.ts` | No component hard-codes a control height, carries a colour in an inline style, names a raw hex, defines its own focus ring, or has a destructive variant; the five status tones agree across Chip, Banner and Meter; the meter divides by count not percentage; the money figure's qualifier is required; portalled content carries its own font. | vitest (node) — **built, 14 tests** |
 | `motion-contract.test.ts` | The JS spelling of every duration, curve and spring matches tokens.json; no easing in the system starts slow (`y1 < x1`) except the one symmetric cross-fade curve; the reduced-motion ceiling is the same number in CSS and in JS. | vitest (node) — **built, 6 tests** |
