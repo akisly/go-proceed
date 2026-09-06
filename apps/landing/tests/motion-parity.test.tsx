@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { LineReveal, splitAccent, Depth } from "@goproceed/ui/motion";
+import { LineReveal, splitAccent, Depth, Tilt } from "@goproceed/ui/motion";
 
 vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
   useReduced: () => false,
@@ -36,5 +36,14 @@ describe("Depth", () => {
     expect(html).toContain('data-depth="-0.3"');
     expect(html).toContain('class="absolute');
     expect(html).not.toMatch(/translateY\(-?[1-9]/);
+  });
+});
+
+describe("Tilt", () => {
+  it("is off on the server and carries no rotation", () => {
+    const html = renderToStaticMarkup(<Tilt maxX={2.5} maxY={3}><article>картка</article></Tilt>);
+    expect(html).toContain('data-tilt="off"');
+    expect(html).not.toMatch(/rotate[XY]\(-?[1-9]/);
+    expect(html).toContain("<article>картка</article>");
   });
 });

@@ -19,7 +19,7 @@
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
-  InViewProgress, ScrollSettle, LineReveal, Depth, useReduced,
+  InViewProgress, ScrollSettle, LineReveal, Depth, Tilt, useReduced,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -271,6 +271,13 @@ export default function KitchenSink() {
           <Depth depth={-0.3} className="absolute left-6 top-6 rounded-card border border-line-strong bg-canvas px-3 py-2 text-data text-ink">depth −0.3</Depth>
           <Depth depth={0.35} className="absolute bottom-6 right-6 rounded-pill border border-line-strong bg-canvas px-3 py-1.5 text-data text-ink">depth 0.35</Depth>
         </section>
+      </Case>
+
+      <Case n="17" name="Tilt" rule="Поверхня нахиляється до курсору на пружині, до 3°; лише pointer:fine, вище md, не під reduced motion. Батько задає perspective.">
+        <div className="grid gap-4 md:grid-cols-2 [perspective:1600px]">
+          <Tilt maxX={2.5} maxY={3} className="rounded-surface border border-line-strong bg-surface p-6"><p className="text-data text-ink">rotateX ±2.5° · rotateY ±3°</p></Tilt>
+          <Tilt maxX={1.5} maxY={2} className="rounded-surface border border-line-strong bg-surface p-6"><p className="text-data text-ink">rotateX ±1.5° · rotateY ±2°</p></Tilt>
+        </div>
       </Case>
     </main>
   );
