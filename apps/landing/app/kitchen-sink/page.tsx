@@ -3,7 +3,7 @@
 /**
  * The motion vocabulary, live.
  *
- * Sixteen primitives, each rendered next to the rule it enforces. This is the
+ * Twenty-two primitives, each rendered next to the rule it enforces. This is the
  * code-first equivalent of a component library page in a design tool, and it
  * is where the QA harness points its viewport, contrast and touch-target
  * passes — a primitive that is only ever exercised inside a finished block is
@@ -20,7 +20,7 @@ import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
   InViewProgress, ScrollSettle, LineReveal, Depth, Tilt, Magnetic, useReduced,
-  ScrollStack, ScrollStackCard, ScrollStackMedia,
+  ScrollStack, ScrollStackCard, ScrollStackMedia, ScrollProgress,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -93,7 +93,7 @@ export default function KitchenSink() {
         <TextBlurIn
           as="h1"
           className="display mt-4 block max-w-[16ch] text-mkt-display-1 text-ink"
-          text="Шістнадцять примітивів і жодного більше"
+          text="Двадцять два примітиви і жодного більше"
         />
         <p className="measure mt-6 text-mkt-lead leading-relaxed text-ink-muted">
           Кожен блок нижче показує примітив і правило, яке він тримає.
@@ -298,6 +298,12 @@ export default function KitchenSink() {
             </ScrollStackCard>
           ))}
         </ScrollStack>
+      </Case>
+
+      <Case n="20" name="ScrollProgress" rule="Брат InViewProgress, але керований скролом: публікує прогрес проходу 0 → 1 у --gp-progress від top 70% до bottom 60%. Під reduced motion — одразу 1.">
+        <ScrollProgress className="block h-2 overflow-hidden rounded-pill bg-line">
+          <div aria-hidden="true" className="h-full rounded-pill bg-signal" style={{ width: "calc(var(--gp-progress, 0) * 100%)" }} />
+        </ScrollProgress>
       </Case>
     </main>
   );

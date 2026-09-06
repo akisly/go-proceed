@@ -453,7 +453,7 @@ export default function ComponentSink() {
           </ComparePair>
         </Case>
 
-        <Case n="23" name="Stepper + Step" rule="План пілота як вертикальний степпер (21st.dev Steppers), за часом, а не за скролом: InViewProgress публікує 0 → 1 у --gp-progress, лінія заповнюється scaleY, точки спалахують на своїх порогах. Під reduced motion план одразу повний.">
+        <Case n="23" name="Stepper + Step" rule="План пілота як вертикальний степпер (21st.dev Steppers), керований скролом: ScrollProgress публікує прогрес проходу 0 → 1 у --gp-progress, лінія заповнюється scaleY, точки спалахують на своїх порогах. Під reduced motion план одразу повний.">
           <Stepper>
             <Step index={0} count={4} when="День 1 · об'єкт і реєстр" title="Заносимо один пакет робіт і вимоги до нього">Разом із ПТВ: роботи, місця, пункти ДБН. Дві години.</Step>
             <Step index={1} count={4} when="Тиждень 1 · майданчик" title="Майстер знімає докази за вимогами">Через Telegram-бот або мобільний застосунок, на своєму телефоні.</Step>
