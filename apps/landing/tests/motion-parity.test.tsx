@@ -33,6 +33,10 @@ describe("LineReveal", () => {
       .toEqual([false, false, false, true, false, false]);
     expect(splitAccent("Без акценту").every((w) => !w.accent)).toBe(true);
   });
+  it("renders the same two children in the animated branch: sr-only text, then the observed aria-hidden span", () => {
+    const html = renderToStaticMarkup(<LineReveal as="h2" text="На нараді більше не сперечаються" />);
+    expect(html).toMatch(/^<h2[^>]*><span class="sr-only">[^<]*<\/span><span aria-hidden="true">/);
+  });
 });
 
 describe("Depth", () => {

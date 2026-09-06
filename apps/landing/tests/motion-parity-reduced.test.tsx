@@ -2,7 +2,7 @@
 import React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render } from "@testing-library/react";
-import { ScrollProgress, ScrollTint } from "@goproceed/ui/motion";
+import { LineReveal, ScrollProgress, ScrollTint } from "@goproceed/ui/motion";
 
 // Reduced motion for this file only: the word must publish its FINAL value at
 // once and never animate — a different outcome, not a fast one.
@@ -12,6 +12,18 @@ vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
 }));
 
 afterEach(cleanup);
+
+// jsdom carries no IntersectionObserver. LineReveal calls useInView()
+// unconditionally (both branches share it so the ref survives the switch),
+// so mounting it here needs a stub even though the reduced branch never
+// reads `inView`.
+class MockIntersectionObserver {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+// @ts-expect-error test-only polyfill, not the real IntersectionObserver shape
+global.IntersectionObserver = MockIntersectionObserver;
 
 describe("ScrollProgress under reduced motion", () => {
   it("publishes --gp-progress: 1 on mount", () => {
@@ -35,5 +47,20 @@ describe("ScrollTint under reduced motion", () => {
     expect(words.filter((w) => w.classList.contains("text-ink"))).toHaveLength(4);
     for (const w of words) expect(w.getAttribute("style")).toBeNull();
     expect(container.querySelector(".sr-only")?.textContent).toBe("Ми не зупиняємо роботу — поки доказ не отримано");
+  });
+});
+
+describe("LineReveal under reduced motion", () => {
+  it("keeps the observed aria-hidden span as the outer node, fading its child, so the observer survives the branch switch", () => {
+    const { container } = render(<LineReveal as="h2" text="На нараді більше не сперечаються" accent="не сперечаються" />);
+    const h2 = container.querySelector("h2");
+    expect(h2?.children).toHaveLength(2);
+    expect(h2?.children[0]?.className).toBe("sr-only");
+    const visible = h2?.children[1] as HTMLElement;
+    expect(visible.getAttribute("aria-hidden")).toBe("true");
+    expect(visible.hasAttribute("style")).toBe(false);
+    expect(visible.children).toHaveLength(1);
+    expect(visible.querySelectorAll("[data-word]")).toHaveLength(5);
+    expect(visible.querySelectorAll("[data-accent='true']")).toHaveLength(2);
   });
 });

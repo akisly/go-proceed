@@ -43,6 +43,20 @@ export function splitAccent(text: string, accent?: string | undefined): AccentWo
  * SERVER AND FIRST PAINT: the flat words, no masks. The masks are added by
  * measurement, so the server never sends them and hydration matches.
  *
+ * ONE DOM SHAPE FOR THE REF: `useInView(ref, …)` attaches its
+ * IntersectionObserver once, on mount, and its effect deps never change
+ * across a re-render — so if the element carrying `ref` is swapped out from
+ * under it (a different element in the reduced branch vs. the animated
+ * branch), the observer keeps watching the detached node forever and
+ * `inView` never updates. Concretely: `useReduced()` is `true` on the server
+ * and at first paint, so hydration mounts the reduced branch's ref'd
+ * `motion.span`; once `useReduced()` flips to `false` after hydration, the
+ * animated branch swaps in a brand-new `<span ref={ref}>` and the reduced
+ * span unmounts — the observer never notices, `inView` stays `false`, and
+ * the line masks sit at `translateY(110%)` forever (the defect QA caught
+ * after Task 12). The fix: the ref'd `aria-hidden` span is the SAME element
+ * in both branches; only its *contents* change reduced vs. animated.
+ *
  * Reduced: a single opacity fade of the whole heading — not a faster rise.
  */
 export function LineReveal({
@@ -103,30 +117,22 @@ export function LineReveal({
   };
   const flat = words.map((_, i) => <Fragment key={i}>{word(i)}{i < words.length - 1 ? " " : ""}</Fragment>);
 
-  if (reduced) {
-    return (
-      <As className={className}>
-        <span className="sr-only">{text}</span>
-        <motion.span
-          ref={ref}
-          aria-hidden="true"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: REDUCED.duration, ease: REDUCED.ease }}
-        >
-          {flat}
-        </motion.span>
-      </As>
-    );
-  }
-
   return (
     <As className={className}>
       <span className="sr-only">{text}</span>
       <span ref={ref} aria-hidden="true">
-        {lines === null
-          ? flat
-          : lines.map((group, li) => (
+        {reduced ? (
+          <motion.span
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: REDUCED.duration, ease: REDUCED.ease }}
+          >
+            {flat}
+          </motion.span>
+        ) : lines === null ? (
+          flat
+        ) : (
+          lines.map((group, li) => (
             <span key={li} data-line="" className="line-mask">
               <motion.span
                 className="block"
@@ -137,7 +143,8 @@ export function LineReveal({
                 {group.map((i, k) => <Fragment key={i}>{word(i)}{k < group.length - 1 ? " " : ""}</Fragment>)}
               </motion.span>
             </span>
-          ))}
+          ))
+        )}
       </span>
     </As>
   );
