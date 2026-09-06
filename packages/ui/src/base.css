@@ -129,6 +129,16 @@
   max-width: var(--gp-container-measure);
 }
 
+/* The line mask under a heading line — the prototype's `.lm` (index.html l.645).
+ * `overflow: hidden` clips the rising line; the .12em padding/negative margin
+ * pair keeps descenders inside the clip without adding height. */
+@utility line-mask {
+  display: block;
+  overflow: hidden;
+  padding-bottom: 0.12em;
+  margin-bottom: -0.12em;
+}
+
 /* The drawing-sheet guides: a dashed rule at the container edge with a dot at
  * each section boundary. Structural, aria-hidden, and the one decorative
  * element the system permits — on a construction-evidence product a drawing

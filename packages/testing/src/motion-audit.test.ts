@@ -107,7 +107,7 @@ describe("motion audit — the rules actually fire", () => {
 });
 
 describe("the vocabulary is closed", () => {
-  it("exports exactly sixteen primitives", () => {
+  it("exports exactly seventeen primitives", () => {
     // A seventeenth is a decision, not an addition: it means the vocabulary was
     // missing something, and the plan's motion section has to say what and
     // why. Failing here is the prompt to write that down.
@@ -119,7 +119,7 @@ describe("the vocabulary is closed", () => {
     expect(new Set(exported)).toEqual(new Set([
       "Reveal", "Stagger", "TextBlurIn", "ScrollTint", "LineDraw", "NodeLock",
       "CountUp", "Marquee", "PinnedTabs", "Lift", "Press", "CrossFade",
-      "TrackFill", "SlideSwap", "InViewProgress", "ScrollSettle",
+      "TrackFill", "SlideSwap", "InViewProgress", "ScrollSettle", "LineReveal",
     ]));
   });
 

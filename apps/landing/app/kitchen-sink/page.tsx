@@ -19,7 +19,7 @@
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
-  InViewProgress, ScrollSettle, useReduced,
+  InViewProgress, ScrollSettle, LineReveal, useReduced,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -260,6 +260,10 @@ export default function KitchenSink() {
             <p className="mt-3 text-data text-ink-muted">Готово 12 · На розгляді 07 · Заблоковано 03</p>
           </div>
         </ScrollSettle>
+      </Case>
+
+      <Case n="17" name="LineReveal" rule="Заголовок виїжджає з масок рядок за рядком, 1200 мс, ease-out-expo, крок 80 мс. Рядки знаходяться за розкладкою (offsetTop), не SplitText; під reduced motion — один fade.">
+        <LineReveal as="p" className="display max-w-[20ch] text-mkt-display-2 text-ink" text="На нараді більше не сперечаються про те, що вже сховано" accent="що вже сховано" />
       </Case>
     </main>
   );
