@@ -56,12 +56,24 @@ describe("the Daylight page — skeleton", () => {
 
 describe("hero and sources", () => {
   const hero = section("hero", "sources");
-  it("opens with the pill, the accented promise, two actions and three facts", () => {
-    expect(hero).toContain('data-slot="pill"');
-    expect(hero).toContain('data-accent="true">доказ</span>');
-    expect(hero).toContain('href="#pilot"');
-    expect(hero).toContain('href="#compare"');
+  it("opens with the pill, the promise line by line, two magnetic actions and three facts", () => {
+    expect(hero).toContain(landingContent.hero.pill.badge);
+    expect(hero.match(/<h1/g)).toHaveLength(1);
+    // LineReveal: the h1 text once for readers, once as words; the accent marked.
+    expect(hero).toContain(`class="sr-only">${landingContent.hero.title}<`);
+    expect(hero.match(/data-accent="true"/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(hero.match(/data-magnetic="off"/g)).toHaveLength(3); // pill + two buttons
     for (const f of landingContent.hero.facts) expect(hero).toContain(f.value);
+  });
+  it("layers the receipt and the two pills at depth, tilts the board and pulses the review tags", () => {
+    expect(hero).toContain('data-depth="-0.3"');
+    expect(hero).toContain('data-depth="0.35"');
+    expect(hero).toContain('data-depth="0.25"');
+    expect(hero.match(/data-tilt="off"/g)).toHaveLength(1);
+    expect(hero.match(/pulse-dot/g)).toHaveLength(2); // the two review cards on the board
+    expect(hero).toContain("drift-a");
+    expect(hero).toContain("drift-b");
+    expect(hero).toContain("drift-c");
   });
   it("shows the board with three columns, the selected card, the receipt and the beam", () => {
     expect(hero).toContain('aria-label="Стан пакету робіт у веб-застосунку GoProceed"');
