@@ -1,7 +1,7 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { LineReveal, splitAccent, Depth, Tilt } from "@goproceed/ui/motion";
+import { LineReveal, splitAccent, Depth, Tilt, Magnetic } from "@goproceed/ui/motion";
 
 vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
   useReduced: () => false,
@@ -45,5 +45,14 @@ describe("Tilt", () => {
     expect(html).toContain('data-tilt="off"');
     expect(html).not.toMatch(/rotate[XY]\(-?[1-9]/);
     expect(html).toContain("<article>картка</article>");
+  });
+});
+
+describe("Magnetic", () => {
+  it("wraps a control inline, off on the server, no offset", () => {
+    const html = renderToStaticMarkup(<Magnetic><button type="button">Обговорити пілот</button></Magnetic>);
+    expect(html).toContain('data-magnetic="off"');
+    expect(html).toContain("inline-flex");
+    expect(html).not.toMatch(/translate[XY]\(-?[1-9]/);
   });
 });

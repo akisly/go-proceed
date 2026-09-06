@@ -19,7 +19,7 @@
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
-  InViewProgress, ScrollSettle, LineReveal, Depth, Tilt, useReduced,
+  InViewProgress, ScrollSettle, LineReveal, Depth, Tilt, Magnetic, useReduced,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -278,6 +278,10 @@ export default function KitchenSink() {
           <Tilt maxX={2.5} maxY={3} className="rounded-surface border border-line-strong bg-surface p-6"><p className="text-data text-ink">rotateX ±2.5° · rotateY ±3°</p></Tilt>
           <Tilt maxX={1.5} maxY={2} className="rounded-surface border border-line-strong bg-surface p-6"><p className="text-data text-ink">rotateX ±1.5° · rotateY ±2°</p></Tilt>
         </div>
+      </Case>
+
+      <Case n="18" name="Magnetic" rule="Кнопка тягнеться до курсору: зсув від центру × (0.18, 0.25) на пружині, назад у нуль при відведенні. Лише pointer:fine і вище md; кнопка шапки без цього.">
+        <Magnetic><Press className="h-11 rounded-panel bg-action px-5 text-data font-medium text-action-fg">Обговорити пілот</Press></Magnetic>
       </Case>
     </main>
   );
