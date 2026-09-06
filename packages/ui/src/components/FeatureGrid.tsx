@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, type PointerEvent, type ReactNode } from "react";
+import { Stagger } from "../motion/Stagger";
 import { Tilt } from "../motion/Tilt";
 import { cx } from "./cn";
 
@@ -27,17 +28,27 @@ const COLUMNS = {
 } as const;
 
 export function FeatureGrid({
-  children, columns = 4, className,
+  children, columns = 4, className, stagger,
 }: {
   children: ReactNode;
   columns?: keyof typeof COLUMNS | undefined;
   className?: string | undefined;
+  /**
+   * Staggers the cells in on scroll. A `motion.div` wrapping the children
+   * with `display:contents` would preserve the grid, but `whileInView`'s
+   * `IntersectionObserver` never fires on a boxless element — Chromium skips
+   * a target with no CSS layout box entirely, so the "shown" variant would
+   * never reach the cells and they would stay invisible forever (confirmed
+   * against the live page, 2026-09-06). Instead, when `stagger` is on, the
+   * grid container itself BECOMES the `Stagger`: its own box is real, so the
+   * observer fires normally, and its children slot in as ordinary grid items
+   * with no extra wrapper between them and their `grid-template-columns`.
+   * Off by default so every non-landing caller is unchanged.
+   */
+  stagger?: boolean | undefined;
 }) {
-  return (
-    <div className={cx("grid gap-px overflow-hidden rounded-surface border border-line-strong bg-line-strong [perspective:1600px]", COLUMNS[columns], className)}>
-      {children}
-    </div>
-  );
+  const grid = cx("grid gap-px overflow-hidden rounded-surface border border-line-strong bg-line-strong [perspective:1600px]", COLUMNS[columns], className);
+  return stagger ? <Stagger className={grid}>{children}</Stagger> : <div className={grid}>{children}</div>;
 }
 
 export function FeatureCell({

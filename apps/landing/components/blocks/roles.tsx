@@ -1,6 +1,6 @@
 import { Building2, ClipboardList, ShieldCheck, Smartphone } from "lucide-react";
 import { FeatureCell, FeatureGrid } from "@goproceed/ui/components";
-import { Reveal } from "@goproceed/ui/motion";
+import { StaggerItem } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import { SectionHead } from "./section-head";
 
@@ -17,11 +17,10 @@ export function Roles() {
     <section id="roles" className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto max-w-marketing">
         <SectionHead eyebrow={r.eyebrow} title={r.title} titleAccent={r.titleAccent} lead={r.lead} />
-        <Reveal y={0}>
-          <FeatureGrid columns={4}>
-            {r.cells.map((cell) => (
+        <FeatureGrid columns={4} stagger>
+          {r.cells.map((cell) => (
+            <StaggerItem key={cell.id} y={20} className="grid">
               <FeatureCell
-                key={cell.id}
                 icon={ICON[cell.id as keyof typeof ICON]}
                 title={cell.title}
                 subtitle={cell.subtitle}
@@ -29,9 +28,9 @@ export function Roles() {
               >
                 {cell.pain}
               </FeatureCell>
-            ))}
-          </FeatureGrid>
-        </Reveal>
+            </StaggerItem>
+          ))}
+        </FeatureGrid>
       </div>
     </section>
   );

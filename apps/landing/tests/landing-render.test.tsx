@@ -276,3 +276,22 @@ describe("prototype parity — headings and statements (2026-09-06)", () => {
     expect(html.slice(0, html.indexOf('id="main-content"'))).not.toContain("data-magnetic");
   });
 });
+
+describe("prototype parity — compare, roles, provenance (2026-09-06)", () => {
+  it("slides the two compare cards in from their sides and pops the checks", () => {
+    const compare = section("compare", "roles");
+    expect(compare).toContain("translateX(-20px)");
+    expect(compare).toContain("translateX(20px)");
+    expect(compare.match(/scale\(0\)/g)).toHaveLength(landingContent.compare.now.rows.length);
+    expect(compare).toContain("shadow-float-accent");
+  });
+  it("staggers the four role cells, each leaning", () => {
+    const roles = section("roles", "stages");
+    expect(roles.match(/data-tilt="off"/g)).toHaveLength(4);
+    expect(roles.match(/data-slot="feature-cell"/g)).toHaveLength(4);
+  });
+  it("staggers the three bento cells", () => {
+    const trust = section("trust", "pilot");
+    expect(trust.match(/data-slot="bento-cell"/g)).toHaveLength(3);
+  });
+});
