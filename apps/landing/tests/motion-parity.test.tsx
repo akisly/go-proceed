@@ -117,3 +117,23 @@ describe("changed words", () => {
     expect(html).toContain("scale(0)");
   });
 });
+
+describe("motion wrappers are boxes", () => {
+  it("never puts a Stagger, StaggerItem, Reveal, Depth, Tilt or Magnetic on display: contents — a boxless element never intersects, so whileInView never fires", async () => {
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const roots = [join(__dirname, "..", "components"), join(__dirname, "..", "..", "..", "packages", "ui", "src", "components")];
+    const files: string[] = [];
+    const walk = (dir: string) => { for (const e of readdirSync(dir)) { const p = join(dir, e); if (statSync(p).isDirectory()) walk(p); else if (p.endsWith(".tsx")) files.push(p); } };
+    for (const r of roots) walk(r);
+    const offenders: string[] = [];
+    const tag = /<(Stagger|StaggerItem|Reveal|Depth|Tilt|Magnetic)\b[^>]*className="([^"]*)"/g;
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      for (const m of src.matchAll(tag)) {
+        if (/\bcontents\b/.test(m[2]!)) offenders.push(`${f.split("/").slice(-2).join("/")}: <${m[1]} className="${m[2]}">`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

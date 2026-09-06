@@ -21,7 +21,7 @@ export function ProductFrame() {
           <Depth depth={-0.3} className="md:absolute md:-bottom-20 md:right-[-3%] md:w-[236px]">
             <Reveal delay={0.7} size="grand" x={20} y={40}><div className="drift-a"><Receipt /></div></Reveal>
           </Depth>
-          <Stagger step="loose" delay={0.9} className="hidden md:contents">
+          <Stagger step="loose" delay={0.9} className="pointer-events-none absolute inset-0 hidden md:block">
             <StaggerItem y={20} className="absolute -bottom-9 left-0">
               <Depth depth={0.35}>
                 <span className="drift-b inline-block whitespace-nowrap rounded-pill border border-line-strong bg-surface px-3 py-1.5 text-data text-ink-secondary shadow-overlay">
