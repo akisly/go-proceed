@@ -107,10 +107,10 @@ describe("motion audit — the rules actually fire", () => {
 });
 
 describe("the vocabulary is closed", () => {
-  it("exports exactly twenty primitives", () => {
-    // A twentieth is a decision, not an addition: it means the vocabulary was
-    // missing something, and the plan's motion section has to say what and
-    // why. Failing here is the prompt to write that down.
+  it("exports exactly twenty-one primitives", () => {
+    // A twenty-first is a decision, not an addition: it means the vocabulary
+    // was missing something, and the plan's motion section has to say what
+    // and why. Failing here is the prompt to write that down.
     const index = readFileSync(join(repoRoot, "packages/ui/src/motion/index.ts"), "utf8");
     // `[A-Z][a-z]` and not `[A-Z]\w`: the same file re-exports the token
     // bridge (DURATION, EASE, …), and SCREAMING_CASE is how a value is told
@@ -120,7 +120,7 @@ describe("the vocabulary is closed", () => {
       "Reveal", "Stagger", "TextBlurIn", "ScrollTint", "LineDraw", "NodeLock",
       "CountUp", "Marquee", "PinnedTabs", "Lift", "Press", "CrossFade",
       "TrackFill", "SlideSwap", "InViewProgress", "ScrollSettle", "LineReveal",
-      "Depth", "Tilt", "Magnetic",
+      "Depth", "Tilt", "Magnetic", "ScrollStack",
     ]));
   });
 

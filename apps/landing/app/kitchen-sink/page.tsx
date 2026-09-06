@@ -20,6 +20,7 @@ import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
   InViewProgress, ScrollSettle, LineReveal, Depth, Tilt, Magnetic, useReduced,
+  ScrollStack, ScrollStackCard, ScrollStackMedia,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -282,6 +283,21 @@ export default function KitchenSink() {
 
       <Case n="18" name="Magnetic" rule="Кнопка тягнеться до курсору: зсув від центру × (0.18, 0.25) на пружині, назад у нуль при відведенні. Лише pointer:fine і вище md; кнопка шапки без цього.">
         <Magnetic><Press className="h-11 rounded-panel bg-action px-5 text-data font-medium text-action-fg">Обговорити пілот</Press></Magnetic>
+      </Case>
+
+      <Case n="19" name="ScrollStack" rule="Стек Fora: картка липне під шапкою; коли наступна доїжджає до 96px від верху, попередня стискається до .955, піднімається на 14px і йде під вуаль .7. Панель усередині медіа пливе y 14→−14 і нахиляється −3→2°. Лише wide, не reduced.">
+        <ScrollStack className="grid gap-4">
+          {["Вимога", "Фіксація", "Рішення"].map((t, i) => (
+            <ScrollStackCard key={t} index={i} count={3}>
+              <div className="grid min-h-64 overflow-hidden rounded-surface border border-line-strong bg-surface md:grid-cols-2">
+                <div className="p-6"><p className="index-label">0{i + 1} · {t}</p></div>
+                <div className="grid place-items-center border-t border-line bg-subtle p-6 [perspective:1200px] md:border-l md:border-t-0">
+                  <ScrollStackMedia className="rounded-panel border border-line-strong bg-surface px-4 py-3 text-data text-ink shadow-float">панель {t}</ScrollStackMedia>
+                </div>
+              </div>
+            </ScrollStackCard>
+          ))}
+        </ScrollStack>
       </Case>
     </main>
   );

@@ -1,7 +1,10 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { LineReveal, splitAccent, Depth, Tilt, Magnetic } from "@goproceed/ui/motion";
+import {
+  LineReveal, splitAccent, Depth, Tilt, Magnetic,
+  ScrollStack, ScrollStackCard, ScrollStackMedia,
+} from "@goproceed/ui/motion";
 
 vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
   useReduced: () => false,
@@ -54,5 +57,25 @@ describe("Magnetic", () => {
     expect(html).toContain('data-magnetic="off"');
     expect(html).toContain("inline-flex");
     expect(html).not.toMatch(/translate[XY]\(-?[1-9]/);
+  });
+});
+
+describe("ScrollStack", () => {
+  it("renders every card with its veil and media, unstuck and unscaled on the server", () => {
+    const html = renderToStaticMarkup(
+      <ScrollStack className="grid gap-4">
+        <ScrollStackCard index={0} count={2}><ScrollStackMedia><p>панель</p></ScrollStackMedia></ScrollStackCard>
+        <ScrollStackCard index={1} count={2}><p>друга</p></ScrollStackCard>
+      </ScrollStack>,
+    );
+    expect(html).toContain('data-scroll-stack="off"');
+    expect(html.match(/data-stack-card="\d"/g)).toEqual(['data-stack-card="0"', 'data-stack-card="1"']);
+    expect(html.match(/data-stack-veil=""/g)).toHaveLength(2);
+    expect(html).toContain('data-stack-media=""');
+    expect(html).not.toContain("sticky");
+    expect(html).not.toMatch(/scale\(0\.9/);
+  });
+  it("refuses a card outside a stack", () => {
+    expect(() => renderToStaticMarkup(<ScrollStackCard index={0} count={1}>x</ScrollStackCard>)).toThrow(/inside ScrollStack/);
   });
 });

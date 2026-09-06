@@ -29,6 +29,7 @@ export { LineReveal, splitAccent, type AccentWord } from "./LineReveal";
 export { Depth } from "./Depth";
 export { Tilt } from "./Tilt";
 export { Magnetic } from "./Magnetic";
+export { ScrollStack, ScrollStackCard, ScrollStackMedia } from "./ScrollStack";
 
 export { shouldReduce, useReduced } from "./use-reduced";
 export { DURATION, EASE, STAGGER, SPRING, BLUR, REDUCED } from "./tokens";
