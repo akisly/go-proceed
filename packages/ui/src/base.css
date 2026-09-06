@@ -241,6 +241,8 @@
 @utility duration-base { transition-duration: var(--gp-duration-base); }
 @utility duration-slow { transition-duration: var(--gp-duration-slow); }
 @utility duration-deliberate { transition-duration: var(--gp-duration-deliberate); }
+@utility duration-stately { transition-duration: var(--gp-duration-stately); }
+@utility duration-grand { transition-duration: var(--gp-duration-grand); }
 
 @theme {
   --animate-chip-in: gp-chip-in var(--gp-duration-fast) var(--gp-ease-out);

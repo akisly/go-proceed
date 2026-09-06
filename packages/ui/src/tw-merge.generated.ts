@@ -20,12 +20,12 @@ export const TW_MERGE_OVERRIDE = {
     leading: [{ leading: ["none", "tight", "display", "snug", "normal", "relaxed", isArbitraryValue, isArbitraryVariable] }],
     tracking: [{ tracking: ["tightest", "tighter", "tight", "normal", "wide", isArbitraryValue, isArbitraryVariable] }],
     rounded: [{ rounded: ["control", "field", "panel", "card", "surface", "section", "pill", "", "none", isArbitraryValue, isArbitraryVariable] }],
-    shadow: [{ shadow: ["raised", "overlay", "modal", "float", "", "none", isArbitraryValue, isArbitraryVariable] }],
+    shadow: [{ shadow: ["raised", "overlay", "modal", "float", "float-accent", "", "none", isArbitraryValue, isArbitraryVariable] }],
     ease: [{ ease: ["out", "enter", "emphatic", "soft", "overshoot", "linear", "initial", isArbitraryValue, isArbitraryVariable] }],
     // Durations are NAMED here, not numeric: `duration-fast` and
     // `duration-base` are the same property and must collapse, and stock
     // tailwind-merge only recognises `duration-<number>`.
-    duration: [{ duration: ["instant", "fast", "base", "slow", "marquee", "deliberate", isArbitraryValue, isArbitraryVariable] }],
+    duration: [{ duration: ["instant", "fast", "base", "slow", "marquee", "deliberate", "stately", "grand", isArbitraryValue, isArbitraryVariable] }],
     blur: [{ blur: ["chrome", "reveal", "", "none", isArbitraryValue, isArbitraryVariable] }],
   },
 } as const;

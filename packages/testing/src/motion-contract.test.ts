@@ -93,4 +93,19 @@ describe("the motion bridge is parsed, not retyped", () => {
     expect(base).toContain("transition-duration: 120ms !important");
     expect(bridge).toContain("duration: 0.12");
   });
+
+  it("carries the prototype-parity tokens (2026-09-06)", () => {
+    // Spec 2026-09-06 §5.3. Two durations for the prototype's entrance families,
+    // two springs for the pointer words, one accent shadow for the «now» card.
+    expect(src.primitive.duration.stately.value).toBe("900ms");
+    expect(src.primitive.duration.grand.value).toBe("1200ms");
+    expect(src.primitive.spring.tilt.value).toBe("stiffness 120, damping 20, mass 1");
+    expect(src.primitive.spring.magnetic.value).toBe("stiffness 150, damping 18, mass 0.5");
+    expect(src.shadow["float-accent"].layers).toHaveLength(2);
+    expect(src.shadow["float-accent"].layers[0].color.hex).toBe("#2B4BFF");
+    for (const name of ["stately", "grand"]) expect(bridge).toContain(`${name}: seconds(duration.${name})`);
+    for (const name of ["tilt", "magnetic"]) expect(bridge).toContain(`${name}: springOf(spring.${name})`);
+    // The yoyo loops are the second permitted use of the symmetric curve.
+    expect(src.primitive.ease.soft.ruling).toContain("yoyo");
+  });
 });
