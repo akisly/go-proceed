@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
-import { Reveal } from "@goproceed/ui/motion";
-import { AccentText } from "./accent-text";
+import { LineReveal, Reveal } from "@goproceed/ui/motion";
 
 /**
  * The prototype's `.head`: eyebrow and h2 on the left, the lead on the right,
@@ -20,15 +19,11 @@ export function SectionHead({
   return (
     <div className={layout === "split" ? "mb-8 grid gap-6 md:mb-12 wide:grid-cols-2 wide:items-end wide:gap-10" : "mb-8 grid gap-6 md:mb-12"}>
       <div>
-        <Reveal><p className="index-label">{eyebrow}</p></Reveal>
-        <Reveal>
-          <h2 className="display mt-3.5 max-w-[20ch] text-mkt-display-2 text-ink">
-            <AccentText text={title} accent={titleAccent} />
-          </h2>
-        </Reveal>
+        <Reveal size="stately"><p className="index-label">{eyebrow}</p></Reveal>
+        <LineReveal as="h2" text={title} accent={titleAccent} className="display mt-3.5 max-w-[20ch] text-mkt-display-2 text-ink" />
       </div>
       {(lead || children) && (
-        <Reveal>
+        <Reveal size="stately">
           {lead && <p className="measure text-mkt-lead leading-relaxed text-ink-secondary">{lead}</p>}
           {children}
         </Reveal>

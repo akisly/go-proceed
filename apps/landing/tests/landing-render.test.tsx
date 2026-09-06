@@ -1,9 +1,20 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import LandingPage from "../app/page";
 import { landingContent } from "../content/landing-content";
 import { PILOT_EMAIL } from "../content/pilot-request";
+
+// The full-page render exercises the hydrated, motion-enabled tree — the same
+// technique `ui-components.test.tsx` and `motion-parity.test.tsx` use — so
+// that scroll-linked words (ScrollTint's fade) and line-by-line headings
+// (LineReveal) render their animated markup rather than the SSR-conservative
+// fallback `useReduced()` forces before hydration. The dedicated reduced-motion
+// contract lives in `motion-parity-reduced.test.tsx` and is untouched by this.
+vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
+  useReduced: () => false,
+  shouldReduce: () => false,
+}));
 
 export const html = renderToStaticMarkup(<LandingPage />).replace(/&#x27;/g, "'");
 export const section = (id: string, next?: string) =>
@@ -235,8 +246,33 @@ describe("faq and cta", () => {
   });
   it("closes with the light card, the pilot link and the copy-link button", () => {
     const cta = section("cta-final");
-    expect(cta).toContain('data-accent="true">на одному пакеті робіт</span>');
+    // LineReveal marks the accent phrase word by word, not as one span.
+    const accentWords = landingContent.cta.titleAccent.split(" ");
+    expect(cta.match(/data-accent="true"/g)).toHaveLength(accentWords.length);
+    for (const word of accentWords) expect(cta).toContain(`data-accent="true" class="text-accent">${word}</span>`);
     expect(cta).toContain('href="#pilot"');
     expect(cta).toContain(landingContent.cta.share);
+  });
+});
+
+describe("prototype parity — headings and statements (2026-09-06)", () => {
+  it("sets every section heading line by line", () => {
+    // Eight h2.lines in the prototype: compare, roles, stages, capture, trust, pilot, faq, cta.
+    const h2s = html.match(/<h2[^>]*>/g) ?? [];
+    expect(h2s).toHaveLength(8);
+    expect(html.match(/<h2[^>]*><span class="sr-only">/g)).toHaveLength(8);
+  });
+  it("dims the quote's prefix and fades both statements by opacity", () => {
+    const position = section("position", "capture");
+    const prefixWords = landingContent.position.quoteDim.split(" ").length;
+    expect(position.match(/text-ink-muted/g)?.length).toBeGreaterThanOrEqual(prefixWords);
+    expect(position).toContain("opacity:0.14");
+    expect(section("problem", "compare")).toContain("opacity:0.14");
+  });
+  it("magnetises every marketing button but the header's", () => {
+    const magnetic = html.match(/data-magnetic="off"/g) ?? [];
+    // hero pill + 2, cta 2, pilot form 2 (the mail fallback renders only in the failed state)
+    expect(magnetic).toHaveLength(7);
+    expect(html.slice(0, html.indexOf('id="main-content"'))).not.toContain("data-magnetic");
   });
 });
