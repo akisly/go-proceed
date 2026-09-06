@@ -163,13 +163,15 @@ decoration, so the page reads as an instrument someone can trust, not a pitch.
 - Structure is a 1px line and a step of lightness between four background
   roles, not a shadow ladder. `shadow-float` is reserved for the handful of
   surfaces that genuinely lift off the page: the product frame, the receipt,
-  the pilot form, the route cards.
+  the pilot form, the route cards. Five shadows; `shadow-float-accent` is the
+  mark's colour under the one card that is the product's promise [2026-09-06].
 - Recognisable 21st.dev and Fora patterns — the announcement pill, the
   container-scroll product frame, the dot-pattern background, feature-grid
   cells, a bento layout, a sticky feature stack, a stepper — taken as
   structure and restyled in roles, never installed as a second system.
-- Motion is the shared sixteen-word vocabulary in `@goproceed/ui/motion`, with
-  exactly two scroll-linked elements on the page and never in the same fold.
+- Motion is the shared twenty-two-word vocabulary in `@goproceed/ui/motion`;
+  the scroll-linked compositions are the ones the landing spec names, one per
+  section.
 
 ## Colors
 
@@ -373,10 +375,17 @@ and the button shortens to «Пілот».
   anywhere in the system — cobalt is the only accent hue.
 - **Don't** reach for brutalism — no raw borders as decoration, no oversized
   display type, no deliberate roughness. The system is quiet by contract.
-- **Don't** use 3D, tilt, or pointer-driven perspective on any surface. The
-  product frame settles once on scroll entry; it never tracks the pointer.
-- **Don't** run any animation forever except the marquee — the Border Beam is
-  finite, two passes, and stops.
+- **Don't** build a 3D scene. Pointer tilt is permitted at ≤ 3° on a spring,
+  `pointer: fine` and desktop only, on the surfaces the landing spec names:
+  the product frame, the role cells, the channel cards
+  [Correction, 2026-09-06: was «Don't use 3D, tilt, or pointer-driven
+  perspective on any surface». The owner asked for the prototype «точь-в-точь»
+  — spec 2026-09-06 R2.]
+- **Don't** run any animation forever except the five named loops — the
+  marquee, the Border Beam, the review-dot pulse, the hero drift, the dashed
+  flow lines. Each is CSS, each stops under reduced motion
+  [Correction, 2026-09-06: was «except the marquee — the Border Beam is
+  finite».]
 - **Don't** imply status through colour alone, or claim a document is signed
   when it is a draft.
 - **Don't** put a testimonial, a price other than "free", a customer name, or

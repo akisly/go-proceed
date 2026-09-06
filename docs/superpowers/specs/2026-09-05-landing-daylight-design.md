@@ -61,7 +61,7 @@ the 2026-08-25 spec wherever they differ, and the content tests in §9 pin them:
 | F4 | **The web app is the office workplace** — ПТВ and the owner/manager. |
 | F5 | **Audience is subcontractors with hidden works of any trade** — «від монолітчиків до інженерних мереж», not electrical only. Every «електромонтаж…» qualifier of the audience goes; `W-014 · Монтаж кабельних трас` stays as the *example* work. |
 | F6 | **«Від автора» names no company.** First person, «Автор GoProceed · відповідаю протягом робочого дня». Name and photo arrive when the owner supplies them. |
-| F7 | **Style:** minimal UI/UX after recognisable 21st.dev components — Announcement pill, Container Scroll product frame with Border Beam, Dot Pattern background, Grid Feature Cards, Bento, Cta-4 — plus Fora's sticky feature stack. No brutalism, no 3D, no tilt. |
+| F7 | **Style:** minimal UI/UX after recognisable 21st.dev components — Announcement pill, Container Scroll product frame with Border Beam, Dot Pattern background, Grid Feature Cards, Bento, Cta-4 — plus Fora's sticky feature stack. No brutalism, no 3D, no tilt. [Corrected 2026-09-06: «no tilt» is withdrawn — pointer tilt ≤ 3° on the frame, the role cells and the channel cards, spec 2026-09-06 R2; «no brutalism, no 3D scene» stands.] |
 | F8 | **Heading accent is colour, not underline**: the key phrase in every h1/h2/h3 is set in `#5568DE` text. |
 | F9 | **Header**: permanent bottom hairline, links with an underline that slides in on hover and stays on the active section; four links in page order (Що зміниться · Для кого · Як працює · Питання) plus the ink button. Logo 28×28. |
 | F10 | **Favicon** is the mark on a white tile. |
@@ -156,6 +156,11 @@ the idle drift of the receipt and pills, the pulsing status dot, the animated
 dashed «flow» lines, and the perpetual Border Beam (kept, but **finite**: two
 passes after the frame settles, none under reduced motion — rule 4 permits
 only the marquee to run forever). `TODOS.md` records each with its reason.
+
+[Superseded 2026-09-06 by
+docs/superpowers/specs/2026-09-06-landing-prototype-parity-design.md: every
+item this decision dropped except Lenis is restored inside the vocabulary; the
+rules it rested on are amended there, §8.]
 
 ### D5 — Should `design-contest/` be tracked?
 
@@ -443,7 +448,7 @@ chat and the access matrix are one screen's domain picture each.
 | Header active link | `IntersectionObserver` in the `Nav` client leaf; the underline is a CSS `scaleX` transition |
 | FAQ open/close (GSAP height) | existing `Accordion` (`grid-template-rows`) |
 | Buttons hover `translateY(-1px)` | `Press` inside `Button` as today; no lift |
-| Lenis, parallax, tilt, magnetic, idle drift, pulsing dot, dashed flow | dropped (D4) |
+| Lenis, parallax, tilt, magnetic, idle drift, pulsing dot, dashed flow | dropped (D4) [2026-09-06: all restored but Lenis — see the parity spec §3] |
 
 The two scroll-linked elements are in different folds (hero; problem
 statement) — rule 9 holds.
@@ -466,11 +471,11 @@ renamed, with the marker CSS gone).
 
 | # | Prototype | Here | Reason |
 |---|---|---|---|
-| 7.1 | GSAP/Lenis choreography, tilt, magnetic, drift | see §6.2 and D4 | rules 4–5, F7 |
-| 7.2 | Beam runs forever | two passes on settle | rule 4 |
+| 7.1 | GSAP/Lenis choreography, tilt, magnetic, drift | see §6.2 and D4 | rules 4–5, F7 [withdrawn 2026-09-06, parity spec §3] |
+| 7.2 | Beam runs forever | two passes on settle | rule 4 [withdrawn 2026-09-06, parity spec §3] |
 | 7.3 | `--ink-3 #7A7E87` for captions and metadata (3.7:1 on paper) | `text-muted` is one step darker (`≈#5E626B`, ≥4.5:1 on every ground it lands on); `#7A7E87` is `text-subtle`, large/non-text only | `contrast.test.ts` — muted copy on canvas ≥ 4.5:1 |
 | 7.4 | «Заблоковано» tags in warn orange | `status-blocked` stays the app's red; the two blocked cards on the board read in red | one role, one meaning across app and landing; orange is «attention» there |
-| 7.5 | `.cmp-card.now` cobalt-tinted shadow | `shadow-float` (neutral) | four shadows, none coloured |
+| 7.5 | `.cmp-card.now` cobalt-tinted shadow | `shadow-float` (neutral) | four shadows, none coloured [withdrawn 2026-09-06, parity spec §3] |
 | 7.6 | breakpoints at 560/640/800/860/900/960/1180 | `md` 768 and `wide` 1240 | two breakpoints, by ruling |
 | 7.7 | 1180px column via `.wrap` | `container.marketing` 1180 | added as a token, not a literal |
 | 7.8 | Google Fonts CDN | self-hosted `@fontsource-variable/onest` | no third-party request; the repo's pattern |

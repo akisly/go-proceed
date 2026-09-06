@@ -12,8 +12,9 @@ describe("landing design contract", () => {
       </RootLayout>,
     );
 
-    expect(html).toContain('data-impeccable-contract="user-approved-daylight-2026-09-05"');
+    expect(html).toContain('data-impeccable-contract="user-approved-daylight-parity-2026-09-06"');
     expect(html).toContain("THESIS: The work is ready");
+    expect(html).toContain("FORM: Daylight parity");
     expect(html).toContain("FINISH: Unreviewed and undocumented is unfinished");
   });
 });

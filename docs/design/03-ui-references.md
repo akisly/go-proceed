@@ -144,15 +144,19 @@ The landing is built after recognisable community components from
 roles — no registry install, no pasted CSS variables, no raw hex (the same
 rule the dashboard applies to shadcn). Each block names its source:
 
-| Block | Pattern | What we take | What we do not |
-|---|---|---|---|
-| Hero pill | Announcement | badge + copy + arrow, `asChild` link | its gradient border |
-| Product frame | Container Scroll Animation + Border Beam | the tilt-and-settle entry (`ScrollSettle`), the ring of light (finite, two passes) | the perpetual beam; pointer tilt |
-| Background | Dot Pattern | the dot field with a radial mask | any animated variant |
-| Roles | Grid Feature Cards | 1px-gap cells, pointer spotlight | 3D hover |
-| Provenance | Bento Grid | a two-row cell beside two stacked cells | icon-led filler cells |
-| Route | Fora's sticky feature stack | five sticky cards, sides alternating | the scale/veil scrub (scroll-linked budget) |
-| Pilot plan | Steppers | vertical steps with a progress line | timed autoplay |
-| Closing | Cta-4 | light card, copy left, actions right | a second signal button |
+| Block | Pattern | What we take | What we do not | Source read 2026-09-06 · licence |
+|---|---|---|---|---|
+| Hero pill | Announcement | badge + copy + arrow, `asChild` link; magnetic on hover | its gradient border | 21st.dev `haydenbleasel/announcement` (kibo-ui) · MIT |
+| Product frame | Container Scroll Animation + Border Beam | the tilt-and-settle entry (`ScrollSettle`), the pointer lean (`Tilt`), the depth layers (`Depth`), the ring of light (infinite, CSS) | the dark bezel | Aceternity `container-scroll-animation` · Aceternity License (structure only, nothing copied); Magic UI `border-beam` · MIT |
+| Background | Dot Pattern | the dot field with a radial mask | the glow variant | Magic UI `dot-pattern` · MIT |
+| Roles | Grid Feature Cards | 1px-gap cells, pointer spotlight, pointer tilt ≤ 3° | — | 21st.dev `efferd/grid-feature-cards` · licence unstated (structure already ours) |
+| Provenance | Bento Grid | a two-row cell beside two stacked cells, staggered | icon-led filler cells | Magic UI `bento-grid` · MIT |
+| Route | Fora's sticky feature stack | five sticky cards, sides alternating, the scale/veil scrub and the media parallax (`ScrollStack`) | — | Aceternity `sticky-scroll-reveal` · Aceternity License (structure only) |
+| Pilot plan | Steppers / Timeline | vertical steps with a progress line scrubbed by the scroll (`ScrollProgress`) | timed autoplay | Aceternity `timeline` · Aceternity License (structure only) |
+| Closing | Cta-4 | light card, copy left, actions right | a second signal button | 21st.dev `shadcnblockscom/cta-4` · licence unstated (structure already ours) |
+| Headings | Text Generate Effect | per-word spans as the unit of a heading reveal; the line grouping is ours (`LineReveal`) | the blur | Aceternity `text-generate-effect` · Aceternity License (structure only) |
+| Pointer words | Magnetic, Tilt | the spring-driven follow and lean (`Magnetic`, `Tilt`) with our springs | their default springs | motion-primitives (`ibelick/motion-primitives`) · MIT |
 
-Spec: `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` §6.
+Spec: `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` §6, amended by
+`docs/superpowers/specs/2026-09-06-landing-prototype-parity-design.md` §3 and §7
+(the full source list with URLs).
