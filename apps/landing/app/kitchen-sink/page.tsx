@@ -262,7 +262,7 @@ export default function KitchenSink() {
         </ScrollSettle>
       </Case>
 
-      <Case n="17" name="LineReveal" rule="Заголовок виїжджає з масок рядок за рядком, 1200 мс, ease-out-expo, крок 80 мс. Рядки знаходяться за розкладкою (offsetTop), не SplitText; під reduced motion — один fade.">
+      <Case n="15" name="LineReveal" rule="Заголовок виїжджає з масок рядок за рядком, 1200 мс, ease-out-expo, крок 80 мс. Рядки знаходяться за розкладкою (offsetTop), не SplitText; під reduced motion — один fade.">
         <LineReveal as="p" className="display max-w-[20ch] text-mkt-display-2 text-ink" text="На нараді більше не сперечаються про те, що вже сховано" accent="що вже сховано" />
       </Case>
     </main>

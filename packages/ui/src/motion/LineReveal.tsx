@@ -67,7 +67,9 @@ export function LineReveal({
     const el = ref.current;
     if (!el) return;
     let frame = 0;
+    let alive = true;
     const measure = () => {
+      if (!alive) return;
       const spans = [...el.querySelectorAll<HTMLElement>("[data-word]")];
       const groups: number[][] = [];
       let top: number | null = null;
@@ -79,6 +81,7 @@ export function LineReveal({
       setLines(groups);
     };
     const remeasure = () => {
+      if (!alive) return;
       setLines(null);
       cancelAnimationFrame(frame);
       frame = requestAnimationFrame(measure);
@@ -87,7 +90,7 @@ export function LineReveal({
     const observer = new ResizeObserver(remeasure);
     observer.observe(el);
     document.fonts?.ready.then(remeasure);
-    return () => { observer.disconnect(); cancelAnimationFrame(frame); };
+    return () => { alive = false; observer.disconnect(); cancelAnimationFrame(frame); };
   }, [reduced, words]);
 
   const word = (i: number) => {
