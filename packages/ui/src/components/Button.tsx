@@ -72,8 +72,12 @@ export type ButtonSize = keyof typeof SIZE;
 /**
  * [2026-09-06] Every sized button lifts one pixel on hover over `duration.base`
  * on the emphatic curve — the prototype's `.btn:hover{transform:translateY(-1px)}`
- * (index.html l.526–528). Colour transitions move from `fast` to `base` with
- * it: one transition list, one duration (spec 2026-09-06 §6).
+ * (index.html l.526–528). Colour transitions move from `fast` (160ms) to `base`
+ * (240ms) with it: one transition list, one duration (spec 2026-09-06 §6, §10.9
+ * — this is a *deviation*, not parity: the prototype's own button colour
+ * transition stayed at .2s. `Button` is shared, so this also changes every
+ * button under `apps/app`, 80ms slower than before this slice, not only the
+ * landing's.]
  */
 const BASE =
   "inline-flex shrink-0 items-center justify-center gap-2 rounded-control " +

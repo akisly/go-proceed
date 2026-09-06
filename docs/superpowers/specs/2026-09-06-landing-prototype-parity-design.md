@@ -227,7 +227,8 @@ Publishes `--gp-progress` (0→1, four decimals) on its wrapper from
 - **`Reveal`** — gains `x?: number` (compare cards ±20) and `size?: "slow" |
   "stately" | "grand"` (default `slow`, unchanged for every existing caller).
 - **`StaggerItem`** — gains `from?: "rise" | "scale"` (`scale 0→1` for the
-  check marks, `ease.emphatic`); default `rise`, unchanged.
+  check marks, `ease.emphatic`); default `rise`, unchanged — and `size?`
+  (the prototype's list entrances, §6) [2026-09-06 final review].
 - **`Stagger`** — `step` keeps its three tokens; the prototype's .06/.1/.12
   map to `default`/`loose`/`loose` (§6).
 
@@ -405,6 +406,7 @@ files) and go into the PR beside the after-set.
 | 10.6 | sand `#FBF3E6` in `t2`/`t5` | `status-attention-surface` | no new colour role for a background gradient |
 | 10.7 | `[data-depth]` and tilt on every width above 900px | above `md` (768) | two breakpoints by ruling; the 768–900 band gets the desktop behaviour |
 | 10.8 | stack scrub above 900px | above `wide` (1240) | the cards are single-column below `wide` already (2026-09-05 §10); a scrub on a single column reads as jitter |
+| 10.9 | colour transitions on buttons at 160 ms | 240 ms on `ease.emphatic`, with the hover lift | one Tailwind `duration-*` carries the whole transition list; the lift needs `base`, and a second timing would need a second transition declaration. Affects `apps/app`'s buttons by 80 ms |
 
 Nothing else differs on purpose. Where the after-screenshots show a
 difference not in this table, that is a defect of the slice.

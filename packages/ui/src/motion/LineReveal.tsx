@@ -82,8 +82,22 @@ export function LineReveal({
     if (!el) return;
     let frame = 0;
     let alive = true;
-    const measure = () => {
-      if (!alive) return;
+    // `lastWidth` is the span's own width (`getBoundingClientRect().width`)
+    // at the last completed measurement, and `currentGroups` the line groups
+    // that measurement produced. Without this pair, two things replay the
+    // reveal from `y: 110%` for no visible reason: (1) `ResizeObserver` fires
+    // once, synchronously-scheduled, right after `observe()` — a spec-
+    // mandated initial callback, not a real resize — so mount alone would
+    // measure twice; (2) every later callback (a height-only reflow from
+    // unrelated content, or `fonts.ready` when the swapped font changes no
+    // break) would unmount the masks even though nothing about the lines
+    // changed. A width match short-circuits the resize path entirely; fonts
+    // can change breaks at an unchanged width, so that path always
+    // recomputes, but only unmounts when the recomputed groups actually
+    // differ from what is already rendered.
+    let lastWidth = -1;
+    let currentGroups: number[][] = [];
+    const computeGroups = (): number[][] => {
       const spans = [...el.querySelectorAll<HTMLElement>("[data-word]")];
       const groups: number[][] = [];
       let top: number | null = null;
@@ -92,7 +106,15 @@ export function LineReveal({
         if (top === null || Math.abs(t - top) > 1) { groups.push([i]); top = t; }
         else groups[groups.length - 1]!.push(i);
       });
-      setLines(groups);
+      return groups;
+    };
+    const groupsEqual = (a: number[][], b: number[][]) =>
+      a.length === b.length && a.every((g, i) => g.length === b[i]!.length && g.every((v, j) => v === b[i]![j]));
+    const measure = () => {
+      if (!alive) return;
+      lastWidth = el.getBoundingClientRect().width;
+      currentGroups = computeGroups();
+      setLines(currentGroups);
     };
     const remeasure = () => {
       if (!alive) return;
@@ -101,9 +123,19 @@ export function LineReveal({
       frame = requestAnimationFrame(measure);
     };
     measure();
-    const observer = new ResizeObserver(remeasure);
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width;
+      if (width !== undefined && width === lastWidth) return;
+      remeasure();
+    });
     observer.observe(el);
-    document.fonts?.ready.then(remeasure);
+    document.fonts?.ready.then(() => {
+      if (!alive) return;
+      const width = el.getBoundingClientRect().width;
+      const groups = computeGroups();
+      if (width === lastWidth && groupsEqual(groups, currentGroups)) return;
+      remeasure();
+    });
     return () => { alive = false; observer.disconnect(); cancelAnimationFrame(frame); };
   }, [reduced, words]);
 

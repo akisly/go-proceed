@@ -116,6 +116,15 @@ describe("changed words", () => {
     const html = renderToStaticMarkup(<Stagger delay={0.35} step="loose"><StaggerItem from="scale"><i /></StaggerItem></Stagger>);
     expect(html).toContain("scale(0)");
   });
+  it("StaggerItem takes the prototype's entrance sizes", () => {
+    expect(() => renderToStaticMarkup(<Stagger><StaggerItem size="grand"><i /></StaggerItem></Stagger>)).not.toThrow();
+  });
+  it("StaggerItem reads its rise duration from the size token", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(__dirname, "..", "..", "..", "packages", "ui", "src", "motion", "Stagger.tsx"), "utf8");
+    expect(src).toMatch(/DURATION\[size\]/);
+  });
 });
 
 describe("motion wrappers are boxes", () => {

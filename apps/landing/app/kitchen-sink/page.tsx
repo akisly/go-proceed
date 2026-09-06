@@ -148,7 +148,7 @@ export default function KitchenSink() {
         </p>
       </Case>
 
-      <Case n="07" name="Marquee" rule="Єдина вічна анімація в системі. CSS, не JS: у нескінченного лінійного зсуву немає стану. Пауза на hover, зупинка під reduced motion.">
+      <Case n="07" name="Marquee" rule="Одна з п'яти названих вічних анімацій (стрічка, промінь, пульс, дрейф, потік). CSS, не JS: у нескінченного лінійного зсуву немає стану. Пауза на hover, зупинка під reduced motion.">
         <Marquee className="rounded-panel border border-line bg-surface py-4">
           {CHAIN.concat(CHAIN).map((t, i) => (
             <span key={`${t}-${i}`} className="index-label px-8">{t}</span>
@@ -253,7 +253,7 @@ export default function KitchenSink() {
         </p>
       </Case>
 
-      <Case n="14" name="ScrollSettle" rule="Кадр продукту в'їжджає нахиленим і вирівнюється по скролу — 21st.dev Container Scroll. Другий і останній scroll-linked елемент сторінки; нижче md і під reduced motion кадр плаский одразу. Промінь по рамці робить два оберти після посадки і зупиняється: вічна анімація тут лише одна, і це стрічка.">
+      <Case n="14" name="ScrollSettle" rule="Кадр продукту в'їжджає нахиленим і вирівнюється по скролу — 21st.dev Container Scroll. Одна зі scroll-linked композицій, які називає спека паритету, по одній на секцію; нижче md і під reduced motion кадр плаский одразу. Промінь по рамці біжить нескінченно з першого кадру — одна з п'яти названих вічних анімацій.">
         <ScrollSettle className="mx-auto max-w-content">
           <div className="relative rounded-surface border border-line-strong bg-surface p-8 shadow-float">
             <i className="beam" aria-hidden="true" />

@@ -27,7 +27,7 @@ export function Position() {
             />
             <Stagger className="flex flex-wrap justify-center gap-2">
               {p.pills.map((pill) => (
-                <StaggerItem key={pill.text}>
+                <StaggerItem key={pill.text} size="stately">
                   <span data-position-pill={pill.kind} className="inline-flex h-(--gp-control-height-desk) items-center gap-2 rounded-pill border border-line-strong bg-surface pl-2.5 pr-3.5 text-data text-ink-secondary">
                     {ICON[pill.kind]}{pill.text}
                   </span>

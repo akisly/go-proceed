@@ -19,7 +19,7 @@ export function Roles() {
         <SectionHead eyebrow={r.eyebrow} title={r.title} titleAccent={r.titleAccent} lead={r.lead} />
         <FeatureGrid columns={4} stagger>
           {r.cells.map((cell) => (
-            <StaggerItem key={cell.id} y={20} className="grid [transform-style:preserve-3d]">
+            <StaggerItem key={cell.id} y={20} size="stately" className="grid [transform-style:preserve-3d]">
               <FeatureCell
                 icon={ICON[cell.id as keyof typeof ICON]}
                 title={cell.title}

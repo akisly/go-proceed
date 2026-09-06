@@ -17,7 +17,7 @@ export function Capture() {
         <SectionHead eyebrow={c.eyebrow} title={c.title} titleAccent={c.titleAccent} lead={c.lead} />
         <Stagger className="grid gap-3.5 md:grid-cols-3 [perspective:1600px]">
           {c.channels.map((ch) => (
-            <StaggerItem key={ch.id}>
+            <StaggerItem key={ch.id} size="grand" className="[transform-style:preserve-3d]">
               <SpotlightCard className="group relative isolate grid h-full grid-rows-[auto_1fr_auto] gap-4 overflow-hidden rounded-surface border border-line-strong bg-canvas p-5.5">
                 <p className="flex items-center justify-between"><span className="index-label">{ch.index}</span><Chip tone={ch.status.tone} dot pulse={ch.status.tone === "review"}>{ch.status.label}</Chip></p>
                 <div>

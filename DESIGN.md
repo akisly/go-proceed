@@ -172,6 +172,9 @@ decoration, so the page reads as an instrument someone can trust, not a pitch.
 - Motion is the shared twenty-two-word vocabulary in `@goproceed/ui/motion`;
   the scroll-linked compositions are the ones the landing spec names, one per
   section.
+  [Correction, 2026-09-06: was «Motion is the shared sixteen-word vocabulary
+  in @goproceed/ui/motion, with exactly two scroll-linked elements on the page
+  and never in the same fold» — rule 9 was rewritten by the parity spec §8.]
 
 ## Colors
 

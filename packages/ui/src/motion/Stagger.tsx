@@ -10,13 +10,13 @@ const container = (step: number, delay: number) => ({
   shown: { transition: { staggerChildren: step, delayChildren: 0.04 + delay } },
 });
 
-const child = (reduced: boolean, y: number, from: "rise" | "scale") => ({
+const child = (reduced: boolean, y: number, from: "rise" | "scale", size: "slow" | "stately" | "grand") => ({
   hidden: reduced ? { opacity: 0 } : from === "scale" ? { opacity: 0, scale: 0 } : { opacity: 0, y },
   shown: reduced
     ? { opacity: 1, transition: { duration: REDUCED.duration, ease: REDUCED.ease } }
     : from === "scale"
       ? { opacity: 1, scale: 1, transition: { duration: DURATION.deliberate, ease: EASE.emphatic } }
-      : { opacity: 1, y: 0, transition: { duration: DURATION.slow, ease: EASE.enter } },
+      : { opacity: 1, y: 0, transition: { duration: DURATION[size], ease: EASE.enter } },
 });
 
 /**
@@ -54,19 +54,24 @@ export function Stagger({
   );
 }
 
-/** One child of a <Stagger>. Wrap each sibling; it takes its timing from the parent. */
+/**
+ * One child of a <Stagger>. Wrap each sibling; it takes its timing from the parent.
+ *
+ * `size` mirrors `Reveal`'s — the prototype enters its lists at .9–1.2 s (spec §6).
+ */
 export function StaggerItem({
-  children, y = 16, from = "rise", className,
+  children, y = 16, from = "rise", size = "slow", className,
 }: {
   children: ReactNode;
   y?: number | undefined;
   /** `scale` — the check mark that pops from nothing (prototype `.cmp-card.now li i`, l.617), `ease.emphatic` over `duration.deliberate`. */
   from?: "rise" | "scale" | undefined;
+  size?: "slow" | "stately" | "grand" | undefined;
   className?: string | undefined;
 }) {
   const reduced = useReduced();
   return (
-    <motion.div className={className} variants={child(reduced, y, from)}>
+    <motion.div className={className} variants={child(reduced, y, from, size)}>
       {children}
     </motion.div>
   );

@@ -595,7 +595,7 @@
       "marquee": {
         "$type": "duration",
         "$value": "35s",
-        "$description": "One full pass of the logo/proof ribbon. Folio's measured value on the same device (35s and 40.25s on two tracks). Long enough that it reads as ambient rather than as something demanding to be watched, and the only perpetual animation the system permits — it pauses on hover and freezes entirely under prefers-reduced-motion."
+        "$description": "One full pass of the logo/proof ribbon. Folio's measured value on the same device (35s and 40.25s on two tracks). Long enough that it reads as ambient rather than as something demanding to be watched, and the only perpetual animation the system permits — it pauses on hover and freezes entirely under prefers-reduced-motion. [2026-09-06: one of the five named perpetual loops now — marquee, beam, pulse, drift, flow; spec 2026-09-06 §5.1]"
       },
       "deliberate": {
         "$type": "duration",

@@ -18,7 +18,7 @@ export function Pilot() {
             </Stepper>
             <Stagger className="mt-2 grid gap-3.5 md:grid-cols-2">
               {boxes.map((box, i) => (
-                <StaggerItem key={box.title} className={i === 2 ? "md:col-span-2" : ""}>
+                <StaggerItem key={box.title} size="stately" className={i === 2 ? "md:col-span-2" : ""}>
                   <div className="grid h-full gap-1.5 rounded-card border border-line-strong bg-surface px-4 py-3.5 text-data text-ink-secondary">
                     <b className="font-semibold text-ink">{box.title}</b>
                     {box.items.map((t) => <span key={t}>· {t}</span>)}

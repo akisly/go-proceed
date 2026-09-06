@@ -29,7 +29,7 @@ export function Board() {
             </div>
             <Stagger delay={0.7} className="grid gap-2">
               {col.cards.map((card) => (
-                <StaggerItem key={card.code}>
+                <StaggerItem key={card.code} size="stately">
                   <article
                     data-board-card={card.selected ? "selected" : "card"}
                     className={card.selected

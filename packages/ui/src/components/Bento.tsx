@@ -53,5 +53,5 @@ export function BentoCell({
       {children}
     </article>
   );
-  return stagger ? <StaggerItem y={30} className={cx("grid", span === "rows-2" && "md:row-span-2")}>{article}</StaggerItem> : article;
+  return stagger ? <StaggerItem y={30} size="stately" className={cx("grid", span === "rows-2" && "md:row-span-2")}>{article}</StaggerItem> : article;
 }
