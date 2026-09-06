@@ -41,20 +41,13 @@ const TONE = {
   now: "border-line-accent bg-surface shadow-float-accent md:-translate-y-3",
 } as const;
 
-/** The check mark, in either state — extracted so `CompareCard` can wrap it in
- * a `StaggerItem` on demand without duplicating the two branches. */
 function Row({ row, now, pop }: { row: CompareRow; now: boolean; pop: boolean }) {
-  const check = (
-    <span className="grid size-5 place-items-center rounded-pill border border-status-ready-fg text-status-ready-fg">
-      <Check aria-hidden="true" strokeWidth={2} className="size-3" />
-    </span>
-  );
   return (
     <li
       data-compare-row={row.key}
       className="grid min-h-24 grid-cols-[20px_1fr] gap-3 border-t border-line px-5 py-3.5 transition-colors duration-fast ease-out first:border-t-0"
     >
-      {now ? (pop ? <StaggerItem from="scale" className="mt-0.5 grid size-5">{check}</StaggerItem> : check) : <span aria-hidden="true" className="mt-0.5 size-5 rounded-pill border border-line-strong bg-[linear-gradient(135deg,transparent_44%,var(--gp-border-strong)_44%_56%,transparent_56%)]" />}
+      {now ? (pop ? <StaggerItem from="scale" className="mt-0.5 grid size-5"><span className="grid size-5 place-items-center rounded-pill border border-status-ready-fg text-status-ready-fg"><Check aria-hidden="true" strokeWidth={2} className="size-3" /></span></StaggerItem> : <span className="mt-0.5 grid size-5 place-items-center rounded-pill border border-status-ready-fg text-status-ready-fg"><Check aria-hidden="true" strokeWidth={2} className="size-3" /></span>) : <span aria-hidden="true" className="mt-0.5 size-5 rounded-pill border border-line-strong bg-[linear-gradient(135deg,transparent_44%,var(--gp-border-strong)_44%_56%,transparent_56%)]" />}
       <div>
         <p className={cx("text-data font-semibold", now ? "text-ink" : "text-ink-secondary")}>{row.question}</p>
         <p className={cx("text-data leading-relaxed", now ? "text-ink-secondary" : "text-ink-muted")}>{row.answer}</p>

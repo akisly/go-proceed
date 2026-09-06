@@ -198,8 +198,10 @@ describe("prototype parity — components (2026-09-06)", () => {
     const still = renderToStaticMarkup(<CompareCard tone="now" eyebrow="З GoProceed" title="Один запис" rows={rows} outcome="Акт не повертають." />);
     expect(still).toContain("shadow-float-accent");
     expect(still).not.toContain("scale(0)");
+    expect(still).toMatch(/class="mt-0\.5 grid size-5 place-items-center rounded-pill border border-status-ready-fg/);
     const popping = renderToStaticMarkup(<CompareCard tone="now" eyebrow="З GoProceed" title="Один запис" rows={rows} outcome="Акт не повертають." animateChecks />);
     expect(popping).toContain("scale(0)");
+    expect(popping).toMatch(/class="mt-0\.5 grid size-5"/);
   });
   it("FeatureCell leans, FeatureGrid supplies the perspective", () => {
     const html = renderToStaticMarkup(<FeatureGrid columns={4}><FeatureCell title="ПТВ">біль</FeatureCell></FeatureGrid>);
