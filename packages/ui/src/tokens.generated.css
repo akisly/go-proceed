@@ -130,6 +130,8 @@
   --gp-duration-slow: 400ms;
   --gp-duration-marquee: 35s;
   --gp-duration-deliberate: 640ms;
+  --gp-duration-stately: 900ms;
+  --gp-duration-grand: 1200ms;
   /* primitive — ease */
   --gp-ease-out: cubic-bezier(0.25, 0.46, 0.45, 0.94);
   --gp-ease-enter: cubic-bezier(0.165, 0.84, 0.44, 1);
@@ -143,6 +145,8 @@
   /* primitive — spring */
   --gp-spring-reveal: stiffness 100, damping 20, mass 1;
   --gp-spring-press: stiffness 400, damping 30, mass 1;
+  --gp-spring-tilt: stiffness 120, damping 20, mass 1;
+  --gp-spring-magnetic: stiffness 150, damping 18, mass 0.5;
   /* primitive — blur */
   --gp-blur-chrome: 20px;
   --gp-blur-reveal: 6px;
@@ -151,6 +155,7 @@
   --gp-shadow-overlay: 0px 12px 30px -16px rgba(21, 22, 26, 0.35);
   --gp-shadow-modal: 0px 8px 24px 0px rgba(21, 22, 26, 0.08), 0px 24px 64px 0px rgba(21, 22, 26, 0.12);
   --gp-shadow-float: 0px 20px 50px -30px rgba(21, 22, 26, 0.22), 0px 1px 2px 0px rgba(21, 22, 26, 0.05);
+  --gp-shadow-float-accent: 0px 30px 70px -40px rgba(43, 75, 255, 0.35), 0px 1px 2px 0px rgba(21, 22, 26, 0.05);
   /* semantic roles — light */
   --gp-bg-canvas: var(--gp-neutral-25);
   --gp-bg-surface: var(--gp-neutral-0);

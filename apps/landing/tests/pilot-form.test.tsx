@@ -8,6 +8,24 @@ import { PilotForm } from "../components/blocks/pilot-form";
 import { landingContent } from "../content/landing-content";
 import { PILOT_EMAIL } from "../content/pilot-request";
 
+// jsdom implements no media queries at all. The submit and copy buttons are
+// now wrapped in `Magnetic`, whose `usePointerFine`/`useBelowBreakpoint` gates
+// call `window.matchMedia` unconditionally in an effect — harmless in the
+// `renderToStaticMarkup` tests (effects never run there) but this file mounts
+// with `render()`, which does. The stub reports no fine pointer and no
+// breakpoint match, so the gates resolve to their off state, same as every
+// other test on this page.
+window.matchMedia ??= ((query: string) => ({
+  matches: false,
+  media: query,
+  onchange: null,
+  addEventListener: () => {},
+  removeEventListener: () => {},
+  addListener: () => {},
+  removeListener: () => {},
+  dispatchEvent: () => false,
+})) as unknown as typeof window.matchMedia;
+
 afterEach(cleanup);
 
 const f = landingContent.pilot.form;

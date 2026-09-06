@@ -4,7 +4,8 @@ import type { ReactNode } from "react";
 import { useReduced } from "./use-reduced";
 
 /**
- * The proof ribbon. The ONLY perpetual animation in the system.
+ * The proof ribbon. One of the five named perpetual animations (spec
+ * 2026-09-06 §5.1); until 2026-09-06 the only one.
  *
  * CSS, not Motion: an infinite linear translate has no state, no gesture and
  * no scroll binding, so running it through a JS animation loop buys nothing

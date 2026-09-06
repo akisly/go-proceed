@@ -15,10 +15,10 @@ import "./globals.css";
 
 const DESIGN_CONTRACT = `<!--
 THESIS: The work is ready for acceptance when the proof is in place; the page shows one work package travelling from requirement to draft act.
-OWN-WORLD: Warm paper, cool ink, one cobalt mark; Onest and JetBrains Mono; recognisable 21st.dev blocks, no brutalism, no 3D.
+OWN-WORLD: Warm paper, cool ink, one cobalt mark; Onest and JetBrains Mono; recognisable 21st.dev blocks, no brutalism, pointer tilt within 3°, no 3D scenes.
 STORY: Problem (Рис. 01) → було і стало → roles → the five-card route → position → capture channels → provenance → the free pilot → questions → CTA.
 FIRST VIEWPORT: One promise, three entry facts, the product frame settling into the page.
-FORM: Daylight, design-contest/daylight iteration nine, owner-approved 2026-09-05.
+FORM: Daylight parity — every animation design-references/contest-2026-09/daylight/index.html performs except Lenis, owner-approved 2026-09-06; the 2026-09-05 composition unchanged.
 FINISH: Unreviewed and undocumented is unfinished; the build ends with the seven-width QA pass and DESIGN.md.
 -->`;
 
@@ -45,7 +45,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="uk" data-theme="light">
       <body className="landing-body">
         <template
-          data-impeccable-contract="user-approved-daylight-2026-09-05"
+          data-impeccable-contract="user-approved-daylight-parity-2026-09-06"
           dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }}
         />
         <div aria-hidden="true" className="landing-dot-field" />

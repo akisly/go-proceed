@@ -151,6 +151,7 @@ nothing, fails a test, or silently drops a class.
 | `<AnimatePresence custom={dir}>` | `SlideSwap` | Rule 5, build failure |
 | a state-driven `motion.span` progress line | `TrackFill` | Rule 5; `LineDraw` is the scroll one |
 | `useTransform` in a landing visual | `InViewProgress` + `calc(var(--gp-progress))` | Rule 5 |
+| `onPointerMove` + `style.transform` for a lean or a pointer follow | `Tilt` / `Magnetic` | Rule 5; and the gates (pointer:fine, `md`, reduced) live in the word, not in the caller |
 | `text-accent` on body copy | `text-accent` only inside a display heading | It clears 3:1, not 4.5:1 — large text only |
 | `h-11` on a marketing control | `size="lg"` on `Button`; `h-(--gp-control-height-marketing)` on an input | The literal stops tracking the token |
 | a lime fill, `bg-signal` as decoration | `bg-action-signal` on at most one action, or ink | The mark is cobalt since 2026-09-05 and the landing uses none |
@@ -161,7 +162,7 @@ nothing, fails a test, or silently drops a class.
 packages/tokens/src/tokens.json      every value, the only hand-edited token file
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
-packages/ui/src/motion/              the sixteen motion primitives, and nothing else
+packages/ui/src/motion/              the twenty-two motion primitives, and nothing else
 packages/ui/src/components/          the twenty-seven components, and nothing else
 apps/landing/app/                    routes and the fourteen landing blocks
 apps/app/app/                        the product shell and its screens
@@ -182,13 +183,26 @@ Terse on purpose; each is enforced by a named test.
 3. No hand-edited hex in `tokens.json`; edit the OKLCH triple → `palette-derivation`
 4. No `motion/react` import outside `packages/ui/src/motion` → `motion-audit` 5
 5. No `transition: all`, no layout-property transition, no `ease-in`, no
-   perpetual animation but the marquee → `motion-audit` 1–4
+   perpetual animation outside the five loops named in `motion-audit.mjs`'s
+   `PERPETUAL_ALLOWLIST` → `motion-audit` 1–4
+   [Correction, 2026-09-06: until this date the rule read «no perpetual
+   animation but the marquee». The landing parity slice
+   (`docs/superpowers/specs/2026-09-06-landing-prototype-parity-design.md` §5.1)
+   restored the prototype's Border Beam, review-dot pulse, receipt/pill drift
+   and dashed «flow» lines, so the allowlist names five loops and a test pins
+   the list. A sixth is a §7.3 decision.]
 6. No hard-coded control height, no inline-style colour, no raw hex, no
    per-component focus ring, no `destructive` button variant → `component-contract`
 7. No literal Tailwind class string inside a test — assemble at runtime, or
    Tailwind emits your fixture as production CSS
 8. Reduced motion is a **different** animation, never a faster one
-9. At most two scroll-linked elements per page, and never in one fold
+9. Scroll-linked compositions are the ones the landing spec's block table
+   names — one per section, each driven by one scroll source, none below `md`
+   (`wide` for the sticky stack), none under reduced motion
+   [Correction, 2026-09-06: was «At most two scroll-linked elements per page,
+   and never in one fold». The parity spec §3 names them: the hero (settle +
+   depth), the problem statement, the route stack, the position quote, the
+   pilot stepper. Adding one is a spec change, not a prop.]
 10. At most one `bg-action-signal` per screen *(corrected 2026-09-05: was «exactly one»; the Daylight landing's primary is ink and carries none)*
 
 ---
@@ -315,6 +329,12 @@ One line each. Every one of these shipped or nearly shipped.
   consistent everywhere. Only the visual pass catches that class.
 - **`text-align` is inert on an inline box.** Assert the rendered result — shared
   right edges — never the declaration.
+- **A Motion wrapper on `display: contents` never intersects.** A
+  `Stagger`/`Reveal`/`StaggerItem` given `className="contents"` has no box, so
+  IntersectionObserver never fires and its `whileInView` never runs — the hero
+  pills and the compare checks stayed hidden for a whole slice.
+  `apps/landing/tests/motion-parity.test.tsx` («motion wrappers are boxes»)
+  scans for it.
 
 ---
 

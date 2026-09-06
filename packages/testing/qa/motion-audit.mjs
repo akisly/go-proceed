@@ -21,9 +21,11 @@
  * 3. **No ease-in.** Ease-in stalls the first frame, which is the frame being
  *    watched. The system has five easings and all of them are ease-out or
  *    symmetric.
- * 4. **No perpetual animation outside the marquee.** One ambient animation per
- *    product is a decision; two is a habit.
- * 5. **Motion for React is imported only by the sixteen primitives.** Every rule
+ * 4. **No perpetual animation outside the five named loops (marquee, beam,
+ *    pulse, drift, flow).** One ambient animation per product was the
+ *    2026-08-19 decision; the 2026-09-06 parity spec names four more, and
+ *    names them so a sixth cannot arrive unnoticed.
+ * 5. **Motion for React is imported only by the twenty-two primitives.** Every rule
  *    above, plus reveal-fires-once and reduced-motion-is-a-different-animation,
  *    holds because it lives inside those files. A hand-written `motion.div` in
  *    a block is a rule that has to be remembered instead of one that holds.
@@ -66,8 +68,14 @@ export const EXCLUDED = [];
  * or a screen reaching past the vocabulary. */
 const MOTION_HOME = "packages/ui/src/motion";
 
-/** The one perpetual animation. */
-const PERPETUAL_ALLOWLIST = [/gp-marquee/, /marquee-track/];
+/**
+ * The five perpetual animations, by keyframe name. Until 2026-09-06 this held
+ * the marquee alone; the landing parity slice (spec 2026-09-06 §5.1) adds the
+ * prototype's four ambient loops — the Border Beam, the review-dot pulse, the
+ * receipt/pill drift and the dashed «flow» lines. A sixth is a decision
+ * (02-building-ui §7.3), which is why the list is exported and pinned by a test.
+ */
+export const PERPETUAL_ALLOWLIST = [/gp-marquee/, /marquee-track/, /gp-beam/, /gp-pulse/, /gp-drift/, /gp-flow/];
 
 const EXT = [".ts", ".tsx", ".js", ".jsx", ".css", ".mjs"];
 
@@ -153,7 +161,7 @@ export function auditMotion(repoRoot) {
       // 4 — perpetual animation
       for (const m of text.matchAll(/animation(?:-iteration-count)?\s*:[^;}]*\binfinite\b[^;}]*/g)) {
         if (!PERPETUAL_ALLOWLIST.some((re) => re.test(m[0]))) {
-          findings.push(`${at(m.index)}: perpetual animation outside the marquee — \`${m[0].trim().slice(0, 60)}\``);
+          findings.push(`${at(m.index)}: perpetual animation outside the named loops — \`${m[0].trim().slice(0, 60)}\``);
         }
       }
 

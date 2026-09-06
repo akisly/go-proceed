@@ -25,7 +25,7 @@ const TONE = {
 export type ChipTone = keyof typeof TONE;
 
 export function Chip({
-  tone = "idle", children, className, interactive = false, dot = false,
+  tone = "idle", children, className, interactive = false, dot = false, pulse = false,
 }: {
   tone?: ChipTone | undefined;
   children: ReactNode;
@@ -34,6 +34,8 @@ export function Chip({
   interactive?: boolean | undefined;
   /** A leading dot in the chip's own colour — the landing's status tags carry one. Never the only signal: the label still names the state. */
   dot?: boolean | undefined;
+  /** The dot breathes (prototype `.tag.rv::before`, index.html l.112): 1.6s, opacity .3↔1, scale .8↔1.1. One of the five named perpetual loops; the landing passes it for review-tone tags, the app never does. Needs `dot`. */
+  pulse?: boolean | undefined;
 }) {
   return (
     <span
@@ -46,7 +48,7 @@ export function Chip({
         className,
       )}
     >
-      {dot && <i aria-hidden="true" data-chip-dot="true" className="size-1.5 shrink-0 rounded-pill bg-current opacity-80" />}
+      {dot && <i aria-hidden="true" data-chip-dot="true" className={pulse ? "pulse-dot size-1.5 shrink-0 rounded-pill bg-current opacity-80" : "size-1.5 shrink-0 rounded-pill bg-current opacity-80"} />}
       {children}
     </span>
   );

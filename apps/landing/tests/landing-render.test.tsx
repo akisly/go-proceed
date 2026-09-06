@@ -1,9 +1,20 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import LandingPage from "../app/page";
 import { landingContent } from "../content/landing-content";
 import { PILOT_EMAIL } from "../content/pilot-request";
+
+// The full-page render exercises the hydrated, motion-enabled tree — the same
+// technique `ui-components.test.tsx` and `motion-parity.test.tsx` use — so
+// that scroll-linked words (ScrollTint's fade) and line-by-line headings
+// (LineReveal) render their animated markup rather than the SSR-conservative
+// fallback `useReduced()` forces before hydration. The dedicated reduced-motion
+// contract lives in `motion-parity-reduced.test.tsx` and is untouched by this.
+vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
+  useReduced: () => false,
+  shouldReduce: () => false,
+}));
 
 export const html = renderToStaticMarkup(<LandingPage />).replace(/&#x27;/g, "'");
 export const section = (id: string, next?: string) =>
@@ -56,12 +67,24 @@ describe("the Daylight page — skeleton", () => {
 
 describe("hero and sources", () => {
   const hero = section("hero", "sources");
-  it("opens with the pill, the accented promise, two actions and three facts", () => {
-    expect(hero).toContain('data-slot="pill"');
-    expect(hero).toContain('data-accent="true">доказ</span>');
-    expect(hero).toContain('href="#pilot"');
-    expect(hero).toContain('href="#compare"');
+  it("opens with the pill, the promise line by line, two magnetic actions and three facts", () => {
+    expect(hero).toContain(landingContent.hero.pill.badge);
+    expect(hero.match(/<h1/g)).toHaveLength(1);
+    // LineReveal: the h1 text once for readers, once as words; the accent marked.
+    expect(hero).toContain(`class="sr-only">${landingContent.hero.title}<`);
+    expect(hero.match(/data-accent="true"/g)?.length).toBeGreaterThanOrEqual(1);
+    expect(hero.match(/data-magnetic="off"/g)).toHaveLength(3); // pill + two buttons
     for (const f of landingContent.hero.facts) expect(hero).toContain(f.value);
+  });
+  it("layers the receipt and the two pills at depth, tilts the board and pulses the review tags", () => {
+    expect(hero).toContain('data-depth="-0.3"');
+    expect(hero).toContain('data-depth="0.35"');
+    expect(hero).toContain('data-depth="0.25"');
+    expect(hero.match(/data-tilt="off"/g)).toHaveLength(1);
+    expect(hero.match(/pulse-dot/g)).toHaveLength(2); // the two review cards on the board
+    expect(hero).toContain("drift-a");
+    expect(hero).toContain("drift-b");
+    expect(hero).toContain("drift-c");
   });
   it("shows the board with three columns, the selected card, the receipt and the beam", () => {
     expect(hero).toContain('aria-label="Стан пакету робіт у веб-застосунку GoProceed"');
@@ -223,8 +246,70 @@ describe("faq and cta", () => {
   });
   it("closes with the light card, the pilot link and the copy-link button", () => {
     const cta = section("cta-final");
-    expect(cta).toContain('data-accent="true">на одному пакеті робіт</span>');
+    // LineReveal marks the accent phrase word by word, not as one span.
+    const accentWords = landingContent.cta.titleAccent.split(" ");
+    expect(cta.match(/data-accent="true"/g)).toHaveLength(accentWords.length);
+    for (const word of accentWords) expect(cta).toContain(`data-accent="true" class="text-accent">${word}</span>`);
     expect(cta).toContain('href="#pilot"');
     expect(cta).toContain(landingContent.cta.share);
+  });
+});
+
+describe("prototype parity — headings and statements (2026-09-06)", () => {
+  it("sets every section heading line by line", () => {
+    // Eight h2.lines in the prototype: compare, roles, stages, capture, trust, pilot, faq, cta.
+    const h2s = html.match(/<h2[^>]*>/g) ?? [];
+    expect(h2s).toHaveLength(8);
+    expect(html.match(/<h2[^>]*><span class="sr-only">/g)).toHaveLength(8);
+  });
+  it("dims the quote's prefix and fades both statements by opacity", () => {
+    const position = section("position", "capture");
+    const prefixWords = landingContent.position.quoteDim.split(" ").length;
+    expect(position.match(/text-ink-muted/g)?.length).toBeGreaterThanOrEqual(prefixWords);
+    expect(position).toContain("opacity:0.14");
+    expect(section("problem", "compare")).toContain("opacity:0.14");
+  });
+  it("magnetises every marketing button but the header's", () => {
+    const magnetic = html.match(/data-magnetic="off"/g) ?? [];
+    // hero pill + 2, cta 2, pilot form 2 (the mail fallback renders only in the failed state)
+    expect(magnetic).toHaveLength(7);
+    expect(html.slice(0, html.indexOf('id="main-content"'))).not.toContain("data-magnetic");
+  });
+});
+
+describe("prototype parity — compare, roles, provenance (2026-09-06)", () => {
+  it("slides the two compare cards in from their sides and pops the checks", () => {
+    const compare = section("compare", "roles");
+    expect(compare).toContain("translateX(-20px)");
+    expect(compare).toContain("translateX(20px)");
+    expect(compare.match(/scale\(0\)/g)).toHaveLength(landingContent.compare.now.rows.length);
+    expect(compare).toContain("shadow-float-accent");
+  });
+  it("staggers the four role cells, each leaning", () => {
+    const roles = section("roles", "stages");
+    expect(roles.match(/data-tilt="off"/g)).toHaveLength(4);
+    expect(roles.match(/data-slot="feature-cell"/g)).toHaveLength(4);
+  });
+  it("staggers the three bento cells", () => {
+    const trust = section("trust", "pilot");
+    expect(trust.match(/data-slot="bento-cell"/g)).toHaveLength(3);
+  });
+});
+
+describe("prototype parity — route and capture (2026-09-06)", () => {
+  const route = section("stages", "position");
+  const capture = section("capture", "trust");
+  it("stacks the five route cards in one ScrollStack, each media half tinted, glowing and leaning", () => {
+    expect(route).toContain('data-scroll-stack="off"');
+    expect(route.match(/data-stack-card="\d"/g)).toHaveLength(5);
+    expect(route.match(/data-stack-media=""/g)).toHaveLength(5);
+    for (const n of [1, 2, 3, 4, 5]) expect(route).toContain(`media-tint-${n}`);
+    expect(route.match(/media-glow-/g)).toHaveLength(5);
+    expect(route).not.toContain("landing-route-card");
+  });
+  it("tilts the three channel cards, pulses the pilot chip and flows the dashes to one record", () => {
+    expect(capture.match(/data-tilt="off"/g)).toHaveLength(3);
+    expect(capture.match(/pulse-dot/g)).toHaveLength(1);
+    expect(capture.match(/flow-dash/g)).toHaveLength(3);
   });
 });

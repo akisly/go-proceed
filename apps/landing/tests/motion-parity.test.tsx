@@ -1,0 +1,148 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import {
+  LineReveal, splitAccent, Depth, Tilt, Magnetic,
+  ScrollStack, ScrollStackCard, ScrollStackMedia, ScrollProgress,
+  ScrollTint, Reveal, Stagger, StaggerItem,
+} from "@goproceed/ui/motion";
+import { Stepper, Step } from "@goproceed/ui/components";
+
+vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
+  useReduced: () => false,
+  shouldReduce: () => false,
+}));
+
+describe("LineReveal", () => {
+  const text = "На нараді більше не сперечаються";
+  it("renders the text once for readers and once as flat words before measurement, the accent marked", () => {
+    const html = renderToStaticMarkup(<LineReveal as="h2" text={text} accent="не сперечаються" />);
+    expect(html.startsWith("<h2")).toBe(true);
+    expect(html).toContain(`class="sr-only">${text}<`);
+    expect(html.match(/data-word=""/g)).toHaveLength(5);
+    expect(html.match(/data-accent="true"/g)).toHaveLength(2);
+    // The masks arrive after layout measurement; the server never sends them.
+    expect(html).not.toContain("data-line");
+    // Separators sit between word spans, never inside one (the ScrollTint lesson).
+    const visible = html.slice(html.indexOf('aria-hidden="true"'));
+    expect(visible).not.toMatch(/\s<\/span>/);
+    expect(visible.match(/<\/span> <span/g)).toHaveLength(4);
+  });
+  it("marks accent words by their position in the sentence", () => {
+    expect(splitAccent("Робота готова, коли доказ на місці.", "доказ").map((w) => w.accent))
+      .toEqual([false, false, false, true, false, false]);
+    expect(splitAccent("Без акценту").every((w) => !w.accent)).toBe(true);
+  });
+  it("renders the same two children in the animated branch: sr-only text, then the observed aria-hidden span", () => {
+    const html = renderToStaticMarkup(<LineReveal as="h2" text="На нараді більше не сперечаються" />);
+    expect(html).toMatch(/^<h2[^>]*><span class="sr-only">[^<]*<\/span><span aria-hidden="true">/);
+  });
+});
+
+describe("Depth", () => {
+  it("renders one wrapper carrying its depth and no offset on the server", () => {
+    const html = renderToStaticMarkup(<Depth depth={-0.3} className="absolute"><span>квитанція</span></Depth>);
+    expect(html).toContain('data-depth="-0.3"');
+    expect(html).toContain('class="absolute');
+    expect(html).not.toMatch(/translateY\(-?[1-9]/);
+  });
+});
+
+describe("Tilt", () => {
+  it("is off on the server and carries no rotation", () => {
+    const html = renderToStaticMarkup(<Tilt maxX={2.5} maxY={3}><article>картка</article></Tilt>);
+    expect(html).toContain('data-tilt="off"');
+    expect(html).not.toMatch(/rotate[XY]\(-?[1-9]/);
+    expect(html).toContain("<article>картка</article>");
+  });
+});
+
+describe("Magnetic", () => {
+  it("wraps a control inline, off on the server, no offset", () => {
+    const html = renderToStaticMarkup(<Magnetic><button type="button">Обговорити пілот</button></Magnetic>);
+    expect(html).toContain('data-magnetic="off"');
+    expect(html).toContain("inline-flex");
+    expect(html).not.toMatch(/translate[XY]\(-?[1-9]/);
+  });
+});
+
+describe("ScrollStack", () => {
+  it("renders every card with its veil and media, unstuck and unscaled on the server", () => {
+    const html = renderToStaticMarkup(
+      <ScrollStack className="grid gap-4">
+        <ScrollStackCard index={0} count={2}><ScrollStackMedia><p>панель</p></ScrollStackMedia></ScrollStackCard>
+        <ScrollStackCard index={1} count={2}><p>друга</p></ScrollStackCard>
+      </ScrollStack>,
+    );
+    expect(html).toContain('data-scroll-stack="off"');
+    expect(html.match(/data-stack-card="\d"/g)).toEqual(['data-stack-card="0"', 'data-stack-card="1"']);
+    expect(html.match(/data-stack-veil=""/g)).toHaveLength(2);
+    expect(html).toContain('data-stack-media=""');
+    expect(html).not.toContain("sticky");
+    expect(html).not.toMatch(/scale\(0\.9/);
+  });
+  it("refuses a card outside a stack", () => {
+    expect(() => renderToStaticMarkup(<ScrollStackCard index={0} count={1}>x</ScrollStackCard>)).toThrow(/inside ScrollStack/);
+  });
+});
+
+describe("ScrollProgress", () => {
+  it("renders the wrapper the stepper reads from, and the stepper now uses it", () => {
+    expect(renderToStaticMarkup(<ScrollProgress><i /></ScrollProgress>)).toContain('data-scroll-progress=""');
+    const stepper = renderToStaticMarkup(
+      <Stepper><Step index={0} count={2} when="День 1" title="Реєстр">тіло</Step><Step index={1} count={2} when="Тиждень 1" title="Майданчик">тіло</Step></Stepper>,
+    );
+    expect(stepper).toContain('data-scroll-progress=""');
+    expect(stepper).toContain("scaleY(var(--gp-progress, 0))");
+  });
+});
+
+describe("changed words", () => {
+  it("ScrollTint dims the prefix words and fades by opacity, not colour", () => {
+    const html = renderToStaticMarkup(<ScrollTint text="Ми не зупиняємо роботу — ми не даємо записати" dimUntil={4} />);
+    const visible = html.slice(html.indexOf('aria-hidden="true"'));
+    expect(visible.match(/text-ink-muted/g)).toHaveLength(4);
+    expect(visible).toContain("opacity:0.14");
+    expect(visible).not.toContain("color:var(--gp-text-subtle)");
+  });
+  it("ScrollTint marks the accent phrase in both branches, never both dim and accent", () => {
+    expect(renderToStaticMarkup(<ScrollTint text="поки доказ не отримано" accent="доказ" />).match(/text-accent/g)).toHaveLength(1);
+  });
+  it("Reveal takes a horizontal offset and a size", () => {
+    const html = renderToStaticMarkup(<Reveal x={-20} y={0} size="stately"><p>картка</p></Reveal>);
+    expect(html).toContain("translateX(-20px)");
+  });
+  it("StaggerItem can arrive from scale 0", () => {
+    const html = renderToStaticMarkup(<Stagger delay={0.35} step="loose"><StaggerItem from="scale"><i /></StaggerItem></Stagger>);
+    expect(html).toContain("scale(0)");
+  });
+  it("StaggerItem takes the prototype's entrance sizes", () => {
+    expect(() => renderToStaticMarkup(<Stagger><StaggerItem size="grand"><i /></StaggerItem></Stagger>)).not.toThrow();
+  });
+  it("StaggerItem reads its rise duration from the size token", async () => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const src = readFileSync(join(__dirname, "..", "..", "..", "packages", "ui", "src", "motion", "Stagger.tsx"), "utf8");
+    expect(src).toMatch(/DURATION\[size\]/);
+  });
+});
+
+describe("motion wrappers are boxes", () => {
+  it("never puts a Stagger, StaggerItem, Reveal, Depth, Tilt or Magnetic on display: contents — a boxless element never intersects, so whileInView never fires", async () => {
+    const { readdirSync, readFileSync, statSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const roots = [join(__dirname, "..", "components"), join(__dirname, "..", "..", "..", "packages", "ui", "src", "components")];
+    const files: string[] = [];
+    const walk = (dir: string) => { for (const e of readdirSync(dir)) { const p = join(dir, e); if (statSync(p).isDirectory()) walk(p); else if (p.endsWith(".tsx")) files.push(p); } };
+    for (const r of roots) walk(r);
+    const offenders: string[] = [];
+    const tag = /<(Stagger|StaggerItem|Reveal|Depth|Tilt|Magnetic)\b[^>]*className="([^"]*)"/g;
+    for (const f of files) {
+      const src = readFileSync(f, "utf8");
+      for (const m of src.matchAll(tag)) {
+        if (/\bcontents\b/.test(m[2]!)) offenders.push(`${f.split("/").slice(-2).join("/")}: <${m[1]} className="${m[2]}">`);
+      }
+    }
+    expect(offenders).toEqual([]);
+  });
+});

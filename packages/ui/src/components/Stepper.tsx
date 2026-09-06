@@ -1,20 +1,20 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { InViewProgress } from "../motion/InViewProgress";
+import { ScrollProgress } from "../motion/ScrollProgress";
 import { cx } from "./cn";
 
 /**
- * The pilot plan as a vertical stepper — 21st.dev's «Steppers», timed rather
- * than scrubbed. `InViewProgress` publishes 0→1 into `--gp-progress` once the
- * stepper is in view; the line's fill is a `scaleY` of that number and each
- * dot fades to ink as the number passes its threshold. Arithmetic in CSS
- * rather than React state: nothing re-renders per frame, and under reduced
- * motion the progress is 1 from the first paint, so the plan is complete.
+ * The pilot plan as a vertical stepper — 21st.dev's «Steppers», scrubbed by
+ * the scroll as the prototype does (index.html l.1171): `ScrollProgress`
+ * publishes the section's progress into `--gp-progress`; the line's fill is a
+ * `scaleY` of that number and each dot lights as the number passes its
+ * threshold. [2026-09-06: was `InViewProgress`, timed; spec 2026-09-06 §3 row
+ * 10.]
  */
 export function Stepper({ children, className }: { children: ReactNode; className?: string | undefined }) {
   return (
-    <InViewProgress className={cx("relative grid pl-9", className)}>
+    <ScrollProgress className={cx("relative grid pl-9", className)}>
       <span aria-hidden="true" className="absolute bottom-3 left-2.5 top-3 w-0.5 bg-line" />
       <span
         aria-hidden="true"
@@ -23,7 +23,7 @@ export function Stepper({ children, className }: { children: ReactNode; classNam
         style={{ transform: "scaleY(var(--gp-progress, 0))" }}
       />
       {children}
-    </InViewProgress>
+    </ScrollProgress>
   );
 }
 

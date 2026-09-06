@@ -27,9 +27,9 @@ export function Board() {
               <b className="font-medium text-ink">{col.label}</b>
               <CountUp value={col.count} format={two} className="tabular font-mono" />
             </div>
-            <Stagger className="grid gap-2">
+            <Stagger delay={0.7} className="grid gap-2">
               {col.cards.map((card) => (
-                <StaggerItem key={card.code}>
+                <StaggerItem key={card.code} size="stately">
                   <article
                     data-board-card={card.selected ? "selected" : "card"}
                     className={card.selected
@@ -38,7 +38,7 @@ export function Board() {
                   >
                     <span className="font-mono text-micro text-ink-muted">{card.code}</span>
                     <span className="font-medium leading-snug text-ink">{card.title}</span>
-                    <Chip tone={card.tone} dot className="w-fit px-2 py-0.5 text-micro">{card.tag}</Chip>
+                    <Chip tone={card.tone} dot pulse={card.tone === "review"} className="w-fit px-2 py-0.5 text-micro">{card.tag}</Chip>
                   </article>
                 </StaggerItem>
               ))}

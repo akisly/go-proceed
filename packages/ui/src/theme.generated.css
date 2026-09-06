@@ -92,6 +92,7 @@
   --shadow-overlay: var(--gp-shadow-overlay);
   --shadow-modal: var(--gp-shadow-modal);
   --shadow-float: var(--gp-shadow-float);
+  --shadow-float-accent: var(--gp-shadow-float-accent);
   /* motion */
   --ease-out: var(--gp-ease-out);
   --ease-enter: var(--gp-ease-enter);

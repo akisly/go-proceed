@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 // Typed loosely on purpose: the audit is plain .mjs so CI can run it as
 // `node packages/testing/qa/motion-audit.mjs` with no build step.
 // @ts-expect-error - no declaration file for the audit module
-import { auditMotion, ROOTS, EXCLUDED, ANIMATABLE } from "../qa/motion-audit.mjs";
+import { auditMotion, ROOTS, EXCLUDED, ANIMATABLE, PERPETUAL_ALLOWLIST } from "../qa/motion-audit.mjs";
 
 const repoRoot = join(import.meta.dirname, "..", "..", "..");
 const audit = (root: string): string[] => auditMotion(root) as string[];
@@ -65,6 +65,13 @@ describe("motion audit — the rules actually fire", () => {
       `import { motion } from ${JSON.stringify("motion/react")};`,
       `export const X = () => <motion.div className={${JSON.stringify("transition" + "-all")}} />;`,
     ].join("\n"));
+
+    writeFileSync(join(root, "apps/landing/allowed.css"), [
+      `.e { ${decl("animation", "gp-drift-a 4s linear infinite alternate")} }`,
+      `.f { ${decl("animation", "gp-pulse 1.6s linear infinite")} }`,
+      `.g { ${decl("animation", "gp-flow 1.6s linear infinite")} }`,
+      `.h { ${decl("animation", "gp-beam 7s linear infinite")} }`,
+    ].join("\n"));
   });
 
   afterAll(() => { rmSync(root, { recursive: true, force: true }); });
@@ -76,7 +83,10 @@ describe("motion audit — the rules actually fire", () => {
   it("rule 1 — the transition-all utility", () => has("transition-colors"));
   it("rule 2 — a layout property", () => has("layout property"));
   it("rule 3 — ease-in", () => has("stalls the first frame"));
-  it("rule 4 — perpetual animation", () => has("outside the marquee"));
+  it("rule 4 — perpetual animation outside the named loops", () => has("outside the named loops"));
+  it("rule 4 — the five named loops are not findings", () => {
+    expect(audit(root).filter((f) => f.includes("allowed.css"))).toEqual([]);
+  });
   it("rule 5 — importing Motion directly", () => has("use a primitive"));
 
   it("does not flag the frozen sheet, which is excluded", () => {
@@ -97,10 +107,10 @@ describe("motion audit — the rules actually fire", () => {
 });
 
 describe("the vocabulary is closed", () => {
-  it("exports exactly sixteen primitives", () => {
-    // A seventeenth is a decision, not an addition: it means the vocabulary was
-    // missing something, and the plan's motion section has to say what and
-    // why. Failing here is the prompt to write that down.
+  it("exports exactly twenty-two primitives", () => {
+    // A twenty-second is a decision, not an addition: it means the vocabulary
+    // was missing something, and the plan's motion section has to say what
+    // and why. Failing here is the prompt to write that down.
     const index = readFileSync(join(repoRoot, "packages/ui/src/motion/index.ts"), "utf8");
     // `[A-Z][a-z]` and not `[A-Z]\w`: the same file re-exports the token
     // bridge (DURATION, EASE, …), and SCREAMING_CASE is how a value is told
@@ -109,7 +119,8 @@ describe("the vocabulary is closed", () => {
     expect(new Set(exported)).toEqual(new Set([
       "Reveal", "Stagger", "TextBlurIn", "ScrollTint", "LineDraw", "NodeLock",
       "CountUp", "Marquee", "PinnedTabs", "Lift", "Press", "CrossFade",
-      "TrackFill", "SlideSwap", "InViewProgress", "ScrollSettle",
+      "TrackFill", "SlideSwap", "InViewProgress", "ScrollSettle", "LineReveal",
+      "Depth", "Tilt", "Magnetic", "ScrollStack", "ScrollProgress",
     ]));
   });
 
@@ -119,5 +130,13 @@ describe("the vocabulary is closed", () => {
     for (const layout of ["width", "height", "top", "left", "margin", "padding"]) {
       expect(ANIMATABLE, `${layout} must not be animatable`).not.toContain(layout);
     }
+  });
+
+  it("names exactly the five perpetual loops", () => {
+    // Spec 2026-09-06 §5.1: the marquee and the landing's four ambient loops.
+    // A sixth is a §7.3 decision, so the list is pinned by value.
+    expect((PERPETUAL_ALLOWLIST as RegExp[]).map(String)).toEqual([
+      "/gp-marquee/", "/marquee-track/", "/gp-beam/", "/gp-pulse/", "/gp-drift/", "/gp-flow/",
+    ]);
   });
 });

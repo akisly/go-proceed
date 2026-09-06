@@ -577,6 +577,33 @@ rather than by review:
 >   two passes off that attribute and stops — rule 4 keeps the marquee the
 >   only perpetual animation.
 
+> **Update, 2026-09-06.** Sixteen became twenty-two. The owner asked for the
+> approved prototype's choreography in full
+> (`docs/superpowers/specs/2026-09-06-landing-prototype-parity-design.md`), and
+> six of its movements had no word:
+>
+> - **`<LineReveal>`** — a heading arriving line by line. There is no SplitText;
+>   lines are found by `offsetTop` after layout, in a layout effect so the
+>   reader never sees the flat state. One accessible node. Reduced: one fade.
+> - **`<Depth>`** — a layer moving against the scroll of its section,
+>   `depth·80px → depth·−80px`. Off below `md` and under reduced motion, with
+>   the same tree.
+> - **`<Tilt>`** — a surface leaning toward the pointer on `spring.tilt`, ≤ 3°,
+>   `pointer: fine` and desktop only. `area="section"` is how the board leans
+>   while the pointer is anywhere in the hero.
+> - **`<Magnetic>`** — a control following the pointer on `spring.magnetic`.
+>   Applied by the landing to its buttons and pill, never inside `Button`.
+> - **`<ScrollStack>` / `<ScrollStackCard>` / `<ScrollStackMedia>`** — Fora's
+>   stack with the prototype's scale .955, rise −14, veil .7, and the media
+>   panel's `y 14 → −14`, `rotateX −3 → 2`. Off below `wide`.
+> - **`<ScrollProgress>`** — the sibling of `<InViewProgress>` driven by the
+>   scroll instead of a timer; the stepper reads it. Reduced: `1` at once.
+>
+> Four CSS loops joined the marquee on the perpetual allowlist (beam, pulse,
+> drift, flow), `ScrollTint` fades by opacity and has two uses, `Reveal` took
+> `x` and `size`, `StaggerItem` took `from="scale"`. Rules 5 and 9 of
+> `02-building-ui.md` §4.3 carry the dated corrections.
+
 ### 8.4 App motion — deliberately smaller
 
 The internal product gets four behaviours and no more:
@@ -676,7 +703,7 @@ Switch, Textarea, DatePicker, Dialog, Drawer, Popover, DropdownMenu, Tabs,
 Accordion, Toast, Skeleton, Pagination, Breadcrumb, Avatar, ProgressBar,
 Timeline, Stepper, FileDrop, EvidenceThumb, CommandPalette (⌘K).
 
-*Marketing-only (`apps/landing`):* the fourteen blocks in §9 plus the fifteen
+*Marketing-only (`apps/landing`):* the fourteen blocks in §9 plus the fifteen [2026-09-06: twenty-two]
 motion primitives in §8.3.
 
 ---
@@ -693,9 +720,9 @@ rule added here gets a test, or it is not a rule.
 | **`palette-derivation.test.ts`** | Recomputes all 58 hexes from their OKLCH triples; asserts every chroma is inside the sRGB gamut, that no two ramp steps collide, and that the four v1 brand anchors reproduce. | vitest (node) — **built, 10 tests** |
 | `contrast.test.ts` | 68 pairings across light and dark; ≥4.5:1 body, ≥3:1 large and non-text. Failure names the pair, both resolved values and the measured ratio. A foreground role with no pairing fails too. | vitest (node) — **built, 68 tests** |
 | `primitive-leak.test.ts` | No `var(--gp-<ramp>-<step>)` under `apps/**` or in `packages/ui/src/base.css`. The exclusion list must name files that still exist, so an exclusion cannot outlive its file. | vitest (node) — **built, 2 tests** |
-| **`motion-audit.mjs`** *(new)* | No `transition: all`; no transition on a property outside `transform`/`opacity`/`filter`/`color`/`background-color`/`border-color`/`box-shadow`; every animated component has a `prefers-reduced-motion` branch; no `animation-iteration-count: infinite` outside the marquee allowlist. | CI |
+| **`motion-audit.mjs`** *(new)* | No `transition: all`; no transition on a property outside `transform`/`opacity`/`filter`/`color`/`background-color`/`border-color`/`box-shadow`; every animated component has a `prefers-reduced-motion` branch; no `animation-iteration-count: infinite` outside the marquee allowlist [2026-09-06: five named loops now — marquee, beam, pulse, drift, flow; see §8.3's update block]. | CI |
 | `qa/verify.mjs` (puppeteer) | Rendered layout, contrast, touch targets, focus cycle, **at 1920 / 1440 / 1240 / 768 / 390 / 360**. The 768–1240 icon rail keeps its dedicated pass. | CI |
-| `motion-audit.mjs` | Five rules: no `transition: all`; no transition on a layout property; no ease-in; no perpetual animation outside the marquee; `motion/react` imported only by the fifteen primitives. Comments are stripped before scanning, so the audit does not flag its own documentation. | CI + vitest — **built, 13 tests, including a fixture tree that proves each rule still fires** |
+| `motion-audit.mjs` | Five rules: no `transition: all`; no transition on a layout property; no ease-in; no perpetual animation outside the marquee [2026-09-06: five named loops now — marquee, beam, pulse, drift, flow; see §8.3's update block]; `motion/react` imported only by the fifteen primitives [2026-09-06: twenty-two]. Comments are stripped before scanning, so the audit does not flag its own documentation. | CI + vitest — **built, 13 tests, including a fixture tree that proves each rule still fires** |
 | `tw-merge.test.ts` | The class merge is taught this theme: a size and a colour sharing the `text-` prefix both survive; two values from one namespace collapse; arbitrary values still work; the config names every size and radius in the source. | vitest (node) — **built, 7 tests** |
 | `component-contract.test.ts` | No component hard-codes a control height, carries a colour in an inline style, names a raw hex, defines its own focus ring, or has a destructive variant; the five status tones agree across Chip, Banner and Meter; the meter divides by count not percentage; the money figure's qualifier is required; portalled content carries its own font. | vitest (node) — **built, 14 tests** |
 | `motion-contract.test.ts` | The JS spelling of every duration, curve and spring matches tokens.json; no easing in the system starts slow (`y1 < x1`) except the one symmetric cross-fade curve; the reduced-motion ceiling is the same number in CSS and in JS. | vitest (node) — **built, 6 tests** |

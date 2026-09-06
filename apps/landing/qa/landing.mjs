@@ -75,8 +75,30 @@ try {
     }
     const overflow = await page.evaluate(() => {
       const vw = window.innerWidth;
+      // The route media halves carry a blurred `media-glow` (base.css) offset
+      // by a negative inset — the prototype's `.glowc` — inside a `relative
+      // overflow-hidden` container (route.tsx's `.landing-media-grid`). That is
+      // the same shape the border-beam comment above already names: an
+      // absolutely positioned decorative child whose containing block clips it,
+      // so nothing paints past the edge and no scrollbar exists (`scrollWidth`
+      // already equals `innerWidth` for exactly this reason). A raw
+      // `getBoundingClientRect()` does not know about the clip, so it reports
+      // the glow as reaching past the viewport at every width narrower than
+      // `wide`'s two-column layout, even though that portion is never visible.
+      // `visibleRight` intersects the element's box with every ancestor whose
+      // computed `overflow`/`overflow-x` is not `visible`, so only genuine,
+      // paintable overflow — the bug this check exists to catch — still fails.
+      function visibleRight(el) {
+        let right = el.getBoundingClientRect().right;
+        for (let node = el.parentElement; node; node = node.parentElement) {
+          const cs = getComputedStyle(node);
+          if (cs.overflow === "visible" && cs.overflowX === "visible") continue;
+          right = Math.min(right, node.getBoundingClientRect().right);
+        }
+        return right;
+      }
       const wide = [...document.querySelectorAll("body *")]
-        .filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.right > vw + 1; })
+        .filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && visibleRight(el) > vw + 1; })
         .map((el) => `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}.${String(el.className).split(" ")[0]}`)
         .slice(0, 10);
       return { scrollWidth: document.documentElement.scrollWidth, innerWidth: vw, wide };
@@ -113,14 +135,17 @@ try {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
     await page.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
-    const settled = await page.evaluate(async () => {
+    // The ring runs from first paint now (spec 2026-09-06 §5.1) — it no longer
+    // waits on `ScrollSettle`'s latch, so the measurement only needs the beam
+    // element scrolled into view, not `data-settled="true"`.
+    const present = await page.evaluate(async () => {
       const el = document.querySelector(".beam");
       if (!el) return false;
       el.parentElement.scrollIntoView({ block: "center" });
       await new Promise((r) => setTimeout(r, 700));
-      return document.querySelector('[data-settled="true"]') !== null;
+      return true;
     });
-    const handle = settled ? await page.$(".beam") : null;
+    const handle = present ? await page.$(".beam") : null;
     if (handle === null) { await page.close(); return null; }
     const shot = await handle.screenshot();
     await page.close();
@@ -145,6 +170,91 @@ try {
   const beamOk = typeof report.beamPixels === "number" && report.beamPixels >= BEAM_FLOOR;
   console.log(`border beam at 1440 (full motion): ${beamOk ? "ok" : "PROBLEM"} paintedPixels=${report.beamPixels} floor=${BEAM_FLOOR}`);
 
+  // PARITY CHECKS (spec 2026-09-06 §9). Each is a fact the seven screenshots
+  // cannot show: a transform that changes with the scroll, an attribute that
+  // flips with the viewport, a CSS variable that reaches 1.
+  async function parity() {
+    const out = {};
+    const wide = await browser.newPage();
+    await wide.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+    await wide.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 300));
+    const depthAtTop = await wide.evaluate(() => [...document.querySelectorAll("[data-depth]")].map((el) => getComputedStyle(el).transform));
+    await wide.evaluate(() => window.scrollTo(0, 600));
+    await new Promise((r) => setTimeout(r, 400));
+    const depthScrolled = await wide.evaluate(() => [...document.querySelectorAll("[data-depth]")].map((el) => getComputedStyle(el).transform));
+    out.depthLayers = depthAtTop.length;
+    out.depthMoves = depthAtTop.length === 3 && depthAtTop.some((t, i) => t !== depthScrolled[i]);
+    out.tiltOnWide = await wide.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
+    // `perspective` only reaches a descendant through an unbroken
+    // `transform-style: preserve-3d` chain — a `[data-tilt]` element sitting
+    // under a `perspective` ancestor with a FLAT node in between never
+    // tilts in 3D no matter what `data-tilt="on"` says, and an attribute
+    // count alone cannot see that: this exact defect shipped past
+    // `tiltOnWide === 8` (the final review's F1). For every `[data-tilt]`
+    // element, walk `parentElement` upward; every node before the first
+    // ancestor whose computed `perspective` is not `none` must itself carry
+    // `transform-style: preserve-3d`, and the walk must actually find such
+    // an ancestor. `tiltChainsOk` counts how many of the 8 tilted elements
+    // pass that walk — it is expected to equal `tiltOnWide`.
+    out.tiltChainsOk = await wide.evaluate(() => {
+      let ok = 0;
+      for (const tilt of document.querySelectorAll("[data-tilt]")) {
+        let node = tilt.parentElement;
+        let foundPerspective = false;
+        let broken = false;
+        while (node) {
+          const cs = getComputedStyle(node);
+          if (cs.perspective !== "none") { foundPerspective = true; break; }
+          if (cs.transformStyle !== "preserve-3d") { broken = true; break; }
+          node = node.parentElement;
+        }
+        if (foundPerspective && !broken) ok++;
+      }
+      return ok;
+    });
+    out.magneticOnWide = await wide.evaluate(() => document.querySelectorAll('[data-magnetic="on"]').length);
+    out.stackOnWide = await wide.evaluate(() => document.querySelector("[data-scroll-stack]")?.getAttribute("data-scroll-stack"));
+    // `html { scroll-behavior: smooth }` (globals.css) is deliberate (spec
+    // 2026-09-06 R1) — but it means a `scrollIntoView` followed a tick later
+    // by a `scrollBy` interrupts the first animation mid-flight: the second
+    // call's delta is added to wherever the smooth scroll happened to be,
+    // landing far short of the pilot section over a ~13,000px-tall page. One
+    // evaluate computes the absolute target and jumps with `behavior:
+    // "instant"`, which overrides the CSS property (the two-argument
+    // `scrollTo(x, y)` form used elsewhere in this file does not — it defers
+    // to CSS — but those checks only need *some* scroll delta, not a landing
+    // 10,000+px down the page, so the smooth animation being incomplete after
+    // the wait does not matter there).
+    await wide.evaluate(() => {
+      const el = document.querySelector("#pilot");
+      if (!el) return;
+      const target = el.getBoundingClientRect().bottom + window.scrollY - window.innerHeight + 400;
+      window.scrollTo({ top: target, behavior: "instant" });
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    out.stepperProgress = await wide.evaluate(() => Number(document.querySelector("[data-scroll-progress]")?.style.getPropertyValue("--gp-progress") ?? "0"));
+    out.pulsing = await wide.evaluate(() => document.querySelectorAll(".pulse-dot").length);
+    out.flowing = await wide.evaluate(() => document.querySelectorAll(".flow-dash").length);
+    await wide.close();
+
+    const narrow = await browser.newPage();
+    await narrow.setViewport({ width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true });
+    await narrow.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
+    await new Promise((r) => setTimeout(r, 300));
+    out.tiltOnNarrow = await narrow.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
+    out.depthFlatNarrow = await narrow.evaluate(() => [...document.querySelectorAll("[data-depth]")].every((el) => getComputedStyle(el).transform === "none"));
+    out.stackOnNarrow = await narrow.evaluate(() => document.querySelector("[data-scroll-stack]")?.getAttribute("data-scroll-stack"));
+    await narrow.close();
+    return out;
+  }
+  report.parity = await parity();
+  const p = report.parity;
+  const parityOk = p.depthMoves && p.tiltOnWide === 8 && p.tiltChainsOk === 8 && p.magneticOnWide === 7 && p.stackOnWide === "on"
+    && p.stepperProgress >= 0.99 && p.pulsing === 3 && p.flowing === 3
+    && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off";
+  console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
+
   const og = await browser.newPage();
   await og.setViewport({ width: 1200, height: 630, deviceScaleFactor: 1 });
   await og.goto(`http://localhost:${PORT}/og`, { waitUntil: "networkidle0" });
@@ -152,7 +262,7 @@ try {
   console.log("wrote public/og.png");
 
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
-  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && beamOk;
+  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && beamOk && parityOk;
   console.log(allOk ? "landing qa: ok" : "landing qa: PROBLEMS — see qa-output/report.json");
   exitCode = allOk ? 0 : 1;
 } catch (err) {

@@ -2,6 +2,7 @@
 
 import { useState, type FormEvent } from "react";
 import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Textarea, cx } from "@goproceed/ui/components";
+import { Magnetic } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import {
   PILOT_EMAIL, buildPilotClipboardText, buildPilotMailto, type PilotFields, validatePilotFields,
@@ -125,8 +126,8 @@ export function PilotForm() {
         <Textarea id="pilot-context" name="context" placeholder={f.fields.context.placeholder} className="bg-canvas" />
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-        <Button type="submit" size="lg" disabled={state === "sending"}>{state === "sending" ? f.submitting : f.submit}</Button>
-        <Button type="button" size="lg" variant="outline" onClick={onCopy}>{copied ? f.copied : f.copy}</Button>
+        <Magnetic className="w-full"><Button type="submit" size="lg" className="w-full" disabled={state === "sending"}>{state === "sending" ? f.submitting : f.submit}</Button></Magnetic>
+        <Magnetic className="w-full"><Button type="button" size="lg" variant="outline" className="w-full" onClick={onCopy}>{copied ? f.copied : f.copy}</Button></Magnetic>
       </div>
       <p role="status" aria-live="polite" className={state === "sent"
         ? "rounded-card border border-status-ready-line bg-status-ready px-3.5 py-3 text-data text-ink"

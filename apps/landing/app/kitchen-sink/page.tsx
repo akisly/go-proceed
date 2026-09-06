@@ -3,7 +3,7 @@
 /**
  * The motion vocabulary, live.
  *
- * Sixteen primitives, each rendered next to the rule it enforces. This is the
+ * Twenty-two primitives, each rendered next to the rule it enforces. This is the
  * code-first equivalent of a component library page in a design tool, and it
  * is where the QA harness points its viewport, contrast and touch-target
  * passes — a primitive that is only ever exercised inside a finished block is
@@ -19,7 +19,8 @@
 import {
   Reveal, Stagger, StaggerItem, TextBlurIn, ScrollTint, LineDraw, NodeLock,
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
-  InViewProgress, ScrollSettle, useReduced,
+  InViewProgress, ScrollSettle, LineReveal, Depth, Tilt, Magnetic, useReduced,
+  ScrollStack, ScrollStackCard, ScrollStackMedia, ScrollProgress,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -92,7 +93,7 @@ export default function KitchenSink() {
         <TextBlurIn
           as="h1"
           className="display mt-4 block max-w-[16ch] text-mkt-display-1 text-ink"
-          text="Шістнадцять примітивів і жодного більше"
+          text="Двадцять два примітиви і жодного більше"
         />
         <p className="measure mt-6 text-mkt-lead leading-relaxed text-ink-muted">
           Кожен блок нижче показує примітив і правило, яке він тримає.
@@ -147,7 +148,7 @@ export default function KitchenSink() {
         </p>
       </Case>
 
-      <Case n="07" name="Marquee" rule="Єдина вічна анімація в системі. CSS, не JS: у нескінченного лінійного зсуву немає стану. Пауза на hover, зупинка під reduced motion.">
+      <Case n="07" name="Marquee" rule="Одна з п'яти названих вічних анімацій (стрічка, промінь, пульс, дрейф, потік). CSS, не JS: у нескінченного лінійного зсуву немає стану. Пауза на hover, зупинка під reduced motion.">
         <Marquee className="rounded-panel border border-line bg-surface py-4">
           {CHAIN.concat(CHAIN).map((t, i) => (
             <span key={`${t}-${i}`} className="index-label px-8">{t}</span>
@@ -252,7 +253,7 @@ export default function KitchenSink() {
         </p>
       </Case>
 
-      <Case n="14" name="ScrollSettle" rule="Кадр продукту в'їжджає нахиленим і вирівнюється по скролу — 21st.dev Container Scroll. Другий і останній scroll-linked елемент сторінки; нижче md і під reduced motion кадр плаский одразу. Промінь по рамці робить два оберти після посадки і зупиняється: вічна анімація тут лише одна, і це стрічка.">
+      <Case n="14" name="ScrollSettle" rule="Кадр продукту в'їжджає нахиленим і вирівнюється по скролу — 21st.dev Container Scroll. Одна зі scroll-linked композицій, які називає спека паритету, по одній на секцію; нижче md і під reduced motion кадр плаский одразу. Промінь по рамці біжить нескінченно з першого кадру — одна з п'яти названих вічних анімацій.">
         <ScrollSettle className="mx-auto max-w-content">
           <div className="relative rounded-surface border border-line-strong bg-surface p-8 shadow-float">
             <i className="beam" aria-hidden="true" />
@@ -260,6 +261,49 @@ export default function KitchenSink() {
             <p className="mt-3 text-data text-ink-muted">Готово 12 · На розгляді 07 · Заблоковано 03</p>
           </div>
         </ScrollSettle>
+      </Case>
+
+      <Case n="15" name="LineReveal" rule="Заголовок виїжджає з масок рядок за рядком, 1200 мс, ease-out-expo, крок 80 мс. Рядки знаходяться за розкладкою (offsetTop), не SplitText; під reduced motion — один fade.">
+        <LineReveal as="p" className="display max-w-[20ch] text-mkt-display-2 text-ink" text="На нараді більше не сперечаються про те, що вже сховано" accent="що вже сховано" />
+      </Case>
+
+      <Case n="16" name="Depth" rule="Шар рухається проти скролу в межах своєї секції: від depth·80px до depth·−80px. Нижче md і під reduced motion — нерухомий, той самий DOM.">
+        <section className="relative h-64 overflow-hidden rounded-panel border border-line bg-surface">
+          <Depth depth={-0.3} className="absolute left-6 top-6 rounded-card border border-line-strong bg-canvas px-3 py-2 text-data text-ink">depth −0.3</Depth>
+          <Depth depth={0.35} className="absolute bottom-6 right-6 rounded-pill border border-line-strong bg-canvas px-3 py-1.5 text-data text-ink">depth 0.35</Depth>
+        </section>
+      </Case>
+
+      <Case n="17" name="Tilt" rule="Поверхня нахиляється до курсору на пружині, до 3°; лише pointer:fine, вище md, не під reduced motion. Батько задає perspective.">
+        <div className="grid gap-4 md:grid-cols-2 [perspective:1600px]">
+          <Tilt maxX={2.5} maxY={3} className="rounded-surface border border-line-strong bg-surface p-6"><p className="text-data text-ink">rotateX ±2.5° · rotateY ±3°</p></Tilt>
+          <Tilt maxX={1.5} maxY={2} className="rounded-surface border border-line-strong bg-surface p-6"><p className="text-data text-ink">rotateX ±1.5° · rotateY ±2°</p></Tilt>
+        </div>
+      </Case>
+
+      <Case n="18" name="Magnetic" rule="Кнопка тягнеться до курсору: зсув від центру × (0.18, 0.25) на пружині, назад у нуль при відведенні. Лише pointer:fine і вище md; кнопка шапки без цього.">
+        <Magnetic><Press className="h-11 rounded-panel bg-action px-5 text-data font-medium text-action-fg">Обговорити пілот</Press></Magnetic>
+      </Case>
+
+      <Case n="19" name="ScrollStack" rule="Стек Fora: картка липне під шапкою; коли наступна доїжджає до 96px від верху, попередня стискається до .955, піднімається на 14px і йде під вуаль .7. Панель усередині медіа пливе y 14→−14 і нахиляється −3→2°. Лише wide, не reduced.">
+        <ScrollStack className="grid gap-4">
+          {["Вимога", "Фіксація", "Рішення"].map((t, i) => (
+            <ScrollStackCard key={t} index={i} count={3}>
+              <div className="grid min-h-64 overflow-hidden rounded-surface border border-line-strong bg-surface md:grid-cols-2">
+                <div className="p-6"><p className="index-label">0{i + 1} · {t}</p></div>
+                <div className="grid place-items-center border-t border-line bg-subtle p-6 [perspective:1200px] md:border-l md:border-t-0">
+                  <ScrollStackMedia className="rounded-panel border border-line-strong bg-surface px-4 py-3 text-data text-ink shadow-float">панель {t}</ScrollStackMedia>
+                </div>
+              </div>
+            </ScrollStackCard>
+          ))}
+        </ScrollStack>
+      </Case>
+
+      <Case n="20" name="ScrollProgress" rule="Брат InViewProgress, але керований скролом: публікує прогрес проходу 0 → 1 у --gp-progress від top 70% до bottom 60%. Під reduced motion — одразу 1.">
+        <ScrollProgress className="block h-2 overflow-hidden rounded-pill bg-line">
+          <div aria-hidden="true" className="h-full rounded-pill bg-signal" style={{ width: "calc(var(--gp-progress, 0) * 100%)" }} />
+        </ScrollProgress>
       </Case>
     </main>
   );

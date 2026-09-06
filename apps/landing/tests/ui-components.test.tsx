@@ -36,6 +36,14 @@ describe("Chip dot", () => {
     expect(renderToStaticMarkup(<Chip tone="review" dot>на розгляді</Chip>)).toContain('data-chip-dot="true"');
     expect(renderToStaticMarkup(<Chip tone="review">на розгляді</Chip>)).not.toContain("data-chip-dot");
   });
+
+  it("pulses the dot only when asked, and only with a dot", () => {
+    const pulsing = renderToStaticMarkup(<Chip tone="review" dot pulse>на розгляді</Chip>);
+    expect(pulsing).toContain('data-chip-dot="true"');
+    expect(pulsing).toContain("pulse-dot");
+    expect(renderToStaticMarkup(<Chip tone="review" dot>на розгляді</Chip>)).not.toContain("pulse-dot");
+    expect(renderToStaticMarkup(<Chip tone="review" pulse>на розгляді</Chip>)).not.toContain("pulse-dot");
+  });
 });
 
 describe("Accordion marker", () => {
@@ -169,5 +177,36 @@ describe("Stepper", () => {
     expect(html.match(/data-slot="step"/g)).toHaveLength(2);
     expect(html).toContain("--gp-progress");
     expect(html).toContain('data-stepper-line="true"');
+  });
+});
+
+describe("prototype parity — components (2026-09-06)", () => {
+  it("Button lifts a pixel on hover on the emphatic curve", () => {
+    const html = renderToStaticMarkup(<Button size="lg">Обговорити пілот</Button>);
+    expect(html).toContain("hover:-translate-y-px");
+    expect(html).toContain("ease-emphatic");
+    expect(renderToStaticMarkup(<Button variant="link">лист</Button>)).not.toContain("hover:-translate-y-px");
+  });
+  it("Accordion opens over the deliberate duration on the emphatic curve", () => {
+    const html = renderToStaticMarkup(<Accordion marker="plus" entries={[{ id: "a", question: "Питання?", answer: "Відповідь." }]} />);
+    expect(html).toContain("duration-deliberate");
+    expect(html).toContain("ease-emphatic");
+    expect(html).not.toContain("duration-base");
+  });
+  it("the «now» compare card carries the accent shadow and pops its checks when asked", () => {
+    const rows = [{ key: "photo" as const, question: "Де фото?", answer: "На роботі W-014" }];
+    const still = renderToStaticMarkup(<CompareCard tone="now" eyebrow="З GoProceed" title="Один запис" rows={rows} outcome="Акт не повертають." />);
+    expect(still).toContain("shadow-float-accent");
+    expect(still).not.toContain("scale(0)");
+    expect(still).toMatch(/class="mt-0\.5 grid size-5 place-items-center rounded-pill border border-status-ready-fg/);
+    const popping = renderToStaticMarkup(<CompareCard tone="now" eyebrow="З GoProceed" title="Один запис" rows={rows} outcome="Акт не повертають." animateChecks />);
+    expect(popping).toContain("scale(0)");
+    expect(popping).toMatch(/class="mt-0\.5 grid size-5"/);
+  });
+  it("FeatureCell leans, FeatureGrid supplies the perspective", () => {
+    const html = renderToStaticMarkup(<FeatureGrid columns={4}><FeatureCell title="ПТВ">біль</FeatureCell></FeatureGrid>);
+    expect(html).toContain("perspective:1600px");
+    expect(html).toContain('data-tilt="off"');
+    expect(html).toContain('data-slot="feature-cell"');
   });
 });

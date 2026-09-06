@@ -62,6 +62,8 @@ export const DURATION = {
   base: seconds(duration.base),
   slow: seconds(duration.slow),
   deliberate: seconds(duration.deliberate),
+  stately: seconds(duration.stately),
+  grand: seconds(duration.grand),
   marquee: seconds(duration.marquee),
 } as const;
 
@@ -82,6 +84,8 @@ export const STAGGER = {
 export const SPRING = {
   reveal: springOf(spring.reveal),
   press: springOf(spring.press),
+  tilt: springOf(spring.tilt),
+  magnetic: springOf(spring.magnetic),
 } as const;
 
 export const BLUR = {

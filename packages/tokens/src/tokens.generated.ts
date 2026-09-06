@@ -249,7 +249,7 @@ export const color: Record<ThemeName, Record<RoleName, string>> = {
   },
 };
 
-export type ShadowName = "raised" | "overlay" | "modal" | "float";
+export type ShadowName = "raised" | "overlay" | "modal" | "float" | "float-accent";
 
 /**
  * Structurally React Native's own `BoxShadowValue`
@@ -277,6 +277,7 @@ export const shadow: Record<ShadowName, BoxShadowValue[]> = {
   "overlay": [{ offsetX: 0, offsetY: 12, blurRadius: 30, spreadDistance: -16, color: "rgba(21, 22, 26, 0.35)" }],
   "modal": [{ offsetX: 0, offsetY: 8, blurRadius: 24, spreadDistance: 0, color: "rgba(21, 22, 26, 0.08)" }, { offsetX: 0, offsetY: 24, blurRadius: 64, spreadDistance: 0, color: "rgba(21, 22, 26, 0.12)" }],
   "float": [{ offsetX: 0, offsetY: 20, blurRadius: 50, spreadDistance: -30, color: "rgba(21, 22, 26, 0.22)" }, { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: "rgba(21, 22, 26, 0.05)" }],
+  "float-accent": [{ offsetX: 0, offsetY: 30, blurRadius: 70, spreadDistance: -40, color: "rgba(43, 75, 255, 0.35)" }, { offsetX: 0, offsetY: 1, blurRadius: 2, spreadDistance: 0, color: "rgba(21, 22, 26, 0.05)" }],
 };
 
 export const font = {
@@ -365,6 +366,8 @@ export const duration = {
   "slow": "400ms",
   "marquee": "35s",
   "deliberate": "640ms",
+  "stately": "900ms",
+  "grand": "1200ms",
 } as const;
 
 export const ease = {
@@ -384,6 +387,8 @@ export const stagger = {
 export const spring = {
   "reveal": "stiffness 100, damping 20, mass 1",
   "press": "stiffness 400, damping 30, mass 1",
+  "tilt": "stiffness 120, damping 20, mass 1",
+  "magnetic": "stiffness 150, damping 18, mass 0.5",
 } as const;
 
 export const blur = {

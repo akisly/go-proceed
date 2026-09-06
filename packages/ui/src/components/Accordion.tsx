@@ -22,6 +22,9 @@ export type AccordionEntry = { id: string; question: string; answer: string };
  *
  * `type="single" collapsible` — one answer open at a time. This is a FAQ, not
  * a checklist: two open answers means the reader lost the one they came for.
+ *
+ * [2026-09-06] Opens over `duration.deliberate` on `ease.emphatic` — the
+ * prototype's `.6s expo.out` (index.html l.1074).
  */
 export function Accordion({
   entries, className, marker = "chevron",
@@ -50,17 +53,17 @@ export function Accordion({
                   data-accordion-marker="plus"
                   className={cx(
                     "relative grid size-(--gp-control-height-desk-sm) shrink-0 place-items-center rounded-pill border border-line-strong",
-                    "transition-colors duration-base ease-out group-data-[state=open]:border-action group-data-[state=open]:bg-action",
+                    "transition-colors duration-deliberate ease-emphatic group-data-[state=open]:border-action group-data-[state=open]:bg-action",
                   )}
                 >
-                  <i className="absolute h-px w-2.5 bg-ink transition-colors duration-base ease-out group-data-[state=open]:bg-action-fg" />
-                  <i className="absolute h-2.5 w-px bg-ink transition-[transform,background-color] duration-base ease-out group-data-[state=open]:rotate-90 group-data-[state=open]:bg-action-fg" />
+                  <i className="absolute h-px w-2.5 bg-ink transition-colors duration-deliberate ease-emphatic group-data-[state=open]:bg-action-fg" />
+                  <i className="absolute h-2.5 w-px bg-ink transition-[transform,background-color] duration-deliberate ease-emphatic group-data-[state=open]:rotate-90 group-data-[state=open]:bg-action-fg" />
                 </span>
               ) : (
                 <ChevronDown
                   aria-hidden="true"
                   strokeWidth={1.75}
-                  className="size-4 shrink-0 text-ink-muted transition-transform duration-base ease-out group-data-[state=open]:rotate-180"
+                  className="size-4 shrink-0 text-ink-muted transition-transform duration-deliberate ease-emphatic group-data-[state=open]:rotate-180"
                 />
               )}
             </RadixAccordion.Trigger>
@@ -68,7 +71,7 @@ export function Accordion({
           <RadixAccordion.Content
             className={cx(
               "grid grid-rows-[0fr] overflow-hidden transition-[grid-template-rows]",
-              "duration-base ease-out data-[state=open]:grid-rows-[1fr]",
+              "duration-deliberate ease-emphatic data-[state=open]:grid-rows-[1fr]",
               "motion-reduce:transition-none",
             )}
           >

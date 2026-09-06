@@ -244,6 +244,7 @@ lightness shift between the surface roles; there is no elevation ladder.
 | `overlay` | `0px 12px 30px -16px rgba(21, 22, 26, 0.35)` | The floating pills over the product frame, compact callouts, a popover. |
 | `modal` | `0px 8px 24px 0px rgba(21, 22, 26, 0.08), 0px 24px 64px 0px rgba(21, 22, 26, 0.12)` | The only things that cover content: dialog and the off-canvas rail. Under D2 the rail is no longer dark, so this shadow now carries the whole 'this covers content' signal that colour used to carry with it. |
 | `float` | `0px 20px 50px -30px rgba(21, 22, 26, 0.22), 0px 1px 2px 0px rgba(21, 22, 26, 0.05)` | The prototype's --sh: the board, the receipt, the form, the route cards and the «now» card. Marketing only. |
+| `float-accent` | `0px 30px 70px -40px rgba(43, 75, 255, 0.35), 0px 1px 2px 0px rgba(21, 22, 26, 0.05)` | The «З GoProceed» compare card only (prototype .cmp-card.now, index.html l.607): the one coloured shadow in the system, and it is the mark colour under the one card that is the product promise. Marketing only. |
 
 ---
 
@@ -354,8 +355,10 @@ lightness shift between the surface roles; there is no elevation ladder.
 | `fast` | `160ms` | Hover, press, state. Linear's dominant measured duration and the one curve+duration pair that appears on more of their elements than any other. |
 | `base` | `240ms` | Accordion, tab, popover, chip. Folio measures 200ms on accordions and 250ms is Linear's --speed-regularTransition; 240ms sits between two measured values rather than beside one. |
 | `slow` | `400ms` | Scroll reveal and section enter. Measured identically on Grovia (400ms) and Linear (staggerIn 400ms) — two independent sites converging on the same number is the strongest evidence available for a motion value. |
-| `marquee` | `35s` | One full pass of the logo/proof ribbon. Folio's measured value on the same device (35s and 40.25s on two tracks). Long enough that it reads as ambient rather than as something demanding to be watched, and the only perpetual animation the system permits — it pauses on hover and freezes entirely under prefers-reduced-motion. |
+| `marquee` | `35s` | One full pass of the logo/proof ribbon. Folio's measured value on the same device (35s and 40.25s on two tracks). Long enough that it reads as ambient rather than as something demanding to be watched, and the only perpetual animation the system permits — it pauses on hover and freezes entirely under prefers-reduced-motion. [2026-09-06: one of the five named perpetual loops now — marquee, beam, pulse, drift, flow; spec 2026-09-06 §5.1] |
 | `deliberate` | `640ms` | Hero composition and sequence steps. Long enough to be read as choreography, short enough that a returning visitor is not waiting for it. |
+| `stately` | `900ms` | The approved prototype (design-references/contest-2026-09/daylight/index.html) enters copy and cards over .9–1.0s: [data-up], the role cells, the compare cards, the bento cells, the hero pills, the board cards. One token for that family; spec 2026-09-06 §6 lists every rounding. |
+| `grand` | `1200ms` | The prototype hero and heading choreography: SplitText line masks 1.1s, the h1 and the receipt 1.2s, the channel cards 1.2s, the stage 1.4s, the counters 1.6s. One token for the family; the 1.4 and 1.6 round down, recorded in spec 2026-09-06 §6. |
 
 ### `ease`
 
@@ -364,7 +367,7 @@ lightness shift between the surface roles; there is no elevation ladder.
 | `out` | `cubic-bezier(0.25, 0.46, 0.45, 0.94)` | ease-out-quad. THE interaction curve — measured as Linear's dominant transition timing function. Ease-out only, never ease-in: ease-in stalls the first frame, which is the frame being watched. |
 | `enter` | `cubic-bezier(0.165, 0.84, 0.44, 1)` | ease-out-quart. Reveals and staggers. Linear's measured staggerIn curve. |
 | `emphatic` | `cubic-bezier(0.19, 1, 0.22, 1)` | ease-out-expo. Hero composition and line draw. |
-| `soft` | `cubic-bezier(0.44, 0, 0.56, 1)` | Symmetric. Cross-fades only, where a directionless change should not imply a direction. Grovia's measured reveal curve. |
+| `soft` | `cubic-bezier(0.44, 0, 0.56, 1)` | Symmetric. Cross-fades, where a directionless change should not imply a direction, and the landing ambient yoyo loops (drift, pulse), which have no direction either [2026-09-06]. Grovia measured reveal curve. |
 | `overshoot` | `cubic-bezier(0.34, 1.56, 0.64, 1)` | ILLUSTRATION ONLY. Folio uses it on 78 elements, every one of them an illustration transform. An overshoot on a control makes a button feel like a toy; on a diagram it makes a part feel like it seated. |
 
 ### `stagger`
@@ -381,6 +384,8 @@ lightness shift between the surface roles; there is no elevation ladder.
 |---|---|---|
 | `reveal` | `stiffness 100, damping 20, mass 1` | The blur-in text reveal. Flexfolio's measured settle is ~3.25s on a spring with no overshoot, which is this shape. |
 | `press` | `stiffness 400, damping 30, mass 1` | Control press feedback. Fast enough to feel instant, damped enough not to wobble. |
+| `tilt` | `stiffness 120, damping 20, mass 1` | Pointer tilt on the board, the role cells and the channel cards. Settles in roughly the prototype quickTo .6–1s on power3, no overshoot — a surface that leans must not wobble. |
+| `magnetic` | `stiffness 150, damping 18, mass 0.5` | A control following the pointer catches up in about half a second, the prototype quickTo .5s. motion-primitives ships 26.7/4.1/0.2 which overshoots visibly; the prototype does not. |
 
 ### `blur`
 
