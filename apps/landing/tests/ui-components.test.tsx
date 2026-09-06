@@ -179,3 +179,32 @@ describe("Stepper", () => {
     expect(html).toContain('data-stepper-line="true"');
   });
 });
+
+describe("prototype parity — components (2026-09-06)", () => {
+  it("Button lifts a pixel on hover on the emphatic curve", () => {
+    const html = renderToStaticMarkup(<Button size="lg">Обговорити пілот</Button>);
+    expect(html).toContain("hover:-translate-y-px");
+    expect(html).toContain("ease-emphatic");
+    expect(renderToStaticMarkup(<Button variant="link">лист</Button>)).not.toContain("hover:-translate-y-px");
+  });
+  it("Accordion opens over the deliberate duration on the emphatic curve", () => {
+    const html = renderToStaticMarkup(<Accordion marker="plus" entries={[{ id: "a", question: "Питання?", answer: "Відповідь." }]} />);
+    expect(html).toContain("duration-deliberate");
+    expect(html).toContain("ease-emphatic");
+    expect(html).not.toContain("duration-base");
+  });
+  it("the «now» compare card carries the accent shadow and pops its checks when asked", () => {
+    const rows = [{ key: "photo" as const, question: "Де фото?", answer: "На роботі W-014" }];
+    const still = renderToStaticMarkup(<CompareCard tone="now" eyebrow="З GoProceed" title="Один запис" rows={rows} outcome="Акт не повертають." />);
+    expect(still).toContain("shadow-float-accent");
+    expect(still).not.toContain("scale(0)");
+    const popping = renderToStaticMarkup(<CompareCard tone="now" eyebrow="З GoProceed" title="Один запис" rows={rows} outcome="Акт не повертають." animateChecks />);
+    expect(popping).toContain("scale(0)");
+  });
+  it("FeatureCell leans, FeatureGrid supplies the perspective", () => {
+    const html = renderToStaticMarkup(<FeatureGrid columns={4}><FeatureCell title="ПТВ">біль</FeatureCell></FeatureGrid>);
+    expect(html).toContain("perspective:1600px");
+    expect(html).toContain('data-tilt="off"');
+    expect(html).toContain('data-slot="feature-cell"');
+  });
+});
