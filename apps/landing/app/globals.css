@@ -140,12 +140,4 @@
     letter-spacing: 0.06em;
     color: var(--color-surface);
   }
-
-  /* The sticky route stack: cards pin under the header on wide screens only. */
-  @media (width >= 1240px) {
-    .landing-route-card { position: sticky; top: 90px; }
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .landing-route-card { position: relative; top: auto; }
-  }
 }

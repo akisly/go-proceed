@@ -295,3 +295,21 @@ describe("prototype parity — compare, roles, provenance (2026-09-06)", () => {
     expect(trust.match(/data-slot="bento-cell"/g)).toHaveLength(3);
   });
 });
+
+describe("prototype parity — route and capture (2026-09-06)", () => {
+  const route = section("stages", "position");
+  const capture = section("capture", "trust");
+  it("stacks the five route cards in one ScrollStack, each media half tinted, glowing and leaning", () => {
+    expect(route).toContain('data-scroll-stack="off"');
+    expect(route.match(/data-stack-card="\d"/g)).toHaveLength(5);
+    expect(route.match(/data-stack-media=""/g)).toHaveLength(5);
+    for (const n of [1, 2, 3, 4, 5]) expect(route).toContain(`media-tint-${n}`);
+    expect(route.match(/media-glow-/g)).toHaveLength(5);
+    expect(route).not.toContain("landing-route-card");
+  });
+  it("tilts the three channel cards, pulses the pilot chip and flows the dashes to one record", () => {
+    expect(capture.match(/data-tilt="off"/g)).toHaveLength(3);
+    expect(capture.match(/pulse-dot/g)).toHaveLength(1);
+    expect(capture.match(/flow-dash/g)).toHaveLength(3);
+  });
+});

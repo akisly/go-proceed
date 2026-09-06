@@ -75,8 +75,30 @@ try {
     }
     const overflow = await page.evaluate(() => {
       const vw = window.innerWidth;
+      // The route media halves carry a blurred `media-glow` (base.css) offset
+      // by a negative inset — the prototype's `.glowc` — inside a `relative
+      // overflow-hidden` container (route.tsx's `.landing-media-grid`). That is
+      // the same shape the border-beam comment above already names: an
+      // absolutely positioned decorative child whose containing block clips it,
+      // so nothing paints past the edge and no scrollbar exists (`scrollWidth`
+      // already equals `innerWidth` for exactly this reason). A raw
+      // `getBoundingClientRect()` does not know about the clip, so it reports
+      // the glow as reaching past the viewport at every width narrower than
+      // `wide`'s two-column layout, even though that portion is never visible.
+      // `visibleRight` intersects the element's box with every ancestor whose
+      // computed `overflow`/`overflow-x` is not `visible`, so only genuine,
+      // paintable overflow — the bug this check exists to catch — still fails.
+      function visibleRight(el) {
+        let right = el.getBoundingClientRect().right;
+        for (let node = el.parentElement; node; node = node.parentElement) {
+          const cs = getComputedStyle(node);
+          if (cs.overflow === "visible" && cs.overflowX === "visible") continue;
+          right = Math.min(right, node.getBoundingClientRect().right);
+        }
+        return right;
+      }
       const wide = [...document.querySelectorAll("body *")]
-        .filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && r.right > vw + 1; })
+        .filter((el) => { const r = el.getBoundingClientRect(); return r.width > 0 && visibleRight(el) > vw + 1; })
         .map((el) => `${el.tagName.toLowerCase()}${el.id ? "#" + el.id : ""}.${String(el.className).split(" ")[0]}`)
         .slice(0, 10);
       return { scrollWidth: document.documentElement.scrollWidth, innerWidth: vw, wide };

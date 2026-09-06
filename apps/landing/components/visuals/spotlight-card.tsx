@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, type PointerEvent, type ReactNode } from "react";
+import { Tilt } from "@goproceed/ui/motion";
 
 /** The channel card's pointer-tracked dot spotlight — the same two variables `FeatureCell` writes. */
 export function SpotlightCard({ children, className }: { children: ReactNode; className: string }) {
@@ -10,9 +11,11 @@ export function SpotlightCard({ children, className }: { children: ReactNode; cl
     event.currentTarget.style.setProperty("--gp-spot-y", `${((event.clientY - r.top) / r.height) * 100}%`);
   }, []);
   return (
-    <article onPointerMove={onMove} className={className}>
-      <i aria-hidden="true" className="spotlight -z-10 opacity-0 transition-opacity duration-slow ease-out group-hover:opacity-100" />
-      {children}
-    </article>
+    <Tilt maxX={2.5} maxY={3} className="grid h-full">
+      <article onPointerMove={onMove} className={className}>
+        <i aria-hidden="true" className="spotlight -z-10 opacity-0 transition-opacity duration-slow ease-out group-hover:opacity-100" />
+        {children}
+      </article>
+    </Tilt>
   );
 }

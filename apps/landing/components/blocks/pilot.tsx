@@ -27,7 +27,7 @@ export function Pilot() {
               ))}
             </Stagger>
           </div>
-          <Reveal y={0}><PilotForm /></Reveal>
+          <Reveal y={0} size="stately"><PilotForm /></Reveal>
         </div>
       </div>
     </section>
