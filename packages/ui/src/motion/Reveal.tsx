@@ -23,6 +23,22 @@ import { useReduced } from "./use-reduced";
  * `size` exists because the prototype enters copy at 900ms and the hero at
  * 1200ms; the default stays 400ms so every caller outside the landing is
  * unchanged.
+ *
+ * THE RESTING `animate` TARGET. `useReduced()` is true on the server and on
+ * the first client render, then flips to the real preference after hydration
+ * (use-reduced.ts). Motion reads `initial` once, at mount, so a primitive that
+ * keeps one element across that flip and only swaps its `initial` object
+ * stays on the reduced snapshot for ever: `whileInView` then animates `x`
+ * and `y` from an unset 0 to 0, and the slide this file documents never
+ * happens — measured on the built landing on 2026-09-06, every card at
+ * `transform: none` through its whole entrance. `animate` is the target an
+ * element rests at beneath `whileInView` (Motion 12.43, `variantPriorityOrder`;
+ * a key that newly appears in it is animated), so mirroring the hidden state
+ * there re-applies the offset the instant the gate opens — instantly and
+ * invisibly, at opacity 0. A reduced reader's `animate` never names a
+ * transform, so the contract in `tokens.ts` (`REDUCED`) holds to the letter.
+ * The transitions live inside the targets because the resting one must be
+ * instant and the entrance must not.
  */
 export function Reveal({
   children, delay = 0, y = 16, x = 0, size = "slow", className,
@@ -39,17 +55,18 @@ export function Reveal({
   className?: string | undefined;
 }) {
   const reduced = useReduced();
+  const hidden = reduced ? { opacity: 0 } : { opacity: 0, x, y };
   return (
     <motion.div
       className={className}
-      initial={reduced ? { opacity: 0 } : { opacity: 0, x, y }}
-      whileInView={reduced ? { opacity: 1 } : { opacity: 1, x: 0, y: 0 }}
-      viewport={{ once: true, amount: 0.35 }}
-      transition={
+      initial={hidden}
+      animate={{ ...hidden, transition: { duration: 0 } }}
+      whileInView={
         reduced
-          ? { duration: REDUCED.duration, ease: REDUCED.ease, delay: 0 }
-          : { duration: DURATION[size], ease: EASE.enter, delay }
+          ? { opacity: 1, transition: { duration: REDUCED.duration, ease: REDUCED.ease, delay: 0 } }
+          : { opacity: 1, x: 0, y: 0, transition: { duration: DURATION[size], ease: EASE.enter, delay } }
       }
+      viewport={{ once: true, amount: 0.35 }}
     >
       {children}
     </motion.div>

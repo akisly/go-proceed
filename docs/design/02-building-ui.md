@@ -329,6 +329,16 @@ One line each. Every one of these shipped or nearly shipped.
   consistent everywhere. Only the visual pass catches that class.
 - **`text-align` is inert on an inline box.** Assert the rendered result — shared
   right edges — never the declaration.
+- **Motion reads `initial` once, at mount — and `useReduced()` is true at
+  mount.** A primitive that keeps one element across the post-hydration flip
+  and only swaps its `initial` object stays on the reduced snapshot for ever:
+  the entrance runs as a bare fade and its documented transform never
+  happens, with nothing failing. Rest the element on `animate` (or a resting
+  variant label) that mirrors the full hidden state, as `Reveal`, `Stagger`
+  and `NodeLock` do since 2026-09-06; `motion-hydration-gate.test.tsx` guards
+  it. A primitive that swaps its whole tree on the flip (`TextBlurIn`,
+  `LineReveal`) is not affected, which is why the hero was fine and every
+  card, cell and check beneath it was not.
 - **A Motion wrapper on `display: contents` never intersects.** A
   `Stagger`/`Reveal`/`StaggerItem` given `className="contents"` has no box, so
   IntersectionObserver never fires and its `whileInView` never runs — the hero

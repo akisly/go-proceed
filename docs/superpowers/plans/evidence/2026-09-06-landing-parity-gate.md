@@ -453,3 +453,269 @@ harness's own overflow assertion); `1440-00`, `390-00` and
 `reduced-1440-00` are byte-identical to the original after-set.
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## Addendum — the hydration gate: entrances were fades (2026-09-06, later)
+
+### The report, and what was true of it
+
+The report: `CompareCard`'s `animateChecks` path wrapped the check rows in a
+`Stagger` and each check in a `StaggerItem`, both on `className="contents"`;
+Chromium delivers no `IntersectionObserver` callback to a boxless element, so
+`whileInView` never fired and the checks measured `opacity: 0` for ever.
+
+That was true of the branch before `014c733` («motion wrappers are boxes»),
+and is reproduced below on that exact file. On the branch tip the boxes were
+already real and the checks did fade in — but the **transform half of the
+entrance was still missing**, and so was every other transform-carrying
+entrance on the page. That second defect is what this addendum fixes.
+
+### Reproduced — before `014c733` (`Compare.tsx` from its parent, everything else at the tip)
+
+Throwaway script (`scratchpad/repro/measure.mjs`, not part of the gate):
+production build, 1440×900, `scrollIntoView` on the «now» card, then the
+computed opacity of every check's `StaggerItem` (`li > div:first-child`)
+sampled to 3 s.
+
+```json
+{ "stagger": { "cls": "contents", "display": "contents" },
+  "item0":   { "cls": "contents", "display": "contents", "opacity": "0" },
+  "items@t": { "0": ["0","0","0","0","0"], "800": ["0","0","0","0","0"],
+               "2000": ["0","0","0","0","0"], "3000": ["0","0","0","0","0"] } }
+```
+
+Opacity `0` at every sample. Confirmed as reported.
+
+### Measured — the branch tip (`b713b03`), before this addendum's change
+
+Same script. Boxes are real (`display: grid`), and the opacity does move:
+
+```json
+{ "items@t": { "500": ["0","0","0","0","0"],
+               "800": ["0.911","0.606","0","0","0"],
+               "1200": ["0.9999","0.9985","0.988","0.945","0.763"],
+               "2000": ["1","1","1","1","1"] },
+  "transform@t": "none at every sample, every item",
+  "inline style at load": "opacity:0",
+  "inline style at t≈900": "opacity: 0; transform: none;" }
+```
+
+So the checks faded in, in sequence — but never scaled. `from="scale"`'s
+`scale: 0` was never on the element. A second probe on the same build:
+
+| element | inline style at load (after hydration) |
+|---|---|
+| the «now» card's `Reveal` (`x={20}`) | `opacity:0` — no `translateX(20px)` |
+| a role cell's `StaggerItem` (rise 20) | `opacity:0` — no `translateY(20px)` |
+| a check's `StaggerItem` (`from="scale"`) | `opacity:0` — no `scale(0)` |
+| `matchMedia("(prefers-reduced-motion: reduce)").matches` | `false` |
+
+**Root cause.** `useReduced()` is `true` on the server and on the first
+client render, then flips after hydration (`use-reduced.ts` — deliberate, and
+right). Motion reads `initial` **once, at mount**. A primitive that keeps the
+same element across the flip and only swaps its `initial` object therefore
+mounts on the reduced snapshot (`opacity: 0`, no transform) and stays there;
+when `whileInView` fires, `x`/`y`/`scale` animate from an unset identity to
+identity — `transform: none` throughout — and the entrance is a bare fade.
+Primitives that swap their whole tree on the flip (`TextBlurIn`, `LineReveal`)
+remount their words and were never affected, which is why the hero read
+correctly and everything beneath it did not.
+
+Checked against the installed Motion (`motion` 12.43.0 → `motion-dom`
+12.43.0, `render/utils/variant-props.mjs`): `variantPriorityOrder` is
+`animate` < `whileInView` < … < `exit`; and in
+`render/utils/animation-state.mjs` a key that newly appears in a type's
+resolved values is marked to animate unless an active higher-priority type
+already owns it. So a **resting `animate` target that mirrors the full hidden
+state** re-applies the transform the moment the gate opens — instantly
+(`transition: { duration: 0 }`) and invisibly (opacity is 0) — and
+`whileInView` then has a real transform to leave from. The docs page
+(motion.dev/docs/react-scroll-animations) states the same resting relation:
+«elements will animate between `initial`/`animate`, and `whileInView`».
+
+### The fix
+
+- `Reveal.tsx`, `NodeLock.tsx`: `animate={{ ...hidden, transition: { duration: 0 } }}`;
+  the entrance transition moves inside the `whileInView` target.
+- `Stagger.tsx`: a third label. `still` is the reduced hidden state
+  (`opacity: 0`), `hidden` the full one (now with `transition: { duration: 0 }`),
+  and the parent rests on `initial={rest} animate={rest}` with
+  `rest = reduced ? "still" : "hidden"`. When the gate opens the resting label
+  changes and Motion re-applies `hidden` to every child through the variant
+  tree. `StaggerItem` is unchanged in API.
+- A reduced reader's resting target never names a transform, so the
+  `REDUCED` contract in `tokens.ts` holds to the letter; the new contract test
+  in `motion-parity-reduced.test.tsx` asserts no `transform` in the hidden
+  markup of all three under the reduced mock.
+- `motion-hydration-gate.test.tsx` (jsdom) replays the flip through a mutable
+  mock and asserts `translateX(-20px)`, `scale(0)`, `translateY(16px)` and
+  `scale(0.96)` are on the element afterwards, at opacity 0. (Its first draft
+  re-rendered the same element object — React bails out of an identical
+  element and the hook is never re-read — so each render builds a fresh one.)
+- `docs/design/02-building-ui.md` §8 records the trap.
+
+Not changed: `use-reduced.ts` and its contract; `Compare.tsx` (already on real
+boxes since `014c733`); `CrossFade`, whose keyed children mount after the
+flip; the hover/scroll primitives, which read the flag at interaction time.
+Residual: an above-the-fold `whileInView` can in principle fire before the
+post-effect flip and take the reduced entrance once — unchanged from before,
+and not reachable by the compare section, which is below the fold at every
+harness width.
+
+### Measured — after the fix (fresh production build, same script)
+
+```json
+{ "item0 at load": { "display": "grid", "opacity": "0", "transform": "matrix(0, 0, 0, 0, 0, 0)" },
+  "items opacity@t":   { "500": ["0","0","0","0","0"],
+                         "800": ["0.911","0.606","0","0","0"],
+                         "1200": ["0.9999","0.9985","0.988","0.945","0.763"],
+                         "2000": ["1","1","1","1","1"] },
+  "items transform@t": { "500": "matrix(0,0,0,0,0,0) ×5",
+                         "800": ["matrix(0.9115 …)", "matrix(0.6083 …)", "0", "0", "0"],
+                         "1200": ["0.99999", "0.9986", "0.9884", "0.9459", "0.7668"],
+                         "2000": "none ×5" } }
+```
+
+Each check now rests at `scale(0)`, then scales and fades up in turn — the
+pop the component documents. The same probe on the «now» card's `Reveal`:
+`translateX(20px)` at load, `11.85px` at t≈500, `4.14px` at t≈700; a role
+cell's `StaggerItem` rests at `translateY(20px)`.
+
+| moment | frame |
+|---|---|
+| before `014c733`, 3 s after scrolling the card in — the checks never arrive | ![before](2026-09-06-landing-parity/before/compare-checks-contents-3000ms.png) |
+| after this addendum, ≈950 ms after the pair is scrolled in — the first checks landed, the last still arriving | ![pop](2026-09-06-landing-parity/after/compare-checks-pop-950ms.png) |
+| after, settled at ≈2.2 s | ![settled](2026-09-06-landing-parity/after/compare-checks-settled-2200ms.png) |
+
+### What the harness found, and the harness change
+
+The first `pnpm --filter @goproceed/landing qa` after the fix passed every
+width, the reduced pair and the parity walk, and failed **one** check:
+
+```
+border beam at 1440 (full motion): PROBLEM paintedPixels=0 floor=200
+```
+
+Traced with a timed probe replaying `beamPixels()`'s own steps: after
+`scrollIntoView`, the product frame's `Reveal` (`y={60}`, `grand`, delay
+.35 s) now really rises — `translateY(60px)` → `20.8px` at +700 ms → `6.0px`
+at +1000 ms → `0` at +1600 ms — where before the fix it never moved. The
+harness photographs the `.beam` element handle at a fixed +700 ms: an element
+handle screenshot clips to a box measured an instant before the shot, so a
+ring still travelling shifts a few pixels between the two and the 2px
+perimeter band lands beside it. Zero pixels, with the ring plainly running.
+The old 700 ms only ever worked because the frame stood still.
+
+`beamPixels()` now polls (every 100 ms, capped at 4 s so a broken entrance
+still fails as 0) until the beam's box has not moved between two reads AND
+every ancestor is at full opacity, then shoots. Verified standalone against
+the fixed build, three runs: settled at 1600 ms each time, `paintedPixels`
+721 / 690 / 690 — inside the 460–1051 range the harness's own comment
+measured for a healthy ring.
+
+### The gate — re-run
+
+#### 2. `node packages/testing/qa/motion-audit.mjs`
+
+```
+motion-audit: clean
+```
+
+#### 3. `pnpm --filter @goproceed/testing test`
+
+The first run, taken while the QA harness's `next build` was hogging the
+machine, reported 142 failures across 13 files — every one a timeout. Re-run
+alone (JSON reporter):
+
+```
+files 174 tests 697 failed 0
+```
+
+The named substitution set, run first and pasted in full:
+
+`pnpm --filter @goproceed/testing exec vitest run motion-audit motion-contract token-fidelity palette-derivation contrast primitive-leak component-contract tw-merge app-entry copy-catalog-fidelity error-catalog-fidelity status-label-fidelity`
+
+```
+ ✓ src/token-fidelity.test.ts (15 tests) 272ms
+ ✓ src/motion-audit.test.ts (15 tests) 159ms
+ ✓ src/primitive-leak.test.ts (2 tests) 82ms
+ ✓ src/app-entry.test.ts (4 tests) 63ms
+ ✓ src/component-contract.test.ts (19 tests) 20ms
+ ✓ src/error-catalog-fidelity.test.ts (1 test) 10ms
+ ✓ src/tw-merge.test.ts (7 tests) 6ms
+ ✓ src/copy-catalog-fidelity.test.ts (4 tests) 5ms
+ ✓ src/palette-derivation.test.ts (12 tests) 4ms
+ ✓ src/status-label-fidelity.test.ts (2 tests) 3ms
+ ✓ src/motion-contract.test.ts (7 tests) 4ms
+ ✓ src/contrast.test.ts (80 tests) 4ms
+
+ Test Files  12 passed (12)
+      Tests  168 passed (168)
+```
+
+#### 4. `pnpm turbo run typecheck`
+
+```
+ Tasks:    10 successful, 10 total
+Cached:    7 cached, 10 total
+  Time:    5.416s
+```
+
+#### 6. `pnpm --filter @goproceed/landing test`
+
+```
+ ✓ tests/motion-parity.test.tsx (16 tests) 36ms
+ ✓ tests/ui-components.test.tsx (18 tests) 25ms
+ ✓ tests/motion-parity-reduced.test.tsx (4 tests) 42ms
+ ✓ tests/motion-hydration-gate.test.tsx (4 tests) 80ms
+ ✓ tests/landing-render.test.tsx (34 tests) 7ms
+ ✓ tests/pilot-form.test.tsx (5 tests) 546ms
+
+ Test Files  13 passed (13)
+      Tests  134 passed (134)
+```
+
+#### 5. `pnpm --filter @goproceed/landing build`
+
+```
+✓ Compiled successfully in 478ms
+  Running TypeScript ...
+  Finished TypeScript in 1125ms ...
+✓ Generating static pages using 11 workers (10/10) in 453ms
+Route (app)
+┌ ƒ /
+├ ƒ /_not-found
+├ ƒ /api/pilot
+├ ○ /apple-icon.png
+├ ○ /icon.png
+├ ƒ /kitchen-sink
+├ ƒ /kitchen-sink/components
+└ ƒ /og
+```
+
+#### 7. `pnpm --filter @goproceed/landing qa` (after the harness change)
+
+```
+1920px: ok scrollWidth=1920 wide=0 errors=0 settledAtLoad=false
+1440px: ok scrollWidth=1440 wide=0 errors=0 settledAtLoad=false
+1240px: ok scrollWidth=1240 wide=0 errors=0 settledAtLoad=false
+1024px: ok scrollWidth=1024 wide=0 errors=0 settledAtLoad=false
+768px: ok scrollWidth=768 wide=0 errors=0 settledAtLoad=false
+390px: ok scrollWidth=390 wide=0 errors=0 settledAtLoad=n/a
+360px: ok scrollWidth=360 wide=0 errors=0 settledAtLoad=n/a
+reduced 1440px: ok scrollWidth=1440 wide=0 errors=0 settledAtLoad=true
+reduced 390px: ok scrollWidth=390 wide=0 errors=0 settledAtLoad=true
+border beam at 1440 (full motion): ok paintedPixels=695 floor=200
+parity: ok {"depthLayers":3,"depthMoves":true,"tiltOnWide":8,"tiltChainsOk":8,"magneticOnWide":7,"stackOnWide":"on","stepperProgress":1,"pulsing":3,"flowing":3,"tiltOnNarrow":0,"depthFlatNarrow":true,"stackOnNarrow":"off"}
+wrote public/og.png
+landing qa: ok
+```
+
+`public/og.png` came back byte-identical (the tree shows no change).
+
+#### 8. `pnpm validate:canonical-docs`
+
+```
+canonical documentation: OK
+```
+
+Step 1 (`tokens generate`) does not apply — `tokens.json` is untouched.

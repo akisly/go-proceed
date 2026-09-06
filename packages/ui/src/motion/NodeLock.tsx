@@ -16,6 +16,12 @@ import { useReduced } from "./use-reduced";
  *
  * `index` exists so a row of nodes locks in sequence behind the line that
  * drew them, at the standard 80ms step.
+ *
+ * The resting `animate` target mirrors the hidden state for the reason
+ * `Reveal.tsx` gives: Motion reads `initial` once, so without it the element
+ * mounted on the reduced snapshot `useReduced()` picks before hydration and
+ * the .96 never applied. Instant, at opacity 0; a reduced reader's rest names
+ * no transform.
  */
 export function NodeLock({
   children, index = 0, className,
@@ -25,17 +31,18 @@ export function NodeLock({
   className?: string | undefined;
 }) {
   const reduced = useReduced();
+  const hidden = reduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 };
   return (
     <motion.div
       className={className}
-      initial={reduced ? { opacity: 0 } : { opacity: 0, scale: 0.96 }}
-      whileInView={reduced ? { opacity: 1 } : { opacity: 1, scale: 1 }}
-      viewport={{ once: true, amount: 0.6 }}
-      transition={
+      initial={hidden}
+      animate={{ ...hidden, transition: { duration: 0 } }}
+      whileInView={
         reduced
-          ? { duration: REDUCED.duration, ease: REDUCED.ease }
-          : { duration: DURATION.base, ease: EASE.out, delay: index * STAGGER.default }
+          ? { opacity: 1, transition: { duration: REDUCED.duration, ease: REDUCED.ease } }
+          : { opacity: 1, scale: 1, transition: { duration: DURATION.base, ease: EASE.out, delay: index * STAGGER.default } }
       }
+      viewport={{ once: true, amount: 0.6 }}
     >
       {children}
     </motion.div>

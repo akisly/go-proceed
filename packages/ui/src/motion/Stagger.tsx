@@ -6,12 +6,14 @@ import { DURATION, EASE, STAGGER, REDUCED } from "./tokens";
 import { useReduced } from "./use-reduced";
 
 const container = (step: number, delay: number) => ({
+  still: {},
   hidden: {},
   shown: { transition: { staggerChildren: step, delayChildren: 0.04 + delay } },
 });
 
 const child = (reduced: boolean, y: number, from: "rise" | "scale", size: "slow" | "stately" | "grand") => ({
-  hidden: reduced ? { opacity: 0 } : from === "scale" ? { opacity: 0, scale: 0 } : { opacity: 0, y },
+  still: { opacity: 0 },
+  hidden: { ...(from === "scale" ? { opacity: 0, scale: 0 } : { opacity: 0, y }), transition: { duration: 0 } },
   shown: reduced
     ? { opacity: 1, transition: { duration: REDUCED.duration, ease: REDUCED.ease } }
     : from === "scale"
@@ -31,6 +33,21 @@ const child = (reduced: boolean, y: number, from: "rise" | "scale", size: "slow"
  * sequence is information — it says these things are ordered — and removing it
  * would remove meaning, not decoration. Removing the 16px rise removes
  * decoration.
+ *
+ * THREE LABELS, NOT TWO. `useReduced()` is true on the server and on the
+ * first client render, then flips after hydration (use-reduced.ts). Motion
+ * reads `initial` once, at mount, so with a single `hidden` label whose
+ * values depended on the flag every item mounted on the reduced snapshot
+ * (`opacity: 0`, no transform) and stayed there: `shown` then animated
+ * `scale` from an unset 1 to 1 and the pop this file promises never happened
+ * — measured on the built landing on 2026-09-06, every compare check at
+ * `transform: none` through its whole entrance. So the reduced hidden state is
+ * its own label, `still`, and the parent RESTS on `still` or `hidden` through
+ * `animate`, the target beneath `whileInView` (Motion 12.43,
+ * `variantPriorityOrder`). When the gate opens the parent's resting label
+ * changes and Motion re-applies `hidden` to every child — instantly, at
+ * opacity 0, so nothing is seen — and `shown` has a real transform to leave
+ * from. A reduced reader rests on `still`, which never names a transform.
  */
 export function Stagger({
   children, step = "default", delay = 0, className,
@@ -41,11 +58,14 @@ export function Stagger({
   delay?: number | undefined;
   className?: string | undefined;
 }) {
+  const reduced = useReduced();
+  const rest = reduced ? "still" : "hidden";
   return (
     <motion.div
       className={className}
       variants={container(STAGGER[step], delay)}
-      initial="hidden"
+      initial={rest}
+      animate={rest}
       whileInView="shown"
       viewport={{ once: true, amount: 0.25 }}
     >
