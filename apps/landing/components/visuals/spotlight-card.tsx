@@ -11,7 +11,7 @@ export function SpotlightCard({ children, className }: { children: ReactNode; cl
     event.currentTarget.style.setProperty("--gp-spot-y", `${((event.clientY - r.top) / r.height) * 100}%`);
   }, []);
   return (
-    <Tilt maxX={2.5} maxY={3} className="grid h-full">
+    <Tilt area="section" maxX={2.5} maxY={3} className="grid h-full">
       <article onPointerMove={onMove} className={className}>
         <i aria-hidden="true" className="spotlight -z-10 opacity-0 transition-opacity duration-slow ease-out group-hover:opacity-100" />
         {children}

@@ -67,7 +67,7 @@ export function FeatureCell({
     event.currentTarget.style.setProperty("--gp-spot-y", `${((event.clientY - r.top) / r.height) * 100}%`);
   }, []);
   return (
-    <Tilt maxX={2.5} maxY={3} className="grid">
+    <Tilt area="section" maxX={2.5} maxY={3} className="grid">
       <article
         data-slot="feature-cell"
         onPointerMove={onMove}

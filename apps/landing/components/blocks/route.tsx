@@ -74,7 +74,7 @@ export function Route() {
                         * The media half already carries `[perspective:1200px]`;
                         * `ScrollStackMedia` transforms, so it needs preserve-3d
                         * or the chain flattens between the two. */}
-                      <Tilt maxX={2.5} maxY={3} className="grid">{MEDIA[i]}</Tilt>
+                      <Tilt area="section" maxX={2.5} maxY={3} className="grid">{MEDIA[i]}</Tilt>
                     </ScrollStackMedia>
                   </div>
                 </article>

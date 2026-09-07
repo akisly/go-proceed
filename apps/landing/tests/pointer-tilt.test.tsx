@@ -61,6 +61,16 @@ describe("pointer tilt reaches every content card", () => {
     expect(orphans).toEqual([]);
   });
 
+  it("reads the pointer across the whole section, the way the hero's board does", () => {
+    // `area="self"` only reacts when the pointer is physically over the card,
+    // which is why the page read as «only the dashboard moves»: measured on the
+    // built page, the board tilts from a pointer anywhere in the hero while a
+    // comparison card did not move at all until the pointer was on top of it.
+    // Every tilted surface now tracks its section.
+    const areas = tilts.map((el) => el.getAttribute("data-tilt-area"));
+    expect(new Set(areas)).toEqual(new Set(["section"]));
+  });
+
   it("leans the big surfaces less than the small ones", () => {
     // The contract caps pointer tilt at 3°, and a card 600px wide reads 3° as
     // a wobble rather than a lean. Asserted through the blocks that own them.

@@ -91,7 +91,7 @@ export function CompareCard({
      * that reads as a lean on a 300px cell reads as a wobble on this one. The
      * card's own `overflow-hidden` does not break the chain — it flattens its
      * DESCENDANTS, and the rotation happens on this wrapper above it. */
-    <Tilt maxX={2} maxY={2.5} className={cx("grid h-full", now ? "order-3" : "order-1")}>
+    <Tilt area="section" maxX={2} maxY={2.5} className={cx("grid h-full", now ? "order-3" : "order-1")}>
     <article
       data-compare-tone={tone}
       className={cx("grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-surface border", TONE[tone], "order-none", className)}

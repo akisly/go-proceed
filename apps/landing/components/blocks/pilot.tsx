@@ -25,7 +25,7 @@ export function Pilot() {
             <Stagger className="mt-2 grid gap-3.5 [perspective:1600px] md:grid-cols-2">
               {boxes.map((box, i) => (
                 <StaggerItem key={box.title} size="stately" className={i === 2 ? "grid [transform-style:preserve-3d] md:col-span-2" : "grid [transform-style:preserve-3d]"}>
-                  <Tilt maxX={2.5} maxY={3} className="grid h-full">
+                  <Tilt area="section" maxX={2.5} maxY={3} className="grid h-full">
                     <div className="grid h-full gap-1.5 rounded-card border border-line-strong bg-surface px-4 py-3.5 text-data text-ink-secondary">
                       <b className="font-semibold text-ink">{box.title}</b>
                       {box.items.map((t) => <span key={t}>· {t}</span>)}
