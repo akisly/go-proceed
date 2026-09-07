@@ -285,7 +285,7 @@ try {
   // and the 3D context `Tilt` requires re-sorted the hero's layers so the board
   // painted over both pills.
   const parityOk = p.depthMoves && p.tiltTotal === p.tiltOnWide && p.tiltChainsOk === p.tiltTotal
-    && p.tiltOnWide >= 21 && p.magneticOnWide === 10 && p.stackOnWide === "on"
+    && p.tiltOnWide >= 8 && p.magneticOnWide === 10 && p.stackOnWide === "on"
     && p.stepperProgress >= 0.99 && p.pulsing === 3 && p.flowing === 3
     && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off";
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);

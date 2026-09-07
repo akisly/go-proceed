@@ -43,10 +43,12 @@ const hasPerspective = (el: Element) =>
   /\[perspective:/.test(el.className) || /perspective:/.test(el.getAttribute("style") ?? "");
 
 describe("pointer tilt reaches every content card", () => {
-  it("covers all twenty-one surfaces", () => {
-    // 1 board · 3 capture channels · 4 roles · 2 comparison cards
-    // · 3 provenance cells · 3 pilot boxes · 5 route mocks.
-    expect(tilts).toHaveLength(21);
+  it("covers the board, the capture channels and the role cells", () => {
+    // 1 board · 3 capture channels · 4 roles. The comparison cards, the
+    // provenance cells, the pilot boxes and the route mocks were tilted for a
+    // day and taken back out on the owner's call — the page reads as a working
+    // register, and a register whose every panel leans reads as a toy.
+    expect(tilts).toHaveLength(8);
   });
 
   it("moves the small things around the board by translating them, not rotating them", () => {
@@ -91,13 +93,12 @@ describe("pointer tilt reaches every content card", () => {
     expect(new Set(areas)).toEqual(new Set(["section"]));
   });
 
-  it("leans the big surfaces less than the small ones", () => {
-    // The contract caps pointer tilt at 3°, and a card 600px wide reads 3° as
-    // a wobble rather than a lean. Asserted through the blocks that own them.
-    const compare = doc.querySelector("#compare [data-tilt]");
-    const roles = doc.querySelector("#roles [data-tilt]");
-    expect(compare).not.toBeNull();
-    expect(roles).not.toBeNull();
+  it("keeps the tilt on surfaces that are handled, not on surfaces that are read", () => {
+    // The hero's board is the product; the capture channels and the role cells
+    // are the two grids a reader hovers through. Everything else stays still.
+    expect(doc.querySelectorAll("#hero [data-tilt]")).toHaveLength(1);
+    expect(doc.querySelectorAll("#capture [data-tilt]")).toHaveLength(3);
+    expect(doc.querySelectorAll("#roles [data-tilt]")).toHaveLength(4);
   });
 
   it("does not tilt the form, the lists or the table", () => {
@@ -111,9 +112,11 @@ describe("pointer tilt reaches every content card", () => {
     expect(doc.querySelectorAll("table [data-tilt]")).toHaveLength(0);
   });
 
-  it("reaches each block that gained one", () => {
-    for (const [id, count] of [["compare", 2], ["trust", 3], ["stages", 5]] as const) {
-      expect(doc.querySelectorAll(`#${id} [data-tilt]`), `#${id}`).toHaveLength(count);
+  it("leaves the reading blocks still", () => {
+    // Removed 2026-09-07. These are read, not handled: the comparison table,
+    // the provenance panels, the pilot's terms and the route's mocks.
+    for (const id of ["compare", "trust", "pilot", "stages"]) {
+      expect(doc.querySelectorAll(`#${id} [data-tilt]`), `#${id}`).toHaveLength(0);
     }
   });
 });
