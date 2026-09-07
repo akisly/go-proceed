@@ -43,10 +43,20 @@ const hasPerspective = (el: Element) =>
   /\[perspective:/.test(el.className) || /perspective:/.test(el.getAttribute("style") ?? "");
 
 describe("pointer tilt reaches every content card", () => {
-  it("covers all twenty-one surfaces", () => {
-    // 1 product frame · 3 capture channels · 4 roles · 2 comparison cards
-    // · 3 provenance cells · 3 pilot boxes · 5 route mocks.
-    expect(tilts).toHaveLength(21);
+  it("covers all twenty-four surfaces", () => {
+    // 4 in the hero (the board, the receipt, the two pills) · 3 capture
+    // channels · 4 roles · 2 comparison cards · 3 provenance cells · 3 pilot
+    // boxes · 5 route mocks.
+    expect(tilts).toHaveLength(24);
+  });
+
+  it("moves what floats around the board, not only the board", () => {
+    // The evidence receipt and the two status pills hung off the frame on
+    // `Depth` (scroll parallax) and a CSS drift, and read the pointer not at
+    // all — so the composition had one live element and three fixed ones
+    // pinned to it, which is what «only the dashboard moves» actually looked
+    // like once the cards were fixed.
+    expect(doc.querySelectorAll("#hero [data-tilt]")).toHaveLength(4);
   });
 
   it("gives each one an ancestor that establishes perspective", () => {

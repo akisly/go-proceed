@@ -76,11 +76,15 @@ describe("hero and sources", () => {
     expect(hero.match(/data-magnetic="off"/g)).toHaveLength(3); // pill + two buttons
     for (const f of landingContent.hero.facts) expect(hero).toContain(f.value);
   });
-  it("layers the receipt and the two pills at depth, tilts the board and pulses the review tags", () => {
+  it("layers the receipt and the two pills at depth, tilts all four and pulses the review tags", () => {
     expect(hero).toContain('data-depth="-0.3"');
     expect(hero).toContain('data-depth="0.35"');
     expect(hero).toContain('data-depth="0.25"');
-    expect(hero.match(/data-tilt="off"/g)).toHaveLength(1);
+    // [2026-09-07] Was 1 — the board alone. The receipt and the two pills now
+    // lean with the pointer too, and by more than the board, so the group
+    // reads as depth instead of one moving surface with three fixed objects
+    // pinned to it.
+    expect(hero.match(/data-tilt="off"/g)).toHaveLength(4);
     expect(hero.match(/pulse-dot/g)).toHaveLength(2); // the two review cards on the board
     expect(hero).toContain("drift-a");
     expect(hero).toContain("drift-b");

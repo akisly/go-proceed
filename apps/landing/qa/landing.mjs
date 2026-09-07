@@ -202,6 +202,7 @@ try {
     const depthScrolled = await wide.evaluate(() => [...document.querySelectorAll("[data-depth]")].map((el) => getComputedStyle(el).transform));
     out.depthLayers = depthAtTop.length;
     out.depthMoves = depthAtTop.length === 3 && depthAtTop.some((t, i) => t !== depthScrolled[i]);
+    out.tiltTotal = await wide.evaluate(() => document.querySelectorAll("[data-tilt]").length);
     out.tiltOnWide = await wide.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
     // `perspective` only reaches a descendant through an unbroken
     // `transform-style: preserve-3d` chain — a `[data-tilt]` element sitting
@@ -271,7 +272,14 @@ try {
   // unbroken preserve-3d chain, and the page must not quietly lose its
   // tilted surfaces — 21 today (hero frame, 3 capture channels, 4 roles,
   // 2 comparison cards, 3 provenance cells, 3 pilot boxes, 5 route mocks).
-  const parityOk = p.depthMoves && p.tiltChainsOk === p.tiltOnWide && p.tiltOnWide >= 20 && p.magneticOnWide === 7 && p.stackOnWide === "on"
+  // All three numbers must agree. Comparing only `tiltChainsOk` against
+  // `tiltOnWide` is not enough: the chain walk counts every `[data-tilt]`
+  // while `tiltOnWide` counts only the enabled ones, so three disabled or
+  // three broken elements cancel out and the equality still holds. That is
+  // not hypothetical — a stale build reported 21/21 against a page that
+  // actually renders 24, and this gate passed it (2026-09-07).
+  const parityOk = p.depthMoves && p.tiltTotal === p.tiltOnWide && p.tiltChainsOk === p.tiltTotal
+    && p.tiltOnWide >= 24 && p.magneticOnWide === 7 && p.stackOnWide === "on"
     && p.stepperProgress >= 0.99 && p.pulsing === 3 && p.flowing === 3
     && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off";
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
