@@ -43,20 +43,30 @@ const hasPerspective = (el: Element) =>
   /\[perspective:/.test(el.className) || /perspective:/.test(el.getAttribute("style") ?? "");
 
 describe("pointer tilt reaches every content card", () => {
-  it("covers all twenty-four surfaces", () => {
-    // 4 in the hero (the board, the receipt, the two pills) · 3 capture
-    // channels · 4 roles · 2 comparison cards · 3 provenance cells · 3 pilot
-    // boxes · 5 route mocks.
-    expect(tilts).toHaveLength(24);
+  it("covers all twenty-one surfaces", () => {
+    // 1 board · 3 capture channels · 4 roles · 2 comparison cards
+    // · 3 provenance cells · 3 pilot boxes · 5 route mocks.
+    expect(tilts).toHaveLength(21);
   });
 
-  it("moves what floats around the board, not only the board", () => {
-    // The evidence receipt and the two status pills hung off the frame on
-    // `Depth` (scroll parallax) and a CSS drift, and read the pointer not at
-    // all — so the composition had one live element and three fixed ones
-    // pinned to it, which is what «only the dashboard moves» actually looked
-    // like once the cards were fixed.
-    expect(doc.querySelectorAll("#hero [data-tilt]")).toHaveLength(4);
+  it("moves the small things around the board by translating them, not rotating them", () => {
+    // Rotation displaces a corner in proportion to the element's size: on the
+    // built page 1.72° moved the 1054px board 15.8px and 2.58° moved the 251px
+    // receipt 0.6px. So the receipt and the two pills take
+    // `Magnetic area="section"` — a pointer-driven translation, legible at any
+    // size — and the board keeps the tilt, which suits a large surface.
+    expect(doc.querySelectorAll("#hero [data-tilt]")).toHaveLength(1);
+    const magnets = [...doc.querySelectorAll("#hero [data-magnetic-area='section']")];
+    expect(magnets).toHaveLength(3);
+  });
+
+  it("keeps the hero's layers flat, so the board cannot paint over the pills", () => {
+    // `Tilt` forces `transform-style: preserve-3d` up its chain, and a 3D
+    // context re-sorts children by depth instead of DOM order — which is
+    // exactly how the board ended up covering both status pills. Translation
+    // needs no 3D context; nothing around the satellites may reintroduce one.
+    const stagger = doc.querySelector("#hero [data-magnetic-area='section']")?.closest("div");
+    expect(stagger?.outerHTML ?? "").not.toContain("preserve-3d");
   });
 
   it("gives each one an ancestor that establishes perspective", () => {

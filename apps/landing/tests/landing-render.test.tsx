@@ -73,18 +73,19 @@ describe("hero and sources", () => {
     // LineReveal: the h1 text once for readers, once as words; the accent marked.
     expect(hero).toContain(`class="sr-only">${landingContent.hero.title}<`);
     expect(hero.match(/data-accent="true"/g)?.length).toBeGreaterThanOrEqual(1);
-    expect(hero.match(/data-magnetic="off"/g)).toHaveLength(3); // pill + two buttons
+    // Controls only — `area="self"`. The hero also carries three `section`
+    // magnets on the frame's satellites, which are decoration, not controls.
+    expect(hero.match(/data-magnetic-area="self"/g)).toHaveLength(3); // pill + two buttons
     for (const f of landingContent.hero.facts) expect(hero).toContain(f.value);
   });
-  it("layers the receipt and the two pills at depth, tilts all four and pulses the review tags", () => {
+  it("layers the receipt and the two pills at depth, tilts the board and pulses the review tags", () => {
     expect(hero).toContain('data-depth="-0.3"');
     expect(hero).toContain('data-depth="0.35"');
     expect(hero).toContain('data-depth="0.25"');
-    // [2026-09-07] Was 1 — the board alone. The receipt and the two pills now
-    // lean with the pointer too, and by more than the board, so the group
-    // reads as depth instead of one moving surface with three fixed objects
-    // pinned to it.
-    expect(hero.match(/data-tilt="off"/g)).toHaveLength(4);
+    expect(hero.match(/data-tilt="off"/g)).toHaveLength(1);
+    // The three satellites follow the pointer by translating instead — see
+    // pointer-tilt.test.tsx for why rotation cannot carry an object this small.
+    expect(hero.match(/data-magnetic-area="section"/g)).toHaveLength(3);
     expect(hero.match(/pulse-dot/g)).toHaveLength(2); // the two review cards on the board
     expect(hero).toContain("drift-a");
     expect(hero).toContain("drift-b");
@@ -274,9 +275,12 @@ describe("prototype parity — headings and statements (2026-09-06)", () => {
     expect(section("problem", "compare")).toContain("opacity:0.14");
   });
   it("magnetises every marketing button but the header's", () => {
-    const magnetic = html.match(/data-magnetic="off"/g) ?? [];
-    // hero pill + 2, cta 2, pilot form 2 (the mail fallback renders only in the failed state)
-    expect(magnetic).toHaveLength(7);
+    // Counted by `area="self"`, which is what a CONTROL uses: hero pill + 2,
+    // cta 2, pilot form 2 (the mail fallback renders only in the failed
+    // state). The `section` magnets are the hero's receipt and two pills —
+    // decoration that follows the pointer, not something you click.
+    expect(html.match(/data-magnetic-area="self"/g) ?? []).toHaveLength(7);
+    expect(html.match(/data-magnetic-area="section"/g) ?? []).toHaveLength(3);
     expect(html.slice(0, html.indexOf('id="main-content"'))).not.toContain("data-magnetic");
   });
 });

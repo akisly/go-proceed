@@ -277,9 +277,15 @@ try {
   // while `tiltOnWide` counts only the enabled ones, so three disabled or
   // three broken elements cancel out and the equality still holds. That is
   // not hypothetical — a stale build reported 21/21 against a page that
-  // actually renders 24, and this gate passed it (2026-09-07).
+  // actually rendered more, and this gate passed it (2026-09-07).
+  //
+  // `magneticOnWide` is 10, not 7: seven controls plus the hero's receipt and
+  // two pills, which follow the pointer by translating. They used to tilt, and
+  // that was wrong twice over — a 2.58° rotation moved the 251px receipt 0.6px,
+  // and the 3D context `Tilt` requires re-sorted the hero's layers so the board
+  // painted over both pills.
   const parityOk = p.depthMoves && p.tiltTotal === p.tiltOnWide && p.tiltChainsOk === p.tiltTotal
-    && p.tiltOnWide >= 24 && p.magneticOnWide === 7 && p.stackOnWide === "on"
+    && p.tiltOnWide >= 21 && p.magneticOnWide === 10 && p.stackOnWide === "on"
     && p.stepperProgress >= 0.99 && p.pulsing === 3 && p.flowing === 3
     && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off";
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
