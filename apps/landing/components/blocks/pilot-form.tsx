@@ -5,10 +5,11 @@ import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger,
 import { Magnetic } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import {
-  PILOT_EMAIL, buildPilotClipboardText, buildPilotMailto, type PilotFields, validatePilotFields,
+  PILOT_EMAIL, buildPilotClipboardText, buildPilotMailto, type PilotFields,
+  type RequiredPilotField, validatePilotFields,
 } from "../../content/pilot-request";
 
-type FormState = "idle" | "sending" | "sent" | "failed";
+type FormState = "idle" | "sending" | "sent" | "failed" | "invalid";
 const f = landingContent.pilot.form;
 const CONTROL = "h-(--gp-control-height-marketing) bg-canvas";
 
@@ -20,6 +21,9 @@ const CONTROL = "h-(--gp-control-height-marketing) bg-canvas";
  */
 export function PilotForm() {
   const [state, setState] = useState<FormState>("idle");
+  // Which required fields failed the last submit. The validator names them —
+  // the form does not restate what counts as empty.
+  const [missing, setMissing] = useState<RequiredPilotField[]>([]);
   const [copied, setCopied] = useState(false);
   const [role, setRole] = useState<string>(f.roles[0]);
   const [fields, setFields] = useState<PilotFields>({ name: "", company: "", contact: "", role: f.roles[0], context: "" });
@@ -41,10 +45,16 @@ export function PilotForm() {
     setFields(all);
     const checked = validatePilotFields(all);
     if (!checked.ok) {
-      const first = form.elements.namedItem(all.name ? "contact" : "name");
+      // Say what failed, then move. Focus alone announces only the field's
+      // label — it never says the submit was refused, and it says nothing at
+      // all to someone who is looking rather than listening.
+      setMissing(checked.missing);
+      setState("invalid");
+      const first = form.elements.namedItem(checked.missing[0] ?? "name");
       if (first instanceof HTMLInputElement) first.focus();
       return;
     }
+    setMissing([]);
     setState("sending");
     try {
       const response = await fetch("/api/pilot", {
@@ -101,7 +111,16 @@ export function PilotForm() {
       <div className="grid gap-3 md:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="pilot-name">{f.fields.name.label}</Label>
-          <Input id="pilot-name" name="name" required autoComplete="name" placeholder={f.fields.name.placeholder} className={CONTROL} />
+          <Input
+            id="pilot-name" name="name" required autoComplete="name"
+            placeholder={f.fields.name.placeholder} className={CONTROL}
+            {...(missing.includes("name")
+              ? { "aria-invalid": true, "aria-describedby": "pilot-name-error" }
+              : {})}
+          />
+          {missing.includes("name") && (
+            <p id="pilot-name-error" className="text-meta text-status-attention-fg">{f.fields.name.error}</p>
+          )}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="pilot-company">{f.fields.company.label}</Label>
@@ -118,7 +137,16 @@ export function PilotForm() {
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="pilot-contact">{f.fields.contact.label}</Label>
-          <Input id="pilot-contact" name="contact" required placeholder={f.fields.contact.placeholder} className={CONTROL} />
+          <Input
+            id="pilot-contact" name="contact" required
+            placeholder={f.fields.contact.placeholder} className={CONTROL}
+            {...(missing.includes("contact")
+              ? { "aria-invalid": true, "aria-describedby": "pilot-contact-error" }
+              : {})}
+          />
+          {missing.includes("contact") && (
+            <p id="pilot-contact-error" className="text-meta text-status-attention-fg">{f.fields.contact.error}</p>
+          )}
         </div>
       </div>
       <div className="grid gap-1.5">
@@ -131,9 +159,10 @@ export function PilotForm() {
       </div>
       <p role="status" aria-live="polite" className={state === "sent"
         ? "rounded-card border border-status-ready-line bg-status-ready px-3.5 py-3 text-data text-ink"
-        : state === "failed"
+        : state === "failed" || state === "invalid"
           ? "rounded-card border border-status-attention-line bg-status-attention px-3.5 py-3 text-data text-ink"
           : "sr-only"}>
+        {state === "invalid" && f.invalid}
         {state === "sent" && f.sent}
         {state === "failed" && (
           <>
@@ -149,7 +178,7 @@ export function PilotForm() {
         {f.mailNote}{" "}
         <a className="font-medium underline underline-offset-4 hover:text-ink" href={`mailto:${PILOT_EMAIL}`}>{PILOT_EMAIL}</a>
       </p>
-      <p className="text-meta text-ink-subtle">{f.fine}</p>
+      <p className="text-meta text-ink-muted">{f.fine}</p>
     </form>
   );
 }

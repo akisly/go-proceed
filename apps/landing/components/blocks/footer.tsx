@@ -33,7 +33,7 @@ export function Footer() {
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
           <span>{f.copyright}</span>
-          <p className="max-w-[70ch] text-meta text-ink-subtle">{f.disclaimer}</p>
+          <p className="max-w-[70ch] text-meta text-ink-muted">{f.disclaimer}</p>
         </div>
       </div>
     </footer>

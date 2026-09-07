@@ -24,14 +24,35 @@ describe("pilot request", () => {
   });
 
   it("requires a name and a contact, and strips control characters", () => {
-    expect(validatePilotFields({ name: "", contact: "x" })).toEqual({ ok: false, error: "required" });
-    expect(validatePilotFields({ name: "x", contact: "" })).toEqual({ ok: false, error: "required" });
-    expect(validatePilotFields(null)).toEqual({ ok: false, error: "required" });
+    expect(validatePilotFields({ name: "", contact: "x" })).toMatchObject({ ok: false, error: "required" });
+    expect(validatePilotFields({ name: "x", contact: "" })).toMatchObject({ ok: false, error: "required" });
+    expect(validatePilotFields(null)).toMatchObject({ ok: false, error: "required" });
     const ok = validatePilotFields({ name: " Ірина\u0000 ", contact: "+380", context: "a".repeat(5000) });
     expect(ok.ok && ok.fields.name).toBe("Ірина");
     expect(ok.ok && ok.fields.context.length).toBe(2000);
     expect(cleanField(42, 10)).toBe("42");
     expect(cleanField("a\u0007b", 10)).toBe("ab");
     expect(cleanField("Ірина Петренко +380-67", 40)).toBe("Ірина Петренко +380-67");
+  });
+});
+
+describe("which required field is missing", () => {
+  // The validator used to answer only «something required is missing», so the
+  // form could not say WHICH field, and the API route could not either. One
+  // rule, named once: the component must not restate what counts as empty.
+  it("names an empty name", () => {
+    const result = validatePilotFields({ contact: "@iryna" });
+    expect(result.ok).toBe(false);
+    expect(result.ok === false && result.missing).toEqual(["name"]);
+  });
+
+  it("names an empty contact", () => {
+    const result = validatePilotFields({ name: "Ірина" });
+    expect(result.ok === false && result.missing).toEqual(["contact"]);
+  });
+
+  it("names both when the form is untouched, and treats whitespace as empty", () => {
+    const result = validatePilotFields({ name: "   ", contact: "\t" });
+    expect(result.ok === false && result.missing).toEqual(["name", "contact"]);
   });
 });

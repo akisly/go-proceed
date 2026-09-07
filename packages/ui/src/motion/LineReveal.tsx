@@ -5,6 +5,7 @@ import { flushSync } from "react-dom";
 import { motion, useInView } from "motion/react";
 import { DURATION, EASE, STAGGER, REDUCED } from "./tokens";
 import { useReduced } from "./use-reduced";
+import { useBelowBreakpoint } from "./use-gates";
 
 export type AccentWord = { text: string; accent: boolean };
 
@@ -79,13 +80,24 @@ export function LineReveal({
   delay?: number | undefined;
 }) {
   const reduced = useReduced();
+  /**
+   * Below `md` the heading does not rise at all — see the block in `base.css`
+   * that turns the CSS entrance off at the same breakpoint. The masks cannot
+   * exist before layout has been measured, so on a phone this component was
+   * the last thing holding the first viewport at `opacity: 0` until the bundle
+   * had hydrated, and it was holding the LCP element. `useBelowBreakpoint` is
+   * `false` on the server and on the first client paint, like every gate here,
+   * so the DOM shape the server sent is the one that hydrates; the stylesheet
+   * is what makes that shape visible on a phone in the meantime.
+   */
+  const belowMd = useBelowBreakpoint("md");
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true, amount: 0.14 });
   const words = useMemo(() => splitAccent(text, accent), [text, accent]);
   const [lines, setLines] = useState<number[][] | null>(null);
 
   useLayoutEffect(() => {
-    if (reduced) { setLines(null); return; }
+    if (reduced || belowMd) { setLines(null); return; }
     const el = ref.current;
     if (!el) return;
     let alive = true;
@@ -148,7 +160,7 @@ export function LineReveal({
       remeasure();
     });
     return () => { alive = false; observer.disconnect(); };
-  }, [reduced, words]);
+  }, [reduced, belowMd, words]);
 
   const word = (i: number) => {
     const w = words[i]!;
@@ -166,13 +178,14 @@ export function LineReveal({
       <span ref={ref} aria-hidden="true">
         {reduced ? (
           <motion.span
+            data-line-reveal=""
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: REDUCED.duration, ease: REDUCED.ease }}
           >
             {flat}
           </motion.span>
-        ) : lines === null ? (
+        ) : belowMd || lines === null ? (
           flat
         ) : (
           lines.map((group, li) => (

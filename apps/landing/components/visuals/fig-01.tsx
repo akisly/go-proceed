@@ -23,7 +23,7 @@ export function Fig01() {
             <ul className="absolute inset-x-0 top-0 grid gap-2 p-3">
               {chat.messages.map((m, i) => (
                 <li key={i} data-message={"hit" in m && m.hit ? "hit" : "message"} className={"me" in m && m.me ? "grid max-w-[84%] justify-self-end gap-1 text-meta text-ink-secondary" : "grid max-w-[84%] gap-1 text-meta text-ink-secondary"}>
-                  <span className="font-mono text-micro text-ink-subtle">{m.who}</span>
+                  <span className="font-mono text-micro text-ink-muted">{m.who}</span>
                   <div className={"hit" in m && m.hit
                     ? "rounded-field border border-line-accent bg-surface px-2.5 py-1.5 ring-3 ring-accent-soft"
                     : "me" in m && m.me ? "rounded-field border border-line bg-subtle px-2.5 py-1.5" : "rounded-field border border-line bg-surface px-2.5 py-1.5"}>
@@ -38,7 +38,7 @@ export function Fig01() {
                         {m.missing.map((x) => <i key={x} className="rounded-control bg-status-attention px-1.5 py-0.5 font-mono text-micro not-italic text-status-attention-fg">{x}</i>)}
                       </span>
                     )}
-                    <span className="block text-right font-mono text-micro text-ink-subtle">{m.time}</span>
+                    <span className="block text-right font-mono text-micro text-ink-muted">{m.time}</span>
                   </div>
                 </li>
               ))}

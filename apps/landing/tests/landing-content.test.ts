@@ -70,3 +70,29 @@ describe("landing copy — the Daylight page", () => {
     expect(landingContent.faq.entries.map((e) => e.id)).toContain("cost");
   });
 });
+
+describe("the first viewport names the consequence and the payer", () => {
+  const hero = landingContent.hero;
+
+  // The page addresses four roles, and the one that signs is the owner. Until
+  // 2026-09-07 the three hero facts named ПТВ, майстер and технагляд — every
+  // role except the payer — and the word «гроші» appeared once on the whole
+  // page, in the lead of the fourth block.
+  it("states the cost of a late acceptance in the lead, not four blocks down", () => {
+    expect(hero.lead).toContain("гроші");
+  });
+
+  it("gives the owner a fact of his own, and puts it first", () => {
+    expect(hero.facts[0]?.value).toContain("Власник");
+  });
+
+  it("does not repeat the money line in the compare block that used to own it", () => {
+    expect(landingContent.compare.lead).not.toContain("гроші");
+  });
+
+  it("claims only what the demo board already shows — no invented figure", () => {
+    // The board renders reasons and a blocked count; it renders no hryvnia.
+    const ownerFact = hero.facts[0];
+    expect(`${ownerFact?.value} ${ownerFact?.label}`).not.toMatch(/\d|грн|₴|%/);
+  });
+});

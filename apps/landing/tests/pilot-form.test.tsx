@@ -110,6 +110,47 @@ describe("PilotForm", () => {
     expect(screen.getByLabelText(f.fields.contact.label)).toHaveFocus();
   });
 
+  // The validator has always returned `{ ok: false, error: "required" }` and
+  // the component always threw that away, moving focus and nothing else. With
+  // `noValidate` on the form there was no browser bubble either, so a sighted
+  // visitor pressed the only call to action on the site and saw the page do
+  // nothing at all, and a screen-reader user was dropped into a field with no
+  // statement that anything had failed. WCAG 3.3.1, 3.3.3 and 4.1.3.
+  it("names the field that failed, so the error is not colour-and-focus alone", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const user = userEvent.setup();
+    render(<PilotForm />);
+    await user.type(screen.getByLabelText(f.fields.name.label), "Ірина");
+    await user.click(screen.getByRole("button", { name: f.submit }));
+
+    const contact = screen.getByLabelText(f.fields.contact.label);
+    expect(contact).toHaveAttribute("aria-invalid", "true");
+    expect(contact).toHaveAccessibleDescription(f.fields.contact.error);
+    expect(screen.getByLabelText(f.fields.name.label)).not.toHaveAttribute("aria-invalid");
+  });
+
+  it("announces the failure, because moving focus announces only the label", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const user = userEvent.setup();
+    render(<PilotForm />);
+    await user.click(screen.getByRole("button", { name: f.submit }));
+    expect(screen.getByRole("status")).toHaveTextContent(f.invalid);
+    expect(screen.getByRole("form")).toHaveAttribute("data-form-state", "invalid");
+  });
+
+  it("clears the error once the field is filled, rather than leaving it stale", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true, via: ["telegram"] }), { status: 200 })));
+    const user = userEvent.setup();
+    render(<PilotForm />);
+    await user.click(screen.getByRole("button", { name: f.submit }));
+    expect(screen.getByLabelText(f.fields.name.label)).toHaveAttribute("aria-invalid", "true");
+
+    await fill(user);
+    await user.click(screen.getByRole("button", { name: f.submit }));
+    await waitFor(() => expect(screen.getByRole("status")).toHaveTextContent(f.sent));
+    expect(screen.getByLabelText(f.fields.name.label)).not.toHaveAttribute("aria-invalid");
+  });
+
   it("copies the request text on demand", async () => {
     const user = userEvent.setup();
     render(<PilotForm />);

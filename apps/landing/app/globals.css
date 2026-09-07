@@ -23,6 +23,35 @@
 @source not "../.next";
 @source not "../qa";
 
+/* The two font tokens, re-pointed at the faces this app now self-hosts.
+ *
+ * Components never name a family — they name `font-sans` and `font-mono`,
+ * which resolve through `--gp-font-sans`/`--gp-font-mono` in the generated
+ * token sheet. Those still resolve; only what they resolve TO changes, and
+ * only here, because `apps/app` still loads Onest from the package.
+ *
+ * DELIBERATELY UNLAYERED, and this is not style. `tokens.generated.css`
+ * declares its `:root` outside every layer, and an unlayered rule beats a
+ * layered one at any specificity — put this inside `@layer base` and it loses
+ * silently, the old family name stays, no face by that name exists any more,
+ * and the whole page renders in `system-ui` with nothing failing. That is
+ * exactly what happened on the first attempt; only the visual pass caught it.
+ *
+ * Cyrillic comes first in each stack on purpose. `localFont` cannot set a
+ * per-file `unicode-range`, so the ordering does that job: a Ukrainian glyph
+ * is found in the first face, a Latin one — «GoProceed», «Telegram», every
+ * W-/EV-/R- code — falls through to the second. Reversing them would leave
+ * Cyrillic to the system font.
+ */
+:root {
+  --gp-font-sans: var(--font-onest-cyrillic), var(--font-onest-latin), system-ui, sans-serif;
+  --gp-font-mono: var(--font-jetbrains-mono-cyrillic), var(--font-jetbrains-mono-latin), ui-monospace, monospace;
+  /* `.display` (base.css) names its own token, so the headings need it too —
+   * without this line the h1, the one element the whole fold is measured on,
+   * keeps the retired family name and silently falls back to system-ui. */
+  --gp-font-display: var(--font-onest-cyrillic), var(--font-onest-latin), system-ui, sans-serif;
+}
+
 /* The display face is loaded here and nowhere else. It is marketing-only —
  * never below --text-mkt-display-3, never inside the application shell, never
  * on a figure — so the ~40 KB it costs is a cost this app pays and apps/app
@@ -30,6 +59,12 @@
 @layer base {
   html {
     scroll-behavior: smooth;
+    /* WCAG 2.4.11. The header is `fixed top-0`, so the browser's own idea of
+     * "in view" includes the strip it covers: shift-tabbing back up the page
+     * left the focused control under the bar and performed no scroll at all,
+     * because an element at `top: 20` already looks visible to it. `scroll-mt-*`
+     * on the sections only ever fixed fragment links, never focus. */
+    scroll-padding-top: calc(var(--gp-header-height-marketing) + 0.5rem);
   }
 
   body {

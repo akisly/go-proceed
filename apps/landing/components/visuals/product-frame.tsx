@@ -58,7 +58,7 @@ export function ProductFrame() {
             </StaggerItem>
           </Stagger>
         </div>
-        <p aria-hidden="true" className="mt-24 hidden items-center gap-2.5 font-mono text-micro uppercase tracking-wide text-ink-subtle md:flex">
+        <p aria-hidden="true" className="mt-24 hidden items-center gap-2.5 font-mono text-micro uppercase tracking-wide text-ink-muted md:flex">
           <span className="h-px flex-1 bg-line-strong" />
           {landingContent.hero.dimension}
           <span className="h-px flex-1 bg-line-strong" />

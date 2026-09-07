@@ -538,6 +538,54 @@ rather than by review:
   returns `null` until the media query has been read; treating that as "no
   preference" shows one frame of exactly the motion the user opted out of.
 
+> **Update, 2026-09-07 — `entrance`, and why it is CSS rather than a primitive.**
+> The vocabulary was missing nothing here; the *delivery mechanism* was. Every
+> primitive in this section is a React component, which means its entrance
+> cannot begin until the bundle has downloaded, parsed and hydrated. That is
+> correct for everything below the fold and wrong for the first viewport, and
+> the cost was measured rather than argued: on the built landing (Lighthouse
+> 13.4.1, mobile profile, 2026-09-07) the hero's lead paragraph was the Largest
+> Contentful Paint element with a time to first byte of 20 ms and an **element
+> render delay of 1283 ms**. The words were in the HTML from the first byte;
+> `Reveal`'s server-rendered `opacity: 0` was hiding them until JavaScript
+> arrived.
+>
+> `entrance` is therefore a CSS utility in `packages/ui/src/base.css`, not a
+> twenty-third primitive: `gp-entrance-up`, a 16px rise on `duration.stately`
+> and `ease.enter`, with the caller's delay carried in `--gp-entrance-delay`.
+> The shape is the prototype's `[data-up]` unchanged, so Daylight parity holds
+> — what changed is only what has to have loaded first.
+>
+> Two consequences worth writing down. **Reduced motion needed its own name.**
+> The unlayered block at the end of `base.css` snaps every animation to
+> 0.01ms, which stops the movement but is precisely "the same animation, made
+> faster" — the shape §8.2 rule 8 forbids. `entrance` names `gp-entrance-fade`
+> instead, opacity-only at `duration.instant`, the same thing `Reveal` gives a
+> reduced reader in JS. **And the fix relocated the bottleneck rather than
+> removing it:** with the fold painting early, Lighthouse now names the `h1` as
+> the LCP element, and `LineReveal` cannot paint before hydration — it groups
+> words into lines by measuring layout, so its pre-hydration branch is
+> deliberately `opacity: 0` (letting the flat words paint first restores the
+> "two animations" defect fixed on 2026-09-06).
+>
+> **Resolved the same day, by removing the entrance from the phone entirely.**
+> Owner's call, and it follows the argument rule 9 already makes for
+> scroll-linked compositions — none below `md`. Below that breakpoint
+> `.entrance` resolves to `animation: none` and `LineReveal` stops applying its
+> line masks, so the fold is simply *there* on the first frame; the same
+> unlayered media query un-hides the `opacity: 0` the server sent, because an
+> inline style is the one thing a layered rule cannot reach. The phone was
+> paying for an arrival it never had time to watch.
+>
+> With that and the move to `next/font/local` (four self-hosted subsets,
+> preloaded, no `@font-face` left in the render-blocking sheet), mobile
+> Lighthouse under real device throttling reads **Performance 97, LCP 1.7 s —
+> identical to FCP**, from 86 and 3.9 s. Desktop reads 100. Lighthouse's
+> *simulated* throttling still reports 3.5 s: Lantern estimates the LCP node
+> from the whole dependency graph, while the observed trace records the element
+> at 69 ms. Worth knowing before anyone reads the lab tab of PageSpeed Insights
+> and reopens this.
+
 > **Update, 2026-08-30.** Twelve became fifteen. The landing evidence journey
 > needed three choreographies this vocabulary had no word for:
 >
