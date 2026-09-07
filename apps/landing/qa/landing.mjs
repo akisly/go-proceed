@@ -267,7 +267,11 @@ try {
   }
   report.parity = await parity();
   const p = report.parity;
-  const parityOk = p.depthMoves && p.tiltOnWide === 8 && p.tiltChainsOk === 8 && p.magneticOnWide === 7 && p.stackOnWide === "on"
+  // Every tilted element must reach a perspective ancestor through an
+  // unbroken preserve-3d chain, and the page must not quietly lose its
+  // tilted surfaces — 21 today (hero frame, 3 capture channels, 4 roles,
+  // 2 comparison cards, 3 provenance cells, 3 pilot boxes, 5 route mocks).
+  const parityOk = p.depthMoves && p.tiltChainsOk === p.tiltOnWide && p.tiltOnWide >= 20 && p.magneticOnWide === 7 && p.stackOnWide === "on"
     && p.stepperProgress >= 0.99 && p.pulsing === 3 && p.flowing === 3
     && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off";
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);

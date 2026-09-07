@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Image from "next/image";
-import { ScrollStack, ScrollStackCard, ScrollStackMedia } from "@goproceed/ui/motion";
+import { ScrollStack, ScrollStackCard, ScrollStackMedia, Tilt } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import photoBlueprint from "../../public/images/photo-blueprint.jpg";
 import { SectionHead } from "./section-head";
@@ -69,7 +69,13 @@ export function Route() {
                     : `landing-media-grid relative isolate grid place-items-center overflow-hidden border-t border-line p-5 [perspective:1200px] md:p-10 wide:border-l wide:border-t-0 ${TINT[i]!}`}>
                     {i === 0 && <Image src={photoBlueprint} alt="" fill sizes="(min-width: 1240px) 590px, 100vw" className="-z-20 object-cover" />}
                     <i aria-hidden="true" className={GLOW[i]!} />
-                    <ScrollStackMedia className="w-full max-w-[460px]">{MEDIA[i]}</ScrollStackMedia>
+                    <ScrollStackMedia className="w-full max-w-[460px] [transform-style:preserve-3d]">
+                      {/* The mock leans toward the pointer like the hero's board.
+                        * The media half already carries `[perspective:1200px]`;
+                        * `ScrollStackMedia` transforms, so it needs preserve-3d
+                        * or the chain flattens between the two. */}
+                      <Tilt maxX={2.5} maxY={3} className="grid">{MEDIA[i]}</Tilt>
+                    </ScrollStackMedia>
                   </div>
                 </article>
               </ScrollStackCard>

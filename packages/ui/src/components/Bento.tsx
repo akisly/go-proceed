@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Stagger, StaggerItem } from "../motion/Stagger";
+import { Tilt } from "../motion/Tilt";
 import { cx } from "./cn";
 
 /**
@@ -25,7 +26,7 @@ export function Bento({
    */
   stagger?: boolean | undefined;
 }) {
-  const grid = cx("grid gap-3.5 md:grid-cols-[1.25fr_1fr]", className);
+  const grid = cx("grid gap-3.5 [perspective:2000px] md:grid-cols-[1.25fr_1fr]", className);
   return stagger ? <Stagger step="loose" className={grid}>{children}</Stagger> : <div className={grid}>{children}</div>;
 }
 
@@ -44,14 +45,21 @@ export function BentoCell({
   stagger?: boolean | undefined;
 }) {
   const article = (
-    <article
-      data-slot="bento-cell"
-      className={cx("grid content-start gap-3.5 rounded-surface border border-line-strong bg-surface p-6 md:p-7", !stagger && span && SPAN[span], className)}
-    >
-      {eyebrow && <p className="index-label">{eyebrow}</p>}
-      {title && <h3 className="text-h2 font-semibold tracking-tight text-ink">{title}</h3>}
-      {children}
-    </article>
+    /* 2°/2.5°, the wide-surface lean — a Bento cell is a panel, not a chip.
+     * The `Tilt` sits between the grid's perspective and the article so the
+     * article's own padding and borders ride the rotation as one plane. */
+    <Tilt maxX={2} maxY={2.5} className={cx("grid h-full", !stagger && span && SPAN[span])}>
+      <article
+        data-slot="bento-cell"
+        className={cx("grid h-full content-start gap-3.5 rounded-surface border border-line-strong bg-surface p-6 md:p-7", className)}
+      >
+        {eyebrow && <p className="index-label">{eyebrow}</p>}
+        {title && <h3 className="text-h2 font-semibold tracking-tight text-ink">{title}</h3>}
+        {children}
+      </article>
+    </Tilt>
   );
-  return stagger ? <StaggerItem y={30} size="stately" className={cx("grid", span === "rows-2" && "md:row-span-2")}>{article}</StaggerItem> : article;
+  return stagger
+    ? <StaggerItem y={30} size="stately" className={cx("grid [transform-style:preserve-3d]", span === "rows-2" && "md:row-span-2")}>{article}</StaggerItem>
+    : article;
 }

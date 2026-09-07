@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Check } from "lucide-react";
+import { Tilt } from "../motion/Tilt";
 import { Stagger, StaggerItem } from "../motion/Stagger";
 import { cx } from "./cn";
 
@@ -26,7 +27,7 @@ export type CompareRow = { key: CompareRowKey; question: string; answer: string;
  */
 export function ComparePair({ children, className }: { children: ReactNode; className?: string | undefined }) {
   return (
-    <div data-slot="compare-pair" className={cx("compare-pair grid items-stretch gap-0 md:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)]", className)}>
+    <div data-slot="compare-pair" className={cx("compare-pair grid items-stretch gap-0 [perspective:2000px] md:grid-cols-[minmax(0,1fr)_56px_minmax(0,1fr)]", className)}>
       {children}
     </div>
   );
@@ -85,9 +86,15 @@ export function CompareCard({
 }) {
   const now = tone === "now";
   return (
+    /* The lean is gentler than a small cell's (2°/2.5° against the roles'
+     * 2.5°/3°): these are the widest surfaces on the page, and the same angle
+     * that reads as a lean on a 300px cell reads as a wobble on this one. The
+     * card's own `overflow-hidden` does not break the chain — it flattens its
+     * DESCENDANTS, and the rotation happens on this wrapper above it. */
+    <Tilt maxX={2} maxY={2.5} className={cx("grid h-full", now ? "order-3" : "order-1")}>
     <article
       data-compare-tone={tone}
-      className={cx("grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-surface border", TONE[tone], now ? "order-3" : "order-1", className)}
+      className={cx("grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-surface border", TONE[tone], "order-none", className)}
     >
       <header className="grid gap-0.5 border-b border-line px-5 pb-3.5 pt-4">
         <p className={cx("index-label", now && "text-status-review-fg")}>{eyebrow}</p>
@@ -105,6 +112,7 @@ export function CompareCard({
         {outcome}
       </footer>
     </article>
+    </Tilt>
   );
 }
 
