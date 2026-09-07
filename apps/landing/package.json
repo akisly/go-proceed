@@ -13,6 +13,7 @@
     "qa": "node qa/landing.mjs"
   },
   "dependencies": {
+    "@goproceed/tokens": "workspace:*",
     "@goproceed/ui": "workspace:*",
     "lucide-react": "^1.33.0",
     "motion": "^12.43.0",
@@ -20,6 +21,19 @@
     "react": "19.2.8",
     "react-dom": "19.2.8"
   },
+  "//browserslist": [
+    "Matched to Tailwind v4's own baseline, which this page already depends on:",
+    "the stylesheet uses @media range syntax and color-mix(), so a browser below",
+    "this line cannot render the design at all. Without the field, the build",
+    "transpiled Array.prototype.at/flat/flatMap and Object.fromEntries and shipped",
+    "13 KB of polyfills for browsers that could never have displayed the page."
+  ],
+  "browserslist": [
+    "chrome >= 111",
+    "edge >= 111",
+    "firefox >= 128",
+    "safari >= 16.4"
+  ],
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.37.1",
     "@openai/sites-vite-plugin": "0.1.0",

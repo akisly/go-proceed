@@ -163,7 +163,12 @@
     content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent 50%, color-mix(in srgb, var(--color-ink) 45%, transparent));
+    /* 45% could not carry white text over a light photo: measured per glyph on
+     * the built page, the hero receipt's caption came out at 2.39:1 and the
+     * capture mock's at 2.63:1 against a 4.5:1 requirement. A fixed scrim has
+     * to be dense enough for the LIGHTEST pixel any of these photos puts under
+     * a caption, not for the average one. */
+    background: linear-gradient(180deg, transparent 45%, color-mix(in srgb, var(--color-ink) 78%, transparent));
   }
   .landing-photo > figcaption {
     position: absolute;
@@ -171,7 +176,9 @@
     bottom: 6px;
     z-index: 1;
     font-family: var(--gp-font-mono);
-    font-size: 9px;
+    /* Was a hard-coded 9px, below the smallest token. Uppercase mono at 9px is
+     * a real low-vision cost on the one graphic carrying the evidence claim. */
+    font-size: var(--gp-size-micro);
     letter-spacing: 0.06em;
     color: var(--color-surface);
   }

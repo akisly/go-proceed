@@ -293,9 +293,11 @@ describe("prototype parity — compare, roles, provenance (2026-09-06)", () => {
     expect(compare.match(/scale\(0\)/g)).toHaveLength(landingContent.compare.now.rows.length);
     expect(compare).toContain("shadow-float-accent");
   });
-  it("staggers the four role cells, each leaning", () => {
+  it("staggers the four role cells, and leaves them still", () => {
+    // [2026-09-08] The cells used to carry a tilt. Only the hero's frame
+    // follows the cursor now — see pointer-tilt.test.tsx.
     const roles = section("roles", "stages");
-    expect(roles.match(/data-tilt="off"/g)).toHaveLength(4);
+    expect(roles).not.toContain("data-tilt");
     expect(roles.match(/data-slot="feature-cell"/g)).toHaveLength(4);
   });
   it("staggers the three bento cells", () => {
@@ -315,9 +317,32 @@ describe("prototype parity — route and capture (2026-09-06)", () => {
     expect(route.match(/media-glow-/g)).toHaveLength(5);
     expect(route).not.toContain("landing-route-card");
   });
-  it("tilts the three channel cards, pulses the pilot chip and flows the dashes to one record", () => {
-    expect(capture.match(/data-tilt="off"/g)).toHaveLength(3);
+  it("leaves the three channel cards still, pulses the pilot chip and flows the dashes to one record", () => {
+    expect(capture).not.toContain("data-tilt");
     expect(capture.match(/pulse-dot/g)).toHaveLength(1);
     expect(capture.match(/flow-dash/g)).toHaveLength(3);
+  });
+});
+
+describe("navigation reaches the sections on a phone", () => {
+  // The four header links are `hidden md:flex`, and below that width there was
+  // no other way to move: no menu, no anchor strip, nothing but the pilot
+  // button — on a page measuring 21 323px at 390, about twenty-five screens.
+  const nav = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+
+  it("offers the same four anchors below md, not only above it", () => {
+    for (const item of landingContent.nav.items) {
+      const links = nav.split(`href="${item.href}"`).length - 1;
+      expect(links, item.href).toBeGreaterThanOrEqual(2); // the desktop row and the phone strip
+    }
+  });
+
+  it("hides the phone strip once the desktop row appears", () => {
+    expect(nav).toContain("md:hidden");
+  });
+
+  it("keeps the strip out of the accessibility tree twice over", () => {
+    // Two copies of the same four links would otherwise be announced twice.
+    expect(nav.match(/aria-label="Головна навігація"/g)).toHaveLength(1);
   });
 });

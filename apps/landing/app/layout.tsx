@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { createLandingMetadata } from "../content/landing-metadata";
+import { color } from "@goproceed/tokens";
 import { SITE_ORIGIN } from "../content/site-origin";
 
 // Two families, self-hosted as variable fonts:
@@ -81,6 +82,18 @@ FINISH: Unreviewed and undocumented is unfinished; the build ends with the seven
 // let every preview host canonicalise the page to itself. The origin now comes
 // from the environment at build time — see content/site-origin.ts.
 export const metadata: Metadata = createLandingMetadata(SITE_ORIGIN);
+
+/**
+ * The mobile browser's own chrome. `canvas` is the page's ground, so the bar
+ * above the page stops being a different colour from the page.
+ *
+ * Read from the token rather than typed as a hex: this is the one place a
+ * colour has to be a literal string (a meta tag cannot hold a CSS variable),
+ * and a hand-copied `#F6F5F1` is exactly the value that goes stale the day the
+ * ramp moves. One entry, not a light/dark pair — D6 ships light only, which is
+ * what `data-theme` below says.
+ */
+export const viewport: Viewport = { themeColor: color.light["bg-canvas"] };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   // data-theme is set explicitly rather than left to the OS. D6 ships light

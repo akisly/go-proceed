@@ -6,7 +6,7 @@ import photoThumb from "../../public/images/photo-tray-thumb.jpg";
 export function Receipt() {
   const r = demoRecords.receipt;
   return (
-    <aside aria-label="Квитанція доказу EV-0248" className="w-full rounded-card border border-line-strong bg-surface p-3.5 text-meta shadow-float">
+    <div role="img" aria-label="Квитанція доказу EV-0248" className="w-full rounded-card border border-line-strong bg-surface p-3.5 text-meta shadow-float">
       <p className="mb-2 flex justify-between font-mono text-micro uppercase tracking-wide text-ink-muted"><span>{r.code}</span><span>{r.when}</span></p>
       <figure className="landing-photo mb-2.5 h-24">
         <Image src={photoThumb} alt="" fill sizes="236px" className="object-cover" />
@@ -18,6 +18,6 @@ export function Receipt() {
           <b className={"tone" in row && row.tone === "review" ? "text-right font-medium text-status-review-fg" : "text-right font-medium text-ink"}>{row.value}</b>
         </p>
       ))}
-    </aside>
+    </div>
   );
 }

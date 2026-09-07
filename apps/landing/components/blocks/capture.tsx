@@ -12,10 +12,10 @@ const DEVICE = { telegram: <ChannelTelegram />, app: <ChannelApp />, web: <Chann
 export function Capture() {
   const c = landingContent.capture;
   return (
-    <section id="capture" className="scroll-mt-20 bg-surface px-4 py-20 md:px-8 md:py-28">
+    <section id="capture" tabIndex={-1} className="scroll-mt-20 bg-surface px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto max-w-marketing">
         <SectionHead eyebrow={c.eyebrow} title={c.title} titleAccent={c.titleAccent} lead={c.lead} />
-        <Stagger className="grid gap-3.5 md:grid-cols-3 [perspective:1600px]">
+        <Stagger className="grid gap-3.5 md:grid-cols-3">
           {c.channels.map((ch) => (
             <StaggerItem key={ch.id} size="grand" className="[transform-style:preserve-3d]">
               <SpotlightCard className="group relative isolate grid h-full grid-rows-[auto_1fr_auto] gap-4 overflow-hidden rounded-surface border border-line-strong bg-canvas p-5.5">

@@ -43,12 +43,15 @@ const hasPerspective = (el: Element) =>
   /\[perspective:/.test(el.className) || /perspective:/.test(el.getAttribute("style") ?? "");
 
 describe("pointer tilt reaches every content card", () => {
-  it("covers the board, the capture channels and the role cells", () => {
-    // 1 board · 3 capture channels · 4 roles. The comparison cards, the
-    // provenance cells, the pilot boxes and the route mocks were tilted for a
-    // day and taken back out on the owner's call — the page reads as a working
-    // register, and a register whose every panel leans reads as a toy.
-    expect(tilts).toHaveLength(8);
+  it("is the hero's product frame and nothing else", () => {
+    // [2026-09-08] One surface follows the cursor: the board in the hero. The
+    // role cells and the capture channels carried a tilt from 2026-09-06 and
+    // the comparison cards, provenance cells, pilot boxes and route mocks
+    // briefly gained one; all of it is out on the owner's call. The page is a
+    // working register, and a register whose panels tip under the cursor reads
+    // to this audience as a toy — §9's own argument against decoration.
+    expect(tilts).toHaveLength(1);
+    expect(doc.querySelectorAll("#hero [data-tilt]")).toHaveLength(1);
   });
 
   it("moves the small things around the board by translating them, not rotating them", () => {
@@ -93,12 +96,10 @@ describe("pointer tilt reaches every content card", () => {
     expect(new Set(areas)).toEqual(new Set(["section"]));
   });
 
-  it("keeps the tilt on surfaces that are handled, not on surfaces that are read", () => {
-    // The hero's board is the product; the capture channels and the role cells
-    // are the two grids a reader hovers through. Everything else stays still.
-    expect(doc.querySelectorAll("#hero [data-tilt]")).toHaveLength(1);
-    expect(doc.querySelectorAll("#capture [data-tilt]")).toHaveLength(3);
-    expect(doc.querySelectorAll("#roles [data-tilt]")).toHaveLength(4);
+  it("leaves every block outside the hero still", () => {
+    for (const id of ["roles", "capture", "compare", "trust", "pilot", "stages", "faq", "sources"]) {
+      expect(doc.querySelectorAll(`#${id} [data-tilt]`), `#${id}`).toHaveLength(0);
+    }
   });
 
   it("does not tilt the form, the lists or the table", () => {

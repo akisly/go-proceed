@@ -264,6 +264,31 @@ try {
     out.depthFlatNarrow = await narrow.evaluate(() => [...document.querySelectorAll("[data-depth]")].every((el) => getComputedStyle(el).transform === "none"));
     out.stackOnNarrow = await narrow.evaluate(() => document.querySelector("[data-scroll-stack]")?.getAttribute("data-scroll-stack"));
     await narrow.close();
+
+    /**
+     * The five perpetual CSS loops, under reduced motion.
+     *
+     * Their entire stop is one deliberately-unlayered `@media` block at the end
+     * of `packages/ui/src/base.css`, and NOTHING in the vitest suites can see
+     * it: jsdom applies no CSS, so a `motion-audit` pass and a green contract
+     * run would both survive that block being moved into `@layer base` — where
+     * `!important` inverts layer order and it would silently stop winning. The
+     * marquee, the border beam, the review pulse, the receipt drift and the
+     * dashed flow would go on running for a reader who asked for no motion,
+     * with nothing anywhere reporting it. This is the assertion that sees it.
+     */
+    const reducedPage = await browser.newPage();
+    await reducedPage.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+    await reducedPage.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+    await reducedPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
+    await reducedPage.evaluate(async () => {
+      const height = document.documentElement.scrollHeight;
+      for (let y = 0; y < height; y += 700) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 40)); }
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    out.perpetualUnderReduce = await reducedPage.evaluate(() =>
+      document.getAnimations().filter((a) => a.effect?.getTiming().iterations === Infinity).length);
+    await reducedPage.close();
     return out;
   }
   report.parity = await parity();
@@ -285,9 +310,10 @@ try {
   // and the 3D context `Tilt` requires re-sorted the hero's layers so the board
   // painted over both pills.
   const parityOk = p.depthMoves && p.tiltTotal === p.tiltOnWide && p.tiltChainsOk === p.tiltTotal
-    && p.tiltOnWide >= 8 && p.magneticOnWide === 10 && p.stackOnWide === "on"
+    && p.tiltOnWide === 1 && p.magneticOnWide === 10 && p.stackOnWide === "on"
     && p.stepperProgress >= 0.99 && p.pulsing === 3 && p.flowing === 3
-    && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off";
+    && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off"
+    && p.perpetualUnderReduce === 0;
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
 
   const og = await browser.newPage();

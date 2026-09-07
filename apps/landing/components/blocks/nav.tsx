@@ -57,6 +57,37 @@ export function Nav() {
           </a>
         </Button>
       </nav>
+
+      {/* The phone's way through the page.
+        *
+        * The row above is `hidden md:flex`, and below that width nothing
+        * replaced it: no menu, no anchors, only the pilot button — on a page
+        * that measures 21 323px at 390, roughly twenty-five screens with no way
+        * to jump. A scrolling strip of the same four anchors is the smallest
+        * thing that fixes it and the one that fits the system: a 1px rule and
+        * a row of labels, no overlay, no burger, nothing that covers content.
+        *
+        * `aria-hidden` with `tabindex={-1}`: these are the SAME four links as
+        * the row above, and announcing both would read the page's navigation
+        * twice. The visible strip is for the eye and the thumb; the accessible
+        * copy is the labelled `<nav>`, which stays in the tree at every width.
+        */}
+      <div aria-hidden="true" className="border-t border-line md:hidden">
+        <ul className="flex snap-x gap-1 overflow-x-auto px-4 py-1.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {landingContent.nav.items.map((item) => (
+            <li key={item.href} className="snap-start">
+              <a
+                href={item.href}
+                tabIndex={-1}
+                aria-current={active === item.href ? "true" : undefined}
+                className="flex min-h-11 items-center whitespace-nowrap rounded-control px-3 text-data text-ink-secondary transition-colors duration-fast ease-out aria-[current=true]:bg-subtle aria-[current=true]:text-ink"
+              >
+                {item.label}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
     </header>
   );
 }

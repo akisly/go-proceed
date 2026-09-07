@@ -25,6 +25,9 @@ export function PilotForm() {
   // the form does not restate what counts as empty.
   const [missing, setMissing] = useState<RequiredPilotField[]>([]);
   const [copied, setCopied] = useState(false);
+  /** The clipboard's outcome, in words. A button whose own label changes is not
+   * re-announced by NVDA or JAWS, and a refusal used to be swallowed entirely. */
+  const [copyNote, setCopyNote] = useState<"" | "copied" | "failed">("");
   const [role, setRole] = useState<string>(f.roles[0]);
   const [fields, setFields] = useState<PilotFields>({ name: "", company: "", contact: "", role: f.roles[0], context: "" });
 
@@ -40,6 +43,10 @@ export function PilotForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // The guard `disabled` used to give for free. The button stays focusable
+    // now (WCAG 2.4.3 — see the live region below), so re-entry is refused
+    // here instead of by making the control unreachable mid-request.
+    if (state === "sending") return;
     const form = event.currentTarget;
     const all = read(form);
     setFields(all);
@@ -80,7 +87,8 @@ export function PilotForm() {
   async function onCopy() {
     const ok = await copy(buildPilotClipboardText(fields));
     setCopied(ok);
-    if (ok) window.setTimeout(() => setCopied(false), 2000);
+    setCopyNote(ok ? "copied" : "failed");
+    if (ok) window.setTimeout(() => { setCopied(false); setCopyNote(""); }, 2000);
   }
 
   return (
@@ -105,12 +113,13 @@ export function PilotForm() {
       <AuthorNote />
       <h3 className="text-h3 font-semibold text-ink">{f.title}</h3>
       <p className="text-data text-ink-muted">{f.note}</p>
+      <p className="text-meta text-ink-muted">{f.requiredNote}</p>
       <label className="absolute -left-[9999px] size-px overflow-hidden" aria-hidden="true">
         Website<input name="website" tabIndex={-1} autoComplete="off" />
       </label>
       <div className="grid gap-3 md:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor="pilot-name">{f.fields.name.label}</Label>
+          <Label htmlFor="pilot-name">{f.fields.name.label}<span aria-hidden="true" className="text-status-attention-fg"> *</span></Label>
           <Input
             id="pilot-name" name="name" required autoComplete="name"
             placeholder={f.fields.name.placeholder} className={CONTROL}
@@ -136,7 +145,7 @@ export function PilotForm() {
           </Select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="pilot-contact">{f.fields.contact.label}</Label>
+          <Label htmlFor="pilot-contact">{f.fields.contact.label}<span aria-hidden="true" className="text-status-attention-fg"> *</span></Label>
           <Input
             id="pilot-contact" name="contact" required
             placeholder={f.fields.contact.placeholder} className={CONTROL}
@@ -154,15 +163,21 @@ export function PilotForm() {
         <Textarea id="pilot-context" name="context" placeholder={f.fields.context.placeholder} className="bg-canvas" />
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-        <Magnetic className="w-full"><Button type="submit" size="lg" className="w-full" disabled={state === "sending"}>{state === "sending" ? f.submitting : f.submit}</Button></Magnetic>
+        <Magnetic className="w-full"><Button type="submit" size="lg" className="w-full" aria-disabled={state === "sending" || undefined}>{state === "sending" ? f.submitting : f.submit}</Button></Magnetic>
         <Magnetic className="w-full"><Button type="button" size="lg" variant="outline" className="w-full" onClick={onCopy}>{copied ? f.copied : f.copy}</Button></Magnetic>
       </div>
+      {/* One live region for every outcome. «Надсилаю…» and the clipboard's
+        * result are announced but not drawn — the button and its label already
+        * carry those visually, and a banner for each would be noise. */}
       <p role="status" aria-live="polite" className={state === "sent"
         ? "rounded-card border border-status-ready-line bg-status-ready px-3.5 py-3 text-data text-ink"
         : state === "failed" || state === "invalid"
           ? "rounded-card border border-status-attention-line bg-status-attention px-3.5 py-3 text-data text-ink"
           : "sr-only"}>
+        {state === "sending" && f.submitting}
         {state === "invalid" && f.invalid}
+        {state === "idle" && copyNote === "copied" && f.copied}
+        {state === "idle" && copyNote === "failed" && f.copyFailed}
         {state === "sent" && f.sent}
         {state === "failed" && (
           <>

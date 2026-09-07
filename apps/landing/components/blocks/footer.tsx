@@ -14,7 +14,7 @@ export function Footer() {
           </div>
           {f.columns.map((col) => (
             <nav key={col.title} aria-label={col.title}>
-              <h4 className="mb-3 text-meta font-semibold text-ink">{col.title}</h4>
+              <h3 className="mb-3 text-meta font-semibold text-ink">{col.title}</h3>
               {col.links.map((l) => (
                 <a
                   key={l.label}
@@ -27,7 +27,7 @@ export function Footer() {
             </nav>
           ))}
           <div>
-            <h4 className="mb-3 text-meta font-semibold text-ink">{f.trust.title}</h4>
+            <h3 className="mb-3 text-meta font-semibold text-ink">{f.trust.title}</h3>
             {f.trust.items.map((t) => <p key={t} className="py-1">{t}</p>)}
           </div>
         </div>

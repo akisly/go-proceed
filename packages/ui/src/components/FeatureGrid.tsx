@@ -2,7 +2,6 @@
 
 import { useCallback, type PointerEvent, type ReactNode } from "react";
 import { Stagger } from "../motion/Stagger";
-import { Tilt } from "../motion/Tilt";
 import { cx } from "./cn";
 
 /**
@@ -15,11 +14,12 @@ import { cx } from "./cn";
  * The columns prop is a closed set so each value is a literal class: Tailwind
  * scans source text and a template literal emits no CSS.
  *
- * [2026-09-06] Each cell leans toward the pointer through `Tilt` (rotateX
- * ±2.5°, rotateY ±3°, the prototype's `[data-spot]` tilt, index.html l.1159);
- * the grid supplies the perspective (`.cards3{perspective:1600px}`). The
- * cell's `bg-surface` stays on the article; the `Tilt` wrapper is transparent,
- * so the 1px gaps still show the container's line.
+ * [2026-09-08] The cells no longer lean toward the pointer. `Tilt` was added
+ * here on 2026-09-06 and taken out on the owner's call: the only surface on
+ * the landing that follows the cursor is the hero's product frame. A grid of
+ * role cards is read, not handled, and a page where every panel tips under the
+ * cursor reads to this audience as a toy — §9's own argument. The spotlight
+ * stays; it is a pointer-driven CSS variable, not motion.
  */
 const COLUMNS = {
   2: "md:grid-cols-2",
@@ -47,7 +47,7 @@ export function FeatureGrid({
    */
   stagger?: boolean | undefined;
 }) {
-  const grid = cx("grid gap-px overflow-hidden rounded-surface border border-line-strong bg-line-strong [perspective:1600px]", COLUMNS[columns], className);
+  const grid = cx("grid gap-px overflow-hidden rounded-surface border border-line-strong bg-line-strong", COLUMNS[columns], className);
   return stagger ? <Stagger className={grid}>{children}</Stagger> : <div className={grid}>{children}</div>;
 }
 
@@ -67,8 +67,7 @@ export function FeatureCell({
     event.currentTarget.style.setProperty("--gp-spot-y", `${((event.clientY - r.top) / r.height) * 100}%`);
   }, []);
   return (
-    <Tilt area="section" maxX={2.5} maxY={3} className="grid">
-      <article
+    <article
         data-slot="feature-cell"
         onPointerMove={onMove}
         className={cx("group relative isolate grid content-start gap-3.5 bg-surface px-6 py-6", className)}
@@ -85,7 +84,6 @@ export function FeatureCell({
         </h3>
         <div className="text-data leading-relaxed text-ink-secondary">{children}</div>
         {footer && <div className="mt-1 grid gap-1.5 border-t border-line pt-3 text-data text-ink-secondary">{footer}</div>}
-      </article>
-    </Tilt>
+    </article>
   );
 }
