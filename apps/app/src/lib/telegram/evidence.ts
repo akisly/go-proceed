@@ -6,6 +6,7 @@ import { finalizeUploadIntent } from "../evidence/finalize-upload-intent";
 import { HttpProblem } from "../http";
 import { allowedMediaOf } from "../requirement-content";
 import { MAX_TELEGRAM_FILE_BYTES, TelegramApiError, type TelegramApiClient } from "./api";
+import { assignmentCardCitationOf, type AssignmentCardCitation } from "./cards";
 import type { TelegramFileCandidate } from "./types";
 
 /** Telegram's provider and evidence-worker ceiling; never fetch above it. */
@@ -234,12 +235,24 @@ type TelegramTx = { query: <T extends Record<string, unknown> = Record<string, u
   sql: string, params?: unknown[],
 ) => Promise<{ rows: T[] }> };
 
-type PreparedOccurrence = { occurrenceId: string; allowedMedia: unknown; label: string };
+/**
+ * A candidate requirement as the definer returns it: the FACTS, never a display
+ * string. `criterion` is the full acceptance criterion (0071 used to truncate
+ * it to 120 characters for a button label) and the three citation columns are
+ * what `assignmentCardCitationOf` turns into a citation or into nothing.
+ */
+type PreparedOccurrence = {
+  occurrenceId: string; allowedMedia: unknown; criterion: string;
+  norm_ref: string | null; norm_ref_verification: string | null; norm_ref_source: string | null;
+};
+export type ChoiceCandidate = {
+  occurrenceId: string; criterion: string; normRef: AssignmentCardCitation | null; token: string;
+};
 type ProcessingLease = { token: string; expiresAt: string };
 type CandidatePreparation =
   | { kind: "not_evidence"; code: string }
   | { kind: "ready"; assignmentId: string; occurrenceId: string; actorUserId: string; processingLease: ProcessingLease }
-  | { kind: "awaiting_requirement_choice"; assignmentId: string; tokens: Array<{ occurrenceId: string; label: string; token: string }> };
+  | { kind: "awaiting_requirement_choice"; assignmentId: string; tokens: ChoiceCandidate[] };
 
 /**
  * The handles a failed message must not keep.
@@ -348,7 +361,8 @@ export async function prepareTelegramEvidenceCandidate(input: {
     }
     const resolved = await tx.query<PreparedOccurrence & { assignmentId: string; actorUserId: string }>(
       `select assignment_id as "assignmentId", actor_user_id as "actorUserId",
-              occurrence_id as "occurrenceId", allowed_media as "allowedMedia", label
+              occurrence_id as "occurrenceId", allowed_media as "allowedMedia", criterion,
+              norm_ref, norm_ref_verification, norm_ref_source
          from app.resolve_telegram_evidence_context($1,$2,$3,$4::bigint,$5::bigint)`,
       [input.workspaceId, input.projectId, input.telegramChatBindingId, input.senderId, input.replyToProviderMessageId],
     );
@@ -400,7 +414,7 @@ export async function prepareTelegramEvidenceCandidate(input: {
       return { kind: "ready", assignmentId, occurrenceId: supported[0]!.occurrenceId, actorUserId,
         processingLease: { token: owner.token, expiresAt: owner.expires_at } };
     }
-    const tokens: Array<{ occurrenceId: string; label: string; token: string }> = [];
+    const tokens: ChoiceCandidate[] = [];
     const allowedOccurrenceIds = supported.map(({ occurrenceId }) => occurrenceId);
     for (const occurrence of supported) {
       const token = issueTelegramRequirementChoiceToken();
@@ -418,7 +432,10 @@ export async function prepareTelegramEvidenceCandidate(input: {
         input.telegramMediaGroupId ?? null, mediaGroupGeneration,
         tokenHash(token), occurrence.occurrenceId, allowedOccurrenceIds,
       ]);
-      tokens.push({ occurrenceId: occurrence.occurrenceId, label: occurrence.label, token });
+      tokens.push({
+        occurrenceId: occurrence.occurrenceId, criterion: occurrence.criterion,
+        normRef: assignmentCardCitationOf(occurrence), token,
+      });
     }
     await tx.query(`update public.communication_attachments set state='awaiting_requirement_choice'
       where ${input.telegramMediaGroupId === null || input.telegramMediaGroupId === undefined

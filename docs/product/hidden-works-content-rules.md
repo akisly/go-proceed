@@ -276,11 +276,16 @@ source, never abbreviated — sources may be gathered into one numbered block of
 the same message, which is what keeps a twelve-item Додаток Н card inside
 Telegram's 4096-character limit without shortening a citation. A requirement
 whose citation lacks any of the three renders «Вимога без підтвердженого
-джерела — текст не показано.» in place of its own words and keeps its ordinal,
-because that ordinal is what the requirement-choice prompt offers back. The
-same rule reaches every later Telegram renderer of a normative string; the
-requirement-choice button, which today carries a truncated criterion, is named
-as an open item in [TODOS.md](../../TODOS.md). Added 2026-09-08 under
+джерела — текст не показано.» in place of its own words and keeps its numbered
+line, because the card is the assignment's own list: a card that silently
+omitted a requirement would understate what the assignment obliges while
+looking complete, and the reader must be able to see that a requirement exists
+whose text is withheld. The rule
+binds every Telegram renderer of a normative string, not only the card: the
+requirement-choice prompt renders the same attributed list, and its buttons
+carry a line number and nothing else, because a Telegram button label cannot
+hold a citation (migration `0084`; before it the button carried a 120-character
+slice of the criterion with neither tag nor source). Added 2026-09-08 under
 [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) open item 9,
 ruled by the owner on 2026-09-03. It adds no allow-list row, no verification
 value and no clause number.

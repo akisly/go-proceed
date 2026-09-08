@@ -5,8 +5,9 @@ import { loadTelegramConfig } from "./config";
 import {
   prepareTelegramEvidenceCandidate, processTelegramEvidenceAttachment, selectTelegramOccurrence,
   terminalizeStagedNonAlbumAttachments,
-  formatTelegramEvidenceSummaryChunks, type TelegramEvidenceCopyKey,
+  formatTelegramEvidenceSummaryChunks, type ChoiceCandidate, type TelegramEvidenceCopyKey,
 } from "./evidence";
+import { formatRequirementChoicePrompt } from "./cards";
 import { putObject } from "../evidence-storage";
 import { enqueueTelegramMessage } from "./delivery";
 import { normalizeTelegramUpdate, type NormalizedTelegramUpdate } from "./normalize";
@@ -250,16 +251,25 @@ async function settleTelegramEvidenceAttachment(input: {
   });
 }
 
+/**
+ * The prompt renders the candidates with their citations, tags and sources, and
+ * the buttons carry only the number of a line (prohibition T; migration 0084).
+ * A button used to be labelled with a 120-character slice of the criterion,
+ * which put a normative string in the chat with neither tag nor source.
+ */
 async function enqueueRequirementChoicePrompt(input: {
   binding: ChatBinding; assignmentId: string; replyToMessageId: string;
-  tokens: Array<{ label: string; token: string }>;
+  tokens: ChoiceCandidate[];
 }): Promise<void> {
+  const prompt = formatRequirementChoicePrompt(input.tokens);
   await withServiceTx({ actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, async (tx) => {
     await enqueueTelegramMessage(tx, { actorUserId: "", organizationId: input.binding.workspace_id, requestId: crypto.randomUUID() }, {
       workspaceId: input.binding.workspace_id, projectId: input.binding.project_id,
       telegramChatBindingId: input.binding.telegram_chat_binding_id, workAssignmentId: input.assignmentId,
-      kind: "text", text: "Виберіть вимогу для цих зображень.", replyToMessageId: input.replyToMessageId,
-      inlineKeyboard: input.tokens.map(({ label, token }) => [{ text: label, callbackData: `req:${token}` }]),
+      kind: "text", text: prompt.text, replyToMessageId: input.replyToMessageId,
+      inlineKeyboard: input.tokens.map(({ token }, index) => [
+        { text: prompt.buttons[index]!, callbackData: `req:${token}` },
+      ]),
     });
   });
 }

@@ -883,10 +883,10 @@ decision 9; the design is
   the real-group staging pass, the scheduler, and the assignment card carrying
   the verification tag and the source of every normative string it renders
   (gate 9, ADR-011 open item 9). *[The card half landed 2026-09-08 and leaves
-  that list; the edge limit, the staging pass and the scheduler stay on it, and
-  the requirement-choice button label — the same gap in the second Telegram
-  renderer — joined it, recorded in TODOS.md §"From the card-citation slice
-  (2026-09-08)".]* M0's real-data rule applies as it does to M6:
+  that list; the edge limit, the staging pass and the scheduler stay on it. The
+  same gap in the second Telegram renderer — the requirement-choice button —
+  was found by the review of that change and closed with it (migration `0084`),
+  so it never joined the list.]* M0's real-data rule applies as it does to M6:
   no real group until M0 is closed.
 - **Evidence today:** built and merged to `main` (`7bf8e4b`, 2026-09-03);
   the erasure gate record is the only gate record; deployed nowhere; the

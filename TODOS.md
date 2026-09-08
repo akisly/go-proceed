@@ -3550,15 +3550,23 @@ both halves. A card prints the Ukrainian label from
 not a second vocabulary — and gathers distinct sources into one numbered
 «Джерела» block, which keeps a twelve-item Додаток Н card inside 4096
 characters without abbreviating a citation. A requirement whose citation is
-missing any of the three renders the substitute and keeps its ordinal, because
-`app.resolve_telegram_evidence_context` (0071) offers those ordinals back.
+missing any of the three renders the substitute and keeps its numbered line, so
+the card does not silently understate the assignment's own list. (An earlier
+version of this entry, of the code comment and of prohibition T justified the
+line by an alignment with the requirement-choice prompt; that was false — the
+prompt carries no ordinals, labels its buttons with the criterion text, and
+`app.resolve_telegram_evidence_context` orders by `ordinal, id` with no timing
+rank over a `photo`/`document` subset. Corrected 2026-09-09 by `/review`.)
 `assignmentCardCitationOf` asks the row rather than trusting
 `requirement_occurrences_norm_ref_sourced_check`, and withholds a citation
 whose tag has no label — the vocabulary was already widened once, by 0059.
 Prohibition **T** in `docs/product/hidden-works-content-rules.md` is the rule;
-`apps/app/src/lib/telegram/cards.test.ts` (13 cases) and one case in
-`apps/app/tests/telegram-delivery.int.test.ts` are the pins, catalogued as
-`T-TG-008`. **The webhook-enable blocker list loses this item and keeps the
+`apps/app/src/lib/telegram/cards.test.ts` (24 cases) and cases in
+`apps/app/tests/telegram-delivery.int.test.ts` and
+`apps/app/tests/telegram-evidence.int.test.ts` are the pins, catalogued as
+`T-TG-008`. The requirement-choice prompt was brought under the same rule by
+migration `0084` during `/review` — see the closed entry under «From the
+card-citation slice». **The webhook-enable blocker list loses this item and keeps the
 rest** — Task 13's edge rate limit, the real-group staging pass and the
 scheduler (ADR-011 decision 10). The statement of the defect is kept below.
 
@@ -3712,4 +3720,4 @@ and two of the reviewers' Recommendations worth the same treatment. All P3.
 
 #### From the card-citation slice (2026-09-08)
 
-- `supabase/migrations/0071_telegram_evidence_claim_fences.sql:225` — `app.resolve_telegram_evidence_context` labels each requirement-choice button `left(o.acceptance_criterion,120)`, so the second Telegram renderer of a requirement's words shows them truncated, with no verification tag and no source. Prohibition **T** covers it and the card slice did not: a Telegram button label is capped at 64 bytes and cannot carry a ~300-character citation, so the attribution has to move into the prompt text above the buttons (or the label has to stop being the criterion). One migration for the definer, one change in `enqueueRequirementChoicePrompt`. **A webhook-enable blocker on the same footing as the card was**, since a закрита група sees the buttons before it sees anything else.
+- **CLOSED 2026-09-09 in the same slice, by `/review`.** The entry read: «`app.resolve_telegram_evidence_context` labels each requirement-choice button `left(o.acceptance_criterion,120)`, so the second Telegram renderer of a requirement's words shows them truncated, with no verification tag and no source… **A webhook-enable blocker on the same footing as the card was**.» The review found it was worse than recorded: the card's snapshot carries every occurrence id, so the criterion the card had just WITHHELD came back as a button label in the same закрита група. Migration `0084` drops the display string from the definer — it returns the criterion and the three citation columns — and `formatRequirementChoicePrompt` renders the attributed list while the buttons carry «Вимога N». The prompt shares `renderRequirements` with the card, so the two renderers cannot drift apart on the rule. `0084` also aligns the definer's order with the card route's (timing rank, then ordinal) and catalogues the function as `DA-176`, which was missing from `technical/data-access-surface.csv` since `0068`.
