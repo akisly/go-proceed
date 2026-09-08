@@ -250,8 +250,13 @@ databaseDescribe("Telegram evidence bridge", () => {
     // verification tag and no source — including the words the card had just
     // WITHHELD, because the card's snapshot carries every occurrence id
     // (prohibition T; migration 0084).
+    // REPLACED, not added: `requirement_occurrences_materialisation_uniq` keys
+    // an occurrence by (workspace, assignment, stage, rule version), and the
+    // world's two occurrences already hold both of its pairs. The hold rule's
+    // slot is freed and re-taken with a citation on it.
+    await deleteOccurrence(client, occurrenceId);
     const citedId = await insertOccurrence(client, world, {
-      ordinal: 3, acceptanceCriterion: "Підготовка ніш, каналів та борозен.",
+      acceptanceCriterion: "Підготовка ніш, каналів та борозен.",
       normRef: "ДБН А.3.1-5:2016, Додаток Н", normRefVerification: "VERIFIED_PRIMARY",
       normRefSource: readDodatokN()[0]!.source,
     });
