@@ -1,5 +1,4 @@
 import { landingContent } from "./landing-content";
-import { PILOT_EMAIL } from "./pilot-request";
 
 /**
  * One `@graph`, because these five nodes are one statement about one page and
@@ -35,7 +34,11 @@ export function landingJsonLd(origin: string) {
         url: `${origin}/`,
         logo: `${origin}/icon.png`,
         description: c.footer.tagline,
-        email: PILOT_EMAIL,
+        // No `email`. Schema.org makes it optional, and the pilot mailbox is a
+        // personal address: #76 took it off the page, and structured data is
+        // read by more crawlers than the copy is. `landing-render.test.tsx`
+        // asserts it appears nowhere a reader or a crawler can see it — that
+        // guard is what caught this on the merge.
         areaServed: { "@type": "Country", name: "Україна" },
         knowsLanguage: ["uk"],
       },
