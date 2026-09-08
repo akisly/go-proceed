@@ -15,11 +15,11 @@ import { cx } from "./cn";
 export function Stepper({ children, className }: { children: ReactNode; className?: string | undefined }) {
   return (
     <ScrollProgress className={cx("relative grid pl-9", className)}>
-      <span aria-hidden="true" className="absolute bottom-3 left-2.5 top-3 w-0.5 bg-line" />
+      <span aria-hidden="true" className="absolute bottom-3 left-4 top-3 w-0.5 bg-line" />
       <span
         aria-hidden="true"
         data-stepper-line="true"
-        className="absolute bottom-3 left-2.5 top-3 w-0.5 origin-top bg-ink"
+        className="absolute bottom-3 left-4 top-3 w-0.5 origin-top bg-ink"
         style={{ transform: "scaleY(var(--gp-progress, 0))" }}
       />
       {children}
@@ -43,8 +43,8 @@ export function Step({
   const lit = { opacity: `clamp(0, calc((var(--gp-progress, 0) - ${threshold}) * 100), 1)` } as CSSProperties;
   return (
     <article data-slot="step" className={cx("relative pb-7 last:pb-0", className)}>
-      <span aria-hidden="true" className="absolute -left-8 top-1.5 size-3 rounded-pill border-2 border-line-strong bg-canvas" />
-      <span aria-hidden="true" className="absolute -left-8 top-1.5 size-3 rounded-pill bg-ink" style={lit} />
+      <span aria-hidden="true" className="-translate-x-[10%] absolute -left-6 top-1.5 size-3 rounded-pill border-2 border-line-strong bg-canvas" />
+      <span aria-hidden="true" className="-translate-x-[10%] absolute -left-6 top-1.5 size-3 rounded-pill bg-ink" style={lit} />
       <p className="index-label mb-1.5">{when}</p>
       <h3 className="text-h3 font-semibold text-ink">{title}</h3>
       <div className="mt-1.5 max-w-[44ch] text-data leading-relaxed text-ink-secondary">{children}</div>

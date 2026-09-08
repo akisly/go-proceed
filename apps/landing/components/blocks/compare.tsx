@@ -6,7 +6,7 @@ import { SectionHead } from "./section-head";
 export function Compare() {
   const c = landingContent.compare;
   return (
-    <section id="compare" className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
+    <section id="compare" tabIndex={-1} className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto max-w-marketing">
         <SectionHead eyebrow={c.eyebrow} title={c.title} titleAccent={c.titleAccent} lead={c.lead} />
         <ComparePair>

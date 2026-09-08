@@ -9,7 +9,12 @@ export function cleanField(value: unknown, max: number): string {
   return String(value ?? "").replace(/[\u0000-\u001F\u007F]/g, "").trim().slice(0, max);
 }
 
-export function validatePilotFields(input: unknown): { ok: true; fields: PilotFields } | { ok: false; error: "required" } {
+/** The required fields, named once. The form reads this rather than restating it. */
+export type RequiredPilotField = "name" | "contact";
+
+export function validatePilotFields(
+  input: unknown,
+): { ok: true; fields: PilotFields } | { ok: false; error: "required"; missing: RequiredPilotField[] } {
   const body = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const fields: PilotFields = {
     name: cleanField(body.name, PILOT_LIMITS.name),
@@ -18,7 +23,10 @@ export function validatePilotFields(input: unknown): { ok: true; fields: PilotFi
     role: cleanField(body.role, PILOT_LIMITS.role),
     context: cleanField(body.context, PILOT_LIMITS.context),
   };
-  if (!fields.name || !fields.contact) return { ok: false, error: "required" };
+  const missing: RequiredPilotField[] = [];
+  if (!fields.name) missing.push("name");
+  if (!fields.contact) missing.push("contact");
+  if (missing.length > 0) return { ok: false, error: "required", missing };
   return { ok: true, fields };
 }
 

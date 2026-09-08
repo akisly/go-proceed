@@ -73,7 +73,9 @@ describe("hero and sources", () => {
     // LineReveal: the h1 text once for readers, once as words; the accent marked.
     expect(hero).toContain(`class="sr-only">${landingContent.hero.title}<`);
     expect(hero.match(/data-accent="true"/g)?.length).toBeGreaterThanOrEqual(1);
-    expect(hero.match(/data-magnetic="off"/g)).toHaveLength(3); // pill + two buttons
+    // Controls only — `area="self"`. The hero also carries three `section`
+    // magnets on the frame's satellites, which are decoration, not controls.
+    expect(hero.match(/data-magnetic-area="self"/g)).toHaveLength(3); // pill + two buttons
     for (const f of landingContent.hero.facts) expect(hero).toContain(f.value);
   });
   it("layers the receipt and the two pills at depth, tilts the board and pulses the review tags", () => {
@@ -81,6 +83,9 @@ describe("hero and sources", () => {
     expect(hero).toContain('data-depth="0.35"');
     expect(hero).toContain('data-depth="0.25"');
     expect(hero.match(/data-tilt="off"/g)).toHaveLength(1);
+    // The three satellites follow the pointer by translating instead — see
+    // pointer-tilt.test.tsx for why rotation cannot carry an object this small.
+    expect(hero.match(/data-magnetic-area="section"/g)).toHaveLength(3);
     expect(hero.match(/pulse-dot/g)).toHaveLength(2); // the two review cards on the board
     expect(hero).toContain("drift-a");
     expect(hero).toContain("drift-b");
@@ -278,9 +283,12 @@ describe("prototype parity — headings and statements (2026-09-06)", () => {
     expect(section("problem", "compare")).toContain("opacity:0.14");
   });
   it("magnetises every marketing button but the header's", () => {
-    const magnetic = html.match(/data-magnetic="off"/g) ?? [];
-    // hero pill + 2, cta 2, pilot form 2 (the mail fallback renders only in the failed state)
-    expect(magnetic).toHaveLength(7);
+    // Counted by `area="self"`, which is what a CONTROL uses: hero pill + 2,
+    // cta 2, pilot form 2 (the mail fallback renders only in the failed
+    // state). The `section` magnets are the hero's receipt and two pills —
+    // decoration that follows the pointer, not something you click.
+    expect(html.match(/data-magnetic-area="self"/g) ?? []).toHaveLength(7);
+    expect(html.match(/data-magnetic-area="section"/g) ?? []).toHaveLength(3);
     expect(html.slice(0, html.indexOf('id="main-content"'))).not.toContain("data-magnetic");
   });
 });
@@ -293,9 +301,11 @@ describe("prototype parity — compare, roles, provenance (2026-09-06)", () => {
     expect(compare.match(/scale\(0\)/g)).toHaveLength(landingContent.compare.now.rows.length);
     expect(compare).toContain("shadow-float-accent");
   });
-  it("staggers the four role cells, each leaning", () => {
+  it("staggers the four role cells, and leaves them still", () => {
+    // [2026-09-08] The cells used to carry a tilt. Only the hero's frame
+    // follows the cursor now — see pointer-tilt.test.tsx.
     const roles = section("roles", "stages");
-    expect(roles.match(/data-tilt="off"/g)).toHaveLength(4);
+    expect(roles).not.toContain("data-tilt");
     expect(roles.match(/data-slot="feature-cell"/g)).toHaveLength(4);
   });
   it("staggers the three bento cells", () => {
@@ -323,9 +333,32 @@ describe("prototype parity — route and capture (2026-09-06)", () => {
     expect(grounds).toEqual(["photo-blueprint", "photo-site-trays", "photo-schematic", "photo-plan-stamped", "photo-tracing"]);
     expect(new Set(grounds).size).toBe(5);
   });
-  it("tilts the three channel cards, pulses the pilot chip and flows the dashes to one record", () => {
-    expect(capture.match(/data-tilt="off"/g)).toHaveLength(3);
+  it("leaves the three channel cards still, pulses the pilot chip and flows the dashes to one record", () => {
+    expect(capture).not.toContain("data-tilt");
     expect(capture.match(/pulse-dot/g)).toHaveLength(1);
     expect(capture.match(/flow-dash/g)).toHaveLength(3);
+  });
+});
+
+describe("navigation reaches the sections on a phone", () => {
+  // The four header links are `hidden md:flex`, and below that width there was
+  // no other way to move: no menu, no anchor strip, nothing but the pilot
+  // button — on a page measuring 21 323px at 390, about twenty-five screens.
+  const nav = html.slice(html.indexOf("<header"), html.indexOf("</header>"));
+
+  it("offers the same four anchors below md, not only above it", () => {
+    for (const item of landingContent.nav.items) {
+      const links = nav.split(`href="${item.href}"`).length - 1;
+      expect(links, item.href).toBeGreaterThanOrEqual(2); // the desktop row and the phone strip
+    }
+  });
+
+  it("hides the phone strip once the desktop row appears", () => {
+    expect(nav).toContain("md:hidden");
+  });
+
+  it("keeps the strip out of the accessibility tree twice over", () => {
+    // Two copies of the same four links would otherwise be announced twice.
+    expect(nav.match(/aria-label="Головна навігація"/g)).toHaveLength(1);
   });
 });

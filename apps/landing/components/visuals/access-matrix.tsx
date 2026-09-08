@@ -6,7 +6,16 @@ const DOT: Record<AccessLevel, string> = {
   none: "mx-auto block size-3.5 rounded-pill border-[1.5px] border-line-strong",
 };
 
-const HEAD = "pb-3 text-center align-bottom font-mono text-[9.5px] font-normal uppercase leading-tight tracking-wide text-ink-muted [overflow-wrap:anywhere]";
+/**
+ * `overflow-wrap: anywhere` used to sit here so a long role name could not
+ * overflow its column. It stopped the overflow by breaking the word instead:
+ * «ТЕХНАГЛЯД» rendered as «ТЕХНАГЛЯ» / «Д», with the first line clipped by the
+ * cell's own box — in the block whose whole job is to look authoritative. The
+ * columns are wider now and the type is on the token scale, so the names fit;
+ * `hyphens: manual` keeps any future name breaking only where the copy puts a
+ * soft hyphen.
+ */
+const HEAD = "whitespace-nowrap pb-3 text-center align-bottom font-mono text-micro font-normal uppercase leading-tight tracking-tight text-ink-muted";
 
 /**
  * Who sees what — four roles across, seven surfaces down.
@@ -32,11 +41,21 @@ export function AccessMatrix() {
   const a = landingContent.provenance.access;
   return (
     <div className="grid self-start text-data">
-      <table className="w-full table-fixed border-collapse">
+      {/* The table scrolls rather than compresses.
+        *
+        * Four role names have to fit at 11px mono, and between `md` and `wide`
+        * the Bento puts this cell in a two-column grid where the columns fall
+        * to about 30px — narrower than «ТЕХНАГЛЯД» renders. The old answer was
+        * `overflow-wrap: anywhere`, which stopped the overflow by breaking the
+        * word mid-syllable and clipping the first half. The rule the design
+        * procedure actually gives for wide content is this one: a minimum width
+        * the content is legible at, inside its own horizontal scroller. */}
+      <div className="overflow-x-auto">
+      <table className="w-full min-w-[26rem] table-fixed border-collapse">
         <caption className="sr-only">{a.title}</caption>
         <colgroup>
-          <col className="w-1/3" />
-          {a.columns.map((c) => <col key={c} className="w-1/6" />)}
+          <col className="w-[30%]" />
+          {a.columns.map((c) => <col key={c} className="w-[17.5%]" />)}
         </colgroup>
         <thead>
           <tr>
@@ -58,6 +77,9 @@ export function AccessMatrix() {
           ))}
         </tbody>
       </table>
+      </div>
+      {/* The legend stays outside the scroller — it is the key to the table, not
+        * part of it, and it must not slide away from the dots it explains. */}
       <p className="flex flex-wrap gap-3.5 pt-3 text-meta text-ink-muted">
         {(["full", "own", "none"] as const).map((l) => (
           <span key={l} className="inline-flex items-center gap-1.5">

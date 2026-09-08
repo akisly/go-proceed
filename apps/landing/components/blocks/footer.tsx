@@ -14,7 +14,7 @@ export function Footer() {
           </div>
           {f.columns.map((col) => (
             <nav key={col.title} aria-label={col.title}>
-              <h4 className="mb-3 text-meta font-semibold text-ink">{col.title}</h4>
+              <h3 className="mb-3 text-meta font-semibold text-ink">{col.title}</h3>
               {col.links.map((l) => (
                 <a
                   key={l.label}
@@ -27,13 +27,13 @@ export function Footer() {
             </nav>
           ))}
           <div>
-            <h4 className="mb-3 text-meta font-semibold text-ink">{f.trust.title}</h4>
+            <h3 className="mb-3 text-meta font-semibold text-ink">{f.trust.title}</h3>
             {f.trust.items.map((t) => <p key={t} className="py-1">{t}</p>)}
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
           <span>{f.copyright}</span>
-          <p className="max-w-[70ch] text-meta text-ink-subtle">{f.disclaimer}</p>
+          <p className="max-w-[70ch] text-meta text-ink-muted">{f.disclaimer}</p>
         </div>
       </div>
     </footer>

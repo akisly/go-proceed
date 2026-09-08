@@ -74,6 +74,7 @@ export function Tilt({
     <motion.div
       ref={ref}
       data-tilt={on ? "on" : "off"}
+      data-tilt-area={area}
       className={className}
       style={{ rotateX, rotateY, transformStyle: "preserve-3d" }}
     >

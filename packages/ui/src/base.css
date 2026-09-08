@@ -301,6 +301,71 @@
 @utility duration-stately { transition-duration: var(--gp-duration-stately); }
 @utility duration-grand { transition-duration: var(--gp-duration-grand); }
 
+/* ---------------------------------------------------------------------------
+ * The load entrance — CSS, because the first viewport cannot wait for JavaScript
+ * ---------------------------------------------------------------------------
+ * Every other entrance in this system is a JS primitive, and that is right for
+ * anything below the fold: `whileInView` needs an observer, and the reduced
+ * branch needs the resolved preference. The first viewport is the exception,
+ * and the reason is measurable. `Reveal` server-renders `opacity: 0` and does
+ * not start until React has hydrated, so the hero's lead paragraph — the page's
+ * Largest Contentful Paint element — waited on the whole bundle. Lighthouse
+ * 13.4.1 on the mobile profile, 2026-09-07: time to first byte 20 ms, element
+ * render delay 1283 ms, LCP 3.9 s. The text was in the HTML the whole time.
+ *
+ * A CSS animation runs from the moment the stylesheet applies, which is the
+ * same paint the markup arrives in. The shape is unchanged — the prototype's
+ * `[data-up]`: 16px rise, `duration.stately`, `ease.enter`, the caller's delay
+ * — so Daylight parity holds; what changes is only what has to have loaded
+ * first. `LineReveal` above it already painted its words flat before hydration,
+ * so the fold now enters in one wave instead of two.
+ *
+ * `--gp-entrance-delay` is set per element with an arbitrary-property class
+ * (`[--gp-entrance-delay:0.15s]`) rather than an inline style, so the value
+ * stays in the source text Tailwind scans.
+ */
+@utility entrance {
+  animation: gp-entrance-up var(--gp-duration-stately) var(--gp-ease-enter) both;
+  animation-delay: var(--gp-entrance-delay, 0s);
+}
+
+@keyframes gp-entrance-up {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* The reduced-motion counterpart. A DIFFERENT animation, not this one made
+ * fast — see the unlayered block below, which names it. */
+@keyframes gp-entrance-fade {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* No entrance below `md` — the phone gets the page, not the arrival.
+ * ---------------------------------------------------------------------------
+ * §4.3 rule 9 already says scroll-linked compositions do not run below `md`.
+ * This extends the same argument to entrances, and the reason is measured:
+ * with the fold on the CSS entrance its render delay fell from 1283 ms to
+ * 238 ms and mobile LCP did not move, because Lighthouse simply renamed the
+ * LCP element to the `h1` — `LineReveal` finds its lines by measuring layout,
+ * so it cannot exist before hydration and ships `opacity: 0` until then. On a
+ * phone the entrance was buying nothing and costing the metric outright.
+ *
+ * Unlayered and `!important` for the same reason the reduced-motion block is:
+ * the hidden state is an inline style Motion wrote during server rendering,
+ * and nothing else can reach it. `LineReveal` also stops applying its line
+ * masks below `md`, so the headline is not re-hidden the moment JS arrives.
+ */
+@media (width < 48rem) {
+  .entrance {
+    animation: none;
+  }
+
+  [data-line-reveal] {
+    opacity: 1 !important;
+  }
+}
+
 @theme {
   --animate-chip-in: gp-chip-in var(--gp-duration-fast) var(--gp-ease-out);
 
@@ -350,6 +415,18 @@
     transition-duration: 120ms !important;
     transition-property: opacity !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The load entrance is the one animation with a named reduced counterpart
+   * rather than a snap. Left to the `*` rule above it would run `gp-entrance-up`
+   * — transform and all — in 0.01ms, which is «the same animation, faster»:
+   * the shape this system forbids. It becomes an opacity-only fade instead, the
+   * same 100ms `Reveal` gives a reduced reader in JS. More specific than `*`
+   * and equally `!important`, so it wins. */
+  .entrance {
+    animation-name: gp-entrance-fade !important;
+    animation-duration: var(--gp-duration-instant) !important;
+    animation-delay: 0s !important;
   }
 }
 

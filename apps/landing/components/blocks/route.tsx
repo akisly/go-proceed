@@ -48,7 +48,7 @@ const GLOW = [
 export function Route() {
   const r = landingContent.route;
   return (
-    <section id="stages" className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
+    <section id="stages" tabIndex={-1} className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto max-w-marketing">
         <SectionHead eyebrow={r.eyebrow} title={r.title} titleAccent={r.titleAccent} lead={r.lead}>
           <p className="mt-4 flex flex-wrap gap-1.5">

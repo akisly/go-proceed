@@ -203,10 +203,14 @@ describe("prototype parity — components (2026-09-06)", () => {
     expect(popping).toContain("scale(0)");
     expect(popping).toMatch(/class="mt-0\.5 grid size-5"/);
   });
-  it("FeatureCell leans, FeatureGrid supplies the perspective", () => {
+  it("FeatureCell renders a cell and no pointer tilt", () => {
+    // [2026-09-08] Both the tilt and the perspective it needed are gone: the
+    // hero's product frame is the only surface on the landing that follows the
+    // cursor. The dot spotlight stays — a CSS variable, not motion.
     const html = renderToStaticMarkup(<FeatureGrid columns={4}><FeatureCell title="ПТВ">біль</FeatureCell></FeatureGrid>);
-    expect(html).toContain("perspective:1600px");
-    expect(html).toContain('data-tilt="off"');
+    expect(html).not.toContain("perspective");
+    expect(html).not.toContain("data-tilt");
     expect(html).toContain('data-slot="feature-cell"');
+    expect(html).toContain('data-spotlight="true"');
   });
 });

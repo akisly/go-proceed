@@ -1,4 +1,4 @@
-import { Depth, Reveal, ScrollSettle, Stagger, StaggerItem, Tilt } from "@goproceed/ui/motion";
+import { Depth, Magnetic, Reveal, ScrollSettle, Stagger, StaggerItem, Tilt } from "@goproceed/ui/motion";
 import { demoRecords } from "../../content/demo-records";
 import { landingContent } from "../../content/landing-content";
 import { Board } from "./board";
@@ -38,27 +38,53 @@ export function ProductFrame() {
         */}
         <div className="relative mx-auto max-w-[1040px] [transform-style:preserve-3d]">
           <Tilt area="section" maxX={1.5} maxY={2}><Board /></Tilt>
-          <Depth depth={-0.3} className="md:absolute md:-bottom-20 md:right-[-3%] md:w-[236px]">
-            <Reveal on="load" delay={0.7} size="grand" x={20} y={40}><div className="drift-a"><Receipt /></div></Reveal>
-          </Depth>
+          {/*
+            [2026-09-07, second pass] The receipt and the pills TRANSLATE with
+            the pointer; they do not tilt. Rotation displaces a corner in
+            proportion to the element's size, and measured on the built page
+            that meant 1.72° moved the 1054px board 15.8px while 2.58° moved the
+            251px receipt 0.6px — technically a bigger angle, visually nothing.
+            `Magnetic area="section"` reads the pointer across the whole hero
+            and moves each satellite a fixed number of pixels, which is legible
+            at any size.
+
+            It also fixes what the tilt broke. `Tilt` needs an unbroken
+            `transform-style: preserve-3d` chain, and a 3D context re-sorts its
+            children by depth rather than by DOM order — with the pills inside
+            one, the board painted over both of them. Translation needs no 3D
+            context, so these chains are flat again and the pills sit on top
+            where they belong.
+
+            Amplitudes are graded like the depths they already carry: the
+            receipt sits nearest and travels furthest.
+          */}
+          <Magnetic area="section" strengthX={0.022} strengthY={0.016} className="md:absolute md:-bottom-20 md:right-[-3%] md:w-[236px]">
+            <Depth depth={-0.3}>
+              <Reveal on="load" delay={0.7} size="grand" x={20} y={40}><div className="drift-a"><Receipt /></div></Reveal>
+            </Depth>
+          </Magnetic>
           <Stagger on="load" step="loose" delay={0.9} className="pointer-events-none absolute inset-0 hidden md:block">
             <StaggerItem y={20} size="stately" className="absolute -bottom-9 left-0">
-              <Depth depth={0.35}>
-                <span className="drift-b inline-block whitespace-nowrap rounded-pill border border-line-strong bg-surface px-3 py-1.5 text-data text-ink-secondary shadow-overlay">
-                  <b className="font-medium text-ink">{pills[0]!.lead}</b> {pills[0]!.text}
-                </span>
-              </Depth>
+              <Magnetic area="section" strengthX={0.016} strengthY={0.011}>
+                <Depth depth={0.35}>
+                  <span className="drift-b inline-block whitespace-nowrap rounded-pill border border-line-strong bg-surface px-3 py-1.5 text-data text-ink-secondary shadow-overlay">
+                    <b className="font-medium text-ink">{pills[0]!.lead}</b> {pills[0]!.text}
+                  </span>
+                </Depth>
+              </Magnetic>
             </StaggerItem>
             <StaggerItem y={20} size="stately" className="absolute -top-12 left-0">
-              <Depth depth={0.25}>
-                <span className="drift-c inline-block whitespace-nowrap rounded-pill border border-line-strong bg-surface px-3 py-1.5 text-data text-ink-secondary shadow-overlay">
-                  {pills[1]!.text}<b className="font-medium text-ink">{pills[1]!.lead}</b>
-                </span>
-              </Depth>
+              <Magnetic area="section" strengthX={0.013} strengthY={0.009}>
+                <Depth depth={0.25}>
+                  <span className="drift-c inline-block whitespace-nowrap rounded-pill border border-line-strong bg-surface px-3 py-1.5 text-data text-ink-secondary shadow-overlay">
+                    {pills[1]!.text}<b className="font-medium text-ink">{pills[1]!.lead}</b>
+                  </span>
+                </Depth>
+              </Magnetic>
             </StaggerItem>
           </Stagger>
         </div>
-        <p aria-hidden="true" className="mt-24 hidden items-center gap-2.5 font-mono text-micro uppercase tracking-wide text-ink-subtle md:flex">
+        <p aria-hidden="true" className="mt-24 hidden items-center gap-2.5 font-mono text-micro uppercase tracking-wide text-ink-muted md:flex">
           <span className="h-px flex-1 bg-line-strong" />
           {landingContent.hero.dimension}
           <span className="h-px flex-1 bg-line-strong" />

@@ -5,7 +5,7 @@ import { landingContent } from "../../content/landing-content";
 export function Faq() {
   const q = landingContent.faq;
   return (
-    <section id="faq" className="scroll-mt-20 px-4 pb-10 pt-20 md:px-8 md:pb-14 md:pt-28">
+    <section id="faq" tabIndex={-1} className="scroll-mt-20 px-4 pb-10 pt-20 md:px-8 md:pb-14 md:pt-28">
       <div className="mx-auto grid max-w-marketing gap-8 wide:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] wide:gap-10">
         <div>
           <Reveal><p className="index-label">{q.eyebrow}</p></Reveal>

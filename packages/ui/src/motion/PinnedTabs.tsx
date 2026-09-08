@@ -115,7 +115,7 @@ export function PinnedTabs({ tabs, className }: PinnedTabsProps) {
               <span className={selected ? "text-data font-semibold text-ink" : "text-data font-medium text-ink-muted"}>
                 {tab.label}
               </span>
-              <span className="mt-1 block text-meta text-ink-subtle">{tab.hint}</span>
+              <span className="mt-1 block text-meta text-ink-muted">{tab.hint}</span>
               <span className="absolute inset-x-0 bottom-0 h-px bg-line" aria-hidden="true" />
               {selected && (
                 <motion.span

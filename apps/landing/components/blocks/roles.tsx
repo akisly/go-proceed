@@ -14,7 +14,7 @@ const ICON = {
 export function Roles() {
   const r = landingContent.roles;
   return (
-    <section id="roles" className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
+    <section id="roles" tabIndex={-1} className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto max-w-marketing">
         <SectionHead eyebrow={r.eyebrow} title={r.title} titleAccent={r.titleAccent} lead={r.lead} />
         <FeatureGrid columns={4} stagger>

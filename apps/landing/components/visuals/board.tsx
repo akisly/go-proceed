@@ -22,7 +22,9 @@ export function Board() {
       </div>
       <div className="grid gap-2.5 p-3 md:grid-cols-3">
         {b.columns.map((col, i) => (
-          <div key={col.id} className={i === 0 ? "hidden grid content-start gap-2 md:grid" : "grid content-start gap-2"}>
+          <div key={col.id} className={// `hidden` and `grid` are both display utilities: which one won was
+            // decided by their order in the generated CSS, not by this list.
+            i === 0 ? "hidden content-start gap-2 md:grid" : "grid content-start gap-2"}>
             <div className="flex justify-between px-1 text-meta text-ink-muted">
               <b className="font-medium text-ink">{col.label}</b>
               <CountUp on="load" delay={0.8} value={col.count} format={two} className="tabular font-mono" />

@@ -19,6 +19,11 @@ import { useEffect, useState } from "react";
 export function useBelowBreakpoint(name: "md" | "wide"): boolean {
   const [below, setBelow] = useState(false);
   useEffect(() => {
+    // The same guard `useResolvedReduce` carries below. A test environment
+    // (jsdom) implements no media queries at all, and this gate is now read by
+    // `LineReveal` — which every page render mounts — so an unguarded call
+    // would make the absence of a stub look like a component failure.
+    if (typeof window.matchMedia !== "function") return;
     const fallback = name === "md" ? "768px" : "1240px";
     const value = getComputedStyle(document.documentElement).getPropertyValue(`--breakpoint-${name}`).trim() || fallback;
     const query = window.matchMedia(`(max-width: calc(${value} - 1px))`);

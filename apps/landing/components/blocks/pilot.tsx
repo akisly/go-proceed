@@ -8,7 +8,7 @@ export function Pilot() {
   const p = landingContent.pilot;
   const boxes = [p.needs, p.gets, p.terms] as const;
   return (
-    <section id="pilot" className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
+    <section id="pilot" tabIndex={-1} className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto max-w-marketing">
         <SectionHead eyebrow={p.eyebrow} title={p.title} titleAccent={p.titleAccent} lead={p.lead} />
         <div className="grid gap-8 wide:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] wide:items-start wide:gap-14">

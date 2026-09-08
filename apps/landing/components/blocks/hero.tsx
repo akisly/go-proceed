@@ -15,28 +15,28 @@ export function Hero() {
     <section id="hero" className="px-4 pt-32 md:px-8 md:pt-36">
       <div className="mx-auto max-w-marketing">
         <div className="mx-auto grid max-w-[780px] justify-items-center text-center">
-          <Reveal size="stately">
+          <div className="entrance">
             <Magnetic>
               <Pill asChild>
                 <a href={h.pill.href}><PillContent badge={h.pill.badge}>{h.pill.text}</PillContent></a>
               </Pill>
             </Magnetic>
-          </Reveal>
+          </div>
           <LineReveal as="h1" text={h.title} accent={h.titleAccent} delay={0.1} className="display mt-5 max-w-[16ch] text-mkt-display-1 tracking-tightest text-ink" />
-          <Reveal delay={0.15} size="stately"><p className="measure mt-5 text-mkt-lead leading-relaxed text-ink-secondary">{h.lead}</p></Reveal>
-          <Reveal delay={0.25} size="stately" className="mt-6 flex flex-wrap justify-center gap-2.5">
+          <div className="entrance [--gp-entrance-delay:0.15s]"><p className="measure mt-5 text-mkt-lead leading-relaxed text-ink-secondary">{h.lead}</p></div>
+          <div className="entrance [--gp-entrance-delay:0.25s] mt-6 flex flex-wrap justify-center gap-2.5">
             <Magnetic><Button asChild size="lg"><a href="#pilot">{h.primaryAction}</a></Button></Magnetic>
             <Magnetic>
               <Button asChild size="lg" variant="outline">
                 <a href={h.secondaryHref}>{h.secondaryAction}<ArrowRight aria-hidden="true" className="size-4" strokeWidth={1.6} /></a>
               </Button>
             </Magnetic>
-          </Reveal>
-          <Reveal delay={0.3} size="stately" className="mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-left text-data text-ink-muted">
+          </div>
+          <div className="entrance [--gp-entrance-delay:0.3s] mt-5 flex flex-wrap justify-center gap-x-6 gap-y-2 text-left text-data text-ink-muted">
             {h.facts.map((f) => (
               <p key={f.value}><b className="block font-medium text-ink">{f.value}</b>{f.label}</p>
             ))}
-          </Reveal>
+          </div>
         </div>
         <ProductFrame />
       </div>

@@ -202,6 +202,7 @@ try {
     const depthScrolled = await wide.evaluate(() => [...document.querySelectorAll("[data-depth]")].map((el) => getComputedStyle(el).transform));
     out.depthLayers = depthAtTop.length;
     out.depthMoves = depthAtTop.length === 3 && depthAtTop.some((t, i) => t !== depthScrolled[i]);
+    out.tiltTotal = await wide.evaluate(() => document.querySelectorAll("[data-tilt]").length);
     out.tiltOnWide = await wide.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
     // `perspective` only reaches a descendant through an unbroken
     // `transform-style: preserve-3d` chain — a `[data-tilt]` element sitting
@@ -263,13 +264,56 @@ try {
     out.depthFlatNarrow = await narrow.evaluate(() => [...document.querySelectorAll("[data-depth]")].every((el) => getComputedStyle(el).transform === "none"));
     out.stackOnNarrow = await narrow.evaluate(() => document.querySelector("[data-scroll-stack]")?.getAttribute("data-scroll-stack"));
     await narrow.close();
+
+    /**
+     * The five perpetual CSS loops, under reduced motion.
+     *
+     * Their entire stop is one deliberately-unlayered `@media` block at the end
+     * of `packages/ui/src/base.css`, and NOTHING in the vitest suites can see
+     * it: jsdom applies no CSS, so a `motion-audit` pass and a green contract
+     * run would both survive that block being moved into `@layer base` — where
+     * `!important` inverts layer order and it would silently stop winning. The
+     * marquee, the border beam, the review pulse, the receipt drift and the
+     * dashed flow would go on running for a reader who asked for no motion,
+     * with nothing anywhere reporting it. This is the assertion that sees it.
+     */
+    const reducedPage = await browser.newPage();
+    await reducedPage.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+    await reducedPage.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+    await reducedPage.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" });
+    await reducedPage.evaluate(async () => {
+      const height = document.documentElement.scrollHeight;
+      for (let y = 0; y < height; y += 700) { window.scrollTo(0, y); await new Promise((r) => setTimeout(r, 40)); }
+    });
+    await new Promise((r) => setTimeout(r, 400));
+    out.perpetualUnderReduce = await reducedPage.evaluate(() =>
+      document.getAnimations().filter((a) => a.effect?.getTiming().iterations === Infinity).length);
+    await reducedPage.close();
     return out;
   }
   report.parity = await parity();
   const p = report.parity;
-  const parityOk = p.depthMoves && p.tiltOnWide === 8 && p.tiltChainsOk === 8 && p.magneticOnWide === 7 && p.stackOnWide === "on"
+  // Every tilted element must reach a perspective ancestor through an
+  // unbroken preserve-3d chain, and the page must not quietly lose its
+  // tilted surfaces — 21 today (hero frame, 3 capture channels, 4 roles,
+  // 2 comparison cards, 3 provenance cells, 3 pilot boxes, 5 route mocks).
+  // All three numbers must agree. Comparing only `tiltChainsOk` against
+  // `tiltOnWide` is not enough: the chain walk counts every `[data-tilt]`
+  // while `tiltOnWide` counts only the enabled ones, so three disabled or
+  // three broken elements cancel out and the equality still holds. That is
+  // not hypothetical — a stale build reported 21/21 against a page that
+  // actually rendered more, and this gate passed it (2026-09-07).
+  //
+  // `magneticOnWide` is 10, not 7: seven controls plus the hero's receipt and
+  // two pills, which follow the pointer by translating. They used to tilt, and
+  // that was wrong twice over — a 2.58° rotation moved the 251px receipt 0.6px,
+  // and the 3D context `Tilt` requires re-sorted the hero's layers so the board
+  // painted over both pills.
+  const parityOk = p.depthMoves && p.tiltTotal === p.tiltOnWide && p.tiltChainsOk === p.tiltTotal
+    && p.tiltOnWide === 1 && p.magneticOnWide === 10 && p.stackOnWide === "on"
     && p.stepperProgress >= 0.99 && p.pulsing === 3 && p.flowing === 3
-    && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off";
+    && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off"
+    && p.perpetualUnderReduce === 0;
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
 
   const og = await browser.newPage();

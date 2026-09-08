@@ -9,7 +9,12 @@ export function ChannelApp() {
         <span>{a.header}</span>
         {a.rows.map((r) => <span key={r.title} className="rounded-field border border-line bg-surface px-1.5 py-1"><b className="block font-medium text-ink">{r.title}</b>{r.text}</span>)}
       </div>
-      <span className="absolute inset-0 grid place-items-center rounded-section"><Chip tone="review" className="border-transparent bg-action text-action-fg">пілот</Chip></span>
+      {/* A scrim under the chip. Without it the chip floated over live mock text
+        * — «Черга відправки · EV-0248 · чекає на мережу» read out of both sides
+        * of it, which looks like an accident rather than a status. */}
+      <span className="absolute inset-0 grid place-items-center rounded-section bg-canvas/65 backdrop-blur-[1px]">
+        <Chip tone="review" className="border-transparent bg-action text-action-fg">пілот</Chip>
+      </span>
     </div>
   );
 }

@@ -24,6 +24,28 @@ describe("landing metadata", () => {
     ]);
   });
 
+  it("names one canonical URL, so no preview host can claim the page as its own", () => {
+    // metadataBase used to be built from the request host, which meant apex,
+    // www, *.vercel.app and every preview deployment self-canonicalised.
+    expect(metadata.alternates?.canonical).toBe("/");
+  });
+
+  it("completes the social card: url and site name were missing by omission", () => {
+    expect(metadata.openGraph?.url).toBe("/");
+    expect(metadata.openGraph).toMatchObject({ siteName: "GoProceed" });
+  });
+
+  it("gives the Twitter image the same alt text as the Open Graph one", () => {
+    // `twitter.images` was a bare string array, so the alt declared alongside
+    // the OG image did not apply to it.
+    expect(metadata.twitter?.images).toEqual([
+      {
+        url: "/og.png",
+        alt: "GoProceed: робота готова до приймання, коли доказ на місці",
+      },
+    ]);
+  });
+
   it("publishes the project mark for browser and device icons", () => {
     expect(metadata.icons).toEqual({
       icon: [

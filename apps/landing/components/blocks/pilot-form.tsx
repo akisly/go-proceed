@@ -5,10 +5,11 @@ import { Button, Input, Label, Select, SelectContent, SelectItem, SelectTrigger,
 import { Magnetic } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import {
-  PILOT_EMAIL, buildPilotClipboardText, buildPilotMailto, type PilotFields, validatePilotFields,
+  PILOT_EMAIL, buildPilotClipboardText, buildPilotMailto, type PilotFields,
+  type RequiredPilotField, validatePilotFields,
 } from "../../content/pilot-request";
 
-type FormState = "idle" | "sending" | "sent" | "failed";
+type FormState = "idle" | "sending" | "sent" | "failed" | "invalid";
 const f = landingContent.pilot.form;
 const CONTROL = "h-(--gp-control-height-marketing) bg-canvas";
 
@@ -20,7 +21,13 @@ const CONTROL = "h-(--gp-control-height-marketing) bg-canvas";
  */
 export function PilotForm() {
   const [state, setState] = useState<FormState>("idle");
+  // Which required fields failed the last submit. The validator names them —
+  // the form does not restate what counts as empty.
+  const [missing, setMissing] = useState<RequiredPilotField[]>([]);
   const [copied, setCopied] = useState(false);
+  /** The clipboard's outcome, in words. A button whose own label changes is not
+   * re-announced by NVDA or JAWS, and a refusal used to be swallowed entirely. */
+  const [copyNote, setCopyNote] = useState<"" | "copied" | "failed">("");
   const [role, setRole] = useState<string>(f.roles[0]);
   const [fields, setFields] = useState<PilotFields>({ name: "", company: "", contact: "", role: f.roles[0], context: "" });
 
@@ -36,15 +43,25 @@ export function PilotForm() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // The guard `disabled` used to give for free. The button stays focusable
+    // now (WCAG 2.4.3 — see the live region below), so re-entry is refused
+    // here instead of by making the control unreachable mid-request.
+    if (state === "sending") return;
     const form = event.currentTarget;
     const all = read(form);
     setFields(all);
     const checked = validatePilotFields(all);
     if (!checked.ok) {
-      const first = form.elements.namedItem(all.name ? "contact" : "name");
+      // Say what failed, then move. Focus alone announces only the field's
+      // label — it never says the submit was refused, and it says nothing at
+      // all to someone who is looking rather than listening.
+      setMissing(checked.missing);
+      setState("invalid");
+      const first = form.elements.namedItem(checked.missing[0] ?? "name");
       if (first instanceof HTMLInputElement) first.focus();
       return;
     }
+    setMissing([]);
     setState("sending");
     try {
       const response = await fetch("/api/pilot", {
@@ -70,7 +87,8 @@ export function PilotForm() {
   async function onCopy() {
     const ok = await copy(buildPilotClipboardText(fields));
     setCopied(ok);
-    if (ok) window.setTimeout(() => setCopied(false), 2000);
+    setCopyNote(ok ? "copied" : "failed");
+    if (ok) window.setTimeout(() => { setCopied(false); setCopyNote(""); }, 2000);
   }
 
   return (
@@ -95,13 +113,23 @@ export function PilotForm() {
       <AuthorNote />
       <h3 className="text-h3 font-semibold text-ink">{f.title}</h3>
       <p className="text-data text-ink-muted">{f.note}</p>
+      <p className="text-meta text-ink-muted">{f.requiredNote}</p>
       <label className="absolute -left-[9999px] size-px overflow-hidden" aria-hidden="true">
         Website<input name="website" tabIndex={-1} autoComplete="off" />
       </label>
       <div className="grid gap-3 md:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor="pilot-name">{f.fields.name.label}</Label>
-          <Input id="pilot-name" name="name" required autoComplete="name" placeholder={f.fields.name.placeholder} className={CONTROL} />
+          <Label htmlFor="pilot-name">{f.fields.name.label}<span aria-hidden="true" className="text-status-attention-fg"> *</span></Label>
+          <Input
+            id="pilot-name" name="name" required autoComplete="name"
+            placeholder={f.fields.name.placeholder} className={CONTROL}
+            {...(missing.includes("name")
+              ? { "aria-invalid": true, "aria-describedby": "pilot-name-error" }
+              : {})}
+          />
+          {missing.includes("name") && (
+            <p id="pilot-name-error" className="text-meta text-status-attention-fg">{f.fields.name.error}</p>
+          )}
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="pilot-company">{f.fields.company.label}</Label>
@@ -117,8 +145,17 @@ export function PilotForm() {
           </Select>
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="pilot-contact">{f.fields.contact.label}</Label>
-          <Input id="pilot-contact" name="contact" required placeholder={f.fields.contact.placeholder} className={CONTROL} />
+          <Label htmlFor="pilot-contact">{f.fields.contact.label}<span aria-hidden="true" className="text-status-attention-fg"> *</span></Label>
+          <Input
+            id="pilot-contact" name="contact" required
+            placeholder={f.fields.contact.placeholder} className={CONTROL}
+            {...(missing.includes("contact")
+              ? { "aria-invalid": true, "aria-describedby": "pilot-contact-error" }
+              : {})}
+          />
+          {missing.includes("contact") && (
+            <p id="pilot-contact-error" className="text-meta text-status-attention-fg">{f.fields.contact.error}</p>
+          )}
         </div>
       </div>
       <div className="grid gap-1.5">
@@ -126,14 +163,21 @@ export function PilotForm() {
         <Textarea id="pilot-context" name="context" placeholder={f.fields.context.placeholder} className="bg-canvas" />
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-        <Magnetic className="w-full"><Button type="submit" size="lg" className="w-full" disabled={state === "sending"}>{state === "sending" ? f.submitting : f.submit}</Button></Magnetic>
+        <Magnetic className="w-full"><Button type="submit" size="lg" className="w-full" aria-disabled={state === "sending" || undefined}>{state === "sending" ? f.submitting : f.submit}</Button></Magnetic>
         <Magnetic className="w-full"><Button type="button" size="lg" variant="outline" className="w-full" onClick={onCopy}>{copied ? f.copied : f.copy}</Button></Magnetic>
       </div>
+      {/* One live region for every outcome. «Надсилаю…» and the clipboard's
+        * result are announced but not drawn — the button and its label already
+        * carry those visually, and a banner for each would be noise. */}
       <p role="status" aria-live="polite" className={state === "sent"
         ? "rounded-card border border-status-ready-line bg-status-ready px-3.5 py-3 text-data text-ink"
-        : state === "failed"
+        : state === "failed" || state === "invalid"
           ? "rounded-card border border-status-attention-line bg-status-attention px-3.5 py-3 text-data text-ink"
           : "sr-only"}>
+        {state === "sending" && f.submitting}
+        {state === "invalid" && f.invalid}
+        {state === "idle" && copyNote === "copied" && f.copied}
+        {state === "idle" && copyNote === "failed" && f.copyFailed}
         {state === "sent" && f.sent}
         {state === "failed" && (
           <>
@@ -152,7 +196,7 @@ export function PilotForm() {
       <p className="text-data text-ink-secondary">
         <a className="font-medium underline underline-offset-4 hover:text-ink" href={`mailto:${PILOT_EMAIL}`}>{f.mailNote}</a>
       </p>
-      <p className="text-meta text-ink-subtle">{f.fine}</p>
+      <p className="text-meta text-ink-muted">{f.fine}</p>
     </form>
   );
 }

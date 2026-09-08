@@ -10,11 +10,16 @@ export function createLandingMetadata(origin: string): Metadata {
     title,
     description,
     applicationName: "GoProceed",
+    // One canonical for every host that serves this app. Without it, apex,
+    // www, *.vercel.app and each preview deployment claim the page separately.
+    alternates: { canonical: "/" },
     openGraph: {
       title,
       description,
       type: "website",
       locale: "uk_UA",
+      url: "/",
+      siteName: "GoProceed",
       images: [
         {
           url: "/og.png",
@@ -28,7 +33,15 @@ export function createLandingMetadata(origin: string): Metadata {
       card: "summary_large_image",
       title,
       description,
-      images: ["/og.png"],
+      // An object rather than a bare string: `images: ["/og.png"]` carries no
+      // alt, so the description declared beside the Open Graph image did not
+      // reach the Twitter card at all.
+      images: [
+        {
+          url: "/og.png",
+          alt: "GoProceed: робота готова до приймання, коли доказ на місці",
+        },
+      ],
     },
     icons: {
       icon: [
