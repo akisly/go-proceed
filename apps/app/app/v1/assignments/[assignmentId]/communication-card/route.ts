@@ -4,7 +4,9 @@ import { z } from "zod";
 import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
 import { commandRoute } from "../../../../../src/lib/command";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { AssignmentCardTooLongError, formatAssignmentCard } from "../../../../../src/lib/telegram/cards";
+import {
+  assignmentCardCitationOf, AssignmentCardTooLongError, formatAssignmentCard,
+} from "../../../../../src/lib/telegram/cards";
 import { loadTelegramConfig } from "../../../../../src/lib/telegram/config";
 import { enqueueTelegramMessage } from "../../../../../src/lib/telegram/delivery";
 
@@ -80,8 +82,14 @@ export const POST = commandRoute(request, async (a) => {
     [assignmentId, authorized.workspaceId, authorized.projectId]);
     const title = assignment.rows[0]?.description;
     if (!title) throw notFound(a.requestId);
-    const occurrences = await tx.query<{ id: string; criterion: string; norm_ref: string | null }>(`select id,
-      acceptance_criterion as criterion, norm_ref
+    // THE TAG AND THE SOURCE TRAVEL WITH THE CITATION OR THE CITATION DOES NOT
+    // TRAVEL (INV-073; M0 gate 9; ADR-011 open item 9, ruled 2026-09-03). This
+    // select used to take `norm_ref` alone and the map below substituted
+    // «Нормативне посилання не вказано» for a missing one — a normative string
+    // rendered into a закрита група with nothing behind it.
+    const occurrences = await tx.query<{ id: string; criterion: string; norm_ref: string | null;
+      norm_ref_verification: string | null; norm_ref_source: string | null }>(`select id,
+      acceptance_criterion as criterion, norm_ref, norm_ref_verification, norm_ref_source
       from public.requirement_occurrences where workspace_id=$1 and project_id=$2 and work_assignment_id=$3
       order by case timing when 'before_work' then 1 when 'during' then 2 when 'before_concealment' then 3
                             when 'after' then 4 when 'before_package' then 5 end, ordinal, id`,
@@ -92,7 +100,7 @@ export const POST = commandRoute(request, async (a) => {
         assignmentId, title,
         occurrences: occurrences.rows.map((occurrence) => ({
           occurrenceId: occurrence.id, criterion: occurrence.criterion,
-          normRef: occurrence.norm_ref ?? "Нормативне посилання не вказано",
+          normRef: assignmentCardCitationOf(occurrence),
         })),
       });
     } catch (error) {

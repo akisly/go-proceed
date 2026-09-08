@@ -4,12 +4,13 @@
 
 **Applies to:** all
 
-**Last reviewed:** 2026-08-24
+**Last reviewed:** 2026-09-08
 
 **Related decisions:** [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md),
 [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md),
 [ADR-007](../decisions/ADR-007-pilot-field-client.md),
-[ADR-010](../decisions/ADR-010-project-sourced-requirements.md)
+[ADR-010](../decisions/ADR-010-project-sourced-requirements.md),
+[ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md)
 
 > **Why ADR-006 and ADR-007 are listed.** Each of them names this document as
 > binding on the strings it touches — ADR-006 on the assurance ladder it defers
@@ -265,6 +266,24 @@ class of fabrication the audit was run to catch.
 **S. Never render the word «підпис» / «підписано» for a record below level 4 of
 the assurance ladder below**, and never let a level-3 record be described,
 labelled, exported or demonstrated as an electronic signature.
+
+**T. Never send a requirement's words into a Telegram field channel without the
+citation's verification tag and its source.** The assignment card is a renderer
+of regulatory strings like any other and is governed by this document
+(ADR-007:236-237); it prints a requirement's `acceptance_criterion` only beside
+its `norm_ref`, that citation's Ukrainian verification label, and its full
+source, never abbreviated — sources may be gathered into one numbered block of
+the same message, which is what keeps a twelve-item Додаток Н card inside
+Telegram's 4096-character limit without shortening a citation. A requirement
+whose citation lacks any of the three renders «Вимога без підтвердженого
+джерела — текст не показано.» in place of its own words and keeps its ordinal,
+because that ordinal is what the requirement-choice prompt offers back. The
+same rule reaches every later Telegram renderer of a normative string; the
+requirement-choice button, which today carries a truncated criterion, is named
+as an open item in [TODOS.md](../../TODOS.md). Added 2026-09-08 under
+[ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md) open item 9,
+ruled by the owner on 2026-09-03. It adds no allow-list row, no verification
+value and no clause number.
 
 ## Project-sourced strings
 

@@ -3538,7 +3538,29 @@ database, which held one organization and no projects on 2026-09-03) and
 A wrong assertion in this file weakens the exact isolation the suite proves;
 none of the eleven was changed by guessing.
 
-## P2 — the assignment card renders a normative string without its tag and its source (ADR-011 open item 9, 2026-09-03)
+## P2 (CLOSED 2026-09-08) — the assignment card renders a normative string without its tag and its source (ADR-011 open item 9, 2026-09-03)
+
+**Closed 2026-09-08** (branch `claude/card-verification-tag`). The card route
+selects `norm_ref_verification` and `norm_ref_source` beside `norm_ref` and no
+longer substitutes «Нормативне посилання не вказано»; `cards.ts` takes a
+citation as one indivisible value (`AssignmentCardCitation`: text, tag,
+source) rather than a bare string, so a caller cannot express the text without
+both halves. A card prints the Ukrainian label from
+`apps/app/src/lib/norm-ref-labels.ts` — the same table the field client renders,
+not a second vocabulary — and gathers distinct sources into one numbered
+«Джерела» block, which keeps a twelve-item Додаток Н card inside 4096
+characters without abbreviating a citation. A requirement whose citation is
+missing any of the three renders the substitute and keeps its ordinal, because
+`app.resolve_telegram_evidence_context` (0071) offers those ordinals back.
+`assignmentCardCitationOf` asks the row rather than trusting
+`requirement_occurrences_norm_ref_sourced_check`, and withholds a citation
+whose tag has no label — the vocabulary was already widened once, by 0059.
+Prohibition **T** in `docs/product/hidden-works-content-rules.md` is the rule;
+`apps/app/src/lib/telegram/cards.test.ts` (13 cases) and one case in
+`apps/app/tests/telegram-delivery.int.test.ts` are the pins, catalogued as
+`T-TG-008`. **The webhook-enable blocker list loses this item and keeps the
+rest** — Task 13's edge rate limit, the real-group staging pass and the
+scheduler (ADR-011 decision 10). The statement of the defect is kept below.
 
 M0 gate 9 — «no normative string renderable without its `verification` tag
 and its source» — reaches the Telegram card: the card route selects
@@ -3687,3 +3709,7 @@ and two of the reviewers' Recommendations worth the same treatment. All P3.
 - `apps/landing/components/visuals/access-matrix.tsx` — the sr-only `<caption>` repeats the visible `<h3>` above the table.
 - `apps/landing/components/blocks/nav.tsx` — `<li className="contents">` drops the listitem role in Safari < 17 and pre-89 Chromium; a flex `<ul>` with plain `<li>` avoids it.
 - `apps/mobile/assets/splash-icon.png` — now rendered from the maskable file with an opaque `#15161A` field that only matches `app.json`'s splash background by coincidence; give the splash a transparent source of its own.
+
+#### From the card-citation slice (2026-09-08)
+
+- `supabase/migrations/0071_telegram_evidence_claim_fences.sql:225` — `app.resolve_telegram_evidence_context` labels each requirement-choice button `left(o.acceptance_criterion,120)`, so the second Telegram renderer of a requirement's words shows them truncated, with no verification tag and no source. Prohibition **T** covers it and the card slice did not: a Telegram button label is capped at 64 bytes and cannot carry a ~300-character citation, so the attribution has to move into the prompt text above the buttons (or the label has to stop being the criterion). One migration for the definer, one change in `enqueueRequirementChoicePrompt`. **A webhook-enable blocker on the same footing as the card was**, since a закрита група sees the buttons before it sees anything else.
