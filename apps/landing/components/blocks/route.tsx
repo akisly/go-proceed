@@ -3,6 +3,10 @@ import Image from "next/image";
 import { ScrollStack, ScrollStackCard, ScrollStackMedia } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import photoBlueprint from "../../public/images/photo-blueprint.jpg";
+import photoPlanStamped from "../../public/images/photo-plan-stamped.jpg";
+import photoSchematic from "../../public/images/photo-schematic.jpg";
+import photoSiteTrays from "../../public/images/photo-site-trays.jpg";
+import photoTracing from "../../public/images/photo-tracing.jpg";
 import { SectionHead } from "./section-head";
 import { UiAct } from "../visuals/ui-act";
 import { UiCapture } from "../visuals/ui-capture";
@@ -11,6 +15,19 @@ import { UiRequirement } from "../visuals/ui-requirement";
 import { UiReview } from "../visuals/ui-review";
 
 const MEDIA: ReactNode[] = [<UiRequirement key="1" />, <UiCapture key="2" />, <UiReview key="3" />, <UiClosure key="4" />, <UiAct key="5" />];
+
+/**
+ * The artefact each stage produces or consumes, as that card's ground. The
+ * route runs drawing → frame → schematic → stamped plan → loose sheets, which
+ * is the same sequence the copy describes, so the ground is the argument and
+ * not decoration — the one test §9 of `02-building-ui.md` puts an image to.
+ *
+ * All five carry the same tone (mean RGB ~225/218/211, sd ~14, measured on
+ * `photo-blueprint.jpg` and matched by `qa/grounds.mjs`), so the white UI
+ * panel stays the brightest thing in every media half and the per-card glow,
+ * which paints above the ground, keeps carrying the per-stage colour.
+ */
+const GROUND = [photoBlueprint, photoSiteTrays, photoSchematic, photoPlanStamped, photoTracing] as const;
 
 /** The prototype's five media grounds and glows (index.html l.247–253), as literal class strings per card. */
 const TINT = ["media-tint-1", "media-tint-2", "media-tint-3", "media-tint-4", "media-tint-5"] as const;
@@ -26,7 +43,7 @@ const GLOW = [
  * Fora's sticky feature stack, as the prototype performs it: `ScrollStack`
  * pins each card under the header on wide screens, shrinks and veils it as the
  * next arrives, and drifts the UI panel inside the media half; the media half
- * is tinted and lit per card, card 1 over the blueprint photograph.
+ * is tinted and lit per card, each over its stage's artefact (`GROUND`).
  */
 export function Route() {
   const r = landingContent.route;
@@ -67,7 +84,7 @@ export function Route() {
                   <div className={flip
                     ? `landing-media-grid relative isolate grid place-items-center overflow-hidden border-t border-line p-5 [perspective:1200px] md:p-10 wide:order-1 wide:border-r wide:border-t-0 ${TINT[i]!}`
                     : `landing-media-grid relative isolate grid place-items-center overflow-hidden border-t border-line p-5 [perspective:1200px] md:p-10 wide:border-l wide:border-t-0 ${TINT[i]!}`}>
-                    {i === 0 && <Image src={photoBlueprint} alt="" fill sizes="(min-width: 1240px) 590px, 100vw" className="-z-20 object-cover" />}
+                    <Image src={GROUND[i]!} alt="" fill sizes="(min-width: 1240px) 590px, 100vw" className="-z-20 object-cover" />
                     <i aria-hidden="true" className={GLOW[i]!} />
                     <ScrollStackMedia className="w-full max-w-[460px]">{MEDIA[i]}</ScrollStackMedia>
                   </div>

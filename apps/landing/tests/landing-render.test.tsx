@@ -307,6 +307,14 @@ describe("prototype parity — route and capture (2026-09-06)", () => {
     expect(route.match(/media-glow-/g)).toHaveLength(5);
     expect(route).not.toContain("landing-route-card");
   });
+  it("gives every route card the ground of its own stage — five distinct photographs, in route order", () => {
+    // The grounds are the only images in the section carrying `-z-20`; the
+    // photograph inside the capture mockup is a different element. Before
+    // 2026-09-08 only card 01 had one and the other four sat on a gradient.
+    const grounds = [...route.matchAll(/-z-20 object-cover[^>]*?url=%2Fpublic%2Fimages%2F([a-z0-9-]+)\.jpg/g)].map((m) => m[1]);
+    expect(grounds).toEqual(["photo-blueprint", "photo-site-trays", "photo-schematic", "photo-plan-stamped", "photo-tracing"]);
+    expect(new Set(grounds).size).toBe(5);
+  });
   it("tilts the three channel cards, pulses the pilot chip and flows the dashes to one record", () => {
     expect(capture.match(/data-tilt="off"/g)).toHaveLength(3);
     expect(capture.match(/pulse-dot/g)).toHaveLength(1);

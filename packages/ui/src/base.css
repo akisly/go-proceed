@@ -252,9 +252,10 @@
 
 /* The route cards' tinted media grounds (index.html l.247–253), in roles.
  * Each is a gradient of the soft status grounds over the canvas at partial
- * alpha; card 1 sits over the blueprint photograph, which the block renders
- * beneath with next/image. The sand of the prototype maps to the attention
- * ground — the nearest role, and no new colour is added for a background. */
+ * alpha; every card sits over the photograph of its stage's artefact, which
+ * the block renders beneath with next/image (`route.tsx`'s `GROUND`). The sand
+ * of the prototype maps to the attention ground — the nearest role, and no new
+ * colour is added for a background. */
 @utility media-tint-1 { background-image: linear-gradient(160deg, color-mix(in srgb, var(--gp-bg-accent-soft) 92%, transparent), color-mix(in srgb, var(--gp-bg-canvas) 90%, transparent)); }
 @utility media-tint-2 { background-image: linear-gradient(200deg, var(--gp-status-attention-surface) 0%, var(--gp-bg-canvas) 55%, var(--gp-bg-accent-soft) 100%); }
 @utility media-tint-3 { background-image: linear-gradient(160deg, var(--gp-status-ready-surface) 0%, var(--gp-bg-canvas) 60%, var(--gp-bg-accent-soft) 100%); }
