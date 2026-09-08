@@ -53,7 +53,7 @@ export function PilotForm() {
         body: JSON.stringify(all),
         // Fifteen seconds — comfortably longer than the handler's own eight, so
         // a slow-but-alive delivery still wins. Without it a connection that
-        // opens and never answers left the button disabled on «Надсилаю…»
+        // opens and never answers left the button disabled on «Надсилаємо…»
         // indefinitely and the clipboard fallback out of reach; the abort
         // throws, and the catch below is already the failed state.
         signal: AbortSignal.timeout(15_000),

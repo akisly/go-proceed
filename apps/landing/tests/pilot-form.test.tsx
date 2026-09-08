@@ -77,7 +77,7 @@ describe("PilotForm", () => {
     expect(screen.getByRole("status")).toHaveTextContent(PILOT_EMAIL);
   });
 
-  // A stalled connection used to leave the button disabled on «Надсилаю…»
+  // A stalled connection used to leave the button disabled on «Надсилаємо…»
   // for as long as the platform allowed, with no way to reach the fallback.
   it("aborts a stalled request and lands in the failed state", async () => {
     const fetchMock = vi.fn().mockImplementation((_url: string, init: RequestInit) =>
