@@ -845,3 +845,93 @@ landing qa: ok
   Finished TypeScript in 1261ms ...
 ✓ Generating static pages using 11 workers (10/10) in 442ms
 ```
+
+## Addendum — the route cards' grounds (2026-09-08)
+
+### The ask, and what was actually there
+
+«У "Вимога відома до робіт" є підкладка як картинка, можеш зробити для решти
+те саме.» Card 01's media half sits over `photo-blueprint.jpg`; cards 02–05
+sat over a gradient alone, so the section read as one finished card followed
+by four empty ones.
+
+Worth recording, because it is the opposite of what a parity question usually
+answers: **the prototype puts a photograph on card 01 too, and only there**
+(`index.html` l.247: `.fmedia.t1{background:linear-gradient(…),url(assets/photo-blueprint.jpg)}`;
+`t2`–`t5` are gradients with no `url()`). So this is a deliberate departure
+from the prototype, asked for by the owner, not a parity fix.
+
+### What each card now sits over
+
+Every stage of the route produces or consumes a physical artefact, and that
+artefact is the card's ground. The route then reads drawing → frame →
+schematic → stamped plan → loose sheets, which is the sequence the copy
+already describes — so the ground carries the argument rather than decorating
+it, which is the test `02-building-ui.md` §9 puts an image to.
+
+| Card | Stage | Ground |
+|---|---|---|
+| 01 | Вимога відома до робіт | the drawing folio the ДБН clause is pinned to (`photo-blueprint.jpg`, unchanged) |
+| 02 | Фіксація з майданчика | the frame the master takes — the tray run and its central bend |
+| 03 | Зовнішній перегляд | the electrical schematic the supervisor checks against |
+| 04 | Закриття записано | the plan carrying the stamp: a decision recorded on the sheet |
+| 05 | Чернетка акта | loose tracing sheets under a clip: the draft being assembled |
+
+### Sources — no new photography, nothing generated
+
+Both masters are the project's own, and are recorded in
+`design-references/evidence-atlas/README.md` as **generated, synthetic and
+customer-data-free**: `blueprint-folio.png` (1586×992, the folio card 01
+already shows, which holds five distinct sheets) and `cable-tray-evidence.png`
+(1586×992, the frame the demo records call EV-0248). No stock photography was
+introduced, and this session has no image-generation tool, so nothing was
+invented. The crops obey that README's own crop rules — the folio at 4:3 and
+3:2 with paper edges preserved, the site frame at 4:5 with the central cable
+bend kept.
+
+### Why they sit together — tone copied, not chosen
+
+`apps/landing/qa/grounds.mjs` derives all four and is the record of how. Each
+is normalised to the tone `photo-blueprint.jpg` already has, per channel
+`x' = a·x + b` with `a` from the standard deviation and `b` from the mean.
+That tone is what makes a photograph usable here: pale enough that the white
+UI panel stays the brightest thing in the media half, flat enough that the
+linework never competes with the panel's own, and neutral enough that the
+card's coloured glow — which paints above the ground — still carries the
+per-stage identity.
+
+```
+photo-blueprint.jpg (the target, measured)      mean=225,219,212  sd=13,14,16
+
+photo-site-trays    before mean=104,101,98  sd=49,48,49   after mean=224,218,211 sd=14,14,14
+photo-schematic     before mean=220,213,205 sd=12,13,14   after mean=225,219,211 sd=13,13,14
+photo-plan-stamped  before mean=222,218,212 sd=11,12,12   after mean=225,218,211 sd=13,13,14
+photo-tracing       before mean=224,219,213 sd=12,13,15   after mean=225,218,212 sd=14,14,14
+```
+
+The site frame arrives at mean 109 / sd 49 and takes the whole treatment; the
+folio crops need very little. A first run of the script measured every crop as
+its master, because sharp's `stats()` reads the input image and not the
+pipeline — the crop has to be materialised before it can be measured, or three
+crops of one folio all report that folio's tone and all get the same
+correction. Fixed before the assets above were written.
+
+![the five cards](2026-09-06-landing-parity/after/route-grounds.jpg)
+
+### The gate
+
+- `node packages/testing/qa/motion-audit.mjs` → `motion-audit: clean`
+- `pnpm --filter @goproceed/testing exec vitest run …` (the named set) → `Test Files 12 passed · Tests 168 passed`
+- `pnpm turbo run typecheck` → `Tasks: 10 successful, 10 total`
+- `pnpm --filter @goproceed/landing test` → `Test Files 14 passed · Tests 139 passed`, including the new
+  guard in `landing-render.test.tsx`: five grounds, distinct, in route order —
+  it fails the moment a card loses one or two cards share one.
+- `pnpm --filter @goproceed/landing build` → compiled, 10/10 static pages
+- `pnpm --filter @goproceed/landing qa` → ok at seven widths and both reduced
+  pairs, `border beam … ok paintedPixels=788`, `parity: ok`, no page errors and
+  no failed requests. All five grounds load (`natural=590×368/737/393/442/442`,
+  the 590px variant next/image picks for `sizes="(min-width: 1240px) 590px, 100vw"`).
+- `pnpm validate:canonical-docs` → `canonical documentation: OK`
+
+320 KB of masters enter the repo; they are below the fold and next/image
+serves the 590px variant lazily, so the fold is unchanged.

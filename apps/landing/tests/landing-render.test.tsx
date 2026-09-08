@@ -231,15 +231,23 @@ describe("pilot", () => {
   // is visible in the copy under it, and nothing claims to have sent anything.
   // Without a method the default submit is a GET, which puts the applicant's
   // name and phone into the address bar, the history and every later Referer.
-  it("posts to the handler without JavaScript and shows the address unconditionally", () => {
+  it("posts to the handler without JavaScript and keeps a mail path that needs none", () => {
     expect(pilot).toContain('method="post"');
     expect(pilot).toContain('action="/api/pilot"');
     expect(pilot).not.toMatch(/<form[^>]*method="get"/);
     expect(pilot).toContain(`mailto:${PILOT_EMAIL}`);
-    expect(pilot).toContain(PILOT_EMAIL);
     expect(pilot).toContain(landingContent.pilot.form.mailNote);
-    // the address line is copy, not a second call to action
+    // the mail line is copy, not a second call to action
     expect(pilot).not.toContain("bg-action-signal");
+  });
+
+  it("never prints the pilot address as text anywhere on the page", () => {
+    // It is a personal mailbox, and naming it said «one developer» louder than
+    // any sentence in the copy (2026-09-08). It survives only inside `href`,
+    // where the mail client reads it and the reader does not.
+    const visible = html.replace(/<[^>]*>/g, " ");
+    expect(visible).not.toContain(PILOT_EMAIL);
+    expect(html).toContain(`mailto:${PILOT_EMAIL}`);
   });
 });
 
@@ -316,6 +324,14 @@ describe("prototype parity — route and capture (2026-09-06)", () => {
     for (const n of [1, 2, 3, 4, 5]) expect(route).toContain(`media-tint-${n}`);
     expect(route.match(/media-glow-/g)).toHaveLength(5);
     expect(route).not.toContain("landing-route-card");
+  });
+  it("gives every route card the ground of its own stage — five distinct photographs, in route order", () => {
+    // The grounds are the only images in the section carrying `-z-20`; the
+    // photograph inside the capture mockup is a different element. Before
+    // 2026-09-08 only card 01 had one and the other four sat on a gradient.
+    const grounds = [...route.matchAll(/-z-20 object-cover[^>]*?url=%2Fpublic%2Fimages%2F([a-z0-9-]+)\.jpg/g)].map((m) => m[1]);
+    expect(grounds).toEqual(["photo-blueprint", "photo-site-trays", "photo-schematic", "photo-plan-stamped", "photo-tracing"]);
+    expect(new Set(grounds).size).toBe(5);
   });
   it("leaves the three channel cards still, pulses the pilot chip and flows the dashes to one record", () => {
     expect(capture).not.toContain("data-tilt");
