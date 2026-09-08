@@ -34,9 +34,15 @@ export function buildPilotMessage(fields: PilotFields): string {
   ].join("\n");
 }
 
-/** The text the fallback copies: the message plus where to send it. */
+/**
+ * The text the fallback copies. It used to append «Надіслати на: <address>»;
+ * since 2026-09-08 it does not, because that address is a personal mailbox and
+ * the page no longer names it anywhere a reader can see. Where to send it is
+ * the «Відкрити поштовий клієнт» button beside this text, which carries the
+ * address in a `mailto:` and fills the message in for the sender.
+ */
 export function buildPilotClipboardText(fields: PilotFields): string {
-  return `${buildPilotMessage(fields)}\n\nНадіслати на: ${PILOT_EMAIL}`;
+  return buildPilotMessage(fields);
 }
 
 export function buildPilotMailto(fields: PilotFields): string {

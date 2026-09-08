@@ -72,9 +72,11 @@ describe("PilotForm", () => {
     await fill(user);
     await user.click(screen.getByRole("button", { name: f.submit }));
     await waitFor(() => expect(screen.getByRole("form")).toHaveAttribute("data-form-state", "failed"));
-    expect(writeText).toHaveBeenCalledWith(expect.stringContaining(`Надіслати на: ${PILOT_EMAIL}`));
+    expect(writeText).toHaveBeenCalledWith(expect.stringContaining("Об'єкт і пакет робіт:"));
+    expect(writeText).not.toHaveBeenCalledWith(expect.stringContaining(PILOT_EMAIL));
     expect(screen.getByRole("link", { name: f.mail })).toHaveAttribute("href", expect.stringContaining(`mailto:${PILOT_EMAIL}`));
-    expect(screen.getByRole("status")).toHaveTextContent(PILOT_EMAIL);
+    // The failed state names no address: the mail-client link carries it.
+    expect(screen.getByRole("status")).not.toHaveTextContent(PILOT_EMAIL);
   });
 
   // A stalled connection used to leave the button disabled on «Надсилаємо…»

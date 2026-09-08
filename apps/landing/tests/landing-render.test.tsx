@@ -226,15 +226,23 @@ describe("pilot", () => {
   // is visible in the copy under it, and nothing claims to have sent anything.
   // Without a method the default submit is a GET, which puts the applicant's
   // name and phone into the address bar, the history and every later Referer.
-  it("posts to the handler without JavaScript and shows the address unconditionally", () => {
+  it("posts to the handler without JavaScript and keeps a mail path that needs none", () => {
     expect(pilot).toContain('method="post"');
     expect(pilot).toContain('action="/api/pilot"');
     expect(pilot).not.toMatch(/<form[^>]*method="get"/);
     expect(pilot).toContain(`mailto:${PILOT_EMAIL}`);
-    expect(pilot).toContain(PILOT_EMAIL);
     expect(pilot).toContain(landingContent.pilot.form.mailNote);
-    // the address line is copy, not a second call to action
+    // the mail line is copy, not a second call to action
     expect(pilot).not.toContain("bg-action-signal");
+  });
+
+  it("never prints the pilot address as text anywhere on the page", () => {
+    // It is a personal mailbox, and naming it said «one developer» louder than
+    // any sentence in the copy (2026-09-08). It survives only inside `href`,
+    // where the mail client reads it and the reader does not.
+    const visible = html.replace(/<[^>]*>/g, " ");
+    expect(visible).not.toContain(PILOT_EMAIL);
+    expect(html).toContain(`mailto:${PILOT_EMAIL}`);
   });
 });
 
