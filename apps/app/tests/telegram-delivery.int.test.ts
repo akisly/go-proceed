@@ -4,6 +4,7 @@ import { asService, dropWorkspaces } from "../../../packages/testing/src/pg";
 import { seedAssignment, seedM2World, grantM2Capabilities, type M2Fixture } from "../../../packages/testing/src/m2-fixture";
 import { seedRulesWorld, type RulesFixture } from "../../../packages/testing/src/m1-rules-fixture";
 import { insertOccurrence, seedOccurrenceWorld, type OccurrenceWorld } from "../../../packages/testing/src/m2-occurrences-fixture";
+import { readDodatokN } from "./helpers/dodatok-n";
 import { TelegramApiError, type TelegramApiClient } from "../src/lib/telegram/api";
 import { deliverTelegramOutboxBatch } from "../src/lib/telegram/delivery";
 
@@ -307,10 +308,8 @@ databaseDescribe("Telegram assignment-card publication", () => {
  * every unit test in that file.
  */
 databaseDescribe("Telegram assignment-card citations", () => {
-  const DBN_SOURCE = "ДБН А.3.1-5:2016 Додаток Н; офіційний файл e-construction.gov.ua, "
-    + "https://e-construction.gov.ua/laws_detail/3879707932224390963, завантажено 2026-08-10, "
-    + "sha256=4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3; "
-    + "незалежність будь-яких додаткових копій не встановлена";
+  // Read, never transcribed — the CSV is the one place this wording comes from.
+  const DBN_SOURCE = readDodatokN()[0]!.source;
   let client: Client;
   let rules: RulesFixture;
   let world: OccurrenceWorld;

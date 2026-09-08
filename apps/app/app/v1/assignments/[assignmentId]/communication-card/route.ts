@@ -105,7 +105,9 @@ export const POST = commandRoute(request, async (a) => {
       });
     } catch (error) {
       if (error instanceof AssignmentCardTooLongError) {
-        throw new HttpProblem(422, problem("VALIDATION_FAILED", "Картка завдання задовга. Скоротіть назву або вимоги.", {
+        throw new HttpProblem(422, problem("VALIDATION_FAILED", "Картка завдання не вміщається в одне повідомлення Telegram: назва, вимоги та повні джерела "
+        + "їхніх посилань разом перевищують ліміт, а джерела не скорочуються. Скоротіть назву чи "
+        + "критерії або розділіть доручення; жодну вимогу не буде пропущено.", {
           requestId: a.requestId, retryable: false, userAction: "correct_fields",
           fieldErrors: [{ path: "assignment", message: "assignment_card_too_long" }],
         }));
