@@ -344,12 +344,15 @@ databaseDescribe("Telegram assignment-card citations", () => {
       blockingScope: "blocks_both", timing: "after",
       acceptanceCriterion: "Текст вимоги, який ніхто не атрибутував.",
     });
-    for (const capability of ["project.view", "assignments.manage"]) {
-      await client.query(`insert into public.project_access_grants
-        (workspace_id, project_id, member_id, capability, granted_by)
-        values ($1,$2,$3,$4,$5)`,
-      [rules.workspaceId, rules.projectId, rules.memberId, capability, rules.userId]);
-    }
+    // `project.view` is ALREADY GRANTED by seedRulesWorld, together with
+    // project.admin, contracts.edit, imports.manage, imports.publish and
+    // rule_bindings.manage (m1-rules-fixture.ts:88-97). Only the card route's
+    // second capability is missing, and re-granting the first one collides with
+    // `project_access_active_unique` before a single assertion runs.
+    await client.query(`insert into public.project_access_grants
+      (workspace_id, project_id, member_id, capability, granted_by)
+      values ($1,$2,$3,'assignments.manage',$4)`,
+    [rules.workspaceId, rules.projectId, rules.memberId, rules.userId]);
     await client.query(`insert into public.project_field_channels
       (workspace_id, project_id, channel, state, locked_at, locked_by_member_id, last_healthy_at)
       values ($1,$2,'telegram','active',now(),$3,now())`,
