@@ -50,7 +50,7 @@ describe("landing copy — the Daylight page", () => {
     expect(copy).toContain("Telegram-бот");
     expect(copy).toContain("мобільний застосунок");
     expect(copy).toContain("без облікового запису");
-    expect(landingContent.pilot.author.signature).toBe("Автор GoProceed · відповідаю протягом робочого дня");
+    expect(landingContent.pilot.author.signature).toBe("Команда GoProceed · відповідаємо протягом робочого дня");
   });
 
   it("states the product boundaries", () => {

@@ -13,8 +13,12 @@ describe("pilot request", () => {
     expect(lines[6]).toBe("Об'єкт і пакет робіт: БЦ, інженерні мережі");
   });
 
-  it("appends the address for the clipboard fallback", () => {
-    expect(buildPilotClipboardText(fields)).toContain(`Надіслати на: ${PILOT_EMAIL}`);
+  it("copies the message alone — the clipboard never carries the address", () => {
+    // It used to append «Надіслати на: <address>». The address is a personal
+    // mailbox and the page stopped naming it (2026-09-08); the mail-client
+    // button beside the copied text is what knows where it goes.
+    expect(buildPilotClipboardText(fields)).toBe(buildPilotMessage(fields));
+    expect(buildPilotClipboardText(fields)).not.toContain(PILOT_EMAIL);
   });
 
   it("encodes the mailto to the pilot address", () => {

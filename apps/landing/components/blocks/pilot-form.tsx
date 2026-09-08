@@ -53,7 +53,7 @@ export function PilotForm() {
         body: JSON.stringify(all),
         // Fifteen seconds — comfortably longer than the handler's own eight, so
         // a slow-but-alive delivery still wins. Without it a connection that
-        // opens and never answers left the button disabled on «Надсилаю…»
+        // opens and never answers left the button disabled on «Надсилаємо…»
         // indefinitely and the clipboard fallback out of reach; the abort
         // throws, and the catch below is already the failed state.
         signal: AbortSignal.timeout(15_000),
@@ -137,17 +137,20 @@ export function PilotForm() {
         {state === "sent" && f.sent}
         {state === "failed" && (
           <>
-            {f.failed} <a className="font-medium underline underline-offset-4" href={`mailto:${PILOT_EMAIL}`}>{PILOT_EMAIL}</a> {f.failedTail}
+            {f.failed} {f.failedTail}
             <span className="mt-2 block"><Button asChild variant="outline" size="sm"><a href={buildPilotMailto(fields)}>{f.mail}</a></Button></span>
           </>
         )}
       </p>
-      {/* Spec §9.1: the address is visible in the copy under the form, always —
-        * not only in the failed state, which only JavaScript can produce. One
-        * line, and a link rather than a second call to action. */}
+      {/* Spec §9.1 asked for a mail path that is present under the form always,
+        * not only in the failed state, which only JavaScript can produce — a
+        * plain `mailto:` anchor is that path and it needs no script. It used to
+        * print the address as its own link text; it no longer does (2026-09-08),
+        * because the address is a personal mailbox and naming it on the page
+        * said «one developer» louder than any sentence in the copy. The link
+        * still carries it in `href`, so the no-script path is unchanged. */}
       <p className="text-data text-ink-secondary">
-        {f.mailNote}{" "}
-        <a className="font-medium underline underline-offset-4 hover:text-ink" href={`mailto:${PILOT_EMAIL}`}>{PILOT_EMAIL}</a>
+        <a className="font-medium underline underline-offset-4 hover:text-ink" href={`mailto:${PILOT_EMAIL}`}>{f.mailNote}</a>
       </p>
       <p className="text-meta text-ink-subtle">{f.fine}</p>
     </form>
