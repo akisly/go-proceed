@@ -1,58 +1,69 @@
 ## AI development workflow
 
-Superpowers is the primary implementation methodology.
+Superpowers is the implementation methodology — brainstorming, design approval,
+planning, TDD, plan execution, systematic debugging. gstack supplies gates only:
+it may not expand an approved scope, and on conflict the approved design and
+plan win.
 
-Use Superpowers for:
-- brainstorming before new implementation
-- design approval
-- implementation planning
-- TDD
-- plan execution
-- systematic debugging
+| Gate | When |
+|---|---|
+| `/plan-ceo-review` | product-level decisions |
+| `/plan-eng-review` | after an approved design |
+| `/plan-design-review` | user-facing flows |
+| `/review` | after implementation, before landing |
+| `/cso` | security-sensitive slices |
+| `/qa-only` | staging verification |
+| `/ship` | approved delivery |
 
-Use gstack only as explicit quality gates:
-- /plan-ceo-review for product-level decisions
-- /plan-eng-review after an approved design
-- /plan-design-review for user-facing flows
-- /review after implementation
-- /cso for security-sensitive slices
-- /qa-only for staging verification
-- /ship for approved delivery
-
-Do not let gstack expand an already approved scope.
-QA may modify RLS policies and grants, and the migration that carries them —
-in this repository they are expressible nowhere else. Every such change is its
-own commit naming the test it answers, and it keeps or explicitly revises the
+QA may modify RLS policies and grants, and the migration that carries them — in
+this repository they are expressible nowhere else. Every such change is its own
+commit naming the test it answers, and it keeps or explicitly revises the
 paperwork the schema rests on (`technical/data-access-surface.csv`,
-`technical/database/invariant-catalog.csv`, the slice's spec). QA still does
-not modify auth code.
-When workflows conflict, the approved design and implementation plan take precedence.
+`technical/database/invariant-catalog.csv`, the slice's spec). QA still does not
+modify auth code. Why the prohibition was narrowed: `docs/ai-workflow.md`.
 
-[Changed 2026-09-02: until this date the middle line read «Do not let QA
-automatically modify auth, RLS, grants, or migration code.» The owner lifted
-the RLS-and-grants half after PR #58's first CI run found the tenant-isolation
-sweep and the schema disagreeing on one column-level grant, and the
-prohibition left that fix in nobody's hands. RLS and grants live only in
-`supabase/migrations/`, so the permission has to reach the migration that
-carries them or it is empty. Auth code stays out of QA's hands.]
+## Agents and parallel work
+
+28 agents are installed — backend and data, security and privacy, code quality,
+verification, operations, frontend and mobile, product and content. The live
+list is `ls ~/.claude/agents`; ~244 others sit in `~/.claude/agents.disabled/`,
+one `mv` away. Never plan around a specialist without checking it is installed.
+
+| Tool | When |
+|---|---|
+| `Explore` | read-only fan-out search — you need the conclusion, not the files |
+| `general-purpose` | independent lanes dispatched in ONE message, as `/review` does |
+| `superpowers:subagent-driven-development` | a plan's independent tasks |
+| `superpowers:dispatching-parallel-agents` | the procedure for any fan-out |
+
+A subagent inherits no conversation: give it the repository path, the exact
+command, and the shape of the answer expected. Its report is all that survives.
+
+## What "the tests pass" means here
+
+The isolated suites — `apps/app/tests/*.int.test.ts` and most of
+`packages/testing/` — call `hasIsolatedDatabaseCredentials()` and **skip
+themselves silently** without `APP_DB_URL`, `SERVICE_DB_URL` and
+`TEST_DB_ADMIN_URL`. A fresh checkout carries none of them.
+
+- "Green locally" means the UNIT tests passed. Say it in those words; never
+  report a skipped suite as a pass.
+- CI runs an integration case for the first time. Expect the first failure in
+  SETUP, not in behaviour: read the fixture world before adding a row to it — a
+  capability `seedRulesWorld` already granted, a uniqueness slot already held.
+- Migrations are applied by hand as `postgres`; `supabase db reset` is never run
+  here, so each new migration is owed to every local database separately.
 
 ## UI and the design system
 
 Touching `apps/landing/**`, `apps/app/app/**`, `packages/ui/**` or
 `packages/tokens/**` — read **`docs/design/02-building-ui.md` first**. It is the
 procedure, not background: read order, which skills to use and which to refuse,
-the substitution table, and the gate. Reviewing UI counts as touching it.
-
-Not loaded here on purpose. It is 300+ lines and most work in this repo is not
-UI; inlining it would spend context on every migration and every route handler.
-
-**Building the office dashboard specifically?** Two more, both Approved and both
-short: `docs/design/03-ui-references.md` (the three reference repos, what we take
-from each, **why plane's AGPL means structure-only**, and the rule that shadcn
-components land in `packages/ui` rather than a second tree in the app) and
-`docs/design/04-role-pain-map.md` (which role each screen serves, sourced to the
-2026-08-21 demand scan — a screen with no named role and no named pain is a
-guess).
+the substitution table, and the gate. Reviewing UI counts as touching it. It is
+deliberately not inlined here (`docs/ai-workflow.md`). Building the office
+dashboard: also `docs/design/03-ui-references.md` (reference repos, licences,
+where shadcn components land) and `docs/design/04-role-pain-map.md` (a screen
+with no named role and no named pain is a guess).
 
 Five things that hold even if you read nothing else:
 
@@ -61,53 +72,32 @@ Five things that hold even if you read nothing else:
    fails a test. If no role means what you mean, you found a missing role.
 2. **Never edit a file whose header says GENERATED.** Edit
    `packages/tokens/src/tokens.json`, then `pnpm --filter @goproceed/tokens generate`.
-   Colours there are OKLCH triples; the hex is output.
 3. **Animation comes from `@goproceed/ui/motion`.** Importing `motion/react`
-   anywhere else fails the build. Reduced motion is a different animation, never
+   anywhere else fails the build; reduced motion is a different animation, never
    a faster one.
 4. **Never write a Tailwind class as a template literal** (`bg-${tone}`). The
-   scanner sees the template, not the class, and emits no CSS — the element
-   renders unstyled with nothing warning.
+   scanner sees the template, emits no CSS, and the element renders unstyled
+   with nothing warning.
 5. **Before saying done, run the five commands in that file's §5 and paste the
-   output.** A UI change that compiles is not a UI change that works: a class
-   that does not exist produces no error, only an unstyled element.
+   output.** A class that does not exist produces no error, only an unstyled
+   element — compiling is not working.
 
 ## Third-party libraries and services: current docs first, never memory
 
-Before implementing, configuring, or advising on ANY external library, SDK,
-platform API or hosted service (Supabase, Vercel, Next.js, supabase-js,
-@supabase/ssr, puppeteer, pg, …), read the CURRENT documentation first and
-check the version actually installed in this repository. Do not implement from
-training-data memory: API shapes, key formats, env-var names, defaults and
-deprecations move faster than any model's cutoff, and a confident answer from
-memory is how legacy creeps in.
+Before implementing, configuring or advising on ANY external library, SDK,
+platform API or hosted service, read the CURRENT documentation and check the
+version installed here. Key formats, env-var names, defaults and deprecations
+move faster than any model's cutoff, and a confident answer from memory is how
+legacy creeps in.
 
-Concretely, for every such task:
 1. Read the installed version (`package.json`, lockfile, `--version`).
-2. Fetch the current docs for THAT version — the `supabase` skill and the
-   Supabase MCP `search_docs` for anything Supabase; the vendor's docs or
-   changelog otherwise — and prefer the vendor's own source over a summary.
-3. If the installed version and the current docs disagree (a renamed variable,
-   a new key format, a deprecated call), say so explicitly, name both, and
-   record the upgrade as an item in `TODOS.md` with its deadline rather than
-   silently coding to the old shape.
-4. Cite what was checked — version + doc URL — in the commit or PR, so the
-   next reader can see the guidance was current on that date, not recalled.
+2. Fetch the docs for THAT version — the `supabase` skill and the Supabase MCP
+   `search_docs` for anything Supabase, the vendor's own source otherwise.
+3. If the installed version and the docs disagree, say so, name both, and record
+   the upgrade in `TODOS.md` with its deadline rather than coding to the old
+   shape silently.
+4. Cite version + doc URL in the commit or PR, so the next reader sees the
+   guidance was current on that date, not recalled.
 
-Why this rule exists (2026-08-19): Supabase renamed the browser key from the
-legacy `anon` JWT to `sb_publishable_…` and the variable in its docs from
-`NEXT_PUBLIC_SUPABASE_ANON_KEY` to `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. This
-repo's installed `supabase-js 2.47.10` still sends the key as a Bearer JWT and
-cannot accept the new format, so the correct answer today is the LEGACY key in
-the OLD variable name — and that is only discoverable by checking both the
-installed version and the current docs, neither of which memory could supply.
-The legacy keys stop working at the end of 2026; the upgrade is tracked in
-`TODOS.md`.
-
-[Correction, 2026-08-21: the «installed supabase-js 2.47.10 cannot accept the
-new format» premise is stale — PR #30 bumped the workspace to 2.112.3, which
-handles `sb_publishable_` keys; the legacy-key workaround is no longer needed
-anywhere, and the Expo field client uses the publishable key directly. The
-RULE this story motivates stands unchanged — this correction is itself an
-instance of it: the fact was re-checked against the installed version before
-being relied on.]
+The case that produced this rule, and the correction that proved it works:
+`docs/ai-workflow.md`.
