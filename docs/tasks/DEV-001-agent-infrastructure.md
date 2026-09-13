@@ -6,7 +6,7 @@
   - Their canonical sources live in `agents/`.
   - Host profiles are generated from those sources into `.claude/agents/` and `.codex/agents/`, and CI rejects any drift between the two.
   - This task changes no rules and asks for no automatic delegation. `CLAUDE.md` is untouched and there is no root `AGENTS.md`; the workflow switch is the next task.
-- **State:** verifying. Required criterion 6 (discovery in a fresh session) is NOT RUN; see Acceptance evidence.
+- **State:** done. Every required criterion passes; criterion 6 was settled in a fresh session on 2026-09-13. Optional criterion 7 (Codex) is NOT RUN.
 - **Coordinator:** primary Claude Code session, 2026-09-13.
 - **Area and role family:** GoProceed monorepo, `gp-*` (the only family).
 - **Execution mode:** see [Bootstrap](#bootstrap). No repository rule defines required stages yet; those rules arrive in the next task.
@@ -59,6 +59,7 @@ This task creates the roles that would normally review it.
 | 2026-09-13 | Generate profiles for both Claude Code and Codex | Owner, in conversation |
 | 2026-09-13 | RLS and grant defects: QA reports them, the implementer fixes them, and QA stays read-only | Owner, in conversation |
 | 2026-09-13 | Keep `outputs/`; it holds the client-prospecting work | Owner, in conversation |
+| 2026-09-13 | Superpowers stays enabled: the project-level disable did not take effect in a fresh session (see DEV-002 criterion 8b), and the owner accepts that rather than disabling the plugin at user level. Supersedes the "disabled for this project only" row in effect, not in intent | Owner, in conversation |
 
 ## Plan
 
@@ -82,6 +83,7 @@ This task creates the roles that would normally review it.
 | 5 | rework (coordinator), round 1 | R1–R6 resolved as stated fixes only | See Findings and rework | Verify the fixes |
 | 6 | verifying (coordinator, same session) | Stated fixes verified; see criterion 10 | Commands in Acceptance evidence | Commit, open PR, run CI; discovery check in a fresh session |
 | 7 | verifying (coordinator) | PR #79 opened; CI green on `7e5a228` including the new `validate:agents` step | GitHub Actions run 34752316946; see criterion 8 | Discovery check in a fresh session (owner) |
+| 8 | done (coordinator, fresh session on `main` at `6e5f568`) | PR #79 merged. A session started after the profiles existed lists all eight `gp-*` agent types with the registry's tools; `gp-reviewer` has Read, Grep and Glob only | Agent-type listing in the session; `ls .claude/agents/` shows the same eight files; see criterion 6 | None |
 
 ## Findings and rework
 
@@ -99,8 +101,7 @@ Rework count and hypothesis changes: one round, covering all six findings from r
 ## What is not true after this task
 
 - No rule requires any `gp-*` stage, and no profile invites automatic delegation. `CLAUDE.md` describes the previous workflow until the workflow switch lands.
-- Superpowers is still enabled for this project.
-- No session has yet been observed discovering the project profiles.
+- Superpowers is still enabled for this project. DEV-002's project-level disable did not take effect, and the owner accepted that on 2026-09-13.
 - Nobody has exercised `gp-qa`'s `workspace-write` in Codex.
 - Two principal rules in `agents/COMMON.md` are targets, not delivered controls: per-workload worker roles, and an exposed surface narrowed to `api`.
 
@@ -115,7 +116,7 @@ Results are on the working tree over `13e256e`, after rework round 1 and before 
 | 3. Registry rules reject violations | yes | working tree | Mutated copies in a scratch directory all exit 1: workspace-write on the reviewer; a sandbox set on the implementer; `danger-full-access`; `Edit` on the reviewer; the `Agent` tool; unknown key `model`; `write` on QA; a tampered generated file (`Missing or drifted`); a stray `gp-rogue.md` (`Stale/colliding profile`); descriptions containing U+2028, U+FEFF, U+0085 or a newline (`Invalid description`) | PASS | — |
 | 4. Canonical-docs validator stays green | yes | working tree | `node scripts/validate-canonical-docs.mjs` printed `canonical documentation: OK`. The reviewer ran it on a git-added copy with the same result, and a case-insensitive grep for the retired product name over the new files found nothing | PASS | CI re-runs it on the committed tree |
 | 5. Upstream sources match the pin | yes | `ad9264e` | `curl` from raw.githubusercontent.com and `shasum -a 256` for the 8 sources, the licence and 3 documentation files all match `agents/upstream.lock.json`; the licence copy matches. Independently repeated by the reviewer | PASS | — |
-| 6. Claude Code discovers the eight project profiles | yes | — | This session predates the profiles (`Agent type 'gp-reviewer' not found`), and `claude -p` in the worktree failed with "OAuth session expired and could not be refreshed" | NOT RUN | environmental: in a fresh Claude Code session in the repository, ask it to list the available subagent types starting with `gp-` and their tools, without editing: all eight should appear and `gp-reviewer` should have no Bash (the `/agents` wizard no longer exists in Claude Code) |
+| 6. Claude Code discovers the eight project profiles | yes | `6e5f568` (main) | Fresh Claude Code 2.1.266 session (desktop app), asked to list the `gp-*` subagent types and their tools without editing. Listed: `gp-architect` (Read, Grep, Glob), `gp-implementer` (Read, Grep, Glob, Bash, Edit, Write), `gp-mobile` (Read, Grep, Glob, WebSearch, WebFetch), `gp-qa` (Read, Grep, Glob, Bash), `gp-researcher` (Read, Grep, Glob, WebSearch, WebFetch), `gp-reviewer` (Read, Grep, Glob), `gp-security` (Read, Grep, Glob), `gp-ui-reviewer` (Read, Grep, Glob). `gp-reviewer` has no Bash | PASS | Earlier attempts: the build session predated the profiles, and `claude -p` in the worktree failed with an expired OAuth session |
 | 7. Codex discovers the profiles | no | — | No Codex session available | NOT RUN | environmental |
 | 8. CI `verify` is green with the new step | yes | `7e5a228` (PR #79 head) | GitHub Actions run 34752316946: `verify` SUCCESS, its log shows `Python 3.12.3` and `Verified 16 host profiles from 8 canonical roles (gp: 8).` plus `canonical documentation: OK`; `app-qa` and three Vercel checks SUCCESS | PASS | — |
 | 9. Independent review with no unresolved finding | yes | `dev-001.diff` (review round 1) | Code Reviewer persona: six findings, R1–R6, all resolved | PASS | Round-1 findings were fixed as stated fixes and not re-reviewed independently |
@@ -140,7 +141,7 @@ Results are on the working tree over `13e256e`, after rework round 1 and before 
 
 - **Changed files:** the owning paths above, plus 16 generated profiles.
 - **Review independence:** independent Code Reviewer persona for round 1; fix verification was same-session.
-- **Verified scope:** criteria 1–5 and 8–10.
-- **Remaining risks / blocked requirements:** criterion 6 (fresh-session discovery) is required and NOT RUN. Criterion 7 (Codex) is optional and NOT RUN.
-- **Next bounded action and owner:** the owner, or a new session, settles criterion 6 by asking a fresh session to list the `gp-*` subagent types and their tools; the owner decides the merge of PR #79.
-- **Final state and reason:** not final.
+- **Verified scope:** criteria 1–6 and 8–10.
+- **Remaining risks / blocked requirements:** criterion 7 (Codex discovery) is optional and NOT RUN. Nobody has exercised `gp-qa`'s `workspace-write` in Codex.
+- **Next bounded action and owner:** none for this task. PR #79 is merged.
+- **Final state and reason:** done. Every required criterion passes.

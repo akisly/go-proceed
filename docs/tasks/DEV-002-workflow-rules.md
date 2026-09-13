@@ -7,7 +7,7 @@
   - `agents/COORDINATION.md`, `agents/PLAYBOOKS.md` and `agents/TASK_TEMPLATE.md` define the routes, task states and records.
   - Project settings disable the retired workflow plugin and cap subagent nesting.
   - The validator refuses any live instruction that prescribes the retired workflow.
-- **State:** verifying. Required criteria 8 (fresh-session discovery) and 9 (CI) are NOT RUN.
+- **State:** done, with a limit the owner accepted. Criterion 8a (role discovery) and 9 (CI) pass. Criterion 8b (the retired plugin disabled) fails, and the owner accepted that on 2026-09-13; see Owner decisions.
 - **Coordinator:** primary Claude Code session, 2026-09-13.
 - **Execution mode:** independent subagents for the required stages — see Progress for the host used.
 - **Selected route and why:** agent instructions or profiles → coordinator → `gp-reviewer` → `gp-qa` (`agents/COORDINATION.md`). This change *is* the rules deciding when agents run, so it is a behavior change.
@@ -46,6 +46,7 @@
 | 2026-09-13 | Start B1 only after #79 merges; #79 merged | Owner, in conversation |
 | 2026-09-13 | The retired workflow plugin is disabled for this project only; the gate pack is removed from the rules, not blocked | Owner, in conversation (plan) |
 | 2026-09-13 | An RLS or grant defect: QA reports, implementer fixes; QA stays read-only | Owner, in conversation (plan) |
+| 2026-09-13 | Criterion 8b is accepted with a documented limit: the retired plugin stays enabled (project-level `false` does not override the user-level `true`), and it is not disabled at user level. `.claude/settings.json` is left as it is | Owner, in conversation |
 
 ## Plan
 
@@ -93,6 +94,9 @@
   - **Passed:** A, B, S1–S4, X.
   - S4 re-read the whole "What the tests pass means" section of `AGENTS.md` against the code, sentence by sentence.
   - **Not run:** H | Narrow QA report; `qa-dev002-r3c/` | Commit; open PR; CI; fresh-session check |
+| 14 | verifying (coordinator) | PR #80 opened and merged; CI green on its head `fe08201` | GitHub Actions run 34757411619: `verify` and `app-qa` SUCCESS | Fresh-session check |
+| 15 | verifying (coordinator, fresh session on `main` at `6e5f568`) | H run. The eight `gp-*` agent types are listed (8a PASS). All 14 `superpowers:*` skills are listed and the plugin's SessionStart hook fired (8b FAIL). The project file is applied (its `env` entry `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH=1` is present in the session) and the folder is trusted (`hasTrustDialogAccepted: true`), yet its `enabledPlugins` entry is ignored. `claude-code-guide` read the current settings documentation: a higher-level key should override, but the merge of the `enabledPlugins` object, desktop-app behaviour and hook-versus-skill disable are not documented | Session skill listing and hook output; see Sources | Owner decision |
+| 16 | done (coordinator) | The owner accepted 8b with the limit and asked to close the task | Owner decisions | None |
 
 ## Findings and rework
 
@@ -132,7 +136,7 @@ Rework count and hypothesis changes:
 - The runbook's §3.2, §3.4 and §4.0 still say QA may edit RLS, grants and their migration, and its `CLAUDE.md:<line>` citations point at the pre-2026-09-13 file. A dated banner at the top says root `AGENTS.md` wins. The sections themselves are rewritten in DEV-003.
 - Running `pnpm turbo run test` or the `apps/app` and `packages/testing` suites against a live local stack still truncates or resets it. This task documents that behaviour but does not change it.
 - The comment in `.github/workflows/ci.yml` that credits `hasIsolatedDatabaseCredentials()` with "seven suites" is stale: 5 call it, and 4 more skip through an inline check. It is outside this task's paths and is left for a CI-touching task.
-- Whether a project-level `enabledPlugins: false` overrides a user-level `true` has not been observed. The Claude Code settings documentation establishes the precedence order but does not describe how the `enabledPlugins` object merges.
+- The retired workflow plugin is not disabled for this project. In Claude Code 2.1.266 (desktop app), the project-level `enabledPlugins: false` in `.claude/settings.json` did not override the user-level `true`: its skills load and its SessionStart hook fires. The owner accepted this. `CLAUDE.md` ("disables a globally installed workflow plugin") and `docs/ai-workflow.md` still describe the intended effect, not the observed one; correcting them is an agent-instruction change and needs its own review.
 
 ## Acceptance evidence
 
@@ -145,13 +149,15 @@ Rework count and hypothesis changes:
 | 5. `apps/app` agent files are left alone by `next dev` | yes | staged tree | Managed block lines 1–9 of `apps/app/AGENTS.md` byte-identical to `apps/landing/AGENTS.md` (`cmp`); generator writes only when the current block is missing | PASS | `next dev` not run in `apps/app` |
 | 6. Independent `gp-reviewer` with no unresolved finding | yes | `dev-002.diff` over `85bdcb9` | Round 1 (Markdown-fallback subagent): nine findings, R1-01 to R1-09, all resolved as stated fixes; see Findings | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as `AGENTS.md` prescribes for stated fixes |
 | 7. Independent `gp-qa` on the final revision | yes | staged tree after the Q3-01 stated fix | QA round 1: needs fixes (Q1-01, Q1-02). QA round 2: needs fixes (Q2-01). QA round 3 on `a86b2cc`: verified for the scoped criteria, with Q3-01 low. Narrow re-verification on `11054ea`: Q3-01 fix in place, new low Q3b-01. Narrow re-verification on `ec3f767`: verified for the scoped criteria, no new finding | PASS | Stages ran through the Markdown fallback (independent general-purpose subagents following `agents/COMMON.md` and the role file), not native `gp-*` agent types |
-| 8. Fresh session on this branch: asked to list available subagent types, it lists the eight `gp-*` roles (the `/agents` wizard no longer exists); no `superpowers:*` skill is listed; the retired plugin's session hook does not fire | yes | — | Requires a new Claude Code session on this branch | NOT RUN | environmental: this session predates the change |
-| 9. CI `verify` green | yes | PR head | GitHub Actions | NOT RUN | Runs when the PR opens |
+| 8a. Fresh session: asked to list available subagent types, it lists the eight `gp-*` roles (the `/agents` wizard no longer exists) | yes | `6e5f568` (main) | Fresh Claude Code 2.1.266 session (desktop app) lists all eight with the registry's tools; `gp-reviewer` has Read, Grep and Glob only. Same as DEV-001 criterion 6 | PASS | — |
+| 8b. Fresh session: no `superpowers:*` skill is listed, and the retired plugin's session hook does not fire | yes | `6e5f568` (main) | The same session lists 14 `superpowers:*` skills, and the SessionStart hook injected `using-superpowers`. `~/.claude/settings.json` has the plugin `true`; `.claude/settings.json` has it `false`; no `.claude/settings.local.json`. The project file is otherwise applied (its `env` entry is present) and the folder is trusted | FAIL | Accepted by the owner on 2026-09-13 with the documented limit (Owner decisions). Not tried: `.claude/settings.local.json` or `claude plugin disable --scope project`, either of which would show whether the local level behaves differently |
+| 9. CI `verify` green | yes | `fe08201` (PR #80 head) | GitHub Actions run 34757411619: `verify` SUCCESS, `app-qa` SUCCESS | PASS | — |
 
 ## Sources
 
 - Claude Code settings precedence: https://code.claude.com/docs/en/settings, accessed 2026-09-13. Precedence runs managed > command line > `.claude/settings.local.json` > `.claude/settings.json` > `~/.claude/settings.json`.
-- Claude Code plugins: https://code.claude.com/docs/en/discover-plugins, accessed 2026-09-13. Plugins are enabled per scope, and a project can declare `enabledPlugins` in `.claude/settings.json`.
+- Claude Code plugins: https://code.claude.com/docs/en/discover-plugins, accessed 2026-09-13. Plugins are enabled per scope, and a project can declare `enabledPlugins` in `.claude/settings.json`. `claude plugin disable <plugin>@<marketplace> --scope project` is the documented per-project disable.
+- Claude Code settings reference: https://code.claude.com/docs/en/settings-reference, read by `claude-code-guide` on 2026-09-13 for criterion 8b. `enabledPlugins` turns plugins on or off per scope in all four settings files. Not documented: whether the object merges per key, whether the desktop app applies it like the CLI, and whether plugin hooks follow the skills' enabled state.
 - Claude Code subagents: https://code.claude.com/docs/en/sub-agents, accessed 2026-09-13. `CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH`; "Set to 1 to disable nesting entirely".
 - Next.js 16.3.1 agent-file generator, installed at `apps/app/node_modules/next/dist/server/lib/generate-agent-files.js`. It writes the managed block into `AGENTS.md` and `@AGENTS.md` into `CLAUDE.md` when the block is missing.
 
@@ -162,14 +168,12 @@ Rework count and hypothesis changes:
   - `gp-reviewer` round 1 and `gp-qa` rounds 1–3, plus two narrow re-verifications, each ran as an independent subagent through the Markdown fallback.
   - The coordinator verified none of its own fixes as independent evidence.
   - Native `gp-*` agent types were not available in this session.
-- **Verified scope:** criteria 1–7.
+- **Verified scope:** criteria 1–7, 8a and 9. Criterion 8b is FAIL, accepted by the owner.
 - **Remaining risks / blocked requirements:**
-  - Criterion 8, fresh-session discovery: includes whether a project-level `enabledPlugins: false` overrides the user-level enable, and whether the retired plugin's session hook stops firing.
-  - Criterion 9, CI.
-  - Both are required and NOT RUN.
+  - The retired plugin stays active in sessions in this repository: its skills are offered and its SessionStart hook tells the model to invoke them. Root `AGENTS.md` still governs, since user and repository instructions take precedence over skills, but nothing technical stops the plugin.
+  - `CLAUDE.md` and `docs/ai-workflow.md` claim the plugin is disabled; see What is not true.
   - Two rework rounds of three were used (Q1, Q2). Q3-01 and Q3b-01 were stated fixes after passing QA.
 - **Next bounded action and owner:**
-  - Coordinator: open the PR and record CI.
-  - Owner: run the fresh-session check (ask a new session on this branch to list the `gp-*` subagent types and the available skills) and decide the merge.
   - Follow-up: DEV-003 (runbook rewrite; removes the validator's temporary runbook exemption).
-- **Final state and reason:** not final. Blocked on criteria 8 and 9.
+  - Optional: correct the `CLAUDE.md` and `docs/ai-workflow.md` sentences about the disabled plugin, with `gp-reviewer` and `gp-qa`.
+- **Final state and reason:** done. Every required criterion passes except 8b, which the owner accepted with the documented limit.
