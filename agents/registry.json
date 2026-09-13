@@ -28,7 +28,7 @@
     {
       "name": "gp-reviewer",
       "family": "gp",
-      "description": "Use when the coordinator assigns review of a GoProceed behavior change with a diff file, before reporting done, committing or merging: review the supplied diff file for correctness, tenant isolation, migration and contract compatibility, catalog drift and regressions without editing.",
+      "description": "Use proactively after any GoProceed behavior change, before reporting done, committing or merging: review the supplied diff file for correctness, tenant isolation, migration and contract compatibility, catalog drift and regressions without editing.",
       "profile": "agents/roles/gp-reviewer.md",
       "access": "read",
       "claude_tools": "Read, Grep, Glob"
@@ -36,7 +36,7 @@
     {
       "name": "gp-security",
       "family": "gp",
-      "description": "Use when the coordinator assigns security review of a GoProceed change touching RLS, grants, SECURITY DEFINER or database roles, Supabase Auth, sessions, proxy or auth email templates, external capability links or HMAC keys, evidence storage, signed URLs or uploads, the Telegram webhook, bot tokens or identity erasure, apps/landing /api/pilot, environment variables or secrets, CI permissions or action pins, or retention and deletion of personal data: review the supplied diff for trust-boundary risks.",
+      "description": "Use proactively after a GoProceed change touching RLS, grants, SECURITY DEFINER or database roles, Supabase Auth, sessions, proxy or auth email templates, external capability links or HMAC keys, evidence storage, signed URLs or uploads, the Telegram webhook, bot tokens or identity erasure, apps/landing /api/pilot, application environment variables (.env*, NEXT_PUBLIC_*, hosted secrets) or secrets, CI permissions or action pins, or retention and deletion of personal data: review the supplied diff for trust-boundary risks.",
       "profile": "agents/roles/gp-security.md",
       "access": "read",
       "claude_tools": "Read, Grep, Glob"
@@ -44,7 +44,7 @@
     {
       "name": "gp-qa",
       "family": "gp",
-      "description": "Use when the coordinator assigns verification of the final revision of a GoProceed behavior change, after review findings are resolved and before reporting done: verify each acceptance criterion against actual evidence and report PASS / FAIL / NOT RUN per criterion; a skipped suite is NOT RUN.",
+      "description": "Use proactively on the final revision of any GoProceed behavior change, after review findings are resolved and before reporting done: verify each acceptance criterion against actual evidence and report PASS / FAIL / NOT RUN per criterion; a skipped suite is NOT RUN.",
       "profile": "agents/roles/gp-qa.md",
       "access": "read",
       "claude_tools": "Read, Grep, Glob, Bash",
@@ -61,7 +61,7 @@
     {
       "name": "gp-ui-reviewer",
       "family": "gp",
-      "description": "Use when the coordinator assigns a finish-gate review of a GoProceed change under apps/landing, apps/app/app, apps/app/src/components, apps/mobile/src, packages/ui, packages/tokens or technical/copy-catalog.csv: review the diff, the pasted UI gate output and the harness screenshots against docs/design/02-building-ui.md, DESIGN.md and the role-pain map, and return PASS or HOLD.",
+      "description": "Use proactively after a GoProceed change under apps/landing, apps/app/app, apps/app/src/components, apps/mobile/src, packages/ui, packages/tokens or technical/copy-catalog.csv: review the diff, the pasted UI gate output and the harness screenshots against docs/design/02-building-ui.md, DESIGN.md and the role-pain map, and return PASS or HOLD.",
       "profile": "agents/roles/gp-ui-reviewer.md",
       "access": "read",
       "claude_tools": "Read, Grep, Glob"

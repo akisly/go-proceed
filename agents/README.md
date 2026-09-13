@@ -31,8 +31,8 @@ Example assignments:
 
 **Differences between the hosts:**
 
-- **Claude Code** picks a subagent from its `description` and picks up new profile files without a restart. Descriptions that say "Use proactively" invite automatic delegation. Until the root rules make stages mandatory, every description here is worded for explicit assignment by the coordinator.
-- **Codex** documents spawning a custom agent on an explicit request, or when an applicable `AGENTS.md` asks for delegation. Whether it also delegates on its own at some settings is not verified here. For Codex, the root `AGENTS.md` (added with the workflow rules) is where the rule lives.
+- **Claude Code** picks a subagent from its `description` and picks up new profile files without a restart. Descriptions that say "Use proactively" invite automatic delegation. Root `AGENTS.md` makes the reviewer and QA stages mandatory for every behavior change, and makes the security and UI stages mandatory by trigger, so those four descriptions say "Use proactively". The architect, mobile, researcher and implementer descriptions do not, because the coordinator selects those by route.
+- **Codex** documents spawning a custom agent on an explicit request, or when an applicable `AGENTS.md` asks for delegation. Whether it also delegates on its own at some settings is not verified here. For Codex, the root `AGENTS.md` is where the rule lives.
 - **Other tools:** a host that does not discover native profiles can read `COMMON.md` plus the role file and play the role in sequence.
 
 ## Maintenance
