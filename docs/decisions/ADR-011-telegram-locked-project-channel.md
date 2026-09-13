@@ -37,6 +37,13 @@
 > inside v0.1 and this ADR rejects the only reading that would not; which
 > milestone is the open question.
 >
+> *[Amended 2026-09-13 (DEV-004): the paragraph above describes this ADR as it
+> stood on 2026-09-02. The owner ruled on decisions 9–11 on 2026-09-03, and the
+> ADR moved to Approved on that ruling: see §"Open items — ruled by the owner on
+> 2026-09-03" and Contradictions item 12. The paragraph is kept as the record of
+> the Draft state. The approval procedure it calls undefined is now written in
+> [docs/README.md](../README.md) «ADR lifecycle and approval».]*
+>
 > **The rule this ADR has to clear, as ADR-007 had to.**
 > [`validated-assumptions.md`](../discovery/validated-assumptions.md):40 still
 > carries A-8 — «The incumbent GoProceed must displace in the field is a

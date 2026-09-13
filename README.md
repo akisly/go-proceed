@@ -42,17 +42,19 @@ demonstration may show a payment-presentation refusal that does not exist.
   later slice» until 2026-08-18 — in the section headed «do not overclaim»,
   which is exactly where a stale claim does the most damage. What remains is
   the historical v2.9 package below, which keeps the old name on purpose.*
-- **The runtime today is a 33-table foundation**, defined by 40
-  `supabase/migrations/` through `0040`. Migrations `0036`–`0040` on this
-  branch change grants, policies, scheduling, and constraints only, and create
-  no table, function, view, or role. Its v0.0 origin slice named six
+- **The runtime was a 33-table foundation when it was last counted**, on the
+  migration chain through `0040`. Later migrations exist and have not been
+  re-counted; the latest one is recorded in [docs/STATUS.md](docs/STATUS.md).
+  At that count, the v0.0 origin slice had named six
   tables (`organizations`, `legal_entities`, `memberships`, `audit_events`,
-  `idempotency_records`, `transaction_outbox`); the chain has since grown
+  `idempotency_records`, `transaction_outbox`), and the chain had grown
   additively to add one API view (`api.me_context`), 27 functions (22 in
   `app`, 5 in `public`; counting distinct schema-qualified name plus
   argument-type list, surviving all drops), and five database roles.
+  *[Changed 2026-09-13 (DEV-004): this bullet stated the `0040` count as the
+  runtime today.]*
 - **Part of the v0.1 domain is implemented; the rest is not, and the re-cut
-  moved the line.** 19 of the 40 migrations name a v0.1 milestone: 4 name
+  moved the line.** 19 of the first 40 migrations name a v0.1 milestone: 4 name
   `v0.1-M1`, 16 name `v0.1-M2-A`, and one names `v0.1-M3`. Those sets overlap in
   two files — `0023` names M1 and M2-A, and `0015` names M2-A and M3 — which is
   why 4 + 16 + 1 counts 19 files and not 21. `0015`'s two `v0.1-M3` mentions are

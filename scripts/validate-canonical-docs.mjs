@@ -1016,6 +1016,8 @@ const WORKFLOW_DOCS = [
   "docs/tasks/README.md",
   "docs/ai-workflow.md",
   "apps/app/AGENTS.md",
+  // No metadata block either (see NO_METADATA_BLOCK), and read before any task.
+  "docs/STATUS.md",
 ];
 
 export function workflowLinkTargets(markdown) {
@@ -1026,6 +1028,124 @@ export function workflowLinkTargets(markdown) {
     out.push(target);
   }
   return out;
+}
+
+// --------------------------------------------------------------------------
+// The status layer (DEV-004): two status enums, two indexes, the migration
+// marker and the source register. An index is worth keeping only if it cannot
+// drift from what it indexes, so each guard compares the index with the files.
+// The drift that motivated the task-index guard is real: on 2026-09-13 the
+// index said DEV-003 was done while the record's own State line said verifying.
+// --------------------------------------------------------------------------
+
+export const DOCUMENT_STATUSES = ["Draft", "Approved", "Superseded", "Historical"];
+export const ADR_STATUSES = ["Proposed", "Approved", "Superseded", "Rejected"];
+export const TASK_STATES = [
+  "planned", "scoped", "researching", "designing", "implementing",
+  "reviewing", "verifying", "rework", "blocked", "done", "cancelled",
+];
+export const ADR_FILE_RE = /^ADR-\d{3}-[^/]+\.md$/;
+export const TASK_FILE_RE = /^DEV-\d{3}-[^/]+\.md$/;
+
+/** The value of the first `**Status:**` line, or null when there is none. */
+export function statusValue(markdown) {
+  const m = markdown.match(/^\*\*Status:\*\*[ \t]*(.*?)[ \t]*$/m);
+  return m ? m[1] : null;
+}
+
+/**
+ * A document's Status is exactly one word of the document enum; an ADR's is one
+ * word of the ADR lifecycle. Trailing prose is refused: a qualifier such as
+ * «Approved (owner, 2026-08-21)» belongs in the body, where it cannot be
+ * mistaken for a status the enum does not have.
+ */
+export function statusEnumErrors(relPath, markdown) {
+  const isAdr = relPath.startsWith("docs/decisions/") && ADR_FILE_RE.test(relPath.slice("docs/decisions/".length));
+  const allowed = isAdr ? ADR_STATUSES : DOCUMENT_STATUSES;
+  const value = statusValue(markdown);
+  if (value === null || allowed.includes(value)) return [];
+  return [`${relPath}: Status '${value}' is not one of ${allowed.join(" | ")} `
+    + `(docs/README.md «${isAdr ? "ADR lifecycle and approval" : "Status meanings"}»)`];
+}
+
+function linkedFile(cell) {
+  const m = (cell ?? "").match(/\]\(([^)\s#]+)\)/);
+  return m ? m[1] : null;
+}
+
+/** docs/decisions/README.md against the ADR files; `adrs` maps basename → markdown. */
+export function adrIndexErrors(indexMarkdown, adrs) {
+  const where = "docs/decisions/README.md";
+  const rows = markdownTableRows(indexMarkdown, ["ADR", "Title", "Status"]);
+  if (rows === null) return [`${where}: no "| ADR | Title | Status |" table`];
+  const errs = [];
+  const seen = new Set();
+  rows.forEach((cells, i) => {
+    const file = linkedFile(cells[0]);
+    if (!file || !ADR_FILE_RE.test(file)) { errs.push(`${where}: row ${i + 1} does not link an ADR-NNN file`); return; }
+    if (seen.has(file)) errs.push(`${where}: ${file} is listed twice`);
+    seen.add(file);
+    const status = cells[2] ?? "";
+    if (!ADR_STATUSES.includes(status)) errs.push(`${where}: ${file} has Status '${status}', not one of ${ADR_STATUSES.join(" | ")}`);
+    if (!adrs.has(file)) { errs.push(`${where}: lists ${file}, which does not exist`); return; }
+    const fileStatus = statusValue(adrs.get(file));
+    if (fileStatus !== status) errs.push(`${where}: ${file} is '${status}' in the index and '${fileStatus}' in the file`);
+  });
+  for (const file of adrs.keys()) if (!seen.has(file)) errs.push(`${where}: ${file} is missing from the index`);
+  return errs;
+}
+
+/** The first word of a record's State line: `- **State:** done. …`, or the template's `- State: planned`. */
+export function taskRecordState(markdown) {
+  const m = markdown.match(/^- (?:\*\*State:\*\*|State:)[ \t]*([a-z]+)/m);
+  return m ? m[1] : null;
+}
+
+/** docs/tasks/README.md against the DEV records; `records` maps basename → markdown. */
+export function taskIndexErrors(indexMarkdown, records) {
+  const where = "docs/tasks/README.md";
+  const rows = markdownTableRows(indexMarkdown, ["Task", "State", "Scope"]);
+  if (rows === null) return [`${where}: no "| Task | State | Scope |" table`];
+  const errs = [];
+  const seen = new Set();
+  rows.forEach((cells, i) => {
+    const file = linkedFile(cells[0]);
+    if (!file || !TASK_FILE_RE.test(file)) { errs.push(`${where}: row ${i + 1} does not link a DEV-NNN record`); return; }
+    if (seen.has(file)) errs.push(`${where}: ${file} is listed twice`);
+    seen.add(file);
+    const state = cells[1] ?? "";
+    if (!TASK_STATES.includes(state)) errs.push(`${where}: ${file} has state '${state}', not one of ${TASK_STATES.join(" | ")}`);
+    if (!records.has(file)) { errs.push(`${where}: lists ${file}, which does not exist`); return; }
+    const recordState = taskRecordState(records.get(file));
+    if (recordState !== state) errs.push(`${where}: ${file} is '${state}' in the index and '${recordState}' in the record's State line`);
+  });
+  for (const file of records.keys()) if (!seen.has(file)) errs.push(`${where}: ${file} is missing from the index`);
+  return errs;
+}
+
+/** docs/STATUS.md's `<!-- latest-migration -->NNNN` against the last file in supabase/migrations/. */
+export function latestMigrationErrors(statusMarkdown, migrationFiles) {
+  const where = "docs/STATUS.md";
+  const m = statusMarkdown.match(/<!-- latest-migration -->`?(\d{4})`?/);
+  if (!m) return [`${where}: no "<!-- latest-migration -->NNNN" marker`];
+  const latest = migrationFiles.filter((f) => /^\d{4}_.+\.sql$/.test(f)).sort().at(-1)?.slice(0, 4);
+  if (!latest || m[1] === latest) return [];
+  return [`${where}: the latest-migration marker says ${m[1]}, but supabase/migrations/ ends at ${latest}; `
+    + "re-observe the database row, then update the marker and its date"];
+}
+
+/** docs/research/SOURCES.md: `## Snn` headings, each id once. */
+export function sourceIdErrors(markdown) {
+  const where = "docs/research/SOURCES.md";
+  const errs = [];
+  const seen = new Set();
+  for (const m of markdown.matchAll(/^## (S\S*)[ \t]*$/gm)) {
+    if (!/^S\d{2,}$/.test(m[1])) { errs.push(`${where}: heading '## ${m[1]}' is not an S-id of the form S01`); continue; }
+    if (seen.has(m[1])) errs.push(`${where}: ${m[1]} is used twice; an S-id is never reused`);
+    seen.add(m[1]);
+  }
+  if (seen.size === 0) errs.push(`${where}: no "## Snn" source headings`);
+  return errs;
 }
 
 function selfTest() {
@@ -1351,6 +1471,42 @@ function selfTest() {
     t.push("retired workflow (task record exempt, task index live)");
   }
 
+  // The status layer (DEV-004).
+  if (statusEnumErrors("docs/x.md", "**Status:** Approved\n").length !== 0) t.push("status enum (document, allowed)");
+  if (statusEnumErrors("docs/x.md", "**Status:** Implemented\n").length !== 1) t.push("status enum (the removed Implemented)");
+  if (statusEnumErrors("docs/x.md", "**Status:** Approved (owner decision, 2026-08-21)\n").length !== 1) t.push("status enum (trailing prose)");
+  if (statusEnumErrors("docs/x.md", "**Status:** Proposed\n").length !== 1) t.push("status enum (ADR word on a document)");
+  if (statusEnumErrors("docs/decisions/ADR-012-x.md", "**Status:** Proposed\n").length !== 0) t.push("status enum (ADR, Proposed)");
+  if (statusEnumErrors("docs/decisions/ADR-012-x.md", "**Status:** Draft\n").length !== 1) t.push("status enum (document word on an ADR)");
+  const fxAdrs = new Map([["ADR-001-a.md", "**Status:** Approved\n"], ["ADR-002-b.md", "**Status:** Proposed\n"]]);
+  const fxAdrIndex = (rows) => ["| ADR | Title | Status | Added |", "|---|---|---|---|", ...rows, ""].join("\n");
+  if (adrIndexErrors(fxAdrIndex(["| [ADR-001](ADR-001-a.md) | A | Approved | x |", "| [ADR-002](ADR-002-b.md) | B | Proposed | x |"]), fxAdrs).length !== 0) {
+    t.push("ADR index (agreeing)");
+  }
+  const adrErrs = adrIndexErrors(fxAdrIndex(["| [ADR-001](ADR-001-a.md) | A | Proposed | x |", "| [ADR-003](ADR-003-c.md) | C | Approved | x |"]), fxAdrs);
+  if (!adrErrs.some((e) => e.includes("ADR-001-a.md is 'Proposed' in the index and 'Approved' in the file"))) t.push("ADR index (status drift)");
+  if (!adrErrs.some((e) => e.includes("ADR-003-c.md, which does not exist"))) t.push("ADR index (row without a file)");
+  if (!adrErrs.some((e) => e.includes("ADR-002-b.md is missing from the index"))) t.push("ADR index (file without a row)");
+  if (adrIndexErrors("# no table\n", fxAdrs).length !== 1) t.push("ADR index (missing table)");
+  const fxRecords = new Map([["DEV-001-a.md", "- **State:** done. Every required criterion passes.\n"], ["DEV-002-b.md", "- State: planned\n"]]);
+  const fxTaskIndex = (rows) => ["| Task | State | Scope |", "|---|---|---|", ...rows, ""].join("\n");
+  if (taskIndexErrors(fxTaskIndex(["| [DEV-001](DEV-001-a.md) | done | a |", "| [DEV-002](DEV-002-b.md) | planned | b |"]), fxRecords).length !== 0) {
+    t.push("task index (agreeing)");
+  }
+  const taskErrs = taskIndexErrors(fxTaskIndex(["| [DEV-001](DEV-001-a.md) | verifying | a |", "| [DEV-003](DEV-003-c.md) | finished | c |"]), fxRecords);
+  if (!taskErrs.some((e) => e.includes("DEV-001-a.md is 'verifying' in the index and 'done' in the record's State line"))) t.push("task index (state drift)");
+  if (!taskErrs.some((e) => e.includes("'finished', not one of"))) t.push("task index (unknown state)");
+  if (!taskErrs.some((e) => e.includes("DEV-003-c.md, which does not exist"))) t.push("task index (row without a record)");
+  if (!taskErrs.some((e) => e.includes("DEV-002-b.md is missing from the index"))) t.push("task index (record without a row)");
+  const fxMigrations = ["0083_a.sql", "0084_b.sql", "README.md"];
+  if (latestMigrationErrors("| Database | <!-- latest-migration -->0084 |", fxMigrations).length !== 0) t.push("migration marker (agreeing)");
+  if (!latestMigrationErrors("<!-- latest-migration -->0083", fxMigrations)[0]?.includes("ends at 0084")) t.push("migration marker (stale)");
+  if (latestMigrationErrors("no marker", fxMigrations).length !== 1) t.push("migration marker (missing)");
+  if (sourceIdErrors("# Sources\n\n## S01\n\n## S02\n").length !== 0) t.push("source ids (agreeing)");
+  if (!sourceIdErrors("## S01\n## S01\n")[0]?.includes("used twice")) t.push("source ids (duplicate)");
+  if (!sourceIdErrors("## S01\n## S1\n")[0]?.includes("not an S-id")) t.push("source ids (malformed)");
+  if (sourceIdErrors("# Sources\n## Access refused\n").length !== 1) t.push("source ids (none)");
+
   if (t.length) {
     console.error("validator self-test FAILED:", t.join("; "));
     process.exit(2);
@@ -1399,6 +1555,13 @@ const REQUIRED = [
   "docs/decisions/ADR-005-readiness-gate-and-hidden-works.md",
   "docs/decisions/ADR-007-pilot-field-client.md",
   "docs/decisions/ADR-008-valuation-carves-at-admission.md",
+  // The status layer (DEV-004). Each index is also checked against what it
+  // indexes, further down in main().
+  "docs/decisions/README.md",
+  "docs/STATUS.md",
+  "docs/research/SOURCES.md",
+  "docs/specs/README.md",
+  "docs/superpowers/README.md",
   "docs/legacy/README.md",
   "docs/superpowers/specs/2026-07-30-goproceed-canonical-design.md",
   "docs/superpowers/plans/2026-07-30-goproceed-canonical-package.md",
@@ -1430,10 +1593,15 @@ const REQUIRED = [
 ];
 
 // Active human-readable docs held to the metadata contract (Step 3).
+// `docs/STATUS.md` carries no metadata block: it is a dated observation, not a
+// document with an approval status, and «Status: Approved» at its head would
+// read as a claim about the product.
+const NO_METADATA_BLOCK = new Set(["docs/STATUS.md"]);
 const METADATA_DOCS = REQUIRED.filter(
   (p) => p.endsWith(".md")
     && p.startsWith("docs/")
-    && !p.startsWith("docs/superpowers/"),
+    && !p.startsWith("docs/superpowers/")
+    && !NO_METADATA_BLOCK.has(p),
 ).concat(["technical/openapi/README.md", "technical/templates/README.md"]);
 
 // Docs held to branding + link validation (Step 4). Legacy README documents
@@ -1654,6 +1822,32 @@ function main() {
     for (const target of workflowLinkTargets(read(p))) {
       if (!existsSync(join(ROOT, dirname(p), target))) fail(`${p}: broken relative link -> ${target}`);
     }
+  }
+
+  // The status layer (DEV-004). ADR files take the ADR lifecycle and are checked
+  // once, through the index loop, rather than a second time as metadata docs.
+  for (const p of METADATA_DOCS) {
+    if (!existsSync(join(ROOT, p)) || p.startsWith("docs/decisions/ADR-")) continue;
+    for (const e of statusEnumErrors(p, read(p))) fail(e);
+  }
+  if (existsSync(join(ROOT, "docs/decisions/README.md"))) {
+    const adrs = new Map(readdirSync(join(ROOT, "docs/decisions"))
+      .filter((f) => ADR_FILE_RE.test(f))
+      .map((f) => [f, read(`docs/decisions/${f}`)]));
+    for (const e of adrIndexErrors(read("docs/decisions/README.md"), adrs)) fail(e);
+    for (const [f, md] of adrs) for (const e of statusEnumErrors(`docs/decisions/${f}`, md)) fail(e);
+  }
+  if (existsSync(join(ROOT, "docs/tasks/README.md"))) {
+    const records = new Map(readdirSync(join(ROOT, "docs/tasks"))
+      .filter((f) => TASK_FILE_RE.test(f))
+      .map((f) => [f, read(`docs/tasks/${f}`)]));
+    for (const e of taskIndexErrors(read("docs/tasks/README.md"), records)) fail(e);
+  }
+  if (existsSync(join(ROOT, "docs/STATUS.md")) && existsSync(MIGRATIONS)) {
+    for (const e of latestMigrationErrors(read("docs/STATUS.md"), readdirSync(MIGRATIONS))) fail(e);
+  }
+  if (existsSync(join(ROOT, "docs/research/SOURCES.md"))) {
+    for (const e of sourceIdErrors(read("docs/research/SOURCES.md"))) fail(e);
   }
 
   // version-0.1.md declares scope-v0.1.csv authoritative for its row-level

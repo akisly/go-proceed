@@ -4,7 +4,7 @@
 
 **Applies to:** all
 
-**Last reviewed:** 2026-08-06
+**Last reviewed:** 2026-09-13
 
 **Related decisions:** [ADR-001](decisions/ADR-001-product-boundary.md),
 [ADR-002](decisions/ADR-002-tenancy-parties-and-contracts.md),
@@ -78,18 +78,18 @@ the authoritative artifact.
 
 - **Approved:** agreed design or policy; implementation may still be pending.
 - **Draft:** under review and not an implementation authority.
-- **Implemented:** verified against the actual runtime or operating process.
+- **Superseded:** replaced by the document its `**Superseded by:**` line names.
 - **Historical:** preserved evidence; non-normative.
 
-`Approved` does not mean deployed. Implementation status belongs in delivery
-evidence and migration verification.
+`Approved` does not mean deployed. Whether something is built, deployed or
+verified is not a document status: it belongs in [STATUS.md](STATUS.md) and delivery evidence.
 
 ## Required metadata
 
 Every active Markdown document starts with:
 
 ```markdown
-**Status:** Approved | Draft | Implemented | Historical
+**Status:** Draft | Approved | Superseded | Historical
 
 **Applies to:** v0.0 | v0.1 | v0.2+ | all
 
@@ -177,15 +177,15 @@ still unsourced; an open item is never a licence to assert.
 
 ## Current baseline
 
-The implemented foundation represented by repository migrations contains 33
-tables, one API view (`api.me_context`), 27 functions (22 in `app`, 5 in
-`public` — counting distinct schema-qualified name plus argument-type list,
-surviving all drops), and five database roles, defined by 40 migrations
-through `0040`. Migrations `0036`–`0040` on this branch change grants,
-policies, scheduling, and constraints only: they create and drop no table,
-function, view, or role, so the object counts above are unchanged by them.
-The root [README.md](../README.md) states the same 33-table / 40-migration
-baseline, and no document in this package may state another one. GoProceed v0.1 is an
+The object counts here were measured on the migration chain through `0040` and
+have not been re-measured since: 33 tables, one API view (`api.me_context`), 27
+functions (22 in `app`, 5 in `public` — counting distinct schema-qualified name
+plus argument-type list, surviving all drops), and five database roles. They are
+a dated measurement, not the current baseline: later migrations exist, and the
+latest one is recorded in [STATUS.md](STATUS.md), whose marker the validator
+checks against `supabase/migrations/`. *[Changed 2026-09-13 (DEV-004): this
+paragraph stated «40 migrations through `0040`» as the present baseline.]*
+GoProceed v0.1 is an
 approved target, not the current runtime. After the
 [ADR-006](decisions/ADR-006-pilot-shaped-v0.1.md) re-cut, **seventeen of the
 twenty-six v0.1 tables have no table in any applied migration**, and they are
@@ -213,3 +213,55 @@ directory is dated 2026-07-30 and predates migrations `0036`–`0040`, the
 `packages/domain`. `node_modules` is absent from this worktree, so nothing here
 has been executed to produce a current number. No document in this package may
 state a passing suite, a test count, or a green baseline as a present fact.
+
+## Observation layers
+
+These files record the state of the work. None of them holds a precedence
+level above: when one disagrees with the source it describes, the observation
+is re-checked and the stale side is corrected.
+
+| Location | What it records | Authority |
+|---|---|---|
+| [STATUS.md](STATUS.md) | What was observed on a date, area by area, each row with re-checkable evidence | Observation only; written by the coordinator |
+| [tasks/](tasks/README.md) | One record per development change: its route, findings and PASS / FAIL / NOT RUN evidence | The record of that change |
+| [specs/](specs/README.md) | Design specs written from 2026-09-13 | Target design once `Approved` |
+| [research/SOURCES.md](research/SOURCES.md) | Third-party sources, with publication and access dates | Evidence only |
+| [superpowers/](superpowers/README.md) | Specs, plans and gate records written before 2026-09-13 | Historical record, frozen |
+| `docs/BACKLOG.md` | Deferred and open work, once DEV-005 creates it (until then, `TODOS.md`) | Planning only |
+
+A document whose Status is `Superseded` carries a `**Superseded by:**` line
+under its metadata block, linking the document that replaced it.
+*[Changed 2026-09-13 (DEV-004): `Implemented` was removed from the Status
+values. No active document used it, and whether something is built belongs in
+STATUS.md with evidence, not in a document's status.]*
+
+## ADR lifecycle and approval
+
+An ADR's `**Status:**` is one of:
+
+- **Proposed:** drafted and not in force. An agent writes an ADR only in this state.
+- **Approved:** in force, on the owner's ruling recorded in the ADR.
+- **Superseded:** replaced by a later ADR, named in a `**Superseded by:**` line.
+- **Rejected:** the owner ruled against it; kept as the record of the option.
+
+[decisions/README.md](decisions/README.md) indexes every ADR, and
+`scripts/validate-canonical-docs.mjs` fails when the index and a file disagree.
+
+**Approval procedure.** This closes the half of
+[pilot-execution-runbook.md](delivery/pilot-execution-runbook.md) §10 Q-6 that
+DEV-003 left open.
+
+1. The coordinator drafts the ADR as `Proposed`
+   ([agents/COORDINATION.md](../agents/COORDINATION.md), «Intake and routing»),
+   with `gp-architect` or `gp-researcher` where the decision needs them.
+2. The owner rules. The ruling is written into the ADR in a dated **Approval**
+   section: what was approved, the date, and where the owner gave it
+   (conversation or pull-request review). A ruling that accepts only some of
+   the decisions names them.
+3. The Status moves to `Approved` (or `Rejected`) in the same pull request as
+   that section, together with the index row, and the owner merges it. No
+   stage's PASS and no agent moves an ADR out of `Proposed`.
+
+ADRs approved before 2026-09-13 keep the form their approval already has, such
+as ADR-011's «Open items — ruled by the owner on 2026-09-03»; they are not
+rewritten into an Approval section.
