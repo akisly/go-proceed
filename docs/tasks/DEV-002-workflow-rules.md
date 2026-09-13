@@ -145,7 +145,7 @@ Rework count and hypothesis changes:
 | 5. `apps/app` agent files are left alone by `next dev` | yes | staged tree | Managed block lines 1–9 of `apps/app/AGENTS.md` byte-identical to `apps/landing/AGENTS.md` (`cmp`); generator writes only when the current block is missing | PASS | `next dev` not run in `apps/app` |
 | 6. Independent `gp-reviewer` with no unresolved finding | yes | `dev-002.diff` over `85bdcb9` | Round 1 (Markdown-fallback subagent): nine findings, R1-01 to R1-09, all resolved as stated fixes; see Findings | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as `AGENTS.md` prescribes for stated fixes |
 | 7. Independent `gp-qa` on the final revision | yes | staged tree after the Q3-01 stated fix | QA round 1: needs fixes (Q1-01, Q1-02). QA round 2: needs fixes (Q2-01). QA round 3 on `a86b2cc`: verified for the scoped criteria, with Q3-01 low. Narrow re-verification on `11054ea`: Q3-01 fix in place, new low Q3b-01. Narrow re-verification on `ec3f767`: verified for the scoped criteria, no new finding | PASS | Stages ran through the Markdown fallback (independent general-purpose subagents following `agents/COMMON.md` and the role file), not native `gp-*` agent types |
-| 8. Fresh session: `/agents` lists `gp-*`; the retired workflow plugin's skills are absent; its session hook does not fire | yes | — | Requires a new Claude Code session on this branch | NOT RUN | environmental: this session predates the change |
+| 8. Fresh session on this branch: asked to list available subagent types, it lists the eight `gp-*` roles (the `/agents` wizard no longer exists); no `superpowers:*` skill is listed; the retired plugin's session hook does not fire | yes | — | Requires a new Claude Code session on this branch | NOT RUN | environmental: this session predates the change |
 | 9. CI `verify` green | yes | PR head | GitHub Actions | NOT RUN | Runs when the PR opens |
 
 ## Sources
@@ -170,6 +170,6 @@ Rework count and hypothesis changes:
   - Two rework rounds of three were used (Q1, Q2). Q3-01 and Q3b-01 were stated fixes after passing QA.
 - **Next bounded action and owner:**
   - Coordinator: open the PR and record CI.
-  - Owner: run the fresh-session check (`/agents` on this branch) and decide the merge.
+  - Owner: run the fresh-session check (ask a new session on this branch to list the `gp-*` subagent types and the available skills) and decide the merge.
   - Follow-up: DEV-003 (runbook rewrite; removes the validator's temporary runbook exemption).
 - **Final state and reason:** not final. Blocked on criteria 8 and 9.
