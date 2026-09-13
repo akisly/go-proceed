@@ -4,7 +4,7 @@
 
 **Applies to:** v0.1
 
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-13
 
 **Related decisions:** [ADR-005](ADR-005-readiness-gate-and-hidden-works.md),
 [ADR-006](ADR-006-pilot-shaped-v0.1.md),
@@ -36,6 +36,13 @@
 > field reads `v0.1` and no more because both candidates in decision 9 lie
 > inside v0.1 and this ADR rejects the only reading that would not; which
 > milestone is the open question.
+>
+> *[Amended 2026-09-13 (DEV-004): the paragraph above describes this ADR as it
+> stood on 2026-09-02. The owner ruled on decisions 9–11 on 2026-09-03, and the
+> ADR moved to Approved on that ruling: see §"Open items — ruled by the owner on
+> 2026-09-03" and Contradictions item 12. The paragraph is kept as the record of
+> the Draft state. The approval procedure it calls undefined is now written in
+> [docs/README.md](../README.md) «ADR lifecycle and approval».]*
 >
 > **The rule this ADR has to clear, as ADR-007 had to.**
 > [`validated-assumptions.md`](../discovery/validated-assumptions.md):40 still
@@ -1019,7 +1026,7 @@ bullets below are the 2026-09-02 reading and stay as dated history.
     owner". [Ruled 2026-09-03: the owner ruled on all nine items in conversation;
     §"Open items — ruled by the owner on 2026-09-03" is the record, and this
     document moved to Approved on it. The procedure is still undefined in the
-    repo; this is one more instance of the same form of record.]
+    repo; this is one more instance of the same form of record.] [Answered 2026-09-13: [docs/README.md](../README.md) «ADR lifecycle and approval».]
 13. [pilot-execution-runbook.md](../delivery/pilot-execution-runbook.md):644
     says «ADR-010 is the highest today» and that «every ADR on disk simply
     carries `Status: Approved`»; this file makes both clauses stale on the day
