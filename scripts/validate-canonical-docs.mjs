@@ -1307,6 +1307,12 @@ const REQUIRED = [
   "technical/states/transition-catalog.csv",
   "technical/events/event-catalog.csv",
   "technical/templates/README.md",
+  // The development-role sources. `pnpm validate:agents` proves the generated
+  // `.claude/agents` and `.codex/agents` profiles match them; this list only
+  // makes deleting one of the inputs that check reads a failure here too.
+  "agents/registry.json",
+  "agents/COMMON.md",
+  "scripts/sync-agents.py",
   "migration/goproceed-canonical-v0.1/README.md",
   "migration/goproceed-canonical-v0.1/baseline-verification.md",
   "migration/goproceed-canonical-v0.1/source-inventory.csv",

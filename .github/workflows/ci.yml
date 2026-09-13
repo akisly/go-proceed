@@ -19,7 +19,7 @@ on:
 #
 #   actions/checkout        v4 -> v7.0.1    node20 -> node24
 #   actions/setup-node      v4 -> v7.0.0    node20 -> node24
-#   actions/setup-python    v5 -> v7.0.0    node20 -> node24
+#   actions/setup-python    v5 -> v7.0.0    node20 -> node24  (no job uses it now)
 #   actions/upload-artifact v4 -> v7.0.1    node20 -> node24
 #   pnpm/action-setup       v4 -> v6.0.10   node20 -> node24
 #   supabase/setup-cli      v1 -> v3.0.0    node20 -> composite
@@ -87,6 +87,15 @@ jobs:
       # rather than after a full local-stack boot. Needs no database and no
       # build — it reads the tree.
       - run: pnpm validate:canonical-docs
+
+      # Agent profiles gate. `.claude/agents` and `.codex/agents` are generated
+      # from `agents/` by scripts/sync-agents.py; this fails when a generated
+      # profile drifts from its canonical source, or when the registry breaks
+      # its own rules (only gp-implementer may write, read roles carry no edit
+      # tools). Needs Python 3.11+ for tomllib: ubuntu-latest ships 3.12, and
+      # the step prints the version it actually used so a runner-image change
+      # is visible in the log rather than inferred.
+      - run: python3 --version && pnpm validate:agents
 
       # THE CLI IS PINNED, AND THE PIN LIVES IN ONE FILE. Until 2026-08-18 this
       # asked setup-cli for `version: latest`, so the SHA-pinned ACTION was
