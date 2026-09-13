@@ -6,7 +6,7 @@
   - §3 (roles), §4 (slice loop), §6.6 (gate placement) and §7 (evidence) name the `gp-*` stages, the task record and its PASS / FAIL / NOT RUN vocabulary. They no longer name the retired skill-driven loop.
   - The measured record of the retired loop (§4.2 plan shape, §4.3 gate verdicts) moves unchanged to `docs/ai-workflow.md`.
   - The validator's temporary exemption for the runbook is removed, so the retired-workflow guard covers it.
-- **State:** verifying. `gp-reviewer` round 1 returned 14 findings, applied as stated fixes. `gp-qa` round 1 confirmed them and failed on Q1-01 (medium) and Q1-02 (low). Rework round 1 applied both. Q1-01 changed how a rule reads, so `gp-reviewer` re-ran on the rework: R2-01 to R2-04, applied as stated fixes. `gp-qa` round 2 passed the runbook and failed on two low record findings (Q2-01, Q2-02); rework round 2 applied them, and `origin/main` was merged in. The narrow re-check failed on Q3-01 (low, record only); rework round 3, the last of three, applied it. The narrow re-check on `6cba09b` verified the scoped criteria. Required criterion 6 (CI `verify`) is NOT RUN until the PR's run is read.
+- **State:** verifying. `gp-reviewer` round 1 returned 14 findings, applied as stated fixes. `gp-qa` round 1 confirmed them and failed on Q1-01 (medium) and Q1-02 (low). Rework round 1 applied both. Q1-01 changed how a rule reads, so `gp-reviewer` re-ran on the rework: R2-01 to R2-04, applied as stated fixes. `gp-qa` round 2 passed the runbook and failed on two low record findings (Q2-01, Q2-02); rework round 2 applied them, and `origin/main` was merged in. The narrow re-check failed on Q3-01 (low, record only); rework round 3, the last of three, applied it. The narrow re-check on `6cba09b` verified the scoped criteria, and CI `verify` is green on PR #82 (run 34772962666). Every required criterion passes: done.
 - **Coordinator:** primary Claude Code session, 2026-09-13.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types. The implementing session could not discover them (the main checkout predated `.claude/agents`); the reviewing session, started in the main checkout at `5140c3f`, does (DEV-001 criterion 6).
 - **Selected route and why:** agent instructions or profiles → coordinator → `gp-reviewer` → `gp-qa` (`agents/COORDINATION.md`). The runbook's §3–§4 decide which stage runs when, and the validator is executed code, so this is a behavior change.
@@ -76,6 +76,7 @@
 | 13 | verifying (`gp-qa`, native), narrow re-check on `6349dd2` | **Needs fixes (low, record only).** Passed: the merge (DEV-001/DEV-002 changes identical to PR #81; only the five DEV-003 files differ from `origin/main`), validator with the positive control, links, runbook/ai-workflow/scripts unchanged since `5036d04`, Q2-01 and Q2-02 in place. Failed: Q3-01 | Narrow QA report | Rework |
 | 14 | rework (coordinator), rework round 3 | Q3-01 applied as QA's smallest fix | See Findings | `gp-qa` narrow re-check |
 | 15 | verifying (`gp-qa`, native), narrow re-check on `6cba09b` | **Verified for the scoped criteria**, no new finding. Q3-01 in place; record consistent with the commit history; validator OK; links resolve; only the five DEV-003 files differ from `origin/main`. Unchanged paths carried forward from earlier passing checks, as stated in the report | Narrow QA report | Open the PR; read CI `verify` |
+| 16 | done (coordinator) | PR #82 opened; CI green on its head `fb92acc` (the record's completion commit): `verify` and `app-qa` SUCCESS, three Vercel checks pass | GitHub Actions run 34772962666 | Owner: merge decision |
 
 ## Findings and rework
 
@@ -130,7 +131,7 @@ Rework count and hypothesis changes:
 | 3. Relative links resolve in the runbook and `docs/ai-workflow.md` | yes | WIP commit | Python resolver over both files → `broken: []` for each | PASS | Coordinator's own run |
 | 4. Independent `gp-reviewer` with no unresolved finding | yes | `76fb263` (review round 1) | Native `gp-reviewer`: 14 findings, R1-01 to R1-14, all resolved as stated fixes | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes; `gp-reviewer` re-ran on the rework `68127bb` because Q1-01 changes a rule's reading (R2-01 to R2-04, applied as stated fixes) |
 | 5. Independent `gp-qa` on the final revision | yes | `6cba09b` | `gp-qa` round 1 on `d4a3860`: needs fixes (Q1-01, Q1-02). Round 2 on `5036d04`: needs fixes (Q2-01, Q2-02, record only). Narrow re-check on `6349dd2`: needs fixes (Q3-01, record only). Narrow re-check on `6cba09b`: verified, no new finding | PASS | Narrow re-check; paths unchanged since `5036d04` carried forward from QA round 2. This row and Progress row 15 were written after that verdict, as bookkeeping |
-| 6. CI `verify` green | yes | PR head | — | NOT RUN | The PR is not opened yet |
+| 6. CI `verify` green | yes | `fb92acc` (PR #82 head) | GitHub Actions run 34772962666: `verify` SUCCESS, `app-qa` SUCCESS | PASS | The later commit that records this result changes only this record and the task index |
 
 ## Sources
 
@@ -141,10 +142,9 @@ No third-party documentation is involved. The sources are repository files at `6
 - **Changed files:** `docs/delivery/pilot-execution-runbook.md`, `docs/ai-workflow.md`, `scripts/validate-canonical-docs.mjs` (exemption removed), this record, `docs/tasks/README.md`.
 - **Commits:** `76fb263` (implementation), `d4a3860` (R1 fixes), `68127bb` (rework round 1), `5036d04` (R2 fixes), `5c1632c` (rework round 2), `6349dd2` (merge of `origin/main`), `6cba09b` (rework round 3), plus this bookkeeping commit.
 - **Review independence:** `gp-reviewer` (round 1 and the re-review of rework round 1) and `gp-qa` (rounds 1–2 and two narrow re-checks) each ran as native `gp-*` subagents. The coordinator verified none of its own fixes as independent evidence.
-- **Verified scope:** criteria 1–5.
+- **Verified scope:** criteria 1–6.
 - **Remaining risks / blocked requirements:**
-  - Criterion 6, CI `verify`, is required and NOT RUN until the PR's run is read.
   - All three rework rounds were used; all findings in them were low or medium and record- or wording-level.
   - Out of scope and disclosed: the dated eighteen-red-cases statements (see What is not true), `ADR-011`'s stale runbook line citations, the `02-building-ui.md:215` owner-confirmation gap, `TODOS.md:3467`.
-- **Next bounded action and owner:** coordinator: open the PR and record CI; owner: decide the merge.
-- **Final state and reason:** not final. Blocked on criterion 6.
+- **Next bounded action and owner:** owner: decide the merge of PR #82.
+- **Final state and reason:** done. Every required criterion passes.
