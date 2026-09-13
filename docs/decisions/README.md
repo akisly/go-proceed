@@ -26,6 +26,6 @@ The lifecycle and the approval procedure are in [docs/README.md](../README.md) (
 | [ADR-008](ADR-008-valuation-carves-at-admission.md) | Valuation carves at admission, not at recording | Approved | 2026-08-08 | 2026-08-08 | — |
 | [ADR-009](ADR-009-three-pilot-surfaces.md) | Three pilot surfaces, separately deployed | Approved | 2026-08-20 | 2026-08-20 | Amends ADR-007 decision 1 |
 | [ADR-010](ADR-010-project-sourced-requirements.md) | Requirements a site supplies from its own робоча документація | Approved | 2026-08-24 | 2026-08-24 | Supersedes one clause of ADR-006 decision 4.1 |
-| [ADR-011](ADR-011-telegram-locked-project-channel.md) | Telegram as the locked project channel | Approved | 2026-09-02 | 2026-09-03 | Amends ADR-007 on three passages; decisions 9–11 ruled by the owner on 2026-09-03 |
+| [ADR-011](ADR-011-telegram-locked-project-channel.md) | Telegram as the locked project channel | Approved | 2026-09-02 | 2026-09-13 | Amends ADR-007 on three passages; decisions 9–11 ruled by the owner on 2026-09-03 |
 
 The «Supersedes / amends» column quotes each ADR's own statement of its relationship; it adds no relationship an ADR does not state. An ADR numbered 011 also exists under `docs/legacy/`; that file is historical and is not part of this series (ADR-011 lists the collision).

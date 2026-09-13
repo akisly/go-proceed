@@ -61,6 +61,8 @@
 | 4 | implementing (coordinator) | Plan steps 1–7 done. Two read-only `Explore` subagents gathered evidence: one per STATUS area, one per archived spec. The coordinator re-checked the facts STATUS relies on (migration count and head, scope and route counts, main CI runs, readiness checkbox counts, `apps/app/vercel.json` crons, the ingress rate limit, `outputs/` size) and ten of the archive table's PR claims with `gh pr view` and `git merge-base --is-ancestor`. One correction from that check: `plans/` holds 41 plans, not 42. `docs/README.md` edits keep the lines other files cite (`:80`, `:84`, `:169-176`, `:190`, the last cited by applied migration `0050`); new sections go at the end | Acceptance evidence 1–8 | `gp-reviewer` |
 | 5 | reviewing (`gp-reviewer`, native), round 1 on `7ed4238` | **Changes requested**, no blocker: five medium (R1-01 to R1-05), ten low. Questions found correct: the guards against the real tree, removal of `Implemented`, the cited `docs/README.md` lines (all but `:180-188`, disclosed), six STATUS spot-checks, the archive's placement and quotes, index titles and statuses, scope | `dev-004.diff` against `dbd4c36` | Rework |
 | 6 | rework (coordinator), after review round 1 | All fifteen applied as stated fixes. Four needed facts the reviewer could not run, checked first: `plans/` holds 40 plans and one handoff, `plans/evidence/` 12 gate records plus notes and screenshots (R1-01); #62 and #65 merged into #58's branch, and `0061`–`0081` reached `main` in #58 (R1-09); ADR-005 to ADR-008 were added to `main` in `c2ca50d` on 2026-08-08, confirmed with `--follow`; 8 specs lack a `**Status:**` line (R1-10). R1-03's fix also changes «An agent writes an ADR only in this state» to «drafts», the same contradiction at `docs/README.md` «ADR lifecycle and approval». Not a rework round: no QA FAIL preceded it | See Findings | `gp-qa` |
+| 7 | verifying (`gp-qa`, native), QA round 1 on `060c01f` | **Needs fixes.** Passed criteria 1–9: validator; the six positive controls plus a titled duplicate S-id (fails), `## Superseded` (passes), and a stubbed `latestMigrationErrors` (self-test exits 2); broken links planted in STATUS and the archive README fail; ten STATUS facts re-checked; ADR index; cited lines; archive unchanged, ten PR claims; agents; links; all fifteen stated fixes. Failed: Q1-01 (low, blocking). Noted: Q1-02, Q1-03 | QA round 1 report | Rework |
+| 8 | rework (coordinator), rework round 1 | Q1-01, Q1-02 and Q1-03 applied as QA's smallest fixes; for Q1-03 the dates were set to 2026-09-13 rather than accepted as they were, since the ADR was amended that day | See Findings | `gp-qa` narrow re-check |
 
 ## Findings and rework
 
@@ -81,8 +83,13 @@
 | R1-13 | low | `WORKFLOW_DOCS` | Actual: `docs/superpowers/README.md` not link-checked | coordinator | Added to `WORKFLOW_DOCS` (link check only; path exemptions stay) |
 | R1-14 | low | ADR-011 amendment | Actual: lines after :39 moved; item 12 still says undefined | coordinator | «What is not true» records the shift and DEV-003's moved citations; item 12's bracket gains «[Answered 2026-09-13: docs/README.md «ADR lifecycle and approval».]» on the same line |
 | R1-15 | low | This record, Sources | Actual: a local absolute path with the OS username | coordinator | Replaced with «a local reference project, `deploy-doc`» |
+| Q1-01 | low (blocking) | This record: a «What is not true» bullet and criterion 8's Limitation | Expected: after R1-13, no claim that `docs/superpowers/README.md` is not link-checked. Actual: «The validator does not check links in `docs/superpowers/README.md`»; «checked by hand only» | coordinator | Bullet deleted; criterion 8 names both `WORKFLOW_DOCS` entries and QA's planted-link controls, Limitation «—» |
+| Q1-02 | low | `docs/STATUS.md` Telegram row | Expected: migrations credited to the PR that added them. Actual: «#68 and #69 (2026-09-04, `0082`–`0083`)»; #68 adds no migration | coordinator | «#68 and #69 (2026-09-04; #69 added `0082`–`0083`)» |
+| Q1-03 | low | ADR-011 `**Last reviewed:**` and its index row | Actual: 2026-09-03, though DEV-004 amended the file on 2026-09-13 | coordinator | Both set to 2026-09-13 |
 
 Rework count and hypothesis changes: review round 1's fifteen findings were applied as stated fixes; no rework round used. Two of the five medium findings (R1-01, R1-02) were counts and relationships taken from a subagent's report and written without re-running; the coordinator's spot-checks had covered PR claims but not directory counts or amendment lines. Changed practice: every number or relationship a subagent supplies is re-run before it is written.
+
+**Rework round 1** (after QA round 1 FAIL). Q1-01: R1-13 closed a limitation in code, and the two record lines that disclosed that limitation were not updated with it. Changed practice: a fix that closes a disclosed limitation is followed by a search of the record for that limitation's wording before commit. One of three rounds used.
 
 ## What is not true after this task
 
@@ -93,7 +100,6 @@ Rework count and hypothesis changes: review round 1's fifteen findings were appl
 - The corrections STATUS lists under «Open issues» are not made: the runbook's eighteen-red-cases and card statements, `version-0.1.md` on hosted migrations, `infra/README-staging.md`'s contradictions, `TODOS.md:741`, the card's closure date.
 - Runbook §1.4's citation of `docs/README.md:180-188` now points at the dated paragraph that replaced the stale baseline sentence.
 - ADR-006, ADR-009, ADR-010 and ADR-011 are held to the ADR enum and the index, but not to the metadata-block and link checks that ADR-001 to ADR-008 get through `REQUIRED`.
-- The validator does not check links in `docs/superpowers/README.md` (the archive is outside `METADATA_DOCS`).
 - `docs/BACKLOG.md` does not exist; the observation-layers table names it for DEV-005.
 - No ADR has yet gone through the new approval procedure.
 - The four new policy files (`docs/decisions/README.md`, `docs/research/SOURCES.md`, `docs/specs/README.md`, and the new `docs/README.md` sections) carry `Approved` on the owner's approval of the PR-C plan; under the procedure they introduce, the owner's merge of this pull request is what confirms them.
@@ -112,9 +118,9 @@ Rework count and hypothesis changes: review round 1's fifteen findings were appl
 | 5. `docs/README.md`: document statuses without `Implemented`, ADR lifecycle and approval procedure, observation layers, no present-tense 40-migration baseline; cited lines unchanged | yes | working tree | `sed -n '80p;84p;190p' docs/README.md` show the cited text; `git grep -n 'Implemented' docs/README.md` only in the dated change note | PASS | `:180-188` (runbook §1.4's last row) changed meaning; see «What is not true» |
 | 6. The frozen archive is unchanged; its README accounts for all 22 specs | yes | working tree | `git diff --stat dbd4c36 -- docs/superpowers/specs docs/superpowers/plans` empty; 22 table rows; ten PR claims checked with `gh pr view` | PASS | Ten of the archive's evidence claims checked, not all |
 | 7. Generated agent profiles unaffected | yes | working tree | `pnpm validate:agents` → `Verified 16 host profiles from 8 canonical roles (gp: 8).` | PASS | — |
-| 8. Relative links resolve in the new and changed files | yes | working tree | Validator link checks (`METADATA_DOCS`, and `WORKFLOW_DOCS` now including `docs/STATUS.md`) | PASS | `docs/superpowers/README.md` checked by hand only |
+| 8. Relative links resolve in the new and changed files | yes | `060c01f` | Validator link checks (`METADATA_DOCS`, and `WORKFLOW_DOCS` now including `docs/STATUS.md` and `docs/superpowers/README.md`); `gp-qa`'s own resolver over the 12 changed Markdown files: 0 problems; a planted broken link in each of the two files fails the validator | PASS | — |
 | 9. Independent `gp-reviewer` with no unresolved finding | yes | `7ed4238` (review round 1) | Native `gp-reviewer`: 15 findings, R1-01 to R1-15, all resolved as stated fixes | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes |
-| 10. Independent `gp-qa` on the final revision | yes | — | — | NOT RUN | After review |
+| 10. Independent `gp-qa` on the final revision | yes | `060c01f` | `gp-qa` round 1: criteria 1–9 PASS, including all positive controls, a self-test stub check and ten STATUS facts; needs fixes (Q1-01 blocking, Q1-02, Q1-03) | NOT RUN | Narrow re-check after rework round 1 pending |
 | 11. CI `verify` green | yes | PR head | — | NOT RUN | The PR is not opened yet |
 
 ## Sources

@@ -4,7 +4,7 @@
 
 **Applies to:** v0.1
 
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-13
 
 **Related decisions:** [ADR-005](ADR-005-readiness-gate-and-hidden-works.md),
 [ADR-006](ADR-006-pilot-shaped-v0.1.md),
