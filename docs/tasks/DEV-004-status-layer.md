@@ -63,6 +63,7 @@
 | 6 | rework (coordinator), after review round 1 | All fifteen applied as stated fixes. Four needed facts the reviewer could not run, checked first: `plans/` holds 40 plans and one handoff, `plans/evidence/` 12 gate records plus notes and screenshots (R1-01); #62 and #65 merged into #58's branch, and `0061`–`0081` reached `main` in #58 (R1-09); ADR-005 to ADR-008 were added to `main` in `c2ca50d` on 2026-08-08, confirmed with `--follow`; 8 specs lack a `**Status:**` line (R1-10). R1-03's fix also changes «An agent writes an ADR only in this state» to «drafts», the same contradiction at `docs/README.md` «ADR lifecycle and approval». Not a rework round: no QA FAIL preceded it | See Findings | `gp-qa` |
 | 7 | verifying (`gp-qa`, native), QA round 1 on `060c01f` | **Needs fixes.** Passed criteria 1–9: validator; the six positive controls plus a titled duplicate S-id (fails), `## Superseded` (passes), and a stubbed `latestMigrationErrors` (self-test exits 2); broken links planted in STATUS and the archive README fail; ten STATUS facts re-checked; ADR index; cited lines; archive unchanged, ten PR claims; agents; links; all fifteen stated fixes. Failed: Q1-01 (low, blocking). Noted: Q1-02, Q1-03 | QA round 1 report | Rework |
 | 8 | rework (coordinator), rework round 1 | Q1-01, Q1-02 and Q1-03 applied as QA's smallest fixes; for Q1-03 the dates were set to 2026-09-13 rather than accepted as they were, since the ADR was amended that day | See Findings | `gp-qa` narrow re-check |
+| 9 | verifying (`gp-qa`, native), narrow re-check on `fcfb0d4` | **Verified**, no new finding. Q1-01 to Q1-03 in place; only the four expected files changed since `060c01f`; `scripts/`, `docs/superpowers/`, `docs/README.md`, `README.md`, `agents/`, `docs/research/` and `docs/specs/` unchanged, so round 1's criteria 1–9 carry forward; #68 adds no migration and #69 adds `0082` and `0083`; the record is consistent | Narrow QA report | Open the PR; read CI `verify` |
 
 ## Findings and rework
 
@@ -120,7 +121,7 @@ Rework count and hypothesis changes: review round 1's fifteen findings were appl
 | 7. Generated agent profiles unaffected | yes | working tree | `pnpm validate:agents` → `Verified 16 host profiles from 8 canonical roles (gp: 8).` | PASS | — |
 | 8. Relative links resolve in the new and changed files | yes | `060c01f` | Validator link checks (`METADATA_DOCS`, and `WORKFLOW_DOCS` now including `docs/STATUS.md` and `docs/superpowers/README.md`); `gp-qa`'s own resolver over the 12 changed Markdown files: 0 problems; a planted broken link in each of the two files fails the validator | PASS | — |
 | 9. Independent `gp-reviewer` with no unresolved finding | yes | `7ed4238` (review round 1) | Native `gp-reviewer`: 15 findings, R1-01 to R1-15, all resolved as stated fixes | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes |
-| 10. Independent `gp-qa` on the final revision | yes | `060c01f` | `gp-qa` round 1: criteria 1–9 PASS, including all positive controls, a self-test stub check and ten STATUS facts; needs fixes (Q1-01 blocking, Q1-02, Q1-03) | NOT RUN | Narrow re-check after rework round 1 pending |
+| 10. Independent `gp-qa` on the final revision | yes | `fcfb0d4` | `gp-qa` round 1 on `060c01f`: criteria 1–9 PASS, including all positive controls, a self-test stub check and ten STATUS facts; needs fixes (Q1-01 blocking, Q1-02, Q1-03). Narrow re-check on `fcfb0d4`: verified, no new finding | PASS | Narrow re-check; round 1's results carry forward for paths unchanged since `060c01f`. This row and Progress row 9 were written after that verdict, as bookkeeping |
 | 11. CI `verify` green | yes | PR head | — | NOT RUN | The PR is not opened yet |
 
 ## Sources
@@ -129,9 +130,14 @@ No third-party documentation decides anything in this task. Reference implementa
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- **Changed files:** new `docs/STATUS.md`, `docs/decisions/README.md`, `docs/research/SOURCES.md`, `docs/specs/README.md`, `docs/superpowers/README.md` and this record; `docs/README.md`, `README.md`, `agents/TASK_TEMPLATE.md`, `docs/decisions/ADR-011-telegram-locked-project-channel.md`, `scripts/validate-canonical-docs.mjs`, `docs/tasks/README.md`, `docs/tasks/DEV-003-runbook-process.md` (State word).
+- **Commits:** `7ed4238` (implementation), `060c01f` (review round 1 fixes), `fcfb0d4` (rework round 1), plus this bookkeeping commit.
+- **Review independence:** `gp-reviewer` (round 1) and `gp-qa` (round 1 and a narrow re-check) ran as native `gp-*` subagents. Two read-only `Explore` subagents gathered evidence; the coordinator re-checked what it wrote from them. The coordinator verified none of its own fixes as independent evidence.
+- **Verified scope:** criteria 1–10.
+- **Remaining risks / blocked requirements:**
+  - Criterion 11, CI `verify`, is required and NOT RUN until the PR's run is read.
+  - Progress row 3 (the frozen archive not edited) awaits the owner's confirmation.
+  - The disclosures in «What is not true», in particular: STATUS observes nothing hosted; a PR that adds a migration fails the validator until STATUS is re-observed, and no agent instruction says so yet.
+  - One of three rework rounds used.
+- **Next bounded action and owner:** coordinator: open the PR and record CI; owner: confirm Progress row 3 and decide the merge.
+- **Final state and reason:** not final. Blocked on criterion 11.
