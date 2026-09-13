@@ -47,9 +47,9 @@ For this project, the Superpowers plugin is disabled in `.claude/settings.json`.
 
 ### The measured record of the retired loop
 
-Moved on 2026-09-13 (DEV-003) from `docs/delivery/pilot-execution-runbook.md` §4.2 and §4.3 as they stood at `6e5f568`. The runbook now describes the live process, and a live procedure may not name retired commands. The measurements are copied unchanged; only relative link paths were adjusted for this file's location.
+Moved on 2026-09-13 (DEV-003) from `docs/delivery/pilot-execution-runbook.md` §4.2 and §4.3 as they stood at `6e5f568`. The runbook now describes the live process, and a live procedure may not name retired commands. The commands, skeleton, table and closing paragraph are copied unchanged apart from relative link paths; the two bold lead-ins and the dated annotation are new.
 
-**Plan shape.** Every slice plan before 2026-09-13 followed one skeleton, and a header line in 32 of the 33 plans required a skill from the retired pack.
+**Plan shape.** The 33 dated plans measured on 2026-09-01 shared one skeleton by convention, not by a validator. The counts below show how closely, and a header line in 32 of them required a skill from the retired pack.
 
 Measured across the 33 dated plans on disk, 2026-09-01 at `7397d7d`, with the
 command beside each figure and **one matching rule for both headings** (an
@@ -99,7 +99,7 @@ $ c=0; for f in 20*.md; do sed -n '3p' "$f" | grep -qi "REQUIRED SUB-SKILL" && c
   soft spots, stated rather than cast
 ```
 
-**The review gates' last recorded verdicts, measured 2026-09-03.**
+**The review gates' last recorded verdicts, as the runbook recorded them on 2026-09-03.**
 
 | gstack gate | CLAUDE.md trigger | Last recorded verdict anywhere in the repo |
 |---|---|---|
@@ -111,7 +111,7 @@ $ c=0; for f in 20*.md; do sed -n '3p' "$f" | grep -qi "REQUIRED SUB-SKILL" && c
 | `/qa-only` | staging verification | none recorded |
 | `/ship` | approved delivery | none recorded |
 
-**No `/plan-ceo-review`, `/plan-eng-review` or `/plan-design-review` verdict is recorded in any artifact after 2026-07-31.** `/cso` ran on 2026-09-02 and its findings drove two merged PRs, which is the first gstack gate with a recorded consequence in a month. What replaced the review gates in practice is per-task subagent review plus a whole-branch final review, both recorded in the gate record's «Reviews» table since 2026-09-03, and residuals filed in [TODOS.md](../TODOS.md). Whether that substitution is a decision or a drift is **undefined in repo** and is filed as §10 Q-6. *[Changed 2026-09-13: the pilot runbook's §10 Q-6 is answered for records, verdicts and aborts by DEV-002; see its §7.1.]*
+**No `/plan-ceo-review`, `/plan-eng-review` or `/plan-design-review` verdict is recorded in any artifact after 2026-07-31.** `/cso` ran on 2026-09-02 and its findings drove two merged PRs, which is the first gstack gate with a recorded consequence in a month. What replaced the review gates in practice is per-task subagent review plus a whole-branch final review, both recorded in the gate record's «Reviews» table since 2026-09-03, and residuals filed in [TODOS.md](../TODOS.md). Whether that substitution is a decision or a drift is **undefined in repo** and is filed as §10 Q-6. *[Changed 2026-09-13: the pilot runbook's §10 Q-6 is answered for records, verdicts and aborts by DEV-002; see the runbook's §7.1 and §10 Q-6.]*
 
 ## Why QA may not modify RLS policies and grants, and who does
 
