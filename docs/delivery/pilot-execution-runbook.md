@@ -210,8 +210,8 @@ throughout; `packages/testing` is green throughout — 42 files, including the 2
 erasure cases and the tenant-isolation sweeps. So the honest statement is:
 **`verify` is red on `main` with a known, fixed set, and the set predates every
 change this runbook describes.** Fixing the eighteen is its own slice
-([TODOS.md](../../TODOS.md) P1, 2026-09-03). Until it lands, every gate record
-says `PASS (assisted)` for CI with the set named — never a bare PASS — and
+([TODOS.md](../../TODOS.md) P1, 2026-09-03). Until it lands, every task record's CI row
+is FAIL, Limitation `known-red baseline:` with the set named (§7.4) — never PASS — and
 [test-strategy.md](test-strategy.md) §Baseline is owed a correction (C-16):
 the run it names was green because it skipped, not because it passed.
 
@@ -1068,7 +1068,7 @@ vocabulary is §5's; **Size** is S/M/L with the reason and is not a date.
 
 | Unit | Status | The artifact that closes it | Size | Next action |
 |---|---|---|---|---|
-| The eighteen red cases | **OPEN** | A green `verify` on `main`, then a gate record whose CI row says PASS without «assisted» | **M** | First; see §5.14 order 0 |
+| The eighteen red cases | **OPEN** | A green `verify` on `main`, then a task record whose CI row says PASS with no `known-red baseline:` limitation | **M** | First; see §5.14 order 0 |
 | The card carries the tag and the source (ADR-011 open item 9) | **OPEN — ruled** | `cards.ts` + the card route + one Telegram sentence in [hidden-works-content-rules.md](../product/hidden-works-content-rules.md), with a test that a row without a verified source renders the substitute and no criterion | **S** | Land it as its own slice; it is gate 9's M7 half |
 | Task 13 — the edge rate limit on the webhook | **OPEN** | The limit, its test, and the staging QA walk the plan names | **M** | After the card; before any environment enables the webhook |
 | The scheduler — something runs `delivery.ts` and the purge worker | **OPEN — undefined in repo** (Q-12, Q-9) | A runner, its deployment record, and the monitoring decision of §5.8 | **M**, and it is a decision first | Decide «what runs it» before building it |
