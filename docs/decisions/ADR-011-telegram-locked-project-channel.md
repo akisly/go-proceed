@@ -871,6 +871,19 @@ same form of record the 2026-08-28 approval has (§"Authority").
    real group sees it — `cards.ts`, the card route and one Telegram sentence
    in hidden-works-content-rules.md; a webhook-enable blocker beside Task 13,
    recorded in TODOS.md.
+   *[Landed 2026-09-08.* The route selects `norm_ref_verification` and
+   `norm_ref_source`; `cards.ts` takes a citation as one indivisible value and
+   renders the label of `norm-ref-labels.ts` with a numbered «Джерела» block,
+   so a twelve-item Додаток Н card fits 4096 characters without abbreviating a
+   source; a requirement missing any of the three renders a substitute and
+   keeps its ordinal. The Telegram sentence is prohibition **T** of
+   hidden-works-content-rules.md. **This item leaves the webhook-enable blocker
+   list; Task 13's edge limit, the real-group staging pass and the scheduler
+   stay on it.** The review of that change found the same gap in the second
+   renderer — the requirement-choice button, `left(criterion,120)` at
+   `0071`:225, which also re-published the criterion the card had withheld —
+   and closed it in the same slice with migration `0084`, so it never reached
+   the blocker list.]*
 
 ## Status against the runtime
 

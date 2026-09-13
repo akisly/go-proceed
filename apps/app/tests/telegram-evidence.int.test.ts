@@ -6,6 +6,7 @@ import { asService, dropWorkspaces } from "../../../packages/testing/src/pg";
 import { seedRulesWorld, type RulesFixture } from "../../../packages/testing/src/m1-rules-fixture";
 import { deleteOccurrence, insertOccurrence, seedOccurrenceWorld, type OccurrenceWorld } from "../../../packages/testing/src/m2-occurrences-fixture";
 import { ADMIN_URL, hasIsolatedDatabaseCredentials } from "./helpers/fixtures";
+import { readDodatokN } from "./helpers/dodatok-n";
 import { enqueueTelegramMessage, deliverTelegramOutboxBatch } from "../src/lib/telegram/delivery";
 import { prepareTelegramEvidenceCandidate, selectTelegramOccurrence } from "../src/lib/telegram/evidence";
 import { normalizeTelegramUpdate } from "../src/lib/telegram/normalize";
@@ -132,13 +133,13 @@ databaseDescribe("Telegram evidence bridge", () => {
     await client.end();
   });
 
-  async function deliverCard(): Promise<Card> {
+  async function deliverCard(snapshot: string[] = [occurrenceId, alternateOccurrenceId]): Promise<Card> {
     let id = "";
     await withServiceTx({ actorUserId: "", organizationId: rules.workspaceId, requestId: crypto.randomUUID() }, async (tx) => {
       id = (await enqueueTelegramMessage(tx, { actorUserId: "", organizationId: rules.workspaceId, requestId: crypto.randomUUID() }, {
         workspaceId: rules.workspaceId, projectId: rules.projectId, telegramChatBindingId: bindingId,
         workAssignmentId: world.assignmentId, kind: "assignment_card", text: "Картка завдання",
-        occurrenceSnapshot: [occurrenceId, alternateOccurrenceId],
+        occurrenceSnapshot: snapshot,
       })).messageId;
     });
     expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-card", limit: 10, apiClient: fakeTelegramApi() }))
@@ -240,6 +241,47 @@ databaseDescribe("Telegram evidence bridge", () => {
     expect(messages.rows).toHaveLength(3);
     expect(await deliverTelegramOutboxBatch({ workerId: "telegram-evidence-receipt", limit: 10, apiClient: fakeTelegramApi() }))
       .toEqual({ accepted: 3, failed: 0, unknown: 0 });
+  });
+
+  it("offers requirements with their tag and source, and never on a button", async () => {
+    // Break caught: `app.resolve_telegram_evidence_context` composed
+    // `left(o.acceptance_criterion,120)` and the processor put it on a button,
+    // so a requirement's words reached the закрита група truncated, with no
+    // verification tag and no source — including the words the card had just
+    // WITHHELD, because the card's snapshot carries every occurrence id
+    // (prohibition T; migration 0084).
+    // REPLACED, not added: `requirement_occurrences_materialisation_uniq` keys
+    // an occurrence by (workspace, assignment, stage, rule version), and the
+    // world's two occurrences already hold both of its pairs. The hold rule's
+    // slot is freed and re-taken with a citation on it.
+    await deleteOccurrence(client, occurrenceId);
+    const citedId = await insertOccurrence(client, world, {
+      acceptanceCriterion: "Підготовка ніш, каналів та борозен.",
+      normRef: "ДБН А.3.1-5:2016, Додаток Н", normRefVerification: "VERIFIED_PRIMARY",
+      normRefSource: readDodatokN()[0]!.source,
+    });
+    // The world's own occurrences carry no citation (the fixture default), so
+    // one card holds both halves of the rule: an attributed requirement and a
+    // withheld one. Timing rank orders the cited one first — 0084 gives the
+    // definer the card route's order.
+    const card = await deliverCard([citedId, alternateOccurrenceId]);
+    fakes.payloads.set("cited-file", JPEG);
+    await processTelegramUpdate(imageUpdate({
+      updateId: "60", messageId: "760", fileId: "cited-file", replyTo: card.providerMessageId,
+    }));
+
+    const prompt = await client.query<{ text: string; telegram_reply_markup: Array<Array<{ text: string }>> }>(
+      `select text, telegram_reply_markup from public.communication_messages
+        where workspace_id=$1 and direction='outbound' and telegram_reply_markup is not null
+          and text like '%Виберіть вимогу%'`, [rules.workspaceId]);
+    const text = prompt.rows[0]!.text;
+
+    expect(text).toContain("1. Підготовка ніш, каналів та борозен.");
+    expect(text).toContain("перевірено за першоджерелом");
+    expect(text).toContain(readDodatokN()[0]!.source);
+    expect(text).toContain("2. Вимога без підтвердженого джерела — текст не показано.");
+    expect(text).not.toContain("Приклад-критерій приймання.");
+    expect(prompt.rows[0]!.telegram_reply_markup.map((row) => row[0]!.text)).toEqual(["Вимога 1", "Вимога 2"]);
   });
 
   it("binds opaque multiple-occurrence choices to uploader and group and rejects wrong, expired, and replayed callbacks", async () => {

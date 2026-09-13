@@ -3538,7 +3538,37 @@ database, which held one organization and no projects on 2026-09-03) and
 A wrong assertion in this file weakens the exact isolation the suite proves;
 none of the eleven was changed by guessing.
 
-## P2 — the assignment card renders a normative string without its tag and its source (ADR-011 open item 9, 2026-09-03)
+## P2 (CLOSED 2026-09-08) — the assignment card renders a normative string without its tag and its source (ADR-011 open item 9, 2026-09-03)
+
+**Closed 2026-09-08** (branch `claude/card-verification-tag`). The card route
+selects `norm_ref_verification` and `norm_ref_source` beside `norm_ref` and no
+longer substitutes «Нормативне посилання не вказано»; `cards.ts` takes a
+citation as one indivisible value (`AssignmentCardCitation`: text, tag,
+source) rather than a bare string, so a caller cannot express the text without
+both halves. A card prints the Ukrainian label from
+`apps/app/src/lib/norm-ref-labels.ts` — the same table the field client renders,
+not a second vocabulary — and gathers distinct sources into one numbered
+«Джерела» block, which keeps a twelve-item Додаток Н card inside 4096
+characters without abbreviating a citation. A requirement whose citation is
+missing any of the three renders the substitute and keeps its numbered line, so
+the card does not silently understate the assignment's own list. (An earlier
+version of this entry, of the code comment and of prohibition T justified the
+line by an alignment with the requirement-choice prompt; that was false — the
+prompt carries no ordinals, labels its buttons with the criterion text, and
+`app.resolve_telegram_evidence_context` orders by `ordinal, id` with no timing
+rank over a `photo`/`document` subset. Corrected 2026-09-09 by `/review`.)
+`assignmentCardCitationOf` asks the row rather than trusting
+`requirement_occurrences_norm_ref_sourced_check`, and withholds a citation
+whose tag has no label — the vocabulary was already widened once, by 0059.
+Prohibition **T** in `docs/product/hidden-works-content-rules.md` is the rule;
+`apps/app/src/lib/telegram/cards.test.ts` (24 cases) and cases in
+`apps/app/tests/telegram-delivery.int.test.ts` and
+`apps/app/tests/telegram-evidence.int.test.ts` are the pins, catalogued as
+`T-TG-008`. The requirement-choice prompt was brought under the same rule by
+migration `0084` during `/review` — see the closed entry under «From the
+card-citation slice». **The webhook-enable blocker list loses this item and keeps the
+rest** — Task 13's edge rate limit, the real-group staging pass and the
+scheduler (ADR-011 decision 10). The statement of the defect is kept below.
 
 M0 gate 9 — «no normative string renderable without its `verification` tag
 and its source» — reaches the Telegram card: the card route selects
@@ -3687,3 +3717,7 @@ and two of the reviewers' Recommendations worth the same treatment. All P3.
 - `apps/landing/components/visuals/access-matrix.tsx` — the sr-only `<caption>` repeats the visible `<h3>` above the table.
 - `apps/landing/components/blocks/nav.tsx` — `<li className="contents">` drops the listitem role in Safari < 17 and pre-89 Chromium; a flex `<ul>` with plain `<li>` avoids it.
 - `apps/mobile/assets/splash-icon.png` — now rendered from the maskable file with an opaque `#15161A` field that only matches `app.json`'s splash background by coincidence; give the splash a transparent source of its own.
+
+#### From the card-citation slice (2026-09-08)
+
+- **CLOSED 2026-09-09 in the same slice, by `/review`.** The entry read: «`app.resolve_telegram_evidence_context` labels each requirement-choice button `left(o.acceptance_criterion,120)`, so the second Telegram renderer of a requirement's words shows them truncated, with no verification tag and no source… **A webhook-enable blocker on the same footing as the card was**.» The review found it was worse than recorded: the card's snapshot carries every occurrence id, so the criterion the card had just WITHHELD came back as a button label in the same закрита група. Migration `0084` drops the display string from the definer — it returns the criterion and the three citation columns — and `formatRequirementChoicePrompt` renders the attributed list while the buttons carry «Вимога N». The prompt shares `renderRequirements` with the card, so the two renderers cannot drift apart on the rule. `0084` also aligns the definer's order with the card route's (timing rank, then ordinal) and catalogues the function as `DA-176`, which was missing from `technical/data-access-surface.csv` since `0068`.

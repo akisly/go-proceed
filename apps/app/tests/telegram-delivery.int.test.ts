@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { asService, dropWorkspaces } from "../../../packages/testing/src/pg";
 import { seedAssignment, seedM2World, grantM2Capabilities, type M2Fixture } from "../../../packages/testing/src/m2-fixture";
+import { seedRulesWorld, type RulesFixture } from "../../../packages/testing/src/m1-rules-fixture";
+import { insertOccurrence, seedOccurrenceWorld, type OccurrenceWorld } from "../../../packages/testing/src/m2-occurrences-fixture";
+import { readDodatokN } from "./helpers/dodatok-n";
 import { TelegramApiError, type TelegramApiClient } from "../src/lib/telegram/api";
 import { deliverTelegramOutboxBatch } from "../src/lib/telegram/delivery";
 
@@ -292,4 +295,101 @@ databaseDescribe("Telegram assignment-card publication", () => {
       where m.workspace_id=$1`, [fixture.workspaceId]);
     expect(final.rows[0]).toEqual({ delivery_state: "provider_accepted", state: "unhealthy" });
   }, 10_000);
+});
+
+/**
+ * THE CARD IS A RENDERER OF REGULATORY STRINGS, and M0 gate 9 governs it: «no
+ * normative string renderable without its `verification` tag and its source»
+ * (ADR-006:439-440, reached through ADR-007:236-237 and ruled for this card by
+ * ADR-011 open item 9 on 2026-09-03). The unit halves live in
+ * `src/lib/telegram/cards.test.ts`; this is the half that proves the ROUTE
+ * selects the tag and the source at all and hands them to the renderer
+ * indivisibly — a card route that selected `norm_ref` alone would still pass
+ * every unit test in that file.
+ */
+databaseDescribe("Telegram assignment-card citations", () => {
+  // Read, never transcribed — the CSV is the one place this wording comes from.
+  const DBN_SOURCE = readDodatokN()[0]!.source;
+  let client: Client;
+  let rules: RulesFixture;
+  let world: OccurrenceWorld;
+
+  beforeEach(async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "t".repeat(32));
+    vi.stubEnv("TELEGRAM_BOT_ID", "123456789");
+    vi.stubEnv("TELEGRAM_BOT_USERNAME", "GoProceedTestBot");
+    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "w".repeat(32));
+    vi.stubEnv("TELEGRAM_WORKER_SECRET", "r".repeat(32));
+    vi.stubEnv("TELEGRAM_LINK_PEPPER", "p".repeat(32));
+    vi.stubEnv("APP_PUBLIC_ORIGIN", "https://app.goproceed.test");
+    actorUserId = crypto.randomUUID();
+    client = await admin();
+    rules = await seedRulesWorld(client, {
+      workspaceId: crypto.randomUUID(), userId: actorUserId, suffix: "TG-CITE",
+    });
+    world = await seedOccurrenceWorld(client, rules);
+    // Ordered by the route's own timing rank: `before_concealment` (the default
+    // seed) precedes `after`, so the cited requirement is 1 and the uncited one
+    // is 2 — the ordinals the assertions below name.
+    await insertOccurrence(client, world, {
+      acceptanceCriterion: "Підготовка ніш, каналів та борозен.",
+      normRef: "ДБН А.3.1-5:2016, Додаток Н",
+      normRefVerification: "VERIFIED_PRIMARY",
+      normRefSource: DBN_SOURCE,
+    });
+    await insertOccurrence(client, world, {
+      ruleVersionId: world.permissiveRuleVersionId, workStageId: world.permissiveStageId,
+      stageIsConcealed: false, stageKey: world.permissiveStageKey, ordinal: 2,
+      blockingScope: "blocks_both", timing: "after",
+      acceptanceCriterion: "Текст вимоги, який ніхто не атрибутував.",
+    });
+    // `project.view` is ALREADY GRANTED by seedRulesWorld, together with
+    // project.admin, contracts.edit, imports.manage, imports.publish and
+    // rule_bindings.manage (m1-rules-fixture.ts:88-97). Only the card route's
+    // second capability is missing, and re-granting the first one collides with
+    // `project_access_active_unique` before a single assertion runs.
+    await client.query(`insert into public.project_access_grants
+      (workspace_id, project_id, member_id, capability, granted_by)
+      values ($1,$2,$3,'assignments.manage',$4)`,
+    [rules.workspaceId, rules.projectId, rules.memberId, rules.userId]);
+    await client.query(`insert into public.project_field_channels
+      (workspace_id, project_id, channel, state, locked_at, locked_by_member_id, last_healthy_at)
+      values ($1,$2,'telegram','active',now(),$3,now())`,
+    [rules.workspaceId, rules.projectId, rules.memberId]);
+    await client.query(`insert into public.telegram_chat_bindings
+      (workspace_id, project_id, bot_id, chat_id, chat_type, connected_by_member_id)
+      values ($1,$2,123456789,-100124,'supergroup',$3)`,
+    [rules.workspaceId, rules.projectId, rules.memberId]);
+  });
+
+  afterEach(async () => {
+    if (rules?.workspaceId) await dropWorkspaces(client, [rules.workspaceId]);
+    await client.end();
+    vi.unstubAllEnvs();
+  });
+
+  it("publishes the tag and the source with the citation, and withholds an unattributed requirement", async () => {
+    // Break caught: the route selected `acceptance_criterion` and `norm_ref`
+    // only, so the group received «критерій — ДБН …» with no verification tag
+    // and no source, and «Нормативне посилання не вказано» where a source was
+    // missing — a normative string rendered on the product's word alone.
+    const { POST } = await import("../app/v1/assignments/[assignmentId]/communication-card/route");
+    const response = await POST(
+      jsonRequest(world.assignmentId, crypto.randomUUID()),
+      { params: Promise.resolve({ assignmentId: world.assignmentId }) },
+    );
+    expect(response.status).toBe(201);
+
+    const card = await client.query<{ text: string }>(
+      `select text from public.communication_messages
+        where workspace_id=$1 and kind='assignment_card'`, [rules.workspaceId]);
+    const text = card.rows[0]?.text ?? "";
+
+    expect(text).toContain("1. Підготовка ніш, каналів та борозен.");
+    expect(text).toContain("перевірено за першоджерелом");
+    expect(text).toContain(DBN_SOURCE);
+    expect(text).not.toContain("Нормативне посилання не вказано");
+    expect(text).not.toContain("Текст вимоги, який ніхто не атрибутував.");
+    expect(text).toContain("2. Вимога без підтвердженого джерела — текст не показано.");
+  });
 });
