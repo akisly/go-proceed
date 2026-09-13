@@ -1,6 +1,6 @@
 # Development profiles boundary
 
-Read the root `CLAUDE.md` first, and the root `AGENTS.md` when it exists. This directory holds the canonical development-role instructions, the role registry and the upstream provenance. It holds no product runtime prompts.
+Read the root `AGENTS.md` and `CLAUDE.md` first. This directory holds the canonical development-role instructions, the role registry and the upstream provenance. It holds no product runtime prompts.
 
 ## Editing a role
 

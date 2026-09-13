@@ -938,6 +938,99 @@ export function presetCoherenceErrors(presetCsv, capCsv, exempt) {
 // prove it can detect each failure class before it validates the real tree.
 // --------------------------------------------------------------------------
 
+/**
+ * NO LIVE FILE PRESCRIBES THE RETIRED SKILL-DRIVEN WORKFLOW.
+ *
+ * Until 2026-09-13 `CLAUDE.md` made two globally installed skill packs the
+ * development process: one supplied the method (`superpowers:<skill>`), the
+ * other seven slash-command gates (`/plan-eng-review`, `/cso`, `/qa-only`, …).
+ * DEV-002 replaced both with the project roles in `agents/` and the procedure
+ * in root `AGENTS.md`; `docs/ai-workflow.md` records why. The failure this
+ * guards is quiet: a single surviving instruction to "use superpowers:X" or
+ * "run /plan-eng-review" in a live document sends an agent into a process the
+ * repository no longer runs, and nothing else notices.
+ *
+ * Like the rename guard it is a PATH rule. Records keep the old names because
+ * they describe what happened: the frozen `docs/superpowers/` archive, dated
+ * handoffs, reviews and task records, applied migrations, and the session
+ * outputs. Plain path citations such as `docs/superpowers/plans/…` never match
+ * — only the invocation forms do — so the archive can go on being cited.
+ * `/review` is deliberately absent: it is also an ordinary route segment.
+ */
+const RETIRED_WORKFLOW_RE =
+  /\bsuperpowers:[a-z][a-z-]*|(?:^|[\s`(|])\/(?:plan-(?:ceo|eng|design|devex)-review|qa-only|cso|ship|autoplan)\b|\bgstack\b|\bsuperpowers is\b|\buse superpowers\b/i;
+const RETIRED_WORKFLOW_RECORD_DIRS = [
+  "docs/superpowers/",
+  "docs/legacy/",
+  "docs/reviews/",
+  "migration/",
+  "supabase/migrations/",
+  "outputs/",
+  ".gstack/",
+];
+const RETIRED_WORKFLOW_RECORD_FILES = new Set([
+  "TODOS.md",
+  "HANDOFF.md",
+  "HANDOFF-2026-08-24.md",
+  "HANDOFF-2026-08-27.md",
+  // The record of the change itself: it has to name what was retired.
+  "docs/ai-workflow.md",
+  ROLE_RULE_DEFINITION,
+  // TEMPORARY. The runbook's slice loop is rewritten by DEV-003, the task right
+  // after DEV-002; remove this line in that change, never later.
+  "docs/delivery/pilot-execution-runbook.md",
+]);
+
+export function isRetiredWorkflowRecordPath(relPath) {
+  return RETIRED_WORKFLOW_RECORD_DIRS.some((d) => relPath.startsWith(d))
+    || RETIRED_WORKFLOW_RECORD_FILES.has(relPath)
+    // A dated task record may name what its task retired; the task index is live.
+    || /^docs\/tasks\/DEV-\d+-[^/]+\.md$/.test(relPath);
+}
+
+export function retiredWorkflowErrors(relPath, text) {
+  if (isRetiredWorkflowRecordPath(relPath)) return [];
+  const errs = [];
+  text.split("\n").forEach((line, i) => {
+    const m = line.match(RETIRED_WORKFLOW_RE);
+    if (m) {
+      errs.push(`${relPath}:${i + 1}: prescribes the retired skill-driven workflow (\`${m[0].trim()}\`) — `
+        + "the process is root AGENTS.md and agents/COORDINATION.md since 2026-09-13; a record that must name it "
+        + "belongs in isRetiredWorkflowRecordPath (scripts/validate-canonical-docs.mjs)");
+    }
+  });
+  return errs;
+}
+
+/**
+ * The workflow documents an agent is sent to first. They carry no metadata
+ * block (they are procedure, not canonical design) but a broken relative link
+ * in them sends every session to a file that is not there.
+ */
+const WORKFLOW_DOCS = [
+  "AGENTS.md",
+  "CLAUDE.md",
+  "START_HERE.md",
+  "agents/AGENTS.md",
+  "agents/README.md",
+  "agents/COORDINATION.md",
+  "agents/PLAYBOOKS.md",
+  "agents/TASK_TEMPLATE.md",
+  "docs/tasks/README.md",
+  "docs/ai-workflow.md",
+  "apps/app/AGENTS.md",
+];
+
+export function workflowLinkTargets(markdown) {
+  const out = [];
+  for (const m of markdown.matchAll(/\]\(([^)\s]+)\)/g)) {
+    const target = m[1].split("#")[0];
+    if (!target || /^[a-z][a-z0-9+.-]*:/i.test(target)) continue;
+    out.push(target);
+  }
+  return out;
+}
+
 function selfTest() {
   const t = [];
   if (missingMetadata("# doc\n**Status:** Approved\n").length !== 3) t.push("metadata detector");
@@ -1244,6 +1337,23 @@ function selfTest() {
     t.push("branding strip (real branding hidden by the role strip)");
   }
 
+  // Retired-workflow guard: invocation forms match, citations and routes do not.
+  if (retiredWorkflowErrors("CLAUDE.md", "Use superpowers:brainstorming first\n").length !== 1) t.push("retired workflow (skill invocation)");
+  if (retiredWorkflowErrors("x.md", "then run /plan-eng-review\n").length !== 1) t.push("retired workflow (gate command)");
+  if (retiredWorkflowErrors("x.md", "the gstack gates\n").length !== 1) t.push("retired workflow (pack name)");
+  if (retiredWorkflowErrors("x.md", "see docs/superpowers/plans/a.md and GET /v1/review, https://x.test/ship\n").length !== 0) {
+    t.push("retired workflow (citation or route wrongly reported)");
+  }
+  if (retiredWorkflowErrors("docs/superpowers/plans/a.md", "superpowers:writing-plans\n").length !== 0) t.push("retired workflow (record not exempt)");
+  if (workflowLinkTargets("[a](b.md#c) [d](#e) [f](https://g)").join() !== "b.md") t.push("workflow link extractor");
+  // The block this guard exists for: CLAUDE.md as it read before 2026-09-13.
+  const retiredBlock = "Superpowers is the primary implementation methodology.\n\nUse Superpowers for:\n- brainstorming\n\n"
+    + "Use gstack only as explicit quality gates:\n- /plan-ceo-review for product-level decisions\n- /review after implementation\n";
+  if (retiredWorkflowErrors("CLAUDE.md", retiredBlock).length !== 4) t.push("retired workflow (pre-2026-09-13 CLAUDE.md block)");
+  if (!isRetiredWorkflowRecordPath("docs/tasks/DEV-002-workflow-rules.md") || isRetiredWorkflowRecordPath("docs/tasks/README.md")) {
+    t.push("retired workflow (task record exempt, task index live)");
+  }
+
   if (t.length) {
     console.error("validator self-test FAILED:", t.join("; "));
     process.exit(2);
@@ -1525,6 +1635,28 @@ function main() {
     }
   } catch (err) {
     fail(`stale-role-name guard could not enumerate tracked files: ${err.message}`);
+  }
+
+  // Guard 12: no live file prescribes the retired skill-driven workflow, and
+  // the workflow documents an agent reads first have no broken relative link.
+  try {
+    const tracked = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n").filter(Boolean)
+      .filter((p) => /\.(ts|tsx|mjs|js|sql|md|csv|yml|yaml|json|py|toml|sh)$/.test(p));
+    for (const p of tracked) {
+      if (isRetiredWorkflowRecordPath(p)) continue;
+      let text;
+      try { text = read(p); } catch { continue; }
+      for (const e of retiredWorkflowErrors(p, text)) fail(e);
+    }
+  } catch (err) {
+    fail(`retired-workflow guard could not enumerate tracked files: ${err.message}`);
+  }
+  for (const p of WORKFLOW_DOCS) {
+    if (!existsSync(join(ROOT, p))) { fail(`missing workflow document: ${p}`); continue; }
+    for (const target of workflowLinkTargets(read(p))) {
+      if (!existsSync(join(ROOT, dirname(p), target))) fail(`${p}: broken relative link -> ${target}`);
+    }
   }
 
   // version-0.1.md declares scope-v0.1.csv authoritative for its row-level

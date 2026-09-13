@@ -12,13 +12,13 @@ These profiles are project-specific adaptations of Agency Agents, written for de
 ## Start every assignment
 
 1. Find the repository root: the directory holding `package.json` and `pnpm-workspace.yaml`.
-2. Read these, if they exist:
+2. Read:
    - root `CLAUDE.md`
    - root `AGENTS.md`
    - `agents/COORDINATION.md`
    - `docs/README.md` (the precedence ladder)
    - the task record you were assigned under `docs/tasks/`
-3. Read any local `AGENTS.md` on your paths (`apps/landing`, `apps/mobile`) and the documents your role file names.
+3. Read any local `AGENTS.md` on your paths (`apps/app`, `apps/landing`, `apps/mobile`) and the documents your role file names.
 
 Paths are relative to the repository root. You did not inherit the parent conversation. If a required file cannot be read, return a clear blocker.
 
@@ -96,8 +96,11 @@ A change to RLS, grants or exposed objects updates `technical/data-access-surfac
 | Docs and catalogs | `pnpm validate:canonical-docs` |
 | Agent profiles | `pnpm validate:agents` |
 
-- The isolated integration suites skip themselves unless `APP_DB_URL`, `SERVICE_DB_URL` and `TEST_DB_ADMIN_URL` are all set. A skipped suite is NOT RUN, never PASS.
-- The local database is the Supabase stack's Postgres on `127.0.0.1:54322`, and those suites truncate it.
+- A skipped suite is NOT RUN, never PASS. The only `apps/app` integration suites that skip are those that check database credentials, through `hasIsolatedDatabaseCredentials()` or an inline `APP_DB_URL`/`SERVICE_DB_URL` check. Read the run's output to see which ones skipped.
+- Every other database suite uses the local stack: Postgres on `127.0.0.1:54322`, and, depending on the suite, the Storage API on `127.0.0.1:54321`. In particular:
+  - most `apps/app` integration suites truncate tenant tables;
+  - the `packages/testing` suites that call `resetDb()` (for example `rls.test.ts`) run `supabase db reset`.
+- So `pnpm turbo run test`, `pnpm --filter @goproceed/app test` and `pnpm --filter @goproceed/testing test` erase local data whenever the stack is up. Run them only when that is authorized.
 
 ### UI
 

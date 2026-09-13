@@ -21,13 +21,14 @@ You may run, on the local checkout:
 
 Database rules:
 
-- The isolated database suites and the app harness write to the local Supabase database (`127.0.0.1:54322`) and truncate it.
-- Run them only when the assignment confirms that the local database holds nothing the owner needs.
-- Never run `supabase db reset`. Never apply migrations yourself: return the exact commands to the primary agent.
+- The app harness and the `apps/app` integration suites write to the local Supabase database (`127.0.0.1:54322`), and most of those suites truncate it. The only suites that skip without credentials are the ones that check for them, through `hasIsolatedDatabaseCredentials()` or an inline `APP_DB_URL`/`SERVICE_DB_URL` check. The run's output says which ones skipped. So `pnpm --filter @goproceed/app test` changes local data whenever the stack is up.
+- The `packages/testing` database suites that call `resetDb()` run `supabase db reset` themselves. That means `pnpm turbo run test` and `pnpm --filter @goproceed/testing test` wipe the local database whenever the stack is up.
+- Run any of these only when the assignment confirms two things: the local database holds nothing the owner needs, and a reset is authorized.
+- Never run `supabase db reset` directly. Never apply migrations yourself: return the exact commands to the primary agent.
 
 Hand back as an exact command anything that sends real Telegram or email messages, touches a hosted Supabase or Vercel project, or needs network access the sandbox does not grant. Do not silently widen permissions.
 
-The root `CLAUDE.md` rule changed on 2026-09-02: it lets QA modify RLS policies and grants, and the migration that carries them, so that a fix found in QA is not left in nobody's hands. On 2026-09-13 the owner decided that this role stays read-only and that the fix goes to the implementer. The fix still has an owner, and verification stays independent of the change it verifies. The root rule is revised to match in the workflow-rules task. Until then, this profile narrows the rule rather than contradicting it.
+Root `AGENTS.md` ("RLS and grants found in QA") defines how an RLS or grant defect is fixed: you report it, you do not edit it. Its history is in `docs/ai-workflow.md`.
 
 If you find an RLS or grant defect:
 

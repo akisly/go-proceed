@@ -1,0 +1,103 @@
+# AI workflow: the cases behind the rules
+
+**Status:** Approved
+
+**Applies to:** all
+
+**Last reviewed:** 2026-09-13
+
+**Related decisions:** None. Owner rulings of 2026-09-13 are recorded in [DEV-002](tasks/DEV-002-workflow-rules.md).
+
+**Why this file exists.** `CLAUDE.md` and `AGENTS.md` are read at the start of every session, so they carry the rules and nothing else. The cases that produced those rules are worth keeping: a rule whose reason is lost gets deleted by the next reader who finds it arbitrary. The cases don't need to be loaded every session, though. They live here, and the rules point here.
+
+This file is a record. It names retired tools in order to explain what replaced them.
+
+## The development workflow before 2026-09-13, and why it changed
+
+**The old workflow.** Until 2026-09-13, `CLAUDE.md` made two globally installed skill packs the process:
+
+- **Superpowers** was the implementation methodology: brainstorming, design approval, planning, TDD, plan execution and systematic debugging.
+- **gstack** supplied seven named gates: `/plan-ceo-review`, `/plan-eng-review`, `/plan-design-review`, `/review`, `/cso`, `/qa-only` and `/ship`.
+
+Specs, plans and gate records from that period live under `docs/superpowers/`. That directory is a frozen archive.
+
+**Why it was replaced.** Three reasons, the first recorded in `docs/delivery/pilot-execution-runbook.md` §4.3:
+
+- **The gates stopped happening.** No `/plan-ceo-review`, `/plan-eng-review` or `/plan-design-review` verdict appears in any artifact after 2026-07-31, and `/qa-only` and `/ship` never produced a record.
+- **The procedure had holes.** Where a brainstorm record goes, where a gate verdict goes, who approves an ADR, and what happens when a slice is aborted were all "undefined in repo".
+- **Real review happened somewhere else.** It was per-task subagent review plus a whole-branch review, as the 2026-08-24 and 2026-08-27 handoffs describe, and the written process did not say so.
+
+**The replacement.** The owner approved it on 2026-09-13:
+
+- project roles `gp-*`, adapted from Agency Agents and generated for Claude Code and Codex (DEV-001);
+- a coordination procedure with required independent review and QA, task records and task states, taken from the deploy-doc project's model (DEV-002).
+
+For this project, the Superpowers plugin is disabled in `.claude/settings.json`. gstack is only removed from the rules; it is not blocked, because its skills share `~/.claude/skills` with design skills this repository still uses. Nothing was uninstalled globally.
+
+**Where each method now lives:**
+
+| Before | Now |
+|---|---|
+| Brainstorming and design approval | Owner decisions table in the task record; a spec under `docs/specs/` |
+| Planning | The Plan section of the task record |
+| TDD | Step 5 of the feature playbook |
+| Systematic debugging | The bug-fix playbook |
+| Gates | The stages in root `AGENTS.md` |
+| Verification before completion | The acceptance evidence matrix, with its "blank cell is not a pass" rule |
+
+## Why QA may not modify RLS policies and grants, and who does
+
+**Until 2026-09-02**, `CLAUDE.md` said:
+
+> Do not let QA automatically modify auth, RLS, grants, or migration code.
+
+**On 2026-09-02** the owner lifted the RLS-and-grants half. PR #58's first CI run had found that the tenant-isolation sweep and the schema disagreed on one column-level grant, and the prohibition left that fix in nobody's hands. RLS and grants exist only in `supabase/migrations/`, so the permission had to extend to the migration that carries them, or it meant nothing. From that date the rule read:
+
+> QA may modify RLS policies and grants, and the migration that carries them.
+
+It added that every such change is its own commit naming the test it answers, and keeps the catalog paperwork in agreement.
+
+**On 2026-09-13** the owner moved the fix to the implementer, and `gp-qa` stays read-only. QA reports the defect as FAIL, with the smallest fix and the test that exposes it. The implementer applies it as its own commit naming that test, with the same paperwork rule. `gp-security` re-checks it and `gp-qa` re-verifies it.
+
+The 2026-09-02 concern still holds: the fix is in someone's hands. The change is that the stage verifying a fix is no longer the stage that wrote it. Auth code stays out of QA's hands, as it always did.
+
+## Why `docs/design/02-building-ui.md` is not inlined into AGENTS.md or CLAUDE.md
+
+It is over 300 lines, and most work in this repository is not UI. Inlining it would spend context on every migration and every route handler. The pointer costs three lines, and the procedure loads when someone actually touches the UI.
+
+## Why third-party documentation is read before every external integration
+
+**The case, 2026-08-19.** Supabase renamed the browser key from the legacy `anon` JWT to `sb_publishable_…`. The variable in its docs changed from `NEXT_PUBLIC_SUPABASE_ANON_KEY` to `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`. This repository's installed `supabase-js 2.47.10` still sent the key as a Bearer JWT and could not accept the new format. So the correct answer that day was the LEGACY key in the OLD variable name. That was only discoverable by checking both the installed version and the current docs; memory could supply neither. The legacy keys stop working at the end of 2026, and the upgrade is tracked in `TODOS.md`.
+
+**The correction, 2026-08-21, which is itself an instance of the rule.** The premise "installed supabase-js 2.47.10 cannot accept the new format" went stale when PR #30 bumped the workspace to 2.112.3, which handles `sb_publishable_` keys. The legacy-key workaround is no longer needed anywhere, and the Expo field client uses the publishable key directly. The rule the story motivates stands unchanged. The fact was re-checked against the installed version before being relied on, which is exactly what the rule asks for.
+
+## Habits this codebase rewards
+
+Carried forward from the session handoffs (`HANDOFF.md` §7, `HANDOFF-2026-08-24.md` §7, `HANDOFF-2026-08-27.md` §7). Each habit cost at least one round to learn.
+
+### Tests and guards
+
+- **A refusal that has never stopped refusing is hiding whatever is behind it.** When a long-standing refusal is about to be closed, expect the code behind it never to have executed. Write the positive assertions before believing it.
+- **A guard that fires is doing its job.** Assert the absence of the closed condition instead of deleting the check.
+- **Never bend a test to green.** Do not compute an expectation the product computes.
+- **Verify the fix fails without itself.** Migration 0056's constraints were checked by reverting them on the live database and watching the new schema test go red.
+- **Regulatory content is generated, never typed.** A provenance string maintained by hand alongside a record will one day contradict it; derive it from the record.
+
+### Claims and review
+
+- **Claims lose to files.** A ruling about what code does is a claim. Two coordinator claims were refuted by reading the file, and both refutations were accepted.
+- **The coordinator reads every diff it commits.** Delegation does not delegate verification. A fast-tier draft once invented an ADR filename, a route path and a CI run during a billing pause.
+- **Run the gate yourself.** Every number in a report is re-run on the tree being offered, not carried from another report. One report claimed 528 failing tests; the cause was an unset `APP_DB_URL`.
+
+### Comments
+
+- **Do not state a mechanism you have not executed or read at a specific location.** The acceptable form is "I could not establish this, and here is what I checked". Review caught more than a dozen comments that argued a wrong mechanism and reached the right conclusion anyway.
+- **No counts in source comments.** A count is measured once and wrong thereafter. Keep counts in dated records.
+- **Cite the symbol, not the line.** A line number rots on the next edit.
+- **When a sentence keeps producing wrong versions of itself, delete it.**
+
+### Browser and environment
+
+- **Run the browser.** A green browser pass is evidence about the paths it walks and nothing else. Three defects in one week were invisible to diff review and reading.
+- **Check bytes.** Invisible characters, such as a literal non-breaking space, are caught only by byte-level checks.
+- **The local test database is shared.** `@goproceed/testing` and `apps/app` suites must never run concurrently against the same local database: deadlocks and vanished fixtures were observed. `supabase db reset` wipes the development role passwords, so run `pnpm -w db:local-credentials` after any reset. Resets are not run here without the owner.

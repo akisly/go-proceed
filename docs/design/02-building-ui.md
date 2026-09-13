@@ -4,7 +4,7 @@
 
 **Applies to:** all
 
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-09-13
 
 **Related decisions:** None yet. The rulings this procedure enforces are D1–D7
 in the [rewrite plan](./2026-08-19-design-system-rewrite-plan.md) §3, which need
@@ -53,7 +53,8 @@ of "done" without §5 output is the failure mode this file exists to prevent.
 - [ ] 3 BUILD    §4 — role names, file placement, the build-failure rules
 - [ ] 4 GATE     §5 — run all five, paste the output
 - [ ] 5 SEE      §6 — six viewports + reduced motion, with real Ukrainian strings
-- [ ] 6 VERIFY   superpowers:verification-before-completion, then say done
+- [ ] 6 VERIFY   gp-reviewer + gp-ui-reviewer over the diff, §5 output and §6 screenshots,
+                 then gp-qa on the final revision (root AGENTS.md); only then say done
 ```
 
 ---
@@ -82,12 +83,7 @@ fail the colour audit.
 
 | Skill | When | Why this one |
 |---|---|---|
-| `superpowers:brainstorming` | before any new block or component | Repo `CLAUDE.md` already mandates it. The question it forces — *what is this for* — is the one that stops a component being built twice |
-| `superpowers:writing-plans` | 3+ steps, or touching more than one package | |
-| `superpowers:test-driven-development` | anything with a contract: a token, a variant set, an audit rule | Every rule in this system is a test. Writing the test first is not ceremony here, it is the deliverable |
-| `superpowers:systematic-debugging` | a gate fails and the cause is not obvious in 60 seconds | |
-| `superpowers:verification-before-completion` | **always, before saying done** | Evidence before assertions. §5 is the evidence |
-| `superpowers:requesting-code-review` | before merging a block or a component | |
+| **Process** — root `AGENTS.md`, `agents/PLAYBOOKS.md` (UI change) | every block or component | Intent and owner decisions go into the task record before the first line — the question *what is this for* is the one that stops a component being built twice. Anything with a contract (a token, a variant set, an audit rule) gets its test first: every rule in this system is a test, so writing it first is the deliverable, not ceremony. A gate that fails without an obvious cause gets the bug-fix playbook. Review is `gp-reviewer` plus `gp-ui-reviewer`; done needs `gp-qa` over §5's evidence |
 | `design-taste-frontend` | composing a **landing** block's visual arrangement | Anti-slop, contextual, and it says outright it is *not* for dashboards or data tables — so it never touches `/app` |
 | `image-to-code` | a landing block whose composition you cannot picture | Image-first: generate the section reference, then implement it. Use for hero/CTA composition only |
 | `redesign-existing-projects` | Phase 4, restyling `apps/app` | Audit-first, improves in place rather than rewriting — which is the constraint on `/app` *[2026-09-05: the field client migrated onto the roles (spec `2026-09-05-app-daylight-migration-design.md`); the skill's remaining use is a dashboard screen that reads wrong, never a stylesheet.]* |
@@ -103,6 +99,8 @@ fail the colour audit.
 | `brand-guidelines` | Applies *Anthropic's* brand |
 | `web-artifacts-builder` | For claude.ai artifacts, not a Next app |
 | `figma:*` | Figma is deferred (plan §3). The DTCG file generates and waits |
+
+*[Changed 2026-09-13: the Process row replaced six rows naming a retired skill-driven workflow's skills; the method they carried now lives in the process documents it names — `docs/ai-workflow.md`.]*
 
 `impeccable` is the judgement call: it overlaps this document heavily. Reach for
 it only for a **critique pass on a finished block**, never to decide structure —

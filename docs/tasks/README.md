@@ -16,10 +16,11 @@ A record's detail lives in the record itself. This index lists only each record'
 - done
 - cancelled
 
-The rules that make records mandatory, the routes and the record template come with the workflow switch that follows DEV-001.
+Root `AGENTS.md` makes a record mandatory for every behavior change. The routes are in `agents/COORDINATION.md` and the template is `agents/TASK_TEMPLATE.md`.
 
 Records before DEV-001 are not converted. Earlier slices kept their plans, specs and gate records under `docs/superpowers/`, which is a frozen historical archive.
 
 | Task | State | Scope |
 |---|---|---|
 | [DEV-001](DEV-001-agent-infrastructure.md) | verifying | Project development roles `gp-*`: canonical sources in `agents/`, generated Claude and Codex profiles, `pnpm validate:agents` in CI |
+| [DEV-002](DEV-002-workflow-rules.md) | verifying | Workflow switch: root `AGENTS.md` rules, coordination, playbooks and template, project settings, retired-workflow validator guard |

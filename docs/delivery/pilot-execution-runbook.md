@@ -16,6 +16,8 @@
 [ADR-010](../decisions/ADR-010-project-sourced-requirements.md),
 [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md)
 
+> **[Changed 2026-09-13 — DEV-002.]** Root [AGENTS.md](../../AGENTS.md) and [agents/COORDINATION.md](../../agents/COORDINATION.md) supersede the development process in §3–§4, §6.6 and §7 of this runbook: its skill-driven steps, its slash-command gates, and QA editing RLS policies, grants and the migration that carries them. Where this runbook disagrees with them, root `AGENTS.md` wins. In particular, `gp-qa` reports an RLS or grant defect found in QA, and the implementer fixes it. The `CLAUDE.md:<line>` citations below point at the file as it stood before 2026-09-13 (`git show 85bdcb9:CLAUDE.md`). DEV-003 rewrites those sections.
+
 ---
 
 ## §0. What this runbook is, and what it refuses to do
