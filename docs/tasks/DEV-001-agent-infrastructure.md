@@ -6,7 +6,7 @@
   - Their canonical sources live in `agents/`.
   - Host profiles are generated from those sources into `.claude/agents/` and `.codex/agents/`, and CI rejects any drift between the two.
   - This task changes no rules and asks for no automatic delegation. `CLAUDE.md` is untouched and there is no root `AGENTS.md`; the workflow switch is the next task.
-- **State:** verifying. Required criteria 6 (discovery in a fresh session) and 8 (CI) are NOT RUN; see Acceptance evidence.
+- **State:** verifying. Required criterion 6 (discovery in a fresh session) is NOT RUN; see Acceptance evidence.
 - **Coordinator:** primary Claude Code session, 2026-09-13.
 - **Area and role family:** GoProceed monorepo, `gp-*` (the only family).
 - **Execution mode:** see [Bootstrap](#bootstrap). No repository rule defines required stages yet; those rules arrive in the next task.
@@ -81,6 +81,7 @@ This task creates the roles that would normally review it.
 | 4 | reviewing (Code Reviewer, independent persona), round 1 | Six findings, R1–R6; no blocker in the generator, the lock or CI | Review over `dev-001.diff` against base `13e256e`. The reviewer also re-hashed all upstream sources, parsed every generated file with PyYAML 6.0.2 and `tomllib`, and ran the validator on a git-added copy | Rework |
 | 5 | rework (coordinator), round 1 | R1–R6 resolved as stated fixes only | See Findings and rework | Verify the fixes |
 | 6 | verifying (coordinator, same session) | Stated fixes verified; see criterion 10 | Commands in Acceptance evidence | Commit, open PR, run CI; discovery check in a fresh session |
+| 7 | verifying (coordinator) | PR #79 opened; CI green on `7e5a228` including the new `validate:agents` step | GitHub Actions run 34752316946; see criterion 8 | Discovery check in a fresh session (owner) |
 
 ## Findings and rework
 
@@ -116,7 +117,7 @@ Results are on the working tree over `13e256e`, after rework round 1 and before 
 | 5. Upstream sources match the pin | yes | `ad9264e` | `curl` from raw.githubusercontent.com and `shasum -a 256` for the 8 sources, the licence and 3 documentation files all match `agents/upstream.lock.json`; the licence copy matches. Independently repeated by the reviewer | PASS | — |
 | 6. Claude Code discovers the eight project profiles | yes | — | This session predates the profiles (`Agent type 'gp-reviewer' not found`), and `claude -p` in the worktree failed with "OAuth session expired and could not be refreshed" | NOT RUN | environmental: open a new Claude Code session in the repository; `/agents` should list `gp-*` under Project, and `gp-reviewer` should report no Bash |
 | 7. Codex discovers the profiles | no | — | No Codex session available | NOT RUN | environmental |
-| 8. CI `verify` is green with the new step | yes | PR head | GitHub Actions | NOT RUN | Runs when the PR opens |
+| 8. CI `verify` is green with the new step | yes | `7e5a228` (PR #79 head) | GitHub Actions run 34752316946: `verify` SUCCESS, its log shows `Python 3.12.3` and `Verified 16 host profiles from 8 canonical roles (gp: 8).` plus `canonical documentation: OK`; `app-qa` and three Vercel checks SUCCESS | PASS | — |
 | 9. Independent review with no unresolved finding | yes | `dev-001.diff` (review round 1) | Code Reviewer persona: six findings, R1–R6, all resolved | PASS | Round-1 findings were fixed as stated fixes and not re-reviewed independently |
 | 10. Stated fixes R1–R6 are in place | yes | working tree | R1: 0 generated files contain "Use proactively". R5: the "State today" column is present in the generated `gp-architect.md`. R6: criterion 3. R2–R4: text inspected in `agents/README.md`, `agents/roles/gp-qa.md`, `agents/AGENTS.md` and `agents/roles/gp-implementer.md` | PASS | Same-session verification |
 
@@ -139,7 +140,7 @@ Results are on the working tree over `13e256e`, after rework round 1 and before 
 
 - **Changed files:** the owning paths above, plus 16 generated profiles.
 - **Review independence:** independent Code Reviewer persona for round 1; fix verification was same-session.
-- **Verified scope:** criteria 1–5, 9 and 10.
-- **Remaining risks / blocked requirements:** criterion 6 (fresh-session discovery) and criterion 8 (CI) are required and NOT RUN. Criterion 7 (Codex) is optional and NOT RUN.
-- **Next bounded action and owner:** the coordinator opens the PR and records the CI result. The owner, or a new session, runs `/agents` to settle criterion 6.
+- **Verified scope:** criteria 1–5 and 8–10.
+- **Remaining risks / blocked requirements:** criterion 6 (fresh-session discovery) is required and NOT RUN. Criterion 7 (Codex) is optional and NOT RUN.
+- **Next bounded action and owner:** the owner, or a new session, runs `/agents` to settle criterion 6; the owner decides the merge of PR #79.
 - **Final state and reason:** not final.
