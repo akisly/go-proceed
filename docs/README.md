@@ -239,7 +239,7 @@ STATUS.md with evidence, not in a document's status.]*
 
 An ADR's `**Status:**` is one of:
 
-- **Proposed:** drafted and not in force. An agent writes an ADR only in this state.
+- **Proposed:** drafted and not in force. An agent drafts an ADR only in this state.
 - **Approved:** in force, on the owner's ruling recorded in the ADR.
 - **Superseded:** replaced by a later ADR, named in a `**Superseded by:**` line.
 - **Rejected:** the owner ruled against it; kept as the record of the option.
@@ -247,9 +247,9 @@ An ADR's `**Status:**` is one of:
 [decisions/README.md](decisions/README.md) indexes every ADR, and
 `scripts/validate-canonical-docs.mjs` fails when the index and a file disagree.
 
-**Approval procedure.** This closes the half of
-[pilot-execution-runbook.md](delivery/pilot-execution-runbook.md) §10 Q-6 that
-DEV-003 left open.
+**Approval procedure.** This answers the ADR-status and approval-procedure part
+of [pilot-execution-runbook.md](delivery/pilot-execution-runbook.md) §10 Q-6; its
+other open part, a retroactive record for the channel's migrations, stays open.
 
 1. The coordinator drafts the ADR as `Proposed`
    ([agents/COORDINATION.md](../agents/COORDINATION.md), «Intake and routing»),
@@ -260,8 +260,14 @@ DEV-003 left open.
    the decisions names them.
 3. The Status moves to `Approved` (or `Rejected`) in the same pull request as
    that section, together with the index row, and the owner merges it. No
-   stage's PASS and no agent moves an ADR out of `Proposed`.
+   stage's PASS moves an ADR out of `Proposed`, and no agent does so on its
+   own: the coordinator writes the Approval section and the Status change only
+   to transcribe an owner ruling, and the owner's merge ratifies the
+   transcription.
 
 ADRs approved before 2026-09-13 keep the form their approval already has, such
 as ADR-011's «Open items — ruled by the owner on 2026-09-03»; they are not
 rewritten into an Approval section.
+
+For `docs/decisions/ADR-NNN-*.md`, this enum replaces the Status values listed
+under «Required metadata»; the other three metadata fields are unchanged.

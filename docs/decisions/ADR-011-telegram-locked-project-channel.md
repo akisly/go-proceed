@@ -1026,7 +1026,7 @@ bullets below are the 2026-09-02 reading and stay as dated history.
     owner". [Ruled 2026-09-03: the owner ruled on all nine items in conversation;
     §"Open items — ruled by the owner on 2026-09-03" is the record, and this
     document moved to Approved on it. The procedure is still undefined in the
-    repo; this is one more instance of the same form of record.]
+    repo; this is one more instance of the same form of record.] [Answered 2026-09-13: [docs/README.md](../README.md) «ADR lifecycle and approval».]
 13. [pilot-execution-runbook.md](../delivery/pilot-execution-runbook.md):644
     says «ADR-010 is the highest today» and that «every ADR on disk simply
     carries `Status: Approved`»; this file makes both clauses stale on the day

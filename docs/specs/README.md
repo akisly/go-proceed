@@ -28,7 +28,7 @@ Every spec starts with the metadata block [docs/README.md](../README.md) require
 **Related decisions:** ADR links or None
 ```
 
-- **Draft** until the owner approves it. An agent never writes `Approved`.
+- **Draft** until the owner approves it. An agent writes `Approved` only to transcribe the owner's dated approval.
 - **Approved** only with the owner's dated approval recorded in the spec itself («Approved by the owner on YYYY-MM-DD», with where: conversation, PR review), and linked from the slice's task record.
 - **Superseded** with a `**Superseded by:**` line naming the replacing spec or ADR.
 - Whether a spec's slice shipped is not a spec status. It belongs in the task record and in [docs/STATUS.md](../STATUS.md).

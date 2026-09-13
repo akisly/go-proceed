@@ -21,10 +21,10 @@ The lifecycle and the approval procedure are in [docs/README.md](../README.md) (
 | [ADR-003](ADR-003-evidence-packages-and-acceptance.md) | Evidence packages and acceptance authority | Approved | 2026-07-30 | 2026-07-30 | — |
 | [ADR-004](ADR-004-roadmap-demo-and-documentation.md) | Version roadmap, product surfaces, and documentation | Approved | 2026-07-30 | 2026-07-30 | — |
 | [ADR-005](ADR-005-readiness-gate-and-hidden-works.md) | The readiness gate and hidden works | Approved | 2026-08-08 | 2026-08-08 | Amends ADR-001; supersedes nothing |
-| [ADR-006](ADR-006-pilot-shaped-v0.1.md) | A pilot-shaped v0.1 | Approved | 2026-08-08 | 2026-08-08 | Supersedes ADR-004's milestone structure; ADR-001 and ADR-005 stand |
-| [ADR-007](ADR-007-pilot-field-client.md) | The pilot field client is a PWA | Approved | 2026-08-08 | 2026-09-03 | Amends ADR-004; amended by ADR-011 decision 11 |
+| [ADR-006](ADR-006-pilot-shaped-v0.1.md) | A pilot-shaped v0.1 | Approved | 2026-08-08 | 2026-08-08 | Amends ADR-001's v0.1 boundary (the second time); supersedes ADR-004's milestone structure; ADR-001 and ADR-005 stand |
+| [ADR-007](ADR-007-pilot-field-client.md) | The pilot field client is a PWA | Approved | 2026-08-08 | 2026-09-03 | Amends ADR-004; amended by ADR-009 (2026-08-20) and ADR-011 decision 11 (2026-09-03) |
 | [ADR-008](ADR-008-valuation-carves-at-admission.md) | Valuation carves at admission, not at recording | Approved | 2026-08-08 | 2026-08-08 | — |
-| [ADR-009](ADR-009-three-pilot-surfaces.md) | Three pilot surfaces, separately deployed | Approved | 2026-08-20 | 2026-08-20 | — |
+| [ADR-009](ADR-009-three-pilot-surfaces.md) | Three pilot surfaces, separately deployed | Approved | 2026-08-20 | 2026-08-20 | Amends ADR-007 decision 1 |
 | [ADR-010](ADR-010-project-sourced-requirements.md) | Requirements a site supplies from its own робоча документація | Approved | 2026-08-24 | 2026-08-24 | Supersedes one clause of ADR-006 decision 4.1 |
 | [ADR-011](ADR-011-telegram-locked-project-channel.md) | Telegram as the locked project channel | Approved | 2026-09-02 | 2026-09-03 | Amends ADR-007 on three passages; decisions 9–11 ruled by the owner on 2026-09-03 |
 

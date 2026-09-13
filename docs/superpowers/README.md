@@ -13,8 +13,8 @@ New work is recorded elsewhere:
 | Directory | Contents |
 |---|---|
 | `specs/` | 22 design specs, 2026-07-24 to 2026-09-06 |
-| `plans/` | 41 implementation plans |
-| `plans/evidence/` | 22 gate records and their companions |
+| `plans/` | 40 implementation plans and one handoff (`HANDOFF-dashboard-rewrite.md`) |
+| `plans/evidence/` | 12 gate records (`*-gate.md`) and their companions: two notes, seven screenshots, and the `2026-09-06-landing-parity/` screenshot directory |
 
 ## What each spec became
 

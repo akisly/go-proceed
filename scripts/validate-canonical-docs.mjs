@@ -1018,6 +1018,9 @@ const WORKFLOW_DOCS = [
   "apps/app/AGENTS.md",
   // No metadata block either (see NO_METADATA_BLOCK), and read before any task.
   "docs/STATUS.md",
+  // Live navigation inside the frozen archive: link-checked here only; the
+  // archive's path exemptions from the other guards stay.
+  "docs/superpowers/README.md",
 ];
 
 export function workflowLinkTargets(markdown) {
@@ -1139,7 +1142,9 @@ export function sourceIdErrors(markdown) {
   const where = "docs/research/SOURCES.md";
   const errs = [];
   const seen = new Set();
-  for (const m of markdown.matchAll(/^## (S\S*)[ \t]*$/gm)) {
+  // `S` plus digits, then a space or the end of the line: a titled heading
+  // («## S08 — Vercel») still counts, and a word such as «## Superseded» does not.
+  for (const m of markdown.matchAll(/^## (S\d+)(?=[ \t]|$)/gm)) {
     if (!/^S\d{2,}$/.test(m[1])) { errs.push(`${where}: heading '## ${m[1]}' is not an S-id of the form S01`); continue; }
     if (seen.has(m[1])) errs.push(`${where}: ${m[1]} is used twice; an S-id is never reused`);
     seen.add(m[1]);
@@ -1506,6 +1511,21 @@ function selfTest() {
   if (!sourceIdErrors("## S01\n## S01\n")[0]?.includes("used twice")) t.push("source ids (duplicate)");
   if (!sourceIdErrors("## S01\n## S1\n")[0]?.includes("not an S-id")) t.push("source ids (malformed)");
   if (sourceIdErrors("# Sources\n## Access refused\n").length !== 1) t.push("source ids (none)");
+  if (!sourceIdErrors("## S01 — a\n## S01 — b\n")[0]?.includes("used twice")) t.push("source ids (titled duplicate)");
+  if (sourceIdErrors("## S01\n## Superseded\n").length !== 0) t.push("source ids (a word starting with S is not an id)");
+  if (taskIndexErrors("# no table\n", fxRecords).length !== 1) t.push("task index (missing table)");
+  if (!taskIndexErrors(fxTaskIndex(["| [DEV-001](DEV-001-a.md) | done | a |", "| [DEV-001](DEV-001-a.md) | done | a |",
+    "| [DEV-002](DEV-002-b.md) | planned | b |"]), fxRecords).some((e) => e.includes("listed twice"))) {
+    t.push("task index (duplicate row)");
+  }
+  if (!adrIndexErrors(fxAdrIndex(["| [ADR-001](ADR-001-a.md) | A | Approved | x |", "| [ADR-001](ADR-001-a.md) | A | Approved | x |",
+    "| [ADR-002](ADR-002-b.md) | B | Proposed | x |"]), fxAdrs).some((e) => e.includes("listed twice"))) {
+    t.push("ADR index (duplicate row)");
+  }
+  if (!adrIndexErrors(fxAdrIndex(["| [ADR-001](ADR-001-a.md) | A | Accepted | x |", "| [ADR-002](ADR-002-b.md) | B | Proposed | x |"]), fxAdrs)
+    .some((e) => e.includes("'Accepted', not one of"))) {
+    t.push("ADR index (status outside the lifecycle)");
+  }
 
   if (t.length) {
     console.error("validator self-test FAILED:", t.join("; "));
