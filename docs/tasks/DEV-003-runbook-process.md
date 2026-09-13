@@ -6,7 +6,7 @@
   - §3 (roles), §4 (slice loop), §6.6 (gate placement) and §7 (evidence) name the `gp-*` stages, the task record and its PASS / FAIL / NOT RUN vocabulary. They no longer name the retired skill-driven loop.
   - The measured record of the retired loop (§4.2 plan shape, §4.3 gate verdicts) moves unchanged to `docs/ai-workflow.md`.
   - The validator's temporary exemption for the runbook is removed, so the retired-workflow guard covers it.
-- **State:** reviewing. `gp-reviewer` round 1 returned 14 findings, applied as stated fixes. `gp-qa` round 1 confirmed them and failed on Q1-01 (medium) and Q1-02 (low). Rework round 1 applied both. Q1-01 changes how a rule reads beyond a stated fix, so `gp-reviewer` sees it again before `gp-qa` re-verifies.
+- **State:** verifying. `gp-reviewer` round 1 returned 14 findings, applied as stated fixes. `gp-qa` round 1 confirmed them and failed on Q1-01 (medium) and Q1-02 (low). Rework round 1 applied both. Q1-01 changed how a rule reads, so `gp-reviewer` re-ran on the rework: R2-01 to R2-04, applied as stated fixes. `gp-qa` round 2 verifies the final revision next.
 - **Coordinator:** primary Claude Code session, 2026-09-13.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types. The implementing session could not discover them (the main checkout predated `.claude/agents`); the reviewing session, started in the main checkout at `5140c3f`, does (DEV-001 criterion 6).
 - **Selected route and why:** agent instructions or profiles → coordinator → `gp-reviewer` → `gp-qa` (`agents/COORDINATION.md`). The runbook's §3–§4 decide which stage runs when, and the validator is executed code, so this is a behavior change.
@@ -15,7 +15,7 @@
   - No schema, contract, security surface, UI or mobile path is touched.
   - The runbook's content about security, UI and mobile is restated from root `AGENTS.md`, not changed.
 - **Owning module and allowed edit paths:**
-  - `docs/delivery/pilot-execution-runbook.md`: the banner, `Last reviewed`, §1.1's CI-record sentence and §5.14's «eighteen red cases» row (both added in rework round 1 for Q1-01), §1.6's lead sentence, §3.1, §3.2, §3.4, §4 intro and §4.0–§4.3, §5.5's and §6.1's `CLAUDE.md` citations, §6.6, §7, §10 Q-6 and Q-14, and the closing note.
+  - `docs/delivery/pilot-execution-runbook.md`: the banner, `Last reviewed`, §1.1's CI-record sentence and §5.15's M7 «eighteen red cases» row (both added in rework round 1 for Q1-01), §1.6's lead sentence, §3.1, §3.2, §3.4, §4 intro and §4.0–§4.3, §5.5's and §6.1's `CLAUDE.md` citations, §6.6, §7, §10 Q-6 and Q-14, and the closing note.
   - `docs/ai-workflow.md`: the new measured-record section and its pointers.
   - `scripts/validate-canonical-docs.mjs`: one exemption line and its comment.
   - `docs/tasks/**`.
@@ -68,7 +68,7 @@
 | 5 | reviewing (`gp-reviewer`, native), round 1 | **Changes requested.** 14 findings: one major (R1-01), five medium (R1-02 to R1-06), eight low. Criteria 2 (moved record exact), 3 (validator), 4 (dated content) and the scope check found correct | `dev-003.diff` against `6e5f568`, HEAD `76fb263` | Rework |
 | 6 | rework (coordinator), after review round 1 | All 14 applied as the reviewer's stated fixes, wording taken from the fix column; nothing beyond them. R1-05 changes a rule's reading (a known-red-baseline CI run is FAIL, not PASS), which is the template's own rule, so no owner decision was needed. Not a rework round: no QA FAIL preceded it | See Findings | `gp-qa` |
 | 7 | verifying (`gp-qa`, native), QA round 1 on `d4a3860` | **Needs fixes.** Passed: criteria 1–4 (validator with a positive control on the runbook, retired-workflow regex 0 matches, links, all 14 stated fixes in place with nothing beyond them) and the moved-measurement spot-check. Failed: Q1-01 (medium), Q1-02 (low). Not run: CI (no PR), typecheck/build/agents (nothing they check changed), database suites (none cover this) | QA report; scratch `dev-003/` (`guard.mjs`, `links.py`, base extracts) | Rework |
-| 8 | rework (coordinator), rework round 1 | Q1-01 and Q1-02 applied as QA's smallest fixes. Q1-01 needed two lines outside the allowed paths (§1.1, §5.14); the allowed paths were widened to exactly those lines. Because Q1-01 changes how a live rule reads, `gp-reviewer` re-runs on the rework diff | See Findings | `gp-reviewer` on the rework, then `gp-qa` round 2 |
+| 8 | rework (coordinator), rework round 1 | Q1-01 and Q1-02 applied as QA's smallest fixes. Q1-01 needed two lines outside the allowed paths (§1.1, §5.15); the allowed paths were widened to exactly those lines. Because Q1-01 changes how a live rule reads, `gp-reviewer` re-runs on the rework diff | See Findings | `gp-reviewer` on the rework, then `gp-qa` round 2 |
 
 ## Findings and rework
 
@@ -88,14 +88,18 @@
 | R1-12 | low | Runbook §4 intro, §4.3 | Actual: dropped the design-review gate | coordinator | "product, engineering or design review verdict" in both |
 | R1-13 | low | Runbook closing note | Actual: "no independent review stage" becomes false | coordinator | Now points to this record for the review stages |
 | R1-14 | low | This record, State and Execution mode | Actual: stale | coordinator | Updated with this round |
-| Q1-01 | medium | Runbook §1.1 CI sentence (`:213-214`) and §5.14 M7 «eighteen red cases» row (`:1071`) | Expected: agree with §7.4 as changed by R1-05 (known-red-baseline CI read is FAIL). Actual: §1.1 still said every gate record writes `PASS (assisted)` for CI, and R1-07 made «gate record» there mean the task record; §5.14 assumed a PASS "without «assisted»" | coordinator | §1.1: "every task record's CI row is FAIL, Limitation `known-red baseline:` with the set named (§7.4) — never PASS". §5.14: "a task record whose CI row says PASS with no `known-red baseline:` limitation". Scope widened to these two lines |
+| Q1-01 | medium | Runbook §1.1 CI sentence (`:213-214`) and §5.15's M7 «eighteen red cases» row (`:1071`) | Expected: agree with §7.4 as changed by R1-05 (known-red-baseline CI read is FAIL). Actual: §1.1 still said every gate record writes `PASS (assisted)` for CI, and R1-07 made «gate record» there mean the task record; §5.14 assumed a PASS "without «assisted»" | coordinator | §1.1: "every task record's CI row is FAIL, Limitation `known-red baseline:` with the set named (§7.4) — never PASS" (reworded again by R2-01). §5.15: "a task record whose CI row says PASS with no `known-red baseline:` limitation". Scope widened to these two lines |
+| R2-01 | medium | Runbook §1.1 `:213-214` | Expected: an instruction whose precondition still holds, with §7.4's full condition. Actual: "Until it lands" restated in present tense, but the P1 closed on 2026-09-04 (`TODOS.md:3433`; run 33870171989 `verify` success); "no case outside it failing" dropped | coordinator | "While `verify` is red on a known set, a task record's CI row is FAIL, Limitation `known-red baseline:` with that set named and no case outside it failing (§7.4) — never PASS". The stale dated statements are disclosed under «What is not true» |
+| R2-02 | low | This record: allowed paths, Progress row 8, Q1-01 | Actual: the `:1071` row was labelled §5.14; it is in §5.15's M7 table | coordinator | Relabelled §5.15 in all three |
+| R2-03 | low | This record: the post-Q1-01 search note and the rework hypothesis | Actual: "found no other statement of the rule" is wrong (`:308`, `:329`, `:1048` state it in «gate record … CI row» terms); `TODOS.md:3467` called a residual entry though its P1 is CLOSED | coordinator | Both sentences replaced with the stated wording |
+| R2-04 | low | This record: Acceptance evidence 1, 4, 5 | Actual: stale against QA round 1 and this re-review | coordinator | Rows updated |
 | Q1-02 | low | `docs/tasks/README.md` DEV-003 row | Expected: the record's current state. Actual: `implementing` | coordinator | Set to the record's state |
 
-Out of scope and not changed: `TODOS.md:3467`, the dated 2026-09-03 entry for the eighteen red cases, still says "PASS (assisted) for CI with this set named". It is a residual entry, not a procedure; it moves in the TODOS triage (PR-D1). The search after Q1-01 (`grep -n -i 'assisted\|known-red'` over the runbook; `git grep -i 'PASS (assisted)\|known-red'` over live files) found no other statement of the rule. Also noted by the reviewer and not changed: `docs/decisions/ADR-011-telegram-locked-project-channel.md:1007, :1015, :1023` cite a stale runbook line (stale already at the base); `docs/design/02-building-ui.md:215` lacks the owner-confirmation note.
+Out of scope and not changed: `TODOS.md:3467`, the dated 2026-09-03 entry for the eighteen red cases, still says "PASS (assisted) for CI with this set named". It sits in the P1 entry closed 2026-09-04 (`TODOS.md:3433`); it is a record and stays as written. The search after Q1-01 (`grep -n -i 'assisted\|known-red'` over the runbook; `git grep -i 'PASS (assisted)\|known-red'` over live files) found no other statement that disagrees with §7.4; `:308`, `:329` and `:1048` state the rule as «gate record … CI row» and agree under §7.1's scoping. Also noted by the reviewer and not changed: `docs/decisions/ADR-011-telegram-locked-project-channel.md:1007, :1015, :1023` cite a stale runbook line (stale already at the base); `docs/design/02-building-ui.md:215` lacks the owner-confirmation note.
 
 Rework count and hypothesis changes:
 - **Review round 1.** 14 findings, applied as stated fixes; not a round.
-- **Rework round 1** (after QA round 1 FAIL). Q1-01 was introduced by the R1-05 fix: it changed a rule in §7.4 without searching the runbook for the other statements of the same rule. Changed hypothesis: a fix that changes how a rule reads is followed by a search for every other statement of that rule (here, `grep -n 'assisted\|known-red'` over the runbook) before it is committed. One of three rounds used.
+- **Rework round 1** (after QA round 1 FAIL). Q1-01 was introduced by the R1-05 fix: it changed a rule in §7.4 without searching the runbook for the other statements of the same rule. Changed hypothesis: a fix that changes how a rule reads is followed by a search for every other statement of that rule, by meaning as well as by token (here, also `CI row` and `PASS for CI`), and a check that its precondition still holds, before it is committed. `gp-reviewer` re-ran on the rework (R2-01 to R2-04), all applied as stated fixes. One of three rounds used.
 
 ## What is not true after this task
 
@@ -103,16 +107,17 @@ Rework count and hypothesis changes:
 - No `docs/specs/` directory exists yet; the first spec creates it.
 - The channel's nineteen migrations still have no evidence record.
 - `TODOS.md` line citations in the runbook (`:3089-3092`, `:712-716`) are unchanged until PR-D2.
+- The runbook's statements of the eighteen red cases (§1.1 `:195-216`, `:255`, `:308`, `:329`, `:469`, §5.14 order 0 `:1048`, §5.15 `:1071` OPEN, §6 `:1263`) are dated 2026-09-03 and predate the P1's closure on 2026-09-04 (`TODOS.md:3433`; run 33870171989). A dated correction is owed and not made here.
 
 ## Acceptance evidence
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| 1. Canonical-docs validator green, with the guard now scanning the runbook | yes | WIP commit | `node scripts/validate-canonical-docs.mjs` → `canonical documentation: OK` | PASS | Coordinator's own run; re-run by `gp-qa` pending |
+| 1. Canonical-docs validator green, with the guard now scanning the runbook | yes | WIP commit | `node scripts/validate-canonical-docs.mjs` → `canonical documentation: OK` | PASS | Coordinator's run; `gp-qa` round 1 re-ran it on `d4a3860`: PASS |
 | 2. No retired-workflow form left in the runbook | yes | WIP commit | The validator's own regex, extracted from the file and run over the runbook, finds 0 matches. The only remaining `CLAUDE.md` mention is the dated banner's sentence about re-pointed citations | PASS | Coordinator's own run |
 | 3. Relative links resolve in the runbook and `docs/ai-workflow.md` | yes | WIP commit | Python resolver over both files → `broken: []` for each | PASS | Coordinator's own run |
-| 4. Independent `gp-reviewer` with no unresolved finding | yes | `76fb263` (review round 1) | Native `gp-reviewer`: 14 findings, R1-01 to R1-14, all resolved as stated fixes | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes |
-| 5. Independent `gp-qa` on the final revision | yes | — | Not started | NOT RUN | As above |
+| 4. Independent `gp-reviewer` with no unresolved finding | yes | `76fb263` (review round 1) | Native `gp-reviewer`: 14 findings, R1-01 to R1-14, all resolved as stated fixes | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes; `gp-reviewer` re-ran on the rework `68127bb` because Q1-01 changes a rule's reading (R2-01 to R2-04, applied as stated fixes) |
+| 5. Independent `gp-qa` on the final revision | yes | `d4a3860` | `gp-qa` round 1: needs fixes (Q1-01, Q1-02) | NOT RUN | Round 2 on the final revision pending |
 | 6. CI `verify` green | yes | PR head | — | NOT RUN | The PR is not opened yet |
 
 ## Sources

@@ -210,8 +210,8 @@ throughout; `packages/testing` is green throughout — 42 files, including the 2
 erasure cases and the tenant-isolation sweeps. So the honest statement is:
 **`verify` is red on `main` with a known, fixed set, and the set predates every
 change this runbook describes.** Fixing the eighteen is its own slice
-([TODOS.md](../../TODOS.md) P1, 2026-09-03). Until it lands, every task record's CI row
-is FAIL, Limitation `known-red baseline:` with the set named (§7.4) — never PASS — and
+([TODOS.md](../../TODOS.md) P1, 2026-09-03). While `verify` is red on a known set, a task record's CI
+row is FAIL, Limitation `known-red baseline:` with that set named and no case outside it failing (§7.4) — never PASS — and
 [test-strategy.md](test-strategy.md) §Baseline is owed a correction (C-16):
 the run it names was green because it skipped, not because it passed.
 
