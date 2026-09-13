@@ -4,7 +4,7 @@
 
 **Applies to:** v0.1
 
-**Last reviewed:** 2026-09-03
+**Last reviewed:** 2026-09-13
 
 **Related decisions:** [ADR-001](../decisions/ADR-001-product-boundary.md),
 [ADR-004](../decisions/ADR-004-roadmap-demo-and-documentation.md),
@@ -16,7 +16,7 @@
 [ADR-010](../decisions/ADR-010-project-sourced-requirements.md),
 [ADR-011](../decisions/ADR-011-telegram-locked-project-channel.md)
 
-> **[Changed 2026-09-13 — DEV-002.]** Root [AGENTS.md](../../AGENTS.md) and [agents/COORDINATION.md](../../agents/COORDINATION.md) supersede the development process in §3–§4, §6.6 and §7 of this runbook: its skill-driven steps, its slash-command gates, and QA editing RLS policies, grants and the migration that carries them. Where this runbook disagrees with them, root `AGENTS.md` wins. In particular, `gp-qa` reports an RLS or grant defect found in QA, and the implementer fixes it. The `CLAUDE.md:<line>` citations below point at the file as it stood before 2026-09-13 (`git show 85bdcb9:CLAUDE.md`). DEV-003 rewrites those sections.
+> **[Changed 2026-09-13 — DEV-003.]** §3, §4, §6.6 and §7 describe the process that root [AGENTS.md](../../AGENTS.md) and [agents/COORDINATION.md](../../agents/COORDINATION.md) set out. That process replaced a skill-driven loop and seven named review gates on 2026-09-13 (DEV-002). The measured record of the earlier loop moved to [docs/ai-workflow.md](../ai-workflow.md). Where this runbook and root `AGENTS.md` disagree, root `AGENTS.md` wins. Citations that used to point at `CLAUDE.md` lines now name the section of root `AGENTS.md` that holds the rule.
 
 ---
 
@@ -317,8 +317,9 @@ view and lands none of the rows above by restating them.
 
 ### 1.6 Open defects in [TODOS.md](../../TODOS.md), and which phase owns each
 
-§3.1 makes the Senior PM accountable for «TODOS.md residual entries» and §4.3
-records that filing residuals there is what replaced the gstack verdict chain.
+§3.1 makes the Senior PM function accountable for «TODOS.md residual entries»,
+and §7.1 records that filing residuals there is what replaced the retired review
+gates' verdict chain.
 Measured 2026-09-03: **35** open entries, **two** P1. Six bear directly on the
 pilot and appear in no other section of this runbook; each is a failure a real
 партнер or a real person in a Telegram group can hit on day one.
@@ -584,23 +585,25 @@ environments* if the borrowed word gets in the way.
 
 ### 3.1 Delivery tier — active today
 
-| Role | Owns which artifact | Must clear which gate | Executed as |
+Since 2026-09-13 the repository's development roles carry out each function below. The roles are listed in [agents/registry.json](../../agents/registry.json), routed by [agents/COORDINATION.md](../../agents/COORDINATION.md), and bound by root [AGENTS.md](../../AGENTS.md). The function names stay because the rest of this runbook uses them, including §5's owners and §10's «Who» column. The last column says who executes each function today. «Coordinator» is the primary coding session; «implementer» is the coordinator, or `gp-implementer` on an explicitly delegated slice.
+
+| Function | Owns which artifact | Must clear which gate | Executed as |
 |---|---|---|---|
-| **Agents Orchestrator** | The slice sequence itself; which of P1/P2/P3 the next slice serves; the branch and the worktree | The scope-addition test (§9.1): name the numbered ADR-006 decision 1 step the slice is necessary for | The session driving `superpowers:subagent-driven-development` |
-| **Senior Project Manager** | `docs/superpowers/plans/YYYY-MM-DD-<slug>.md`; the corrections-owed register (§1.5); [TODOS.md](../../TODOS.md) residual entries | `/plan-eng-review` after an approved design ([CLAUDE.md](../../CLAUDE.md):13-20) | `superpowers:writing-plans` |
-| **Sprint Prioritizer** | The order of P2's remaining work (D4 vs Plan C vs the M0 gates) | The demand-scan rule: a screen with no named role and no named pain sentence is a guess ([04-role-pain-map.md](../design/04-role-pain-map.md):134-140) | `/plan-ceo-review` for product-level decisions |
-| **UX Architect** | `docs/superpowers/specs/YYYY-MM-DD-<slug>-design.md` for user-facing flows; the [04-role-pain-map.md](../design/04-role-pain-map.md) row that justifies a screen | `/plan-design-review`; and, for any screen, the §3.3 three questions of [02-building-ui.md](../design/02-building-ui.md) | `superpowers:brainstorming` then the design skills [02-building-ui.md](../design/02-building-ui.md):79-110 *permits* |
-| **Frontend Developer** | Everything under `apps/landing/**`, `apps/app/app/**`, `apps/mobile/src/**`, `packages/ui/**`, `packages/tokens/**` | The five-command UI gate ([02-building-ui.md](../design/02-building-ui.md):193-210), output pasted, not paraphrased; then §6's six-viewport pass with real Ukrainian strings | `superpowers:test-driven-development` under the [02-building-ui.md](../design/02-building-ui.md) procedure |
-| **Backend Architect** | `supabase/migrations/**`, `apps/app/app/v1/**`, `apps/app/app/external/**`, `packages/domain`, `packages/contracts`, `technical/**` catalogs | `pnpm validate:canonical-docs`, then the milestone's RLS + refusal suites; ADR authorship where a decision is being changed | `superpowers:test-driven-development` + `superpowers:systematic-debugging` |
-| **DevOps Automator** | [.github/workflows/ci.yml](../../.github/workflows/ci.yml), [turbo.json](../../turbo.json), [deploy-preflight.mjs](../../apps/app/scripts/deploy-preflight.mjs), [infra/README-staging.md](../../infra/README-staging.md), the three Vercel projects — **and the accounts and quotas behind them**: a billing pause stopped CI for roughly a month (§4.2, §6.2), and that outage is the whole reason §1.3 cannot say whether nineteen merged PRs ever had a signal | CI's own two jobs green on a real push; the preflight's `OK` line in a production build log | `/qa-only` for staging verification |
-| **Evidence Collector** | `docs/superpowers/plans/evidence/YYYY-MM-DD-<slug>-gate.md`; the M0 dated entries in [version-0.1.md](version-0.1.md) §M0 | The baseline-honesty rule: nothing recorded as PASS without a command a reader can re-run ([test-strategy.md](test-strategy.md):595-604) | The final pass of a slice, per §7 |
-| **Reality Checker** | The corrections-owed table; the «what has *not* happened» section of every gate record; the §10 open-questions list | The precedence ladder ([docs/README.md](../README.md):28-75) — it must name which side is current and why, never smooth | `/review` after implementation; the outside-model adversarial pass where quota allows |
+| **Agents Orchestrator** | The slice sequence itself; which of P1/P2/P3 the next slice serves; the branch and the worktree | The scope-addition test (§9.1): name the numbered ADR-006 decision 1 step the slice is necessary for | Coordinator |
+| **Senior Project Manager** | The task record `docs/tasks/DEV-NNN-<slug>.md` (its Assignment, Plan and Progress); the corrections-owed register (§1.5); [TODOS.md](../../TODOS.md) residual entries until a backlog replaces them | The task record exists before implementation, with its route, allowed paths and acceptance criteria (root AGENTS.md, «Records, rework and escalation») | Coordinator |
+| **Sprint Prioritizer** | The order of P2's remaining work (D4 vs Plan C vs the M0 gates) | The demand-scan rule: a screen with no named role and no named pain sentence is a guess ([04-role-pain-map.md](../design/04-role-pain-map.md):134-140) | Coordinator proposes; **the owner decides**, recorded as a dated row in the task record's Owner decisions |
+| **UX Architect** | A design spec at `docs/specs/YYYY-MM-DD-<slug>.md` for user-facing flows (the first spec creates the directory; specs before 2026-09-13 stay in `docs/superpowers/specs/`); the [04-role-pain-map.md](../design/04-role-pain-map.md) row that justifies a screen | The owner's approval of the spec before implementation; for any screen, the §3.3 three questions of [02-building-ui.md](../design/02-building-ui.md); `gp-ui-reviewer`'s PASS on the built screen | Coordinator writes the spec; `gp-ui-reviewer` gates the implementation |
+| **Frontend Developer** | Everything under `apps/landing/**`, `apps/app/app/**`, `apps/mobile/src/**`, `packages/ui/**`, `packages/tokens/**` | The five-command UI gate ([02-building-ui.md](../design/02-building-ui.md) §5), output pasted, not paraphrased; then §6's six-viewport pass with real Ukrainian strings | Implementer, under the [02-building-ui.md](../design/02-building-ui.md) procedure |
+| **Backend Architect** | `supabase/migrations/**`, `apps/app/app/v1/**`, `apps/app/app/external/**`, `packages/domain`, `packages/contracts`, `technical/**` catalogs; ADR drafts where a decision is being changed | `gp-architect`'s design before implementation (root AGENTS.md triggers); `pnpm validate:canonical-docs`, then the milestone's RLS + refusal suites | `gp-architect` designs; the implementer builds |
+| **DevOps Automator** | [.github/workflows/ci.yml](../../.github/workflows/ci.yml), [turbo.json](../../turbo.json), [deploy-preflight.mjs](../../apps/app/scripts/deploy-preflight.mjs), [infra/README-staging.md](../../infra/README-staging.md), the three Vercel projects. It also owns **the accounts and quotas behind them**: a billing pause stopped CI for roughly a month (§4.2, §6.2), and that outage is the whole reason §1.3 cannot say whether nineteen merged PRs ever had a signal | CI's own two jobs green on a real push; the preflight's `OK` line in a production build log; `gp-security` over any change to CI permissions, action pins or application environment variables | Implementer; `gp-security` by trigger |
+| **Evidence Collector** | The task record's Acceptance evidence matrix; the M0 dated entries in [version-0.1.md](version-0.1.md) §M0. Gate records written before 2026-09-13 stay in `docs/superpowers/plans/evidence/` | The baseline-honesty rule: nothing recorded as PASS without a command a reader can re-run ([test-strategy.md](test-strategy.md):595-604). A required NOT RUN blocks done | `gp-qa`, as an independent subagent on the final revision; the coordinator records its matrix |
+| **Reality Checker** | The corrections-owed table; each task record's «What is not true after this task»; the §10 open-questions list | The precedence ladder ([docs/README.md](../README.md):28-75): it must name which side is current and why, never smooth | `gp-reviewer` over every diff; `gp-qa`, which records a PASS earned for the wrong reason as NOT RUN |
 
 ### 3.2 Security tier — activates per slice
 
-| Role | Owns | Gate | When it activates |
+| Function | Owns | Gate | When it activates |
 |---|---|---|---|
-| **Security reviewer** | The external-plane surface, RLS policies, grants, migration code | `/cso` for security-sensitive slices ([CLAUDE.md](../../CLAUDE.md):18) | Any slice touching `external_access_grants`, `external_sessions`, RLS, capability presets, or the HMAC key handling. **QA may modify RLS policies and grants, and the migration carrying them, as its own commit naming the test it answers; QA still does not modify auth code** ([CLAUDE.md](../../CLAUDE.md):23-28, changed 2026-09-02) |
+| **Security reviewer** | The external-plane surface, RLS policies, grants, migration code | `gp-security` over the diff, as an independent subagent | For any slice touching `external_access_grants`, `external_sessions`, RLS, capability presets or the HMAC key handling. Also whenever another security trigger in root AGENTS.md matches, for example evidence storage, the Telegram webhook and identity erasure, or application environment variables. **An RLS or grant defect found in QA is reported by `gp-qa`. The implementer fixes it, as its own commit naming the test. Auth code is never a QA fix** (root AGENTS.md, «RLS and grants found in QA»; the rule's history is in [docs/ai-workflow.md](../ai-workflow.md)) |
 
 ### 3.3 Growth tier — **not yet activatable, and this is not a scheduling problem**
 
@@ -627,140 +630,86 @@ uses «the demand-scan sentence» as a gate, that is the file being pointed at.
 
 No role in this roster is authorised to:
 
-- expand v0.1 scope (only an ADR can — §9.1);
-- weaken a refusal (only a superseding ADR can — [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md):884-901);
-- let gstack expand an already approved scope ([CLAUDE.md](../../CLAUDE.md):22);
-- let QA modify auth code ([CLAUDE.md](../../CLAUDE.md):23-28). Since 2026-09-02 QA **may** modify RLS policies and grants, and the migration carrying them — as its own commit naming the test it answers;
-- override the approved design and implementation plan when workflows conflict ([CLAUDE.md](../../CLAUDE.md):29).
+- expand v0.1 scope. Only an ADR can (§9.1);
+- weaken a refusal. Only a superseding ADR can ([ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md):884-901);
+- expand an already approved scope from inside a stage. A conflict a stage finds goes back to the owner as a finding ([agents/COORDINATION.md](../../agents/COORDINATION.md), «Approved design and plan»);
+- override the approved design and plan when a stage's recommendation conflicts with them (the same paragraph);
+- modify RLS policies, grants, their migration or auth code as QA. `gp-qa` reports and the implementer fixes (root AGENTS.md, «RLS and grants found in QA»);
+- merge, deploy, apply a migration to a hosted project, send outbound messages or make paid calls because a stage passed (root AGENTS.md, «Authority»).
 
 ---
 
 ## §4. The slice loop
 
-The repeatable unit of work. Superpowers is primary; gstack is seven named gates
-and nothing more ([CLAUDE.md](../../CLAUDE.md):1-29).
+The repeatable unit of work is a task. Each task has one record, `docs/tasks/DEV-NNN-<slug>.md`. [agents/COORDINATION.md](../../agents/COORDINATION.md) routes it under root [AGENTS.md](../../AGENTS.md), and [agents/PLAYBOOKS.md](../../agents/PLAYBOOKS.md) walks through it.
 
-**How much of this loop the repository actually does, stated rather than
-implied.** Steps 1, 5, 7 and 9 are proven in practice — the worktrees, the 33
-dated plans on disk, the commits and the fix-round messages are all there.
-Steps 4 and 6 are **asserted but lapsed**: §4.3 records that no `/plan-ceo-review` or `/plan-eng-review` verdict appears in any artifact after 2026-07-31. Step 10 ran again on 2026-09-02 (`/cso`, §4.3) and step 11 produced a record again on 2026-09-03 (§7.1), after a month in which neither did. Two of the steps below have still produced no artifact since July. That is not a reason to delete the loop; it is Q-6, and it is marked here rather than smoothed.
+This section is the delivery view of that route for pilot work. It adds the pilot's own steps: the corrections check, the ADR test, and the UI and CI-shape gates. Where it and those files disagree, root `AGENTS.md` wins.
+
+**What changed on 2026-09-13, stated rather than implied.** Until then a skill pack and seven named review gates drove the loop. The measured record of how much of that loop actually ran is in [docs/ai-workflow.md](../ai-workflow.md) («The measured record of the retired loop»): the plan shape across 33 plans, and the gates that produced no product or engineering verdict after 2026-07-31. It moved there because a live procedure naming retired commands would fail the documentation gate that retired them. In practice those gates had been replaced by independent per-task review plus a whole-branch review. That replacement is now the rule, not a drift, which answers most of §10 Q-6.
 
 ### 4.0 The prohibitions, before anything else
 
-1. **Do not let gstack expand an already approved scope.**
-2. **QA may modify RLS policies and grants, and the migration that carries them** — as its own commit naming the test it answers, keeping or explicitly revising the paperwork the schema rests on. **QA still does not modify auth code.** (Changed 2026-09-02; until then this line forbade QA from touching auth, RLS, grants or migration code — the rule PR #58's comment cites.)
-3. **When workflows conflict, the approved design and implementation plan take
-   precedence.**
+1. **A stage never expands an approved scope, and the approved design and plan win when a stage's recommendation conflicts with them** ([agents/COORDINATION.md](../../agents/COORDINATION.md), «Approved design and plan»).
+2. **QA does not modify RLS policies, grants, their migration or auth code.**
+   - `gp-qa` records FAIL, with the smallest fix and the test that exposes the defect.
+   - The implementer applies the fix as its own commit naming that test. In the same change it keeps `technical/data-access-surface.csv`, `technical/database/invariant-catalog.csv` and the spec or task record in agreement.
+   - `gp-security` re-checks the fix, and `gp-qa` re-verifies it.
+
+   Source: root AGENTS.md, «RLS and grants found in QA». History: until 2026-09-02 QA could touch none of this; from 2026-09-02 to 2026-09-13 QA could edit RLS and grants itself ([docs/ai-workflow.md](../ai-workflow.md)).
+3. **Every behavior change gets an independent `gp-reviewer` and `gp-qa`, plus the stages its triggers name** (root AGENTS.md, «Required independent review»). A same-session self-review is never reported as independent.
 4. **Touching `apps/landing/**`, `apps/app/app/**`, `packages/ui/**` or
    `packages/tokens/**` means reading [02-building-ui.md](../design/02-building-ui.md)
    FIRST.** It is the procedure, not background. **Reviewing UI counts as
    touching it.**
 5. **Never implement, configure or advise on a third-party library, SDK,
-   platform API or hosted service from memory.** Read the installed version
-   (`package.json`, lockfile, `--version`), fetch the CURRENT docs for **that**
-   version, and where the installed version and the current docs disagree, say
-   so explicitly, name both, and **record the upgrade as an item in
-   [TODOS.md](../../TODOS.md) with its deadline** rather than silently coding to
-   the old shape. **Cite what was checked — version + doc URL — in the commit or
-   PR.** ([CLAUDE.md](../../CLAUDE.md):62-100.) There is a live instance today:
-   the local Supabase CLI is 2.114.0 against a 2.115.0 pin (§1.1), and §8.1
-   makes bringing it up a precondition of any push.
-6. **Two UI rules that fail with no error at all**, which is why they are
-   prohibitions rather than style: **never write a Tailwind class as a template
-   literal** (`bg-${tone}` — the scanner sees the template, emits no CSS, and
-   the element renders unstyled with nothing warning), and **never edit a file
-   whose header says GENERATED** (edit `packages/tokens/src/tokens.json`, then
-   `pnpm --filter @goproceed/tokens generate`). [CLAUDE.md](../../CLAUDE.md):55
-   and :49 respectively, both among the five things that «hold even if you read
-   nothing else» (:44).
+   platform API or hosted service from memory.**
+   - Read the installed version (`package.json`, lockfile, `--version`).
+   - Fetch the CURRENT docs for **that** version.
+   - Where the installed version and the current docs disagree, say so explicitly, name both, and **record the upgrade as an item in [TODOS.md](../../TODOS.md) with its deadline**, rather than silently coding to the old shape.
+   - **Cite what was checked, version and doc URL, in the commit or PR and in the task record's Sources.**
 
-— [CLAUDE.md](../../CLAUDE.md):22-24, :28-31, :44-60, :62-100.
+   Source: root AGENTS.md, «Third-party libraries and services: current docs first, never memory». There is a live instance today: the local Supabase CLI is 2.114.0 against a 2.115.0 pin (§1.1), and §8.1 makes bringing it up a precondition of any push.
+6. **Two UI rules fail with no error at all**, which is why they are prohibitions rather than style:
+   - **never write a Tailwind class as a template literal.** With `bg-${tone}`, the scanner sees the template, emits no CSS, and the element renders unstyled with nothing warning;
+   - **never edit a file whose header says GENERATED.** Edit `packages/tokens/src/tokens.json`, then run `pnpm --filter @goproceed/tokens generate`.
+
+   Both are among the five rules in root AGENTS.md («UI and the design system») that «hold even if you read nothing else».
+7. **A local test run against the local stack destroys its data.** Most `apps/app` integration suites truncate tenant tables. The `packages/testing` suites that call `resetDb()` run `supabase db reset`. Run them locally only with the owner's confirmation (root AGENTS.md, «What "the tests pass" means here»).
 
 ### 4.1 The steps
 
-| # | Step | Command / skill | Artifact produced | Who (§3) |
+| # | Step | Route / role | Artifact produced | Function (§3) |
 |---|---|---|---|---|
-| 1 | **Isolate** | `superpowers:using-git-worktrees` | A branch; `.superpowers/sdd/<slug>/` (gitignored, [.gitignore](../../.gitignore):84). **Branch naming is `claude/<slug>` for feature work and `chore/<slug>` for maintenance** — that is the convention the tree shows, not a rule any document states; treat it as convention until Q-6 settles the wider question | Orchestrator |
-| 2 | **Brainstorm** | `superpowers:brainstorming` — mandatory before any creative work | Owner-confirmed decisions, dated. **Where they land is undefined in repo**: no file, no directory and no naming convention exists for a brainstorm record. In practice they are carried into the step-3 spec's own prose. Filed with Q-6 | UX Architect / Backend Architect |
-| 3 | **Design spec** | written by hand, using an existing spec as the shape | `docs/superpowers/specs/YYYY-MM-DD-<slug>-design.md`. **Seventeen exist** (measured `ls docs/superpowers/specs/ \| grep -c design.md` → 17); copy the shape of one that matches the slice's kind — [2026-08-28-assignment-creation-design.md](../superpowers/specs/2026-08-28-assignment-creation-design.md) for a screen, [2026-08-24-project-sourced-requirements-design.md](../superpowers/specs/2026-08-24-project-sourced-requirements-design.md) for a schema-and-route slice — rather than inventing a layout | UX Architect |
-| 4 | **Product gate** — the test for «product-level decision» is §9.1's: **if the slice would need an ADR to be authorised, or changes what a screen claims, it is product-level**; a slice that only implements an already-numbered ADR-006 decision-1 step is not | `/plan-ceo-review` | A recorded verdict. **No destination exists for it before the step-11 record does** — park it in the plan file's own header until then. Lapsed since 2026-07-30/31 (§4.3) | Sprint Prioritizer |
-| **4.5** | **Corrections check** — this step is new and it exists because §4.4 names the rule this repository breaks most often | Read §1.5 | If any row's **Blocks** column names this slice's subject, **land that correction first, in its own commit, and strike the row** (a row leaves the table when it lands). Then update the Approved product or domain document the slice changes **before** writing the plan ([docs/README.md](../README.md):169-171, change control step 2) | Reality Checker / Senior PM |
-| 5 | **Implementation plan** | `superpowers:writing-plans` | `docs/superpowers/plans/YYYY-MM-DD-<slug>.md`, in §4.2's shape | Senior PM |
-| **5b** | **ADR, where §9.1's test demands one** | written by hand | `docs/decisions/ADR-0NN-<slug>.md`, next free number (ADR-011 is the highest today). **The approval procedure — who moves an ADR from Draft to Approved, and where that is recorded — is undefined in repo**; the only form it has ever taken is the one ADR-011 records: the owner rules in conversation, one item at a time, and the ADR transcribes the rulings with the date and moves to Approved on that transcript (its §"Open items — ruled by the owner on 2026-09-03"). Filed with Q-6 | Backend Architect / **owner** |
-| 6 | **Engineering gate** | `/plan-eng-review` (after an approved design); `/plan-design-review` for user-facing flows | Verdict + findings. Same destination problem as step 4 | Senior PM / UX Architect |
-| 7 | **Execute** | `superpowers:subagent-driven-development` or `superpowers:executing-plans`; TDD inside each task via `superpowers:test-driven-development`; `superpowers:systematic-debugging` on any failure | Code, migrations, tests | Frontend / Backend |
-| 8 | **UI gate** (where applicable) | §6.1 **Group D**, which transcribes the five commands of [02-building-ui.md](../design/02-building-ui.md):193-210, then §6's viewport pass. **Command 3 of that gate is a Group B command** — the database must already be up (§6.6) | Pasted output | Frontend |
-| 9 | **Local suite in CI's shape** | see §6.2 | A dated run | DevOps |
-| 10 | **Review** | `/review` after implementation; `/cso` for security-sensitive slices; `superpowers:requesting-code-review` and `superpowers:receiving-code-review` | Fix rounds committed as `fix(<scope>): fix round N — <what was wrong>` | Reality Checker |
-| 11 | **Gate record** | §7's template; `superpowers:verification-before-completion` | `docs/superpowers/plans/evidence/YYYY-MM-DD-<slug>-gate.md`. Copy [2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md) — the strictest of the nine — rather than the template alone | Evidence Collector |
-| 12 | **Land** | `superpowers:finishing-a-development-branch` | A PR whose body names the slice's ADR or numbered step, the gate record, and — where a third-party library was touched — the version and doc URL checked (prohibition 5). **Merge convention is `Merge pull request #N`, which is what §1.3's PR count is measured off.** | Orchestrator |
-| **Abort** | A slice that fails review and cannot be fixed inside its own fix rounds | — | **Undefined in repo.** No document names an abort path, and no abandoned branch on disk records one. The honest default is: leave the branch, write the gate record anyway with every row a non-PASS token, and file the reason in [TODOS.md](../../TODOS.md). Filed with Q-6 | Reality Checker |
+| 1 | **Isolate** | A git worktree and branch. **Branch naming is `claude/<slug>` for feature work and `chore/<slug>` for maintenance.** That is the convention the tree shows, not a rule any document states | A branch | Orchestrator |
+| 2 | **Intent and owner decisions** | The coordinator states the goal, the user it serves and what is out of scope. It puts questions only the owner can answer to the owner, one at a time ([agents/PLAYBOOKS.md](../../agents/PLAYBOOKS.md), feature slice step 1) | The task record's **Owner decisions** table, each row dated | Orchestrator / owner |
+| 3 | **Design spec**, where the slice has a real design | Written by hand. Copy the shape of an existing spec that matches the slice's kind: [2026-08-28-assignment-creation-design.md](../superpowers/specs/2026-08-28-assignment-creation-design.md) for a screen, [2026-08-24-project-sourced-requirements-design.md](../superpowers/specs/2026-08-24-project-sourced-requirements-design.md) for a schema-and-route slice | `docs/specs/YYYY-MM-DD-<slug>.md`, approved by the owner before implementation and linked from the task record | UX Architect |
+| 4 | **Product-level test**, §9.1's: **if the slice would need an ADR to be authorised, or changes what a screen claims, it is product-level.** A slice that only implements an already-numbered ADR-006 decision-1 step is not | The coordinator applies the test; the owner rules | A dated Owner decisions row. If the slice is product-level, step 5b comes before step 5 | Sprint Prioritizer / owner |
+| **4.5** | **Corrections check**. This step exists because §4.4 names the rule this repository breaks most often | Read §1.5 | If any row's **Blocks** column names this slice's subject, **land that correction first, in its own commit, and strike the row** (a row leaves the table when it lands). Then update the Approved product or domain document the slice changes **before** writing the plan ([docs/README.md](../README.md):169-171, change control step 2) | Reality Checker / Senior PM |
+| 5 | **Task record** | [agents/TASK_TEMPLATE.md](../../agents/TASK_TEMPLATE.md) → `docs/tasks/DEV-NNN-<slug>.md`, next free number, with a row in `docs/tasks/README.md` | The Assignment section (route, triggered stages, allowed paths, acceptance criteria) and the **Plan** section: ordered steps, the files each touches, and the check that proves each | Senior PM |
+| **5b** | **ADR, where §9.1's test demands one** | The coordinator drafts it with `gp-architect`, and with `gp-researcher` for any unverified external fact; **the owner rules** ([agents/COORDINATION.md](../../agents/COORDINATION.md), «A decision that needs an ADR») | `docs/decisions/ADR-0NN-<slug>.md`, next free number (ADR-011 is the highest today), carrying the owner's ruling with its date. **Two things stay undefined in repo until the status layer lands** (§10 Q-6): what an ADR's status field moves through, and whether the ruling-in-conversation form ADR-011 records is the whole procedure | Backend Architect / **owner** |
+| 6 | **Design stage** | `gp-architect` before implementing a schema, RLS, grant, contract, catalog, worker or Telegram-channel change; `gp-mobile` for field-client or device behaviour (root AGENTS.md triggers) | The design, the invariants it touches and its failure cases, recorded in the task record's Progress | Backend Architect / UX Architect |
+| 7 | **Execute** | The implementer. **A contract, refusal, invariant, token or audit rule gets its failing test first.** Any failure follows the bug-fix playbook: a hypothesis, evidence that could refute it, one change at a time, and a fix seen failing without itself | Code, migrations, tests | Frontend / Backend |
+| 8 | **UI gate** (where applicable) | §6.1 **Group D**, which transcribes the five commands of [02-building-ui.md](../design/02-building-ui.md) §5, then §6's viewport pass. **Command 3 of that gate is a Group B command**: the database must already be up (§6.6), and it resets the local database (§4.0 item 7) | Pasted output | Frontend |
+| 9 | **Local suite in CI's shape** | See §6.2. **Local database suites need the owner's confirmation first** (§4.0 item 7) | A dated run that names which suites ran | DevOps |
+| 10 | **Review** | `gp-reviewer` over the diff file, always; `gp-security` and `gp-ui-reviewer` when their triggers match. Each runs as an independent subagent | Findings in the task record; fix rounds committed as `fix(<scope>): fix round N — <what was wrong>` | Reality Checker |
+| 11 | **Verify** | `gp-qa` on the final revision, once findings are resolved | The task record's **Acceptance evidence** matrix: PASS / FAIL / NOT RUN per criterion (§7.4). A required NOT RUN blocks done | Evidence Collector |
+| 12 | **Land** | A PR; **the owner merges** | A PR whose body names the task record, the slice's ADR or numbered step, and, where a third-party library was touched, the version and doc URL checked (§4.0 item 5). **Merge convention is `Merge pull request #N`, which is what §1.3's PR count is measured off** | Orchestrator |
+| **Abort** | A slice stopped before done, including one that reaches three rework rounds after which the owner chooses not to continue | Root AGENTS.md, «Records, rework and escalation» | The task record moves to `cancelled`, with the reason, the partial artifacts and the remaining risks. The branch is left as it is | Orchestrator / owner |
 
-### 4.2 Plan shape (enforced by convention, not by a validator)
+### 4.2 Task record shape
 
-Measured across the 33 dated plans on disk, 2026-09-01 at `7397d7d`, with the
-command beside each figure and **one matching rule for both headings** (an
-earlier revision of this paragraph printed 21 and 19, which reproduce under no
-counting rule at all):
+The shape is [agents/TASK_TEMPLATE.md](../../agents/TASK_TEMPLATE.md). This runbook adds to it only what §7.3 lists for pilot slices. [docs/ai-workflow.md](../ai-workflow.md) records the plan shape slices used before 2026-09-13, with the commands that measured it across the 33 dated plans in `docs/superpowers/plans/`.
 
-```
-$ cd docs/superpowers/plans && ls 20*.md | wc -l
-33
-$ grep -l '^## Global Constraints' 20*.md | wc -l
-30
-$ grep -ril '^#\+ *file.\?structure' 20*.md | wc -l
-23        # 14 write "## File Structure", 7 "## File structure",
-          # 1 "## File structure (`apps/mobile`)", 1 "## File structure (this plan)"
-$ grep -ril '^#\+ *self.\?review' 20*.md | wc -l
-22        # includes "## Self-review" and the "checklist"/prose variants
-$ c=0; for f in 20*.md; do sed -n '3p' "$f" | grep -qi "REQUIRED SUB-SKILL" && c=$((c+1)); done; echo $c
-32
-```
+Every slice from about 2026-08-20 to 2026-09-01 carried a standing Global Constraint: «CI is billing-paused until 2026-09-01. Verify locally in CI's shape; a red check before then is billing, not code.» **It has expired, by the rule this paragraph set for it: a run exists.** CI has run on every push since 2026-09-01 (§6.2 lists the runs). A red check today is code, and §1.1 names which code. Task records written after 2026-09-03 must not carry the constraint.
 
-```
-# <Slice title>
+### 4.3 The retired review gates
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
-> (recommended) or superpowers:executing-plans to implement this plan task-by-task.
-> Steps use checkbox (`- [ ]`) syntax for tracking.
+[docs/ai-workflow.md](../ai-workflow.md) («The measured record of the retired loop») records the seven review gates of the pre-2026-09-13 loop and the date each last produced a recorded verdict. Two facts from that record matter to this runbook:
 
-**Goal:** …
-**Architecture:** …
-**Tech Stack:** …
-**Spec:** <link to the matching file in `docs/superpowers/specs/`>
-**Base:** <branch> @ <sha>
+- no product or engineering gate verdict exists after 2026-07-31;
+- the security audit of 2026-09-02 drove two merged PRs (#62, #65), but its report was never tracked.
 
-## Global Constraints
-## File structure
-
-### Task N: <title>
-**Files:**  Create: …  Modify: …  Test: …
-**Interfaces:**  Produces: …  Consumes: …
-- [ ] **Step 1: <what>** — the literal code, the literal command, the expected
-      output, and what a specific failure means
-
-## Self-Review
-  spec coverage (each spec § → the Task implementing it)
-  placeholder scan (every ellipsis/TBD named and justified)
-  type consistency (each type at its producing Task and its consuming Tasks)
-  soft spots, stated rather than cast
-```
-
-A standing Global Constraint every slice from ~2026-08-20 to 2026-09-01 carried: «CI is billing-paused until 2026-09-01. Verify locally in CI's shape; a red check before then is billing, not code.» **It has expired, by the rule this paragraph set for it — a run exists.** CI ran on every push since 2026-09-01 (§6.2 lists the runs); a red check today is code, and §1.1 names which code. Plans written after 2026-09-03 must not carry the constraint.
-
-### 4.3 Where gstack runs, and where it demonstrably has not
-
-| gstack gate | CLAUDE.md trigger | Last recorded verdict anywhere in the repo |
-|---|---|---|
-| `/plan-ceo-review` | product-level decisions | 2026-07-30/31 |
-| `/plan-eng-review` | after an approved design | 2026-07-31 ([2026-07-31-m2a-gate.md](../superpowers/plans/evidence/2026-07-31-m2a-gate.md):36-43) |
-| `/plan-design-review` | user-facing flows | 2026-07-31 |
-| `/review` | after implementation | 2026-07-31 as a gstack verdict. Since then the whole-branch review is a subagent pass recorded in the gate record's «Reviews» table (2026-09-03) |
-| `/cso` | security-sensitive slices | **2026-09-02**, over the channel branch. **The report itself is untracked** (`.gstack/` is git-ignored); what the tree holds is its consequence: PR #62's description names the three defects it fixes as «Fix now» decisions on that report, and PR #65 and [2026-09-02-telegram-identity-erasure-design.md](../superpowers/specs/2026-09-02-telegram-identity-erasure-design.md):38 name finding #1 (MEDIUM, VERIFIED) as the erasure slice's reason. Any count beyond those comes from PR descriptions, not from a file in `docs/` |
-| `/qa-only` | staging verification | none recorded |
-| `/ship` | approved delivery | none recorded |
-
-**No `/plan-ceo-review`, `/plan-eng-review` or `/plan-design-review` verdict is recorded in any artifact after 2026-07-31.** `/cso` ran on 2026-09-02 and its findings drove two merged PRs, which is the first gstack gate with a recorded consequence in a month. What replaced the review gates in practice is per-task subagent review plus a whole-branch final review, both recorded in the gate record's «Reviews» table since 2026-09-03, and residuals filed in [TODOS.md](../../TODOS.md). Whether that substitution is a decision or a drift is **undefined in repo** and is filed as §10 Q-6.
+**Since 2026-09-13 the stages in root AGENTS.md replace those gates, and each stage's result lives in the task record.** Evidence that exists only outside the tree is not evidence of record.
 
 ### 4.4 The rule this repository breaks most often
 
@@ -902,7 +851,7 @@ and the v0.1 evidence links.
 this project, and what «an isolated environment» means for a one-person project.
 
 **Next action:** read the current Supabase docs for the plan actually in use —
-per [CLAUDE.md](../../CLAUDE.md):62-100, current docs first, never memory — then
+per root [AGENTS.md](../../AGENTS.md) («Third-party libraries and services: current docs first, never memory») — then
 write the policy, then run one restore and record it.
 
 ### 5.6 — Item 6: documented external-link assurance limits
@@ -1233,7 +1182,7 @@ dies at `next start` with a message that names nothing.
 | `DEPLOY_PREFLIGHT=1 pnpm --filter @goproceed/app build` | That the **twelve** names [deploy-preflight.mjs](../../apps/app/scripts/deploy-preflight.mjs) enforces are present, non-local and not legacy `eyJ…` JWTs — `NEXT_PUBLIC_APP_ORIGIN` (:70), `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (:109), and the nine-name `runtime` map (:140-154) — and that `APP_DB_URL ≠ SERVICE_DB_URL` | **`FIELD_CLIENT_ORIGINS`.** [turbo.json](../../turbo.json):26 declares it under `build.env`, the preflight never reads it, and it is the variable §2's Plan B row names as what made `/v1` cross-origin access work. A production deploy with it unset passes this preflight, prints its `OK` line, and the field client's CORS then fails at the first request. (The preflight's own header states only the one-way rule — every name the script reads is also in `build.env` — which holds; the fourteen-vs-twelve gap is in the other direction) |
 | `pnpm exec vitest run` at the repo root | Reaches the seven projects in `vitest.workspace.ts`; the **only** way to run `supabase/functions/outbox-drain`'s 2 tests ([drain.test.ts](../../supabase/functions/outbox-drain/drain.test.ts):45, :81) | It skips `apps/landing` (8 test files) and `discovery`. **No CI job issues it.** Note the `pnpm exec`: there is no root `vitest` script and vitest is a root devDependency, so a bare `vitest run` is `command not found` (measured 2026-09-01: `which vitest` → not found) |
 
-**Group D — the UI gate.** [CLAUDE.md](../../CLAUDE.md):28-31 makes this
+**Group D — the UI gate.** Root [AGENTS.md](../../AGENTS.md) («UI and the design system») makes this
 mandatory for every slice touching `apps/landing/**`, `apps/app/app/**`,
 `packages/ui/**` or `packages/tokens/**`, and reviewing UI counts as touching
 it. **The order is load-bearing and the five are one gate, not five commands
@@ -1374,10 +1323,10 @@ repo.** This runbook does not invent a format; §10 Q-8.
 | Loop step (§4.1) | Gate |
 |---|---|
 | 7 — execute, per task | `pnpm turbo run typecheck`; the task's own suite |
-| 8 — UI gate, where applicable | §6.1 **Group D** — the five commands in order, output pasted; then the six-viewport pass with **real Ukrainian strings**. **Group B's preconditions must already be satisfied when this step runs**: the gate's command 3, `pnpm --filter @goproceed/testing test`, is itself a Group B command and needs Postgres for 29 of its 40 files. The gate cannot precede step 9's bring-up; either bring the stack up before step 8, or run command 3 inside step 9 and say so in the record |
-| 9 — local suite in CI's shape | Group B in full, in the container shape CI uses |
-| 10 — review | `/review`; `/cso` where security-sensitive |
-| 11 — gate record | every command in §6.1 that the slice touched, each with a §7 result token |
+| 8 — UI gate, where applicable | §6.1 **Group D**: the five commands in order, output pasted; then the six-viewport pass with **real Ukrainian strings**. **Group B's preconditions must already be satisfied when this step runs.** The gate's command 3, `pnpm --filter @goproceed/testing test`, is itself a Group B command: it needs Postgres for 29 of its 40 files, and it resets the local database (§4.0 item 7). The gate cannot come before step 9's bring-up. Either bring the stack up before step 8, or run command 3 inside step 9 and say so in the record |
+| 9 — local suite in CI's shape | Group B in full, in the container shape CI uses, **after the owner confirms the local database may be truncated and reset** |
+| 10 — review | `gp-reviewer` over the diff; `gp-security` and `gp-ui-reviewer` by trigger |
+| 11 — verify | `gp-qa`'s matrix over every command in §6.1 that the slice touched, each with a §7.4 result |
 | after landing | CI's two jobs; then, for a deploy, `DEPLOY_PREFLIGHT` and the preflight `OK` line in the build log |
 
 **One thing a local green run does not prove.** Measured 2026-09-01: this
@@ -1389,144 +1338,79 @@ holds.
 
 ## §7. Evidence requirements
 
-### 7.1 The format is not new and must not be reinvented
+### 7.1 The record is the task record; the gate records are its lineage
 
-Eight `*-gate.md` records exist under `docs/superpowers/plans/evidence/` (with two companion records beside them). The strictest and most complete is
-[2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md).
-The format below is transcribed from those records, not designed here.
+Since 2026-09-13 a slice's evidence lives in its task record, `docs/tasks/DEV-NNN-<slug>.md`, in three sections:
+
+- **Findings and rework**;
+- **What is not true after this task**, placed before any positive claim;
+- **Acceptance evidence**.
+
+That shape is not new. It carries forward what the gate records under `docs/superpowers/plans/evidence/` carried. There are eight `*-gate.md` records, with two companion records beside them. The strictest is [2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md), and it is still the best example of a negative section that cannot be skim-read into a claim. Those records stay where they are, frozen with the rest of `docs/superpowers/`. Elsewhere in this runbook, «gate record» means the slice's task record.
 
 **The chain lapsed and resumed.** From 2026-08-03 to 2026-09-02 no record was written while fifty-three PRs (#7 through #61 — measured 2026-09-03 as the distinct `Merge pull request #N` subjects of `git log --merges --since=2026-08-03 --until=2026-09-03T00:00:00` — the time matters: a bare `--until=2026-09-03` is inclusive of that whole day and would count #58 and #64–#66; the 2026-09-01 revision's «nineteen, #37–#55» counted only the billing-pause window) merged. On 2026-09-03 the erasure slice wrote [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md) in the rename-slice-3 shape, with a «Deviations from the plan» section the template below now carries. The channel itself (PR #58, nineteen migrations) still has **no gate record**: ADR-011 §"Status against the runtime" is the nearest thing, and it is an ADR, not a record. The reason is stated at
 [TODOS.md](../../TODOS.md):3089-3092 — the agent harness refuses report `.md`
 files, so findings that would have lived in the session directory were filed in
-`TODOS.md` instead. **Whether that substitution is a decision or a drift is
-undefined in repo** (§10 Q-6). Until it is decided, this runbook's position is:
-the record belongs in `docs/superpowers/plans/evidence/`, because a file the
-harness cannot write is a tooling problem, not a change to the evidence
-contract.
+`TODOS.md` instead.
 
-### 7.2 When a gate record is required
+That substitution was a decision or a drift, and which one was **undefined in repo** until 2026-09-13 (§10 Q-6). **It is now decided** (root AGENTS.md; DEV-002):
+
+- the record is the task record, written by the coordinator, which the harness can write;
+- the findings a task defers are listed in its Findings table, and in `TODOS.md` until a backlog replaces it.
+
+### 7.2 When a record is required
 
 | Situation | Record required? |
 |---|---|
-| A slice that lands code, a migration, or a catalog change | **Yes** |
-| A slice that only edits documentation | **Yes** — the four `docs-slice*` records are precedent |
-| Closing an M0 gate | **Yes**, and additionally a dated entry in [version-0.1.md](version-0.1.md) §M0 per [production-readiness.md](production-readiness.md):407-415 |
-| Closing a milestone (M1–M6) | **Yes.** Note that *how* a milestone is formally closed — who signs it, where it is recorded — is **undefined in repo** for M1–M6. Only M0 has a concrete mechanism (fourteen dated entries). §10 Q-2 |
-| A fix round inside an open slice | No — those are commits (`fix(<scope>): fix round N — <what was wrong>`), and the slice's single record covers them |
+| A slice that lands code, a migration, a catalog change, or changes agent instructions | **Yes**: a task record (root AGENTS.md, «Records, rework and escalation») |
+| A slice that only edits prose documentation, with no behavior change as root AGENTS.md defines it | **The record's fields, not necessarily its file.** [agents/COORDINATION.md](../../agents/COORDINATION.md) lets a prose-only edit keep the fields in the conversation. The four `docs-slice*` gate records are precedent for writing a file anyway when the edit is large |
+| Closing an M0 gate | **Yes**, plus a dated entry in [version-0.1.md](version-0.1.md) §M0 per [production-readiness.md](production-readiness.md):407-415 |
+| Closing a milestone (M1–M6) | **Yes.** *How* a milestone is formally closed (who signs it, where it is recorded) is **undefined in repo** for M1–M6. Only M0 has a concrete mechanism (fourteen dated entries). See §10 Q-2 |
+| A fix round inside an open slice | No. A fix round is a commit (`fix(<scope>): fix round N — <what was wrong>`), and the slice's single record covers it |
 
-**Who writes it:** the Evidence Collector role (§3.1), which in practice is the
-final pass of the slice, after `/review` and before landing — the shape
-[2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md)
-takes, and the reason it can carry five `NOT PROVEN — environmental` rows
-honestly: the pass writing it is the pass that ran the commands.
+**Who writes it:** the coordinator. `gp-qa` returns the acceptance matrix as an independent subagent on the final revision, and the coordinator records it. `gp-reviewer` and the triggered stages return their findings the same way. **The pass that ran a command records it.** A row copied from a report without being re-run is not evidence ([docs/ai-workflow.md](../ai-workflow.md), «Run the gate yourself»).
 
-### 7.3 The template
+### 7.3 What a pilot slice's record carries beyond the template
 
-Copy this literally. The section order matters: **the negative section comes
-before any positive claim.** That is not a preference stated here — it is the
-order
-[2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md)
-itself uses, putting «Read this first: what has *not* happened» above its
-Evidence table, and it is why that record cannot be skim-read into a claim it
-does not make.
+The template is [agents/TASK_TEMPLATE.md](../../agents/TASK_TEMPLATE.md); copy it. It already puts «What is not true after this task» before «Acceptance evidence», which is the order [2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md) used. A pilot slice adds the following where they apply. Each is carried forward from the gate records because it caught something the template's generic sections would miss:
 
-````markdown
-# <Slice title> — gate record
-
-**Date:** YYYY-MM-DD
-**Branch:** `<branch>`, from `<base branch>` @ `<sha>` — N commits ahead of main
-**Baseline:** <commit or environment the "before" measurements were taken at>
-**Plan:** link to `docs/superpowers/plans/YYYY-MM-DD-<slug>.md`
-**Spec:** link to `docs/superpowers/specs/YYYY-MM-DD-<slug>-design.md`
-**Predecessor record:** link to the previous `*-gate.md` in this directory
-
-## Read this first: what has *not* happened
-
-<The things a reader will otherwise wrongly take from this record. Include the
-raw shell transcript that proves each negative — e.g. `git ls-remote --heads
-origin <branch>` returning nothing, or `ls -d node_modules` failing.>
-
-Every command in this record was executed on this machine, in this checkout, at
-commit `<sha>`, while writing it. Nothing is transcribed from a task report
-without being re-run.
-
-## Evidence
-
-| Gate | Result |
-|---|---|
-| `<exact command>` | **PASS** — <the output that shows it> |
-| `<exact command>` | **PASS (negative)** — <what correctly did not happen> |
-| `<exact command>` | **PASS (assisted)** — <what had to be done by hand first, and why that weakens it> |
-| `<exact command>` | **NOT PROVEN — environmental** — <the environmental cause> |
-| `<exact command>` | **NOT PROVEN** — <what would settle it> |
-| `<exact command>` | **NOT RUN** — <why> |
-
-### The NOT PROVEN gates, with the exact command that settles each
-
-<One subsection per non-PASS row. The command, verbatim, that a later reader
-can run.>
-
-## Reviews
-
-| Review | Verdict | Findings |
-|---|---|---|
-| `/plan-eng-review` | issues_found | <n>, all addressed in fix rounds 1–<n> |
-| `/review` | issues_open | <n>; <which, and where each is filed> |
-| Outside-model adversarial pass | issues_found / NOT RUN | <n passes, or the reason it could not run> |
-
-## Mutation checks
-
-<Break the mechanism, confirm exactly one test reds, restore, confirm the blob
-hash matches HEAD. This is a standing evidence type in this repository, not an
-optional extra.>
-
-## What this slice does **not** make true
-
-## Deviations from the plan, ruled during execution
-
-<Every ruling the controller made where the plan and the spec, or the plan and
-the code, disagreed — what was decided, why, what it costs if wrong. The
-2026-09-03 erasure record is the precedent.>
-
-## Known limitations, stated rather than implied
-
-## Claims in this slice's own documents that do not reproduce
-
-## Commits
-````
+- **Mutation checks.** Break the mechanism, confirm exactly one test reds, restore it, and confirm the blob hash matches HEAD. This is a standing evidence type in this repository, not an optional extra.
+- **Deviations from the plan, ruled during execution.** Record every ruling made where the plan and the spec, or the plan and the code, disagreed: what was decided, why, and what it costs if wrong. Record each as a Progress row, and as an Owner decisions row when the owner made the ruling. The 2026-09-03 erasure gate record is the precedent.
+- **Claims in this slice's own documents that do not reproduce.**
+- **The exact command that settles every NOT RUN row**, verbatim, in that row's Limitation cell.
+- **Commits**, in the Completion section.
 
 ### 7.4 The result vocabulary
 
-Six tokens, used exactly. They are used in the existing records and defined nowhere else; this table is the first definition and is offered as a proposal, not as an authority. The 2026-09-03 record is the first to use `PASS (assisted)` for a CI run read against a known-red baseline — the assistance being the named set of pre-existing failures — and that reading is the one §1.1 prescribes until the set is fixed.
+Task records use three results, **PASS**, **FAIL** and **NOT RUN**, and put the reason in the Limitation column ([agents/TASK_TEMPLATE.md](../../agents/TASK_TEMPLATE.md)). The six tokens the gate records used map onto them as below. Every record written before 2026-09-13 keeps its original reading, and no old record is rewritten.
 
-| Token | Means |
+| Gate-record token (before 2026-09-13) | Task-record form |
 |---|---|
-| **PASS** | The command ran, in this checkout, while the record was being written, and produced the stated output |
-| **PASS (negative)** | The command ran and correctly produced *nothing* — the absence is the evidence. Example: `pnpm --filter <old-package-name> …` → `No projects matched the filters` |
-| **PASS (assisted)** | The command ran and passed, **but** something had to be arranged by hand first (a symlink, a fixture, a hand-inserted row) that a normal run would not have. The assistance is named in the same row |
-| **NOT PROVEN — environmental** | The command could not run because of the environment, not the code — a missing dependency, an absent `node_modules`, a paused CI, an unprocured device. **The gate is not satisfied.** The command that settles it is named |
-| **NOT PROVEN** | The command could not settle the question at all, for a reason that is not environmental — e.g. only a real deploy exercises the path |
-| **NOT RUN** | Deliberately not attempted, with the reason |
+| **PASS**: the command ran, in this checkout, and produced the stated output | PASS |
+| **PASS (negative)**: the command correctly produced nothing, and the absence is the evidence | PASS; Limitation: `negative` |
+| **PASS (assisted)**: something had to be arranged by hand first | PASS; Limitation: `assisted:` and what was arranged |
+| **NOT PROVEN — environmental**: the environment, not the code, prevented the run | NOT RUN; Limitation: `environmental:` the cause and the command that settles it |
+| **NOT PROVEN**: nothing available here can settle it, and the reason is not environmental | NOT RUN; Limitation: `not-provable-locally:` what would settle it |
+| **NOT RUN**: deliberately not attempted | NOT RUN; Limitation: the reason |
+
+A required NOT RUN blocks done, whatever its qualifier. The 2026-09-03 record's `PASS (assisted)` for a CI run read against a known-red baseline, where the assistance was the named set of pre-existing failures, reads as PASS with `assisted: known-red baseline` and that set.
 
 ### 7.5 The rule about environmental non-proof
 
-> **Environmental non-proof is recorded as `NOT PROVEN — environmental`. It is
-> never omitted, and it is never rounded up to PASS.**
+> **Environmental non-proof is recorded as NOT RUN, with an `environmental:`
+> qualifier naming the command that settles it. It is never omitted, and it is
+> never rounded up to PASS.**
 
-[test-strategy.md](test-strategy.md):80-82, principle 3: environmental failures
-are reported **separately** from code failures, and a suite blocked by the
-environment is **not «passing»**. The rename slice-3 record carries five such
-rows and names the exact command that settles each — that is the standard, and
-it is why that record is worth reading before writing a new one.
+[test-strategy.md](test-strategy.md):80-82, principle 3: environmental failures are reported **separately** from code failures, and a suite blocked by the environment is **not «passing»**. The rename slice-3 record carries five such rows, in its token `NOT PROVEN — environmental`, and names the exact command that settles each. That is the standard, and it is why that record is worth reading before writing a new one.
 
-Two live examples this runbook must itself obey:
+Three live examples this runbook must itself obey:
 
-- **The 2026-09-01 revision of this bullet recorded every `node_modules` command as `NOT PROVEN — environmental`, because the worktree had no `node_modules`.** This revision's checkout has one (§0), the commands ran, and §0 records their output — which is the vocabulary doing its job in the other direction: the same commands that were environmental non-proof went to PASS the moment an environment could run them, and nothing about the code changed in between. The distinction to carry forward is a different one now: **the eight isolated `apps/app` suites are `NOT RUN` locally by design** (they truncate the only local database) and **red in CI** (§1.1). A local green is therefore a green of everything except them, and a record that says PASS for `pnpm turbo run test --concurrency=1` locally must say so in the same row.
-- **Retention under a real duration is `NOT PROVEN — environmental` in every environment**, and the erasure gate record says so in its own row: no duration has landed anywhere, so the nightly job has never erased a row. The command that settles it is a migration the owner has not written (Q-4), which is the environmental cause.
-- The Plan C parity gate is `NOT PROVEN — environmental` until two physical
-  phones exist. A passing headless harness and a passing laptop smoke test are
-  evidence *toward* it and are not a substitute for it
-  ([TODOS.md](../../TODOS.md):712-716).
+- **A local test run is not a free action.** The 2026-09-01 revision recorded every `node_modules` command as environmental non-proof because the worktree had no `node_modules`. The 2026-09-03 checkout had one, and those commands went to PASS without the code changing: the vocabulary doing its job in the other direction.
+  - The distinction that matters now is different. Most `apps/app` integration suites truncate tenant tables, and the `packages/testing` suites that call `resetDb()` reset the local database. They run locally only with the owner's confirmation (§4.0 item 7).
+  - A record whose local `pnpm turbo run test --concurrency=1` row says PASS must name which suites ran, in the same row.
+  - CI, where the stack is disposable, is where those suites run by default (§1.1).
+- **Retention under a real duration is NOT RUN (`environmental:`) in every environment.** The erasure gate record says so in its own row. No duration has landed anywhere, so the nightly job has never erased a row. The command that settles it is a migration the owner has not written (Q-4), which is the environmental cause.
+- **The Plan C parity gate is NOT RUN (`environmental:` two physical phones) until two physical phones exist.** A passing headless harness and a passing laptop smoke test are evidence *toward* it, not a substitute for it ([TODOS.md](../../TODOS.md):712-716).
 
 ---
 
@@ -2002,7 +1886,19 @@ Q-9, Q-10, Q-11, Q-12, Q-15 and Q-17 — it is the owner deciding, not an agent 
 | **Q-3** | **What is the domain?** Three surfaces on `*.vercel.app`; `{{APP_HOSTNAME}}`, `{{LANDING_HOSTNAME}}` and `{{CONTACT_EMAIL}}` unresolved; neither well-known file exists. [ADR-007](../decisions/ADR-007-pilot-field-client.md):523-530 records the decision as open and [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):136-140 adds a third hostname to it. **No ADR takes it** | **Owner decision** | M0 item 1, M5 entry evidence, the seven outreach letters (the whole current red of the docs gate) |
 | **Q-4** | **What are the pilot retention durations?** Every one of 126 rows is `duration_external_gate` under V-003, whose owner is «counsel/accountant» and whose target is «before GA retention». Whether V-003 is even the right gate for a *pilot* is unstated | **Owner decision** | M0 item 2, and item 4's shape |
 | **Q-5** | **Is «on every printed page» satisfiable without a paginator?** There is no print or PDF surface; `act-content-fidelity.test.ts` names the gap itself — «a model without a paginator» | UX Architect + Backend Architect | M0 item 6, M4 acceptance |
-| **Q-6** | **Where does a gate record go today — and is the 2026-09-03 form the rule?** The directory resumed on 2026-09-03 after a month's gap, in the rename-slice-3 shape plus a «Deviations» section; the channel's own nineteen migrations still have no record. Still unanswered: where a step-2 brainstorm record, a step-4/6 review verdict and an aborted slice go (§4.1); and whether the ADR approval form ADR-011 records — rulings in conversation, transcribed with the date — is the procedure or one more instance of not having one | Evidence Collector / **owner decision** | Every future slice's evidence |
+| **Q-6** | **What is left of the evidence-and-procedure question.**
+
+**Answered on 2026-09-13** by root AGENTS.md and [agents/COORDINATION.md](../../agents/COORDINATION.md) (DEV-002, owner-approved):
+
+- a slice's record is its task record, `docs/tasks/DEV-NNN`;
+- brainstorm outcomes are its dated Owner decisions;
+- review verdicts are its Findings;
+- an aborted slice moves to `cancelled` (§4.1, §7.1).
+
+**Still open:**
+
+- the status an ADR moves through, and whether the ruling-in-conversation form ADR-011 records is the whole approval procedure (§4.1 step 5b);
+- whether the channel's nineteen migrations are owed a retroactive record | Senior PM / **owner decision** | ADR approvals; the channel's evidence |
 | **Q-7** | **Does the ДБН retrieval record satisfy «committed under `technical/requirements/`»** when the record as a record lives in `apps/app/src/lib/statutory-act-form.ts` and the directory holds only the two CSVs repeating its three facts per row? | Reality Checker | M0 item 9's evidence entry |
 | **Q-8** | **What is the quarantine ledger?** Two Approved documents make it an enforcement point. No file, no format, no reader. Nothing detects a skipped test at all | DevOps Automator | Nothing today; a real hole in gate 4 of §6.3 |
 | **Q-9** | **Three narrow things, not «there is no procedure».** The repeat-apply procedure exists ([README-staging.md](../../infra/README-staging.md):162, :165-186) and so does the head check (:184, verbatim). What is undefined in repo is **(a) who** runs `supabase db push` after a migration merges, **(b) on what trigger** — nothing automates it and no CI job touches a hosted project, and **(c) what the rollback for a bad migration is**, given `db reset --linked` is prohibited and applied migrations are append-only ([docs/README.md](../README.md):172-173). Also open: whether a **separate production project** is owed before or after the pilot, since the pilot rides the single staging/pilot project today ([system-overview.md](../architecture/system-overview.md):583). This is why `0059`–`0081` have no apply record, and why the largest push since provisioning is unscheduled | DevOps Automator / **owner decision** for the production-project half | Every future deploy; step 4 of §8.6 |
@@ -2010,7 +1906,7 @@ Q-9, Q-10, Q-11, Q-12, Q-15 and Q-17 — it is the owner deciding, not an agent 
 | **Q-11** | **Does export land inside M0, or in a milestone M0 then gates?** Gate 3 has no operation, no route, no manifest format, no hash/provenance format, no «named omissions» vocabulary — and item 12's second half is unbuildable until it exists | Backend Architect / **owner decision** | M0 items 3 and 12 |
 | **Q-12** | **What does «monitored» mean for a one-workspace pilot** — and **what runs the consumer?** `delivery.ts` exists and nothing schedules it; the purge worker has no runner; ADR-011 decision 10 names «the scheduler» as a webhook-enable blocker without saying what it is (pg_cron, a Vercel cron, a worker). A dashboard closes nothing | DevOps Automator / **owner decision** | M0 item 8; M7's operational status |
 | **Q-13** | **Where do [README-staging.md](../../infra/README-staging.md) §6's steps 1–8 staging curls get recorded?** (That document's §6, not this runbook's §6.) «A checked box with no evidence is not verification» — but there is no named ops log, no file, and no PR convention | DevOps Automator | §8.2 |
-| **Q-14** | **Do the two design documents get metadata, or a recorded exemption?** [03-ui-references.md](../design/03-ui-references.md) and [04-role-pain-map.md](../design/04-role-pain-map.md) are Approved, are named by [CLAUDE.md](../../CLAUDE.md) as required reading, and violate [docs/README.md](../README.md):87-119 — while the validator stays silent because neither is on its REQUIRED list. **The validator's silence is not authority** | Senior PM | Nothing mechanical; an unrecorded exemption |
+| **Q-14** | **Do the two design documents get metadata, or a recorded exemption?** [03-ui-references.md](../design/03-ui-references.md) and [04-role-pain-map.md](../design/04-role-pain-map.md) are Approved, are named by root [AGENTS.md](../../AGENTS.md) as required reading, and violate [docs/README.md](../README.md):87-119 — while the validator stays silent because neither is on its REQUIRED list. **The validator's silence is not authority** | Senior PM | Nothing mechanical; an unrecorded exemption |
 | **Q-15** | **What identity does the members screen show, and does supplying it need a new operation?** [2026-08-21-plan-d-dashboard.md](../superpowers/plans/2026-08-21-plan-d-dashboard.md):73: `GET /v1/workspaces/{ws}/members` returns «no email, no name», so «the office user would be granting capabilities to UUIDs… Deciding what identity to show is product work, not layout». If the answer needs a third operation, it needs **its own dated ADR-009 amendment** — the 2026-08-22 amendment «authorises these two and nothing else» (§9.2) | **Owner decision** | Phase P2 / Plan D4. It is why D4 is last, and the [04-role-pain-map.md](../design/04-role-pain-map.md) row it would otherwise be waiting on already exists (:72) |
 | **Q-17** | **When is a Telegram bot allowed a real group?** ADR-011 decision 10 orders the blockers; M0's rule forbids real data first; nothing says who registers the webhook URL, on which bot, with which secret, and where that act is recorded — the seven channel variables are outside the deploy preflight (§8.1) | DevOps Automator / **owner decision** | M7's real-group pass; §8.6 step 5b |
 | **Q-16** | **Is there a supply-chain gate, or a recorded acceptance that there is none?** `.github/` holds `workflows/ci.yml` and nothing else — no dependabot config, no `pnpm audit` step, no lockfile-diff review (measured 2026-09-01). M0 exists to make an environment fit to hold someone else's personal data; an unreviewed dependency graph is the same class of hole as the absent quarantine ledger | DevOps Automator | Nothing mechanical today; §6.4's gap table |
@@ -2029,8 +1925,8 @@ Q-9, Q-10, Q-11, Q-12, Q-15 and Q-17 — it is the owner deciding, not an agent 
 
 ---
 
-*This document is `Status: Draft`. It has had no owner review, no `/plan-ceo-review`
-and no `/review`. Its §1 measurements were taken on 2026-09-03 at commit
+*This document is `Status: Draft`. It has had no owner review and no independent
+review stage. Its §1 measurements were taken on 2026-09-03 at commit
 `1c418fb` and are reproducible from the transcript in §0; the 2026-09-01
 revision's measurements at `7397d7d` are superseded, not contradicted. Everything else in it
 is a reading of documents that are cited by line, and where those documents
@@ -2040,5 +1936,7 @@ disagree, both sides are named in §1.4 and §1.5 rather than resolved silently.
 document had stated something backwards, overstated a hole, or rounded a count,
 the correction is recorded in place rather than made quietly — see §7.5's
 scoping note, §8.1's «stated narrowly» paragraph, §9.2's reading rule, and
-§4.2's plan-shape commands. Two of those were this document asserting a thing
+§4.2's plan-shape commands (now kept in `docs/ai-workflow.md`). Two of those were this document asserting a thing
 its own §0 forbids, which is worth keeping visible.*
+
+*The 2026-09-13 revision (DEV-003) rewrote §3, §4, §6.6 and §7 onto the process in root `AGENTS.md`, moved the retired loop's measurements to `docs/ai-workflow.md`, and answered most of Q-6. It re-measured nothing in §1.*
