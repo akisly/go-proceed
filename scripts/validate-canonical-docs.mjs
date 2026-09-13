@@ -976,9 +976,6 @@ const RETIRED_WORKFLOW_RECORD_FILES = new Set([
   // The record of the change itself: it has to name what was retired.
   "docs/ai-workflow.md",
   ROLE_RULE_DEFINITION,
-  // TEMPORARY. The runbook's slice loop is rewritten by DEV-003, the task right
-  // after DEV-002; remove this line in that change, never later.
-  "docs/delivery/pilot-execution-runbook.md",
 ]);
 
 export function isRetiredWorkflowRecordPath(relPath) {
