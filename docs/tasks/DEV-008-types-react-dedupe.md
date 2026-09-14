@@ -52,6 +52,33 @@
 | 8 | reviewing (`gp-reviewer`, native), round 1 | **Changes requested**, no blocker. The causal chain is confirmed against `pnpm.cjs` (`:198014-198075` → `:197417` → `:179002`, `:179062-179063` → `:140712`, first-wins `:140718-140723`); the CI reproduction matches; no package version or integrity changes; stage reasoning and BL-083's form correct. R1-01 and R1-02 medium; R1-03 to R1-06 low | gp-reviewer report | Fix R1-01 to R1-06 |
 | 9 | rework (coordinator), stated fixes | R1-01 / M1-02: `https://api.expo.dev/v2/versions` read 2026-09-14T16:50Z gives SDK 57 `@types/react` `~19.2.4` (`@types/react-dom` `~19.2.3`, `typescript` `~6.0.3`, `expoVersion` `~57.0.22`, `react-native` `0.86.3`); `CI=1 expo install --check` in `apps/mobile` exits 1 on both `001b21a` and `5a38091` with identical output listing nine outdated Expo and React Native packages and not `@types/react`; B0's exit 0 of 2026-08-01 no longer holds on the baseline because the SDK 57 list moved. R1-02: forced order re-run as v2 with exit codes and a program-file control (row 6). R1-03, R1-04: row 4 and criterion 2. R1-05, R1-06, M1-01: «What is not true», criterion 6, BL-083. Not a rework round: no QA FAIL preceded it | `expo-check-base.txt`, `expo-check-fix.txt`, `expo-versions.json` in the session scratchpad; this diff | `gp-qa` |
 
+**The forced-order script, v2** (row 6; `forced-order-v2.sh <checkout> <label>`, run from a checkout whose dependencies install from the store; it deletes every `node_modules` and writes `fo2-<label>.*` next to itself):
+
+```bash
+#!/bin/bash
+set -u
+D="$1"; L="$2"; O="$(dirname "$0")/fo2-$L"; cd "$D" || exit 2
+SLOW="apps/app apps/landing packages/ui"
+{ echo "head=$(git rev-parse --short HEAD)"; echo "pnpm=$(pnpm --version 2>/dev/null | tail -1) at $(command -v pnpm)"; echo "lockfile @types/react: $(grep -oE '@types/react@19\.[0-9.]+' pnpm-lock.yaml | sort -u | tr '\n' ' ')"; } > "$O.summary"
+run_install() {  # $1 = forced|control
+  rm -rf node_modules apps/*/node_modules packages/*/node_modules discovery/node_modules
+  if [ "$1" = forced ]; then
+    for p in $SLOW; do rm -f "$p/.npmrc"; mkfifo "$p/.npmrc"; done
+    ( sleep 3; for n in $(seq 1 40); do for p in $SLOW; do ( exec 3>"$p/.npmrc" ) & done; sleep 0.5; done ) &
+    FEEDER=$!
+  fi
+  pnpm install --frozen-lockfile --reporter=silent > "$O.$1.install" 2>&1; local rc=$?
+  if [ "$1" = forced ]; then kill $FEEDER 2>/dev/null; pkill -f "exec 3>" 2>/dev/null; sleep 1; for p in $SLOW; do rm -f "$p/.npmrc"; done; fi
+  echo "$1: install rc=$rc hoisted=$(readlink node_modules/.pnpm/node_modules/@types/react)" >> "$O.summary"
+  ( cd apps/landing && ../../node_modules/.bin/tsc --noEmit --incremental false > "$O.$1.tsc" 2>&1; echo "$1: landing tsc rc=$? errors=$(grep -c 'error TS' "$O.$1.tsc") bytes=$(wc -c < "$O.$1.tsc")" >> "$O.summary" )
+  ( cd apps/landing && echo "$1: @types/react copies in landing program: $(../../node_modules/.bin/tsc --listFilesOnly 2>&1 | grep -oE '@types\+react@[0-9.]+/node_modules/@types/react/index\.d\.ts' | sort -u | sed 's#/node_modules.*##' | tr '\n' ' ')" >> "$O.summary" )
+}
+run_install forced
+run_install control
+echo "tracked-tree clean: $(git status --porcelain | wc -l | tr -d ' ') changed paths" >> "$O.summary"
+cat "$O.summary"
+```
+
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
