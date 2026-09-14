@@ -13,7 +13,9 @@
 // cases through this function AND through `linkKeys()` / `sessionKeys()`, and
 // fails if the two ever disagree — change one, and that test says so.
 //
-// A problem names the variable and the entry's key id, never the secret.
+// A problem names the variable and the entry's POSITION — never the key id,
+// because a list entered in the wrong order (`<secret>:k1`) puts the secret where
+// the id belongs, and a build log is readable by every project member.
 
 /**
  * @param {Record<string, string | undefined>} env
@@ -36,7 +38,7 @@ export function hmacKeyProblems(env, keysVar, activeVar) {
     const secret = Buffer.from(entry.slice(at + 1).trim(), "base64");
     if (id.length === 0) return [`${keysVar} entry ${index + 1} has an empty key id`];
     if (secret.length < 32) {
-      return [`${keysVar} key ${id} is shorter than 32 bytes (the tag it signs is 32 bytes)`];
+      return [`${keysVar} entry ${index + 1} is shorter than 32 bytes (the tag it signs is 32 bytes)`];
     }
     ids.add(id);
   }

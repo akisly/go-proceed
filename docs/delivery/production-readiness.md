@@ -417,13 +417,13 @@ the closed ones.
       finding on `supabase/seed.sql` + `[db.seed] enabled = true`).
 - [ ] Per-environment secret stores with rotation runbooks; HMAC and session
       verifier keys carry key IDs.
-      - **Evidence, 2026-09-15:** the dated gate 14 entry in
-        [version-0.1.md](version-0.1.md) §M0 «Gate evidence entries»
-        ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)) covers both bullets
-        for the environments that exist: one hosted environment, with no separate
-        production project yet. The rotation runbook is
-        [infra/secret-rotation.md](../../infra/secret-rotation.md). The boxes stay
-        unticked: this document records no gate closed.
+      - **Evidence toward this gate, 2026-09-15 — not closed**
+        ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)): the rotation runbook
+        [infra/secret-rotation.md](../../infra/secret-rotation.md); the deploy
+        preflight refuses an HMAC key list the runtime registry would refuse. The
+        gate stays open because `TELEGRAM_LINK_PEPPER`, an HMAC verifier key, carries
+        no key id (owner, 2026-09-15: build one, BL-085), and because one hosted
+        environment exists with no separate production project (Q-9).
 
 ## Evidence format
 
