@@ -63,6 +63,8 @@
 // build whose output is never served (a compile-only check). Anything else is
 // somebody turning off the alarm.
 
+import { hmacKeyProblems } from "./deploy-preflight-keys.mjs";
+
 const isDeploy = process.env.VERCEL === "1" || process.env.DEPLOY_PREFLIGHT === "1";
 if (!isDeploy || process.env.DEPLOY_PREFLIGHT === "0") process.exit(0);
 
@@ -155,6 +157,17 @@ for (const name of ["APP_DB_URL", "SERVICE_DB_URL"]) {
   const v = process.env[name] ?? "";
   if (/app_pw|service_pw|127\.0\.0\.1|localhost/.test(v)) {
     problems.push(`${name} carries a LOCAL dev value — a real deployment must use the secrets from README-staging.md §3, never app_pw / service_pw or a loopback host.`);
+  }
+}
+// A KEY LIST THE RUNTIME CANNOT LOAD IS A BUILD THAT FAILS ITS FIRST EXTERNAL
+// REQUEST (DEV-010). Checked only when both names are set: an unset one is
+// already reported by the loop above, and saying it twice helps nobody.
+for (const [keysVar, activeVar] of [
+  ["EXTERNAL_LINK_HMAC_KEYS", "EXTERNAL_LINK_ACTIVE_KEY_ID"],
+  ["EXTERNAL_SESSION_HMAC_KEYS", "EXTERNAL_SESSION_ACTIVE_KEY_ID"],
+]) {
+  if (process.env[keysVar] && process.env[activeVar]) {
+    for (const p of hmacKeyProblems(process.env, keysVar, activeVar)) problems.push(p);
   }
 }
 if ((process.env.APP_DB_URL ?? "") && process.env.APP_DB_URL === process.env.SERVICE_DB_URL) {

@@ -755,10 +755,12 @@ Three traps this section preserves rather than smooths:
 
 Status vocabulary in the tables below: **OPEN** (nothing built), **PARTIAL**
 (mechanism exists, gate not closable as written), **BUILT / UNRECORDED** (the
-artifact exists in code and no dated evidence entry does). **One gate below is
-closed: readiness gate 10 (items 9 and 10)**, by its dated entry of 2026-09-14 in
-[version-0.1.md](version-0.1.md) §M0 ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)). Every other gate is open, because
-closure is a dated record. *[Changed 2026-09-14 (DEV-009): this read «No gate
+artifact exists in code and no dated evidence entry does). **Two gates below are
+closed: readiness gate 10 (items 9 and 10)** and **readiness gate 14 (item 7)**, by
+their dated entries of 2026-09-14 and 2026-09-15 in [version-0.1.md](version-0.1.md)
+§M0 ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md), [DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)). Every other gate is open, because
+closure is a dated record. *[Changed 2026-09-15 (DEV-010): this read «One gate below
+is closed: readiness gate 10 (items 9 and 10), by its dated entry of 2026-09-14».]* *[Changed 2026-09-14 (DEV-009): this read «No gate
 anywhere below is closed, because closure is a dated record and there are zero
 of them».]*
 
@@ -882,6 +884,8 @@ views; decide whether «every printed page» is satisfiable without a paginator
 
 *(readiness gate 14 — **and this is a separate gate from item 8**)*
 
+**Status: CLOSED 2026-09-15** by the gate 14 entry in [version-0.1.md](version-0.1.md) §M0 ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)), for the one hosted environment that exists; a separate production project (Q-9) reopens it for itself. The deploy preflight now also refuses an unusable HMAC key list, and the rotation runbook is [infra/secret-rotation.md](../../infra/secret-rotation.md). *[Added 2026-09-15 (DEV-010); the table below is the state before it.]*
+
 | Half | Status | Evidence today |
 |---|---|---|
 | No known default password reachable on a hosted database | **BUILT / UNRECORDED** | [supabase/seed.sql](../../supabase/seed.sql) sets no role password; local/CI passwords come from `scripts/set-local-app-password.mjs`, which refuses any non-loopback host; migrations `0003` and `0034` create both LOGIN roles with **no password at all** |
@@ -895,7 +899,8 @@ are generated per environment and never committed» **unticked**, while
 [README-staging.md](../../infra/README-staging.md):971-984 records both
 `goproceed_*_login` passwords set (SCRAM, different) on 2026-08-19. Under M0's
 own rule the unticked box is the operative state. The correction owed is to tick
-it with the 2026-08-19 date and that Status paragraph as its evidence.
+it with the 2026-08-19 date and that Status paragraph as its evidence. *[Ticked
+2026-09-15 ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)), with a caveat that one hosted environment exists.]*
 
 ### 5.8 — Item 8: monitored job and message failure paths
 
@@ -1046,7 +1051,7 @@ unsaid is not honesty.
 | Order | Gate | Size | Why here |
 |---|---|---|---|
 | 1 | Item 9 + item 10 evidence entries (readiness gate 10) — **done 2026-09-14, [DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)** | **S** — writing, no code | The mechanism is done. This is pure recording, and it establishes what a closed gate's record looks like — a form that currently has no precedent anywhere |
-| 2 | Item 7 (readiness gate 14) + the [version-0.0.md](version-0.0.md):78-79 tick | **S** — writing, plus lifting the rotation runbook out of README-staging | Same: substantially built, unrecorded |
+| 2 | Item 7 (readiness gate 14) + the [version-0.0.md](version-0.0.md):78-79 tick — **done 2026-09-15, [DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)** | **S** — writing, plus lifting the rotation runbook out of README-staging | Same: substantially built, unrecorded |
 | 3 | Item 12's built halves (readiness gate 12, uploads/imports) | **S** — writing | Same |
 | 4 | Item 11's coverage checker (readiness gate 11) | **M** — one checker against the module list, plus its own test | The only one whose gap is a piece of code rather than a decision |
 | 5 | Item 2's durations, then item 4's purpose/retention shape | **M** — the decision is short; versioning 126 catalog rows and writing the closure/deletion procedure is not | Both are owner decisions with no external dependency |
@@ -1640,7 +1645,7 @@ schedule requests it».
 
 | # | Question | Where the answer lives | Today |
 |---|---|---|---|
-| 1 | Do **all fourteen** readiness gates carry a dated evidence entry in [version-0.1.md](version-0.1.md) §M0? | that section | **NO** — one of fourteen: gate 10, 2026-09-14 ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)) |
+| 1 | Do **all fourteen** readiness gates carry a dated evidence entry in [version-0.1.md](version-0.1.md) §M0? | that section | **NO** — two of fourteen: gate 10, 2026-09-14 ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)); gate 14, 2026-09-15 ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)) |
 | 2 | Has **one restore exercise** been executed in an isolated environment and recorded? | readiness gate 5 | **NO** |
 | 3 | Has a **deletion-then-restore test** proved tombstones are reapplied before restored data is reachable? | readiness gate 4 | **NO** |
 | 4 | Is the environment the data will enter the one the evidence was recorded against? | [README-staging.md](../../infra/README-staging.md) §Status + a live `select max(version) from supabase_migrations.schema_migrations` | **NO** — staging's last recorded apply is `0058`; the tree is at `0081`; nothing the evidence of 2026-09-03 exercised (the erasure procedure, the guards, the registry) exists on any hosted project |

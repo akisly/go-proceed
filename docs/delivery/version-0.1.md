@@ -370,6 +370,36 @@ settled it stands unchanged and settles the next disagreement the same way.
       the future, not that a check behind it exists; one fetch reproduced is not
       two independent sources; the footer's «Реєстр будівельних норм» wording is
       BL-084.
+  - **Gate 14, Environment and secrets (runbook item 7) — 2026-09-15 —
+    [DEV-010](../tasks/DEV-010-m0-gate14-evidence.md).**
+    - *Development seed credentials cannot reach a hosted database.*
+      `supabase/seed.sql` sets no password; `scripts/set-local-app-password.mjs`
+      refuses a non-loopback host; migrations `0003` and `0034` create both
+      LOGIN roles with no password; a scan of tracked files on 2026-09-15 found no
+      committed credential (one placeholder, and the published local Supabase
+      demo secret used only against `127.0.0.1:54321`).
+    - *Per-environment secret stores.* Local (git-ignored `.env.local`,
+      loopback-only role passwords), CI (loopback values against a disposable
+      stack in `.github/workflows/ci.yml`), and the one hosted environment:
+      Supabase project `asrvzhjaueyvrfozxpzo`, whose two role passwords were set
+      on 2026-08-19 (SCRAM, different; README-staging «Status»), and the Vercel
+      project `goproceed-app`, whose production build passed the deploy preflight
+      that day; Preview builds are skipped (`apps/app/vercel.json`).
+    - *Rotation runbooks.*
+      [`infra/secret-rotation.md`](../../infra/secret-rotation.md): every secret
+      the deployments hold, in the vendors' documented order, and the path after a
+      leak.
+    - *Key IDs.* `EXTERNAL_LINK_HMAC_KEYS` and `EXTERNAL_SESSION_HMAC_KEYS` are
+      `<keyId>:<base64>` lists with an active id and no default
+      (`apps/app/src/lib/external-link.ts` and its tests). Since 2026-09-15 the
+      deploy preflight refuses any list the runtime registry would refuse, and
+      `apps/app/scripts/deploy-preflight-keys.test.mjs` runs one table of cases
+      through both (25 passed locally).
+    - *Limits.* One hosted environment exists: staging, the pilot and the
+      production app share it, and a separate production project (runbook §10
+      Q-9) reopens this gate for itself. No rotation has been performed on it.
+      The Telegram channel's secrets are set nowhere yet (BL-024). The new test
+      has not run in CI (GitHub Actions starts no jobs until October 2026).
 
 ## v0.1-M1 — The object and what it owes
 
