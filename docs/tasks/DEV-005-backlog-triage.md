@@ -48,6 +48,7 @@
 | 2026-09-14 | Start DEV-005 | Owner, in conversation |
 | 2026-09-14 | The retired demo's Vercel project is deleted (Owner question 1): BL-011 closed as owner-reported | Owner, in conversation |
 | 2026-09-14 | Confirms the priorities DEV-005 assigned (Owner question 3) | Owner, in conversation |
+| 2026-09-14 | The standing UI instructions 3 and 4 of `HANDOFF-2026-08-24.md` §3 stay history and are not written into any rule (Owner question 2) | Owner, in conversation |
 
 ## Plan
 
@@ -71,6 +72,8 @@
 | 5 | implementing (coordinator) | Criteria 1–9 pass. The checks corrected the work twice. STATUS first had #84 merging on 2026-09-13; it merged on 2026-09-14. The search by meaning found runbook §3.1's Senior Project Manager row and §1.6's account of it, beyond the three statements first searched, plus five Citation map rows the first pass missed (ADR-007 `:111`; runbook `:491`, `:500`, `:501`, `:1415`). **Line counts:** every edited file that other files cite by line keeps its count (`AGENTS.md`, `START_HERE.md`, `agents/COORDINATION.md`, `docs/README.md`, the runbook). `02-building-ui.md` grew only after its last cited line (`:216`). The validator grew by two lines inside `WORKFLOW_DOCS` at `:1021-1022`, so every later line moved by two, including the `:1431-1437` that ADR-011:566 cites. That citation was already stale at F: the build-total checks were at `:1736-1749` there and are at `:1738-1751` now. It goes to DEV-006 (R1-08) | `wc -l` against `git show 5480d2e:<file>`; `git grep` for `<file>:<n>` citations | Commit; `gp-reviewer` |
 | 6 | reviewing (`gp-reviewer`, native), round 1 on `4ce218a` | **Changes requested**, no blocker: one medium (R1-01, index anchors), ten low. Found correct: 21 open entries against the tree, the sampled closures and supersessions, completeness of six containers and the handoff's §5–§6, the 22 numbered citations, 30 legacy cites, the instruction changes and every added habit | Review round 1 report | Rework |
 | 7 | rework (coordinator), after review round 1 | All eleven applied as stated fixes (Findings), with the owner's two answers of 2026-09-14 (BL-011 closed; priorities confirmed). Facts checked before fixing: `git log -S "Settled here, because" -- docs/delivery/version-0.1.md` → `c2ca50d` (2026-08-08), before the handoff's session (R1-06); `scripts/validate-canonical-docs.mjs:172` (R1-07); the validator hunk at `:1021-1022` and `ADR006_V01_BUILD_TOTAL` checks at `:1738-1751` (R1-08); `02-building-ui.md:229-230` (R1-10). The check script now also requires one anchor per entry. Not a rework round: no QA FAIL preceded it | See Findings | `gp-qa` |
+| 8 | verifying (`gp-qa`, native), QA round 1 on `cd0c070` | **Needs fixes.** Criteria 1 and 3–12 PASS on QA's own runs (independent heading-range and legacy-cite checks, a scratch-worktree link control, every habit against its handoff section, line counts, both guards); R1-01 to R1-11 all verified; the rework diff in scope. Criterion 2 FAIL: Q1-01 and Q1-02, both blocking. Observations: three legacy cites match two lines each; the Completion section still said `implementing` | QA round 1 report | Rework |
+| 9 | rework (coordinator), rework round 1 | Q1-01 and Q1-02 applied as QA's smallest fixes. Searched the record and the backlog for the closure wording first: the preamble's State list, criterion 2 and the Completion state line carried it; Plan step 2 is the plan as written and stays. The owner's answer to Owner question 2 recorded. The one-off check now tests each closed State against the preamble's three forms | See Findings | `gp-qa` narrow re-check |
 
 ## Findings and rework
 
@@ -87,8 +90,12 @@
 | R1-09 | low | This record, «What is not true» | Actual: the list of files still citing `TODOS.md` omitted ADR-008 to ADR-011, two architecture documents, `version-0.1.md`, `ai-workflow.md`, `ci.yml` | coordinator | List extended, the `git grep` named, and two substantively stale mentions (`data-model.md:580`, runbook `:920`) disclosed |
 | R1-10 | low | `docs/design/02-building-ui.md:229-230` | Actual: «`motion-audit.mjs` is not yet a CI step», while the audit runs in CI through `motion-audit.test.ts` | coordinator | Dated note on the same line |
 | R1-11 | low | Inventory A, 1193–1270 | Actual: «a stray copy of the origin P0's body» | coordinator | «the origin P0's body as of 2026-08-18, cut off from its heading» |
+| Q1-01 | low (blocking) | `docs/BACKLOG.md` preamble, allowed States, against BL-011 | Expected: every State in a listed form. Actual: the list allowed `closed → <commit or DEV-NNN>`; BL-011 reads `closed → owner-reported (2026-09-14)` | coordinator | The list reads `closed → <commit, DEV-NNN or owner-reported (YYYY-MM-DD)>`; the check matches closed States against those three forms |
+| Q1-02 | low (blocking) | This record, Acceptance evidence criterion 2 | Expected: the row reflects the final revision. Actual: «closed without a commit or a test» and BL-011 listed as an open closure candidate after it closed | coordinator | Criterion reads «a commit, a test or the owner's report»; the evidence names BL-011's closure and the checked revision |
 
 Rework count and hypothesis changes: review round 1's eleven findings were applied as stated fixes; no rework round used. R1-01 is a class the validator cannot see (it drops link fragments); the one-off check now covers it for this file.
+
+**Rework round 1** (after QA round 1 FAIL). Q1-01 and Q1-02: closing BL-011 on the owner's report used a State form the preamble did not list, and the check accepted it because it tested `closed → .+`. Changed practice: a check tests the vocabulary as written, not its prefix; and a closure is followed by a search for every sentence describing the closure rule. One of three rounds used.
 
 ## Owner questions
 
@@ -98,7 +105,7 @@ Rework count and hypothesis changes: review round 1's eleven findings were appli
    - Item 5 (plane for structure only) is in `docs/design/03-ui-references.md`.
    - Items 3 («a form validates with the same zod schema the route parses») and 4 («latest versions, no pins») are in no live rule, only in the handoff and in `TODOS.md`. Today `sharp` is pinned at `0.34.5` and vitest at `3.2.4` (BL-055, BL-061).
 
-   Should items 3 and 4 be written into `docs/design/02-building-ui.md` or root `AGENTS.md`, or stay history when DEV-006 freezes the handoff?
+   Should items 3 and 4 be written into `docs/design/02-building-ui.md` or root `AGENTS.md`, or stay history when DEV-006 freezes the handoff? **Answered 2026-09-14: they stay history; no rule is added.**
 3. **Priorities DEV-005 assigned** where the source had none, each marked «ranked by DEV-005» in its entry: BL-003 (P1), BL-004, BL-010, BL-023, BL-024 (P2), and the P3s, among them BL-019, BL-052 and BL-074. Confirm or re-rank. **Answered 2026-09-14: confirmed.**
 
 ## What is not true after this task
@@ -118,7 +125,7 @@ Rework count and hypothesis changes: review round 1's eleven findings were appli
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
 | 1. Every heading of `TODOS.md` at F (80) has an Inventory A row with its line range, class and destination, and every container names its items | yes | working tree over `5480d2e` | A one-off Python check (the coordinator's scratchpad) recomputes the heading ranges from `git show 5480d2e:TODOS.md`: `C1 headings 80 inventory rows 80 ranges equal True`; every backlog id the record names exists, and every entry is named by the record | PASS | — |
-| 2. Every open item has a backlog entry with State, Legacy cite, Why, Evidence, Depends on and Deadline; every `deferred (owner)` entry has Resume; no item is closed without a commit or a test; closure candidates without evidence are listed for the owner | yes | working tree | Same check: `C2 entries 76 field problems 0` (it also rejects a State outside the vocabulary). The 16 «fixed» verdicts were re-run (Progress row 3). One closure candidate without evidence: BL-011 (Owner question 1) | PASS | «Open» verdicts are subagent readings, nine spot-checked |
+| 2. Every open item has a backlog entry with State, Legacy cite, Why, Evidence, Depends on and Deadline; every `deferred (owner)` entry has Resume; no item is closed without a commit, a test or the owner's report; closure candidates without evidence are listed for the owner | yes | working tree over `cd0c070` (rework round 1) | Same check, with the State test written out as the preamble's forms (`closed → ` followed by a commit, `DEV-NNN` or `owner-reported (YYYY-MM-DD)`): `C2 entries 76 field problems 0`. The 16 «fixed» verdicts were re-run (Progress row 3). The one closure candidate without evidence, BL-011, closed on the owner's report of 2026-09-14 (Owner decisions) | PASS | «Open» verdicts are subagent readings, nine spot-checked; `gp-qa` sampled more |
 | 3. Backlog ids are unique and sequential, and every legacy cite is found by `grep -F` on one line of its file at F | yes | working tree | Same check against `git show 5480d2e:<file>`: `C3 unique True sequential True cites 84 missing 0`; `index rows 76 match entries True` | PASS | — |
 | 4. Every live `TODOS.md:<n>` citation outside dated records maps to a backlog id or a stated reason | yes | `5480d2e` and the working tree | `` git grep -nE 'TODOS\.md(`?\]\([^)]*\))?`?:[0-9]+' 5480d2e -- . ':!TODOS.md' ':!HANDOFF*.md' ':!docs/superpowers' ':!docs/tasks/DEV-00[1-4]-*' `` lists 26 locations: STATUS's four, replaced here, and 22 others, each in a Citation map row | PASS | Unnumbered prose mentions are not mapped (see the note under the map) |
 | 5. Every HANDOFF section has an Inventory B disposition; facts moved to STATUS were re-checked against git; lessons not already in `docs/ai-workflow.md` were added | yes | working tree | Inventory B covers every `##` and `###` section of the three files. The «Agent workflow» row: `git log -1 --format='%h %ad %s' 5480d2e` (#84, 2026-09-14) and `014b852` (#83, 2026-09-13). Before adding lessons, `grep -i` over `docs/ai-workflow.md`, `agents/COMMON.md` and `agents/roles/` found only the empty-table check in `agents/roles/gp-reviewer.md:41` | PASS | The empty-table lesson overlaps that reviewer check and is kept as a habit |
@@ -141,7 +148,7 @@ No third-party documentation decides anything in this task.
 - **Verified scope:** to be recorded.
 - **Remaining risks / blocked requirements:** «What is not true after this task»; the owner questions.
 - **Next bounded action and owner:** DEV-006, the freeze and the citation rewrite, after this task merges.
-- **Final state and reason:** implementing.
+- **Final state and reason:** verifying.
 
 ## Inventory A — `TODOS.md` at `5480d2e`
 

@@ -14,7 +14,7 @@ Open and deferred work, one entry each. The coordinator writes this file; specia
   - `open`;
   - `scheduled → DEV-NNN`;
   - `deferred (owner)`: only the owner can move it (a decision, a purchase, an account, a device), or the owner deferred it. No agent starts it;
-  - `closed → <commit or DEV-NNN>`;
+  - `closed → <commit, DEV-NNN or owner-reported (YYYY-MM-DD)>`;
   - `wontfix (owner)`.
 - **Legacy cite:** the exact phrase, on one line of `TODOS.md` or a `HANDOFF*.md` file, that the entry came from. `grep -F` on that phrase finds the source of an old `TODOS.md:<n>` citation.
 - **Why**, **Evidence**, **Depends on**, **Deadline**.
