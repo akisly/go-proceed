@@ -10,7 +10,7 @@
   - `docs/superpowers/README.md`: the frozen archive's banner and a table of each archived spec's actual outcome, without editing any archived file.
   - `docs/README.md`: document statuses `Draft | Approved | Superseded | Historical` (`Implemented` removed), ADR lifecycle `Proposed | Approved | Superseded | Rejected`, the ADR approval procedure (§10 Q-6's open half), and a precedence note naming STATUS, tasks, specs and the future backlog; the stale 40-migration baseline replaced by a pointer to STATUS.
   - `agents/TASK_TEMPLATE.md`: the closed set of Limitation qualifiers for PASS / FAIL / NOT RUN.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-13.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types. Read-only `Explore` subagents gather evidence for STATUS and the archive table; they are research helpers, not review stages.
 - **Selected route and why:** documentation plus executed validator code and one agent-instruction file → coordinator → `gp-reviewer` → `gp-qa` (`agents/COORDINATION.md`). The validator is executed code under `scripts/`, and `agents/TASK_TEMPLATE.md` is an agent instruction, so this is a behavior change.
@@ -39,6 +39,7 @@
 |---|---|---|
 | 2026-09-13 | Start PR-C after #82 merged; #82 merged as `dbd4c36` | Owner, in conversation |
 | 2026-09-13 | PR-C scope as the approved plan tabulates: STATUS, ADR index, SOURCES, specs README, archive README, docs/README statuses and ADR procedure, vocabulary, validator guards | Owner, in conversation (plan) |
+| 2026-09-13 | Confirms the archive option: `docs/superpowers/` is not edited, and the archived specs' outcomes are recorded in `docs/superpowers/README.md` (Progress row 3). Merged #83 | Owner, in conversation |
 
 ## Plan
 
@@ -57,13 +58,14 @@
 |---|---|---|---|---|
 | 1 | scoped (coordinator) | Measured at `dbd4c36`: 11 ADRs, all `Approved`, index absent (`docs/README.md` names ADR-001..007 only); latest migration `0084_the_button_that_carried_a_normative_string.sql` (the plan said 0083); every `METADATA_DOCS` file already reads `Approved`, so the enum needs no normalisation; `Implemented` appears only in `docs/README.md` and the frozen canonical-package plan; 22 archived specs, 8 without a `**Status:**` line (2 of them carry a Russian `Статус:`); `docs/specs/`, `docs/research/` and `docs/STATUS.md` do not exist | `ls supabase/migrations \| tail -1`; `git grep '^\*\*Status:\*\*'`; per-ADR `head` | Implement |
 | 2 | scoped (coordinator) | DEV-003's State line reads "verifying" while its body says done and the index says `done`: the closing edit replaced the sentence after the state word, not the word. Fixed here as a one-word correction; guard (c) exists to catch this class | `docs/tasks/DEV-003-runbook-process.md:9` at `dbd4c36` | Implement |
-| 3 | scoped (coordinator) | The plan's "status lines of two shipped Draft specs" conflicts with `START_HERE.md` ("never moved or rewritten"), which merged after the plan was approved. Coordinator choice: do not edit the archive; record outcomes in `docs/superpowers/README.md`. Returned to the owner for confirmation in the PR | `START_HERE.md` «Current development»; plan PR-C «Изменить» | Owner confirmation |
+| 3 | scoped (coordinator) | The plan's "status lines of two shipped Draft specs" conflicts with `START_HERE.md` ("never moved or rewritten"), which merged after the plan was approved. Coordinator choice: do not edit the archive; record outcomes in `docs/superpowers/README.md`. Returned to the owner for confirmation in the PR | `START_HERE.md` «Current development»; plan PR-C «Изменить» | Confirmed by the owner on 2026-09-13 (Owner decisions) |
 | 4 | implementing (coordinator) | Plan steps 1–7 done. Two read-only `Explore` subagents gathered evidence: one per STATUS area, one per archived spec. The coordinator re-checked the facts STATUS relies on (migration count and head, scope and route counts, main CI runs, readiness checkbox counts, `apps/app/vercel.json` crons, the ingress rate limit, `outputs/` size) and ten of the archive table's PR claims with `gh pr view` and `git merge-base --is-ancestor`. One correction from that check: `plans/` holds 41 plans, not 42. `docs/README.md` edits keep the lines other files cite (`:80`, `:84`, `:169-176`, `:190`, the last cited by applied migration `0050`); new sections go at the end | Acceptance evidence 1–8 | `gp-reviewer` |
 | 5 | reviewing (`gp-reviewer`, native), round 1 on `7ed4238` | **Changes requested**, no blocker: five medium (R1-01 to R1-05), ten low. Questions found correct: the guards against the real tree, removal of `Implemented`, the cited `docs/README.md` lines (all but `:180-188`, disclosed), six STATUS spot-checks, the archive's placement and quotes, index titles and statuses, scope | `dev-004.diff` against `dbd4c36` | Rework |
 | 6 | rework (coordinator), after review round 1 | All fifteen applied as stated fixes. Four needed facts the reviewer could not run, checked first: `plans/` holds 40 plans and one handoff, `plans/evidence/` 12 gate records plus notes and screenshots (R1-01); #62 and #65 merged into #58's branch, and `0061`–`0081` reached `main` in #58 (R1-09); ADR-005 to ADR-008 were added to `main` in `c2ca50d` on 2026-08-08, confirmed with `--follow`; 8 specs lack a `**Status:**` line (R1-10). R1-03's fix also changes «An agent writes an ADR only in this state» to «drafts», the same contradiction at `docs/README.md` «ADR lifecycle and approval». Not a rework round: no QA FAIL preceded it | See Findings | `gp-qa` |
 | 7 | verifying (`gp-qa`, native), QA round 1 on `060c01f` | **Needs fixes.** Passed criteria 1–9: validator; the six positive controls plus a titled duplicate S-id (fails), `## Superseded` (passes), and a stubbed `latestMigrationErrors` (self-test exits 2); broken links planted in STATUS and the archive README fail; ten STATUS facts re-checked; ADR index; cited lines; archive unchanged, ten PR claims; agents; links; all fifteen stated fixes. Failed: Q1-01 (low, blocking). Noted: Q1-02, Q1-03 | QA round 1 report | Rework |
 | 8 | rework (coordinator), rework round 1 | Q1-01, Q1-02 and Q1-03 applied as QA's smallest fixes; for Q1-03 the dates were set to 2026-09-13 rather than accepted as they were, since the ADR was amended that day | See Findings | `gp-qa` narrow re-check |
 | 9 | verifying (`gp-qa`, native), narrow re-check on `fcfb0d4` | **Verified**, no new finding. Q1-01 to Q1-03 in place; only the four expected files changed since `060c01f`; `scripts/`, `docs/superpowers/`, `docs/README.md`, `README.md`, `agents/`, `docs/research/` and `docs/specs/` unchanged, so round 1's criteria 1–9 carry forward; #68 adds no migration and #69 adds `0082` and `0083`; the record is consistent | Narrow QA report | Open the PR; read CI `verify` |
+| 10 | done (coordinator) | PR #83 opened; CI green on its head `58503b9`: `verify` and `app-qa` SUCCESS, three Vercel checks pass. The owner confirmed Progress row 3 and merged #83 as `014b852` | GitHub Actions run 34780745587 | None |
 
 ## Findings and rework
 
@@ -97,7 +99,7 @@ Rework count and hypothesis changes: review round 1's fifteen findings were appl
 - STATUS observes nothing hosted. The staging migration head, the commit each Vercel project serves, and whether landing production runs the 2026-09-08 tree come from dated records or are marked not observed.
 - The M0 row repeats the runbook's §5.1–§5.12 measurements of 2026-09-03; only the checkbox count was re-measured.
 - The v1 API route-to-method coverage is a read-only subagent's check, not the coordinator's.
-- The archived specs whose Status still says Draft (`2026-08-24-project-sourced-requirements`, `2026-08-28-assignment-creation`, `2026-09-05-app-daylight-migration`) still say Draft; their outcome is recorded only in `docs/superpowers/README.md`, pending the owner's confirmation (Progress row 3). The archive table was assembled by a subagent and spot-checked on ten PRs, not all.
+- The archived specs whose Status still says Draft (`2026-08-24-project-sourced-requirements`, `2026-08-28-assignment-creation`, `2026-09-05-app-daylight-migration`) still say Draft; their outcome is recorded only in `docs/superpowers/README.md`, as the owner confirmed on 2026-09-13 (Progress row 3). The archive table was assembled by a subagent and spot-checked on ten PRs, not all.
 - The corrections STATUS lists under «Open issues» are not made: the runbook's eighteen-red-cases and card statements, `version-0.1.md` on hosted migrations, `infra/README-staging.md`'s contradictions, `TODOS.md:741`, the card's closure date.
 - Runbook §1.4's citation of `docs/README.md:180-188` now points at the dated paragraph that replaced the stale baseline sentence.
 - ADR-006, ADR-009, ADR-010 and ADR-011 are held to the ADR enum and the index, but not to the metadata-block and link checks that ADR-001 to ADR-008 get through `REQUIRED`.
@@ -122,7 +124,7 @@ Rework count and hypothesis changes: review round 1's fifteen findings were appl
 | 8. Relative links resolve in the new and changed files | yes | `060c01f` | Validator link checks (`METADATA_DOCS`, and `WORKFLOW_DOCS` now including `docs/STATUS.md` and `docs/superpowers/README.md`); `gp-qa`'s own resolver over the 12 changed Markdown files: 0 problems; a planted broken link in each of the two files fails the validator | PASS | — |
 | 9. Independent `gp-reviewer` with no unresolved finding | yes | `7ed4238` (review round 1) | Native `gp-reviewer`: 15 findings, R1-01 to R1-15, all resolved as stated fixes | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes |
 | 10. Independent `gp-qa` on the final revision | yes | `fcfb0d4` | `gp-qa` round 1 on `060c01f`: criteria 1–9 PASS, including all positive controls, a self-test stub check and ten STATUS facts; needs fixes (Q1-01 blocking, Q1-02, Q1-03). Narrow re-check on `fcfb0d4`: verified, no new finding | PASS | Narrow re-check; round 1's results carry forward for paths unchanged since `060c01f`. This row and Progress row 9 were written after that verdict, as bookkeeping |
-| 11. CI `verify` green | yes | PR head | — | NOT RUN | The PR is not opened yet |
+| 11. CI `verify` green | yes | `58503b9` (PR #83 head) | GitHub Actions run 34780745587: `verify` SUCCESS, `app-qa` SUCCESS | PASS | The later commit that records this result changes only this record and the task index |
 
 ## Sources
 
@@ -133,11 +135,9 @@ No third-party documentation decides anything in this task. Reference implementa
 - **Changed files:** new `docs/STATUS.md`, `docs/decisions/README.md`, `docs/research/SOURCES.md`, `docs/specs/README.md`, `docs/superpowers/README.md` and this record; `docs/README.md`, `README.md`, `agents/TASK_TEMPLATE.md`, `docs/decisions/ADR-011-telegram-locked-project-channel.md`, `scripts/validate-canonical-docs.mjs`, `docs/tasks/README.md`, `docs/tasks/DEV-003-runbook-process.md` (State word).
 - **Commits:** `7ed4238` (implementation), `060c01f` (review round 1 fixes), `fcfb0d4` (rework round 1), plus this bookkeeping commit.
 - **Review independence:** `gp-reviewer` (round 1) and `gp-qa` (round 1 and a narrow re-check) ran as native `gp-*` subagents. Two read-only `Explore` subagents gathered evidence; the coordinator re-checked what it wrote from them. The coordinator verified none of its own fixes as independent evidence.
-- **Verified scope:** criteria 1–10.
+- **Verified scope:** criteria 1–11.
 - **Remaining risks / blocked requirements:**
-  - Criterion 11, CI `verify`, is required and NOT RUN until the PR's run is read.
-  - Progress row 3 (the frozen archive not edited) awaits the owner's confirmation.
   - The disclosures in «What is not true», in particular: STATUS observes nothing hosted; a PR that adds a migration fails the validator until STATUS is re-observed, and no agent instruction says so yet.
   - One of three rework rounds used.
-- **Next bounded action and owner:** coordinator: open the PR and record CI; owner: confirm Progress row 3 and decide the merge.
-- **Final state and reason:** not final. Blocked on criterion 11.
+- **Next bounded action and owner:** none for this task; #83 is merged. Next in the plan: DEV-005 (TODOS and HANDOFF triage into `docs/BACKLOG.md`).
+- **Final state and reason:** done. Every required criterion passes.
