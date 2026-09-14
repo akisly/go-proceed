@@ -112,6 +112,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
 | [BL-083](#bl-083) | P2 | open | Nothing keeps a package reached through pnpm's private hoist at one version |
+| [BL-084](#bl-084) | P2 | open | The act footer names a «Реєстр будівельних норм» that ЗУ «Про будівельні норми» does not name |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1008,6 +1009,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** DEV-008 «Progress and decisions» rows 1–3; at `5a38091` `grep -oE "@types/react@19\.[0-9.]+" pnpm-lock.yaml | sort -u` prints one version.
 - **Depends on:** none.
 - **Deadline:** none recorded.
+
+<a id="bl-084"></a>
+### BL-084 — P2 — The act footer names a «Реєстр будівельних норм» that ЗУ «Про будівельні норми» does not name
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** [DEV-009](tasks/DEV-009-m0-gate10-evidence.md)'s registry check found that ЗУ «Про будівельні норми» ст. 10 ч. 6 registers building norms «шляхом внесення запису до Єдиної державної електронної системи у сфері будівництва», and names no «Реєстр будівельних норм»; neither do the ЄДЕССБ pages read on 2026-09-14. Every printed act says «Перевірено за Реєстром будівельних норм: {дата}» (`pageFooterText()`), in wording fixed by the Approved `docs/product/hidden-works-content-rules.md` «Required disclaimers» and carried by ADR-005 and ADR-006. Separately, per `gp-researcher`'s summarised reading, not re-verified from the raw text: ПКМУ № 681 п. 6 names «Мінрозвитку» as the holder of ЄДЕССБ, and ПКМУ № 963 renamed that ministry from 18.07.2026, with the construction functions not yet allocated. A customer-facing regulatory sentence that names a body or register imprecisely is the class `hidden-works-content-rules.md` exists to prevent. Changing it is a content-rules change through the approval procedure, then `pageFooterText()` and its tests. The owner chose on 2026-09-14 to file it rather than widen DEV-009. Ranked by DEV-009.
+- **Evidence:** `https://zakon.rada.gov.ua/laws/show/1704-17` (edition of 09.06.2022), ст. 10 ч. 6 and ст. 12, read 2026-09-14; `apps/app/src/lib/statutory-act-form.ts` `pageFooterText`; `technical/requirements/README.md` «What “the Реєстр будівельних норм” means here».
+- **Depends on:** the owner's wording, and a reading of which ministry holds construction policy after ПКМУ № 963.
+- **Deadline:** before a real customer receives a printed act (M6).
 
 ## Closed, kept for citations
 

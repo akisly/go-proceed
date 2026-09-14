@@ -1,0 +1,21 @@
+{
+  "norm": "ДБН А.3.1-5:2016 «Організація будівельного виробництва»",
+  "file": "dbn-a31-5-2016.pdf",
+  "pageUrl": "https://e-construction.gov.ua/laws_detail/3879707932224390963",
+  "fileUrl": "https://e-construction.gov.ua/files-token/c7fb685e91deb04c43a13f9a6cf628a1",
+  "retrievedOn": "2026-08-10",
+  "sha256": "4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3",
+  "bytes": 636603,
+  "format": "application/pdf, PDF 1.5, 54 pages",
+  "reproductions": [
+    {
+      "fetchedAt": "2026-09-14T19:24:35Z",
+      "fileUrl": "https://e-construction.gov.ua/files-token/c7fb685e91deb04c43a13f9a6cf628a1",
+      "sha256": "4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3",
+      "bytes": 636603,
+      "by": "DEV-009 coordinator session"
+    }
+  ],
+  "rule": "A re-fetch that does not reproduce these bytes downgrades every row resting on them to VERIFIED_SECONDARY (docs/delivery/production-readiness.md §10).",
+  "record": "docs/tasks/DEV-009-m0-gate10-evidence.md"
+}

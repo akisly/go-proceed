@@ -151,7 +151,11 @@ it would stay true if every one of the ten migrations were applied tomorrow:
 `statutory_acts.render` and `statutory_act_versions.freeze` **refuse by design**,
 on two blockers derived from artifacts this repository does not hold — the
 enumerated В.1/В.2 field list of Додаток В, and the ДБН retrieval record M0 gate
-10 owes. Neither is code.
+10 owes. Neither is code. *[Annotated 2026-09-14 (DEV-009): both blockers have
+since been lifted — `DODATOK_V_TEMPLATE` and `DBN_RETRIEVAL_RECORD` are set in
+`apps/app/src/lib/statutory-act-form.ts`, and its test «both blockers are closed,
+and the act renders» asserts it; the retrieval record and the file are committed
+under `technical/requirements/`.]*
 
 ## The gates
 
@@ -358,6 +362,16 @@ M0 rather than leaving them to a milestone.
       so — it is the evidence that closes **M0 item 9** for every
       `VERIFIED_PRIMARY` row v0.1 ships, which is why it stands inside this gate
       rather than beside it.
+      - **Evidence, 2026-09-14:** the dated gate 10 entry in
+        [version-0.1.md](version-0.1.md) §M0 «Gate evidence entries»
+        ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)) covers all three
+        bullets: the storage and render checks with their CI test run; the
+        registry check of 2026-09-14 in
+        `technical/requirements/dbn-a31-5-2016.registry-checks.json` with its
+        procedure; and `technical/requirements/dbn-a31-5-2016.pdf` with
+        `dbn-a31-5-2016.retrieval.json`, bound by a test. «rests today on one
+        download no reviewer can reopen» above has been untrue since 2026-08-10.
+        The boxes stay unticked: this document records no gate closed.
 
 ### 11. Tenant isolation for every module
 

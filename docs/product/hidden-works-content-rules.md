@@ -479,7 +479,11 @@ cannot add an unsourced line to Н.15 by editing a view.
 ## Open items
 
 - **~~The primary ДБН file is not retained in the repository, and the fetch was
-  never recorded.~~ CLOSED 2026-08-10; recorded here 2026-08-24.** This item
+  never recorded.~~ CLOSED 2026-08-10; recorded here 2026-08-24.** *[Updated
+  2026-09-14 (DEV-009): the file itself is now retained, at
+  [`technical/requirements/dbn-a31-5-2016.pdf`](../../technical/requirements/dbn-a31-5-2016.pdf),
+  with `dbn-a31-5-2016.retrieval.json` beside it and a test binding both to the
+  record; the same bytes were fetched again and matched on 2026-09-14.]* This item
   asked for a retrieval record carrying the exact URL, the retrieval date and a
   SHA-256 of the bytes. **That record exists**, and it is in the data rather
   than in prose: every row of

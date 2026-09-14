@@ -1,0 +1,3 @@
+# A file whose bytes a recorded SHA-256 describes must never be rewritten by a
+# checkout's line-ending conversion (DEV-009: technical/requirements/*.pdf).
+*.pdf binary

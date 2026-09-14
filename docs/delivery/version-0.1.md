@@ -309,7 +309,11 @@ settled it stands unchanged and settles the next disagreement the same way.
   item `hidden-works-content-rules.md` records against every `VERIFIED_PRIMARY`
   row the v0.1 library ships, which today rest on one download no reviewer can
   reopen; a re-fetch that does not reproduce the same bytes downgrades every row
-  it touches to `VERIFIED_SECONDARY`.
+  it touches to `VERIFIED_SECONDARY`. *[Annotated 2026-09-14 (DEV-009): «which
+  today rest on one download no reviewer can reopen» has been untrue since
+  2026-08-10, when the fetch was reproduced; the file and its retrieval record are
+  now committed under `technical/requirements/` — see «Gate evidence entries»
+  below.]*
 - **Security tests:** the tenant-isolation suite for every module shipped by
   M1–M5, plus the upload malware/content-type and resource-exhaustion cases.
   Neither may be quarantined.
@@ -327,6 +331,45 @@ settled it stands unchanged and settles the next disagreement the same way.
   closed**, and real customer data entering an environment that has not closed M0
   is a boundary violation regardless of which document or schedule requests it
   (ADR-006 replacement rule 5).
+- **Gate evidence entries.** One dated entry per readiness gate, added when the
+  gate closes; a gate with no entry below is open. Each entry names its task
+  record, which holds the commands, the negative results and what the entry does
+  not prove.
+  - **Gate 10, Regulatory content (runbook items 9 and 10) — 2026-09-14 —
+    [DEV-009](../tasks/DEV-009-m0-gate10-evidence.md).**
+    - *No normative string renderable without its tag and source.* Held in the
+      data by `requirement_library_items.verification` and `source_citation`
+      checks and the same pattern in migrations `0043`, `0047` and `0059`;
+      refused on render by `form_citation_unsourced` in the act and, since
+      `c48a4a5` and `0359bcb`, carried by the Telegram assignment card, whose
+      requirement-choice button stopped carrying a normative string in migration
+      `0084` (`bd08da9`). Tests green, none skipped, in CI run 34872695375
+      attempt 1 on 2026-09-14, which checked out PR #89's merge ref `d62cf4c`
+      (`3a9ea42` into `7b57784`; `3a9ea42` descends from `7b57784`, and its
+      `apps`, `packages`, `supabase`, `technical` and `scripts` equal `main` at
+      `6e4efdf`):
+      `m4-act-schema` (58), `statutory-act-form` (41), `telegram/cards` (24),
+      `requirement-library-fidelity` (13), `norm-ref-labels` (2).
+    - *A recorded date of last verification, printed on every act.*
+      `statutory_act_versions.registry_checked_on`, required at freeze, refused
+      in the future, printed by `pageFooterText()`; the check of 2026-09-14 is
+      recorded in
+      [`technical/requirements/dbn-a31-5-2016.registry-checks.json`](../../technical/requirements/dbn-a31-5-2016.registry-checks.json)
+      (ДБН А.3.1-5:2016 «Діючий», «Редакція від 20.04.2026», no change listed,
+      confirmed by the owner), and the procedure for the next check is
+      [`technical/requirements/README.md`](../../technical/requirements/README.md).
+    - *The retrieval record, committed under `technical/requirements/`.*
+      `dbn-a31-5-2016.pdf` and `dbn-a31-5-2016.retrieval.json`, bound to
+      `DBN_RETRIEVAL` by `statutory-act-form.test.ts` (43 passed locally on
+      2026-09-14; a one-byte change to the file, or to its `retrievedOn` or any hash in the
+      retrieval record, turns a test red); the
+      same 636 603 bytes were fetched again and matched on 2026-09-14. The owner
+      ruled runbook Q-7 this way on 2026-09-14.
+    - *Limits.* The new tests have not run in CI (GitHub Actions starts no jobs
+      until October 2026); the database checks only that a check date is not in
+      the future, not that a check behind it exists; one fetch reproduced is not
+      two independent sources; the footer's «Реєстр будівельних норм» wording is
+      BL-084.
 
 ## v0.1-M1 — The object and what it owes
 

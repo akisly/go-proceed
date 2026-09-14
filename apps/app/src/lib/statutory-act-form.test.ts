@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { describe, it, expect } from "vitest";
 import {
   renderBlock, renderedStatutoryAct,
@@ -239,6 +242,42 @@ describe("both blockers are closed, and the act renders", () => {
     // The independence caveat is NOT derived and must survive: reproducing one
     // fetch is not two independent sources agreeing.
     expect(source).toContain("незалежність будь-яких додаткових копій не встановлена");
+  });
+
+  // M0 READINESS GATE 10 (DEV-009): «the retrieval record for the primary ДБН
+  // file is committed under technical/requirements/». The owner ruled on
+  // 2026-09-14 (runbook §10 Q-7) that the record AND the file itself are
+  // committed there. The bytes are what the hash describes, so the test reads
+  // the committed bytes: a record whose file is missing, truncated or replaced
+  // stops being a record a reviewer can re-derive, and must go red.
+  const REQUIREMENTS_DIR = join(import.meta.dirname, "..", "..", "..", "..",
+    "technical", "requirements");
+
+  it("commits the ДБН file whose bytes the retrieval record hashes", () => {
+    const r = DBN_RETRIEVAL_RECORD!;
+    const bytes = readFileSync(join(REQUIREMENTS_DIR, "dbn-a31-5-2016.pdf"));
+    expect(createHash("sha256").update(bytes).digest("hex")).toBe(r.sha256);
+    expect(bytes.subarray(0, 5).toString("latin1")).toBe("%PDF-");
+  });
+
+  it("commits a retrieval-record file that says what the code's record says", () => {
+    const r = DBN_RETRIEVAL_RECORD!;
+    const file = JSON.parse(readFileSync(
+      join(REQUIREMENTS_DIR, "dbn-a31-5-2016.retrieval.json"), "utf-8"));
+    const bytes = readFileSync(join(REQUIREMENTS_DIR, "dbn-a31-5-2016.pdf"));
+    // Two copies of one record are one record only while a test binds them.
+    expect(file.pageUrl).toBe(r.url);
+    expect(file.retrievedOn).toBe(r.retrievedOn);
+    expect(file.sha256).toBe(r.sha256);
+    expect(file.bytes).toBe(bytes.length);
+    expect(file.file).toBe("dbn-a31-5-2016.pdf");
+    // A reproduction or a registry check that claims these bytes must name them.
+    for (const rep of file.reproductions) expect(rep.sha256).toBe(r.sha256);
+    const checks = JSON.parse(readFileSync(
+      join(REQUIREMENTS_DIR, "dbn-a31-5-2016.registry-checks.json"), "utf-8"));
+    for (const c of checks.checks) {
+      if (c.file.matchesRetrievalRecord) expect(c.file.sha256).toBe(r.sha256);
+    }
   });
 
   it("refuses a draft: an unfrozen act is not a document to hand over", () => {
