@@ -71,7 +71,7 @@ of "done" without §5 output is the failure mode this file exists to prevent.
 2. **[`01-tokens.md`](./01-tokens.md)** — only the section you need. It is
    generated and it is long; do not read it end to end.
 3. **The plan's §9** (landing blocks) or **§10** (app surfaces) — only if you
-   are building one. *[2026-09-14 (DEV-007): the plan is Historical. For a landing block read `DESIGN.md` and `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` with its 2026-09-06 parity spec; for an app surface, `03-ui-references.md`, `04-role-pain-map.md` and `docs/superpowers/specs/2026-09-05-app-daylight-migration-design.md`.]*
+   are building one. *[2026-09-14 (DEV-007): the plan is Historical. For a landing block read `DESIGN.md` and `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` with its 2026-09-06 parity spec; for an app surface, `03-ui-references.md`, `04-role-pain-map.md` and `docs/superpowers/specs/2026-09-05-app-daylight-migration-design.md`. A rebuild against the landing reference the owner set on 2026-09-14 follows BL-082.]*
 
 **Do not read** `apps/demo/src/styles.css`. It is a frozen 156 KB prototype
 sheet with the superseded palette, and reading it teaches you values that now

@@ -136,7 +136,7 @@ effort on the domain: the screens in [`04-role-pain-map.md`](04-role-pain-map.md
 
 ## Landing references — 21st.dev patterns (added 2026-09-05)
 
-**Status:** Approved (owner decision, 2026-09-05, with the Daylight prototype) *[2026-09-14 (owner, DEV-007): the landing's reference is now https://parlo-black.vercel.app/, taken for structure, composition and motion; the colours stay those of the Daylight prototype. The table describes the landing as shipped; the rebuild is BL-082.]*
+**Status:** Approved (owner decision, 2026-09-05, with the Daylight prototype) *[2026-09-14 (owner): the landing's reference is now https://parlo-black.vercel.app/; the colours stay those of the Daylight prototype. DEV-007 reads the reference as structure, composition and motion, and BL-082's plan confirms that scope with the owner before any change. The table describes the landing as shipped.]*
 **Applies to:** `apps/landing/**`
 
 The landing is built after recognisable community components from
