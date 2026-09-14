@@ -111,6 +111,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
 | [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
+| [BL-083](#bl-083) | P2 | open | Nothing keeps a privately hoisted type package at one version |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -996,6 +997,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** on 2026-09-14 the owner kept the colours of `design-references/contest-2026-09/` and made https://parlo-black.vercel.app/ the landing's reference ([DEV-007](tasks/DEV-007-design-sources.md) «Owner decisions»). DEV-007 reads the decision as taking the landing's structure, composition and motion from the new reference while `DESIGN.md`'s Daylight colours stay; the slice's plan confirms that scope with the owner. The shipped landing reproduces the contest prototype, and live files rest on it: `DESIGN.md`, whose Don't list quotes the owner's «точь-в-точь» of 2026-09-06 and whose motion characteristics follow the parity spec; `docs/design/02-building-ui.md`'s read order (`:74`), its perpetual-loop and scroll-linked rules (`:185-191`, `:197-203`) and a motion trap (`:349`); `apps/landing/app/layout.tsx`'s parity note; and 31 rulings in `packages/tokens/src/tokens.json`, mirrored in the generated `docs/design/01-tokens.md`. Of those rulings, 11 are colour rulings the decision keeps; 20 cover type scale and tracking, radius, width, durations, springs, shadows and control heights, and are the slice's to revise. The slice is a UI change on the `02-building-ui.md` route with `gp-ui-reviewer`, and it amends `DESIGN.md` and the landing spec through the approval procedure before any code. The reference is reimplemented in token roles and `@goproceed/ui/motion`, copying no code, CSS or assets; its licence is unrecorded, so the slice records it as `03-ui-references.md`'s rows record theirs. Ranked by DEV-007.
 - **Evidence:** the coordinator's browser observation on 2026-09-14: «Parlo — Autonomous Support Messaging», a dark page whose first screen is a perspective grid under a headline revealed word by word. `grep -c -i prototype packages/tokens/src/tokens.json` counts 31 lines. `design-references/README.md` records the new standings.
 - **Depends on:** the owner's answers, in the slice's plan: (a) the perspective-grid first screen against `DESIGN.md`'s «Don't build a 3D scene»; (b) which ground, since the reference is dark and the Daylight colours sit on paper; (c) typography, which the decision does not mention (`DESIGN.md` sets Onest); (d) how closely to match, the previous reference having been matched «точь-в-точь»; (e) which scroll-linked compositions and loops replace those the parity spec names.
+- **Deadline:** none recorded.
+
+<a id="bl-083"></a>
+### BL-083 — P2 — Nothing keeps a privately hoisted type package at one version
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** [DEV-008](tasks/DEV-008-types-react-dedupe.md) found that pnpm 9.12.0 privately hoists the copy of a package brought by whichever importer it lists first, and that order varies between runs. `next`, `lucide-react`, `framer-motion` and `@tanstack/*` import `@types/react` without declaring it, so when `apps/mobile` pinned a different `@types/react` the web programs sometimes loaded two copies and CI `typecheck` failed at random. DEV-008 aligned the versions; nothing stops a later pin, for example from `expo install --fix`, splitting them again. Two guards fit: a root `pnpm.overrides` entry for `@types/react` (and `pnpm-workspace.yaml` `overrides`, kept in sync as D-048 does for build scripts), or a check that fails when `pnpm-lock.yaml` holds more than one version of `@types/react` or `@types/react-dom`. Ranked by DEV-008.
+- **Evidence:** DEV-008 «Progress and decisions» rows 1–3; at `5a38091` `grep -oE "@types/react@19\.[0-9.]+" pnpm-lock.yaml | sort -u` prints one version.
+- **Depends on:** none.
 - **Deadline:** none recorded.
 
 ## Closed, kept for citations
