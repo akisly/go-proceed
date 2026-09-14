@@ -1,4 +1,4 @@
-# Handoff — GoProceed, 2026-08-10 → 2026-08-17
+# Handoff — GoProceed, 2026-08-10 → 2026-08-17 — Historical, frozen at `5480d2e`; current: [docs/STATUS.md](docs/STATUS.md), [docs/BACKLOG.md](docs/BACKLOG.md); do not add entries
 
 Written to be read cold. The previous handoff is the section «What the last
 session left» below, compressed; everything else is new.

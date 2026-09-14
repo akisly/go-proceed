@@ -231,7 +231,7 @@ export function sliceAllocation(
     // on a ten-unit line and under-priced every unit carved against it.
     //
     // The clamp made that read 0, which stopped the absurd denominator and did
-    // NOT restore the unit price — it is the P0 at TODOS.md:585, and closing it
+    // NOT restore the unit price — it is the P0 filed as BL-076 (docs/BACKLOG.md), and closing it
     // meant deciding which quantity this denominator answers to. It answers to
     // the money: since 2026-08-10 `work_item_performed` sums `funded_quantity`
     // over the same allocations `workItemAllocated` sums the money of

@@ -221,7 +221,7 @@ describe("GET /v1/assignments/{id}/evidence", () => {
     // (migration 0002); `transaction_outbox`'s is `payload`.
     const audit = await q<{ t: string }>(`select details::text as t from public.audit_events`);
     const outbox = await q<{ t: string }>(`select payload::text as t from public.transaction_outbox`);
-    // FIX ROUND 1, CHEAP ITEM A: the spec and TODOS.md:783 name a third place
+    // FIX ROUND 1, CHEAP ITEM A: the spec and the TODOS.md entry now BL-035 (docs/BACKLOG.md) name a third place
     // — «or in any idempotency body». `idempotency_records.response_body` and
     // `.response_headers` are real jsonb columns (migration 0002). VACUOUSLY
     // TRUE TODAY: `queryRoute` (unlike `commandRoute`) writes no idempotency

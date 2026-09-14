@@ -508,7 +508,7 @@ describe("admission — the rule this route chose, stated as a test", () => {
 
 describe("the pool is offered again when the root that held it gives it back", () => {
   /**
-   * THE P1 AT TODOS.md:238, and the owner's decision of 2026-08-10 on it:
+   * THE P1 FILED AS BL-075 (docs/BACKLOG.md), and the owner's decision of 2026-08-10 on it:
    * admission is a STANDING CLAIM rather than a one-shot event.
    *
    * The work-item pool goes to whoever is admitted first. Root A takes all of
