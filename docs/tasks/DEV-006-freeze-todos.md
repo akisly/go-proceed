@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** `TODOS.md`, `HANDOFF.md`, `HANDOFF-2026-08-24.md` and `HANDOFF-2026-08-27.md` say on their first line that they are historical and where current state lives, and the validator fails on any further change to them. No live file cites a `TODOS.md` line number any more: each citation DEV-005 mapped now names its backlog entry, or says why none exists. The validator checks `docs/BACKLOG.md` against its own preamble.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-14.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** executed validator code, comments beside executed code, the agent-read `docs/STATUS.md` and `docs/BACKLOG.md`, and documentation → coordinator → `gp-reviewer` → `gp-qa` (`agents/COORDINATION.md`).
@@ -68,6 +68,8 @@
 | 7 | verifying (`gp-qa`, native), QA round 1 on `c4051f7` | **Pass with one low finding.** Criteria 1–11 PASS on QA's own runs in a scratch worktree (banner-only diff at F; pins against `shasum`, a CRLF conversion and a deleted file; the 22 re-points and every quoted phrase; line counts for all 38 changed files; the comment-only TypeScript; stubbed detectors and ten backlog plants; its own legacy-cite parse `cites 84 none 1 bad []`; profiles regenerated with no change; the merge log and `0058`). R1-01 to R1-07 verified; `c5a6eba..c4051f7` holds only the stated fixes. Every number in the record reproduced. Q1-01 (low): the record does not disclose three gaps of the line-citation guard. Observations: `agents/COMMON.md:119`'s general heading still says «annotated when stale» above the two «never annotated» items; «from their default privileges» covers the `postgres`-granted defaults, not `supabase_admin`'s, which `0058` leaves on purpose | QA round 1 report | Fix Q1-01 (record text), narrow re-check, PR |
 | 8 | verifying (`gp-qa`, native), narrow re-check on `da86bb8` | **Not verified as worded** (Q2-01, low, record text). The Q1-01 bullet's extensions, exemption and forms match the validator; nothing but this record changed; the validator is green. Its last sentence, «On `c4051f7` no tracked file holds a line citation in any of those forms», is false for the DEV-record exemption: DEV-003 to DEV-006 hold such citations. PR #87 opened on `da86bb8` before this verdict | QA narrow re-check report | Rework |
 | 9 | rework (coordinator), rework round 1 | Q2-01 fixed with QA's wording. Re-run before writing: `TODOS.md:<n>` lines at `c4051f7` in DEV-003 6, DEV-004 1, DEV-005 21, DEV-006 24 (52, as QA counted); no tracked file with an unscanned extension holds one; no tracked file uses a `#L<n>` or «line <n>» form | See Findings | `gp-qa` narrow re-check |
+| 10 | verifying (`gp-qa`, native), narrow re-check on `6e30b9f` | **Verified.** The Q2-01 sentence holds for all three gaps; the counts reproduce (DEV-003 6, DEV-004 1, DEV-005 21, DEV-006 24 at `c4051f7`); only this record changed; the validator is green. No new finding. Observation: this record holds 25 such lines at `6e30b9f`, one more than at `c4051f7`, because the Q1-01 row quotes QA's planted `TODOS.md:238`; the sentence is dated to `c4051f7` and the record is exempt | QA narrow re-check report | Read CI `verify` |
+| 11 | done (coordinator) | PR #87 CI green on its head `6e30b9f` (criterion 14): `verify` and `app-qa` succeeded, and the three Vercel checks pass. Every required criterion passes; merging is the owner's decision | GitHub Actions run 34833505341; `gh pr view 87 --json statusCheckRollup` | None for this task |
 
 ## Findings and rework
 
@@ -144,8 +146,8 @@ The DEV-005 Citation map rows as executed. «Was» is the text at `6fd98d0`.
 | 10. `pnpm validate:agents` green | yes | working tree | After R1-02: `python3 scripts/sync-agents.py --write`, then `--check` → `Verified 16 host profiles from 8 canonical roles (gp: 8).` | PASS | The same check `pnpm validate:agents` runs |
 | 11. STATUS's re-observed row and «Next action» match git; the `data-model.md` correction matches `0058` | yes | working tree | `git log --merges --oneline -9 origin/main` ends at #79 (`85bdcb9`) and lists #84 `5480d2e`, #85 `bdbf64b`, #86 `6fd98d0`, dated 2026-09-14; `0058:67`, `:86` | PASS | — |
 | 12. Independent `gp-reviewer` with no unresolved finding | yes | `c5a6eba` (review round 1) | Native `gp-reviewer`: changes requested, no blocker; R1-01 to R1-07 resolved as stated fixes (Findings). Its sample: all 22 re-points and ADR-011:566, every quoted phrase, the three legacy cites, line preservation, the validator logic and counts, the banner, STATUS | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root `AGENTS.md` prescribes for stated fixes |
-| 13. Independent `gp-qa` on the final revision | yes | — | — | NOT RUN | After review |
-| 14. CI `verify` green | yes | — | — | NOT RUN | After the PR |
+| 13. Independent `gp-qa` on the final revision | yes | `6e30b9f` | `gp-qa` round 1 on `c4051f7`: criteria 1–11 PASS on its own runs in a scratch worktree, R1-01 to R1-07 verified, Q1-01 (low, record text). Narrow re-check on `da86bb8`: not verified (Q2-01). Narrow re-check on `6e30b9f`: verified, no new finding | PASS | Narrow re-checks; round 1's results carry forward, since `c4051f7..6e30b9f` changes only this record. This row was written after that verdict, as bookkeeping |
+| 14. CI `verify` green | yes | `6e30b9f` (PR #87 head) | GitHub Actions run 34833505341: `verify` SUCCESS, `app-qa` SUCCESS; the three Vercel checks pass | PASS | The later commit that records this result changes only this record and the task index |
 
 ## Sources
 
@@ -154,8 +156,9 @@ No third-party documentation decides anything in this task. The validator uses `
 ## Completion / handoff
 
 - **Changed files:** see «Owning module and allowed edit paths».
-- **Review independence:** `gp-reviewer` round 1 ran as a native `gp-*` subagent; `gp-qa` to follow.
-- **Verified scope:** criteria 1–11 by the coordinator.
-- **Remaining risks / blocked requirements:** «What is not true after this task».
-- **Next bounded action and owner:** `gp-qa` (coordinator).
-- **Final state and reason:** verifying.
+- **Review independence:** `gp-reviewer` (round 1) and `gp-qa` (round 1 and two narrow re-checks) ran as native `gp-*` subagents. The coordinator verified none of its own fixes as independent evidence.
+- **Verified scope:** criteria 1–14; criteria 1–11 re-run independently by `gp-qa`.
+- **Commits:** `c5a6eba` (implementation), `c4051f7` (review round 1 fixes), `da86bb8` (QA round 1 record and Q1-01), `6e30b9f` (rework round 1, Q2-01), plus this bookkeeping commit. PR [#87](https://github.com/akisly/go-proceed/pull/87).
+- **Remaining risks / blocked requirements:** «What is not true after this task». One of three rework rounds was used, on record text.
+- **Next bounded action and owner:** the owner's review and merge of #87. Next in the migration plan: DEV-007 (design sources of truth).
+- **Final state and reason:** done. Every required criterion passes.
