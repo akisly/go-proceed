@@ -6,7 +6,7 @@
   - HANDOFF facts reach `docs/STATUS.md` only after a check against git.
   - Lessons the handoffs taught that no live rule carries yet go to `docs/ai-workflow.md` «Habits».
   - Live instructions stop sending new follow-ups to `TODOS.md`.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-14.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types. Three read-only `Explore` subagents checked item verdicts against the tree; they are research helpers, not review stages.
 - **Selected route and why:** agent instructions, executed validator code and documentation → coordinator → `gp-reviewer` → `gp-qa` (`agents/COORDINATION.md`). Root `AGENTS.md`, `START_HERE.md`, `agents/COORDINATION.md`, `docs/design/02-building-ui.md` and the runbook's process rules are agent instructions; `scripts/validate-canonical-docs.mjs` is executed code.
@@ -77,6 +77,7 @@
 | 10 | verifying (`gp-qa`, native), narrow re-check on `7cdd5de` | **Needs fixes.** Q1-01 and Q1-02 verified; carry-forward checks pass; the diff in scope. Criterion 2 FAIL on Q2-01 (blocking): BL-075 and BL-076 carry `(2026-08-10)` after the commit, outside the listed forms, and the check accepted it through an optional date group | QA narrow re-check report | Rework |
 | 11 | rework (coordinator), rework round 2 | Q2-01 fixed by QA's option (b): the date dropped from the two States and their index rows (the commits and their dates stay in each entry's Evidence); the check's regex is exactly the three listed closed forms. QA's own `qa2-states.py` run before re-dispatch | See Findings | `gp-qa` narrow re-check |
 | 12 | verifying (`gp-qa`, native), narrow re-check on `ed82f69` | **Verified.** Q2-01 in place; QA's exact-form check: 76 States, no bad state, 7 negative controls rejected; the diff in scope; the validator, agent profiles, frozen files and the one-off check pass. Criteria 1 and 3–12 carry forward from QA round 1 on `cd0c070`, since the two reworks changed only State strings, the State list and bookkeeping. Two informational notes: Q3-01 (the scratchpad check's `DEV-\d+` is looser than `DEV-NNN`; tightened to `DEV-\d{3}`) and Q3-02 (a broken code span in the Q2-01 row; fixed) | Narrow QA report | Open the PR; read CI `verify` |
+| 13 | done (coordinator) | PR #85 opened; CI green on its head `fd297da` (criterion 12). The owner merged #85 as `bdbf64b` on 2026-09-14 | GitHub Actions run 34824657874; `gh pr view 85` | None |
 
 ## Findings and rework
 
@@ -141,7 +142,7 @@ Rework count and hypothesis changes: review round 1's eleven findings were appli
 | 9. `pnpm validate:agents` green | yes | working tree | `pnpm validate:agents` → `Verified 16 host profiles from 8 canonical roles (gp: 8).` | PASS | — |
 | 10. Independent `gp-reviewer` with no unresolved finding, including a sample of classifications checked against the code | yes | `4ce218a` (review round 1) | Native `gp-reviewer`: changes requested, no blocker; R1-01 to R1-11 all resolved as stated fixes. Its sample: 21 open entries against the tree, 9 closures, six containers and `HANDOFF-2026-08-27.md` §5–§6 read in full (nothing unrouted), the 22 numbered citations, 30 legacy cites, every added habit against its handoff section | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes |
 | 11. Independent `gp-qa` on the final revision | yes | `ed82f69` | `gp-qa` round 1 on `cd0c070`: criteria 1 and 3–12 PASS on its own runs, R1-01 to R1-11 verified, criterion 2 FAIL (Q1-01, Q1-02). Narrow re-check on `7cdd5de`: FAIL (Q2-01). Narrow re-check on `ed82f69`: verified, all twelve criteria PASS | PASS | Narrow re-check; round 1's results carry forward for what the reworks did not touch. This row and Progress row 12 were written after that verdict, as bookkeeping |
-| 12. CI `verify` green | yes | — | — | NOT RUN | Not started |
+| 12. CI `verify` green | yes | `fd297da` (PR #85 head) | GitHub Actions run 34824657874: `verify` SUCCESS, `app-qa` SUCCESS; the three Vercel checks pass | PASS | The later commit that records this result changes only this record and the task index |
 
 ## Sources
 
@@ -151,11 +152,11 @@ No third-party documentation decides anything in this task.
 
 - **Changed files:** see «Owning module and allowed edit paths».
 - **Review independence:** `gp-reviewer` (round 1) and `gp-qa` (round 1 and two narrow re-checks) ran as native `gp-*` subagents. Three read-only `Explore` subagents gathered item verdicts; the coordinator re-ran every «fixed» verdict before writing it. The coordinator verified none of its own fixes as independent evidence.
-- **Verified scope:** criteria 1–11; criterion 12 (CI) pending on the PR.
+- **Verified scope:** criteria 1–12.
 - **Commits:** `2b101e0` (implementation), `4ce218a` (two counts), `cd0c070` (review round 1 fixes and owner answers), `7cdd5de` (rework round 1), `ed82f69` (rework round 2), plus this bookkeeping commit.
 - **Remaining risks / blocked requirements:** «What is not true after this task». All three owner questions are answered. Two of three rework rounds were used, both on the State vocabulary.
-- **Next bounded action and owner:** DEV-006, the freeze and the citation rewrite, after this task merges.
-- **Final state and reason:** verifying.
+- **Next bounded action and owner:** none for this task; #85 is merged. Next in the plan: DEV-006, the freeze of `TODOS.md` and the HANDOFF files and the citation rewrite from the Citation map.
+- **Final state and reason:** done. Every required criterion passes.
 
 ## Inventory A — `TODOS.md` at `5480d2e`
 
