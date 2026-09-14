@@ -110,6 +110,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-079](#bl-079) | P1 | deferred (owner) | `outputs/` keeps personal data in git against the project's own rule |
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
 | [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
+| [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -985,6 +986,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-007's review (S1-09). Commit `bbfc705`, a landing layout change, added the whole session directory in passing, and no ignore rule or validator check would stop the next one. Two guards fit: ignore new session directories under `outputs/` while the existing tree stays tracked, and a validator check that refuses tracked files carrying ProZorro `contactPoint` objects outside approved paths. Ranked by DEV-007 from the review's severity.
 - **Evidence:** `git log --format='%h %s' -- outputs` lists only `bbfc705` «fix(landing): adjust table borders for improved layout consistency»; `.gitignore` has no `outputs` entry.
 - **Depends on:** BL-079, which decides what may stay tracked.
+- **Deadline:** none recorded.
+
+<a id="bl-082"></a>
+### BL-082 — P2 — The landing is not yet rebuilt against its new reference
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** on 2026-09-14 the owner made https://parlo-black.vercel.app/ the landing's reference and kept the colours of `design-references/contest-2026-09/` ([DEV-007](tasks/DEV-007-design-sources.md) «Owner decisions»). The shipped landing reproduces the contest prototype's composition and motion, and three live files cite that prototype: `apps/landing/app/layout.tsx`'s parity note, the landing references of `docs/design/03-ui-references.md`, and the `stately` duration ruling in `packages/tokens/src/tokens.json`. The rebuild takes structure, composition and motion from the new reference and keeps `DESIGN.md`'s Daylight colours. It is a UI change on the `docs/design/02-building-ui.md` route with `gp-ui-reviewer`, and it takes the reference as structure only, copying nothing, as `03-ui-references.md` treats its other sources. Ranked by DEV-007.
+- **Evidence:** observed on 2026-09-14: «Parlo — Autonomous Support Messaging», a dark page whose first screen is a perspective grid under a headline revealed word by word. `design-references/README.md` records the new standings.
+- **Depends on:** a UI slice, and the owner's approval of its plan.
 - **Deadline:** none recorded.
 
 ## Closed, kept for citations
