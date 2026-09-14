@@ -106,6 +106,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-075](#bl-075) | P1 | closed → `a306ec2` | Valuation funding was first-come and never re-offered |
 | [BL-076](#bl-076) | P0 | closed → `0a7c407` | The pool stranded once an over-removal parted quantity from money |
 | [BL-077](#bl-077) | P3 | open | Code and documents still send readers to the frozen `TODOS.md` by entry name |
+| [BL-078](#bl-078) | P3 | open | The rewrite plan's rulings D1–D7 were never recorded in an ADR |
+| [BL-079](#bl-079) | P1 | deferred (owner) | `outputs/` keeps personal data in git against the project's own rule |
+| [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
+| [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -670,7 +674,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** `TODOS.md` «the assignments register is a horizontally-scrolling table at 390/360»
-- **Why:** the design system's narrow-width rendering is cards; the register is a `DataTable` inside `overflow-x-auto`.
+- **Why:** the design system's narrow-width rendering is cards; the register is a `DataTable` inside `overflow-x-auto`. The ruling behind it moved here from `.interface-design/system.md` §5 «WorkRegister» when DEV-007 removed that file: below `md` the register is a different hierarchy (cards that lead with money and state), not the table's DOM restyled, because changing `display` on table elements strips their implicit ARIA roles.
 - **Evidence:** `apps/app/src/components/assignments/assignments-list.tsx:70` renders `DataTable`; no narrow-width card markup there or in `DataTable.tsx`.
 - **Depends on:** a UI slice.
 - **Deadline:** none recorded.
@@ -773,19 +777,18 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** `TODOS.md` «Documents and configuration»
-- **Why:** as BL-055. Fixed since: `03-ui-references.md` names each 21st.dev licence (`39f2640`); `apps/landing/AGENTS.md` documents the 500-key bound (`0c0a885`); `docs/design/01-tokens.md` no longer names the pilot form's radius.
+- **Why:** as BL-055. Fixed since: `03-ui-references.md` names each 21st.dev licence (`39f2640`); `apps/landing/AGENTS.md` documents the 500-key bound (`0c0a885`); `docs/design/01-tokens.md` no longer names the pilot form's radius; the rewrite plan, which still named Source Serif 4 and «fifteen» under a Status of Approved, is Historical (DEV-007).
 - **Evidence:** re-checked on 2026-09-14; open:
   - `DESIGN.md` puts the pilot form on `card` (12px); the form ships `rounded-surface`.
   - `DESIGN.md` scopes `section` (16px) to the closing CTA card; two phone bezels use it correctly.
   - `DESIGN.md`'s `shadow-float` «reserved for» list omits three visuals that carry it.
   - `DESIGN.md` frontmatter gives `feature-cell` the container's border and radius, and omits `compare-card`'s border.
-  - `docs/design/2026-08-19-design-system-rewrite-plan.md` still names Source Serif 4 and «fifteen» under a Status of Approved; it needs a living-or-historical decision (DEV-007's scope).
   - `design-references/visual-directions/README.md` says three directions; its superseded note cites a README path that does not exist.
   - `docs/design/03-ui-references.md` file header scopes it to `(dash)` though it carries a landing section.
   - `infra/README-staging.md` lists the five pilot variables without pairing them and says Production only.
   - `turbo.json` puts the five pilot secrets in `build.env`, so a token rotation invalidates every package's build cache.
   - An English dated correction sits in a Russian table row of `docs/superpowers/specs/2026-07-29-goproceed-baseline-zero-design.md` (frozen archive; cosmetic).
-- **Depends on:** nothing; the rewrite-plan line joins DEV-007.
+- **Depends on:** nothing.
 - **Deadline:** none recorded.
 
 ## Tooling, CI and dependencies
@@ -940,6 +943,48 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-006 froze `TODOS.md` and the HANDOFF files and re-pointed every live `TODOS.md` line-number citation to an entry; the validator now refuses a new one. Prose pointers remain («recorded in `TODOS.md`», «the TODOS entry»). Each still resolves, through the entry whose Legacy cite quotes its source or to a closed item that stays history, but a reader has to search a 3,723-line frozen file to follow it. Ranked by DEV-006.
 - **Evidence:** `git grep -n TODOS -- apps packages` lists 46 lines in 38 files after DEV-006, and listed 52 in 43 at `6fd98d0` before it re-pointed seven numbered citations in six files; one of those lines still names `TODOS.md`. Documents, `.github/workflows/ci.yml` and `infra/README-staging.md` add more; [DEV-005](tasks/DEV-005-backlog-triage.md) «What is not true after this task» names them.
 - **Depends on:** nothing.
+- **Deadline:** none recorded.
+
+<a id="bl-078"></a>
+### BL-078 — P3 — The rewrite plan's rulings D1–D7 were never recorded in an ADR
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** `docs/design/02-building-ui.md` and the generated `docs/design/01-tokens.md` name D1–D7 in the rewrite plan's §3 as the rulings they enforce, «which need an ADR before Phase 3». §12's P0 required «Seven decisions recorded in an ADR»; none was written, and the surfaces since shipped on Daylight, which departed from D3's type pairing. DEV-007 made the plan Historical, so those rulings have no normative home. An ADR drafted as `Proposed` would record what was actually decided, for the owner to rule (`docs/README.md` «ADR lifecycle and approval»). Ranked by DEV-007.
+- **Evidence:** `docs/design/2026-08-19-design-system-rewrite-plan.md` §3 and §12; `docs/decisions/README.md` indexes ADR-001 to ADR-011; the «Related decisions» lines of `02-building-ui.md` and `01-tokens.md` (the latter written by `packages/tokens/scripts/generate-docs.mjs`).
+- **Depends on:** the owner's ruling on the drafted ADR.
+- **Deadline:** none recorded.
+
+<a id="bl-079"></a>
+### BL-079 — P1 — `outputs/` keeps personal data in git against the project's own rule
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-007's `gp-security` review (S1-01, S1-02, S1-05) found personal data of natural persons in the prospecting session that commit `bbfc705` added: buyer-side contact persons in the raw ProZorro search dumps, and sole traders under their personal names with ten-digit identifiers, the length of a personal tax number rather than a company code. The project's rule, live through the `.gitignore` entries headed «personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)», keeps lead data out of git history and promises retention limits and deletion on request, which a tracked copy cannot honour without rewriting history. The repository is private and nothing deploys or uploads the directory, but every clone, worktree, CI checkout and agent session that reads it holds the data. The owner kept `outputs/` on 2026-09-13 as the prospecting record; this entry is the decision on how it is kept. The priority is the review's.
+- **Evidence:** the coordinator's counts at `d8a860a` (2026-09-14): the five `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/prozorro_wave{3..7}_search_hits_2026-08-24.json` files hold 6,371 `contactPoint` objects, each with a name and an email (2,444 distinct name–email pairs); 9,788 `edrpou` values of ten digits across 52 files. `docs/legacy/40-phase1-discovery-outreach.md` §B.5; `.gitignore`'s Child B block. The review found no credentials.
+- **Depends on:** the owner's decision.
+- **Deadline:** none recorded.
+- **Resume:** the owner chooses: keep the directory with a recorded purpose, lawful basis and retention date; move it to private storage behind a pointer README; or redact the personal fields in place. Moving or redacting leaves the data in `bbfc705` unless history is rewritten, a further owner decision (force-push, every clone re-made). The coordinator then opens a task for the chosen option, and BL-080 and BL-081 follow it.
+
+<a id="bl-080"></a>
+### BL-080 — P2 — Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-007's review (S1-03, S1-04). The unsent A1-N01 outreach pack's own privacy rule promises general corporate addresses without employee names, yet most of its routes are free-mail addresses or mobile numbers, which for a small firm are often the director's own. Tender titles copied verbatim name private customers («Замовник: surname, initials») beside contract numbers and localities, with no bearing on any prospect. The priority is the review's.
+- **Evidence:** `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/pilot_outreach_A1-N01_2026-08-25.md`: 7 recipient addresses, 6 on free-mail domains (coordinator's count); 101 «Замовник: <surname> <initial>.» matches in 22 files of the same directory (coordinator's count; the review counted 99 with its own pattern).
+- **Depends on:** BL-079.
+- **Deadline:** none recorded.
+- **Resume:** with BL-079 decided, the owner chooses to keep, to redact the routes and the customer names, or to move the pack to the git-ignored `discovery/` store; the coordinator carries it out.
+
+<a id="bl-081"></a>
+### BL-081 — P2 — Nothing stops a session from committing prospecting data again
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-007's review (S1-09). Commit `bbfc705`, a landing layout change, added the whole session directory in passing, and no ignore rule or validator check would stop the next one. Two guards fit: ignore new session directories under `outputs/` while the existing tree stays tracked, and a validator check that refuses tracked files carrying ProZorro `contactPoint` objects outside approved paths. The priority is the review's.
+- **Evidence:** `git log --format='%h %s' -- outputs` lists only `bbfc705` «fix(landing): adjust table borders for improved layout consistency»; `.gitignore` has no `outputs` entry.
+- **Depends on:** BL-079, which decides what may stay tracked.
 - **Deadline:** none recorded.
 
 ## Closed, kept for citations

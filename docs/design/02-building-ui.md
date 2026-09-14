@@ -104,7 +104,7 @@ fail the colour audit.
 
 `impeccable` is the judgement call: it overlaps this document heavily. Reach for
 it only for a **critique pass on a finished block**, never to decide structure —
-structure is decided here.
+structure is decided here. `interface-design` may inform a screen, but decline its offer to save a system file: its `.interface-design/system.md` outlived the design it described and was removed on 2026-09-14 (DEV-007); decisions live in `DESIGN.md` and this directory.
 
 ### 3.3 Three questions, answered before the first line
 
@@ -357,6 +357,10 @@ One line each. Every one of these shipped or nearly shipped.
   pills and the compare checks stayed hidden for a whole slice.
   `apps/landing/tests/motion-parity.test.tsx` («motion wrappers are boxes»)
   scans for it.
+- **QA hooks are `data-*` attributes, never class names, and an assertion names the
+  contract, not the markup.** A class rename during a restyle once turned a whole
+  audit into a no-op, and an assertion that fires on a correct change teaches you
+  to edit the assertion. *[Moved 2026-09-14 (DEV-007) from `.interface-design/system.md` §8.]*
 
 ---
 

@@ -109,4 +109,7 @@ discovery/suppression.csv
 discovery/drafts/
 discovery/*.db
 .gstack/
+
+# Agent-session screenshots and briefs; DEV-007 removed the tracked copy (2026-09-14).
+/output/
 apps/app/qa-output-before/

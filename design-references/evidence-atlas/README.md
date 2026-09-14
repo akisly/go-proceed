@@ -1,5 +1,7 @@
 # Evidence Atlas — selected visual direction
 
+> **Historical, 2026-09-14 (DEV-007).** Daylight superseded this direction on 2026-09-05. The normative design is `DESIGN.md` and `docs/design/`; nothing below is a current rule. `apps/landing/qa/grounds.mjs` still reads `assets/` as crop references. See [the directory README](../README.md).
+
 ## Status
 
 `Direction 02 — Evidence Atlas` is the normative visual direction for the AktFlow prototype. The source board is preserved as `selected-direction.png`; it is a visual target, not a screenshot to ship as UI.

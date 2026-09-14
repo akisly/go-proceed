@@ -2,7 +2,7 @@
 
 **Status:** Approved (owner decision, 2026-08-21)
 **Applies to:** every screen under `apps/app/app/(dash)/**` — the office dashboard *[2026-09-05: the token and component rules of this file also bind `app/(app)/**` and `app/(auth)/**` since the field client migrated onto `@goproceed/ui`; the plane-derived structure rules (§«The hierarchy») stay dashboard-only.]*
-**Read with:** [`02-building-ui.md`](02-building-ui.md) (the procedure and the gate — it wins on every conflict), [`../../.interface-design/system.md`](../../.interface-design/system.md), [`04-role-pain-map.md`](04-role-pain-map.md)
+**Read with:** [`02-building-ui.md`](02-building-ui.md) (the procedure and the gate — it wins on every conflict), [`../../DESIGN.md`](../../DESIGN.md) *[2026-09-14 (DEV-007): in place of `.interface-design/system.md`, removed]*, [`04-role-pain-map.md`](04-role-pain-map.md)
 
 ## The three references
 
