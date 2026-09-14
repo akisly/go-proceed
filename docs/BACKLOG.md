@@ -111,7 +111,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
 | [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
-| [BL-083](#bl-083) | P2 | open | Nothing keeps a privately hoisted type package at one version |
+| [BL-083](#bl-083) | P2 | open | Nothing keeps a package reached through pnpm's private hoist at one version |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1000,11 +1000,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 
 <a id="bl-083"></a>
-### BL-083 — P2 — Nothing keeps a privately hoisted type package at one version
+### BL-083 — P2 — Nothing keeps a package reached through pnpm's private hoist at one version
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** [DEV-008](tasks/DEV-008-types-react-dedupe.md) found that pnpm 9.12.0 privately hoists the copy of a package brought by whichever importer it lists first, and that order varies between runs. `next`, `lucide-react`, `framer-motion` and `@tanstack/*` import `@types/react` without declaring it, so when `apps/mobile` pinned a different `@types/react` the web programs sometimes loaded two copies and CI `typecheck` failed at random. DEV-008 aligned the versions; nothing stops a later pin, for example from `expo install --fix`, splitting them again. Two guards fit: a root `pnpm.overrides` entry for `@types/react` (and `pnpm-workspace.yaml` `overrides`, kept in sync as D-048 does for build scripts), or a check that fails when `pnpm-lock.yaml` holds more than one version of `@types/react` or `@types/react-dom`. Ranked by DEV-008.
+- **Why:** [DEV-008](tasks/DEV-008-types-react-dedupe.md) found that pnpm 9.12.0 privately hoists the copy of a package brought by whichever importer it lists first, and that order varies between runs. `next`, `lucide-react`, `framer-motion` and `@tanstack/*` import `@types/react` without declaring it, so when `apps/mobile` pinned a different `@types/react` the web programs sometimes loaded two copies and CI `typecheck` failed at random. DEV-008 aligned `@types/react`; nothing stops a hand pin, or an `expo install @types/react` that writes Expo's `~19.2.4` range, splitting it again. `react` and `react-dom` are already split (19.2.3 in `apps/mobile`, 19.2.8 in the web apps) and reach the same hoist. Two guards fit: root `pnpm.overrides` entries (and `pnpm-workspace.yaml` `overrides`, kept in sync as D-048 does for build scripts), or a check that fails when `pnpm-lock.yaml` holds more than one version of a package that web and mobile importers both reach, starting with `@types/react`, `@types/react-dom`, `react` and `react-dom`. Ranked by DEV-008.
 - **Evidence:** DEV-008 «Progress and decisions» rows 1–3; at `5a38091` `grep -oE "@types/react@19\.[0-9.]+" pnpm-lock.yaml | sort -u` prints one version.
 - **Depends on:** none.
 - **Deadline:** none recorded.
