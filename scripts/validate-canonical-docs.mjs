@@ -1769,6 +1769,7 @@ function selfTest() {
   if (!blSays({ entries: [...fxGood.entries, ["<a id=\"bl-009\"></a>", ""]] }, "bl-009\"></a> has no entry")) t.push("backlog (anchor without an entry)");
   if (!blSays({ rows: [fxRow("001", "deferred (owner)"), fxRow("002", "deferred (owner)")] }, "BL-001's index State")) t.push("backlog (index State drift)");
   if (!blSays({ rows: [fxRow("001", "open", "Other"), fxRow("002", "deferred (owner)")] }, "BL-001's index Title")) t.push("backlog (index Title drift)");
+  if (!blSays({ rows: ["| [BL-001](#bl-001) | P1 | open | Title 001 |", fxRow("002", "deferred (owner)")] }, "BL-001's index P")) t.push("backlog (index P drift)");
   if (!blSays({ rows: [fxRow("001", "open")] }, "BL-002 is missing from the index")) t.push("backlog (entry without an index row)");
   if (!blSays({ rows: [...fxGood.rows, fxRow("003", "open")] }, "BL-003, which has no entry")) t.push("backlog (index row without an entry)");
   if (!blSays({ rows: [...fxGood.rows, fxRow("001", "open")] }, "listed twice in the index")) t.push("backlog (index row twice)");

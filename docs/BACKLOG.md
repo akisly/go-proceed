@@ -20,7 +20,7 @@ Open and deferred work, one entry each. The coordinator writes this file; specia
 - **Why**, **Evidence**, **Depends on**, **Deadline**.
 - A `deferred (owner)` entry adds **Resume:** what the owner supplies and what happens next.
 
-A priority is the source entry's own where it had one. Entries whose source carried none say «ranked by DEV-005»; the owner confirmed those rankings on 2026-09-14.
+A priority is the source entry's own where it had one. Entries whose source carried none say «ranked by DEV-005»; the owner confirmed those rankings on 2026-09-14. An entry added later names the task that ranked it («ranked by DEV-NNN»).
 
 **Adding and closing.** Take the next unused number and never reuse one. A task that takes an entry sets `scheduled → DEV-NNN`; closing sets `closed →` and keeps the entry.
 
@@ -938,7 +938,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** none
 - **Why:** DEV-006 froze `TODOS.md` and the HANDOFF files and re-pointed every live `TODOS.md` line-number citation to an entry; the validator now refuses a new one. Prose pointers remain («recorded in `TODOS.md`», «the TODOS entry»). Each still resolves, through the entry whose Legacy cite quotes its source or to a closed item that stays history, but a reader has to search a 3,723-line frozen file to follow it. Ranked by DEV-006.
-- **Evidence:** `git grep -n TODOS -- apps packages` lists 46 lines in 38 files after DEV-006, and listed 52 in 43 at `6fd98d0` before it re-pointed six numbered citations. Documents, `.github/workflows/ci.yml` and `infra/README-staging.md` add more; [DEV-005](tasks/DEV-005-backlog-triage.md) «What is not true after this task» names them.
+- **Evidence:** `git grep -n TODOS -- apps packages` lists 46 lines in 38 files after DEV-006, and listed 52 in 43 at `6fd98d0` before it re-pointed seven numbered citations in six files; one of those lines still names `TODOS.md`. Documents, `.github/workflows/ci.yml` and `infra/README-staging.md` add more; [DEV-005](tasks/DEV-005-backlog-triage.md) «What is not true after this task» names them.
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 

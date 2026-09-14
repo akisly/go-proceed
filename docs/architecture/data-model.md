@@ -577,7 +577,7 @@ ADR-005 says refuse.
 `TRUNCATE` fires neither an `UPDATE` nor a `DELETE` trigger, and RLS does not
 gate it. An append-only table therefore also needs its `TRUNCATE` privilege
 withheld; migration `0058` (2026-08-18) revoked it from `service_role`, `anon` and
-`authenticated` on every table in `public` *[corrected 2026-09-14 (DEV-006): this said it was not yet true of `outbox_dead_letters`, as recorded in `TODOS.md`]*.
+`authenticated` on every table in `public`, and from their default privileges *[corrected 2026-09-14 (DEV-006): this said it was not yet true of `outbox_dead_letters`, as recorded in `TODOS.md`]*.
 
 Audit records command activity but never substitutes for an absent domain fact.
 Under ADR-005 this is sharper: a stage closure, a bypass, and a clearance are

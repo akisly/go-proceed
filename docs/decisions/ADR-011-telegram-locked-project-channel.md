@@ -563,7 +563,7 @@ none. The five items, by pointer:
 ADR-006 decision 4 is twenty-six tables, «every row … here because a numbered
 step above cannot happen without it» (ADR-006:214-217), pinned in the
 validator as `ADR006_V01_BUILD_TOTAL = 26`
-(`scripts/validate-canonical-docs.mjs`, the constant and its size check in `main`; line numbers dropped 2026-09-14 by DEV-006, having moved). This branch creates
+(`scripts/validate-canonical-docs.mjs`, the constant and its size check in `main()`) *[re-pointed 2026-09-14 (DEV-006): this cited line numbers that had moved]*. This branch creates
 **fifteen**:
 
 | Migration | Table |
