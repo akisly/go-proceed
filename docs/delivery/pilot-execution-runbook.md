@@ -755,8 +755,12 @@ Three traps this section preserves rather than smooths:
 
 Status vocabulary in the tables below: **OPEN** (nothing built), **PARTIAL**
 (mechanism exists, gate not closable as written), **BUILT / UNRECORDED** (the
-artifact exists in code and no dated evidence entry does). **No gate anywhere
-below is closed**, because closure is a dated record and there are zero of them.
+artifact exists in code and no dated evidence entry does). **One gate below is
+closed: readiness gate 10 (items 9 and 10)**, by its dated entry of 2026-09-14 in
+[version-0.1.md](version-0.1.md) §M0 ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)). Every other gate is open, because
+closure is a dated record. *[Changed 2026-09-14 (DEV-009): this read «No gate
+anywhere below is closed, because closure is a dated record and there are zero
+of them».]*
 
 ### 5.1 — Item 1: privacy notice and versioned external confirmation text
 
@@ -917,7 +921,7 @@ written.
 
 *(readiness gate 10, first bullet — **enforced in storage, not in a template**)*
 
-**Status: PARTIAL since 2026-09-03.** Until the channel, this was the strongest-built gate on the list, and its storage half still is. The channel added a **renderer the gate had not met**: the Telegram assignment card (`apps/app/src/lib/telegram/cards.ts`, fed by the card route) renders `criterion — normRef` with **neither the tag nor the source**, and [hidden-works-content-rules.md](../product/hidden-works-content-rules.md) — which binds at every precedence level — carries no Telegram sentence. The owner ruled on 2026-09-03 (ADR-011 open item 9) that the card carries both before a real group sees it; the slice is in [TODOS.md](../../TODOS.md) P2 and is one of the four blockers before any environment enables the webhook. The storage half, unchanged:
+**Status: CLOSED 2026-09-14** by the gate 10 entry in [version-0.1.md](version-0.1.md) §M0 ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)): the card has carried the tag and the source since `c48a4a5` and `0359bcb`, and Q-7 was ruled. *[Changed 2026-09-14 (DEV-009): this read «PARTIAL since 2026-09-03»; the paragraph below is its history.]* Until the channel, this was the strongest-built gate on the list, and its storage half still is. The channel added a **renderer the gate had not met**: the Telegram assignment card (`apps/app/src/lib/telegram/cards.ts`, fed by the card route) renders `criterion — normRef` with **neither the tag nor the source**, and [hidden-works-content-rules.md](../product/hidden-works-content-rules.md) — which binds at every precedence level — carries no Telegram sentence. The owner ruled on 2026-09-03 (ADR-011 open item 9) that the card carries both before a real group sees it; the slice is in [TODOS.md](../../TODOS.md) P2 and is one of the four blockers before any environment enables the webhook. The storage half, unchanged:
 
 - `requirement_library_items.verification text not null check (verification in
   ('VERIFIED_PRIMARY','VERIFIED_SECONDARY'))` — `UNVERIFIED` is deliberately
@@ -944,19 +948,22 @@ gate as the record being «committed under `technical/requirements/`». The reco
 `technical/requirements/` holds the two CSVs whose source column repeats the
 three facts per row, and holds neither a separate retrieval-record file nor the
 636 603-byte ДБН file itself. Whether that satisfies the wording is an owner
-call (§10 Q-7).
+call (§10 Q-7). *[Ruled 2026-09-14: the owner had both committed there,
+`technical/requirements/dbn-a31-5-2016.pdf` and
+`dbn-a31-5-2016.retrieval.json`, with a test binding them to the record ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)).]*
 
 **A re-fetch that does not reproduce the same bytes downgrades every row it
 touches to `VERIFIED_SECONDARY`.**
 
-**Next action:** write the dated evidence entry. The mechanism is done; the
-record is not.
+**Next action:** none; the entry is written ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)). *[Changed 2026-09-14:
+this read «write the dated evidence entry. The mechanism is done; the record is
+not».]*
 
 ### 5.10 — Item 10: recorded date of last verification against the Реєстр будівельних норм
 
 *(readiness gate 10, second bullet)*
 
-**Status: PARTIAL.** The storage and print mechanism is built:
+**Status: CLOSED 2026-09-14** by the gate 10 entry in [version-0.1.md](version-0.1.md) §M0 ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)). *[Changed 2026-09-14 (DEV-009): this read «PARTIAL».]* The storage and print mechanism is built:
 `statutory_act_versions.registry_checked_on` exists, is required at freeze by
 `statutory_act_versions_frozen_complete_check`, is guarded against a future date
 with a one-day UTC allowance, and `pageFooterText()` prints «Перевірено за
@@ -964,11 +971,16 @@ with a one-day UTC allowance, and `pageFooterText()` prints «Перевірен
 
 **But there is no fact table behind the date.** The composer supplies a date the
 database can only check is not in the future. M0 gate 10 owns the registry check
-and builds nothing.
+and builds nothing. *[2026-09-14 (DEV-009): the check of that day is recorded in
+`technical/requirements/dbn-a31-5-2016.registry-checks.json`, confirmed by the
+owner. The database still checks only that the date is not in the future.]*
 
-**Next action:** perform the registry check, record what was checked and when,
-and decide whether the date's provenance is itself an artifact under
-`technical/requirements/` or a procedure the operator repeats.
+**Next action:** repeat the check by `technical/requirements/README.md` before a
+later date is printed; the footer's wording is BL-084. *[Changed 2026-09-14
+(DEV-009): this read «perform the registry check, record what was checked and
+when, and decide whether the date's provenance is itself an artifact under
+`technical/requirements/` or a procedure the operator repeats». The owner ruled
+both: the artifact and the procedure.]*
 
 ### 5.11 — Item 11: tenant-isolation tests for every module v0.1 ships
 
@@ -1033,7 +1045,7 @@ unsaid is not honesty.
 
 | Order | Gate | Size | Why here |
 |---|---|---|---|
-| 1 | Item 9 + item 10 evidence entries (readiness gate 10) | **S** — writing, no code | The mechanism is done. This is pure recording, and it establishes what a closed gate's record looks like — a form that currently has no precedent anywhere |
+| 1 | Item 9 + item 10 evidence entries (readiness gate 10) — **done 2026-09-14, [DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)** | **S** — writing, no code | The mechanism is done. This is pure recording, and it establishes what a closed gate's record looks like — a form that currently has no precedent anywhere |
 | 2 | Item 7 (readiness gate 14) + the [version-0.0.md](version-0.0.md):78-79 tick | **S** — writing, plus lifting the rotation runbook out of README-staging | Same: substantially built, unrecorded |
 | 3 | Item 12's built halves (readiness gate 12, uploads/imports) | **S** — writing | Same |
 | 4 | Item 11's coverage checker (readiness gate 11) | **M** — one checker against the module list, plus its own test | The only one whose gap is a piece of code rather than a decision |
@@ -1628,7 +1640,7 @@ schedule requests it».
 
 | # | Question | Where the answer lives | Today |
 |---|---|---|---|
-| 1 | Do **all fourteen** readiness gates carry a dated evidence entry in [version-0.1.md](version-0.1.md) §M0? | that section | **NO** — zero entries |
+| 1 | Do **all fourteen** readiness gates carry a dated evidence entry in [version-0.1.md](version-0.1.md) §M0? | that section | **NO** — one of fourteen: gate 10, 2026-09-14 ([DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)) |
 | 2 | Has **one restore exercise** been executed in an isolated environment and recorded? | readiness gate 5 | **NO** |
 | 3 | Has a **deletion-then-restore test** proved tombstones are reapplied before restored data is reachable? | readiness gate 4 | **NO** |
 | 4 | Is the environment the data will enter the one the evidence was recorded against? | [README-staging.md](../../infra/README-staging.md) §Status + a live `select max(version) from supabase_migrations.schema_migrations` | **NO** — staging's last recorded apply is `0058`; the tree is at `0081`; nothing the evidence of 2026-09-03 exercised (the erasure procedure, the guards, the registry) exists on any hosted project |
@@ -1889,7 +1901,7 @@ Q-9, Q-10, Q-11, Q-12, Q-15 and Q-17 — it is the owner deciding, not an agent 
 | **Q-4** | **What are the pilot retention durations?** Every one of 126 rows is `duration_external_gate` under V-003, whose owner is «counsel/accountant» and whose target is «before GA retention». Whether V-003 is even the right gate for a *pilot* is unstated | **Owner decision** | M0 item 2, and item 4's shape |
 | **Q-5** | **Is «on every printed page» satisfiable without a paginator?** There is no print or PDF surface; `act-content-fidelity.test.ts` names the gap itself — «a model without a paginator» | UX Architect + Backend Architect | M0 item 6, M4 acceptance |
 | **Q-6** | **What is left of the evidence-and-procedure question.** **Answered on 2026-09-13** by root AGENTS.md and [agents/COORDINATION.md](../../agents/COORDINATION.md) (DEV-002, owner-approved): a slice's record is its task record, `docs/tasks/DEV-NNN`; brainstorm outcomes are its dated Owner decisions; review verdicts are its Findings; an aborted slice moves to `cancelled` (§4.1, §7.1). **Still open:** the status an ADR moves through, and whether the ruling-in-conversation form ADR-011 records is the whole approval procedure (§4.1 step 5b); and whether the channel's nineteen migrations are owed a retroactive record | Senior PM / **owner decision** | ADR approvals; the channel's evidence |
-| **Q-7** | **Does the ДБН retrieval record satisfy «committed under `technical/requirements/`»** when the record as a record lives in `apps/app/src/lib/statutory-act-form.ts` and the directory holds only the two CSVs repeating its three facts per row? | Reality Checker | M0 item 9's evidence entry |
+| **Q-7** | **Does the ДБН retrieval record satisfy «committed under `technical/requirements/`»** when the record as a record lives in `apps/app/src/lib/statutory-act-form.ts` and the directory holds only the two CSVs repeating its three facts per row? | Reality Checker | M0 item 9's evidence entry. **Ruled 2026-09-14 (owner, [DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)):** commit a retrieval-record file and the ДБН file itself under `technical/requirements/`; done |
 | **Q-8** | **What is the quarantine ledger?** Two Approved documents make it an enforcement point. No file, no format, no reader. Nothing detects a skipped test at all | DevOps Automator | Nothing today; a real hole in gate 4 of §6.3 |
 | **Q-9** | **Three narrow things, not «there is no procedure».** The repeat-apply procedure exists ([README-staging.md](../../infra/README-staging.md):162, :165-186) and so does the head check (:184, verbatim). What is undefined in repo is **(a) who** runs `supabase db push` after a migration merges, **(b) on what trigger** — nothing automates it and no CI job touches a hosted project, and **(c) what the rollback for a bad migration is**, given `db reset --linked` is prohibited and applied migrations are append-only ([docs/README.md](../README.md):172-173). Also open: whether a **separate production project** is owed before or after the pilot, since the pilot rides the single staging/pilot project today ([system-overview.md](../architecture/system-overview.md):583). This is why `0059`–`0081` have no apply record, and why the largest push since provisioning is unscheduled | DevOps Automator / **owner decision** for the production-project half | Every future deploy; step 4 of §8.6 |
 | **Q-10** | **Is magic-byte content-type enforcement plus a bounded allow-list accepted AS the malware control for a pilot, or is an engine owed?** An ADR-shaped decision nobody has written | **Owner decision** (ADR) | M0 item 12 |

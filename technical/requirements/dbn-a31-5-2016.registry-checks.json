@@ -1,0 +1,53 @@
+{
+  "norm": "ДБН А.3.1-5:2016 «Організація будівельного виробництва»",
+  "register": {
+    "basis": "ЗУ «Про будівельні норми» № 1704-VI, ст. 10 ч. 6: registration «шляхом внесення запису до Єдиної державної електронної системи у сфері будівництва» (https://zakon.rada.gov.ua/laws/show/1704-17, edition of 09.06.2022)",
+    "system": "ЄДЕССБ, https://e-construction.gov.ua",
+    "holder": "ПКМУ № 681 of 23.06.2021, п. 6, names Мінрозвитку; ПКМУ № 963 of 17.07.2026 renamed that ministry from 18.07.2026, and which ministry now holds construction policy was not established on 2026-09-14",
+    "procedure": "technical/requirements/README.md «Repeating the registry check»"
+  },
+  "checks": [
+    {
+      "checkedOn": "2026-09-14",
+      "entry": {
+        "url": "https://e-construction.gov.ua/laws_detail/3879707932224390963",
+        "accessedAt": "2026-09-14T19:24:35Z",
+        "status": "Діючий",
+        "edition": "Редакція від 20.04.2026",
+        "registrationNumber": "BN01:4205-4602-0357-0183",
+        "approvedBy": "Наказ Мінрегіону України від 05.05.2016 р. № 115",
+        "changesListed": "none: no line of the page text contains «змін»",
+        "effectiveDateShown": "the «Дата набрання чинності» field is empty on the page"
+      },
+      "archivedVersion": {
+        "url": "https://e-construction.gov.ua/laws_detail/3113373519350597353",
+        "accessedAt": "2026-09-14T19:31:12Z",
+        "status": "Архівний",
+        "version": "Версія №1",
+        "linksCurrentEntry": true,
+        "samePdfLink": true,
+        "note": "its seven «змін» matches are the norm's own text rendered on the page (for example п. 5.1.3), not change entries"
+      },
+      "listing": {
+        "url": "https://e-construction.gov.ua/laws/doc_type=2",
+        "accessedAt": "2026-09-14T19:31:12Z",
+        "rowStatus": "Діючий"
+      },
+      "file": {
+        "url": "https://e-construction.gov.ua/files-token/c7fb685e91deb04c43a13f9a6cf628a1",
+        "fetchedAt": "2026-09-14T19:24:35Z",
+        "sha256": "4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3",
+        "bytes": 636603,
+        "matchesRetrievalRecord": true
+      },
+      "result": "Registered and in force; no change, later edition, replacement or cancellation listed; the file's bytes reproduced. The VERIFIED_PRIMARY rows resting on these bytes stand, and 2026-09-14 is a supported registry check date.",
+      "checkedBy": "gp-researcher (DEV-009), from summarised page readings",
+      "reverifiedBy": "DEV-009 coordinator, from the raw page HTML and the downloaded file",
+      "confirmedBy": "owner, 2026-09-14, in conversation",
+      "secondarySourcesNoted": [
+        "https://mininfra.gov.ua/diialnist/tekhnichne-rehuliuvannia-u-budivnytstvi/chynni-budivelni-normy (dated 11.01.2025) does not list ДБН А.3.1-5:2016 and does not claim completeness; not a register"
+      ],
+      "record": "docs/tasks/DEV-009-m0-gate10-evidence.md"
+    }
+  ]
+}
