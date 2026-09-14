@@ -57,6 +57,8 @@
 | 7 | implementing (coordinator): documents | `version-0.1.md` §M0 gains «Gate evidence entries» with gate 10's dated entry, the first in that section. `production-readiness.md` is not edited: it says «No gate below is recorded closed by this document», so no checkbox is ticked. Runbook §5 intro, §5.9, §5.10, §5.14 row 1, Q-7 and §8 question 1, each with the replaced text kept in a dated note. `hidden-works-content-rules.md` Open items: one dated sentence that the file is retained. STATUS «M0 gates» row (gate 10 only, other cells not re-observed) and «Next action» 1 and 3. BL-084 added. Validators rc 0 | `node scripts/validate-canonical-docs.mjs`; `python3 scripts/sync-agents.py --check` | `gp-reviewer` |
 | 8 | reviewing (`gp-reviewer`, native), round 1 on `a83f48b` | **Changes requested.** Major R1-01; medium R1-02 to R1-04; low R1-05 to R1-10. Confirmed: every registry claim against the raw HTML except the effective date, the CI counts with no skips, the identifiers, the tests' failure causes, the Approved-document edits as annotations and added evidence, BL-084's form, the stage reasoning, and no rule against the PDF | gp-reviewer report | Fix R1-01 to R1-10 |
 | 9 | rework (coordinator), stated fixes | All ten applied (Findings table). Mutations sharpened: one byte flipped at offset 1000, length unchanged → only «commits the ДБН file…» red (42 passed); `retrievedOn` changed to 2026-08-11 → only «commits a retrieval-record file…» red (42 passed); restored → 43 passed. Turbo: `@goproceed/app#test` hash `fc7b6ac55f536c3e` before the input; `e4d946491eb1065d` after; `9efeff0b15186f8e` with one byte appended to the PDF; `e4d946491eb1065d` restored. `production-readiness.md` unticked items: 32. Not a rework round: no QA FAIL preceded it | `dev009-r1-mut-flip.txt`, `dev009-r1-mut-date.txt`, `dev009-r1-green2.txt`; `pnpm turbo run test --filter=@goproceed/app --dry=json` | `gp-qa` |
+| 10 | verifying (`gp-qa`, native), round 1 on `08ed618` | Criteria 1–9 and 11 PASS, re-run: PDF bytes equal the fetched copy and the `HEAD` blob; four single-test mutations (PDF byte flip; `retrievedOn`; the check's `file.sha256`; `reproductions[0].sha256`), each `1 failed | 42 passed`, restored to 43; typecheck and validators rc 0; turbo hash follows every file under `technical/requirements/` (its own values, from its own tree); ancestry of `c48a4a5`, `0359bcb`, `bd08da9` and `7b57784` → `3a9ea42`; every registry fact against the raw HTML and ЗУ 1704-VI. Criterion 10 NOT RUN, not required. All ten review fixes in place. Q1-01 to Q1-04 (low, text) | QA report; `scratchpad/qa-dev009-mut.sh`, `qa-vt-*.txt` | Fix Q1-01 to Q1-04 |
+| 11 | rework (coordinator), stated fixes | Q1-01: Sources times. Q1-02: «What is not true» narrowed. Q1-03: the entry's mutation sentence. Q1-04: `archivedVersion.version` removed; `urlSource` and `labelNote` added. Not a rework round: no QA FAIL | This diff | `gp-qa` narrow re-check |
 
 ## Findings and rework
 
@@ -72,15 +74,19 @@
 | R1-08 | low | STATUS preamble | Actual: «without re-observing the row's other cells» under-describes two cell edits | coordinator | The sentence itemises the State-cell reading and the Open-cell replacement |
 | R1-09 | low | No `.gitattributes` | Actual: nothing stops a line-ending conversion rewriting the PDF | coordinator | `.gitattributes`: `*.pdf binary` |
 | R1-10 | low | Entry omits `bd08da9`; unclear comment; README step 5 | Actual as stated | coordinator | `0084` (`bd08da9`) cited; comment reads «No expiry has been observed yet»; step 5 forbids replacing the committed bytes, record or `DBN_RETRIEVAL` |
+| Q1-01 | low (record only) | Sources, current entry and listing lines | Actual: page «accessed 19:24:35Z; the PDF … fetched the same second», which R1-06 corrected elsewhere | coordinator | Page 19:23:15Z and PDF 19:24:35Z from their headers; archived page and listing «fetched before 19:31:12Z» |
+| Q1-02 | low (record only) | «What is not true», the footer bullet | Actual: «a name no law uses», broader than R1-04's narrowing | coordinator | «a name ЗУ 1704-VI and the ЄДЕССБ pages read on 2026-09-14 do not use» |
+| Q1-03 | low | `version-0.1.md` gate 10 entry | Actual: «a one-byte change to the file turns both new tests red»; a same-length change turns one | coordinator | «a one-byte change to the file, or to a hash or date in the retrieval record, turns its own test red» |
+| Q1-04 | low | `registry-checks.json` `archivedVersion.version` | Actual: «Версія №1» asserted, while the label is identical text on both pages and the archived URL is not linked from the current entry | coordinator | `version` removed; `urlSource` (gp-researcher's reading, not linked from the current entry) and `labelNote` added |
 
-Rework count and hypothesis changes: review round 1's findings were applied as stated fixes; no rework round used. R1-01 came from reading the label that follows «Дата набрання чинності» in page text order, which is the next column header, not the cell; the fix read the table row.
+Rework count and hypothesis changes: review round 1's and QA round 1's findings were applied as stated fixes; no rework round used. R1-01 came from reading the label that follows «Дата набрання чинності» in page text order, which is the next column header, not the cell; the fix read the table row.
 
 ## What is not true after this task
 
 - **M0 is not closed.** Readiness gate 10 has an entry; gates 1–9 and 11–14 do not in `version-0.1.md` §M0.
 - **The new tests have not run in CI.** GitHub Actions starts no jobs until October 2026; they ran locally (43 passed, macOS). The CI run the entry cites (34872695375 attempt 1) predates the new files and proves the mechanism, not the committed bytes.
 - **The database does not know a check happened.** `registry_checked_on` is still only refused in the future; nothing ties a printed date to `dbn-a31-5-2016.registry-checks.json`, and the procedure is followed by hand.
-- **The footer still says «Реєстр будівельних норм»**, a name no law uses, and citations still say «Мінрозвитку», renamed on 18.07.2026 (BL-084).
+- **The footer still says «Реєстр будівельних норм»**, a name ЗУ 1704-VI and the ЄДЕССБ pages read on 2026-09-14 do not use, and citations still say «Мінрозвитку», renamed on 18.07.2026 (BL-084).
 - **One fetch reproduced is not two independent sources.** «незалежність будь-яких додаткових копій не встановлена» stays true of every row.
 - **The registry check reads one portal.** No second official source was found; the mininfra «Чинні будівельні норми» list omits the norm and is not treated as a register.
 - **Allow-list items 9–10 and 12–15** still have no primary texts or tags.
@@ -108,8 +114,8 @@ Rework count and hypothesis changes: review round 1's findings were applied as s
 
 ## Sources
 
-- `https://e-construction.gov.ua/laws_detail/3879707932224390963` (current entry), accessed 2026-09-14T19:24:35Z; the PDF behind `files-token/c7fb685e91deb04c43a13f9a6cf628a1`, fetched the same second.
-- `https://e-construction.gov.ua/laws_detail/3113373519350597353` (version 1, archived) and `https://e-construction.gov.ua/laws/doc_type=2` (listing), accessed 2026-09-14T19:31:12Z.
+- `https://e-construction.gov.ua/laws_detail/3879707932224390963` (current entry), accessed 2026-09-14T19:23:15Z (response `date` header); the PDF behind `files-token/c7fb685e91deb04c43a13f9a6cf628a1`, fetched 19:24:35Z (its response `date` header).
+- `https://e-construction.gov.ua/laws_detail/3113373519350597353` (version 1, archived) and `https://e-construction.gov.ua/laws/doc_type=2` (listing), fetched before 2026-09-14T19:31:12Z (the shell clock right after the fetch; headers not kept).
 - ЗУ «Про будівельні норми» № 1704-VI, edition of 09.06.2022, `https://zakon.rada.gov.ua/laws/show/1704-17/print`, accessed 2026-09-14T19:31:18Z: ст. 10 ч. 6, ст. 12 ч. 2.
 - Per `gp-researcher`, accessed 2026-09-14 through a summarising fetch tool: ЗУ «Про авторське право і суміжні права» № 2811-IX ст. 8; ЗУ «Про стандартизацію» № 1315-VII (edition 28.08.2025) ст. 2, ст. 25; ПКМУ № 681 of 23.06.2021 п. 6; ПКМУ № 950 of 15.07.2026; ПКМУ № 963 of 17.07.2026; наказ Мінрегіону № 115 (Rada card `v0115858-16`); `mininfra.gov.ua` «Чинні будівельні норми» (dated 11.01.2025); `decentralization.gov.ua/news/20871` (18.07.2026, semi-official).
 - GitHub Actions run 34872695375 attempt 1, repository `akisly/go-proceed`, read 2026-09-14.
@@ -117,8 +123,8 @@ Rework count and hypothesis changes: review round 1's findings were applied as s
 ## Completion / handoff
 
 - Changed files: `.gitattributes`, `turbo.json`, `docs/delivery/production-readiness.md`; `technical/requirements/dbn-a31-5-2016.pdf`, `dbn-a31-5-2016.retrieval.json`, `dbn-a31-5-2016.registry-checks.json`, `README.md` (new); `apps/app/src/lib/statutory-act-form.test.ts`, `apps/app/src/lib/statutory-act-form.ts` (comment); `docs/delivery/version-0.1.md`, `docs/delivery/pilot-execution-runbook.md`, `docs/product/hidden-works-content-rules.md`, `docs/STATUS.md`, `docs/BACKLOG.md`, this record, `docs/tasks/README.md`.
-- Review independence: independent — `gp-researcher`; `gp-reviewer` round 1; `gp-qa` pending.
+- Review independence: independent — `gp-researcher`; `gp-reviewer` round 1; `gp-qa` round 1 and a narrow re-check pending.
 - Verified scope: criteria 1–9 and 11, by the coordinator.
 - Remaining risks / blocked requirements: «What is not true» above.
-- Next bounded action and owner: coordinator — `gp-qa` on the fixes.
+- Next bounded action and owner: coordinator — `gp-qa` narrow re-check of Q1-01 to Q1-04, then the PR.
 - Final state and reason: verifying.

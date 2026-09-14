@@ -361,7 +361,8 @@ settled it stands unchanged and settles the next disagreement the same way.
     - *The retrieval record, committed under `technical/requirements/`.*
       `dbn-a31-5-2016.pdf` and `dbn-a31-5-2016.retrieval.json`, bound to
       `DBN_RETRIEVAL` by `statutory-act-form.test.ts` (43 passed locally on
-      2026-09-14; a one-byte change to the file turns both new tests red); the
+      2026-09-14; a one-byte change to the file, or to a hash or date in the
+      retrieval record, turns its own test red); the
       same 636 603 bytes were fetched again and matched on 2026-09-14. The owner
       ruled runbook Q-7 this way on 2026-09-14.
     - *Limits.* The new tests have not run in CI (GitHub Actions starts no jobs
