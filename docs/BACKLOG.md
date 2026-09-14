@@ -372,7 +372,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** `TODOS.md` «The webhook-enable blocker list loses this item»
 - **Why:** ADR-011 decision 10 orders three blockers: the Task 13 edge rate limit, a scheduler for the channel's jobs route, and the real-group staging pass. The card's tag and source, the fourth, closed on 2026-09-09. Ranked by DEV-005.
 - **Evidence:** STATUS «Telegram channel» row: `apps/app/vercel.json` has no crons, so `app/internal/telegram/jobs/route.ts` has no caller; `src/lib/telegram/ingress.ts` has no rate-limit code.
-- **Depends on:** runbook Q-12 (the scheduler) and Q-17 (a real group, blocked by M0's real-data rule); BL-023; BL-085; and, added by DEV-010's security review, older production deployments protected or deleted so none accepts an old webhook or worker secret (the project's Deployment Protection is «Only Preview Deployments», which does not protect past production deployments; `infra/secret-rotation.md` «Telegram secrets»).
+- **Depends on:** runbook Q-12 (the scheduler) and Q-17 (a real group, blocked by M0's real-data rule); BL-023; BL-085; and, added by DEV-010's security review, older production deployments deleted so none accepts an old webhook or worker secret (Deployment Protection was recorded as «Only Preview Deployments» on 2026-08-19, README-staging §5 step 4, not re-observed; Vercel documents its legacy pre-production mode as not protecting past production deployments, and a protection change without a custom domain may lock out the production alias; `infra/secret-rotation.md` «Telegram secrets»).
 - **Deadline:** before the webhook is set anywhere.
 
 <a id="bl-025"></a>
@@ -1028,7 +1028,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** none
 - **Why:** readiness gate 14 asks that HMAC verifier keys carry key ids. `TELEGRAM_LINK_PEPPER` keys the Telegram channel's link-token verifiers (`apps/app/src/lib/telegram/tokens.ts`, stored by the binding-intent and member-link-intent routes) and `subject_hmac` in `app.telegram_erasures` (migration `0081`; `apps/app/scripts/telegram-erase-identity.mjs`), with no key id. Replacing it invalidates unused link tokens and breaks the erasure registry's match, so a repeat request allocates a second surrogate and the re-link guard stops firing; a leaked pepper lets anyone holding the database re-identify erased people, and rotation does not repair that ([DEV-010](tasks/DEV-010-m0-gate14-evidence.md) review R1-01, security S1-06). On 2026-09-15 the owner chose to build a key-id pepper rather than close gate 14 with the limit. The work changes the erasure registry and its definer, so it takes the `gp-architect` and `gp-security` route. Ranked by DEV-010.
-- **Evidence:** `apps/app/src/lib/telegram/config.ts` (`TELEGRAM_LINK_PEPPER`, one value); `tokens.ts` `telegramVerifier`; `0081` `app.erase_telegram_identity_internal` finding a surrogate by `subject_hmac`.
+- **Evidence:** observed 2026-09-15 at `ccd1163`: `apps/app/src/lib/telegram/config.ts` (`TELEGRAM_LINK_PEPPER`, one value); `apps/app/src/lib/telegram/tokens.ts` `telegramVerifier`; `supabase/migrations/0081_the_identity_that_asked_to_be_forgotten.sql` `app.erase_telegram_identity_internal` finding a surrogate by `subject_hmac`.
 - **Depends on:** none.
 - **Deadline:** before the Telegram webhook is enabled anywhere (BL-024), and before readiness gate 14 closes.
 
@@ -1038,7 +1038,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** none
 - **Why:** `apps/app/src/lib/external-link.ts` `loadRegistry` and the deploy preflight's copy of its rules (`apps/app/scripts/deploy-preflight-keys.mjs`) both accept `k1:<old>,k1:<new>`, where the last entry silently wins and every grant or session signed under the replaced `k1` stops verifying, and neither refuses the same secret in `EXTERNAL_LINK_HMAC_KEYS` and `EXTERNAL_SESSION_HMAC_KEYS`, which would merge the two key spaces. DEV-010 kept the two paths in parity and documented «never reuse a key id» in `infra/secret-rotation.md`; refusing both is a registry change. Ranked by DEV-010 (review R1-10, security S1-13).
-- **Evidence:** `scripts/deploy-preflight-keys.test.mjs` case «a duplicate key id (both accept it; the last entry wins)».
+- **Evidence:** observed 2026-09-15 at `ccd1163`: `apps/app/scripts/deploy-preflight-keys.test.mjs` case «a duplicate key id (both accept it; the last entry wins)».
 - **Depends on:** none.
 - **Deadline:** none recorded.
 

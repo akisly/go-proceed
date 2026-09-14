@@ -9,9 +9,9 @@ How to replace every secret the deployments hold, in an order that does not take
 | Store | What it holds | Notes |
 |---|---|---|
 | The owner's password manager | Every generated value, as its own dated entry | The source every other store is filled from |
-| Vercel project `goproceed-app` | The app's deployment variables | Vercel keeps **Production, Preview and Development** scopes separately; README-staging §4.3 asked for every variable in Production **and** Preview, so both hold values. List each scope with `vercel env ls production`, `vercel env ls preview`, `vercel env ls development` ([Managing environment variables across environments](https://vercel.com/docs/environment-variables/manage-across-environments)) |
+| Vercel project `goproceed-app` | The app's deployment variables | Vercel keeps **Production, Preview and Development** scopes separately; README-staging §4.3 asked for every variable in Production **and** Preview, so both hold values. List each scope with `vercel env ls production`, `vercel env ls preview`, `vercel env ls development` ([Managing environment variables across environments](https://vercel.com/docs/environment-variables/manage-across-environments), updated 2026-08-20). Sensitive values «are only available in production and preview environments»; `vercel pull` writes a scope's values to `.vercel/.env.<environment>.local`, so a hosted secret found in Development is removed (`vercel env rm <NAME> development`), not updated |
 | Vercel project of `apps/landing` | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `RESEND_API_KEY`, `PILOT_*` | Its own bot, separate from the channel's bot (owner, 2026-09-15) |
-| **Every Vercel deployment already built** | The values its scope held **when it was built** | A variable change reaches only new deployments ([Environment variables](https://vercel.com/docs/environment-variables), updated 2026-08-20). Older production deployments keep old values, and an Instant Rollback brings them back |
+| **Every Vercel deployment already built** | The values its scope held **when it was built** | A variable change reaches only new deployments ([Environment variables](https://vercel.com/docs/environment-variables), updated 2026-08-20). Older production deployments keep old values, and an Instant Rollback brings them back: «Vercel won't update environment variables if you change them in the project settings and will roll back to a previous build» ([Instant Rollback](https://vercel.com/docs/instant-rollback), updated 2026-07-07) |
 | Supabase project `asrvzhjaueyvrfozxpzo` | Role passwords, the `postgres` password, API keys, Auth SMTP credentials | |
 | Operator machines | `SERVICE_DB_URL` and `TELEGRAM_LINK_PEPPER` while running `apps/app/scripts/telegram-erase-identity.mjs` (README-staging §7) | Supply them per command from the password manager; do not keep them in a file or shell history |
 | Local development | `apps/*/.env.local` (git-ignored, `.gitignore:15`) and the local Supabase stack | Loopback-only role passwords `app_pw` / `service_pw` from `scripts/set-local-app-password.mjs`, which refuses any non-loopback host; the published local Supabase demo keys; the `dev1` HMAC keys in `apps/app/.env.example` |
@@ -27,7 +27,7 @@ How to replace every secret the deployments hold, in an order that does not take
 | `goproceed_app_login` password, inside `APP_DB_URL` | Every tenant's rows (README-staging §3: membership in `goproceed_app` is full tenant-table read/write) | Replace in place |
 | `goproceed_service_login` password, inside `SERVICE_DB_URL` | Every service-sourced record | Replace in place, a value different from the app role's |
 | `SUPABASE_SECRET_KEY` (`sb_secret_…`) | «Secret keys bypass Row Level Security and have full access to your data» ([Migrating to publishable and secret API keys](https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys)); evidence originals in Storage; admin operations | Create a second key, switch, delete the old one |
-| Legacy `service_role` / `anon` JWTs | The same as a secret key, while they stay active (both forms answered on 2026-08-19, README-staging §4.3) | Deactivate them; see the Supabase section |
+| Legacy `service_role` / `anon` JWTs | The same as a secret key, while they stay active (both forms answered on the hosted project per the comment in `apps/app/scripts/deploy-preflight.mjs`, undated; not re-observed) | Deactivate them; see the Supabase section |
 | Auth SMTP credential (Brevo) | Sending mail as the project: every sign-in code | Regenerate at Brevo, replace in Supabase Auth SMTP settings *(unverified)* |
 | `EXTERNAL_LINK_HMAC_KEYS` + `EXTERNAL_LINK_ACTIVE_KEY_ID` | Signing external review links (`apps/app/src/lib/external-link.ts`) | Add a key id, move the active id, retire the old id after 7 days |
 | `EXTERNAL_SESSION_HMAC_KEYS` + `EXTERNAL_SESSION_ACTIVE_KEY_ID` | Signing external session cookies | The same, in its own key space, retire after 12 hours |
@@ -46,7 +46,7 @@ Vercel documents rotation as: generate the new credential without invalidating t
 
 1. **Generate** the new value and store it in the password manager first, as its own dated entry. Use the generator the section names; never type a secret by hand.
 2. **Keep the old value valid**, unless it has leaked.
-3. **Edit** the variable in **every scope that holds it** (Production, Preview, Development), marked Sensitive. A Sensitive value cannot be read back, only replaced (README-staging §4.3).
+3. **Edit** the variable in **Production and Preview** where they hold it, marked Sensitive. A Sensitive value cannot be read back, only replaced (README-staging §4.3). If Development holds a hosted secret, remove it there instead: Sensitive values exist only in Production and Preview, and Development values are written to developers' disks.
 4. **Redeploy** Production. The deploy preflight refuses a build whose variables it can see are unusable (`apps/app/scripts/deploy-preflight.mjs`). Its HMAC-key messages name the entry by position and never the key; for a wrongly shaped Supabase key it prints the first 10–12 characters, so do not paste a different secret into a Supabase key's variable.
 5. **Verify** the new deployment: README-staging §6 for the app, one test submission for the landing form.
 6. **Invalidate** the old value at its source. Mark its password-manager entry revoked with the date; keep it only where a section below says to.
@@ -58,11 +58,11 @@ The database holds one password per role, so old and new cannot overlap. Changin
 
 1. Generate: `openssl rand -hex 24` (hex, because it goes into a URL; README-staging §3.1).
 2. Compose the URL with the Session pooler host and the `.<project-ref>` username suffix exactly as README-staging §3.1 and §3.2 show, and edit `APP_DB_URL` or `SERVICE_DB_URL` in Vercel. Nothing changes until a redeploy.
-3. Set the password **without sending it as SQL text**: connect with `psql` as `postgres` over the direct connection and run `\password goproceed_app_login` (or `goproceed_service_login`, with a **different** value). PostgreSQL warns that a cleartext `ALTER ROLE … PASSWORD` «might also be logged in the client's command history or the server log», and `\password` changes it «without exposing the cleartext password» ([ALTER ROLE](https://www.postgresql.org/docs/current/sql-alterrole.html), PostgreSQL 18). If the dashboard SQL Editor is used instead, delete the saved query afterwards *(unverified: the editor's saving and logging behaviour)*.
+3. Set the password **without sending it as SQL text**: connect with `psql` as `postgres` and run `\password goproceed_app_login` (or `goproceed_service_login`, with a **different** value) *(unverified on Supabase: the direct host may need IPv6 or the IPv4 add-on; the session pooler host is the alternative)*. PostgreSQL warns that a cleartext `ALTER ROLE … PASSWORD` «might also be logged in the client's command history or the server log», and `\password` changes it «without exposing the cleartext password» ([ALTER ROLE](https://www.postgresql.org/docs/current/sql-alterrole.html), PostgreSQL 18). If the dashboard SQL Editor is used instead, delete the saved query afterwards *(unverified: the editor's saving and logging behaviour)*.
 4. End the sessions opened with the old password, as `postgres`:
-   `select pg_terminate_backend(pid) from pg_stat_activity where usename = 'goproceed_app_login';` ([pg_terminate_backend](https://www.postgresql.org/docs/current/functions-admin.html)).
+   `select pg_terminate_backend(pid) from pg_stat_activity where usename = '<the role rotated>';` ([pg_terminate_backend](https://www.postgresql.org/docs/current/functions-admin.html)) *(unverified on Supabase: its `postgres` role is not a superuser — «Superuser access is not given» ([Roles, superuser access and unsupported operations](https://supabase.com/docs/guides/database/postgres/roles-superuser)) — and that page does not say whether it may terminate another role's sessions; confirm the query returns `true` and the sessions are gone)*.
 5. Redeploy Production immediately and verify README-staging §6.
-6. **Prove the old password is refused**: connect with it through the pooler host and the direct host and expect an authentication failure *(unverified: whether the pooler keeps accepting it for a while)*.
+6. **Prove the old password is refused**: connect with it through the pooler host and the direct host and expect an authentication failure *(unverified: whether the pooler keeps accepting it for a while)*. Keep it off the command line: `read -rs PGPASSWORD; export PGPASSWORD`, connect, then `unset PGPASSWORD`.
 7. Give the new `SERVICE_DB_URL` to operators for `telegram-erase-identity.mjs` runs, per command.
 
 Never use `supabase db reset --linked`, `supabase db push --include-seed`, or Branching with `[db.seed] enabled = true` against the hosted project (README-staging §3): they rebuild or reseed it, leaving `goproceed_app_login` at the local dev value and `goproceed_service_login` with no password.
@@ -70,6 +70,13 @@ Never use `supabase db reset --linked`, `supabase db push --include-seed`, or Br
 ### The `postgres` password
 
 It opens everything, including the roles above. Reset it in the Supabase project's database settings *(unverified: the current dashboard path)*, update the password manager, and re-establish any operator session that uses it. It does not change the `goproceed_*_login` passwords.
+
+**After a leak of the `postgres` password**, resetting it is not enough, because its holder could change the database itself:
+
+1. Reset it, then end its other sessions: `select pg_terminate_backend(pid) from pg_stat_activity where usename = 'postgres' and pid <> pg_backend_pid();` *(unverified: the effect on Supabase's own internal clients)*.
+2. Rotate both `goproceed_*_login` passwords — its holder could have reset them.
+3. Before trusting the database again, compare against `supabase/migrations/`: login roles (`select rolname from pg_roles where rolcanlogin`), policies (`select * from pg_policies`), `SECURITY DEFINER` functions (`select proname from pg_proc where prosecdef`), scheduled jobs (`select * from cron.job`) and event triggers (`select * from pg_event_trigger`). Anything the migrations do not create is suspect.
+4. Treat the Auth JWT secret as possibly exposed *(unverified)* and follow «Supabase API keys» below.
 
 ## Supabase API keys
 
@@ -81,7 +88,7 @@ Secret keys are created and revoked independently of each other, so a second key
 
 **Deactivate the legacy `anon` and `service_role` keys** in Settings → API Keys once nothing uses them; the step is reversible ([Migrating to publishable and secret API keys](https://supabase.com/docs/guides/getting-started/migrating-to-new-api-keys)). Until then, rotating the secret key leaves the legacy `service_role` JWT, with the same access, untouched. The preflight refuses an `eyJ…` value in `SUPABASE_SECRET_KEY`.
 
-**After a leaked secret key or legacy JWT**, assume the holder could read and change every row and Storage object and use admin operations. Review the project's API and Auth logs for the exposure window, and if the legacy JWT secret may be exposed, rotate the JWT signing keys and revoke the old one once the access tokens it signed have expired: «Non-expired access tokens will remain to be accepted», and for the legacy secret, «wait at least 1 hour and 15 minutes before revoking» ([JWT signing keys](https://supabase.com/docs/guides/auth/signing-keys)).
+**After a leaked secret key or legacy JWT**, assume the holder could read and change every row and Storage object and use admin operations. Review the project's API and Auth logs for the exposure window; check for Auth users and workspace memberships created in it; if a legacy JWT leaked, deactivate the legacy keys **at once** (the app does not use them: the preflight refuses `eyJ…` values); and if the legacy JWT secret may be exposed, rotate the JWT signing keys and revoke the old one once the access tokens it signed have expired: «Non-expired access tokens will remain to be accepted», and for the legacy secret, «wait at least 1 hour and 15 minutes before revoking» ([JWT signing keys](https://supabase.com/docs/guides/auth/signing-keys)).
 
 ## Auth SMTP credential
 
@@ -103,9 +110,9 @@ Each variable is a list, `<keyId>:<base64 of 32+ bytes>[,<keyId>:…]`, with a s
 
 Generate every Telegram secret with `node -e "console.log(require('crypto').randomBytes(32).toString('base64url'))"`: 43 characters, all in the Bot API's `A-Z a-z 0-9 _ -` alphabet ([setWebhook](https://core.telegram.org/bots/api#setwebhook)), above `config.ts`'s 32-character minimum.
 
-**Before the webhook is ever enabled** (BL-024), older production deployments must not accept an old webhook or worker secret: Vercel's «(Legacy) Pre-Production Deployments» scope «does not protect past production deployments», while Standard Protection protects every deployment URL except the production domain ([Deployment Protection](https://vercel.com/docs/deployment-protection), updated 2026-08-28). README-staging records «Only Preview Deployments».
+**Before the webhook is ever enabled** (BL-024), older production deployments must not accept an old webhook or worker secret. **Delete them**, keeping only the current production deployment: that is the step that works without a custom domain. Changing Deployment Protection is not a safe substitute: on 2026-08-19 the project's default mode protected the `*.vercel.app` production alias as well, because it is not a custom domain, and every path of the app answered a Vercel sign-in redirect (README-staging §5 step 4); the project was then set to «Only Preview Deployments» (API value `preview`). Vercel documents Standard Protection (`prod_deployment_urls_and_all_previews`) as protecting every deployment «except production domains», and «(Legacy) Pre-Production Deployments» as not protecting past production deployments ([Deployment Protection](https://vercel.com/docs/deployment-protection); [Vercel Authentication](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication); both updated 2026-08-28). Whether the `vercel.app` alias counts as a production domain under Standard Protection, and which of those names the recorded «Only Preview Deployments» corresponds to, are *(unverified)*; a custom domain (Q-3) removes the first question.
 
-- **Bot token.** A bot's token «can also be revoked at any time via @BotFather» ([bot tutorial](https://core.telegram.org/bots/tutorial)); `/token` generates a new one for a compromised or lost token ([bot features](https://core.telegram.org/bots/features)). Neither page says the old token stops working at once, so confirm it is refused before trusting it gone — without putting it in shell history (prefix the command with a space in a shell that ignores those, or read it from a prompt). Then call `getWebhookInfo`: whoever held the token could have pointed the webhook elsewhere, and the setting belongs to the bot. Call `setWebhook` again with our URL and a new `secret_token`.
+- **Bot token.** A bot's token «can also be revoked at any time via @BotFather» ([bot tutorial](https://core.telegram.org/bots/tutorial)); `/token` generates a new one for a compromised or lost token ([bot features](https://core.telegram.org/bots/features)). Neither page says the old token stops working at once, so confirm it is refused before trusting it gone — without putting it in shell history: `read -rs TOKEN`, then `curl "https://api.telegram.org/bot${TOKEN}/getMe"` on your own machine (the token is part of the URL, so it is in that machine's process list while the request runs), then `unset TOKEN`. A leading space keeps a command out of zsh history only when `HIST_IGNORE_SPACE` is set, which it is not by default. Then call `getWebhookInfo`: whoever held the token could have pointed the webhook elsewhere, and the setting belongs to the bot. Call `setWebhook` again with our URL and a new `secret_token`.
 - **Webhook secret.** Edit `TELEGRAM_WEBHOOK_SECRET`, redeploy, then call `setWebhook` with the new `secret_token`. Between the two, Telegram's deliveries carry the old secret and are refused; Telegram repeats an unsuccessful request and gives up «after a reasonable amount of attempts» ([Getting updates](https://core.telegram.org/bots/api#getting-updates)), so keep the window short.
 - **Worker secret.** Edit `TELEGRAM_WORKER_SECRET` and redeploy, then update whatever calls `POST /internal/telegram/jobs` (`apps/app/app/internal/telegram/jobs/route.ts`; no scheduler exists yet, runbook Q-12).
 
@@ -117,7 +124,17 @@ The pepper keys the verifier of every outstanding link token (`apps/app/src/lib/
 
 **What rotation costs.** Replacing it invalidates every link token issued and not yet used. Under the new pepper, a repeat erasure request for a person erased earlier finds nothing by `subject_hmac` and allocates a second surrogate (`0081`): `already_erased` is `false`, the person is split across two surrogates, and the re-link guard that matches on the surrogate no longer fires. No audit row can repair the match, because by design the audit row stores only the surrogate and never the identifier (README-staging §7).
 
-So: rotate it only after a leak. Keep the old pepper sealed in the password manager — it is already exposed, and it is the only way to recognise earlier erasures — and before running a repeat erasure, compute the HMAC under both peppers. Give the new pepper to operator machines at the same moment as the deployment. The lasting fix is a pepper with key ids (BL-085).
+So: rotate it only after a leak. Keep the old pepper sealed in the password manager — it is already exposed, and it is the only way to recognise earlier erasures. Give the new pepper to operator machines at the same moment as the deployment.
+
+**A repeat erasure request after a rotation**, until BL-085 lands *(unverified: no tool does this yet; `telegram-erase-identity.mjs` takes one pepper and always erases)*:
+
+1. Compute the old-pepper HMAC locally, the way `telegram-erase-identity.mjs` computes `subjectHmac`, without running the script.
+2. As `postgres`, look it up: `select 1 from app.telegram_erasures where workspace_id = '<workspace uuid>' and subject_hmac = '<old-pepper hmac>';` — the application roles cannot read the registry (`0081`).
+3. **Found:** run the script with the old pepper for that one command. The definer finds the existing surrogate by that HMAC and writes no new registry row.
+4. **Not found:** run it with the new pepper.
+5. **Never run the script with the old pepper without that lookup.** For a person never erased before, it writes a new `subject_hmac` under the leaked pepper — the re-identifiable row the rotation was meant to stop.
+
+The lasting fix is a pepper with key ids (BL-085). Re-keying the existing rows, for example storing an HMAC of the old `subject_hmac` under the new pepper, would also make a leaked old pepper insufficient on its own.
 
 ## Resend API key
 
@@ -129,8 +146,8 @@ Resend keys are created with a name, permission and optional domain restriction,
 
 ## When a secret has leaked
 
-1. **Invalidate at the source, now**: for a role password, `\password` with a new value and `pg_terminate_backend` (its section); delete the Supabase or Resend key; revoke the bot token and confirm; remove the HMAC key id.
-2. **Close the other copies.** Protect or delete every older production deployment that holds the old value (Standard Protection covers their deployment URLs; the production domain serves the newest deployment), delete the value from every Vercel scope, and do not roll back past the rotation.
+1. **Invalidate at the source, now**: for a role password, `\password` with a new value and `pg_terminate_backend` (its section); for the `postgres` password, its leak steps; delete the Supabase or Resend key; revoke the bot token and confirm; remove the HMAC key id.
+2. **Close the other copies.** Delete every older production deployment that holds the old value — do not switch Deployment Protection mid-incident without a custom domain, because it may lock users out of the production alias («Telegram secrets») — remove the value from every Vercel scope, and do not roll back past the rotation.
 3. **Widen the rotation to the store.** A leak through a store — a Vercel project or account token, the password manager, an operator machine, CI — exposes every secret in it: rotate them all.
 4. **Audit access**: Vercel team members, access tokens and integrations; Supabase organisation members; GitHub collaborators, deploy keys and Actions secrets; password-manager sharing.
 5. **Find where it travelled**: git history across all refs (the pattern scan in DEV-010's record is a starting point, not a secret scanner), CI logs, Vercel build and runtime logs.
@@ -142,5 +159,6 @@ Resend keys are created with a name, permission and optional domain restriction,
 - No rotation has been performed on the hosted project; the first one will test this document.
 - Steps marked *(unverified)* rest on no vendor page read on 2026-09-15.
 - Operator account tokens (Vercel, Supabase, GitHub) have no procedure here.
+- Supabase's `postgres` role is not a superuser; whether it may terminate other roles' sessions is unverified.
 - There is no separate production project; its rotation is this runbook applied to its own values.
 - Nothing automates or schedules rotation.

@@ -16,6 +16,16 @@ import {
 
 const k32 = (n) => Buffer.alloc(32, n).toString("base64");
 const k16 = (n) => Buffer.alloc(16, n).toString("base64");
+// Non-repeating key material, so a message that printed any PART of a secret is
+// caught by an 8-character window, not only one that printed all of it.
+const varied = (len, seed) =>
+  Buffer.from(Array.from({ length: len }, (_, i) => (i * 37 + seed * 11 + 5) % 256)).toString("base64");
+const noWindowOf = (text, secret) => {
+  for (let i = 0; i + 8 <= secret.length; i += 1) {
+    if (text.includes(secret.slice(i, i + 8))) return secret.slice(i, i + 8);
+  }
+  return null;
+};
 
 const CASES = [
   ["a valid single key", `k1:${k32(1)}`, "k1"],
@@ -71,15 +81,15 @@ describe("the deploy preflight refuses exactly the HMAC key settings the runtime
   }
 
   it("names the variable and never prints key material, in either path, whatever the order", () => {
-    const long = k32(7);
-    const short = k16(7);
+    const long = varied(32, 7);
+    const short = varied(16, 7);
     for (const raw of [`k1:${short}`, `${long}:k1`, `${short}:k1`]) {
       const problems = hmacKeyProblems(
         { EXTERNAL_LINK_HMAC_KEYS: raw, EXTERNAL_LINK_ACTIVE_KEY_ID: "k1" },
         "EXTERNAL_LINK_HMAC_KEYS", "EXTERNAL_LINK_ACTIVE_KEY_ID").join("\n");
       expect(problems).toContain("EXTERNAL_LINK_HMAC_KEYS");
-      expect(problems).not.toContain(long);
-      expect(problems).not.toContain(short);
+      expect(noWindowOf(problems, long)).toBeNull();
+      expect(noWindowOf(problems, short)).toBeNull();
 
       process.env.EXTERNAL_LINK_HMAC_KEYS = raw;
       process.env.EXTERNAL_LINK_ACTIVE_KEY_ID = "k1";
@@ -87,8 +97,8 @@ describe("the deploy preflight refuses exactly the HMAC key settings the runtime
       let runtime = "";
       try { linkKeys(); } catch (e) { runtime = String(e); }
       expect(runtime).toContain("EXTERNAL_LINK_HMAC_KEYS");
-      expect(runtime).not.toContain(long);
-      expect(runtime).not.toContain(short);
+      expect(noWindowOf(runtime, long)).toBeNull();
+      expect(noWindowOf(runtime, short)).toBeNull();
     }
   });
 });
@@ -131,9 +141,10 @@ describe("deploy-preflight.mjs applies the key rules", () => {
   });
 
   it("does not print a secret pasted before the separator", () => {
-    const secret = k32(9);
+    const secret = varied(32, 9);
     const r = run({ EXTERNAL_LINK_HMAC_KEYS: `${secret}:k1` });
     expect(r.status).toBe(1);
-    expect(r.stderr + r.stdout).not.toContain(secret);
+    expect(r.stderr).toContain("EXTERNAL_LINK_HMAC_KEYS entry 1 is shorter than 32 bytes");
+    expect(noWindowOf(r.stderr + r.stdout, secret)).toBeNull();
   });
 });

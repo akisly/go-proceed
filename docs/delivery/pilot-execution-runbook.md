@@ -898,7 +898,7 @@ are generated per environment and never committed» **unticked**, while
 `goproceed_*_login` passwords set (SCRAM, different) on 2026-08-19. Under M0's
 own rule the unticked box is the operative state. The correction owed is to tick
 it with the 2026-08-19 date and that Status paragraph as its evidence. *[Ticked
-2026-09-15 ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)), with a caveat that one hosted environment exists.]*
+2026-09-15 ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)), with its limits: one hosted environment, a pattern scan of files and history, and no record of how the passwords were generated.]*
 
 ### 5.8 — Item 8: monitored job and message failure paths
 
