@@ -3,7 +3,7 @@
   "register": {
     "basis": "ЗУ «Про будівельні норми» № 1704-VI, ст. 10 ч. 6: registration «шляхом внесення запису до Єдиної державної електронної системи у сфері будівництва» (https://zakon.rada.gov.ua/laws/show/1704-17, edition of 09.06.2022)",
     "system": "ЄДЕССБ, https://e-construction.gov.ua",
-    "holder": "ПКМУ № 681 of 23.06.2021, п. 6, names Мінрозвитку; ПКМУ № 963 of 17.07.2026 renamed that ministry from 18.07.2026, and which ministry now holds construction policy was not established on 2026-09-14",
+    "holder": "Per gp-researcher's summarised reading on 2026-09-14, not re-verified from the raw text: ПКМУ № 681 of 23.06.2021, п. 6, names Мінрозвитку as the holder, and ПКМУ № 963 of 17.07.2026 renamed that ministry from 18.07.2026, with the construction functions not yet allocated",
     "procedure": "technical/requirements/README.md «Repeating the registry check»"
   },
   "checks": [
@@ -11,34 +11,50 @@
       "checkedOn": "2026-09-14",
       "entry": {
         "url": "https://e-construction.gov.ua/laws_detail/3879707932224390963",
-        "accessedAt": "2026-09-14T19:24:35Z",
+        "accessedAt": "2026-09-14T19:23:15Z",
         "status": "Діючий",
         "edition": "Редакція від 20.04.2026",
         "registrationNumber": "BN01:4205-4602-0357-0183",
         "approvedBy": "Наказ Мінрегіону України від 05.05.2016 р. № 115",
         "changesListed": "none: no line of the page text contains «змін»",
-        "effectiveDateShown": "the «Дата набрання чинності» field is empty on the page"
+        "accessedAtSource": "the response's Date header",
+        "copies": [
+          {
+            "name": "ДБН А.3.1-5:2016 \"Організація будівельного виробництва\"",
+            "form": "Електронна версія паперового примірника",
+            "type": "Основний текст",
+            "effectiveDate": "01.01.2017",
+            "files": [
+              "PDF",
+              "docx"
+            ]
+          }
+        ],
+        "effectiveDateNote": "«Дата набрання чинності» 01.01.2017 is the value in the page's «Примірники» table. It is an observation, not a printable source: hidden-works-content-rules.md records that no allow-list item carries «чинного з 01.01.2017»"
       },
       "archivedVersion": {
         "url": "https://e-construction.gov.ua/laws_detail/3113373519350597353",
-        "accessedAt": "2026-09-14T19:31:12Z",
         "status": "Архівний",
         "version": "Версія №1",
         "linksCurrentEntry": true,
         "samePdfLink": true,
-        "note": "its seven «змін» matches are the norm's own text rendered on the page (for example п. 5.1.3), not change entries"
+        "note": "its seven «змін» matches are the norm's own text rendered on the page (for example п. 5.1.3), not change entries",
+        "fetchedBefore": "2026-09-14T19:31:12Z",
+        "fetchedBeforeSource": "the shell clock right after the fetch; response headers were not kept"
       },
       "listing": {
         "url": "https://e-construction.gov.ua/laws/doc_type=2",
-        "accessedAt": "2026-09-14T19:31:12Z",
-        "rowStatus": "Діючий"
+        "rowStatus": "Діючий",
+        "fetchedBefore": "2026-09-14T19:31:12Z",
+        "fetchedBeforeSource": "the shell clock right after the fetch; response headers were not kept"
       },
       "file": {
         "url": "https://e-construction.gov.ua/files-token/c7fb685e91deb04c43a13f9a6cf628a1",
         "fetchedAt": "2026-09-14T19:24:35Z",
         "sha256": "4592edafaa8097d3b9305b7934d080256d649616a2741b6a5537a28606a665e3",
         "bytes": 636603,
-        "matchesRetrievalRecord": true
+        "matchesRetrievalRecord": true,
+        "fetchedAtSource": "the response's Date header"
       },
       "result": "Registered and in force; no change, later edition, replacement or cancellation listed; the file's bytes reproduced. The VERIFIED_PRIMARY rows resting on these bytes stand, and 2026-09-14 is a supported registry check date.",
       "checkedBy": "gp-researcher (DEV-009), from summarised page readings",

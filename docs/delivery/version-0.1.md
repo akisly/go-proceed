@@ -309,7 +309,11 @@ settled it stands unchanged and settles the next disagreement the same way.
   item `hidden-works-content-rules.md` records against every `VERIFIED_PRIMARY`
   row the v0.1 library ships, which today rest on one download no reviewer can
   reopen; a re-fetch that does not reproduce the same bytes downgrades every row
-  it touches to `VERIFIED_SECONDARY`.
+  it touches to `VERIFIED_SECONDARY`. *[Annotated 2026-09-14 (DEV-009): «which
+  today rest on one download no reviewer can reopen» has been untrue since
+  2026-08-10, when the fetch was reproduced; the file and its retrieval record are
+  now committed under `technical/requirements/` — see «Gate evidence entries»
+  below.]*
 - **Security tests:** the tenant-isolation suite for every module shipped by
   M1–M5, plus the upload malware/content-type and resource-exhaustion cases.
   Neither may be quarantined.
@@ -337,8 +341,13 @@ settled it stands unchanged and settles the next disagreement the same way.
       data by `requirement_library_items.verification` and `source_citation`
       checks and the same pattern in migrations `0043`, `0047` and `0059`;
       refused on render by `form_citation_unsourced` in the act and, since
-      `c48a4a5` and `0359bcb`, carried by the Telegram assignment card. Tests
-      green, none skipped, in CI run 34872695375 attempt 1 on 2026-09-14:
+      `c48a4a5` and `0359bcb`, carried by the Telegram assignment card, whose
+      requirement-choice button stopped carrying a normative string in migration
+      `0084` (`bd08da9`). Tests green, none skipped, in CI run 34872695375
+      attempt 1 on 2026-09-14, which checked out PR #89's merge ref `d62cf4c`
+      (`3a9ea42` into `7b57784`; `3a9ea42` descends from `7b57784`, and its
+      `apps`, `packages`, `supabase`, `technical` and `scripts` equal `main` at
+      `6e4efdf`):
       `m4-act-schema` (58), `statutory-act-form` (41), `telegram/cards` (24),
       `requirement-library-fidelity` (13), `norm-ref-labels` (2).
     - *A recorded date of last verification, printed on every act.*

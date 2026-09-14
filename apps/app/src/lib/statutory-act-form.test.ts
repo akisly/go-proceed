@@ -271,6 +271,13 @@ describe("both blockers are closed, and the act renders", () => {
     expect(file.sha256).toBe(r.sha256);
     expect(file.bytes).toBe(bytes.length);
     expect(file.file).toBe("dbn-a31-5-2016.pdf");
+    // A reproduction or a registry check that claims these bytes must name them.
+    for (const rep of file.reproductions) expect(rep.sha256).toBe(r.sha256);
+    const checks = JSON.parse(readFileSync(
+      join(REQUIREMENTS_DIR, "dbn-a31-5-2016.registry-checks.json"), "utf-8"));
+    for (const c of checks.checks) {
+      if (c.file.matchesRetrievalRecord) expect(c.file.sha256).toBe(r.sha256);
+    }
   });
 
   it("refuses a draft: an unfrozen act is not a document to hand over", () => {

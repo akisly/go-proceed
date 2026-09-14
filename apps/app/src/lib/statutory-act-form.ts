@@ -175,8 +175,8 @@ export interface DbnRetrievalRecord {
  * `https://e-construction.gov.ua/files-token/c7fb685e91deb04c43a13f9a6cf628a1`,
  * and a `files-token` link is by its shape a signed, expiring one. Recording it
  * here would produce a record that stops resolving and leaves the tag asserted
- * again — the exact failure this field exists to prevent. (That shape has not
- * yet shown: the same link returned the same bytes on 2026-09-14, DEV-009, and
+ * again — the exact failure this field exists to prevent. (No expiry has been
+ * observed yet: the same link returned the same bytes on 2026-09-14, DEV-009, and
  * `technical/requirements/dbn-a31-5-2016.retrieval.json` records it beside the
  * page. The page stays the field, because a resolving link today proves nothing
  * about tomorrow.) The laws_detail page
