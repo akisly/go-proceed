@@ -1,4 +1,4 @@
-# TODOS
+# TODOS — Historical, frozen at `5480d2e`; current: [docs/STATUS.md](docs/STATUS.md), [docs/BACKLOG.md](docs/BACKLOG.md); do not add entries
 
 Deferred findings from the post-implementation engineering review of v0.1-M1
 (2026-07-31). The P1/P2 findings from that review were fixed on the milestone

@@ -158,7 +158,7 @@ export async function appendValuationAllocation(
     // line is still available to draw money.
     //
     // IT SUMS `funded_quantity`, AND UNTIL 2026-08-10 IT SUMMED THE MEASURED
-    // QUANTITY OF ADMITTED ENTRIES. That is the P0 recorded at TODOS.md:585, and
+    // QUANTITY OF ADMITTED ENTRIES. That is the P0 filed as BL-076 (docs/BACKLOG.md), and
     // it was settled by running the sequence rather than by reading it.
     //
     // The denominator's job is to make `unallocated / remaining` equal the
@@ -307,7 +307,7 @@ export async function appendValuationAllocation(
   }
 
   // A VALUED, POSITIVE ENTRY THAT FUNDED NOTHING KEEPS ITS CLAIM — the owner's
-  // decision of 2026-08-10 on the P1 at TODOS.md:238, «admission is a standing
+  // decision of 2026-08-10 on the P1 filed as BL-075 (docs/BACKLOG.md), «admission is a standing
   // claim rather than a one-shot event».
   //
   // WHAT WENT WRONG WITHOUT IT. The work-item pool is claimed by whoever is

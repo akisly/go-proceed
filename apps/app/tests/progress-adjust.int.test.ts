@@ -725,7 +725,7 @@ describe("progress.adjust — money", () => {
 
 describe("the pool a line holds is the share its effective quantity bought", () => {
   /**
-   * THE P0 AT TODOS.md:585, EXECUTED. It was left open deliberately: «this
+   * THE P0 FILED AS BL-076 (docs/BACKLOG.md), EXECUTED. It was left open deliberately: «this
    * should be settled against a running database rather than by static
    * reading», because it is not a crash and no constraint reports it. The line
    * is simply worth less than it should be, and the number that says so exists

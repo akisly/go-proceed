@@ -860,11 +860,11 @@ described are proved delivered in Implementation status above.
    therefore never reclaimed, and `0038`'s improvement is that a future runner
    need not be a superuser — not that one runs.
 
-Two further open deviations are recorded in `TODOS.md` rather than here because
-they are single-line fixes with a decided remedy: `service_role` holds `TRUNCATE`
-on `outbox_dead_letters`, which neither the append-only trigger nor RLS gates;
-and `goproceed_service` inherits `select` on `evidence_objects` through
-`goproceed_app`, which is wider than the upload-finalizer rule stated above.
+Two further deviations were recorded in `TODOS.md`, now frozen, rather than here. The first,
+`service_role` holding `TRUNCATE` on `outbox_dead_letters`, which neither the append-only trigger
+nor RLS gates, is closed: migration `0058` (2026-08-18) revoked it, and its default privilege, on every table in `public`.
+The second, `goproceed_service` inheriting `select` on `evidence_objects` through `goproceed_app`, wider than
+the upload-finalizer rule stated above, was accepted and bounded on 2026-08-18 and is [BL-019](../BACKLOG.md#bl-019). *[Corrected 2026-09-14 (DEV-006): this paragraph called both open single-line fixes with a decided remedy.]*
 
 ## Required security tests and gates
 

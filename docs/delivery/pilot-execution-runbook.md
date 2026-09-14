@@ -276,7 +276,7 @@ baseline of anything and is not used as one here.
 | «M2's `origin_not_distinguished` token has not landed» | [version-0.1.md](version-0.1.md):530-536, [roadmap.md](../product/roadmap.md):660-670 | The literal exists in `packages/contracts/src/uploads.ts` and migration `0043`'s CHECK; INV-086 now names **two** senders of it, the PWA and the Telegram bridge (amended 2026-09-03) |
 | «ADR-010 is the highest today» and «every ADR on disk simply carries `Status: Approved`» | this runbook's own §4.1 step 5b, 2026-09-01 revision | ADR-011 is the highest; it was `Draft` from 2026-09-02 to 2026-09-03 and moved to Approved on recorded rulings. Corrected in §4.1 below rather than left as a dated observation |
 | «`apps/demo/src/domain/format.ts` — port `pluralUk`/`rowsUk` from there»; «every screen under `apps/app/app/(dash)/**`» | [03-ui-references.md](../design/03-ui-references.md) §6 and :4 | `apps/demo` was deleted 2026-08-20; the route is `/dash`. C-9 |
-| «D1–D4 remain» | [TODOS.md](../../TODOS.md):741-745 | D1, D2 and D3 landed (PRs #46, #48, #54). Only D4 has no route. C-12 |
+| «D1–D4 remain» | [TODOS.md](../../TODOS.md) (frozen), now [BL-045](../BACKLOG.md#bl-045) | D1, D2 and D3 landed (PRs #46, #48, #54). Only D4 has no route. C-12 |
 | The 33-table / 40-migration baseline «and no document in this package may state another one» | [docs/README.md](../README.md):180-188 | Stale by forty-one migrations. The clause makes the staleness binding on anything that inherits from it |
 
 ### 1.5 Corrections owed
@@ -301,8 +301,8 @@ moved; two rows are added.
 | C-9 | [03-ui-references.md](../design/03-ui-references.md) | `(dash)` → `/dash`; the deleted `apps/demo` reference; no `**Last reviewed:**` field at all | Any dashboard slice reading it as procedure |
 | C-10 | [04-role-pain-map.md](../design/04-role-pain-map.md) | No `**Applies to:**`, no `**Last reviewed:**`, no `**Related decisions:**` — it violates [docs/README.md](../README.md):87-119 and the validator does not check it | Nothing mechanical; a real unrecorded exemption |
 | C-11 | [README-staging.md](../../infra/README-staging.md):4-11, :102, :173, :184, §Status | «58 files» → 81; §Status's «58/58» is a 2026-08-19 fact that must be dated as one, beside the sentence that twenty-three migrations have no apply record; and §4.5:510's branch-only `vercel.json` claim, merged 2026-08-21 | Any operator following §2, §4.5 or §Status literally |
-| C-12 | [TODOS.md](../../TODOS.md):741-745 | «D1–D4 remain» → only D4 remains | Sprint ordering |
-| C-13 | [2026-08-01-b0-procurement.md](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) and [TODOS.md](../../TODOS.md) | Both record two unprocured devices; stale on the iPhone half (measurements of 2026-08-21), current on the Android half | Any statement that the parity gate is blocked *by hardware* |
+| C-12 | [TODOS.md](../../TODOS.md) (frozen), now [BL-045](../BACKLOG.md#bl-045) | «D1–D4 remain» → only D4 remains; discharged 2026-09-14 by the freeze (DEV-006), BL-045 carrying the current statement | Sprint ordering |
+| C-13 | [2026-08-01-b0-procurement.md](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) and [TODOS.md](../../TODOS.md) | Both record two unprocured devices; stale on the iPhone half (measurements of 2026-08-21), current on the Android half; both files are now frozen, and the device inventory is [BL-002](../BACKLOG.md#bl-002) (DEV-006, 2026-09-14) | Any statement that the parity gate is blocked *by hardware* |
 | C-14 | [technical/openapi/README.md](../../technical/openapi/README.md):29 and [test-strategy.md](test-strategy.md):342 | «58 operations» → 75, per [version-0.1.md](version-0.1.md):162 | Any statement of the v0.1 route-set size |
 | C-15 | [README-staging.md](../../infra/README-staging.md) §Status | Custom SMTP listed as open while :899-926 record Brevo done 2026-08-19/20 and depend on it | Any operator reading §Status as the state of email delivery |
 | **C-16** | [test-strategy.md](test-strategy.md) §Baseline | The 2026-09-01 «green baseline» skipped 125 cases; the baseline since 2026-09-03 is **red with eighteen named cases** on `main`, and the section must record that run and that reading (§1.1) | Every gate record's CI row, which today cites this runbook instead |
@@ -488,7 +488,7 @@ not in the ADR.
 | Plan | What | Status |
 |---|---|---|
 | **B** | `/v1` cross-origin access — CORS in the shared route wrappers (`proxy.ts`'s matcher excludes `/v1`), `FIELD_CLIENT_ORIGINS` env; bearer already worked | **Done 2026-08-20**, measured on the wire 2026-08-21 ([README-staging.md](../../infra/README-staging.md):703-716) |
-| **C** | Expo-web field client to parity, deployed as the third Vercel project, measured on the two physical phones | **Client exists; gate NOT closed.** [TODOS.md](../../TODOS.md):712-716: «none of the above is the parity gate» |
+| **C** | Expo-web field client to parity, deployed as the third Vercel project, measured on the two physical phones | **Client exists; gate NOT closed.** [TODOS.md](../../TODOS.md) (now [BL-001](../BACKLOG.md#bl-001)): «none of the above is the parity gate» |
 | **D** | Dashboard UI-minimum — D0 shell, D1 evidence read, D2 blocked value, D3 assignments (list + create), D4 members & access | **D0–D3 landed; D4 has no route** (measured: six `page.tsx` under `apps/app/app/dash`) |
 
 | | |
@@ -497,8 +497,8 @@ not in the ADR.
 | **Exit gate, Plan C** | The Expo-web client passes [README-staging.md](../../infra/README-staging.md) §6 item 9 **plus INV-081, applied verbatim** — no new checklist is authored ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):113-128). Passing is a measurement on hardware, not a code review. |
 | **Entry evidence, Plan D4** | Two things, and only the first is satisfied. **(a)** A row in [04-role-pain-map.md](../design/04-role-pain-map.md) naming the role and the sentence in the demand scan that describes its pain; if neither exists, the screen is a guess (:134-140). **That row already exists** — :72, «Members & access … ПТВ / admin … signature-authority and “who is this subcontractor” ambiguity starts here» — so a reader need not go check. **(b)** The identity decision D4's own plan records as unresolved: «`GET /v1/workspaces/{ws}/members` returns `{memberId, userId, role, status}` and **no email, no name**: the office user would be granting capabilities to UUIDs… Deciding what identity to show is product work, not layout» ([2026-08-21-plan-d-dashboard.md](../superpowers/plans/2026-08-21-plan-d-dashboard.md):73). That is an owner decision, and if it needs a new operation to supply an identity, it needs its own dated ADR-009 amendment (§9.2). **§10 Q-15.** |
 | **Exit gate, Plan D4** | The five-command UI gate of [02-building-ui.md](../design/02-building-ui.md):193-210 plus §6's six-viewport pass, and **no new API operation** unless a dated ADR-009 amendment authorises it |
-| **Blocks** | **Nothing in P1, P1b, P3 or P4a** — this is why the diagram above does not draw P2 into the M6 junction. Plan C blocks the retirement of the `apps/app` PWA field pages. **But «and nothing else» would be false**, and the exception is operability rather than milestone closure: pilot *recovery* has no product route. [TODOS.md](../../TODOS.md):900-930 records that a project access grant issued through the product **cannot be revoked through it** — «the only route back is a superuser `UPDATE`» — and §6.1 records that `external_grants.revoke_reissue`, the only recovery INV-044 leaves for a lost link, reaches no browser at all. (Assignment *creation* is no longer in this list: D3's create screen landed in PR #54, which retires [2026-08-21-plan-d-dashboard.md](../superpowers/plans/2026-08-21-plan-d-dashboard.md):58's «today this is SQL».) Whether the revocation gap is accepted for the pilot or is a P2 exit condition is **undefined in repo**; §8.7 carries it as an operating risk rather than pretending it is closed. |
-| **Standing rule** | «`apps/app`'s field pages stay deployed and functional and are the pilot's only working field client until Plan C's parity measurement lands. **No task in any of the three plans above may remove them first.**» ([TODOS.md](../../TODOS.md):746-750; [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):115-128) |
+| **Blocks** | **Nothing in P1, P1b, P3 or P4a** — this is why the diagram above does not draw P2 into the M6 junction. Plan C blocks the retirement of the `apps/app` PWA field pages. **But «and nothing else» would be false**, and the exception is operability rather than milestone closure: pilot *recovery* has no product route. [TODOS.md](../../TODOS.md) (now [BL-021](../BACKLOG.md#bl-021)) records that a project access grant issued through the product **cannot be revoked through it** — «The only route back is a superuser UPDATE» — and §6.1 records that `external_grants.revoke_reissue`, the only recovery INV-044 leaves for a lost link, reaches no browser at all. (Assignment *creation* is no longer in this list: D3's create screen landed in PR #54, which retires [2026-08-21-plan-d-dashboard.md](../superpowers/plans/2026-08-21-plan-d-dashboard.md):58's «today this is SQL».) Whether the revocation gap is accepted for the pilot or is a P2 exit condition is **undefined in repo**; §8.7 carries it as an operating risk rather than pretending it is closed. |
+| **Standing rule** | «`apps/app`'s field pages stay deployed and functional and are the pilot's only working field client until Plan C's parity measurement lands. **No task in any of the three plans above may remove them first.**» ([TODOS.md](../../TODOS.md), now [BL-001](../BACKLOG.md#bl-001); [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md):115-128) |
 
 ### P3 — the pilot object fill
 
@@ -1350,7 +1350,7 @@ Since 2026-09-13 a slice's evidence lives in its task record, `docs/tasks/DEV-NN
 That shape is not new. It carries forward what the gate records under `docs/superpowers/plans/evidence/` carried. There are eight `*-gate.md` records, with two companion records beside them. The strictest is [2026-08-03-rename-slice3-gate.md](../superpowers/plans/evidence/2026-08-03-rename-slice3-gate.md), and it is still the best example of a negative section that cannot be skim-read into a claim. Those records stay where they are, frozen with the rest of `docs/superpowers/`. In forward-looking instructions (§1.1's CI rule, §5.14, §6.6), «gate record» now means the slice's task record. A dated or named gate record is a file under `docs/superpowers/plans/evidence/`.
 
 **The chain lapsed and resumed.** From 2026-08-03 to 2026-09-02 no record was written while fifty-three PRs (#7 through #61 — measured 2026-09-03 as the distinct `Merge pull request #N` subjects of `git log --merges --since=2026-08-03 --until=2026-09-03T00:00:00` — the time matters: a bare `--until=2026-09-03` is inclusive of that whole day and would count #58 and #64–#66; the 2026-09-01 revision's «nineteen, #37–#55» counted only the billing-pause window) merged. On 2026-09-03 the erasure slice wrote [2026-09-03-telegram-identity-erasure-gate.md](../superpowers/plans/evidence/2026-09-03-telegram-identity-erasure-gate.md) in the rename-slice-3 shape, with a «Deviations from the plan» section the template below now carries. The channel itself (PR #58, nineteen migrations) still has **no gate record**: ADR-011 §"Status against the runtime" is the nearest thing, and it is an ADR, not a record. The reason is stated at
-[TODOS.md](../../TODOS.md):3089-3092 — the agent harness refuses report `.md`
+[TODOS.md](../../TODOS.md) «THE SLICE'S OWN REPORT FILE COULD NOT BE WRITTEN» — the agent harness refuses report `.md`
 files, so findings that would have lived in the session directory were filed in
 `TODOS.md` instead.
 
@@ -1412,7 +1412,7 @@ Three live examples this runbook must itself obey:
   - A record whose local `pnpm turbo run test --concurrency=1` row says PASS must name which suites ran, in the same row.
   - CI, where the stack is disposable, is where those suites run by default (§1.1).
 - **Retention under a real duration is NOT RUN (`environmental:`) in every environment.** The erasure gate record says so in its own row. No duration has landed anywhere, so the nightly job has never erased a row. The command that settles it is a migration the owner has not written (Q-4), which is the environmental cause.
-- **The Plan C parity gate is NOT RUN (`environmental:` two physical phones) until two physical phones exist.** A passing headless harness and a passing laptop smoke test are evidence *toward* it, not a substitute for it ([TODOS.md](../../TODOS.md):712-716).
+- **The Plan C parity gate is NOT RUN (`environmental:` two physical phones) until two physical phones exist.** A passing headless harness and a passing laptop smoke test are evidence *toward* it, not a substitute for it ([BL-001](../BACKLOG.md#bl-001)).
 
 ---
 
@@ -1565,7 +1565,7 @@ transcribed in the table above
 ([README-staging.md](../../infra/README-staging.md):922-926 and :941-949), and
 neither can be taken without one. So
 [2026-08-01-b0-procurement.md](../superpowers/plans/evidence/2026-08-01-b0-procurement.md)
-(dated 2026-08-01, «not yet started») and [TODOS.md](../../TODOS.md):1788-1796,
+(dated 2026-08-01, «not yet started») and [TODOS.md](../../TODOS.md) «the pilot-device inventory does not exist» (now [BL-002](../BACKLOG.md#bl-002)),
 which inherits from it, are **stale on the iPhone half and current on the
 Android half**. C-13.
 
@@ -1678,13 +1678,13 @@ starts is what makes this row real rather than a promise.
 **(d) When the технагляд's single-use grant is burnt.** `external_grants.revoke_reissue`
 is «the only recovery INV-044 leaves for a link that was lost» — and §6.1
 records that it **reaches no browser at all**, because nothing in the product
-calls it. [TODOS.md](../../TODOS.md):2248-2257 sharpens it: a gateway that
+calls it. [TODOS.md](../../TODOS.md) (now [BL-023](../BACKLOG.md#bl-023)) sharpens it: a gateway that
 clicks every button on every page burns the grant, the CDP-driven click is
 indistinguishable from a human one, and the residue is external-plane throttling
 «which does not exist». **During a pilot this is a `curl` or a SQL statement run
 by the owner**, and that is the honest answer until a screen calls the
 operation. Same shape for a mis-scoped project access grant, which
-[TODOS.md](../../TODOS.md):900-930 records as revocable only by a superuser
+[TODOS.md](../../TODOS.md) (now [BL-021](../BACKLOG.md#bl-021)) records as revocable only by a superuser
 `UPDATE`.
 
 **(f) Forgetting one person who wrote in the group.** The first data-subject request a pilot receives is the one the identity-level procedure of [README-staging.md](../../infra/README-staging.md) §7 answers: one workspace, one Telegram user id, the operator script, one JSON line, one audit row that carries the surrogate and never the identifier. Its limits are stated there and in the gate record: the raw id survives in two intent columns until `operational_security` has a duration; a person who linked again after an earlier erasure is refused with a message naming the owner's decision, not served; pending inbox updates are counted per bot, not per workspace. Workspace-level closure is still owed (§5.2).

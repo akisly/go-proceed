@@ -1155,6 +1155,185 @@ export function sourceIdErrors(markdown) {
   return errs;
 }
 
+// --------------------------------------------------------------------------
+// The freeze and the backlog (DEV-006). DEV-005 triaged `TODOS.md` and the three
+// HANDOFF files into docs/BACKLOG.md; DEV-006 froze them. Each carries a banner
+// appended to its first line, so no line of theirs moved, and nothing else
+// changed. They stay where they are because applied migrations, ci.yml and
+// scripts cite them.
+// --------------------------------------------------------------------------
+
+// Imports are hoisted, so this one sits beside the code that uses it: added at
+// the top of the file it would move every later line, and other files cite
+// this one by line.
+import { createHash } from "node:crypto";
+
+/** sha256 of each frozen record as DEV-006 left it: the file at `5480d2e` plus its banner. */
+export const FROZEN_RECORDS = new Map([
+  ["TODOS.md", "2c1abaad470107eb87b4a92ebf4ee2a2cfcd61cb1117f41b4a246973d2306d50"],
+  ["HANDOFF.md", "c1bf4af0d90b6cb7791e74e236c5bf1f2de5a78ebbd42f967185a047488917a1"],
+  ["HANDOFF-2026-08-24.md", "697e1352c81168b75b12ee5ca1e68544ddb4141986d29ee673d2c6d909c98248"],
+  ["HANDOFF-2026-08-27.md", "ec44258365ddb97fa3f2bab4a226824c61fb8956a08fc67d61aa5c8a722df604"],
+]);
+
+export function frozenRecordErrors(relPath, bytes, expected) {
+  const actual = createHash("sha256").update(bytes).digest("hex");
+  if (actual === expected) return [];
+  return [`${relPath}: sha256 ${actual} is not the frozen ${expected}. The file is historical (frozen at 5480d2e by DEV-006): `
+    + "open work goes to docs/BACKLOG.md and current state to docs/STATUS.md"];
+}
+
+/**
+ * NO NEW `TODOS.md:<n>` CITATION IN A LIVE FILE. DEV-005 found 22 live citations
+ * of a `TODOS.md` line number, every one pointing at a line that had since
+ * moved; DEV-006 re-pointed them to backlog ids. Only a line number after the
+ * file name matches, in the bare, code-span and link forms. A plain mention or
+ * link of the file does not. Records keep theirs: the frozen files, the record
+ * directories the retired-workflow guard lists, dated task records, and this
+ * file, whose self-test has to spell the forms out.
+ */
+export const TODOS_LINE_CITATION_RE = /TODOS\.md(?:`?\]\([^)\s]*\))?`?:\d+(?:-\d+)?/;
+
+export function isLegacyCitationRecordPath(relPath) {
+  return FROZEN_RECORDS.has(relPath)
+    || RETIRED_WORKFLOW_RECORD_DIRS.some((d) => relPath.startsWith(d))
+    || /^docs\/tasks\/DEV-\d{3}-[^/]+\.md$/.test(relPath)
+    || relPath === ROLE_RULE_DEFINITION;
+}
+
+export function todosLineCitationErrors(relPath, text) {
+  if (isLegacyCitationRecordPath(relPath)) return [];
+  const errs = [];
+  text.split("\n").forEach((line, i) => {
+    const m = line.match(TODOS_LINE_CITATION_RE);
+    if (m) {
+      errs.push(`${relPath}:${i + 1}: cites a line of the frozen TODOS.md (\`${m[0]}\`) — cite the docs/BACKLOG.md entry `
+        + "(BL-NNN) instead; DEV-005's «Citation map for DEV-006» resolves the old numbers");
+    }
+  });
+  return errs;
+}
+
+/**
+ * docs/BACKLOG.md against its own preamble («How an entry reads»). The State
+ * forms are the preamble's list, transcribed, and the guard first checks that
+ * the preamble still lists exactly these: neither can change without the other.
+ * DEV-005 twice widened a State check to fit the data (Q1-01, Q2-01). A form is
+ * added here only together with the preamble sentence that defines it, never
+ * because an entry does not fit.
+ */
+export const BACKLOG_STATE_FORMS = [
+  ["open", /^open$/],
+  ["scheduled → DEV-NNN", /^scheduled → DEV-\d{3}$/],
+  ["deferred (owner)", /^deferred \(owner\)$/],
+  // «a commit written as its hash in a code span»
+  ["closed → <commit, DEV-NNN or owner-reported (YYYY-MM-DD)>",
+    /^closed → (?:`[0-9a-f]{7,40}`|DEV-\d{3}|owner-reported \(\d{4}-\d{2}-\d{2}\))$/],
+  ["wontfix (owner)", /^wontfix \(owner\)$/],
+];
+export const BACKLOG_FIELDS = ["State", "Legacy cite", "Why", "Evidence", "Depends on", "Deadline"];
+
+/** One Legacy cite value: `none`, or `file` «phrase» pairs joined by «; », each phrase on exactly one line of a frozen file. */
+export function legacyCiteErrors(label, cite, sources) {
+  if (cite === "none") return [];
+  const errs = [];
+  for (const part of cite.split(/(?<=»); /)) {
+    const m = part.match(/^`([^`]+)` «(.+)»$/);
+    if (!m) { errs.push(`${label}: Legacy cite '${part}' is neither \`file\` «phrase» nor none`); continue; }
+    const [, file, phrase] = m;
+    if (!sources.has(file)) { errs.push(`${label}: Legacy cite names ${file}, which is not a frozen record`); continue; }
+    const hits = sources.get(file).split("\n").filter((l) => l.includes(phrase)).length;
+    if (hits !== 1) errs.push(`${label}: Legacy cite «${phrase}» is on ${hits} lines of ${file}; it must be on exactly one`);
+  }
+  return errs;
+}
+
+/** `sources` maps a frozen record's path to its text. */
+export function backlogErrors(markdown, sources) {
+  const where = "docs/BACKLOG.md";
+  const errs = [];
+  const lines = markdown.split("\n");
+
+  const listAt = lines.findIndex((l) => l.startsWith("- **State**, one of:"));
+  if (listAt === -1) {
+    errs.push(`${where}: the preamble has no "- **State**, one of:" list`);
+  } else {
+    const listed = [];
+    for (let k = listAt + 1; k < lines.length && lines[k].startsWith("  - "); k++) {
+      listed.push(lines[k].match(/^ {2}- `([^`]+)`/)?.[1] ?? lines[k].trim());
+    }
+    const forms = BACKLOG_STATE_FORMS.map(([label]) => label);
+    if (listed.join("\n") !== forms.join("\n")) {
+      errs.push(`${where}: the preamble lists the States [${listed.join(" | ")}] and the validator [${forms.join(" | ")}]; `
+        + "change both together (BACKLOG_STATE_FORMS in scripts/validate-canonical-docs.mjs)");
+    }
+  }
+
+  const anchors = new Map();
+  for (const line of lines) {
+    const a = line.match(/^<a id="bl-([^"]*)"><\/a>$/);
+    if (a) anchors.set(a[1], (anchors.get(a[1]) ?? 0) + 1);
+  }
+
+  const entries = new Map();
+  lines.forEach((line, i) => {
+    if (!line.startsWith("### BL-")) return;
+    const h = line.match(/^### BL-(\d{3}) — (P[0-3]) — (\S.*)$/);
+    if (!h) { errs.push(`${where}:${i + 1}: heading is not "### BL-NNN — P0…P3 — title"`); return; }
+    const [, num, p, title] = h;
+    const id = `BL-${num}`;
+    if (entries.has(id)) { errs.push(`${where}:${i + 1}: ${id} is used twice; an id is never reused`); return; }
+    if (lines[i - 1] !== `<a id="bl-${num}"></a>`) errs.push(`${where}:${i + 1}: ${id} is not directly preceded by <a id="bl-${num}"></a>`);
+    const fields = new Map();
+    for (let k = i + 1; k < lines.length && !/^(?:#{1,3} |<a id=)/.test(lines[k]); k++) {
+      const f = lines[k].match(/^- \*\*([A-Za-z ]+):\*\* ?(.*)$/);
+      if (!f) continue;
+      if (fields.has(f[1])) errs.push(`${where}:${k + 1}: ${id} has a second ${f[1]} field`);
+      else fields.set(f[1], f[2]);
+    }
+    for (const name of BACKLOG_FIELDS) if (!fields.has(name)) errs.push(`${where}:${i + 1}: ${id} has no ${name} field`);
+    const state = fields.get("State");
+    if (state !== undefined && !BACKLOG_STATE_FORMS.some(([, re]) => re.test(state))) {
+      errs.push(`${where}:${i + 1}: ${id} State '${state}' is none of the preamble's forms`);
+    }
+    if (state === "deferred (owner)" && !fields.has("Resume")) errs.push(`${where}:${i + 1}: ${id} is deferred (owner) and has no Resume field`);
+    if (fields.has("Legacy cite")) errs.push(...legacyCiteErrors(`${where}:${i + 1}: ${id}`, fields.get("Legacy cite"), sources));
+    entries.set(id, { p, title, state });
+  });
+
+  const nums = [...entries.keys()].map((id) => Number(id.slice(3))).sort((a, b) => a - b);
+  const gap = nums.findIndex((n, j) => n !== j + 1);
+  if (entries.size === 0) errs.push(`${where}: no "### BL-NNN" entries`);
+  else if (gap !== -1) errs.push(`${where}: ids are not sequential from BL-001: BL-${String(gap + 1).padStart(3, "0")} is missing`);
+  for (const [num, count] of anchors) {
+    if (count > 1) errs.push(`${where}: <a id="bl-${num}"></a> appears ${count} times`);
+    if (!entries.has(`BL-${num}`)) errs.push(`${where}: <a id="bl-${num}"></a> has no entry`);
+  }
+
+  const start = markdown.indexOf("<!-- index:start -->");
+  const end = markdown.indexOf("<!-- index:end -->");
+  const rows = start === -1 || end < start ? null : markdownTableRows(markdown.slice(start, end), ["Entry", "P", "State", "Title"]);
+  if (rows === null) {
+    errs.push(`${where}: no "| Entry | P | State | Title |" table between <!-- index:start --> and <!-- index:end -->`);
+  } else {
+    const seen = new Set();
+    rows.forEach((cells, r) => {
+      const m = (cells[0] ?? "").match(/^\[(BL-(\d{3}))\]\(#bl-(\d{3})\)$/);
+      if (!m || m[2] !== m[3]) { errs.push(`${where}: index row ${r + 1} does not link [BL-NNN](#bl-NNN)`); return; }
+      const id = m[1];
+      if (seen.has(id)) errs.push(`${where}: ${id} is listed twice in the index`);
+      seen.add(id);
+      const e = entries.get(id);
+      if (!e) { errs.push(`${where}: the index lists ${id}, which has no entry`); return; }
+      [["P", e.p], ["State", e.state], ["Title", e.title]].forEach(([col, want], c) => {
+        if ((cells[c + 1] ?? "") !== want) errs.push(`${where}: ${id}'s index ${col} is '${cells[c + 1] ?? ""}' and its entry's is '${want}'`);
+      });
+    });
+    for (const id of entries.keys()) if (!seen.has(id)) errs.push(`${where}: ${id} is missing from the index`);
+  }
+  return errs;
+}
+
 function selfTest() {
   const t = [];
   if (missingMetadata("# doc\n**Status:** Approved\n").length !== 3) t.push("metadata detector");
@@ -1529,6 +1708,81 @@ function selfTest() {
     t.push("ADR index (status outside the lifecycle)");
   }
 
+  // The freeze and the backlog (DEV-006).
+  const fxFrozen = "# T\nan entry\n";
+  const fxSha = createHash("sha256").update(fxFrozen).digest("hex");
+  if (frozenRecordErrors("TODOS.md", Buffer.from(fxFrozen), fxSha).length !== 0) t.push("frozen record (unchanged)");
+  if (frozenRecordErrors("TODOS.md", Buffer.from(fxFrozen + "a new entry\n"), fxSha).length !== 1) t.push("frozen record (edited)");
+  if (todosLineCitationErrors("apps/app/src/x.ts", "// the P1 at TODOS.md:238\n").length !== 1) t.push("TODOS line citation (bare)");
+  if (todosLineCitationErrors("docs/x.md", "| [TODOS.md](../../TODOS.md):741-745 |\n").length !== 1) t.push("TODOS line citation (link)");
+  if (todosLineCitationErrors("docs/x.md", "[`TODOS.md:334-342`](../../TODOS.md)\n").length !== 1) t.push("TODOS line citation (code span)");
+  if (todosLineCitationErrors("docs/x.md", "`TODOS.md`:12\n").length !== 1) t.push("TODOS line citation (code span, then the number)");
+  if (!todosLineCitationErrors("docs/x.md", "a\nTODOS.md:9\n")[0]?.includes("docs/x.md:2:")) t.push("TODOS line citation (line number)");
+  if (todosLineCitationErrors("docs/x.md", "recorded in `TODOS.md`; [TODOS.md](../TODOS.md) is frozen; TODOS.md: history; BL-075\n").length !== 0) {
+    t.push("TODOS line citation (a mention without a line number wrongly reported)");
+  }
+  for (const rec of ["TODOS.md", "HANDOFF-2026-08-27.md", "docs/superpowers/plans/a.md", "supabase/migrations/0001_a.sql",
+    "docs/tasks/DEV-005-backlog-triage.md", ROLE_RULE_DEFINITION]) {
+    if (todosLineCitationErrors(rec, "TODOS.md:238\n").length !== 0) t.push(`TODOS line citation (record not exempt: ${rec})`);
+  }
+  for (const live of ["docs/tasks/README.md", "docs/ai-workflow.md", "docs/BACKLOG.md", "docs/tasks/DEV-5-x.md"]) {
+    if (todosLineCitationErrors(live, "TODOS.md:238\n").length !== 1) t.push(`TODOS line citation (live file exempt: ${live})`);
+  }
+
+  const fxStateList = ["- **State**, one of:", ...BACKLOG_STATE_FORMS.map(([label]) => `  - \`${label}\`;`)];
+  const fxEntry = (n, state, { cite = "`TODOS.md` «only here»", extra = [], drop = null, anchor = true } = {}) => [
+    ...(anchor ? [`<a id="bl-${n}"></a>`] : []), `### BL-${n} — P2 — Title ${n}`, "",
+    ...[["State", state], ["Legacy cite", cite], ["Why", "w"], ["Evidence", "e"], ["Depends on", "d"], ["Deadline", "none recorded."]]
+      .filter(([name]) => name !== drop).map(([name, v]) => `- **${name}:** ${v}`),
+    ...extra, ""];
+  const fxRow = (n, state, title = `Title ${n}`) => `| [BL-${n}](#bl-${n}) | P2 | ${state} | ${title} |`;
+  const fxBacklog = ({ entries, rows, stateList = fxStateList }) => ["# B", "", ...stateList, "", "## Index", "",
+    "<!-- index:start -->", "| Entry | P | State | Title |", "|---|---|---|---|", ...rows, "<!-- index:end -->", "", "## S", "",
+    ...entries.flat()].join("\n");
+  const fxSources = new Map([["TODOS.md", "# T\nonly here\ntwice\ntwice\n"], ["HANDOFF.md", "# H\n"]]);
+  const fxGood = {
+    entries: [fxEntry("001", "open"), fxEntry("002", "deferred (owner)", { cite: "none", extra: ["- **Resume:** r"] })],
+    rows: [fxRow("001", "open"), fxRow("002", "deferred (owner)")],
+  };
+  const bl = (over) => backlogErrors(fxBacklog({ ...fxGood, ...over }), fxSources);
+  const blSays = (over, text) => bl(over).some((e) => e.includes(text));
+  if (bl({}).length !== 0) t.push(`backlog (agreeing: ${bl({}).join("; ")})`);
+  const fxStates = ["scheduled → DEV-007", "closed → `a306ec2`", "closed → DEV-005", "closed → owner-reported (2026-09-14)", "wontfix (owner)"];
+  if (bl({ entries: fxStates.map((s, j) => fxEntry(`00${j + 1}`, s)), rows: fxStates.map((s, j) => fxRow(`00${j + 1}`, s)) }).length !== 0) {
+    t.push("backlog (every listed State form accepted)");
+  }
+  for (const bad of ["closed → `a306ec2` (2026-08-10)", "closed → a306ec2", "closed → owner-reported", "scheduled → DEV-7", "deferred", "Open"]) {
+    if (!blSays({ entries: [fxEntry("001", bad)], rows: [fxRow("001", bad)] }, "is none of the preamble's forms")) t.push(`backlog (State outside the list: ${bad})`);
+  }
+  if (!blSays({ stateList: [...fxStateList, "  - `closed → <commit> (YYYY-MM-DD)`;"] }, "change both together")) t.push("backlog (preamble State list widened)");
+  if (!blSays({ stateList: ["- no list here"] }, "no \"- **State**, one of:\" list")) t.push("backlog (preamble State list missing)");
+  if (!blSays({ entries: [fxEntry("001", "open"), fxEntry("001", "open")], rows: [fxRow("001", "open")] }, "used twice")) t.push("backlog (duplicate id)");
+  if (!blSays({ entries: [fxEntry("001", "open"), fxEntry("003", "open")], rows: [fxRow("001", "open"), fxRow("003", "open")] }, "BL-002 is missing")) {
+    t.push("backlog (ids not sequential)");
+  }
+  if (!blSays({ entries: [fxEntry("001", "open"), ["<a id=\"bl-002\"></a>", "### BL-2 — P2 — x", ""]] }, "heading is not")) t.push("backlog (malformed heading)");
+  if (!blSays({ entries: [fxEntry("001", "open", { drop: "Deadline" }), fxGood.entries[1]] }, "BL-001 has no Deadline field")) t.push("backlog (missing field)");
+  if (!blSays({ entries: [fxEntry("001", "open", { extra: ["- **Why:** again"] }), fxGood.entries[1]] }, "second Why field")) t.push("backlog (field twice)");
+  if (!blSays({ entries: [fxEntry("001", "open"), fxEntry("002", "deferred (owner)")] }, "has no Resume field")) t.push("backlog (deferred without Resume)");
+  if (!blSays({ entries: [fxEntry("001", "open", { anchor: false }), fxGood.entries[1]] }, "not directly preceded")) t.push("backlog (missing anchor)");
+  if (!blSays({ entries: [["<a id=\"bl-001\"></a>", ""], fxEntry("001", "open"), fxGood.entries[1]] }, "appears 2 times")) t.push("backlog (anchor twice)");
+  if (!blSays({ entries: [...fxGood.entries, ["<a id=\"bl-009\"></a>", ""]] }, "bl-009\"></a> has no entry")) t.push("backlog (anchor without an entry)");
+  if (!blSays({ rows: [fxRow("001", "deferred (owner)"), fxRow("002", "deferred (owner)")] }, "BL-001's index State")) t.push("backlog (index State drift)");
+  if (!blSays({ rows: [fxRow("001", "open", "Other"), fxRow("002", "deferred (owner)")] }, "BL-001's index Title")) t.push("backlog (index Title drift)");
+  if (!blSays({ rows: ["| [BL-001](#bl-001) | P1 | open | Title 001 |", fxRow("002", "deferred (owner)")] }, "BL-001's index P")) t.push("backlog (index P drift)");
+  if (!blSays({ rows: [fxRow("001", "open")] }, "BL-002 is missing from the index")) t.push("backlog (entry without an index row)");
+  if (!blSays({ rows: [...fxGood.rows, fxRow("003", "open")] }, "BL-003, which has no entry")) t.push("backlog (index row without an entry)");
+  if (!blSays({ rows: [...fxGood.rows, fxRow("001", "open")] }, "listed twice in the index")) t.push("backlog (index row twice)");
+  if (!blSays({ rows: ["| [BL-001](#bl-002) | P2 | open | Title 001 |", fxGood.rows[1]] }, "does not link")) t.push("backlog (index link to another anchor)");
+  if (!blSays({ rows: [] , entries: fxGood.entries }, "BL-001 is missing from the index")) t.push("backlog (empty index)");
+  const cite = (c) => bl({ entries: [fxEntry("001", "open", { cite: c }), fxGood.entries[1]] });
+  if (cite("`TODOS.md` «only here»; `HANDOFF.md` «# H»").length !== 0) t.push("backlog (two legacy cites, each on one line)");
+  if (!cite("`TODOS.md` «twice»").some((e) => e.includes("is on 2 lines"))) t.push("backlog (legacy cite on two lines)");
+  if (!cite("`TODOS.md` «nowhere»").some((e) => e.includes("is on 0 lines"))) t.push("backlog (legacy cite on no line)");
+  if (!cite("`NOTES.md` «only here»").some((e) => e.includes("not a frozen record"))) t.push("backlog (legacy cite in another file)");
+  if (!cite("TODOS.md only here").some((e) => e.includes("neither"))) t.push("backlog (malformed legacy cite)");
+  if (!cite("`TODOS.md` «only here»; `TODOS.md` «twice»").some((e) => e.includes("is on 2 lines"))) t.push("backlog (second of two legacy cites checked)");
+
   if (t.length) {
     console.error("validator self-test FAILED:", t.join("; "));
     process.exit(2);
@@ -1870,6 +2124,28 @@ function main() {
   }
   if (existsSync(join(ROOT, "docs/research/SOURCES.md"))) {
     for (const e of sourceIdErrors(read("docs/research/SOURCES.md"))) fail(e);
+  }
+
+  // The freeze and the backlog (DEV-006).
+  for (const [p, sha] of FROZEN_RECORDS) {
+    if (!existsSync(join(ROOT, p))) { fail(`missing frozen record: ${p}`); continue; }
+    for (const e of frozenRecordErrors(p, readFileSync(join(ROOT, p)), sha)) fail(e);
+  }
+  try {
+    const tracked = execFileSync("git", ["ls-files"], { cwd: ROOT, encoding: "utf8" })
+      .split("\n").filter(Boolean)
+      .filter((p) => /\.(ts|tsx|mjs|js|sql|md|csv|yml|yaml|json|py|toml|sh)$/.test(p) && !isLegacyCitationRecordPath(p));
+    for (const p of tracked) {
+      let text;
+      try { text = read(p); } catch { continue; }
+      for (const e of todosLineCitationErrors(p, text)) fail(e);
+    }
+  } catch (err) {
+    fail(`TODOS line-citation guard could not enumerate tracked files: ${err.message}`);
+  }
+  if (existsSync(join(ROOT, "docs/BACKLOG.md"))) {
+    const sources = new Map([...FROZEN_RECORDS.keys()].filter((p) => existsSync(join(ROOT, p))).map((p) => [p, read(p)]));
+    for (const e of backlogErrors(read("docs/BACKLOG.md"), sources)) fail(e);
   }
 
   // version-0.1.md declares scope-v0.1.csv authoritative for its row-level

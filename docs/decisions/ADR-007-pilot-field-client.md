@@ -108,10 +108,10 @@ of the following **before** the milestone could be entered or closed:
 
 | Requirement | Where it was stated on 2026-08-06 | Status on 2026-08-06 |
 |---|---|---|
-| An actual pilot-device inventory confirming the iOS 16.4+ / Android 10+ floor, before capture UX is frozen | [`roadmap.md`](../product/roadmap.md) M2 entry evidence, [`ADR-004:80-84`](ADR-004-roadmap-demo-and-documentation.md), [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"M2 — The phone" | Did not exist — [`roadmap.md`](../product/roadmap.md) §"Entry-evidence status as of 2026-08-06", [`TODOS.md:334-342`](../../TODOS.md) |
-| One physical supported iPhone and one lower-resource physical Android device for acceptance testing | [`roadmap.md`](../product/roadmap.md) M2 entry evidence | Recorded as **unprocured** — [`TODOS.md:342`](../../TODOS.md) |
+| An actual pilot-device inventory confirming the iOS 16.4+ / Android 10+ floor, before capture UX is frozen | [`roadmap.md`](../product/roadmap.md) M2 entry evidence, [`ADR-004:80-84`](ADR-004-roadmap-demo-and-documentation.md), [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"M2 — The phone" | Did not exist — [`roadmap.md`](../product/roadmap.md) §"Entry-evidence status as of 2026-08-06", [`TODOS.md`](../../TODOS.md) «the pilot-device inventory does not exist», now [BL-002](../BACKLOG.md#bl-002) *[re-pointed 2026-09-14 (DEV-006)]* |
+| One physical supported iPhone and one lower-resource physical Android device for acceptance testing | [`roadmap.md`](../product/roadmap.md) M2 entry evidence | Recorded as **unprocured** — [`TODOS.md`](../../TODOS.md) «the pilot-device inventory does not exist», now [BL-002](../BACKLOG.md#bl-002) *[re-pointed 2026-09-14 (DEV-006)]* |
 | An Apple Developer Program membership, a Google Play Console account, and a funded Expo plan with build minutes | [`2026-08-01-b0-procurement.md:66-75`](../superpowers/plans/evidence/2026-08-01-b0-procurement.md) | «none of the three exists yet»; organisational Apple enrolment additionally needs a D-U-N-S number |
-| The test iPhone's UDID registered under that membership before an internal-distribution build will install on it | [`TODOS.md:357-361`](../../TODOS.md) | Not started |
+| The test iPhone's UDID registered under that membership before an internal-distribution build will install on it | [`TODOS.md`](../../TODOS.md) *[re-pointed 2026-09-14 (DEV-006): history with no backlog entry, because this ADR removed the distribution chain; the frozen file records «no UDID registration»]* | Not started |
 | EAS internal preview builds installing on both platforms, and pilot distribution ready through TestFlight and the Google Play internal-testing track | [`roadmap.md`](../product/roadmap.md) M2 exit gates, [`ADR-004:86-88`](ADR-004-roadmap-demo-and-documentation.md), [`system-overview.md`](../architecture/system-overview.md) §"Deployment and secret rules", [`scope-and-boundaries.md`](../product/scope-and-boundaries.md) §"Offline and device operation" | Not started, and [`version-0.1.md`](../delivery/version-0.1.md) §"v0.1-M2 — The phone" made EAS internal build installation on both platforms part of M2's **closing evidence** |
 
 The device-install step has never been performed at all: no EAS command has ever
@@ -508,7 +508,7 @@ this decision.
 Stated because a reader reaching for the benefit will otherwise assume it.
 
 - **The physical device inventory is still required, and matters more, not
-  less.** [`TODOS.md:334-361`](../../TODOS.md) and
+  less.** [BL-002](../BACKLOG.md#bl-002) (from [`TODOS.md`](../../TODOS.md)) *[re-pointed 2026-09-14 (DEV-006)]* and
   [`roadmap.md`](../product/roadmap.md) §"v0.1-M2 — The phone" require one physical supported
   iPhone and one lower-resource physical Android device. What this ADR removes
   is the **distribution** chain — the store accounts, the UDID registration, the
@@ -523,7 +523,7 @@ Stated because a reader reaching for the benefit will otherwise assume it.
 - **The link host question.** The Universal/App Link host is undecided and
   neither well-known file exists
   ([`system-overview.md`](../architecture/system-overview.md) §"Field-client links",
-  [`TODOS.md:363-418`](../../TODOS.md) split item 2). A PWA turns it from an app
+  [BL-004](../BACKLOG.md#bl-004), from [`TODOS.md`](../../TODOS.md)'s split item 2) *[re-pointed 2026-09-14 (DEV-006)]*. A PWA turns it from an app
   association problem into a plain URL problem, which is easier — but a
   GoProceed domain still has to be chosen, and «a link is a destination, never an
   authorization» ([`system-overview.md`](../architecture/system-overview.md) §"Field-client links")

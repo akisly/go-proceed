@@ -2,7 +2,7 @@
 
 Open and deferred work, one entry each. The coordinator writes this file; specialist roles propose entries in their handoffs. [README.md](README.md) «Observation layers» places it: planning only, never evidence that something works. What is merged and verified is in [STATUS.md](STATUS.md).
 
-**Where it came from.** [DEV-005](tasks/DEV-005-backlog-triage.md) triaged `TODOS.md` and the three `HANDOFF*.md` files at `main` `5480d2e` on 2026-09-14; `TODOS.md` was last changed in `bd08da9`. Every open item became an entry here. Closed items stay closed in those files, and the record's inventory says where each heading went. Two closed entries are kept at the end because live code cites them by `TODOS.md` line number.
+**Where it came from.** [DEV-005](tasks/DEV-005-backlog-triage.md) triaged `TODOS.md` and the three `HANDOFF*.md` files at `main` `5480d2e` on 2026-09-14; `TODOS.md` was last changed in `bd08da9`. Every open item became an entry here. Closed items stay closed in those files, and the record's inventory says where each heading went. Two closed entries are kept at the end because live code cites them; until DEV-006 re-pointed those citations to the entries, it cited them by `TODOS.md` line number.
 
 **Evidence** lines were re-observed on 2026-09-14 at `5480d2e` unless they carry another date. Line numbers rot: re-locate by the quoted string.
 
@@ -14,13 +14,13 @@ Open and deferred work, one entry each. The coordinator writes this file; specia
   - `open`;
   - `scheduled → DEV-NNN`;
   - `deferred (owner)`: only the owner can move it (a decision, a purchase, an account, a device), or the owner deferred it. No agent starts it;
-  - `closed → <commit, DEV-NNN or owner-reported (YYYY-MM-DD)>`;
+  - `closed → <commit, DEV-NNN or owner-reported (YYYY-MM-DD)>`, a commit written as its hash in a code span;
   - `wontfix (owner)`.
-- **Legacy cite:** the exact phrase, on one line of `TODOS.md` or a `HANDOFF*.md` file, that the entry came from. `grep -F` on that phrase finds the source of an old `TODOS.md:<n>` citation.
+- **Legacy cite:** the exact phrase, found on exactly one line of `TODOS.md` or a `HANDOFF*.md` file, that the entry came from, or `none` for an entry added after the triage. `grep -F` on that phrase finds the source of an old `TODOS.md:<n>` citation.
 - **Why**, **Evidence**, **Depends on**, **Deadline**.
 - A `deferred (owner)` entry adds **Resume:** what the owner supplies and what happens next.
 
-A priority is the source entry's own where it had one. Entries whose source carried none say «ranked by DEV-005»; the owner confirmed those rankings on 2026-09-14.
+A priority is the source entry's own where it had one. Entries whose source carried none say «ranked by DEV-005»; the owner confirmed those rankings on 2026-09-14. An entry added later names the task that ranked it («ranked by DEV-NNN»).
 
 **Adding and closing.** Take the next unused number and never reuse one. A task that takes an entry sets `scheduled → DEV-NNN`; closing sets `closed →` and keeps the entry.
 
@@ -105,6 +105,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-074](#bl-074) | P3 | open | Two delivery documents still state stale migration counts and a render refusal |
 | [BL-075](#bl-075) | P1 | closed → `a306ec2` | Valuation funding was first-come and never re-offered |
 | [BL-076](#bl-076) | P0 | closed → `0a7c407` | The pool stranded once an over-removal parted quantity from money |
+| [BL-077](#bl-077) | P3 | open | Code and documents still send readers to the frozen `TODOS.md` by entry name |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -233,7 +234,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 ### BL-012 — P3 — The two headline measures have nowhere to be recorded
 
 - **State:** deferred (owner)
-- **Legacy cite:** `HANDOFF.md` «The two headline measures»
+- **Legacy cite:** `HANDOFF.md` «**The two headline measures.**»
 - **Why:** first-time acceptance rate and days-to-signature are defined over v0.2 objects. `docs/delivery/version-0.1.md` decides that no v0.1 operation computes them: the owner records both in the pilot record of ADR-006 decision 8. That record has no home (runbook Q-1). The handoff's «M6 cannot close without them» does not account for that ruling, which `version-0.1.md` already carried (added in `c2ca50d`, 2026-08-08). Ranked by DEV-005.
 - **Evidence:** `docs/delivery/version-0.1.md:826-839` («Settled here»); runbook §10 Q-1.
 - **Depends on:** Q-1.
@@ -266,7 +267,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 ### BL-015 — P3 — Responsibility assignments can never be ended
 
 - **State:** open
-- **Legacy cite:** `TODOS.md` «responsibility assignments can never be ended»
+- **Legacy cite:** `TODOS.md` «P3 — responsibility assignments can never be ended»
 - **Why:** the table is append-only and an open-ended assignment is permanent, so separation-of-duties warnings accumulate. A superseding-fact shape to copy exists since `0045`.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/responsibilities/route.ts` exports only `POST`; `technical/openapi/scope-v0.1.csv` has only `project_responsibilities.assign`.
 - **Depends on:** a decision on the closing command.
@@ -451,7 +452,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 ### BL-033 — P2 — `evidence-storage.ts` puts raw storage keys into error messages
 
 - **State:** open
-- **Legacy cite:** `TODOS.md` «puts raw storage keys into error messages»
+- **Legacy cite:** `TODOS.md` «puts raw storage keys into error messages, and they reach the console»
 - **Why:** these are bare `Error`s, so `toProblemResponse` logs them verbatim. `docs/architecture/files-and-storage.md` §Downloads says logs never record «the signed URL or raw storage key». The file is the house style a new helper copies.
 - **Evidence:** `apps/app/src/lib/evidence-storage.ts:65`, `:78`, `:83`, `:102`, `:123` interpolate the key.
 - **Depends on:** nothing.
@@ -472,7 +473,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** `TODOS.md` «because there are no logs»
-- **Why:** D1's leak test asserts no signed URL in audit, outbox or idempotency bodies, and cannot assert the log half of the rule. Whether Vercel's access log records query strings was not established. This entry is what `apps/app/tests/evidence-read.int.test.ts` cites as `TODOS.md:783`.
+- **Why:** D1's leak test asserts no signed URL in audit, outbox or idempotency bodies, and cannot assert the log half of the rule. Whether Vercel's access log records query strings was not established. `apps/app/tests/evidence-read.int.test.ts` cites this entry (by a `TODOS.md` line number until DEV-006).
 - **Evidence:** the only non-test `console` call is `apps/app/src/lib/http.ts:97`; no `instrumentation.ts` or `middleware.ts`; `next.config.ts` is empty.
 - **Depends on:** a structured-logging decision.
 - **Deadline:** none recorded.
@@ -577,7 +578,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** deferred (owner)
 - **Legacy cite:** `TODOS.md` «D1–D4 remain, in the order the demand scan ranks the pain»
-- **Why:** D0–D3 are merged. D4 needs an identity to show: `members.list` returns member id, user id, role and status, with no email and no name. The runbook cites the source as `TODOS.md:741-745` (`:279`, `:304`).
+- **Why:** D0–D3 are merged. D4 needs an identity to show: `members.list` returns member id, user id, role and status, with no email and no name. The runbook cites this entry at `:279` and `:304` (by a `TODOS.md` line range until DEV-006).
 - **Evidence:** STATUS «Office dashboard» row; runbook §10 Q-15.
 - **Depends on:** Q-15 (what identity the members screen shows, and whether it needs a new operation).
 - **Deadline:** none recorded.
@@ -931,6 +932,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-077"></a>
+### BL-077 — P3 — Code and documents still send readers to the frozen `TODOS.md` by entry name
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-006 froze `TODOS.md` and the HANDOFF files and re-pointed every live `TODOS.md` line-number citation to an entry; the validator now refuses a new one. Prose pointers remain («recorded in `TODOS.md`», «the TODOS entry»). Each still resolves, through the entry whose Legacy cite quotes its source or to a closed item that stays history, but a reader has to search a 3,723-line frozen file to follow it. Ranked by DEV-006.
+- **Evidence:** `git grep -n TODOS -- apps packages` lists 46 lines in 38 files after DEV-006, and listed 52 in 43 at `6fd98d0` before it re-pointed seven numbered citations in six files; one of those lines still names `TODOS.md`. Documents, `.github/workflows/ci.yml` and `infra/README-staging.md` add more; [DEV-005](tasks/DEV-005-backlog-triage.md) «What is not true after this task» names them.
+- **Depends on:** nothing.
+- **Deadline:** none recorded.
+
 ## Closed, kept for citations
 
 <a id="bl-075"></a>
@@ -938,7 +949,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** closed → `a306ec2`
 - **Legacy cite:** `TODOS.md` «valuation funding was first-come and was never re-offered»
-- **Why:** kept because live code cites it as «the P1 at `TODOS.md:238`»: `apps/app/src/lib/admission.ts:502`, `apps/app/src/lib/valuation-writer.ts:310`, `apps/app/tests/admission-valuation.int.test.ts:511`. The owner decided on 2026-08-10 that admission is a standing claim.
+- **Why:** kept because live code cites it as «the P1 filed as BL-075» (by a `TODOS.md` line number until DEV-006): `apps/app/src/lib/admission.ts:502`, `apps/app/src/lib/valuation-writer.ts:310`, `apps/app/tests/admission-valuation.int.test.ts:511`. The owner decided on 2026-08-10 that admission is a standing claim.
 - **Evidence:** `apps/app/tests/admission-valuation.int.test.ts` «the pool is offered again when the root that held it gives it back», added in `a306ec2`.
 - **Depends on:** —
 - **Deadline:** —
@@ -948,7 +959,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** closed → `0a7c407`
 - **Legacy cite:** `TODOS.md` «the pool stranded once an over-removal parted quantity from money»
-- **Why:** kept because live code cites it as «the P0 at `TODOS.md:585`»: `apps/app/src/lib/valuation-writer.ts:161`, `apps/app/tests/progress-adjust.int.test.ts:728`, `packages/domain/src/valuation.ts:234`. The carve denominator answers to the money.
+- **Why:** kept because live code cites it as «the P0 filed as BL-076» (by a `TODOS.md` line number until DEV-006): `apps/app/src/lib/valuation-writer.ts:161`, `apps/app/tests/progress-adjust.int.test.ts:728`, `packages/domain/src/valuation.ts:234`. The carve denominator answers to the money.
 - **Evidence:** `apps/app/tests/progress-adjust.int.test.ts` «the pool a line holds is the share its effective quantity bought», added in `0a7c407`.
 - **Depends on:** —
 - **Deadline:** —

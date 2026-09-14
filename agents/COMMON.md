@@ -122,8 +122,8 @@ These are historical records, annotated when stale and never rewritten:
 - `docs/legacy/`
 - `docs/reviews/`
 - `migration/`
-- dated `HANDOFF*.md` files
-- entries in `TODOS.md`
+- `HANDOFF.md`, `HANDOFF-2026-08-24.md`, `HANDOFF-2026-08-27.md`: frozen at `5480d2e` (DEV-006), never annotated
+- `TODOS.md`: frozen likewise; its open items are in `docs/BACKLOG.md`, and a correction goes in the live document that cites it
 
 The pre-rename product name may appear only in records, and `pnpm validate:canonical-docs` enforces this.
 
