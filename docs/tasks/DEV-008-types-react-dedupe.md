@@ -31,6 +31,7 @@
 | 2026-09-14 | Find the cause of the non-deterministic `typecheck` with evidence from CI logs and safe local reproduction (typecheck only), make it deterministic, and prove it with repeated CI runs | Owner, in conversation (task brief) |
 | 2026-09-14 | Criterion 6 stays as written; the task stays blocked until GitHub Actions runs again on the head, rather than accepting the green runs on documentation-only heads | Owner, in conversation (answer to the coordinator's question) |
 | 2026-09-14 | Delete the temporary branch `diag/types-react-hoist` | Owner, in conversation |
+| 2026-09-14 | GitHub Actions billing is not changed this month; CI stays red until the next billing month (October 2026) | Owner, in conversation |
 
 ## Plan
 
@@ -58,6 +59,7 @@
 | 12 | CI (coordinator) | On head `3a9ea42`, run 34872695375 attempt 1: `verify` and `app-qa` success. Attempts 2 and 3 (`gh run rerun`): both jobs failed in 2–4 s without starting, each annotated «The job was not started because recent account payments have failed or your spending limit needs to be increased». Earlier heads, each equal to `5a38091` in `apps`, `packages`, `pnpm-lock.yaml`, `package.json`, `turbo.json` and `.github` and differing only in `docs/`: 34870624343 (`953310b`), 34871928171 (`d4d8672`), 34871968417 (`22bb1fe`) all green; 34871897666 (`41b9283`) failed `verify` at `validate:canonical-docs` (row 10). Branch `diag/types-react-hoist` deleted on the owner's word; run 34869969752 stays in Actions | `gh run view 34872695375 --attempt 2` / `--attempt 3` annotations; `git diff --quiet 5a38091 3a9ea42 -- apps packages pnpm-lock.yaml package.json turbo.json .github` rc 0 | `gp-qa` narrow re-check |
 | 13 | verifying (`gp-qa`, native), round 2 narrow re-check on `3a9ea42` | Q1-01 and Q1-02 fixes PASS (count 28 on `7b57784`, `5a38091` and head; the script run by a relative path writes into the scratchpad and leaves the tree clean); rows 10–11 faithful; validators rc 0; diff since `22bb1fe` is the record only. Criterion 6 NOT RUN, environmental: one executed pass on the head, two attempts not started for billing. No new findings | QA narrow re-check report; `fo2-qa2-fix.summary` | Owner decision |
 | 14 | blocked (coordinator) | The owner kept criterion 6 as written (Owner decisions). Every other required criterion passes on `3a9ea42`. Resume when Actions runs jobs again: re-scope, re-run the head twice, record the attempts, `gp-qa` checks criterion 6 | This record | Owner: restore GitHub Actions billing or spending limit |
+| 15 | blocked (coordinator) | Rerun of 34874883597 on the new head `cb9df50` (documentation-only after `3a9ea42`): attempt 2 not started, same billing annotation. The owner leaves billing as is until October 2026 (Owner decisions). Every CI run on this account shows red until then, whatever the code | `gh run view 34874883597 --repo akisly/go-proceed --attempt 2` | Resume in October 2026 |
 
 **The forced-order script, v2** (row 6; `forced-order-v2.sh <checkout> <label>`, run from a checkout whose dependencies install from the store; it deletes every `node_modules` and writes `fo2-<label>.*` next to itself, by absolute path even when called by a relative one (Q1-02)):
 
@@ -147,5 +149,5 @@ Rework count and hypothesis changes: the first hypothesis, that pnpm's hoist is 
 - Review independence: independent — `gp-reviewer` and `gp-mobile` (round 1) and `gp-qa` (round 1 and a narrow re-check) as native subagents.
 - Verified scope: criteria 1–5, 7 and 8 on `3a9ea42`; every review and QA finding fixed.
 - Remaining risks / blocked requirements: criterion 6 (Actions billing); «What is not true» above.
-- Next bounded action and owner: owner — restore GitHub Actions; then coordinator — two reruns of run 34872695375 and `gp-qa` on criterion 6.
-- Final state and reason: blocked — GitHub Actions does not start jobs on the account, and the owner kept criterion 6 as written.
+- Next bounded action and owner: from October 2026, when Actions starts jobs again — coordinator re-scopes, runs `ci` on the PR head three times (the latest run plus two reruns, one after another) and sends `gp-qa` to check criterion 6. Until then a red run whose jobs finish in about 2 s with no failed step is the billing block, not the code.
+- Final state and reason: blocked — GitHub Actions does not start jobs on the account until October 2026 (owner), and the owner kept criterion 6 as written.
