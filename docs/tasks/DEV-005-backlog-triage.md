@@ -76,6 +76,7 @@
 | 9 | rework (coordinator), rework round 1 | Q1-01 and Q1-02 applied as QA's smallest fixes. Searched the record and the backlog for the closure wording first: the preamble's State list, criterion 2 and the Completion state line carried it; Plan step 2 is the plan as written and stays. The owner's answer to Owner question 2 recorded. The one-off check now tests each closed State against the preamble's three forms | See Findings | `gp-qa` narrow re-check |
 | 10 | verifying (`gp-qa`, native), narrow re-check on `7cdd5de` | **Needs fixes.** Q1-01 and Q1-02 verified; carry-forward checks pass; the diff in scope. Criterion 2 FAIL on Q2-01 (blocking): BL-075 and BL-076 carry `(2026-08-10)` after the commit, outside the listed forms, and the check accepted it through an optional date group | QA narrow re-check report | Rework |
 | 11 | rework (coordinator), rework round 2 | Q2-01 fixed by QA's option (b): the date dropped from the two States and their index rows (the commits and their dates stay in each entry's Evidence); the check's regex is exactly the three listed closed forms. QA's own `qa2-states.py` run before re-dispatch | See Findings | `gp-qa` narrow re-check |
+| 12 | verifying (`gp-qa`, native), narrow re-check on `ed82f69` | **Verified.** Q2-01 in place; QA's exact-form check: 76 States, no bad state, 7 negative controls rejected; the diff in scope; the validator, agent profiles, frozen files and the one-off check pass. Criteria 1 and 3–12 carry forward from QA round 1 on `cd0c070`, since the two reworks changed only State strings, the State list and bookkeeping. Two informational notes: Q3-01 (the scratchpad check's `DEV-\d+` is looser than `DEV-NNN`; tightened to `DEV-\d{3}`) and Q3-02 (a broken code span in the Q2-01 row; fixed) | Narrow QA report | Open the PR; read CI `verify` |
 
 ## Findings and rework
 
@@ -94,7 +95,7 @@
 | R1-11 | low | Inventory A, 1193–1270 | Actual: «a stray copy of the origin P0's body» | coordinator | «the origin P0's body as of 2026-08-18, cut off from its heading» |
 | Q1-01 | low (blocking) | `docs/BACKLOG.md` preamble, allowed States, against BL-011 | Expected: every State in a listed form. Actual: the list allowed `closed → <commit or DEV-NNN>`; BL-011 reads `closed → owner-reported (2026-09-14)` | coordinator | The list reads `closed → <commit, DEV-NNN or owner-reported (YYYY-MM-DD)>`; the check matches closed States against those three forms |
 | Q1-02 | low (blocking) | This record, Acceptance evidence criterion 2 | Expected: the row reflects the final revision. Actual: «closed without a commit or a test» and BL-011 listed as an open closure candidate after it closed | coordinator | Criterion reads «a commit, a test or the owner's report»; the evidence names BL-011's closure and the checked revision |
-| Q2-01 | low (blocking) | BL-075, BL-076 and their index rows; the one-off check | Expected: every State in a listed form, and the check testing exactly those forms. Actual: `closed → `a306ec2` (2026-08-10)` and the same for `0a7c407`; the check allowed an optional date after a commit | coordinator | Dates removed from both States and index rows; the regex is `closed → (commit|DEV-NNN|owner-reported (YYYY-MM-DD))` with nothing optional |
+| Q2-01 | low (blocking) | BL-075, BL-076 and their index rows; the one-off check | Expected: every State in a listed form, and the check testing exactly those forms. Actual: `` closed → `a306ec2` (2026-08-10) `` and the same for `0a7c407`; the check allowed an optional date after a commit | coordinator | Dates removed from both States and index rows; the regex is `closed → (commit|DEV-NNN|owner-reported (YYYY-MM-DD))` with nothing optional |
 
 Rework count and hypothesis changes: review round 1's eleven findings were applied as stated fixes; no rework round used. R1-01 is a class the validator cannot see (it drops link fragments); the one-off check now covers it for this file.
 
@@ -139,7 +140,7 @@ Rework count and hypothesis changes: review round 1's eleven findings were appli
 | 8. `pnpm validate:canonical-docs` green, and a broken link planted in `docs/BACKLOG.md` fails it | yes | working tree | `node scripts/validate-canonical-docs.mjs` → `canonical documentation: OK`. With `See [nowhere](no-such-file.md).` appended to the backlog → `1 problem(s)`, `docs/BACKLOG.md: broken relative link -> no-such-file.md`; the file was restored and `cmp` matched | PASS | Coordinator's run; `gp-qa` re-runs it |
 | 9. `pnpm validate:agents` green | yes | working tree | `pnpm validate:agents` → `Verified 16 host profiles from 8 canonical roles (gp: 8).` | PASS | — |
 | 10. Independent `gp-reviewer` with no unresolved finding, including a sample of classifications checked against the code | yes | `4ce218a` (review round 1) | Native `gp-reviewer`: changes requested, no blocker; R1-01 to R1-11 all resolved as stated fixes. Its sample: 21 open entries against the tree, 9 closures, six containers and `HANDOFF-2026-08-27.md` §5–§6 read in full (nothing unrouted), the 22 numbered citations, 30 legacy cites, every added habit against its handoff section | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes |
-| 11. Independent `gp-qa` on the final revision | yes | — | — | NOT RUN | Not started |
+| 11. Independent `gp-qa` on the final revision | yes | `ed82f69` | `gp-qa` round 1 on `cd0c070`: criteria 1 and 3–12 PASS on its own runs, R1-01 to R1-11 verified, criterion 2 FAIL (Q1-01, Q1-02). Narrow re-check on `7cdd5de`: FAIL (Q2-01). Narrow re-check on `ed82f69`: verified, all twelve criteria PASS | PASS | Narrow re-check; round 1's results carry forward for what the reworks did not touch. This row and Progress row 12 were written after that verdict, as bookkeeping |
 | 12. CI `verify` green | yes | — | — | NOT RUN | Not started |
 
 ## Sources
@@ -149,9 +150,10 @@ No third-party documentation decides anything in this task.
 ## Completion / handoff
 
 - **Changed files:** see «Owning module and allowed edit paths».
-- **Review independence:** to be recorded.
-- **Verified scope:** to be recorded.
-- **Remaining risks / blocked requirements:** «What is not true after this task»; the owner questions.
+- **Review independence:** `gp-reviewer` (round 1) and `gp-qa` (round 1 and two narrow re-checks) ran as native `gp-*` subagents. Three read-only `Explore` subagents gathered item verdicts; the coordinator re-ran every «fixed» verdict before writing it. The coordinator verified none of its own fixes as independent evidence.
+- **Verified scope:** criteria 1–11; criterion 12 (CI) pending on the PR.
+- **Commits:** `2b101e0` (implementation), `4ce218a` (two counts), `cd0c070` (review round 1 fixes and owner answers), `7cdd5de` (rework round 1), `ed82f69` (rework round 2), plus this bookkeeping commit.
+- **Remaining risks / blocked requirements:** «What is not true after this task». All three owner questions are answered. Two of three rework rounds were used, both on the State vocabulary.
 - **Next bounded action and owner:** DEV-006, the freeze and the citation rewrite, after this task merges.
 - **Final state and reason:** verifying.
 
