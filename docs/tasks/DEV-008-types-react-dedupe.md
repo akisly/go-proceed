@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** the `ci` workflow's `verify` job stops failing `pnpm turbo run typecheck` at random on identical code. Run 34856425465 failed attempt 1 and passed attempt 2 on the same commit `001b21a`; after this task the lockfile gives pnpm nothing to choose between, so the outcome no longer depends on the run.
-- **State:** verifying
+- **State:** blocked
 - **Coordinator:** primary Claude Code session, 2026-09-14.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** bounded bug with an understood cause (`agents/COORDINATION.md`): coordinator implements → `gp-reviewer` (+ `gp-mobile`) → `gp-qa`. `package.json` and `pnpm-lock.yaml` are build configuration under root `AGENTS.md`.
@@ -29,6 +29,8 @@
 | Date | Decision | Source |
 |---|---|---|
 | 2026-09-14 | Find the cause of the non-deterministic `typecheck` with evidence from CI logs and safe local reproduction (typecheck only), make it deterministic, and prove it with repeated CI runs | Owner, in conversation (task brief) |
+| 2026-09-14 | Criterion 6 stays as written; the task stays blocked until GitHub Actions runs again on the head, rather than accepting the green runs on documentation-only heads | Owner, in conversation (answer to the coordinator's question) |
+| 2026-09-14 | Delete the temporary branch `diag/types-react-hoist` | Owner, in conversation |
 
 ## Plan
 
@@ -53,6 +55,9 @@
 | 9 | rework (coordinator), stated fixes | R1-01 / M1-02: `https://api.expo.dev/v2/versions` read 2026-09-14T16:50Z gives SDK 57 `@types/react` `~19.2.4` (`@types/react-dom` `~19.2.3`, `typescript` `~6.0.3`, `expoVersion` `~57.0.22`, `react-native` `0.86.3`); `CI=1 expo install --check` in `apps/mobile` exits 1 on both `001b21a` and `5a38091` with identical output listing nine outdated Expo and React Native packages and not `@types/react`; B0's exit 0 of 2026-08-01 no longer holds on the baseline because the SDK 57 list moved. R1-02: forced order re-run as v2 with exit codes and a program-file control (row 6). R1-03, R1-04: row 4 and criterion 2. R1-05, R1-06, M1-01: «What is not true», criterion 6, BL-083. Not a rework round: no QA FAIL preceded it | `expo-check-base.txt`, `expo-check-fix.txt`, `expo-versions.json` in the session scratchpad; this diff | `gp-qa` |
 | 10 | verifying (`gp-qa`, native), round 1 on `22bb1fe` | Criteria 1–5, 7 and 8 PASS, re-run where runnable: forced order `qa-base` / `qa-fix` reproduced row 6 (baseline hoist 19.2.4, 17 errors identical to CI; fix one copy, exit 0); key sets and integrity compared independently; clean install and `turbo run typecheck --force` 10/10 in the repository worktree; validators rc 0. Criterion 6 NOT RUN (CI in progress). All eight review fixes in place. Q1-01 and Q1-02 (info, record text). Run 34871897666 on `41b9283` failed `verify` at `pnpm validate:canonical-docs`: that commit set the record to `verifying` while the index said `implementing`, and the coordinator's validator call piped through `tail`, hiding its exit code; `d4d8672` fixed the index | QA report; `scratchpad/qa/` | Fix Q1-01, Q1-02; CI |
 | 11 | rework (coordinator), stated fixes | Q1-01: the count's command stated in row 4. Q1-02: the script resolves its output directory absolutely, in the record and in `forced-order-v2.sh`. Not a rework round: no QA FAIL | This diff | CI on the final head |
+| 12 | CI (coordinator) | On head `3a9ea42`, run 34872695375 attempt 1: `verify` and `app-qa` success. Attempts 2 and 3 (`gh run rerun`): both jobs failed in 2–4 s without starting, each annotated «The job was not started because recent account payments have failed or your spending limit needs to be increased». Earlier heads, each equal to `5a38091` in `apps`, `packages`, `pnpm-lock.yaml`, `package.json`, `turbo.json` and `.github` and differing only in `docs/`: 34870624343 (`953310b`), 34871928171 (`d4d8672`), 34871968417 (`22bb1fe`) all green; 34871897666 (`41b9283`) failed `verify` at `validate:canonical-docs` (row 10). Branch `diag/types-react-hoist` deleted on the owner's word; run 34869969752 stays in Actions | `gh run view 34872695375 --attempt 2` / `--attempt 3` annotations; `git diff --quiet 5a38091 3a9ea42 -- apps packages pnpm-lock.yaml package.json turbo.json .github` rc 0 | `gp-qa` narrow re-check |
+| 13 | verifying (`gp-qa`, native), round 2 narrow re-check on `3a9ea42` | Q1-01 and Q1-02 fixes PASS (count 28 on `7b57784`, `5a38091` and head; the script run by a relative path writes into the scratchpad and leaves the tree clean); rows 10–11 faithful; validators rc 0; diff since `22bb1fe` is the record only. Criterion 6 NOT RUN, environmental: one executed pass on the head, two attempts not started for billing. No new findings | QA narrow re-check report; `fo2-qa2-fix.summary` | Owner decision |
+| 14 | blocked (coordinator) | The owner kept criterion 6 as written (Owner decisions). Every other required criterion passes on `3a9ea42`. Resume when Actions runs jobs again: re-scope, re-run the head twice, record the attempts, `gp-qa` checks criterion 6 | This record | Owner: restore GitHub Actions billing or spending limit |
 
 **The forced-order script, v2** (row 6; `forced-order-v2.sh <checkout> <label>`, run from a checkout whose dependencies install from the store; it deletes every `node_modules` and writes `fo2-<label>.*` next to itself, by absolute path even when called by a relative one (Q1-02)):
 
@@ -120,7 +125,7 @@ Rework count and hypothesis changes: the first hypothesis, that pnpm's hoist is 
 | 3. A clean `pnpm install --frozen-lockfile` succeeds on the committed lockfile | yes | `5a38091` | local, after removing every `node_modules`: exit 0; `node_modules/.pnpm/@types+react@19.2.18` is the only copy; again in `fo2-fix.summary` | PASS | — |
 | 4. `pnpm turbo run typecheck` passes for all ten packages without cache | yes | `5a38091` | `pnpm turbo run typecheck --force` (pnpm 9.12.0): `Tasks: 10 successful, 10 total`, `Cached: 0 cached` | PASS | macOS, Node 24.18.0 |
 | 5. The failure depends on importer order on the baseline and not on the fix | yes | `001b21a`, `5a38091` | Progress row 6 (v2): forced order → baseline hoists 19.2.4, landing `tsc` exit 2 with CI's 17 errors, two `@types/react` copies in the program; fix hoists 19.2.18, exit 0, one copy; controls one copy on both | PASS | assisted: the order was forced with FIFOs on macOS; the unforced variance was not observed (60 Linux samples, row 5; 6 local installs) |
-| 6. CI smoke: `verify` and `app-qa` pass on the PR head, in at least three runs | yes | PR #89 head | — | NOT RUN | pending; a smoke check of CI's install and typecheck, not proof of determinism (R1-06) |
+| 6. CI smoke: `verify` and `app-qa` pass on the PR head, in at least three runs | yes | `3a9ea42` | Run 34872695375: attempt 1 success (`verify`, `app-qa`); attempts 2 and 3 not started. Documentation-only earlier heads green: 34870624343, 34871928171, 34871968417 (row 12) | NOT RUN | environmental: GitHub Actions did not start attempts 2 and 3 («recent account payments have failed or your spending limit needs to be increased»); one executed pass of three. Settle with `gh run rerun 34872695375 --repo akisly/go-proceed` twice, each after the previous attempt completes, then `gh run view 34872695375 --repo akisly/go-proceed --attempt N --json jobs`. A smoke check, not proof of determinism (R1-06) |
 | 7. `pnpm validate:canonical-docs` and `pnpm validate:agents` pass | yes | working tree after this record | `node scripts/validate-canonical-docs.mjs` → «canonical documentation: OK»; `python3 scripts/sync-agents.py --check` (Python 3.12.4) → «Verified 16 host profiles from 8 canonical roles» | PASS | — |
 | 8. Expo's dependency check does not flag `@types/react` 19.2.18 and does not change between baseline and fix | yes | `001b21a`, `5a38091` | `CI=1 ./node_modules/.bin/expo install --check` in `apps/mobile`: exit 1 on both with identical output, no `@types/react` line; SDK 57 range `~19.2.4` from `https://api.expo.dev/v2/versions` | PASS | known-red baseline: nine outdated Expo and React Native packages (M1-01) |
 
@@ -139,8 +144,8 @@ Rework count and hypothesis changes: the first hypothesis, that pnpm's hoist is 
 ## Completion / handoff
 
 - Changed / inspected files: `apps/mobile/package.json`, `pnpm-lock.yaml`, this record, `docs/tasks/README.md`, `docs/BACKLOG.md`.
-- Review independence: independent — `gp-reviewer` and `gp-mobile` as native subagents, round 1; `gp-qa` pending.
-- Verified scope: criteria 1–5, 7 and 8.
-- Remaining risks / blocked requirements: criterion 6.
-- Next bounded action and owner: coordinator — `gp-qa`, repeated CI runs.
-- Final state and reason: verifying.
+- Review independence: independent — `gp-reviewer` and `gp-mobile` (round 1) and `gp-qa` (round 1 and a narrow re-check) as native subagents.
+- Verified scope: criteria 1–5, 7 and 8 on `3a9ea42`; every review and QA finding fixed.
+- Remaining risks / blocked requirements: criterion 6 (Actions billing); «What is not true» above.
+- Next bounded action and owner: owner — restore GitHub Actions; then coordinator — two reruns of run 34872695375 and `gp-qa` on criterion 6.
+- Final state and reason: blocked — GitHub Actions does not start jobs on the account, and the owner kept criterion 6 as written.
