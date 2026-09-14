@@ -292,7 +292,11 @@ nothing.** The cost is not theoretical — slice A shipped `FieldSeparator` with
 would have painted a band across a white panel, and it survived precisely
 because no sink rendered it and no test looked. Adding the scan to
 `component-contract.test.ts` is filed in `TODOS.md`; until it lands, treat the
-third obligation as a rule you keep by hand.
+third obligation as a rule you keep by hand. *[Changed 2026-09-14 (DEV-005):
+the scan landed in `13157b9` (2026-08-30) as «renders every component module
+in the kitchen sink» in `packages/testing/src/component-contract.test.ts`,
+reading `apps/landing/app/kitchen-sink/components/page.tsx`. All three
+obligations are now gated.]*
 
 Take `className` last and merge with `cx()` — never string-concatenate. And
 never pass a function-valued `className` or `children` into a Radix `asChild`:

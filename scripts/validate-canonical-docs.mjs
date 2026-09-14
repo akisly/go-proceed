@@ -1018,6 +1018,8 @@ const WORKFLOW_DOCS = [
   "apps/app/AGENTS.md",
   // No metadata block either (see NO_METADATA_BLOCK), and read before any task.
   "docs/STATUS.md",
+  // Planning only (DEV-005): where follow-ups are filed, so its links are live.
+  "docs/BACKLOG.md",
   // Live navigation inside the frozen archive: link-checked here only; the
   // archive's path exemptions from the other guards stay.
   "docs/superpowers/README.md",

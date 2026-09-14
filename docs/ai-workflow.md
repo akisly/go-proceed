@@ -141,7 +141,7 @@ It is over 300 lines, and most work in this repository is not UI. Inlining it wo
 
 ## Habits this codebase rewards
 
-Carried forward from the session handoffs (`HANDOFF.md` §7, `HANDOFF-2026-08-24.md` §7, `HANDOFF-2026-08-27.md` §7). Each habit cost at least one round to learn.
+Carried forward from the session handoffs (`HANDOFF.md` §7, `HANDOFF-2026-08-24.md` §7, `HANDOFF-2026-08-27.md` §7). Each habit cost at least one round to learn. *[Changed 2026-09-14 (DEV-005): the habits that cite `HANDOFF.md` §0 and §0a or `HANDOFF-2026-08-27.md` §4 were added from those sections when the handoffs were triaged.]*
 
 ### Tests and guards
 
@@ -150,12 +150,18 @@ Carried forward from the session handoffs (`HANDOFF.md` §7, `HANDOFF-2026-08-24
 - **Never bend a test to green.** Do not compute an expectation the product computes.
 - **Verify the fix fails without itself.** Migration 0056's constraints were checked by reverting them on the live database and watching the new schema test go red.
 - **Regulatory content is generated, never typed.** A provenance string maintained by hand alongside a record will one day contradict it; derive it from the record.
+- **A probe measures the mechanism you thought of, and nothing else.** A rolled-back probe proved that policies and grants follow a role rename, because they hold OIDs. It said nothing about a role name stored as text inside a function body, and that reference took the evidence path down until the suite caught it (`HANDOFF.md` §0a.3).
+- **A guard is often narrower than the sentence describing it.** A whole-name role rule could not see a SQL `LIKE` prefix. A preset rule checked that a capability was reachable from some preset, never that the preset could use it (`HANDOFF.md` §0a.4, §0a.8).
+- **An assertion against an empty table proves nothing.** Pair every «zero rows» with a positive control on the same data, and show the test goes red when the protection is removed (`HANDOFF.md` §0a.7).
+- **A concurrency test that is not forced can pass on the bug.** Force the interleaving, for example by polling `pg_stat_activity` for the blocked backend. The first, timing-based race test passed against the unfixed function (`HANDOFF-2026-08-27.md` §4).
 
 ### Claims and review
 
 - **Claims lose to files.** A ruling about what code does is a claim. Two coordinator claims were refuted by reading the file, and both refutations were accepted.
 - **The coordinator reads every diff it commits.** Delegation does not delegate verification. A fast-tier draft once invented an ADR filename, a route path and a CI run during a billing pause.
 - **Run the gate yourself.** Every number in a report is re-run on the tree being offered, not carried from another report. One report claimed 528 failing tests; the cause was an unset `APP_DB_URL`.
+- **A parked item's description is a hypothesis.** Two of seven parked field-client residuals were recorded wrong, and both had been judged on the description rather than the behaviour. Re-measuring costs less than the work the item describes (`HANDOFF.md` §0a.1).
+- **A policy's question is not your question until you have read the policy.** A tenant check read `public.projects` under `projects_select`, which asks whether a member may see the project, and refused a workspace admin who had not created it (`HANDOFF-2026-08-27.md` §4).
 
 ### Comments
 
@@ -169,3 +175,6 @@ Carried forward from the session handoffs (`HANDOFF.md` §7, `HANDOFF-2026-08-24
 - **Run the browser.** A green browser pass is evidence about the paths it walks and nothing else. Three defects in one week were invisible to diff review and reading.
 - **Check bytes.** Invisible characters, such as a literal non-breaking space, are caught only by byte-level checks.
 - **The local test database is shared.** `@goproceed/testing` and `apps/app` suites must never run concurrently against the same local database: deadlocks and vanished fixtures were observed. `supabase db reset` wipes the development role passwords, so run `pnpm -w db:local-credentials` after any reset. Resets are not run here without the owner.
+- **Do not probe the database while a suite runs.** One `select count(*)` from a second shell was enough: `truncateAll` queues ACCESS EXCLUSIVE between test files, every reader waits behind it, and the ten-second hook budget fails in unrelated areas. Read the vitest output instead (`HANDOFF.md` §4).
+- **A CLI default is not configuration.** Local and CI once ran different Supabase CLI versions, and a magic-link template default that changed between them failed CI three times in the shape of a product bug. What a suite relies on belongs in `supabase/config.toml`, and the CLI version is pinned in `.supabase-cli-version` (`HANDOFF.md` §0, §0a.11).
+- **A privilege can arrive without any migration naming it.** Supabase's default ACL gave `service_role` TRUNCATE on every `public` table until `0058` revoked it and the default. Reason about grants from the catalog, not from migration text (`HANDOFF.md` §0a.6).

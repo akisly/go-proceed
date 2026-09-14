@@ -153,7 +153,7 @@ Before implementing, configuring or advising on any external library, SDK, platf
 
 1. Read the installed version (`package.json`, lockfile, `--version`).
 2. Fetch the docs for that version, and prefer the vendor's own source. In Claude Code, use the `supabase` skill and the Supabase MCP `search_docs` for anything Supabase. `gp-researcher` does this when a subagent's decision depends on it.
-3. If the installed version and the docs disagree, say so and name both. Record the upgrade in `TODOS.md` with its deadline, rather than silently coding to the old shape.
+3. If the installed version and the docs disagree, say so and name both. Record the upgrade in `docs/BACKLOG.md` with its deadline, rather than silently coding to the old shape.
 4. Cite the version and doc URL you checked in the commit or PR, and in the task record's Sources.
 
 The case behind this rule, and the correction that proved it works, are in `docs/ai-workflow.md`.
