@@ -1,6 +1,8 @@
 # GoProceed — design system rewrite: plan and specification
 
-**Status:** Approved
+> **Historical since 2026-09-14 (DEV-007).** The reasoning of 2026-08-19, kept as evidence. What shipped departs from it: the Daylight finish of 2026-09-05 replaced its palette and typography. Normative today are `DESIGN.md`, [`01-tokens.md`](./01-tokens.md) and [`02-building-ui.md`](./02-building-ui.md). The seven rulings D1–D7 in §3 were never recorded in an ADR, although P0 in §12 required one; [BL-078](../BACKLOG.md#bl-078) tracks that. Do not take a value from this file.
+
+**Status:** Historical
 
 **Applies to:** all
 

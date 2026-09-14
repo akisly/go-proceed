@@ -130,18 +130,18 @@ const ROLE_RECORD_DIRS = [
   // paths those files had on the operator's disk on the day they ran, and some
   // of those filenames carry the old product name. Rewriting a path inside a
   // dated output would falsify how the data was actually produced — the same
-  // reasoning as the /cso reports directory above. Added 2026-08-28, when the
+  // reasoning as the dated /cso report below. Added 2026-08-28, when the
   // 2026-08-27 merges first brought this directory under the walk and the
   // gate went red on main.
   "outputs/",
-  // A dated security report is a measurement, not a document: `/cso` writes
-  // one JSON per run under this directory, stamped with the timestamp it ran
-  // at, and the 2026-07-30 report names the roles as they were called that
-  // day — three weeks before migration 0057 renamed them. Rewriting the names
-  // inside it would falsify the finding it recorded, exactly as the dated
-  // package review below explains for its own file. New reports land here
-  // whenever `/cso` runs, so the exemption is the directory, not the file.
-  ".gstack/security-reports/",
+  // A dated security report is a measurement, not a document: the 2026-07-30
+  // `/cso` report names the roles as they were called that day — three weeks
+  // before migration 0057 renamed them — and rewriting the names would falsify
+  // the finding it recorded. It was tracked under `.gstack/security-reports/`,
+  // a git-ignored directory, until DEV-007 (2026-09-14) moved it to
+  // `docs/reviews/security/2026-07-30-cso.json`; the `docs/reviews/` entry
+  // below exempts it there. This comment keeps the lines below where other
+  // files cite them.
   // `prototype/` IS that frozen directory. `.github/workflows/ci.yml` records
   // it as «out of scope to change», and its own harness rewrites tracked
   // screenshots on every run, so a rename there is its own slice with its own
@@ -296,7 +296,7 @@ export function staleDomainErrors(relPath, text) {
  * script — a query that went on SUCCEEDING while silently returning no project
  * roles. Both rules were case-sensitive and missed `AktFlow` in
  * `validate_package.py`'s own output, in `technical/terminology.csv`'s Ukrainian
- * terms, and in the title of `.interface-design/system.md`, which calls itself
+ * terms, and in the title of `.interface-design/system.md` (removed 2026-09-14), which called itself
  * the source of truth for every `/app/**` route. A rule that enumerates cannot
  * cover a thing it has not thought of; a rule that forbids the string can.
  *
@@ -966,7 +966,7 @@ const RETIRED_WORKFLOW_RECORD_DIRS = [
   "migration/",
   "supabase/migrations/",
   "outputs/",
-  ".gstack/",
+  // `.gstack/` left this list on 2026-09-14 (DEV-007): git-ignored, and nothing is tracked there.
 ];
 const RETIRED_WORKFLOW_RECORD_FILES = new Set([
   "TODOS.md",
