@@ -227,7 +227,7 @@ error at all**, only an unstyled element. The build is the only place that shows
 **Two known gaps — close them when you touch CI:**
 
 - `motion-audit.mjs` is not yet a CI step. Add it beside
-  `pnpm validate:canonical-docs` in `.github/workflows/ci.yml`.
+  `pnpm validate:canonical-docs` in `.github/workflows/ci.yml`. *[Changed 2026-09-14 (DEV-005): `packages/testing/src/motion-audit.test.ts` «finds nothing» already runs the audit inside `pnpm turbo run test`, which CI runs; only a separate step is absent.]*
 - `turbo.json`'s `test` task lists token files under `inputs` but not
   `packages/ui/src/components/**`, `packages/ui/src/motion/**`,
   `packages/ui/src/tw-merge.generated.ts` or `packages/ui/src/theme.generated.css`.
@@ -292,7 +292,11 @@ nothing.** The cost is not theoretical — slice A shipped `FieldSeparator` with
 would have painted a band across a white panel, and it survived precisely
 because no sink rendered it and no test looked. Adding the scan to
 `component-contract.test.ts` is filed in `TODOS.md`; until it lands, treat the
-third obligation as a rule you keep by hand.
+third obligation as a rule you keep by hand. *[Changed 2026-09-14 (DEV-005):
+the scan landed in `13157b9` (2026-08-30) as «renders every component module
+in the kitchen sink» in `packages/testing/src/component-contract.test.ts`,
+reading `apps/landing/app/kitchen-sink/components/page.tsx`. All three
+obligations are now gated.]*
 
 Take `className` last and merge with `cx()` — never string-concatenate. And
 never pass a function-valued `className` or `children` into a Radix `asChild`:

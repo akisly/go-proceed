@@ -319,7 +319,7 @@ view and lands none of the rows above by restating them.
 
 §3.1 makes the Senior PM function accountable for «TODOS.md residual entries»,
 and [docs/ai-workflow.md](../ai-workflow.md) («The measured record of the retired loop») records that filing residuals there is what replaced the retired review
-gates' verdict chain.
+gates' verdict chain. *[Changed 2026-09-14 (DEV-005): §3.1 now names [docs/BACKLOG.md](../BACKLOG.md), which holds the open items of `TODOS.md`. The count below is the 2026-09-03 measurement of `TODOS.md` and was not re-taken.]*
 Measured 2026-09-03: **35** open entries, **two** P1. Six bear directly on the
 pilot and appear in no other section of this runbook; each is a failure a real
 партнер or a real person in a Telegram group can hit on day one.
@@ -590,7 +590,7 @@ Since 2026-09-13 the repository's development roles carry out each function belo
 | Function | Owns which artifact | Must clear which gate | Executed as |
 |---|---|---|---|
 | **Agents Orchestrator** | The slice sequence itself; which of P1/P2/P3 the next slice serves; the branch and the worktree | The scope-addition test (§9.1): name the numbered ADR-006 decision 1 step the slice is necessary for | Coordinator |
-| **Senior Project Manager** | The task record `docs/tasks/DEV-NNN-<slug>.md` (its Assignment, Plan and Progress); the corrections-owed register (§1.5); [TODOS.md](../../TODOS.md) residual entries until a backlog replaces them | The task record exists before implementation, with its route, allowed paths and acceptance criteria ([agents/COORDINATION.md](../../agents/COORDINATION.md), «Task state»: scoped before implementing) | Coordinator |
+| **Senior Project Manager** | The task record `docs/tasks/DEV-NNN-<slug>.md` (its Assignment, Plan and Progress); the corrections-owed register (§1.5); [docs/BACKLOG.md](../BACKLOG.md) entries (residual entries in [TODOS.md](../../TODOS.md) until 2026-09-14, DEV-005) | The task record exists before implementation, with its route, allowed paths and acceptance criteria ([agents/COORDINATION.md](../../agents/COORDINATION.md), «Task state»: scoped before implementing) | Coordinator |
 | **Sprint Prioritizer** | The order of P2's remaining work (D4 vs Plan C vs the M0 gates) | The demand-scan rule: a screen with no named role and no named pain sentence is a guess ([04-role-pain-map.md](../design/04-role-pain-map.md):134-140) | Coordinator proposes; **the owner decides**, recorded as a dated row in the task record's Owner decisions |
 | **UX Architect** | A design spec at `docs/specs/YYYY-MM-DD-<slug>.md` for user-facing flows (the first spec creates the directory; specs before 2026-09-13 stay in `docs/superpowers/specs/`); the [04-role-pain-map.md](../design/04-role-pain-map.md) row that justifies a screen | The owner's approval of the spec before implementation; for any screen, the §3.3 three questions of [02-building-ui.md](../design/02-building-ui.md); `gp-ui-reviewer`'s PASS on the built screen | Coordinator writes the spec; `gp-ui-reviewer` gates the implementation |
 | **Frontend Developer** | Everything under `apps/landing/**`, `apps/app/app/**`, `apps/mobile/src/**`, `packages/ui/**`, `packages/tokens/**` | The five-command UI gate ([02-building-ui.md](../design/02-building-ui.md) §5), output pasted, not paraphrased; then §6's six-viewport pass with real Ukrainian strings | Implementer, under the [02-building-ui.md](../design/02-building-ui.md) procedure |
@@ -666,7 +666,7 @@ This section is the delivery view of that route for pilot work. It adds the pilo
    platform API or hosted service from memory.**
    - Read the installed version (`package.json`, lockfile, `--version`).
    - Fetch the CURRENT docs for **that** version.
-   - Where the installed version and the current docs disagree, say so explicitly, name both, and **record the upgrade as an item in [TODOS.md](../../TODOS.md) with its deadline**, rather than silently coding to the old shape.
+   - Where the installed version and the current docs disagree, say so explicitly, name both, and **record the upgrade as an entry in [docs/BACKLOG.md](../BACKLOG.md) with its deadline**, rather than silently coding to the old shape. *[Changed 2026-09-14 (DEV-005): this named `TODOS.md`, whose open items moved to the backlog.]*
    - **Cite what was checked, version and doc URL, in the commit or PR and in the task record's Sources.**
 
    Source: root AGENTS.md, «Third-party libraries and services: current docs first, never memory». There is a live instance today: the local Supabase CLI is 2.114.0 against a 2.115.0 pin (§1.1), and §8.1 makes bringing it up a precondition of any push.
@@ -1357,7 +1357,7 @@ files, so findings that would have lived in the session directory were filed in
 That substitution was a decision or a drift, and which one was **undefined in repo** until 2026-09-13 (§10 Q-6). **It is now decided** (root AGENTS.md; DEV-002):
 
 - the record is the task record, written by the coordinator, which the harness can write;
-- the findings a task defers are listed in its Findings table, and in `TODOS.md` until a backlog replaces it.
+- the findings a task defers are listed in its Findings table, and in [docs/BACKLOG.md](../BACKLOG.md). *[Changed 2026-09-14 (DEV-005): this read «and in `TODOS.md` until a backlog replaces it»; the backlog replaced it on that date.]*
 
 ### 7.2 When a record is required
 

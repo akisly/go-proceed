@@ -227,7 +227,7 @@ is re-checked and the stale side is corrected.
 | [specs/](specs/README.md) | Design specs written from 2026-09-13 | Target design once `Approved` |
 | [research/SOURCES.md](research/SOURCES.md) | Third-party sources, with publication and access dates | Evidence only |
 | [superpowers/](superpowers/README.md) | Specs, plans and gate records written before 2026-09-13 | Historical record, frozen |
-| `docs/BACKLOG.md` | Deferred and open work, once DEV-005 creates it (until then, `TODOS.md`) | Planning only |
+| [BACKLOG.md](BACKLOG.md) | Open and deferred work, one `BL-NNN` entry each; triaged from `TODOS.md` and the HANDOFF files by DEV-005 | Planning only |
 
 A document whose Status is `Superseded` carries a `**Superseded by:**` line
 under its metadata block, linking the document that replaced it.

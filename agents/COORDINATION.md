@@ -146,7 +146,7 @@ A required NOT RUN is not a PASS. A conditional acceptance records its reduced s
 
 - A finding includes an ID, severity, concrete trigger, expected versus actual behaviour, location and proposed verification. There is no minimum finding count.
 - Separate blockers from optional improvements.
-- Fix material failures within the task's scope. Follow-up suggestions become linked tasks or `TODOS.md` entries; they never grow the patch unnoticed.
+- Fix material failures within the task's scope. Follow-up suggestions become linked tasks or `docs/BACKLOG.md` entries; they never grow the patch unnoticed.
 
 **Rework.**
 

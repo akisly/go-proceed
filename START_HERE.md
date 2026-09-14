@@ -33,7 +33,7 @@ Use pnpm. The root `package.json` and each package's `package.json` define the c
 
 ## Current development
 
-The current state lives in the task records under [docs/tasks/](docs/tasks/README.md), the release document [docs/delivery/version-0.1.md](docs/delivery/version-0.1.md), and the open entries in `TODOS.md`. A single status document replaces those entries when the status layer lands.
+The current state lives in [docs/STATUS.md](docs/STATUS.md), the task records under [docs/tasks/](docs/tasks/README.md) and the release document [docs/delivery/version-0.1.md](docs/delivery/version-0.1.md). Open and deferred work lives in [docs/BACKLOG.md](docs/BACKLOG.md). `TODOS.md` and the `HANDOFF*.md` files are dated records whose open items DEV-005 moved there.
 
 Documentation describes what was observed on its date. It is not build or migration evidence: check `git log`, the build and `supabase/migrations/` before relying on it. Concurrent work on other branches is common.
 
