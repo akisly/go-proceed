@@ -8,7 +8,7 @@ Open and deferred work, one entry each. The coordinator writes this file; specia
 
 ## How an entry reads
 
-`### BL-NNN — P0…P3 — title`, followed by:
+`<a id="bl-NNN"></a>` on its own line, then `### BL-NNN — P0…P3 — title`, followed by:
 
 - **State**, one of:
   - `open`;
@@ -20,7 +20,7 @@ Open and deferred work, one entry each. The coordinator writes this file; specia
 - **Why**, **Evidence**, **Depends on**, **Deadline**.
 - A `deferred (owner)` entry adds **Resume:** what the owner supplies and what happens next.
 
-A priority is the source entry's own where it had one. Entries whose source carried none say «ranked by DEV-005».
+A priority is the source entry's own where it had one. Entries whose source carried none say «ranked by DEV-005»; the owner confirmed those rankings on 2026-09-14.
 
 **Adding and closing.** Take the next unused number and never reuse one. A task that takes an entry sets `scheduled → DEV-NNN`; closing sets `closed →` and keeps the entry.
 
@@ -39,7 +39,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-008](#bl-008) | P3 | deferred (owner) | The unsaved-photo banner reads as a failure while the upload is still in flight |
 | [BL-009](#bl-009) | P2 | deferred (owner) | A repeat Telegram erasure after the subject re-links is refused |
 | [BL-010](#bl-010) | P2 | deferred (owner) | The staging verification steps §6.1–§6.8 have no recorded run |
-| [BL-011](#bl-011) | P3 | deferred (owner) | The retired demo's Vercel project may still exist |
+| [BL-011](#bl-011) | P3 | closed → owner-reported (2026-09-14) | The retired demo's Vercel project was left for the owner to remove |
 | [BL-012](#bl-012) | P3 | deferred (owner) | The two headline measures have nowhere to be recorded |
 | [BL-013](#bl-013) | P3 | open | `app.accept_invitation` ignores the invited email address |
 | [BL-014](#bl-014) | P3 | open | A suspended or ended member can never be re-admitted |
@@ -109,6 +109,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 ## Owner decisions and external actions
 
+<a id="bl-001"></a>
 ### BL-001 — P1 — The field-client parity gate: two physical phones
 
 - **State:** deferred (owner)
@@ -119,6 +120,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner runs §6.9 on both phones. The coordinator records the measurements in a DEV record and re-observes STATUS; only then may a task retire the PWA field pages.
 
+<a id="bl-002"></a>
 ### BL-002 — P2 — The pilot-device inventory does not exist
 
 - **State:** deferred (owner)
@@ -129,6 +131,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner names the two devices (model, OS version). The coordinator records them where the roadmap's entry evidence points.
 
+<a id="bl-003"></a>
 ### BL-003 — P1 — Market validation has no evidence, and no real customer document exists
 
 - **State:** deferred (owner)
@@ -139,6 +142,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner sends, or asks one company for one sanitized document. Replies go to `docs/discovery/outreach-log.md`; a document goes through the import work ADR-006 decision 6 froze.
 
+<a id="bl-004"></a>
 ### BL-004 — P2 — Product domain: hostnames, the email sending domain and the link host
 
 - **State:** deferred (owner)
@@ -149,6 +153,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** before real rollout (the free-tier cap); no date recorded.
 - **Resume:** the owner picks a domain. A DEV task then authenticates the sending domain in Brevo, renames the sender to «GoProceed», resolves the hostname tokens and the Auth Site URL. The well-known files wait for v0.3.
 
+<a id="bl-005"></a>
 ### BL-005 — P2 — Retention durations are NULL, so 0081's retention job deletes nothing
 
 - **State:** deferred (owner)
@@ -159,6 +164,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** before any environment holds real communication data; no date recorded.
 - **Resume:** the owner gives the durations. A migration sets them through the `gp-architect` and `gp-security` route.
 
+<a id="bl-006"></a>
 ### BL-006 — P3 — The evidence quota and the blocked-content retention figure are placeholders
 
 - **State:** deferred (owner)
@@ -169,6 +175,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner gives the figures. A task designs the settings command through `gp-architect`.
 
+<a id="bl-007"></a>
 ### BL-007 — P3 — No decision on which milestone owns the field client's reference image
 
 - **State:** deferred (owner)
@@ -179,6 +186,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner rules on the milestone. The three documents are made to agree; if it is v0.1-M2, the image is sourced from a primary, verification-tagged origin, never invented.
 
+<a id="bl-008"></a>
 ### BL-008 — P3 — The unsaved-photo banner reads as a failure while the upload is still in flight
 
 - **State:** deferred (owner)
@@ -189,6 +197,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner supplies the strings. A UI task changes both clients' `state.ts` (the duplication contract), the copy catalog and both harnesses, with `gp-ui-reviewer` and `gp-mobile`.
 
+<a id="bl-009"></a>
 ### BL-009 — P2 — A repeat Telegram erasure after the subject re-links is refused
 
 - **State:** deferred (owner)
@@ -199,6 +208,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner picks an option. A migration follows through `gp-architect` and `gp-security`.
 
+<a id="bl-010"></a>
 ### BL-010 — P2 — The staging verification steps §6.1–§6.8 have no recorded run
 
 - **State:** deferred (owner)
@@ -209,28 +219,30 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner runs §6.1–§6.8 against staging. The coordinator records the output in a DEV record and re-observes STATUS.
 
-### BL-011 — P3 — The retired demo's Vercel project may still exist
+<a id="bl-011"></a>
+### BL-011 — P3 — The retired demo's Vercel project was left for the owner to remove
 
-- **State:** deferred (owner). A closure candidate with no evidence either way.
+- **State:** closed → owner-reported (2026-09-14)
 - **Legacy cite:** `TODOS.md` «Left for the owner, outside the repository»
-- **Why:** the project whose root directory is `apps/demo` fails every build since that directory was removed on 2026-08-20. Ranked by DEV-005.
-- **Evidence:** no repository record says it was deleted or paused; `git grep` finds only the TODOS entry. The Vercel API was not queried.
-- **Depends on:** the owner's dashboard.
-- **Deadline:** none recorded.
-- **Resume:** the owner deletes or pauses it, or confirms it is gone. Then `closed → owner-reported`.
+- **Why:** the project whose root directory is `apps/demo` failed every build after that directory was removed on 2026-08-20. Ranked by DEV-005.
+- **Evidence:** the owner reported on 2026-09-14 that the project is deleted ([DEV-005](tasks/DEV-005-backlog-triage.md) «Owner decisions»). Until then no repository record settled it: `scripts/validate-canonical-docs.mjs:172` calls the demo's URL dead since 2026-08-20, which describes the deployment, not the project. The Vercel API was not queried.
+- **Depends on:** —
+- **Deadline:** —
 
+<a id="bl-012"></a>
 ### BL-012 — P3 — The two headline measures have nowhere to be recorded
 
 - **State:** deferred (owner)
 - **Legacy cite:** `HANDOFF.md` «The two headline measures»
-- **Why:** first-time acceptance rate and days-to-signature are defined over v0.2 objects. `docs/delivery/version-0.1.md` decides that no v0.1 operation computes them: the owner records both in the pilot record of ADR-006 decision 8. That record has no home (runbook Q-1). The handoff's «M6 cannot close without them» predates that decision. Ranked by DEV-005.
-- **Evidence:** `docs/delivery/version-0.1.md:834-837`; runbook §10 Q-1.
+- **Why:** first-time acceptance rate and days-to-signature are defined over v0.2 objects. `docs/delivery/version-0.1.md` decides that no v0.1 operation computes them: the owner records both in the pilot record of ADR-006 decision 8. That record has no home (runbook Q-1). The handoff's «M6 cannot close without them» does not account for that ruling, which `version-0.1.md` already carried (added in `c2ca50d`, 2026-08-08). Ranked by DEV-005.
+- **Evidence:** `docs/delivery/version-0.1.md:826-839` («Settled here»); runbook §10 Q-1.
 - **Depends on:** Q-1.
 - **Deadline:** none recorded.
 - **Resume:** the owner decides where the pilot record lives; the measures are recorded there during the pilot.
 
 ## Database, RLS and grants
 
+<a id="bl-013"></a>
 ### BL-013 — P3 — `app.accept_invitation` ignores the invited email address
 
 - **State:** open
@@ -240,6 +252,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a product rule from the owner (matching on email breaks «forward the link to a colleague»).
 - **Deadline:** none recorded.
 
+<a id="bl-014"></a>
 ### BL-014 — P3 — A suspended or ended member can never be re-admitted
 
 - **State:** open
@@ -249,6 +262,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** membership lifecycle commands, a governance decision with its own audit and capability.
 - **Deadline:** none recorded.
 
+<a id="bl-015"></a>
 ### BL-015 — P3 — Responsibility assignments can never be ended
 
 - **State:** open
@@ -258,6 +272,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a decision on the closing command.
 - **Deadline:** none recorded.
 
+<a id="bl-016"></a>
 ### BL-016 — P3 — The own-party default has no writer, and party contacts lack the qualification-certificate columns
 
 - **State:** open
@@ -267,6 +282,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a schema decision (`gp-architect`).
 - **Deadline:** none recorded.
 
+<a id="bl-017"></a>
 ### BL-017 — P3 — `app.work_type_key_is_bindable` arm 2 is not scoped to a draft
 
 - **State:** open
@@ -276,6 +292,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a new migration (`create or replace`, arm 2 requiring `status = 'draft'`) plus a refusal case, through `gp-architect` and `gp-security`.
 - **Deadline:** none recorded.
 
+<a id="bl-018"></a>
 ### BL-018 — P3 — The lineage funding bound has no second bound over admitted allocations
 
 - **State:** open
@@ -285,16 +302,18 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a cutoff for pre-ADR-008 rows whose `admitted_by_closure_id` is NULL.
 - **Deadline:** none recorded.
 
+<a id="bl-019"></a>
 ### BL-019 — P3 — The service principal inherits the app role's table grants
 
 - **State:** deferred (owner)
 - **Legacy cite:** `TODOS.md` «The residual, named rather than closed silently»
-- **Why:** accepted and bounded on 2026-08-18: `goproceed_service` is `NOBYPASSRLS` and carries the actor, so its reach equals the member's. The grant surface still lets a service transaction reach rows only the command's own code keeps it from. The successor is per-workload `NOLOGIN` worker roles, which is v0.2 work.
+- **Why:** accepted and bounded on 2026-08-18: `goproceed_service` is `NOBYPASSRLS` and carries the actor, so its reach equals the member's. The grant surface still lets a service transaction reach rows only the command's own code keeps it from. The successor is per-workload `NOLOGIN` worker roles, which is v0.2 work. Ranked by DEV-005 (the source bullet carried no priority).
 - **Evidence:** `docs/architecture/tenancy-and-security.md` «Workers»; the bound test in `packages/testing` `m2-service-principal`.
 - **Depends on:** v0.2 worker deployment.
 - **Deadline:** none recorded.
 - **Resume:** when v0.2 plans its workers, a `gp-architect` design per workload.
 
+<a id="bl-020"></a>
 ### BL-020 — P3 — Any service-plane session can reproduce an erasure without the registry or the audit row
 
 - **State:** open
@@ -306,6 +325,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 ## API, contracts and catalogs
 
+<a id="bl-021"></a>
 ### BL-021 — P2 — A project access grant can be issued and never taken back
 
 - **State:** open
@@ -315,6 +335,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a scope row first, then the route, through `gp-architect` and `gp-security`.
 - **Deadline:** none recorded.
 
+<a id="bl-022"></a>
 ### BL-022 — P2 — A hand-typed zero-priced line and an imported one store different provenance
 
 - **State:** open
@@ -324,6 +345,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-023"></a>
 ### BL-023 — P2 — Nothing in `apps/app` is rate-limited, the external plane included
 
 - **State:** open
@@ -333,6 +355,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a decision on where limiting lives (edge or application); shared with BL-024's Task 13.
 - **Deadline:** none recorded.
 
+<a id="bl-024"></a>
 ### BL-024 — P2 — Blockers before any environment enables the Telegram webhook
 
 - **State:** open
@@ -342,6 +365,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** runbook Q-12 (the scheduler) and Q-17 (a real group, blocked by M0's real-data rule); BL-023.
 - **Deadline:** before the webhook is set anywhere.
 
+<a id="bl-025"></a>
 ### BL-025 — P3 — Routes put English into `fieldErrors[].message`, and no rule says who owns that text
 
 - **State:** open
@@ -351,6 +375,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the boundary decision, recorded in `docs/architecture/` before a second form reads the field.
 - **Deadline:** none recorded.
 
+<a id="bl-026"></a>
 ### BL-026 — P3 — Cancelled assignments still show in «Мої доручення»
 
 - **State:** open
@@ -360,6 +385,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the owner's choice of layer (route or both clients).
 - **Deadline:** none recorded.
 
+<a id="bl-027"></a>
 ### BL-027 — P3 — `technical/openapi/README.md` says the public plane never consumes a grant
 
 - **State:** open
@@ -369,6 +395,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-028"></a>
 ### BL-028 — P3 — INV-090 is allocated, and two catalogs do not point at it
 
 - **State:** open
@@ -378,6 +405,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** `gp-architect` (catalog change).
 - **Deadline:** none recorded.
 
+<a id="bl-029"></a>
 ### BL-029 — P3 — Reading a statutory act requires the capability that composes and freezes one
 
 - **State:** open
@@ -389,6 +417,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 ## Evidence, storage, workers and retention
 
+<a id="bl-030"></a>
 ### BL-030 — P2 — The evidence purge worker runs nowhere
 
 - **State:** open
@@ -398,6 +427,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** runbook Q-12 (what runs consumers).
 - **Deadline:** before real evidence is stored.
 
+<a id="bl-031"></a>
 ### BL-031 — P2 — Purge claims are not fenced
 
 - **State:** open
@@ -407,6 +437,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** BL-030, so the fencing matches the chosen runner.
 - **Deadline:** before a second worker instance runs.
 
+<a id="bl-032"></a>
 ### BL-032 — P2 — A deactivated member cannot abandon their own upload through the route
 
 - **State:** open
@@ -416,6 +447,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a definer for the read, a second authorization path whose only caller is this case.
 - **Deadline:** none recorded (bounded by the TTL).
 
+<a id="bl-033"></a>
 ### BL-033 — P2 — `evidence-storage.ts` puts raw storage keys into error messages
 
 - **State:** open
@@ -425,6 +457,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded; urgent once logging exists (BL-035).
 
+<a id="bl-034"></a>
 ### BL-034 — P2 — The evidence screen formats times in a hard-coded zone, not the workspace's
 
 - **State:** open
@@ -434,6 +467,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** threading the column through the evidence response or the dashboard's context.
 - **Deadline:** before a second timezone exists.
 
+<a id="bl-035"></a>
 ### BL-035 — P3 — `apps/app` has no application logging, so «never in the logs» cannot be asserted
 
 - **State:** open
@@ -443,6 +477,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a structured-logging decision.
 - **Deadline:** none recorded.
 
+<a id="bl-036"></a>
 ### BL-036 — P3 — The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200
 
 - **State:** open
@@ -452,6 +487,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** BL-035, or a partial-failure field in the contract.
 - **Deadline:** none recorded.
 
+<a id="bl-037"></a>
 ### BL-037 — P3 — Evidence groups are labelled by, and ordered by, a bare occurrence UUID
 
 - **State:** open
@@ -461,6 +497,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a contract extension (ordinal and label) or a second call; one change closes both halves.
 - **Deadline:** none recorded.
 
+<a id="bl-038"></a>
 ### BL-038 — P3 — The evidence screen renders full-size originals
 
 - **State:** open
@@ -470,6 +507,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** evidence volume growing past one scroll; the current-docs rule before choosing.
 - **Deadline:** none recorded.
 
+<a id="bl-039"></a>
 ### BL-039 — P2 — The retention mechanism does not reach every table it claims
 
 - **State:** open
@@ -479,6 +517,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** BL-005; a decision to extend the job or give those tables their own answer (`gp-architect`, `gp-security`).
 - **Deadline:** before real Telegram data.
 
+<a id="bl-040"></a>
 ### BL-040 — P3 — No workspace closure procedure
 
 - **State:** open
@@ -490,6 +529,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 ## Field client and mobile
 
+<a id="bl-041"></a>
 ### BL-041 — P2 — `apps/mobile` has had no visual pass under Daylight
 
 - **State:** deferred (owner)
@@ -500,6 +540,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** when the owner opens the Expo application's scope, a UI task with `gp-mobile` and `gp-ui-reviewer`.
 
+<a id="bl-042"></a>
 ### BL-042 — P3 — The install hint does not recognise an iPad in desktop-class mode
 
 - **State:** open
@@ -509,6 +550,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing (`gp-mobile`).
 - **Deadline:** none recorded.
 
+<a id="bl-043"></a>
 ### BL-043 — P3 — «Мої доручення» can show a bare unit as a work item's subtitle
 
 - **State:** open
@@ -518,6 +560,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a copy decision on what the line carries.
 - **Deadline:** none recorded.
 
+<a id="bl-044"></a>
 ### BL-044 — P3 — The field client's routes load the shared Button's motion chunk
 
 - **State:** open
@@ -529,16 +572,18 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 ## Dashboard and UI system
 
+<a id="bl-045"></a>
 ### BL-045 — P1 — Plan D slice D4: members and access
 
 - **State:** deferred (owner)
 - **Legacy cite:** `TODOS.md` «D1–D4 remain, in the order the demand scan ranks the pain»
-- **Why:** D0–D3 are merged. D4 needs an identity to show: `members.list` returns member id, user id, role and status, with no email and no name. STATUS cites the source as `TODOS.md:741`.
+- **Why:** D0–D3 are merged. D4 needs an identity to show: `members.list` returns member id, user id, role and status, with no email and no name. The runbook cites the source as `TODOS.md:741-745` (`:279`, `:304`).
 - **Evidence:** STATUS «Office dashboard» row; runbook §10 Q-15.
 - **Depends on:** Q-15 (what identity the members screen shows, and whether it needs a new operation).
 - **Deadline:** none recorded.
 - **Resume:** the owner answers Q-15. The slice then follows `docs/design/02-building-ui.md`, with `gp-architect` if an operation is added.
 
+<a id="bl-046"></a>
 ### BL-046 — P3 — No dashboard screen authors project-sourced requirements
 
 - **State:** deferred (owner)
@@ -549,6 +594,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** none recorded.
 - **Resume:** the owner approves the amendment; the four prerequisites are written before the screen slice starts.
 
+<a id="bl-047"></a>
 ### BL-047 — P2 — No container role means «a dialog», so `Dialog`'s default width is dead
 
 - **State:** open
@@ -558,6 +604,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a token-role decision (`docs/design/02-building-ui.md` §3.3).
 - **Deadline:** none recorded.
 
+<a id="bl-048"></a>
 ### BL-048 — P2 — `Checkbox` is below the 44px touch floor
 
 - **State:** open
@@ -567,6 +614,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the first dash screen that needs a checkbox.
 - **Deadline:** with that screen.
 
+<a id="bl-049"></a>
 ### BL-049 — P3 — `next=/dash` is hard-coded in the dashboard's session-expired redirects
 
 - **State:** open
@@ -576,6 +624,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a `proxy.ts` change, which takes the `gp-architect` and `gp-security` route.
 - **Deadline:** none recorded.
 
+<a id="bl-050"></a>
 ### BL-050 — P3 — The dashboard browser pass has an unexplained menu-reopen race
 
 - **State:** open
@@ -585,6 +634,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a recurrence with its diagnostic output.
 - **Deadline:** none recorded.
 
+<a id="bl-051"></a>
 ### BL-051 — P3 — `DialogClose` hand-rolls its ghost and icon styling
 
 - **State:** open
@@ -594,15 +644,17 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a second control of the same kind.
 - **Deadline:** none recorded.
 
+<a id="bl-052"></a>
 ### BL-052 — P3 — No test enforces «never put a control height behind a `data-[…]` variant»
 
 - **State:** open
 - **Legacy cite:** `TODOS.md` «The general rule, which no test yet»
-- **Why:** a `data-[…]` variant beats a `touch:` variant on specificity, and the 44px floor lost silently once (36px measured).
+- **Why:** a `data-[…]` variant beats a `touch:` variant on specificity, and the 44px floor lost silently once (36px measured). Ranked by DEV-005 (the source paragraph carried no priority).
 - **Evidence:** `git grep 'data-\[' -- packages/testing apps/app/qa` finds nothing.
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-053"></a>
 ### BL-053 — P3 — The dashboard rail's four nav items are disabled placeholders
 
 - **State:** open
@@ -612,6 +664,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a navigation decision for the merged routes.
 - **Deadline:** none recorded.
 
+<a id="bl-054"></a>
 ### BL-054 — P3 — The assignments register scrolls sideways at narrow widths instead of rendering cards
 
 - **State:** open
@@ -621,6 +674,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a UI slice.
 - **Deadline:** none recorded.
 
+<a id="bl-055"></a>
 ### BL-055 — P3 — Final-review minors: tokens, tests and the brand pipeline
 
 - **State:** open
@@ -640,6 +694,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-056"></a>
 ### BL-056 — P3 — Final-review minors: `packages/ui`
 
 - **State:** open
@@ -661,6 +716,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 ## Landing
 
+<a id="bl-057"></a>
 ### BL-057 — P3 — The pilot form's rate limit is per instance and can evict the current caller
 
 - **State:** open
@@ -670,6 +726,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a shared store, if the form is ever abused (`gp-security`).
 - **Deadline:** none recorded.
 
+<a id="bl-058"></a>
 ### BL-058 — P3 — Daylight landing residuals
 
 - **State:** open
@@ -684,6 +741,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-059"></a>
 ### BL-059 — P3 — Final-review minors: `apps/landing`
 
 - **State:** open
@@ -709,6 +767,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-060"></a>
 ### BL-060 — P3 — Final-review minors: documents and configuration
 
 - **State:** open
@@ -730,6 +789,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 ## Tooling, CI and dependencies
 
+<a id="bl-061"></a>
 ### BL-061 — P2 — vitest 3.2.4 → 4
 
 - **State:** open
@@ -739,6 +799,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the current-docs rule; owner confirmation before any local database suite runs.
 - **Deadline:** none recorded.
 
+<a id="bl-062"></a>
 ### BL-062 — P2 — Three TypeScript versions in one workspace
 
 - **State:** open
@@ -748,6 +809,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the current-docs rule.
 - **Deadline:** none recorded.
 
+<a id="bl-063"></a>
 ### BL-063 — P2 — `scripts/validate_package.py` is orphaned
 
 - **State:** open
@@ -757,6 +819,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a delete-or-retarget decision.
 - **Deadline:** none recorded.
 
+<a id="bl-064"></a>
 ### BL-064 — P2 — vertical-m1 steps 7 and 8 went red once and never again
 
 - **State:** open
@@ -766,6 +829,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a recurrence: capture the assertion text before re-running.
 - **Deadline:** none recorded.
 
+<a id="bl-065"></a>
 ### BL-065 — P2 — A page render costs about three auth round trips and two self-fetch hops
 
 - **State:** open
@@ -775,6 +839,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the current-docs rule; `gp-architect` and `gp-security` (auth).
 - **Deadline:** none recorded.
 
+<a id="bl-066"></a>
 ### BL-066 — P3 — `turbo-ignore` is deprecated
 
 - **State:** open
@@ -784,6 +849,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the current Vercel docs.
 - **Deadline:** none recorded.
 
+<a id="bl-067"></a>
 ### BL-067 — P3 — CI's `apt-get` step has no timeout or retry
 
 - **State:** open
@@ -793,6 +859,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing (CI change: `gp-security` reviews action pins only if one changes).
 - **Deadline:** none recorded.
 
+<a id="bl-068"></a>
 ### BL-068 — P3 — `supabase/functions/outbox-drain` sits outside every workspace
 
 - **State:** open
@@ -802,6 +869,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-069"></a>
 ### BL-069 — P3 — `apps/app` type-checks only the tests `src` or `app` imports
 
 - **State:** open
@@ -813,6 +881,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 ## Documentation and catalog corrections
 
+<a id="bl-070"></a>
 ### BL-070 — P3 — `technical/schema.sql` reads as current truth
 
 - **State:** open
@@ -822,6 +891,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-071"></a>
 ### BL-071 — P3 — Migration `0026` attributes a sentence to `0015`; no document corrects it
 
 - **State:** open
@@ -831,6 +901,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-072"></a>
 ### BL-072 — P3 — `baseline-verification.md` still reads «Verified» and is still cited for test runs
 
 - **State:** open
@@ -840,6 +911,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-073"></a>
 ### BL-073 — P3 — `readiness.ts` cites a bare `state-catalog.csv`, and two files share that name
 
 - **State:** open
@@ -849,17 +921,19 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
+<a id="bl-074"></a>
 ### BL-074 — P3 — Two delivery documents still state stale migration counts and a render refusal
 
 - **State:** open
 - **Legacy cite:** `TODOS.md` «Two counts elsewhere in the package still say ten»
-- **Why:** both were stale when recorded on 2026-08-08. Acts render since 2026-08-10.
+- **Why:** both were stale when recorded on 2026-08-08. Acts render since 2026-08-10. Ranked by DEV-005 (the source note carried no priority).
 - **Evidence:** `docs/delivery/version-0.1.md:207` («Ten of those fifty files have never»); `docs/delivery/production-readiness.md:150` («every one of the ten migrations») beside «No statutory act renders». STATUS «Open issues» lists the related hosted-migration disagreement.
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
 
 ## Closed, kept for citations
 
+<a id="bl-075"></a>
 ### BL-075 — P1 — Valuation funding was first-come and never re-offered
 
 - **State:** closed → `a306ec2` (2026-08-10)
@@ -869,6 +943,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** —
 - **Deadline:** —
 
+<a id="bl-076"></a>
 ### BL-076 — P0 — The pool stranded once an over-removal parted quantity from money
 
 - **State:** closed → `0a7c407` (2026-08-10)

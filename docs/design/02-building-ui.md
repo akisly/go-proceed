@@ -227,7 +227,7 @@ error at all**, only an unstyled element. The build is the only place that shows
 **Two known gaps — close them when you touch CI:**
 
 - `motion-audit.mjs` is not yet a CI step. Add it beside
-  `pnpm validate:canonical-docs` in `.github/workflows/ci.yml`.
+  `pnpm validate:canonical-docs` in `.github/workflows/ci.yml`. *[Changed 2026-09-14 (DEV-005): `packages/testing/src/motion-audit.test.ts` «finds nothing» already runs the audit inside `pnpm turbo run test`, which CI runs; only a separate step is absent.]*
 - `turbo.json`'s `test` task lists token files under `inputs` but not
   `packages/ui/src/components/**`, `packages/ui/src/motion/**`,
   `packages/ui/src/tw-merge.generated.ts` or `packages/ui/src/theme.generated.css`.

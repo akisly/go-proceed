@@ -6,7 +6,7 @@
   - HANDOFF facts reach `docs/STATUS.md` only after a check against git.
   - Lessons the handoffs taught that no live rule carries yet go to `docs/ai-workflow.md` «Habits».
   - Live instructions stop sending new follow-ups to `TODOS.md`.
-- **State:** reviewing
+- **State:** verifying
 - **Coordinator:** primary Claude Code session, 2026-09-14.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types. Three read-only `Explore` subagents checked item verdicts against the tree; they are research helpers, not review stages.
 - **Selected route and why:** agent instructions, executed validator code and documentation → coordinator → `gp-reviewer` → `gp-qa` (`agents/COORDINATION.md`). Root `AGENTS.md`, `START_HERE.md`, `agents/COORDINATION.md`, `docs/design/02-building-ui.md` and the runbook's process rules are agent instructions; `scripts/validate-canonical-docs.mjs` is executed code.
@@ -46,6 +46,8 @@
 |---|---|---|
 | 2026-09-13 | PR-D1 scope as the approved plan states it: triage `TODOS.md` and the HANDOFF files into `docs/BACKLOG.md` with the BL entry fields; HANDOFF facts to STATUS after a git check; live habits to `docs/ai-workflow.md`; `gp-reviewer` samples the classifications against the code | Owner, in conversation (plan) |
 | 2026-09-14 | Start DEV-005 | Owner, in conversation |
+| 2026-09-14 | The retired demo's Vercel project is deleted (Owner question 1): BL-011 closed as owner-reported | Owner, in conversation |
+| 2026-09-14 | Confirms the priorities DEV-005 assigned (Owner question 3) | Owner, in conversation |
 
 ## Plan
 
@@ -66,30 +68,43 @@
 | 2 | scoped (coordinator) | **The unit of triage is the item, not the heading.** Eleven headings are containers holding several items (bullets, numbered residuals, bold sub-entries); Inventory A names each container's items in its destination cell. **Live instructions move to the backlog in this task, not in DEV-006.** A list triaged at F, with rules still sending follow-ups to `TODOS.md`, would diverge at the first follow-up. The runbook's own rule already said «in `TODOS.md` until a backlog replaces it». DEV-006 keeps the freeze banner and the citation rewrite | Plan PR-D1 and PR-D2; `AGENTS.md:156`; `agents/COORDINATION.md:149`; runbook §7.1 | Check items against the tree |
 | 3 | implementing (coordinator, 3 `Explore` subagents) | Three read-only passes over the tree at F: 33 database and API items (28 open, 4 fixed, 1 partly), 34 tooling and UI items (26 open, 4 fixed, 3 partly, 1 cannot tell), and the 59 final-review minors (51 open, of which 4 partly; 8 fixed). The coordinator re-ran the evidence for all 16 «fixed» verdicts (the file line, and `git merge-base --is-ancestor` for the commit), for the three «partly» verdicts the backlog relies on (A03, B09, B16), and for nine «open» verdicts as a sample (M21, M27, M28, M38, M43, M53, B30, B54, A29). All held. The coordinator also checked: the two CLOSED IN CODE entries (the external review's click gate and the inverted `progress.adjust` case) are closed with their tests running in CI; `docs/delivery/version-0.1.md:834-837` supersedes the handoff's «M6 cannot close without the headline measures», so BL-012 was reframed; `docs/design/02-building-ui.md:289-295` was stale, because the kitchen-sink scan landed in `13157b9` | Subagent reports; the commands under Acceptance evidence 2 | Write the backlog |
 | 4 | implementing (coordinator) | `docs/BACKLOG.md`: 76 entries. States: 58 `open`, 16 `deferred (owner)`, 2 `closed` (kept because live code cites them). Priorities: P0 1, P1 4, P2 23, P3 48. The index is generated from the entries; 84 legacy cites. STATUS: the «Agent workflow» row re-observed, `TODOS.md:<n>` pointers replaced by backlog ids, «Open issues» and «Next action» updated. `docs/ai-workflow.md`: nine lessons from `HANDOFF.md` §0, §0a and §4 and `HANDOFF-2026-08-27.md` §4 that no live rule carried. Live rules pointed at the backlog: `AGENTS.md` step 3, `START_HERE.md`, `agents/COORDINATION.md` «Findings», runbook §4 rule 5 and §7.1, the observation-layers row. `02-building-ui.md` gained a dated correction. The validator link-checks `docs/BACKLOG.md` | Acceptance evidence | Run the checks, then `gp-reviewer` |
-| 5 | implementing (coordinator) | Criteria 1–9 pass. The checks corrected the work twice. STATUS first had #84 merging on 2026-09-13; it merged on 2026-09-14. The search by meaning found runbook §3.1's Senior Project Manager row and §1.6's account of it, beyond the three statements first searched, plus five Citation map rows the first pass missed (ADR-007 `:111`; runbook `:491`, `:500`, `:501`, `:1415`). **Line counts:** every edited file that other files cite by line keeps its count (`AGENTS.md`, `START_HERE.md`, `agents/COORDINATION.md`, `docs/README.md`, the runbook). `02-building-ui.md` grew only after its last cited line (`:216`). The validator grew by two lines inside `WORKFLOW_DOCS`, after `:563`; ADR-011's `:1431-1437` already pointed at the brand-guard self-tests at F | `wc -l` against `git show 5480d2e:<file>`; `git grep` for `<file>:<n>` citations | Commit; `gp-reviewer` |
+| 5 | implementing (coordinator) | Criteria 1–9 pass. The checks corrected the work twice. STATUS first had #84 merging on 2026-09-13; it merged on 2026-09-14. The search by meaning found runbook §3.1's Senior Project Manager row and §1.6's account of it, beyond the three statements first searched, plus five Citation map rows the first pass missed (ADR-007 `:111`; runbook `:491`, `:500`, `:501`, `:1415`). **Line counts:** every edited file that other files cite by line keeps its count (`AGENTS.md`, `START_HERE.md`, `agents/COORDINATION.md`, `docs/README.md`, the runbook). `02-building-ui.md` grew only after its last cited line (`:216`). The validator grew by two lines inside `WORKFLOW_DOCS` at `:1021-1022`, so every later line moved by two, including the `:1431-1437` that ADR-011:566 cites. That citation was already stale at F: the build-total checks were at `:1736-1749` there and are at `:1738-1751` now. It goes to DEV-006 (R1-08) | `wc -l` against `git show 5480d2e:<file>`; `git grep` for `<file>:<n>` citations | Commit; `gp-reviewer` |
+| 6 | reviewing (`gp-reviewer`, native), round 1 on `4ce218a` | **Changes requested**, no blocker: one medium (R1-01, index anchors), ten low. Found correct: 21 open entries against the tree, the sampled closures and supersessions, completeness of six containers and the handoff's §5–§6, the 22 numbered citations, 30 legacy cites, the instruction changes and every added habit | Review round 1 report | Rework |
+| 7 | rework (coordinator), after review round 1 | All eleven applied as stated fixes (Findings), with the owner's two answers of 2026-09-14 (BL-011 closed; priorities confirmed). Facts checked before fixing: `git log -S "Settled here, because" -- docs/delivery/version-0.1.md` → `c2ca50d` (2026-08-08), before the handoff's session (R1-06); `scripts/validate-canonical-docs.mjs:172` (R1-07); the validator hunk at `:1021-1022` and `ADR006_V01_BUILD_TOTAL` checks at `:1738-1751` (R1-08); `02-building-ui.md:229-230` (R1-10). The check script now also requires one anchor per entry. Not a rework round: no QA FAIL preceded it | See Findings | `gp-qa` |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1-01 | medium | `docs/BACKLOG.md` index and entry template | Expected: index links reach their entries. Actual: `#bl-NNN` matched no generated heading anchor, and the validator ignores fragments | coordinator | `<a id="bl-NNN"></a>` before every entry heading; the template states the convention; the check script asserts one anchor per id |
+| R1-02 | low | BL-045 | Actual: «STATUS cites the source as `TODOS.md:741`», a citation this diff removed | coordinator | Now names the runbook's `TODOS.md:741-745` at `:279` and `:304` |
+| R1-03 | low | `docs/STATUS.md` preamble | Actual: said only citations were swapped, while the diff added triage sentences and changed the CI evidence cell | coordinator | The preamble names the two triage sentences with their entries and the CI cell's new evidence |
+| R1-04 | low | STATUS «Hosted migrations» | Actual: «the same documents» pointed at `version-0.1.md` and the runbook; BL-074 covers `production-readiness.md` | coordinator | Names `version-0.1.md:207` and `production-readiness.md:150` |
+| R1-05 | low | BL-019, BL-052, BL-074; Owner question 3 | Actual: three DEV-005 rankings unmarked; BL-009 listed though it inherits P2 | coordinator | Markers added; BL-009 removed from the question, the three added |
+| R1-06 | low | BL-012 | Actual: «predates that decision», while the ruling was in `version-0.1.md` from `c2ca50d` (2026-08-08) | coordinator | Ordering claim replaced; evidence cites `:826-839` («Settled here») |
+| R1-07 | low | BL-011 | Actual: «`git grep` finds only the TODOS entry»; the validator's comment at `:172` also records the demo | coordinator | Cited, with why it did not settle the project; the entry is now closed on the owner's report |
+| R1-08 | low | This record, Progress row 5 | Actual: the validator growth placed «after `:563`»; it is at `:1021-1022` and moved ADR-011:566's cited range | coordinator | Row corrected; ADR-011:566 added under the Citation map for DEV-006 |
+| R1-09 | low | This record, «What is not true» | Actual: the list of files still citing `TODOS.md` omitted ADR-008 to ADR-011, two architecture documents, `version-0.1.md`, `ai-workflow.md`, `ci.yml` | coordinator | List extended, the `git grep` named, and two substantively stale mentions (`data-model.md:580`, runbook `:920`) disclosed |
+| R1-10 | low | `docs/design/02-building-ui.md:229-230` | Actual: «`motion-audit.mjs` is not yet a CI step», while the audit runs in CI through `motion-audit.test.ts` | coordinator | Dated note on the same line |
+| R1-11 | low | Inventory A, 1193–1270 | Actual: «a stray copy of the origin P0's body» | coordinator | «the origin P0's body as of 2026-08-18, cut off from its heading» |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: review round 1's eleven findings were applied as stated fixes; no rework round used. R1-01 is a class the validator cannot see (it drops link fragments); the one-off check now covers it for this file.
 
 ## Owner questions
 
-1. **BL-011, the retired demo's Vercel project.** No repository record says whether it was deleted or paused. This is the only closure candidate with no evidence either way. Confirm, and the entry closes as owner-reported.
+1. **BL-011, the retired demo's Vercel project.** No repository record says whether it was deleted or paused. This is the only closure candidate with no evidence either way. Confirm, and the entry closes as owner-reported. **Answered 2026-09-14: deleted; BL-011 closed.**
 2. **The standing UI instructions of `HANDOFF-2026-08-24.md` §3.**
    - Items 1 and 2 (shadcn/ui one-to-one; TanStack Table for tables) are recorded in `packages/ui/src/components/index.ts`'s header.
    - Item 5 (plane for structure only) is in `docs/design/03-ui-references.md`.
    - Items 3 («a form validates with the same zod schema the route parses») and 4 («latest versions, no pins») are in no live rule, only in the handoff and in `TODOS.md`. Today `sharp` is pinned at `0.34.5` and vitest at `3.2.4` (BL-055, BL-061).
 
    Should items 3 and 4 be written into `docs/design/02-building-ui.md` or root `AGENTS.md`, or stay history when DEV-006 freezes the handoff?
-3. **Priorities DEV-005 assigned** where the source had none, each marked «ranked by DEV-005» in its entry: BL-003 (P1), BL-004, BL-009, BL-010, BL-023, BL-024 (P2), and the P3s. Confirm or re-rank.
+3. **Priorities DEV-005 assigned** where the source had none, each marked «ranked by DEV-005» in its entry: BL-003 (P1), BL-004, BL-010, BL-023, BL-024 (P2), and the P3s, among them BL-019, BL-052 and BL-074. Confirm or re-rank. **Answered 2026-09-14: confirmed.**
 
 ## What is not true after this task
 
 - `TODOS.md` and the HANDOFF files carry no banner, and nothing stops a new entry in them. DEV-006 freezes them.
-- Live code, ADR-007, the runbook, `docs/architecture/tenancy-and-security.md`, `infra/README-staging.md` and 52 lines in 43 files under `apps/` and `packages/` still cite `TODOS.md`, by line or by entry name. The line citations point at moved lines; DEV-006 re-points them from the Citation map. A prose pointer still resolves through the entry whose «Legacy cite» quotes its source.
+- Live code, ADR-007 to ADR-011, the runbook, `docs/architecture/tenancy-and-security.md`, `data-model.md` and `system-overview.md`, `docs/delivery/version-0.1.md`, `docs/ai-workflow.md`, `infra/README-staging.md`, `.github/workflows/ci.yml` and 52 lines in 43 files under `apps/` and `packages/` still cite `TODOS.md`, by line or by entry name; `git grep -n TODOS` lists them all. Some are also stale in substance: `data-model.md:580` names a deviation `0058` closed, and runbook `:920` counts the card among four webhook blockers after it closed. The line citations point at moved lines; DEV-006 re-points them from the Citation map. A prose pointer still resolves through the entry whose «Legacy cite» quotes its source.
 - The validator checks the backlog's links only, not its ids, fields or legacy cites; this task checked those with a one-off script (criterion 3).
 - «Open» verdicts are subagent readings spot-checked on nine items. Every «fixed» verdict was re-run by the coordinator.
 - Nothing hosted was observed: not the Vercel projects, the staging §6 runs or the Brevo account.
@@ -111,7 +126,7 @@ Rework count and hypothesis changes: none yet.
 | 7. `TODOS.md` and the three HANDOFF files are byte-identical to F | yes | working tree | `git diff --stat 5480d2e -- TODOS.md 'HANDOFF*.md'` prints nothing; `shasum -a 256` equals the Baseline table for all four | PASS | `negative` |
 | 8. `pnpm validate:canonical-docs` green, and a broken link planted in `docs/BACKLOG.md` fails it | yes | working tree | `node scripts/validate-canonical-docs.mjs` → `canonical documentation: OK`. With `See [nowhere](no-such-file.md).` appended to the backlog → `1 problem(s)`, `docs/BACKLOG.md: broken relative link -> no-such-file.md`; the file was restored and `cmp` matched | PASS | Coordinator's run; `gp-qa` re-runs it |
 | 9. `pnpm validate:agents` green | yes | working tree | `pnpm validate:agents` → `Verified 16 host profiles from 8 canonical roles (gp: 8).` | PASS | — |
-| 10. Independent `gp-reviewer` with no unresolved finding, including a sample of classifications checked against the code | yes | — | — | NOT RUN | Not started |
+| 10. Independent `gp-reviewer` with no unresolved finding, including a sample of classifications checked against the code | yes | `4ce218a` (review round 1) | Native `gp-reviewer`: changes requested, no blocker; R1-01 to R1-11 all resolved as stated fixes. Its sample: 21 open entries against the tree, 9 closures, six containers and `HANDOFF-2026-08-27.md` §5–§6 read in full (nothing unrouted), the 22 numbered citations, 30 legacy cites, every added habit against its handoff section | PASS | Fixes are verified by `gp-qa`, not re-reviewed, as root AGENTS.md prescribes for stated fixes |
 | 11. Independent `gp-qa` on the final revision | yes | — | — | NOT RUN | Not started |
 | 12. CI `verify` green | yes | — | — | NOT RUN | Not started |
 
@@ -159,7 +174,7 @@ Classes: `closed` (closed, with the evidence named or recorded in the entry); `o
 | 1094–1131 | Record (2026-08-20) — `apps/demo` and its CI job are retired | record; open-residual | The owner's Vercel project → BL-011 |
 | 1132–1178 | P2 — `scripts/validate_package.py` is orphaned | open-residual | BL-063 |
 | 1179–1192 | P3 — `turbo-ignore` is deprecated | open-residual | BL-066 |
-| 1193–1270 | P3 — CI's `apt-get` step hung for 17 minutes once | open-residual; superseded | Lines 1193–1201 → BL-067. Lines 1203–1269 are a stray copy of the origin P0's body (heading-less, «This is the largest open item»): superseded by the closed P0 at 561 |
+| 1193–1270 | P3 — CI's `apt-get` step hung for 17 minutes once | open-residual; superseded | Lines 1193–1201 → BL-067. Lines 1203–1269 are the origin P0's body as of 2026-08-18 («The P0 is NOT closed»), cut off from its heading: superseded by the closed P0 at 561 |
 | 1271–1360 | P1 (CLOSED 2026-08-17) — seven residuals from the field-client final review | closed | — |
 | 1361–1460 | P1 (CLOSED 2026-08-10) — valuation funding was first-come … | closed | Cited by live code → BL-075 |
 | 1461–1546 | P1 (CLOSED 2026-08-10) — M4 prints | closed; record | The eight blank Додаток В fields are the owner's decision of 2026-08-10 («fill what the product knows»): record, no entry |
@@ -285,4 +300,4 @@ Live citations of a `TODOS.md` line outside dated records, resolved by meaning a
 | `docs/delivery/pilot-execution-runbook.md:1681` | `TODOS.md:2248-2257` | The auto-exchange and the rate-limit gap | BL-023 |
 | `docs/delivery/pilot-execution-runbook.md:1687` | `TODOS.md:900-930` | A grant only a superuser can revoke | BL-021 |
 
-`docs/STATUS.md`'s citations (`:665`, `:741`, `:3313`, `:3433`) were replaced in this task. Unnumbered prose mentions of `TODOS.md` in source comments and documents are listed by `git grep -n 'TODOS' -- apps packages docs infra scripts`; each resolves through the backlog entry whose legacy cite quotes its source.
+`docs/STATUS.md`'s citations (`:665`, `:741`, `:3313`, `:3433`) were replaced in this task. Outside `TODOS.md`, DEV-006 should also re-point ADR-011:566, whose `scripts/validate-canonical-docs.mjs:1431-1437` was stale at F and moved by two lines here (R1-08). Unnumbered prose mentions of `TODOS.md` in source comments and documents are listed by `git grep -n 'TODOS' -- apps packages docs infra scripts`; each resolves through the backlog entry whose legacy cite quotes its source.

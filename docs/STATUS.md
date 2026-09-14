@@ -10,7 +10,7 @@ Only the coordinator updates this file; specialist roles return handoffs. **Ever
 
 Observed at `main` `dbd4c36`. Nothing here queried a hosted database or the Vercel API; hosted state comes from the dated records cited.
 
-On 2026-09-14 DEV-005 re-observed the «Agent workflow» row at `5480d2e`. In the other rows it replaced `TODOS.md:<n>` citations with [BACKLOG.md](BACKLOG.md) entries, and added backlog ids to their «Open» cells, without re-observing those rows.
+On 2026-09-14 DEV-005 re-observed the «Agent workflow» row at `5480d2e`. In the other rows it replaced `TODOS.md:<n>` citations with [BACKLOG.md](BACKLOG.md) entries, and added backlog ids to their «Open» cells, without re-observing those rows. Two sentences it added come from the triage, not from a re-observation, and each cites its entry: the PWA row's staging checks (BL-010) and the Outreach row's missing customer document (BL-003). The CI row's evidence for the closed cases cites #69 (`9b9bf65`) in place of the `TODOS.md` entry.
 
 | Area | State | Evidence | Open |
 |---|---|---|---|
@@ -25,7 +25,7 @@ On 2026-09-14 DEV-005 re-observed the «Agent workflow» row at `5480d2e`. In th
 | CI | `main` green on every completed run observed: 34771325867 (#81), 34758143582 (#80), 34754767259 (#79). Run 34778658900 (#82, `dbd4c36`) was in progress. The eighteen red `apps/app` cases closed on 2026-09-04. Supabase CLI pin `2.115.0` | `gh run list --workflow ci --branch main`; #69 (`9b9bf65`); `.supabase-cli-version` | The runbook's statements of the eighteen cases (dated 2026-09-03) still read as open. `test-strategy.md` §Baseline (C-16). No quarantine ledger (Q-8), no supply-chain gate (Q-16) |
 | Agent workflow (re-observed 2026-09-14 at `5480d2e`) | The `gp-*` roles and task records are the process. DEV-001 to DEV-004 are done: #79 to #83 merged on 2026-09-13, and #84 on 2026-09-14 as `5480d2e`. DEV-005 (backlog triage) is this change. Open and deferred work is in [BACKLOG.md](BACKLOG.md) | [docs/tasks/README.md](tasks/README.md); `git log --merges --oneline -6` | The retired workflow plugin stays enabled at user level, owner-accepted (DEV-002 criterion 8b); `CLAUDE.md` and `docs/ai-workflow.md` still say it is disabled. DEV-006 (freeze `TODOS.md` and the HANDOFF files, re-point live `TODOS.md:<n>` citations) and DEV-007 (design sources) are not started |
 | Outreach | Last evidenced send: 2026-07-28, 21 emails. Four follow-up materials drafted 2026-08-23, unsent. A ten-company pilot outreach pack prepared 2026-08-25, unsent | [outreach-log.md](discovery/outreach-log.md); [2026-08-23-validation-push.md](discovery/2026-08-23-validation-push.md); `outputs/` | The send and the URL it points at are owner decisions (runbook Q-3; BL-003, BL-004). Assumptions A-1 to A-8 are unvalidated, and no real customer document is on hand. `outputs/` tracks 250 files, some naming companies and contact routes: a privacy review is planned for DEV-007 |
-| Deployments | Three Vercel projects are documented: `goproceed-app` (Production builds only, 2026-08-19), `goproceed-landing` (2026-08-20), `goproceed-field` (2026-08-21) | `infra/README-staging.md` | Which commit each project serves today was not observed. No custom domain (Q-3). Whether the retired demo's project still exists is unrecorded (BL-011) |
+| Deployments | Three Vercel projects are documented: `goproceed-app` (Production builds only, 2026-08-19), `goproceed-landing` (2026-08-20), `goproceed-field` (2026-08-21) | `infra/README-staging.md` | Which commit each project serves today was not observed. No custom domain (Q-3) |
 
 ## Review independence
 
@@ -38,7 +38,7 @@ On 2026-09-14 DEV-005 re-observed the «Agent workflow» row at `5480d2e`. In th
 Places where a live document disagrees with git on 2026-09-13. Each is a correction owed, not made here.
 
 - **The eighteen red cases and the card tag.** Runbook §1.1, §1.3, §1.6, §5.9, §5.11, §5.14 and §5.15, and ADR-011 §"Status against the runtime", describe both as open. #69 closed the first on 2026-09-04 and #78 the second on 2026-09-13.
-- **Hosted migrations.** `docs/delivery/version-0.1.md` (last reviewed 2026-08-08) says `0041`–`0050` were never applied; the staging record says 58/58 on 2026-08-19. The runbook counts 23 unapplied migrations; the tree now has 26 after `0058`. The same documents' «ten migrations» counts are BL-074.
+- **Hosted migrations.** `docs/delivery/version-0.1.md` (last reviewed 2026-08-08) says `0041`–`0050` were never applied; the staging record says 58/58 on 2026-08-19. The runbook counts 23 unapplied migrations; the tree now has 26 after `0058`. The «ten migrations» counts in `version-0.1.md:207` and `production-readiness.md:150` are BL-074.
 - **`infra/README-staging.md` contradicts itself** on whether anything has run, on whether `goproceed-landing` has environment variables, and on where `apps/mobile/vercel.json` lives.
 - **`TODOS.md`'s Plan D entry** says D1–D4 remain; D1–D3 are merged (runbook C-12). D4 is BL-045.
 - **The card's closure date.** `TODOS.md` and ADR-011 say 2026-09-08; the commits are dated 2026-09-09 and the merge 2026-09-13.
