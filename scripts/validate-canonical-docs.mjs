@@ -130,7 +130,7 @@ const ROLE_RECORD_DIRS = [
   // paths those files had on the operator's disk on the day they ran, and some
   // of those filenames carry the old product name. Rewriting a path inside a
   // dated output would falsify how the data was actually produced — the same
-  // reasoning as the /cso reports directory above. Added 2026-08-28, when the
+  // reasoning as the dated /cso report below. Added 2026-08-28, when the
   // 2026-08-27 merges first brought this directory under the walk and the
   // gate went red on main.
   "outputs/",

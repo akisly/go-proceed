@@ -1,6 +1,6 @@
 # Evidence Atlas — selected visual direction
 
-> **Historical, 2026-09-14 (DEV-007).** Daylight superseded this direction on 2026-09-05. The normative design is `DESIGN.md` and `docs/design/`; nothing below is a current rule. `apps/landing/qa/grounds.mjs` still reads `assets/` as crop references. See [the directory README](../README.md).
+> **Historical, 2026-09-14 (DEV-007).** Daylight superseded this direction on 2026-09-05. The normative design is `DESIGN.md` and `docs/design/`; nothing below is a current rule, except what `apps/landing/qa/grounds.mjs` relies on: `assets/` are the source masters of the landing's route-card grounds, cut to the Asset inventory's crop rules, and the imagery is synthetic with no customer data. See [the directory README](../README.md).
 
 ## Status
 

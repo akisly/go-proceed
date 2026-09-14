@@ -18,7 +18,7 @@ applied database, or the product scope.
 
 **Companions — one level deep, do not chain further:**
 [`01-tokens.md`](./01-tokens.md) — the values, generated ·
-[the rewrite plan](./2026-08-19-design-system-rewrite-plan.md) — the reasoning.
+[the rewrite plan](./2026-08-19-design-system-rewrite-plan.md) — the reasoning of 2026-08-19, Historical since 2026-09-14 (DEV-007); take no value from it.
 
 ---
 
@@ -71,7 +71,7 @@ of "done" without §5 output is the failure mode this file exists to prevent.
 2. **[`01-tokens.md`](./01-tokens.md)** — only the section you need. It is
    generated and it is long; do not read it end to end.
 3. **The plan's §9** (landing blocks) or **§10** (app surfaces) — only if you
-   are building one.
+   are building one. *[2026-09-14 (DEV-007): the plan is Historical. For a landing block read `DESIGN.md` and `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` with its 2026-09-06 parity spec; for an app surface, `03-ui-references.md`, `04-role-pain-map.md` and `docs/superpowers/specs/2026-09-05-app-daylight-migration-design.md`.]*
 
 **Do not read** `apps/demo/src/styles.css`. It is a frozen 156 KB prototype
 sheet with the superseded palette, and reading it teaches you values that now
@@ -104,7 +104,7 @@ fail the colour audit.
 
 `impeccable` is the judgement call: it overlaps this document heavily. Reach for
 it only for a **critique pass on a finished block**, never to decide structure —
-structure is decided here. `interface-design` may inform a screen, but decline its offer to save a system file: its `.interface-design/system.md` outlived the design it described and was removed on 2026-09-14 (DEV-007); decisions live in `DESIGN.md` and this directory.
+structure is decided here. `interface-design` may inform domain exploration inside `DESIGN.md`'s direction; adopt no palette, type or signature it proposes, and decline its offer to save a system file: its `.interface-design/system.md` outlived the design it described and was removed on 2026-09-14 (DEV-007).
 
 ### 3.3 Three questions, answered before the first line
 
@@ -306,7 +306,7 @@ class attribute. React does not warn and TypeScript cannot see it.
 ### 7.3 A new motion primitive
 
 Not an addition — a decision. It means the vocabulary was missing something, so
-the plan's §8.3 has to say what and why in the same change. The test that fails
+the new primitive's own file header and `packages/ui/src/motion/index.ts`, whose header counts the vocabulary, say what and why in the same change *[2026-09-14 (DEV-007): this named the rewrite plan's §8.3, now Historical]*. The test that fails
 is the prompt to write that down.
 
 ---
@@ -360,7 +360,7 @@ One line each. Every one of these shipped or nearly shipped.
 - **QA hooks are `data-*` attributes, never class names, and an assertion names the
   contract, not the markup.** A class rename during a restyle once turned a whole
   audit into a no-op, and an assertion that fires on a correct change teaches you
-  to edit the assertion. *[Moved 2026-09-14 (DEV-007) from `.interface-design/system.md` §8.]*
+  to edit the assertion. *[Moved 2026-09-14 (DEV-007) from `.interface-design/system.md` §8.]* Class hooks older than the ruling remain: `apps/landing/qa/landing.mjs` queries `.beam`, `.pulse-dot` and `.flow-dash`, and `apps/app/qa/field.mjs` `[class*="bg-status-"]`; a new hook is a `data-*` attribute.
 
 ---
 

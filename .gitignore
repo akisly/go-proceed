@@ -112,4 +112,7 @@ discovery/*.db
 
 # Agent-session screenshots and briefs; DEV-007 removed the tracked copy (2026-09-14).
 /output/
+
+# Impeccable critique snapshots are local reports, never tracked (DEV-007).
+.impeccable/critique/
 apps/app/qa-output-before/

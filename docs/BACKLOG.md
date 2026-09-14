@@ -664,7 +664,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** `TODOS.md` «rail's four nav items read as disabled grey»
-- **Why:** they were placeholders until slices D1–D4; D1–D3 have merged and none of the items is a link.
+- **Why:** they were placeholders until slices D1–D4; D1–D3 have merged and none of the items is a link. When they become links, two rulings from the removed `.interface-design/system.md` §5 apply, moved here by DEV-007: in the icon band (`rail-icons`, `md` to `wide`) the label stays in the DOM, so the accessible name never depends on a tooltip, which mounts only in that band; and the active item's bar is absolutely positioned, so the label does not shift as you navigate.
 - **Evidence:** `apps/app/src/components/dash-shell/sidebar.tsx:120` sets `disabled` on every item of `NAV_ITEMS`.
 - **Depends on:** a navigation decision for the merged routes.
 - **Deadline:** none recorded.
@@ -950,7 +950,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** `docs/design/02-building-ui.md` and the generated `docs/design/01-tokens.md` name D1–D7 in the rewrite plan's §3 as the rulings they enforce, «which need an ADR before Phase 3». §12's P0 required «Seven decisions recorded in an ADR»; none was written, and the surfaces since shipped on Daylight, which departed from D3's type pairing. DEV-007 made the plan Historical, so those rulings have no normative home. An ADR drafted as `Proposed` would record what was actually decided, for the owner to rule (`docs/README.md` «ADR lifecycle and approval»). Ranked by DEV-007.
+- **Why:** `docs/design/02-building-ui.md` and the generated `docs/design/01-tokens.md` name D1–D7 in the rewrite plan's §3 as the rulings they enforce, «which need an ADR before Phase 3». §12's P0 required «Seven decisions recorded in an ADR»; none was written, and the surfaces since shipped on Daylight, which departed from D3's type pairing. DEV-007 made the plan Historical, so those rulings have no normative home. `02-building-ui.md` §3.1 and §7.3 no longer send readers into the plan; its Companions line and the generated `01-tokens.md` still name it as the reasoning. An ADR drafted as `Proposed` would record what was actually decided, for the owner to rule (`docs/README.md` «ADR lifecycle and approval»). Ranked by DEV-007.
 - **Evidence:** `docs/design/2026-08-19-design-system-rewrite-plan.md` §3 and §12; `docs/decisions/README.md` indexes ADR-001 to ADR-011; the «Related decisions» lines of `02-building-ui.md` and `01-tokens.md` (the latter written by `packages/tokens/scripts/generate-docs.mjs`).
 - **Depends on:** the owner's ruling on the drafted ADR.
 - **Deadline:** none recorded.
@@ -960,7 +960,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** deferred (owner)
 - **Legacy cite:** none
-- **Why:** DEV-007's `gp-security` review (S1-01, S1-02, S1-05) found personal data of natural persons in the prospecting session that commit `bbfc705` added: buyer-side contact persons in the raw ProZorro search dumps, and sole traders under their personal names with ten-digit identifiers, the length of a personal tax number rather than a company code. The project's rule, live through the `.gitignore` entries headed «personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)», keeps lead data out of git history and promises retention limits and deletion on request, which a tracked copy cannot honour without rewriting history. The repository is private and nothing deploys or uploads the directory, but every clone, worktree, CI checkout and agent session that reads it holds the data. The owner kept `outputs/` on 2026-09-13 as the prospecting record; this entry is the decision on how it is kept. The priority is the review's.
+- **Why:** DEV-007's `gp-security` review (S1-01, S1-02, S1-05) found personal data of natural persons in the prospecting session that commit `bbfc705` added: buyer-side contact persons in the raw ProZorro search dumps, and sole traders under their personal names with ten-digit identifiers, the length of a personal tax number rather than a company code. The project's rule, live through the `.gitignore` entries headed «personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)», keeps lead data out of git history and promises retention limits and deletion on request, which a tracked copy cannot honour without rewriting history. The repository is private and nothing deploys or uploads the directory, but every clone, worktree, CI checkout and agent session that reads it holds the data. The owner kept `outputs/` on 2026-09-13 as the prospecting record; this entry is the decision on how it is kept. Ranked by DEV-007 from the review's severity.
 - **Evidence:** the coordinator's counts at `d8a860a` (2026-09-14): the five `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/prozorro_wave{3..7}_search_hits_2026-08-24.json` files hold 6,371 `contactPoint` objects, each with a name and an email (2,444 distinct name–email pairs); 9,788 `edrpou` values of ten digits across 52 files. `docs/legacy/40-phase1-discovery-outreach.md` §B.5; `.gitignore`'s Child B block. The review found no credentials.
 - **Depends on:** the owner's decision.
 - **Deadline:** none recorded.
@@ -971,7 +971,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** deferred (owner)
 - **Legacy cite:** none
-- **Why:** DEV-007's review (S1-03, S1-04). The unsent A1-N01 outreach pack's own privacy rule promises general corporate addresses without employee names, yet most of its routes are free-mail addresses or mobile numbers, which for a small firm are often the director's own. Tender titles copied verbatim name private customers («Замовник: surname, initials») beside contract numbers and localities, with no bearing on any prospect. The priority is the review's.
+- **Why:** DEV-007's review (S1-03, S1-04). The unsent A1-N01 outreach pack's own privacy rule promises general corporate addresses without employee names, yet most of its routes are free-mail addresses or mobile numbers, which for a small firm are often the director's own. Tender titles copied verbatim name private customers («Замовник: surname, initials») beside contract numbers and localities, with no bearing on any prospect. Ranked by DEV-007 from the review's severity.
 - **Evidence:** `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/pilot_outreach_A1-N01_2026-08-25.md`: 7 recipient addresses, 6 on free-mail domains (coordinator's count); 101 «Замовник: <surname> <initial>.» matches in 22 files of the same directory (coordinator's count; the review counted 99 with its own pattern).
 - **Depends on:** BL-079.
 - **Deadline:** none recorded.
@@ -982,7 +982,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-007's review (S1-09). Commit `bbfc705`, a landing layout change, added the whole session directory in passing, and no ignore rule or validator check would stop the next one. Two guards fit: ignore new session directories under `outputs/` while the existing tree stays tracked, and a validator check that refuses tracked files carrying ProZorro `contactPoint` objects outside approved paths. The priority is the review's.
+- **Why:** DEV-007's review (S1-09). Commit `bbfc705`, a landing layout change, added the whole session directory in passing, and no ignore rule or validator check would stop the next one. Two guards fit: ignore new session directories under `outputs/` while the existing tree stays tracked, and a validator check that refuses tracked files carrying ProZorro `contactPoint` objects outside approved paths. Ranked by DEV-007 from the review's severity.
 - **Evidence:** `git log --format='%h %s' -- outputs` lists only `bbfc705` «fix(landing): adjust table borders for improved layout consistency»; `.gitignore` has no `outputs` entry.
 - **Depends on:** BL-079, which decides what may stay tracked.
 - **Deadline:** none recorded.
