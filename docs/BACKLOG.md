@@ -103,8 +103,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-072](#bl-072) | P3 | open | `baseline-verification.md` still reads «Verified» and is still cited for test runs |
 | [BL-073](#bl-073) | P3 | open | `readiness.ts` cites a bare `state-catalog.csv`, and two files share that name |
 | [BL-074](#bl-074) | P3 | open | Two delivery documents still state stale migration counts and a render refusal |
-| [BL-075](#bl-075) | P1 | closed → `a306ec2` (2026-08-10) | Valuation funding was first-come and never re-offered |
-| [BL-076](#bl-076) | P0 | closed → `0a7c407` (2026-08-10) | The pool stranded once an over-removal parted quantity from money |
+| [BL-075](#bl-075) | P1 | closed → `a306ec2` | Valuation funding was first-come and never re-offered |
+| [BL-076](#bl-076) | P0 | closed → `0a7c407` | The pool stranded once an over-removal parted quantity from money |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -936,7 +936,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-075"></a>
 ### BL-075 — P1 — Valuation funding was first-come and never re-offered
 
-- **State:** closed → `a306ec2` (2026-08-10)
+- **State:** closed → `a306ec2`
 - **Legacy cite:** `TODOS.md` «valuation funding was first-come and was never re-offered»
 - **Why:** kept because live code cites it as «the P1 at `TODOS.md:238`»: `apps/app/src/lib/admission.ts:502`, `apps/app/src/lib/valuation-writer.ts:310`, `apps/app/tests/admission-valuation.int.test.ts:511`. The owner decided on 2026-08-10 that admission is a standing claim.
 - **Evidence:** `apps/app/tests/admission-valuation.int.test.ts` «the pool is offered again when the root that held it gives it back», added in `a306ec2`.
@@ -946,7 +946,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-076"></a>
 ### BL-076 — P0 — The pool stranded once an over-removal parted quantity from money
 
-- **State:** closed → `0a7c407` (2026-08-10)
+- **State:** closed → `0a7c407`
 - **Legacy cite:** `TODOS.md` «the pool stranded once an over-removal parted quantity from money»
 - **Why:** kept because live code cites it as «the P0 at `TODOS.md:585`»: `apps/app/src/lib/valuation-writer.ts:161`, `apps/app/tests/progress-adjust.int.test.ts:728`, `packages/domain/src/valuation.ts:234`. The carve denominator answers to the money.
 - **Evidence:** `apps/app/tests/progress-adjust.int.test.ts` «the pool a line holds is the share its effective quantity bought», added in `0a7c407`.
