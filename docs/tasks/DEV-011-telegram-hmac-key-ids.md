@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** the HMAC keys behind Telegram link-token verifiers and the erasure registry's `subject_hmac` carry key ids, so they can be rotated without invalidating live links, losing the erasure registry's match or leaving a leaked key re-identifying erased people (BL-085). Readiness gate 14 waits on it.
-- **State:** implementing
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-15.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** schema, definer and erasure change (`agents/COORDINATION.md`): `gp-architect` design → owner decisions → coordinator implements → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -56,8 +56,9 @@ Numbered steps. For each step, name the files it touches and the check that prov
 | 6 | implementing (coordinator): catalogs and documents | `invariant-catalog.csv`: INV-099 enforcement and evidence re-worded; INV-100 (link verifiers carry key ids) and INV-101 (erasure key ids and the refusals) added. `data-access-surface.csv`: DA-151, DA-152, DA-159 notes; DA-177 `app.telegram_erasure_keys`. `schema-v0.1.sql`: `verifier_key_id` on both intent tables. `infra/secret-rotation.md`: stores and inventory rows, and «Telegram link and erasure HMAC keys» replacing the pepper section. `infra/README-staging.md` §7 run instructions. `docs/BACKLOG.md`: BL-085 `scheduled → DEV-011`; BL-087 (P2) the wrapping scheme, per the owner. `production-readiness.md` gate 14 and runbook §5.7: dated DEV-011 notes, the gate still open on Q-9. `STATUS.md` next actions and the latest-migration marker | `validate-canonical-docs` | Reviews |
 | 7 | reviewing (`gp-reviewer`, `gp-security`, native) on `54f1fe3` | The first dispatch of each stalled (stream watchdog, 600 s, no result; recorded NOT RUN) and was re-dispatched scoped: `gp-security` on the security files, `gp-reviewer` in two parts (A: migration `0085` against `0062` / `0081`; B: code, tests, catalogs, documents). **`gp-security`: PASS**, S1-01 to S1-04, all minor. **`gp-reviewer` A: APPROVE**, R1-01 and R1-02 low, R1-03 nit; it confirmed the copied bodies, the PL/pgSQL, the backfill order, table-level service grants on the intent tables (`0062:569-571`) and the re-key's freedom from `23505`. **`gp-reviewer` B: APPROVE**, R1-B-01 to R1-B-06 minor or nit, plus three test notes | review reports | Stated fixes |
 | 8 | rework (coordinator), stated fixes | S1-01 to S1-04, R1-01 to R1-03, R1-B-01 to R1-B-06 and N-1 as the findings table says. Preflight: more than eight link keys refused, and either erasure name refused on a deployment (names only); `turbo.json` `build.env` gains both erasure names so `prebuild` can see them under strict env. `0085`: comments only (`«supplied»`, the `erased_at` note); the `app.telegram_erasure_keys` comment and `_internal` re-created on the local database with `create or replace` (rc 0). Evidence: unit (nine files) 132 passed; `pnpm --filter @goproceed/app typecheck` rc 0; `pnpm --filter @goproceed/testing typecheck` rc 0 (first run for this task); `telegram-erasure.test.ts` 38 passed (grants now cover `assert_keyed_hmacs`, key-table writes and `goproceed_worker`); validators rc 0. `telegram-bindings.int.test.ts` not re-run: nothing on its path changed since row 5. No `gp-security` re-check is owed: its findings were all minor. Not a rework round: no QA FAIL preceded it | `scratchpad/dev011-r1-unit.txt`, `dev011-r1-typecheck-app.txt`, `dev011-r1-typecheck-testing.txt`, `dev011-r1-erasure.txt`, `dev011-reapply-comments.sql` | `gp-qa` |
-| 9 | verifying (`gp-qa`, native, read-focused) on `92bb8c0` | Every stated fix in place; R1-01's claim holds (the only consume path ends in `failTelegramInbox` with `processing_failed`, and the app cannot build a malformed candidate set). Its own read-only queries on the local database: head `0085`; the privilege matrix for five roles (only `goproceed_service` executes the erase and both consume definers; nothing else reachable); the five keyless signatures gone; RLS on the key table; the pairing check; «ever supplied» in the table comment and the `erased_at` note in `_internal`. Criteria 1–5 and 7 PASS (assisted for the saved runs), 8 NOT RUN (not required); **criterion 6 NOT RUN for the validators only**: no saved validator output at `92bb8c0`. New: Q1-01 minor (runbook §8.1 still names the pepper), Q1-02 nit («first use» in the runbook and DA-177) | QA report | Q1 fixes; validators saved at the final head |
+| 9 | verifying (`gp-qa`, native, read-focused) on `92bb8c0` | Every stated fix in place; R1-01's claim holds (the only consume path ends in `failTelegramInbox` with `processing_failed`, and the app cannot build a malformed candidate set). Its own read-only queries on the local database: head `0085`; the privilege matrix for five roles (only `goproceed_service` executes the erase and both consume definers; nothing else reachable); the five keyless signatures gone; RLS on the key table; the pairing check; «ever supplied» in the table comment and the `erased_at` note in `_internal`. Criteria 1–5 and 7 PASS (assisted for the saved runs), 8 NOT RUN (not required); **criterion 6 NOT RUN for the validators only**: no saved validator output at `92bb8c0`. New: Q1-01 minor (runbook §8.1 still names the pepper), Q1-02 nit («first use» in `infra/secret-rotation.md` and DA-177) | QA report | Q1 fixes; validators saved at the final head |
 | 10 | rework (coordinator), stated fixes | Q1-01: runbook §8.1 gains a dated DEV-011 note (eight variables; the preflight checks the link pair once set and refuses the erasure keys). Q1-02: «supplied» in `infra/secret-rotation.md` and DA-177. Validators run on the working tree of the closing commit and saved: `dev011-final-validate-docs.txt`, `dev011-final-validate-agents.txt`, both rc 0 | this diff | `gp-qa` narrow re-check |
+| 11 | verifying (`gp-qa`, native, narrow) on `cf95b9a` | Q1-01 and Q1-02 in place; validator outputs saved after `92bb8c0` and matching `cf95b9a`'s content, both rc 0; the diff prose-only; criteria 1–7 PASS, 8 NOT RUN (not required). Three record findings, Q2-01 to Q2-03, fixed in the closing commit (prose only in this record, no re-review owed) | QA report | Push and PR |
 
 ## Findings and rework
 
@@ -80,12 +81,21 @@ Numbered steps. For each step, name the files it touches and the check that prov
 | N-3 | note | Bindings refusal test | Actual: no removed-key case for member links | coordinator | Not added: both consume definers share the candidate lookup the binding case exercises |
 | Q1-01 | minor | `docs/delivery/pilot-execution-runbook.md` §8.1 | Actual: still names `TELEGRAM_LINK_PEPPER` among the route's seven variables | coordinator | Dated DEV-011 note appended; the earlier sentence kept as history (row 10) |
 | Q1-02 | nit | `infra/secret-rotation.md`; DA-177 | Actual: «first use» where every supplied id is recorded | coordinator | «supplied» in both (row 10) |
+| Q2-01 | nit | Record row 9 | Actual: «in the runbook» for Q1-02 | coordinator | `infra/secret-rotation.md` |
+| Q2-02 | nit | Acceptance table, criteria 3–5 | Actual: a bare `assisted` and a `—` hiding local-only evidence | coordinator | Qualifiers completed |
+| Q2-03 | minor | «What is not true» | Actual: template text | coordinator | Written |
 
 Rework count and hypothesis changes:
 
 ## What is not true after this task
 
-List what a reader might assume this task achieved but it did not. Examples: untested platforms, targets not yet delivered, NOT RUN criteria, and follow-ups.
+- **Readiness gate 14 is not closed.** It stays open on Q-9 (no separate production project), and no key rotation has been exercised on a hosted project.
+- **Nothing is applied to a hosted project.** `0085` was applied by hand to the local database only.
+- **A leaked erasure key still re-identifies** every registry row not yet moved to a newer key, and every backup taken before a row moved (BL-087). The first secret supplied for a key id, including `legacy`, is trusted.
+- **Five integration suites whose environment fixtures changed were not run:** `telegram-delivery`, `telegram-evidence`, `telegram-ingress`, `telegram-processing`, `project-communications` (outside the owner's two-file permission).
+- **No removed-key refusal case for member-link tokens** (N-3); the binding case exercises the shared lookup.
+- **CI did not run** (GitHub Actions billing until October 2026).
+- **BL-086 is unchanged** for the link keys: a repeated link key id and the same value in both key sets are still accepted.
 
 ## Acceptance evidence
 
@@ -93,9 +103,9 @@ List what a reader might assume this task achieved but it did not. Examples: unt
 |---|---|---|---|---|---|
 | 1. Link tokens carry key ids; rotation keeps earlier tokens; a removed key refuses; audit by the returned intent id | yes | `54f1fe3` (nothing on the path changed after) | `apps/app/tests/telegram-bindings.int.test.ts` 8 passed, not skipped (`dev011-green-bindings.txt`) | PASS | assisted: local database at `0085`, `APP_DB_URL` / `SERVICE_DB_URL` set by hand; no removed-key case for member links (N-3) |
 | 2. Erasure registry: same surrogate and re-key under rotation; refusals before any write; 22023 shapes; re-link rolls the re-key back | yes | `92bb8c0` | `packages/testing/src/telegram-erasure.test.ts` 38 passed (`dev011-r1-erasure.txt`) | PASS | assisted: local database at `0085`; §6 cases run in order |
-| 3. `legacy` reproduces the pepper's HMACs in app, script and database | yes | `92bb8c0` | `tokens.test.ts`, `erase-identity-cli.test.ts`, `telegram-erasure.test.ts` §6 case 1 | PASS | assisted |
-| 4. Privileges and constraints | yes | `92bb8c0` | §6 grants and constraints cases; `gp-qa`'s own read-only queries on the local database (row 9) | PASS | — |
-| 5. Configuration, script and preflight refusals without key material; preflight parity | yes | `92bb8c0` | Unit 132 passed (`dev011-r1-unit.txt`) | PASS | assisted |
+| 3. `legacy` reproduces the pepper's HMACs in app, script and database | yes | `92bb8c0` | `tokens.test.ts`, `erase-identity-cli.test.ts`, `telegram-erasure.test.ts` §6 case 1 | PASS | assisted: saved unit and database runs, local database at `0085` |
+| 4. Privileges and constraints | yes | `92bb8c0` | §6 grants and constraints cases; `gp-qa`'s own read-only queries on the local database (row 9) | PASS | assisted: local database at `0085` only; no hosted project |
+| 5. Configuration, script and preflight refusals without key material; preflight parity | yes | `92bb8c0` | Unit 132 passed (`dev011-r1-unit.txt`) | PASS | assisted: saved unit and database runs, local database at `0085` |
 | 6. Regression: existing suites, typechecks, validators | yes | `92bb8c0`; validators on the closing commit's tree | Unit 132 passed; erasure 38; bindings 8; `pnpm --filter @goproceed/app typecheck` and `@goproceed/testing typecheck` rc 0; `node scripts/validate-canonical-docs.mjs` and `python3 scripts/sync-agents.py --check` rc 0 (`dev011-final-validate-*.txt`) | PASS | assisted: not run — `telegram-delivery`, `telegram-evidence`, `telegram-ingress`, `telegram-processing`, `project-communications` integration suites, whose environment fixtures changed (outside the owner's two-file permission); `pnpm turbo run test` would settle them against a disposable database |
 | 7. Catalogs and documents agree with `0085` | yes | closing commit | INV-099/100/101, DA-151/152/159/177, `schema-v0.1.sql`, runbook, README-staging §7, BACKLOG, STATUS, readiness and runbook notes (rows 6, 8, 10); `gp-qa` row 9 | PASS | — |
 | 8. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026 (owner, 2026-09-14) |
@@ -116,9 +126,9 @@ Third-party documentation and primary sources checked for this task. Give each o
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence: same-session / independent (name the actual stage roles)
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: see «Owning module and allowed edit paths»; commits `54f1fe3` (implementation), `92bb8c0` (review round 1), `cf95b9a` (QA round 1), and the closing commit (Q2 record fixes, state).
+- Review independence: independent — `gp-architect` (design), `gp-researcher` (Node, PostgreSQL, Turborepo facts), `gp-security` (PASS), `gp-reviewer` in two parts (both APPROVE), `gp-qa` on `92bb8c0` and a narrow re-check on `cf95b9a`. Three dispatches stalled with no result (the first `gp-reviewer` and `gp-security` round-1 dispatches) and were re-dispatched scoped.
+- Verified scope: criteria 1–7 PASS on `92bb8c0` / `cf95b9a` (the closing commit changes only this record); criterion 8 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above.
+- Next bounded action and owner: owner — review and merge the PR; then BL-085 moves to `closed → DEV-011` and STATUS and the gate 14 notes drop «until it merges». Applying `0085` to a hosted project stays the owner's decision (Q-9).
+- Final state and reason: done — every required criterion PASS on the final head; every finding fixed, accepted as a residual or explicitly not changed with its reason.
