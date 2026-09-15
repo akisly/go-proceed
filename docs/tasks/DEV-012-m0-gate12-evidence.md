@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** readiness gate 12 («Upload and import safety», `docs/delivery/production-readiness.md`), which carries runbook M0 item 12, gains recorded evidence for its built halves (runbook §5.14 order 3): content-type enforcement from magic bytes, the upload resource-exhaustion controls, and the frozen importer's safety limits with its hostile-fixture tests. The owner's decision on the malware half is recorded with its risk named. **The gate cannot close in this task:** its export-neutralization half has no export to neutralize (runbook §5.12, item 3).
-- **State:** implementing
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-15.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** evidence recording inside existing boundaries, as DEV-009 and DEV-010: coordinator gathers and records → `gp-reviewer` + `gp-security` → `gp-qa`. `gp-security` joins because the task records a decision to accept uploads without a malware scanner (uploads and evidence storage).
@@ -51,8 +51,10 @@ Numbered steps. For each step, name the files it touches and the check that prov
 | 5 | recording (coordinator) | `production-readiness.md` §12: a dated «not closed» evidence note under each box and the owner's malware acceptance with its risk named; runbook §5.12 status and §5.14 row 3; STATUS «Next action»; BL-088 for the missing image limits. Also, documentation only: DEV-011's post-merge notes (BL-085 `closed → DEV-011`; «until it merges» replaced by «merged in #92» in STATUS, `production-readiness.md` and runbook §5.7 and §8.1; §5.14 row 2) and the owner's BL-079 decision (state `open`, decision recorded) | this diff | Validators, reviews |
 | 6 | reviewing (`gp-reviewer`, `gp-security`, native) on `949a5a4` | **`gp-security`: HOLD** — S1-01 major (the accepted risk omits polyglots, the member plane's inline signed URLs with the stored content type and no `nosniff`/sandbox, automatic image decoding, Telegram senders; the external route's sandbox CSP does not stop Chrome's PDF viewer), S1-02 major (ASVS-FILE-08 not named as departed from; no revisit trigger; compensating controls unnamed), S1-03 minor («as the malware control» reads as scanning), S1-04 minor (BL-088's browser exposure is present, not future), S1-05 minor (STATUS still shows the `outputs/` decision pending). **`gp-reviewer`: CHANGES REQUESTED** — R1-01 medium (the bucket's 50 MiB limit listed as exercised; no test that ran touches it), R1-02 low (Q-10 still open in STATUS and runbook §10), R1-03 low (STATUS item 2 contradicts item 3), R1-04 low (BL-079 keeps a superseded Resume line). The owner was asked about S1-01 and accepted the fuller risk with triggers (Owner decisions) | review reports | Stated fixes |
 | 7 | rework (coordinator), stated fixes | `production-readiness.md` §12: the malware bullet rewritten as the owner accepted it — «in place of a malware control», what `passed` means, the four risk paths, the existing controls, the departures from `files-and-storage.md` and ASVS-FILE-08 (the undefined `waiver_policy` noted), five revisit triggers; the bucket limit stated as not exercised; BL-089 under «Open». Runbook §5.12 status reworded and §10 Q-10 given a dated note. STATUS: Q-10 marked answered; item 2 rewritten, item 3's BL-079 clause dropped; the Outreach row's BL-079 clause annotated; the DEV-012 preamble sentence names them. BACKLOG: BL-079 Resume marked superseded; BL-088's exposure and deadline cover the live browser path; BL-089 (P2) for the member plane's inline reads. Committed in `57f8c39`; this record's row and paths in the next commit (the first edit script stopped on an ambiguous anchor after the other files were written) | `dev012-rework-r1.diff`; `dev012-validate-*.txt` | `gp-security` re-check; `gp-qa` |
-| 8 | reviewing (`gp-security`, native), narrow re-check on `7571dea` | **PASS**: S1-01 to S1-05 closed, every code reference checked against `7571dea`, the §12 nesting reads as part of the checklist item, no scanner, ADR or CI claimed. Two low findings: S2-01 (the PDF trigger implies PDF is not reachable, while `FALLBACK_MEDIA` in `authorize-upload-intent.ts:57-60` already accepts `application/pdf` through `/v1`), S2-02 (BL-089 named the Telegram MIME type as a source of a differing stored type; on that path the stored type equals the inspected claim) | security report | Stated fixes |
+| 8 | reviewing (`gp-security`, native), narrow re-check on `7571dea` | **PASS**: S1-01 to S1-05 closed, every code reference checked against `7571dea`, the §12 nesting reads as part of the checklist item, no scanner, ADR or CI claimed. Two low findings: S2-01 (the PDF trigger implies PDF is not reachable, while `FALLBACK_MEDIA` in `apps/app/src/lib/evidence/authorize-upload-intent.ts:57-60` already accepts `application/pdf` through `/v1`), S2-02 (BL-089 named the Telegram MIME type as a source of a differing stored type; on that path the stored type equals the inspected claim) | security report | Stated fixes |
 | 9 | rework (coordinator), stated fixes | S2-01: the trigger reads «before any client offers PDF evidence (the `/v1` upload API already accepts `application/pdf`)»; the Owner decisions row keeps the owner's words. S2-02: BL-089 names the holder of the signed upload URL as the source, and Telegram only for its senders. No `gp-reviewer` re-run owed: wording only within stated fixes | this diff | `gp-qa` |
+| 10 | verifying (`gp-qa`, native, read-focused) on `fe07c3a` | Criteria 1–7 PASS (2 and 7 assisted), 8 NOT RUN (not required); all ten findings' fixes in place; it re-checked every code cite, the test titles against source (finalize 17 `it` + 2 `it.each` = 19), no `it.skip`, `version-0.1.md` unchanged (rc 0), 85 migrations, and the validator files' timestamps. Findings Q1-01 to Q1-03 low, Q1-04 info | QA report | Q1 fixes, completion |
+| 11 | rework (coordinator), stated fixes, prose only | Q1-01: runbook §5.14 row 3 «partly done … waits on item 3, BL-088 and BL-089»; STATUS M0 row and «Next action» 1 and the index row name the same three. Q1-02 and Q1-03: recorded in the Acceptance evidence and here — BL-079's «Depends on» line was also rewritten, and it gained an «Owner decision» line outside «How an entry reads», which the validator accepts. Q1-04: the full path in row 8. Applied after QA; not re-verified by an independent stage (wording and record only) | this diff; `dev012-validate-*.txt` | Push, PR |
 
 ## Findings and rework
 
@@ -68,17 +70,35 @@ Numbered steps. For each step, name the files it touches and the check that prov
 | R1-04 | low | BL-079 Resume | Actual: the options line survives the decision | coordinator | Prefixed as superseded (row 7) |
 | S2-01 | low | `production-readiness.md` §12 trigger | Actual: «before the first PDF evidence path ships» while `/v1` accepts PDF | coordinator | Reworded (row 9) |
 | S2-02 | low | BL-089 Why | Actual: Telegram's MIME type named as a differing stored type | coordinator | Reworded (row 9) |
+| Q1-01 | low | §5.14 row 3; STATUS M0 row and «Next action» 1; index row | Actual: different blocker sets for gate 12; row 3 «done» | coordinator | All name item 3, BL-088 and BL-089; «partly done» (row 11) |
+| Q1-02 | low | Evidence outputs | Actual: several named passes known only from file totals, not title lines | coordinator | Stated in the Acceptance evidence Limitation (criterion 2); a `--reporter=verbose` re-run would give titles |
+| Q1-03 | low | BL-079 | Actual: «Depends on» rewritten and an «Owner decision» line added, beyond «state and decision» | coordinator | Recorded in row 11; backlog unchanged |
+| Q1-04 | info | Row 8 | Actual: cite without directory | coordinator | Full path (row 11) |
 
 Rework count and hypothesis changes:
 
 ## What is not true after this task
 
-List what a reader might assume this task achieved but it did not. Examples: untested platforms, targets not yet delivered, NOT RUN criteria, and follow-ups.
+- **Readiness gate 12 is not closed.** Export neutralization waits on export (item 3), and BL-088 and BL-089 are open. `version-0.1.md` §M0 has no gate 12 entry.
+- **No file is scanned for malware.** The owner accepted that for the pilot, with the risk and five revisit triggers in `production-readiness.md` §12; `files-and-storage.md` and ASVS-FILE-08 are unchanged and not satisfied.
+- **Nothing ran in CI** (GitHub Actions billing until October 2026). The tests ran once, locally, against the local database at `0085` and local Storage.
+- **The bucket's 50 MiB `file_size_limit` is not exercised** by any test that ran.
+- **Several named passes are known from file totals only** (Q1-02): the saved output lists slow tests by title, not every test.
+- **Nothing was checked on a hosted project**, including what Supabase Storage sends on a signed read (BL-089).
+- **The BL-079 move is not done**; only the owner's decision is recorded.
 
 ## Acceptance evidence
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. Controls located with values as coded | yes | `fe07c3a` | Row 2; `gp-qa` row 10 re-checked every cite | PASS | — |
+| 2. Each named control exercised by a test that ran, no skips; what did not run named | yes | `48ba14e` code, runs on 2026-09-15 | `dev012-domain-import.txt` 48; `dev012-int-*.txt` 23, 19, 17, 13; all rc 0 | PASS | assisted: owner-approved local runs, database at `0085`, not in CI; several passes known from file totals only (Q1-02); the bucket limit not exercised, and said so |
+| 3. The malware decision recorded with date, acceptance, risk, departures, no scanner or ADR claimed | yes | `fe07c3a` | `production-readiness.md` §12; Owner decisions; `gp-security` PASS (row 8) | PASS | — |
+| 4. Gate 12 not closed everywhere it is summarised; no `version-0.1.md` entry | yes | closing commit | §12, runbook §5.12 and §5.14 row 3, STATUS, index; `git diff --quiet 48ba14e -- docs/delivery/version-0.1.md` rc 0 | PASS | — |
+| 5. Gaps become backlog entries | yes | `fe07c3a` | BL-088, BL-089 | PASS | — |
+| 6. DEV-011 post-merge notes and the BL-079 decision recorded | yes | `fe07c3a` | BL-085 closed; «until it merges» gone outside DEV-012's record; BL-079 state, decision, superseded Resume | PASS | BL-079's «Depends on» also rewritten (Q1-03) |
+| 7. `validate:canonical-docs` and `validate:agents` pass | yes | closing commit's tree | `node scripts/validate-canonical-docs.mjs` and `python3 scripts/sync-agents.py --check` rc 0 (`dev012-validate-*.txt`) | PASS | assisted: coordinator's runs |
+| 8. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026 (owner, 2026-09-14) |
 
 A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
 
@@ -96,9 +116,9 @@ Third-party documentation and primary sources checked for this task. Give each o
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence: same-session / independent (name the actual stage roles)
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: `docs/delivery/production-readiness.md`, `docs/delivery/pilot-execution-runbook.md`, `docs/STATUS.md`, `docs/BACKLOG.md`, this record, `docs/tasks/README.md`; commits `949a5a4`, `57f8c39`, `7571dea`, `fe07c3a` and the closing commit.
+- Review independence: independent — `gp-security` (round 1 HOLD, narrow re-check PASS), `gp-reviewer` (round 1 CHANGES REQUESTED, fixes verified by `gp-qa`), `gp-qa` on `fe07c3a`. The Q1 fixes after QA are prose and record only and were not re-verified by an independent stage.
+- Verified scope: criteria 1–7 PASS; criterion 8 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above.
+- Next bounded action and owner: owner — review and merge the PR; then a task for BL-079 (move `outputs/` to private storage) or runbook §5.14 order 4 (item 11's coverage checker).
+- Final state and reason: done — every required criterion PASS; every finding fixed or recorded with its reason.
