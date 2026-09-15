@@ -11,7 +11,7 @@
 --      candidate key ids and verifiers, one per configured key, and return the
 --      intent id they consumed;
 --   2. subject_key_id on app.telegram_erasures, and app.telegram_erasure_keys,
---      one check value per key id, so the same id with a different secret is
+--      one check value per key id as first supplied, so the same id with a different secret is
 --      refused instead of silently allocating a second surrogate;
 --   3. app.erase_telegram_identity takes the key set: it refuses a set that
 --      does not cover every key id this workspace's registry holds, refuses more
@@ -25,7 +25,8 @@
 -- WHAT THIS DOES NOT FIX. A leaked erasure key still re-identifies the rows
 -- still under it, and every backup taken before a row was re-keyed; a row
 -- leaves an old key only when that subject asks again (the wrapping scheme is a
--- backlog entry). The first use of a key id is trusted.
+-- backlog entry). The secret supplied the first time a key id is seen is trusted,
+-- including 'legacy', which has no check value until its first erasure run.
 --
 -- The old signatures are dropped, so application code older than this
 -- migration fails against it: no hosted Telegram path is live (BL-024).
@@ -186,7 +187,7 @@ create table if not exists app.telegram_erasure_keys (
   first_used_at timestamptz not null default now()
 );
 comment on table app.telegram_erasure_keys is
-  'One row per erasure key id ever used: an HMAC of a fixed label under that key, recorded on first use. A later erasure supplying the same id with a different secret is refused. Holds no key and no subject. Reachable through app.erase_telegram_identity only.';
+  'One row per erasure key id ever supplied: an HMAC of a fixed label under that key, recorded the first time the id is supplied. A later erasure supplying the same id with a different secret is refused. Holds no key and no subject. Reachable through app.erase_telegram_identity only.';
 alter table app.telegram_erasure_keys enable row level security;
 revoke all on table app.telegram_erasure_keys from public, anon, authenticated, goproceed_app, goproceed_service;
 
@@ -307,6 +308,9 @@ begin
                   u.payload #>> '{callback_query,from,id}', u.payload #>> '{my_chat_member,from,id}')
          = p_telegram_user_id::text;
 
+  -- erased_at is NOT touched here: it is the column's own `default now()`
+  -- from the INSERT above, i.e. the first erasure's timestamp, and a repeat
+  -- call (idempotent or retention-after-request) must not move it forward.
   update app.telegram_erasures e
      set messages_count = e.messages_count + v_messages, events_count = e.events_count + v_events,
          links_count = e.links_count + v_links, attachments_count = e.attachments_count + v_attachments

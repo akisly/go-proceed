@@ -614,6 +614,9 @@ describe("§5 — retention by age", () => {
   });
 });
 
+// The cases below run in order and build on each other: case 2 moves SUBJECT_C's
+// row to k2 and records k2's check value, which cases 3, 4, 5 and 7 rely on.
+// Run the file, not one case.
 describe("§6 — the registry's keys carry key ids, and a rotation loses no match (BL-085)", () => {
   const SUBJECT_C = 700101n;
   const SPLIT = 700102n;
@@ -774,13 +777,17 @@ describe("§6 — the registry's keys carry key ids, and a rotation loses no mat
       has_function_privilege(r.rolname, 'app.erase_telegram_identity_internal(uuid,bigint,text,text,text,text)', 'EXECUTE') as internal,
       has_function_privilege(r.rolname, 'app.consume_telegram_binding_intent(text[],text[],bigint,bigint,text,text,bigint)', 'EXECUTE') as binding,
       has_function_privilege(r.rolname, 'app.consume_telegram_member_link_intent(text[],text[],bigint,text,text)', 'EXECUTE') as member,
-      has_table_privilege(r.rolname, 'app.telegram_erasure_keys', 'SELECT') as keys
-      from pg_roles r where r.rolname in ('anon', 'authenticated', 'goproceed_app', 'goproceed_service') order by 1`);
+      has_function_privilege(r.rolname, 'app.assert_keyed_hmacs(text[],text[],text)', 'EXECUTE') as assert,
+      has_table_privilege(r.rolname, 'app.telegram_erasure_keys', 'SELECT') as keys,
+      has_table_privilege(r.rolname, 'app.telegram_erasure_keys', 'INSERT, UPDATE, DELETE') as keys_write
+      from pg_roles r where r.rolname in ('anon', 'authenticated', 'goproceed_app', 'goproceed_service', 'goproceed_worker') order by 1`);
+    const none = { erase: false, internal: false, binding: false, member: false, assert: false, keys: false, keys_write: false };
     expect(grants.rows).toEqual([
-      { rolname: "anon", erase: false, internal: false, binding: false, member: false, keys: false },
-      { rolname: "authenticated", erase: false, internal: false, binding: false, member: false, keys: false },
-      { rolname: "goproceed_app", erase: false, internal: false, binding: false, member: false, keys: false },
-      { rolname: "goproceed_service", erase: true, internal: false, binding: true, member: true, keys: false },
+      { rolname: "anon", ...none },
+      { rolname: "authenticated", ...none },
+      { rolname: "goproceed_app", ...none },
+      { rolname: "goproceed_service", ...none, erase: true, binding: true, member: true },
+      { rolname: "goproceed_worker", ...none },
     ]);
   });
 });

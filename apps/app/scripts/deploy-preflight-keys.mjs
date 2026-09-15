@@ -1,6 +1,7 @@
-// THE EXTERNAL-LINK KEY RULES, AT BUILD TIME (DEV-010, readiness gate 14).
+// THE HMAC KEY-REGISTRY RULES, AT BUILD TIME (DEV-010, readiness gate 14; DEV-011).
 //
-// `src/lib/external-link.ts` `loadRegistry` refuses a key list it cannot use:
+// `src/lib/hmac-key-registry.ts` `loadKeyRegistry` (behind `external-link.ts` and
+// `telegram/config.ts`) refuses a key list it cannot use:
 // an entry with no `<keyId>:` prefix, a key id that trims to nothing, a secret
 // that decodes to fewer than 32 bytes (the HMAC tag is 32 bytes), and an active
 // key id the list does not hold. It refuses at the FIRST EXTERNAL REQUEST,
@@ -50,7 +51,7 @@ export function parseHmacKeys(env, keysVar, activeVar, { rejectDuplicateIds = fa
     keys.set(id, secret);
   }
   if (!keys.has(activeKeyId)) {
-    return fail(`${activeVar} names a key id that is not in ${keysVar} (the runtime refuses the first external request)`);
+    return fail(`${activeVar} names a key id that is not in ${keysVar} (the runtime refuses it on first use)`);
   }
   return { problems: [], activeKeyId, keys };
 }

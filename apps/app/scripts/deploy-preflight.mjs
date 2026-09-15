@@ -63,7 +63,7 @@
 // build whose output is never served (a compile-only check). Anything else is
 // somebody turning off the alarm.
 
-import { hmacKeyProblems } from "./deploy-preflight-keys.mjs";
+import { hmacKeyProblems, parseHmacKeys } from "./deploy-preflight-keys.mjs";
 
 const isDeploy = process.env.VERCEL === "1" || process.env.DEPLOY_PREFLIGHT === "1";
 if (!isDeploy || process.env.DEPLOY_PREFLIGHT === "0") process.exit(0);
@@ -174,7 +174,17 @@ for (const [keysVar, activeVar] of [
 // until BL-024, so they are not required; once either name is set, both must
 // be usable, or the first link issued after the deploy fails.
 if (process.env.TELEGRAM_LINK_HMAC_KEYS || process.env.TELEGRAM_LINK_ACTIVE_KEY_ID) {
-  for (const p of hmacKeyProblems(process.env, "TELEGRAM_LINK_HMAC_KEYS", "TELEGRAM_LINK_ACTIVE_KEY_ID")) problems.push(p);
+  const parsed = parseHmacKeys(process.env, "TELEGRAM_LINK_HMAC_KEYS", "TELEGRAM_LINK_ACTIVE_KEY_ID");
+  for (const p of parsed.problems) problems.push(p);
+  // The consuming definers take at most eight candidates (0085), and
+  // telegram/config.ts refuses a longer list.
+  if (parsed.keys.size > 8) problems.push("TELEGRAM_LINK_HMAC_KEYS holds more than 8 keys (the app refuses more than 8)");
+}
+// The erasure keys belong on operator machines only. Named here, never printed.
+for (const name of ["TELEGRAM_ERASURE_HMAC_KEYS", "TELEGRAM_ERASURE_ACTIVE_KEY_ID"]) {
+  if (process.env[name]) {
+    problems.push(`${name} is set on a deployment: the erasure keys live on operator machines only (infra/secret-rotation.md)`);
+  }
 }
 if ((process.env.APP_DB_URL ?? "") && process.env.APP_DB_URL === process.env.SERVICE_DB_URL) {
   problems.push("APP_DB_URL and SERVICE_DB_URL are identical — they must authenticate as different roles (README-staging.md §3.2), or withServiceTx fails closed on every service write.");

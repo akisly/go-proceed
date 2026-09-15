@@ -179,6 +179,22 @@ describe("deploy-preflight.mjs applies the key rules", () => {
     expect(good.status).toBe(0);
   });
 
+  it("refuses more than eight Telegram link keys, which the app refuses at runtime", () => {
+    const keys = Array.from({ length: 9 }, (_, i) => `t${i}:${k32(i + 10)}`).join(",");
+    const r = run({ TELEGRAM_LINK_HMAC_KEYS: keys, TELEGRAM_LINK_ACTIVE_KEY_ID: "t0" });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("TELEGRAM_LINK_HMAC_KEYS holds more than 8 keys");
+  });
+
+  it("refuses a deployment that carries the operator-only erasure keys, without printing them", () => {
+    const secret = varied(32, 11);
+    const r = run({ TELEGRAM_ERASURE_HMAC_KEYS: `e1:${secret}`, TELEGRAM_ERASURE_ACTIVE_KEY_ID: "e1" });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("TELEGRAM_ERASURE_HMAC_KEYS is set on a deployment");
+    expect(r.stderr).toContain("TELEGRAM_ERASURE_ACTIVE_KEY_ID is set on a deployment");
+    expect(noWindowOf(r.stderr + r.stdout, secret)).toBeNull();
+  });
+
   it("does not print a secret pasted before the separator", () => {
     const secret = varied(32, 9);
     const r = run({ EXTERNAL_LINK_HMAC_KEYS: `${secret}:k1` });
