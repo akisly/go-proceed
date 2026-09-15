@@ -267,8 +267,12 @@ artifact the first time it is pasted into a bug report.
   it against the running database, including grants to roles outside the five,
   row level security on every listed table, an owner outside the bypass roles
   only where RLS is forced, and no view in `public` or `app` without
-  `security_invoker`. The scanner does not parse regex literals, so a quote or
-  `//` inside one can mislead it; the cited files have none today. A table first created after
+  `security_invoker`. The scanner reads text, not a syntax tree: it does not parse regex literals
+  (a quote or `//` inside one can mislead it), it does not see an array or nested
+  destructuring that shadows `it` (`const [it] = …`), and its vitest config check
+  does not see a shorthand key or an imported, merged config. None of these is in
+  the cited files or the config today; a construct it cannot see is a reason for a
+  reviewer, not the scanner, to refuse a citation. A table first created after
   `0085` cannot enter it as a gap. No quarantine ledger exists yet; when one
   does, it must refuse any test the registry cites. The evidence run for the
   cited tests is the unfiltered `pnpm --filter @goproceed/testing test`.
