@@ -868,6 +868,19 @@ the upload-finalizer rule stated above, was accepted and bounded on 2026-08-18 a
 
 ## Required security tests and gates
 
+*[Added 2026-09-16 ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)):
+`technical/database/rls-coverage.csv` lists every relation and principal a
+tenant-facing role can reach by a direct grant, a grant to PUBLIC, ownership, or
+a policy naming it (other inherited reach, such as `goproceed_service` through
+`goproceed_app`, is judged by the member-plane row), and for each either cites a positive and a
+negative test or names a gap; the validator checks that a cited test exists and
+cannot be skipped, and whether it meets the v0.1 read minimum (member plane: an
+authorised same-workspace read and a read denial to a member of another
+workspace; service plane: the declared workspace reaches the row, another or
+none is refused) was judged by review. 53 rows are still gaps (BL-090 to
+BL-098); cross-workspace write denial (BL-099) and every other row of this list
+are still proved by review.]*
+
 Every exposed table/function/storage path and command needs positive and
 negative tests for:
 
