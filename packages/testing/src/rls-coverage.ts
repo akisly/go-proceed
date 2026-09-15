@@ -4,13 +4,12 @@ import { readFileSync } from "node:fs";
  * The tenant-isolation coverage registry (DEV-013, readiness gate 11, INV-060).
  *
  * `technical/database/rls-coverage.csv` holds one row per relation this
- * database exposes to a tenant-facing principal — by a DIRECT table or column
- * grant — and one `exempt_no_grant` row per in-scope relation nobody is
- * granted. The validator checks the registry against the migrations and the
+ * database exposes to a tenant-facing principal (`EXPOSED_RELATIONS_SQL`) and one
+ * `exempt_no_grant` row per in-scope relation no principal can reach. The validator checks the registry against the migrations and the
  * cited tests; `rls-coverage.test.ts` checks it against the running database.
  */
 
-/** The principals whose direct grants make a relation exposed. */
+/** The tenant-facing principals whose reach makes a relation exposed. */
 export const PRINCIPALS = ["anon", "authenticated", "goproceed_app", "goproceed_service", "goproceed_worker"];
 
 export const COVERAGE_COLUMNS = [
@@ -87,42 +86,84 @@ export function readCoverageRegistry(): CoverageRow[] {
   return parseCoverageCsv(readFileSync(REGISTRY_URL, "utf8"));
 }
 
-/** Base tables in `public` and `app`, and views in `api`. */
-export const IN_SCOPE_RELATIONS_SQL = `
-  select n.nspname || '.' || c.relname as name
-    from pg_class c join pg_namespace n on n.oid = c.relnamespace
-   where (n.nspname in ('public', 'app') and c.relkind in ('r', 'p'))
-      or (n.nspname = 'api' and c.relkind in ('v', 'm'))
-   order by 1`;
+/** Roles that bypass RLS, so a policy test says nothing about them. */
+export const BYPASS_ROLES = ["postgres", "service_role", "supabase_admin"];
 
-/** One row per in-scope relation and principal ($1) holding a direct table or column privilege. */
-export const EXPOSED_RELATIONS_SQL = `
-  with rels as (
-    select c.oid, n.nspname, c.relname, c.relacl
-      from pg_class c join pg_namespace n on n.oid = c.relnamespace
-     where (n.nspname in ('public', 'app') and c.relkind in ('r', 'p'))
-        or (n.nspname = 'api' and c.relkind in ('v', 'm'))
-  ), grants as (
-    select r.nspname, r.relname, a.grantee
+const IN_SCOPE_RELS = `
+  select c.oid, n.nspname, c.relname, c.relacl, c.relowner
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where (n.nspname in ('public', 'app') and c.relkind in ('r', 'p', 'v', 'm', 'f'))
+      or (n.nspname = 'api' and c.relkind in ('v', 'm'))`;
+
+const ACL_ENTRIES = `
+    select r.oid as rel, a.grantee
       from rels r cross join lateral aclexplode(r.relacl) a
      where r.relacl is not null
     union
-    select r.nspname, r.relname, a.grantee
+    select r.oid, a.grantee
       from rels r
       join pg_attribute att on att.attrelid = r.oid and att.attnum > 0 and not att.attisdropped and att.attacl is not null
-      cross join lateral aclexplode(att.attacl) a
+      cross join lateral aclexplode(att.attacl) a`;
+
+/** Tables, views and foreign tables in `public` and `app`, and views in `api`. */
+export const IN_SCOPE_RELATIONS_SQL = `
+  with rels as (${IN_SCOPE_RELS})
+  select nspname || '.' || relname as name from rels order by 1`;
+
+/**
+ * One row per in-scope relation and principal ($1) that can reach it: a direct
+ * table or column grant; a grant to PUBLIC (grantee 0), which reaches every
+ * principal; ownership; or a policy naming the principal, or PUBLIC, on a
+ * relation the principal can reach through an inherited privilege — the path
+ * `goproceed_service` has to every `goproceed_app` table (BL-019). Inherited
+ * reach with no policy naming the service is judged by the member-plane row,
+ * because those policies key off `app.current_actor()`.
+ */
+export const EXPOSED_RELATIONS_SQL = `
+  with rels as (${IN_SCOPE_RELS}),
+  principals as (select r.oid, r.rolname from pg_roles r where r.rolname = any($1::text[])),
+  acl as (${ACL_ENTRIES}),
+  pairs as (
+    select acl.rel, p.rolname from acl join principals p on p.oid = acl.grantee
+    union
+    select acl.rel, p.rolname from acl cross join principals p where acl.grantee = 0
+    union
+    select r.oid, p.rolname from rels r join principals p on p.oid = r.relowner
+    union
+    select r.oid, p.rolname
+      from rels r
+      join pg_policy pol on pol.polrelid = r.oid
+      cross join lateral unnest(pol.polroles) as pr(roleoid)
+      join principals p on pr.roleoid = p.oid or pr.roleoid = 0
+     where has_table_privilege(p.rolname, r.oid, 'SELECT, INSERT, UPDATE, DELETE')
+        or has_any_column_privilege(p.rolname, r.oid, 'SELECT, INSERT, UPDATE')
   )
-  select distinct g.nspname as schema, g.relname as relation, pr.rolname as principal
-    from grants g join pg_roles pr on pr.oid = g.grantee
-   where pr.rolname = any($1::text[])
+  select distinct r.nspname as schema, r.relname as relation, pairs.rolname as principal
+    from pairs join rels r on r.oid = pairs.rel
    order by 1, 2, 3`;
 
-/** Principals ($2) holding any privilege, direct or inherited, on relation $1. */
+/** Direct grants on an in-scope relation to any role outside $1 (the five principals and the bypass roles). */
+export const FOREIGN_GRANTEES_SQL = `
+  with rels as (${IN_SCOPE_RELS}),
+  acl as (${ACL_ENTRIES})
+  select distinct r.nspname || '.' || r.relname as name, ro.rolname as grantee
+    from acl join rels r on r.oid = acl.rel join pg_roles ro on ro.oid = acl.grantee
+   where acl.grantee <> 0 and not (ro.rolname = any($1::text[]))
+   order by 1, 2`;
+
+/** Base tables among the names in $1 whose row level security is off. */
+export const RLS_OFF_SQL = `
+  select n.nspname || '.' || c.relname as name
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where (n.nspname || '.' || c.relname) = any($1::text[]) and c.relkind in ('r', 'p') and not c.relrowsecurity
+   order by 1`;
+
+/** Principals ($2) holding any privilege, direct or inherited, on relation $1 (PostgreSQL 17 adds MAINTAIN). */
 export function exemptionPrivilegeSql(): string {
   return `
     select p as principal
       from unnest($2::text[]) as p
-     where has_table_privilege(p, $1, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER')
+     where has_table_privilege(p, $1, 'SELECT, INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER, MAINTAIN')
         or has_any_column_privilege(p, $1, 'SELECT, INSERT, UPDATE, REFERENCES')
      order by 1`;
 }

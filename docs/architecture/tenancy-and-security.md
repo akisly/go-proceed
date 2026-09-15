@@ -868,11 +868,16 @@ the upload-finalizer rule stated above, was accepted and bounded on 2026-08-18 a
 
 ## Required security tests and gates
 
-*[Added 2026-09-16 ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)): for
-v0.1, `technical/database/rls-coverage.csv` checks one row of this list
-mechanically for every exposed relation and principal — an authorised
-same-workspace read (or, without `SELECT`, a write) and a cross-workspace denial;
-every other row is still proved by review.]*
+*[Added 2026-09-16 ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)):
+`technical/database/rls-coverage.csv` lists every relation and principal a
+tenant-facing role can reach, and for each either cites a positive and a
+negative test or names a gap; the validator checks that a cited test exists and
+cannot be skipped, and whether it meets the v0.1 read minimum (member plane: an
+authorised same-workspace read and a read denial to a member of another
+workspace; service plane: the declared workspace reaches the row, another or
+none is refused) was judged by review. 53 rows are still gaps (BL-090 to
+BL-098); cross-workspace write denial (BL-099) and every other row of this list
+are still proved by review.]*
 
 Every exposed table/function/storage path and command needs positive and
 negative tests for:

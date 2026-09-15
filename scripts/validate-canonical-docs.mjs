@@ -541,7 +541,7 @@ export function deployedRelations(files) {
     const number = Number((name.match(/^(\d+)/) ?? [])[1]);
     const patterns = [
       /create table (?:if not exists )?(public|app)\.(\w+)/gi,
-      /create (?:or replace )?view (api)\.(\w+)/gi,
+      /create (?:or replace )?(?:materialized )?view (?:if not exists )?(public|app|api)\.(\w+)/gi,
     ];
     for (const re of patterns) {
       for (const m of sql.matchAll(re)) {
@@ -576,52 +576,117 @@ function rlsCsvRecords(text) {
 }
 
 /**
+ * The source with comments and template literals blanked to spaces, newlines
+ * kept, so a test parked in `/* … *\/` or inside a SQL template is not found and
+ * prose in a comment is not read as code. Quoted strings are kept: titles are
+ * double-quoted literals.
+ */
+function codeOnly(source) {
+  let out = "";
+  let state = "code";
+  for (let i = 0; i < source.length; i += 1) {
+    const ch = source[i];
+    const next = source[i + 1];
+    if (state === "code") {
+      if (ch === "/" && next === "/") { state = "line"; out += "  "; i += 1; continue; }
+      if (ch === "/" && next === "*") { state = "block"; out += "  "; i += 1; continue; }
+      if (ch === "'") state = "single";
+      else if (ch === '"') state = "double";
+      else if (ch === "`") { state = "template"; out += " "; continue; }
+      out += ch;
+      continue;
+    }
+    if (state === "line") { if (ch === "\n") { state = "code"; out += "\n"; } else out += " "; continue; }
+    if (state === "block") {
+      if (ch === "*" && next === "/") { state = "code"; out += "  "; i += 1; } else out += ch === "\n" ? "\n" : " ";
+      continue;
+    }
+    if (state === "template") {
+      if (ch === "\\" && next !== undefined) { out += " " + (next === "\n" ? "\n" : " "); i += 1; continue; }
+      if (ch === "`") { state = "code"; out += " "; } else out += ch === "\n" ? "\n" : " ";
+      continue;
+    }
+    out += ch;
+    if (ch === "\\" && next !== undefined) { out += next; i += 1; continue; }
+    if ((state === "single" && ch === "'") || (state === "double" && ch === '"') || ch === "\n") state = "code";
+  }
+  return out;
+}
+
+/** The text after a call's function body closes on the same line, or null when it stays open. */
+function sameLineClosing(rest) {
+  const code = rest.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, (m) => " ".repeat(m.length));
+  const open = code.indexOf("{");
+  if (open === -1) return null;
+  let depth = 0;
+  for (let i = open; i < code.length; i += 1) {
+    if (code[i] === "{") depth += 1;
+    if (code[i] === "}") { depth -= 1; if (depth === 0) return rest.slice(i).trim(); }
+  }
+  return null;
+}
+
+/**
  * Tests the scanner can find in a vitest file: `it`/`test` calls whose title is
  * a double-quoted literal, inside a column-0 `describe`/`suite` whose title is
- * one too. Chain modifiers, the rest of each call line and the body are kept, so
- * `citedTestProblems` can refuse anything but the one plain shape. vitest 3.2.4
- * has at least nine ways to keep a test from running (DEV-013 record, Sources),
- * and a scanner that only refused known modifiers would miss the others.
+ * one too. Each test keeps its chain modifiers, the rest of its call line, its
+ * body up to its own closing line, and that closing; each describe keeps its
+ * closing and whether its body holds control flow, so `citedTestProblems` can
+ * refuse anything but the one plain shape. vitest 3.2.4 has at least nine ways
+ * to keep a test from running (DEV-013 record, Sources).
  */
-function vitestTests(source) {
+function vitestTests(rawSource) {
   const describeRe = /^(describe|suite)((?:\.\w+(?:\([^()]*\))?)*)\(\s*"((?:[^"\\]|\\.)*)"(.*)$/;
   const testRe = /^(\s+)(it|test)((?:\.\w+(?:\([^()]*\))?)*)\(\s*"((?:[^"\\]|\\.)*)"(.*)$/;
   const nestedRe = /^\s+(describe|suite)\b/;
+  const controlRe = /^  (?:if|return|for|while|switch|try|do)\b/;
   const mods = (chain) => chain.split(".").filter(Boolean).map((x) => x.replace(/\(.*$/, ""));
   const tests = [];
   let describe = null;
   let current = null;
-  for (const line of source.split("\n")) {
+  for (const line of codeOnly(rawSource).split("\n")) {
     let m;
+    if (current && current.closing === null) {
+      current.body += `\n${line}`;
+      if (/^  \}/.test(line)) current.closing = line.trim();
+      else if (/^\}/.test(line)) { current.closing = "(the describe closed first)"; }
+      else continue;
+      if (!/^\}/.test(line)) continue;
+    }
     if ((m = describeRe.exec(line))) {
-      describe = { title: m[3], mods: mods(m[2]), rest: m[4], nested: false };
+      describe = { title: m[3], mods: mods(m[2]), rest: m[4], nested: false, controlFlow: false, closing: null };
       current = null;
       continue;
     }
-    if (/^\}/.test(line)) { describe = null; current = null; continue; }
-    if (describe && nestedRe.test(line)) { describe.nested = true; current = null; continue; }
-    if (describe && (m = testRe.exec(line))) {
-      current = {
-        describe: describe.title, describeMods: describe.mods, describeRest: describe.rest, nested: describe.nested,
-        indent: m[1], title: m[4], mods: mods(m[3]), rest: m[5], body: line,
-      };
+    if (/^\}/.test(line)) { if (describe) describe.closing = line.trim(); describe = null; current = null; continue; }
+    if (!describe) continue;
+    if (nestedRe.test(line)) { describe.nested = true; current = null; continue; }
+    if ((m = testRe.exec(line))) {
+      current = { describe, indent: m[1], title: m[4], mods: mods(m[3]), rest: m[5], body: line, closing: sameLineClosing(m[5]) };
       tests.push(current);
       continue;
     }
-    if (current) current.body += `\n${line}`;
+    if (controlRe.test(line)) describe.controlFlow = true;
   }
   return tests;
 }
 
 /** File-level constructs that can skip or alter any test in the file. */
-function citedFileProblems(source) {
+function citedFileProblems(rawSource) {
+  const source = codeOnly(rawSource);
   const problems = [];
   if (/\.only\b|\bonly\s*:/.test(source)) problems.push(".only, which skips the rest of the file");
   if (/\bgetCurrentTest\b/.test(source)) problems.push("getCurrentTest, which can skip a test from a helper");
   if (/\.extend\s*\(/.test(source)) problems.push(".extend(, whose fixtures can skip");
-  // A declaration named it/test/describe/suite, or an import aliased to one; prose such as «as it» in a comment is not.
+  // A declaration named it/test/describe/suite, or an import aliased to one.
   if (/^\s*(?:export\s+)?(?:const|let|var|function|class)\s+(?:it|test|describe|suite)\b|\bimport\s*\{[^}]*\bas\s+(?:it|test|describe|suite)\b/m.test(source)) {
     problems.push("a rebinding of it, test or describe");
+  }
+  const imports = [...source.matchAll(/import\s*\{([^}]*)\}\s*from\s*"([^"]+)"/g)];
+  const imported = (names) => names.split(",").map((x) => x.trim().split(/\s+as\s+/).pop());
+  if (imports.some(([, names, from]) => from !== "vitest" && imported(names).some((n) => ["describe", "it", "test", "suite"].includes(n)))
+      || !imports.some(([, names, from]) => from === "vitest" && imported(names).some((n) => n === "describe" || n === "suite"))) {
+    problems.push("imports describe, it, test or suite from somewhere other than vitest");
   }
   const outsideSkip = [...source.matchAll(/(\w+)\s*\.\s*skip\s*\(/g)].some((m) => !["it", "test", "describe", "suite"].includes(m[1]))
     || /(?<![.\w])skip\s*\(/.test(source)
@@ -632,31 +697,40 @@ function citedFileProblems(source) {
   return problems;
 }
 
+const RLS_CLOSING_OK = /^\}\);$|^\},\s*[\d_]+\s*\);$/;
+
 /** Why one cited test is not the plain, unskippable shape; empty when it is. */
 function citedTestProblems(test) {
+  const d = test.describe;
   const why = [];
   if (test.mods.length) why.push(`it.${test.mods.join(".")}`);
-  if (test.describeMods.length) why.push(`describe.${test.describeMods.join(".")}`);
-  if (!/^\s*,\s*\(\s*\)\s*=>/.test(test.describeRest)) why.push("describe is not a plain title and parameterless function");
-  if (test.nested) why.push("inside a nested describe");
+  if (d.mods.length) why.push(`describe.${d.mods.join(".")}`);
+  if (!/^\s*,\s*\(\s*\)\s*=>/.test(d.rest)) why.push("describe is not a plain title and parameterless function");
+  if (d.closing !== "});") why.push(`describe closes with \`${d.closing ?? "nothing"}\`; only \`});\` is allowed`);
+  if (d.controlFlow) why.push("describe body has control flow (if, return, for, while) that can stop tests registering");
+  if (d.nested) why.push("inside a nested describe");
   if (test.indent !== "  ") why.push("not directly inside its describe");
   if (!/^\s*,\s*(?:async\s*)?\(\s*\)\s*=>|^\s*,\s*(?:async\s+)?function\s*\(\s*\)/.test(test.rest)) {
     why.push("not a plain title and parameterless function (options, a test context, or no function)");
   }
-  if (/^\s*\},\s*\{/m.test(test.body)) why.push("options after its function");
+  if (test.closing === null || !RLS_CLOSING_OK.test(test.closing)) {
+    why.push(`closes with \`${test.closing ?? "nothing"}\`; only \`});\` or \`}, <timeout>);\` is allowed`);
+  }
+  if (/^    (?:return\b|if\b.*\breturn\b)/m.test(test.body)) why.push("returns early");
   if (!/\bexpect\s*[.(]/.test(test.body)) why.push("asserts nothing (no expect)");
   return why;
 }
 
-/** A vitest config or test script that can filter tests out silently. */
+/** A vitest config or test script that can filter cited tests out silently. */
 export function vitestRunFilterErrors(configText, testScript, where) {
   const errors = [];
   for (const key of ["testNamePattern", "allowOnly", "retry", "passWithNoTests", "exclude"]) {
     if (new RegExp(`\\b${key}\\b`).test(configText)) errors.push(`${where}: vitest config sets ${key}, which can hide a cited test`);
   }
-  if (/(?:^|\s)-t\b|--testNamePattern|--allowOnly|--exclude|--shard|\.test\.ts:\d+/.test(testScript)) {
-    errors.push(`${where}: the test script filters tests (${testScript})`);
+  if (!/\binclude\s*:\s*\[\s*"src\/\*\*\/\*\.test\.ts"\s*\]/.test(configText)) {
+    errors.push(`${where}: vitest include must be exactly ["src/**/*.test.ts"], or a cited file can fall outside the run`);
   }
+  if (testScript.trim() !== "vitest run") errors.push(`${where}: the test script must be exactly \`vitest run\` (it is \`${testScript}\`)`);
   return errors;
 }
 
@@ -672,6 +746,8 @@ export function rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modu
   if (!header || header.join(",") !== RLS_HEADER) return [`${where}: header must be ${RLS_HEADER}`];
   const seen = new Set();
   const listed = new Set();
+  const exemptRels = new Set();
+  const classifiedRels = new Set();
   const cols = RLS_HEADER.split(",");
   const pad = (n) => String(n).padStart(4, "0");
   rows.forEach((fields, index) => {
@@ -686,8 +762,9 @@ export function rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modu
     if (!RLS_CLASSES.has(r.classification)) errors.push(`${at} (${key}): unknown classification ${r.classification}`);
     if (!modules.has(r.module)) errors.push(`${at} (${key}): unknown module ${r.module}`);
     if (!deployed.has(rel)) errors.push(`${at}: ${rel} is not created by any migration`);
+    if (r.classification === "exempt_no_grant") exemptRels.add(rel); else classifiedRels.add(rel);
     if (r.classification === "exempt_no_grant") {
-      if (r.principal !== "none") errors.push(`${at} (${key}): an exemption names principal none`);
+      if (r.principal !== "none") errors.push(`${at} (${key}): an exemption must name principal none`);
       if (!r.reason) errors.push(`${at} (${key}): exempt_no_grant needs a reason`);
       if (r.positive_test || r.negative_test || r.backlog_id) errors.push(`${at} (${key}): an exemption cites no test and no backlog id`);
       return;
@@ -717,14 +794,17 @@ export function rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modu
       const source = sources.get(path);
       if (source === undefined) { errors.push(`${at} (${key}) ${column}: ${path} does not exist`); continue; }
       for (const problem of citedFileProblems(source)) errors.push(`${at} (${key}) ${column}: ${path} can be skipped from outside a test: ${problem}`);
-      if (!new RegExp(`\\b${r.relation}\\b`).test(source)) errors.push(`${at} (${key}) ${column}: ${path} does not name ${rel}`);
-      const matches = vitestTests(source).filter((x) => x.describe === describeTitle && x.title === title);
+      if (!new RegExp(`\\b${r.relation.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`).test(source)) errors.push(`${at} (${key}) ${column}: ${path} does not name ${rel}`);
+      const matches = vitestTests(source).filter((x) => x.describe.title === describeTitle && x.title === title);
       if (matches.length === 0) { errors.push(`${at} (${key}) ${column}: no test «${describeTitle}» › «${title}» in ${path}`); continue; }
       if (matches.length > 1) { errors.push(`${at} (${key}) ${column}: «${describeTitle}» › «${title}» matches ${matches.length} tests in ${path}`); continue; }
       const why = citedTestProblems(matches[0]);
       if (why.length) errors.push(`${at} (${key}) ${column}: «${describeTitle}» › «${title}» can be skipped or pass without asserting (${why.join("; ")})`);
     }
   });
+  for (const rel of [...exemptRels].filter((x) => classifiedRels.has(x)).sort()) {
+    errors.push(`${where}: ${rel} is both exempt and classified`);
+  }
   for (const rel of [...deployed.keys()].sort()) {
     if (!listed.has(rel)) errors.push(`${where}: ${rel} is created by a migration but has no row`);
   }
@@ -2013,6 +2093,8 @@ function selfTest() {
       '  it("asserts nothing", async () => {});',
       '  it("dup", async () => { expect(1).toBe(1); });',
       '  it("dup", async () => { expect(1).toBe(1); });',
+      '});',
+      'describe("conditional", () => {',
       '  if (true) {',
       '    it("inside an if", async () => { expect(1).toBe(1); });',
       '  }',
@@ -2023,6 +2105,36 @@ function selfTest() {
       'describe("optioned", { skip: true }, () => {',
       '  it("optioned read", async () => { expect(1).toBe(1); });',
       '});',
+      'describe("closings", () => {',
+      '  it("one-line options", async () => { expect(1).toBe(1); }, { skip: true });',
+      '  it("options variable", async () => {',
+      '    expect(1).toBe(1);',
+      '  }, opts);',
+      '  it("returns early", async () => {',
+      '    if (!process.env.X) return;',
+      '    expect(1).toBe(1);',
+      '  });',
+      '  it("comment only", async () => {',
+      '    // expect(1).toBe(1);',
+      '  });',
+      '});',
+      'describe("describe-options", () => {',
+      '  it("closed with options", async () => { expect(1).toBe(1); });',
+      '}, { skip: true });',
+      'describe("guarded", () => {',
+      '  if (!process.env.DB) return;',
+      '  it("after a guard", async () => { expect(1).toBe(1); });',
+      '});',
+      '/*',
+      'describe("parked2", () => {',
+      '  it("ghost", async () => { expect(1).toBe(1); });',
+      '});',
+      '*/',
+      'const sql = `',
+      'describe("in-a-template", () => {',
+      '  it("templated", async () => { expect(1).toBe(1); });',
+      '});',
+      '`;',
     ].join("\n");
     const names = "\n// projects work_items late_table\n";
     const fileWith = (extra) => `import { describe, expect, it } from "vitest";\n${extra}\ndescribe("x", () => {\n  it("y", async () => { expect(1).toBe(1); });\n});${names}`;
@@ -2039,7 +2151,8 @@ function selfTest() {
         ["packages/testing/src/fx-current.test.ts", fileWith("import { getCurrentTest } from \"vitest/suite\";")],
         ["packages/testing/src/fx-rebind.test.ts", fileWith("const describe2 = 1;\nfunction it() {}")],
         ["packages/testing/src/fx-alias.test.ts", fileWith("import { test as it2, describe as it } from \"vitest\";")],
-        ["packages/testing/src/fx-prose.test.ts", fileWith("// the table is read as it was written, and as test data")],
+        ["packages/testing/src/fx-prose.test.ts", fileWith("// the table is read as it was written, and as test data; tests skip (without a DB); only: this")],
+        ["packages/testing/src/fx-helper.test.ts", 'import { describe, expect, it } from "./helpers";\ndescribe("x", () => {\n  it("y", async () => { expect(1).toBe(1); });\n});' + names],
       ]),
       backlogIds: new Set(["BL-001"]),
       modules: new Set(["execution", "operational"]),
@@ -2078,7 +2191,7 @@ function selfTest() {
     refused(cite("isolation", "takes a context"), "parameterless function", "test taking a context");
     refused(cite("isolation", "with options"), "parameterless function", "test with options");
     refused(cite("isolation", "asserts nothing"), "asserts nothing", "test with no expect");
-    refused(cite("isolation", "inside an if"), "not directly inside its describe", "test inside an if");
+    refused(cite("conditional", "inside an if"), "not directly inside its describe", "test inside an if");
     refused("packages/testing/src/fx-only.test.ts::x::y", ".only", ".only in the cited file");
     refused("packages/testing/src/fx-hook.test.ts::x::y", "skip() or a destructured skip", "skip in a hook");
     refused("packages/testing/src/fx-extend.test.ts::x::y", ".extend(", ".extend in the cited file");
@@ -2088,9 +2201,33 @@ function selfTest() {
     if (says(cov(withCite("packages/testing/src/fx-prose.test.ts::x::y")), "a rebinding")) t.push("rls coverage (prose «as it» is not a rebinding)");
     refused("apps/app/tests/x.int.test.ts::a::b", "must cite a file under packages/testing/src/", "citation outside packages/testing");
     if (!says(cov(rows, { sources: new Map([[good, src]]) }), "does not name public.projects")) t.push("rls coverage (relation not named in the cited file)");
-    if (vitestRunFilterErrors('test: { include: ["src/**/*.test.ts"] }', "vitest run", "fx").length !== 0) t.push("vitest run filters (clean)");
-    if (!says(vitestRunFilterErrors('test: { testNamePattern: "x" }', "vitest run", "fx"), "testNamePattern")) t.push("vitest run filters (testNamePattern)");
-    if (!says(vitestRunFilterErrors("test: {}", "vitest run -t rls", "fx"), "filters tests")) t.push("vitest run filters (-t)");
+    refused(cite("closings", "one-line options"), "closes with", "options as a third argument on one line");
+    refused(cite("closings", "options variable"), "closes with", "an options variable as a third argument");
+    refused(cite("closings", "returns early"), "returns early", "an early return in the body");
+    refused(cite("closings", "comment only"), "asserts nothing", "an expect only in a comment");
+    refused(cite("describe-options", "closed with options"), "describe closes with", "a describe closing with options");
+    refused(cite("guarded", "after a guard"), "describe body has control flow", "a guard in the describe body");
+    refused(cite("parked2", "ghost"), "no test «parked2» › «ghost»", "a test inside a block comment");
+    refused(cite("in-a-template", "templated"), "no test «in-a-template» › «templated»", "a test inside a template literal");
+    refused("packages/testing/src/fx-helper.test.ts::x::y", "from somewhere other than vitest", "describe or it imported from a helper");
+    if (says(cov(withCite("packages/testing/src/fx-prose.test.ts::x::y")), "can be skipped from outside a test")) t.push("rls coverage (prose «skip (» and «only:» in comments are not code)");
+    if (!says(cov([...rows.slice(0, 2), "app,retention_policy,goproceed_app,operational,exempt_no_grant,,,,r", rows[3]]), "an exemption must name principal none")) t.push("rls coverage (exemption naming a principal)");
+    if (!says(cov([`public,projects,goproceed_app,execution,covered,${P},${N},BL-001,`, ...rows.slice(1)]), "covered takes no backlog_id")) t.push("rls coverage (covered with a backlog id)");
+    if (!says(cov([rows[0], `public,work_items,goproceed_app,execution,gap,${P},,BL-001,x`, ...rows.slice(2)]), "a gap cites no test")) t.push("rls coverage (gap citing a test)");
+    if (!says(cov([...rows.slice(0, 2), `app,retention_policy,none,operational,exempt_no_grant,${P},,,r`, rows[3]]), "an exemption cites no test")) t.push("rls coverage (exemption citing a test)");
+    if (!says(cov([...rows, "public,projects,goproceed_app,execution,covered"]), "has 5 fields, not 9")) t.push("rls coverage (wrong field count)");
+    if (!says(rlsCoverageErrors({ ...base, csvText: "schema,relation\n" }), "header must be")) t.push("rls coverage (bad header)");
+    if (!says(cov([...rows, "public,projects,none,execution,exempt_no_grant,,,,r"]), "is both exempt and classified")) t.push("rls coverage (relation both exempt and classified)");
+    if (!says(cov([...rows, "public,a.b,goproceed_app,execution,gap,,,BL-001,x"]), "public.a.b is not created by any migration")) t.push("rls coverage (relation name with a regex character)");
+    const cleanConfig = 'test: { include: ["src/**/*.test.ts"] }';
+    if (vitestRunFilterErrors(cleanConfig, "vitest run", "fx").length !== 0) t.push("vitest run filters (clean)");
+    for (const key of ["testNamePattern", "allowOnly", "retry", "passWithNoTests", "exclude"]) {
+      if (!says(vitestRunFilterErrors(`test: { include: ["src/**/*.test.ts"], ${key}: 1 }`, "vitest run", "fx"), key)) t.push(`vitest run filters (${key})`);
+    }
+    if (!says(vitestRunFilterErrors('test: { include: ["src/rls*.test.ts"] }', "vitest run", "fx"), "include must be exactly")) t.push("vitest run filters (narrowed include)");
+    for (const script of ["vitest run -t rls", "vitest run rls", "vitest run --shard=1/2", "vitest run src/a.test.ts:12", "vitest run --project x"]) {
+      if (!says(vitestRunFilterErrors(cleanConfig, script, "fx"), "test script must be exactly")) t.push(`vitest run filters (${script})`);
+    }
   }
 
   if (t.length) {

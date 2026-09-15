@@ -2,8 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Client } from "pg";
 import { adminClient } from "./pg";
 import {
-  EXPOSED_RELATIONS_SQL, IN_SCOPE_RELATIONS_SQL, PRINCIPALS, compareCoverage, exemptionPrivilegeSql,
-  parseCoverageCsv, readCoverageRegistry, type CoverageRow, type ExposedPair,
+  BYPASS_ROLES, EXPOSED_RELATIONS_SQL, FOREIGN_GRANTEES_SQL, IN_SCOPE_RELATIONS_SQL, PRINCIPALS, RLS_OFF_SQL,
+  compareCoverage, exemptionPrivilegeSql, parseCoverageCsv, readCoverageRegistry, type CoverageRow, type ExposedPair,
 } from "./rls-coverage";
 
 /**
@@ -49,6 +49,13 @@ describe("the coverage comparison, on fixtures", () => {
     expect(out.unlisted).toEqual(["app.hidden"]);
   });
 
+  it("reports an exemption for a relation the database does not have", () => {
+    const out = compareCoverage(
+      [row({ relation: "a" }), row({ relation: "gone", principal: "none", classification: "exempt_no_grant", positive_test: "", negative_test: "", reason: "r" })],
+      [pair("a")], ["public.a"]);
+    expect(out.stale).toEqual(["public.gone none"]);
+  });
+
   it("parses quoted CSV fields with commas and doubled quotes", () => {
     const rows = parseCoverageCsv(
       'schema,relation,principal,module,classification,positive_test,negative_test,backlog_id,reason\n'
@@ -63,6 +70,11 @@ describe("the coverage registry against this database", () => {
   afterAll(async () => { await c.end(); });
 
   const exposed = async (): Promise<ExposedPair[]> => (await c.query<ExposedPair>(EXPOSED_RELATIONS_SQL, [PRINCIPALS])).rows;
+  const covered = () => readCoverageRegistry().find((r) => r.classification === "covered" && r.schema === "public")!;
+  const inTransaction = async (fn: () => Promise<void>) => {
+    await c.query("begin");
+    try { await fn(); } finally { await c.query("rollback"); }
+  };
   const inScope = async (): Promise<string[]> => (await c.query<{ name: string }>(IN_SCOPE_RELATIONS_SQL)).rows.map((r) => r.name);
 
   it("an exposed table the registry does not name is reported, inside a rolled-back transaction", async () => {
@@ -94,6 +106,56 @@ describe("the coverage registry against this database", () => {
     }
   });
 
+  it("a policy naming goproceed_service on a table granted only to goproceed_app exposes it to the service, inside a rolled-back transaction", async () => {
+    await inTransaction(async () => {
+      await c.query("create table public._rls_coverage_probe (workspace_id uuid)");
+      await c.query("alter table public._rls_coverage_probe enable row level security");
+      await c.query("grant select on public._rls_coverage_probe to goproceed_app");
+      await c.query("create policy probe_service on public._rls_coverage_probe for select to goproceed_service using (true)");
+      expect((await exposed()).map((x) => `${x.schema}.${x.relation} ${x.principal}`))
+        .toEqual(expect.arrayContaining(["public._rls_coverage_probe goproceed_app", "public._rls_coverage_probe goproceed_service"]));
+    });
+  });
+
+  it("a grant to PUBLIC exposes a covered table to every principal, inside a rolled-back transaction", async () => {
+    const t = covered();
+    await inTransaction(async () => {
+      await c.query(`grant select on ${t.schema}.${t.relation} to public`);
+      const out = compareCoverage(readCoverageRegistry(), await exposed(), await inScope());
+      expect(out.unclassified).toEqual(expect.arrayContaining([`${t.schema}.${t.relation} anon`, `${t.schema}.${t.relation} authenticated`]));
+    });
+  });
+
+  it("owning a table exposes it to its owner, inside a rolled-back transaction", async () => {
+    await inTransaction(async () => {
+      await c.query("create table public._rls_coverage_probe (workspace_id uuid)");
+      await c.query("alter table public._rls_coverage_probe enable row level security");
+      // postgres may SET ROLE only to anon and authenticated among the five (pg_auth_members.set_option).
+      // A new owner needs CREATE on the schema; the grant is rolled back with the probe.
+      await c.query("grant create on schema public to authenticated");
+      await c.query("alter table public._rls_coverage_probe owner to authenticated");
+      expect((await exposed()).map((x) => `${x.schema}.${x.relation} ${x.principal}`)).toContain("public._rls_coverage_probe authenticated");
+    });
+  });
+
+  it("a direct grant to a role outside the five and the bypass roles is reported, inside a rolled-back transaction", async () => {
+    const t = covered();
+    await inTransaction(async () => {
+      await c.query(`grant select on ${t.schema}.${t.relation} to authenticator`);
+      const r = await c.query<{ name: string; grantee: string }>(FOREIGN_GRANTEES_SQL, [[...PRINCIPALS, ...BYPASS_ROLES]]);
+      expect(r.rows).toContainEqual({ name: `${t.schema}.${t.relation}`, grantee: "authenticator" });
+    });
+  });
+
+  it("row level security switched off on a listed relation is reported, inside a rolled-back transaction", async () => {
+    const t = covered();
+    await inTransaction(async () => {
+      await c.query(`alter table ${t.schema}.${t.relation} disable row level security`);
+      const r = await c.query<{ name: string }>(RLS_OFF_SQL, [[`${t.schema}.${t.relation}`]]);
+      expect(r.rows.map((x) => x.name)).toEqual([`${t.schema}.${t.relation}`]);
+    });
+  });
+
   it("the exposed set equals the registry, both ways", async () => {
     const out = compareCoverage(readCoverageRegistry(), await exposed(), await inScope());
     expect({ unclassified: out.unclassified, stale: out.stale, unlisted: out.unlisted, brokenExemptions: out.brokenExemptions })
@@ -110,13 +172,28 @@ describe("the coverage registry against this database", () => {
     expect(holders).toEqual([]);
   });
 
-  it("among the five principals, only goproceed_service is a member of another (goproceed_app)", async () => {
-    // Coverage is counted on DIRECT grants; inheritance would let a principal
-    // reach a relation without a row. Pinning the graph keeps that honest.
+  it("no role outside the five principals and the bypass roles holds a direct grant on an in-scope relation", async () => {
+    const r = await c.query<{ name: string; grantee: string }>(FOREIGN_GRANTEES_SQL, [[...PRINCIPALS, ...BYPASS_ROLES]]);
+    expect(r.rows).toEqual([]);
+  });
+
+  it("row level security is on for every relation the registry lists", async () => {
+    const tables = readCoverageRegistry().filter((x) => x.schema !== "api").map((x) => `${x.schema}.${x.relation}`);
+    const r = await c.query<{ name: string }>(RLS_OFF_SQL, [[...new Set(tables)]]);
+    expect(r.rows).toEqual([]);
+  });
+
+  it("the five principals' role memberships are exactly one — goproceed_service in goproceed_app — and none bypasses RLS", async () => {
+    // Exposure counts direct grants, grants to PUBLIC, ownership, and policies
+    // naming a principal it can reach; any other inheritance would let a
+    // principal reach a relation without a row, so every membership is pinned.
     const r = await c.query<{ role: string; member: string }>(
       `select r.rolname as role, m.rolname as member
          from pg_auth_members a join pg_roles r on r.oid = a.roleid join pg_roles m on m.oid = a.member
-        where r.rolname = any($1) and m.rolname = any($1) order by 1, 2`, [PRINCIPALS]);
+        where m.rolname = any($1) order by 1, 2`, [PRINCIPALS]);
     expect(r.rows).toEqual([{ role: "goproceed_app", member: "goproceed_service" }]);
+    const attrs = await c.query<{ rolname: string }>(
+      "select rolname from pg_roles where rolname = any($1) and (rolsuper or rolbypassrls) order by 1", [PRINCIPALS]);
+    expect(attrs.rows).toEqual([]);
   });
 });
