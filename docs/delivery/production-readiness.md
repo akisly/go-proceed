@@ -405,19 +405,46 @@ the closed ones.
         until a value is set), the orphan purge (`0021`) and the seven-day
         `scan_blocked` window (`0027`). Exercised on 2026-09-15 against the
         local database: `upload-intents-create` (23), `upload-intents-finalize`
-        (19) and `evidence-purge` (17), all passed, none skipped; not in CI.
-      - **Malware, the owner's decision of 2026-09-15:** for the pilot, the
-        magic-byte check, the four-type allow-list and the limits above are
-        accepted as the malware control, **with no scanner and no ADR**. The
-        risk it leaves: a file of an allowed type can carry malicious content
-        (a PDF with active content, a crafted image) and becomes evidence that
-        a reviewer downloads and opens. It departs from
+        (19) and `evidence-purge` (17), all passed, none skipped; not in CI. The
+        bucket's `file_size_limit` is located in `0020`, but no test that ran
+        exercises it.
+      - **Malware, the owner's decision of 2026-09-15** (runbook Q-10, answered
+        for the pilot): the magic-byte check, the four-type allow-list and the
+        limits above are accepted **in place of a malware control**. No file is
+        scanned for malware, and `inspection_status = 'passed'` means only that
+        the leading bytes match an allowed type. There is no ADR. The risk the
+        owner accepted:
+        - a file of an allowed type can carry malicious content (a PDF with
+          active content, a crafted image), and a polyglot — bytes that begin as
+          JPEG, PNG or PDF and continue as HTML, SVG or script — passes, because
+          only the leading bytes are read (`evidence-inspection.ts:24-35`);
+        - office members open evidence through Supabase Storage signed URLs
+          (`evidence-storage.ts` `createSignedReadUrls`, 60 seconds), served
+          inline with the content type stored at upload rather than the detected
+          one, and without `nosniff` or a sandbox (BL-089). Only the external
+          review route serves the detected type with `nosniff` and a sandbox
+          CSP, and Chrome's PDF viewer still renders under that CSP;
+        - images decode in the viewer's browser as soon as a page shows them
+          (BL-088);
+        - Telegram evidence comes from group participants, who are less trusted
+          than members (the webhook is enabled nowhere yet).
+
+        The controls that do exist: a private bucket, authorization before a URL
+        is signed, a 60-second URL lifetime, and `nosniff` with the sandbox CSP on
+        the external plane. **It departs from**
         [files-and-storage.md](../architecture/files-and-storage.md) «Content
-        validation and malware boundary», which lists «malware/content
-        inspection using a pinned scanner/policy version»; that document is
-        unchanged.
+        validation and malware boundary» («malware/content inspection using a
+        pinned scanner/policy version») and from ASVS-FILE-08 in
+        [asvs-profile.csv](../../technical/asvs-profile.csv) («Quarantine and
+        malware decision precede user/customer download»), whose row stays
+        `specified_no_runtime_evidence`; the catalog does not define whether its
+        `waiver_policy` `none` forbids a waiver. Both are unchanged. **Revisit
+        before** real customer data enters an environment, before the Telegram
+        webhook is enabled anywhere, before the first PDF evidence path ships,
+        before a link goes to a real технагляд, and at the pilot's end.
       - **Open under this box:** image dimension, pixel-count and decoding
-        limits do not exist (BL-088).
+        limits do not exist (BL-088); member-plane reads are served inline with
+        the stored content type (BL-089).
 - [ ] The import hostile-fixture corpus still runs. Import is **frozen, not
       deleted** ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md)
       decision 6): the XLSX/CSV parser built in M1 stays in the code, an object
