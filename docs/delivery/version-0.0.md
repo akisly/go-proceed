@@ -85,8 +85,8 @@ baseline.
       reported hits, seven are the local Supabase demo JWTs and the `dev1`
       development HMAC keys, one is an error code and one an example string in a
       third-party agent profile; the published local Supabase demo secret key and
-      two placeholder passwords were excluded by rule and counted (redacted hit list
-      in DEV-010's record). It is a pattern
+      two placeholder passwords were excluded by rule and counted (classified in
+      DEV-010's record). It is a pattern
       scan, not a secret scanner. One hosted environment exists — staging, the
       pilot and the production app share it — so «per environment» is shown for
       that one; a separate production project owes the same check (runbook §10
