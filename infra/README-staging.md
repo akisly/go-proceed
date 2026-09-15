@@ -229,7 +229,7 @@ to `app_pw` — and treat `goproceed_service_login`'s password as lost (reset
 to no password, so the service connection goes inert rather than
 compromised to a known value). Immediately re-run the rotation steps
 below for whichever role was affected — §3.1 for `goproceed_app_login`,
-§3.2 for `goproceed_service_login` — before any traffic is allowed through.
+§3.2 for `goproceed_service_login` — before any traffic is allowed through. The order for rotating these and every other deployment secret, and what to do after a leak, is [secret-rotation.md](secret-rotation.md).
 
 **Do not skip or defer either step below.** Migration
 `0003_roles_and_grants.sql` creates the `goproceed_app_login` LOGIN role,
@@ -419,7 +419,7 @@ Run it twice. The first output is `EXTERNAL_LINK_HMAC_KEYS` and the second is
 several keys may be listed comma-separated for rotation); both
 `*_ACTIVE_KEY_ID` are then `k1`. Mark the two `*_HMAC_KEYS` Sensitive. Later
 rotation is why the key id exists: add `k2:…` to the list, move the active id
-to `k2`, and links signed under `k1` still verify (INV-044).
+to `k2`, and links signed under `k1` still verify (INV-044). [secret-rotation.md](secret-rotation.md) §«External-link and session HMAC keys» has the full order, including when the old id may be removed.
 
 **Two names changed on 2026-08-19, and the dashboard will happily keep the old
 ones.** `NEXT_PUBLIC_SUPABASE_ANON_KEY` is now `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`

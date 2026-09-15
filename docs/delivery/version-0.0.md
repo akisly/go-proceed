@@ -75,8 +75,22 @@ baseline.
       (2026-07-30 security gate, finding 2: `--include-seed` paths and Supabase
       Branching would reseed a reachable database with a known password while
       `[db.seed] enabled = true`).
-- [ ] Verify staging/production role passwords are generated per environment
+- [x] Verify staging/production role passwords are generated per environment
       and never committed (infra/README-staging.md §3 stays authoritative).
+      *[Ticked 2026-09-15 ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)): both
+      `goproceed_*_login` passwords were set on 2026-08-19, SCRAM, different
+      (README-staging «Status»); how they were generated was not recorded. A pattern
+      scan on 2026-09-15 of the tracked files at `a5fd136` and of the history of all
+      75 refs (1,025 commits) found no committed hosted credential: of its nine
+      reported hits, seven are the local Supabase demo JWTs and the `dev1`
+      development HMAC keys, one is an error code and one an example string in a
+      third-party agent profile; the published local Supabase demo secret key and
+      two placeholder passwords were excluded by rule and counted (classified in
+      DEV-010's record). It is a pattern
+      scan, not a secret scanner. One hosted environment exists — staging, the
+      pilot and the production app share it — so «per environment» is shown for
+      that one; a separate production project owes the same check (runbook §10
+      Q-9).]*
 - [x] Confirm no service-role or worker credential is reachable from browser
       or mobile code paths.
 

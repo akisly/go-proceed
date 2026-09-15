@@ -80,13 +80,16 @@ function loadRegistry(keysVar: string, activeVar: string): KeyRegistry {
   if (!raw) throw new Error(`${keysVar} is not set`);
   if (!activeKeyId) throw new Error(`${activeVar} is not set`);
   const keys = new Map<string, Buffer>();
-  for (const entry of raw.split(",")) {
+  // Errors name the entry by POSITION, never by key id: a list pasted in the
+  // wrong order (`<secret>:k1`) puts the secret where the id belongs, and this
+  // message reaches the server log (DEV-010).
+  for (const [index, entry] of raw.split(",").entries()) {
     const at = entry.indexOf(":");
-    if (at <= 0) throw new Error(`${keysVar} entry is not <keyId>:<base64>`);
+    if (at <= 0) throw new Error(`${keysVar} entry ${index + 1} is not <keyId>:<base64>`);
     const id = entry.slice(0, at).trim();
     const secret = Buffer.from(entry.slice(at + 1).trim(), "base64");
-    if (id.length === 0) throw new Error(`${keysVar} entry has an empty key id`);
-    if (secret.length < 32) throw new Error(`${keysVar} key ${id} is shorter than 32 bytes`);
+    if (id.length === 0) throw new Error(`${keysVar} entry ${index + 1} has an empty key id`);
+    if (secret.length < 32) throw new Error(`${keysVar} entry ${index + 1} is shorter than 32 bytes`);
     keys.set(id, secret);
   }
   if (!keys.has(activeKeyId)) {
