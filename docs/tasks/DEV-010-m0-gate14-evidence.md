@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** readiness gate 14 («Environment and secrets», `docs/delivery/production-readiness.md`), which carries runbook M0 item 7, gains recorded evidence. After this task: a standalone secret rotation runbook sits at `infra/secret-rotation.md`; the deploy preflight refuses a malformed HMAC key list or an active key id the list does not hold, as the runtime registry already does, and neither path prints key material; the `version-0.0.md` gate 4 box on role passwords is ticked with its 2026-08-19 evidence and stated limits. **The gate stays open** (owner, 2026-09-15): `TELEGRAM_LINK_PEPPER` has no key id and the owner chose to build one (BL-085).
-- **State:** rework
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-15.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** new behavior inside existing boundaries (`agents/COORDINATION.md`): coordinator implements → `gp-reviewer` + `gp-security` → `gp-qa`. `apps/app/scripts/deploy-preflight.mjs` is executed code, and a test is added.
@@ -66,6 +66,7 @@
 | 15 | verifying (`gp-qa`, native) on `30d5a95` | **Criteria 1–7 PASS, 8 NOT RUN (not required)**, no FAIL. It re-ran HEAD, status, the unticked count (32 = 32), the `version-0.1.md` diff (rc 0), the diff stat (13 files) and `git diff --stat ccd1163 HEAD` over the preflight, its key module and `external-link.ts` (unchanged, only the test file changed, so `preflight3/` A–I still describes head); the rest is the coordinator's evidence (assisted). Every stated fix is in place except two it marked partly, R2-02 and O-2, which its findings Q1-01, Q1-02 and Q1-05 cover. It raised five low record findings (Q1-01 to Q1-05) and confirmed eight repository facts the runbook cites | QA report | Record fixes Q1-01 to Q1-05 |
 | 16 | reviewing (`gp-security`, native), narrow re-check on `30d5a95` | **PASS**: S3-01 to S3-04 closed (read `secret-rotation.md` 60–145, `0081:43`, `telegram-erase-identity.mjs:45-48`); every added query is a `select`; the token is safe in the `printf` config line; `\prompt` input stays out of history and `:'h'` interpolates as an escaped literal; a mistyped HMAC gives «not found», never a row under the leaked pepper. Three low findings, S4-01 to S4-03. Its first dispatch stalled after 600 s with no result | security report | Stated fixes S4-01 to S4-03 |
 | 17 | rework (coordinator), stated fixes | S4-01: `PUBLIC` and column privileges in the grants query; `relrowsecurity` / `relforcerowsecurity` for `app`, `api` (the two schemas the migrations create), `public`, `storage`; schema ACLs. S4-02: the HMAC is still visible in `pg_stat_activity` and a statement log (unverified for this project). S4-03: `setWebhook` and `getWebhookInfo` sent through `curl --config -` like `getMe`; the documented `printf` rendered with fake values to check its quoting. Validators rc 0 | this diff | `gp-qa` narrow re-check |
+| 18 | verifying (`gp-qa`, native), narrow re-check on `4536b5f` | **Criteria 1–7 PASS, 8 NOT RUN (not required)**; Q1-01, Q1-03 to Q1-05 and S4-01 to S4-03 in place; Q1-02 left to this completion. It re-ran HEAD, the log and diff stat since `30d5a95` (three documentation files, no code, so the code evidence of rows 14–15 still describes head), a byte comparison of the round diff, status, 32 unticked, `version-0.1.md` unchanged, the migrations' schemas (`app`, `api`), the patch's 1,025 markers, and the documented `printf` with fake values. Two low, optional findings: Q2-01 and Q2-02 | QA report | Completion |
 
 ## Findings and rework
 
@@ -107,11 +108,13 @@
 | Q1-01 | low | `version-0.0.md` tick; rows 8 and 10 | Actual: «1,025 commits», while the saved list's header says `commits=1026 head=ccd1163` | coordinator | Checked: the patch, built at `685b6ab`, holds 1,025 `@@COMMIT` markers, and `git rev-list --all --count` minus the three later DEV-010 commits is 1,025; the header count was taken after `ccd1163` was committed. Row 10 now says so; the tick's number stands |
 | Q1-02 | low | Acceptance «Checked revision» | Actual: Completion named no commit; state `rework` | coordinator | Completion names the checked head and the state moves |
 | Q1-03 | low | Progress | Actual: only one of two stalled `gp-qa` runs recorded | coordinator | Row 14 |
-| Q1-04 | low | Completion; row 13 | Actual: the `gp-security` re-check of S3-01 listed as pending | coordinator | Re-dispatched narrow (the first re-check dispatch also stalled); its result is recorded below |
+| Q1-04 | low | Completion; row 13 | Actual: the `gp-security` re-check of S3-01 listed as pending | coordinator | Re-dispatched narrow (the first re-check dispatch also stalled); its result is Progress row 16 |
 | Q1-05 | low | `version-0.0.md` tick | Actual: «redacted hit list in DEV-010's record», which holds only the classification and counts | coordinator | Reworded to «classified in DEV-010's record» |
 | S4-01 | low | Runbook, `postgres` leak queries | Actual: disabled RLS, `PUBLIC`, schema and column grants unseen | coordinator | Row 17 |
 | S4-02 | low | Repeat-erasure lookup | Actual: only client history named as a place the HMAC lands | coordinator | Row 17 |
 | S4-03 | low | Bot-token section | Actual: `setWebhook` / `getWebhookInfo` given no method, inviting the token and secret as `curl` arguments | coordinator | Row 17 |
+| Q2-01 | low | Q1-04 row | Actual: «recorded below» points the wrong way | coordinator | Now «Progress row 16» |
+| Q2-02 | low | Runbook, `postgres` leak grants query | Actual: `role_table_grants` may omit some `PUBLIC` grants (QA's recollection of the PostgreSQL docs, not fetched); `routine_privileges` lists implicit `PUBLIC` `EXECUTE` | coordinator | **Deferred**, not changed in this task: the list is labelled a first look after the schema diff, and «a clean result is not proof» stands; to be settled against the PostgreSQL `information_schema` docs when the runbook is next exercised |
 
 Rework count and hypothesis changes: review round 1's and round 2's findings were applied as stated fixes, and the owner's pepper decision narrowed the task from closing gate 14 to recording evidence toward it; no rework round used, since no QA FAIL preceded it.
 
@@ -132,13 +135,13 @@ Rework count and hypothesis changes: review round 1's and round 2's findings wer
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| 1. The preflight refuses a malformed `*_HMAC_KEYS` and an `*_ACTIVE_KEY_ID` not in its list, agreeing with the runtime registry over a table of cases, and the script applies it | yes | final head (see Completion) | Behavioural red `preflight/G.txt` (exit 0 before); parity table and script tests: 34 passed in the new file; wiring mutation → 2 failed; `preflight3/G-…txt` exit 1 | PASS | — |
-| 2. The preflight's existing refusals and its `OK` path are unchanged | yes | final head (see Completion) | `preflight3/` A–F with exit codes: 1, 1, 1, 1, 0 (`OK`), 0 | PASS | assisted: fake values, `DEPLOY_PREFLIGHT=1`, no Vercel build |
-| 3. Neither the preflight nor the registry prints key material, whatever the entry order | yes | final head (see Completion) | No-secret test over both paths and three orders; script test; `preflight3/I-reversed-secret.txt` contains 0 occurrences of the secret | PASS | — |
-| 4. `infra/secret-rotation.md` covers the deployments' secrets and stores, in the vendors' documented order, with the leak path; README-staging points to it | yes | final head (see Completion) | Row 8; Sources; README-staging §3 and §4.3 links | PASS | not exercised on the hosted project; steps marked unverified |
-| 5. `version-0.0.md` gate 4's role-password box is ticked with dated evidence and its limits | yes | final head (see Completion) | `git diff a5fd136 -- docs/delivery/version-0.0.md`; history scan (row 8) | PASS | owner-reported: the hosted fact is the 2026-08-19 record |
-| 6. Gate 14 is recorded as not closed everywhere, with BL-085 as its blocker, and gate 10 remains the only closed gate | yes | final head (see Completion) | No gate 14 entry in `version-0.1.md`; readiness pointer «not closed»; runbook §5 intro, §5.7, §5.14 row 2, §8 q1; STATUS; BL-085; `grep -c -- '- \[ \]' docs/delivery/production-readiness.md` → 32 | PASS | — |
-| 7. `pnpm --filter @goproceed/app typecheck`, the tests, `pnpm validate:canonical-docs` and `pnpm validate:agents` pass | yes | final head (see Completion) | typecheck rc 0; `vitest run scripts/deploy-preflight-keys.test.mjs src/lib/external-link.test.ts` 63 passed; `node scripts/validate-canonical-docs.mjs` rc 0; `python3 scripts/sync-agents.py --check` rc 0 | PASS | macOS, Node 24.18.0 |
+| 1. The preflight refuses a malformed `*_HMAC_KEYS` and an `*_ACTIVE_KEY_ID` not in its list, agreeing with the runtime registry over a table of cases, and the script applies it | yes | `4536b5f` | Behavioural red `preflight/G.txt` (exit 0 before); parity table and script tests: 34 passed in the new file; wiring mutation → 2 failed; `preflight3/G-…txt` exit 1 | PASS | — |
+| 2. The preflight's existing refusals and its `OK` path are unchanged | yes | `4536b5f` | `preflight3/` A–F with exit codes: 1, 1, 1, 1, 0 (`OK`), 0 | PASS | assisted: fake values, `DEPLOY_PREFLIGHT=1`, no Vercel build |
+| 3. Neither the preflight nor the registry prints key material, whatever the entry order | yes | `4536b5f` | No-secret test over both paths and three orders; script test; `preflight3/I-reversed-secret.txt` contains 0 occurrences of the secret | PASS | — |
+| 4. `infra/secret-rotation.md` covers the deployments' secrets and stores, in the vendors' documented order, with the leak path; README-staging points to it | yes | `4536b5f` | Row 8; Sources; README-staging §3 and §4.3 links | PASS | not exercised on the hosted project; steps marked unverified |
+| 5. `version-0.0.md` gate 4's role-password box is ticked with dated evidence and its limits | yes | `4536b5f` | `git diff a5fd136 -- docs/delivery/version-0.0.md`; history scan (row 8) | PASS | owner-reported: the hosted fact is the 2026-08-19 record |
+| 6. Gate 14 is recorded as not closed everywhere, with BL-085 as its blocker, and gate 10 remains the only closed gate | yes | `4536b5f` | No gate 14 entry in `version-0.1.md`; readiness pointer «not closed»; runbook §5 intro, §5.7, §5.14 row 2, §8 q1; STATUS; BL-085; `grep -c -- '- \[ \]' docs/delivery/production-readiness.md` → 32 | PASS | — |
+| 7. `pnpm --filter @goproceed/app typecheck`, the tests, `pnpm validate:canonical-docs` and `pnpm validate:agents` pass | yes | `4536b5f` | typecheck rc 0; `vitest run scripts/deploy-preflight-keys.test.mjs src/lib/external-link.test.ts` 63 passed; `node scripts/validate-canonical-docs.mjs` rc 0; `python3 scripts/sync-agents.py --check` rc 0 | PASS | macOS, Node 24.18.0 |
 | 8. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026 (owner, 2026-09-14) |
 
 ## Sources
@@ -164,8 +167,8 @@ Rework count and hypothesis changes: review round 1's and round 2's findings wer
 ## Completion / handoff
 
 - Changed files: `apps/app/scripts/deploy-preflight.mjs`, `apps/app/scripts/deploy-preflight-keys.mjs` (new), `apps/app/scripts/deploy-preflight-keys.test.mjs` (new), `apps/app/src/lib/external-link.ts` (messages), `infra/secret-rotation.md` (new), `infra/README-staging.md`, `docs/delivery/version-0.0.md`, `docs/delivery/production-readiness.md`, `docs/delivery/pilot-execution-runbook.md`, `docs/STATUS.md`, `docs/BACKLOG.md`, this record, `docs/tasks/README.md`.
-- Review independence: independent — `gp-reviewer` rounds 1 and 2, `gp-security` round 1 and two re-checks; a `gp-security` re-check of S3-01 and `gp-qa` pending (the first `gp-qa` dispatch stalled with no result).
-- Verified scope: criteria 1–7, by the coordinator.
-- Remaining risks / blocked requirements: «What is not true» above.
-- Next bounded action and owner: coordinator — validators, commit, `gp-reviewer` and `gp-security` re-check, `gp-qa`; then BL-085 as its own task.
-- Final state and reason: rework.
+- Review independence: independent — `gp-reviewer` rounds 1 and 2; `gp-security` round 1 and three narrow re-checks (the last PASS on `30d5a95`); `gp-qa` on `30d5a95` and a narrow re-check on `4536b5f`. Three agent dispatches stalled with no result (two `gp-qa`, one `gp-security`) and were recorded as NOT RUN and re-dispatched.
+- Verified scope: criteria 1–7 PASS on `4536b5f` (code evidence from `30d5a95`, unchanged since); criterion 8 NOT RUN, not required (GitHub Actions billing).
+- Remaining risks / blocked requirements: «What is not true» above; readiness gate 14 stays open on BL-085; Q2-02 deferred.
+- Next bounded action and owner: owner — review and merge the PR; coordinator — BL-085 (a key-id `TELEGRAM_LINK_PEPPER`) as its own task, `gp-architect` and `gp-security` route.
+- Final state and reason: done — every required criterion PASS on the final head, every finding fixed or explicitly deferred.
