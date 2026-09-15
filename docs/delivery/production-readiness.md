@@ -440,7 +440,8 @@ the closed ones.
         `specified_no_runtime_evidence`; the catalog does not define whether its
         `waiver_policy` `none` forbids a waiver. Both are unchanged. **Revisit
         before** real customer data enters an environment, before the Telegram
-        webhook is enabled anywhere, before the first PDF evidence path ships,
+        webhook is enabled anywhere, before any client offers PDF evidence (the `/v1` upload API already accepts
+        `application/pdf`),
         before a link goes to a real технагляд, and at the pilot's end.
       - **Open under this box:** image dimension, pixel-count and decoding
         limits do not exist (BL-088); member-plane reads are served inline with
