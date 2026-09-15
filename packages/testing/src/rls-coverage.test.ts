@@ -2,7 +2,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import type { Client } from "pg";
 import { adminClient } from "./pg";
 import {
-  BYPASS_ROLES, EXPOSED_RELATIONS_SQL, FOREIGN_GRANTEES_SQL, IN_SCOPE_RELATIONS_SQL, PRINCIPALS, RLS_OFF_SQL,
+  BYPASS_ROLES, EXPOSED_RELATIONS_SQL, FOREIGN_GRANTEES_SQL, IN_SCOPE_RELATIONS_SQL, OWNER_WITHOUT_FORCED_RLS_SQL, PRINCIPALS,
+  RLS_OFF_SQL, UNSAFE_VIEWS_SQL,
   compareCoverage, exemptionPrivilegeSql, parseCoverageCsv, readCoverageRegistry, type CoverageRow, type ExposedPair,
 } from "./rls-coverage";
 
@@ -156,6 +157,25 @@ describe("the coverage registry against this database", () => {
     });
   });
 
+  it("a table owned outside the bypass roles without forced RLS is reported, inside a rolled-back transaction", async () => {
+    await inTransaction(async () => {
+      await c.query("create table public._rls_coverage_probe (workspace_id uuid)");
+      await c.query("alter table public._rls_coverage_probe enable row level security");
+      await c.query("grant create on schema public to authenticated");
+      await c.query("alter table public._rls_coverage_probe owner to authenticated");
+      const r = await c.query<{ name: string }>(OWNER_WITHOUT_FORCED_RLS_SQL, [BYPASS_ROLES]);
+      expect(r.rows.map((x) => x.name)).toContain("public._rls_coverage_probe");
+    });
+  });
+
+  it("a view in public without security_invoker is reported, inside a rolled-back transaction", async () => {
+    await inTransaction(async () => {
+      await c.query("create view public._rls_coverage_probe_view as select 1 as one");
+      const r = await c.query<{ name: string }>(UNSAFE_VIEWS_SQL);
+      expect(r.rows.map((x) => x.name)).toContain("public._rls_coverage_probe_view");
+    });
+  });
+
   it("the exposed set equals the registry, both ways", async () => {
     const out = compareCoverage(readCoverageRegistry(), await exposed(), await inScope());
     expect({ unclassified: out.unclassified, stale: out.stale, unlisted: out.unlisted, brokenExemptions: out.brokenExemptions })
@@ -174,6 +194,20 @@ describe("the coverage registry against this database", () => {
 
   it("no role outside the five principals and the bypass roles holds a direct grant on an in-scope relation", async () => {
     const r = await c.query<{ name: string; grantee: string }>(FOREIGN_GRANTEES_SQL, [[...PRINCIPALS, ...BYPASS_ROLES]]);
+    expect(r.rows).toEqual([]);
+  });
+
+  it("every in-scope relation is owned by a bypass role, or forces row level security on its owner", async () => {
+    // An owner bypasses its own table's policies unless FORCE ROW LEVEL SECURITY
+    // is set, so a policy test would prove nothing for an owning principal.
+    const r = await c.query<{ name: string }>(OWNER_WITHOUT_FORCED_RLS_SQL, [BYPASS_ROLES]);
+    expect(r.rows).toEqual([]);
+  });
+
+  it("no view or materialized view in public or app runs without security_invoker", async () => {
+    // A view runs as its owner unless it is security_invoker, and a
+    // materialized view has no row level security at all.
+    const r = await c.query<{ name: string }>(UNSAFE_VIEWS_SQL);
     expect(r.rows).toEqual([]);
   });
 

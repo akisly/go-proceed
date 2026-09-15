@@ -540,7 +540,7 @@ export function deployedRelations(files) {
   for (const [name, sql] of [...files].sort((a, b) => a[0].localeCompare(b[0]))) {
     const number = Number((name.match(/^(\d+)/) ?? [])[1]);
     const patterns = [
-      /create table (?:if not exists )?(public|app)\.(\w+)/gi,
+      /create (?:unlogged |foreign )?table (?:if not exists )?(public|app)\.(\w+)/gi,
       /create (?:or replace )?(?:materialized )?view (?:if not exists )?(public|app|api)\.(\w+)/gi,
     ];
     for (const re of patterns) {
@@ -682,7 +682,7 @@ function citedFileProblems(rawSource) {
   if (/^\s*(?:export\s+)?(?:const|let|var|function|class)\s+(?:it|test|describe|suite)\b|\bimport\s*\{[^}]*\bas\s+(?:it|test|describe|suite)\b/m.test(source)) {
     problems.push("a rebinding of it, test or describe");
   }
-  const imports = [...source.matchAll(/import\s*\{([^}]*)\}\s*from\s*"([^"]+)"/g)];
+  const imports = [...source.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/g)];
   const imported = (names) => names.split(",").map((x) => x.trim().split(/\s+as\s+/).pop());
   if (imports.some(([, names, from]) => from !== "vitest" && imported(names).some((n) => ["describe", "it", "test", "suite"].includes(n)))
       || !imports.some(([, names, from]) => from === "vitest" && imported(names).some((n) => n === "describe" || n === "suite"))) {
@@ -710,22 +710,29 @@ function citedTestProblems(test) {
   if (d.controlFlow) why.push("describe body has control flow (if, return, for, while) that can stop tests registering");
   if (d.nested) why.push("inside a nested describe");
   if (test.indent !== "  ") why.push("not directly inside its describe");
-  if (!/^\s*,\s*(?:async\s*)?\(\s*\)\s*=>|^\s*,\s*(?:async\s+)?function\s*\(\s*\)/.test(test.rest)) {
-    why.push("not a plain title and parameterless function (options, a test context, or no function)");
+  if (!/^\s*,\s*(?:async\s*)?\(\s*\)\s*=>\s*\{|^\s*,\s*(?:async\s+)?function\s*\(\s*\)\s*\{/.test(test.rest)) {
+    why.push("not a plain title and parameterless function with a block body (options, a test context, an expression body, or no function)");
   }
   if (test.closing === null || !RLS_CLOSING_OK.test(test.closing)) {
     why.push(`closes with \`${test.closing ?? "nothing"}\`; only \`});\` or \`}, <timeout>);\` is allowed`);
   }
-  if (/^    (?:return\b|if\b.*\breturn\b)/m.test(test.body)) why.push("returns early");
+  if (/^    (?:return\b|if\b.*\breturn\b)|^\s+return\s*;/m.test(test.body)) why.push("returns early");
   if (!/\bexpect\s*[.(]/.test(test.body)) why.push("asserts nothing (no expect)");
   return why;
 }
 
-/** A vitest config or test script that can filter cited tests out silently. */
+/**
+ * A vitest config or test script that can filter or skip cited tests silently.
+ * The config may use only the keys `packages/testing/vitest.config.ts` has
+ * today: an unknown key (`setupFiles` can register a skipping hook, `projects`
+ * its own `include`) is refused rather than listed after the fact.
+ */
+const VITEST_ALLOWED_KEYS = new Set(["test", "environment", "fileParallelism", "include"]);
 export function vitestRunFilterErrors(configText, testScript, where) {
   const errors = [];
-  for (const key of ["testNamePattern", "allowOnly", "retry", "passWithNoTests", "exclude"]) {
-    if (new RegExp(`\\b${key}\\b`).test(configText)) errors.push(`${where}: vitest config sets ${key}, which can hide a cited test`);
+  const code = codeOnly(configText).replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+  for (const m of new Set([...code.matchAll(/(\w+)\s*:/g)].map((x) => x[1]))) {
+    if (!VITEST_ALLOWED_KEYS.has(m)) errors.push(`${where}: vitest config key ${m} is not allowed; it can hide or skip a cited test`);
   }
   if (!/\binclude\s*:\s*\[\s*"src\/\*\*\/\*\.test\.ts"\s*\]/.test(configText)) {
     errors.push(`${where}: vitest include must be exactly ["src/**/*.test.ts"], or a cited file can fall outside the run`);
@@ -2117,6 +2124,13 @@ function selfTest() {
       '  it("comment only", async () => {',
       '    // expect(1).toBe(1);',
       '  });',
+      '  it("expression body", async () => expect(1).toBe(1), { skip: true });',
+      '  it("multi-line return", async () => {',
+      '    if (!process.env.DB) {',
+      '      return;',
+      '    }',
+      '    expect(1).toBe(1);',
+      '  });',
       '});',
       'describe("describe-options", () => {',
       '  it("closed with options", async () => { expect(1).toBe(1); });',
@@ -2152,6 +2166,7 @@ function selfTest() {
         ["packages/testing/src/fx-rebind.test.ts", fileWith("const describe2 = 1;\nfunction it() {}")],
         ["packages/testing/src/fx-alias.test.ts", fileWith("import { test as it2, describe as it } from \"vitest\";")],
         ["packages/testing/src/fx-prose.test.ts", fileWith("// the table is read as it was written, and as test data; tests skip (without a DB); only: this")],
+        ["packages/testing/src/fx-helper-single.test.ts", "import { describe, expect } from \"vitest\";\nimport { it } from './helpers';\ndescribe(\"x\", () => {\n  it(\"y\", async () => { expect(1).toBe(1); });\n});" + names],
         ["packages/testing/src/fx-helper.test.ts", 'import { describe, expect, it } from "./helpers";\ndescribe("x", () => {\n  it("y", async () => { expect(1).toBe(1); });\n});' + names],
       ]),
       backlogIds: new Set(["BL-001"]),
@@ -2210,6 +2225,11 @@ function selfTest() {
     refused(cite("parked2", "ghost"), "no test «parked2» › «ghost»", "a test inside a block comment");
     refused(cite("in-a-template", "templated"), "no test «in-a-template» › «templated»", "a test inside a template literal");
     refused("packages/testing/src/fx-helper.test.ts::x::y", "from somewhere other than vitest", "describe or it imported from a helper");
+    refused("packages/testing/src/fx-helper-single.test.ts::x::y", "from somewhere other than vitest", "it imported from a helper in single quotes");
+    refused(cite("closings", "expression body"), "parameterless function", "an expression body with options");
+    refused(cite("closings", "multi-line return"), "returns early", "a multi-line early return");
+    const fxDeployedKinds = deployedRelations([["0090_x.sql", "create foreign table public.ft (\n);\ncreate unlogged table app.ut ();"]]);
+    if (!(fxDeployedKinds.has("public.ft") && fxDeployedKinds.has("app.ut"))) t.push("rls coverage (foreign and unlogged tables deployed)");
     if (says(cov(withCite("packages/testing/src/fx-prose.test.ts::x::y")), "can be skipped from outside a test")) t.push("rls coverage (prose «skip (» and «only:» in comments are not code)");
     if (!says(cov([...rows.slice(0, 2), "app,retention_policy,goproceed_app,operational,exempt_no_grant,,,,r", rows[3]]), "an exemption must name principal none")) t.push("rls coverage (exemption naming a principal)");
     if (!says(cov([`public,projects,goproceed_app,execution,covered,${P},${N},BL-001,`, ...rows.slice(1)]), "covered takes no backlog_id")) t.push("rls coverage (covered with a backlog id)");
@@ -2225,6 +2245,10 @@ function selfTest() {
       if (!says(vitestRunFilterErrors(`test: { include: ["src/**/*.test.ts"], ${key}: 1 }`, "vitest run", "fx"), key)) t.push(`vitest run filters (${key})`);
     }
     if (!says(vitestRunFilterErrors('test: { include: ["src/rls*.test.ts"] }', "vitest run", "fx"), "include must be exactly")) t.push("vitest run filters (narrowed include)");
+    for (const key of ["setupFiles", "projects", "globalSetup"]) {
+      if (!says(vitestRunFilterErrors(`test: { include: ["src/**/*.test.ts"], ${key}: [] }`, "vitest run", "fx"), `key ${key} is not allowed`)) t.push(`vitest run filters (unknown key ${key})`);
+    }
+    if (vitestRunFilterErrors('// a comment: with a colon\ntest: { environment: "node", fileParallelism: false, include: ["src/**/*.test.ts"] }', "vitest run", "fx").length !== 0) t.push("vitest run filters (the real config's keys)");
     for (const script of ["vitest run -t rls", "vitest run rls", "vitest run --shard=1/2", "vitest run src/a.test.ts:12", "vitest run --project x"]) {
       if (!says(vitestRunFilterErrors(cleanConfig, script, "fx"), "test script must be exactly")) t.push(`vitest run filters (${script})`);
     }

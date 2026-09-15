@@ -151,6 +151,29 @@ export const FOREIGN_GRANTEES_SQL = `
    where acl.grantee <> 0 and not (ro.rolname = any($1::text[]))
    order by 1, 2`;
 
+/**
+ * In-scope tables whose owner is not one of $1 (the bypass roles) and that do
+ * not FORCE ROW LEVEL SECURITY: an owning principal bypasses its own policies.
+ */
+export const OWNER_WITHOUT_FORCED_RLS_SQL = `
+  with rels as (${IN_SCOPE_RELS})
+  select r.nspname || '.' || r.relname as name
+    from rels r join pg_class c on c.oid = r.oid
+   where c.relkind in ('r', 'p', 'f')
+     and not (pg_get_userbyid(r.relowner) = any($1::text[]))
+     and not c.relforcerowsecurity
+   order by 1`;
+
+/** Views and materialized views in `public` and `app` that run as their owner: no security_invoker, or materialized. */
+export const UNSAFE_VIEWS_SQL = `
+  select n.nspname || '.' || c.relname as name
+    from pg_class c join pg_namespace n on n.oid = c.relnamespace
+   where n.nspname in ('public', 'app') and c.relkind in ('v', 'm')
+     and (c.relkind = 'm' or not coalesce(
+       (select lower(o.option_value) in ('true', 'on', '1') from pg_options_to_table(c.reloptions) o where o.option_name = 'security_invoker'),
+       false))
+   order by 1`;
+
 /** Base tables among the names in $1 whose row level security is off. */
 export const RLS_OFF_SQL = `
   select n.nspname || '.' || c.relname as name

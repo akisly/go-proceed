@@ -265,7 +265,10 @@ artifact the first time it is pasted into a bug report.
   the cited tests without a database, and accepts a cited test only in one
   plain, unskippable shape; `packages/testing/src/rls-coverage.test.ts` checks
   it against the running database, including grants to roles outside the five
-  and row level security on every listed table. A table first created after
+  row level security on every listed table, an owner outside the bypass roles
+  only where RLS is forced, and no view in `public` or `app` without
+  `security_invoker`. The scanner does not parse regex literals, so a quote or
+  `//` inside one can mislead it; the cited files have none today. A table first created after
   `0085` cannot enter it as a gap. No quarantine ledger exists yet; when one
   does, it must refuse any test the registry cites. The evidence run for the
   cited tests is the unfiltered `pnpm --filter @goproceed/testing test`.
