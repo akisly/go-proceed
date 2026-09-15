@@ -396,12 +396,48 @@ the closed ones.
 ### 12. Upload and import safety
 
 - [ ] Malware, content-type, and resource-exhaustion controls on uploads.
+      - **Evidence toward this gate, 2026-09-15 — not closed**
+        ([DEV-012](../tasks/DEV-012-m0-gate12-evidence.md)). *Content type:*
+        `evidence-inspection.ts` reads the type from magic bytes (JPEG, PNG, PDF,
+        HEIC) and blocks `unrecognised_content` and `declared_type_mismatch`;
+        *resource exhaustion:* the private `evidence` bucket's 50 MiB
+        `file_size_limit` (`0020`), the per-workspace quota (`0026`, unlimited
+        until a value is set), the orphan purge (`0021`) and the seven-day
+        `scan_blocked` window (`0027`). Exercised on 2026-09-15 against the
+        local database: `upload-intents-create` (23), `upload-intents-finalize`
+        (19) and `evidence-purge` (17), all passed, none skipped; not in CI.
+      - **Malware, the owner's decision of 2026-09-15:** for the pilot, the
+        magic-byte check, the four-type allow-list and the limits above are
+        accepted as the malware control, **with no scanner and no ADR**. The
+        risk it leaves: a file of an allowed type can carry malicious content
+        (a PDF with active content, a crafted image) and becomes evidence that
+        a reviewer downloads and opens. It departs from
+        [files-and-storage.md](../architecture/files-and-storage.md) «Content
+        validation and malware boundary», which lists «malware/content
+        inspection using a pinned scanner/policy version»; that document is
+        unchanged.
+      - **Open under this box:** image dimension, pixel-count and decoding
+        limits do not exist (BL-088).
 - [ ] The import hostile-fixture corpus still runs. Import is **frozen, not
       deleted** ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md)
       decision 6): the XLSX/CSV parser built in M1 stays in the code, an object
       created by import continues to work, and the route is still reachable by a
       real user with a real file. Freezing extension work does not un-ship a
       parser, and INV-016 still guards a live path.
+      - **Evidence toward this gate, 2026-09-15**
+        ([DEV-012](../tasks/DEV-012-m0-gate12-evidence.md)): the corpus runs.
+        `packages/domain` `src/import` 48 passed — `xlsx.test.ts` (legacy or
+        encrypted CFB, non-ZIP, macro workbook, declared-size ZIP bomb without
+        inflating, path traversal, malformed central directory, inert formulas,
+        100 seeded mutations failing closed) and `csv.test.ts` (NUL bytes,
+        invalid UTF-8, unbalanced quotes, byte, column and row limits, 200 seeded
+        mutations) — and `apps/app` `imports.int.test.ts` 13 passed against the
+        local database (executable bytes and ZIP bombs refused). Limits as
+        coded: XLSX 20 MiB, 10 000 entries, 100 MiB uncompressed, ratio 100,
+        20 000 rows, 256 columns, 32 768 characters a cell; CSV 20 MiB, 20 000
+        rows, 256 columns, 32 768 characters a field. Not run in CI. **The gate
+        stays open:** export neutralization against formula injection has no
+        export to act on (gate 3), and BL-088 is open.
 
 ### 13. Demo and data separation
 
@@ -425,7 +461,7 @@ the closed ones.
         no key id (owner, 2026-09-15: build one, BL-085), and because one hosted
         environment exists with no separate production project (Q-9).
       - **Evidence toward this gate, 2026-09-15 — not closed**
-        ([DEV-011](../tasks/DEV-011-telegram-hmac-key-ids.md), until it merges): the
+        ([DEV-011](../tasks/DEV-011-telegram-hmac-key-ids.md), merged in #92): the
         Telegram link and erasure HMAC keys carry key ids (migration `0085`),
         replacing `TELEGRAM_LINK_PEPPER` (BL-085). The gate stays open on Q-9, and
         no rotation has been exercised on a hosted project.
