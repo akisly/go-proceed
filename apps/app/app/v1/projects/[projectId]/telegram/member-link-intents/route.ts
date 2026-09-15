@@ -51,12 +51,12 @@ export const POST = commandRoute(createMemberLinkIntentRequest, async (a) => {
     const { workspaceId, memberId } = await authorizeCurrentProjectMember(tx, a.requestId, a.userId, projectId);
     const config = loadTelegramConfig();
     const rawToken = issueTelegramToken();
-    const verifierHash = telegramVerifier(rawToken, config.linkPepper);
+    const { keyId, verifierHash } = telegramVerifier(rawToken, config.linkKeys);
     const expiresAt = new Date(Date.now() + INTENT_LIFETIME_MS);
     const intentId = randomUUID();
     await tx.query(`insert into public.telegram_member_link_intents
-      (id, workspace_id, project_id, member_id, issued_by_member_id, verifier_hash, expires_at)
-      values ($1,$2,$3,$4,$4,$5,$6)`, [intentId, workspaceId, projectId, memberId, verifierHash, expiresAt]);
+      (id, workspace_id, project_id, member_id, issued_by_member_id, verifier_hash, verifier_key_id, expires_at)
+      values ($1,$2,$3,$4,$4,$5,$6,$7)`, [intentId, workspaceId, projectId, memberId, verifierHash, keyId, expiresAt]);
     await recordAudit(tx, ctx, {
       action: "telegram_member_link_intent.created", object_type: "telegram_member_link_intent", object_id: intentId,
       details: { projectId, memberId, expiresAt: expiresAt.toISOString() },

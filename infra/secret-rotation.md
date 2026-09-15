@@ -13,7 +13,7 @@ How to replace every secret the deployments hold, in an order that does not take
 | Vercel project of `apps/landing` | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `RESEND_API_KEY`, `PILOT_*` | Its own bot, separate from the channel's bot (owner, 2026-09-15) |
 | **Every Vercel deployment already built** | The values its scope held **when it was built** | A variable change reaches only new deployments ([Environment variables](https://vercel.com/docs/environment-variables), updated 2026-08-20). Older production deployments keep old values, and an Instant Rollback brings them back: «Vercel won't update environment variables if you change them in the project settings and will roll back to a previous build» ([Instant Rollback](https://vercel.com/docs/instant-rollback), updated 2026-07-07) |
 | Supabase project `asrvzhjaueyvrfozxpzo` | Role passwords, the `postgres` password, API keys, Auth SMTP credentials | |
-| Operator machines | `SERVICE_DB_URL` and `TELEGRAM_LINK_PEPPER` while running `apps/app/scripts/telegram-erase-identity.mjs` (README-staging §7) | Supply them per command from the password manager; do not keep them in a file or shell history |
+| Operator machines | `SERVICE_DB_URL`, `TELEGRAM_ERASURE_HMAC_KEYS` and `TELEGRAM_ERASURE_ACTIVE_KEY_ID` while running `apps/app/scripts/telegram-erase-identity.mjs` (README-staging §7). The erasure keys live here only, never in a Vercel project | Supply them per command from the password manager; do not keep them in a file or shell history |
 | Local development | `apps/*/.env.local` (git-ignored, `.gitignore:15`) and the local Supabase stack | Loopback-only role passwords `app_pw` / `service_pw` from `scripts/set-local-app-password.mjs`, which refuses any non-loopback host; the published local Supabase demo keys; the `dev1` HMAC keys in `apps/app/.env.example` |
 | CI | `.github/workflows/ci.yml` `env` | Loopback values against a disposable stack; `ci-placeholder-publishable-key` |
 
@@ -33,12 +33,13 @@ How to replace every secret the deployments hold, in an order that does not take
 | `EXTERNAL_SESSION_HMAC_KEYS` + `EXTERNAL_SESSION_ACTIVE_KEY_ID` | Signing external session cookies | The same, in its own key space, retire after 12 hours |
 | `TELEGRAM_BOT_TOKEN` (the channel's bot; the landing's own bot) | Controlling that bot, including where its webhook points | Revoke in @BotFather |
 | `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_WORKER_SECRET` | Posting updates into the webhook; triggering `POST /internal/telegram/jobs` | Replace, redeploy, re-register the webhook |
-| `TELEGRAM_LINK_PEPPER` | Link-token verifiers; the erasure registry's `subject_hmac` | **No key id; rotating it loses data** — see its section and BL-085 |
+| `TELEGRAM_LINK_HMAC_KEYS` + `TELEGRAM_LINK_ACTIVE_KEY_ID` | Link-token verifiers | Add a key id, move the active id, retire the old id 15 minutes after that deploy |
+| `TELEGRAM_ERASURE_HMAC_KEYS` + `TELEGRAM_ERASURE_ACTIVE_KEY_ID` (operator machines only) | The erasure registry's `subject_hmac` | Add a key id and move the active id; **keep every earlier key** — see its section |
 | `RESEND_API_KEY` | Sending mail from the landing's domain | Create a second key, switch, delete the old one |
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public by design | Replace like a secret key if the project's keys are reissued |
 | Operator access: Vercel and Supabase account tokens, GitHub access | Everything above, by changing it | **Not written here.** Revoke per vendor; it is the first thing a store-level leak touches |
 
-No channel secret (`TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_WORKER_SECRET`, `TELEGRAM_LINK_PEPPER`, the channel's bot token) is set on any hosted environment yet: the webhook stays off until BL-024 closes. Whether the landing's delivery variables are set is the owner's record, not this document's.
+No channel secret (`TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_WORKER_SECRET`, `TELEGRAM_LINK_HMAC_KEYS`, the channel's bot token, nor the `TELEGRAM_LINK_PEPPER` they replaced) is set on any hosted environment yet: the webhook stays off until BL-024 closes. Whether the landing's delivery variables are set is the owner's record, not this document's.
 
 ## The order, for every secret
 
@@ -126,25 +127,22 @@ Generate every Telegram secret with `node -e "console.log(require('crypto').rand
 - **Webhook secret.** Edit `TELEGRAM_WEBHOOK_SECRET`, redeploy, then call `setWebhook` with the new `secret_token`. Between the two, Telegram's deliveries carry the old secret and are refused; Telegram repeats an unsuccessful request and gives up «after a reasonable amount of attempts» ([Getting updates](https://core.telegram.org/bots/api#getting-updates)), so keep the window short.
 - **Worker secret.** Edit `TELEGRAM_WORKER_SECRET` and redeploy, then update whatever calls `POST /internal/telegram/jobs` (`apps/app/app/internal/telegram/jobs/route.ts`; no scheduler exists yet, runbook Q-12).
 
-## `TELEGRAM_LINK_PEPPER`
+## Telegram link and erasure HMAC keys
 
-The pepper keys the verifier of every outstanding link token (`apps/app/src/lib/telegram/tokens.ts`) and `subject_hmac` in `app.telegram_erasures`, computed as an HMAC of the workspace id and the Telegram user id (`apps/app/scripts/telegram-erase-identity.mjs`; migration `0081`). It has no key id (BL-085).
+Two key registries replaced `TELEGRAM_LINK_PEPPER`, which had no key id ([DEV-011](../docs/tasks/DEV-011-telegram-hmac-key-ids.md), migration `0085`). Each is `<keyId>:<base64 of 32+ bytes>[,<keyId>:<base64>…]` with an active id, the format of the external-link keys. Generate a key with `node -e "process.stdout.write(require('node:crypto').randomBytes(32).toString('base64'))"`, straight into the password manager. Never reuse a key id.
 
-**What a leak means.** With the pepper and a copy of the database or a backup, anyone can re-identify every erased person by trying Telegram user ids against the registry, which undoes what erasure promises. **Rotating the pepper does not repair this** for rows or backups that already exist.
+**Link keys — `TELEGRAM_LINK_HMAC_KEYS` + `TELEGRAM_LINK_ACTIVE_KEY_ID`, in the deployment.** A new link token is signed with the active key, and its row stores that key id; a token is consumed under whichever configured key signed it (`apps/app/src/lib/telegram/tokens.ts`, `linking.ts`).
 
-**What rotation costs.** Replacing it invalidates every link token issued and not yet used. Under the new pepper, a repeat erasure request for a person erased earlier finds nothing by `subject_hmac` and allocates a second surrogate (`0081`): `already_erased` is `false`, the person is split across two surrogates, and the re-link guard that matches on the surrogate no longer fires. No audit row can repair the match, because by design the audit row stores only the surrogate and never the identifier (README-staging §7).
+- **Rotate:** add the new key under a new id, make it active, redeploy. Remove the old id in a later deploy, at least 15 minutes after the first one reached every instance: an intent lives 15 minutes (`INTENT_LIFETIME_MS` in both intent routes).
+- **After a leak:** remove the leaked id in the same deploy that adds the new one. Unused tokens signed under it answer «invalid or expired», and the person asks for a new link. A leaked link key with a copy of the database reveals nothing: a verifier is an HMAC of a random 256-bit token.
+- At most eight keys: the consuming definers accept eight candidates, and the app refuses a longer list with its generic configuration error.
 
-So: rotate it only after a leak. Keep the old pepper sealed in the password manager — it is already exposed, and it is the only way to recognise earlier erasures. Give the new pepper to operator machines at the same moment as the deployment.
+**Erasure keys — `TELEGRAM_ERASURE_HMAC_KEYS` + `TELEGRAM_ERASURE_ACTIVE_KEY_ID`, on the operator's machine only.** Only `apps/app/scripts/telegram-erase-identity.mjs` reads them, so a leak of the Vercel store no longer reaches the erasure registry. Each registry row stores `subject_key_id` beside `subject_hmac`, and `app.telegram_erasure_keys` records a check value per key id the first time it is used.
 
-**A repeat erasure request after a rotation**, until BL-085 lands *(unverified: no tool does this yet; `telegram-erase-identity.mjs` takes one pepper and always erases)*:
-
-1. Compute the HMAC under **every earlier pepper kept sealed** (after a second rotation there are two), locally, the way `telegram-erase-identity.mjs` computes `subjectHmac`, without running the script.
-2. As `postgres`, look each one up with `psql`, not the dashboard SQL Editor, typing the HMAC at a prompt rather than into the query text: `\prompt 'workspace: ' ws`, `\prompt 'hmac: ' h`, then `select 1 from app.telegram_erasures where workspace_id = :'ws' and subject_hmac = :'h';` ([psql](https://www.postgresql.org/docs/current/app-psql.html): `\prompt`, `:'name'`). `psql` keeps query history in `~/.psql_history` (`HISTFILE`); check it holds no HMAC afterwards. The prompt keeps the HMAC out of that file only: `psql` sends the query with the value filled in, so the full text is visible in `pg_stat_activity` while it runs and lands in the database log if statement logging is on *(unverified: this project's logging settings)*. Anyone who also holds the leaked pepper could recover the Telegram identifier from that HMAC. The application roles cannot read the registry (`0081`).
-3. **Found:** run the script with the pepper that matched, for that one command. The definer finds the existing surrogate by that HMAC and writes no new registry row.
-4. **Not found:** run it with the new pepper.
-5. **Never run the script with an earlier pepper without that lookup.** For a person never erased before, it writes a new `subject_hmac` under the leaked pepper — the re-identifiable row the rotation was meant to stop. Every earlier pepper stays sealed until BL-085 re-keys the existing rows.
-
-The lasting fix is a pepper with key ids (BL-085). Re-keying the existing rows, for example storing an HMAC of the old `subject_hmac` under the new pepper, would also make a leaked old pepper insufficient on its own.
+- **What the database refuses, before any write** (`app.erase_telegram_identity`, `0085`): a key set that does not include every key id the workspace's registry already holds, so a forgotten key fails loudly instead of splitting a person across two surrogates; a key id supplied with a different secret than on its first use; and more than one matching row. The script itself refuses a repeated key id. The first use of an id is trusted: a wrong secret under a brand-new id is recorded as that id's secret.
+- **Rotate:** add the new key under a new id and make it active. **Keep every earlier key in the list.** A repeat request for a person erased earlier matches their row under any listed key and moves it to the active key; a row leaves an old key only when that person asks again, so an old erasure key is in practice never retired.
+- **After a leak:** add a new active key and keep the leaked one listed. Rows still under the leaked key, and every backup taken before a row was moved, can still be re-identified by anyone who also holds the database: rotation does not repair them (BL-087). New erasures are written under the new key.
+- **Rows written before `0085`** carry the key id `legacy`. If a database holds any (as `postgres`: `select count(*) from app.telegram_erasures where subject_key_id = 'legacy';`), the operator's list includes `legacy:<base64 of the old pepper's UTF-8 bytes>`, which reproduces the HMACs the pepper computed. Produce it without putting the pepper on a command line: `read -rs PEPPER`, then `printf %s "$PEPPER" | base64 | tr -d '\n'`, then `unset PEPPER`. No hosted environment ever held the pepper (above), so a hosted database is expected to hold no such row.
 
 ## Resend API key
 

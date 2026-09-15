@@ -170,6 +170,12 @@ for (const [keysVar, activeVar] of [
     for (const p of hmacKeyProblems(process.env, keysVar, activeVar)) problems.push(p);
   }
 }
+// BL-085: the Telegram link keys follow the same rules. The channel stays off
+// until BL-024, so they are not required; once either name is set, both must
+// be usable, or the first link issued after the deploy fails.
+if (process.env.TELEGRAM_LINK_HMAC_KEYS || process.env.TELEGRAM_LINK_ACTIVE_KEY_ID) {
+  for (const p of hmacKeyProblems(process.env, "TELEGRAM_LINK_HMAC_KEYS", "TELEGRAM_LINK_ACTIVE_KEY_ID")) problems.push(p);
+}
 if ((process.env.APP_DB_URL ?? "") && process.env.APP_DB_URL === process.env.SERVICE_DB_URL) {
   problems.push("APP_DB_URL and SERVICE_DB_URL are identical — they must authenticate as different roles (README-staging.md §3.2), or withServiceTx fails closed on every service write.");
 }

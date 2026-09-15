@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { loadKeyRegistry, type KeyRegistry } from "./hmac-key-registry";
 import {
   ASSURANCE_LEVEL_LABEL, LEVEL_3_NOT_A_SIGNATURE_TEXT, assuranceLevelOf,
 } from "./statutory-act-form";
@@ -54,10 +55,7 @@ import {
 
 /* ── key registry ──────────────────────────────────────────────────────────── */
 
-export interface KeyRegistry {
-  activeKeyId: string;
-  keys: Map<string, Buffer>;
-}
+export type { KeyRegistry } from "./hmac-key-registry";
 
 /**
  * `EXTERNAL_LINK_HMAC_KEYS` / `EXTERNAL_SESSION_HMAC_KEYS`:
@@ -75,27 +73,7 @@ export interface KeyRegistry {
  * behind a 32-byte tag is a 16-byte secret wearing a larger number.
  */
 function loadRegistry(keysVar: string, activeVar: string): KeyRegistry {
-  const raw = process.env[keysVar];
-  const activeKeyId = process.env[activeVar];
-  if (!raw) throw new Error(`${keysVar} is not set`);
-  if (!activeKeyId) throw new Error(`${activeVar} is not set`);
-  const keys = new Map<string, Buffer>();
-  // Errors name the entry by POSITION, never by key id: a list pasted in the
-  // wrong order (`<secret>:k1`) puts the secret where the id belongs, and this
-  // message reaches the server log (DEV-010).
-  for (const [index, entry] of raw.split(",").entries()) {
-    const at = entry.indexOf(":");
-    if (at <= 0) throw new Error(`${keysVar} entry ${index + 1} is not <keyId>:<base64>`);
-    const id = entry.slice(0, at).trim();
-    const secret = Buffer.from(entry.slice(at + 1).trim(), "base64");
-    if (id.length === 0) throw new Error(`${keysVar} entry ${index + 1} has an empty key id`);
-    if (secret.length < 32) throw new Error(`${keysVar} entry ${index + 1} is shorter than 32 bytes`);
-    keys.set(id, secret);
-  }
-  if (!keys.has(activeKeyId)) {
-    throw new Error(`${activeVar} names a key that is not in ${keysVar}`);
-  }
-  return { activeKeyId, keys };
+  return loadKeyRegistry(process.env, keysVar, activeVar);
 }
 
 let linkRegistry: KeyRegistry | null = null;

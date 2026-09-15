@@ -882,7 +882,7 @@ views; decide whether «every printed page» is satisfiable without a paginator
 
 *(readiness gate 14 — **and this is a separate gate from item 8**)*
 
-**Status: PARTIAL, recorded 2026-09-15** ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)). Since then: the rotation runbook is [infra/secret-rotation.md](../../infra/secret-rotation.md); the deploy preflight refuses an HMAC key list the runtime registry would refuse, and neither prints key material; the [version-0.0.md](version-0.0.md) box below is ticked. **Not closable yet**: `TELEGRAM_LINK_PEPPER` is an HMAC verifier key with no key id, and the owner chose on 2026-09-15 to build one (BL-085); and one hosted environment exists with no separate production project (Q-9). *[Added 2026-09-15 (DEV-010); the table below is the state before it.]*
+**Status: PARTIAL, recorded 2026-09-15** ([DEV-010](../tasks/DEV-010-m0-gate14-evidence.md)). Since then: the rotation runbook is [infra/secret-rotation.md](../../infra/secret-rotation.md); the deploy preflight refuses an HMAC key list the runtime registry would refuse, and neither prints key material; the [version-0.0.md](version-0.0.md) box below is ticked. **Not closable yet**: `TELEGRAM_LINK_PEPPER` is an HMAC verifier key with no key id, and the owner chose on 2026-09-15 to build one (BL-085); and one hosted environment exists with no separate production project (Q-9). *[Added 2026-09-15 (DEV-010); the table below is the state before it.]* **Later on 2026-09-15** ([DEV-011](../tasks/DEV-011-telegram-hmac-key-ids.md), until it merges): the Telegram link and erasure HMAC keys carry key ids (migration `0085`), replacing `TELEGRAM_LINK_PEPPER` (BL-085); Q-9 still keeps the gate open.
 
 | Half | Status | Evidence today |
 |---|---|---|

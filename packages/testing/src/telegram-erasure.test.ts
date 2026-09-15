@@ -15,11 +15,36 @@ import { adminClient, asActor, asService, dropWorkspaces } from "./pg";
  */
 const WS_A = "a1a1a1a1-2222-4222-8222-222222222222";
 const WS_B = "b1b1b1b1-2222-4222-8222-222222222222";
+const WS_C = "d1d1d1d1-2222-4222-8222-222222222222";
 const OWNER = "c1c1c1c1-2222-4222-8222-222222222222";
 const SUBJECT = 700001n;
 const BYSTANDER = 700002n;
 const MARKER = "[текст стерто на запит]";
 const PEPPER = "p".repeat(32);
+
+// BL-085: the registry's HMAC keys carry key ids. K1 serves §4; §6 rotates.
+const K1 = Buffer.alloc(32, 1);
+const K2 = Buffer.alloc(32, 2);
+const K3 = Buffer.alloc(32, 3);
+const K4 = Buffer.alloc(32, 4);
+const LEGACY = Buffer.from(PEPPER, "utf8");
+const TEST_KEY_IDS = ["k1", "k2", "k3", "k4", "legacy"];
+const KEY_CHECK_LABEL = "goproceed:telegram-erasure:key-check:v1";
+const ERASE_SQL = "select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text, $4::text[], $5::text[], $6::text[])";
+
+function hmacUnder(key: Buffer, workspaceId: string, telegramUserId: bigint): string {
+  return createHmac("sha256", key).update(`erasure:${workspaceId}:${telegramUserId}`, "utf8").digest("hex");
+}
+function checkValue(key: Buffer): string {
+  return createHmac("sha256", key).update(KEY_CHECK_LABEL, "utf8").digest("hex");
+}
+type KeySet = { active: string; keys: Array<[string, Buffer]> };
+/** The six arguments app.erase_telegram_identity takes, for one subject under one key set. */
+function eraseArgs(workspaceId: string, telegramUserId: bigint, set: KeySet): unknown[] {
+  return [workspaceId, telegramUserId.toString(), set.active, set.keys.map(([id]) => id),
+    set.keys.map(([, key]) => hmacUnder(key, workspaceId, telegramUserId)), set.keys.map(([, key]) => checkValue(key))];
+}
+const ONLY_K1: KeySet = { active: "k1", keys: [["k1", K1]] };
 
 let admin: Client;
 let projectId: string;
@@ -93,7 +118,8 @@ beforeAll(async () => {
 afterAll(async () => {
   // dropWorkspaces (./pg) scans schema `public` only; the registry lives in
   // schema `app` (§1) and needs its own cleanup so a repeat run starts clean.
-  await admin.query("delete from app.telegram_erasures where workspace_id = any($1::uuid[])", [[WS_A, WS_B]]);
+  await admin.query("delete from app.telegram_erasures where workspace_id = any($1::uuid[])", [[WS_A, WS_B, WS_C]]);
+  await admin.query("delete from app.telegram_erasure_keys where key_id = any($1::text[])", [TEST_KEY_IDS]);
   // §5's telegram_inbox_updates seeds carry no workspace_id/organization_id
   // column (it is service-plane ingress, keyed by bot_id+update_id), so
   // dropWorkspaces cannot reach them; each §5 case is normally self-cleaning
@@ -101,7 +127,7 @@ afterAll(async () => {
   // deletes the pending one), but this unconditional delete is the backstop
   // for an interrupted run — same discipline as the registry delete above.
   await admin.query("delete from public.telegram_inbox_updates where bot_id = 123456789 and update_id in (9000001, 9000002)");
-  await dropWorkspaces(admin, [WS_A, WS_B]);
+  await dropWorkspaces(admin, [WS_A, WS_B, WS_C]);
   await admin.end();
 });
 
@@ -109,6 +135,11 @@ describe("§1 — the registry and the policy exist, in schema app, reachable by
   it("app.telegram_erasures answers 42501 to the member plane and to the service plane", async () => {
     expect(await sqlstate(() => asActor(OWNER, WS_A, (c) => c.query("select 1 from app.telegram_erasures")))).toBe("42501");
     expect(await sqlstate(() => asService("", WS_A, (c) => c.query("select 1 from app.telegram_erasures")))).toBe("42501");
+  });
+
+  it("app.telegram_erasure_keys answers 42501 to the member plane and to the service plane (BL-085)", async () => {
+    expect(await sqlstate(() => asActor(OWNER, WS_A, (c) => c.query("select 1 from app.telegram_erasure_keys")))).toBe("42501");
+    expect(await sqlstate(() => asService("", WS_A, (c) => c.query("select 1 from app.telegram_erasure_keys")))).toBe("42501");
   });
 
   it("app.retention_policy answers 42501 to both planes and holds three NULL durations", async () => {
@@ -128,9 +159,10 @@ describe("§1 — the registry and the policy exist, in schema app, reachable by
       select c.relname, c.relrowsecurity as rls,
              (select count(*) from pg_policies p where p.schemaname = 'app' and p.tablename = c.relname)::int as policies
         from pg_class c join pg_namespace n on n.oid = c.relnamespace
-       where n.nspname = 'app' and c.relname in ('telegram_erasures', 'retention_policy') order by 1`);
+       where n.nspname = 'app' and c.relname in ('telegram_erasures', 'retention_policy', 'telegram_erasure_keys') order by 1`);
     expect(r.rows).toEqual([
       { relname: "retention_policy", rls: true, policies: 0 },
+      { relname: "telegram_erasure_keys", rls: true, policies: 0 },
       { relname: "telegram_erasures", rls: true, policies: 0 },
     ]);
   });
@@ -238,15 +270,14 @@ describe("§3 — the edit-event guard admits the redaction of an already-redact
 });
 
 describe("§4 — one identity, erased on request", () => {
-  const call = (hmac: string) => asService<{
+  const call = (set: KeySet) => asService<{
     surrogate_user_id: string; messages: string; events: string; links: string; attachments: string;
     pending_updates_for_subject: string; already_erased: boolean;
-  }>("", WS_A, (c) => c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)",
-    [WS_A, SUBJECT.toString(), hmac]));
+  }>("", WS_A, (c) => c.query(ERASE_SQL, eraseArgs(WS_A, SUBJECT, set)));
 
   it("rewrites every row of the subject and none of the bystander, and records itself", async () => {
     const before = await messageRow(bystanderMessageId);
-    const r = await call(subjectHmac(PEPPER, WS_A, SUBJECT));
+    const r = await call(ONLY_K1);
     const out = r.rows[0]!;
     expect(out.already_erased).toBe(false);
     expect(Number(out.surrogate_user_id)).toBeLessThan(0);
@@ -269,9 +300,9 @@ describe("§4 — one identity, erased on request", () => {
 
     expect(await messageRow(bystanderMessageId)).toEqual(before);
 
-    const reg = await admin.query<{ subject_hmac: string; origin: string; surrogate_user_id: string }>(
-      "select subject_hmac, origin, surrogate_user_id::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
-    expect(reg.rows).toEqual([{ subject_hmac: subjectHmac(PEPPER, WS_A, SUBJECT), origin: "data_subject_request", surrogate_user_id: out.surrogate_user_id }]);
+    const reg = await admin.query<{ subject_hmac: string; subject_key_id: string; origin: string; surrogate_user_id: string }>(
+      "select subject_hmac, subject_key_id, origin, surrogate_user_id::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
+    expect(reg.rows).toEqual([{ subject_hmac: hmacUnder(K1, WS_A, SUBJECT), subject_key_id: "k1", origin: "data_subject_request", surrogate_user_id: out.surrogate_user_id }]);
 
     const audit = await admin.query<{ action: string; actor_type: string; actor_user_id: string | null; object_id: string; details: Record<string, unknown>; body: string }>(
       `select action, actor_type, actor_user_id, object_id, details, row_to_json(a)::text as body
@@ -284,14 +315,14 @@ describe("§4 — one identity, erased on request", () => {
 
   it("is idempotent: a second call returns the same surrogate and touches nothing, and erased_at does not move", async () => {
     const first = await admin.query<{ surrogate_user_id: string; erased_at: string }>("select surrogate_user_id::text, erased_at::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
-    const r = await call(subjectHmac(PEPPER, WS_A, SUBJECT));
+    const r = await call(ONLY_K1);
     expect(r.rows[0]).toMatchObject({ already_erased: true, surrogate_user_id: first.rows[0]!.surrogate_user_id, messages: "0", events: "0", links: "0", attachments: "0" });
     const second = await admin.query<{ erased_at: string }>("select erased_at::text from app.telegram_erasures where workspace_id = $1", [WS_A]);
     expect(second.rows[0]!.erased_at).toBe(first.rows[0]!.erased_at);
   });
 
   it("refuses the member plane", async () => {
-    expect(await sqlstate(() => asActor(OWNER, WS_A, (c) => c.query("select * from app.erase_telegram_identity($1::uuid, 1::bigint, repeat('a', 64))", [WS_A])))).toBe("42501");
+    expect(await sqlstate(() => asActor(OWNER, WS_A, (c) => c.query("select * from app.erase_telegram_identity($1::uuid, 1::bigint, 'k1', array['k1'], array[repeat('a', 64)], array[repeat('b', 64)])", [WS_A])))).toBe("42501");
   });
 
   // The wrapper checks the caller's declared tenant (app.service_workspace(),
@@ -303,8 +334,7 @@ describe("§4 — one identity, erased on request", () => {
     let error: { code?: string; message?: string } | undefined;
     try {
       await asService("", WS_A, (c) =>
-        c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)",
-          [WS_B, SUBJECT.toString(), subjectHmac(PEPPER, WS_B, SUBJECT)]));
+        c.query(ERASE_SQL, eraseArgs(WS_B, SUBJECT, ONLY_K1)));
     } catch (e) {
       error = e as { code?: string; message?: string };
     }
@@ -317,10 +347,10 @@ describe("§4 — one identity, erased on request", () => {
   });
 
   // Placed before "clears both markers" (below), which erases BYSTANDER for
-  // real — this case needs BYSTANDER still intact. A NULL HMAC is rejected by
-  // app.erase_telegram_identity's own validation before it ever calls the
-  // internal transformation, so nothing — registry, audit, or redaction —
-  // should exist as a result of this call.
+  // real — this case needs BYSTANDER still intact. Key arrays of unequal
+  // length are rejected by app.erase_telegram_identity's own validation before
+  // it ever calls the internal transformation, so nothing — registry, audit,
+  // or redaction — should exist as a result of this call.
   it("a failure raised before the transformation runs leaves the registry, the audit trail, and the bystander's row untouched", async () => {
     const before = await messageRow(bystanderMessageId);
     const registryCountBefore = await admin.query<{ count: string }>(
@@ -331,14 +361,12 @@ describe("§4 — one identity, erased on request", () => {
     let error: { code?: string; message?: string } | undefined;
     try {
       await asService("", WS_A, (c) =>
-        c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)", [WS_A, BYSTANDER.toString(), null]));
+        c.query(ERASE_SQL, [WS_A, BYSTANDER.toString(), "k1", ["k1"], [], [checkValue(K1)]]));
     } catch (e) {
       error = e as { code?: string; message?: string };
     }
-    expect(error?.code).toBe("P0001");
-    // Distinguishes the wrapper's own HMAC-format check from the internal
-    // function's origin/HMAC-pairing check — both are P0001 today.
-    expect(error?.message).toMatch(/subject HMAC the application computed/);
+    expect(error?.code).toBe("22023");
+    expect(error?.message).toMatch(/one subject HMAC and one key check value per key id/);
 
     expect(await messageRow(bystanderMessageId)).toEqual(before);
     const bystanderNow = await admin.query<{ provider_user_id: string }>(
@@ -356,7 +384,7 @@ describe("§4 — one identity, erased on request", () => {
 
   it("clears both markers before returning", async () => {
     const r = await asService<{ s: string | null; g: string | null }>("", WS_A, async (c) => {
-      await c.query("select * from app.erase_telegram_identity($1::uuid, $2::bigint, $3::text)", [WS_A, BYSTANDER.toString(), subjectHmac(PEPPER, WS_A, BYSTANDER)]);
+      await c.query(ERASE_SQL, eraseArgs(WS_A, BYSTANDER, ONLY_K1));
       return c.query("select current_setting('app.erasure_subject', true) as s, current_setting('app.erasure_surrogate', true) as g");
     });
     expect(r.rows[0]).toEqual({ s: "", g: "" });
@@ -403,7 +431,7 @@ describe("§4 — one identity, erased on request", () => {
 
     let error: { code?: string; message?: string } | undefined;
     try {
-      await call(subjectHmac(PEPPER, WS_A, SUBJECT));
+      await call(ONLY_K1);
     } catch (e) {
       error = e as { code?: string; message?: string };
     }
@@ -583,5 +611,176 @@ describe("§5 — retention by age", () => {
     if (r.rows[0]!.n === 0) return; // the local stack may run without pg_cron; CI's does not
     const job = await admin.query<{ schedule: string; command: string }>("select schedule, command from cron.job where jobname = 'communication-retention'");
     expect(job.rows).toEqual([{ schedule: "23 3 * * *", command: "select app.apply_communication_retention(5000)" }]);
+  });
+});
+
+describe("§6 — the registry's keys carry key ids, and a rotation loses no match (BL-085)", () => {
+  const SUBJECT_C = 700101n;
+  const SPLIT = 700102n;
+  let memberC: string;
+
+  const callC = (uid: bigint, set: KeySet) => asService<{
+    surrogate_user_id: string; messages: string; links: string; already_erased: boolean;
+  }>("", WS_C, (c) => c.query(ERASE_SQL, eraseArgs(WS_C, uid, set)));
+  const registryC = async () => (await admin.query<{ surrogate_user_id: string; subject_key_id: string | null; subject_hmac: string | null }>(
+    "select surrogate_user_id::text, subject_key_id, subject_hmac from app.telegram_erasures where workspace_id = $1 order by surrogate_user_id", [WS_C])).rows;
+  const auditCountC = async () => (await admin.query<{ count: string }>(
+    "select count(*)::text as count from public.audit_events where organization_id = $1 and action = 'telegram_identity.erased'", [WS_C])).rows[0]!.count;
+  const failure = async (fn: () => Promise<unknown>) => {
+    try { await fn(); return { code: "ok", message: "" }; } catch (e) {
+      const err = e as { code?: string; message?: string };
+      return { code: err.code ?? "unknown", message: err.message ?? "" };
+    }
+  };
+
+  beforeAll(async () => {
+    await admin.query("insert into public.organizations (id, legal_name, display_name) values ($1, 'Erasure C', 'Erasure C')", [WS_C]);
+    const member = await admin.query<{ id: string }>("insert into public.memberships (organization_id, user_id, role, status) values ($1, $2, 'owner', 'active') returning id", [WS_C, OWNER]);
+    memberC = member.rows[0]!.id;
+    const project = await admin.query<{ id: string }>("insert into public.projects (workspace_id, name, created_by) values ($1, 'Erasure C', $2) returning id", [WS_C, OWNER]);
+    await admin.query("insert into public.project_field_channels (workspace_id, project_id, channel) values ($1, $2, 'telegram')", [WS_C, project.rows[0]!.id]);
+    const binding = await admin.query<{ id: string }>(`insert into public.telegram_chat_bindings
+      (workspace_id, project_id, bot_id, chat_id, chat_type, connected_by_member_id)
+      values ($1, $2, 123456789, -100778, 'supergroup', $3) returning id`, [WS_C, project.rows[0]!.id, memberC]);
+    await admin.query(`insert into public.communication_messages
+      (workspace_id, project_id, telegram_chat_binding_id, direction, kind, text, provider_user_id, server_received_at, delivery_state)
+      values ($1, $2, $3, 'inbound', 'text', 'Ключ', $4, now(), 'received')`, [WS_C, project.rows[0]!.id, binding.rows[0]!.id, SUBJECT_C.toString()]);
+    await admin.query(`insert into public.telegram_member_links
+      (workspace_id, member_id, telegram_user_id, display_name_snapshot, username_snapshot, linked_by_member_id)
+      values ($1, $2, $3, 'Іван', 'ivan', $2)`, [WS_C, memberC, SUBJECT_C.toString()]);
+  });
+
+  it("an erasure under the old pepper's bytes stores the HMAC the pepper produced, with its key id", async () => {
+    const r = await callC(SUBJECT_C, { active: "legacy", keys: [["legacy", LEGACY]] });
+    expect(r.rows[0]!.already_erased).toBe(false);
+    expect(await registryC()).toEqual([{
+      surrogate_user_id: r.rows[0]!.surrogate_user_id, subject_key_id: "legacy", subject_hmac: subjectHmac(PEPPER, WS_C, SUBJECT_C),
+    }]);
+  });
+
+  it("a repeat request under a rotated key set finds the same surrogate and moves the row to the active key", async () => {
+    const [before] = await registryC();
+    const r = await callC(SUBJECT_C, { active: "k2", keys: [["legacy", LEGACY], ["k2", K2]] });
+    expect(r.rows[0]).toMatchObject({ already_erased: true, surrogate_user_id: before!.surrogate_user_id });
+    expect(await registryC()).toEqual([{
+      surrogate_user_id: before!.surrogate_user_id, subject_key_id: "k2", subject_hmac: hmacUnder(K2, WS_C, SUBJECT_C),
+    }]);
+
+    // The old key is no longer needed for this workspace.
+    const again = await callC(SUBJECT_C, { active: "k2", keys: [["k2", K2]] });
+    expect(again.rows[0]).toMatchObject({ already_erased: true, surrogate_user_id: before!.surrogate_user_id });
+  });
+
+  it("refuses a key set that omits a key id this workspace's registry holds, before any write", async () => {
+    const reg = await registryC();
+    const audit = await auditCountC();
+    const f = await failure(() => callC(SUBJECT_C, { active: "k3", keys: [["k3", K3]] }));
+    expect(f.code).toBe("P0001");
+    expect(f.message).toMatch(/erasure key set does not cover key ids already in this workspace's registry: k2/);
+    expect(await registryC()).toEqual(reg);
+    expect(await auditCountC()).toBe(audit);
+    expect((await admin.query("select 1 from app.telegram_erasure_keys where key_id = 'k3'")).rows).toHaveLength(0);
+  });
+
+  it("refuses a key id whose secret differs from the key first used under that id", async () => {
+    const reg = await registryC();
+    const f = await failure(() => callC(SUBJECT_C, { active: "k2", keys: [["k2", K3]] }));
+    expect(f.code).toBe("P0001");
+    expect(f.message).toMatch(/erasure key k2 does not match the key first used under that id/);
+    expect(await registryC()).toEqual(reg);
+  });
+
+  it("refuses malformed key arguments with 22023 and writes nothing", async () => {
+    const reg = await registryC();
+    const hex = hmacUnder(K2, WS_C, SUBJECT_C);
+    const cases: unknown[][] = [
+      [WS_C, SUBJECT_C.toString(), "k2", ["k2"], [hex, hex], [checkValue(K2)]],
+      [WS_C, SUBJECT_C.toString(), "k9", ["k2"], [hex], [checkValue(K2)]],
+      [WS_C, SUBJECT_C.toString(), "k2", ["k2", "k2"], [hex, hex], [checkValue(K2), checkValue(K2)]],
+      [WS_C, SUBJECT_C.toString(), "k2", ["k2"], ["zz"], [checkValue(K2)]],
+      [WS_C, SUBJECT_C.toString(), "k2", [" "], [hex], [checkValue(K2)]],
+      [WS_C, SUBJECT_C.toString(), "k2", ["k2"], [null], [checkValue(K2)]],
+      [WS_C, SUBJECT_C.toString(), "k2", [], [], []],
+      [WS_C, SUBJECT_C.toString(), "k2", Array.from({ length: 9 }, (_, i) => (i === 0 ? "k2" : `x${i}`)),
+        Array(9).fill(hex), Array(9).fill(checkValue(K2))],
+    ];
+    for (const args of cases) {
+      const f = await failure(() => asService("", WS_C, (c) => c.query(ERASE_SQL, args)));
+      expect(f.code, JSON.stringify(args.slice(2, 4))).toBe("22023");
+    }
+    expect(await registryC()).toEqual(reg);
+  });
+
+  it("refuses when more than one registry row matches the subject — a person split before key ids — for the owner's decision", async () => {
+    await admin.query(`insert into app.telegram_erasures (workspace_id, subject_hmac, subject_key_id, surrogate_user_id, origin)
+      values ($1, $2, 'legacy', -900001, 'data_subject_request'), ($1, $3, 'k2', -900002, 'data_subject_request')`,
+      [WS_C, hmacUnder(LEGACY, WS_C, SPLIT), hmacUnder(K2, WS_C, SPLIT)]);
+    try {
+      const reg = await registryC();
+      const f = await failure(() => callC(SPLIT, { active: "k2", keys: [["legacy", LEGACY], ["k2", K2]] }));
+      expect(f.code).toBe("P0001");
+      expect(f.message).toMatch(/more than one registry row matches this subject/);
+      expect(await registryC()).toEqual(reg);
+    } finally {
+      await admin.query("delete from app.telegram_erasures where workspace_id = $1 and surrogate_user_id in (-900001, -900002)", [WS_C]);
+    }
+  });
+
+  it("rolls the re-key back when the re-link guard refuses the erasure", async () => {
+    const RELINK_USER = "e1e1e1e1-2222-4222-8222-222222222222";
+    await admin.query(`insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+      values ($1, '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'erasure-relink-c@example.test', '', now(), now())
+      on conflict (id) do nothing`, [RELINK_USER]);
+    const member = await admin.query<{ id: string }>(
+      "insert into public.memberships (organization_id, user_id, role, status) values ($1, $2, 'member', 'active') returning id", [WS_C, RELINK_USER]);
+    await admin.query(`insert into public.telegram_member_links
+      (workspace_id, member_id, telegram_user_id, display_name_snapshot, username_snapshot, linked_by_member_id)
+      values ($1, $2, $3, 'Іван', 'ivan', $2)`, [WS_C, member.rows[0]!.id, SUBJECT_C.toString()]);
+    const reg = await registryC();
+
+    const f = await failure(() => callC(SUBJECT_C, { active: "k4", keys: [["k2", K2], ["k4", K4]] }));
+    expect(f.code).toBe("P0001");
+    expect(f.message).toMatch(/the subject was linked again after an earlier erasure in this workspace/);
+    expect(await registryC()).toEqual(reg);
+    expect((await admin.query("select 1 from app.telegram_erasure_keys where key_id = 'k4'")).rows).toHaveLength(0);
+  });
+
+  it("constrains the key id: not blank, and present exactly when an HMAC is", async () => {
+    const hex = hmacUnder(K2, WS_C, 1n);
+    const insert = (hmac: string | null, keyId: string | null, surrogate: number, origin: string) => sqlstate(() => admin.query(
+      "insert into app.telegram_erasures (workspace_id, subject_hmac, subject_key_id, surrogate_user_id, origin) values ($1, $2, $3, $4, $5)",
+      [WS_C, hmac, keyId, surrogate, origin]));
+    expect(await insert(hex, "  ", -900010, "data_subject_request")).toBe("23514");
+    expect(await insert(hex, null, -900011, "data_subject_request")).toBe("23514");
+    expect(await insert(null, "k2", -900012, "retention")).toBe("23514");
+    const intents = await admin.query<{ table_name: string; is_nullable: string }>(`select table_name, is_nullable from information_schema.columns
+      where table_schema = 'public' and column_name = 'verifier_key_id'
+        and table_name in ('telegram_binding_intents', 'telegram_member_link_intents') order by table_name`);
+    expect(intents.rows).toEqual([
+      { table_name: "telegram_binding_intents", is_nullable: "NO" },
+      { table_name: "telegram_member_link_intents", is_nullable: "NO" },
+    ]);
+  });
+
+  it("replaces the keyless signatures, and only the service principal may call the new ones", async () => {
+    const gone = await admin.query(`select
+      to_regprocedure('app.erase_telegram_identity(uuid,bigint,text)') is null as erase,
+      to_regprocedure('app.erase_telegram_identity_internal(uuid,bigint,text,text,text)') is null as internal,
+      to_regprocedure('app.consume_telegram_binding_intent(text,bigint,bigint,text,text,bigint)') is null as binding,
+      to_regprocedure('app.consume_telegram_member_link_intent(text,bigint,text,text)') is null as member`);
+    expect(gone.rows[0]).toEqual({ erase: true, internal: true, binding: true, member: true });
+    const grants = await admin.query(`select r.rolname,
+      has_function_privilege(r.rolname, 'app.erase_telegram_identity(uuid,bigint,text,text[],text[],text[])', 'EXECUTE') as erase,
+      has_function_privilege(r.rolname, 'app.erase_telegram_identity_internal(uuid,bigint,text,text,text,text)', 'EXECUTE') as internal,
+      has_function_privilege(r.rolname, 'app.consume_telegram_binding_intent(text[],text[],bigint,bigint,text,text,bigint)', 'EXECUTE') as binding,
+      has_function_privilege(r.rolname, 'app.consume_telegram_member_link_intent(text[],text[],bigint,text,text)', 'EXECUTE') as member,
+      has_table_privilege(r.rolname, 'app.telegram_erasure_keys', 'SELECT') as keys
+      from pg_roles r where r.rolname in ('anon', 'authenticated', 'goproceed_app', 'goproceed_service') order by 1`);
+    expect(grants.rows).toEqual([
+      { rolname: "anon", erase: false, internal: false, binding: false, member: false, keys: false },
+      { rolname: "authenticated", erase: false, internal: false, binding: false, member: false, keys: false },
+      { rolname: "goproceed_app", erase: false, internal: false, binding: false, member: false, keys: false },
+      { rolname: "goproceed_service", erase: true, internal: false, binding: true, member: true, keys: false },
+    ]);
   });
 });

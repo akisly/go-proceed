@@ -14,7 +14,7 @@ On 2026-09-14 DEV-005 re-observed the «Agent workflow» row at `5480d2e`. In th
 
 | Area | State | Evidence | Open |
 |---|---|---|---|
-| Database migrations | The tree ends at <!-- latest-migration -->`0084` (84 files, `0001`–`0084`). `0084` was added in `bd08da9` (2026-09-09) and merged in #78 (`a75b0d8`, 2026-09-13). The only hosted apply on record is staging, 58/58, on 2026-08-19 | `ls supabase/migrations`; [infra/README-staging.md](../infra/README-staging.md) §Status | No apply record for `0059`–`0084` (26 migrations). Who pushes, on what trigger, and the rollback are undecided (runbook §10 Q-9). The local database head was not re-observed |
+| Database migrations | The tree ends at <!-- latest-migration -->`0085` (85 files, `0001`–`0085`) on DEV-011's branch, observed 2026-09-15; `0085` lands when DEV-011 merges. `0084` was added in `bd08da9` (2026-09-09) and merged in #78 (`a75b0d8`, 2026-09-13). The only hosted apply on record is staging, 58/58, on 2026-08-19 | `ls supabase/migrations`; [infra/README-staging.md](../infra/README-staging.md) §Status | No apply record for `0059`–`0085` (27 migrations). Who pushes, on what trigger, and the rollback are undecided (runbook §10 Q-9). The local database was at `0085` on 2026-09-15, applied by hand for DEV-011 |
 | v1 API | 75 v0.1 scope rows (M1 35, M2 9, M3 6, M4 6, M5 6, M6 3, M7 10); 66 `route.ts` files under `apps/app/app/v1`. A read-only subagent pass found a route file exporting the method for every scope row, and one route in no scope file (`POST /v1/organizations`) | `technical/openapi/scope-v0.1.csv`; `find apps/app/app/v1 -name route.ts` | No milestone M1–M7 is formally closed, and no closure procedure exists (runbook Q-2). The route check covers method exports, not behaviour |
 | PWA field client (`apps/app`) | Built, and the pilot's working field client. Production at `goproceed-app.vercel.app` was recorded on 2026-08-19 (`/login` 200, one owner sign-in on a laptop). Last page change: #72 (Daylight, 2026-09-05) | `infra/README-staging.md` §Status; `git log -- 'apps/app/app/(app)'` | The parity gate (runbook §8.3, ADR-009) is open: iPhone measurements exist from 2026-08-21, none from Android (BL-001, BL-002). The staging checks §6.1–§6.8 have no recorded run (BL-010) |
 | Office dashboard | Plan D slices D0–D3 are merged: #45 (2026-08-22), #46 and #48 (2026-08-23), #54 (2026-08-29); its Daylight pass is in #72. D4, members and access, has no route | Merge commits on `main`; `apps/app/app/(dash)/dash/` | D4 waits on the member-identity decision (runbook Q-15; BL-045). The dashboard shows no assurance level (M0 item 6) |
@@ -46,7 +46,7 @@ Places where a live document disagrees with git on 2026-09-13. Each is a correct
 
 ## Next action
 
-1. Review and merge DEV-010: evidence toward M0 readiness gate 14 (the preflight's HMAC key checks, `infra/secret-rotation.md`, the `version-0.0.md` tick); the gate stays open.
+1. Review and merge DEV-011: key ids for the Telegram link and erasure HMAC keys (BL-085, migration `0085`); readiness gate 14 stays open on Q-9.
 2. Decide how `outputs/` is kept (BL-079), then BL-080; DEV-007's record lists the options.
-3. Build a key-id `TELEGRAM_LINK_PEPPER` (BL-085, owner 2026-09-15), which readiness gate 14 waits on; then §5.14 order 3, item 12's built halves (readiness gate 12).
+3. §5.14 order 3, item 12's built halves (readiness gate 12).
 4. Before any environment enables the Telegram webhook: BL-024 (the Task 13 edge rate limit, the scheduler decision Q-12). The migration push decision (Q-9) now covers 26 migrations.

@@ -114,7 +114,8 @@ databaseDescribe("project communication member API", () => {
     vi.stubEnv("TELEGRAM_BOT_USERNAME", "GoProceedTestBot");
     vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "w".repeat(32));
     vi.stubEnv("TELEGRAM_WORKER_SECRET", "r".repeat(32));
-    vi.stubEnv("TELEGRAM_LINK_PEPPER", "p".repeat(32));
+    vi.stubEnv("TELEGRAM_LINK_HMAC_KEYS", `k1:${Buffer.alloc(32, 1).toString("base64")}`);
+    vi.stubEnv("TELEGRAM_LINK_ACTIVE_KEY_ID", "k1");
     vi.stubEnv("APP_PUBLIC_ORIGIN", "https://app.goproceed.test");
     actorUserId = crypto.randomUUID();
     client = await admin();
