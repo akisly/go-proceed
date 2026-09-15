@@ -1,7 +1,8 @@
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
-import { hmacKeyProblems } from "./deploy-preflight-keys.mjs";
+import { hmacKeyProblems, parseHmacKeys } from "./deploy-preflight-keys.mjs";
+import { loadKeyRegistry } from "../src/lib/hmac-key-registry";
 import {
   linkKeys, sessionKeys, resetKeyRegistriesForTests,
 } from "../src/lib/external-link";
@@ -48,6 +49,9 @@ const CASES = [
 const PAIRS = [
   ["EXTERNAL_LINK_HMAC_KEYS", "EXTERNAL_LINK_ACTIVE_KEY_ID", linkKeys],
   ["EXTERNAL_SESSION_HMAC_KEYS", "EXTERNAL_SESSION_ACTIVE_KEY_ID", sessionKeys],
+  // BL-085: the Telegram link keys use the same registry rules.
+  ["TELEGRAM_LINK_HMAC_KEYS", "TELEGRAM_LINK_ACTIVE_KEY_ID",
+    () => loadKeyRegistry(process.env, "TELEGRAM_LINK_HMAC_KEYS", "TELEGRAM_LINK_ACTIVE_KEY_ID")],
 ];
 
 const saved = {};
@@ -103,6 +107,30 @@ describe("the deploy preflight refuses exactly the HMAC key settings the runtime
   });
 });
 
+describe("parseHmacKeys — the parsed registry the erasure script uses (BL-085)", () => {
+  it("returns the keys in order and the active id when there is no problem", () => {
+    const parsed = parseHmacKeys({ A_KEYS: `k1:${k32(1)},k2:${k32(2)}`, A_ACTIVE: "k2" }, "A_KEYS", "A_ACTIVE");
+    expect(parsed.problems).toEqual([]);
+    expect(parsed.activeKeyId).toBe("k2");
+    expect([...parsed.keys.keys()]).toEqual(["k1", "k2"]);
+    expect(parsed.keys.get("k1")).toEqual(Buffer.alloc(32, 1));
+  });
+
+  it("agrees with hmacKeyProblems on every case", () => {
+    for (const [, raw, active] of CASES) {
+      const env = { A_KEYS: raw, A_ACTIVE: active };
+      expect(parseHmacKeys(env, "A_KEYS", "A_ACTIVE").problems).toEqual(hmacKeyProblems(env, "A_KEYS", "A_ACTIVE"));
+    }
+  });
+
+  it("refuses a repeated key id only when asked to, naming the position", () => {
+    const env = { A_KEYS: `k1:${k32(1)},k1:${k32(2)}`, A_ACTIVE: "k1" };
+    expect(parseHmacKeys(env, "A_KEYS", "A_ACTIVE").problems).toEqual([]);
+    expect(parseHmacKeys(env, "A_KEYS", "A_ACTIVE", { rejectDuplicateIds: true }).problems)
+      .toEqual(["A_KEYS entry 2 repeats a key id"]);
+  });
+});
+
 // THE SCRIPT, NOT ONLY THE FUNCTION. The table above proves the rules; this
 // proves `deploy-preflight.mjs` applies them, so deleting its loop or inverting
 // its guard fails a test and not only a manual exercise.
@@ -138,6 +166,33 @@ describe("deploy-preflight.mjs applies the key rules", () => {
     expect(r.status).toBe(1);
     expect(r.stderr).toContain("EXTERNAL_LINK_HMAC_KEYS entry 1 is not <keyId>");
     expect(r.stderr).toContain("EXTERNAL_SESSION_ACTIVE_KEY_ID names a key id that is not in EXTERNAL_SESSION_HMAC_KEYS");
+  });
+
+  it("checks the Telegram link keys when either name is set, and leaves them alone when neither is (BL-085)", () => {
+    const bad = run({ TELEGRAM_LINK_HMAC_KEYS: "nokeyid", TELEGRAM_LINK_ACTIVE_KEY_ID: "k1" });
+    expect(bad.status).toBe(1);
+    expect(bad.stderr).toContain("TELEGRAM_LINK_HMAC_KEYS entry 1 is not <keyId>");
+    const half = run({ TELEGRAM_LINK_HMAC_KEYS: `t1:${k32(3)}` });
+    expect(half.status).toBe(1);
+    expect(half.stderr).toContain("TELEGRAM_LINK_ACTIVE_KEY_ID is not set");
+    const good = run({ TELEGRAM_LINK_HMAC_KEYS: `t1:${k32(3)}`, TELEGRAM_LINK_ACTIVE_KEY_ID: "t1" });
+    expect(good.status).toBe(0);
+  });
+
+  it("refuses more than eight Telegram link keys, which the app refuses at runtime", () => {
+    const keys = Array.from({ length: 9 }, (_, i) => `t${i}:${k32(i + 10)}`).join(",");
+    const r = run({ TELEGRAM_LINK_HMAC_KEYS: keys, TELEGRAM_LINK_ACTIVE_KEY_ID: "t0" });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("TELEGRAM_LINK_HMAC_KEYS holds more than 8 keys");
+  });
+
+  it("refuses a deployment that carries the operator-only erasure keys, without printing them", () => {
+    const secret = varied(32, 11);
+    const r = run({ TELEGRAM_ERASURE_HMAC_KEYS: `e1:${secret}`, TELEGRAM_ERASURE_ACTIVE_KEY_ID: "e1" });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("TELEGRAM_ERASURE_HMAC_KEYS is set on a deployment");
+    expect(r.stderr).toContain("TELEGRAM_ERASURE_ACTIVE_KEY_ID is set on a deployment");
+    expect(noWindowOf(r.stderr + r.stdout, secret)).toBeNull();
   });
 
   it("does not print a secret pasted before the separator", () => {

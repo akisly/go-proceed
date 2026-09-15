@@ -2933,7 +2933,7 @@ create table public.telegram_chat_bindings (
 );
 create table public.telegram_binding_intents (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
-  requested_by_member_id uuid not null, verifier_hash text not null,
+  requested_by_member_id uuid not null, verifier_hash text not null, verifier_key_id text not null,
   expires_at timestamptz not null, consumed_at timestamptz, consumed_by_telegram_user_id bigint,
   created_at timestamptz not null, unique (workspace_id, id), unique (verifier_hash),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),
@@ -2943,7 +2943,7 @@ create table public.telegram_binding_intents (
 );
 create table public.telegram_member_link_intents (
   id uuid primary key, workspace_id uuid not null, project_id uuid not null,
-  member_id uuid not null, issued_by_member_id uuid not null, verifier_hash text not null,
+  member_id uuid not null, issued_by_member_id uuid not null, verifier_hash text not null, verifier_key_id text not null,
   expires_at timestamptz not null, consumed_at timestamptz, consumed_by_telegram_user_id bigint,
   created_at timestamptz not null, unique (workspace_id, id), unique (verifier_hash),
   foreign key (workspace_id, project_id) references public.project_field_channels(workspace_id, project_id),

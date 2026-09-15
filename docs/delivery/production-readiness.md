@@ -424,6 +424,11 @@ the closed ones.
         gate stays open because `TELEGRAM_LINK_PEPPER`, an HMAC verifier key, carries
         no key id (owner, 2026-09-15: build one, BL-085), and because one hosted
         environment exists with no separate production project (Q-9).
+      - **Evidence toward this gate, 2026-09-15 — not closed**
+        ([DEV-011](../tasks/DEV-011-telegram-hmac-key-ids.md), until it merges): the
+        Telegram link and erasure HMAC keys carry key ids (migration `0085`),
+        replacing `TELEGRAM_LINK_PEPPER` (BL-085). The gate stays open on Q-9, and
+        no rotation has been exercised on a hosted project.
 
 ## Evidence format
 

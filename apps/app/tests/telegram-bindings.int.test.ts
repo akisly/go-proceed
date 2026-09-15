@@ -45,6 +45,16 @@ async function createMemberLinkIntent(idempotencyKey?: string) {
     { params: Promise.resolve({ projectId }) });
 }
 
+// BL-085: link-token verifiers carry the id of the key that signed them.
+const k32 = (n: number) => Buffer.alloc(32, n).toString("base64");
+const KEYS_K1 = `k1:${k32(1)}`;
+const KEYS_K1_K2 = `k1:${k32(1)},k2:${k32(2)}`;
+const KEYS_K2 = `k2:${k32(2)}`;
+function useLinkKeys(keys: string, active: string) {
+  vi.stubEnv("TELEGRAM_LINK_HMAC_KEYS", keys);
+  vi.stubEnv("TELEGRAM_LINK_ACTIVE_KEY_ID", active);
+}
+
 const databaseDescribe = process.env.APP_DB_URL && process.env.SERVICE_DB_URL ? describe : describe.skip;
 
 databaseDescribe("Telegram group binding and membership links", () => {
@@ -54,7 +64,7 @@ databaseDescribe("Telegram group binding and membership links", () => {
   vi.stubEnv("TELEGRAM_BOT_USERNAME", "GoProceedTestBot");
   vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "w".repeat(32));
   vi.stubEnv("TELEGRAM_WORKER_SECRET", "r".repeat(32));
-  vi.stubEnv("TELEGRAM_LINK_PEPPER", "p".repeat(32));
+  useLinkKeys(KEYS_K1, "k1");
   vi.stubEnv("APP_PUBLIC_ORIGIN", "https://app.goproceed.test");
   current = A;
   workspaceId = "";
@@ -91,6 +101,52 @@ databaseDescribe("Telegram group binding and membership links", () => {
     const c = new Client({ connectionString: admin });
     await c.connect();
     try { await dropWorkspaces(c, [workspaceId]); } finally { await c.end(); }
+  });
+
+  it("stores the signing key id, and consumes a token signed before a rotation under the new key set", async () => {
+    const issued = await createBindingIntent();
+    expect(issued.status).toBe(201);
+    const body = await issued.json();
+    const rawToken = tokenFrom(body.telegramUrl, "startgroup");
+    expect(await q("select verifier_key_id from public.telegram_binding_intents where id=$1", [body.intentId]))
+      .toEqual([{ verifier_key_id: "k1" }]);
+
+    useLinkKeys(KEYS_K1_K2, "k2");
+    expect((await consumeBindingCommand({
+      rawToken, chatId: "-100123", chatType: "supergroup", title: "Будівництво", telegramUserId: "8001",
+    })).kind).toBe("connected");
+    // The audit row is keyed by the intent id the definer returned, not by a
+    // second lookup on the verifier.
+    expect(await q("select object_id from public.audit_events where organization_id=$1 and action='telegram_binding_intent.consumed'",
+      [workspaceId])).toEqual([{ object_id: body.intentId }]);
+  });
+
+  it("signs a new member-link token with the active key and consumes it", async () => {
+    useLinkKeys(KEYS_K1_K2, "k2");
+    const issued = await createMemberLinkIntent();
+    expect(issued.status).toBe(201);
+    const body = await issued.json();
+    expect(await q("select verifier_key_id from public.telegram_member_link_intents where id=$1", [body.intentId]))
+      .toEqual([{ verifier_key_id: "k2" }]);
+    const rawToken = tokenFrom(body.telegramUrl, "start");
+    expect((await consumeMemberLinkCommand({
+      rawToken, telegramUserId: "8002", displayName: "Петро", username: null,
+    })).kind).toBe("linked");
+    expect(await q("select object_id from public.audit_events where organization_id=$1 and action='telegram_member_link_intent.consumed'",
+      [workspaceId])).toEqual([{ object_id: body.intentId }]);
+  });
+
+  it("refuses a token whose signing key was removed, and leaves the intent unconsumed", async () => {
+    const issued = await createBindingIntent();
+    const body = await issued.json();
+    const rawToken = tokenFrom(body.telegramUrl, "startgroup");
+
+    useLinkKeys(KEYS_K2, "k2");
+    expect((await consumeBindingCommand({
+      rawToken, chatId: "-100123", chatType: "supergroup", title: "Будівництво", telegramUserId: "8001",
+    })).kind).toBe("invalid_or_expired");
+    expect(await q("select consumed_at from public.telegram_binding_intents where id=$1", [body.intentId]))
+      .toEqual([{ consumed_at: null }]);
   });
 
   it("consumes a group-binding token exactly once", async () => {

@@ -985,10 +985,14 @@ snapshots become NULL, its text becomes `[текст стерто на запи�
 history is redacted the same way, its member link is revoked and surrogated,
 and its attachment filenames are cleared. One audit row `telegram_identity.erased`
 records the surrogate and the counts — never the identifier. The registry
-`app.telegram_erasures` keeps a peppered HMAC so a repeat is idempotent.
+`app.telegram_erasures` keeps an HMAC of the person under an erasure key, with
+that key's id, so a repeat is idempotent (migration `0085`).
 
-**Run it** on a machine holding the target environment's `SERVICE_DB_URL` and
-`TELEGRAM_LINK_PEPPER` (the same values the app deploys with):
+**Run it** on a machine holding the target environment's `SERVICE_DB_URL`,
+`TELEGRAM_ERASURE_HMAC_KEYS` and `TELEGRAM_ERASURE_ACTIVE_KEY_ID`. The erasure
+keys live on operator machines only, never in a deployment, and the list keeps
+every key id the workspace's registry holds — the command refuses otherwise
+([secret-rotation.md](secret-rotation.md) «Telegram link and erasure HMAC keys»):
 
 ```bash
 pnpm --filter @goproceed/app exec node scripts/telegram-erase-identity.mjs \

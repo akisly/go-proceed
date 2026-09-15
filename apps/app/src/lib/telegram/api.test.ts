@@ -9,7 +9,7 @@ const config: TelegramConfig = {
   botUsername: "goproceed_bot",
   webhookSecret: "w".repeat(32),
   workerSecret: "r".repeat(32),
-  linkPepper: "p".repeat(32),
+  linkKeys: { activeKeyId: "k1", keys: new Map([["k1", Buffer.alloc(32, 1)]]) },
   appPublicOrigin: "https://app.example.test",
 };
 

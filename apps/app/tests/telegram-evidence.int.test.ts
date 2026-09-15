@@ -91,7 +91,7 @@ databaseDescribe("Telegram evidence bridge", () => {
     Object.assign(process.env, {
       TELEGRAM_BOT_TOKEN: "t".repeat(24), TELEGRAM_BOT_ID: BOT_ID, TELEGRAM_BOT_USERNAME: "goproceed_test_bot",
       TELEGRAM_WEBHOOK_SECRET: "w".repeat(32), TELEGRAM_WORKER_SECRET: "r".repeat(32),
-      TELEGRAM_LINK_PEPPER: "p".repeat(32), APP_PUBLIC_ORIGIN: "https://telegram-evidence.test",
+      TELEGRAM_LINK_HMAC_KEYS: `k1:${Buffer.alloc(32, 1).toString("base64")}`, TELEGRAM_LINK_ACTIVE_KEY_ID: "k1", APP_PUBLIC_ORIGIN: "https://telegram-evidence.test",
     });
   });
 

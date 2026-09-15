@@ -68,12 +68,12 @@ export const POST = commandRoute(createBindingIntentRequest, async (a) => {
 
     const config = loadTelegramConfig();
     const rawToken = issueTelegramToken();
-    const verifierHash = telegramVerifier(rawToken, config.linkPepper);
+    const { keyId, verifierHash } = telegramVerifier(rawToken, config.linkKeys);
     const expiresAt = new Date(Date.now() + INTENT_LIFETIME_MS);
     const intentId = randomUUID();
     await tx.query(`insert into public.telegram_binding_intents
-      (id, workspace_id, project_id, requested_by_member_id, verifier_hash, expires_at)
-      values ($1,$2,$3,$4,$5,$6)`, [intentId, workspaceId, projectId, memberId, verifierHash, expiresAt]);
+      (id, workspace_id, project_id, requested_by_member_id, verifier_hash, verifier_key_id, expires_at)
+      values ($1,$2,$3,$4,$5,$6,$7)`, [intentId, workspaceId, projectId, memberId, verifierHash, keyId, expiresAt]);
     await recordAudit(tx, ctx, {
       action: "telegram_binding_intent.created", object_type: "telegram_binding_intent", object_id: intentId,
       details: { projectId, memberId, expiresAt: expiresAt.toISOString() },
