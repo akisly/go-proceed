@@ -245,6 +245,18 @@ artifact the first time it is pasted into a bug report.
   tenant-isolation tests for every module, so an exposed tenant relation with no
   positive and negative policy test is a gap. INV-060's default-privilege and
   RLS-coverage check is what makes that assertion mechanical instead of a claim.
+- **How that check works** *[added 2026-09-16, [DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)]*.
+  `technical/database/rls-coverage.csv` lists every relation the database
+  exposes by a direct table or column grant to `anon`, `authenticated`,
+  `goproceed_app`, `goproceed_service` or `goproceed_worker`, one row per
+  principal, as `covered` (a cited positive and negative test), `gap` (with its
+  backlog entry) or `exempt_no_grant`. `pnpm validate:canonical-docs` checks it
+  against the migrations and the cited tests without a database, and accepts a
+  cited test only in one plain, unskippable shape; `packages/testing/src/rls-coverage.test.ts`
+  checks it against the running database. A table first created after `0085`
+  cannot enter it as a gap. No quarantine ledger exists yet; when one does, it
+  must refuse any test the registry cites. The evidence run for the cited tests
+  is the unfiltered `pnpm --filter @goproceed/testing test`.
 - This is also M0 gate 11 in
   [production-readiness.md](production-readiness.md). The same evidence closes
   both, and it must: a pilot admitted on a sampled coverage claim is admitted on

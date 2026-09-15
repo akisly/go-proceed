@@ -519,6 +519,218 @@ export function deployedTables(sqlTexts) {
   return found;
 }
 
+// --------------------------------------------------------------------------
+// The tenant-isolation coverage registry (DEV-013, readiness gate 11, INV-060)
+// --------------------------------------------------------------------------
+
+export const RLS_COVERAGE_CSV = "technical/database/rls-coverage.csv";
+const RLS_HEADER = "schema,relation,principal,module,classification,positive_test,negative_test,backlog_id,reason";
+const RLS_PRINCIPALS = new Set(["anon", "authenticated", "goproceed_app", "goproceed_service", "goproceed_worker"]);
+const RLS_CLASSES = new Set(["covered", "gap", "exempt_no_grant"]);
+/** The migration after which a table can no longer arrive in the registry as a gap. */
+export const RLS_RATCHET_AFTER = 85;
+
+/**
+ * `schema.relation` → the number of the first migration that creates it: base
+ * tables in `public` and `app`, views in `api`. Like `deployedTables`, this
+ * reads the migration FILES, so it answers «is the DDL written».
+ */
+export function deployedRelations(files) {
+  const first = new Map();
+  for (const [name, sql] of [...files].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const number = Number((name.match(/^(\d+)/) ?? [])[1]);
+    const patterns = [
+      /create table (?:if not exists )?(public|app)\.(\w+)/gi,
+      /create (?:or replace )?view (api)\.(\w+)/gi,
+    ];
+    for (const re of patterns) {
+      for (const m of sql.matchAll(re)) {
+        const key = `${m[1].toLowerCase()}.${m[2].toLowerCase()}`;
+        if (!first.has(key)) first.set(key, number);
+      }
+    }
+  }
+  return first;
+}
+
+function rlsCsvRecords(text) {
+  const records = [];
+  let field = "";
+  let record = [];
+  let quoted = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (quoted) {
+      if (ch === '"' && text[i + 1] === '"') { field += '"'; i += 1; } else if (ch === '"') quoted = false; else field += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ",") { record.push(field); field = ""; }
+    else if (ch === "\n" || ch === "\r") {
+      if (ch === "\r" && text[i + 1] === "\n") i += 1;
+      record.push(field); field = "";
+      if (record.some((f) => f !== "")) records.push(record);
+      record = [];
+    } else field += ch;
+  }
+  if (field !== "" || record.length) { record.push(field); if (record.some((f) => f !== "")) records.push(record); }
+  return records;
+}
+
+/**
+ * Tests the scanner can find in a vitest file: `it`/`test` calls whose title is
+ * a double-quoted literal, inside a column-0 `describe`/`suite` whose title is
+ * one too. Chain modifiers, the rest of each call line and the body are kept, so
+ * `citedTestProblems` can refuse anything but the one plain shape. vitest 3.2.4
+ * has at least nine ways to keep a test from running (DEV-013 record, Sources),
+ * and a scanner that only refused known modifiers would miss the others.
+ */
+function vitestTests(source) {
+  const describeRe = /^(describe|suite)((?:\.\w+(?:\([^()]*\))?)*)\(\s*"((?:[^"\\]|\\.)*)"(.*)$/;
+  const testRe = /^(\s+)(it|test)((?:\.\w+(?:\([^()]*\))?)*)\(\s*"((?:[^"\\]|\\.)*)"(.*)$/;
+  const nestedRe = /^\s+(describe|suite)\b/;
+  const mods = (chain) => chain.split(".").filter(Boolean).map((x) => x.replace(/\(.*$/, ""));
+  const tests = [];
+  let describe = null;
+  let current = null;
+  for (const line of source.split("\n")) {
+    let m;
+    if ((m = describeRe.exec(line))) {
+      describe = { title: m[3], mods: mods(m[2]), rest: m[4], nested: false };
+      current = null;
+      continue;
+    }
+    if (/^\}/.test(line)) { describe = null; current = null; continue; }
+    if (describe && nestedRe.test(line)) { describe.nested = true; current = null; continue; }
+    if (describe && (m = testRe.exec(line))) {
+      current = {
+        describe: describe.title, describeMods: describe.mods, describeRest: describe.rest, nested: describe.nested,
+        indent: m[1], title: m[4], mods: mods(m[3]), rest: m[5], body: line,
+      };
+      tests.push(current);
+      continue;
+    }
+    if (current) current.body += `\n${line}`;
+  }
+  return tests;
+}
+
+/** File-level constructs that can skip or alter any test in the file. */
+function citedFileProblems(source) {
+  const problems = [];
+  if (/\.only\b|\bonly\s*:/.test(source)) problems.push(".only, which skips the rest of the file");
+  if (/\bgetCurrentTest\b/.test(source)) problems.push("getCurrentTest, which can skip a test from a helper");
+  if (/\.extend\s*\(/.test(source)) problems.push(".extend(, whose fixtures can skip");
+  // A declaration named it/test/describe/suite, or an import aliased to one; prose such as «as it» in a comment is not.
+  if (/^\s*(?:export\s+)?(?:const|let|var|function|class)\s+(?:it|test|describe|suite)\b|\bimport\s*\{[^}]*\bas\s+(?:it|test|describe|suite)\b/m.test(source)) {
+    problems.push("a rebinding of it, test or describe");
+  }
+  const outsideSkip = [...source.matchAll(/(\w+)\s*\.\s*skip\s*\(/g)].some((m) => !["it", "test", "describe", "suite"].includes(m[1]))
+    || /(?<![.\w])skip\s*\(/.test(source)
+    // A destructured `skip` (`({ skip }) =>`, `const { skip } =`), not an options object's `skip:` key,
+    // which only affects its own test or describe and is refused there.
+    || /\(\s*\{[^}]*\bskip\b(?!\s*:)[^}]*\}\s*\)|\{[^}]*\bskip\b(?!\s*:)[^}]*\}\s*=/.test(source);
+  if (outsideSkip) problems.push("skip() or a destructured skip, which a hook or test can use to skip");
+  return problems;
+}
+
+/** Why one cited test is not the plain, unskippable shape; empty when it is. */
+function citedTestProblems(test) {
+  const why = [];
+  if (test.mods.length) why.push(`it.${test.mods.join(".")}`);
+  if (test.describeMods.length) why.push(`describe.${test.describeMods.join(".")}`);
+  if (!/^\s*,\s*\(\s*\)\s*=>/.test(test.describeRest)) why.push("describe is not a plain title and parameterless function");
+  if (test.nested) why.push("inside a nested describe");
+  if (test.indent !== "  ") why.push("not directly inside its describe");
+  if (!/^\s*,\s*(?:async\s*)?\(\s*\)\s*=>|^\s*,\s*(?:async\s+)?function\s*\(\s*\)/.test(test.rest)) {
+    why.push("not a plain title and parameterless function (options, a test context, or no function)");
+  }
+  if (/^\s*\},\s*\{/m.test(test.body)) why.push("options after its function");
+  if (!/\bexpect\s*[.(]/.test(test.body)) why.push("asserts nothing (no expect)");
+  return why;
+}
+
+/** A vitest config or test script that can filter tests out silently. */
+export function vitestRunFilterErrors(configText, testScript, where) {
+  const errors = [];
+  for (const key of ["testNamePattern", "allowOnly", "retry", "passWithNoTests", "exclude"]) {
+    if (new RegExp(`\\b${key}\\b`).test(configText)) errors.push(`${where}: vitest config sets ${key}, which can hide a cited test`);
+  }
+  if (/(?:^|\s)-t\b|--testNamePattern|--allowOnly|--exclude|--shard|\.test\.ts:\d+/.test(testScript)) {
+    errors.push(`${where}: the test script filters tests (${testScript})`);
+  }
+  return errors;
+}
+
+/**
+ * The registry against the migrations, the backlog, the entity catalog's modules
+ * and the cited test sources. `sources` maps each cited path to its text, or
+ * lacks it when the file does not exist.
+ */
+export function rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modules, ratchetAfter = RLS_RATCHET_AFTER }) {
+  const where = RLS_COVERAGE_CSV;
+  const errors = [];
+  const [header, ...rows] = rlsCsvRecords(csvText);
+  if (!header || header.join(",") !== RLS_HEADER) return [`${where}: header must be ${RLS_HEADER}`];
+  const seen = new Set();
+  const listed = new Set();
+  const cols = RLS_HEADER.split(",");
+  const pad = (n) => String(n).padStart(4, "0");
+  rows.forEach((fields, index) => {
+    const at = `${where}: row ${index + 2}`;
+    if (fields.length !== cols.length) { errors.push(`${at} has ${fields.length} fields, not ${cols.length}`); return; }
+    const r = Object.fromEntries(cols.map((c, i) => [c, fields[i]]));
+    const rel = `${r.schema}.${r.relation}`;
+    const key = `${rel} ${r.principal}`;
+    listed.add(rel);
+    if (seen.has(key)) errors.push(`${at}: ${key} appears twice`);
+    seen.add(key);
+    if (!RLS_CLASSES.has(r.classification)) errors.push(`${at} (${key}): unknown classification ${r.classification}`);
+    if (!modules.has(r.module)) errors.push(`${at} (${key}): unknown module ${r.module}`);
+    if (!deployed.has(rel)) errors.push(`${at}: ${rel} is not created by any migration`);
+    if (r.classification === "exempt_no_grant") {
+      if (r.principal !== "none") errors.push(`${at} (${key}): an exemption names principal none`);
+      if (!r.reason) errors.push(`${at} (${key}): exempt_no_grant needs a reason`);
+      if (r.positive_test || r.negative_test || r.backlog_id) errors.push(`${at} (${key}): an exemption cites no test and no backlog id`);
+      return;
+    }
+    if (!RLS_PRINCIPALS.has(r.principal)) errors.push(`${at} (${key}): unknown principal ${r.principal}`);
+    if (r.classification === "gap") {
+      if (!r.backlog_id) errors.push(`${at} (${key}): gap needs a backlog_id`);
+      else if (!/^BL-\d{3}$/.test(r.backlog_id) || !backlogIds.has(r.backlog_id)) errors.push(`${at} (${key}): ${r.backlog_id} is not an entry in docs/BACKLOG.md`);
+      if (!r.reason) errors.push(`${at} (${key}): gap needs a reason`);
+      if (r.positive_test || r.negative_test) errors.push(`${at} (${key}): a gap cites no test; classify it covered`);
+      if (deployed.has(rel) && deployed.get(rel) > ratchetAfter) {
+        errors.push(`${at}: ${rel} was first created after ${pad(ratchetAfter)} and cannot arrive as a gap; cover it`);
+      }
+      return;
+    }
+    if (r.classification !== "covered") return;
+    if (r.backlog_id) errors.push(`${at} (${key}): covered takes no backlog_id`);
+    for (const column of ["positive_test", "negative_test"]) {
+      const citation = r[column];
+      if (!citation) { errors.push(`${at} (${key}): covered needs a ${column}`); continue; }
+      const [path, describeTitle, ...rest] = citation.split("::");
+      const title = rest.join("::");
+      if (!path.startsWith("packages/testing/src/") || !path.endsWith(".test.ts") || !describeTitle || !title) {
+        errors.push(`${at} (${key}) ${column}: must cite a file under packages/testing/src/ as <file>::<describe>::<it>`);
+        continue;
+      }
+      const source = sources.get(path);
+      if (source === undefined) { errors.push(`${at} (${key}) ${column}: ${path} does not exist`); continue; }
+      for (const problem of citedFileProblems(source)) errors.push(`${at} (${key}) ${column}: ${path} can be skipped from outside a test: ${problem}`);
+      if (!new RegExp(`\\b${r.relation}\\b`).test(source)) errors.push(`${at} (${key}) ${column}: ${path} does not name ${rel}`);
+      const matches = vitestTests(source).filter((x) => x.describe === describeTitle && x.title === title);
+      if (matches.length === 0) { errors.push(`${at} (${key}) ${column}: no test «${describeTitle}» › «${title}» in ${path}`); continue; }
+      if (matches.length > 1) { errors.push(`${at} (${key}) ${column}: «${describeTitle}» › «${title}» matches ${matches.length} tests in ${path}`); continue; }
+      const why = citedTestProblems(matches[0]);
+      if (why.length) errors.push(`${at} (${key}) ${column}: «${describeTitle}» › «${title}» can be skipped or pass without asserting (${why.join("; ")})`);
+    }
+  });
+  for (const rel of [...deployed.keys()].sort()) {
+    if (!listed.has(rel)) errors.push(`${where}: ${rel} is created by a migration but has no row`);
+  }
+  return errors;
+}
+
 // A `status_version` naming a version later than v0.1. Applied migrations are
 // precedence level 1 in docs/README.md, so a marker that says a deployed table
 // arrives later is false about the world, whatever the build plan says. The
@@ -1783,6 +1995,104 @@ function selfTest() {
   if (!cite("TODOS.md only here").some((e) => e.includes("neither"))) t.push("backlog (malformed legacy cite)");
   if (!cite("`TODOS.md` «only here»; `TODOS.md` «twice»").some((e) => e.includes("is on 2 lines"))) t.push("backlog (second of two legacy cites checked)");
 
+  // DEV-013: the tenant-isolation coverage registry (readiness gate 11, INV-060).
+  {
+    const H = "schema,relation,principal,module,classification,positive_test,negative_test,backlog_id,reason";
+    const good = "packages/testing/src/fx-rls.test.ts";
+    const src = [
+      'import { describe, expect, it } from "vitest";',
+      'describe("isolation", () => {',
+      '  it("a member reads own rows", async () => { expect(1).toBe(1); });',
+      '  it("another workspace reads nothing", async () => {',
+      '    expect(0).toBe(0);',
+      '  }, 300_000);',
+      '  it.skip("skipped read", async () => { expect(1).toBe(1); });',
+      '  it("takes a context", async (ctx) => { expect(ctx).toBeDefined(); });',
+      '  it("with options", { retry: 3 }, async () => { expect(1).toBe(1); });',
+      '  it.each([1])("each %s", async () => { expect(1).toBe(1); });',
+      '  it("asserts nothing", async () => {});',
+      '  it("dup", async () => { expect(1).toBe(1); });',
+      '  it("dup", async () => { expect(1).toBe(1); });',
+      '  if (true) {',
+      '    it("inside an if", async () => { expect(1).toBe(1); });',
+      '  }',
+      '});',
+      'describe.skip("parked", () => {',
+      '  it("parked read", async () => { expect(1).toBe(1); });',
+      '});',
+      'describe("optioned", { skip: true }, () => {',
+      '  it("optioned read", async () => { expect(1).toBe(1); });',
+      '});',
+    ].join("\n");
+    const names = "\n// projects work_items late_table\n";
+    const fileWith = (extra) => `import { describe, expect, it } from "vitest";\n${extra}\ndescribe("x", () => {\n  it("y", async () => { expect(1).toBe(1); });\n});${names}`;
+    const cite = (d, i) => `${good}::${d}::${i}`;
+    const P = cite("isolation", "a member reads own rows");
+    const N = cite("isolation", "another workspace reads nothing");
+    const base = {
+      deployed: new Map([["public.projects", 10], ["public.work_items", 12], ["app.retention_policy", 81], ["public.late_table", 86]]),
+      sources: new Map([
+        [good, src + names],
+        ["packages/testing/src/fx-only.test.ts", 'import { describe, expect, it } from "vitest";\ndescribe("x", () => {\n  it.only("y", async () => { expect(1).toBe(1); });\n});' + names],
+        ["packages/testing/src/fx-hook.test.ts", fileWith("beforeEach((ctx) => { ctx.skip(); });")],
+        ["packages/testing/src/fx-extend.test.ts", fileWith("const dbIt = it.extend({});")],
+        ["packages/testing/src/fx-current.test.ts", fileWith("import { getCurrentTest } from \"vitest/suite\";")],
+        ["packages/testing/src/fx-rebind.test.ts", fileWith("const describe2 = 1;\nfunction it() {}")],
+        ["packages/testing/src/fx-alias.test.ts", fileWith("import { test as it2, describe as it } from \"vitest\";")],
+        ["packages/testing/src/fx-prose.test.ts", fileWith("// the table is read as it was written, and as test data")],
+      ]),
+      backlogIds: new Set(["BL-001"]),
+      modules: new Set(["execution", "operational"]),
+      ratchetAfter: 85,
+    };
+    const rows = [
+      `public,projects,goproceed_app,execution,covered,${P},${N},,`,
+      "public,work_items,goproceed_app,execution,gap,,,BL-001,no negative",
+      "app,retention_policy,none,operational,exempt_no_grant,,,,no grant (0081:72)",
+      `public,late_table,goproceed_app,execution,covered,${P},${N},,`,
+    ];
+    const cov = (rs, over = {}) => rlsCoverageErrors({ ...base, ...over, csvText: [H, ...rs].join("\n") + "\n" });
+    const says = (errs, needle) => errs.some((e) => e.includes(needle));
+    const withCite = (pos, neg = N) => [`public,projects,goproceed_app,execution,covered,${pos},${neg},,`, ...rows.slice(1)];
+    const refused = (citation, needle, label) => { if (!says(cov(withCite(citation)), needle)) t.push(`rls coverage (${label})`); };
+    if (cov(rows).length !== 0) t.push(`rls coverage (agreeing registry: ${cov(rows).join(" | ")})`);
+    if (!says(cov(rows.slice(1)), "public.projects is created by a migration but has no row")) t.push("rls coverage (deployed table missing)");
+    if (!says(cov([...rows, "public,ghost,goproceed_app,execution,gap,,,BL-001,x"]), "public.ghost is not created by any migration")) t.push("rls coverage (stale row)");
+    if (!says(cov([rows[0].replace(",covered,", ",maybe,"), ...rows.slice(1)]), "unknown classification maybe")) t.push("rls coverage (unknown classification)");
+    if (!says(cov([...rows, rows[0]]), "appears twice")) t.push("rls coverage (duplicate key)");
+    if (!says(cov([`public,projects,goproceed_app,execution,covered,${P},,,`, ...rows.slice(1)]), "needs a negative_test")) t.push("rls coverage (covered without a negative)");
+    if (!says(cov([rows[0], "public,work_items,goproceed_app,execution,gap,,,,no negative", ...rows.slice(2)]), "needs a backlog_id")) t.push("rls coverage (gap without a backlog id)");
+    if (!says(cov([rows[0], "public,work_items,goproceed_app,execution,gap,,,BL-999,no negative", ...rows.slice(2)]), "BL-999 is not an entry in docs/BACKLOG.md")) t.push("rls coverage (gap with an unknown backlog id)");
+    if (!says(cov([...rows.slice(0, 2), "app,retention_policy,none,operational,exempt_no_grant,,,,", rows[3]]), "needs a reason")) t.push("rls coverage (exemption without a reason)");
+    if (!says(cov([rows[0].replace(",execution,", ",nowhere,"), ...rows.slice(1)]), "unknown module nowhere")) t.push("rls coverage (unknown module)");
+    if (!says(cov([`public,projects,postgres,execution,covered,${P},${N},,`, ...rows.slice(1)]), "unknown principal postgres")) t.push("rls coverage (unknown principal)");
+    if (!says(cov(rows.map((r, i) => (i === 3 ? "public,late_table,goproceed_app,execution,gap,,,BL-001,x" : r))), "public.late_table was first created after 0085")) t.push("rls coverage (gap after the ratchet)");
+    refused("packages/testing/src/missing.test.ts::isolation::x", "packages/testing/src/missing.test.ts does not exist", "missing cited file");
+    refused(cite("isolation", "no such test"), "no test «isolation» › «no such test»", "missing cited test");
+    refused(cite("other", "a member reads own rows"), "no test «other» › «a member reads own rows»", "test under another describe");
+    refused(cite("isolation", "dup"), "matches 2 tests", "ambiguous cited test");
+    refused(cite("isolation", "skipped read"), "it.skip", "it.skip");
+    refused(cite("isolation", "each %s"), "it.each", "it.each");
+    refused(cite("parked", "parked read"), "describe.skip", "describe.skip");
+    refused(cite("optioned", "optioned read"), "describe is not a plain title", "describe with options");
+    refused(cite("isolation", "takes a context"), "parameterless function", "test taking a context");
+    refused(cite("isolation", "with options"), "parameterless function", "test with options");
+    refused(cite("isolation", "asserts nothing"), "asserts nothing", "test with no expect");
+    refused(cite("isolation", "inside an if"), "not directly inside its describe", "test inside an if");
+    refused("packages/testing/src/fx-only.test.ts::x::y", ".only", ".only in the cited file");
+    refused("packages/testing/src/fx-hook.test.ts::x::y", "skip() or a destructured skip", "skip in a hook");
+    refused("packages/testing/src/fx-extend.test.ts::x::y", ".extend(", ".extend in the cited file");
+    refused("packages/testing/src/fx-current.test.ts::x::y", "getCurrentTest", "getCurrentTest in the cited file");
+    refused("packages/testing/src/fx-rebind.test.ts::x::y", "a rebinding of it, test or describe", "rebinding it");
+    refused("packages/testing/src/fx-alias.test.ts::x::y", "a rebinding of it, test or describe", "import aliased to it");
+    if (says(cov(withCite("packages/testing/src/fx-prose.test.ts::x::y")), "a rebinding")) t.push("rls coverage (prose «as it» is not a rebinding)");
+    refused("apps/app/tests/x.int.test.ts::a::b", "must cite a file under packages/testing/src/", "citation outside packages/testing");
+    if (!says(cov(rows, { sources: new Map([[good, src]]) }), "does not name public.projects")) t.push("rls coverage (relation not named in the cited file)");
+    if (vitestRunFilterErrors('test: { include: ["src/**/*.test.ts"] }', "vitest run", "fx").length !== 0) t.push("vitest run filters (clean)");
+    if (!says(vitestRunFilterErrors('test: { testNamePattern: "x" }', "vitest run", "fx"), "testNamePattern")) t.push("vitest run filters (testNamePattern)");
+    if (!says(vitestRunFilterErrors("test: {}", "vitest run -t rls", "fx"), "filters tests")) t.push("vitest run filters (-t)");
+  }
+
   if (t.length) {
     console.error("validator self-test FAILED:", t.join("; "));
     process.exit(2);
@@ -1844,6 +2154,7 @@ const REQUIRED = [
   "technical/database/entity-catalog.csv",
   "technical/database/relationship-catalog.csv",
   "technical/database/invariant-catalog.csv",
+  "technical/database/rls-coverage.csv",
   "technical/database/schema-v0.1.sql",
   "technical/openapi/README.md",
   "technical/openapi/scope-v0.1.csv",
@@ -2146,6 +2457,29 @@ function main() {
   if (existsSync(join(ROOT, "docs/BACKLOG.md"))) {
     const sources = new Map([...FROZEN_RECORDS.keys()].filter((p) => existsSync(join(ROOT, p))).map((p) => [p, read(p)]));
     for (const e of backlogErrors(read("docs/BACKLOG.md"), sources)) fail(e);
+  }
+
+  // DEV-013: the tenant-isolation coverage registry (readiness gate 11, INV-060).
+  if (existsSync(join(ROOT, RLS_COVERAGE_CSV)) && existsSync(MIGRATIONS)) {
+    const csvText = read(RLS_COVERAGE_CSV);
+    const deployed = deployedRelations(readdirSync(MIGRATIONS)
+      .filter((f) => f.endsWith(".sql"))
+      .map((f) => [f, readFileSync(join(MIGRATIONS, f), "utf8")]));
+    const sources = new Map();
+    for (const record of rlsCsvRecords(csvText).slice(1)) {
+      for (const citation of [record[5], record[6]]) {
+        const path = (citation ?? "").split("::")[0];
+        if (path && !sources.has(path) && existsSync(join(ROOT, path))) sources.set(path, read(path));
+      }
+    }
+    const backlogIds = new Set(existsSync(join(ROOT, "docs/BACKLOG.md"))
+      ? [...read("docs/BACKLOG.md").matchAll(/^### (BL-\d{3}) /gm)].map((m) => m[1]) : []);
+    const entityRows = rlsCsvRecords(read("technical/database/entity-catalog.csv"));
+    const moduleIndex = entityRows[0].indexOf("module");
+    const modules = new Set(entityRows.slice(1).map((r) => r[moduleIndex]));
+    for (const e of rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modules })) fail(e);
+    const testingPkg = JSON.parse(read("packages/testing/package.json"));
+    for (const e of vitestRunFilterErrors(read("packages/testing/vitest.config.ts"), testingPkg.scripts?.test ?? "", "packages/testing")) fail(e);
   }
 
   // version-0.1.md declares scope-v0.1.csv authoritative for its row-level

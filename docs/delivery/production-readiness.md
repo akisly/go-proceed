@@ -384,6 +384,18 @@ M0 rather than leaving them to a milestone.
       exposed tenant relation with no positive and negative test is a gap, not
       an omission. INV-060's default-privilege and RLS coverage check is what
       makes that mechanical.
+      - **Evidence toward this gate, 2026-09-16 — not closed**
+        ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)): the check
+        exists. [rls-coverage.csv](../../technical/database/rls-coverage.csv)
+        classifies every relation the database exposes by a direct grant, per
+        principal: 23 `covered`, 50 `gap` (BL-090 to BL-098, one entry per
+        module) and 7 `exempt_no_grant`. `pnpm validate:canonical-docs` checks
+        it against the migrations and the cited tests, and
+        `packages/testing/src/rls-coverage.test.ts` against the running
+        database (10 passed on 2026-09-16, local database at `0085`). **The
+        gate closes only at zero gaps** (owner, 2026-09-16). The cited tests
+        were not run in this task (the owner allowed only the new file), and
+        nothing ran in CI.
 - [ ] The evidence is the test run named in
       [test-strategy.md](test-strategy.md) §"4. Tenant isolation, and the tests
       that cannot be quarantined". The same evidence closes both, and it must,
