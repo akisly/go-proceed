@@ -654,7 +654,7 @@ function vitestTests(rawSource) {
       if (!/^\}/.test(line)) continue;
     }
     if ((m = describeRe.exec(line))) {
-      describe = { title: m[3], mods: mods(m[2]), rest: m[4], nested: false, controlFlow: false, closing: null };
+      describe = { callee: m[1], title: m[3], mods: mods(m[2]), rest: m[4], nested: false, controlFlow: false, closing: null };
       current = null;
       continue;
     }
@@ -662,7 +662,7 @@ function vitestTests(rawSource) {
     if (!describe) continue;
     if (nestedRe.test(line)) { describe.nested = true; current = null; continue; }
     if ((m = testRe.exec(line))) {
-      current = { describe, indent: m[1], title: m[4], mods: mods(m[3]), rest: m[5], body: line, closing: sameLineClosing(m[5]) };
+      current = { describe, callee: m[2], indent: m[1], title: m[4], mods: mods(m[3]), rest: m[5], body: line, closing: sameLineClosing(m[5]) };
       tests.push(current);
       continue;
     }
@@ -679,7 +679,7 @@ function citedFileProblems(rawSource) {
   if (/\bgetCurrentTest\b/.test(source)) problems.push("getCurrentTest, which can skip a test from a helper");
   if (/\.extend\s*\(/.test(source)) problems.push(".extend(, whose fixtures can skip");
   // A declaration named it/test/describe/suite, or an import aliased to one.
-  if (/^\s*(?:export\s+)?(?:const|let|var|function|class)\s+(?:it|test|describe|suite)\b|\bimport\s*\{[^}]*\bas\s+(?:it|test|describe|suite)\b/m.test(source)) {
+  if (/^\s*(?:export\s+)?(?:const|let|var|function|class)\s+(?:it|test|describe|suite)\b|\bimport\s*\{[^}]*\bas\s+(?:it|test|describe|suite)\b|\b(?:const|let|var)\s*\{[^}]*\b(?:it|test|describe|suite)\b[^}]*\}\s*=/m.test(source)) {
     problems.push("a rebinding of it, test or describe");
   }
   const imports = [...source.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/g)];
@@ -699,10 +699,26 @@ function citedFileProblems(rawSource) {
 
 const RLS_CLOSING_OK = /^\}\);$|^\},\s*[\d_]+\s*\);$/;
 
+/** The names a file imports from "vitest". */
+function vitestImports(rawSource) {
+  const source = codeOnly(rawSource);
+  const names = new Set();
+  for (const [, list, from] of source.matchAll(/import\s*\{([^}]*)\}\s*from\s*["']([^"']+)["']/g)) {
+    if (from !== "vitest") continue;
+    for (const item of list.split(",")) {
+      const parts = item.trim().split(/\s+as\s+/);
+      if (parts.length === 1 && parts[0]) names.add(parts[0]);
+    }
+  }
+  return names;
+}
+
 /** Why one cited test is not the plain, unskippable shape; empty when it is. */
-function citedTestProblems(test) {
+function citedTestProblems(test, imported = new Set(["describe", "suite", "it", "test"])) {
   const d = test.describe;
   const why = [];
+  if (!imported.has(test.callee)) why.push(`${test.callee} is not imported from vitest`);
+  if (!imported.has(d.callee)) why.push(`${d.callee} is not imported from vitest`);
   if (test.mods.length) why.push(`it.${test.mods.join(".")}`);
   if (d.mods.length) why.push(`describe.${d.mods.join(".")}`);
   if (!/^\s*,\s*\(\s*\)\s*=>/.test(d.rest)) why.push("describe is not a plain title and parameterless function");
@@ -716,7 +732,7 @@ function citedTestProblems(test) {
   if (test.closing === null || !RLS_CLOSING_OK.test(test.closing)) {
     why.push(`closes with \`${test.closing ?? "nothing"}\`; only \`});\` or \`}, <timeout>);\` is allowed`);
   }
-  if (/^    (?:return\b|if\b.*\breturn\b)|^\s+return\s*;/m.test(test.body)) why.push("returns early");
+  if (/\breturn\b/.test(test.body)) why.push("returns early");
   if (!/\bexpect\s*[.(]/.test(test.body)) why.push("asserts nothing (no expect)");
   return why;
 }
@@ -730,7 +746,11 @@ function citedTestProblems(test) {
 const VITEST_ALLOWED_KEYS = new Set(["test", "environment", "fileParallelism", "include"]);
 export function vitestRunFilterErrors(configText, testScript, where) {
   const errors = [];
-  const code = codeOnly(configText).replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
+  const unblanked = codeOnly(configText);
+  if (/["'][^"'\n]*["']\s*:|\.\.\.|\]\s*:/.test(unblanked)) {
+    errors.push(`${where}: vitest config uses a quoted, spread or computed key, which the key allow-list cannot read`);
+  }
+  const code = unblanked.replace(/"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/g, '""');
   for (const m of new Set([...code.matchAll(/(\w+)\s*:/g)].map((x) => x[1]))) {
     if (!VITEST_ALLOWED_KEYS.has(m)) errors.push(`${where}: vitest config key ${m} is not allowed; it can hide or skip a cited test`);
   }
@@ -805,7 +825,7 @@ export function rlsCoverageErrors({ csvText, deployed, sources, backlogIds, modu
       const matches = vitestTests(source).filter((x) => x.describe.title === describeTitle && x.title === title);
       if (matches.length === 0) { errors.push(`${at} (${key}) ${column}: no test «${describeTitle}» › «${title}» in ${path}`); continue; }
       if (matches.length > 1) { errors.push(`${at} (${key}) ${column}: «${describeTitle}» › «${title}» matches ${matches.length} tests in ${path}`); continue; }
-      const why = citedTestProblems(matches[0]);
+      const why = citedTestProblems(matches[0], vitestImports(source));
       if (why.length) errors.push(`${at} (${key}) ${column}: «${describeTitle}» › «${title}» can be skipped or pass without asserting (${why.join("; ")})`);
     }
   });
@@ -2125,6 +2145,12 @@ function selfTest() {
       '    // expect(1).toBe(1);',
       '  });',
       '  it("expression body", async () => expect(1).toBe(1), { skip: true });',
+      '  it("nested return", async () => {',
+      '    if (!process.env.DB) {',
+      '      return undefined',
+      '    }',
+      '    expect(1).toBe(1);',
+      '  });',
       '  it("multi-line return", async () => {',
       '    if (!process.env.DB) {',
       '      return;',
@@ -2166,6 +2192,8 @@ function selfTest() {
         ["packages/testing/src/fx-rebind.test.ts", fileWith("const describe2 = 1;\nfunction it() {}")],
         ["packages/testing/src/fx-alias.test.ts", fileWith("import { test as it2, describe as it } from \"vitest\";")],
         ["packages/testing/src/fx-prose.test.ts", fileWith("// the table is read as it was written, and as test data; tests skip (without a DB); only: this")],
+        ["packages/testing/src/fx-destructure.test.ts", "import { describe, expect } from \"vitest\";\nimport h from \"./helpers\";\nconst { it } = h;\ndescribe(\"x\", () => {\n  it(\"y\", async () => { expect(1).toBe(1); });\n});" + names],
+        ["packages/testing/src/fx-global-test.test.ts", "import { describe, expect } from \"vitest\";\ndescribe(\"x\", () => {\n  test(\"y\", async () => { expect(1).toBe(1); });\n});" + names],
         ["packages/testing/src/fx-helper-single.test.ts", "import { describe, expect } from \"vitest\";\nimport { it } from './helpers';\ndescribe(\"x\", () => {\n  it(\"y\", async () => { expect(1).toBe(1); });\n});" + names],
         ["packages/testing/src/fx-helper.test.ts", 'import { describe, expect, it } from "./helpers";\ndescribe("x", () => {\n  it("y", async () => { expect(1).toBe(1); });\n});' + names],
       ]),
@@ -2228,6 +2256,9 @@ function selfTest() {
     refused("packages/testing/src/fx-helper-single.test.ts::x::y", "from somewhere other than vitest", "it imported from a helper in single quotes");
     refused(cite("closings", "expression body"), "parameterless function", "an expression body with options");
     refused(cite("closings", "multi-line return"), "returns early", "a multi-line early return");
+    refused(cite("closings", "nested return"), "returns early", "a return without a semicolon in a nested block");
+    refused("packages/testing/src/fx-destructure.test.ts::x::y", "a rebinding of it, test or describe", "it destructured from a helper");
+    refused("packages/testing/src/fx-global-test.test.ts::x::y", "test is not imported from vitest", "a test call not imported from vitest");
     const fxDeployedKinds = deployedRelations([["0090_x.sql", "create foreign table public.ft (\n);\ncreate unlogged table app.ut ();"]]);
     if (!(fxDeployedKinds.has("public.ft") && fxDeployedKinds.has("app.ut"))) t.push("rls coverage (foreign and unlogged tables deployed)");
     if (says(cov(withCite("packages/testing/src/fx-prose.test.ts::x::y")), "can be skipped from outside a test")) t.push("rls coverage (prose «skip (» and «only:» in comments are not code)");
@@ -2247,6 +2278,9 @@ function selfTest() {
     if (!says(vitestRunFilterErrors('test: { include: ["src/rls*.test.ts"] }', "vitest run", "fx"), "include must be exactly")) t.push("vitest run filters (narrowed include)");
     for (const key of ["setupFiles", "projects", "globalSetup"]) {
       if (!says(vitestRunFilterErrors(`test: { include: ["src/**/*.test.ts"], ${key}: [] }`, "vitest run", "fx"), `key ${key} is not allowed`)) t.push(`vitest run filters (unknown key ${key})`);
+    }
+    for (const config of ['test: { "setupFiles": ["./skip.ts"], include: ["src/**/*.test.ts"] }', 'test: { ...shared, include: ["src/**/*.test.ts"] }', 'test: { [key]: 1, include: ["src/**/*.test.ts"] }']) {
+      if (!says(vitestRunFilterErrors(config, "vitest run", "fx"), "a quoted, spread or computed key")) t.push(`vitest run filters (${config.slice(8, 24)})`);
     }
     if (vitestRunFilterErrors('// a comment: with a colon\ntest: { environment: "node", fileParallelism: false, include: ["src/**/*.test.ts"] }', "vitest run", "fx").length !== 0) t.push("vitest run filters (the real config's keys)");
     for (const script of ["vitest run -t rls", "vitest run rls", "vitest run --shard=1/2", "vitest run src/a.test.ts:12", "vitest run --project x"]) {

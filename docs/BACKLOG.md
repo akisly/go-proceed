@@ -125,7 +125,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-094](#bl-094) | P1 | open | 3 external-review registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-095](#bl-095) | P1 | open | 3 operational registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-096](#bl-096) | P1 | open | 2 projection registry rows lack tenant-isolation tests (readiness gate 11) |
-| [BL-097](#bl-097) | P1 | open | 1 requirements registry row lack tenant-isolation tests (readiness gate 11) |
+| [BL-097](#bl-097) | P1 | open | 1 requirements registry row lacks tenant-isolation tests (readiness gate 11) |
 | [BL-098](#bl-098) | P1 | open | 13 workspace-access registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-099](#bl-099) | P2 | open | A `covered` registry row requires only a cross-workspace read denial, not a write denial |
 <!-- index:end -->
@@ -1157,7 +1157,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** before readiness gate 11 closes.
 
 <a id="bl-097"></a>
-### BL-097 — P1 — 1 requirements registry row lack tenant-isolation tests (readiness gate 11)
+### BL-097 — P1 — 1 requirements registry row lacks tenant-isolation tests (readiness gate 11)
 
 - **State:** open
 - **Legacy cite:** none

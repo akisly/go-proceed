@@ -264,7 +264,7 @@ artifact the first time it is pasted into a bug report.
   `pnpm validate:canonical-docs` checks the registry against the migrations and
   the cited tests without a database, and accepts a cited test only in one
   plain, unskippable shape; `packages/testing/src/rls-coverage.test.ts` checks
-  it against the running database, including grants to roles outside the five
+  it against the running database, including grants to roles outside the five,
   row level security on every listed table, an owner outside the bypass roles
   only where RLS is forced, and no view in `public` or `app` without
   `security_invoker`. The scanner does not parse regex literals, so a quote or
