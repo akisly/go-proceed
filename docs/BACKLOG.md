@@ -107,15 +107,17 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-076](#bl-076) | P0 | closed → `0a7c407` | The pool stranded once an over-removal parted quantity from money |
 | [BL-077](#bl-077) | P3 | open | Code and documents still send readers to the frozen `TODOS.md` by entry name |
 | [BL-078](#bl-078) | P3 | open | The rewrite plan's rulings D1–D7 were never recorded in an ADR |
-| [BL-079](#bl-079) | P1 | deferred (owner) | `outputs/` keeps personal data in git against the project's own rule |
+| [BL-079](#bl-079) | P1 | open | `outputs/` keeps personal data in git against the project's own rule |
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
 | [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
 | [BL-083](#bl-083) | P2 | open | Nothing keeps a package reached through pnpm's private hoist at one version |
 | [BL-084](#bl-084) | P2 | open | The act footer names a «Реєстр будівельних норм» that ЗУ «Про будівельні норми» does not name |
-| [BL-085](#bl-085) | P1 | scheduled → DEV-011 | `TELEGRAM_LINK_PEPPER` has no key id, so it cannot be rotated without losing data, and readiness gate 14 waits on it |
+| [BL-085](#bl-085) | P1 | closed → DEV-011 | `TELEGRAM_LINK_PEPPER` has no key id, so it cannot be rotated without losing data, and readiness gate 14 waits on it |
 | [BL-086](#bl-086) | P3 | open | The HMAC key registry accepts a duplicate key id and the same secret in both key spaces |
 | [BL-087](#bl-087) | P2 | open | A leaked Telegram erasure key still re-identifies the registry rows not yet moved to a newer key |
+| [BL-088](#bl-088) | P2 | open | Uploaded images have no dimension, pixel-count or decoding-resource limit |
+| [BL-089](#bl-089) | P2 | open | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -964,13 +966,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-079"></a>
 ### BL-079 — P1 — `outputs/` keeps personal data in git against the project's own rule
 
-- **State:** deferred (owner)
+- **State:** open
 - **Legacy cite:** none
 - **Why:** DEV-007's `gp-security` review (S1-01, S1-02, S1-05) found personal data of natural persons in the prospecting session that commit `bbfc705` added: buyer-side contact persons in the raw ProZorro search dumps, and sole traders under their personal names with ten-digit identifiers, the length of a personal tax number rather than a company code. The project's rule, live through the `.gitignore` entries headed «personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)», keeps lead data out of git history and promises retention limits and deletion on request, which a tracked copy cannot honour without rewriting history. The repository is private and nothing deploys or uploads the directory, but every clone, worktree, CI checkout and agent session that reads it holds the data. The owner kept `outputs/` on 2026-09-13 as the prospecting record; this entry is the decision on how it is kept. Ranked by DEV-007 from the review's severity.
 - **Evidence:** the coordinator's counts at `d8a860a` (2026-09-14): the five `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/prozorro_wave{3..7}_search_hits_2026-08-24.json` files hold 6,371 `contactPoint` objects, each with a name and an email (2,444 distinct name–email pairs); 9,788 `edrpou` values of ten digits across 52 files. `docs/legacy/40-phase1-discovery-outreach.md` §B.5; `.gitignore`'s Child B block. The review found no credentials.
-- **Depends on:** the owner's decision.
+- **Owner decision, 2026-09-15:** move the directory to private storage behind a pointer README; the data stays in `bbfc705` without a history rewrite ([DEV-012](tasks/DEV-012-m0-gate12-evidence.md) Owner decisions).
+- **Depends on:** nothing further from the owner for the move; a history rewrite would be a separate decision.
 - **Deadline:** none recorded.
-- **Resume:** the owner chooses: keep the directory with a recorded purpose, lawful basis and retention date; move it to private storage behind a pointer README; or redact the personal fields in place. Moving or redacting leaves the data in `bbfc705` unless history is rewritten, a further owner decision (force-push, every clone re-made). The coordinator then opens a task for the chosen option, and BL-080 and BL-081 follow it.
+- **Resume:** *(Superseded 2026-09-15 by the owner decision above.)* The owner chooses: keep the directory with a recorded purpose, lawful basis and retention date; move it to private storage behind a pointer README; or redact the personal fields in place. Moving or redacting leaves the data in `bbfc705` unless history is rewritten, a further owner decision (force-push, every clone re-made). The coordinator then opens a task for the chosen option, and BL-080 and BL-081 follow it.
 
 <a id="bl-080"></a>
 ### BL-080 — P2 — Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate
@@ -1026,7 +1029,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-085"></a>
 ### BL-085 — P1 — `TELEGRAM_LINK_PEPPER` has no key id, so it cannot be rotated without losing data, and readiness gate 14 waits on it
 
-- **State:** scheduled → DEV-011
+- **State:** closed → DEV-011
 - **Legacy cite:** none
 - **Why:** readiness gate 14 asks that HMAC verifier keys carry key ids. `TELEGRAM_LINK_PEPPER` keys the Telegram channel's link-token verifiers (`apps/app/src/lib/telegram/tokens.ts`, stored by the binding-intent and member-link-intent routes) and `subject_hmac` in `app.telegram_erasures` (migration `0081`; `apps/app/scripts/telegram-erase-identity.mjs`), with no key id. Replacing it invalidates unused link tokens and breaks the erasure registry's match, so a repeat request allocates a second surrogate and the re-link guard stops firing; a leaked pepper lets anyone holding the database re-identify erased people, and rotation does not repair that ([DEV-010](tasks/DEV-010-m0-gate14-evidence.md) review R1-01, security S1-06). On 2026-09-15 the owner chose to build a key-id pepper rather than close gate 14 with the limit. The work changes the erasure registry and its definer, so it takes the `gp-architect` and `gp-security` route. Ranked by DEV-010.
 - **Evidence:** observed 2026-09-15 at `ccd1163`: `apps/app/src/lib/telegram/config.ts` (`TELEGRAM_LINK_PEPPER`, one value); `apps/app/src/lib/telegram/tokens.ts` `telegramVerifier`; `supabase/migrations/0081_the_identity_that_asked_to_be_forgotten.sql` `app.erase_telegram_identity_internal` finding a surrogate by `subject_hmac`.
@@ -1052,6 +1055,26 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** observed 2026-09-15: `supabase/migrations/0085_the_key_that_named_itself.sql` header «WHAT THIS DOES NOT FIX»; `infra/secret-rotation.md` «Telegram link and erasure HMAC keys», «After a leak».
 - **Depends on:** BL-085.
 - **Deadline:** none recorded.
+
+<a id="bl-088"></a>
+### BL-088 — P2 — Uploaded images have no dimension, pixel-count or decoding-resource limit
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** `docs/architecture/files-and-storage.md` «Content validation and malware boundary» (Approved) lists «image dimension/pixel-count and decoding-resource limits» among the controls applied before availability or parsing. The upload path limits bytes (the `evidence` bucket's `file_size_limit`, the per-workspace quota) and checks the type from magic bytes, but nothing bounds an image's dimensions or pixel count, so a small file that decodes to a very large bitmap is accepted as evidence. The exposure is present now: office members' and external reviewers' browsers decode evidence images as soon as a page shows them. A derivative or thumbnail worker, or an export, would add server-side exposure later. Readiness gate 12 names resource-exhaustion controls on uploads. Ranked by DEV-012.
+- **Evidence:** observed 2026-09-15 at `48ba14e`: no dimension or pixel-count check in `apps/app/src/lib/evidence-inspection.ts`, nor anywhere under `apps/app/src/lib`, `apps/app/app` and `packages/domain/src`; [DEV-012](tasks/DEV-012-m0-gate12-evidence.md) row 2.
+- **Depends on:** none.
+- **Deadline:** before real customer data enters an environment (the browser path is live today), before any server-side image decoding ships, and before readiness gate 12 closes.
+
+<a id="bl-089"></a>
+### BL-089 — P2 — Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-012's `gp-security` review (S1-01). The member plane reads evidence through Supabase Storage signed URLs created with no download option (`apps/app/app/v1/assignments/[assignmentId]/evidence/route.ts:116`, `apps/app/src/lib/evidence-storage.ts` `createSignedReadUrls`), so a file is served inline from the Storage origin with the content type stored at upload, which whoever holds the signed upload URL sets on its PUT (the field client, or anyone holding that URL). On the Telegram path the stored type is the claimed type the inspection checked (`apps/app/src/lib/telegram/evidence.ts:199`, `:212`); Telegram's added risk is its less-trusted senders. Finalize checks the bytes against the claimed type from their leading bytes only, and the `evidence` bucket sets no `allowed_mime_types` (`0020`). The external review route already serves the detected type with `nosniff` and a sandbox CSP (`apps/app/app/external/evidence/route.ts:288-336`); the member plane has neither. The owner accepted this for the pilot on 2026-09-15 with revisit triggers (`docs/delivery/production-readiness.md` §12). The cheapest compensating controls are a download (`Content-Disposition: attachment`) on member signed URLs and storing the detected type as the object's content type. Ranked by DEV-012.
+- **Evidence:** observed 2026-09-15 at `48ba14e` by `gp-security` (DEV-012 row 6); unverified: which response headers Supabase Storage sends on a signed read, and whether it serves an HTML or SVG content type as stored.
+- **Depends on:** none.
+- **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere.
 
 ## Closed, kept for citations
 

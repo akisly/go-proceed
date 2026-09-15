@@ -396,12 +396,76 @@ the closed ones.
 ### 12. Upload and import safety
 
 - [ ] Malware, content-type, and resource-exhaustion controls on uploads.
+      - **Evidence toward this gate, 2026-09-15 — not closed**
+        ([DEV-012](../tasks/DEV-012-m0-gate12-evidence.md)). *Content type:*
+        `evidence-inspection.ts` reads the type from magic bytes (JPEG, PNG, PDF,
+        HEIC) and blocks `unrecognised_content` and `declared_type_mismatch`;
+        *resource exhaustion:* the private `evidence` bucket's 50 MiB
+        `file_size_limit` (`0020`), the per-workspace quota (`0026`, unlimited
+        until a value is set), the orphan purge (`0021`) and the seven-day
+        `scan_blocked` window (`0027`). Exercised on 2026-09-15 against the
+        local database: `upload-intents-create` (23), `upload-intents-finalize`
+        (19) and `evidence-purge` (17), all passed, none skipped; not in CI. The
+        bucket's `file_size_limit` is located in `0020`, but no test that ran
+        exercises it.
+      - **Malware, the owner's decision of 2026-09-15** (runbook Q-10, answered
+        for the pilot): the magic-byte check, the four-type allow-list and the
+        limits above are accepted **in place of a malware control**. No file is
+        scanned for malware, and `inspection_status = 'passed'` means only that
+        the leading bytes match an allowed type. There is no ADR. The risk the
+        owner accepted:
+        - a file of an allowed type can carry malicious content (a PDF with
+          active content, a crafted image), and a polyglot — bytes that begin as
+          JPEG, PNG or PDF and continue as HTML, SVG or script — passes, because
+          only the leading bytes are read (`evidence-inspection.ts:24-35`);
+        - office members open evidence through Supabase Storage signed URLs
+          (`evidence-storage.ts` `createSignedReadUrls`, 60 seconds), served
+          inline with the content type stored at upload rather than the detected
+          one, and without `nosniff` or a sandbox (BL-089). Only the external
+          review route serves the detected type with `nosniff` and a sandbox
+          CSP, and Chrome's PDF viewer still renders under that CSP;
+        - images decode in the viewer's browser as soon as a page shows them
+          (BL-088);
+        - Telegram evidence comes from group participants, who are less trusted
+          than members (the webhook is enabled nowhere yet).
+
+        The controls that do exist: a private bucket, authorization before a URL
+        is signed, a 60-second URL lifetime, and `nosniff` with the sandbox CSP on
+        the external plane. **It departs from**
+        [files-and-storage.md](../architecture/files-and-storage.md) «Content
+        validation and malware boundary» («malware/content inspection using a
+        pinned scanner/policy version») and from ASVS-FILE-08 in
+        [asvs-profile.csv](../../technical/asvs-profile.csv) («Quarantine and
+        malware decision precede user/customer download»), whose row stays
+        `specified_no_runtime_evidence`; the catalog does not define whether its
+        `waiver_policy` `none` forbids a waiver. Both are unchanged. **Revisit
+        before** real customer data enters an environment, before the Telegram
+        webhook is enabled anywhere, before any client offers PDF evidence (the `/v1` upload API already accepts
+        `application/pdf`),
+        before a link goes to a real технагляд, and at the pilot's end.
+      - **Open under this box:** image dimension, pixel-count and decoding
+        limits do not exist (BL-088); member-plane reads are served inline with
+        the stored content type (BL-089).
 - [ ] The import hostile-fixture corpus still runs. Import is **frozen, not
       deleted** ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md)
       decision 6): the XLSX/CSV parser built in M1 stays in the code, an object
       created by import continues to work, and the route is still reachable by a
       real user with a real file. Freezing extension work does not un-ship a
       parser, and INV-016 still guards a live path.
+      - **Evidence toward this gate, 2026-09-15**
+        ([DEV-012](../tasks/DEV-012-m0-gate12-evidence.md)): the corpus runs.
+        `packages/domain` `src/import` 48 passed — `xlsx.test.ts` (legacy or
+        encrypted CFB, non-ZIP, macro workbook, declared-size ZIP bomb without
+        inflating, path traversal, malformed central directory, inert formulas,
+        100 seeded mutations failing closed) and `csv.test.ts` (NUL bytes,
+        invalid UTF-8, unbalanced quotes, byte, column and row limits, 200 seeded
+        mutations) — and `apps/app` `imports.int.test.ts` 13 passed against the
+        local database (executable bytes and ZIP bombs refused). Limits as
+        coded: XLSX 20 MiB, 10 000 entries, 100 MiB uncompressed, ratio 100,
+        20 000 rows, 256 columns, 32 768 characters a cell; CSV 20 MiB, 20 000
+        rows, 256 columns, 32 768 characters a field. Not run in CI. **The gate
+        stays open:** export neutralization against formula injection has no
+        export to act on (gate 3), and BL-088 is open.
 
 ### 13. Demo and data separation
 
@@ -425,7 +489,7 @@ the closed ones.
         no key id (owner, 2026-09-15: build one, BL-085), and because one hosted
         environment exists with no separate production project (Q-9).
       - **Evidence toward this gate, 2026-09-15 — not closed**
-        ([DEV-011](../tasks/DEV-011-telegram-hmac-key-ids.md), until it merges): the
+        ([DEV-011](../tasks/DEV-011-telegram-hmac-key-ids.md), merged in #92): the
         Telegram link and erasure HMAC keys carry key ids (migration `0085`),
         replacing `TELEGRAM_LINK_PEPPER` (BL-085). The gate stays open on Q-9, and
         no rotation has been exercised on a hosted project.
