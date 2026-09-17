@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** readiness gate 11 («Tenant isolation for every module», `docs/delivery/production-readiness.md` §11) closes, or is shown not to close. `technical/database/rls-coverage.csv` has no `gap` row since [DEV-017](DEV-017-capture-event-service-workspace.md); what the gate still needs is the evidence run `docs/delivery/test-strategy.md` §4 names — the unfiltered `pnpm --filter @goproceed/testing test`, with every cited file passing and none skipped — and a dated entry in `docs/delivery/version-0.1.md` §M0, in the shape of the gate 10 entry.
-- **State:** reviewing
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-18.
 - **Execution mode:** independent subagents for the stages root `AGENTS.md` requires.
 - **Selected route and why:** no code, catalog or migration changes — the gate's evidence is a test run and the entry is prose. Coordinator runs the suite and drafts the entry → `gp-reviewer` (the claim against the evidence) → `gp-qa` (each closing condition against the run). `gp-architect` and `gp-security` are not triggered: nothing changes RLS, grants, contracts or catalogs.
@@ -49,11 +49,15 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 3 | implementing (coordinator): the entry | Gate 11's dated entry added to `version-0.1.md` §M0 in the gate 10 shape: what the registry is and what keeps it honest; the two defects the work found and fixed (`0086`, `0087`), each shown by a test that was red first; the run with its counts and the migration level it left behind; and a *Limits* bullet — the v0.1 read minimum, BL-099 and capability enforcement outside it, BL-101 and BL-103 to BL-106 open, local only, nothing in CI, the CLI version gap, the scanner's text-only limits, no quarantine ledger. Readiness §11 marked CLOSED with its boxes left unticked (the gate 10 precedent), runbook §5.11 CLOSED and §5.14 row 4, test-strategy §4's evidence-run sentence, STATUS's M0 row and next actions | `scratchpad/dev018-validator2.txt` | `gp-reviewer`, `gp-qa` |
 | 4 | reviewing (`gp-reviewer`, `gp-qa`, native) on `39deb47` | **`gp-qa`: criteria 1, 2, 3, 4, 6 PASS on its own parse of the run and the CSV** — 55 files, 786 tests, no skip marker, all 18 cited files present with the counts the entry lists, 74/0/7, validator and agents rc 0, the database at `0087` with 162 policies — **criterion 5 FAIL** on document reconciliation, 7 NOT RUN. **`gp-reviewer`: CHANGES REQUESTED**, same class: it re-derived every number independently and found none contradicted, but four documents disagreed with each other and two claims went past the captured evidence. Findings Q1-01 to Q1-07 and R1-01 to R1-10, none a code, catalog or security defect | review reports | Stated fixes |
 | 5 | rework (coordinator), stated fixes | Runbook §5.11's leading status rewritten in the DEV-009 form («CLOSED … *[Changed 2026-09-18: this read «PARTIAL»]*»), its INV-060 table row and Next action annotated; readiness §11's CLOSED bullet moved below DEV-017's so the list stays chronological; STATUS's State cell, Open cell and history paragraph corrected, and the `0087` merge clause; the tenancy note's «the evidence run is still owed» answered by a dated DEV-018 annotation; the §5.14 emphasis fixed. **The entry's Limits bullet rewritten**: it now says plainly that the gate closed on a condition narrower than its own first box, by the owner's decisions of 2026-09-15 and 2026-09-16, and replaces «stay proved by review» with the truth — the matrix's other rows are not proved by this registry or this run and no dated record proves them; the un-quarantinable clause is recorded as **not met** (the validator is narrower than a ledger that fails the build, and it runs only when a person runs it). Provenance narrowed to what the files show, with the CLI version and a labelled post-run query captured | `scratchpad/dev018-cli-version.txt`, `dev018-after-reset-labelled.txt`, `dev018-r1-validator.txt`, `dev018-r1-agents.txt` | `gp-qa` re-check |
+| 6 | verifying (`gp-qa`, narrow re-check, native) on `d629f68` | **Criterion 5 still FAIL.** Three of round 1's stated fixes were not in the tree: the §5.11 «Next action» annotation (Q2-01), the §5.14 row 4 emphasis (Q2-02) and the `tenancy-and-security.md` annotation (Q2-03, the substantive one — that document's last dated word was still «the gate's own evidence run is still owed»), plus Q2-04 (the record's own first «What is not true» bullet still said «stay proved by review»). Cause: the rework's first edit script aborted on its opening assertion, so every later edit in that block was skipped, and the record claimed them as done. Everything else re-checked PASS, including the rewritten Limits bullet, the run-provenance wording («every cited suite ran after a `resetDb()`» — verified against the four `resetDb` callers and the run order) and both validators. **Its verdict on the evidence: the closure claim is supported; what remained was document reconciliation and record accuracy** | QA report | Stated fixes |
+| 7 | rework (coordinator), round 2 | The four were applied and each verified individually this time: the §5.11 «Next action» now carries its «done 2026-09-18» annotation with the superseded text quoted; §5.14 row 4's emphasis is balanced (an even number of markers in the cell); `tenancy-and-security.md` gains the dated DEV-018 annotation answering «still owed»; the record's bullet no longer claims a review nobody recorded. Validator and agent-profile checks rc 0 | `scratchpad/dev018-q2-validator.txt`, `dev018-q2-agents.txt` | Done; PR |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| Q2-01 / Q2-02 / Q2-03 | medium | Runbook §5.11 and §5.14; `tenancy-and-security.md` | Actual: three round-1 stated fixes were never written — the edit script aborted early and the record claimed them | coordinator | Applied and verified one by one (row 7) |
+| Q2-04 | low | The record's «What is not true» | Actual: «stay proved by review» survived the correction made elsewhere | coordinator | Reworded (row 7) |
 | Q1-01 / R1-10 | major | Runbook §5.11 headline, table row, Next action | Actual: still «PARTIAL» and «no mechanical checker exists» | coordinator | Rewritten in the DEV-009 form and annotated (row 5) |
 | Q1-02 / R1-01 | major | STATUS «M0 gates» State cell | Actual: «the other ten are open» beside a CLOSED item 11 | coordinator | «Items 9, 10 and 11 are closed … the other nine» (row 5) |
 | Q1-03 / R1-06 | minor | STATUS Open cell | Actual: the subject repeated, credits dropped | coordinator | One sentence, credits kept (row 5) |
@@ -70,7 +74,7 @@ Rework count and hypothesis changes: none — QA's FAIL was on document reconcil
 
 ## What is not true after this task
 
-- **The gate closes on the v0.1 read minimum**, not on the whole tenancy test list: cross-workspace write denial (BL-099) and capability enforcement inside a workspace are not part of it, and `SECURITY DEFINER` functions, storage paths, sequences and other schemas stay proved by review.
+- **The gate closes on the v0.1 read minimum**, not on the whole tenancy test list: cross-workspace write denial (BL-099) and capability enforcement inside a workspace are not part of it, and `SECURITY DEFINER` functions, storage paths, sequences and other schemas are not proved by this registry or this run either — no dated record proves them.
 - **Nothing hosted was verified.** The run was local; no hosted project holds `0059`–`0087`, and nothing ran in CI.
 - **Five entries stay open and named, not fixed:** BL-101, BL-103, BL-104, BL-105, BL-106.
 - **The `apps/app` suites are not cited** as isolation evidence, by the runbook's own rule; only `packages/testing` ran here.
@@ -86,6 +90,13 @@ Rework count and hypothesis changes: none — QA's FAIL was on document reconcil
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The unfiltered run passed on this baseline with no skipped test; the record names the per-file results and the migration level after the reset | yes | `d629f68` | `dev018-full-run.txt`: 55 files, 786 tests, none skipped, 163 s; `gp-qa` counted the `✓` lines and searched for skip markers itself; `dev018-after-reset-labelled.txt`: `0087`, 87 applied rows, 162 policies | PASS | assisted: local only; the saved output carries neither an exit status nor a revision — both are the session wrapper's (`tasks/by6e41mm1.output`) |
+| 2. Every file the registry cites is in that run, `rls-coverage.test.ts` among them | yes | `d629f68` | `gp-qa`'s own CSV-aware derivation: 18 cited files, all in the passing set, counts matching one for one; `rls-coverage.test.ts` (22) passed | PASS | — |
+| 3. Registry 74 / 0 / 7 and `pnpm validate:canonical-docs` passes | yes | `d629f68` | `gp-qa`'s count (81 rows) and its own validator run; `dev018-q2-validator.txt` rc 0 | PASS | — |
+| 4. The gate 11 entry exists in `version-0.1.md` §M0 in the gate 10 shape, with a complete *Limits* bullet | yes | `d629f68` | `gp-reviewer` and `gp-qa` read it against the gate 10 entry and the run; the Limits bullet names the narrowing, the owner's decisions, the unproved matrix rows, the unmet quarantine clause, BL-099, BL-101, BL-103 to BL-106, no CI, no hosted `0059`–`0087`, the CLI gap and the scanner limits | PASS | the narrowing is the point: see the bullet before citing this gate |
+| 5. Readiness §11, runbook §5.11 and §5.14 row 4, `test-strategy.md` §4, the tenancy note and STATUS agree and claim no more | yes | closing commit's tree | `gp-qa` round 1 (FAIL) → round 2 (three fixes missing) → row 7, each fix verified individually; validator rc 0 after | PASS | assisted: verified by the coordinator after the QA re-check; the four locations were re-read one by one |
+| 6. `pnpm validate:agents` passes | yes | `d629f68` | `dev018-q2-agents.txt`; `gp-qa`'s own run | PASS | — |
+| 7. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026 |
 
 A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
 
@@ -103,9 +114,9 @@ Third-party documentation and primary sources checked for this task. Give each o
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence: same-session / independent (name the actual stage roles)
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: see «Owning module and allowed edit paths»; commits `39deb47` (the run and the entry), `d629f68` (review round 1), and the closing commit (round 2 and the acceptance evidence).
+- Review independence: independent — `gp-reviewer` (CHANGES REQUESTED) and `gp-qa` (criterion 5 FAIL, then a narrow re-check), both native subagents. `gp-architect` and `gp-security` were not triggered; the security claim rests on their PASSes in DEV-014 to DEV-017.
+- Verified scope: criteria 1–6 PASS; criterion 7 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above. The closure is narrower than the gate's first box, the un-quarantinable clause is not met, and nothing hosted or in CI was verified.
+- Next bounded action and owner: owner — review and merge the PR. Then BL-104 (the invitation token in a stored idempotent response) and BL-103, or runbook §5.14 order 5.
+- Final state and reason: done — every required criterion PASS; every finding fixed, including the three that round 1 recorded as fixed without writing them.

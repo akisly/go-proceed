@@ -907,6 +907,13 @@ row of the registry is a gap (74 covered, 7 exempt). An actor-bearing service
 transaction is still not confined in general (BL-101, BL-019), and the gate's
 own evidence run is still owed.]*
 
+*[Added 2026-09-18 ([DEV-018](../tasks/DEV-018-gate11-closure.md)): the evidence
+run is no longer owed — the unfiltered `pnpm --filter @goproceed/testing test`
+passed 786 tests in 55 files with none skipped, against a database it rebuilt to
+`0087`, and M0 readiness gate 11 closed on it (`docs/delivery/version-0.1.md`
+§M0). The closure covers the v0.1 read minimum only: the other rows of the list
+below are not proved by it, and no dated record proves them.]*
+
 Every exposed table/function/storage path and command needs positive and
 negative tests for:
 

@@ -999,9 +999,13 @@ both: the artifact and the procedure.]*
 
 **One thing this gate cannot cite today.** The channel's integration suites under `apps/app/tests/` are red in CI (§1.1); a gate-11 evidence entry that reaches for them as isolation evidence is reaching for a failing run. The `packages/testing` sweeps are green and are the evidence this gate has.
 
-**Next action:** write the coverage checker, or record explicitly that coverage
-is asserted by review rather than by a checker — and say so in the evidence
-entry rather than letting the RLS-enabled sweep stand in for it.
+**Next action** *[done 2026-09-18 ([DEV-018](../tasks/DEV-018-gate11-closure.md));
+this read: «write the coverage checker, or record explicitly that coverage is
+asserted by review rather than by a checker — and say so in the evidence entry
+rather than letting the RLS-enabled sweep stand in for it»]*: the checker is
+[DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)'s registry with its
+validator step and `packages/testing/src/rls-coverage.test.ts`, and the evidence
+entry says in its *Limits* bullet what the closure does and does not prove.
 
 **Status: PARTIAL, recorded 2026-09-16** ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)). The checker exists: [rls-coverage.csv](../../technical/database/rls-coverage.csv) holds 21 `covered`, 53 `gap` and 7 `exempt_no_grant` rows, checked by the validator and by `packages/testing/src/rls-coverage.test.ts`. **Not closable yet:** the owner closes the gate only at zero gaps, and the 53 gap rows are BL-090 to BL-098; `covered` means the v0.1 read minimum (BL-099). *[Added 2026-09-16 (DEV-013); the table above is the state before it.]*
 
@@ -1065,7 +1069,7 @@ unsaid is not honesty.
 | 1 | Item 9 + item 10 evidence entries (readiness gate 10) — **done 2026-09-14, [DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)** | **S** — writing, no code | The mechanism is done. This is pure recording, and it establishes what a closed gate's record looks like — a form that currently has no precedent anywhere |
 | 2 | Item 7 (readiness gate 14) + the [version-0.0.md](version-0.0.md):78-79 tick — **partly done 2026-09-15, [DEV-010](../tasks/DEV-010-m0-gate14-evidence.md): tick and rotation runbook; BL-085 built in [DEV-011](../tasks/DEV-011-telegram-hmac-key-ids.md); the gate waits on Q-9** | **S** — writing, plus lifting the rotation runbook out of README-staging | Same: substantially built, unrecorded |
 | 3 | Item 12's built halves (readiness gate 12, uploads/imports) — **partly done 2026-09-15, [DEV-012](../tasks/DEV-012-m0-gate12-evidence.md): evidence and the malware acceptance; the gate waits on item 3, BL-088 and BL-089** | **S** — writing | Same |
-| 4 | Item 11's coverage checker (readiness gate 11) — **checker done 2026-09-16, [DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md); the gate waits on 53 gap rows, BL-090 to BL-098; 24 remain after [DEV-014](../tasks/DEV-014-gate11-workspace-communication.md) (2026-09-17), BL-091 to BL-097; 22 after [DEV-015](../tasks/DEV-015-projection-service-policy.md) (2026-09-17, `0086`), BL-091 to BL-095 and BL-097; 1 after [DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md) (2026-09-17), BL-102; 0 after [DEV-017](../tasks/DEV-017-capture-event-service-workspace.md) (2026-09-18, `0087`); **the gate CLOSED on 2026-09-18 ([DEV-018](../tasks/DEV-018-gate11-closure.md)) on the unfiltered package run** | **M** — one checker against the module list, plus its own test | The only one whose gap is a piece of code rather than a decision |
+| 4 | Item 11's coverage checker (readiness gate 11) — **checker done 2026-09-16, [DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md); the gate waits on 53 gap rows, BL-090 to BL-098; 24 remain after [DEV-014](../tasks/DEV-014-gate11-workspace-communication.md) (2026-09-17), BL-091 to BL-097; 22 after [DEV-015](../tasks/DEV-015-projection-service-policy.md) (2026-09-17, `0086`), BL-091 to BL-095 and BL-097; 1 after [DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md) (2026-09-17), BL-102; 0 after [DEV-017](../tasks/DEV-017-capture-event-service-workspace.md) (2026-09-18, `0087`); the gate CLOSED on 2026-09-18 ([DEV-018](../tasks/DEV-018-gate11-closure.md)) on the unfiltered package run** | **M** — one checker against the module list, plus its own test | The only one whose gap is a piece of code rather than a decision |
 | 5 | Item 2's durations, then item 4's purpose/retention shape | **M** — the decision is short; versioning 126 catalog rows and writing the closure/deletion procedure is not | Both are owner decisions with no external dependency |
 | 6 | Item 3 (export) | **L — the largest single build in M0.** An operator procedure, a manifest format, hashes, provenance and a «named omissions» vocabulary, none of which exists | Unblocks item 12's second half |
 | 7 | Item 12's export half | **S**, but only once 6 exists | Follows 6 by construction |
