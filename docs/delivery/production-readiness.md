@@ -408,7 +408,10 @@ M0 rather than leaving them to a milestone.
         passing against the local database at `0085`. The registry now holds 50
         `covered`, 24 `gap` (BL-091 to BL-097) and 7 `exempt_no_grant` rows.
         BL-096's two service rows wait on BL-100 (the projection policies admit
-        every workspace to the service plane). Nothing ran in CI.
+        every workspace to the service plane). `covered` is the v0.1 read
+        minimum, and the evidence run `test-strategy.md` §4 names (the
+        unfiltered `pnpm --filter @goproceed/testing test`) is still owed.
+        Nothing ran in CI.
 - [ ] The evidence is the test run named in
       [test-strategy.md](test-strategy.md) §"4. Tenant isolation, and the tests
       that cannot be quarantined". The same evidence closes both, and it must,

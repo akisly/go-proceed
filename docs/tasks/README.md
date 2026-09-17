@@ -35,4 +35,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-011](DEV-011-telegram-hmac-key-ids.md) | done | Key ids for the Telegram link-token and erasure-registry HMAC keys (BL-085), which readiness gate 14 waits on |
 | [DEV-012](DEV-012-m0-gate12-evidence.md) | done | Evidence toward M0 readiness gate 12 (runbook item 12): the built upload and import controls with their tests, and the owner's pilot malware decision with its risk; the gate stays open on export neutralization, BL-088 and BL-089 |
 | [DEV-013](DEV-013-m0-gate11-coverage-checker.md) | done | M0 readiness gate 11: a mechanical coverage checker for positive and negative tenant-isolation tests per exposed relation (INV-060) |
-| [DEV-014](DEV-014-gate11-workspace-communication.md) | reviewing | Readiness gate 11: tenant-isolation tests for the workspace-access and communication gap rows (BL-098, BL-090) |
+| [DEV-014](DEV-014-gate11-workspace-communication.md) | verifying | Readiness gate 11: tenant-isolation tests for the workspace-access and communication gap rows (BL-098, BL-090) |

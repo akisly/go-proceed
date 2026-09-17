@@ -182,8 +182,8 @@ describe("workspace_access isolation — the owner of A reads rows of A and the 
 
   it("project_access_grants: the owner of A reads the grants of A and the owner of B holding project.admin on its own project reads only its own", async () => {
     // pag_select admits project.admin OR the actor's own member_id. B holds
-    // project.admin in B, so the admin branch is live for B and still reaches
-    // nothing of A.
+    // project.admin in B and owns B's grants, so B reads them through either
+    // branch; neither branch reaches anything of A.
     const sql = "select workspace_id as ws from public.project_access_grants where workspace_id = any($1::uuid[])";
     expect(await seen(USER_A, sql)).toEqual([WS_A, WS_A]);
     expect(await seen(USER_B, sql)).toEqual([WS_B, WS_B]);

@@ -3,12 +3,12 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** the 29 `gap` rows of `technical/database/rls-coverage.csv` in modules `workspace_access` (BL-098, 13 rows) and `communication` (BL-090, 16 rows) become `covered`: each gets a positive and a negative policy test in the v0.1 read minimum (`docs/delivery/test-strategy.md` §4), cited in the registry and checked by the validator. Readiness gate 11 moves from 53 gaps to 24; it is not closed by this task.
-- **State:** reviewing
+- **State:** verifying
 - **Coordinator:** primary Claude Code session, 2026-09-16.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** new tests over RLS policies and a registry under `technical/database/`: `gp-architect` design → coordinator implements (each new test run red first where it can be) → `gp-reviewer` + `gp-security` → `gp-qa`. A real RLS or grant defect found by a test stops that row and takes the `gp-architect` + `gp-security` route with a migration, as a separate task.
 - **Triggered stages and why:** `gp-architect` (`technical/database/**`, RLS verification); `gp-security` (the tests decide what counts as tenant-isolation evidence over RLS policies). `gp-ui-reviewer` and `gp-mobile` are not triggered.
-- **Owning module and allowed edit paths:** new test files under `packages/testing/src/` (one per module); `technical/database/rls-coverage.csv` (the 29 rows only); `docs/BACKLOG.md` (BL-090, BL-098 closed; any new finding); `docs/delivery/production-readiness.md` §11, runbook §5.11 and §5.14 row 4, `docs/STATUS.md`, one dated sentence in `docs/architecture/tenancy-and-security.md` (gap counts only); two rows of `technical/test-catalog.csv`; this record and the index. No existing test assertion, migration, policy or grant changes.
+- **Owning module and allowed edit paths:** new test files under `packages/testing/src/` (one per module); `technical/database/rls-coverage.csv` (the 29 rows only); `docs/BACKLOG.md` (BL-090, BL-098 closed; any new finding); `docs/delivery/production-readiness.md` §11, runbook §5.11 and §5.14 row 4, `docs/STATUS.md`, one dated note in `docs/architecture/tenancy-and-security.md` (gap counts, BL-100 and the evidence qualifier); two rows of `technical/test-catalog.csv`; this record and the index. No existing test assertion, migration, policy or grant changes.
 - **Read context:** root `AGENTS.md`; `START_HERE.md`; `agents/COORDINATION.md`; [DEV-013](DEV-013-m0-gate11-coverage-checker.md); `docs/delivery/test-strategy.md` §4; `technical/database/rls-coverage.csv`; `docs/BACKLOG.md` BL-090, BL-098, BL-099; `packages/testing/src/pg.ts`, `telegram-rls.test.ts`, `telegram-erasure.test.ts`, `m1-rls-workspace.test.ts`, `m2-fixture.ts`, `m2-occurrences-fixture.ts`.
 - **Linked spec, ADR or earlier task:** [DEV-013](DEV-013-m0-gate11-coverage-checker.md) (the checker and the registry); INV-060.
 - **Baseline:** `35578e7` (main after PR #94).
@@ -54,13 +54,24 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 4 | implementing (coordinator), communication | **Red:** the 16 rows cited the not-yet-written file; validator rc 1, 32 problems. **Green:** `communication-rls.test.ts` written with both workspaces seeded identically (every table holds a row of each); validator rc 0; typecheck rc 0; the file alone at `0085`: **16 passed** | `scratchpad/dev014-red-validator-comm.txt`, `dev014-validator-comm.txt`, `dev014-typecheck-comm.txt`, `dev014-db-comm-1.txt` | Mutations |
 | 5 | implementing (coordinator), sensitivity | Three mutations, one file run at a time, each restored byte for byte (sha256): **m1** the owner of B also an active admin of A with `project.view` on A's project — `workspace-access-rls.test.ts` 13 of 13 fail; **m2** the service helper always declares A — `communication-rls.test.ts` 11 service tests fail, 5 member tests pass; **m3** the same leak as m1 in the communication fixture — the 5 member tests fail, 11 service tests pass. `rls-coverage.test.ts` (owner allowed, 2026-09-17) alone: 22 passed. No residue of the four workspaces afterwards | `scratchpad/dev014-mutation-m1.txt`, `-m2.txt`, `-m3.txt`, `dev014-rls-coverage.txt` | Documents |
 | 6 | implementing (coordinator), documents | Registry 50 `covered`, 24 `gap`, 7 `exempt_no_grant`. BL-090 and BL-098 `closed → DEV-014`; BL-100 (P1, the projection policies, owner-routed to its own task) and BL-101 (P3, O-1) added. Dated additions to readiness §11, runbook §5.11, §5.14 row 4, the tenancy note and STATUS; T-RLS-002 and T-TG-009 in the test catalog. Validator rc 0. **Mutation:** `it.skip` on the cited `telegram_member_links` service test turns the validator red naming both columns of that row (rc 1); restored byte for byte, rc 0 | `scratchpad/dev014-validator-docs.txt`, `dev014-mutation-skip.txt` | Commit; `gp-reviewer`, `gp-security` |
+| 7 | reviewing (`gp-reviewer`, `gp-security`, native) on `095b3bf` | **`gp-reviewer`: APPROVE** — all 29 rows meet the minimum under their actual policies; fixtures isolated; R1-01 minor (m5-external-rls counts five communication tables across all workspaces), R1-02 to R1-04 nits. **`gp-security`: PASS** — the empty-actor service proof is right; no external-session policy on the 16 rows; BL-100 correct, P1, not blocking this PR; S1-01, S1-02, S1-05 minor, S1-03, S1-04, S1-06, S1-07 nits. No blocker, no major; no rework round counted | review reports | Stated fixes |
+| 8 | rework (coordinator), stated fixes | BL-100 reworded (the role's pre-`0057` name in the migration, INSERT, the wrong migration comment, the threat model, the catalog rows owed, the scratch evidence file); BL-101 names the callers that keep the actor; 8 registry reasons say «project.view/project.admin holder», the responsibility row adds «and assignee»; the grants test comment softened (comment only); T-RLS-002 and T-TG-009 name the superuser connection and that the files never skip; the tenancy note and §11 carry the read-minimum and owed-evidence qualifiers; allowed paths widened; the m5 dependency, the owed evidence run and S1-04 recorded under «What is not true». Final runs are taken after this row is written | `scratchpad/dev014-bl100-policies.txt`, `dev014-final-*.txt` | `gp-qa` |
+| 9 | implementing (coordinator): final local runs, taken after this row was written | Validator, agent profiles, `@goproceed/testing` typecheck; `workspace-access-rls.test.ts` then `communication-rls.test.ts`, each alone at `0085`; a residue check of the four workspaces. `rls-coverage.test.ts` is not re-run (the owner allowed one run; since it, only the registry's `reason` column changed, which it does not compare). Nothing is committed unless every run passes. The first validator run refused the pre-rename role name in BL-100 and in this row; both were reworded and the validator and agent checks re-run (documents only; the database runs stand) | `scratchpad/dev014-final-validate-docs.txt`, `-validate-agents.txt`, `-typecheck.txt`, `-db-wa.txt`, `-db-comm.txt`, `-residue.txt` | Commit; `gp-qa` |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1-01 / S1-05 | minor | `m5-external-rls.test.ts:578-597` counts five tables this suite seeds | Expected: no hidden coupling; actual: a killed run leaves m5 red | coordinator | Recorded under «What is not true»; no existing test changed (row 8) |
+| R1-02 / S1-01 | minor | BL-100 | Actual: role name, missing INSERT, threat model, evidence file | coordinator | Reworded; `dev014-bl100-policies.txt` (row 8) |
+| S1-02 | minor | BL-101 | Actual: callers called unknown | coordinator | Callers listed (row 8) |
+| R1-03 / S1-03 | nit | Registry reasons; grants test comment | Actual: one policy branch named | coordinator | Reworded (row 8) |
+| R1-04 | nit | Tenancy note vs allowed paths | Actual: two sentences, names BL-100 | coordinator | Allowed paths widened (row 8) |
+| S1-04 | nit | `me_context` status filter | Actual: not asserted | coordinator | **Deferred** with its reason under «What is not true» |
+| S1-06 | nit | T-RLS-002, T-TG-009 | Actual: environment incomplete | coordinator | Reworded (row 8) |
+| S1-07 | nit | §11, tenancy note | Actual: qualifiers missing | coordinator | Added (row 8) |
 
-Rework count and hypothesis changes:
+Rework count and hypothesis changes: none — no QA FAIL and no blocker.
 
 ## What is not true after this task
 
@@ -69,6 +80,9 @@ Rework count and hypothesis changes:
 - **The service-plane tests use an empty actor.** They prove the service policy; a service transaction that keeps the caller's actor is not confined by its declaration on the five dual tables (BL-101).
 - **Only the two new files and `rls-coverage.test.ts` ran**, locally, against `0085`; no other suite ran, and nothing ran in CI (GitHub Actions billing until October 2026).
 - **BL-100 is not fixed and not yet shown by a test.**
+- **Another suite now depends on this one's cleanup.** `packages/testing/src/m5-external-rls.test.ts:578-597` expects zero rows, across all workspaces, in five communication tables that `communication-rls.test.ts` seeds. A run killed before its `afterAll` leaves m5 red until this file runs again (its `beforeAll` drops the rows). m5's comment «only telegram-rls.test.ts inserts one» is now stale; correcting it is a later change (this task changes no existing test).
+- **The unfiltered evidence run is owed.** `test-strategy.md` §4 names `pnpm --filter @goproceed/testing test` as the evidence run; it resets the local database and needs the owner, and CI does not start jobs until October 2026.
+- **`api.me_context`'s `status = 'active'` filter is not asserted** (S1-04, optional, not done: a suspended membership of B in A would also show through `m_select`, which has no status filter — O-2 — and make the memberships assertion fail for another reason).
 
 ## Acceptance evidence
 
