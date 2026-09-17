@@ -421,6 +421,15 @@ M0 rather than leaving them to a milestone.
         registry holds 52 `covered`, 22 `gap` (BL-091 to BL-095, BL-097) and
         7 `exempt_no_grant` rows. `0086` is applied to the local database only.
         Nothing ran in CI.
+      - **Evidence toward this gate, 2026-09-17 — not closed**
+        ([DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md)): six new
+        `packages/testing/src/*-rls.test.ts` files cover 21 of the 22 remaining
+        gap rows (BL-091 to BL-095, BL-097), each file run alone and passing
+        against the local database at `0086`. The registry holds 73 `covered`,
+        1 `gap` and 7 `exempt_no_grant` rows. The last gap is `capture_events`
+        for `goproceed_service` (BL-102): its policy ignores the declared
+        workspace, so it needs a migration first. The unfiltered evidence run
+        is still owed, and nothing ran in CI.
 - [ ] The evidence is the test run named in
       [test-strategy.md](test-strategy.md) §"4. Tenant isolation, and the tests
       that cannot be quarantined". The same evidence closes both, and it must,

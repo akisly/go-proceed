@@ -893,6 +893,12 @@ migration `0086` confines `rp_write_server` and `br_write_server` to
 the service plane, reads included (BL-100). 22 rows are still gaps. An
 actor-bearing service transaction is still not confined (BL-101).]*
 
+*[Added 2026-09-17 ([DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md)):
+73 rows are covered in the v0.1 read minimum, by files run alone; one is still a
+gap: `capture_events` for `goproceed_service`, whose policy ignores the declared
+workspace (BL-102). `idempotency_records` is fenced by the actor, not by
+membership (BL-103).]*
+
 Every exposed table/function/storage path and command needs positive and
 negative tests for:
 

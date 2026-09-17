@@ -119,17 +119,19 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-088](#bl-088) | P2 | open | Uploaded images have no dimension, pixel-count or decoding-resource limit |
 | [BL-089](#bl-089) | P2 | open | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
 | [BL-090](#bl-090) | P1 | closed → DEV-014 | 16 communication and Telegram registry rows lack tenant-isolation tests (readiness gate 11) |
-| [BL-091](#bl-091) | P1 | open | 8 contract-baseline registry rows lack tenant-isolation tests (readiness gate 11) |
-| [BL-092](#bl-092) | P1 | open | 4 evidence registry rows lack tenant-isolation tests (readiness gate 11) |
-| [BL-093](#bl-093) | P1 | open | 3 execution registry rows lack tenant-isolation tests (readiness gate 11) |
-| [BL-094](#bl-094) | P1 | open | 3 external-review registry rows lack tenant-isolation tests (readiness gate 11) |
-| [BL-095](#bl-095) | P1 | open | 3 operational registry rows lack tenant-isolation tests (readiness gate 11) |
+| [BL-091](#bl-091) | P1 | closed → DEV-016 | 8 contract-baseline registry rows lack tenant-isolation tests (readiness gate 11) |
+| [BL-092](#bl-092) | P1 | closed → DEV-016 | 4 evidence registry rows lack tenant-isolation tests (readiness gate 11) |
+| [BL-093](#bl-093) | P1 | closed → DEV-016 | 3 execution registry rows lack tenant-isolation tests (readiness gate 11) |
+| [BL-094](#bl-094) | P1 | closed → DEV-016 | 3 external-review registry rows lack tenant-isolation tests (readiness gate 11) |
+| [BL-095](#bl-095) | P1 | closed → DEV-016 | 3 operational registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-096](#bl-096) | P1 | closed → DEV-015 | 2 projection registry rows lack tenant-isolation tests (readiness gate 11) |
-| [BL-097](#bl-097) | P1 | open | 1 requirements registry row lacks tenant-isolation tests (readiness gate 11) |
+| [BL-097](#bl-097) | P1 | closed → DEV-016 | 1 requirements registry row lacks tenant-isolation tests (readiness gate 11) |
 | [BL-098](#bl-098) | P1 | closed → DEV-014 | 13 workspace-access registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-099](#bl-099) | P2 | open | A `covered` registry row requires only a cross-workspace read denial, not a write denial |
 | [BL-100](#bl-100) | P1 | closed → DEV-015 | The service plane reads and rewrites every workspace's readiness projections, whatever workspace it declares |
 | [BL-101](#bl-101) | P3 | open | A service transaction that keeps the caller's actor is not confined to the workspace it declares |
+| [BL-102](#bl-102) | P1 | open | The service plane's capture-event insert ignores the workspace it declares, and its caller declares none |
+| [BL-103](#bl-103) | P3 | open | A member whose membership ended keeps reading its cached idempotent responses until they expire |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1101,50 +1103,50 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-091"></a>
 ### BL-091 — P1 — 8 contract-baseline registry rows lack tenant-isolation tests (readiness gate 11)
 
-- **State:** open
+- **State:** closed → DEV-016
 - **Legacy cite:** none
 - **Why:** readiness gate 11 closes only when every exposed tenant relation has a positive and a negative policy test (owner, 2026-09-15), and `technical/database/rls-coverage.csv` classifies these 8 relation–principal rows (8 relations) as `gap`: `public.contract_versions` (goproceed_app): immutability, grant and trigger checks only (m1-rls-baseline.test.ts:50,109,134); no policy test; `public.import_batches` (goproceed_app): only a same-workspace member without a project grant (m1-rls-baseline.test.ts:164); no positive and no cross-workspace read denial; `public.import_files` (goproceed_app): immutability check only (m1-rls-baseline.test.ts:68); no policy test; `public.import_row_results` (goproceed_app): grant-only check (m1-rls-baseline.test.ts:100); no policy test; `public.locations` (goproceed_app): schema tests only; no policy test; `public.source_amount_resolutions` (goproceed_app): grant-only check (m1-rls-baseline.test.ts:100); no policy test; `public.unit_definitions` (goproceed_app): schema tests only; no policy test; `public.work_items` (goproceed_app): grant and trigger checks only (m1-rls-baseline.test.ts:121,134); no policy test. The v0.1 minimum per row is in `docs/delivery/test-strategy.md` §4 and the DEV-013 record: on the member plane an authorised same-workspace read (or, without `SELECT`, a write) and a read denial to an active member of another workspace; on the service plane the declared workspace reaching the row and another or no declared workspace refused. A test that closes a row is cited in the registry, which the validator then checks. Ranked by DEV-013.
-- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 8 `gap` rows for module `contract_baseline` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10.
+- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 8 `gap` rows for module `contract_baseline` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10. Closed 2026-09-17 by DEV-016: the rows cite `packages/testing/src/*-rls.test.ts`, each file run alone and passing at `0086`.
 - **Depends on:** none.
 - **Deadline:** before readiness gate 11 closes.
 
 <a id="bl-092"></a>
 ### BL-092 — P1 — 4 evidence registry rows lack tenant-isolation tests (readiness gate 11)
 
-- **State:** open
+- **State:** closed → DEV-016
 - **Legacy cite:** none
 - **Why:** readiness gate 11 closes only when every exposed tenant relation has a positive and a negative policy test (owner, 2026-09-15), and `technical/database/rls-coverage.csv` classifies these 4 relation–principal rows (3 relations) as `gap`: `public.capture_events` (goproceed_app): same-workspace INSERT refusals and a permitted INSERT only (m2-policy-gaps.test.ts:84, m2-service-principal.test.ts:133); no read positive and no cross-workspace read denial while SELECT is held; `public.capture_events` (goproceed_service): reachable through goproceed_app with a policy naming goproceed_service; no service-plane test; `public.evidence_objects` (goproceed_app): no member-plane policy test; the read pair in m2-service-principal.test.ts:202 is service plane inside a nested describe; `public.upload_intents` (goproceed_app): same-workspace write refusals only (m2-binding-hardening.test.ts); no member-plane read positive and no cross-workspace read denial. The v0.1 minimum per row is in `docs/delivery/test-strategy.md` §4 and the DEV-013 record: on the member plane an authorised same-workspace read (or, without `SELECT`, a write) and a read denial to an active member of another workspace; on the service plane the declared workspace reaching the row and another or no declared workspace refused. A test that closes a row is cited in the registry, which the validator then checks. Ranked by DEV-013.
-- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 4 `gap` rows for module `evidence` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10.
+- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 4 `gap` rows for module `evidence` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10. Closed 2026-09-17 by DEV-016: the rows cite `packages/testing/src/*-rls.test.ts`, each file run alone and passing at `0086`. The `capture_events` `goproceed_service` row did not close: its policy ignores the declared workspace, and it moved to BL-102.
 - **Depends on:** none.
 - **Deadline:** before readiness gate 11 closes.
 
 <a id="bl-093"></a>
 ### BL-093 — P1 — 3 execution registry rows lack tenant-isolation tests (readiness gate 11)
 
-- **State:** open
+- **State:** closed → DEV-016
 - **Legacy cite:** none
 - **Why:** readiness gate 11 closes only when every exposed tenant relation has a positive and a negative policy test (owner, 2026-09-15), and `technical/database/rls-coverage.csv` classifies these 3 relation–principal rows (3 relations) as `gap`: `public.progress_allocation_heads` (goproceed_app): grant-only check (m2-rls.test.ts:248); no policy test; `public.progress_entries` (goproceed_app): negative present (m2-rls.test.ts:72 cross-workspace read denial); no read positive, only an INSERT ... RETURNING in the actor's own workspace (m2-rls.test.ts:130) while SELECT is held; `public.valuation_allocations` (goproceed_app): negative only (m2-rls.test.ts:72 cross-workspace read denial); no positive. The v0.1 minimum per row is in `docs/delivery/test-strategy.md` §4 and the DEV-013 record: on the member plane an authorised same-workspace read (or, without `SELECT`, a write) and a read denial to an active member of another workspace; on the service plane the declared workspace reaching the row and another or no declared workspace refused. A test that closes a row is cited in the registry, which the validator then checks. Ranked by DEV-013.
-- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 3 `gap` rows for module `execution` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10.
+- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 3 `gap` rows for module `execution` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10. Closed 2026-09-17 by DEV-016: the rows cite `packages/testing/src/*-rls.test.ts`, each file run alone and passing at `0086`.
 - **Depends on:** none.
 - **Deadline:** before readiness gate 11 closes.
 
 <a id="bl-094"></a>
 ### BL-094 — P1 — 3 external-review registry rows lack tenant-isolation tests (readiness gate 11)
 
-- **State:** open
+- **State:** closed → DEV-016
 - **Legacy cite:** none
 - **Why:** readiness gate 11 closes only when every exposed tenant relation has a positive and a negative policy test (owner, 2026-09-15), and `technical/database/rls-coverage.csv` classifies these 3 relation–principal rows (3 relations) as `gap`: `public.external_access_grants` (goproceed_app): negative only (m5-external-schema.test.ts:872: a member of another workspace counts zero rows); no member-plane positive; `public.external_decision_batches` (goproceed_app): negative only (m5-external-schema.test.ts:872: a member of another workspace counts zero rows); no member-plane positive; `public.external_sessions` (goproceed_app): negative only (m5-external-schema.test.ts:872: a member of another workspace counts zero rows); no member-plane positive. The v0.1 minimum per row is in `docs/delivery/test-strategy.md` §4 and the DEV-013 record: on the member plane an authorised same-workspace read (or, without `SELECT`, a write) and a read denial to an active member of another workspace; on the service plane the declared workspace reaching the row and another or no declared workspace refused. A test that closes a row is cited in the registry, which the validator then checks. Ranked by DEV-013.
-- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 3 `gap` rows for module `external_review` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10.
+- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 3 `gap` rows for module `external_review` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10. Closed 2026-09-17 by DEV-016: the rows cite `packages/testing/src/*-rls.test.ts`, each file run alone and passing at `0086`.
 - **Depends on:** none.
 - **Deadline:** before readiness gate 11 closes.
 
 <a id="bl-095"></a>
 ### BL-095 — P1 — 3 operational registry rows lack tenant-isolation tests (readiness gate 11)
 
-- **State:** open
+- **State:** closed → DEV-016
 - **Legacy cite:** none
 - **Why:** readiness gate 11 closes only when every exposed tenant relation has a positive and a negative policy test (owner, 2026-09-15), and `technical/database/rls-coverage.csv` classifies these 3 relation–principal rows (3 relations) as `gap`: `public.audit_events` (goproceed_app): the cited refused insert (foundation.test.ts:22) comes from an actor the test gives no membership, not a member of another workspace (gp-security S1-03); `public.idempotency_records` (goproceed_app): the only read pair (foundation.test.ts:69) uses an actor-scoped record with organization_id null; no workspace-A row and no cross-workspace member denial; `public.transaction_outbox` (goproceed_app): negative only (foundation.test.ts:59: foreign-org INSERT refused; INSERT is the only grant, 0003:64); no permitted INSERT into the actor's own workspace. The v0.1 minimum per row is in `docs/delivery/test-strategy.md` §4 and the DEV-013 record: on the member plane an authorised same-workspace read (or, without `SELECT`, a write) and a read denial to an active member of another workspace; on the service plane the declared workspace reaching the row and another or no declared workspace refused. A test that closes a row is cited in the registry, which the validator then checks. Ranked by DEV-013.
-- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 3 `gap` rows for module `operational` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10.
+- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 3 `gap` rows for module `operational` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10. Closed 2026-09-17 by DEV-016: the rows cite `packages/testing/src/*-rls.test.ts`, each file run alone and passing at `0086`.
 - **Depends on:** none.
 - **Deadline:** before readiness gate 11 closes.
 
@@ -1161,10 +1163,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-097"></a>
 ### BL-097 — P1 — 1 requirements registry row lacks tenant-isolation tests (readiness gate 11)
 
-- **State:** open
+- **State:** closed → DEV-016
 - **Legacy cite:** none
 - **Why:** readiness gate 11 closes only when every exposed tenant relation has a positive and a negative policy test (owner, 2026-09-15), and `technical/database/rls-coverage.csv` classifies these 1 relation–principal rows (1 relation) as `gap`: `public.requirement_template_versions` (goproceed_app): immutability tests only (m2-rls.test.ts:185-244); no policy test. The v0.1 minimum per row is in `docs/delivery/test-strategy.md` §4 and the DEV-013 record: on the member plane an authorised same-workspace read (or, without `SELECT`, a write) and a read denial to an active member of another workspace; on the service plane the declared workspace reaching the row and another or no declared workspace refused. A test that closes a row is cited in the registry, which the validator then checks. Ranked by DEV-013.
-- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 1 `gap` rows for module `requirements` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10.
+- **Evidence:** observed 2026-09-16 at `b9dcf6b` against the local database at `0085`: the 1 `gap` rows for module `requirements` in `technical/database/rls-coverage.csv`; [DEV-013](tasks/DEV-013-m0-gate11-coverage-checker.md) rows 6–10. Closed 2026-09-17 by DEV-016: the rows cite `packages/testing/src/*-rls.test.ts`, each file run alone and passing at `0086`.
 - **Depends on:** none.
 - **Deadline:** before readiness gate 11 closes.
 
@@ -1205,6 +1207,26 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** none
 - **Why:** DEV-014's `gp-architect` design (O-1). `withServiceTx` (`packages/database/src/tx.ts`) keeps the caller's `app.actor_user_id`, and `goproceed_service` inherits the `to goproceed_app` policies, which combine with its own by `OR`. On the tables both planes can read (`communication_messages`, `communication_message_events`, `communication_attachments`, `telegram_chat_bindings`, `telegram_media_groups`), an actor entitled to workspace A therefore reads A's rows through a service transaction that declared workspace B. This is not a cross-tenant leak, because the actor is entitled to A, but `adoptServiceWorkspace`'s comment («confines every subsequent statement to this workspace») holds only with an empty actor. DEV-014's service-plane tests use an empty actor, so they prove the service policy and not this path. The callers that keep the actor, found by DEV-014's `gp-security` (S1-02): `apps/app/app/v1/projects/[projectId]/communications/route.ts:241`, `.../communications/[messageId]/retry/route.ts:90`, `apps/app/app/v1/assignments/[assignmentId]/communication-card/route.ts:52`, the Telegram `member-link-intents` (`:47`) and `binding-intents` (`:50`) routes, and `apps/app/src/lib/evidence/finalize-upload-intent.ts:29,142,168` (evidence tables); every Telegram processor, ingress, linking and erasure path passes an empty actor. In those routes a lookup by id inside a transaction declared for workspace X can return a row of another workspace where the actor holds `project.view` or `project.admin`. The fix should also say in `adoptServiceWorkspace`'s comment that the confinement holds only with an empty actor. DEV-015 (0086) confined the two readiness projections' service policies and added them to the affected set: `rp_select` and `br_select` still admit an entitled actor's other workspaces to a service transaction. DEV-015's `gp-architect` named the clean fix: a restrictive policy `as restrictive for all to goproceed_service using (workspace_id = app.service_workspace()) with check (…)` on every table both planes read, which combines with every permissive branch by AND and touches only the service role. Ranked by DEV-014.
 - **Evidence:** observed 2026-09-17: `packages/testing/src/communication-rls.test.ts` header; a mutation run in DEV-014 (row 5) shows the service-plane assertions depend on the declared workspace. Unverified: a test with a member of both workspaces (`asService(USER, WS_B)` reading A's rows) has not been written.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-102"></a>
+### BL-102 — P1 — The service plane's capture-event insert ignores the workspace it declares, and its caller declares none
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** found by DEV-016's `gp-architect`. `ce_insert_server` (`supabase/migrations/0035_server_facts_are_service_only.sql:150-157`) is `event_source = 'server' and exists (select 1 from public.upload_intents u …)`, with no `app.service_workspace()` term, and the `exists` runs under row level security on `upload_intents`, whose only policies are the actor-bound `ui_select` and the session-bound `ui_external_select`, both inherited by `goproceed_service`. So an empty-actor service transaction declaring workspace A is refused every server event, and a transaction carrying an actor entitled to A is admitted whatever workspace it declares. `apps/app/src/lib/evidence/finalize-upload-intent.ts:58` passes `organizationId: null` to its three `withServiceTx` calls (`:29`, `:142`, `:168`), so production server events declare nothing. It is not an unentitled cross-tenant write (the actor must hold `project.view` on the intent's project, and the workspace, intent and project must match), but the `capture_events` `goproceed_service` row of `technical/database/rls-coverage.csv` cannot meet the v0.1 minimum, and readiness gate 11 cannot close while it stays a gap. The smallest fix, for its own task's `gp-architect` to confirm: a migration adding `workspace_id = app.service_workspace()` to `ce_insert_server`'s check, and `finalize-upload-intent.ts` declaring the intent's workspace in the same change (before the migration, or every finalize fails with 42501); or the restrictive service policy BL-101 names. Start with the failing test: an entitled actor declaring A admitted, the same actor declaring B or nothing refused. Ranked by DEV-016.
+- **Evidence:** observed 2026-09-17 at `191dd79` from the policy text (local database at `0086`) and the source lines above. Unverified: no test has declared another workspace; `packages/testing/src/m2-service-principal.test.ts:141` (an entitled actor declaring its own workspace, admitted) is consistent with this reading.
+- **Depends on:** none.
+- **Deadline:** before readiness gate 11 closes.
+
+<a id="bl-103"></a>
+### BL-103 — P3 — A member whose membership ended keeps reading its cached idempotent responses until they expire
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** found by DEV-016's `gp-architect`. `idem_select` on `public.idempotency_records` is `actor_scope = 'user:' || app.current_actor()`, with no workspace or membership term, so a user whose membership in workspace A ended still reads the `response_body` rows it wrote in A until they expire (`standard_30d`, `apps/app/src/lib/idempotency.ts:88`). The v0.1 read minimum holds as written — a user who was never a member of A reads nothing of A — and the owner decided on 2026-09-17 to record this as P3 rather than keep the registry row a gap. Adding an active-membership term for rows with an `organization_id` would close it; whether a route replays a record before checking membership is unverified. For `gp-security` and the owner to rule on. Ranked by DEV-016.
+- **Evidence:** observed 2026-09-17 at `191dd79`: the `idem_select` policy text (local database at `0086`).
 - **Depends on:** none.
 - **Deadline:** none recorded.
 
