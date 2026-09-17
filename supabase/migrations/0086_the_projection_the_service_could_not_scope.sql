@@ -44,7 +44,7 @@
 -- same end state.
 --
 -- Pinned by packages/testing/src/projection-rls.test.ts (red at 0085, green
--- here) and by the rewritten «no public policy is unconditional» case in
+-- here) and by the rewritten «no public policy is literally `true`» case in
 -- packages/testing/src/m5-external-rls.test.ts §2. INV-001;
 -- technical/data-access-surface.csv DA-178 to DA-181.
 --
