@@ -430,6 +430,16 @@ M0 rather than leaving them to a milestone.
         for `goproceed_service` (BL-102): its policy ignores the declared
         workspace, so it needs a migration first. The unfiltered evidence run
         is still owed, and nothing ran in CI.
+      - **CLOSED 2026-09-18** by the dated gate 11 entry in
+        [version-0.1.md](version-0.1.md) §M0
+        ([DEV-018](../tasks/DEV-018-gate11-closure.md)): the registry holds 74
+        `covered`, 0 `gap`, 7 `exempt_no_grant`, and the unfiltered
+        `pnpm --filter @goproceed/testing test` passed 786 tests in 55 files with
+        none skipped, against a database the run rebuilt from the migrations
+        (`0087`). The boxes above stay unticked: this document records no gate
+        closed, the entry does (the gate 10 precedent). Read that entry's
+        *Limits* before citing this: `covered` is the v0.1 read minimum, the run
+        was local, and nothing ran in CI.
       - **Evidence toward this gate, 2026-09-18 — not closed**
         ([DEV-017](../tasks/DEV-017-capture-event-service-workspace.md)):
         migration `0087` confines the server capture event to the workspace the

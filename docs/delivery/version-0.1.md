@@ -335,6 +335,69 @@ settled it stands unchanged and settles the next disagreement the same way.
   gate closes; a gate with no entry below is open. Each entry names its task
   record, which holds the commands, the negative results and what the entry does
   not prove.
+  - **Gate 11, Tenant isolation for every module (runbook item 11) — 2026-09-18 —
+    [DEV-018](../tasks/DEV-018-gate11-closure.md).**
+    - *Positive and negative policy tests, per module and not sampled.*
+      [`technical/database/rls-coverage.csv`](../../technical/database/rls-coverage.csv)
+      holds one row per `(schema, relation, principal)` the five tenant-facing
+      principals can reach — by a direct grant, a grant to PUBLIC, ownership, or
+      a policy naming the principal on a relation it reaches through inherited
+      privilege — plus one `exempt_no_grant` row per unexposed relation: **74
+      `covered`, 0 `gap`, 7 `exempt_no_grant`**. Every `covered` row cites a
+      positive and a negative test by file, `describe` and `it`
+      ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md) to
+      [DEV-017](../tasks/DEV-017-capture-event-service-workspace.md)). Two
+      checkers keep it honest: `pnpm validate:canonical-docs` refuses a cited
+      test that does not exist, is not written in one plain unskippable shape,
+      or does not name its relation, and refuses a registry that omits a
+      deployed table; `packages/testing/src/rls-coverage.test.ts` compares the
+      registry with the running database both ways and asserts that every
+      exemption still holds no privilege.
+    - *Two defects the coverage work found, both fixed here rather than
+      recorded.* Migration `0086` confined the two readiness projections'
+      service policies, which `0045` had left `using (true)` — reads included
+      (BL-100, [DEV-015](../tasks/DEV-015-projection-service-policy.md)); `0087`
+      confined the server capture event to the workspace the service transaction
+      declares and moved its binding check into a definer, which `0035` had left
+      resting on the member's own read capability (BL-102,
+      [DEV-017](../tasks/DEV-017-capture-event-service-workspace.md)). Each was
+      shown by a test that was red before its migration.
+    - *The evidence run.* The unfiltered `pnpm --filter @goproceed/testing test`
+      on 2026-09-18, on `1bf5cea` (main after PR #98) with only this task's
+      documents added: **55 files, 786 tests, all passed, none skipped**, 163 s,
+      exit 0. The run re-created the database itself (`resetDb()` →
+      `supabase db reset`), which left it at migration `0087` with 87 applied
+      rows, so the suites ran against a database built from the migrations in
+      the tree rather than from hand-applied state. All 18 files the registry
+      cites are in that run: `workspace-access-rls` (13), `communication-rls`
+      (16), `contract-baseline-rls` (8), `evidence-rls` (3),
+      `evidence-service-rls` (2), `execution-rls` (3), `external-review-rls` (3),
+      `operational-rls` (3), `requirements-rls` (1), `projection-rls` (4),
+      `m1-rls-baseline` (9), `m1-rls-workspace` (8), `m1-rules-rls` (15),
+      `m1-project-sourced-schema` (34), `m2-rls` (18), `m2-occurrences-rls` (13),
+      `m3-closure-rls` (28), `m4-act-rls` (12); `rls-coverage.test.ts` (22)
+      passed in the same run.
+    - *Limits.* `covered` is the **v0.1 read minimum**: an authorised
+      same-workspace read (or, where the principal holds no `SELECT`, a
+      permitted own-workspace write), and a read denial to an ACTIVE MEMBER OF
+      ANOTHER WORKSPACE; on the service plane, the declared workspace reaching
+      the row and another or none refused. Cross-workspace **write** denial is
+      not part of it (BL-099, the owner's decision of 2026-09-16), and neither
+      is capability enforcement inside a workspace. Every other row of
+      `tenancy-and-security.md`'s test list, `SECURITY DEFINER` functions,
+      storage paths, sequences and other schemas stay proved by review. Still
+      open and named rather than fixed: BL-101 (an actor-bearing service
+      transaction is not confined), BL-103 and BL-104 (an idempotent response is
+      replayed before membership is checked, and it carries the raw invitation
+      token), BL-105 (`capture_events.work_assignment_id` is bound by nothing)
+      and BL-106 (`app.service_workspace()` has no pinned `search_path`). The
+      run was local: **no hosted project holds `0059`–`0087`** (the last
+      recorded staging apply is 58/58 on 2026-08-19), and **nothing ran in CI**
+      (GitHub Actions starts no jobs until October 2026). The local Supabase CLI
+      was 2.114.0 while `.supabase-cli-version` pins 2.115.0. The scanner behind
+      the validator reads text, not a syntax tree, with the limits
+      `test-strategy.md` §4 records. No quarantine ledger exists; the validator's
+      skip refusals stand in for it.
   - **Gate 10, Regulatory content (runbook items 9 and 10) — 2026-09-14 —
     [DEV-009](../tasks/DEV-009-m0-gate10-evidence.md).**
     - *No normative string renderable without its tag and source.* Held in the
