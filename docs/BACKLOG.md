@@ -130,9 +130,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-099](#bl-099) | P2 | open | A `covered` registry row requires only a cross-workspace read denial, not a write denial |
 | [BL-100](#bl-100) | P1 | closed → DEV-015 | The service plane reads and rewrites every workspace's readiness projections, whatever workspace it declares |
 | [BL-101](#bl-101) | P3 | open | A service transaction that keeps the caller's actor is not confined to the workspace it declares |
-| [BL-102](#bl-102) | P1 | open | The service plane's capture-event insert ignores the workspace it declares, and its caller declares none |
+| [BL-102](#bl-102) | P1 | closed → DEV-017 | The service plane's capture-event insert ignores the workspace it declares, and its caller declares none |
 | [BL-103](#bl-103) | P2 | open | A repeat of an idempotent command replays its stored response before membership is checked |
 | [BL-104](#bl-104) | P1 | open | `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days |
+| [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
+| [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1214,10 +1216,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-102"></a>
 ### BL-102 — P1 — The service plane's capture-event insert ignores the workspace it declares, and its caller declares none
 
-- **State:** open
+- **State:** closed → DEV-017
 - **Legacy cite:** none
 - **Why:** found by DEV-016's `gp-architect`. `ce_insert_server` (`supabase/migrations/0035_server_facts_are_service_only.sql:150-157`) is `event_source = 'server' and exists (select 1 from public.upload_intents u …)`, with no `app.service_workspace()` term, and the `exists` runs under row level security on `upload_intents`, whose only policies are the actor-bound `ui_select` and the session-bound `ui_external_select`, both inherited by `goproceed_service`. So an empty-actor service transaction declaring workspace A is refused every server event, and a transaction carrying an actor entitled to A is admitted whatever workspace it declares. `apps/app/src/lib/evidence/finalize-upload-intent.ts:58` passes `organizationId: null` to its three `withServiceTx` calls (`:29`, `:142`, `:168`), so production server events declare nothing. It is not an unentitled cross-tenant write (the actor must hold `project.view` on the intent's project, and the workspace, intent and project must match), but the `capture_events` `goproceed_service` row of `technical/database/rls-coverage.csv` cannot meet the v0.1 minimum, and readiness gate 11 cannot close while it stays a gap. The smallest fix, for its own task's `gp-architect` to confirm: a migration adding `workspace_id = app.service_workspace()` to `ce_insert_server`'s check, and `finalize-upload-intent.ts` declaring the intent's workspace in the same change (before the migration, or every finalize fails with 42501); or the restrictive service policy BL-101 names. Adding the workspace term alone is not enough: with an empty actor the `exists` over `upload_intents` still matches nothing, so the fix also owes the service plane a read of `upload_intents` confined to the declared workspace (a policy or a `SECURITY DEFINER` helper that validates the workspace/intent/project chain) — otherwise this row's minimum has to be the actor-bearing shape, which is the owner's call. The inherited `ce_select` leaves the same BL-101 class on reads. Start with the failing test: an entitled actor declaring A admitted, the same actor declaring B or nothing refused. Ranked by DEV-016.
-- **Evidence:** observed 2026-09-17 at `191dd79` from the policy text (local database at `0086`) and the source lines above. Unverified: no test has declared another workspace; `packages/testing/src/m2-service-principal.test.ts:141` (an entitled actor declaring its own workspace, admitted) is consistent with this reading.
+- **Evidence:** observed 2026-09-17 at `191dd79` from the policy text (local database at `0086`) and the source lines above. Unverified: no test has declared another workspace; `packages/testing/src/m2-service-principal.test.ts:141` (an entitled actor declaring its own workspace, admitted) is consistent with this reading. Closed 2026-09-18 by DEV-017 (migration `0087`): `packages/testing/src/evidence-service-rls.test.ts` was red at `0086` — an empty-actor transaction declaring A was refused (42501) and one carrying an actor entitled to A was admitted while declaring B — and passes at `0087`; the finalize path now declares the intent's workspace (DEV-017 `scratchpad/dev017-red-db.txt`, `dev017-green-db.txt`).
 - **Depends on:** none.
 - **Deadline:** before readiness gate 11 closes.
 
@@ -1240,6 +1242,26 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** observed 2026-09-18 at `5c73b70` in the source lines above; `packages/database/src/idempotency.ts:86-95` is the insert that stores the body. Unverified: whether any other route returns a secret from inside an idempotent block.
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment, and before invitations are sent from any hosted environment.
+
+<a id="bl-105"></a>
+### BL-105 — P3 — A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-017's `gp-security` review (S1-04). `public.capture_events` has no foreign key on `work_assignment_id` (nor on `project_id`; `0035:145` records why the server branch carries the intent instead), and `0087` binds only the workspace, the intent and the project (`ce_insert_server` through `app.upload_intent_scope_matches`). A service transaction declaring workspace A may therefore write a row of A that names an assignment id belonging to another workspace: not a cross-tenant read and not a cross-tenant write, but a row whose own references do not agree, which every other tenant relation prevents with a composite foreign key (INV-001). Pre-existing; `0087` neither introduces nor closes it. The fix is the composite-FK treatment the rest of the schema uses, or one more term in the policy. Ranked by DEV-017.
+- **Evidence:** observed 2026-09-18 at `e7e35aa` from the policy and table definitions (`0015`, `0035`, `0087`); local database at `0087`. Unverified: whether any code path could produce such a row today — the only server writer resolves the assignment from the intent it just read.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-106"></a>
+### BL-106 — P3 — `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-017's `gp-security` review (S1-06). `app.service_workspace()` (`0062`) is an invoker `sql` function reading `current_setting('app.organization_id', true)` with no `set search_path` and an unqualified `current_setting`. Every service-plane policy resolves through it — the Telegram tables, the two readiness projections (`0086`) and now `ce_insert_server` (`0087`) — so it is load-bearing. Exploiting it needs a role able to create a shadowing `current_setting` in a schema that precedes `pg_catalog` on the search path, which `goproceed_app` and `goproceed_service` should not have; this is hardening, not an observed hole. The fix is a later migration adding `set search_path to ''` and `pg_catalog.current_setting`, and the same review for `app.current_actor()`. Ranked by DEV-017.
+- **Evidence:** observed 2026-09-18 at `e7e35aa`: the function definition in the local database at `0087`. Unverified: whether any role in a hosted project holds `CREATE` on a schema that precedes `pg_catalog`.
+- **Depends on:** none.
+- **Deadline:** none recorded.
 
 ## Closed, kept for citations
 

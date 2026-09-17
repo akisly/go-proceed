@@ -16,8 +16,10 @@ import { seedAssignment } from "./m2-occurrences-fixture";
  * random: both key columns are unique across every workspace. Nothing goes
  * through app.finalize_upload_intent, so nothing is written to storage.
  *
- * The goproceed_service row of capture_events is NOT covered here: its policy
- * does not look at the declared workspace (BL-102).
+ * The goproceed_service row of capture_events is covered by
+ * evidence-service-rls.test.ts, not here: 0087 (BL-102) confined that policy to
+ * the workspace the service transaction declares, and the service plane has no
+ * SELECT of its own, so its evidence is an insert.
  *
  * m5-external-rls.test.ts counts capture_events across all workspaces and
  * expects zero, so a run killed before afterAll leaves m5 red until this file

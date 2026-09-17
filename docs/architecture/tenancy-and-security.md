@@ -900,6 +900,13 @@ gap: `capture_events` for `goproceed_service`, whose policy ignores the declared
 workspace (BL-102). `idempotency_records` is fenced by the actor, not by
 membership (BL-103).]*
 
+*[Added 2026-09-18 ([DEV-017](../tasks/DEV-017-capture-event-service-workspace.md)):
+migration `0087` confines `ce_insert_server` to `app.service_workspace()` and
+binds the intent through the definer `app.upload_intent_scope_matches`, so no
+row of the registry is a gap (74 covered, 7 exempt). An actor-bearing service
+transaction is still not confined in general (BL-101, BL-019), and the gate's
+own evidence run is still owed.]*
+
 Every exposed table/function/storage path and command needs positive and
 negative tests for:
 
