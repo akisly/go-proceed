@@ -412,6 +412,15 @@ M0 rather than leaving them to a milestone.
         minimum, and the evidence run `test-strategy.md` §4 names (the
         unfiltered `pnpm --filter @goproceed/testing test`) is still owed.
         Nothing ran in CI.
+      - **Evidence toward this gate, 2026-09-17 — not closed**
+        ([DEV-015](../tasks/DEV-015-projection-service-policy.md)): migration
+        `0086` confines the two readiness projections' service policies to the
+        declared workspace (BL-100), and
+        `packages/testing/src/projection-rls.test.ts` covers BL-096's two
+        service rows (red at `0085`, green at `0086`, run alone locally). The
+        registry holds 52 `covered`, 22 `gap` (BL-091 to BL-095, BL-097) and
+        7 `exempt_no_grant` rows. `0086` is applied to the local database only.
+        Nothing ran in CI.
 - [ ] The evidence is the test run named in
       [test-strategy.md](test-strategy.md) §"4. Tenant isolation, and the tests
       that cannot be quarantined". The same evidence closes both, and it must,

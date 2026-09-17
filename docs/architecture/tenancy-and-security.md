@@ -887,6 +887,12 @@ minimum, by files run alone; the unfiltered package run named in
 `test-strategy.md` §4 is still owed. 24 rows are still gaps (BL-091 to BL-097),
 and the two service-plane projection rows wait on BL-100.]*
 
+*[Added 2026-09-17 ([DEV-015](../tasks/DEV-015-projection-service-policy.md)):
+migration `0086` confines `rp_write_server` and `br_write_server` to
+`app.service_workspace()`; 0045's `using (true)` had admitted every workspace to
+the service plane, reads included (BL-100). 22 rows are still gaps. An
+actor-bearing service transaction is still not confined (BL-101).]*
+
 Every exposed table/function/storage path and command needs positive and
 negative tests for:
 
