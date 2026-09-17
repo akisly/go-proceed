@@ -72,6 +72,12 @@
 -- transaction with app.finalize_upload_intent — so roll the migration back with
 -- it, or roll forward.
 --
+-- The caller check reads session_user, so the service connection must
+-- authenticate as a login that is a MEMBER of goproceed_service — which is what
+-- SERVICE_DB_URL points at (packages/database/src/pool.ts asserts it). An
+-- environment wired to some other login fails closed: every finalize gets
+-- 42501, loudly, rather than writing a fact nobody vouched for.
+--
 -- The definer reads public.upload_intents as its owner, which bypasses that
 -- table's policies because no migration forces row level security on it. That
 -- assumption is what makes the EXISTS answer for the service plane at all.
