@@ -989,13 +989,13 @@ both: the artifact and the procedure.]*
 
 *(readiness gate 11)*
 
-**Status: PARTIAL.**
+**Status: CLOSED 2026-09-18** by the gate 11 entry in [version-0.1.md](version-0.1.md) §M0 ([DEV-018](../tasks/DEV-018-gate11-closure.md)). *[Changed 2026-09-18 (DEV-018): this read «PARTIAL».]* That entry's *Limits* bullet governs what the closure means; the table and the notes below are the state before it, kept as the record of how the gate stood.
 
 | Half | Status |
 |---|---|
 | RLS suites exist per milestone | **BUILT** — `rls.test.ts` plus `m1-rls-baseline`, `m1-rls-workspace`, `m1-rules-rls`, `m2-rls`, `m2-occurrences-rls`, `m3-closure-rls`, `m4-act-rls`, `m5-external-rls`, plus `m2-policy-gaps.test.ts` for write paths the first suite missed; since 2026-09-01 also `telegram-rls.test.ts` and, in `m5-external-rls`, the column-level-grant case («a column-level grant is a fence, not a door») and INV-099's erasure sweep in `telegram-erasure.test.ts` |
 | A mechanical assertion that RLS is *enabled* everywhere | **BUILT** — every `public` relation with `relrowsecurity` false must be an empty list |
-| «a positive AND negative policy test per exposed tenant relation, **checked against the module list rather than sampled**» (INV-060) | **OPEN** — no mechanical checker exists. INV-060 appears in [invariant-catalog.csv](../../technical/database/invariant-catalog.csv) and three prose documents and in **zero test files** |
+| «a positive AND negative policy test per exposed tenant relation, **checked against the module list rather than sampled**» (INV-060) | **BUILT** *[changed 2026-09-18 (DEV-018); this read «OPEN — no mechanical checker exists»]* — `technical/database/rls-coverage.csv` with its validator step and `packages/testing/src/rls-coverage.test.ts` ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)); 74 `covered`, 0 `gap`, 7 `exempt_no_grant`. The sentence below is the state before the checker existed. INV-060 appears in [invariant-catalog.csv](../../technical/database/invariant-catalog.csv) and three prose documents and in **zero test files** |
 
 **One thing this gate cannot cite today.** The channel's integration suites under `apps/app/tests/` are red in CI (§1.1); a gate-11 evidence entry that reaches for them as isolation evidence is reaching for a failing run. The `packages/testing` sweeps are green and are the evidence this gate has.
 

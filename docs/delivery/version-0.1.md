@@ -363,12 +363,15 @@ settled it stands unchanged and settles the next disagreement the same way.
       [DEV-017](../tasks/DEV-017-capture-event-service-workspace.md)). Each was
       shown by a test that was red before its migration.
     - *The evidence run.* The unfiltered `pnpm --filter @goproceed/testing test`
-      on 2026-09-18, on `1bf5cea` (main after PR #98) with only this task's
-      documents added: **55 files, 786 tests, all passed, none skipped**, 163 s,
-      exit 0. The run re-created the database itself (`resetDb()` →
+      on 2026-09-18, on the tree at `1bf5cea` (main after PR #98; this task's
+      documents were written after the run): **55 files, 786 tests, all passed,
+      none skipped**, 163 s (`Start at 01:19:57`), with exit 0 and the
+      01:19:56–01:22:40 window as the session's own wrapper recorded them around
+      the saved output. The run re-created the database itself (`resetDb()` →
       `supabase db reset`), which left it at migration `0087` with 87 applied
-      rows, so the suites ran against a database built from the migrations in
-      the tree rather than from hand-applied state. All 18 files the registry
+      rows, so **every cited suite ran after a `resetDb()`**, against a database
+      built from the migrations in the tree rather than from hand-applied state
+      (`migrations.test.ts` runs first, before the first reset). All 18 files the registry
       cites are in that run: `workspace-access-rls` (13), `communication-rls`
       (16), `contract-baseline-rls` (8), `evidence-rls` (3),
       `evidence-service-rls` (2), `execution-rls` (3), `external-review-rls` (3),
@@ -377,15 +380,23 @@ settled it stands unchanged and settles the next disagreement the same way.
       `m1-project-sourced-schema` (34), `m2-rls` (18), `m2-occurrences-rls` (13),
       `m3-closure-rls` (28), `m4-act-rls` (12); `rls-coverage.test.ts` (22)
       passed in the same run.
-    - *Limits.* `covered` is the **v0.1 read minimum**: an authorised
+    - *Limits — and what this closure is narrower than.* The gate's first box
+      asks for positive and negative tests **per the matrix in
+      `tenancy-and-security.md`**. This gate closed on less, by the owner's
+      decisions of 2026-09-15 («the gate closes at zero `gap` rows») and
+      2026-09-16 («only the read minimum»): `covered` means an authorised
       same-workspace read (or, where the principal holds no `SELECT`, a
       permitted own-workspace write), and a read denial to an ACTIVE MEMBER OF
       ANOTHER WORKSPACE; on the service plane, the declared workspace reaching
-      the row and another or none refused. Cross-workspace **write** denial is
-      not part of it (BL-099, the owner's decision of 2026-09-16), and neither
-      is capability enforcement inside a workspace. Every other row of
-      `tenancy-and-security.md`'s test list, `SECURITY DEFINER` functions,
-      storage paths, sequences and other schemas stay proved by review. Still
+      the row and another or none refused; and for the two insert-only tables, a
+      refused insert in place of a read denial. Cross-workspace **write** denial
+      is outside it (BL-099), so is capability enforcement inside a workspace,
+      and so is the external-session insert branch (`audit_insert_external`,
+      `outbox_insert_external`), which no test exercises. The matrix's other
+      rows — unauthenticated and wrong-role denial, composite-reference
+      injection, definer `search_path`, worker inability — and `SECURITY
+      DEFINER` functions, storage paths, sequences and other schemas are **not
+      proved by this registry or this run, and no dated record proves them**. Still
       open and named rather than fixed: BL-101 (an actor-bearing service
       transaction is not confined), BL-103 and BL-104 (an idempotent response is
       replayed before membership is checked, and it carries the raw invitation
@@ -394,10 +405,13 @@ settled it stands unchanged and settles the next disagreement the same way.
       run was local: **no hosted project holds `0059`–`0087`** (the last
       recorded staging apply is 58/58 on 2026-08-19), and **nothing ran in CI**
       (GitHub Actions starts no jobs until October 2026). The local Supabase CLI
-      was 2.114.0 while `.supabase-cli-version` pins 2.115.0. The scanner behind
+      was 2.114.0 while `.supabase-cli-version` pins 2.115.0 (both captured). The scanner behind
       the validator reads text, not a syntax tree, with the limits
-      `test-strategy.md` §4 records. No quarantine ledger exists; the validator's
-      skip refusals stand in for it.
+      `test-strategy.md` §4 records. No quarantine ledger exists. The validator refuses a
+      cited test that could be skipped, which is narrower than what
+      `version-0.0.md` gate 2 asks for — a quarantined security test failing the
+      build — and it runs only when a person runs it, because no CI job starts
+      until October 2026. That clause of the first box is therefore not met.
   - **Gate 10, Regulatory content (runbook items 9 and 10) — 2026-09-14 —
     [DEV-009](../tasks/DEV-009-m0-gate10-evidence.md).**
     - *No normative string renderable without its tag and source.* Held in the
