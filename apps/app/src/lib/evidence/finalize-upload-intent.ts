@@ -23,7 +23,10 @@ type FinalizeResult =
   | { outcome: "ok"; evidenceObjectId: string; serverReceivedAt: Date };
 
 async function recordFailure(
-  ctx: { actorUserId: string; organizationId: string | null; requestId: string },
+  // organizationId is NOT nullable here: ce_insert_server (0087) admits the
+  // server's capture event only for the workspace the service transaction
+  // declared, so a context that declares none cannot write one (BL-102).
+  ctx: { actorUserId: string; organizationId: string; requestId: string },
   intent: IntentRow, intentId: string, failureCode: string,
 ): Promise<void> {
   await withServiceTx(ctx, async (tx) => {
@@ -104,6 +107,14 @@ export async function finalizeUploadIntent({
       { requestId, retryable: false, userAction: "request_new_upload_grant" }));
   }
 
+  // Every service transaction below declares the intent's own workspace.
+  // app.service_workspace() is what ce_insert_server (0087) compares the server
+  // capture event against, and the declaration confines the whole transaction;
+  // the workspace is an INPUT here (the tenant read above returned it), so it is
+  // set on the context rather than adopted mid-transaction (tx.ts,
+  // adoptServiceWorkspace, which is for a workspace a first statement resolves).
+  const serviceCtx = { ...ctx, organizationId: intent.workspace_id };
+
   // Storage I/O is deliberately outside both transactions.
   const storedSize = await objectSize(intent.staging_storage_key, intent.staging_bucket);
   if (storedSize === null) {
@@ -112,7 +123,7 @@ export async function finalizeUploadIntent({
       { requestId, retryable: true, userAction: "refresh_upload_state_or_request_new_grant" }));
   }
   if (storedSize !== Number(intent.expected_byte_size)) {
-    await recordFailure(ctx, intent, intentId, "integrity_size_mismatch");
+    await recordFailure(serviceCtx, intent, intentId, "integrity_size_mismatch");
     throw new HttpProblem(422, problem("UPLOAD_CHECKSUM_MISMATCH",
       `Отримано ${storedSize} Б замість очікуваних ${intent.expected_byte_size} Б.`,
       { requestId, retryable: true, userAction: "retry_part" }));
@@ -130,7 +141,7 @@ export async function finalizeUploadIntent({
   const hashMatches = actualHash === intent.expected_content_hash;
   if (!sizeMatches || !hashMatches) {
     const failureCode = sizeMatches ? "integrity_hash_mismatch" : "integrity_size_mismatch";
-    await recordFailure(ctx, intent, intentId, failureCode);
+    await recordFailure(serviceCtx, intent, intentId, failureCode);
     throw new HttpProblem(422, problem("UPLOAD_CHECKSUM_MISMATCH",
       sizeMatches
         ? "Хеш отриманого вмісту не збігається з очікуваним. Оригінал збережено, спробуйте ще раз."
@@ -139,7 +150,7 @@ export async function finalizeUploadIntent({
   }
   const inspection = await inspectContent(bytes, intent.claimed_media_type);
   if (inspection.outcome === "blocked") {
-    const blocked = await withServiceTx(ctx, async (tx) => {
+    const blocked = await withServiceTx(serviceCtx, async (tx) => {
       const r = await tx.query<{ applied: boolean }>(
         "select app.block_upload_intent($1,$2,$3) as applied",
         [intent.workspace_id, intentId, inspection.failureCode]);
@@ -165,7 +176,7 @@ export async function finalizeUploadIntent({
       { requestId, retryable: false, userAction: "recapture_or_contact_support" }));
   }
 
-  const result = await withServiceTx<FinalizeResult>(ctx, async (tx) => {
+  const result = await withServiceTx<FinalizeResult>(serviceCtx, async (tx) => {
     const r = await tx.query<{ evidence_object_id: string | null; outcome: string }>(
       `select * from app.finalize_upload_intent($1,$2,$3,$4,$5,$6,$7)`,
       [intent.workspace_id, intentId, actualHash, bytes.byteLength,

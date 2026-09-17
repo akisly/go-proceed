@@ -430,6 +430,17 @@ M0 rather than leaving them to a milestone.
         for `goproceed_service` (BL-102): its policy ignores the declared
         workspace, so it needs a migration first. The unfiltered evidence run
         is still owed, and nothing ran in CI.
+      - **Evidence toward this gate, 2026-09-18 — not closed**
+        ([DEV-017](../tasks/DEV-017-capture-event-service-workspace.md)):
+        migration `0087` confines the server capture event to the workspace the
+        service transaction declared (BL-102) and the finalize path declares it,
+        so the registry reaches **74 `covered`, 0 `gap`, 7 `exempt_no_grant`**.
+        The gate is now closable but **not closed**: closing needs the
+        unfiltered `pnpm --filter @goproceed/testing test` evidence run that
+        `test-strategy.md` §4 names (it resets the local database), a run of
+        `rls-coverage.test.ts` at `0087`, a dated entry in `version-0.1.md` §M0
+        and the owner's agreement. `0087` is applied to the local database only;
+        nothing ran in CI.
 - [ ] The evidence is the test run named in
       [test-strategy.md](test-strategy.md) §"4. Tenant isolation, and the tests
       that cannot be quarantined". The same evidence closes both, and it must,
