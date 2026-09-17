@@ -37,4 +37,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-013](DEV-013-m0-gate11-coverage-checker.md) | done | M0 readiness gate 11: a mechanical coverage checker for positive and negative tenant-isolation tests per exposed relation (INV-060) |
 | [DEV-014](DEV-014-gate11-workspace-communication.md) | done | Readiness gate 11: tenant-isolation tests for the workspace-access and communication gap rows (BL-098, BL-090) |
 | [DEV-015](DEV-015-projection-service-policy.md) | done | BL-100: the service plane confined to its declared workspace on the readiness projections (migration `0086`) |
-| [DEV-016](DEV-016-gate11-remaining-gaps.md) | verifying | Readiness gate 11: tenant-isolation tests for the remaining gap rows (BL-091 to BL-095, BL-097) |
+| [DEV-016](DEV-016-gate11-remaining-gaps.md) | done | Readiness gate 11: tenant-isolation tests for the remaining gap rows (BL-091 to BL-095, BL-097) |
