@@ -666,6 +666,9 @@ describe("the two projections are readable under readiness.view and writable by 
     // INV-001 at the FK layer, which is what lets the service write policy be
     // unconditional: a mis-wired rebuilder cannot write a row whose project
     // belongs to another tenant even though it authorizes against nobody.
+    // [2026-09-17, DEV-015] No longer so: the FK does not stop a cross-workspace
+    // read or rewrite, and 0086 confines the service policy to the declared
+    // workspace (BL-100). This case still pins the FK layer.
     expect(await sqlstate(() => asService(USER_A, WS_A, (cl) =>
       cl.query(BLOCKED_REASON_INSERT, blockedReasonParams(wa, ruleVersionA,
         { occurrenceId: wb.blockingA }))))).toBe("23503");

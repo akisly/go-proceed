@@ -396,7 +396,7 @@ describe("§2 — no permissive policy can be satisfied without a subject", () =
     expect(r.rows.length).toBeGreaterThan(100);
   });
 
-  it("no public policy is unconditional, for any role", async () => {
+  it("no public policy is literally `true`, for any role", async () => {
     // Until 0086, `rp_write_server` and `br_write_server` (0045) were `for all to
     // goproceed_service using (true)`, and this case pinned them as the only two
     // unconditional policies, calling them correct. They were not: an ALL policy
@@ -404,14 +404,27 @@ describe("§2 — no permissive policy can be satisfied without a subject", () =
     // tenant's projections (BL-100, DEV-015). 0086 confines them to the declared
     // workspace, and no policy in `public` is unconditional any more, for any
     // role. The query above still filters by role; this case is what stops a
-    // `true` policy from coming back for a role it does not look at.
-    const r = await c.query<{ policy: string }>(
-      `select tablename || '.' || policyname as policy
+    // `true` policy from coming back for a role it does not look at. It sees the
+    // literal `true` only: an always-true expression written another way
+    // (`1 = 1`) is for review.
+    const unconditional = `select tablename || '.' || policyname as policy
          from pg_policies
         where schemaname = 'public'
           and (coalesce(qual, '') = 'true' or coalesce(with_check, '') = 'true')
-        order by 1`);
+        order by 1`;
+    const r = await c.query<{ policy: string }>(unconditional);
     expect(r.rows.map((p) => p.policy)).toEqual([]);
+    // The positive control, rolled back: a `using (true)` policy created here is
+    // found by the same query, so the empty answer above is not a filter that
+    // matches nothing (as it would if `true` were ever rendered differently).
+    await c.query("begin");
+    try {
+      await c.query("create policy dev015_probe on public.audit_events for select to goproceed_service using (true)");
+      const probe = await c.query<{ policy: string }>(unconditional);
+      expect(probe.rows.map((p) => p.policy)).toEqual(["audit_events.dev015_probe"]);
+    } finally {
+      await c.query("rollback");
+    }
     // The same catalog read with the filter dropped finds policies, so the empty
     // answer above is not an empty catalog.
     const all = await c.query<{ n: number }>(
