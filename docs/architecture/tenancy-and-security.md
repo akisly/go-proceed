@@ -894,7 +894,8 @@ the service plane, reads included (BL-100). 22 rows are still gaps. An
 actor-bearing service transaction is still not confined (BL-101).]*
 
 *[Added 2026-09-17 ([DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md)):
-73 rows are covered in the v0.1 read minimum, by files run alone; one is still a
+73 rows are covered in the v0.1 read minimum — this task's 21 by six files run
+alone, the rest by the earlier tasks' runs; one is still a
 gap: `capture_events` for `goproceed_service`, whose policy ignores the declared
 workspace (BL-102). `idempotency_records` is fenced by the actor, not by
 membership (BL-103).]*
