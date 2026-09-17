@@ -276,6 +276,14 @@ artifact the first time it is pasted into a bug report.
   `0085` cannot enter it as a gap. No quarantine ledger exists yet; when one
   does, it must refuse any test the registry cites. The evidence run for the
   cited tests is the unfiltered `pnpm --filter @goproceed/testing test`.
+  *[Added 2026-09-17 ([DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md)):
+  where the principal holds `INSERT` and no `SELECT` (`audit_events`,
+  `transaction_outbox`), a read denial proves nothing, because every member
+  read fails at the grant; the negative is the other workspace's active member
+  refused an insert into A, beside its own permitted insert. This does not make
+  write denial part of the minimum elsewhere (BL-099). That negative covers
+  members only: the external-session insert branches (`audit_insert_external`,
+  `outbox_insert_external`) are exercised by no test yet.]*
 - This is also M0 gate 11 in
   [production-readiness.md](production-readiness.md). The same evidence closes
   both, and it must: a pilot admitted on a sampled coverage claim is admitted on
