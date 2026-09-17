@@ -881,6 +881,12 @@ none is refused) was judged by review. 53 rows are still gaps (BL-090 to
 BL-098); cross-workspace write denial (BL-099) and every other row of this list
 are still proved by review.]*
 
+*[Added 2026-09-17 ([DEV-014](../tasks/DEV-014-gate11-workspace-communication.md)):
+the workspace-access and communication rows are covered in the v0.1 read
+minimum, by files run alone; the unfiltered package run named in
+`test-strategy.md` §4 is still owed. 24 rows are still gaps (BL-091 to BL-097),
+and the two service-plane projection rows wait on BL-100.]*
+
 Every exposed table/function/storage path and command needs positive and
 negative tests for:
 

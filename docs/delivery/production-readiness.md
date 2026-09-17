@@ -399,6 +399,19 @@ M0 rather than leaving them to a milestone.
         gate closes only at zero gaps** (owner, 2026-09-15). The cited tests
         were not run in this task (the owner allowed only the new file), and
         nothing ran in CI.
+      - **Evidence toward this gate, 2026-09-17 — not closed**
+        ([DEV-014](../tasks/DEV-014-gate11-workspace-communication.md)): the
+        29 gap rows of modules `workspace_access` (BL-098) and `communication`
+        (BL-090) are `covered` by
+        `packages/testing/src/workspace-access-rls.test.ts` and
+        `packages/testing/src/communication-rls.test.ts`, each run alone and
+        passing against the local database at `0085`. The registry now holds 50
+        `covered`, 24 `gap` (BL-091 to BL-097) and 7 `exempt_no_grant` rows.
+        BL-096's two service rows wait on BL-100 (the projection policies admit
+        every workspace to the service plane). `covered` is the v0.1 read
+        minimum, and the evidence run `test-strategy.md` §4 names (the
+        unfiltered `pnpm --filter @goproceed/testing test`) is still owed.
+        Nothing ran in CI.
 - [ ] The evidence is the test run named in
       [test-strategy.md](test-strategy.md) §"4. Tenant isolation, and the tests
       that cannot be quarantined". The same evidence closes both, and it must,
