@@ -42,6 +42,8 @@ const SERVER_EVENT = `insert into public.capture_events
 let admin: Client;
 /** Workspace A's own intent, with everything the policy compares it against. */
 let intentA: { workspaceId: string; projectId: string; assignmentId: string; intentId: string };
+/** Workspace B's, for the project a row may name but its intent does not belong to. */
+let intentB: { workspaceId: string; projectId: string; assignmentId: string; intentId: string };
 
 const ROLL_BACK = new Error("evidence-service-rls: roll back");
 
@@ -69,13 +71,15 @@ async function seedSide(ws: string, user: string, suffix: string): Promise<typeo
  * No RETURNING: on INSERT it would pull the SELECT policies in and make a
  * refusal ambiguous.
  */
-async function serverEvent(actor: string, declared: string | null): Promise<number | string> {
+async function serverEvent(
+  actor: string, declared: string | null, projectId = intentA.projectId,
+): Promise<number | string> {
   let outcome: number | string = "not attempted";
   try {
     await asService(actor, declared, async (c) => {
       try {
         outcome = (await c.query(SERVER_EVENT, [
-          intentA.workspaceId, intentA.projectId, intentA.assignmentId, intentA.intentId, randomUUID(),
+          intentA.workspaceId, projectId, intentA.assignmentId, intentA.intentId, randomUUID(),
         ])).rowCount ?? 0;
       } catch (e) {
         outcome = (e as { code?: string }).code ?? "unknown";
@@ -92,7 +96,7 @@ beforeAll(async () => {
   admin = await adminClient();
   await dropWorkspaces(admin, [WS_A, WS_B]);
   intentA = await seedSide(WS_A, USER_A, "DEV017-A");
-  await seedSide(WS_B, USER_B, "DEV017-B");
+  intentB = await seedSide(WS_B, USER_B, "DEV017-B");
 }, 180_000);
 
 afterAll(async () => {
@@ -107,6 +111,10 @@ describe("evidence service plane — a service transaction declaring A may write
     expect(await serverEvent("", WS_A)).toBe(1);
     expect(await serverEvent("", WS_B)).toBe("42501");
     expect(await serverEvent("", null)).toBe("42501");
+    // The binding half, which the composite foreign key does not cover: the
+    // intent must belong to the project the event names (0035 has no foreign
+    // key on capture_events.project_id).
+    expect(await serverEvent("", WS_A, intentB.projectId)).toBe("42501");
   });
 
   it("capture_events: an actor entitled to A does not let a service transaction declaring B write the event of A", async () => {

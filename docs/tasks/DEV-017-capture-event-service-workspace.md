@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** `ce_insert_server` stops admitting a server capture event on the strength of the caller's actor alone: a service transaction reaches only the workspace it declared, and the finalize path declares it. The last `gap` row of `technical/database/rls-coverage.csv` becomes `covered`, so the registry reaches zero gaps and readiness gate 11 becomes closable (the closing entry is a separate decision and needs the owner).
-- **State:** reviewing
+- **State:** verifying
 - **Coordinator:** primary Claude Code session, 2026-09-18.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** an RLS policy change, a migration and the service-plane caller: `gp-architect` → failing test → migration `0087` + `finalize-upload-intent.ts` → `gp-reviewer` + `gp-security` → `gp-qa`, as DEV-015 (BL-100).
@@ -38,7 +38,11 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 
 ## Plan
 
-Numbered steps. For each step, name the files it touches and the check that proves it. A step that adds a contract, refusal or invariant starts with its failing test.
+1. `gp-architect` design: the fix shape, the caller, the test cases, the ordering. → the owner's ruling.
+2. Red: cite the unwritten test in the registry (validator), write `packages/testing/src/evidence-service-rls.test.ts`, run it at `0086` and show the defect.
+3. Migration `0087` and `finalize-upload-intent.ts`; apply `0087` by hand; the same test green; the adjacent suites green.
+4. Registry, catalogs and documents; the `it.skip` mutation; typechecks.
+5. `gp-reviewer` + `gp-security` → stated fixes → `gp-qa`.
 
 ## Progress and decisions
 
@@ -49,13 +53,28 @@ Numbered steps. For each step, name the files it touches and the check that prov
 | 3 | implementing (coordinator): `0087` and the caller | Migration written as designed; `finalize-upload-intent.ts` builds `serviceCtx` from `intent.workspace_id` for all three service transactions, and `recordFailure`'s context type no longer admits a null workspace (a null one is now a type error). `authorize-upload-intent.ts:180` needs no change: it writes a device-sourced row on the tenant connection. Applied by hand with `docker exec -i … psql -U postgres -v ON_ERROR_STOP=1 -1 -f -` (one transaction; `CREATE FUNCTION`, `COMMENT`, `REVOKE`, `GRANT`, `ALTER POLICY`, `COMMENT`, self-check `DO`, rc 0) and recorded in `supabase_migrations.schema_migrations` by a separate insert. Afterwards `ce_insert_server` reads `event_source = 'server' and workspace_id = app.service_workspace() and app.upload_intent_scope_matches(...)`, and `ce_insert`/`ce_select` are unchanged | `scratchpad/dev017-apply-0087.txt`, `dev017-policies-0087.txt` | Green |
 | 4 | implementing (coordinator): green | `evidence-service-rls.test.ts` alone at `0087`: **2 passed**. Adjacent suites at `0087`, one at a time: `m2-service-principal` 11, `evidence-rls` 3, `m5-external-rls` 10 passed. No `de17…` workspace and no `capture_events` row left. `@goproceed/app` and `@goproceed/testing` typecheck rc 0 | `scratchpad/dev017-green-db.txt`, `dev017-db-*.txt`, `dev017-typecheck-*.txt` | Documents |
 | 5 | implementing (coordinator): documents | Registry **74 covered, 0 gap, 7 exempt**; BL-102 `closed → DEV-017` with dated evidence; DA-182 to DA-184 (`capture_events` had no row on either plane, and the new definer); INV-001 names `0087` and the new test; T-RLS-010; dated notes in readiness §11, runbook §5.11, §5.14 row 4 and its Q-9 push-order sentence, the tenancy note; STATUS (marker `0087`, the migration row, the M0 row, next actions). Every one of them says the gate is **closable, not closed**. Validator rc 0; `it.skip` on the cited test turns it red, restored. Final runs are taken after this row is written | `scratchpad/dev017-validator-docs.txt`, `dev017-mutation-skip.txt`, `dev017-final-*.txt` | Commit; `gp-reviewer`, `gp-security` |
+| 6 | reviewing (`gp-reviewer`, `gp-security`, native) on `e7e35aa` | **`gp-reviewer`: APPROVE** — the migration is correct (the workspace term is NULL-safe, the definer answers false for a null intent, `ce_insert`/`ce_select`/`upload_intents` untouched), the ordering claim independently confirmed (`app.organization_id` is read only by `app.service_workspace()` and 0081's erasure sweep; no restrictive policy anywhere; the three upload definers read neither), and the actor-bearing control is admitted by the intended policy because `ce_insert` forbids `event_source='server'`. R1-01 to R1-09 minor and nits. **`gp-security`: PASS** — no other write path (no UPDATE or DELETE policy on the table, no definer or trigger writes it, two application writers only), the definer is a safe surface, and setting the GUC can only widen; S1-01 to S1-06 minor and informational | review reports | Stated fixes |
+| 7 | rework (coordinator), stated fixes | **The definer now validates its own contract** (S1-01, R1-05): `pg_catalog.pg_has_role(session_user, 'goproceed_service', 'member') and p_workspace = app.service_workspace()` precede the `exists`, so a direct call cannot become a cross-workspace existence oracle even if the grant were ever restored by a `create or replace`. The header states the owner-bypass assumption and why the self-check asserts the whole access list (R1-04), and the reverse-order outage (S1-02), which the runbook's Q-9 note repeats. **The cited test gained the binding case** (R1-03): declaring A with a project the intent does not belong to is refused — the one term the composite foreign key does not cover. **The registry's negative column now cites the actor-bearing test** (R1-02), where BL-102's defect lived, and T-RLS-010 names both cases. `recordAudit`/`enqueueOutbox` take `serviceCtx` (R1-09); the two dates corrected (S1-03, R1-08); BL-105 and BL-106 added for the informational findings (S1-04, S1-06). Criterion 3 is recorded NOT RUN (R1-06), and the record's empty sections are filled (R1-07). **After the rework:** `0087` re-applied (rc 0, self-check passed); `evidence-service-rls` 2, `m2-service-principal` 11, `evidence-rls` 3 passed at `0087`; no residue | `scratchpad/dev017-r1-apply.txt`, `dev017-r1-db-*.txt`, `dev017-r1-validator.txt` | `gp-qa` |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| S1-01 / R1-05 | minor | `0087` function body | Actual: the definer validated neither its caller nor the declared workspace | coordinator | Both conjuncts added, `pg_has_role` and `p_workspace = app.service_workspace()` (row 7) |
+| S1-02 | minor | `0087` header; runbook Q-9 note | Actual: only the forward deploy order stated | coordinator | The reverse order (an application rollback past this commit) named in both (row 7) |
+| R1-01 | minor | Runbook §5.14 row 4 | Actual: unbalanced `**` swallowed the emphasis | coordinator | Fixed (row 7) |
+| R1-02 | minor | Registry row citations | Actual: both columns cited the empty-actor test only | coordinator | The negative column cites the actor-bearing test; T-RLS-010 names both (row 7) |
+| R1-03 | minor | `evidence-service-rls.test.ts` | Actual: the project-binding half was untested | coordinator | A case with a project the intent does not belong to, refused 42501 (row 7) |
+| R1-04 | minor | `0087` | Actual: the owner-bypass assumption and `create or replace` unstated | coordinator | Stated in the header; **not changed**: `create or replace` stays so the file can be re-applied (the policy depends on the function, so a drop needs the policy first), and the self-check asserts the whole access list |
+| R1-06 | minor | Criterion 3 | Actual: no test exercises the finalize caller | coordinator | Recorded NOT RUN with the command that settles it |
+| R1-07 | minor | The record's empty sections | Actual: Plan, findings, acceptance, sources, handoff blank | coordinator | Filled (rows 7 and the closing row) |
+| R1-08 / S1-03 | nit | BL-102 evidence; STATUS migrations row | Actual: `0087` dated 2026-09-17; both applies dated 2026-09-18 | coordinator | Each apply keeps its own date (row 7) |
+| R1-09 | nit | `finalize-upload-intent.ts:207,211` | Actual: a null-workspace context still passed inside a declaring transaction | coordinator | `serviceCtx` everywhere (row 7) |
+| S1-04 | informational | `capture_events.work_assignment_id` | Actual: bound by nothing | coordinator | **BL-105** (P3), pre-existing |
+| S1-05 | informational | `apps/app` finalize int suites | Actual: NOT RUN (owner did not allow) | coordinator | Recorded in the acceptance table and «What is not true» |
+| S1-06 | informational | `app.service_workspace()` | Actual: no pinned `search_path` | coordinator | **BL-106** (P3), pre-existing |
 
-Rework count and hypothesis changes:
+Rework count and hypothesis changes: none — no QA FAIL and no blocker.
 
 ## What is not true after this task
 
@@ -84,6 +103,9 @@ Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pil
 ## Sources
 
 Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
+
+- PostgreSQL 17 `CREATE POLICY` — https://www.postgresql.org/docs/17/sql-createpolicy.html — server 17.6; accessed 2026-09-16 (DEV-014). `WITH CHECK` is enforced before other constraints, and permissive policies combine with `OR`.
+- PostgreSQL 17 `CREATE FUNCTION` (`SECURITY DEFINER`, `search_path`) — https://www.postgresql.org/docs/17/sql-createfunction.html — server 17.6; accessed 2026-09-18. A definer runs with the owner's privileges, so the function's own `search_path` is pinned and its references are schema-qualified.
 
 ## Completion / handoff
 

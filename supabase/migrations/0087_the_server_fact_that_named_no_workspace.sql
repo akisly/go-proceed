@@ -38,9 +38,13 @@
 --   and app.upload_intent_scope_matches(workspace_id, upload_intent_id, project_id)
 --
 -- The function answers one boolean about a (workspace, intent, project) triple
--- the caller has already named in full. It is narrower than a service SELECT
--- policy over public.upload_intents, which would open a whole tenant table's
--- read surface to answer it, and it detaches the SERVER's attestation from the
+-- the caller has already named in full, and it validates both halves of its own
+-- contract rather than resting on the grant alone (0035's guard argues for the
+-- same belt and braces): the caller must be the service principal, and the
+-- workspace asked about must be the one the transaction declared, so a direct
+-- call cannot become a cross-workspace existence oracle. It is narrower than a
+-- service SELECT policy over public.upload_intents, which would open a whole
+-- tenant table's read surface to answer it, and it detaches the SERVER's attestation from the
 -- MEMBER's live read capability: a capability revoked mid-upload now leaves the
 -- failure event writable, which is what 0035 wanted the server's own facts to
 -- be. It raises nothing, so a refusal stays 42501 rather than becoming P0001.
@@ -62,7 +66,17 @@
 -- ships in the same commit and is safe against the old policy: at 0086 nothing
 -- these transactions touch reads app.organization_id, and setting it can only
 -- widen a permissive service policy. A hosted push must deploy the build first
--- (runbook §10 Q-9).
+-- (runbook §10 Q-9). The reverse is equally true afterwards: rolling the
+-- application back past that commit, with this migration applied, fails every
+-- finalize — the success path included, because the capture event shares the
+-- transaction with app.finalize_upload_intent — so roll the migration back with
+-- it, or roll forward.
+--
+-- The definer reads public.upload_intents as its owner, which bypasses that
+-- table's policies because no migration forces row level security on it. That
+-- assumption is what makes the EXISTS answer for the service plane at all.
+-- `create or replace` keeps an existing object's grants, so the self-check
+-- asserts the whole access list rather than only the grant this file makes.
 --
 -- Pinned by packages/testing/src/evidence-service-rls.test.ts (its «declaring A
 -- … declaring B or nothing» and actor-bearing cases are red at 0086 and green
@@ -80,12 +94,14 @@ stable
 security definer
 set search_path to ''
 as $$
-  select exists (
-    select 1
-      from public.upload_intents u
-     where u.workspace_id = p_workspace
-       and u.id = p_intent
-       and u.project_id = p_project)
+  select pg_catalog.pg_has_role(session_user, 'goproceed_service', 'member')
+     and p_workspace = app.service_workspace()
+     and exists (
+       select 1
+         from public.upload_intents u
+        where u.workspace_id = p_workspace
+          and u.id = p_intent
+          and u.project_id = p_project)
 $$;
 
 comment on function app.upload_intent_scope_matches(uuid, uuid, uuid) is

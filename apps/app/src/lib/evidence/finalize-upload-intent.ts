@@ -204,11 +204,11 @@ export async function finalizeUploadIntent({
          values ($1,$2,$3,$4,$5,'server_confirmed','server','server_estimated')`,
         [intent.workspace_id, intent.project_id, intent.work_assignment_id, intentId,
           intent.device_capture_id]);
-      await recordAudit(tx, ctx, {
+      await recordAudit(tx, serviceCtx, {
         action: "evidence.available", object_type: "evidence_object", object_id: evidenceObjectId,
         details: { uploadIntentId: intentId, byteSize: bytes.byteLength },
       }, { organizationId: intent.workspace_id });
-      await enqueueOutbox(tx, ctx, {
+      await enqueueOutbox(tx, serviceCtx, {
         topic: "evidence.available", aggregate_type: "evidence_object",
         aggregate_id: evidenceObjectId, payload_version: 1,
         payload: { workspaceId: intent.workspace_id, projectId: intent.project_id,
