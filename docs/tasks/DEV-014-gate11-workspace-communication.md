@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** the 29 `gap` rows of `technical/database/rls-coverage.csv` in modules `workspace_access` (BL-098, 13 rows) and `communication` (BL-090, 16 rows) become `covered`: each gets a positive and a negative policy test in the v0.1 read minimum (`docs/delivery/test-strategy.md` §4), cited in the registry and checked by the validator. Readiness gate 11 moves from 53 gaps to 24; it is not closed by this task.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-16.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** new tests over RLS policies and a registry under `technical/database/`: `gp-architect` design → coordinator implements (each new test run red first where it can be) → `gp-reviewer` + `gp-security` → `gp-qa`. A real RLS or grant defect found by a test stops that row and takes the `gp-architect` + `gp-security` route with a migration, as a separate task.
@@ -57,6 +57,7 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 7 | reviewing (`gp-reviewer`, `gp-security`, native) on `095b3bf` | **`gp-reviewer`: APPROVE** — all 29 rows meet the minimum under their actual policies; fixtures isolated; R1-01 minor (m5-external-rls counts five communication tables across all workspaces), R1-02 to R1-04 nits. **`gp-security`: PASS** — the empty-actor service proof is right; no external-session policy on the 16 rows; BL-100 correct, P1, not blocking this PR; S1-01, S1-02, S1-05 minor, S1-03, S1-04, S1-06, S1-07 nits. No blocker, no major; no rework round counted | review reports | Stated fixes |
 | 8 | rework (coordinator), stated fixes | BL-100 reworded (the role's pre-`0057` name in the migration, INSERT, the wrong migration comment, the threat model, the catalog rows owed, the scratch evidence file); BL-101 names the callers that keep the actor; 8 registry reasons say «project.view/project.admin holder», the responsibility row adds «and assignee»; the grants test comment softened (comment only); T-RLS-002 and T-TG-009 name the superuser connection and that the files never skip; the tenancy note and §11 carry the read-minimum and owed-evidence qualifiers; allowed paths widened; the m5 dependency, the owed evidence run and S1-04 recorded under «What is not true». Final runs are taken after this row is written | `scratchpad/dev014-bl100-policies.txt`, `dev014-final-*.txt` | `gp-qa` |
 | 9 | implementing (coordinator): final local runs, taken after this row was written | Validator, agent profiles, `@goproceed/testing` typecheck; `workspace-access-rls.test.ts` then `communication-rls.test.ts`, each alone at `0085`; a residue check of the four workspaces. `rls-coverage.test.ts` is not re-run (the owner allowed one run; since it, only the registry's `reason` column changed, which it does not compare). Nothing is committed unless every run passes. The first validator run refused the pre-rename role name in BL-100 and in this row; both were reworded and the validator and agent checks re-run (documents only; the database runs stand) | `scratchpad/dev014-final-validate-docs.txt`, `-validate-agents.txt`, `-typecheck.txt`, `-db-wa.txt`, `-db-comm.txt`, `-residue.txt` | Commit; `gp-qa` |
+| 10 | verifying (`gp-qa`, native) on `e42af05` | **Verified for the scoped criteria:** 1–7 PASS, 8 NOT RUN (not required). Its own runs: validator rc 0, agents rc 0, typecheck rc 0; `workspace-access-rls.test.ts` 13 passed and `communication-rls.test.ts` 16 passed, one at a time at `0085`; no residue in 67 tenant tables or `organizations` (five `auth.users` rows remain by design). Registry counted CSV-aware: 50/24/7; the 29 changed rows are the only change. Eight tests read against live policy definitions. `rls-coverage.test.ts` needs no re-run: only the `reason` column changed, which it does not compare. Every stated fix in place; S1-04 deferral holds. No new findings | QA report | Done; PR |
 
 ## Findings and rework
 
@@ -88,6 +89,14 @@ Rework count and hypothesis changes: none — no QA FAIL and no blocker.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The 29 rows are covered by tests meeting the v0.1 read minimum | yes | `e42af05` | Registry diff (29 rows, nothing else); `gp-reviewer` read all 29, `gp-security` all, `gp-qa` eight against live policies; runs in rows 3, 4, 9, 10 | PASS | assisted: local database at `0085` only |
+| 2. Own workspaces, cleanup, no `resetDb`, run alone and passed, no residue | yes | `e42af05` | `dev014-final-db-wa.txt` (13 passed), `dev014-final-db-comm.txt` (16 passed), `dev014-final-residue.txt`; `gp-qa`'s own runs and residue check | PASS | assisted: local runs only; `auth.users` rows remain by design |
+| 3. Non-vacuous negatives | yes | `e42af05` | Each negative in the same test as its control; mutations m1–m3 (`dev014-mutation-m1.txt`, `-m2.txt`, `-m3.txt`) | PASS | — |
+| 4. Validator passes; `it.skip` on a cited test turns it red | yes | `e42af05` | `dev014-final-validate-docs.txt` rc 0; `dev014-mutation-skip.txt` rc 1 | PASS | — |
+| 5. `rls-coverage.test.ts` still passes | yes | `095b3bf` registry rows; `e42af05` changes only `reason` | `dev014-rls-coverage.txt` 22 passed; `gp-qa` judged no re-run needed | PASS | assisted: one run, allowed by the owner, before the reason-only rework |
+| 6. BL-090, BL-098 closed; 50/24/7; readiness, runbook, STATUS | yes | `e42af05` | `gp-qa` count; BACKLOG index and entries; the dated notes | PASS | — |
+| 7. Typecheck and agent profiles | yes | `e42af05` | `dev014-final-typecheck.txt`, `dev014-final-validate-agents.txt` rc 0 | PASS | — |
+| 8. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
 
@@ -104,9 +113,9 @@ The Limitation column opens with at most one qualifier from this closed set, the
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: see «Owning module and allowed edit paths»; commits `095b3bf` (implementation), `e42af05` (review round 1 fixes), and the closing commit (evidence, state).
+- Review independence: independent — `gp-architect` (design), `gp-reviewer` (APPROVE), `gp-security` (PASS), `gp-qa` on `e42af05`, all native subagents. No rework round was counted.
+- Verified scope: criteria 1–7 PASS; criterion 8 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above; 24 gap rows; BL-100, BL-101; S1-04 deferred.
+- Next bounded action and owner: owner — review and merge the PR. Then the BL-100 task (a migration, `gp-architect` + `gp-security`), and the second gap PR (BL-091 to BL-097).
+- Final state and reason: done — every required criterion PASS; every finding fixed or deferred with a reason.
