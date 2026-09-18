@@ -2,12 +2,33 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
-import { createInvitationRequest, type CreateInvitationResponse } from "@goproceed/contracts";
+import {
+  createInvitationRequest, createInvitationReceipt, createInvitationResponse,
+  type CreateInvitationReceipt, type CreateInvitationResponse,
+} from "@goproceed/contracts";
 import { generateInvitationToken } from "@goproceed/domain";
 import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
 
 export const runtime = "nodejs";
 
+/**
+ * `invitations.create` — POST /v1/workspaces/{workspaceId}/invitations.
+ *
+ * THE RAW TOKEN AND THE IDEMPOTENCY RECORD (BL-104, DEV-019, INV-102).
+ * `withIdempotency` stores what its callback returns in
+ * `public.idempotency_records.response_body` for the retention window. Until
+ * DEV-019 that body carried the raw token, so a bearer credential that
+ * `public.invitations` deliberately keeps only as `token_hash` sat beside it
+ * in plain text for thirty days.
+ *
+ * So the callback returns the strict token-free receipt, the token is held in
+ * `captured` OUTSIDE the block, and the response carries it only when the
+ * block actually ran. A replay returns `kind: "replayed"` without it, which is
+ * the occurrence-grants and Telegram intent routes' shape: the server no
+ * longer holds the token and cannot hand it out again. The replay body is
+ * built from named fields, never by spreading the stored body, because a
+ * record written before `0088` cleaned it may still hold one.
+ */
 export const POST = commandRoute(createInvitationRequest, async (a) => {
   const workspaceId = a.params.workspaceId;
   if (!workspaceId) {
@@ -18,8 +39,10 @@ export const POST = commandRoute(createInvitationRequest, async (a) => {
   const invitationId = randomUUID();
   const expiresAt = new Date(Date.now() + a.body.expiresInHours * 3600_000);
   const ctx = { actorUserId: a.userId, organizationId: workspaceId, requestId: a.requestId };
+  // A holder object, not a `let`: see the occurrence-grants route for why.
+  const captured: { token: string | null } = { token: null };
   const out = await withTenantTx(ctx, (tx) =>
-    withIdempotency<CreateInvitationResponse>(tx, {
+    withIdempotency<CreateInvitationReceipt>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "invitations.create", key: a.idempotencyKey, requestHash: a.requestHash,
     }, async () => {
@@ -63,7 +86,15 @@ export const POST = commandRoute(createInvitationRequest, async (a) => {
         aggregate_id: workspaceId, payload_version: 1,
         payload: { invitationId, workspaceId },
       });
-      return { status: 201, body: { invitationId, token, expiresAt: expiresAt.toISOString() } };
+      captured.token = token;
+      return { status: 201, body: createInvitationReceipt.parse({ invitationId, expiresAt: expiresAt.toISOString() }) };
     }));
-  return { status: out.status, body: out.body, expiresAt: out.expiresAt };
+  if (!out.replayed && captured.token === null) {
+    throw new Error("a fresh invitations.create did not capture its token");
+  }
+  const receipt = { invitationId: out.body.invitationId, expiresAt: out.body.expiresAt };
+  const body: CreateInvitationResponse = out.replayed
+    ? createInvitationResponse.parse({ ...receipt, kind: "replayed" })
+    : createInvitationResponse.parse({ ...receipt, kind: "issued", token: captured.token });
+  return { status: out.status, body, expiresAt: out.expiresAt };
 });

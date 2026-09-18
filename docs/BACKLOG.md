@@ -132,9 +132,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-101](#bl-101) | P3 | open | A service transaction that keeps the caller's actor is not confined to the workspace it declares |
 | [BL-102](#bl-102) | P1 | closed → DEV-017 | The service plane's capture-event insert ignores the workspace it declares, and its caller declares none |
 | [BL-103](#bl-103) | P2 | open | A repeat of an idempotent command replays its stored response before membership is checked |
-| [BL-104](#bl-104) | P1 | open | `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days |
+| [BL-104](#bl-104) | P1 | closed → DEV-019 | `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days |
 | [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
 | [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
+| [BL-107](#bl-107) | P2 | open | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1236,10 +1237,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-104"></a>
 ### BL-104 — P1 — `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days
 
-- **State:** open
+- **State:** closed → DEV-019
 - **Legacy cite:** none
 - **Why:** DEV-016's `gp-security` review (S1-01). `apps/app/app/v1/workspaces/[workspaceId]/invitations/route.ts:22-66` returns `{ invitationId, token, expiresAt }` from inside its `withIdempotency` block, so the raw token — the bearer secret the invitee needs — is written to `public.idempotency_records.response_body` and kept for the retention window (30 days), while `public.invitations` deliberately stores only its hash (`token_hash`). Anyone who can read that table outside the API (a backup, a superuser, support tooling) can accept the invitation with the invited role, because `app.accept_invitation` (`supabase/migrations/0011_*.sql:166-201`) checks only the token hash and that the caller is not already a member; it does not tie the token to the invited email (BL-013). The invitation lives up to 720 hours (`packages/contracts/src/invitations.ts:6`), and the stored copy outlives it. The fix is the shape the occurrence-grants route already uses: return a body without the secret from the idempotent block and attach the token outside it, so a replay returns the record without the token. A test should assert that no `invitations.create` record's `response_body` carries a `token` key. Ranked P1 by the owner on 2026-09-18.
-- **Evidence:** observed 2026-09-18 at `5c73b70` in the source lines above; `packages/database/src/idempotency.ts:86-95` is the insert that stores the body. Unverified: whether any other route returns a secret from inside an idempotent block.
+- **Evidence:** observed 2026-09-18 at `5c73b70` in the source lines above; `packages/database/src/idempotency.ts:86-95` is the insert that stores the body. Unverified: whether any other route returns a secret from inside an idempotent block. Closed 2026-09-18 by DEV-019 (migration `0088`): the callback returns a strict token-free receipt, the token is attached outside the block only when it ran, and a replay returns `kind: "replayed"` without it, built from named fields; `apps/app/tests/invitations.int.test.ts` was red at `b3045df` — a stored `invitations.create` record carried `token`, and a replay (by the same admin, over a pre-fix record, and by an admin since demoted) returned it — and passes after the fix; `0088` removed the key from the two such rows in the local database. DEV-019's `gp-architect` read all 51 `withIdempotency` call sites: no other one stores a secret. At `b3045df` the insert is `packages/database/src/idempotency.ts:89-99`, not `:86-95`. No hosted database was checked. A lost token cannot be recovered or reissued: BL-107.
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment, and before invitations are sent from any hosted environment.
 
@@ -1262,6 +1263,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** observed 2026-09-18 at `e7e35aa`: the function definition in the local database at `0087`. Unverified: whether any role in a hosted project holds `CREATE` on a schema that precedes `pg_catalog`.
 - **Depends on:** none.
 - **Deadline:** none recorded.
+
+<a id="bl-107"></a>
+### BL-107 — P2 — A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** since DEV-019 (BL-104) the server keeps only the invitation token's hash, and a replay of `invitations.create` returns `kind: "replayed"` without the token (owner, 2026-09-18). If the admin loses the first response, nothing recovers it: no route revokes or reissues an invitation (`technical/openapi/scope-v0.1.csv` has only `invitations.create` and `invitations.accept`; `technical/test-catalog.csv` T-INVITATION-001 and `ui-actions.csv` A-009/A-010 describe reissue and revoke as future behaviour), and `invitations_pending_email_unique` (`0010`) refuses a new invitation to the same address with 409 `VERSION_CONFLICT` until the pending one expires — 168 hours by default, 720 at most. The recovery path is an `invitations.revoke` (the pending slot freed, then an ordinary create) or a reissue that writes a new `token_hash` and invalidates the old one; `inv_update` (`0014`) already lets an owner or admin update the row. Either adds a `/v1` command to scope-v0.1, which needs an ADR. Ranked P2 by the owner on 2026-09-18.
+- **Evidence:** observed 2026-09-18 at `b3045df` by DEV-019's `gp-architect` from the route, the scope catalog and `0010`/`0014`.
+- **Depends on:** an ADR adding the command to scope-v0.1.
+- **Deadline:** before invitations are sent from a hosted environment to real users.
 
 ## Closed, kept for citations
 
