@@ -79,27 +79,28 @@ export const POST = commandRoute(requirementOccurrenceDryRunRequest, async (a) =
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "requirement_occurrences.dry_run", key: a.idempotencyKey,
       requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // TWO CAPABILITIES, AND THE SECOND IS NOT DEFENSIVE. capabilities.csv:23
+        // governs this operation with `requirements.assign`, and the operation
+        // READS the bindings and the work lines — whose RLS policies
+        // (`cvrb_select`, 0041:778-780) ask for `project.view`/`project.admin`. A
+        // holder of `requirements.assign` alone would pass this route and be
+        // filtered by RLS to zero bindings, and would then be handed a coverage
+        // report saying the baseline binds nothing. A false answer is worse than a
+        // refusal, so the refusal is explicit.
+        //   RECORDED: responsibility-presets.csv maps `requirement_owner` to
+        //   `requirements.assign` ALONE, so that preset cannot run this operation.
+        //   `pto_engineer` maps to `requirements.assign project.view` and can.
+        //   Either the preset owes `project.view` or the policy owes
+        //   `requirements.assign`; both are catalog decisions and neither is taken
+        //   here.
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "requirements.assign" });
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // TWO CAPABILITIES, AND THE SECOND IS NOT DEFENSIVE. capabilities.csv:23
-      // governs this operation with `requirements.assign`, and the operation
-      // READS the bindings and the work lines — whose RLS policies
-      // (`cvrb_select`, 0041:778-780) ask for `project.view`/`project.admin`. A
-      // holder of `requirements.assign` alone would pass this route and be
-      // filtered by RLS to zero bindings, and would then be handed a coverage
-      // report saying the baseline binds nothing. A false answer is worse than a
-      // refusal, so the refusal is explicit.
-      //   RECORDED: responsibility-presets.csv maps `requirement_owner` to
-      //   `requirements.assign` ALONE, so that preset cannot run this operation.
-      //   `pto_engineer` maps to `requirements.assign project.view` and can.
-      //   Either the preset owes `project.view` or the policy owes
-      //   `requirements.assign`; both are catalog decisions and neither is taken
-      //   here.
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "requirements.assign" });
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
-
       // A DRAFT BASELINE IS NOT REPORTED OVER. INV-072's v0.1 form is «the dry
       // run over a PUBLISHED contract version» (execution-and-evidence.md
       // §"Bulk instantiation"), and a draft's lines are still editable and its

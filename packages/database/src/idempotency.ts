@@ -15,13 +15,38 @@ export class IdempotencyConflictError extends Error {
   constructor() { super("Idempotency-Key reused with a different request body."); }
 }
 
-export interface IdempotencyArgs {
+/**
+ * The `authorize` a call with no workspace passes (organizationId: null — the
+ * bootstrap commands that create a workspace or accept an invitation). Such a
+ * record is fenced by its actor alone (idem_select), and its stored body is the
+ * caller's own receipt; DEV-020 records that residual. A call that names a
+ * workspace may not pass it: withIdempotency throws.
+ */
+export const actorScopedOnly = async (): Promise<void> => undefined;
+
+export interface IdempotencyArgs<A = void> {
   organizationId: string | null;
   actorScope: string;   // e.g. `user:${userId}` - bounds the key to an actor
   operationId: string;  // logical operation, e.g. "organizations.create"
   key: string;          // the Idempotency-Key header value
   requestHash: string;  // 64-char lowercase sha256 hex of the raw request body
   idempotencyClass?: IdempotencyClass; // default "standard_30d"
+  /**
+   * WHO MAY RUN THIS COMMAND NOW (DEV-020, BL-103). Runs BEFORE the advisory
+   * lock and the lookup, on every call — a fresh execution and a replay alike —
+   * and its result is handed to `fn`. It holds the checks that decide *who*
+   * (docs/architecture/tenancy-and-security.md «Capability evaluation», steps
+   * 1-6: membership, workspace role, project capability, responsibility). The
+   * checks on the *facts* (step 7: state, versions, targets) stay in `fn`, or a
+   * legitimate replay would turn into a 409 or 422.
+   *
+   * Until DEV-020 those checks ran inside `fn`, which a replay never reaches,
+   * so a user whose membership ended, an admin demoted to member, or a member
+   * whose project grant was revoked got the stored 2xx back for thirty days
+   * (four hundred for ledger commands), and a different body under the same
+   * key got a 409 that confirmed the record existed.
+   */
+  authorize: () => Promise<A>;
 }
 export interface IdempotencyHit<T> { replayed: boolean; status: number; body: T; expiresAt: Date }
 
@@ -33,6 +58,8 @@ export interface IdempotencyHit<T> { replayed: boolean; status: number; body: T;
  * expires_at to surface as the Idempotency-Replay-Until response header.
  * Same key + a DIFFERENT request hash throws IdempotencyConflictError.
  * Otherwise runs fn and stores a single 'completed' record.
+ * `args.authorize` runs first, before all of that; if it throws, nothing is
+ * looked up, replayed or stored.
  * MUST run inside a withTenantTx transaction. Requires only SELECT+INSERT grants.
  *
  * Concurrency: takes a transaction-scoped advisory lock (pg_advisory_xact_lock)
@@ -51,9 +78,14 @@ export interface IdempotencyHit<T> { replayed: boolean; status: number; body: T;
  * snapshot as of when it starts, so the post-lock SELECT is guaranteed to
  * see a just-committed row from the previous lock holder).
  */
-export async function withIdempotency<T>(
-  tx: Tx, args: IdempotencyArgs, fn: () => Promise<{ status: number; body: T }>,
+export async function withIdempotency<T, A = void>(
+  tx: Tx, args: IdempotencyArgs<A>, fn: (auth: A) => Promise<{ status: number; body: T }>,
 ): Promise<IdempotencyHit<T>> {
+  if (args.organizationId !== null && (args.authorize as unknown) === actorScopedOnly) {
+    throw new Error(`withIdempotency: ${args.operationId} names a workspace and must authorize its caller`);
+  }
+  const auth = await args.authorize();
+
   const lockKey = ["idem", args.organizationId ?? "", args.actorScope, args.operationId, args.key].join("|");
   await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))", [lockKey]);
 
@@ -84,7 +116,7 @@ export async function withIdempotency<T>(
     return { replayed: true, status: prior.response_status, body: prior.response_body, expiresAt: prior.expires_at };
   }
 
-  const result = await fn();
+  const result = await fn(auth);
   const ttl = IDEMPOTENCY_CLASS_TTL[args.idempotencyClass ?? "standard_30d"];
   const ins = await tx.query(
     `insert into public.idempotency_records

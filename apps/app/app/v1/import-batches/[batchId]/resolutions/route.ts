@@ -30,10 +30,12 @@ export const POST = commandRoute(createResolutionRequest, async (a) => {
     return withIdempotency<CreateResolutionResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "import_resolutions.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "imports.manage" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "imports.manage" });
       const b = await tx.query(
         `select status, current_attempt from public.import_batches
           where workspace_id = $1 and id = $2 for update`, [workspaceId, batchId]);

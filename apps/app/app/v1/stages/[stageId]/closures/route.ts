@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   createStageClosureRequest, holdPointBlockedDetails,
@@ -141,7 +141,7 @@ export const POST = commandRoute(createStageClosureRequest, async (a) => {
     const contractId: string = st.rows[0].contract_id;
     const assignmentId: string = st.rows[0].work_assignment_id;
 
-    return withIdempotency<CreateStageClosureResponse>(tx, {
+    return withIdempotency<CreateStageClosureResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "stage_closures.create", key: a.idempotencyKey,
       requestHash: a.requestHash,
@@ -150,16 +150,18 @@ export const POST = commandRoute(createStageClosureRequest, async (a) => {
       // same class `progress.record` and `progress.adjust` take, and for the
       // reason that is now true of this route instead of that one.
       idempotencyClass: "ledger_400d",
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // Order matters for the message a caller gets: `project.view` first, so an
-      // actor who cannot see the project is told that rather than being told
-      // they cannot close.
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "stage_closures.close" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // Order matters for the message a caller gets: `project.view` first, so an
+        // actor who cannot see the project is told that rather than being told
+        // they cannot close.
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "stage_closures.close" });
+        return m;
+      },
+    }, async (m) => {
       if (a.body.correction) {
         // The field exists so the question is visible; the command refuses it so
         // nothing pretends to answer it. A correction needs the stage to move

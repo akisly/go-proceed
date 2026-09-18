@@ -46,14 +46,16 @@ export const POST = commandRoute(createInvitationRequest, async (a) => {
     const out = await withIdempotency<CreateInvitationReceipt>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "invitations.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // Governance action: only owner/admin issue invitations.
+        if (m.role !== "owner" && m.role !== "admin") {
+          throw new HttpProblem(403, problem("SCOPE_DENIED",
+            "Запрошення може створити лише власник або адміністратор.",
+            { requestId: a.requestId, retryable: false, userAction: "request_scope" }));
+        }
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // Governance action: only owner/admin issue invitations.
-      if (m.role !== "owner" && m.role !== "admin") {
-        throw new HttpProblem(403, problem("SCOPE_DENIED",
-          "Запрошення може створити лише власник або адміністратор.",
-          { requestId: a.requestId, retryable: false, userAction: "request_scope" }));
-      }
       // A pending-but-expired invitation still occupies
       // invitations_pending_email_unique, so retire it before re-inviting.
       // (app.accept_invitation cannot do this itself: it raises, which would

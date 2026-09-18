@@ -55,8 +55,8 @@ export const POST = commandRoute(request, async (a) => {
     operationId: "assignment_communication_cards.publish",
     key: a.idempotencyKey,
     requestHash: a.requestHash,
+    authorize: () => authorizeAssignment(tx, a.requestId, a.userId, assignmentId),
   }, async () => {
-    await authorizeAssignment(tx, a.requestId, a.userId, assignmentId);
     const config = loadTelegramConfig();
     const binding = await tx.query<{ id: string }>(`select b.id
       from public.work_assignments a

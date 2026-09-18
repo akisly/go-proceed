@@ -115,6 +115,13 @@ export const POST = commandRoute(validateImportBatchRequest, async (a) => {
     withIdempotency(tx, {
       organizationId: loaded.workspaceId, actorScope: `user:${a.userId}`,
       operationId: "import_batches.validate", key: a.idempotencyKey, requestHash: a.requestHash,
+      // Phase 1's check, repeated in this transaction so a replay is authorized too.
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, loaded.workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId: loaded.workspaceId, projectId: loaded.projectId,
+            memberId: m.memberId, capability: "imports.manage" });
+      },
     }, async () => {
       const locked = await tx.query(
         `select status, version, current_attempt from public.import_batches

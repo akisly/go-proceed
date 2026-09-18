@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   recordRequirementExceptionRequest, type RecordRequirementExceptionResponse,
@@ -72,24 +72,26 @@ export const POST = commandRoute(recordRequirementExceptionRequest, async (a) =>
     const workStageId: string | null = occ.rows[0].work_stage_id;
     const assignmentId: string = occ.rows[0].work_assignment_id;
 
-    return withIdempotency<RecordRequirementExceptionResponse>(tx, {
+    return withIdempotency<RecordRequirementExceptionResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "requirement_exceptions.create", key: a.idempotencyKey,
       requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // `project.view` beside the decide capability, for the reason the sibling
-      // decision route states in full: the exception head's SELECT policy asks
-      // for it, and an actor without it reads no head where one exists, believes
-      // the lineage has no root, and collides with
-      // `requirement_exceptions_lineage_key` — a 23505 the caller cannot act on.
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
-      await requireProjectCapability(tx, a.requestId, {
-        workspaceId, projectId, memberId: m.memberId,
-        capability: "requirement_exceptions.decide",
-      });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // `project.view` beside the decide capability, for the reason the sibling
+        // decision route states in full: the exception head's SELECT policy asks
+        // for it, and an actor without it reads no head where one exists, believes
+        // the lineage has no root, and collides with
+        // `requirement_exceptions_lineage_key` — a 23505 the caller cannot act on.
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
+        await requireProjectCapability(tx, a.requestId, {
+          workspaceId, projectId, memberId: m.memberId,
+          capability: "requirement_exceptions.decide",
+        });
+        return m;
+      },
+    }, async (m) => {
       // INV-063, as the command's own refusal and before anything is written.
       // 422 and not 409: the request named an action this obligation can never
       // carry, which is a fact about the request rather than about a race, and

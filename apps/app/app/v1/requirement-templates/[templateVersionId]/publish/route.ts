@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireWorkspaceCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireWorkspaceCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   publishRequirementTemplateRequest, type PublishRequirementTemplateResponse,
@@ -30,14 +30,16 @@ export const POST = commandRoute(publishRequirementTemplateRequest, async (a) =>
     if (found.rows.length === 0) throw notFound;
     const workspaceId: string = found.rows[0].workspace_id;
 
-    return withIdempotency<PublishRequirementTemplateResponse>(tx, {
+    return withIdempotency<PublishRequirementTemplateResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "requirement_templates.publish", key: a.idempotencyKey,
       requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "requirement_templates.manage");
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        requireWorkspaceCapability(a.requestId, m.role, "requirement_templates.manage");
+        return m;
+      },
+    }, async (m) => {
       const row = await tx.query(
         `select template_key, version_no, status, evidence_type,
                 allowed_media, multiplicity, severity

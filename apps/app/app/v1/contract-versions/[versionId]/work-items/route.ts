@@ -44,11 +44,12 @@ export const POST = commandRoute(createWorkItemRequest, async (a) => {
     return withIdempotency<CreateWorkItemResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "work_items.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "contracts.edit" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "contracts.edit" });
-
       // Lock the version row: `position` is assigned as max+1 within it, and two
       // concurrent typists would otherwise compute the same position and one of
       // them would meet unique (workspace_id, contract_version_id, position) as

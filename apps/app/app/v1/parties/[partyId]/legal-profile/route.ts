@@ -24,10 +24,12 @@ export const PUT = commandRoute(putLegalProfileRequest, async (a) => {
     return withIdempotency<LegalProfileResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "parties.legal_profile.put", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // INV-020: stricter permission when this party is an own legal entity.
+        await requirePartyEditCapability(tx, a.requestId, m.role, workspaceId, partyId);
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // INV-020: stricter permission when this party is an own legal entity.
-      await requirePartyEditCapability(tx, a.requestId, m.role, workspaceId, partyId);
       const existing = await tx.query(
         `select id, version from public.party_legal_profiles where workspace_id = $1 and party_id = $2`,
         [workspaceId, partyId]);

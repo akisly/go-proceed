@@ -312,6 +312,16 @@ A member command evaluates in this order:
 Steps 1-6 decide *who*. Step 7 decides *whether the facts allow it*. A failure
 at step 7 is never reported as a failure at steps 1-6.
 
+**Update, 2026-09-18 (DEV-020, BL-103).** Until this date the routes ran
+steps 1-6 inside the callback of `withIdempotency`, which a replay never
+reaches, so a caller who had lost the authority got the stored response back
+and a different body got a 409. `withIdempotency` now takes a required
+`authorize` step that it runs before its lock and lookup on every call, and
+migration `0089` lets only an active member read a record that carries a
+workspace. A record without one (creating a workspace or an organization,
+accepting an invitation) stays fenced by its actor alone; the owner accepted
+that residual.
+
 The client never supplies a trusted `workspace_id`, governance role,
 responsibility, recipient, package scope, rule version, blocking scope, notice
 period, or price/acceptance authority. It supplies an identifier/request; the

@@ -79,13 +79,14 @@ export const PATCH = commandRoute(updateWorkItemRequest, async (a) => {
     return withIdempotency<UpdateWorkItemResponse>(tx, {
       organizationId: at.workspaceId, actorScope: `user:${a.userId}`,
       operationId: "work_items.update", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, at.workspaceId);
+        await requireProjectCapability(tx, a.requestId, {
+          workspaceId: at.workspaceId, projectId: at.projectId,
+          memberId: m.memberId, capability: "contracts.edit",
+        });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, at.workspaceId);
-      await requireProjectCapability(tx, a.requestId, {
-        workspaceId: at.workspaceId, projectId: at.projectId,
-        memberId: m.memberId, capability: "contracts.edit",
-      });
-
       // Version first, then the line: the same lock order work_items.create
       // takes, so a correction and a fresh line cannot deadlock each other.
       const v = await tx.query(
@@ -259,13 +260,14 @@ export const DELETE = commandRoute(removeWorkItemRequest, async (a) => {
     return withIdempotency<RemoveWorkItemResponse>(tx, {
       organizationId: at.workspaceId, actorScope: `user:${a.userId}`,
       operationId: "work_items.remove", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, at.workspaceId);
+        await requireProjectCapability(tx, a.requestId, {
+          workspaceId: at.workspaceId, projectId: at.projectId,
+          memberId: m.memberId, capability: "contracts.edit",
+        });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, at.workspaceId);
-      await requireProjectCapability(tx, a.requestId, {
-        workspaceId: at.workspaceId, projectId: at.projectId,
-        memberId: m.memberId, capability: "contracts.edit",
-      });
-
       const v = await tx.query(
         `select status from public.contract_versions
           where workspace_id = $1 and id = $2 for update`,

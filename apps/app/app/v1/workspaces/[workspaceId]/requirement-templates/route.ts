@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireWorkspaceCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireWorkspaceCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   createRequirementTemplateRequest, type CreateRequirementTemplateResponse,
@@ -17,14 +17,16 @@ export const POST = commandRoute(createRequirementTemplateRequest, async (a) => 
   }
   const ctx = { actorUserId: a.userId, organizationId: workspaceId, requestId: a.requestId };
   const out = await withTenantTx(ctx, async (tx) =>
-    withIdempotency<CreateRequirementTemplateResponse>(tx, {
+    withIdempotency<CreateRequirementTemplateResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "requirement_templates.create", key: a.idempotencyKey,
       requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "requirement_templates.manage");
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        requireWorkspaceCapability(a.requestId, m.role, "requirement_templates.manage");
+        return m;
+      },
+    }, async (m) => {
       // Serialize version numbering per template key. max(version_no)+1 read
       // outside a lock lets two concurrent creates compute the same number; the
       // unique constraint would then reject one caller with a raw 23505 instead

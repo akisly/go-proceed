@@ -69,14 +69,15 @@ export const POST = commandRoute(retireRequirementRuleVersionRequest, async (a) 
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "requirement_rule_versions.retire", key: a.idempotencyKey,
       requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        requireWorkspaceCapability(a.requestId, m.role, "requirement_rules.manage");
+        // owner/admin, which is exactly the role set
+        // app.retire_requirement_rule_version checks for itself (0041:670-673). A
+        // route check laxer than the function would turn a 403 into a 500; a
+        // stricter one would deny a write the database would have allowed.
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "requirement_rules.manage");
-      // owner/admin, which is exactly the role set
-      // app.retire_requirement_rule_version checks for itself (0041:670-673). A
-      // route check laxer than the function would turn a 403 into a 500; a
-      // stricter one would deny a write the database would have allowed.
-
       const before = await tx.query(
         `select requirement_rule_id, version_no, status
            from public.requirement_rule_versions

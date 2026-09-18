@@ -1,6 +1,6 @@
 import { createHash, randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireWorkspaceCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireWorkspaceCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { validationFailed } from "../../../../../src/lib/manual-baseline";
 import {
@@ -114,7 +114,7 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
 
   const ctx = { actorUserId: a.userId, organizationId: workspaceId, requestId: a.requestId };
   const out = await withTenantTx(ctx, async (tx) =>
-    withIdempotency<PublishRequirementRuleVersionResponse>(tx, {
+    withIdempotency<PublishRequirementRuleVersionResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "requirement_rule_versions.publish", key: a.idempotencyKey,
       requestHash: a.requestHash,
@@ -122,10 +122,12 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
       // baseline later pins. import_batches.publish and contract_versions.publish
       // take the long class because they fix the money pool, and copying it here
       // would say this command does something it does not.
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "requirement_rules.manage");
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        requireWorkspaceCapability(a.requestId, m.role, "requirement_rules.manage");
+        return m;
+      },
+    }, async (m) => {
       // ── INV-085 ────────────────────────────────────────────────────────────
       if (!OCCURRENCE_GRANTS_SHIPPED
           && a.body.interventionType === "hold" && a.body.approverIsExternal) {

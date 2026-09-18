@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   composeStatutoryActRequest, type ComposeStatutoryActResponse,
@@ -113,19 +113,21 @@ export const POST = commandRoute(composeStatutoryActRequest, async (a) => {
     const contractId: string = st.rows[0].contract_id;
     const assignmentId: string = st.rows[0].work_assignment_id;
 
-    return withIdempotency<ComposeStatutoryActResponse>(tx, {
+    return withIdempotency<ComposeStatutoryActResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "statutory_acts.compose", key: a.idempotencyKey,
       requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // `project.view` first, so an actor who cannot see the project is told
-      // that rather than being told they cannot compose.
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "statutory_acts.compose" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // `project.view` first, so an actor who cannot see the project is told
+        // that rather than being told they cannot compose.
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "statutory_acts.compose" });
+        return m;
+      },
+    }, async (m) => {
       // ── the refusal the milestone is about ────────────────────────────────
       if (st.rows[0].status !== "closed") {
         throw conflict(st.rows[0].status === "open"

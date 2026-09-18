@@ -244,10 +244,10 @@ export const POST = commandRoute(postProjectCommunicationRequest, async (a) => {
     operationId: "project_communications.reply",
     key: a.idempotencyKey,
     requestHash: a.requestHash,
-  }, async () => {
-    const authorized = await authorizeProject(
+    authorize: () => authorizeProject(
       tx, a.requestId, a.userId, projectId, ["project.view", "communication.reply"],
-    );
+    ),
+  }, async (authorized) => {
     const bindingId = await activeTelegramBinding(tx, a.requestId, authorized, loadTelegramConfig().botId);
     if (a.body.replyToMessageId) {
       const target = await tx.query(`select 1 from public.communication_messages

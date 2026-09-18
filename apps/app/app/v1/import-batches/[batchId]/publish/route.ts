@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { validationFailed } from "../../../../../src/lib/manual-baseline";
 import { publishImportBatchRequest, type PublishImportBatchResponse } from "@goproceed/contracts";
@@ -38,18 +38,20 @@ export const POST = commandRoute(publishImportBatchRequest, async (a) => {
     const workspaceId: string = pre.rows[0].workspace_id;
     const projectId: string = pre.rows[0].project_id;
     const contractId: string = pre.rows[0].contract_id;
-    return withIdempotency<PublishImportBatchResponse>(tx, {
+    return withIdempotency<PublishImportBatchResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "import_batches.publish", key: a.idempotencyKey, requestHash: a.requestHash,
       // Publishing a contract version is the ledger event of v0.1-M1: it fixes
       // the money pool every later exposure slice is carved from. It shipped on
       // the 30-day default, which TODOS.md carried as a deferred finding.
       idempotencyClass: "ledger_400d",
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "imports.publish" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "imports.publish" });
+        return m;
+      },
+    }, async (m) => {
       // Lock ORDER: contract first (serializes version_no per contract), then batch.
       const c = await tx.query(
         `select * from public.contracts where workspace_id = $1 and id = $2 for update`,

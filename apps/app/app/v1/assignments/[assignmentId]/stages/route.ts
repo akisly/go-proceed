@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { createWorkStageRequest, type CreateWorkStageResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
@@ -152,14 +152,16 @@ export const POST = commandRoute(createWorkStageRequest, async (a) => {
     const contractId: string = asg.rows[0].contract_id;
     const contractVersionId: string = asg.rows[0].contract_version_id;
 
-    return withIdempotency<CreateWorkStageResponse>(tx, {
+    return withIdempotency<CreateWorkStageResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "work_stages.create", key: a.idempotencyKey, requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "assignments.manage" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "assignments.manage" });
+        return m;
+      },
+    }, async (m) => {
       if (asg.rows[0].status !== "active") {
         throw new HttpProblem(409, problem("VERSION_CONFLICT",
           "Завдання не активне, створення етапу неможливе.",

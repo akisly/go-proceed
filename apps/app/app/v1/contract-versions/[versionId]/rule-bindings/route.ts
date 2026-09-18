@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import {
   notFoundVersion, requireDraft, validationFailed, refuseUnlockableVersion,
 } from "../../../../../src/lib/manual-baseline";
@@ -60,15 +60,17 @@ export const POST = commandRoute(bindContractVersionRulesRequest, async (a) => {
     const projectId: string = v.rows[0].project_id;
     const contractId: string = v.rows[0].contract_id;
 
-    return withIdempotency<BindContractVersionRulesResponse>(tx, {
+    return withIdempotency<BindContractVersionRulesResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "contract_versions.bind_rules", key: a.idempotencyKey,
       requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "rule_bindings.manage" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "rule_bindings.manage" });
+        return m;
+      },
+    }, async (m) => {
       const locked = await tx.query(
         `select status from public.contract_versions
           where workspace_id = $1 and id = $2 for update`, [workspaceId, versionId]);

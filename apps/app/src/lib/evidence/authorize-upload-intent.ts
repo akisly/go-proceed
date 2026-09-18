@@ -3,7 +3,7 @@ import {
   type CreateUploadIntentRequest, type CreateUploadIntentResponse, type UploadIntentReceipt,
 } from "@goproceed/contracts";
 import { recordAudit, withIdempotency, withTenantTx } from "@goproceed/database";
-import { requireActiveMembership, requireProjectCapability } from "../authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../authz";
 import type { HandlerResult } from "../command";
 import { EVIDENCE_BUCKET, createSignedUpload, newEvidenceKey } from "../evidence-storage";
 import { HttpProblem, problem } from "../http";
@@ -84,14 +84,16 @@ export async function authorizeUploadIntent({
     const { workspace_id: workspaceId, project_id: projectId,
       requirement_template_version_id: templateVersionId } = asg.rows[0];
 
-    return withIdempotency<UploadIntentReceipt>(tx, {
+    return withIdempotency<UploadIntentReceipt, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${actorUserId}`,
       operationId: "upload_intents.create", key: idempotencyKey, requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, requestId, actorUserId, workspaceId);
-      await requireProjectCapability(tx, requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "evidence.record" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, requestId, actorUserId, workspaceId);
+        await requireProjectCapability(tx, requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "evidence.record" });
+        return m;
+      },
+    }, async (m) => {
       let media = FALLBACK_MEDIA;
       if (requestBody.requirementOccurrenceId) {
         const o = await tx.query(

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { adjustProgressRequest, type AdjustProgressResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
@@ -81,15 +81,17 @@ export const POST = commandRoute(adjustProgressRequest, async (a) => {
             work_assignment_id: assignmentId, work_item_id: workItemId,
             contract_id: contractId } = root.rows[0];
 
-    return withIdempotency<AdjustProgressResponse>(tx, {
+    return withIdempotency<AdjustProgressResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "progress.adjust", key: a.idempotencyKey, requestHash: a.requestHash,
       idempotencyClass: "ledger_400d",
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "progress.adjust" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "progress.adjust" });
+        return m;
+      },
+    }, async (m) => {
       const delta = toScaled6(a.body.quantity);
       if (delta === 0n) {
         throw new HttpProblem(422, problem("VALIDATION_FAILED",

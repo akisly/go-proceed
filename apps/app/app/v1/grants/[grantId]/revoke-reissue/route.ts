@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   revokeReissueGrantRequest,
@@ -73,17 +73,19 @@ export const POST = commandRoute(revokeReissueGrantRequest, async (a) => {
     const workspaceId: string = g0.rows[0].workspace_id;
     const projectId: string = g0.rows[0].project_id;
 
-    return withIdempotency<RevokeReissueGrantResponse>(tx, {
+    return withIdempotency<RevokeReissueGrantResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "external_grants.revoke_reissue", key: a.idempotencyKey,
       requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "packages.submit" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "packages.submit" });
+        return m;
+      },
+    }, async (m) => {
       // Serialize this grant against a concurrent revoke, a concurrent reissue
       // and — importantly — a concurrent EXCHANGE, which takes the same row lock
       // inside `app.exchange_external_grant`. Whichever arrives second sees the
