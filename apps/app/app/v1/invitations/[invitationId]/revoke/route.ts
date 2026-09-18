@@ -60,7 +60,7 @@ export const POST = commandRoute(revokeInvitationRequest, async (a) => {
     return withIdempotency<RevokeInvitationResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "invitations.revoke", key: a.idempotencyKey,
-      requestHash: createHash("sha256").update(`invitations.revoke\n${invitationId}\n${a.requestHash}`).digest("hex"),
+      requestHash: createHash("sha256").update(`invitations.revoke\n${invitationId.toLowerCase()}\n${a.requestHash}`).digest("hex"),
       authorize: async () => {
         const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
         // Governance action: only owner/admin withdraw invitations (members.manage).
