@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** an owner or admin can revoke a pending, unexpired invitation, after which its link admits no one and its address is free for a new invitation; and the create's pending-address conflict names the blocking invitation's id, so an admin who lost the create response can find it. Recovery from a lost token is revoke, then create. Scope set by [ADR-012](../decisions/ADR-012-invitation-revoke.md).
-- **State:** reviewing
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-18.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a scope change (ADR) and a new `/v1` command: `gp-architect` → coordinator drafts ADR-012 → **owner rules** → failing tests → contract, route, catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -57,11 +57,16 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 6 | reviewing (`gp-reviewer`, `gp-security`, native) on `73b4454` | **`gp-security`: HOLD** on **S1-01 major**: the body is always `{}`, so the raw-body request hash is the same for every revoke, and a key reused for invitation B after A replays A's 200 while B's link stays live — the one control ADR-012 adds for BL-013, failing silently. S1-02 (the `inv_update` layer untested), S1-03 (email-free untested) minor; S1-04 to S1-06 informational. Everything else sound: authorization order, revoke killing the token, the revoke/accept race, the create's `details` reaching owner/admin only. **`gp-reviewer`: APPROVE** — R1-01 to R1-08 minor (R1-02 = S1-01), R1-09, R1-10 nits; agreed the ADR procedure was followed | review reports | Stated fixes |
 | 7 | rework (coordinator), stated fixes | **S1-01 / R1-02**, test first: the reused-key case red on the unchanged route (`:298`, 200 for 409); fix — the route hashes `invitations.revoke`, the invitation id and the raw-body hash together, so the reuse is 409 `IDEMPOTENCY_CONFLICT` after `authorize`; green. **S1-02**: a SQL case as `goproceed_app` — a member sees the invitation but locks and updates nothing, an admin does (`[1,0,0]`, `[1,1,1]`), matching PostgreSQL 17's policy table (Sources). **S1-03**: the email swept from the revoke's records. **R1-01**: the expired invitation's token admits no one (404, no membership). **R1-06**: the recipients' accept records (no workspace) removed by actor; residue query 0 and 0. **R1-07**: codes asserted on the replays. **R1-03**: ADR-012's Approval says which clauses are detail the merge ratifies. **R1-04**: Sources. **R1-05**: `next build` ran. **R1-08**: T-INVITATION-001 says the race is not exercised. **R1-09**: «with a new `Idempotency-Key`». **R1-10**: the index quotes the ADR. **S1-04, S1-06**: «What is not true». **BL-112** (P2) for the same gap in other path-targeted commands; a BL-013 note. **Runs on `fd37b9e`**, each alone: typecheck 10/10, validators rc 0, contracts 140, call-site test 2, **revoke file 13 passed**, residue 0/0, `pnpm --filter @goproceed/app build` rc 0 (the route listed) | `scratchpad/dev021-r2-*.txt`, `dev021-r2-red-int.txt` | `gp-security` re-check of S1-01; `gp-qa` |
 | 8 | reviewing (`gp-security` re-check, native) on `ff4bc3c` | **S1-01 CLOSED**: a reused key for another invitation is 409 before any write and after `authorize`, no oracle; a genuine retry still replays; the combined hash satisfies the 64-hex check; nothing sound in round 1 weakened; S1-02, S1-03 and BL-112 adequate. New S2-01 informational: the id check is case-insensitive but the raw path id was hashed, so a retry with a differently-cased id got 409 (fails safe). Taken: the hash uses the lower-cased id. Runs after it are taken after this row is written | re-check report; `scratchpad/dev021-r3-*.txt` | `gp-qa` |
+| 9 | verifying (`gp-qa`, native) on `df9f2c5` | **Verified for the scoped criteria:** 1–7 PASS, 8 NOT RUN (not required). Its own runs, each alone: revoke file 13, regression `invitations` 9, `review-fixes` 10, `vertical-m1` 9 (none skipped); contracts 140; call-site test 2; `error-catalog-fidelity` 1; turbo typecheck 10/10; validators; `next build` with the route listed; residue 0/0. Sensitivity: with the S1-01 hash binding reverted the reused-key case alone goes red, restored. All 17 stated fixes in place; three «no change» justified. New: Q1-01 informational (the id was lower-cased in the hash only, not in the audit object id, outbox or response), Q1-02 minor (the admin case checked the status only), Q1-03 informational (the shared conflict message says «different request body») | QA report; `scratchpad/dev021-qa-*.txt` | Q1 fixes |
+| 10 | rework (coordinator) and re-verify (`gp-qa`) on `957487c` | Q1-01: the path id is lower-cased once after the UUID check, so the hash, the audit object id, the outbox payload and the response carry the canonical id. Q1-02: the admin case revokes with the upper-cased id and asserts the canonical response, the row at version 2, one audit row under the canonical id, the token dead. Q1-03: a note in BL-112. **`gp-qa` re-verified**: both in place, only the route, the test and BL-112 changed; revoke file 13, call-site test 2, typecheck, validator; removing the lower-casing turns the admin case red, restored; criteria 1–7 still PASS. The coordinator's `pnpm turbo run typecheck --force` on `957487c`: 10/10 | `scratchpad/qa2-*.txt`, `dev021-r4-*.txt` | Done |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| Q1-01 | informational | revoke route | Actual: the id lower-cased in the hash only | coordinator | Canonical id once after the check (row 10) |
+| Q1-02 | minor | the admin case | Actual: status only | coordinator | Row, audit and token asserted (row 10) |
+| Q1-03 | informational | the shared 409 message | Actual: «different request body» for a reused target | coordinator | Note in BL-112 |
 | S2-01 | informational | revoke route, the hash | Actual: a differently-cased id retried as 409 | coordinator | Lower-cased in the hash (row 8) |
 | S1-01 / R1-02 | major / minor | revoke route, the request hash | Actual: a key reused for another invitation replayed the first revoke's 200; the second link stayed live | coordinator | Target bound into the hash; red then green (row 7); BL-112 for the other routes |
 | S1-02 | minor | `inv_update` | Actual: the policy layer untested | coordinator | SQL case (row 7) |
@@ -95,6 +100,14 @@ Rework count and hypothesis changes: none counted — no QA FAIL; `gp-security`'
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The revoke file fails at `65d7935` and passes after; truncates nothing | yes | `957487c` | `dev021-red-int.txt` (11 failed at `65d7935`: 10 for the missing route, one behavioural at `:137`), `dev021-r2-red-int.txt` (the reused-key case red on the unfixed route); `dev021-r4-db-revoke.txt` and `gp-qa`'s runs (13 passed); residue 0/0 | PASS | assisted: local database only; the revoke/accept race is not exercised |
+| 2. The contract | yes | `957487c` | `dev021-red-contracts.txt` (2 failed, a specification red), `gp-qa`'s contracts run (140) | PASS | — |
+| 3. Lookup first, `authorize`, row lock and status compare, token- and email-free, no secret; call-site test green | yes | `957487c` | the route; the S1-02 SQL case (`[1,0,0]` / `[1,1,1]`); `dev021-r4-call-sites.txt`; `gp-qa`'s reading and sensitivity runs | PASS | — |
+| 4. ADR-012 `Approved` with the owner's dated ruling; the index agrees | yes | `957487c` | the ADR's Approval section; `gp-reviewer` and `gp-qa` read it against `docs/README.md` | PASS | the owner's merge ratifies the transcription |
+| 5. Catalogs, counts, backlog and STATUS agree; validators | yes | `957487c` | `gp-qa`'s reading; `dev021-r2-canonical-docs.txt`, `gp-qa`'s validator runs | PASS | — |
+| 6. `pnpm turbo run typecheck`; contracts tests | yes | `957487c` | `dev021-r4-typecheck-all.txt` (10/10, `--force`); contracts 140 at `df9f2c5` (the contracts package is unchanged since) | PASS | — |
+| 7. The coordinator's regression set | yes | `df9f2c5` | `dev021-reg-*.txt` (on `f4d491e`) and `gp-qa`'s runs at `df9f2c5`: `invitations` 9, `review-fixes` 10, `vertical-m1` 9, none skipped; `error-catalog-fidelity` 1 | PASS | assisted: they truncate tenant tables in the local database; the change after `df9f2c5` touches only the revoke route, which none of them calls |
+| 8. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
 
@@ -115,9 +128,9 @@ Third-party documentation and primary sources checked for this task. Give each o
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: see «Owning module and allowed edit paths», plus BL-112; commits `f4d491e` (implementation), `fd37b9e` (review round 1), `df9f2c5` (S2-01), `957487c` (QA findings), the record commits and the closing commit.
+- Review independence: independent — `gp-architect` (design), `gp-reviewer` (APPROVE), `gp-security` (HOLD on S1-01, then CLOSED on re-check), `gp-qa` on `df9f2c5` and its re-verification on `957487c`, all native subagents. ADR-012's ruling is the owner's (2026-09-18). No rework round was counted: no QA FAIL, and the one major was fixed before QA.
+- Verified scope: criteria 1–7 PASS; criterion 8 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above; BL-111 (reissue), BL-112 (P2, reused keys on other path-targeted commands), BL-013, BL-014.
+- Next bounded action and owner: owner — review ADR-012 and the PR, and merge; the merge ratifies ADR-012's Approval transcription.
+- Final state and reason: done — every required criterion PASS; every finding fixed or recorded with its reason.
