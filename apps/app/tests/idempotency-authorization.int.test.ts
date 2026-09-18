@@ -239,7 +239,7 @@ describe("a replay is refused to a caller who lost the authority the command nee
   // S1-02: the service plane. This route already authorized in a tenant
   // transaction before its service transaction, so this case guards the shape
   // rather than proving a defect: it passes at 902c214 too.
-  it("service plane (Telegram member link): the caller's project access lapsed → 403 SCOPE_PROJECT_DENIED, nothing replayed", async () => {
+  it("service plane (Telegram member link): the caller's project access lapsed → 404, nothing replayed", async () => {
     vi.stubEnv("TELEGRAM_BOT_TOKEN", "t".repeat(32));
     vi.stubEnv("TELEGRAM_BOT_ID", "123456789");
     vi.stubEnv("TELEGRAM_BOT_USERNAME", "GoProceedTestBot");
@@ -252,17 +252,22 @@ describe("a replay is refused to a caller who lost the authority the command nee
     const created = await createProject(WS.telegram, JSON.stringify({ name: "Об'єкт DEV-020" }), crypto.randomUUID());
     expect(created.status).toBe(201);
     const { projectId } = await created.json();
+    // A member link needs the project's field channel (the intent's foreign key).
+    expect((await call("projects/[projectId]/field-channel", "POST", { projectId },
+      JSON.stringify({ channel: "telegram", expectedVersion: 1 }), crypto.randomUUID())).status).toBe(200);
     const key = crypto.randomUUID();
     const first = await call("projects/[projectId]/telegram/member-link-intents", "POST", { projectId }, "{}", key);
     expect(first.status).toBe(201);
     expect((await first.json()).kind).toBe("issued");
 
-    // project.admin implies project.view (authz.ts), so both lapse.
+    // project.admin implies project.view (authz.ts), so both lapse. Without
+    // project.view the project itself is invisible under RLS, so the lookup
+    // answers first: 404, as for an ex-member on a resource route.
     await expireGrants(WS.telegram, projectId, ["project.view", "project.admin"]);
     const again = await call("projects/[projectId]/telegram/member-link-intents", "POST", { projectId }, "{}", key);
     const text = await again.text();
-    expect(again.status).toBe(403);
-    expect(JSON.parse(text).code).toBe("SCOPE_PROJECT_DENIED");
+    expect(again.status).toBe(404);
+    expect(JSON.parse(text).code).toBe("RESOURCE_NOT_FOUND");
     expect(text).not.toContain("replayed");
     expect(again.headers.get("idempotency-replay-until")).toBeNull();
   });
