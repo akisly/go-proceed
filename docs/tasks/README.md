@@ -41,4 +41,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-017](DEV-017-capture-event-service-workspace.md) | done | BL-102: the service plane's capture event confined to the workspace it declares (migration `0087`) |
 | [DEV-018](DEV-018-gate11-closure.md) | done | M0 readiness gate 11: the unfiltered evidence run and the closing entry in `version-0.1.md` §M0 |
 | [DEV-019](DEV-019-invitation-token-at-rest.md) | done | BL-104: the raw invitation token no longer stored in `idempotency_records.response_body`; a replay returns a token-free receipt (migration `0088`) |
-| [DEV-020](DEV-020-idempotent-replay-authorization.md) | reviewing | BL-103: a stored idempotent response replayed only to a caller still authorized for the command (migration `0089`, a required `authorize` step in `withIdempotency`) |
+| [DEV-020](DEV-020-idempotent-replay-authorization.md) | verifying | BL-103: a stored idempotent response replayed only to a caller still authorized for the command (migration `0089`, a required `authorize` step in `withIdempotency`) |

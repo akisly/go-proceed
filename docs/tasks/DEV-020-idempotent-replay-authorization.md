@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** a caller who repeats an `Idempotency-Key` gets the stored response back only if they may still perform the command. A user whose membership ended, an admin demoted to member, or a member whose project capability was revoked or expired gets the same 403 or 404 a fresh call gets, never the stored 2xx, and never a 409 that confirms the record exists. The database half: a stored record that carries a workspace is readable only by an active member of it.
-- **State:** reviewing
+- **State:** verifying
 - **Coordinator:** primary Claude Code session, 2026-09-18.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** an RLS policy change (migration `0089`), a shared helper's contract and every `/v1` command that uses it: `gp-architect` → failing tests → `0089`, helper, call sites → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -54,19 +54,91 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 3 | implementing (coordinator + `gp-implementer` ×3): fix | **Helper:** `withIdempotency<T, A>` takes a required `authorize: () => Promise<A>`, run before the lock and the lookup on every call, its result passed to `fn`; `actorScopedOnly` is the sentinel for a call with no workspace and throws for one with a workspace. `idempotency-authorize.test.ts` (no database, a fake transaction): 4 passed; against the helper at `902c214`, 4 failed for the defect (a replay never called `authorize`; a different body got `IdempotencyConflictError` before the refusal). **`0089`** written and applied by hand as `postgres` (`-1`, rc 0; self-check passed), recorded in `schema_migrations`: `idem_select` now carries `idem_insert`'s predicate; `idem_insert`, the grants and every other policy (an md5 over all other `pg_policies` rows) identical before and after; re-apply rc 0. `operational-rls.test.ts` green at `0089` (5 passed). **Call sites:** the coordinator converted 7 as exemplars (`workspaces/[workspaceId]/projects`, `…/invitations`, `parties/[partyId]`, `projects/[projectId]/access-grants`, and the three with no workspace, which pass `actorScopedOnly`); three `gp-implementer` subagents converted the other 44 in disjoint slices under one brief («who» checks move, «facts» stay, the lookup stays first). Checks they deliberately left inside: `record-evidence-decision`'s self-decision refusal (it reads rows the caller writes later), every status, version, target and duplicate check. Flagged for review: `requirePartyEditCapability` also reads whether the party is an own legal entity (moved, as the exemplar did); `import-batches/validate` phase 3 uses the phase-1 role for «can manage units» (unchanged). Audit: 51 call sites, 51 with `authorize` (3 with the sentinel). `pnpm turbo run typecheck --force` 10/10 after one fix in the new test (`rows[0]?.n`) | `scratchpad/dev020-helper-unit*.txt`, `dev020-apply-0089.txt`, `dev020-green-db-operational-rls.txt`, `dev020-implementer-brief.md`, `dev020-exemplars.diff`, `dev020-site-audit.txt`, `dev020-typecheck-all.txt` | Documents, runs |
 | 4 | implementing (coordinator): documents | `rls-coverage.csv`: the `idempotency_records` row stays `covered`, its negative now cites the ended-membership test and its reason names `0089`; DA-134 privileges `SELECT\|INSERT` (no `UPDATE` is granted, `0003:65`); INV-048 gains the authorization clause; T-IDEMP-001 extended, T-RLS-011 added; dated notes in `data-model.md` and `tenancy-and-security.md` «Capability evaluation»; BL-103 `closed → DEV-020`; STATUS marker `0089`, counts, next actions. Validator rc 0 | the implementation commit | Commit; runs |
 | 5 | implementing (coordinator): runs on `ef939f5` | Each file alone, clean tree, local database `0089`: `idempotency-authorization.int.test.ts` **6 passed**; `operational-rls.test.ts` 5; `rls-coverage.test.ts` 22; `packages/database/src/idempotency.test.ts` 2 (writes only null-workspace records of random actors). No `de20…`/`de16…` workspace left. **Regression (criterion 8), each alone, none skipped:** invitations 9, workspaces 7, organizations 7, requirement-templates 15, project-communications 9, telegram-bindings 8, import-publish 17, progress-record 10, concurrency 9, m3-refusal 29, upload-intents-create 23, m5-external 27 — 170 passed | `scratchpad/dev020-db-*.txt`, `dev020-reg-*.txt` | `gp-reviewer`, `gp-security` |
+| 6 | reviewing (`gp-reviewer`, `gp-security`, native) on `ae675a2` | **`gp-reviewer`: CHANGES REQUESTED, documentation only** — no fact check moved into `authorize`, no «who» check left in a callback, the lookups still first, the capture patterns untouched, `0089`'s predicate identical to `idem_insert`; agreed with both judgement calls (the self-decision refusal is step-7 separation of duties; `requirePartyEditCapability` belongs in `authorize`). R1-01 to R1-03 minor, R1-04 to R1-06 nits, R1-07 follow-up. **`gp-security`: PASS** — no path returns a stored response or a 409 to a caller who lost authority, at any of the 51 sites; the service plane carries the actor; the external plane does not use the helper; the no-workspace residual holds only the caller's own receipt. S1-01, S1-02 minor; S1-03 to S1-05 informational | review reports | Stated fixes |
+| 7 | rework (coordinator), stated fixes | **`validate` phase 3** (R1-03, S1-04): `authorize` returns the membership and `canManageUnits` reads its fresh role; the phase-1 `role` field and its import removed. **Static call-site test** (S1-01, R1-07) `apps/app/src/lib/idempotency-call-sites.test.ts`, no database: every `withIdempotency` call naming a workspace must reach `requireActiveMembership` or an `authorize*` helper, and `actorScopedOnly`/`organizationId: null` are allowed only on the three bootstrap operations; 2 passed; **mutation**: `workspaces/[workspaceId]/parties`'s `authorize` replaced by `async () => {}` turned it red naming that site, restored. **Two integration cases** (S1-02): `project_access.grant` after the caller's `project.admin` lapsed through `valid_until` → 403 `SCOPE_PROJECT_DENIED`; the Telegram member link (service plane) after `project.view` and `project.admin` lapsed → **404** `RESOURCE_NOT_FOUND`, not the 403 S1-02 proposed: without `project.view` the project is invisible under RLS and the lookup answers first, as for an ex-member — the case needed the project's field channel configured (the intent's foreign key). INV-048 names the no-workspace residual (R1-02); T-RLS-011's variables (R1-04); the self-decision comment (R1-05); the lock-wait window in the helper's doc (R1-06); BL-110 (P3, S1-05). The call-site list below (R1-01). **Red again, with `apps/app/app`, `apps/app/src` and the helper checked out from `902c214`, tests at `d24539f`, database at `0089`:** 4 failed — demoted (`:168`), party demoted (`:187`), `project.admin` revoked (`:215`) and lapsed (`:234`), each a 201/200 replay; the two ended-membership cases passed, which is `0089` alone refusing them under the old code (the deploy-order claim, observed); the Telegram case passed, since that route authorized before its block already (a guard, not a defect proof). Restored, tree clean. **Green on `d24539f`, each alone:** typecheck 10/10; validators rc 0; helper unit 4; call-site test 2; `idempotency-authorization` 8; `operational-rls` 5; `rls-coverage` 22; `idempotency.test.ts` 2; regression for the validate change: `imports` 13, `import-publish` 17, `concurrency` 9. No `de20…`/`de16…` workspace left | `scratchpad/dev020-r2-*.txt` | `gp-qa` |
+
+## Call sites (criterion 5)
+
+All 51 `withIdempotency` call sites at `d24539f`, generated from the tree. Class, from `gp-architect`'s reading at `b3045df`: **A** authorized before the block already; **A-post** re-checks after it too; **B-role** / **B-cap** resolve their resource under RLS first (an ex-member got 404) but checked the workspace role / project capability only inside; **C** checked nothing before the block; **D** has no workspace. «authorize» is what the step now checks (`proj:` a project capability, `ws:` a workspace capability; an `authorize*()` helper does the lookup, membership and capabilities). Every «facts» check (status, version, head, duplicate, target row, business invariant) stayed in its callback; the two deliberate judgement calls are `record-evidence-decision`'s self-decision refusal (stays: step-7 separation of duties over the occurrence's facts) and `requirePartyEditCapability` (moved: it chooses which capability applies). The call-site test pins this list's rule, not its entries.
+
+| Call site | Operation | Class | authorize |
+|---|---|---|---|
+| `app/v1/assignments/[assignmentId]/communication-card/route.ts:52` | `assignment_communication_cards.publish` | A | authorizeAssignment() |
+| `app/v1/assignments/[assignmentId]/progress/route.ts:60` | `progress.record` | B-cap | membership, proj:progress.record |
+| `app/v1/assignments/[assignmentId]/stages/route.ts:155` | `work_stages.create` | B-cap | membership, proj:assignments.manage |
+| `app/v1/contract-versions/[versionId]/publish/route.ts:88` | `contract_versions.publish` | B-cap | membership, proj:contracts.edit |
+| `app/v1/contract-versions/[versionId]/rule-bindings/route.ts:63` | `contract_versions.bind_rules` | B-cap | membership, proj:rule_bindings.manage |
+| `app/v1/contract-versions/[versionId]/work-items/route.ts:44` | `work_items.create` | B-cap | membership, proj:contracts.edit |
+| `app/v1/contracts/[contractId]/assignments/route.ts:131` | `assignments.create` | B-cap | membership, proj:assignments.manage |
+| `app/v1/contracts/[contractId]/import-batches/route.ts:26` | `import_batches.create` | B-cap | membership, proj:imports.manage |
+| `app/v1/contracts/[contractId]/versions/route.ts:51` | `contract_versions.create` | B-cap | membership, proj:contracts.edit |
+| `app/v1/grants/[grantId]/revoke-reissue/route.ts:76` | `external_grants.revoke_reissue` | B-cap | membership, proj:project.view, proj:packages.submit |
+| `app/v1/import-batches/[batchId]/files/route.ts:97` | `import_files.add` | B-cap | membership, proj:imports.manage |
+| `app/v1/import-batches/[batchId]/publish/route.ts:41` | `import_batches.publish` | B-cap | membership, proj:imports.publish |
+| `app/v1/import-batches/[batchId]/resolutions/route.ts:30` | `import_resolutions.create` | B-cap | membership, proj:imports.manage |
+| `app/v1/import-batches/[batchId]/validate/route.ts:115` | `import_batches.validate` | A | membership, proj:imports.manage |
+| `app/v1/invitations/accept/route.ts:13` | `invitations.accept` | D | actorScopedOnly |
+| `app/v1/occurrences/[occurrenceId]/exceptions/route.ts:75` | `requirement_exceptions.create` | B-cap | membership, proj:project.view, proj:requirement_exceptions.decide |
+| `app/v1/occurrences/[occurrenceId]/grants/route.ts:108` | `occurrence_grants.issue` | B-cap | membership, proj:project.view, proj:packages.submit |
+| `app/v1/organizations/route.ts:66` | `organizations.create` | D | actorScopedOnly |
+| `app/v1/parties/[partyId]/contacts/route.ts:57` | `party_contacts.create` | B-role | membership, party edit (INV-020) |
+| `app/v1/parties/[partyId]/legal-profile/route.ts:24` | `parties.legal_profile.put` | B-role | membership, party edit (INV-020) |
+| `app/v1/parties/[partyId]/own-profile/route.ts:23` | `parties.own_profile.create` | B-role | membership, ws:own_legal_profiles.manage |
+| `app/v1/parties/[partyId]/route.ts:25` | `parties.update` | B-role | membership, party edit (INV-020) |
+| `app/v1/progress-entries/[entryId]/adjustments/route.ts:84` | `progress.adjust` | B-cap | membership, proj:progress.adjust |
+| `app/v1/project-requirements/[itemId]/archive/route.ts:70` | `project_requirements.archive` | B-role | membership, ws:project_requirements.manage |
+| `app/v1/projects/[projectId]/access-grants/route.ts:23` | `project_access.grant` | B-cap | membership, proj:project.admin |
+| `app/v1/projects/[projectId]/activate/route.ts:24` | `projects.activate` | B-cap | membership, proj:project.admin |
+| `app/v1/projects/[projectId]/communications/[messageId]/retry/route.ts:90` | `project_communications.retry` | A | authorizeProject() |
+| `app/v1/projects/[projectId]/communications/route.ts:241` | `project_communications.reply` | A | authorizeProject() |
+| `app/v1/projects/[projectId]/contract-versions/[versionId]/requirement-occurrences/dry-run/route.ts:78` | `requirement_occurrences.dry_run` | B-cap | membership, proj:requirements.assign |
+| `app/v1/projects/[projectId]/contracts/route.ts:24` | `contracts.create` | B-cap | membership, proj:contracts.edit |
+| `app/v1/projects/[projectId]/field-channel/route.ts:59` | `project_field_channel.configure` | B-cap | membership, proj:project.admin |
+| `app/v1/projects/[projectId]/parties/route.ts:59` | `project_parties.create` | B-cap | membership, proj:project.admin |
+| `app/v1/projects/[projectId]/responsibilities/route.ts:31` | `project_responsibilities.assign` | B-cap | membership, proj:project.admin |
+| `app/v1/projects/[projectId]/telegram/binding-intents/route.ts:50` | `telegram_binding_intents.create` | A | authorizeProjectAdmin() |
+| `app/v1/projects/[projectId]/telegram/member-link-intents/route.ts:47` | `telegram_member_link_intents.create` | A | authorizeCurrentProjectMember() |
+| `app/v1/requirement-rule-versions/[ruleVersionId]/retire/route.ts:68` | `requirement_rule_versions.retire` | B-role | membership, ws:requirement_rules.manage |
+| `app/v1/requirement-templates/[templateVersionId]/publish/route.ts:33` | `requirement_templates.publish` | B-role | membership, ws:requirement_templates.manage |
+| `app/v1/stages/[stageId]/closures/route.ts:144` | `stage_closures.create` | B-cap | membership, proj:project.view, proj:stage_closures.close |
+| `app/v1/stages/[stageId]/statutory-acts/route.ts:116` | `statutory_acts.compose` | B-cap | membership, proj:project.view, proj:statutory_acts.compose |
+| `app/v1/statutory-act-versions/[actVersionId]/freeze/route.ts:94` | `statutory_act_versions.freeze` | B-cap | membership, proj:project.view, proj:statutory_acts.compose |
+| `app/v1/work-items/[workItemId]/route.ts:79` | `work_items.update` | B-cap | membership, proj:contracts.edit |
+| `app/v1/work-items/[workItemId]/route.ts:260` | `work_items.remove` | B-cap | membership, proj:contracts.edit |
+| `app/v1/workspaces/[workspaceId]/invitations/route.ts:46` | `invitations.create` | C | membership, owner/admin |
+| `app/v1/workspaces/[workspaceId]/parties/route.ts:19` | `parties.create` | C | membership, ws:parties.manage |
+| `app/v1/workspaces/[workspaceId]/project-requirements/route.ts:47` | `project_requirements.create` | C | membership, ws:project_requirements.manage |
+| `app/v1/workspaces/[workspaceId]/projects/route.ts:19` | `projects.create` | C | membership, ws:projects.create |
+| `app/v1/workspaces/[workspaceId]/requirement-rule-versions/route.ts:117` | `requirement_rule_versions.publish` | C | membership, ws:requirement_rules.manage |
+| `app/v1/workspaces/[workspaceId]/requirement-templates/route.ts:20` | `requirement_templates.create` | C | membership, ws:requirement_templates.manage |
+| `app/v1/workspaces/route.ts:16` | `workspaces.create` | D | actorScopedOnly |
+| `src/lib/evidence/authorize-upload-intent.ts:87` | `upload_intents.create` | A-post | membership, proj:evidence.record |
+| `src/lib/evidence/record-evidence-decision.ts:28` | `evidence_decisions.create` | B-cap | membership, proj:project.view, proj:evidence_decisions.decide |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1-01 | minor | Criterion 5; the record | Actual: a count and a scratchpad path, not the list | coordinator | «Call sites» section (row 7) |
+| R1-02 | minor | INV-048 | Actual: «never the stored result» with no exception | coordinator | The no-workspace residual named (row 7) |
+| R1-03 / S1-04 | minor / informational | `import-batches/[batchId]/validate` phase 3 | Actual: `canManageUnits` from the phase-1 role | coordinator | `authorize` returns `m`; `m.role` (row 7); `imports`, `import-publish`, `concurrency` green |
+| R1-04 | nit | T-RLS-011 | Actual: `APP_DB_URL` unnamed | coordinator | Named (row 7) |
+| R1-05 | nit | `record-evidence-decision.ts` comment | Actual: the reason unstated | coordinator | Reworded (row 7) |
+| R1-06 | nit | The helper's doc | Actual: the lock-wait window unstated | coordinator | One sentence (row 7) |
+| R1-07 / S1-01 | follow-up / minor | The helper's contract | Actual: a no-op `authorize` type-checks | coordinator | Static call-site test with a mutation proof (row 7) |
+| S1-02 | minor | `idempotency-authorization.int.test.ts` | Actual: no service-plane case, no `valid_until` case | coordinator | Two cases (row 7); the service-plane one answers 404, not the proposed 403, because the lookup comes first |
+| S1-03 | informational | `authorize` before the lock | A membership ended during the lock wait: invisible record, the callback's writes fail on RLS (500, not 403); a role/capability lost during it: may proceed; strictly better than before | coordinator | **Not changed**; the window stated in the helper's doc (R1-06) |
+| S1-05 | informational | `0007` `app.delete_expired_idempotency` | Actual: `search_path = public`; not a probe | coordinator | BL-110 (P3) |
 
-Rework count and hypothesis changes:
+Rework count and hypothesis changes: none — no QA FAIL and no blocker.
 
 ## What is not true after this task
 
 - **A record without a workspace** (`workspaces.create`, `organizations.create`, `invitations.accept`) is still replayed to its actor alone, whatever has happened since; its body is the caller's own receipt, and `invitations.accept`'s `role` may be out of date (owner, 2026-09-18: accepted).
 - **`0089` is on the local database only.** Either deploy order is safe; a hosted project cannot take it before `0059`–`0088` and the Q-9 push decision.
-- **Only the files named in rows 2-5 ran against the database**, each alone, locally; the other `apps/app` integration suites and the other `packages/testing` suites did not run. Nothing ran in CI.
+- **A no-op `authorize` is refused by a static test, not by the type or the runtime**; a route that hid its check behind another name would pass it.
+- **A capability lost while a same-key request waits on the lock** is not seen by that request (S1-03); the window is the lock wait.
+- **Only the files named in rows 2-7 ran against the database**, each alone, locally; the other `apps/app` integration suites and the other `packages/testing` suites did not run. Nothing ran in CI.
 
 ## Acceptance evidence
 
