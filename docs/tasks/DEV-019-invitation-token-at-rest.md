@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** `invitations.create` stops writing the raw invitation token into `public.idempotency_records.response_body`. The token is returned only by the execution that created it; a replay of the same key and body returns a token-free receipt marked `kind: "replayed"`. Rows already stored lose their `token` key through migration `0088`.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-18.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a `/v1` contract change and a data migration: `gp-architect` → failing tests → contract, route, migration → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -54,11 +54,14 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 5 | reviewing (`gp-reviewer`, `gp-security`, native) on `8c3772a` | **`gp-reviewer`: APPROVE** — no path stores or serves the token, no other consumer of the contract, `0088` safe; R1-01 to R1-03 minor, R1-04 to R1-06 nits. **`gp-security`: PASS** — the token reaches no record, audit row, outbox payload, log or header, and no replay can return it, including over pre-`0088` rows and across actors; spot-checked the architect's sweep on grants, revoke-reissue, both Telegram intents, `authorize-upload-intent` and the external plane. S1-01, S1-02 minor; S1-03 (= R1-06), S1-04, S1-05 informational | review reports | Stated fixes |
 | 6 | rework (coordinator), stated fixes | **Route** (R1-06 / S1-03): the capture guard and the final parse run inside `withTenantTx`, so a fresh execution that cannot hand its token back rolls back instead of committing an invitation nobody can redeem; header wording names the Telegram shape. **Tests** (R1-01, R1-02): the fresh-create case asserts exactly one `invitations.create` record for the workspace whose body equals the receipt, and that the sweep finds the `invitationId` (a positive control); the demoted-admin case asserts its precondition (`issued`, 64 hex) and a status in `[201, 403]`, and on 201 the exact replayed receipt. **INV-102** (R1-03, S1-01): enforcement described route by route (strict receipt vs typed body; replay by named fields vs stored body), the missing generic guard named, and the Telegram, m5, upload-intent and evidence-read tests cited. **`0088` header** (S1-02): what it cannot reach (old row versions, WAL, replicas, statement logs) and the old-deployment caveat with the read-only re-check. **Backlog**: BL-103 dated note (R1-05); BL-108 (P3, the generic guard, S1-01) and BL-109 (P3, the planned `invite/{token}` path, S1-05). **STATUS** (R1-04): the DEV-019 change-log sentence and «Next action» item 1. S1-04 recorded, no change (below). «What is not true» filled (S1-02). Final runs are taken after this row is written | `7fa37d0`; `scratchpad/dev019-r2-*.txt` | `gp-qa` |
 | 7 | implementing (coordinator): runs on `7fa37d0` | **Red again, with the route and contract reverted to `b3045df` and the tests at `7fa37d0`** (then restored with `git checkout HEAD --`): 4 failed, 5 passed — `:125` the stored record held three keys, `token` among them; `:149` the replay returned `token`; `:181` the pre-fix record served its token; `:190` the demoted-admin case now stops at its new precondition (`kind` is absent from the old response), so that case's defect proof remains the first red run (`:187`, row 2). `0088` re-applied over the two token rows the red run had written: `UPDATE 2`, then 0 with a token, rc 0. **Green on the clean tree:** `invitations.int.test.ts` alone, 9 passed (verbose); `@goproceed/contracts` 138 passed; `pnpm turbo run typecheck --force` 10/10; validators rc 0 | `scratchpad/dev019-r2-red-int.txt`, `dev019-r2-apply-0088.txt`, `dev019-r2-green-int.txt`, `dev019-r2-contracts.txt`, `dev019-r2-typecheck-all.txt`, `dev019-r2-canonical-docs.txt`, `dev019-r2-agents.txt` | `gp-qa` |
+| 8 | verifying (`gp-qa`, native) on `26f9f95` | **Verified for the scoped criteria:** 1–7 PASS, 8 NOT RUN (not required). Its own runs: `invitations.int.test.ts` alone, 9 passed, none skipped; contracts 138; app and contracts typecheck, both validators rc 0; read-only queries: database at `0088`, no `invitations.create` row with a token, the `idempotency_records` policies and grants identical to the apply evidence. Two sensitivity mutations, each restored and the tree clean: the token put back into the stored body turned `:125` red; the replay spreading the stored body turned `:181` red. Every stated fix in place; S1-04's «not changed» justified. New: Q1-01 nit (INV-102 said the Telegram replays are built from named fields) | QA report; `scratchpad/qa-idem-sites.txt` | Q1-01; done |
+| 9 | closing (coordinator) | Q1-01: INV-102 attributes the named-field replay to `invitations.create` only and says the Telegram replays spread into a strict schema that fails closed. Acceptance table and handoff filled from the QA matrix. Validator re-run after this row is written | `scratchpad/dev019-close-canonical-docs.txt` | Push, PR |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| Q1-01 | nit | INV-102 enforcement | Actual: the Telegram replays described as built from named fields; they spread the stored body into a strict schema | coordinator | Reworded (row 9) |
 | R1-01 | minor | `invitations.int.test.ts`, fresh-create case | Actual: the absence checks pass on an empty table | coordinator | Exact-receipt record and a positive sweep control (row 6) |
 | R1-02 | minor | `invitations.int.test.ts`, demoted-admin case | Actual: no precondition, no status check; `not.toContain(undefined)` could pass | coordinator | Precondition, `[201, 403]`, exact receipt on 201 (row 6) |
 | R1-03 / S1-01 | minor | INV-102 | Actual: only invitation tests cited; «strict receipt» untrue for the grant routes; no generic enforcement stated | coordinator | Enforcement per route, four tests cited, BL-108 filed (row 6) |
@@ -87,6 +90,14 @@ Rework count and hypothesis changes: none — no QA FAIL and no blocker.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The integration cases are red at `b3045df` for the defect and green after the fix | yes | `26f9f95` | `dev019-red-int.txt` (4 failed at `:122`, `:141`, `:173`, `:187`), `dev019-r2-red-int.txt` (4 failed at `:125`, `:149`, `:181`, `:190`), `dev019-r2-green-int.txt` (9 passed); `gp-qa`'s own run (9 passed) and two mutations (red at `:125` and `:181`) | PASS | assisted: local database only; the demoted-admin case's defect proof is the first red run, as the second stops at its new precondition |
+| 2. The contract's issued arm requires the token and the replayed arm refuses one | yes | `26f9f95` | `dev019-r2-contracts.txt` (138 passed); `gp-qa`'s own run | PASS | the contract test's red only shows the schemas did not exist (a specification red) |
+| 3. Strict token-free receipt, token captured outside, replay from named fields | yes | `26f9f95` | the route; `gp-qa`'s mutation (b) reddens the pre-fix-record case | PASS | the «nothing captured» guard is unreachable without a mutation; checked by reading |
+| 4. `0088`: removes the key, self-check, applies at `0087`, no policy, grant or shape change | yes | `26f9f95` | `dev019-apply-0088.txt` (rc 0, `UPDATE 2`, policies and grants identical, re-apply `UPDATE 0`), `dev019-r2-apply-0088.txt`; `gp-qa`'s read-only queries | PASS | assisted: applied by hand to the local database; no hosted project |
+| 5. Every `withIdempotency` caller checked for a stored secret | yes | `b3045df` / `26f9f95` | `gp-architect`'s sweep of 51 call sites (row 1); `gp-security` and `gp-qa` spot-checks | PASS | spot-checked by review and QA, read in full by the architect only |
+| 6. INV-102; BL-104 closed; BL-107 (P2); validators | yes | `26f9f95` | `dev019-r2-canonical-docs.txt`, `dev019-r2-agents.txt`; `gp-qa`'s reading and runs | PASS | Q1-01 fixed after the QA run (wording only) |
+| 7. Typechecks and contracts tests | yes | `26f9f95` | `dev019-r2-typecheck-all.txt` (10/10 `--force`), `dev019-r2-contracts.txt`; `gp-qa`'s app and contracts typecheck | PASS | — |
+| 8. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
 
@@ -102,11 +113,14 @@ Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pil
 
 Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
 
+- PostgreSQL 17 JSON functions and operators (`?`, `jsonb - text`, `jsonb_typeof`) — https://www.postgresql.org/docs/17/functions-json.html — server 17.6 (DEV-017); accessed 2026-09-18. `jsonb - text` deletes a key from an object; applied to a scalar it raises, hence the `jsonb_typeof(...) = 'object'` guard.
+- Zod 4 (`discriminatedUnion`, `.strict()`, issue `input` omitted by default) — installed 4.4.3, read from `node_modules/zod/v4/core/util.js` by `gp-security`; accessed 2026-09-18.
+
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: see «Owning module and allowed edit paths», plus BL-108, BL-109 and the BL-103 note; commits `8c3772a` (implementation), `7fa37d0` (review round 1), `26f9f95` (runs before QA) and the closing commit.
+- Review independence: independent — `gp-architect` (design), `gp-reviewer` (APPROVE), `gp-security` (PASS), `gp-qa` on `26f9f95`, all native subagents. No rework round was counted: no QA FAIL and no blocker.
+- Verified scope: criteria 1–7 PASS; criterion 8 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above; BL-103 (DEV-020), BL-107, BL-108, BL-109, BL-013; `0088` is on the local database only, and a hosted push applies it after the application build.
+- Next bounded action and owner: owner — review and merge the PR. Then DEV-020 (BL-103) from `main`, with its scope decision.
+- Final state and reason: done — every required criterion PASS; every finding fixed or recorded with its reason.
