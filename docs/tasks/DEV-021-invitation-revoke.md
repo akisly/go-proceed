@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** an owner or admin can revoke a pending, unexpired invitation, after which its link admits no one and its address is free for a new invitation; and the create's pending-address conflict names the blocking invitation's id, so an admin who lost the create response can find it. Recovery from a lost token is revoke, then create. Scope set by [ADR-012](../decisions/ADR-012-invitation-revoke.md).
-- **State:** scoped
+- **State:** reviewing
 - **Coordinator:** primary Claude Code session, 2026-09-18.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a scope change (ADR) and a new `/v1` command: `gp-architect` → coordinator drafts ADR-012 → **owner rules** → failing tests → contract, route, catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -51,6 +51,9 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 |---|---|---|---|---|
 | 1 | designing (`gp-architect`, native) on `65d7935` | **Design returned, read-only. An ADR is required**: `scope-v0.1.csv` is the route set, and ADR-006 decision 1 and replacement rule 1 refuse «already catalogued» as a reason — the state catalogs describe the whole target design and `ui-actions.csv` is a legacy catalog; every route added after ADR-006 came with an ADR. Recommended: `invitations.revoke` (`POST /v1/invitations/{invitationId}/revoke`, owner/admin, `pending → revoked`, no `expectedVersion` — a pending row's version is always 1 and the status compare under the row lock is the check), the create's 409 carrying `details.invitationId`, and reissue deferred (a second route that mints a secret while BL-108 is open). **No migration**: `revoked` status, `version` and `inv_update` (owner/admin, `0014`) exist, and the app role holds `UPDATE` (`0011:59`); a plain UPDATE under RLS, not a definer. No new error code; new event `invitation.revoked`; new INV-103. Found in passing: sibling routes return 500 on a non-UUID id | architect report | ADR-012; owner |
 | 2 | coordinator: ADR-012 | Drafted from the design; the owner ruled in conversation (revoke only; the 409 names the id; an expired pending invitation is 409 with nothing written), transcribed into its Approval section with Status `Approved`, per `docs/README.md`: the owner's merge ratifies it | `docs/decisions/ADR-012-invitation-revoke.md` | Red |
+| 3 | implementing (coordinator): red | Tests first. **At `65d7935`, local database `0089`:** `packages/contracts/src/invitations.test.ts` 2 failed, 2 passed (the revoke and conflict-details schemas do not exist — a specification red). `apps/app/tests/invitation-revoke.int.test.ts` alone: **11 failed** — ten because the route module does not exist (a specification red), and **one behavioural red at `:137`**: the create's 409 for an address with a pending invitation carried no `details` (`undefined` for `{ invitationId }`), which is the gap itself: nothing named the invitation that blocks the address, and nothing could withdraw it | `scratchpad/dev021-red-contracts.txt`, `dev021-red-int.txt` | Fix |
+| 4 | implementing (coordinator): fix, catalogs | **Contract:** `invitationPendingConflictDetails`, `revokeInvitationRequest` (strict, empty), `revokeInvitationResponse` (strict, `status: "revoked"`). **Create:** after the lazy expiry, a pending invitation for the address is refused 409 `VERSION_CONFLICT` with `details.invitationId`; the unique-violation catch stays for the race, without the id. **Revoke route** `apps/app/app/v1/invitations/[invitationId]/revoke/route.ts`: a non-UUID id is 404; the invitation resolved under RLS before `withIdempotency` (404 before 403); `authorize` = active membership + owner/admin; under `for update`, anything but pending-and-unexpired is 409 with nothing written; the UPDATE compares `status = 'pending'` and counts its row (RLS filters silently); audit `invitation.revoked` and outbox `invitation.revoked`, id-only; a strict receipt. **Catalogs:** `scope-v0.1.csv` row, `members.manage` related operations, `invitation.revoked` event, INV-103, T-INVITATION-001 evidence, `version-0.1.md` (M1 36, total 76, the list, a dated note), BL-107 closed, a BL-013 note, BL-111 (reissue, P3), STATUS. No migration, no error-catalog row | the implementation commit | Runs |
+| 5 | implementing (coordinator): runs on `f4d491e` | Each alone, clean tree, local database `0089`: `pnpm turbo run typecheck --force` 10/10; validators rc 0; `@goproceed/contracts` 140; `idempotency-call-sites` 2 (the new call site passes the static rule); `error-catalog-fidelity` 1; **`invitation-revoke.int.test.ts` 11 passed**, no `de21…` workspace left. Regression for the create's changed 409, each alone, none skipped: `invitations` 9, `review-fixes` 10, `vertical-m1` 9 | `scratchpad/dev021-*.txt` | `gp-reviewer`, `gp-security` |
 
 ## Findings and rework
 
@@ -60,6 +63,12 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 Rework count and hypothesis changes:
 
 ## What is not true after this task
+
+- **Reissue does not exist** (not approved; BL-111): recovery from a lost token is revoke, then create, with a new invitation id.
+- **There is no invitation list**: an admin finds the id from the create's 409, or by replaying the create with its key.
+- **The token is still a bearer credential not bound to the invited email** (BL-013); revoke ends it, nothing prevents its use before.
+- **No policy-level test** proves `inv_update` refuses a member-role update; the route refuses first, and the architect's reading of `SELECT … FOR UPDATE` under RLS was not re-verified against the PostgreSQL docs by a test.
+- **Only the files named in rows 3-5 ran against the database**, each alone, locally. Nothing ran in CI.
 
 ## Acceptance evidence
 
