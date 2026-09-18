@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** an `Idempotency-Key` reused for another target of the same command — another work item, template, requirement item, party — is refused with 409 `IDEMPOTENCY_CONFLICT` instead of replaying the first target's stored result while the second target stays untouched. `commandRoute` hashes the route's path parameters (UUIDs lower-cased) with the raw body, so every member-plane command gets the binding in one place.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-19.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a change to every `/v1` command's idempotency contract: `gp-architect` → failing tests → `request-hash.ts`, `command.ts`, the revoke route, the conflict message → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -55,11 +55,16 @@ The two remaining design questions were taken at the architect's recommendation 
 | 4 | implementing (coordinator): runs on `0489c97` | Each alone, clean tree, local database `0089`: `pnpm turbo run typecheck --force` 10/10; validators rc 0; unit (`request-hash`, `command`, `http`, `idempotency-call-sites`) 32; **`idempotency-authorization.int.test.ts` 12 passed**; regression, none skipped: `invitation-revoke` 13, `invitations` 9, `telegram-bindings` 8, `upload-intents-create` 23, `organizations` 7, `workspaces` 7, `m3-refusal` 29; `pnpm --filter @goproceed/app build` rc 0; no `de2…` workspace left | `scratchpad/dev022-*.txt` | `gp-reviewer`, `gp-security` |
 | 5 | reviewing (`gp-reviewer`, `gp-security`, native) on `d298b50` | **`gp-reviewer`: APPROVE** — the envelope is unambiguous (JSON array, named params, sorted), the body digest is the same UTF-8 input as before, no stored hash is compared outside `withIdempotency`, the revoke binding holds; R1-01 to R1-03 low (the 400-day commands, the own-hash commands, the deploy note's home), R1-04 to R1-06 informational. **`gp-security`: PASS** — no collision, no unbound target among the 50 `commandRoute` routes, DEV-021's S1-01 stays closed, the 409 discloses nothing, rollback mirrors the deploy; S1-01 minor (nothing enforces the rule — a future own hash or a URL/header target would bring BL-112 back), S1-02 informational (the new-assignment form keeps one key per form: a lost response spanning the deploy shows «not created» and a reload creates a second assignment). Pre-existing: the advisory-lock key uses the workspace id as given | review reports | Stated fixes |
 | 6 | rework (coordinator), stated fixes | **S1-01 / R1-06**: `idempotency-call-sites.test.ts` refuses a `withIdempotency` call whose `requestHash` is not `a.requestHash`, `args.requestHash` or a listed service's pass-through — allowlisting `organizations.create` (no target) and `import_files.add` (batch + content) with their reasons — and any `POST`/`PATCH`/`PUT`/`DELETE` `commandRoute` handler that reads `a.req.url`, `a.req.headers` or `searchParams`; 4 passed; **mutations**: `work_items.remove` hashing the body only, and `project_requirements.archive` reading its id from the query string, each turn it red naming the site; restored. **S1-02 / R1-03**: the deploy note in STATUS «Next action» item 4, with the refusal-not-failure caveat and the form; the record says the same. **R1-01**: the five `ledger_400d` commands named. **R1-02**: `organizations.create` and `import_files.add` (id as sent) named in the record and INV-048. **R1-04**: «exact over its decoded text». **R1-05**: the Python that computed the pinned vectors is in the test. The lock-key case recorded. **Runs on `4997669`**: typecheck 10/10, validators rc 0, unit 34, the int file 12 | `scratchpad/dev022-r2-*.txt` | `gp-qa` |
+| 7 | verifying (`gp-qa`, native) on `4933477` | **Verified for the scoped criteria:** 1–7 PASS, 8 NOT RUN (not required). Its own runs: unit 34; the int file 12 (none skipped); regression `invitation-revoke` 13, `invitations` 9, `telegram-bindings` 8, `upload-intents-create` 23, `organizations` 7, `workspaces` 7, `m3-refusal` 29; app and database typecheck, validators, `next build`; the pinned vectors recomputed in Python; residue 0. Sensitivity: `commandRoute` hashing the body only turns all four BL-112 cases red, restored. Every stated fix in place. New: Q1-01 info (the audit is a text heuristic), Q1-02 low (no test pins the new detail), Q1-03 low (the deploy note overstated «a `/v1` command») | QA report; `scratchpad/dev022-qa-*.txt` | Q1 fixes; done |
+| 8 | closing (coordinator) | Q1-02: `http.test.ts` asserts the detail names another object. Q1-03: the STATUS deploy note excepts `organizations.create` and `import_files.add`. Q1-01: «What is not true». Checks re-run after this row is written; no code outside a test changed after QA | `scratchpad/dev022-close-*.txt` | Push, PR |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| Q1-01 | info | the call-site audit | A text heuristic | coordinator | Recorded (row 8) |
+| Q1-02 | low | `http.test.ts` | Actual: the detail unasserted | coordinator | Asserted (row 8) |
+| Q1-03 | low | STATUS item 4 | Actual: «a `/v1` command» overstated | coordinator | Two exceptions named (row 8) |
 | S1-01 / R1-06 | minor / info | the call-site audit | Actual: the target rule not enforced | coordinator | Hash and URL/header checks with mutation proofs (row 6) |
 | S1-02 / R1-03 | info / low | the deploy note; the new-assignment form | Actual: no durable deploy note; the form's lost-response case unstated | coordinator | STATUS item 4 and the record (row 6) |
 | R1-01 | low | «What is not true» | Actual: one 400-day command named | coordinator | Five named (row 6) |
@@ -76,12 +81,21 @@ Rework count and hypothesis changes: none — no QA FAIL and no blocker.
 - **A command that reads its target from the query string or a header** would not be bound; none does today, and the rule is stated in `request-hash.ts`.
 - **Two `/v1` commands and the external plane keep their own hashes**: `organizations.create` (no path parameters, so nothing to bind; it does not use `commandRoute`) and `import_files.add` (multipart; hashes its batch id with the content hash, the batch id **as sent**, so a retry that only changes the id's letter case is a false 409, which fails safe); the external plane is keyed on its grant and has no path parameters. The call-site test lists them and refuses any other own hash.
 - **`withIdempotency`'s advisory-lock key uses the workspace id as given** (pre-existing): two concurrent same-key requests whose ids differ only in case take different locks; the unique constraint turns the loser into a 500 and a rollback, nothing is duplicated.
+- **The call-site audit is a text heuristic** (Q1-01): it reads the handler inline after `export const POST|PATCH|PUT|DELETE = commandRoute(`, so a handler defined elsewhere, or a helper handed `a.req`, would get past it. All 49 `commandRoute` handlers are inline today.
 - **Only the files named in rows 2-4 ran**, each alone, locally. Nothing ran in CI.
 
 ## Acceptance evidence
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The envelope's unit tests, red at `1f65fef` | yes | `4933477` | `dev022-red-unit.txt` (the module missing; two targets hashed to `44136fa3…`); `gp-qa`'s unit run (34) and its Python recomputation of both vectors | PASS | — |
+| 2. The integration cases, red at `1f65fef`, green after; truncates nothing | yes | `4933477` | `dev022-red-int.txt` (3 failed: 200 for 409); `gp-qa`'s run (12) and its sensitivity run (all four BL-112 cases red with a body-only hash); residue 0 | PASS | assisted: local database only; the demoted and other-workspace case is a guard (green at the base) |
+| 3. `invitations.revoke` uses the common hash | yes | `4933477` | `gp-qa`'s `invitation-revoke` run (13), the reused-key and upper-case cases green | PASS | — |
+| 4. The conflict detail names another target | yes | `4933477` + row 8 | `http.ts:71`; `http.test.ts` asserts it since row 8 | PASS | the assertion was added after QA (a stated fix) |
+| 5. Catalogs, notes, BL-112, STATUS; validators | yes | `4933477` + row 8 | `gp-qa`'s reading; `dev022-close-canonical-docs.txt` | PASS | — |
+| 6. `pnpm turbo run typecheck`; the unit tests | yes | `4997669` (code identical at `4933477`) | `dev022-r2-typecheck-all.txt` (10/10 `--force`); `gp-qa`'s app and database typecheck | PASS | — |
+| 7. The coordinator's regression set | yes | `4933477` | `gp-qa`'s runs, each alone, none skipped: `invitation-revoke` 13, `invitations` 9, `telegram-bindings` 8, `upload-intents-create` 23, `organizations` 7, `workspaces` 7, `m3-refusal` 29 | PASS | assisted: some truncate tenant tables in the local database |
+| 8. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
 
@@ -101,9 +115,9 @@ Third-party documentation and primary sources checked for this task. Give each o
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: see «Owning module and allowed edit paths»; commits `0489c97` (implementation), `4997669` (review round 1), the record commits and the closing commit.
+- Review independence: independent — `gp-architect` (design), `gp-reviewer` (APPROVE), `gp-security` (PASS), `gp-qa` on `4933477`, all native subagents. No rework round was counted.
+- Verified scope: criteria 1–7 PASS; criterion 8 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above — above all the one-time 409 for a retry spanning the deploy (the STATUS deploy note).
+- Next bounded action and owner: owner — review and merge the PR; read the deploy note before the first hosted deploy carrying it.
+- Final state and reason: done — every required criterion PASS; every finding fixed or recorded with its reason.
