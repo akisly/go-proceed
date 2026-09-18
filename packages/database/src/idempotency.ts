@@ -8,11 +8,12 @@ export const IDEMPOTENCY_CLASS_TTL = { standard_30d: 2_592_000, ledger_400d: 34_
 export type IdempotencyClass = keyof typeof IDEMPOTENCY_CLASS_TTL;
 
 // docs/22-data-api-contract.md:166 / technical/error-catalog.csv:14: reusing
-// an Idempotency-Key with a different request body is a client error
-// (409 IDEMPOTENCY_CONFLICT), not a silent replay and not a fresh execution.
+// an Idempotency-Key for a different request — another body, or another
+// target of the same command (DEV-022) — is a client error (409
+// IDEMPOTENCY_CONFLICT), not a silent replay and not a fresh execution.
 export class IdempotencyConflictError extends Error {
   readonly code = "IDEMPOTENCY_CONFLICT";
-  constructor() { super("Idempotency-Key reused with a different request body."); }
+  constructor() { super("Idempotency-Key reused for a different request."); }
 }
 
 /**
@@ -29,7 +30,7 @@ export interface IdempotencyArgs<A = void> {
   actorScope: string;   // e.g. `user:${userId}` - bounds the key to an actor
   operationId: string;  // logical operation, e.g. "organizations.create"
   key: string;          // the Idempotency-Key header value
-  requestHash: string;  // 64-char lowercase sha256 hex of the raw request body
+  requestHash: string;  // 64-char lowercase sha256 hex of the request: its target and raw body (commandRoute, DEV-022)
   idempotencyClass?: IdempotencyClass; // default "standard_30d"
   /**
    * WHO MAY RUN THIS COMMAND NOW (DEV-020, BL-103). Runs BEFORE the advisory

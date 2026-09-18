@@ -98,6 +98,8 @@ describe("toProblemResponse", () => {
     // technical/error-catalog.csv: IDEMPOTENCY_CONFLICT's user_action is the
     // catalog token, not free-text Ukrainian prose (human text stays in detail).
     expect(body.userAction).toBe("new_key_or_reuse_original");
+    // DEV-022: the key may have been reused for another target, not only another body.
+    expect(body.detail).toContain("інший обʼєкт");
     expect(res.headers.get("x-request-id")).toBe("req-2");
   });
 

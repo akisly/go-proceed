@@ -34,6 +34,12 @@ const WS = {
   differentBody: "de200000-0000-4000-8000-000000000006",
   expiredGrant: "de200000-0000-4000-8000-000000000007",
   telegram: "de200000-0000-4000-8000-000000000008",
+  // DEV-022 / BL-112: the request hash binds the target.
+  templates: "de200000-0000-4000-8000-000000000009",
+  items: "de200000-0000-4000-8000-00000000000a",
+  sameBody: "de200000-0000-4000-8000-00000000000b",
+  otherWorkspace: "de200000-0000-4000-8000-00000000000c",
+  demotedReuse: "de200000-0000-4000-8000-00000000000d",
 } as const;
 const ALL = Object.values(WS);
 
@@ -284,5 +290,120 @@ describe("a replay is refused to a caller who lost the authority the command nee
     expect(await again.json()).toEqual(body);
     expect(again.headers.get("idempotency-replay-until")).toBe(first.headers.get("idempotency-replay-until"));
     expect(await projectCount(WS.control)).toBe(1);
+  });
+});
+
+/**
+ * DEV-022 / BL-112: a command's request hash covered its body only, so a key
+ * reused with the same body on ANOTHER target of the same command found the
+ * first target's record and replayed its result, and the second target was
+ * never touched. `commandRoute` now hashes the path parameters with the body.
+ */
+describe("a key reused for another target is refused, not replayed (BL-112)", () => {
+  async function draftTemplate(ws: string, templateKey: string): Promise<string> {
+    const res = await call("workspaces/[workspaceId]/requirement-templates", "POST", { workspaceId: ws },
+      JSON.stringify({ templateKey, evidenceType: "photo", allowedMedia: { mimeTypes: ["image/jpeg"], maxByteSize: 1048576 } }),
+      crypto.randomUUID());
+    expect(res.status).toBe(201);
+    return (await res.json()).templateVersionId as string;
+  }
+  const publish = (templateVersionId: string, key: string) =>
+    call("requirement-templates/[templateVersionId]/publish", "POST", { templateVersionId }, "{}", key);
+  const templateStatus = async (id: string) =>
+    (await q<{ status: string }>("select status from public.requirement_template_versions where id = $1", [id]))[0]!.status;
+
+  it("requirement_templates.publish: the same key on another template is 409, and that template stays a draft", async () => {
+    current = U;
+    const a = await draftTemplate(WS.templates, "dev022-a");
+    const b = await draftTemplate(WS.templates, "dev022-b");
+    const key = crypto.randomUUID();
+    const first = await publish(a, key);
+    expect(first.status).toBe(200);
+    const body = await first.json();
+
+    const reused = await publish(b, key);
+    expect(reused.status).toBe(409);
+    expect((await reused.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    expect(await templateStatus(b)).toBe("draft");
+
+    const again = await publish(a, key);
+    expect(again.status).toBe(200);
+    expect(await again.json()).toEqual(body);
+    expect(again.headers.get("idempotency-replay-until")).toBe(first.headers.get("idempotency-replay-until"));
+    const upper = await publish(a.toUpperCase(), key);
+    expect(upper.status).toBe(200);
+    expect(upper.headers.get("idempotency-replay-until")).toBe(first.headers.get("idempotency-replay-until"));
+
+    expect((await publish(b, crypto.randomUUID())).status).toBe(200);
+  });
+
+  it("project_requirements.archive: the same key on another item is 409, and that item stays active", async () => {
+    current = U;
+    const created = await createProject(WS.items, JSON.stringify({ name: "Об'єкт DEV-022" }), crypto.randomUUID());
+    const { projectId } = await created.json();
+    const item = async (n: string) => {
+      const res = await call("workspaces/[workspaceId]/project-requirements", "POST", { workspaceId: WS.items },
+        JSON.stringify({ projectId, itemTextUk: `Вимога ${n}`, sourceDocument: "РД", sourceSheet: "1", sourceDrawingNo: n }),
+        crypto.randomUUID());
+      expect(res.status).toBe(201);
+      return (await res.json()).itemId as string;
+    };
+    const a = await item("A-1");
+    const b = await item("B-1");
+    const archive = (itemId: string, key: string) =>
+      call("project-requirements/[itemId]/archive", "POST", { itemId }, "{}", key);
+    const key = crypto.randomUUID();
+    const first = await archive(a, key);
+    expect(first.status).toBe(200);
+    const body = await first.json();
+
+    const reused = await archive(b, key);
+    expect(reused.status).toBe(409);
+    expect((await reused.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    const stillActive = await q<{ status: string; archived_at: Date | null }>(
+      "select status, archived_at from public.project_sourced_requirement_items where id = $1", [b]);
+    expect(stillActive[0]).toEqual({ status: "active", archived_at: null });
+
+    const again = await archive(a, key);
+    expect(again.status).toBe(200);
+    expect(await again.json()).toEqual(body);
+  });
+
+  it("parties.update: an identical body on another party under the same key is 409, and that party is unchanged", async () => {
+    current = U;
+    const party = async (name: string) => {
+      const res = await call("workspaces/[workspaceId]/parties", "POST", { workspaceId: WS.sameBody },
+        JSON.stringify({ displayName: name }), crypto.randomUUID());
+      expect(res.status).toBe(201);
+      return (await res.json()).partyId as string;
+    };
+    const a = await party("Сторона A");
+    const b = await party("Сторона B");
+    const raw = JSON.stringify({ displayName: "Однакова назва", expectedVersion: 1 });
+    const key = crypto.randomUUID();
+    expect((await call("parties/[partyId]", "PATCH", { partyId: a }, raw, key)).status).toBe(200);
+    const reused = await call("parties/[partyId]", "PATCH", { partyId: b }, raw, key);
+    expect(reused.status).toBe(409);
+    expect((await reused.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    const rowB = await q<{ version: string; display_name: string }>(
+      "select version, display_name from public.parties where id = $1", [b]);
+    expect(Number(rowB[0]!.version)).toBe(1);
+    expect(rowB[0]!.display_name).toBe("Сторона B");
+  });
+
+  it("the same key in another workspace executes, and a demoted caller reusing it gets 403, not 409", async () => {
+    current = U;
+    const a = await draftTemplate(WS.otherWorkspace, "dev022-c");
+    const b = await draftTemplate(WS.demotedReuse, "dev022-d");
+    const c = await draftTemplate(WS.demotedReuse, "dev022-e");
+    const key = crypto.randomUUID();
+    expect((await publish(a, key)).status).toBe(200);
+    // Another workspace: another record scope, so a fresh execution.
+    expect((await publish(b, key)).status).toBe(200);
+    await setMembership(WS.demotedReuse, { role: "member" });
+    const refused = await publish(c, key);
+    expect(refused.status).toBe(403);
+    expect((await refused.json()).code).toBe("SCOPE_DENIED");
+    expect(await templateStatus(c)).toBe("draft");
   });
 });
