@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** a command whose idempotent callback returns a body carrying a bearer secret — a key named `token`, `link`, `url`, `secret`, `password`, `csrf…`, or ending in `…Token`, `…Url`, `…Secret`, `…Password`, at any depth, case-insensitively — fails closed before anything is stored: the transaction rolls back and the command answers 500. INV-102 stops resting on each route remembering it.
-- **State:** scoped
+- **State:** reviewing
 - **Coordinator:** primary Claude Code session, 2026-09-19.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** new behaviour inside existing boundaries (`agents/COORDINATION.md`): coordinator implements, failing test first → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -46,3 +46,50 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | Order | State or role | Decision / result | Evidence / reference | Next action |
 |---|---|---|---|---|
 | 1 | scoping (coordinator) on `4181e14` | Secret-shaped names in `packages/contracts/src`: `token`, `link`, `url` (external grants, invitations), `csrfToken` (external plane), `signedUrl`/`token` (upload grants), `telegramUrl`, `readUrl` (the evidence GET — a `queryRoute`, never stored). Each stored-body route keeps these outside the block since DEV-019; the 30 records in the local database carry no such key. So the guard can fail closed without refusing an existing route; the regression set confirms it | coordinator's grep and SQL | Red |
+| 2 | implementing (coordinator): red and fix | `packages/database/src/idempotency-secret-guard.test.ts` (a fake transaction, as DEV-020's `idempotency-authorize.test.ts`). **At `4181e14`: 11 failed, 3 passed** — every secret-shaped body (top level, nested, in an array, upper-case, `csrf…`, the suffixes, the bare names) reached the insert; the near-miss, non-object and replay cases passed already. Fix in `packages/database/src/idempotency.ts`: `secretKeyPaths` walks the body (objects and arrays) and returns the paths of keys matching `^(token\|link\|url\|secret\|password\|csrf.*\|.*(token\|url\|secret\|password))$` (case-insensitive); between the callback and the insert a non-empty result throws `IdempotencySecretError`, naming the operation and the paths, never the values — the transaction rolls back and the command answers 500. The replay path is untouched. The guard test and `idempotency-authorize.test.ts` 18 passed. INV-102's enforcement and evidence, BL-108 closed, STATUS | `scratchpad/dev023-red-unit.txt`; the implementation commit | Runs |
+| 3 | implementing (coordinator): runs on `7c2b91a` | Each alone, clean tree, local database `0089`: `pnpm turbo run typecheck --force` 10/10; validators rc 0; guard + authorize unit 18; `idempotency-call-sites` 4; `idempotency.test.ts` 2. **Regression, none skipped, no `IdempotencySecretError` in any log:** `idempotency-authorization` 12, `invitations` 9, `invitation-revoke` 13, `m5-external` 27, `telegram-bindings` 8, `upload-intents-create` 23, `project-communications` 9, `organizations` 7, `workspaces` 7, `m3-refusal` 29, `import-publish` 17, `progress-record` 10 — 171 passed; residue 0 | `scratchpad/dev023-*.txt` | `gp-reviewer`, `gp-security` |
+
+## Findings and rework
+
+| Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
+|---|---|---|---|---|---|
+
+Rework count and hypothesis changes:
+
+## What is not true after this task
+
+- **The guard reads key names, not values**: a secret stored under an innocent name (`note`, `value`, `data`) passes it; a legitimate key that matches (a public `url`, say) fails closed until an explicit allowlist names it.
+- **`…link` is not a suffix**: `link` matches only exactly (the owner's list); `inviteLink` passes.
+- **Records already stored are not re-checked**, and a replay returns what was stored; DEV-019's `0088` removed the one known case.
+- **The external plane and the Telegram service paths are not guarded here** beyond the calls that go through `withIdempotency`; the external plane stores no response body through it.
+- **Only the files named in rows 2-3 ran against the database**, each alone, locally. Nothing ran in CI.
+
+## Acceptance evidence
+
+| Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
+|---|---|---|---|---|---|
+
+A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
+
+The Limitation column opens with at most one qualifier from this closed set, then its detail:
+
+- **PASS:** `negative` (the command correctly produced nothing, and the absence is the evidence); `assisted:` what had to be arranged by hand first; `owner-reported` (the owner's report, not a session observation).
+- **FAIL:** `known-red baseline:` the named set of pre-existing failures, with no case outside it failing.
+- **NOT RUN:** `environmental:` the cause and the command that settles it; `not-provable-locally:` what would settle it; or, with no qualifier, the reason: why it was deliberately not attempted, or why a PASS was earned for the wrong reason (`agents/roles/gp-qa.md`).
+
+Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pilot-execution-runbook.md` §7.4 maps them onto this set.
+
+## Sources
+
+Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
+
+None: the change uses only the language and the repository's own helper.
+
+## Completion / handoff
+
+- Changed / inspected files:
+- Review independence:
+- Verified scope:
+- Remaining risks / blocked requirements:
+- Next bounded action and owner:
+- Final state and reason:
