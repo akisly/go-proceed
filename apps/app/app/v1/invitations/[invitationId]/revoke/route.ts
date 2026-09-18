@@ -45,10 +45,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * after `authorize`, so it confirms nothing to a caller without authority.
  */
 export const POST = commandRoute(revokeInvitationRequest, async (a) => {
-  const invitationId = a.params.invitationId;
+  const pathId = a.params.invitationId;
   const notFound = new HttpProblem(404, problem("RESOURCE_NOT_FOUND", "Запрошення не знайдено.",
     { requestId: a.requestId, retryable: false, userAction: "return_to_list" }));
-  if (!invitationId || !UUID.test(invitationId)) throw notFound;
+  if (!pathId || !UUID.test(pathId)) throw notFound;
+  // Canonical from here on: the hash, the audit object id and the outbox payload
+  // all carry the lower-case form, whatever case the path used (DEV-021 Q1-01).
+  const invitationId = pathId.toLowerCase();
 
   const ctx = { actorUserId: a.userId, organizationId: null, requestId: a.requestId };
   const out = await withTenantTx(ctx, async (tx) => {
@@ -60,7 +63,7 @@ export const POST = commandRoute(revokeInvitationRequest, async (a) => {
     return withIdempotency<RevokeInvitationResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "invitations.revoke", key: a.idempotencyKey,
-      requestHash: createHash("sha256").update(`invitations.revoke\n${invitationId.toLowerCase()}\n${a.requestHash}`).digest("hex"),
+      requestHash: createHash("sha256").update(`invitations.revoke\n${invitationId}\n${a.requestHash}`).digest("hex"),
       authorize: async () => {
         const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
         // Governance action: only owner/admin withdraw invitations (members.manage).

@@ -151,11 +151,20 @@ describe("POST /v1/invitations/{invitationId}/revoke (BL-107, ADR-012)", () => {
     expect((await accept(again.body.token)).status).toBe(200);
   });
 
-  it("an admin may revoke", async () => {
+  it("an admin may revoke, with the id in any case, and the canonical id is what is recorded", async () => {
     current = OWNER;
     const { body } = await invite(WS.a);
     current = ADMIN;
-    expect((await revoke(body.invitationId)).status).toBe(200);
+    const res = await revoke(body.invitationId.toUpperCase());
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ invitationId: body.invitationId, status: "revoked" });
+    const r = await row(body.invitationId);
+    expect(r.status).toBe("revoked");
+    expect(Number(r.version)).toBe(2);
+    const audit = await q("select 1 from public.audit_events where action = 'invitation.revoked' and object_id = $1", [body.invitationId]);
+    expect(audit).toHaveLength(1);
+    current = RECIPIENTS[4]!;
+    expect((await accept(body.token)).status).toBe(404);
   });
 
   it("a member and an auditor are refused with 403, and the token still admits", async () => {
