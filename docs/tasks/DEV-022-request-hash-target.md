@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** an `Idempotency-Key` reused for another target of the same command — another work item, template, requirement item, party — is refused with 409 `IDEMPOTENCY_CONFLICT` instead of replaying the first target's stored result while the second target stays untouched. `commandRoute` hashes the route's path parameters (UUIDs lower-cased) with the raw body, so every member-plane command gets the binding in one place.
-- **State:** scoped
+- **State:** reviewing
 - **Coordinator:** primary Claude Code session, 2026-09-19.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a change to every `/v1` command's idempotency contract: `gp-architect` → failing tests → `request-hash.ts`, `command.ts`, the revoke route, the conflict message → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -50,3 +50,51 @@ The two remaining design questions were taken at the architect's recommendation 
 | Order | State or role | Decision / result | Evidence / reference | Next action |
 |---|---|---|---|---|
 | 1 | designing (`gp-architect`, native) on `1f65fef` | **Design returned, read-only; no ADR, no migration.** (a) `commandRoute` hashes `JSON.stringify(["goproceed-command-request/1", sorted [name, value] params with UUIDs lower-cased, sha256(raw body)])`; resolved params, not the concrete path (it varies by slash, encoding, rewrite) nor a template (unavailable); the operation id already scopes the record, one route per id; no query string (no command reads one). (b) per-route binding rejected (50 edits, forgettable — DEV-021 S1-01 was found in review); (c) a stored target column rejected (a migration for no gain). The `request_hash` 64-hex checks (`0002` and seven domain tables) rule out a version prefix. Dual-hash compatibility rejected: it keeps the defect alive on old records for 30/400 days. The external plane excluded (keyed on its grant, no path params). Kept as they are: `import_files.add`, `organizations.create`'s route-level hash inputs, Telegram and evidence service calls. Domain tables that store `a.requestHash` (exceptions, closures, statutory acts) will hold mixed formulas; nothing compares them | architect report | Owner |
+| 2 | implementing (coordinator): red | Tests first, at `1f65fef`. `request-hash.test.ts`: the module missing (a specification red; its pinned vectors were computed independently in Python). `command.test.ts`: **the two targets got the same hash** — `44136fa3…`, the SHA-256 of `{}` — the defect in one assertion. `idempotency-authorization.int.test.ts` alone, local database `0089`: **3 failed, 9 passed** — `requirement_templates.publish` (`:325`), `project_requirements.archive` (`:361`) and `parties.update` with an identical body (`:386`) each answered the second target's reuse of the key with **200** (the first target's replay) where 409 was expected. The demoted-reuse case passed already (DEV-020's `authorize` runs first): a guard | `scratchpad/dev022-red-unit.txt`, `dev022-red-int.txt` | Fix |
+| 3 | implementing (coordinator): fix and documents | `apps/app/src/lib/request-hash.ts` (the envelope, pure); `commandRoute` awaits the params before hashing and passes `commandRequestHash(params, raw)`; `invitations.revoke` passes `a.requestHash` (its local binding dropped); the conflict detail «Той самий Idempotency-Key уже використано для іншого запиту: інший обʼєкт або інше тіло запиту.»; the helper's comments and internal message; `invitations.int.test.ts` seeds its pre-fix record with the new hash. INV-048, T-IDEMP-001, the tenancy note (a dated update after DEV-020's), `data-model.md`, BL-112 closed, STATUS. No migration, no catalog of errors or copy changed | the implementation commit | Runs |
+| 4 | implementing (coordinator): runs on `0489c97` | Each alone, clean tree, local database `0089`: `pnpm turbo run typecheck --force` 10/10; validators rc 0; unit (`request-hash`, `command`, `http`, `idempotency-call-sites`) 32; **`idempotency-authorization.int.test.ts` 12 passed**; regression, none skipped: `invitation-revoke` 13, `invitations` 9, `telegram-bindings` 8, `upload-intents-create` 23, `organizations` 7, `workspaces` 7, `m3-refusal` 29; `pnpm --filter @goproceed/app build` rc 0; no `de2…` workspace left | `scratchpad/dev022-*.txt` | `gp-reviewer`, `gp-security` |
+
+## Findings and rework
+
+| Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
+|---|---|---|---|---|---|
+
+Rework count and hypothesis changes:
+
+## What is not true after this task
+
+- **A retry that spans the deploy is answered 409**, not with the stored response: stored hashes covered the body only (owner, 2026-09-19). A rollback has the mirror effect for records this build wrote. Records age out after 30 days, 400 for `contract_versions.publish`.
+- **Domain tables that store a command's request hash** (exceptions, stage closures, statutory acts, evidence decisions, upload intents) hold the old formula before the deploy and the new one after; nothing compares them.
+- **A command that reads its target from the query string or a header** would not be bound; none does today, and the rule is stated in `request-hash.ts`.
+- **The external plane and the multipart import-file route keep their own hashes**; the external plane is keyed on its grant and has no path parameters.
+- **Only the files named in rows 2-4 ran**, each alone, locally. Nothing ran in CI.
+
+## Acceptance evidence
+
+| Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
+|---|---|---|---|---|---|
+
+A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
+
+The Limitation column opens with at most one qualifier from this closed set, then its detail:
+
+- **PASS:** `negative` (the command correctly produced nothing, and the absence is the evidence); `assisted:` what had to be arranged by hand first; `owner-reported` (the owner's report, not a session observation).
+- **FAIL:** `known-red baseline:` the named set of pre-existing failures, with no case outside it failing.
+- **NOT RUN:** `environmental:` the cause and the command that settles it; `not-provable-locally:` what would settle it; or, with no qualifier, the reason: why it was deliberately not attempted, or why a PASS was earned for the wrong reason (`agents/roles/gp-qa.md`).
+
+Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pilot-execution-runbook.md` §7.4 maps them onto this set.
+
+## Sources
+
+Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
+
+- Next.js 16.3.1 route handlers, `params` is a Promise of the dynamic segments — `apps/app/node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/route.md`, read by `gp-architect`; accessed 2026-09-19.
+
+## Completion / handoff
+
+- Changed / inspected files:
+- Review independence:
+- Verified scope:
+- Remaining risks / blocked requirements:
+- Next bounded action and owner:
+- Final state and reason:
