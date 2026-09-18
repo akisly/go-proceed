@@ -59,7 +59,10 @@ export interface IdempotencyHit<T> { replayed: boolean; status: number; body: T;
  * Same key + a DIFFERENT request hash throws IdempotencyConflictError.
  * Otherwise runs fn and stores a single 'completed' record.
  * `args.authorize` runs first, before all of that; if it throws, nothing is
- * looked up, replayed or stored.
+ * looked up, replayed or stored. Because it runs before the lock, a second
+ * concurrent request with the same key is authorized before it waits: an
+ * authority revoked during that wait is not seen, and the request may receive
+ * the replay the first one just committed. The window is the lock wait only.
  * MUST run inside a withTenantTx transaction. Requires only SELECT+INSERT grants.
  *
  * Concurrency: takes a transaction-scoped advisory lock (pg_advisory_xact_lock)

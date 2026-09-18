@@ -7,7 +7,7 @@ import { validateImportBatchRequest } from "@goproceed/contracts";
 import {
   parseCsv, parseXlsx, applyMapping, validateRow, buildPreview, normalizeUnitCode,
   workspaceCapabilities, canonicalPriceBasis, PARSER_VERSION,
-  type SourceRow, type RowValidation, type ContractPins, type GovernanceRole,
+  type SourceRow, type RowValidation, type ContractPins,
   type RowResolution,
 } from "@goproceed/domain";
 import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
@@ -86,7 +86,7 @@ export const POST = commandRoute(validateImportBatchRequest, async (a) => {
           fieldErrors: [{ path: "files", message: "at least one file required" }],
         }));
     }
-    return { row, workspaceId, projectId, role: m.role as GovernanceRole, files: files.rows };
+    return { row, workspaceId, projectId, files: files.rows };
   });
 
   // ── Phase 2 (no tx): safe parse — heavy work outside any transaction ───────
@@ -121,8 +121,9 @@ export const POST = commandRoute(validateImportBatchRequest, async (a) => {
         await requireProjectCapability(tx, a.requestId,
           { workspaceId: loaded.workspaceId, projectId: loaded.projectId,
             memberId: m.memberId, capability: "imports.manage" });
+        return m;
       },
-    }, async () => {
+    }, async (m) => {
       const locked = await tx.query(
         `select status, version, current_attempt from public.import_batches
           where workspace_id = $1 and id = $2 for update`,
@@ -212,7 +213,9 @@ export const POST = commandRoute(validateImportBatchRequest, async (a) => {
       };
 
       // Map + validate per file; auto-register unseen units when permitted.
-      const canManageUnits = workspaceCapabilities(loaded.role).includes("units.manage");
+      // The role authorize just read, not phase 1's: a demotion during the
+      // parse must not leave a stale «who» decision (DEV-020 R1-03).
+      const canManageUnits = workspaceCapabilities(m.role).includes("units.manage");
       interface RowRecord { fileId: string; v: RowValidation; sourceCells: Record<string, unknown> }
       const records: RowRecord[] = [];
       for (const p of parses) {

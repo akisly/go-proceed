@@ -36,7 +36,9 @@ export async function recordEvidenceDecision(input: RecordEvidenceDecisionInput)
         return membership;
       },
     }, async (membership) => {
-      // The self-decision refusal below stays here: it reads rows the caller writes later too.
+      // The self-decision refusal below stays here: separation of duties judges this occurrence's
+      // facts, which the decider may legitimately change after deciding, and it needs
+      // lockOccurrenceLineage, which must follow the idempotency lock.
       await lockOccurrenceLineage(tx, occ.workspace_id, [occurrenceId]);
       const selfRows = await tx.query<{ captured: boolean; recorded_evidence: boolean; recorded_progress: boolean }>(`select
         exists (select 1 from public.upload_intents ui where ui.workspace_id=$1 and ui.requirement_occurrence_id=$2 and ui.created_by_member_id=$3) captured,

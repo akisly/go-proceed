@@ -138,6 +138,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-107](#bl-107) | P2 | open | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | open | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | open | The planned `invite/{token}` page would carry the invitation token in the URL path |
+| [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1297,6 +1298,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** observed 2026-09-18 at `8c3772a`: the route table row; no such page under `apps/app/app`.
 - **Depends on:** none.
 - **Deadline:** before the redemption page is built.
+
+<a id="bl-110"></a>
+### BL-110 — P3 — `app.delete_expired_idempotency` has a `public` search path, not an empty one
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-020's `gp-security` review (S1-05). `app.delete_expired_idempotency` (`supabase/migrations/0007_idempotency_expiry.sql:6-22`) is `SECURITY DEFINER` with `set search_path = public`, where `agents/COMMON.md` asks a definer for an empty search path and schema-qualified references; it fences by actor only. It is not a probe for a former member — its only caller is `withIdempotency`, after `authorize` and after a lookup `0089` has filtered, and it deletes only the caller's own expired rows — so this is hardening, the same class as BL-106. The fix is a later migration that pins `search_path to ''` and qualifies the references. Ranked by DEV-020.
+- **Evidence:** observed 2026-09-18 at `ae675a2` from the migration text; local database at `0089`.
+- **Depends on:** none.
+- **Deadline:** none recorded.
 
 ## Closed, kept for citations
 

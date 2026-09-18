@@ -1,4 +1,4 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Client } from "pg";
 import { ADMIN_URL, q } from "./helpers/fixtures";
 
@@ -32,6 +32,8 @@ const WS = {
   accessGrant: "de200000-0000-4000-8000-000000000004",
   control: "de200000-0000-4000-8000-000000000005",
   differentBody: "de200000-0000-4000-8000-000000000006",
+  expiredGrant: "de200000-0000-4000-8000-000000000007",
+  telegram: "de200000-0000-4000-8000-000000000008",
 } as const;
 const ALL = Object.values(WS);
 
@@ -96,6 +98,16 @@ async function call(
 const createProject = (ws: string, raw: string, key: string) =>
   call("workspaces/[workspaceId]/projects", "POST", { workspaceId: ws }, raw, key);
 
+/** Every live grant of `capabilities` held by U on the project lapses: its validity window moves into the past. */
+async function expireGrants(ws: string, projectId: string, capabilities: string[]): Promise<void> {
+  await q(
+    `update public.project_access_grants
+        set valid_from = now() - interval '2 hours', valid_until = now() - interval '1 hour'
+      where project_id = $1 and capability = any($4::text[]) and revoked_at is null
+        and member_id = (select id from public.memberships where organization_id = $2 and user_id = $3)`,
+    [projectId, ws, U, capabilities]);
+}
+
 async function projectCount(ws: string): Promise<number> {
   return Number((await q<{ n: string }>("select count(*) n from public.projects where workspace_id = $1", [ws]))[0].n);
 }
@@ -110,6 +122,8 @@ beforeAll(async () => {
 afterAll(async () => {
   await dropWorkspaces(ALL);
 });
+
+afterEach(() => { vi.unstubAllEnvs(); });
 
 describe("a replay is refused to a caller who lost the authority the command needs (BL-103)", () => {
   it("workspace route, membership ended: the replay is 403 MEMBERSHIP_INACTIVE and carries nothing stored", async () => {
@@ -200,6 +214,57 @@ describe("a replay is refused to a caller who lost the authority the command nee
     const again = await call("projects/[projectId]/access-grants", "POST", { projectId }, raw, key);
     expect(again.status).toBe(403);
     expect((await again.json()).code).toBe("SCOPE_PROJECT_DENIED");
+  });
+
+  // S1-02: a grant's `valid_until` passing is the one reduction a v0.1 user can
+  // cause through the product (project_access.grant takes it).
+  it("project route (access grant): the caller's project.admin lapsed through valid_until → 403 SCOPE_PROJECT_DENIED", async () => {
+    current = U;
+    const created = await createProject(WS.expiredGrant, JSON.stringify({ name: "Об'єкт DEV-020" }), crypto.randomUUID());
+    expect(created.status).toBe(201);
+    const { projectId } = await created.json();
+    const target = await q<{ id: string }>(
+      "select id from public.memberships where organization_id = $1 and user_id = $2", [WS.expiredGrant, T]);
+    const raw = JSON.stringify({ memberId: target[0]!.id, capabilities: ["project.view"] });
+    const key = crypto.randomUUID();
+    expect((await call("projects/[projectId]/access-grants", "POST", { projectId }, raw, key)).status).toBe(201);
+
+    await expireGrants(WS.expiredGrant, projectId, ["project.admin"]);
+    const again = await call("projects/[projectId]/access-grants", "POST", { projectId }, raw, key);
+    expect(again.status).toBe(403);
+    expect((await again.json()).code).toBe("SCOPE_PROJECT_DENIED");
+    expect(again.headers.get("idempotency-replay-until")).toBeNull();
+  });
+
+  // S1-02: the service plane. This route already authorized in a tenant
+  // transaction before its service transaction, so this case guards the shape
+  // rather than proving a defect: it passes at 902c214 too.
+  it("service plane (Telegram member link): the caller's project access lapsed → 403 SCOPE_PROJECT_DENIED, nothing replayed", async () => {
+    vi.stubEnv("TELEGRAM_BOT_TOKEN", "t".repeat(32));
+    vi.stubEnv("TELEGRAM_BOT_ID", "123456789");
+    vi.stubEnv("TELEGRAM_BOT_USERNAME", "GoProceedTestBot");
+    vi.stubEnv("TELEGRAM_WEBHOOK_SECRET", "w".repeat(32));
+    vi.stubEnv("TELEGRAM_WORKER_SECRET", "r".repeat(32));
+    vi.stubEnv("TELEGRAM_LINK_HMAC_KEYS", `k1:${Buffer.alloc(32, 1).toString("base64")}`);
+    vi.stubEnv("TELEGRAM_LINK_ACTIVE_KEY_ID", "k1");
+    vi.stubEnv("APP_PUBLIC_ORIGIN", "https://app.goproceed.test");
+    current = U;
+    const created = await createProject(WS.telegram, JSON.stringify({ name: "Об'єкт DEV-020" }), crypto.randomUUID());
+    expect(created.status).toBe(201);
+    const { projectId } = await created.json();
+    const key = crypto.randomUUID();
+    const first = await call("projects/[projectId]/telegram/member-link-intents", "POST", { projectId }, "{}", key);
+    expect(first.status).toBe(201);
+    expect((await first.json()).kind).toBe("issued");
+
+    // project.admin implies project.view (authz.ts), so both lapse.
+    await expireGrants(WS.telegram, projectId, ["project.view", "project.admin"]);
+    const again = await call("projects/[projectId]/telegram/member-link-intents", "POST", { projectId }, "{}", key);
+    const text = await again.text();
+    expect(again.status).toBe(403);
+    expect(JSON.parse(text).code).toBe("SCOPE_PROJECT_DENIED");
+    expect(text).not.toContain("replayed");
+    expect(again.headers.get("idempotency-replay-until")).toBeNull();
   });
 
   it("control: a caller whose authority is unchanged still gets the stored response and its header", async () => {
