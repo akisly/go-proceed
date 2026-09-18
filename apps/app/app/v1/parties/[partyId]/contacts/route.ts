@@ -57,10 +57,11 @@ export const POST = commandRoute(createPartyContactRequest, async (a) => {
     return withIdempotency<PartyContactResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "party_contacts.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requirePartyEditCapability(tx, a.requestId, m.role, workspaceId, partyId);
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requirePartyEditCapability(tx, a.requestId, m.role, workspaceId, partyId);
-
       await tx.query(
         `insert into public.party_contacts
            (id, workspace_id, party_id, full_name, role_title, email, phone, created_by)

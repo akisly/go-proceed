@@ -31,10 +31,12 @@ export const POST = commandRoute(assignResponsibilityRequest, async (a) => {
     return withIdempotency<AssignResponsibilityResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "project_responsibilities.assign", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       const target = await tx.query(
         `select 1 from public.memberships where organization_id = $1 and id = $2 and status = 'active'`,
         [workspaceId, a.body.memberId]);

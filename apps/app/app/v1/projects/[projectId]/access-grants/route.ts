@@ -23,10 +23,12 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
     return withIdempotency<GrantProjectAccessResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "project_access.grant", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       // Target must be an ACTIVE membership of the same workspace.
       const target = await tx.query(
         `select 1 from public.memberships where organization_id = $1 and id = $2 and status = 'active'`,

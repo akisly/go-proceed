@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { createAssignmentRequest, type CreateAssignmentResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
@@ -128,14 +128,16 @@ export const POST = commandRoute(createAssignmentRequest, async (a) => {
     const workspaceId: string = c.rows[0].workspace_id;
     const projectId: string = c.rows[0].project_id;
 
-    return withIdempotency<CreateAssignmentResponse>(tx, {
+    return withIdempotency<CreateAssignmentResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "assignments.create", key: a.idempotencyKey, requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "assignments.manage" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "assignments.manage" });
+        return m;
+      },
+    }, async (m) => {
       // The work item must belong to the contract's CURRENT published version.
       // Matching on contract alone would silently attach operational scope to a
       // superseded version, and the assignment would then measure work against

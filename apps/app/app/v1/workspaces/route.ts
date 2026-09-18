@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../src/lib/command";
 import { seedRequirementLibrary, DODATOK_N_SOURCE_STANDARD } from "../../../src/lib/dodatok-n";
 import { createWorkspaceRequest, type CreateWorkspaceResponse } from "@goproceed/contracts";
-import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
+import { withTenantTx, withIdempotency, actorScopedOnly, recordAudit, enqueueOutbox } from "@goproceed/database";
 
 export const runtime = "nodejs"; // node-postgres + node:crypto require the Node runtime
 
@@ -19,6 +19,8 @@ export const POST = commandRoute(createWorkspaceRequest, async (a) => {
       operationId: "workspaces.create",
       key: a.idempotencyKey,
       requestHash: a.requestHash,
+      // No workspace yet: the record is fenced by its actor (DEV-020 residual).
+      authorize: actorScopedOnly,
     }, async () => {
       // legal_name mirrors displayName ONLY to satisfy the legacy NOT NULL —
       // the workspace holds no authoritative legal attributes (ADR-002);

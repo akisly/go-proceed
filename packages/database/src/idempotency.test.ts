@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { randomUUID } from "node:crypto";
 import { withTenantTx } from "./tx";
-import { withIdempotency, IdempotencyConflictError, IDEMPOTENCY_CLASS_TTL } from "./idempotency";
+import { withIdempotency, actorScopedOnly, IdempotencyConflictError, IDEMPOTENCY_CLASS_TTL } from "./idempotency";
 import { Client } from "pg";
 
 const admin = "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
@@ -25,7 +25,7 @@ describe("withIdempotency", () => {
     const first = await withTenantTx({ actorUserId: A, organizationId: null, requestId: "req-a" }, (tx) =>
       withIdempotency(
         tx,
-        { organizationId: null, actorScope: `user:${A}`, operationId: "widgets.create", key, requestHash: HASH_A },
+        { organizationId: null, actorScope: `user:${A}`, operationId: "widgets.create", key, requestHash: HASH_A, authorize: actorScopedOnly },
         async () => {
           calls += 1;
           return { status: 201, body: { widgetId: "w-1", calls } };
@@ -42,7 +42,7 @@ describe("withIdempotency", () => {
     const second = await withTenantTx({ actorUserId: A, organizationId: null, requestId: "req-b" }, (tx) =>
       withIdempotency(
         tx,
-        { organizationId: null, actorScope: `user:${A}`, operationId: "widgets.create", key, requestHash: HASH_A },
+        { organizationId: null, actorScope: `user:${A}`, operationId: "widgets.create", key, requestHash: HASH_A, authorize: actorScopedOnly },
         async () => {
           calls += 1;
           return { status: 201, body: { widgetId: "w-2", calls } };
@@ -73,7 +73,7 @@ describe("withIdempotency", () => {
     await withTenantTx({ actorUserId: A, organizationId: null, requestId: "req-c" }, (tx) =>
       withIdempotency(
         tx,
-        { organizationId: null, actorScope: `user:${A}`, operationId: "widgets.create", key, requestHash: HASH_A },
+        { organizationId: null, actorScope: `user:${A}`, operationId: "widgets.create", key, requestHash: HASH_A, authorize: actorScopedOnly },
         async () => {
           calls += 1;
           return { status: 201, body: { widgetId: "w-1", calls } };
@@ -86,7 +86,7 @@ describe("withIdempotency", () => {
       withTenantTx({ actorUserId: A, organizationId: null, requestId: "req-d" }, (tx) =>
         withIdempotency(
           tx,
-          { organizationId: null, actorScope: `user:${A}`, operationId: "widgets.create", key, requestHash: HASH_B },
+          { organizationId: null, actorScope: `user:${A}`, operationId: "widgets.create", key, requestHash: HASH_B, authorize: actorScopedOnly },
           async () => {
             calls += 1;
             return { status: 201, body: { widgetId: "w-2", calls } };

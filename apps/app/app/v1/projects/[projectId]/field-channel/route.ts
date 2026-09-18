@@ -59,10 +59,12 @@ export const POST = commandRoute(configureProjectFieldChannelRequest, async (a) 
     return withIdempotency<ProjectFieldChannelResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "project_field_channel.configure", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       const p = await tx.query(
         `select status, version from public.projects where workspace_id=$1 and id=$2 for update`, [workspaceId, projectId]);
       if (p.rows.length === 0) throw notFound(a.requestId);

@@ -25,10 +25,12 @@ export const PATCH = commandRoute(updatePartyRequest, async (a) => {
     return withIdempotency<PartyResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "parties.update", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // INV-020: stricter permission when this party is an own legal entity.
+        await requirePartyEditCapability(tx, a.requestId, m.role, workspaceId, partyId);
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // INV-020: stricter permission when this party is an own legal entity.
-      await requirePartyEditCapability(tx, a.requestId, m.role, workspaceId, partyId);
       const upd = await tx.query(
         `update public.parties set display_name = coalesce($3, display_name),
                 version = version + 1, updated_at = now()

@@ -4,7 +4,7 @@ import { idempotencyKeyFrom } from "../../../src/lib/request-context";
 import { HttpProblem, toProblemResponse, ok, requestIdFrom } from "../../../src/lib/http";
 import { createOrganizationRequest, problem, type CreateOrganizationResponse } from "@goproceed/contracts";
 import { buildOrganizationCreation } from "@goproceed/domain";
-import { withTenantTx, recordAudit, enqueueOutbox, withIdempotency } from "@goproceed/database";
+import { withTenantTx, recordAudit, enqueueOutbox, withIdempotency, actorScopedOnly } from "@goproceed/database";
 
 export const runtime = "nodejs"; // node-postgres + node:crypto require the Node runtime
 
@@ -69,6 +69,8 @@ export async function POST(req: Request): Promise<Response> {
         operationId: "organizations.create",
         key: idempotencyKey,
         requestHash,
+        // No workspace yet: the record is fenced by its actor (DEV-020 residual).
+        authorize: actorScopedOnly,
       }, async () => {
         await tx.query(
           `insert into public.organizations (id, legal_name, display_name, edrpou, base_currency, timezone, status, version)

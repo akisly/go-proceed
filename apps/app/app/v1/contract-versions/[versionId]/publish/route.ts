@@ -89,11 +89,12 @@ export const POST = commandRoute(publishContractVersionRequest, async (a) => {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "contract_versions.publish", key: a.idempotencyKey,
       requestHash: a.requestHash, idempotencyClass: "ledger_400d",
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "contracts.edit" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "contracts.edit" });
-
       // Serialize publication per contract, on the SAME key and by the same
       // technique contract_versions.create uses to serialize numbering
       // (versions/route.ts:66-67). Without it the ordering check below is a read

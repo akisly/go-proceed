@@ -71,10 +71,11 @@ export const POST = commandRoute(archiveProjectRequirementRequest, async (a) => 
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "project_requirements.archive", key: a.idempotencyKey,
       requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        requireWorkspaceCapability(a.requestId, m.role, "project_requirements.manage");
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "project_requirements.manage");
-
       const before = await tx.query(
         `select project_id, status from public.project_sourced_requirement_items
           where workspace_id = $1 and id = $2`,

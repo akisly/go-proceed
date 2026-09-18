@@ -19,9 +19,11 @@ export const POST = commandRoute(createPartyRequest, async (a) => {
     withIdempotency<PartyResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "parties.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        requireWorkspaceCapability(a.requestId, m.role, "parties.manage");
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "parties.manage");
       await tx.query(
         `insert into public.parties (id, workspace_id, display_name, party_kind, created_by)
          values ($1,$2,$3,$4,$5)`,

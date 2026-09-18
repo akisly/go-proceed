@@ -24,10 +24,12 @@ export const POST = commandRoute(createContractRequest, async (a) => {
     return withIdempotency<CreateContractResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "contracts.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "contracts.edit" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "contracts.edit" });
       // Both parties must be visible in THIS workspace (RLS makes foreign
       // parties indistinguishable from absent → 404-equivalent 422 here).
       const cust = await tx.query(

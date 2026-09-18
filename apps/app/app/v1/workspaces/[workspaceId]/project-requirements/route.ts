@@ -1,5 +1,5 @@
 import { commandRoute, queryRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireWorkspaceCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireWorkspaceCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { validationFailed } from "../../../../../src/lib/manual-baseline";
 import {
@@ -44,15 +44,17 @@ export const POST = commandRoute(createProjectRequirementRequest, async (a) => {
 
   const ctx = { actorUserId: a.userId, organizationId: workspaceId, requestId: a.requestId };
   const out = await withTenantTx(ctx, async (tx) =>
-    withIdempotency<ProjectSourcedRequirementItemResponse>(tx, {
+    withIdempotency<ProjectSourcedRequirementItemResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "project_requirements.create", key: a.idempotencyKey,
       requestHash: a.requestHash,
       // Default retention class. Authoring a requirement carves no money.
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "project_requirements.manage");
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        requireWorkspaceCapability(a.requestId, m.role, "project_requirements.manage");
+        return m;
+      },
+    }, async (m) => {
       // NOT a plain RLS-scoped select against public.projects — that was the
       // review fix round 1 finding (Critical). projects_select answers "may
       // THIS member see THIS project's contents" (it reads project_access_grants,

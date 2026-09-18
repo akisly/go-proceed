@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { commandRoute } from "../../../../src/lib/command";
 import { HttpProblem, problem } from "../../../../src/lib/http";
 import { acceptInvitationRequest, type AcceptInvitationResponse } from "@goproceed/contracts";
-import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
+import { withTenantTx, withIdempotency, actorScopedOnly, recordAudit, enqueueOutbox } from "@goproceed/database";
 
 export const runtime = "nodejs";
 
@@ -13,6 +13,9 @@ export const POST = commandRoute(acceptInvitationRequest, async (a) => {
     withIdempotency<AcceptInvitationResponse>(tx, {
       organizationId: null, actorScope: `user:${a.userId}`,
       operationId: "invitations.accept", key: a.idempotencyKey, requestHash: a.requestHash,
+      // The caller is not yet a member; the token is the authority, checked by
+      // app.accept_invitation inside. No workspace: fenced by the actor (DEV-020).
+      authorize: actorScopedOnly,
     }, async () => {
       let row: { workspace_id: string; membership_id: string; member_role: string };
       try {

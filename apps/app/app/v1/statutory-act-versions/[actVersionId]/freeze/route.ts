@@ -1,5 +1,5 @@
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   actRenderBlockedDetails, freezeStatutoryActVersionRequest,
@@ -91,17 +91,19 @@ export const POST = commandRoute(freezeStatutoryActVersionRequest, async (a) => 
     if (!located) throw notFound;
     const { workspaceId, projectId, statutoryActId, workStageId, stageClosureId } = located;
 
-    return withIdempotency<FreezeStatutoryActVersionResponse>(tx, {
+    return withIdempotency<FreezeStatutoryActVersionResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "statutory_act_versions.freeze", key: a.idempotencyKey,
       requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "statutory_acts.compose" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "statutory_acts.compose" });
+        return m;
+      },
+    }, async (m) => {
       // THE ROW LOCK. `for update` needs the UPDATE privilege migration 0047 §8
       // grants, and PostgreSQL applies `sav_update`'s USING clause to it —
       // `status = 'draft'` and the capability — so a version frozen by a

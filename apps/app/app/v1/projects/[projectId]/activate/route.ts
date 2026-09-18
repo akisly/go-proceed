@@ -1,5 +1,5 @@
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { activateProjectRequest, projectFieldChannelResponse, type ProjectFieldChannelResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
@@ -21,13 +21,16 @@ export const POST = commandRoute(activateProjectRequest, async (a) => {
     const found = await tx.query(`select workspace_id from public.projects where id=$1`, [projectId]);
     if (found.rows.length === 0) throw notFound(a.requestId);
     const workspaceId: string = found.rows[0].workspace_id;
-    return withIdempotency<ProjectFieldChannelResponse>(tx, {
+    return withIdempotency<ProjectFieldChannelResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "projects.activate", key: a.idempotencyKey, requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
+        return m;
+      },
+    }, async (m) => {
       const p = await tx.query(
         `select status, version from public.projects where workspace_id=$1 and id=$2 for update`, [workspaceId, projectId]);
       if (p.rows.length === 0) throw notFound(a.requestId);

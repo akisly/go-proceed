@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { RecordEvidenceDecisionRequest, RecordEvidenceDecisionResponse } from "@goproceed/contracts";
 import { enqueueOutbox, recordAudit, withIdempotency, withTenantTx } from "@goproceed/database";
-import { requireActiveMembership, requireProjectCapability } from "../authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../authz";
 import type { HandlerResult } from "../command";
 import { HttpProblem, problem } from "../http";
 import { evaluateStage, lockOccurrenceLineage } from "../readiness";
@@ -25,14 +25,20 @@ export async function recordEvidenceDecision(input: RecordEvidenceDecisionInput)
       "select workspace_id,project_id,work_assignment_id,work_stage_id,approver_role from public.requirement_occurrences where id=$1", [occurrenceId]);
     const occ = occurrences.rows[0];
     if (!occ) throw notFound;
-    return withIdempotency<RecordEvidenceDecisionResponse>(tx, {
+    return withIdempotency<RecordEvidenceDecisionResponse, ActiveMembership>(tx, {
       organizationId: occ.workspace_id, actorScope: `user:${actorUserId}`, operationId: "evidence_decisions.create", key: idempotencyKey, requestHash,
-    }, async () => {
-      const membership = await requireActiveMembership(tx, requestId, actorUserId, occ.workspace_id);
-      // project.view is required before the RLS-protected head read; otherwise a
-      // valid head can look like a root to a decider who lacks view.
-      await requireProjectCapability(tx, requestId, { workspaceId: occ.workspace_id, projectId: occ.project_id, memberId: membership.memberId, capability: "project.view" });
-      await requireProjectCapability(tx, requestId, { workspaceId: occ.workspace_id, projectId: occ.project_id, memberId: membership.memberId, capability: "evidence_decisions.decide" });
+      authorize: async () => {
+        const membership = await requireActiveMembership(tx, requestId, actorUserId, occ.workspace_id);
+        // project.view is required before the RLS-protected head read; otherwise a
+        // valid head can look like a root to a decider who lacks view.
+        await requireProjectCapability(tx, requestId, { workspaceId: occ.workspace_id, projectId: occ.project_id, memberId: membership.memberId, capability: "project.view" });
+        await requireProjectCapability(tx, requestId, { workspaceId: occ.workspace_id, projectId: occ.project_id, memberId: membership.memberId, capability: "evidence_decisions.decide" });
+        return membership;
+      },
+    }, async (membership) => {
+      // The self-decision refusal below stays here: separation of duties judges this occurrence's
+      // facts, which the decider may legitimately change after deciding, and it needs
+      // lockOccurrenceLineage, which must follow the idempotency lock.
       await lockOccurrenceLineage(tx, occ.workspace_id, [occurrenceId]);
       const selfRows = await tx.query<{ captured: boolean; recorded_evidence: boolean; recorded_progress: boolean }>(`select
         exists (select 1 from public.upload_intents ui where ui.workspace_id=$1 and ui.requirement_occurrence_id=$2 and ui.created_by_member_id=$3) captured,

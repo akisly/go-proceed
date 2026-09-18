@@ -59,11 +59,12 @@ export const POST = commandRoute(createProjectPartyRequest, async (a) => {
     return withIdempotency<ProjectPartyResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "project_parties.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
-
       // The party must be one of THIS workspace's parties. `parties_select`
       // hides other tenants' rows, so a foreign id and a missing id are the same
       // 422 — a field error, because it is the caller's input that is wrong, and

@@ -23,10 +23,12 @@ export const POST = commandRoute(createOwnProfileRequest, async (a) => {
     return withIdempotency<OwnProfileResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "parties.own_profile.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // INV-020: strictly narrower than parties.manage (owner-only in v0.1-M1).
+        requireWorkspaceCapability(a.requestId, m.role, "own_legal_profiles.manage");
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // INV-020: strictly narrower than parties.manage (owner-only in v0.1-M1).
-      requireWorkspaceCapability(a.requestId, m.role, "own_legal_profiles.manage");
       // Own-entity completeness: official name AND ЄДРПОУ must already exist.
       const lp = await tx.query(
         `select official_name, edrpou from public.party_legal_profiles

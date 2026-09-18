@@ -52,11 +52,12 @@ export const POST = commandRoute(createContractVersionRequest, async (a) => {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "contract_versions.create", key: a.idempotencyKey,
       requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "contracts.edit" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "contracts.edit" });
-
       // Serialize version numbering per contract. max(version_no)+1 read outside
       // a lock lets two concurrent creates compute the same number, and
       // unique (workspace_id, contract_id, version_no) would then reject one

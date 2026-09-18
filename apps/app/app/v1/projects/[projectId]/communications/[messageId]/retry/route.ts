@@ -93,8 +93,8 @@ export const POST = commandRoute(retryProjectCommunicationRequest, async (a) => 
     operationId: "project_communications.retry",
     key: a.idempotencyKey,
     requestHash: a.requestHash,
-  }, async () => {
-    const authorized = await authorizeProject(tx, a.requestId, a.userId, projectId);
+    authorize: () => authorizeProject(tx, a.requestId, a.userId, projectId),
+  }, async (authorized) => {
     const bindingId = await activeTelegramBinding(tx, a.requestId, authorized, loadTelegramConfig().botId);
     const source = await tx.query<{
       direction: string; kind: "text" | "assignment_card"; text: string | null;

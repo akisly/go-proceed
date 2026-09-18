@@ -66,7 +66,7 @@ records what has since been done to each, with the migration that did it.
 | `legal_entities` | Organization-local legal entity | RLS since `0004:4`; creation is governance-scoped (`0006:64-71`). Backfill into tenant-local party and own-legal-profile identities is target work |
 | `memberships` | Membership with a mixed rigid role set | RLS since `0004:5`; four governance roles plus separate project access (`0010`) and responsibilities landed additively |
 | `audit_events` | Command audit facts | RLS since `0006:23`; `SELECT` revoked from the app role outright (`0006:29`); append-only enforced by trigger (`0006:10-19`); `project_id` tenant-safe by composite FK since `0040:81-89` |
-| `idempotency_records` | Command replay records | RLS since `0006:24`; actor-scoped read and write (`0006:50-59`); expiry and a scheduled purge since `0007` |
+| `idempotency_records` | Command replay records | RLS since `0006:24`; actor-scoped read and write (`0006:50-59`); expiry and a scheduled purge since `0007`; since `0089` a record carrying a workspace is read only by an active member of it, and `withIdempotency` authorizes the caller before any replay (DEV-020) |
 | `transaction_outbox` | Durable event intents | RLS since `0006:25`; INSERT tenant-bound and NULL-org-refusing (`0006:39-45`); claim/lease/retry/dead-letter protocol in `0008`. **No consumer** — see Current risks |
 
 ### What the chain is now

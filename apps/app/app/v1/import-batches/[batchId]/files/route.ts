@@ -100,10 +100,12 @@ export async function POST(
         // The batch is part of the request identity: the same bytes uploaded to
         // a DIFFERENT batch is a different command, not a replay.
         requestHash: createHash("sha256").update(`${batchId}|${contentHash}`).digest("hex"),
+        authorize: async () => {
+          const m = await requireActiveMembership(tx, requestId, userId, workspaceId);
+          await requireProjectCapability(tx, requestId,
+            { workspaceId, projectId, memberId: m.memberId, capability: "imports.manage" });
+        },
       }, async () => {
-        const m = await requireActiveMembership(tx, requestId, userId, workspaceId);
-        await requireProjectCapability(tx, requestId,
-          { workspaceId, projectId, memberId: m.memberId, capability: "imports.manage" });
         const b = await tx.query(
           `select status from public.import_batches where workspace_id = $1 and id = $2 for update`,
           [workspaceId, batchId]);

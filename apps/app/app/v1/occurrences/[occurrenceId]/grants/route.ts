@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
   issueOccurrenceGrantRequest,
@@ -105,25 +105,27 @@ export const POST = commandRoute(issueOccurrenceGrantRequest, async (a) => {
     const approverRole: string = occ.rows[0].approver_role;
     const approverIsExternal: boolean = occ.rows[0].approver_is_external === true;
 
-    return withIdempotency<IssueOccurrenceGrantResponse>(tx, {
+    return withIdempotency<IssueOccurrenceGrantResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "occurrence_grants.issue", key: a.idempotencyKey,
       requestHash: a.requestHash,
       // NOT ledger_400d. A grant carves no money and admits none; ADR-005
       // decision 9 and INV-075 both say the decision it enables governs
       // eligibility rather than value.
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      // `project.view` beside the issuing capability, for the reason
-      // `evidence_decisions.create` gives at its own line 69: `ro_select` on the
-      // occurrence is a `project.view` policy, so an issuer without it already
-      // got a 404 from the lookup above rather than reaching this line. Naming
-      // it keeps the requirement legible in the file that needs it.
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "packages.submit" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        // `project.view` beside the issuing capability, for the reason
+        // `evidence_decisions.create` gives at its own line 69: `ro_select` on the
+        // occurrence is a `project.view` policy, so an issuer without it already
+        // got a 404 from the lookup above rather than reaching this line. Naming
+        // it keeps the requirement legible in the file that needs it.
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "project.view" });
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "packages.submit" });
+        return m;
+      },
+    }, async (m) => {
       const mayDecide = a.body.permissions["external.decide_evidence"];
 
       // ── refusal 1 ──────────────────────────────────────────────────────────

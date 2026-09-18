@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireWorkspaceCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireWorkspaceCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { createProjectRequest, type CreateProjectResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
@@ -16,12 +16,15 @@ export const POST = commandRoute(createProjectRequest, async (a) => {
   const projectId = randomUUID();
   const ctx = { actorUserId: a.userId, organizationId: workspaceId, requestId: a.requestId };
   const out = await withTenantTx(ctx, (tx) =>
-    withIdempotency<CreateProjectResponse>(tx, {
+    withIdempotency<CreateProjectResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "projects.create", key: a.idempotencyKey, requestHash: a.requestHash,
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      requireWorkspaceCapability(a.requestId, m.role, "projects.create");
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        requireWorkspaceCapability(a.requestId, m.role, "projects.create");
+        return m;
+      },
+    }, async (m) => {
       await tx.query(
         `insert into public.projects (id, workspace_id, name, code, address, description, status, created_by)
          values ($1,$2,$3,$4,$5,$6,'draft',$7)`,

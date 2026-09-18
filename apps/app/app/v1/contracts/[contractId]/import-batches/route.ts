@@ -26,10 +26,12 @@ export const POST = commandRoute(createImportBatchRequest, async (a) => {
     return withIdempotency<CreateImportBatchResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "import_batches.create", key: a.idempotencyKey, requestHash: a.requestHash,
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "imports.manage" });
+      },
     }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "imports.manage" });
       const batchId = randomUUID();
       await tx.query(
         `insert into public.import_batches (id, workspace_id, project_id, contract_id, created_by)

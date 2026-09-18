@@ -47,11 +47,11 @@ export const POST = commandRoute(createBindingIntentRequest, async (a) => {
     (tx) => authorizeProjectAdmin(tx, a.requestId, a.userId, projectId));
   const captured: { telegramUrl: string | null } = { telegramUrl: null };
 
-  const out = await withServiceTx({ ...ctx, organizationId: authorized.workspaceId }, async (tx) => withIdempotency<TelegramBindingIntentReceipt>(tx, {
+  const out = await withServiceTx({ ...ctx, organizationId: authorized.workspaceId }, async (tx) => withIdempotency<TelegramBindingIntentReceipt, { workspaceId: string; memberId: string }>(tx, {
     organizationId: authorized.workspaceId, actorScope: `user:${a.userId}`,
     operationId: "telegram_binding_intents.create", key: a.idempotencyKey, requestHash: a.requestHash,
-  }, async () => {
-    const { workspaceId, memberId } = await authorizeProjectAdmin(tx, a.requestId, a.userId, projectId);
+    authorize: () => authorizeProjectAdmin(tx, a.requestId, a.userId, projectId),
+  }, async ({ workspaceId, memberId }) => {
     const project = await tx.query<{ status: string }>(
       "select status from public.projects where workspace_id=$1 and id=$2 for update", [workspaceId, projectId]);
     if (!project.rows[0]) throw notFound(a.requestId);

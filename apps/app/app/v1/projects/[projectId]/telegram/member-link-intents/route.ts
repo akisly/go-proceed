@@ -44,11 +44,11 @@ export const POST = commandRoute(createMemberLinkIntentRequest, async (a) => {
     (tx) => authorizeCurrentProjectMember(tx, a.requestId, a.userId, projectId));
   const captured: { telegramUrl: string | null } = { telegramUrl: null };
 
-  const out = await withServiceTx({ ...ctx, organizationId: authorized.workspaceId }, async (tx) => withIdempotency<TelegramMemberLinkIntentReceipt>(tx, {
+  const out = await withServiceTx({ ...ctx, organizationId: authorized.workspaceId }, async (tx) => withIdempotency<TelegramMemberLinkIntentReceipt, { workspaceId: string; memberId: string }>(tx, {
     organizationId: authorized.workspaceId, actorScope: `user:${a.userId}`,
     operationId: "telegram_member_link_intents.create", key: a.idempotencyKey, requestHash: a.requestHash,
-  }, async () => {
-    const { workspaceId, memberId } = await authorizeCurrentProjectMember(tx, a.requestId, a.userId, projectId);
+    authorize: () => authorizeCurrentProjectMember(tx, a.requestId, a.userId, projectId),
+  }, async ({ workspaceId, memberId }) => {
     const config = loadTelegramConfig();
     const rawToken = issueTelegramToken();
     const { keyId, verifierHash } = telegramVerifier(rawToken, config.linkKeys);

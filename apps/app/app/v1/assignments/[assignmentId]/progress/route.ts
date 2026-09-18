@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
-import { requireActiveMembership, requireProjectCapability } from "../../../../../src/lib/authz";
+import { requireActiveMembership, requireProjectCapability, type ActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { recordProgressRequest, type RecordProgressResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
@@ -57,7 +57,7 @@ export const POST = commandRoute(recordProgressRequest, async (a) => {
     const { workspace_id: workspaceId, project_id: projectId,
             work_item_id: workItemId } = asg.rows[0];
 
-    return withIdempotency<RecordProgressResponse>(tx, {
+    return withIdempotency<RecordProgressResponse, ActiveMembership>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "progress.record", key: a.idempotencyKey, requestHash: a.requestHash,
       // STILL `ledger_400d` AFTER ADR-008, and the reason is no longer «this
@@ -68,11 +68,13 @@ export const POST = commandRoute(recordProgressRequest, async (a) => {
       // to outlive the gap between recording and admission, and that gap is now
       // unbounded.
       idempotencyClass: "ledger_400d",
-    }, async () => {
-      const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
-      await requireProjectCapability(tx, a.requestId,
-        { workspaceId, projectId, memberId: m.memberId, capability: "progress.record" });
-
+      authorize: async () => {
+        const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
+        await requireProjectCapability(tx, a.requestId,
+          { workspaceId, projectId, memberId: m.memberId, capability: "progress.record" });
+        return m;
+      },
+    }, async (m) => {
       if (asg.rows[0].status !== "active") {
         throw new HttpProblem(409, problem("VERSION_CONFLICT",
           "Завдання не активне, вимірювання неможливе.",
