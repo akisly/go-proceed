@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Client } from "pg";
 import { createHash } from "node:crypto";
+import { commandRequestHash } from "../src/lib/request-hash";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 const B = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
@@ -172,7 +173,8 @@ describe("POST /v1/workspaces/{id}/invitations — the token is never stored (BL
           state, response_status, response_body, response_headers, expires_at, completed_at)
        values ($1, $2, 'invitations.create', $3, $4, 'completed', 201, $5::jsonb, '{}'::jsonb,
                now() + interval '1 day', now())`,
-      [w, `user:${A}`, key, createHash("sha256").update(raw).digest("hex"),
+      // The hash commandRoute computes for this request (DEV-022: path params + body).
+      [w, `user:${A}`, key, commandRequestHash({ workspaceId: w }, raw),
        JSON.stringify({ invitationId, token: oldToken, expiresAt })]);
 
     const res = await inviteWithKey(w, raw, key);

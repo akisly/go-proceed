@@ -140,7 +140,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-109](#bl-109) | P3 | open | The planned `invite/{token}` page would carry the invitation token in the URL path |
 | [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
-| [BL-112](#bl-112) | P2 | open | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
+| [BL-112](#bl-112) | P2 | closed → DEV-022 | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1326,11 +1326,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-112"></a>
 ### BL-112 — P2 — A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result
 
-- **State:** open
+- **State:** closed → DEV-022
 - **Legacy cite:** none
 - **Why:** DEV-021's `gp-security` review (S1-01). `commandRoute` (`apps/app/src/lib/command.ts:76-77`) hashes the raw body only, and `withIdempotency` keys its record on (workspace, actor, operation, key). A command whose target is in the path and whose body does not name it — every command with an empty strict body, and any whose body (say `{ expectedVersion: 1 }`) happens to repeat — therefore answers a key reused for a second target in the same workspace with the first target's stored result, and never touches the second. The caller sees success; the second target is unchanged. Empty-body commands at `65d7935`: `work_items.remove`, `requirement_rule_versions.retire`, `project_requirements.archive`, `requirement_templates.publish`, the requirement-occurrence dry-run, `assignment_communication_cards.publish`, both Telegram intents. It takes a client that reuses a key across targets, which the contract forbids («Reusing the key with a different request fails», `docs/architecture/tenancy-and-security.md`), but the server does not enforce. `invitations.revoke` binds its target into the hash since DEV-021; the general fix is to hash the method and path (or the route's params) with the body in `commandRoute`, which changes every stored hash, so a same-key replay across the deploy would become a 409 — the change needs its own task and a note on that transition. Ranked P2 by DEV-021 (a silent non-execution of a withdrawing command); the owner may re-rank.
 - **Evidence:** observed 2026-09-18 at `73b4454`: `command.ts:76-77`, `packages/database/src/idempotency.ts`; the empty-body schemas by grep; DEV-021's red test (`scratchpad/dev021-r2-red-int.txt`: the reused key replayed 200 for another invitation). Unverified: which non-empty bodies collide in practice.
 - **Note (DEV-021 Q1-03):** the shared `IDEMPOTENCY_CONFLICT` detail (`apps/app/src/lib/http.ts`) says the key was reused «with a different request body»; for a key reused on another target the body was identical. The general fix should reword it.
+- **Closed 2026-09-19 by DEV-022:** `commandRoute` hashes the route's path parameters (UUIDs lower-cased) with the raw body (`apps/app/src/lib/request-hash.ts`), so every member-plane command binds its target; `invitations.revoke` dropped its local binding. The conflict detail now reads «уже використано для іншого запиту: інший обʼєкт або інше тіло запиту» (the Q1-03 note). `apps/app/tests/idempotency-authorization.int.test.ts` — `requirement_templates.publish`, `project_requirements.archive`, `parties.update` with an identical body — was red at `1f65fef` (200 for 409) and passes after. Transition (owner, 2026-09-19): a retry spanning the deploy is answered 409.
 - **Depends on:** none.
 - **Deadline:** before a client that retries with stored keys is deployed.
 

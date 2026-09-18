@@ -68,7 +68,7 @@ export function toProblemResponse(err: unknown, requestId: string): Response {
   if (err instanceof IdempotencyConflictError) {
     return jsonProblem(
       409,
-      problem("IDEMPOTENCY_CONFLICT", "Той самий Idempotency-Key використано з іншим тілом запиту.", {
+      problem("IDEMPOTENCY_CONFLICT", "Той самий Idempotency-Key уже використано для іншого запиту: інший обʼєкт або інше тіло запиту.", {
         requestId,
         retryable: false,
         userAction: "new_key_or_reuse_original",

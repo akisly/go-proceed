@@ -1,8 +1,8 @@
-import { createHash } from "node:crypto";
 import type { z } from "zod";
 import { requireUser } from "./auth";
 import { idempotencyKeyFrom } from "./request-context";
 import { HttpProblem, toProblemResponse, ok, requestIdFrom } from "./http";
+import { commandRequestHash } from "./request-hash";
 import { problem } from "@goproceed/contracts";
 
 export interface CommandArgs<T> {
@@ -44,7 +44,8 @@ type RouteCtx = { params: Promise<Record<string, string>> };
 
 /**
  * Shared command-route wrapper: requestId validation, auth, Idempotency-Key
- * requirement, raw-body sha256 (the idempotency request hash), JSON + zod
+ * requirement, the idempotency request hash — the path parameters and the raw
+ * body together (./request-hash.ts, DEV-022) — JSON + zod
  * parsing, and the single problem+json error mapping. The handler receives
  * the validated body and returns { status, body, expiresAt?, headers? };
  * expiresAt becomes the Idempotency-Replay-Until header, and `headers` is
@@ -74,7 +75,8 @@ export function commandRoute<T>(
           }));
       }
       const raw = await req.text();
-      const requestHash = createHash("sha256").update(raw).digest("hex");
+      const params = ctx?.params ? await ctx.params : {};
+      const requestHash = commandRequestHash(params, raw);
       let json: unknown;
       try { json = raw === "" ? {} : JSON.parse(raw); }
       catch {
@@ -88,7 +90,6 @@ export function commandRoute<T>(
           fieldErrors: parsed.error.issues.map((i) => ({ path: i.path.join("."), message: i.message })),
         }));
       }
-      const params = ctx?.params ? await ctx.params : {};
       const out = await run({ req, requestId, userId, body: parsed.data, params, idempotencyKey, requestHash });
       const headers: Record<string, string> = { ...out.headers };
       if (out.expiresAt) headers["Idempotency-Replay-Until"] = out.expiresAt.toISOString();

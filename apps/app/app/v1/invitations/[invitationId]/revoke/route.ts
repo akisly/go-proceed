@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
@@ -37,12 +36,13 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
  * TOKEN-FREE AND EMAIL-FREE: the response, the stored idempotency record, the
  * audit detail and the outbox payload carry the invitation id only.
  *
- * THE TARGET IS PART OF THE REQUEST HASH (DEV-021 S1-01). The body is always
- * `{}`, so the raw-body hash `commandRoute` computes is the same for every
- * revoke: a key reused for another invitation would find the first revoke's
- * record and replay its 200 while the second invitation's link stayed live.
- * Hashing the invitation id in turns that into 409 IDEMPOTENCY_CONFLICT, still
- * after `authorize`, so it confirms nothing to a caller without authority.
+ * THE TARGET IS PART OF THE REQUEST HASH. The body is always `{}`, so a hash
+ * of the body alone would let a key reused for another invitation replay the
+ * first revoke's 200 while the second link stayed live (DEV-021 S1-01). This
+ * route bound the id itself until DEV-022 moved the binding into `commandRoute`
+ * for every command (`a.requestHash`, src/lib/request-hash.ts); the reuse is
+ * 409 IDEMPOTENCY_CONFLICT, after `authorize`, so it confirms nothing to a
+ * caller without authority.
  */
 export const POST = commandRoute(revokeInvitationRequest, async (a) => {
   const pathId = a.params.invitationId;
@@ -62,8 +62,7 @@ export const POST = commandRoute(revokeInvitationRequest, async (a) => {
 
     return withIdempotency<RevokeInvitationResponse>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
-      operationId: "invitations.revoke", key: a.idempotencyKey,
-      requestHash: createHash("sha256").update(`invitations.revoke\n${invitationId}\n${a.requestHash}`).digest("hex"),
+      operationId: "invitations.revoke", key: a.idempotencyKey, requestHash: a.requestHash,
       authorize: async () => {
         const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
         // Governance action: only owner/admin withdraw invitations (members.manage).
