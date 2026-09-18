@@ -54,3 +54,46 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 3 | implementing (coordinator + `gp-implementer` ×3): fix | **Helper:** `withIdempotency<T, A>` takes a required `authorize: () => Promise<A>`, run before the lock and the lookup on every call, its result passed to `fn`; `actorScopedOnly` is the sentinel for a call with no workspace and throws for one with a workspace. `idempotency-authorize.test.ts` (no database, a fake transaction): 4 passed; against the helper at `902c214`, 4 failed for the defect (a replay never called `authorize`; a different body got `IdempotencyConflictError` before the refusal). **`0089`** written and applied by hand as `postgres` (`-1`, rc 0; self-check passed), recorded in `schema_migrations`: `idem_select` now carries `idem_insert`'s predicate; `idem_insert`, the grants and every other policy (an md5 over all other `pg_policies` rows) identical before and after; re-apply rc 0. `operational-rls.test.ts` green at `0089` (5 passed). **Call sites:** the coordinator converted 7 as exemplars (`workspaces/[workspaceId]/projects`, `…/invitations`, `parties/[partyId]`, `projects/[projectId]/access-grants`, and the three with no workspace, which pass `actorScopedOnly`); three `gp-implementer` subagents converted the other 44 in disjoint slices under one brief («who» checks move, «facts» stay, the lookup stays first). Checks they deliberately left inside: `record-evidence-decision`'s self-decision refusal (it reads rows the caller writes later), every status, version, target and duplicate check. Flagged for review: `requirePartyEditCapability` also reads whether the party is an own legal entity (moved, as the exemplar did); `import-batches/validate` phase 3 uses the phase-1 role for «can manage units» (unchanged). Audit: 51 call sites, 51 with `authorize` (3 with the sentinel). `pnpm turbo run typecheck --force` 10/10 after one fix in the new test (`rows[0]?.n`) | `scratchpad/dev020-helper-unit*.txt`, `dev020-apply-0089.txt`, `dev020-green-db-operational-rls.txt`, `dev020-implementer-brief.md`, `dev020-exemplars.diff`, `dev020-site-audit.txt`, `dev020-typecheck-all.txt` | Documents, runs |
 | 4 | implementing (coordinator): documents | `rls-coverage.csv`: the `idempotency_records` row stays `covered`, its negative now cites the ended-membership test and its reason names `0089`; DA-134 privileges `SELECT\|INSERT` (no `UPDATE` is granted, `0003:65`); INV-048 gains the authorization clause; T-IDEMP-001 extended, T-RLS-011 added; dated notes in `data-model.md` and `tenancy-and-security.md` «Capability evaluation»; BL-103 `closed → DEV-020`; STATUS marker `0089`, counts, next actions. Validator rc 0 | the implementation commit | Commit; runs |
 | 5 | implementing (coordinator): runs on `ef939f5` | Each file alone, clean tree, local database `0089`: `idempotency-authorization.int.test.ts` **6 passed**; `operational-rls.test.ts` 5; `rls-coverage.test.ts` 22; `packages/database/src/idempotency.test.ts` 2 (writes only null-workspace records of random actors). No `de20…`/`de16…` workspace left. **Regression (criterion 8), each alone, none skipped:** invitations 9, workspaces 7, organizations 7, requirement-templates 15, project-communications 9, telegram-bindings 8, import-publish 17, progress-record 10, concurrency 9, m3-refusal 29, upload-intents-create 23, m5-external 27 — 170 passed | `scratchpad/dev020-db-*.txt`, `dev020-reg-*.txt` | `gp-reviewer`, `gp-security` |
+
+## Findings and rework
+
+| Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
+|---|---|---|---|---|---|
+
+Rework count and hypothesis changes:
+
+## What is not true after this task
+
+- **A record without a workspace** (`workspaces.create`, `organizations.create`, `invitations.accept`) is still replayed to its actor alone, whatever has happened since; its body is the caller's own receipt, and `invitations.accept`'s `role` may be out of date (owner, 2026-09-18: accepted).
+- **`0089` is on the local database only.** Either deploy order is safe; a hosted project cannot take it before `0059`–`0088` and the Q-9 push decision.
+- **Only the files named in rows 2-5 ran against the database**, each alone, locally; the other `apps/app` integration suites and the other `packages/testing` suites did not run. Nothing ran in CI.
+
+## Acceptance evidence
+
+| Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
+|---|---|---|---|---|---|
+
+A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
+
+The Limitation column opens with at most one qualifier from this closed set, then its detail:
+
+- **PASS:** `negative` (the command correctly produced nothing, and the absence is the evidence); `assisted:` what had to be arranged by hand first; `owner-reported` (the owner's report, not a session observation).
+- **FAIL:** `known-red baseline:` the named set of pre-existing failures, with no case outside it failing.
+- **NOT RUN:** `environmental:` the cause and the command that settles it; `not-provable-locally:` what would settle it; or, with no qualifier, the reason: why it was deliberately not attempted, or why a PASS was earned for the wrong reason (`agents/roles/gp-qa.md`).
+
+Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pilot-execution-runbook.md` §7.4 maps them onto this set.
+
+## Sources
+
+Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
+
+- PostgreSQL 17 `ALTER POLICY` and `CREATE POLICY` — https://www.postgresql.org/docs/17/sql-alterpolicy.html, https://www.postgresql.org/docs/17/sql-createpolicy.html — server 17.6; accessed 2026-09-18. `ALTER POLICY … USING` replaces the expression and keeps the name, roles and command; `SELECT` policies filter rows silently, so an invisible record reads as absent rather than failing.
+
+## Completion / handoff
+
+- Changed / inspected files:
+- Review independence:
+- Verified scope:
+- Remaining risks / blocked requirements:
+- Next bounded action and owner:
+- Final state and reason:
