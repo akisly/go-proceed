@@ -4,8 +4,15 @@ import { commandRequestHash } from "./request-hash";
 /**
  * DEV-022 / BL-112 / INV-048: the request hash binds the command's target.
  *
- * The pinned vectors were computed independently of the implementation (the
- * same envelope in Python). A change to them is a change to every stored
+ * The pinned vectors were computed independently of the implementation, in
+ * Python, before the module existed:
+ *
+ *   b = hashlib.sha256(b"{}").hexdigest()
+ *   env = json.dumps(["goproceed-command-request/1", [], b], separators=(",", ":"))
+ *   hashlib.sha256(env.encode()).hexdigest()   # c67c8199…
+ *   (and with [["itemId", "0f0e0d0c-0b0a-4000-8000-000000000001"]] for 72dc86e7…)
+ *
+ * A change to them is a change to every stored
  * request hash, which answers a retry spanning the deploy with 409: treat it as
  * a transition, not a refactor.
  */
@@ -36,7 +43,7 @@ describe("commandRequestHash", () => {
     expect(commandRequestHash({ key: "Abc" }, "{}")).not.toBe(commandRequestHash({ key: "abc" }, "{}"));
   });
 
-  it("keeps the body byte-exact", () => {
+  it("keeps the body exact over its decoded text", () => {
     expect(commandRequestHash({}, "{}")).not.toBe(commandRequestHash({}, "{ }"));
     expect(commandRequestHash({ itemId: A }, '{"x":1}')).not.toBe(commandRequestHash({ itemId: A }, '{"x":2}'));
   });

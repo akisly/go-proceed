@@ -63,10 +63,11 @@ Rework count and hypothesis changes:
 
 ## What is not true after this task
 
-- **A retry that spans the deploy is answered 409**, not with the stored response: stored hashes covered the body only (owner, 2026-09-19). A rollback has the mirror effect for records this build wrote. Records age out after 30 days, 400 for `contract_versions.publish`.
+- **A retry that spans the deploy is answered 409**, not with the stored response: stored hashes covered the body only (owner, 2026-09-19). A rollback has the mirror effect for records this build wrote. Records age out after 30 days, or 400 for the five `ledger_400d` commands: `contract_versions.publish`, `import_batches.publish`, `progress.record`, `progress.adjust`, `stage_closures.create`. Such a 409 is a refusal, not a failure of the first request: the new-assignment form keeps one key per form instance, so a submit whose response was lost before the deploy and retried after it shows «Доручення не створено» although the assignment exists, and a reload would create a second one (S1-02). Check the register before submitting again.
 - **Domain tables that store a command's request hash** (exceptions, stage closures, statutory acts, evidence decisions, upload intents) hold the old formula before the deploy and the new one after; nothing compares them.
 - **A command that reads its target from the query string or a header** would not be bound; none does today, and the rule is stated in `request-hash.ts`.
-- **The external plane and the multipart import-file route keep their own hashes**; the external plane is keyed on its grant and has no path parameters.
+- **Two `/v1` commands and the external plane keep their own hashes**: `organizations.create` (no path parameters, so nothing to bind; it does not use `commandRoute`) and `import_files.add` (multipart; hashes its batch id with the content hash, the batch id **as sent**, so a retry that only changes the id's letter case is a false 409, which fails safe); the external plane is keyed on its grant and has no path parameters. The call-site test lists them and refuses any other own hash.
+- **`withIdempotency`'s advisory-lock key uses the workspace id as given** (pre-existing): two concurrent same-key requests whose ids differ only in case take different locks; the unique constraint turns the loser into a 500 and a rollback, nothing is duplicated.
 - **Only the files named in rows 2-4 ran**, each alone, locally. Nothing ran in CI.
 
 ## Acceptance evidence
