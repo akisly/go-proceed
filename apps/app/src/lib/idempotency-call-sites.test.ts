@@ -16,6 +16,11 @@ import { fileURLToPath } from "node:url";
  *    `requireActiveMembership` directly or through a named `authorize*` helper;
  *  - `actorScopedOnly` and `organizationId: null` appear only on the three
  *    operations that run before any workspace exists for the caller.
+ *
+ * It proves that membership is reachable, not that the command's role or
+ * capability check is there: a site that dropped only that check passes here
+ * and is caught by review and by the integration cases in
+ * tests/idempotency-authorization.int.test.ts (DEV-020 Q1-01).
  */
 const APP_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const NO_WORKSPACE_OPERATIONS = new Set(["workspaces.create", "organizations.create", "invitations.accept"]);
