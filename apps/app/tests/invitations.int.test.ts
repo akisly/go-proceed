@@ -116,6 +116,14 @@ describe("POST /v1/workspaces/{id}/invitations — the token is never stored (BL
     const res = await invite(w, { email: "b@example.test", role: "member" });
     expect(res.status).toBe(201);
     const body = await res.json();
+    // The record exists and holds exactly the receipt, so the absence checks
+    // below cannot pass on an empty table or a secret under another key.
+    const record = await q<{ response_body: unknown }>(
+      `select response_body from public.idempotency_records
+        where operation_id = 'invitations.create' and organization_id = $1`, [w]);
+    expect(record).toHaveLength(1);
+    expect(record[0].response_body).toEqual({ invitationId: body.invitationId, expiresAt: body.expiresAt });
+    expect(await storedCopies(body.invitationId)).toBeGreaterThanOrEqual(1);
     const stored = await q<{ n: string }>(
       `select count(*) n from public.idempotency_records
         where operation_id = 'invitations.create' and response_body ? 'token'`);
@@ -179,12 +187,19 @@ describe("POST /v1/workspaces/{id}/invitations — the token is never stored (BL
     const raw = JSON.stringify({ email: "b@example.test", role: "member" });
     const key = crypto.randomUUID();
     const issued = await (await inviteWithKey(w, raw, key)).json();
+    expect(issued.kind).toBe("issued");
+    expect(issued.token).toMatch(/^[0-9a-f]{64}$/);
     await q("update public.memberships set role = 'member' where organization_id = $1 and user_id = $2", [w, A]);
 
-    // Not pinned: 201 today, 403 once BL-103 (DEV-020) checks authority before
-    // the replay. Either way the response must not carry the token.
+    // The status is not pinned: 201 today, 403 once BL-103 (DEV-020) checks
+    // authority before the replay. Either way the response carries no token.
     const res = await inviteWithKey(w, raw, key);
-    expect(await res.text()).not.toContain(issued.token);
+    expect([201, 403]).toContain(res.status);
+    const text = await res.text();
+    expect(text).not.toContain(issued.token);
+    if (res.status === 201) {
+      expect(JSON.parse(text)).toEqual({ kind: "replayed", invitationId: issued.invitationId, expiresAt: issued.expiresAt });
+    }
   });
 });
 

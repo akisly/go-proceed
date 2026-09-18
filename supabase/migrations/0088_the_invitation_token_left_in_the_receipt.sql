@@ -24,14 +24,19 @@
 -- token-free receipt the new route builds anyway.
 --
 -- WHAT THIS DOES NOT REACH. Backups and point-in-time recovery taken before it
--- ran keep their copies; a token stays usable only while its invitation is
--- pending and unexpired (at most 720 hours, packages/contracts/src/invitations.ts).
+-- ran keep their copies, and so do the old row versions until VACUUM reclaims
+-- them, the write-ahead log, replicas, and any Postgres log that recorded the
+-- old INSERT's bind parameters. A token stays usable only while its invitation
+-- is pending and unexpired (at most 720 hours, packages/contracts/src/invitations.ts).
 --
 -- ORDER. Deploy the application build FIRST, then apply this migration: rows
 -- written by the old build between the two steps would otherwise keep their
 -- token, and this UPDATE would have to be run again by hand. It is idempotent,
--- so running it again is safe. Applied locally by hand as postgres; applied to
--- no hosted project by DEV-019.
+-- so running it again is safe. «First» is not one moment on a host that keeps
+-- older deployments reachable at their own URLs: a call to one of them after
+-- this migration stores a token again, so re-run the self-check's count
+-- (read-only) once the old deployments are retired or protected. Applied
+-- locally by hand as postgres; applied to no hosted project by DEV-019.
 
 update public.idempotency_records
    set response_body = response_body - 'token'

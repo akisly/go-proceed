@@ -23,9 +23,10 @@ export const runtime = "nodejs";
  *
  * So the callback returns the strict token-free receipt, the token is held in
  * `captured` OUTSIDE the block, and the response carries it only when the
- * block actually ran. A replay returns `kind: "replayed"` without it, which is
- * the occurrence-grants and Telegram intent routes' shape: the server no
- * longer holds the token and cannot hand it out again. The replay body is
+ * block actually ran. A replay returns `kind: "replayed"` without it — the
+ * Telegram intent routes' shape; the occurrence-grants route omits its link the
+ * same way — because the server no longer holds the token and cannot hand it
+ * out again. The replay body is
  * built from named fields, never by spreading the stored body, because a
  * record written before `0088` cleaned it may still hold one.
  */
@@ -41,8 +42,8 @@ export const POST = commandRoute(createInvitationRequest, async (a) => {
   const ctx = { actorUserId: a.userId, organizationId: workspaceId, requestId: a.requestId };
   // A holder object, not a `let`: see the occurrence-grants route for why.
   const captured: { token: string | null } = { token: null };
-  const out = await withTenantTx(ctx, (tx) =>
-    withIdempotency<CreateInvitationReceipt>(tx, {
+  const result = await withTenantTx(ctx, async (tx) => {
+    const out = await withIdempotency<CreateInvitationReceipt>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "invitations.create", key: a.idempotencyKey, requestHash: a.requestHash,
     }, async () => {
@@ -88,13 +89,18 @@ export const POST = commandRoute(createInvitationRequest, async (a) => {
       });
       captured.token = token;
       return { status: 201, body: createInvitationReceipt.parse({ invitationId, expiresAt: expiresAt.toISOString() }) };
-    }));
-  if (!out.replayed && captured.token === null) {
-    throw new Error("a fresh invitations.create did not capture its token");
-  }
-  const receipt = { invitationId: out.body.invitationId, expiresAt: out.body.expiresAt };
-  const body: CreateInvitationResponse = out.replayed
-    ? createInvitationResponse.parse({ ...receipt, kind: "replayed" })
-    : createInvitationResponse.parse({ ...receipt, kind: "issued", token: captured.token });
-  return { status: out.status, body, expiresAt: out.expiresAt };
+    });
+    // Inside the transaction on purpose: if a fresh execution cannot hand its
+    // token back, the invitation must not commit, or its address stays blocked
+    // until expiry with a token nobody received (BL-107).
+    if (!out.replayed && captured.token === null) {
+      throw new Error("a fresh invitations.create did not capture its token");
+    }
+    const receipt = { invitationId: out.body.invitationId, expiresAt: out.body.expiresAt };
+    const body: CreateInvitationResponse = out.replayed
+      ? createInvitationResponse.parse({ ...receipt, kind: "replayed" })
+      : createInvitationResponse.parse({ ...receipt, kind: "issued", token: captured.token });
+    return { status: out.status, body, expiresAt: out.expiresAt };
+  });
+  return result;
 });

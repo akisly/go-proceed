@@ -136,6 +136,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
 | [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | open | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
+| [BL-108](#bl-108) | P3 | open | `withIdempotency` stores any body its callback returns, secret or not |
+| [BL-109](#bl-109) | P3 | open | The planned `invite/{token}` page would carry the invitation token in the URL path |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1231,6 +1233,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** none
 - **Why:** found by DEV-016's `gp-architect` (as an `idem_select` observation) and completed by its `gp-security` review (S1-01). `idem_select` on `public.idempotency_records` is `actor_scope = 'user:' || app.current_actor()`, with no workspace or membership term, and `withIdempotency` (`packages/database/src/idempotency.ts:60-85`) replays a stored `response_body` BEFORE it runs its callback — which is where the routes under `apps/app/app/v1/workspaces/[workspaceId]/` (`projects`, `parties`, `invitations`, `requirement-templates`, `project-requirements`, `requirement-rule-versions`) call `requireActiveMembership`. So a user whose membership in that workspace ended, or an admin demoted to member, who repeats the same `Idempotency-Key` with the same body inside the retention window (`standard_30d`, `packages/database/src/idempotency.ts:7`) receives the stored 2xx response again. The content is what that user already received once, which is why this is not P1, but it is a real read after offboarding and the response can carry a secret (BL-104). The occurrence-grants route shows the pattern that avoids it: it resolves the occurrence under RLS before entering the idempotent block (`apps/app/app/v1/.../occurrences/[occurrenceId]/grants/route.ts:27-40,97-101`), so an ex-member gets a 404. The fix is either to check membership before the replay or to re-check it on the replay path; adding an active-membership term to `idem_select` for rows that carry an `organization_id` would close the database half. The v0.1 read minimum still holds for the registry row (a user who was never a member of A reads nothing of A), which is why `idempotency_records` is `covered`. Ranked P2 by the owner on 2026-09-18, after `gp-security` corrected the facts; P3 on 2026-09-17 rested on the replay order being unverified.
 - **Evidence:** observed 2026-09-17 at `191dd79` (the `idem_select` policy text, local database at `0086`) and 2026-09-18 at `5c73b70` in the source lines above. Unverified: the full list of affected routes — `gp-security` read the `workspaces/[workspaceId]` routes and not the other idempotent routes.
+- **Note, 2026-09-18 (DEV-019):** since BL-104 closed, the `invitations.create` replay carries no token (INV-102), so what a replay returns here is metadata the caller already received; DEV-019's `gp-architect` found no other call site that stores a secret. DEV-020 takes this entry.
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment.
 
@@ -1273,6 +1276,26 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** observed 2026-09-18 at `b3045df` by DEV-019's `gp-architect` from the route, the scope catalog and `0010`/`0014`.
 - **Depends on:** an ADR adding the command to scope-v0.1.
 - **Deadline:** before invitations are sent from a hosted environment to real users.
+
+<a id="bl-108"></a>
+### BL-108 — P3 — `withIdempotency` stores any body its callback returns, secret or not
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-019's `gp-security` review (S1-01). INV-102 (a stored idempotent response never carries a bearer secret) is held route by route: each route keeps its secret out of the body its callback returns. Nothing generic enforces it, so a new route that returns a token, link or signed URL from inside the block passes typecheck, review of an unrelated diff and every existing test, and stores the secret for the retention window — exactly how BL-104 arose. A guard in `packages/database/src/idempotency.ts` that refuses to store a body carrying a denylisted key (`token`, `link`, `url`, `signedUrl`, `telegramUrl`, `csrfToken`) at any depth, with a unit test where a `token` key throws, would make the rule structural. Check first that no current stored body legitimately uses one of those names. Ranked by DEV-019.
+- **Evidence:** observed 2026-09-18 at `8c3772a`: `idempotency.ts:89-99` stores `JSON.stringify(result.body)` unconditionally; DEV-019's `gp-architect` sweep of the 51 call sites.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-109"></a>
+### BL-109 — P3 — The planned `invite/{token}` page would carry the invitation token in the URL path
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-019's `gp-security` review (S1-05). `docs/architecture/system-overview.md:307` lists a v0.1 route `invite/{token}` for invitation redemption. A bearer token in the path reaches hosting and proxy access logs, `Referer` headers and analytics, and a link prefetch could consume it. The external review link avoids this by carrying its token in the URL fragment and exchanging it by POST (`apps/app/src/lib/external-link.ts:155-160`). The page does not exist yet, so nothing is exposed today; the entry exists so the page is designed with a fragment or a POST from the start. Ranked by DEV-019.
+- **Evidence:** observed 2026-09-18 at `8c3772a`: the route table row; no such page under `apps/app/app`.
+- **Depends on:** none.
+- **Deadline:** before the redemption page is built.
 
 ## Closed, kept for citations
 
