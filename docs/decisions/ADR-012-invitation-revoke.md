@@ -61,7 +61,8 @@ necessary for:
    `invitations.create`'s 409 `VERSION_CONFLICT` for an address with a pending
    invitation carries `details.invitationId`, so an owner or admin who lost the
    create response and its key can find the id to revoke. Recovery from a lost
-   token is therefore revoke, then create.
+   token is therefore revoke, then create with a new `Idempotency-Key` (the
+   original key replays the old receipt).
 3. **No table and no migration.** The `revoked` status, the `version` column and
    the owner/admin update policy (`inv_update`, `0014`) already exist; ADR-006
    decision 4's tables are unchanged. The revoke is recorded in the audit trail
@@ -100,6 +101,10 @@ coordinator put after the `gp-architect` design:
 - «409, ничего не писать» — decision 1's refusal of a pending invitation past its
   `expires_at`, with nothing written.
 
-The coordinator wrote this section and the Status to transcribe that ruling
-(`docs/README.md` «ADR lifecycle and approval»); the owner's merge of the pull
-request that carries them ratifies the transcription.
+The owner ruled on those options, not on this text. The remaining clauses are
+the coordinator's and `gp-architect`'s detail of the approved options — in
+decision 1, 404 before any authority check, `members.manage` as owner/admin and
+the absence of an `expectedVersion`; in decision 3, no migration and the audit
+and `invitation.revoked` outbox records — and the owner's merge ratifies them
+with the rest. The coordinator wrote this section and the Status to transcribe
+the ruling (`docs/README.md` «ADR lifecycle and approval»).

@@ -13,8 +13,9 @@ import { ADMIN_URL, q } from "./helpers/fixtures";
  *
  * THIS FILE TRUNCATES NOTHING. It seeds its own workspaces with fixed `de21…`
  * ids and deletes exactly those rows afterwards (the catalog-driven technique
- * of packages/testing's dropWorkspaces). Fixed-id auth.users rows outlive it,
- * as in every other suite. It needs APP_DB_URL.
+ * of packages/testing's dropWorkspaces), plus the recipients' own accept
+ * records, which carry no workspace. Fixed-id auth.users rows outlive it, as in
+ * every other suite. It needs APP_DB_URL.
  */
 
 const id = (tail: string) => `de210000-0000-4000-8000-${tail.padStart(12, "0")}`;
@@ -108,6 +109,10 @@ beforeAll(async () => {
 
 afterAll(async () => {
   await dropWorkspaces(ALL);
+  // invitations.accept stores its record with no workspace (DEV-020), so the
+  // recipients' records are not reached by dropWorkspaces: remove them by actor.
+  await q("delete from public.idempotency_records where organization_id is null and actor_scope = any($1::text[])",
+    [RECIPIENTS.map((r) => `user:${r}`)]);
 });
 
 describe("POST /v1/invitations/{invitationId}/revoke (BL-107, ADR-012)", () => {
@@ -192,6 +197,7 @@ describe("POST /v1/invitations/{invitationId}/revoke (BL-107, ADR-012)", () => {
     expect((await revoke(two.body.invitationId)).status).toBe(404);
     const replay = await revoke(one.body.invitationId, key);
     expect(replay.status).toBe(404);
+    expect((await replay.json()).code).toBe("RESOURCE_NOT_FOUND");
     expect(replay.headers.get("idempotency-replay-until")).toBeNull();
   });
 
@@ -208,6 +214,7 @@ describe("POST /v1/invitations/{invitationId}/revoke (BL-107, ADR-012)", () => {
     expect((await fresh.json()).code).toBe("SCOPE_DENIED");
     const replay = await revoke(one.body.invitationId, key);
     expect(replay.status).toBe(403);
+    expect((await replay.json()).code).toBe("SCOPE_DENIED");
     expect(replay.headers.get("idempotency-replay-until")).toBeNull();
   });
 
@@ -251,6 +258,13 @@ describe("POST /v1/invitations/{invitationId}/revoke (BL-107, ADR-012)", () => {
       expect(after.updated_at).toEqual(before.updated_at);
     }
     expect((await row(expiredInv.body.invitationId)).status).toBe("pending");
+    // INV-103's other half: a pending invitation past its expiry admits no one.
+    current = RECIPIENTS[4]!;
+    const late = await accept(expiredInv.body.token);
+    expect(late.status).toBe(404);
+    expect((await late.json()).code).toBe("RESOURCE_NOT_FOUND");
+    expect(await q("select 1 from public.memberships where organization_id = $1 and user_id = $2", [WS.a, RECIPIENTS[4]]))
+      .toHaveLength(0);
   });
 
   it("a malformed id is 404, not 500", async () => {
@@ -262,7 +276,7 @@ describe("POST /v1/invitations/{invitationId}/revoke (BL-107, ADR-012)", () => {
 
   it("the stored revoke record is the receipt, and no stored column carries the token", async () => {
     current = OWNER;
-    const { body } = await invite(WS.a);
+    const { body, email } = await invite(WS.a);
     const key = crypto.randomUUID();
     expect((await revoke(body.invitationId, key)).status).toBe(200);
     const record = await q<{ response_body: unknown }>(
@@ -274,5 +288,59 @@ describe("POST /v1/invitations/{invitationId}/revoke (BL-107, ADR-012)", () => {
             + (select count(*) from public.audit_events where details::text like '%' || $1 || '%')
             + (select count(*) from public.transaction_outbox where payload::text like '%' || $1 || '%') n`, [body.token]);
     expect(Number(copies[0]!.n)).toBe(0);
+    // Email-free as well (ADR-012 decision 3): the revoke's own records carry ids only.
+    const emailCopies = await q<{ n: string }>(
+      `select (select count(*) from public.idempotency_records
+                where operation_id = 'invitations.revoke' and response_body::text like '%' || $1 || '%')
+            + (select count(*) from public.audit_events
+                where action = 'invitation.revoked' and details::text like '%' || $1 || '%')
+            + (select count(*) from public.transaction_outbox
+                where topic = 'invitation.revoked' and payload::text like '%' || $1 || '%') n`, [email]);
+    expect(Number(emailCopies[0]!.n)).toBe(0);
+  });
+
+  // S1-01: the body is always `{}`, so the request hash alone cannot tell two
+  // revokes apart. A key reused for another invitation must not replay the first
+  // revoke's 200 while the second invitation's link stays live.
+  it("a key reused for another invitation is 409 IDEMPOTENCY_CONFLICT, and that invitation is untouched", async () => {
+    current = OWNER;
+    const first = await invite(WS.a);
+    const second = await invite(WS.a);
+    const key = crypto.randomUUID();
+    expect((await revoke(first.body.invitationId, key)).status).toBe(200);
+    const reused = await revoke(second.body.invitationId, key);
+    expect(reused.status).toBe(409);
+    expect((await reused.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    const r = await row(second.body.invitationId);
+    expect(r.status).toBe("pending");
+    expect(Number(r.version)).toBe(1);
+    expect((await revoke(second.body.invitationId)).status).toBe(200);
+  });
+
+  // S1-02: the database layer under the route. `inv_update` (0014) admits an
+  // owner or admin only, and SELECT … FOR UPDATE applies the UPDATE policy's
+  // USING too, so a member-role session locks and updates nothing.
+  it("under RLS a member locks and updates no invitation; an admin does", async () => {
+    current = OWNER;
+    const { body } = await invite(WS.a);
+    const reach = async (actor: string) => {
+      const c = new Client({ connectionString: process.env.APP_DB_URL });
+      await c.connect();
+      try {
+        await c.query("begin");
+        await c.query("set local role goproceed_app");
+        await c.query("select set_config('app.actor_user_id', $1, true)", [actor]);
+        const seen = await c.query("select 1 from public.invitations where id = $1", [body.invitationId]);
+        const locked = await c.query("select 1 from public.invitations where id = $1 for update", [body.invitationId]);
+        const updated = await c.query(
+          "update public.invitations set updated_at = now() where id = $1 returning id", [body.invitationId]);
+        return [seen.rowCount, locked.rowCount, updated.rowCount];
+      } finally {
+        await c.query("rollback").catch(() => undefined);
+        await c.end();
+      }
+    };
+    expect(await reach(MEMBER)).toEqual([1, 0, 0]);
+    expect(await reach(ADMIN)).toEqual([1, 1, 1]);
   });
 });

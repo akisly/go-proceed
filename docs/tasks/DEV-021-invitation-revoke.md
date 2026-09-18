@@ -64,10 +64,12 @@ Rework count and hypothesis changes:
 
 ## What is not true after this task
 
-- **Reissue does not exist** (not approved; BL-111): recovery from a lost token is revoke, then create, with a new invitation id.
+- **Reissue does not exist** (not approved; BL-111): recovery from a lost token is revoke, then create with a new `Idempotency-Key` (the original key replays the old receipt), and the invitation gets a new id.
 - **There is no invitation list**: an admin finds the id from the create's 409, or by replaying the create with its key.
 - **The token is still a bearer credential not bound to the invited email** (BL-013); revoke ends it, nothing prevents its use before.
-- **No policy-level test** proves `inv_update` refuses a member-role update; the route refuses first, and the architect's reading of `SELECT … FOR UPDATE` under RLS was not re-verified against the PostgreSQL docs by a test.
+- **Revoke helps only before acceptance**: a stranger who has already accepted a leaked link keeps the invited role, because no route ends or suspends a membership (BL-014); the admin can see the join in `members.list` (S1-04).
+- **An owner or admin can revoke invitations another admin issued, repeatedly**: each revoke is audited with the acting user; there is no rate limit and no notice to the issuer (S1-06, a governance matter ADR-012 leaves out).
+- **Other path-targeted commands still let a reused key replay another target's result** (BL-112); `invitations.revoke` alone binds its target into the hash.
 - **Only the files named in rows 3-5 ran against the database**, each alone, locally. Nothing ran in CI.
 
 ## Acceptance evidence
@@ -88,6 +90,9 @@ Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pil
 ## Sources
 
 Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
+
+- PostgreSQL 17 `CREATE POLICY`, «Policies Applied by Command Type» — https://www.postgresql.org/docs/17/sql-createpolicy.html — local server 17.6; accessed 2026-09-18. `SELECT … FOR UPDATE` applies the SELECT policy's and the UPDATE policy's `USING` as filters on the existing row, and an `UPDATE` sees only the rows its `USING` admits, silently: so a member-role session locks and updates nothing (the route counts the UPDATE's rows). The route file's S1-02 case observes it on 17.6.
+- Next.js 16.3.1, dynamic route segments (`params` is a Promise) — `apps/app/node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/dynamic-routes.md`, read by `gp-architect`; accessed 2026-09-18.
 
 ## Completion / handoff
 
