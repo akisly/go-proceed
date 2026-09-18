@@ -2,6 +2,7 @@ event,kind,payload_version,aggregate,idempotency_effect_key,producer,consumers,m
 workspace.created,domain_event,1,workspace,consumer + outbox_event_id + effect_kind,bff.workspaces.create,notification_creator,v0.1-M1
 invitation.issued,domain_event,1,workspace,notification: recipient + kind + source fact,bff.invitations.create,notification_creator email_delivery,v0.1-M1
 invitation.accepted,domain_event,1,workspace,consumer + outbox_event_id + effect_kind,bff.invitations.accept,notification_creator,v0.1-M1
+invitation.revoked,domain_event,1,workspace,consumer + outbox_event_id + effect_kind,bff.invitations.revoke,notification_creator,v0.1-M1
 project.created,domain_event,1,project,consumer + outbox_event_id + effect_kind,bff.projects.create,projection_rebuilder,v0.1-M1
 project.activated,domain_event,1,project,consumer + outbox_event_id + effect_kind,bff.projects.activate,projection_rebuilder notification_creator,v0.1-M7
 contract.created,domain_event,1,contract,consumer + outbox_event_id + effect_kind,bff.contracts.create,projection_rebuilder,v0.1-M1

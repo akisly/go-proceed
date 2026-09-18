@@ -3,6 +3,7 @@ workspaces.create,POST,/v1/workspaces,command,required,member,@goproceed/contrac
 me.context,GET,/v1/me/context,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 invitations.create,POST,/v1/workspaces/{workspaceId}/invitations,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 invitations.accept,POST,/v1/invitations/accept,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
+invitations.revoke,POST,/v1/invitations/{invitationId}/revoke,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 members.list,GET,/v1/workspaces/{workspaceId}/members,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 parties.create,POST,/v1/workspaces/{workspaceId}/parties,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 parties.update,PATCH,/v1/parties/{partyId},command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1

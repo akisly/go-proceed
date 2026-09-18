@@ -159,20 +159,22 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01** — see the notes under the table. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01**; **76 as of 2026-09-18** — see the notes under the table. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
 |---|---|---|---|
 | M0 — cross-cutting | — | — | — |
-| `v0.1-M1` | 35 | 8 | 8 |
+| `v0.1-M1` | 36 | 8 | 8 |
 | `v0.1-M2` | 9 | 5 | 5 |
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
 | `v0.1-M6` | 3 | 0 | — |
 | `v0.1-M7` | 10 | 0 | — |
-| Total | 75 | 26 | 26 |
+| Total | 76 | 26 | 26 |
+
+*M1 is 36 operations, not 35, as of 2026-09-18: `invitations.revoke` was added by [ADR-012](../decisions/ADR-012-invitation-revoke.md) ([DEV-021](../tasks/DEV-021-invitation-revoke.md), BL-107), because since DEV-019 a lost invitation token cannot be recovered and a leaked one cannot be withdrawn before it expires. No new table.*
 
 *The «v0.1 tables» column is ADR-006 decision 4's build list and stays at
 its 26. `project_sourced_requirement_items` is a twenty-seventh v0.1 table,
@@ -462,8 +464,8 @@ settled it stands unchanged and settles the next disagreement the same way.
   predicate narrows to **(work type, stage)** — `locations` stays deployed and is
   not read by the predicate, and `unit_definitions` is used only as far as a
   manual line needs a unit (decision 4.2).
-- **API slice:** the 35 `v0.1-M1` operations — `workspaces.create`,
-  `me.context`, `invitations.create`, `invitations.accept`, `members.list`,
+- **API slice:** the 36 `v0.1-M1` operations — `workspaces.create`,
+  `me.context`, `invitations.create`, `invitations.accept`, `invitations.revoke`, `members.list`,
   `parties.create`, `parties.update`, `parties.legal_profile.put`,
   `parties.own_profile.create`, `projects.create`, `projects.list`,
   `project_access.grant`, `project_responsibilities.assign`, `contracts.create`,

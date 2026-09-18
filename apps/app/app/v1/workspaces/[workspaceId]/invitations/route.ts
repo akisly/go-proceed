@@ -3,7 +3,7 @@ import { commandRoute } from "../../../../../src/lib/command";
 import { requireActiveMembership } from "../../../../../src/lib/authz";
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import {
-  createInvitationRequest, createInvitationReceipt, createInvitationResponse,
+  createInvitationRequest, createInvitationReceipt, createInvitationResponse, invitationPendingConflictDetails,
   type CreateInvitationReceipt, type CreateInvitationResponse,
 } from "@goproceed/contracts";
 import { generateInvitationToken } from "@goproceed/domain";
@@ -66,12 +66,27 @@ export const POST = commandRoute(createInvitationRequest, async (a) => {
           where workspace_id = $1 and lower(email) = lower($2)
             and status = 'pending' and expires_at <= now()`,
         [workspaceId, a.body.email]);
+      // BL-107 / ADR-012 decision 2: an address that already has a pending
+      // invitation is refused with that invitation's id, so an admin who lost
+      // the create response can revoke it and invite again.
+      const pending = await tx.query<{ id: string }>(
+        `select id from public.invitations
+          where workspace_id = $1 and lower(email) = lower($2) and status = 'pending'`,
+        [workspaceId, a.body.email]);
+      if (pending.rows.length > 0) {
+        throw new HttpProblem(409, problem("VERSION_CONFLICT",
+          "Активне запрошення для цієї адреси вже існує.",
+          { requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry",
+            details: invitationPendingConflictDetails.parse({ invitationId: pending.rows[0]!.id }) }));
+      }
       try {
         await tx.query(
           `insert into public.invitations (id, workspace_id, email, role, token_hash, expires_at, invited_by)
            values ($1,$2,$3,$4,$5,$6,$7)`,
           [invitationId, workspaceId, a.body.email.toLowerCase(), a.body.role, tokenHash, expiresAt, a.userId]);
       } catch (e) {
+        // A concurrent create won the race after the check above: the same
+        // refusal, without the id this transaction cannot see yet.
         if (e instanceof Error && /invitations_pending_email_unique/.test(e.message)) {
           throw new HttpProblem(409, problem("VERSION_CONFLICT",
             "Активне запрошення для цієї адреси вже існує.",
