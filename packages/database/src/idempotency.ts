@@ -25,6 +25,39 @@ export class IdempotencyConflictError extends Error {
  */
 export const actorScopedOnly = async (): Promise<void> => undefined;
 
+/**
+ * A stored response never carries a bearer secret (INV-102; DEV-023, BL-108).
+ *
+ * `withIdempotency` stores whatever its callback returns for the retention
+ * window, so a route that returned a token, a link or a signed URL from inside
+ * the block stored it — how BL-104 happened. Each route keeps its secret outside
+ * the block (the capture pattern of DEV-019); this makes the rule structural:
+ * a body carrying a secret-shaped key, at any depth and in any case, is refused
+ * before the insert, the transaction rolls back and the command fails with 500
+ * (owner, 2026-09-19: refuse closed, never strip). The names are the exact
+ * `token`, `link`, `url`, `secret`, `password`, anything starting `csrf`, and
+ * anything ending `…token`, `…url`, `…secret`, `…password`. A legitimate name
+ * that matches needs an explicit allowlist here, not a rename to dodge it.
+ */
+const SECRET_KEY = /^(token|link|url|secret|password|csrf.*|.*(token|url|secret|password))$/i;
+
+export class IdempotencySecretError extends Error {
+  constructor(operationId: string, readonly paths: readonly string[]) {
+    super(`withIdempotency: ${operationId} returned a secret-shaped key from its idempotent block (${paths.join(", ")}); ` +
+      "return it outside the block (INV-102, DEV-019) instead of storing it");
+  }
+}
+
+/** The paths of every secret-shaped key in `body`; never its values. */
+export function secretKeyPaths(body: unknown, path = ""): string[] {
+  if (Array.isArray(body)) return body.flatMap((item, i) => secretKeyPaths(item, `${path}[${i}]`));
+  if (body === null || typeof body !== "object") return [];
+  return Object.entries(body).flatMap(([key, value]) => {
+    const here = path === "" ? key : `${path}.${key}`;
+    return [...(SECRET_KEY.test(key) ? [here] : []), ...secretKeyPaths(value, here)];
+  });
+}
+
 export interface IdempotencyArgs<A = void> {
   organizationId: string | null;
   actorScope: string;   // e.g. `user:${userId}` - bounds the key to an actor
@@ -121,6 +154,8 @@ export async function withIdempotency<T, A = void>(
   }
 
   const result = await fn(auth);
+  const secrets = secretKeyPaths(result.body);
+  if (secrets.length > 0) throw new IdempotencySecretError(args.operationId, secrets);
   const ttl = IDEMPOTENCY_CLASS_TTL[args.idempotencyClass ?? "standard_30d"];
   const ins = await tx.query(
     `insert into public.idempotency_records

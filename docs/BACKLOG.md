@@ -136,7 +136,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
 | [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
-| [BL-108](#bl-108) | P3 | open | `withIdempotency` stores any body its callback returns, secret or not |
+| [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | open | The planned `invite/{token}` page would carry the invitation token in the URL path |
 | [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
@@ -1286,10 +1286,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-108"></a>
 ### BL-108 — P3 — `withIdempotency` stores any body its callback returns, secret or not
 
-- **State:** open
+- **State:** closed → DEV-023
 - **Legacy cite:** none
 - **Why:** DEV-019's `gp-security` review (S1-01). INV-102 (a stored idempotent response never carries a bearer secret) is held route by route: each route keeps its secret out of the body its callback returns. Nothing generic enforces it, so a new route that returns a token, link or signed URL from inside the block passes typecheck, review of an unrelated diff and every existing test, and stores the secret for the retention window — exactly how BL-104 arose. A guard in `packages/database/src/idempotency.ts` that refuses to store a body carrying a denylisted key (`token`, `link`, `url`, `signedUrl`, `telegramUrl`, `csrfToken`) at any depth, with a unit test where a `token` key throws, would make the rule structural. Check first that no current stored body legitimately uses one of those names. Ranked by DEV-019.
 - **Evidence:** observed 2026-09-18 at `8c3772a`: `idempotency.ts:89-99` stores `JSON.stringify(result.body)` unconditionally; DEV-019's `gp-architect` sweep of the 51 call sites.
+- **Closed 2026-09-19 by DEV-023:** `withIdempotency` refuses, before the insert, a body carrying a key named `token`, `link`, `url`, `secret`, `password`, `csrf…` or ending in `token`, `url`, `secret`, `password`, at any depth and in any case; the command fails closed (owner: refuse, never strip). `packages/database/src/idempotency-secret-guard.test.ts` was red at `4181e14` (11 secret bodies stored) and passes after; no existing route trips it.
 - **Depends on:** none.
 - **Deadline:** none recorded.
 
