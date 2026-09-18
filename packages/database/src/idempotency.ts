@@ -34,12 +34,17 @@ export const actorScopedOnly = async (): Promise<void> => undefined;
  * the block (the capture pattern of DEV-019); this makes the rule structural:
  * a body carrying a secret-shaped key, at any depth and in any case, is refused
  * before the insert, the transaction rolls back and the command fails with 500
- * (owner, 2026-09-19: refuse closed, never strip). The names are the exact
- * `token`, `link`, `url`, `secret`, `password`, anything starting `csrf`, and
- * anything ending `…token`, `…url`, `…secret`, `…password`. A legitimate name
- * that matches needs an explicit allowlist here, not a rename to dodge it.
+ * (owner, 2026-09-19: refuse closed, never strip). The names are anything
+ * starting `csrf` and anything ending in `token`, `url`, `link`, `secret` or
+ * `password`, singular or plural — the bare words included (owner, 2026-09-19,
+ * widened after review: «link» is this codebase's word for a bearer link). A
+ * legitimate name that matches needs an explicit allowlist here, not a rename.
+ *
+ * What is checked is what is stored: the body's JSON text, parsed back, so a
+ * nested `toJSON()` cannot smuggle a key past the walk, and a key whose value is
+ * `undefined` (which JSON drops) is not refused for nothing.
  */
-const SECRET_KEY = /^(token|link|url|secret|password|csrf.*|.*(token|url|secret|password))$/i;
+const SECRET_KEY = /^(csrf.*|.*(token|url|link|secret|password)s?)$/i;
 
 export class IdempotencySecretError extends Error {
   constructor(operationId: string, readonly paths: readonly string[]) {
@@ -154,7 +159,8 @@ export async function withIdempotency<T, A = void>(
   }
 
   const result = await fn(auth);
-  const secrets = secretKeyPaths(result.body);
+  const stored = JSON.stringify(result.body ?? null);
+  const secrets = secretKeyPaths(JSON.parse(stored));
   if (secrets.length > 0) throw new IdempotencySecretError(args.operationId, secrets);
   const ttl = IDEMPOTENCY_CLASS_TTL[args.idempotencyClass ?? "standard_30d"];
   const ins = await tx.query(
@@ -166,7 +172,7 @@ export async function withIdempotency<T, A = void>(
      on conflict (organization_id, actor_scope, operation_id, idempotency_key) do nothing
      returning expires_at`,
     [args.organizationId, args.actorScope, args.operationId, args.key, args.requestHash,
-     result.status, JSON.stringify(result.body ?? null), ttl],
+     result.status, stored, ttl],
   );
   if (ins.rowCount === 0) {
     // Another transaction won the race after we took the advisory lock (should

@@ -2,7 +2,7 @@
 
 ## Assignment
 
-- **Objective and user-visible outcome:** a command whose idempotent callback returns a body carrying a bearer secret — a key named `token`, `link`, `url`, `secret`, `password`, `csrf…`, or ending in `…Token`, `…Url`, `…Secret`, `…Password`, at any depth, case-insensitively — fails closed before anything is stored: the transaction rolls back and the command answers 500. INV-102 stops resting on each route remembering it.
+- **Objective and user-visible outcome:** a command whose idempotent callback returns a body carrying a bearer secret — a key starting `csrf` or ending in `token`, `url`, `link`, `secret` or `password`, singular or plural, at any depth, case-insensitively (the `link` suffix and plurals added by the owner after review) — fails closed before anything is stored: the transaction rolls back and the command answers 500. INV-102 stops resting on each route remembering it.
 - **State:** reviewing
 - **Coordinator:** primary Claude Code session, 2026-09-19.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
@@ -32,6 +32,7 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 2026-09-19 | Denylist: the names and the suffixes (`…Token`, `…Url`, `…Secret`, `…Password`), any depth, case-insensitive; a false positive is resolved by an explicit allowlist | chat, answer «Имена + суффиксы» |
 | 2026-09-19 | A body with such a key is refused closed (error before the insert, rollback, 500), not stripped | chat, answer «Отказать закрыто» |
 | 2026-09-19 | Which database runs: the coordinator chooses what is necessary | chat, answer «Выбери необходимые» |
+| 2026-09-19 | After review: widen the list to the `…link` suffix and plurals (`reviewLink`, `tokens`, `accessTokens`, `urls`) | chat, answer «…Link и множ. число» |
 
 ## Plan
 
@@ -58,9 +59,9 @@ Rework count and hypothesis changes:
 
 ## What is not true after this task
 
-- **The guard reads key names, not values**: a secret stored under an innocent name (`note`, `value`, `data`) passes it; a legitimate key that matches (a public `url`, say) fails closed until an explicit allowlist names it.
-- **`…link` is not a suffix**: `link` matches only exactly (the owner's list); `inviteLink` passes.
-- **Records already stored are not re-checked**, and a replay returns what was stored; DEV-019's `0088` removed the one known case.
+- **The guard reads key names, not values**: a secret stored under an innocent name (`value`, `data`, `code`, `key`, `uri`, `href`, `otp`, `jwt`, `apiKey`, `signature`) or inside a value (a string holding a URL) passes it; a legitimate key that matches (a public `url`, say) fails closed until an explicit allowlist names it.
+- **A refusal is reported as a retryable 500**: it falls to the generic `INTERNAL_ERROR` (`retryable: true`, `retry_later`), although the same request is refused every time; the Telegram decision paths treat it as transient and retry up to their bound (S1-03, R1-03). Harmless while no legitimate body matches; a dedicated error code would be an error-catalog change.
+- **Records stored before the guard are replayed unchecked** (S1-04). Before the Q-9 hosted push, a read-only query for secret-shaped keys in the hosted `response_body` would settle it, `select count(*) from public.idempotency_records where jsonb_path_exists(response_body, 'strict $.** ? (@.type() == "object").keyvalue() ? (@.key like_regex "^(csrf.*|.*(token|url|link|secret|password)s?)$" flag "i")')`. Checked locally (0 records; it flags a nested `reviewLink` and ignores `linkedAt` and string values — `scratchpad/dev023-hosted-check.sql`); the `lax $.**.keyvalue()` form `gp-security` sketched fails on non-objects. Not run on any hosted database.
 - **The external plane and the Telegram service paths are not guarded here** beyond the calls that go through `withIdempotency`; the external plane stores no response body through it.
 - **Only the files named in rows 2-3 ran against the database**, each alone, locally. Nothing ran in CI.
 

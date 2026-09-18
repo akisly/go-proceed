@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Tx } from "./tx";
-import { withIdempotency } from "./idempotency";
+import { IdempotencySecretError, withIdempotency } from "./idempotency";
 
 /**
  * DEV-023 / BL-108 / INV-102: `withIdempotency` stores what its callback
@@ -45,7 +45,12 @@ describe("withIdempotency refuses to store a secret (BL-108)", () => {
   it.each([
     ["a top-level token", { widgetId: "w-1", token: SECRET }, "token"],
     ["a nested signed URL", { widgetId: "w-1", upload: { signedUrl: SECRET } }, "upload.signedUrl"],
-    ["a key inside an array", { items: [{ id: 1 }, { inviteLink: "x", telegramUrl: SECRET }] }, "items[1].telegramUrl"],
+    ["a key inside an array", { items: [{ id: 1 }, { telegramUrl: SECRET }] }, "items[1].telegramUrl"],
+    ["a …Link suffix", { reviewLink: SECRET }, "reviewLink"],
+    ["a plural", { tokens: [SECRET] }, "tokens"],
+    ["a plural suffix", { accessTokens: [SECRET] }, "accessTokens"],
+    ["a plural url", { urls: [SECRET] }, "urls"],
+    ["a key produced by a nested toJSON", { grant: { toJSON: () => ({ token: SECRET }) } }, "grant.token"],
     ["an upper-case name", { TOKEN: SECRET }, "TOKEN"],
     ["a csrf-prefixed name", { csrfValue: SECRET }, "csrfValue"],
     ["a …Secret suffix", { clientSecret: SECRET }, "clientSecret"],
@@ -57,18 +62,24 @@ describe("withIdempotency refuses to store a secret (BL-108)", () => {
   ])("refuses %s before the insert, naming the key but not the value", async (_label, body, path) => {
     const { out, log } = await store(body);
     const error = await out.then(() => null, (e: unknown) => e as Error);
-    expect(error).toBeInstanceOf(Error);
+    expect(error).toBeInstanceOf(IdempotencySecretError);
+    expect((error as IdempotencySecretError).paths).toEqual([path]);
     expect(error!.message).toContain("widgets.create");
-    expect(error!.message).toContain(path);
     expect(error!.message).not.toContain(SECRET);
     expect(log).toEqual([]);
   });
 
   it("stores a body without secret-shaped keys, including near misses", async () => {
-    const body = { widgetId: "w-1", tokenHash: "h", urlSafe: true, linkedAt: "t", passwordPolicy: "p", storage: { key: "k" }, expiresAt: "t" };
+    const body = { widgetId: "w-1", tokenHash: "h", urlSafe: true, linkedAt: "t", passwordPolicy: "p", storage: { key: "k" }, expiresAt: "t", status: "ok", results: [] };
     const { out, log } = await store(body);
     await expect(out).resolves.toMatchObject({ replayed: false, body });
     expect(log).toEqual([`insert ${JSON.stringify(body)}`]);
+  });
+
+  it("checks what is stored: a key whose value JSON drops is not refused", async () => {
+    const { out, log } = await store({ widgetId: "w-1", link: undefined });
+    await expect(out).resolves.toMatchObject({ replayed: false });
+    expect(log).toEqual([`insert ${JSON.stringify({ widgetId: "w-1" })}`]);
   });
 
   it("stores a body that is not an object", async () => {
