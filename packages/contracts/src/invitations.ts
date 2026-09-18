@@ -28,6 +28,24 @@ export const createInvitationResponse = z.discriminatedUnion("kind", [
   createInvitationReceipt.extend({ kind: z.literal("replayed") }).strict(),
 ]);
 export type CreateInvitationResponse = z.infer<typeof createInvitationResponse>;
+
+// BL-107 / DEV-021 / ADR-012. The create's 409 for an address that already has
+// a pending invitation names that invitation, so an owner or admin who lost the
+// create response can revoke it and invite again. Only the id: the caller has
+// already passed the owner/admin check and can read the row.
+export const invitationPendingConflictDetails = z.object({
+  invitationId: z.string().guid(),
+}).strict();
+export type InvitationPendingConflictDetails = z.infer<typeof invitationPendingConflictDetails>;
+
+// `invitations.revoke`: pending → revoked. No body, and no secret back.
+export const revokeInvitationRequest = z.object({}).strict();
+export type RevokeInvitationRequest = z.infer<typeof revokeInvitationRequest>;
+export const revokeInvitationResponse = z.object({
+  invitationId: z.string().guid(),
+  status: z.literal("revoked"),
+}).strict();
+export type RevokeInvitationResponse = z.infer<typeof revokeInvitationResponse>;
 export interface AcceptInvitationResponse {
   workspaceId: string;
   membershipId: string;

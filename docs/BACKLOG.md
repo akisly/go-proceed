@@ -135,10 +135,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-104](#bl-104) | P1 | closed → DEV-019 | `invitations.create` stores the raw invitation token in `idempotency_records.response_body` for thirty days |
 | [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
 | [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
-| [BL-107](#bl-107) | P2 | open | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
+| [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | open | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | open | The planned `invite/{token}` page would carry the invitation token in the URL path |
 | [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
+| [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -283,6 +284,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** `TODOS.md` «`app.accept_invitation` ignores the invited email address»
 - **Why:** any authenticated holder of the link can consume an invitation addressed to someone else. The email is modelled and uniquely indexed, so it looks authoritative while the token is a pure bearer credential. M5's external access faces the same bearer-versus-identity question.
 - **Evidence:** only `0011_workspace_access_security.sql` defines the function; `:177` `where i.token_hash = p_token_hash and i.status = 'pending'`.
+- **Note, 2026-09-18 (DEV-021):** since ADR-012 an owner or admin can revoke a pending invitation, which ends a leaked or forwarded link at once — the only mitigation before expiry. The token is still not bound to the invited email.
 - **Depends on:** a product rule from the owner (matching on email breaks «forward the link to a colleague»).
 - **Deadline:** none recorded.
 
@@ -1272,10 +1274,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-107"></a>
 ### BL-107 — P2 — A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires
 
-- **State:** open
+- **State:** closed → DEV-021
 - **Legacy cite:** none
 - **Why:** since DEV-019 (BL-104) the server keeps only the invitation token's hash, and a replay of `invitations.create` returns `kind: "replayed"` without the token (owner, 2026-09-18). If the admin loses the first response, nothing recovers it: no route revokes or reissues an invitation (`technical/openapi/scope-v0.1.csv` has only `invitations.create` and `invitations.accept`; `technical/test-catalog.csv` T-INVITATION-001 and `ui-actions.csv` A-009/A-010 describe reissue and revoke as future behaviour), and `invitations_pending_email_unique` (`0010`) refuses a new invitation to the same address with 409 `VERSION_CONFLICT` until the pending one expires — 168 hours by default, 720 at most. The recovery path is an `invitations.revoke` (the pending slot freed, then an ordinary create) or a reissue that writes a new `token_hash` and invalidates the old one; `inv_update` (`0014`) already lets an owner or admin update the row. Either adds a `/v1` command to scope-v0.1, which needs an ADR. Ranked P2 by the owner on 2026-09-18.
 - **Evidence:** observed 2026-09-18 at `b3045df` by DEV-019's `gp-architect` from the route, the scope catalog and `0010`/`0014`.
+- **Closed 2026-09-18 by DEV-021** under [ADR-012](decisions/ADR-012-invitation-revoke.md) (owner-approved 2026-09-18: revoke only): `invitations.revoke` (`POST /v1/invitations/{invitationId}/revoke`, owner/admin, pending → revoked, no secret) and the create's pending-address 409 carrying `details.invitationId`, so recovery from a lost token is revoke, then create. `apps/app/tests/invitation-revoke.int.test.ts` failed at `65d7935` (the route did not exist; the 409 carried no id) and passes after. Reissue was not approved: BL-111.
 - **Depends on:** an ADR adding the command to scope-v0.1.
 - **Deadline:** before invitations are sent from a hosted environment to real users.
 
@@ -1307,6 +1310,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-020's `gp-security` review (S1-05). `app.delete_expired_idempotency` (`supabase/migrations/0007_idempotency_expiry.sql:6-22`) is `SECURITY DEFINER` with `set search_path = public`, where `agents/COMMON.md` asks a definer for an empty search path and schema-qualified references; it fences by actor only. It is not a probe for a former member — its only caller is `withIdempotency`, after `authorize` and after a lookup `0089` has filtered, and it deletes only the caller's own expired rows — so this is hardening, the same class as BL-106. The fix is a later migration that pins `search_path to ''` and qualifies the references. Ranked by DEV-020.
 - **Evidence:** observed 2026-09-18 at `ae675a2` from the migration text; local database at `0089`.
 - **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-111"></a>
+### BL-111 — P3 — An invitation cannot be reissued in place: recovery from a lost token is revoke, then create
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-021's `gp-architect` designed `invitations.reissue` (`POST /v1/invitations/{invitationId}/reissue`: rotate `token_hash` and `expires_at` on the same pending row, the old token dead in the same statement, the new one returned only by the fresh execution as DEV-019 does, `kind: issued|replayed`, the last reissue winning). The owner approved revoke only on 2026-09-18 (ADR-012), so recovery from a lost token takes two calls and a new invitation id. Reissue would add a second route that mints a secret while BL-108 is open, and it needs its own ADR decision. `technical/ui-actions.csv` A-009 describes it as legacy scope. Ranked by DEV-021.
+- **Evidence:** observed 2026-09-18 at `65d7935`: the design in DEV-021 row 1; ADR-012 «What this decision does NOT authorise».
+- **Depends on:** an ADR decision; BL-108 is advisable first.
 - **Deadline:** none recorded.
 
 ## Closed, kept for citations

@@ -1,0 +1,90 @@
+# DEV-021 — BL-107: an owner or admin can revoke a pending invitation
+
+## Assignment
+
+- **Objective and user-visible outcome:** an owner or admin can revoke a pending, unexpired invitation, after which its link admits no one and its address is free for a new invitation; and the create's pending-address conflict names the blocking invitation's id, so an admin who lost the create response can find it. Recovery from a lost token is revoke, then create. Scope set by [ADR-012](../decisions/ADR-012-invitation-revoke.md).
+- **State:** scoped
+- **Coordinator:** primary Claude Code session, 2026-09-18.
+- **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
+- **Selected route and why:** a scope change (ADR) and a new `/v1` command: `gp-architect` → coordinator drafts ADR-012 → **owner rules** → failing tests → contract, route, catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
+- **Triggered stages and why:** `gp-architect` (`apps/app/app/v1/**`, `packages/contracts/**`, catalogs, the ADR); `gp-security` (the lifecycle of a bearer credential, as in DEV-019, and authorization of a new command). `gp-ui-reviewer` is not triggered: no UI; `apps/app/app` gains a route handler only. `gp-mobile` is not triggered.
+- **Owning module and allowed edit paths:** `docs/decisions/ADR-012-invitation-revoke.md` (new) and `docs/decisions/README.md`; `apps/app/app/v1/invitations/[invitationId]/revoke/route.ts` (new); `apps/app/app/v1/workspaces/[workspaceId]/invitations/route.ts` (the 409 `details`); `packages/contracts/src/invitations.ts` and its test; `apps/app/tests/invitation-revoke.int.test.ts` (new); `technical/openapi/scope-v0.1.csv`; `technical/permissions/capabilities.csv`; `technical/events/event-catalog.csv`; `technical/database/invariant-catalog.csv` (INV-103); `technical/test-catalog.csv` (T-INVITATION-001 evidence); `docs/delivery/version-0.1.md` (operation counts); `docs/BACKLOG.md` (BL-107 closed, BL-013 note, reissue entry); `docs/STATUS.md`; this record and the index.
+- **Read context:** root `AGENTS.md`; `agents/COORDINATION.md`; `docs/README.md` «ADR lifecycle and approval»; ADR-006 decision 1 and replacement rule 1; `docs/BACKLOG.md` BL-107, BL-013, BL-014, BL-108, BL-109; [DEV-019](DEV-019-invitation-token-at-rest.md); [DEV-020](DEV-020-idempotent-replay-authorization.md).
+- **Linked spec, ADR or earlier task:** ADR-012; BL-107 (filed by DEV-019).
+- **Baseline:** `65d7935` (main after PR #101).
+- **Dependencies / constraints / out of scope:** no migration (the local database stays at `0089`); database test files run one at a time, chosen by the coordinator under the owner's delegation. Out of scope: reissue (not approved), an invitation list, BL-013, BL-014, BL-108, BL-109, a transition-guard trigger.
+- **Required acceptance criteria:**
+  1. `apps/app/tests/invitation-revoke.int.test.ts` (truncates nothing, seeds and removes its own `de21…` workspaces) fails at `65d7935` and passes after the fix: an owner, and an admin, revoke a pending invitation (200 `{ invitationId, status: "revoked" }`, row `revoked`, version 2) and its token then accepts no one (404); revoke frees the address — before it, a create for the same address is 409 with `details.invitationId` naming the pending invitation, after it the create is 201 and its token admits; a member and an auditor get 403 `SCOPE_DENIED` and the token still admits; an outsider and another workspace's owner get 404; an ended member 404 and a demoted admin 403, also on a replay of their own earlier key; a same-key replay returns the identical body with one audit and one outbox row; an accepted, an already-revoked and a pending-but-expired invitation are 409 with nothing written; a non-UUID id is 404; no stored record carries the token.
+  2. The contract: the revoke request is strict and empty, the response strict with `status: "revoked"`, and the conflict `details` strict; `packages/contracts/src/invitations.test.ts` proves it.
+  3. The route resolves the invitation under RLS before `withIdempotency` (404 before 403), authorizes owner/admin in `authorize`, locks the row and compares its status, writes audit and outbox token-free and email-free, and returns no secret; `idempotency-call-sites.test.ts` stays green.
+  4. ADR-012 is `Approved` with the owner's dated ruling in its Approval section, and the index agrees.
+  5. `scope-v0.1.csv`, `capabilities.csv`, `event-catalog.csv`, INV-103, T-INVITATION-001, `version-0.1.md` (36 and 76), BL-107, BL-013, the reissue backlog entry and STATUS agree; `pnpm validate:canonical-docs` and `pnpm validate:agents` pass.
+  6. `pnpm turbo run typecheck` passes; `@goproceed/contracts` tests pass.
+  7. The existing suites that drive the invitation routes pass — the coordinator's set under the owner's delegation: `invitations.int.test.ts`, `review-fixes.int.test.ts`, `vertical-m1.int.test.ts` (they truncate tenant tables), and `packages/testing`'s `error-catalog-fidelity.test.ts` if it touches the database.
+  8. CI `verify` on the PR head (not required: GitHub Actions starts no jobs until October 2026).
+- **Skipped stages and rationale:** `gp-ui-reviewer`, `gp-mobile`: not triggered.
+
+## Owner decisions
+
+Record each decision on the day it is made. Write it in the owner's terms; never paraphrase it into something stronger.
+
+| Date | Decision | Source |
+|---|---|---|
+| 2026-09-18 | BL-107 (P2), a revoke/reissue backlog entry | chat, DEV-019 answer «Да, P2» |
+| 2026-09-18 | Start BL-107 (after #101 merged) | chat, «смержил, давай BL-107» |
+| 2026-09-18 | ADR-012: revoke only; reissue not approved | chat, answer «Только revoke» |
+| 2026-09-18 | The create's 409 carries the blocking invitation's id | chat, answer «409 create несёт id» |
+| 2026-09-18 | A pending invitation past its expiry: 409, nothing written | chat, answer «409, ничего не писать» |
+| 2026-09-18 | Which database runs: the coordinator chooses what is necessary | chat, answer «Выбери необходимые» |
+
+## Plan
+
+1. ADR-012 drafted and the owner's ruling transcribed.
+2. Red: the contract cases and the new route file; run the route file alone at `65d7935`.
+3. Contract, revoke route, the create's 409 `details`; the same file green.
+4. Catalogs and documents; validators; typecheck; the chosen regression suites.
+5. `gp-reviewer` + `gp-security` → stated fixes → `gp-qa`.
+
+## Progress and decisions
+
+| Order | State or role | Decision / result | Evidence / reference | Next action |
+|---|---|---|---|---|
+| 1 | designing (`gp-architect`, native) on `65d7935` | **Design returned, read-only. An ADR is required**: `scope-v0.1.csv` is the route set, and ADR-006 decision 1 and replacement rule 1 refuse «already catalogued» as a reason — the state catalogs describe the whole target design and `ui-actions.csv` is a legacy catalog; every route added after ADR-006 came with an ADR. Recommended: `invitations.revoke` (`POST /v1/invitations/{invitationId}/revoke`, owner/admin, `pending → revoked`, no `expectedVersion` — a pending row's version is always 1 and the status compare under the row lock is the check), the create's 409 carrying `details.invitationId`, and reissue deferred (a second route that mints a secret while BL-108 is open). **No migration**: `revoked` status, `version` and `inv_update` (owner/admin, `0014`) exist, and the app role holds `UPDATE` (`0011:59`); a plain UPDATE under RLS, not a definer. No new error code; new event `invitation.revoked`; new INV-103. Found in passing: sibling routes return 500 on a non-UUID id | architect report | ADR-012; owner |
+| 2 | coordinator: ADR-012 | Drafted from the design; the owner ruled in conversation (revoke only; the 409 names the id; an expired pending invitation is 409 with nothing written), transcribed into its Approval section with Status `Approved`, per `docs/README.md`: the owner's merge ratifies it | `docs/decisions/ADR-012-invitation-revoke.md` | Red |
+
+## Findings and rework
+
+| Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
+|---|---|---|---|---|---|
+
+Rework count and hypothesis changes:
+
+## What is not true after this task
+
+## Acceptance evidence
+
+| Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
+|---|---|---|---|---|---|
+
+A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
+
+The Limitation column opens with at most one qualifier from this closed set, then its detail:
+
+- **PASS:** `negative` (the command correctly produced nothing, and the absence is the evidence); `assisted:` what had to be arranged by hand first; `owner-reported` (the owner's report, not a session observation).
+- **FAIL:** `known-red baseline:` the named set of pre-existing failures, with no case outside it failing.
+- **NOT RUN:** `environmental:` the cause and the command that settles it; `not-provable-locally:` what would settle it; or, with no qualifier, the reason: why it was deliberately not attempted, or why a PASS was earned for the wrong reason (`agents/roles/gp-qa.md`).
+
+Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pilot-execution-runbook.md` §7.4 maps them onto this set.
+
+## Sources
+
+Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
+
+## Completion / handoff
+
+- Changed / inspected files:
+- Review independence:
+- Verified scope:
+- Remaining risks / blocked requirements:
+- Next bounded action and owner:
+- Final state and reason:
