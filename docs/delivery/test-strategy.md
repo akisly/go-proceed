@@ -275,7 +275,11 @@ artifact the first time it is pasted into a bug report.
   reviewer, not the scanner, to refuse a citation. A table first created after
   `0085` cannot enter it as a gap. No quarantine ledger exists yet; when one
   does, it must refuse any test the registry cites. The evidence run for the
-  cited tests is the unfiltered `pnpm --filter @goproceed/testing test`.
+  cited tests is the unfiltered `pnpm --filter @goproceed/testing test`. It ran
+  on 2026-09-18 ([DEV-018](../tasks/DEV-018-gate11-closure.md)): 55 files, 786
+  tests, none skipped, against a database the run rebuilt to `0087`, with all 18
+  cited files in it — the evidence the gate 11 entry in `version-0.1.md` §M0
+  rests on.
   *[Added 2026-09-17 ([DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md)):
   where the principal holds `INSERT` and no `SELECT` (`audit_events`,
   `transaction_outbox`), a read denial proves nothing, because every member

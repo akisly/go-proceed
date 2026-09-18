@@ -39,3 +39,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-015](DEV-015-projection-service-policy.md) | done | BL-100: the service plane confined to its declared workspace on the readiness projections (migration `0086`) |
 | [DEV-016](DEV-016-gate11-remaining-gaps.md) | done | Readiness gate 11: tenant-isolation tests for the remaining gap rows (BL-091 to BL-095, BL-097) |
 | [DEV-017](DEV-017-capture-event-service-workspace.md) | done | BL-102: the service plane's capture event confined to the workspace it declares (migration `0087`) |
+| [DEV-018](DEV-018-gate11-closure.md) | done | M0 readiness gate 11: the unfiltered evidence run and the closing entry in `version-0.1.md` §M0 |

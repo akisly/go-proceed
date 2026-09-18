@@ -989,19 +989,23 @@ both: the artifact and the procedure.]*
 
 *(readiness gate 11)*
 
-**Status: PARTIAL.**
+**Status: CLOSED 2026-09-18** by the gate 11 entry in [version-0.1.md](version-0.1.md) §M0 ([DEV-018](../tasks/DEV-018-gate11-closure.md)). *[Changed 2026-09-18 (DEV-018): this read «PARTIAL».]* That entry's *Limits* bullet governs what the closure means; the table and the notes below are the state before it, kept as the record of how the gate stood.
 
 | Half | Status |
 |---|---|
 | RLS suites exist per milestone | **BUILT** — `rls.test.ts` plus `m1-rls-baseline`, `m1-rls-workspace`, `m1-rules-rls`, `m2-rls`, `m2-occurrences-rls`, `m3-closure-rls`, `m4-act-rls`, `m5-external-rls`, plus `m2-policy-gaps.test.ts` for write paths the first suite missed; since 2026-09-01 also `telegram-rls.test.ts` and, in `m5-external-rls`, the column-level-grant case («a column-level grant is a fence, not a door») and INV-099's erasure sweep in `telegram-erasure.test.ts` |
 | A mechanical assertion that RLS is *enabled* everywhere | **BUILT** — every `public` relation with `relrowsecurity` false must be an empty list |
-| «a positive AND negative policy test per exposed tenant relation, **checked against the module list rather than sampled**» (INV-060) | **OPEN** — no mechanical checker exists. INV-060 appears in [invariant-catalog.csv](../../technical/database/invariant-catalog.csv) and three prose documents and in **zero test files** |
+| «a positive AND negative policy test per exposed tenant relation, **checked against the module list rather than sampled**» (INV-060) | **BUILT** *[changed 2026-09-18 (DEV-018); this read «OPEN — no mechanical checker exists»]* — `technical/database/rls-coverage.csv` with its validator step and `packages/testing/src/rls-coverage.test.ts` ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)); 74 `covered`, 0 `gap`, 7 `exempt_no_grant`. The sentence below is the state before the checker existed. INV-060 appears in [invariant-catalog.csv](../../technical/database/invariant-catalog.csv) and three prose documents and in **zero test files** |
 
 **One thing this gate cannot cite today.** The channel's integration suites under `apps/app/tests/` are red in CI (§1.1); a gate-11 evidence entry that reaches for them as isolation evidence is reaching for a failing run. The `packages/testing` sweeps are green and are the evidence this gate has.
 
-**Next action:** write the coverage checker, or record explicitly that coverage
-is asserted by review rather than by a checker — and say so in the evidence
-entry rather than letting the RLS-enabled sweep stand in for it.
+**Next action** *[done 2026-09-18 ([DEV-018](../tasks/DEV-018-gate11-closure.md));
+this read: «write the coverage checker, or record explicitly that coverage is
+asserted by review rather than by a checker — and say so in the evidence entry
+rather than letting the RLS-enabled sweep stand in for it»]*: the checker is
+[DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)'s registry with its
+validator step and `packages/testing/src/rls-coverage.test.ts`, and the evidence
+entry says in its *Limits* bullet what the closure does and does not prove.
 
 **Status: PARTIAL, recorded 2026-09-16** ([DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md)). The checker exists: [rls-coverage.csv](../../technical/database/rls-coverage.csv) holds 21 `covered`, 53 `gap` and 7 `exempt_no_grant` rows, checked by the validator and by `packages/testing/src/rls-coverage.test.ts`. **Not closable yet:** the owner closes the gate only at zero gaps, and the 53 gap rows are BL-090 to BL-098; `covered` means the v0.1 read minimum (BL-099). *[Added 2026-09-16 (DEV-013); the table above is the state before it.]*
 
@@ -1012,6 +1016,8 @@ entry rather than letting the RLS-enabled sweep stand in for it.
 **Update, 2026-09-17** ([DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md)). 21 of the 22 remaining gap rows are covered: 73 `covered`, 1 `gap`, 7 `exempt_no_grant`. The last gap is `capture_events` for `goproceed_service` (BL-102, a migration first). The gate stays open.
 
 **Update, 2026-09-18** ([DEV-017](../tasks/DEV-017-capture-event-service-workspace.md)). Migration `0087` closes BL-102, the last gap: **74 `covered`, 0 `gap`, 7 `exempt_no_grant`**. The gate is closable and not closed — it waits on the unfiltered `pnpm --filter @goproceed/testing test` evidence run, a `rls-coverage.test.ts` run at `0087`, the `version-0.1.md` §M0 entry and the owner. A hosted push must deploy the application build before `0087` (§10 Q-9): the finalize path has to declare the intent's workspace first, or every finalize fails with 42501. Afterwards the same holds in reverse: rolling the application back past that commit while `0087` is applied is an evidence-finalization outage (the success path fails too, because the capture event shares its transaction with `app.finalize_upload_intent`), so roll the migration back with it or roll forward. `0087` also requires the service connection to authenticate as a login that is a member of `goproceed_service` (what `SERVICE_DB_URL` names): any other login fails closed with 42501 on every finalize.
+
+**Status: CLOSED, 2026-09-18** ([DEV-018](../tasks/DEV-018-gate11-closure.md)). The registry holds 74 `covered`, 0 `gap` and 7 `exempt_no_grant`, and the evidence run `test-strategy.md` §4 names — the unfiltered `pnpm --filter @goproceed/testing test` — passed 786 tests in 55 files with none skipped, against a database the run itself rebuilt to `0087`. The dated entry is in [version-0.1.md](version-0.1.md) §M0; its *Limits* bullet governs what this closure means (the v0.1 read minimum, BL-099; BL-101 and BL-103 to BL-106 open; local only; nothing in CI). The «one thing this gate cannot cite» note above still holds: no `apps/app` suite is cited as isolation evidence.
 
 ### 5.12 — Item 12: malware/content-type and resource-exhaustion controls, uploads **and** imports
 
@@ -1063,7 +1069,7 @@ unsaid is not honesty.
 | 1 | Item 9 + item 10 evidence entries (readiness gate 10) — **done 2026-09-14, [DEV-009](../tasks/DEV-009-m0-gate10-evidence.md)** | **S** — writing, no code | The mechanism is done. This is pure recording, and it establishes what a closed gate's record looks like — a form that currently has no precedent anywhere |
 | 2 | Item 7 (readiness gate 14) + the [version-0.0.md](version-0.0.md):78-79 tick — **partly done 2026-09-15, [DEV-010](../tasks/DEV-010-m0-gate14-evidence.md): tick and rotation runbook; BL-085 built in [DEV-011](../tasks/DEV-011-telegram-hmac-key-ids.md); the gate waits on Q-9** | **S** — writing, plus lifting the rotation runbook out of README-staging | Same: substantially built, unrecorded |
 | 3 | Item 12's built halves (readiness gate 12, uploads/imports) — **partly done 2026-09-15, [DEV-012](../tasks/DEV-012-m0-gate12-evidence.md): evidence and the malware acceptance; the gate waits on item 3, BL-088 and BL-089** | **S** — writing | Same |
-| 4 | Item 11's coverage checker (readiness gate 11) — **checker done 2026-09-16, [DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md); the gate waits on 53 gap rows, BL-090 to BL-098; 24 remain after [DEV-014](../tasks/DEV-014-gate11-workspace-communication.md) (2026-09-17), BL-091 to BL-097; 22 after [DEV-015](../tasks/DEV-015-projection-service-policy.md) (2026-09-17, `0086`), BL-091 to BL-095 and BL-097; 1 after [DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md) (2026-09-17), BL-102; 0 after [DEV-017](../tasks/DEV-017-capture-event-service-workspace.md) (2026-09-18, `0087`), so the gate is closable and waits on its evidence run and the owner** | **M** — one checker against the module list, plus its own test | The only one whose gap is a piece of code rather than a decision |
+| 4 | Item 11's coverage checker (readiness gate 11) — **checker done 2026-09-16, [DEV-013](../tasks/DEV-013-m0-gate11-coverage-checker.md); the gate waits on 53 gap rows, BL-090 to BL-098; 24 remain after [DEV-014](../tasks/DEV-014-gate11-workspace-communication.md) (2026-09-17), BL-091 to BL-097; 22 after [DEV-015](../tasks/DEV-015-projection-service-policy.md) (2026-09-17, `0086`), BL-091 to BL-095 and BL-097; 1 after [DEV-016](../tasks/DEV-016-gate11-remaining-gaps.md) (2026-09-17), BL-102; 0 after [DEV-017](../tasks/DEV-017-capture-event-service-workspace.md) (2026-09-18, `0087`); the gate CLOSED on 2026-09-18 ([DEV-018](../tasks/DEV-018-gate11-closure.md)) on the unfiltered package run** | **M** — one checker against the module list, plus its own test | The only one whose gap is a piece of code rather than a decision |
 | 5 | Item 2's durations, then item 4's purpose/retention shape | **M** — the decision is short; versioning 126 catalog rows and writing the closure/deletion procedure is not | Both are owner decisions with no external dependency |
 | 6 | Item 3 (export) | **L — the largest single build in M0.** An operator procedure, a manifest format, hashes, provenance and a «named omissions» vocabulary, none of which exists | Unblocks item 12's second half |
 | 7 | Item 12's export half | **S**, but only once 6 exists | Follows 6 by construction |
