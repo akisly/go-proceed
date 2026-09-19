@@ -141,6 +141,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 | [BL-112](#bl-112) | P2 | closed → DEV-022 | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
+| [BL-113](#bl-113) | P3 | open | `m5-external.int.test.ts` times out under load and then deadlocks its next truncate |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1335,6 +1336,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Closed 2026-09-19 by DEV-022:** `commandRoute` hashes the route's path parameters (UUIDs lower-cased) with the raw body (`apps/app/src/lib/request-hash.ts`), so every member-plane command binds its target; `invitations.revoke` dropped its local binding. The conflict detail now reads «уже використано для іншого запиту: інший обʼєкт або інше тіло запиту» (the Q1-03 note). `apps/app/tests/idempotency-authorization.int.test.ts` — `requirement_templates.publish`, `project_requirements.archive`, `parties.update` with an identical body — was red at `1f65fef` (200 for 409) and passes after. Transition (owner, 2026-09-19): a retry spanning the deploy is answered 409.
 - **Depends on:** none.
 - **Deadline:** before a client that retries with stored keys is deployed.
+
+<a id="bl-113"></a>
+### BL-113 — P3 — `m5-external.int.test.ts` times out under load and then deadlocks its next truncate
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-023's `gp-qa` (Q1-03). With the machine's load average at 9–13, the case «stores only a keyed HMAC…» hit vitest's 5-second default timeout (it takes 0.5–1.6 s unloaded); the next test's `TRUNCATE` then deadlocked (`40P01`) with the timed-out test's still-open transaction. Re-run alone it passed 27/27 (that case 2.8 s). Pre-existing, unrelated to DEV-023, and a false red for anyone running the suite on a busy machine. The fix is a per-case timeout for the slow cases and a teardown that ends a timed-out test's transaction before the next truncate. Ranked by DEV-023.
+- **Evidence:** observed 2026-09-19 at `db892ff`: DEV-023 QA logs `scratchpad/dev023-qa-*.txt` and the Postgres log naming the `TRUNCATE`.
+- **Depends on:** none.
+- **Deadline:** none recorded.
 
 ## Closed, kept for citations
 

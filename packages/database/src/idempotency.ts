@@ -44,9 +44,10 @@ export const actorScopedOnly = async (): Promise<void> => undefined;
  * nested `toJSON()` cannot smuggle a key past the walk, and a key whose value is
  * `undefined` (which JSON drops) is not refused for nothing.
  */
-const SECRET_KEY = /^(csrf.*|.*(token|url|link|secret|password)s?)$/i;
+const SECRET_KEY = /^(csrf.*|.*(token|url|link|secret|password)s?)$/is; // `s`: a key with a line break is still one key
 
 export class IdempotencySecretError extends Error {
+  override readonly name = "IdempotencySecretError";
   constructor(operationId: string, readonly paths: readonly string[]) {
     super(`withIdempotency: ${operationId} returned a secret-shaped key from its idempotent block (${paths.join(", ")}); ` +
       "return it outside the block (INV-102, DEV-019) instead of storing it");

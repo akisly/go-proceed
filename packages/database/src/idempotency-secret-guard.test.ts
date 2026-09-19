@@ -59,10 +59,12 @@ describe("withIdempotency refuses to store a secret (BL-108)", () => {
     ["url", { url: SECRET }, "url"],
     ["secret", { secret: SECRET }, "secret"],
     ["password", { password: SECRET }, "password"],
+    ["a key with a line break", { "x\ntoken": SECRET }, "x\ntoken"],
   ])("refuses %s before the insert, naming the key but not the value", async (_label, body, path) => {
     const { out, log } = await store(body);
     const error = await out.then(() => null, (e: unknown) => e as Error);
     expect(error).toBeInstanceOf(IdempotencySecretError);
+    expect(error!.name).toBe("IdempotencySecretError");
     expect((error as IdempotencySecretError).paths).toEqual([path]);
     expect(error!.message).toContain("widgets.create");
     expect(error!.message).not.toContain(SECRET);
