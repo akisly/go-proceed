@@ -80,7 +80,7 @@ Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pil
 Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
 
 - Next.js 16.3.1 dynamic route segments (`[x]`, `[...x]`, `[[...x]]`) — `apps/app/node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/dynamic-routes.md`; accessed 2026-09-19.
-- WHATWG URL Standard, the fragment is not sent in an HTTP request — https://url.spec.whatwg.org/ (and RFC 9110 §4.2.4 / RFC 3986 §3.5); accessed 2026-09-19, as already relied on by `apps/app/src/lib/external-link.ts`.
+- RFC 9110 (HTTP Semantics), §7.1 «The target URI excludes the reference's fragment component» and §10.1.3 (a user agent MUST NOT include the fragment in `Referer`); §17.11 notes a fragment can be carried across a redirect on the client — https://www.rfc-editor.org/rfc/rfc9110.txt; accessed 2026-09-19. The rule `apps/app/src/lib/external-link.ts` already relies on.
 
 ## Completion / handoff
 
