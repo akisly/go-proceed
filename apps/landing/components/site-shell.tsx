@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { PageKey } from "../content/landing-content";
 import { pageJsonLd } from "../content/landing-jsonld";
 import { SITE_ORIGIN } from "../content/site-origin";
+import { Band } from "./blocks/band";
 import { Footer } from "./blocks/footer";
 import { Nav } from "./blocks/nav";
 
@@ -35,10 +36,22 @@ export function SiteShell({ page, children }: { page: PageKey; children: ReactNo
       {/* The hero clears the fixed header itself. A sub-page opens on an
         * ordinary section, so `<main>` reserves the header — and, below `md`,
         * the link strip under it. */}
-      <main id="main-content" tabIndex={-1} className={page === "home" ? "overflow-x-clip" : "overflow-x-clip pt-16 md:pt-10"}>
-        {children}
-      </main>
-      <Footer />
+      {/* [DEV-023] The reference's frame: every page lives in one column between
+        * the inner guide lines; the outer pair are drawn by `.landing-body`. */}
+      <div className="landing-frame">
+        {/* `relative` is load-bearing, not tidiness. `overflow-x: clip` only clips
+          * a descendant whose containing block is inside the clipping box, and an
+          * absolutely positioned one — every `sr-only` label in the access
+          * matrix — takes the nearest POSITIONED ancestor. Until DEV-023 that was
+          * `<main>` by a `body > main` rule; inside the frame the rule stopped
+          * matching, the labels' containing block became the frame, and /product
+          * gained 48px of sideways scroll on a phone. The harness caught it. */}
+        <main id="main-content" tabIndex={-1} className={page === "home" ? "relative overflow-x-clip" : "relative overflow-x-clip pt-16 md:pt-10"}>
+          {children}
+        </main>
+        <Band />
+        <Footer />
+      </div>
     </>
   );
 }

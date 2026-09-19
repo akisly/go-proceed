@@ -21,6 +21,7 @@ import {
   CountUp, Marquee, PinnedTabs, Lift, Press, CrossFade, TrackFill, SlideSwap,
   InViewProgress, ScrollSettle, LineReveal, Depth, Tilt, Magnetic, useReduced,
   ScrollStack, ScrollStackCard, ScrollStackMedia, ScrollProgress,
+  PixelRain, OrbitText,
   type PinnedTab,
 } from "@goproceed/ui/motion";
 import { useState } from "react";
@@ -304,6 +305,18 @@ export default function KitchenSink() {
         <ScrollProgress className="block h-2 overflow-hidden rounded-pill bg-line">
           <div aria-hidden="true" className="h-full rounded-pill bg-signal" style={{ width: "calc(var(--gp-progress, 0) * 100%)" }} />
         </ScrollProgress>
+      </Case>
+
+      <Case n="21" name="PixelRain" rule="Поле падаючих пікселів першого екрана (DEV-023): один 2D-canvas, ~14 кадрів/с, працює лише у в'юпорті й у видимій вкладці. Колір — обчислений color елемента, тобто роль (text-ink). Під reduced motion — один нерухомий кадр, цикл не стартує.">
+        <div className="relative h-40 overflow-hidden rounded-surface border border-line-strong bg-canvas">
+          <PixelRain className="absolute inset-0 h-full w-full text-ink" />
+        </div>
+      </Case>
+
+      <Case n="22" name="OrbitText" rule="Фраза по колу, видно лише верхню дугу з затуханням по краях; оберт 48с лінійно (gp-orbit, іменований цикл 6). Під reduced motion дуга стоїть на місці. Декоративна: aria-hidden.">
+        <div className="grid justify-items-center text-data text-ink-secondary">
+          <OrbitText text="Доказовий контур прихованих робіт" />
+        </div>
       </Case>
     </main>
   );

@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import { SectionRule } from "@goproceed/ui/components";
-import { landingContent as c } from "../../content/landing-content";
 import { createPageMetadata } from "../../content/landing-metadata";
 import { SITE_ORIGIN } from "../../content/site-origin";
 import { SiteShell } from "../../components/site-shell";
+import { Band } from "../../components/blocks/band";
 import { Pilot } from "../../components/blocks/pilot";
 import { Faq } from "../../components/blocks/faq";
 
@@ -18,7 +17,7 @@ export default function PilotPage() {
   return (
     <SiteShell page="pilot">
       <Pilot heading="h1" />
-      <SectionRule index="01" label={c.faq.rule.label} />
+      <Band />
       <Faq />
     </SiteShell>
   );

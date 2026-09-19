@@ -52,13 +52,14 @@ describe("pointer tilt reaches every content card", () => {
     // working register, and a register whose panels tip under the cursor reads
     // to this audience as a toy — §9's own argument against decoration.
     expect(tilts).toHaveLength(1);
-    expect(doc.querySelectorAll("[data-page='home'] #hero [data-tilt]")).toHaveLength(1);
+    // [DEV-023] The board is /product's application view now, not the home hero.
+    expect(doc.querySelectorAll("[data-page='product'] #board [data-tilt]")).toHaveLength(1);
   });
 
   it("finds every block it speaks of somewhere on the site", () => {
     // A selector that matches nothing passes `toHaveLength(0)` for the wrong
     // reason; with the blocks spread over four pages that is an easy mistake.
-    for (const id of ["hero", "roles", "capture", "compare", "trust", "pilot", "stages", "faq", "sources", "scenes"]) {
+    for (const id of ["hero", "board", "intro", "facts", "roles", "capture", "compare", "trust", "pilot", "stages", "faq", "sources", "scenes"]) {
       expect(doc.querySelectorAll(`#${id}`).length, `#${id}`).toBeGreaterThanOrEqual(1);
     }
   });
@@ -69,8 +70,8 @@ describe("pointer tilt reaches every content card", () => {
     // receipt 0.6px. So the receipt and the two pills take
     // `Magnetic area="section"` — a pointer-driven translation, legible at any
     // size — and the board keeps the tilt, which suits a large surface.
-    expect(doc.querySelectorAll("#hero [data-tilt]")).toHaveLength(1);
-    const magnets = [...doc.querySelectorAll("#hero [data-magnetic-area='section']")];
+    expect(doc.querySelectorAll("#board [data-tilt]")).toHaveLength(1);
+    const magnets = [...doc.querySelectorAll("#board [data-magnetic-area='section']")];
     expect(magnets).toHaveLength(3);
   });
 
@@ -79,7 +80,7 @@ describe("pointer tilt reaches every content card", () => {
     // context re-sorts children by depth instead of DOM order — which is
     // exactly how the board ended up covering both status pills. Translation
     // needs no 3D context; nothing around the satellites may reintroduce one.
-    const stagger = doc.querySelector("#hero [data-magnetic-area='section']")?.closest("div");
+    const stagger = doc.querySelector("#board [data-magnetic-area='section']")?.closest("div");
     expect(stagger?.outerHTML ?? "").not.toContain("preserve-3d");
   });
 
@@ -106,7 +107,7 @@ describe("pointer tilt reaches every content card", () => {
   });
 
   it("leaves every block outside the hero still", () => {
-    for (const id of ["roles", "capture", "compare", "trust", "pilot", "stages", "faq", "sources", "scenes"]) {
+    for (const id of ["hero", "intro", "facts", "roles", "capture", "compare", "trust", "pilot", "stages", "faq", "sources", "scenes"]) {
       expect(doc.querySelectorAll(`#${id} [data-tilt]`), `#${id}`).toHaveLength(0);
     }
   });

@@ -11,8 +11,8 @@ export function Pilot({ heading = "h2" }: { heading?: "h1" | "h2" }) {
   // The level under the block's own heading: no page skips from h1 to h3 (R-02).
   const sub = heading === "h1" ? "h2" : "h3";
   return (
-    <section id="pilot" tabIndex={-1} className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
-      <div className="mx-auto max-w-marketing">
+    <section id="pilot" tabIndex={-1} className="scroll-mt-20 landing-inset py-20 md:py-28">
+      <div>
         <SectionHead as={heading} eyebrow={p.eyebrow} title={p.title} titleAccent={p.titleAccent} lead={p.lead} />
         <div className="grid gap-8 wide:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)] wide:items-start wide:gap-14">
           <div>

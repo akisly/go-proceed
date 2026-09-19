@@ -39,12 +39,48 @@ export const landingContent = {
     // [DEV-022] Two sentences for the payer: what it is, then why it matters.
     // The longer walk through the route moved to /product.
     lead: "GoProceed — веб-застосунок, який тримає разом вимогу, фото-доказ і рішення технагляду по кожній прихованій роботі. Затримка приймання затримує гроші: тут акт збирається з фактів, а не з чатів, і видно, що заблоковано і чому.",
+    // [DEV-023] The phrase turning on the arc over the heading — the reference's
+    // product category line. Ours names what the product is, in four words.
+    orbit: "Доказовий контур прихованих робіт",
     primaryAction: "Обговорити пілот",
     primaryHref: "/pilot",
     secondaryAction: "Як це працює",
     secondaryHref: "/product",
     frameLabel: "Стан пакету робіт у веб-застосунку GoProceed",
     dimension: "W-014 · ВРУ-1 · секція А · відм. +3.300",
+  },
+  // [DEV-023] The reference's second block: a split — the records of one work
+  // as a floating menu over two rows of drifting tags, beside a two-tone
+  // statement of what the product is — and, under it, four numbered columns.
+  intro: {
+    lead: "Кожна прихована робота —",
+    rest: "з доказом, рішенням і актом.",
+    body: "GoProceed тримає разом вимогу, фото з майданчика і рішення технагляду по кожній роботі. Закриття записується з підставою, а чернетка акта збирається з того, що вже записано.",
+    action: "Як це працює",
+    actionHref: "/product",
+    menuLabel: "Записи однієї роботи W-014",
+    tagsLabel: "Приклади прихованих робіт із демонстраційного реєстру",
+    strip: [
+      { index: "01", title: "Власник", text: "Бачить, що заблоковано і чому: з назвою вимоги, а не кольором." },
+      { index: "02", title: "ПТВ", text: "Доказ знаходиться по роботі, а не по стрічці чату; акт збирається з записаного." },
+      { index: "03", title: "Майстер", text: "Один екран: що зняти і до якого моменту. Жодних форм після фото." },
+      { index: "04", title: "Технагляд", text: "Одне посилання на одну вимогу, без облікового запису." },
+    ],
+  },
+  // [DEV-023] The reference's statistics band, over facts and not figures of
+  // merit: there are no outcome numbers to show (PRODUCT.md), so each tile is
+  // a term of the pilot that is simply true.
+  facts: {
+    lead: "Один пакет робіт.",
+    rest: "Два тижні, щоб побачити різницю.",
+    action: "План пілота",
+    actionHref: "/pilot",
+    tiles: [
+      { value: "2 тижні", label: "триває пілот" },
+      { value: "1 пакет", label: "робіт на одному об'єкті" },
+      { value: "2 години", label: "ПТВ на старті" },
+      { value: "0", label: "облікових записів для технагляду" },
+    ],
   },
   sources: {
     label: "Джерела вимог",
@@ -77,13 +113,15 @@ export const landingContent = {
     eyebrow: "Що змінюється",
     title: "Три моменти, де робота зазвичай втрачає доказ",
     titleAccent: "втрачає доказ",
+    // [DEV-023] the same sentence, as the reference's two-tone heading
+    headLead: "Три моменти,",
+    headRest: "де робота зазвичай втрачає доказ.",
     lead: "Вимога, кадр і рішення тримаються на одній роботі: від майданчика до чернетки акта.",
     items: [
       { id: "capture", eyebrow: "На майданчику", title: "Майстер бачить потрібний кадр до закриття конструкції", body: "Телефон показує вимогу і кадр у контексті роботи. Час, місце й автор записуються самі, без форм після фото.", note: "Telegram-бот або мобільний застосунок, на своєму телефоні." },
       { id: "review", eyebrow: "У технагляду", title: "Технагляд вирішує по посиланню, без облікового запису", body: "Одна вимога, її матеріали й історія. Прийняти, повернути або запитати уточнення: рішення зберігається з автором і часом, а не в голосовому.", note: "Без доступу до вашого проєкту." },
       { id: "act", eyebrow: "В офісі", title: "Видно, що заблоковано і чому, а акт збирається з фактів", body: "Без прийнятого рішення GoProceed відмовляє у записі закриття, і причина названа вимогою. Чернетка Додатка В підставляється з того, що вже записано.", note: "Це чернетка для підпису, а не підписаний документ." },
     ] satisfies readonly Scene[],
-    more: { label: "Увесь маршрут: п'ять кроків", href: "/product" },
   },
   compare: {
     rule: { label: "Було і стало" },
@@ -168,7 +206,12 @@ export const landingContent = {
       { kind: "yes", text: "не дає записати закриття без доказу" },
       { kind: "lock", text: "фото не можна замінити або відкріпити пізніше" },
     ] as const,
-    more: { label: "Межі версії 0.1", href: "/product#trust" },
+    more: { label: "Як проходить пілот", href: "/pilot" },
+  },
+  // [DEV-023] The application view on /product — what the board shows, not how evidence is sent.
+  board: {
+    lead: "Увесь пакет робіт на одному екрані:",
+    rest: "що готово, що на розгляді і що заблоковано.",
   },
   capture: {
     rule: { label: "Фіксація" },
@@ -292,6 +335,8 @@ export const landingContent = {
     titleAccent: "на одному пакеті робіт",
     lead: "Візьмемо одну чинну вимогу, один польовий сценарій і один зовнішній розгляд. Цього достатньо, щоб побачити, де процес зберігає доказовість.",
     rule: { label: "Пілот" },
+    // [DEV-023] the five records of one work, either side of our mark
+    codes: ["W", "R", "EV", "DR", "CL"],
     points: ["безкоштовно", "два тижні на одному пакеті робіт", "без договору і передоплати"],
     primary: "Заповнити запит на пілот",
     // «Заповнити запит» lands on the form: below `wide` it sits under the plan,

@@ -107,7 +107,10 @@ describe("motion audit — the rules actually fire", () => {
 });
 
 describe("the vocabulary is closed", () => {
-  it("exports exactly twenty-two primitives", () => {
+  it("exports exactly twenty-four primitives", () => {
+    // [2026-09-19, DEV-023] Twenty-two became twenty-four — `PixelRain` and
+    // `OrbitText`, the two first-screen words the landing reference needed.
+    // The what and why are in `motion/index.ts`'s header and each file's own.
     // A twenty-second is a decision, not an addition: it means the vocabulary
     // was missing something, and the plan's motion section has to say what
     // and why. Failing here is the prompt to write that down.
@@ -121,6 +124,7 @@ describe("the vocabulary is closed", () => {
       "CountUp", "Marquee", "PinnedTabs", "Lift", "Press", "CrossFade",
       "TrackFill", "SlideSwap", "InViewProgress", "ScrollSettle", "LineReveal",
       "Depth", "Tilt", "Magnetic", "ScrollStack", "ScrollProgress",
+      "PixelRain", "OrbitText",
     ]));
   });
 
@@ -132,11 +136,14 @@ describe("the vocabulary is closed", () => {
     }
   });
 
-  it("names exactly the five perpetual loops", () => {
+  it("names exactly the seven perpetual loops", () => {
+    // [2026-09-19, DEV-023] Five became seven: `gp-orbit` (the hero's arc text)
+    // and `gp-breathe` (the closing mark). Owner decision, recorded in DESIGN.md.
     // Spec 2026-09-06 §5.1: the marquee and the landing's four ambient loops.
     // A sixth is a §7.3 decision, so the list is pinned by value.
     expect((PERPETUAL_ALLOWLIST as RegExp[]).map(String)).toEqual([
       "/gp-marquee/", "/marquee-track/", "/gp-beam/", "/gp-pulse/", "/gp-drift/", "/gp-flow/",
+      "/gp-orbit/", "/gp-breathe/",
     ]);
   });
 });

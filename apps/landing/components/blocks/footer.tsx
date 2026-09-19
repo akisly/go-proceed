@@ -6,8 +6,8 @@ import { BrandMark } from "../brand-mark";
 export function Footer() {
   const f = landingContent.footer;
   return (
-    <footer className="border-t border-line px-4 py-10 text-data text-ink-muted md:px-8">
-      <div className="mx-auto max-w-marketing">
+    <footer className="landing-inset py-10 text-data text-ink-muted">
+      <div>
         <div className="mb-8 grid gap-8 md:grid-cols-2 wide:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
             <p className="mb-2.5 flex items-center gap-2.5 text-body font-semibold text-ink"><BrandMark />{landingContent.nav.brand}</p>

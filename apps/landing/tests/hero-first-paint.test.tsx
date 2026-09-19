@@ -32,10 +32,16 @@ const markup = renderToStaticMarkup(<Hero />);
  * all attach to, and its 0.35s arrival is the prototype's own timing; moving
  * it would buy no metric and risk a composition three primitives deep.
  */
-const foldText = markup.slice(0, markup.indexOf("mt-11"));
+// [DEV-023] The whole hero is the fold now: the product frame that used to
+// follow the text (`mt-11`) moved to /product, and the first screen is text
+// over two decorative grounds.
+const foldText = markup;
 
 /**
- * The h1 is excluded, and deliberately.
+ * [DEV-023] HISTORY — the h1 WAS excluded until the first screen took the
+ * reference's form; it is plain text now and the rule below covers it too.
+ * `withoutHeadline` is kept only so the older assertion still reads as written.
+ * What the exemption was for:
  *
  * `LineReveal` groups words into lines by measuring layout, so its masks
  * cannot exist before JavaScript runs, and it therefore ships its
@@ -48,11 +54,15 @@ const foldText = markup.slice(0, markup.indexOf("mt-11"));
 const withoutHeadline = foldText.replace(/<h1[\s\S]*?<\/h1>/, "");
 
 describe("the hero fold paints on the first frame", () => {
-  it("sends no text of the fold at opacity 0, the headline excepted", () => {
+  it("sends no text of the fold at opacity 0 — the headline included, since DEV-023", () => {
     // Motion writes its `initial` into a style attribute during SSR. Any
     // `opacity:0` here is an element the reader cannot see until JavaScript
     // has arrived, run, and resolved a media query.
     expect(withoutHeadline).not.toMatch(/opacity:\s*0(?![.\d])/);
+    // [DEV-023, R-10] The h1 is plain text now — `hero.tsx` promises it paints on
+    // the first frame — so the headline is no longer an exception to the rule.
+    expect(markup).not.toMatch(/opacity:\s*0(?![.\d])/);
+    expect(markup).toMatch(/<h1[^>]*>[^<]+<\/h1>/);
     expect(withoutHeadline).toContain(landingContent.hero.secondaryAction);
   });
 
@@ -66,7 +76,9 @@ describe("the hero fold paints on the first frame", () => {
 
   it("still states the whole fold, so nothing was dropped to win the metric", () => {
     const h = landingContent.hero;
-    expect(markup).toContain(h.pill.badge);
+    // [DEV-023] The reference's first screen has no announcement pill; the free
+    // pilot is said by the fact band and the closing block of the same page.
+    expect(markup).toContain(h.title);
     expect(markup).toContain(h.primaryAction);
     expect(markup).toContain(h.secondaryAction);
     expect(markup).toContain(h.lead);

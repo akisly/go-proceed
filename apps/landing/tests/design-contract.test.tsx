@@ -18,16 +18,16 @@ vi.mock("next/font/local", () => ({
 const { default: RootLayout } = await import("../app/layout");
 
 describe("landing design contract", () => {
-  it("ships the approved evidence-journey direction with the document", () => {
+  it("ships the approved direction with the document — the owner's reference form, 2026-09-19", () => {
     const html = renderToStaticMarkup(
       <RootLayout>
         <main />
       </RootLayout>,
     );
 
-    expect(html).toContain('data-impeccable-contract="user-approved-daylight-parity-2026-09-06"');
+    expect(html).toContain('data-impeccable-contract="user-approved-reference-form-2026-09-19"');
     expect(html).toContain("THESIS: The work is ready");
-    expect(html).toContain("FORM: Daylight parity");
+    expect(html).toContain("FORM: The owner's reference");
     expect(html).toContain("FINISH: Unreviewed and undocumented is unfinished");
   });
 });

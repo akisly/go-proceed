@@ -250,6 +250,59 @@
   animation: gp-flow 1.6s linear infinite;
 }
 
+/* ---------------------------------------------------------------------------
+ * The landing's reference form (DEV-023) — owner, 2026-09-19: «1 в 1» after
+ * https://parlo-black.vercel.app/, in our colours. Reimplemented from
+ * observation; nothing of the reference's code or CSS is here.
+ * ------------------------------------------------------------------------- */
+
+/* `PixelRain`'s fade: full at the top edge, gone by the foot of the canvas. */
+@utility rain-mask {
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 22%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 22%, transparent 100%);
+}
+
+/* `OrbitText`: a ring of glyphs, of which the window shows the top arc only,
+ * faded at both ends. `--gp-orbit-size` is the ring's diameter. Named loop 6. */
+@utility orbit-mask {
+  /* ~1000px: the reference's arc is nearly flat — a sagitta of some 12px over
+   * the 300px that show. At 560px it bowed by 30px and its faded ends were cut
+   * by the window's foot. */
+  --gp-orbit-size: 1000px;
+  position: relative;
+  height: 3.75rem;
+  width: min(100%, var(--gp-orbit-size));
+  overflow: hidden;
+  /* Stops in px from the centre, not in %: the window is as wide as its
+   * container, and on a 1000px ring the glyphs sink below the foot some 170px
+   * either side — a percentage fade ended far outside that and the ends were
+   * sliced, not faded (B2-02). */
+  -webkit-mask-image: linear-gradient(to right, transparent calc(50% - 175px), #000 calc(50% - 85px), #000 calc(50% + 85px), transparent calc(50% + 175px));
+  mask-image: linear-gradient(to right, transparent calc(50% - 175px), #000 calc(50% - 85px), #000 calc(50% + 85px), transparent calc(50% + 175px));
+}
+@utility orbit-ring {
+  position: absolute;
+  left: 50%;
+  top: 0.625rem;
+  width: var(--gp-orbit-size);
+  height: var(--gp-orbit-size);
+  margin-left: calc(var(--gp-orbit-size) / -2);
+}
+@utility orbit-glyph {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  height: 50%;
+  width: 1em;
+  margin-left: -0.5em;
+  text-align: center;
+  transform-origin: 50% 100%;
+}
+@utility orbit-spin { animation: gp-orbit 48s linear infinite; }
+
+/* The closing block's centre mark swells and settles. Named loop 7. */
+@utility breathe { animation: gp-breathe 4s var(--gp-ease-soft) infinite; }
+
 /* The route cards' tinted media grounds (index.html l.247–253), in roles.
  * Each is a gradient of the soft status grounds over the canvas at partial
  * alpha; every card sits over the photograph of its stage's artefact, which
@@ -393,6 +446,11 @@
   @keyframes gp-drift-b { from { transform: rotate(0deg); } to { transform: rotate(-1deg); } }
   @keyframes gp-drift-c { from { transform: rotate(0deg); } to { transform: rotate(1deg); } }
   @keyframes gp-flow { to { stroke-dashoffset: -22; } }
+  @keyframes gp-orbit { to { transform: rotate(-360deg); } }
+  @keyframes gp-breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.06); }
+  }
 }
 
 /* ---------------------------------------------------------------------------
@@ -415,6 +473,13 @@
     transition-duration: 120ms !important;
     transition-property: opacity !important;
     scroll-behavior: auto !important;
+  }
+
+  /* The Border Beam does not travel here, and a ring that cannot travel is a
+   * stray cobalt arc parked at 0deg — on the board's top edge and, since
+   * DEV-023, on every ink pill. Absent, not still. */
+  .beam {
+    display: none !important;
   }
 
   /* The load entrance is the one animation with a named reduced counterpart

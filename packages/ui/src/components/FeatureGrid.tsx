@@ -45,10 +45,13 @@ export function FeatureGrid({
    * with no extra wrapper between them and their `grid-template-columns`.
    * Off by default so every non-landing caller is unchanged.
    */
-  stagger?: boolean | undefined;
+  /** `"load"` where the grid is in the first fold of its page (DEV-023): under `on="view"` a grid already in view when the
+   * reduced-motion gate opens can be left on `hidden` — measured on /roles, 3 loads in 5 — which is the case `Stagger`'s
+   * own `on="load"` exists for. */
+  stagger?: boolean | "load" | undefined;
 }) {
   const grid = cx("grid gap-px overflow-hidden rounded-surface border border-line-strong bg-line-strong", COLUMNS[columns], className);
-  return stagger ? <Stagger className={grid}>{children}</Stagger> : <div className={grid}>{children}</div>;
+  return stagger ? <Stagger on={stagger === "load" ? "load" : "view"} className={grid}>{children}</Stagger> : <div className={grid}>{children}</div>;
 }
 
 export function FeatureCell({

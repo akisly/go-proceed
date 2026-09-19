@@ -15,10 +15,11 @@ const ICON = {
 export function Roles({ heading = "h2" }: { heading?: "h1" | "h2" }) {
   const r = landingContent.roles;
   return (
-    <section id="roles" tabIndex={-1} className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
-      <div className="mx-auto max-w-marketing">
+    <section id="roles" tabIndex={-1} className="scroll-mt-20 landing-inset py-20 md:py-28">
+      <div>
         <SectionHead as={heading} eyebrow={r.eyebrow} title={r.title} titleAccent={r.titleAccent} lead={r.lead} />
-        <FeatureGrid columns={4} stagger>
+        {/* On /roles the grid is in the first fold, so it enters on load, not on view — see `FeatureGrid`'s `stagger`. */}
+        <FeatureGrid columns={4} stagger={heading === "h1" ? "load" : true}>
           {r.cells.map((cell) => (
             <StaggerItem key={cell.id} y={20} size="stately" className="grid [transform-style:preserve-3d]">
               <FeatureCell

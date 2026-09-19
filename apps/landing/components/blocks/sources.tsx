@@ -14,8 +14,8 @@ import { landingContent } from "../../content/landing-content";
 export function Sources() {
   const s = landingContent.sources;
   return (
-    <section id="sources" aria-label={s.label} className="border-t border-line px-4 md:px-8">
-      <Reveal className="mx-auto max-w-marketing">
+    <section id="sources" aria-label={s.label} className="border-t border-line px-4 md:px-8 wide:px-12">
+      <Reveal>
         <p className="index-label pt-3.5">{s.label}</p>
         <ul className="grid grid-cols-2 gap-y-3 py-2.5 pb-4 md:grid-cols-3 wide:grid-cols-6">
           {s.items.map((item, i) => (

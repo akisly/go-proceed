@@ -20,8 +20,8 @@ describe("landing copy — the Daylight page", () => {
     // on the DOM in landing-render.test.tsx; this pins that no block's copy
     // disappears or appears unnoticed.
     expect(Object.keys(landingContent)).toEqual([
-      "nav", "hero", "sources", "problem", "scenes", "compare", "roles", "route",
-      "position", "capture", "provenance", "pilot", "faq", "cta", "footer", "pages",
+      "nav", "hero", "intro", "facts", "sources", "problem", "scenes", "compare", "roles", "route",
+      "position", "board", "capture", "provenance", "pilot", "faq", "cta", "footer", "pages",
     ]);
   });
 
@@ -35,13 +35,24 @@ describe("landing copy — the Daylight page", () => {
     const links = [
       ...landingContent.nav.items.map((i) => i.href), landingContent.nav.actionHref, landingContent.nav.actionHrefOnPilot,
       landingContent.hero.pill.href, landingContent.hero.primaryHref, landingContent.hero.secondaryHref,
-      landingContent.scenes.more.href, landingContent.position.more.href,
+      landingContent.intro.actionHref, landingContent.facts.actionHref, landingContent.position.more.href,
       landingContent.cta.primaryHref, landingContent.cta.shareHref,
       ...landingContent.footer.columns.flatMap((col) => col.links.map((l) => l.href)).filter((h) => h !== "mailto"),
     ];
     for (const href of links) {
       expect(href.startsWith("/"), href).toBe(true);
       expect(paths.has(href.split("#")[0]!), href).toBe(true);
+    }
+  });
+
+  it("ends every block title with its closing phrase, so the two-tone split never mangles a heading (R-13)", () => {
+    // `splitTitle` leaves a title whole when the phrase is not its suffix; this
+    // is the copy-side guard, so a reworded title is caught here and not on a page.
+    const blocks = ["compare", "roles", "route", "capture", "provenance", "pilot", "faq", "scenes"] as const;
+    for (const key of blocks) {
+      const { title, titleAccent } = landingContent[key];
+      expect(title.endsWith(titleAccent), `${key}: «${titleAccent}» must close «${title}»`).toBe(true);
+      expect(title.length).toBeGreaterThan(titleAccent.length);
     }
   });
 

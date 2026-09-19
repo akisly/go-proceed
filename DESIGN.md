@@ -169,12 +169,30 @@ decoration, so the page reads as an instrument someone can trust, not a pitch.
   container-scroll product frame, the dot-pattern background, feature-grid
   cells, a bento layout, a sticky feature stack, a stepper — taken as
   structure and restyled in roles, never installed as a second system.
-- Motion is the shared twenty-two-word vocabulary in `@goproceed/ui/motion`;
+- Motion is the shared twenty-four-word vocabulary in `@goproceed/ui/motion`
+  *[2026-09-19, DEV-023: twenty-two until `PixelRain` and `OrbitText`]*;
   the scroll-linked compositions are the ones the landing spec names, one per
   section.
   [Correction, 2026-09-06: was «Motion is the shared sixteen-word vocabulary
   in @goproceed/ui/motion, with exactly two scroll-linked elements on the page
   and never in the same fold» — rule 9 was rewritten by the parity spec §8.]
+
+**The landing's form since 2026-09-19 (owner, DEV-023).** The owner asked for
+the landing «1 в 1» after https://parlo-black.vercel.app/ — its frame, cards,
+animations and transitions — «только чтобы цвета сохранились наши», on the four
+pages of DEV-022. So on `apps/landing` the *form* is the reference's and the
+*colour* is this document's: the reference's black ground is our paper, its
+white is our ink, its grey second line is `ink-muted`, its hairlines are
+`line`, and cobalt stays the one accent under the Signal Budget Rule. What the
+landing takes: fixed double guide lines at both edges with the header inside
+them; a full-viewport hero over a pixel-rain field and a perspective floor,
+with an orbiting arc of text above a 54px/400 heading; pill controls, the
+primary one with a travelling light on its border; dotted bands between
+sections; two-tone section headings (first line ink, second muted); a sticky
+feature list beside large rounded cards; cards on a fading grid ground; a fact
+band; a radial closing block. The reference's typeface, Syne, has no Cyrillic
+(Google Fonts serves `greek`, `latin`, `latin-ext`), so Onest stays, at the
+reference's sizes and weights. `apps/app` is untouched by any of this.
 
 ## Colors
 
@@ -370,6 +388,11 @@ the accessibility tree, because the desktop row is `display: none` there.]*
 - **Do** keep one cobalt mark per screen's worth of attention — the brand
   dot, a link, a focus ring, or the accent phrase in a heading — and nothing
   else in that hue.
+  *[2026-09-19, DEV-023, `apps/landing` only: the reference's pills carry a
+  travelling light, so a fold of the landing holds the brand dot and the thin
+  cobalt `beam` on its ink pills — the header's and at most one section's. No
+  heading carries an accent phrase any more; the muted second line does that
+  work. The area stays far under the Signal Budget.]*
 - **Do** build from recognisable community structure (21st.dev, Fora),
   restyled entirely in token roles, with the source named per block.
 - **Do** use thin rules and paper tone, not shadows, to separate ordinary
@@ -384,15 +407,20 @@ the accessibility tree, because the desktop row is `display: none` there.]*
   anywhere in the system — cobalt is the only accent hue.
 - **Don't** reach for brutalism — no raw borders as decoration, no oversized
   display type, no deliberate roughness. The system is quiet by contract.
-- **Don't** build a 3D scene. Pointer tilt is permitted at ≤ 3° on a spring,
+- **Don't** build a 3D scene — a WebGL or modelled scene, a camera, lit
+  geometry. The landing's perspective floor (DEV-023) is one flat grid under a
+  CSS `perspective` transform, static, and its pixel-rain field is a 2D canvas;
+  neither is a scene. Pointer tilt is permitted at ≤ 3° on a spring,
   `pointer: fine` and desktop only, on the surfaces the landing spec names:
   the product frame, the role cells, the channel cards
   [Correction, 2026-09-06: was «Don't use 3D, tilt, or pointer-driven
   perspective on any surface». The owner asked for the prototype «точь-в-точь»
   — spec 2026-09-06 R2.]
-- **Don't** run any animation forever except the five named loops — the
-  marquee, the Border Beam, the review-dot pulse, the hero drift, the dashed
-  flow lines. Each is CSS, each stops under reduced motion
+- **Don't** run any animation forever except the named loops — the marquee,
+  the Border Beam, the review-dot pulse, the hero drift, the dashed flow lines,
+  and, since DEV-023, the hero's orbiting arc text (`gp-orbit`), the closing
+  block's breathing mark (`gp-breathe`) and the `PixelRain` canvas. Each stops
+  under reduced motion, where the rain is one still frame
   [Correction, 2026-09-06: was «except the marquee — the Border Beam is
   finite».]
 - **Don't** imply status through colour alone, or claim a document is signed

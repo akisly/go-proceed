@@ -70,10 +70,10 @@ const fontVariables = [onestCyrillic, onestLatin, monoCyrillic, monoLatin]
 
 const DESIGN_CONTRACT = `<!--
 THESIS: The work is ready for acceptance when the proof is in place; the page shows one work package travelling from requirement to draft act.
-OWN-WORLD: Warm paper, cool ink, one cobalt mark; Onest and JetBrains Mono; recognisable 21st.dev blocks, no brutalism, pointer tilt within 3°, no 3D scenes.
-STORY: Four pages (DEV-022). Home: problem (Рис. 01) → three product scenes → position → the free-pilot offer. /product: the five-card route → capture channels → provenance. /roles: roles, the payer first → було і стало. /pilot: the plan, the one form, the questions.
-FIRST VIEWPORT: One promise, one definition of the product, the product frame settling into the page.
-FORM: Daylight parity — every animation design-references/contest-2026-09/daylight/index.html performs except Lenis, owner-approved 2026-09-06; the 2026-09-05 composition unchanged.
+OWN-WORLD: Warm paper, cool ink, one cobalt mark; Onest and JetBrains Mono; the owner's reference reimplemented in token roles and the motion vocabulary, nothing of it copied; no 3D scene — the floor is one flat grid under a CSS perspective, the rain a 2D canvas.
+STORY: Four pages (DEV-022) in the reference's form (DEV-023). Home: the full-viewport first screen → what it is, beside the records of one work → the four roles 01–04 → three cards on a grid → the pilot's terms as the fact band, over the requirement sources → the radial closing offer. /product: the sticky list of five steps → the application view → capture channels → provenance → position. /roles: roles, the payer first → Рис. 01 → було і стало. /pilot: the plan, the one form, the questions.
+FIRST VIEWPORT: One promise and one definition of the product, centred over a perspective floor and under a pixel-rain field, the product's name turning on an arc above the heading, two pills.
+FORM: The owner's reference, https://parlo-black.vercel.app/, «1 в 1» in our colours — owner, 2026-09-19 (DEV-023). Until then: Daylight parity with design-references/contest-2026-09/daylight/index.html (2026-09-06).
 FINISH: Unreviewed and undocumented is unfinished; the build ends with the seven-width QA pass and DESIGN.md.
 -->`;
 
@@ -118,11 +118,10 @@ export default function RootLayout({ children }: { children: ReactNode }) {
           * whose pitch is provenance. It still does its job in dev. */}
         {process.env.NODE_ENV !== "production" && (
           <template
-            data-impeccable-contract="user-approved-daylight-parity-2026-09-06"
+            data-impeccable-contract="user-approved-reference-form-2026-09-19"
             dangerouslySetInnerHTML={{ __html: DESIGN_CONTRACT }}
           />
         )}
-        <div aria-hidden="true" className="landing-dot-field" />
         {children}
       </body>
     </html>

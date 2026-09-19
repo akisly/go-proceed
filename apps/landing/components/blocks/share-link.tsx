@@ -42,7 +42,7 @@ export function ShareLink() {
 
   return (
     <>
-      <Button type="button" size="lg" variant="outline" onClick={copy}>
+      <Button type="button" size="lg" variant="outline" className="rounded-pill" onClick={copy}>
         {done ? landingContent.cta.shared : landingContent.cta.share}
       </Button>
       <span role="status" aria-live="polite" className="sr-only">

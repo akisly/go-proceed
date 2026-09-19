@@ -75,7 +75,9 @@ const MOTION_HOME = "packages/ui/src/motion";
  * receipt/pill drift and the dashed «flow» lines. A sixth is a decision
  * (02-building-ui §7.3), which is why the list is exported and pinned by a test.
  */
-export const PERPETUAL_ALLOWLIST = [/gp-marquee/, /marquee-track/, /gp-beam/, /gp-pulse/, /gp-drift/, /gp-flow/];
+// [2026-09-19, DEV-023] `gp-orbit` and `gp-breathe`: the landing reference's arc text and
+// closing mark (owner: «1 в 1»). `DESIGN.md` «Don't» and `02-building-ui.md` rule 5 name them.
+export const PERPETUAL_ALLOWLIST = [/gp-marquee/, /marquee-track/, /gp-beam/, /gp-pulse/, /gp-drift/, /gp-flow/, /gp-orbit/, /gp-breathe/];
 
 const EXT = [".ts", ".tsx", ".js", ".jsx", ".css", ".mjs"];
 

@@ -111,5 +111,6 @@ describe("each page exports the metadata of its own path (R-05)", () => {
     expect(metadata.alternates?.canonical).toBe(landingContent.pages[key].path);
     expect(metadata.openGraph?.url).toBe(landingContent.pages[key].path);
     expect(metadata.title).toBe(landingContent.pages[key].title);
-  });
+    // the first import of a page compiles its whole block tree
+  }, 30_000);
 });

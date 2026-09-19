@@ -160,7 +160,7 @@ nothing, fails a test, or silently drops a class.
 packages/tokens/src/tokens.json      every value, the only hand-edited token file
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
-packages/ui/src/motion/              the twenty-two motion primitives, and nothing else
+packages/ui/src/motion/              the twenty-four motion primitives, and nothing else (twenty-two until DEV-023)
 packages/ui/src/components/          the twenty-seven components, and nothing else
 apps/landing/app/                    the four landing pages (/, /product, /roles, /pilot — DEV-022)
 apps/landing/components/blocks/      the landing blocks the pages compose
@@ -182,7 +182,7 @@ Terse on purpose; each is enforced by a named test.
 3. No hand-edited hex in `tokens.json`; edit the OKLCH triple → `palette-derivation`
 4. No `motion/react` import outside `packages/ui/src/motion` → `motion-audit` 5
 5. No `transition: all`, no layout-property transition, no `ease-in`, no
-   perpetual animation outside the five loops named in `motion-audit.mjs`'s
+   perpetual animation outside the loops named in `motion-audit.mjs`'s
    `PERPETUAL_ALLOWLIST` → `motion-audit` 1–4
    [Correction, 2026-09-06: until this date the rule read «no perpetual
    animation but the marquee». The landing parity slice
@@ -190,6 +190,11 @@ Terse on purpose; each is enforced by a named test.
    restored the prototype's Border Beam, review-dot pulse, receipt/pill drift
    and dashed «flow» lines, so the allowlist names five loops and a test pins
    the list. A sixth is a §7.3 decision.]
+   [2026-09-19 (DEV-023, owner: the landing «1 в 1» after its reference): the
+   sixth and seventh are `gp-orbit` (the hero's arc text) and `gp-breathe` (the
+   closing block's mark). `PixelRain` is a canvas primitive in
+   `@goproceed/ui/motion`, not a CSS loop; it draws one still frame under
+   reduced motion.]
 6. No hard-coded control height, no inline-style colour, no raw hex, no
    per-component focus ring, no `destructive` button variant → `component-contract`
 7. No literal Tailwind class string inside a test — assemble at runtime, or

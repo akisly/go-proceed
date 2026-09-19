@@ -94,27 +94,12 @@
 }
 
 @layer components {
-  /* The Dot Pattern (21st.dev): a fixed, aria-hidden dot field masked to the
-   * top of the page, behind everything. Static — the prototype's scrolling
-   * glows were removed in its sixth iteration. */
-  .landing-dot-field {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 22%, transparent) 1px, transparent 1.2px);
-    background-size: 22px 22px;
-    -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 20%, transparent 100%);
-    mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 20%, transparent 100%);
-    opacity: 0.9;
-  }
+  /* [DEV-023] The page-wide Dot Pattern is gone: the reference's first screen
+   * carries its own texture (`PixelRain`), and its pages have no ground
+   * pattern behind the sections. */
 
-  .landing-body > header,
-  .landing-body > main,
-  .landing-body > footer {
-    position: relative;
-    z-index: 1;
-  }
+  /* [DEV-023] `<main>` and the footer live inside `.landing-frame`, which
+   * carries the stacking context; `<main>` positions itself (site-shell.tsx). */
 
   /* The header's hairline is permanent (F9); the backdrop blurs the page under it. */
   .landing-header {
@@ -138,6 +123,143 @@
   }
   .landing-nav-link:hover::after { transform: scaleX(1); }
   .landing-nav-link[aria-current="page"]::after { transform: scaleX(1); background: var(--color-accent); }
+
+  /* -------------------------------------------------------------------------
+   * The reference's form (DEV-023) — owner, 2026-09-19: the landing «1 в 1»
+   * after https://parlo-black.vercel.app/, in our colours. Observed and
+   * rebuilt; none of the reference's CSS is here. Every colour below is a
+   * role, mixed toward transparent where the reference uses a faint line.
+   * ----------------------------------------------------------------------- */
+
+  /* THE FRAME. Two guide lines at each edge, fixed for the whole scroll: the
+   * outer pair are these pseudo-elements, the inner pair are the borders of
+   * `.landing-frame`, the column every page lives in. 22px and 30px from the
+   * edge from `md` up, as measured; 10px and 16px below it, because 30px a
+   * side leaves a 360px phone 300px for Ukrainian copy and the UI windows. */
+  .landing-body {
+    --landing-rail-outer: 10px;
+    --landing-rail-inner: 16px;
+  }
+  @media (min-width: 48rem) {
+    .landing-body {
+      --landing-rail-outer: 22px;
+      --landing-rail-inner: 30px;
+    }
+  }
+  .landing-body:has(.landing-frame)::before,
+  .landing-body:has(.landing-frame)::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 45;
+    width: 0;
+    pointer-events: none;
+    border-left: 1px solid var(--color-line);
+  }
+  .landing-body:has(.landing-frame)::before { left: var(--landing-rail-outer); }
+  .landing-body:has(.landing-frame)::after { right: var(--landing-rail-outer); }
+  .landing-frame {
+    position: relative;
+    z-index: 1;
+    margin-inline: var(--landing-rail-inner);
+    border-inline: 1px solid var(--color-line);
+  }
+  /* The header sits between the inner rails. */
+  .landing-header-rail {
+    left: var(--landing-rail-inner);
+    right: var(--landing-rail-inner);
+  }
+
+  /* THE INSET of a section inside the frame: the reference's 104px from the
+   * viewport edge on `wide`, less the 30px rail. */
+  .landing-inset { padding-inline: 1rem; }
+  @media (min-width: 48rem) { .landing-inset { padding-inline: 2rem; } }
+  @media (min-width: 77.5rem) { .landing-inset { padding-inline: 74px; } }
+
+  /* THE BAND between sections: 50px of fine raster between two hairlines. */
+  .landing-band {
+    height: 50px;
+    border-block: 1px solid var(--color-line);
+    background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 26%, transparent) 0.75px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.7;
+  }
+
+  /* THE FLOOR under the hero: one flat grid tipped back under a CSS
+   * perspective and faded toward the horizon. Static. Not a scene — no camera
+   * moves and nothing is lit (`DESIGN.md`). */
+  .landing-floor {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 46%;
+    overflow: hidden;
+    pointer-events: none;
+    perspective: 900px;
+    perspective-origin: 50% 0%;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 45%, #000 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 45%, #000 100%);
+  }
+  .landing-floor::before {
+    content: "";
+    position: absolute;
+    left: -60%;
+    right: -60%;
+    top: 0;
+    height: 220%;
+    transform: rotateX(58deg);
+    transform-origin: 50% 0%;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--color-ink) 11%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 11%, transparent) 1px, transparent 1px);
+    /* ~14 columns across 1440 and lines that stay near 1px at the viewer's edge:
+     * a 104px pitch under a 520px perspective gave seven soft 3px strokes. */
+    background-size: 60px 60px;
+    background-position: 50% 0;
+  }
+
+  /* A CARD ON A GRID GROUND that fades out toward the caption at its foot. */
+  .landing-gridcard::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--color-ink) 9%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 9%, transparent) 1px, transparent 1px);
+    background-size: 26px 26px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 82%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 82%);
+  }
+
+  /* THE FACT BAND's ground: a wide grid across the whole section. */
+  .landing-gridfield {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--color-ink) 8%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 8%, transparent) 1px, transparent 1px);
+    background-size: 62px 62px;
+    background-position: 50% 0;
+  }
+
+  /* THE CLOSING BLOCK's ground: lines radiating from the centre, absent at the
+   * centre so the heading reads, fading at the rim. */
+  .landing-burst::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    background-image: repeating-conic-gradient(from 0deg at 50% 50%, color-mix(in srgb, var(--color-ink) 14%, transparent) 0deg 0.12deg, transparent 0.12deg 7.5deg);
+    -webkit-mask-image: radial-gradient(ellipse 75% 85% at 50% 50%, transparent 22%, #000 55%, transparent 100%);
+    mask-image: radial-gradient(ellipse 75% 85% at 50% 50%, transparent 22%, #000 55%, transparent 100%);
+  }
+
+  /* A floating menu that fades out toward its foot (the intro's card). */
+  .landing-fade-foot {
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+  }
 
   /* The drafting grid inside a route card's media half, masked to its centre. */
   .landing-media-grid::before {

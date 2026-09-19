@@ -1,43 +1,35 @@
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
-import { Button, Pill, PillContent } from "@goproceed/ui/components";
-import { LineReveal, Magnetic, Reveal } from "@goproceed/ui/motion";
+import { OrbitText, PixelRain } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
-import { ProductFrame } from "../visuals/product-frame";
+import { PillLink } from "./pill-link";
 
 /**
- * The hero, timed as the prototype times it (index.html l.1105, l.1109–1113):
- * the h1 rises line by line from .1s; the pill, lead and actions are
- * `[data-up]` entrances at `stately`; the frame follows at .35s (product-frame).
+ * The first screen. [DEV-023] The reference's, in our colours: it fills the
+ * viewport; pixels fall from its top edge (`PixelRain`); a flat grid tips away
+ * under its foot (`landing-floor`); a phrase turns on an arc over a centred
+ * 54px/400 heading; one sentence of definition; two pills.
  *
- * [DEV-022] The four role facts moved to /roles: the first viewport of a short
- * home page holds one promise, one definition and the product.
+ * The heading is plain text, not `LineReveal`: the reference reveals the whole
+ * first screen at once, and the h1 is the LCP element — it paints on the first
+ * frame. The lead and the actions keep the CSS `entrance` (no JS before paint).
+ * The product itself is the second block's job now; the state board moved to
+ * /product, where the reference keeps its large app view.
  */
 export function Hero() {
   const h = landingContent.hero;
   return (
-    <section id="hero" className="px-4 pt-32 md:px-8 md:pt-36">
-      <div className="mx-auto max-w-marketing">
-        <div className="mx-auto grid max-w-[780px] justify-items-center text-center">
-          <div className="entrance">
-            <Magnetic>
-              <Pill asChild>
-                <Link href={h.pill.href}><PillContent badge={h.pill.badge}>{h.pill.text}</PillContent></Link>
-              </Pill>
-            </Magnetic>
-          </div>
-          <LineReveal as="h1" text={h.title} accent={h.titleAccent} delay={0.1} className="display mt-5 max-w-[16ch] text-mkt-display-1 tracking-tightest text-ink" />
-          <div className="entrance [--gp-entrance-delay:0.15s]"><p className="measure mt-5 text-mkt-lead leading-relaxed text-ink-secondary">{h.lead}</p></div>
-          <div className="entrance [--gp-entrance-delay:0.25s] mt-6 flex flex-wrap justify-center gap-2.5">
-            <Magnetic><Button asChild size="lg"><Link href={h.primaryHref}>{h.primaryAction}</Link></Button></Magnetic>
-            <Magnetic>
-              <Button asChild size="lg" variant="outline">
-                <Link href={h.secondaryHref}>{h.secondaryAction}<ArrowRight aria-hidden="true" className="size-4" strokeWidth={1.6} /></Link>
-              </Button>
-            </Magnetic>
-          </div>
+    <section id="hero" className="relative isolate grid min-h-dvh place-items-center overflow-hidden px-4 pb-24 pt-32 md:px-8">
+      <PixelRain className="absolute inset-x-0 top-0 -z-10 h-[24%] w-full text-ink" />
+      <div aria-hidden="true" className="landing-floor -z-10" />
+      <div className="mx-auto grid max-w-[880px] justify-items-center text-center">
+        <div className="entrance grid w-full justify-items-center">
+          <OrbitText text={h.orbit} className="text-body font-medium text-ink" />
         </div>
-        <ProductFrame />
+        <h1 className="display mt-2 max-w-[34ch] text-[clamp(42px,3.75vw,54px)] font-normal leading-none tracking-tight text-ink">{h.title}</h1>
+        <div className="entrance [--gp-entrance-delay:0.15s]"><p className="measure mt-6 text-body leading-relaxed text-ink-secondary">{h.lead}</p></div>
+        <div className="entrance [--gp-entrance-delay:0.25s] mt-7 flex flex-wrap justify-center gap-3">
+          <PillLink href={h.primaryHref}>{h.primaryAction}</PillLink>
+          <PillLink href={h.secondaryHref} tone="paper">{h.secondaryAction}</PillLink>
+        </div>
       </div>
     </section>
   );

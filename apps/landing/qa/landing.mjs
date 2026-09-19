@@ -5,7 +5,7 @@
 // Border Beam on the settled product frame, and writes public/og.png from /og.
 // Run: pnpm --filter @goproceed/landing qa
 import { spawn } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
@@ -13,6 +13,9 @@ import sharp from "sharp";
 
 const app = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(app, "qa-output");
+// Emptied first: a shorter page shoots fewer folds, and a stale `home-1920-07.png`
+// from an earlier composition sat beside the new ones and was read as current (B2-06).
+rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const PORT = 3111;
 const WIDTHS = [1920, 1440, 1240, 1024, 768, 390, 360];
@@ -48,8 +51,9 @@ try {
   // motion pass photographs a desktop fold (>= 768px), the frame must still read
   // "false" the instant the page has loaded and before any scroll happens; under
   // reduced motion the latch must already read "true" by the same point, since
-  // (a) or (b) of the contract fires immediately. Only the home page carries a
-  // `ScrollSettle`, so only the home page is asked.
+  // (a) or (b) of the contract fires immediately. Only /product carries a
+  // `ScrollSettle` — the application view, which was the home hero until
+  // DEV-023 — so only /product is asked.
   async function audit([route, path], width, reduced) {
     const page = await browser.newPage();
     const errors = [];
@@ -63,7 +67,7 @@ try {
     // one tick to settle before reading `data-settled`, still before any scroll.
     await new Promise((r) => setTimeout(r, 150));
     let settledAtLoad = null;
-    const checkSettled = route === "home" && (reduced || width >= 768);
+    const checkSettled = route === "product" && (reduced || width >= 768);
     if (checkSettled) {
       settledAtLoad = await page.evaluate(() => document.querySelector("[data-settled]")?.getAttribute("data-settled") ?? null);
     }
@@ -173,7 +177,7 @@ try {
   async function beamPixels() {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
-    await page.goto(`http://localhost:${PORT}/`, { waitUntil: "networkidle0" }); // the board is the home page's
+    await page.goto(`http://localhost:${PORT}/product`, { waitUntil: "networkidle0" }); // the board is /product's (DEV-023)
     // The ring runs from first paint now (spec 2026-09-06 §5.1) — it no longer
     // waits on `ScrollSettle`'s latch, so the measurement only needs the beam
     // element scrolled into view, not `data-settled="true"` — AND the frame's
@@ -187,7 +191,8 @@ try {
     // box has not moved for two reads AND every ancestor is at full opacity,
     // capped at 4s so a broken entrance still fails loudly (as 0 pixels).
     const present = await page.evaluate(async () => {
-      const el = document.querySelector(".beam");
+      // `#board`: the ink pills carry a beam too since DEV-023, and the header's is first in the document.
+      const el = document.querySelector("#board .beam");
       if (!el) return false;
       el.parentElement.scrollIntoView({ block: "center" });
       const box = () => { const r = el.getBoundingClientRect(); return `${r.top.toFixed(1)}:${r.height.toFixed(1)}`; };
@@ -201,7 +206,7 @@ try {
       }
       return true;
     });
-    const handle = present ? await page.$(".beam") : null;
+    const handle = present ? await page.$("#board .beam") : null;
     if (handle === null) { await page.close(); return null; }
     const shot = await handle.screenshot();
     await page.close();
@@ -221,6 +226,49 @@ try {
 
   for (const route of ROUTES) for (const w of WIDTHS) await audit(route, w, false);
   for (const route of ROUTES) for (const w of [1440, 390]) await audit(route, w, true);
+
+  // NOTHING IN A FIRST FOLD STAYS HIDDEN (DEV-023). A `whileInView` entrance on
+  // content that is already in view when the reduced-motion gate opens can be
+  // left on its hidden label for good — measured on /roles, whose role cells
+  // stayed at opacity 0 in three loads out of five once the grid moved into the
+  // first fold. It is a race, so one load proves nothing: each page is loaded
+  // three times, and any text-bearing element of the first viewport still
+  // below full opacity after 3s fails. Decorative (`aria-hidden`) and
+  // scroll-linked (`data-scroll-tint`) elements are not entrances.
+  // [R-03] Also the deep links the site itself hands out — a reader who lands
+  // mid-page has content in view at hydration, which is the same condition.
+  // Measured 2026-09-19: the race did not reproduce on any of them at 1440 (four
+  // loads each). At 390 two pre-existing blocks (capture, provenance) keep a
+  // tall stacked `Stagger` below its 25 % threshold — deterministic, not a race,
+  // older than DEV-022, and filed under BL-059; the deep links are therefore
+  // checked at 1440 only.
+  const DEEP_LINKS = [["roles#compare", "/roles#compare"], ["product#capture", "/product#capture"], ["product#trust", "/product#trust"], ["pilot#request", "/pilot#request"]];
+  async function firstFold() {
+    const stuck = [];
+    for (const [route, path] of [...ROUTES, ...DEEP_LINKS]) {
+      for (let load = 0; load < 3; load++) {
+        const page = await browser.newPage();
+        await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
+        await page.goto(`http://localhost:${PORT}${path}`, { waitUntil: "networkidle0" });
+        await new Promise((r) => setTimeout(r, 3000));
+        const hidden = await page.evaluate(() => [...document.querySelectorAll("main *")].filter((el) => {
+          const r = el.getBoundingClientRect();
+          if (r.top > window.innerHeight || r.bottom < 60 || r.height === 0) return false;
+          if (el.closest('[aria-hidden="true"], [data-scroll-tint]')) return false;
+          if ((el.textContent || "").trim().length === 0) return false;
+          const parent = el.parentElement;
+          if (parent && parseFloat(getComputedStyle(parent).opacity) < 0.99) return false; // report the outermost only
+          return parseFloat(getComputedStyle(el).opacity) < 0.99;
+        }).map((el) => `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`).slice(0, 4));
+        if (hidden.length) stuck.push(`${route} load ${load + 1}: ${hidden.join(", ")}`);
+        await page.close();
+      }
+    }
+    return stuck;
+  }
+  report.firstFoldStuck = await firstFold();
+  const firstFoldOk = report.firstFoldStuck.length === 0;
+  console.log(`first folds (3 loads a page): ${firstFoldOk ? "ok" : "PROBLEM"} stuck=${JSON.stringify(report.firstFoldStuck)}`);
 
   report.links = await links();
   const linksOk = report.links.checked > 0 && report.links.broken.length === 0;
@@ -246,10 +294,13 @@ try {
     const WIDE = { width: 1440, height: 900, deviceScaleFactor: 1 };
     const NARROW = { width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true };
 
-    // HOME — the hero's depth layers and the one tilted surface.
-    const wide = await open("/", WIDE);
+    // PRODUCT — the application view's depth layers and the one tilted surface
+    // (the home hero's until DEV-023). Bring the view in, read, scroll on, read.
+    const wide = await open("/product", WIDE);
+    await wide.evaluate(() => { const el = document.querySelector("#board"); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 200, behavior: "instant" }); });
+    await new Promise((r) => setTimeout(r, 1600));
     const depthAtTop = await wide.evaluate(() => [...document.querySelectorAll("[data-depth]")].map((el) => getComputedStyle(el).transform));
-    await wide.evaluate(() => window.scrollTo(0, 600));
+    await wide.evaluate(() => window.scrollBy({ top: 500, behavior: "instant" }));
     await new Promise((r) => setTimeout(r, 400));
     const depthScrolled = await wide.evaluate(() => [...document.querySelectorAll("[data-depth]")].map((el) => getComputedStyle(el).transform));
     out.depthLayers = depthAtTop.length;
@@ -298,10 +349,44 @@ try {
       await page.close();
     }
 
-    // PRODUCT — the sticky route stack.
+    // PRODUCT — the sticky list marks the step in view (DEV-023: the
+    // reference's feature list, where Fora's pinned stack used to be).
     const product = await open("/product", WIDE);
-    out.stackOnWide = await product.evaluate(() => document.querySelector("[data-scroll-stack]")?.getAttribute("data-scroll-stack"));
+    await product.evaluate(() => { const el = document.querySelector("#step-03"); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 300, behavior: "instant" }); });
+    await new Promise((r) => setTimeout(r, 500));
+    out.stickyCurrent = await product.evaluate(() => document.querySelector('#stages nav [aria-current="true"]')?.getAttribute("href") ?? null);
+    out.stickyPosition = await product.evaluate(() => getComputedStyle(document.querySelector("#stages nav")).position);
+    // [R-11] …and that it actually stays: `top-24` is 96px under the viewport's top.
+    out.stickyTop = await product.evaluate(() => Math.round(document.querySelector("#stages nav").getBoundingClientRect().top));
     await product.close();
+
+    // HOME — the first screen's two new words run, and stand still when asked to.
+    const first = await open("/", WIDE);
+    out.rain = await first.evaluate(() => document.querySelector("[data-pixel-rain]")?.getAttribute("data-pixel-rain") ?? null);
+    out.orbit = await first.evaluate(() => document.querySelector("[data-orbit]")?.getAttribute("data-orbit") ?? null);
+    out.heroFillsViewport = await first.evaluate(() => document.querySelector("#hero").getBoundingClientRect().height >= window.innerHeight);
+    // [B2-01] the closing heading once broke into six one-word lines at 1440: its
+    // measure sat on a wrapper, where `ch` is 16px. Lines = height / line-height.
+    out.closingHeadingLines = await first.evaluate(() => { const h = document.querySelector("#cta-final h2"); const s = getComputedStyle(h); return Math.round(h.getBoundingClientRect().height / parseFloat(s.lineHeight)); });
+    // [R-11] The label says «running»; the bitmap says whether anything is
+    // drawn and whether it changes. `getAnimations()` cannot see a rAF loop.
+    const frames = async (page) => page.evaluate(async () => {
+      const canvas = document.querySelector("[data-pixel-rain]");
+      const blank = document.createElement("canvas"); blank.width = canvas.width; blank.height = canvas.height;
+      const a = canvas.toDataURL();
+      await new Promise((r) => setTimeout(r, 700));
+      const b = canvas.toDataURL();
+      return { painted: a !== blank.toDataURL(), changed: a !== b };
+    });
+    out.rainFrames = await frames(first);
+    await first.close();
+    const firstReduced = await open("/", WIDE, true);
+    out.rainReduced = await firstReduced.evaluate(() => document.querySelector("[data-pixel-rain]")?.getAttribute("data-pixel-rain") ?? null);
+    out.orbitReduced = await firstReduced.evaluate(() => document.querySelector("[data-orbit]")?.getAttribute("data-orbit") ?? null);
+    out.rainFramesReduced = await frames(firstReduced);
+    // [B-04] a beam that cannot travel is not drawn
+    out.beamsShownReduced = await firstReduced.evaluate(() => [...document.querySelectorAll(".beam")].filter((el) => getComputedStyle(el).display !== "none").length);
+    await firstReduced.close();
 
     // PILOT — the stepper's progress line. `html { scroll-behavior: smooth }`
     // (globals.css) is deliberate (spec 2026-09-06 R1), so the jump names
@@ -337,13 +422,12 @@ try {
     out.routeChange = { scrolledBefore, scrollYAfter: await nav.evaluate(() => window.scrollY), h1: await nav.evaluate(() => document.querySelector("h1")?.textContent?.slice(0, 24) ?? null) };
     await nav.close();
 
-    const narrow = await open("/", NARROW);
+    const narrow = await open("/product", NARROW);
     out.tiltOnNarrow = await narrow.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
     out.depthFlatNarrow = await narrow.evaluate(() => [...document.querySelectorAll("[data-depth]")].every((el) => getComputedStyle(el).transform === "none"));
+    // Below `wide` the sticky list is not shown at all; the rows stand alone.
+    out.stickyOnNarrow = await narrow.evaluate(() => getComputedStyle(document.querySelector("#stages nav")).display);
     await narrow.close();
-    const narrowProduct = await open("/product", NARROW);
-    out.stackOnNarrow = await narrowProduct.evaluate(() => document.querySelector("[data-scroll-stack]")?.getAttribute("data-scroll-stack"));
-    await narrowProduct.close();
 
     /**
      * The five perpetual CSS loops, under reduced motion.
@@ -386,7 +470,9 @@ try {
   // not hypothetical — a stale build reported 21/21 against a page that
   // actually rendered more, and this gate passed it (2026-09-07).
   //
-  // [DEV-022] One tilted surface on the whole site — the hero's board. The
+  // [DEV-023] The counts below follow the reference's form: the board and its
+  // three satellites are on /product; every ink pill is a magnetic control.
+  // [DEV-022] One tilted surface on the whole site — the board. The
   // historical count above (21) is the 2026-09-07 page's; the rule it argues
   // for, that all three numbers must agree, is unchanged.
   //
@@ -398,12 +484,16 @@ try {
   // and the 3D context `Tilt` requires re-sorted the hero's layers so the board
   // painted over both pills.
   const parityOk = p.depthMoves && p.tiltTotal === p.tiltOnWide && p.tiltChainsOk === p.tiltTotal
-    && p.tiltOnWide === 1 && same(p.magneticOnWide, { home: 8, product: 2, roles: 2, pilot: 2 }) && p.stackOnWide === "on"
+    && p.tiltOnWide === 1 && same(p.magneticOnWide, { home: 5, product: 4, roles: 1, pilot: 2 })
+    && p.stickyCurrent === "#step-03" && p.stickyPosition === "sticky" && Math.abs(p.stickyTop - 96) <= 2 && p.stickyOnNarrow === "none"
+    && p.closingHeadingLines <= 3
+    && p.rainFrames.painted && p.rainFrames.changed && p.rainFramesReduced.painted && !p.rainFramesReduced.changed && p.beamsShownReduced === 0
+    && p.rain === "running" && p.orbit === "turning" && p.rainReduced === "still" && p.orbitReduced === "still" && p.heroFillsViewport
     && p.stepperProgress >= 0.99
     // the board's two review cards on the home page, the «пілот» chip on /product
-    && same(p.pulsing, { home: 2, product: 1, roles: 0, pilot: 0 })
+    && same(p.pulsing, { home: 0, product: 3, roles: 0, pilot: 0 })
     && same(p.flowing, { home: 0, product: 3, roles: 0, pilot: 0 })
-    && p.tiltOnNarrow === 0 && p.depthFlatNarrow && p.stackOnNarrow === "off"
+    && p.tiltOnNarrow === 0 && p.depthFlatNarrow
     && p.perpetualUnderReduce === 0
     && p.routeChange.scrolledBefore > 1000 && p.routeChange.scrollYAfter === 0;
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
@@ -415,7 +505,7 @@ try {
   console.log("wrote public/og.png");
 
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
-  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && linksOk && beamOk && parityOk;
+  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && firstFoldOk && linksOk && beamOk && parityOk;
   console.log(allOk ? "landing qa: ok" : "landing qa: PROBLEMS — see qa-output/report.json");
   exitCode = allOk ? 0 : 1;
 } catch (err) {
