@@ -407,7 +407,7 @@ review](#protected-external-review)) wherever the two agree.
 
 - **The fragment is stripped first.** The page reads `location.hash` and calls
   `history.replaceState` to remove it before its own code makes any request or
-  renders any link, as the review shell's step 1 does, so the address bar and
+  renders any link, as the review shell does (`history.replaceState` before its exchange), so the address bar and
   session history stop holding it. (The document and framework requests before
   it never carry the fragment.)
 - **The token never leaves the page's memory.** Not `next`, not any other query

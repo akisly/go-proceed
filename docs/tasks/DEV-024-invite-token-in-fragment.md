@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** the approved field-client route table stops prescribing `invite/{token}` — a bearer token in a URL path, which reaches access logs, `Referer` headers and analytics and which a link prefetch could consume. The invitation link becomes `invite#<token>`: the token rides in the fragment, which no browser sends, and the page exchanges it by POST after sign-in, as the external review link does (INV-010). A static test keeps any route in `apps/app` from taking a secret-shaped name from its path or its query string. The redemption page itself is not built.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-19.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a correction to an approved architecture document plus a static guard (executed test code, so a behavior change): coordinator → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -48,11 +48,19 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 5 | rework (coordinator), stated fixes | **The rule and INV-104 scoped** to links this app mints for its own origin, the third-party ones named as outside it with reasons; the prefetch clause restated (this origin never receives the token; a GET consumes nothing); citations corrected (`tenancy-and-security.md`, `external-link.ts`). **A section «The invitation link»** in `system-overview.md` — the page's contract: strip the fragment with `history.replaceState` before any request; never into `next`, a URL, a cookie, `localStorage` or IndexedDB; excluded from the proxy's sign-in redirect and sign in on the page (the `sessionStorage` fallback later removed, S2-01); no third-party script, `Referrer-Policy: no-referrer`, `Cache-Control: no-store`; an existing Auth user; its evidence when built. **The custom-scheme sentence removed**, left to v0.3 and `gp-mobile`. **The guard is an allowlist**: segments must be `…Id`/`…No`, query reads (`searchParams.get`, `?.get`, `useSearchParams`, `URLSearchParams`, destructured or named `await searchParams`) must be `assignee`, `limit`, `cursor`, `evidenceObjectId` or `next`; `isSecretKeyName` is no longer exported (`packages/` is untouched by the task). **Four mutations**, each red naming its site, restored: `invite/[token]`, `invite/[code]`, a page destructuring `{ token }` from `searchParams`, a `searchParams?.get("token")`. **BL-114** (build the page to the contract) and **BL-115** (a prefetching mail scanner and the OTP, unverified) filed; «What is not true» gains S1-05 and the third-party links. **Runs on `c26abe5`**: typecheck 10/10, validators, url-secrets + call sites 7, the database guard 21 | `scratchpad/dev024-r2-*.txt` | `gp-security` re-check; `gp-qa` |
 | 6 | reviewing (`gp-security` re-check, native) on `3768149` | **PASS** — S1-01 and S1-02 CLOSED, S1-03 to S1-05 addressed; the contract's claims about `proxy.ts` and `safeNext` confirmed. New: S2-01 low (the `sessionStorage` fallback kept the token past an abandoned sign-in and on disk for session restore — remove it), S2-02 low (the guard missed `use(searchParams)`, `(await searchParams).x`, `getAll`/`has`, `Object.fromEntries`), S2-03 nit («before any network request» cannot be met literally; say why the proxy exclusion exists), S2-04 info (enforce «no third-party script» with a nonce CSP; exclude by a pathname check) | re-check report | Stated fixes |
 | 7 | rework (coordinator), stated fixes | S2-01: the fallback removed — the token never leaves the page's memory, `sessionStorage` named as forbidden. S2-02: the guard reads `getAll`/`has`, `Object.fromEntries(searchParams)` (as «every name»), and the `use(searchParams)` and inline `(await …searchParams).x` forms; the fixture gains each; a page mutation using `use(searchParams)` turns it red naming `token`. S2-03: the strip «before its own code makes any request or renders any link»; the exclusion's reason (the fragment carried onto `/login` by the redirect) and «by a pathname check in the proxy's body». S2-04: in BL-114. Runs after this row is written | `scratchpad/dev024-r3-*.txt` | `gp-qa` |
+| 8 | verifying (`gp-qa`, native) on `f38642a` | **Verified for the scoped criteria:** 1–4 PASS, 5 NOT RUN (not required). Its own runs: url-secrets + call sites 7; the database guard 21; turbo typecheck 10/10; validators; `git diff 33ee859 f38642a -- packages/` empty. Nine mutations each red naming its site (routes `[token]`, `[code]`, `[...inviteLinks]`; the page prop destructured, `use()`d and inline; `?.get`, `getAll`; `Object.fromEntries`); the guard's positive control finds exactly the five allowlisted reads. The contract's claims checked against `proxy.ts`, `safe-next.ts`, `externalSecurityHeaders`, `otp-form.tsx` and Next 16.3.1's CSP guide. Every stated fix in place. New: Q1-01 low (read forms the guard misses, unlisted), Q1-02 info (the PKCE verify link lands on this origin with `?code=`), Q1-03 to Q1-05 nits (INV-104 and BL-109 described the round-2 guard; STATUS omitted BL-114/115; «step 1» and §10.2.2), Q1-06 info (a raw NUL byte in `external-link.ts` since `54f1fe3` makes plain `grep` skip it — pre-existing) | QA report; `scratchpad/dev024-qa-*.txt` | Closing |
+| 9 | closing (coordinator), documentation only | Q1-01: the missed forms in «What is not true». Q1-02: BL-115 names the PKCE landing. Q1-03: INV-104's enforcement and evidence and BL-109's text describe the final guard. Q1-04: STATUS item 3 lists BL-114 and BL-115. Q1-05: «as the review shell does»; §10.2.2 in Sources. Q1-06: recorded here; `grep -a` reads the file. No code changed after QA | `scratchpad/dev024-close-canonical-docs.txt` | Push, PR |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| Q1-01 | low | the guard | Actual: some read forms unlisted | coordinator | «What is not true» (row 9) |
+| Q1-02 | info | BL-115 | Actual: the PKCE landing on this origin unstated | coordinator | BL-115 (row 9) |
+| Q1-03 | nit | INV-104, BL-109 | Actual: described the round-2 guard | coordinator | Updated (row 9) |
+| Q1-04 | nit | STATUS item 3 | Actual: BL-114, BL-115 missing | coordinator | Added (row 9) |
+| Q1-05 | nit | «step 1»; Sources | Actual: no numbered step; §10.2.2 uncited | coordinator | Reworded; cited (row 9) |
+| Q1-06 | info | `external-link.ts` | A raw NUL byte (pre-existing) | coordinator | Recorded; out of scope |
 | S2-01 | low | the `sessionStorage` fallback | Actual: the token outlived an abandoned sign-in | coordinator | Removed (row 7) |
 | S2-02 | low | the guard's read forms | Actual: `use()`, inline, `getAll`/`has`, `fromEntries` missed | coordinator | Read (row 7) |
 | S2-03 | nit | the strip's wording; the exclusion's reason | Actual: unmeetable literally; reason unstated | coordinator | Reworded (row 7) |
@@ -71,7 +79,7 @@ Rework count and hypothesis changes: none counted — no QA FAIL; the HOLD was r
 ## What is not true after this task
 
 - **The invitation redemption page does not exist.** An invitation token today reaches the invitee only as the `token` field of the create response, which the admin passes on by hand; nothing builds an `invite#<token>` link yet.
-- **The guard is a text reading**: a dynamic `searchParams.get(name)`, a path parsed by hand from `new URL(...).pathname`, or a query read under an allowlisted name carrying a secret passes it; a new query name or a non-id segment fails it until someone adds it to the allowlist deliberately.
+- **The guard is a text reading**: a dynamic `searchParams.get(name)`, a path parsed by hand from `new URL(...).pathname`, a query read under an allowlisted name carrying a secret, and these forms pass it (Q1-01): `request.nextUrl.searchParams` or `useSearchParams()` held in a `let` or a renamed destructure, iteration (`for … of`, `.entries()`, `.forEach()`, `.toString()`), and `searchParams.then(…)`; a new query name or a non-id segment fails it until someone adds it to the allowlist deliberately.
 - **The invitee must already have an Auth user** (S1-05): sign-in is OTP with `shouldCreateUser: false`; letting the invite page create one is an auth change for `gp-architect` and `gp-security`.
 - **Third-party links still carry secrets in their query** by the vendor's design (the Telegram deep link, Storage signed URLs, the Auth confirmation URL — BL-115); INV-104 names them as outside it.
 - **`apps/mobile` is not checked**; it routes no invitation link today.
@@ -82,6 +90,11 @@ Rework count and hypothesis changes: none counted — no QA FAIL; the HOLD was r
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The route row, the scoped rule and «The invitation link» | yes | `f38642a` + row 9 | `gp-qa`'s reading against `proxy.ts`, `safe-next.ts`, `external-link.ts`, `otp-form.tsx`, the Telegram routes, `evidence-storage.ts`, `magic_link.html`, Next 16.3.1's CSP guide and RFC 9110 | PASS | the page is not built: a design reading, not runtime evidence (BL-114) |
+| 2. The allowlist guard passes the tree and turns red on the mutations | yes | `f38642a` | `dev024-*mutation*.txt` (the coordinator's six) and `gp-qa`'s nine, each naming its site; `dev024-r3-url-secrets.txt` and `gp-qa`'s run (7) | PASS | a text reading: the forms in «What is not true» pass it |
+| 3. INV-104, BL-109, STATUS; validators | yes | `f38642a` + row 9 | `gp-qa`'s reading and runs; `dev024-close-canonical-docs.txt` | PASS | Q1-03, Q1-04 fixed after QA (text only) |
+| 4. `pnpm turbo run typecheck`; the tests | yes | `f38642a` | `dev024-r3-typecheck-all.txt`, `gp-qa`'s `--force` run (10/10); url-secrets 7; the database guard 21; `packages/` unchanged | PASS | — |
+| 5. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
 
@@ -98,13 +111,13 @@ Gate records written before 2026-09-13 keep their own tokens; `docs/delivery/pil
 Third-party documentation and primary sources checked for this task. Give each one its URL, the installed version it applies to, its publication date if known (never substitute today's date) and the access date.
 
 - Next.js 16.3.1 dynamic route segments (`[x]`, `[...x]`, `[[...x]]`) — `apps/app/node_modules/next/dist/docs/01-app/03-api-reference/03-file-conventions/dynamic-routes.md`; accessed 2026-09-19.
-- RFC 9110 (HTTP Semantics), §7.1 «The target URI excludes the reference's fragment component» and §10.1.3 (a user agent MUST NOT include the fragment in `Referer`); §17.11 notes a fragment can be carried across a redirect on the client — https://www.rfc-editor.org/rfc/rfc9110.txt; accessed 2026-09-19. The rule `apps/app/src/lib/external-link.ts` already relies on.
+- RFC 9110 (HTTP Semantics), §7.1 «The target URI excludes the reference's fragment component», §10.1.3 (a user agent MUST NOT include the fragment in `Referer`), §10.2.2 (a `Location` without a fragment inherits the original's — why a redirect carries it onto `/login`) and §17.11 — https://www.rfc-editor.org/rfc/rfc9110.txt; accessed 2026-09-19. The rule `apps/app/src/lib/external-link.ts` already relies on.
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: see «Owning module and allowed edit paths», plus BL-114 and BL-115; commits `c429ace` (implementation), `c26abe5` (review round 1), `f38642a` (security re-check), the record commits and the closing commit.
+- Review independence: independent — `gp-reviewer` (CHANGES REQUESTED, fixed), `gp-security` (HOLD, then PASS on re-check), `gp-qa` on `f38642a`, all native subagents. No rework round was counted.
+- Verified scope: criteria 1–4 PASS; criterion 5 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above; BL-114 (the page, built to the contract), BL-115, BL-013.
+- Next bounded action and owner: owner — review and merge the PR.
+- Final state and reason: done — every required criterion PASS; every finding fixed or recorded with its reason.
