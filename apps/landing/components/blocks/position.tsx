@@ -1,4 +1,5 @@
-import { Check, Lock } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Check, Lock } from "lucide-react";
 import { Reveal, ScrollTint, Stagger, StaggerItem } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 
@@ -34,6 +35,11 @@ export function Position() {
                 </StaggerItem>
               ))}
             </Stagger>
+            <Reveal size="stately">
+              <Link href={p.more.href} className="inline-flex min-h-11 items-center gap-1.5 text-data font-medium text-ink underline decoration-line-strong underline-offset-4 transition-colors duration-fast ease-out hover:decoration-ink">
+                {p.more.label}<ArrowRight aria-hidden="true" className="size-4" strokeWidth={1.6} />
+              </Link>
+            </Reveal>
           </div>
         </div>
       </div>

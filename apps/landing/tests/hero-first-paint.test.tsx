@@ -26,7 +26,7 @@ import { landingContent } from "../content/landing-content";
 const markup = renderToStaticMarkup(<Hero />);
 
 /**
- * The text fold: pill, headline, lead, actions, facts — everything above the
+ * The text fold: pill, headline, lead, actions (and, until DEV-022, facts) — everything above the
  * product frame. The frame itself keeps its JS entrance on purpose. It is not
  * an LCP candidate, it is the composition `ScrollSettle`, `Depth` and `Tilt`
  * all attach to, and its 0.35s arrival is the prototype's own timing; moving
@@ -53,7 +53,7 @@ describe("the hero fold paints on the first frame", () => {
     // `opacity:0` here is an element the reader cannot see until JavaScript
     // has arrived, run, and resolved a media query.
     expect(withoutHeadline).not.toMatch(/opacity:\s*0(?![.\d])/);
-    expect(withoutHeadline).toContain(landingContent.hero.facts[0]!.value);
+    expect(withoutHeadline).toContain(landingContent.hero.secondaryAction);
   });
 
   it("carries the lead — the LCP element — with a CSS entrance rather than a JS one", () => {
@@ -68,7 +68,8 @@ describe("the hero fold paints on the first frame", () => {
     const h = landingContent.hero;
     expect(markup).toContain(h.pill.badge);
     expect(markup).toContain(h.primaryAction);
-    for (const fact of h.facts) expect(markup).toContain(fact.value);
+    expect(markup).toContain(h.secondaryAction);
+    expect(markup).toContain(h.lead);
   });
 });
 

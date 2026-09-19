@@ -52,10 +52,12 @@ export function FeatureGrid({
 }
 
 export function FeatureCell({
-  icon, title, subtitle, children, footer, className,
+  icon, title, titleAs: Title = "h3", subtitle, children, footer, className,
 }: {
   icon?: ReactNode | undefined;
   title: string;
+  /** The title's level. `h3` by default; `h2` where the grid sits directly under a page's `h1` (DEV-022 R-02), so the outline never skips a level. */
+  titleAs?: "h2" | "h3" | undefined;
   subtitle?: string | undefined;
   children: ReactNode;
   footer?: ReactNode | undefined;
@@ -78,10 +80,10 @@ export function FeatureCell({
             {icon}
           </span>
         )}
-        <h3 className="grid gap-0.5 text-body font-semibold tracking-tight text-ink">
+        <Title className="grid gap-0.5 text-body font-semibold tracking-tight text-ink">
           {title}
           {subtitle && <span className="text-meta font-normal text-ink-muted">{subtitle}</span>}
-        </h3>
+        </Title>
         <div className="text-data leading-relaxed text-ink-secondary">{children}</div>
         {footer && <div className="mt-1 grid gap-1.5 border-t border-line pt-3 text-data text-ink-secondary">{footer}</div>}
     </article>

@@ -19,7 +19,8 @@ const CONTROL = "h-(--gp-control-height-marketing) bg-canvas";
  * fallback. Required fields are checked here before a request is made, and
  * the first empty one takes focus. One live region announces every state.
  */
-export function PilotForm() {
+/** `titleAs`: the form title's level — `h2` on /pilot, where the block's own heading is the page's `h1` (DEV-022 R-02). */
+export function PilotForm({ titleAs: Title = "h3" }: { titleAs?: "h2" | "h3" } = {}) {
   const [state, setState] = useState<FormState>("idle");
   // Which required fields failed the last submit. The validator names them —
   // the form does not restate what counts as empty.
@@ -111,7 +112,7 @@ export function PilotForm() {
       className="grid gap-3 rounded-surface border border-line-strong bg-surface p-5 shadow-float wide:sticky wide:top-24 md:p-7"
     >
       <AuthorNote />
-      <h3 className="text-h3 font-semibold text-ink">{f.title}</h3>
+      <Title className="text-h3 font-semibold text-ink">{f.title}</Title>
       <p className="text-data text-ink-muted">{f.note}</p>
       <p className="text-meta text-ink-muted">{f.requiredNote}</p>
       <label className="absolute -left-[9999px] size-px overflow-hidden" aria-hidden="true">

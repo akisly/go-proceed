@@ -1,9 +1,16 @@
+import Link from "next/link";
+import { Check } from "lucide-react";
 import { Button } from "@goproceed/ui/components";
 import { LineReveal, Magnetic, Reveal } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import { ShareLink } from "./share-link";
 
-/** 21st.dev's Cta-4: a light card, copy left, actions right. The h2 rises line by line like every heading; `TextBlurIn` leaves the page (its two uses were the h1 and this — both are `LineReveal` now). */
+/**
+ * [DEV-022] The closing offer of every page but /pilot: what the pilot costs,
+ * in three marks, and the way to the form. The form itself lives on /pilot.
+ *
+ * 21st.dev's Cta-4: a light card, copy left, actions right. The h2 rises line by line like every heading; `TextBlurIn` leaves the page (its two uses were the h1 and this — both are `LineReveal` now).
+ */
 export function Cta() {
   const c = landingContent.cta;
   return (
@@ -20,9 +27,19 @@ export function Cta() {
           <div>
             <LineReveal as="h2" text={c.title} accent={c.titleAccent} className="display max-w-[24ch] text-[clamp(26px,3vw,38px)] leading-tight tracking-tight text-ink" />
             <Reveal size="stately"><p className="mt-5 max-w-[56ch] text-body leading-relaxed text-ink-secondary">{c.lead}</p></Reveal>
+            <Reveal size="stately">
+              <ul data-offer-points="" className="mt-5 flex flex-wrap gap-x-5 gap-y-2 text-data text-ink">
+                {c.points.map((point) => (
+                  <li key={point} className="inline-flex items-center gap-2">
+                    <span className="grid size-4 place-items-center rounded-pill border-[1.5px] border-ink-muted text-ink-secondary"><Check aria-hidden="true" strokeWidth={2} className="size-2.5" /></span>
+                    {point}
+                  </li>
+                ))}
+              </ul>
+            </Reveal>
           </div>
           <Reveal size="stately" className="flex flex-wrap gap-2.5 md:justify-self-end">
-            <Magnetic><Button asChild size="lg"><a href="#pilot">{c.primary}</a></Button></Magnetic>
+            <Magnetic><Button asChild size="lg"><Link href={c.primaryHref}>{c.primary}</Link></Button></Magnetic>
             <Magnetic><ShareLink /></Magnetic>
           </Reveal>
         </div>

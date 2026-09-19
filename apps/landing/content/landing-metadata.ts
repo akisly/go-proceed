@@ -1,24 +1,33 @@
 import type { Metadata } from "next";
+import { landingContent, type PageKey } from "./landing-content";
 
-const title = "GoProceed — робота готова до приймання, коли доказ на місці";
-const description =
-  "GoProceed для підрядників, які здають приховані роботи: вимога, доказ із майданчика і рішення технагляду в одному маршруті, який закінчується чернеткою акта.";
-
+/** The root layout's default — the home page's. Each page exports its own. */
 export function createLandingMetadata(origin: string): Metadata {
+  return createPageMetadata(origin, "home");
+}
+
+/**
+ * [DEV-022] One complete object per page, not a patch over the layout's.
+ * Next merges metadata SHALLOWLY (Next 16.3.1, generate-metadata.md §Merging):
+ * a page that set only `openGraph.url` would replace the layout's whole
+ * `openGraph` and drop the image, the locale and the site name with it.
+ */
+export function createPageMetadata(origin: string, page: PageKey): Metadata {
+  const { path, title, description } = landingContent.pages[page];
   return {
     metadataBase: new URL(origin),
     title,
     description,
     applicationName: "GoProceed",
-    // One canonical for every host that serves this app. Without it, apex,
-    // www, *.vercel.app and each preview deployment claim the page separately.
-    alternates: { canonical: "/" },
+    // One canonical per page for every host that serves this app. Without it,
+    // apex, www, *.vercel.app and each preview deployment claim it separately.
+    alternates: { canonical: path },
     openGraph: {
       title,
       description,
       type: "website",
       locale: "uk_UA",
-      url: "/",
+      url: path,
       siteName: "GoProceed",
       images: [
         {

@@ -162,7 +162,8 @@ packages/ui/src/base.css             the one hand-written stylesheet: variants, 
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
 packages/ui/src/motion/              the twenty-two motion primitives, and nothing else
 packages/ui/src/components/          the twenty-seven components, and nothing else
-apps/landing/app/                    routes and the fourteen landing blocks
+apps/landing/app/                    the four landing pages (/, /product, /roles, /pilot — DEV-022)
+apps/landing/components/blocks/      the landing blocks the pages compose
 apps/app/app/                        the product shell and its screens
 packages/testing/src/*.test.ts       every contract test
 packages/testing/qa/motion-audit.mjs the static motion audit

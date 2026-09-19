@@ -43,3 +43,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-019](DEV-019-invitation-token-at-rest.md) | done | BL-104: the raw invitation token no longer stored in `idempotency_records.response_body`; a replay returns a token-free receipt (migration `0088`) |
 | [DEV-020](DEV-020-idempotent-replay-authorization.md) | done | BL-103: a stored idempotent response replayed only to a caller still authorized for the command (migration `0089`, a required `authorize` step in `withIdempotency`) |
 | [DEV-021](DEV-021-invitation-revoke.md) | done | BL-107: an owner or admin can revoke a pending invitation, and the create's conflict names the blocking one (ADR-012) |
+| [DEV-022](DEV-022-landing-multipage.md) | verifying | The landing as a short home page and three sub-pages (`/product`, `/roles`, `/pilot`); the pilot form on `/pilot` only; page links in the header and footer; per-page metadata, sitemap and structured data |

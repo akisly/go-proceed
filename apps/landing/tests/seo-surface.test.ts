@@ -72,12 +72,25 @@ describe("robots.txt", () => {
 });
 
 describe("sitemap.xml", () => {
-  it("lists the one indexable URL and nothing else", async () => {
+  it("lists the four indexable pages and nothing else", async () => {
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://goproceed.app");
     const sitemap = (await import("../app/sitemap")).default;
-    const entries = sitemap();
-    expect(entries).toHaveLength(1);
-    expect(entries[0]?.url).toBe("https://goproceed.app/");
+    const urls = sitemap().map((e) => e.url);
+    expect(urls).toEqual([
+      "https://goproceed.app/",
+      "https://goproceed.app/product",
+      "https://goproceed.app/roles",
+      "https://goproceed.app/pilot",
+    ]);
+  });
+
+  it("has a page file for every URL it lists", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://goproceed.app");
+    const sitemap = (await import("../app/sitemap")).default;
+    for (const { url } of sitemap()) {
+      const path = new URL(url).pathname;
+      expect(() => read(join("app", path, "page.tsx")), path).not.toThrow();
+    }
   });
 
   it("dates the entry from the content, not from the build clock", async () => {

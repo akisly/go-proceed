@@ -28,12 +28,14 @@ export function Stepper({ children, className }: { children: ReactNode; classNam
 }
 
 export function Step({
-  index, count, when, title, children, className,
+  index, count, when, title, titleAs: Title = "h3", children, className,
 }: {
   index: number;
   count: number;
   when: string;
   title: string;
+  /** The title's level. `h3` by default; `h2` where the stepper sits directly under a page's `h1` (DEV-022 R-02), so the outline never skips a level. */
+  titleAs?: "h2" | "h3" | undefined;
   children: ReactNode;
   className?: string | undefined;
 }) {
@@ -46,7 +48,7 @@ export function Step({
       <span aria-hidden="true" className="-translate-x-[10%] absolute -left-6 top-1.5 size-3 rounded-pill border-2 border-line-strong bg-canvas" />
       <span aria-hidden="true" className="-translate-x-[10%] absolute -left-6 top-1.5 size-3 rounded-pill bg-ink" style={lit} />
       <p className="index-label mb-1.5">{when}</p>
-      <h3 className="text-h3 font-semibold text-ink">{title}</h3>
+      <Title className="text-h3 font-semibold text-ink">{title}</Title>
       <div className="mt-1.5 max-w-[44ch] text-data leading-relaxed text-ink-secondary">{children}</div>
     </article>
   );

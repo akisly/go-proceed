@@ -123,7 +123,7 @@
     backdrop-filter: blur(14px) saturate(1.2);
   }
 
-  /* Nav link underline: slides in from the left on hover, stays on the active section in the accent. */
+  /* Nav link underline: slides in from the left on hover, stays on the current page in the accent. */
   .landing-nav-link::after {
     content: "";
     position: absolute;
@@ -137,7 +137,7 @@
     transition: transform var(--gp-duration-base) var(--gp-ease-emphatic);
   }
   .landing-nav-link:hover::after { transform: scaleX(1); }
-  .landing-nav-link[aria-current="true"]::after { transform: scaleX(1); background: var(--color-accent); }
+  .landing-nav-link[aria-current="page"]::after { transform: scaleX(1); background: var(--color-accent); }
 
   /* The drafting grid inside a route card's media half, masked to its centre. */
   .landing-media-grid::before {

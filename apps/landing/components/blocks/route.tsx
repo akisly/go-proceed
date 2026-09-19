@@ -7,6 +7,7 @@ import photoPlanStamped from "../../public/images/photo-plan-stamped.jpg";
 import photoSchematic from "../../public/images/photo-schematic.jpg";
 import photoSiteTrays from "../../public/images/photo-site-trays.jpg";
 import photoTracing from "../../public/images/photo-tracing.jpg";
+import { AccentSpan } from "./accent-span";
 import { SectionHead } from "./section-head";
 import { UiAct } from "../visuals/ui-act";
 import { UiCapture } from "../visuals/ui-capture";
@@ -44,13 +45,17 @@ const GLOW = [
  * pins each card under the header on wide screens, shrinks and veils it as the
  * next arrives, and drifts the UI panel inside the media half; the media half
  * is tinted and lit per card, each over its stage's artefact (`GROUND`).
+ *
+ * `heading` is `h1` on /product, the page this block opens (DEV-022).
  */
-export function Route() {
+export function Route({ heading = "h2" }: { heading?: "h1" | "h2" }) {
   const r = landingContent.route;
+  // The cards sit one level under the block's heading: no h1 → h3 skip on /product (R-02).
+  const CardTitle = heading === "h1" ? "h2" : "h3";
   return (
     <section id="stages" tabIndex={-1} className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
       <div className="mx-auto max-w-marketing">
-        <SectionHead eyebrow={r.eyebrow} title={r.title} titleAccent={r.titleAccent} lead={r.lead}>
+        <SectionHead as={heading} eyebrow={r.eyebrow} title={r.title} titleAccent={r.titleAccent} lead={r.lead}>
           <p className="mt-4 flex flex-wrap gap-1.5">
             {r.codes.map((c) => (
               <span key={c.code} className="rounded-control border border-line bg-surface px-2.5 py-1 text-meta text-ink-muted">
@@ -73,9 +78,9 @@ export function Route() {
                       <span className="rounded-control border border-line-strong px-1.5 py-0.5 font-mono text-meta tracking-wide text-ink-muted">{step.index}</span>
                       <span className="index-label">{step.eyebrow}</span>
                     </p>
-                    <h3 className="display max-w-[16ch] text-mkt-display-3 leading-tight tracking-tight text-ink">
+                    <CardTitle className="display max-w-[16ch] text-mkt-display-3 leading-tight tracking-tight text-ink">
                       <AccentSpan text={step.title} accent={step.titleAccent} />
-                    </h3>
+                    </CardTitle>
                     <p className="max-w-[44ch] text-body leading-relaxed text-ink-secondary">{step.body}</p>
                     <p className="mt-auto flex items-center gap-2.5 border-t border-line pt-5 text-data text-ink-muted">
                       <i aria-hidden="true" className="size-3.5 rounded-control border border-line-strong" />{step.note}
@@ -96,11 +101,4 @@ export function Route() {
       </div>
     </section>
   );
-}
-
-/** The card's h3 is NOT a `.lines` heading in the prototype (l.826): the card itself enters, the accent is static. */
-function AccentSpan({ text, accent }: { text: string; accent: string }) {
-  const at = text.indexOf(accent);
-  if (at < 0) return <>{text}</>;
-  return <>{text.slice(0, at)}<span className="text-accent" data-accent="true">{accent}</span>{text.slice(at + accent.length)}</>;
 }

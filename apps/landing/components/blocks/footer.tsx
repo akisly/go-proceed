@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { landingContent } from "../../content/landing-content";
 import { PILOT_EMAIL } from "../../content/pilot-request";
 import { BrandMark } from "../brand-mark";
@@ -15,14 +16,14 @@ export function Footer() {
           {f.columns.map((col) => (
             <nav key={col.title} aria-label={col.title}>
               <h3 className="mb-3 text-meta font-semibold text-ink">{col.title}</h3>
-              {col.links.map((l) => (
-                <a
-                  key={l.label}
-                  href={l.href === "mailto" ? `mailto:${PILOT_EMAIL}` : l.href}
-                  className="block py-1 transition-colors duration-fast ease-out hover:text-ink"
-                >
+              {col.links.map((l) => l.href === "mailto" ? (
+                <a key={l.label} href={`mailto:${PILOT_EMAIL}`} className="block py-1 transition-colors duration-fast ease-out hover:text-ink">
                   {l.label}
                 </a>
+              ) : (
+                <Link key={l.label} href={l.href} className="block py-1 transition-colors duration-fast ease-out hover:text-ink">
+                  {l.label}
+                </Link>
               ))}
             </nav>
           ))}

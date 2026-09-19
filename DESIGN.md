@@ -353,9 +353,15 @@ partition. A table rule or a nested key-value row keeps its edge crisp.
 ### Navigation
 
 A fixed 58px bar (`header-height-marketing`) with a hairline at its base:
-mark and wordmark at left, four links with a sliding underline that also
-marks the active section, one ink button at right. Below `md` the links hide
-and the button shortens to «Пілот».
+mark and wordmark at left, the page links with a sliding underline that also
+marks the current page, one ink button at right. Below `md` the links move to
+a scrolling strip under the bar and the button shortens to «Пілот».
+
+*[2026-09-19 (DEV-022): the landing is four pages — `/`, `/product`,
+`/roles`, `/pilot` — so the links are page links and the underline marks the
+current page (`aria-current="page"`), not the section in view. Until then the
+bar held four in-page anchors. Below `md` the strip is the one set of links in
+the accessibility tree, because the desktop row is `display: none` there.]*
 
 ## Do's and Don'ts
 

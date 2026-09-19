@@ -160,3 +160,12 @@ rule the dashboard applies to shadcn). Each block names its source:
 Spec: `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` §6, amended by
 `docs/superpowers/specs/2026-09-06-landing-prototype-parity-design.md` §3 and §7
 (the full source list with URLs).
+
+*[2026-09-19 (DEV-022): the landing is now four pages. From
+https://parlo-black.vercel.app/ (read 2026-09-19; no licence published on the
+page) DEV-022 takes block **types** only — a product-scene hero, alternating
+«copy beside live UI» feature scenes (the home page's `Scenes` block), a
+bridge statement and a closing offer — and no code, CSS, asset or visual
+treatment. Every block in the table keeps the source named on its row; the
+`Scenes` block is composed of the route cards' existing UI windows. BL-082
+stays open on the reference's visual treatment.]*

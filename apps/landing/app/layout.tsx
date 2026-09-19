@@ -71,8 +71,8 @@ const fontVariables = [onestCyrillic, onestLatin, monoCyrillic, monoLatin]
 const DESIGN_CONTRACT = `<!--
 THESIS: The work is ready for acceptance when the proof is in place; the page shows one work package travelling from requirement to draft act.
 OWN-WORLD: Warm paper, cool ink, one cobalt mark; Onest and JetBrains Mono; recognisable 21st.dev blocks, no brutalism, pointer tilt within 3°, no 3D scenes.
-STORY: Problem (Рис. 01) → було і стало → roles → the five-card route → position → capture channels → provenance → the free pilot → questions → CTA.
-FIRST VIEWPORT: One promise, three entry facts, the product frame settling into the page.
+STORY: Four pages (DEV-022). Home: problem (Рис. 01) → three product scenes → position → the free-pilot offer. /product: the five-card route → capture channels → provenance. /roles: roles, the payer first → було і стало. /pilot: the plan, the one form, the questions.
+FIRST VIEWPORT: One promise, one definition of the product, the product frame settling into the page.
 FORM: Daylight parity — every animation design-references/contest-2026-09/daylight/index.html performs except Lenis, owner-approved 2026-09-06; the 2026-09-05 composition unchanged.
 FINISH: Unreviewed and undocumented is unfinished; the build ends with the seven-width QA pass and DESIGN.md.
 -->`;
@@ -81,6 +81,10 @@ FINISH: Unreviewed and undocumented is unfinished; the build ends with the seven
 // the whole `/` route dynamic (ƒ rather than ○ in the build output) and what
 // let every preview host canonicalise the page to itself. The origin now comes
 // from the environment at build time — see content/site-origin.ts.
+//
+// [DEV-022] This is the default, and it is the home page's. Each of the four
+// pages exports its own complete object (`createPageMetadata`), because Next
+// merges metadata shallowly.
 export const metadata: Metadata = createLandingMetadata(SITE_ORIGIN);
 
 /**
@@ -100,7 +104,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   // only; the dark block in tokens.generated.css is authored and inert, and
   // this attribute is the switch that turns it on when that decision is taken.
   return (
-    <html lang="uk" data-theme="light" className={fontVariables}>
+    // [DEV-022 R-01] `data-scroll-behavior`: globals.css sets `scroll-behavior:
+    // smooth` for in-page anchors, and since Next 16 the router no longer
+    // suspends it during a route transition unless this attribute asks
+    // (next/dist/docs/01-app/02-guides/upgrading/version-16.md §«Scroll Behavior
+    // Override»). Without it, following a link at the foot of one page animated
+    // the viewport up through the whole of the next. Hash links stay smooth.
+    <html lang="uk" data-theme="light" data-scroll-behavior="smooth" className={fontVariables}>
       <body className="landing-body">
         {/* Development only. The contract names internal paths, internal
           * process and internal vocabulary, and it shipped as the first node

@@ -1,8 +1,6 @@
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
 import { JSDOM } from "jsdom";
 import { describe, expect, it, vi } from "vitest";
-import LandingPage from "../app/page";
+import { PAGE_KEYS, renderPage } from "./helpers/pages";
 
 // Same mock the full-page render uses: `useReduced()` is conservative before
 // hydration, and without this the motion trees render their reduced branch.
@@ -30,7 +28,10 @@ vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
  * The computed-style half of the same check lives in `qa/landing.mjs`, which
  * walks real ancestors in a real browser. This one runs on every commit.
  */
-const dom = new JSDOM(renderToStaticMarkup(<LandingPage />));
+// [DEV-022] The four pages in one document, each under its own wrapper: the
+// claims below are about the site, and a block that moved to /roles or /product
+// must stay as still there as it was on the one page.
+const dom = new JSDOM(PAGE_KEYS.map((key) => `<div data-page="${key}">${renderPage(key)}</div>`).join(""));
 const doc = dom.window.document;
 const tilts = [...doc.querySelectorAll("[data-tilt]")];
 
@@ -51,7 +52,15 @@ describe("pointer tilt reaches every content card", () => {
     // working register, and a register whose panels tip under the cursor reads
     // to this audience as a toy — §9's own argument against decoration.
     expect(tilts).toHaveLength(1);
-    expect(doc.querySelectorAll("#hero [data-tilt]")).toHaveLength(1);
+    expect(doc.querySelectorAll("[data-page='home'] #hero [data-tilt]")).toHaveLength(1);
+  });
+
+  it("finds every block it speaks of somewhere on the site", () => {
+    // A selector that matches nothing passes `toHaveLength(0)` for the wrong
+    // reason; with the blocks spread over four pages that is an easy mistake.
+    for (const id of ["hero", "roles", "capture", "compare", "trust", "pilot", "stages", "faq", "sources", "scenes"]) {
+      expect(doc.querySelectorAll(`#${id}`).length, `#${id}`).toBeGreaterThanOrEqual(1);
+    }
   });
 
   it("moves the small things around the board by translating them, not rotating them", () => {
@@ -97,7 +106,7 @@ describe("pointer tilt reaches every content card", () => {
   });
 
   it("leaves every block outside the hero still", () => {
-    for (const id of ["roles", "capture", "compare", "trust", "pilot", "stages", "faq", "sources"]) {
+    for (const id of ["roles", "capture", "compare", "trust", "pilot", "stages", "faq", "sources", "scenes"]) {
       expect(doc.querySelectorAll(`#${id} [data-tilt]`), `#${id}`).toHaveLength(0);
     }
   });
