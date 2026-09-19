@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** a command whose idempotent callback returns a body carrying a bearer secret — a key starting `csrf` or ending in `token`, `url`, `link`, `secret` or `password`, singular or plural, at any depth, case-insensitively (the `link` suffix and plurals added by the owner after review) — fails closed before anything is stored: the transaction rolls back and the command answers 500. INV-102 stops resting on each route remembering it.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-19.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** new behaviour inside existing boundaries (`agents/COORDINATION.md`): coordinator implements, failing test first → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -56,6 +56,7 @@ The `csrf…` prefix was in the list the owner was shown with the first question
 | 6 | reviewing (`gp-reviewer` round 2, native) on `3e272e5` | **APPROVE** — the widened pattern is exactly the owner's set; no stored or plausible key falsely matches (`status`, `focus`, `results`, `playlist`, `linkedAt`, `tokenHash` pass; `hyperlink`, `hasToken` would fail closed, none stored); `JSON.parse(JSON.stringify(…))` stores the same text for every normal body. R2-01 low: the hosted check had no positive control and named no role. Fixed: total beside the flagged count, a root-level control, «run as a role that bypasses RLS»; output saved | round-2 report; `scratchpad/dev023-hosted-check-output.txt` | `gp-qa` |
 | 7 | verifying (`gp-qa`, native) on `db892ff` | **Verified for the scoped criteria:** 1–5 PASS (criterion 1 judged against the owner's widened set), 6 NOT RUN (not required). Its own runs: guard + authorize 24; call sites 4; helper DB 2; regression `invitations` 9, `invitation-revoke` 13, `upload-intents-create` 23, `telegram-bindings` 8, `m3-refusal` 29, `m5-external` 27 (after a load-induced timeout — Q1-03); turbo typecheck 10/10; validators; the hosted-check SQL locally (15/0, controls as expected). Three mutations each red for the right reason: the throw removed (all refusals red), the object checked instead of the stored JSON (only `toJSON` and `undefined` red), the pre-review pattern (only the four widened cases red). New: Q1-01 low (the error prints as `Error`, so a class-name grep proves nothing), Q1-02 note (a key with a line break passed: `.` without `s`), Q1-03 note (the `m5-external` flake, pre-existing), Q1-04 note (the `csrf` prefix not in the decision rows) | QA report; `scratchpad/dev023-qa-*.txt` | Q1 fixes |
 | 8 | rework (coordinator) | Q1-01: `IdempotencySecretError` sets `name`, asserted by every refusal case. Q1-02: the pattern takes the `s` flag; a line-break key is refused (a new case). Q1-03: BL-113 (P3). Q1-04: a note under the decision rows. Guard + authorize 25 passed; typecheck clean. Re-verification by `gp-qa` follows | `scratchpad/dev023-r3-*.txt` | `gp-qa` re-verify |
+| 9 | verifying (`gp-qa` re-verify, native) on `e68b5dc` | Q1-01 to Q1-04 in place: the error prints as `IdempotencySecretError` (removing the line turns all 17 refusal cases red); the `s` flag holds the line-break case (removing it turns only that case red); BL-113 filed; the note present. Guard + authorize 25, call sites 4, database typecheck, validator, `invitations` 9, `upload-intents-create` 23 (no refusal in either log); only two lines changed under code since `db892ff`. Criteria 1–5 still PASS | re-verify report; `scratchpad/qa2-*.txt` | Done |
 
 ## Findings and rework
 
@@ -86,6 +87,12 @@ Rework count and hypothesis changes: none — no QA FAIL and no blocker.
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The guard's unit test, red at `4181e14`, green after; refusals name the operation and the path, never the value | yes | `e68b5dc` | `dev023-red-unit.txt` (11 red on the first file); `dev023-r3-unit.txt` and `gp-qa`'s runs (25); `gp-qa`'s mutations (the throw, the stored-JSON check, the pre-review pattern, the `name`, the `s` flag — each red for its own cases) | PASS | judged against the owner's widened set (row 5); the 500 and the rollback read from the code, not run end to end |
+| 2. No existing stored body trips the guard | yes | `0765e2b` / `e68b5dc` | `dev023-r2-reg-*.txt` (12 suites, 171 passed, no refusal); `gp-qa`'s six suites at `db892ff` and two at `e68b5dc`; the hosted-check SQL locally (15/0, controls t/t/f); the static read of the contracts and call sites | PASS | assisted: some suites truncate tenant tables in the local database; between `0765e2b` and `e68b5dc` only the `s` flag and the error's name changed in code |
+| 3. The helper's existing tests and the call-site test | yes | `db892ff` / `e68b5dc` | `idempotency.test.ts` 2 (`gp-qa` at `db892ff`); `idempotency-authorize.test.ts` inside the 25; call sites 4 | PASS | — |
+| 4. INV-102, BL-108, STATUS; validators | yes | `e68b5dc` | `gp-qa`'s reading and validator runs | PASS | — |
+| 5. `pnpm turbo run typecheck` | yes | `e68b5dc` | `dev023-r3-typecheck-all.txt` (10/10, `--force`) | PASS | — |
+| 6. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 A blank cell is not a passed check. A required FAIL or NOT RUN prevents done, unless the task scope is explicitly revised and the original requirement stays recorded. A skipped test suite is NOT RUN. Record its environmental reason and the command that would settle it.
 
@@ -105,9 +112,9 @@ None: the change uses only the language and the repository's own helper.
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: see «Owning module and allowed edit paths», plus BL-113; commits `7c2b91a` (implementation), `0765e2b` (review round 1), `e68b5dc` (QA findings), the record commits and the closing commit.
+- Review independence: independent — `gp-reviewer` (APPROVE, then APPROVE on the widened pattern), `gp-security` (PASS), `gp-qa` on `db892ff` and its re-verification on `e68b5dc`, all native subagents. `gp-architect` not triggered (recorded). No rework round was counted.
+- Verified scope: criteria 1–5 PASS; criterion 6 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true» above — secrets under innocent names, the retryable 500, stored records unchecked (the hosted query before Q-9); BL-113.
+- Next bounded action and owner: owner — review and merge the PR; run the hosted-check query before the Q-9 push.
+- Final state and reason: done — every required criterion PASS; every finding fixed or recorded with its reason.
