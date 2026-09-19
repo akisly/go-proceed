@@ -54,14 +54,6 @@ export class IdempotencySecretError extends Error {
   }
 }
 
-/**
- * Whether a name is secret-shaped by the rule above. Also used to keep secrets
- * out of route paths and query strings (DEV-024, BL-109, INV-104).
- */
-export function isSecretKeyName(name: string): boolean {
-  return SECRET_KEY.test(name);
-}
-
 /** The paths of every secret-shaped key in `body`; never its values. */
 export function secretKeyPaths(body: unknown, path = ""): string[] {
   if (Array.isArray(body)) return body.flatMap((item, i) => secretKeyPaths(item, `${path}[${i}]`));

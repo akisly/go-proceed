@@ -2,24 +2,26 @@ import { describe, expect, it } from "vitest";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import { isSecretKeyName } from "@goproceed/database";
 
 /**
- * DEV-024 / BL-109 / INV-104: no route in this app takes a bearer secret from
- * its URL path or its query string.
+ * DEV-024 / BL-109 / INV-104: no route this app serves takes a bearer secret
+ * from its URL path or its query string.
  *
- * A token in the path or the query reaches hosting and proxy access logs,
- * `Referer` headers, analytics and CDN caches, and a link prefetch (an email
- * scanner, a chat preview) would consume it. The approved route table once
+ * A token in the path or the query reaches this origin's access logs,
+ * `Referer` headers, analytics and caches. The approved route table once
  * prescribed `invite/{token}`; the invitation link is now `invite#<token>`, and
  * the external review link was always `external/review#<token>` (INV-010): the
  * fragment is never sent, and the page exchanges it by POST.
  *
- * This reads the tree: every dynamic segment (`[name]`, `[...name]`) and every
- * literal `searchParams.get("name")` must not be secret-shaped by the rule that
- * guards stored responses (BL-108: `csrf…`, or ending in token, url, link,
- * secret, password, singular or plural).
+ * An allowlist, not a list of forbidden names: a secret under an innocent name
+ * (`[code]`, `?invite=`) would pass a block list. Every dynamic segment
+ * (`[x]`, `[...x]`, `[[...x]]`) must be an id (`…Id`) or a number (`…No`), and
+ * every query-string read must be one of the names below. Adding a name is a
+ * deliberate edit here, with the reason in the review.
  */
+const QUERY_NAMES = new Set(["assignee", "limit", "cursor", "evidenceObjectId", "next"]);
+const SEGMENT = /^[a-z][A-Za-z]*(Id|No)$/;
+
 const APP_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 
 function walk(dir: string): { dirs: string[]; files: string[] } {
@@ -40,18 +42,39 @@ function walk(dir: string): { dirs: string[]; files: string[] } {
   return { dirs, files };
 }
 
-export function secretSegments(dirs: readonly string[]): string[] {
+export function badSegments(dirs: readonly string[]): string[] {
   return dirs.flatMap((dir) => {
-    const segment = /\[(?:\.\.\.)?\[?(?:\.\.\.)?([^\]]+)\]?\]$/.exec(dir.split(/[\\/]/).pop() ?? "");
-    return segment && isSecretKeyName(segment[1]!) ? [dir] : [];
+    const segment = /^\[\[?(?:\.\.\.)?([^\]]+)\]\]?$/.exec(dir.split(/[\\/]/).pop() ?? "");
+    return segment && !SEGMENT.test(segment[1]!) ? [dir] : [];
   });
 }
 
-export function secretQueryReads(files: readonly { path: string; text: string }[]): string[] {
+/** Every literal query-string name a file reads, however it reads it. */
+export function queryReads(text: string): string[] {
+  const names: string[] = [];
+  // searchParams.get("x"), searchParams?.get("x"), useSearchParams().get("x"),
+  // new URLSearchParams(…).get("x"), and a variable holding either.
+  const holders = ["searchParams", "SearchParams\\([^)]*\\)"];
+  for (const m of text.matchAll(/const\s+(\w+)\s*=\s*(?:use|new\s+URL)SearchParams\(/g)) holders.push(m[1]!);
+  const receiver = new RegExp(`(?:${holders.join("|")})\\s*\\??\\.\\s*get\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g");
+  for (const m of text.matchAll(receiver)) names.push(m[1]!);
+  // const { x, y } = await searchParams / await props.searchParams
+  for (const m of text.matchAll(/\{([^{}]*)\}\s*=\s*await\s+(?:\w+\.)?searchParams\b/g)) {
+    names.push(...m[1]!.split(",").map((part) => part.split(":")[0]!.trim()).filter(Boolean));
+  }
+  // const params = await searchParams; … params.x / params["x"]
+  for (const m of text.matchAll(/const\s+(\w+)\s*=\s*await\s+(?:\w+\.)?searchParams\b/g)) {
+    const v = m[1]!;
+    for (const r of text.matchAll(new RegExp(`\\b${v}(?:\\s*\\??\\.\\s*(\\w+)|\\[\\s*["'\`]([^"'\`]+)["'\`]\\s*\\])`, "g"))) {
+      names.push(r[1] ?? r[2]!);
+    }
+  }
+  return names;
+}
+
+export function badQueryReads(files: readonly { path: string; text: string }[]): string[] {
   return files.flatMap(({ path, text }) =>
-    [...text.matchAll(/searchParams\s*\.\s*get\(\s*["'`]([^"'`]+)["'`]\s*\)/g)]
-      .filter((m) => isSecretKeyName(m[1]!))
-      .map((m) => `${path}: searchParams.get("${m[1]}")`));
+    queryReads(text).filter((name) => !QUERY_NAMES.has(name)).map((name) => `${path}: ${name}`));
 }
 
 describe("no route takes a secret from its URL (BL-109)", () => {
@@ -59,21 +82,30 @@ describe("no route takes a secret from its URL (BL-109)", () => {
   const src = walk(join(APP_ROOT, "src"));
   const rel = (p: string) => relative(APP_ROOT, p);
 
-  it("no dynamic route segment is secret-shaped", () => {
-    expect(app.dirs.length).toBeGreaterThan(20);
-    expect(secretSegments(app.dirs).map(rel)).toEqual([]);
+  it("every dynamic route segment is an id or a number", () => {
+    expect(app.dirs.filter((d) => /\[/.test(d)).length).toBeGreaterThan(20);
+    expect(badSegments(app.dirs).map(rel)).toEqual([]);
   });
 
-  it("no literal query-string read is secret-shaped", () => {
+  it("every query-string read is an allowlisted name", () => {
     const files = [...app.files, ...src.files].map((path) => ({ path: rel(path), text: readFileSync(path, "utf8") }));
     expect(files.length).toBeGreaterThan(50);
-    expect(secretQueryReads(files)).toEqual([]);
+    expect(files.flatMap(({ text }) => queryReads(text)).length).toBeGreaterThanOrEqual(QUERY_NAMES.size);
+    expect(badQueryReads(files)).toEqual([]);
   });
 
   it("the checks refuse what BL-109 describes and pass what the app uses", () => {
-    expect(secretSegments(["app/invite/[token]", "app/x/[...inviteLinks]", "app/x/[[...csrf]]", "app/v1/invitations/[invitationId]"]))
-      .toEqual(["app/invite/[token]", "app/x/[...inviteLinks]", "app/x/[[...csrf]]"]);
-    expect(secretQueryReads([{ path: "a.ts", text: `url.searchParams.get("token"); u.searchParams.get('cursor'); s.searchParams.get("signedUrl")` }]))
-      .toEqual(['a.ts: searchParams.get("token")', 'a.ts: searchParams.get("signedUrl")']);
+    expect(badSegments(["app/invite/[token]", "app/invite/[code]", "app/x/[...inviteLinks]", "app/x/[[...slug]]",
+      "app/v1/invitations/[invitationId]", "app/v1/contracts/[contractId]/versions/[versionNo]"]))
+      .toEqual(["app/invite/[token]", "app/invite/[code]", "app/x/[...inviteLinks]", "app/x/[[...slug]]"]);
+    const text = [
+      `url.searchParams.get("token"); u.searchParams?.get('cursor');`,
+      `const q = useSearchParams(); q.get("invite"); useSearchParams().get("code");`,
+      `new URLSearchParams(location.search).get("k");`,
+      `const { next, secret } = await props.searchParams;`,
+      `const params = await searchParams; params.next; params.tok; params["x"];`,
+    ].join("\n");
+    expect(badQueryReads([{ path: "a.ts", text }]).sort()).toEqual(
+      ["a.ts: code", "a.ts: invite", "a.ts: k", "a.ts: secret", "a.ts: tok", "a.ts: token", "a.ts: x"]);
   });
 });

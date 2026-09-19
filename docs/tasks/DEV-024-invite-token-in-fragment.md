@@ -8,14 +8,14 @@
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a correction to an approved architecture document plus a static guard (executed test code, so a behavior change): coordinator → `gp-reviewer` + `gp-security` → `gp-qa`.
 - **Triggered stages and why:** `gp-security` — the delivery of a bearer credential (BL-109 came from DEV-019's `gp-security`). `gp-architect` is not triggered: no migration, RLS, `/v1` contract or catalog of states changes; the route table is a design document and the owner ruled the shape. `gp-mobile` is not triggered: `apps/mobile` routes no invitation link (grep), and the custom scheme is v0.3. `gp-ui-reviewer`: no UI is built.
-- **Owning module and allowed edit paths:** `docs/architecture/system-overview.md` (the route row and a binding rule); `packages/database/src/idempotency.ts` (export `isSecretKeyName`, the BL-108 pattern); `apps/app/src/lib/url-secrets.test.ts` (new); `technical/database/invariant-catalog.csv` (INV-104); `docs/BACKLOG.md` (BL-109 closed); `docs/STATUS.md`; this record and the index.
+- **Owning module and allowed edit paths:** `docs/architecture/system-overview.md` (the route row, a binding rule and «The invitation link»); `apps/app/src/lib/url-secrets.test.ts` (new); `technical/database/invariant-catalog.csv` (INV-104); `docs/BACKLOG.md` (BL-109 closed); `docs/STATUS.md`; this record and the index.
 - **Read context:** root `AGENTS.md`; `agents/COORDINATION.md`; `docs/BACKLOG.md` BL-109; [DEV-019](DEV-019-invitation-token-at-rest.md) (S1-05); [DEV-023](DEV-023-idempotency-secret-guard.md) (the secret-name pattern); `apps/app/src/lib/external-link.ts` (`buildReviewLink`, INV-010).
 - **Linked spec, ADR or earlier task:** BL-109; INV-010. No ADR: no scope change; the owner ruled the design correction.
 - **Baseline:** `33ee859` (main after PR #104).
 - **Dependencies / constraints / out of scope:** no database runs are needed (the test reads files). Out of scope: building the redemption page, BL-013 (the token is not bound to the email), the custom-scheme form of the link (v0.3).
 - **Required acceptance criteria:**
-  1. `docs/architecture/system-overview.md` no longer lists `invite/{token}`: the row is `invite#<token>`, with the fragment-and-POST contract, and a binding rule forbids a bearer secret in a path segment or a query string for every route in that table.
-  2. `apps/app/src/lib/url-secrets.test.ts` refuses a dynamic route segment or a literal `searchParams.get(…)` whose name matches the BL-108 secret-name pattern, passes on the current tree, and turns red on a mutation that adds `invite/[token]` or a `searchParams.get("token")`.
+  1. `docs/architecture/system-overview.md` no longer lists `invite/{token}`: the row is `invite#<token>`, a section «The invitation link» sets the page's contract, and a binding rule forbids a bearer secret in a path segment or a query string of any link this app mints for its own origin, naming the third-party links outside it (amended after review: R1-01, R1-02, S1-01, S1-02).
+  2. `apps/app/src/lib/url-secrets.test.ts` holds every dynamic route segment to an id-shaped name and every query-string read to an allowlist, passes on the current tree, and turns red on mutations that add `invite/[token]`, `invite/[code]`, a page destructuring `{ token }` from `searchParams`, or a `searchParams?.get("token")` (amended after review: S1-03, R1-04; first written as a block list of secret-shaped names).
   3. INV-104, BL-109 and STATUS agree; `pnpm validate:canonical-docs` and `pnpm validate:agents` pass.
   4. `pnpm turbo run typecheck` passes; the new test and the database package's guard test pass.
   5. CI `verify` on the PR head (not required: GitHub Actions starts no jobs until October 2026).
@@ -55,7 +55,9 @@ Rework count and hypothesis changes:
 ## What is not true after this task
 
 - **The invitation redemption page does not exist.** An invitation token today reaches the invitee only as the `token` field of the create response, which the admin passes on by hand; nothing builds an `invite#<token>` link yet.
-- **The guard reads names, not flows**: a secret read from the URL under an innocent name (`searchParams.get("code")`), a dynamic `searchParams.get(name)`, or `new URL(...).pathname` parsed by hand passes it; so does a page component's `searchParams` prop (the login page reads `next`, which is not a secret).
+- **The guard is a text reading**: a dynamic `searchParams.get(name)`, a path parsed by hand from `new URL(...).pathname`, or a query read under an allowlisted name carrying a secret passes it; a new query name or a non-id segment fails it until someone adds it to the allowlist deliberately.
+- **The invitee must already have an Auth user** (S1-05): sign-in is OTP with `shouldCreateUser: false`; letting the invite page create one is an auth change for `gp-architect` and `gp-security`.
+- **Third-party links still carry secrets in their query** by the vendor's design (the Telegram deep link, Storage signed URLs, the Auth confirmation URL — BL-115); INV-104 names them as outside it.
 - **`apps/mobile` is not checked**; it routes no invitation link today.
 - **The token is still not bound to the invited email** (BL-013).
 - **No database test ran**: the change is a document and a static test. Nothing ran in CI.
