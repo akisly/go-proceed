@@ -56,14 +56,20 @@ export function queryReads(text: string): string[] {
   // new URLSearchParams(…).get("x"), and a variable holding either.
   const holders = ["searchParams", "SearchParams\\([^)]*\\)"];
   for (const m of text.matchAll(/const\s+(\w+)\s*=\s*(?:use|new\s+URL)SearchParams\(/g)) holders.push(m[1]!);
-  const receiver = new RegExp(`(?:${holders.join("|")})\\s*\\??\\.\\s*get\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g");
+  const receiver = new RegExp(`(?:${holders.join("|")})\\s*\\??\\.\\s*(?:get|getAll|has)\\(\\s*["'\`]([^"'\`]+)["'\`]`, "g");
   for (const m of text.matchAll(receiver)) names.push(m[1]!);
-  // const { x, y } = await searchParams / await props.searchParams
-  for (const m of text.matchAll(/\{([^{}]*)\}\s*=\s*await\s+(?:\w+\.)?searchParams\b/g)) {
+  // Every name at once: Object.fromEntries(searchParams) reads whatever arrives.
+  if (/Object\.fromEntries\(\s*(?:\w+\.)?searchParams\b/.test(text)) names.push("*");
+  // The awaited or use()d page prop: `await searchParams`, `await props.searchParams`, `use(searchParams)`.
+  const prop = String.raw`(?:await\s+(?:\w+\.)?searchParams\b|use\(\s*(?:\w+\.)?searchParams\s*\))`;
+  // const { x, y } = <prop>
+  for (const m of text.matchAll(new RegExp(String.raw`\{([^{}]*)\}\s*=\s*` + prop, "g"))) {
     names.push(...m[1]!.split(",").map((part) => part.split(":")[0]!.trim()).filter(Boolean));
   }
-  // const params = await searchParams; … params.x / params["x"]
-  for (const m of text.matchAll(/const\s+(\w+)\s*=\s*await\s+(?:\w+\.)?searchParams\b/g)) {
+  // (<prop>).x
+  for (const m of text.matchAll(new RegExp(String.raw`\(\s*` + prop + String.raw`\s*\)\s*\??\.\s*(\w+)`, "g"))) names.push(m[1]!);
+  // const params = <prop>; … params.x / params["x"]
+  for (const m of text.matchAll(new RegExp(String.raw`const\s+(\w+)\s*=\s*` + prop, "g"))) {
     const v = m[1]!;
     for (const r of text.matchAll(new RegExp(`\\b${v}(?:\\s*\\??\\.\\s*(\\w+)|\\[\\s*["'\`]([^"'\`]+)["'\`]\\s*\\])`, "g"))) {
       names.push(r[1] ?? r[2]!);
@@ -104,8 +110,11 @@ describe("no route takes a secret from its URL (BL-109)", () => {
       `new URLSearchParams(location.search).get("k");`,
       `const { next, secret } = await props.searchParams;`,
       `const params = await searchParams; params.next; params.tok; params["x"];`,
+      `const { t1 } = use(searchParams); const p2 = use(props.searchParams); p2.t2; (await searchParams).t3; (use(searchParams)).t4;`,
+      `searchParams.getAll("t5"); searchParams.has("t6"); Object.fromEntries(searchParams);`,
     ].join("\n");
     expect(badQueryReads([{ path: "a.ts", text }]).sort()).toEqual(
-      ["a.ts: code", "a.ts: invite", "a.ts: k", "a.ts: secret", "a.ts: tok", "a.ts: token", "a.ts: x"]);
+      ["a.ts: *", "a.ts: code", "a.ts: invite", "a.ts: k", "a.ts: secret", "a.ts: t1", "a.ts: t2", "a.ts: t3", "a.ts: t4",
+        "a.ts: t5", "a.ts: t6", "a.ts: tok", "a.ts: token", "a.ts: x"]);
   });
 });

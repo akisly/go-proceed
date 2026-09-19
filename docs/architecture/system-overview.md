@@ -406,19 +406,25 @@ yet; whoever builds it builds it to this. It follows the external review shell
 review](#protected-external-review)) wherever the two agree.
 
 - **The fragment is stripped first.** The page reads `location.hash` and calls
-  `history.replaceState` to remove it before any network request, as the review
-  shell's step 1 does, so the address bar and session history stop holding it.
-- **The token never enters a URL, a cookie or durable storage.** Not `next`, not
-  any other query parameter or path, not a cookie, not `localStorage` or
+  `history.replaceState` to remove it before its own code makes any request or
+  renders any link, as the review shell's step 1 does, so the address bar and
+  session history stop holding it. (The document and framework requests before
+  it never carry the fragment.)
+- **The token never leaves the page's memory.** Not `next`, not any other query
+  parameter or path, not a cookie, not `localStorage`, `sessionStorage` or
   IndexedDB. The proxy's sign-in redirect builds `next` from the path and query
   (`apps/app/proxy.ts`), and `safeNext` would carry a fragment placed inside it
   (`apps/app/src/lib/safe-next.ts`), so «put `#token` into `next`» would work and
   would put the token in the `/login` request line: it is forbidden.
 - **It survives sign-in without leaving the page.** `invite` is excluded from
-  the proxy's sign-in redirect, as `/external` is, and signs the member in on
-  the page itself, holding the token in memory. If a navigation to `/login`
-  cannot be avoided, the token waits in `sessionStorage`, written after the strip
-  and removed as soon as the accept POST answers.
+  the proxy's sign-in redirect and signs the member in on the page itself,
+  holding the token in memory. The exclusion is load-bearing, not redundant: a
+  signed-out visit would otherwise get a redirect to `/login?next=%2Finvite`,
+  the browser would carry the fragment onto `/login` (RFC 9110 §10.2.2), the
+  strip on `invite` would never run, and the token would sit in `/login`'s
+  address bar and then be lost. Exclude it by a pathname check in the proxy's
+  body, as `/login` is, rather than in its matcher, so the proxy can still send
+  the page's security headers.
 - **No third-party script and no referrer.** The page loads no analytics or
   other third-party script, and sends `Referrer-Policy: no-referrer` and
   `Cache-Control: no-store`, as `externalSecurityHeaders`
