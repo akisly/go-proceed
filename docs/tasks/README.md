@@ -44,3 +44,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-020](DEV-020-idempotent-replay-authorization.md) | done | BL-103: a stored idempotent response replayed only to a caller still authorized for the command (migration `0089`, a required `authorize` step in `withIdempotency`) |
 | [DEV-021](DEV-021-invitation-revoke.md) | done | BL-107: an owner or admin can revoke a pending invitation, and the create's conflict names the blocking one (ADR-012) |
 | [DEV-022](DEV-022-request-hash-target.md) | done | BL-112: a command's request hash binds its path target, so a key reused for another target is 409, not a replay of the first |
+| [DEV-023](DEV-023-idempotency-secret-guard.md) | done | BL-108: `withIdempotency` refuses to store a body carrying a bearer secret (INV-102 enforced in the helper) |

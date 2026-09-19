@@ -136,11 +136,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-105](#bl-105) | P3 | open | A capture event's work assignment is bound by nothing, so a defective service transaction could name another workspace's assignment |
 | [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
-| [BL-108](#bl-108) | P3 | open | `withIdempotency` stores any body its callback returns, secret or not |
+| [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
 | [BL-109](#bl-109) | P3 | open | The planned `invite/{token}` page would carry the invitation token in the URL path |
 | [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 | [BL-112](#bl-112) | P2 | closed → DEV-022 | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
+| [BL-113](#bl-113) | P3 | open | `m5-external.int.test.ts` times out under load and then deadlocks its next truncate |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1286,10 +1287,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-108"></a>
 ### BL-108 — P3 — `withIdempotency` stores any body its callback returns, secret or not
 
-- **State:** open
+- **State:** closed → DEV-023
 - **Legacy cite:** none
 - **Why:** DEV-019's `gp-security` review (S1-01). INV-102 (a stored idempotent response never carries a bearer secret) is held route by route: each route keeps its secret out of the body its callback returns. Nothing generic enforces it, so a new route that returns a token, link or signed URL from inside the block passes typecheck, review of an unrelated diff and every existing test, and stores the secret for the retention window — exactly how BL-104 arose. A guard in `packages/database/src/idempotency.ts` that refuses to store a body carrying a denylisted key (`token`, `link`, `url`, `signedUrl`, `telegramUrl`, `csrfToken`) at any depth, with a unit test where a `token` key throws, would make the rule structural. Check first that no current stored body legitimately uses one of those names. Ranked by DEV-019.
 - **Evidence:** observed 2026-09-18 at `8c3772a`: `idempotency.ts:89-99` stores `JSON.stringify(result.body)` unconditionally; DEV-019's `gp-architect` sweep of the 51 call sites.
+- **Closed 2026-09-19 by DEV-023:** `withIdempotency` refuses, before the insert, a body whose stored JSON carries a key starting `csrf` or ending in `token`, `url`, `link`, `secret` or `password` (singular or plural), at any depth and in any case; the command fails closed (owner: refuse, never strip; the `link` suffix and plurals added after review). `packages/database/src/idempotency-secret-guard.test.ts` was red at `4181e14` (11 secret bodies stored) and passes after; no existing route trips it.
 - **Depends on:** none.
 - **Deadline:** none recorded.
 
@@ -1334,6 +1336,16 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Closed 2026-09-19 by DEV-022:** `commandRoute` hashes the route's path parameters (UUIDs lower-cased) with the raw body (`apps/app/src/lib/request-hash.ts`), so every member-plane command binds its target; `invitations.revoke` dropped its local binding. The conflict detail now reads «уже використано для іншого запиту: інший обʼєкт або інше тіло запиту» (the Q1-03 note). `apps/app/tests/idempotency-authorization.int.test.ts` — `requirement_templates.publish`, `project_requirements.archive`, `parties.update` with an identical body — was red at `1f65fef` (200 for 409) and passes after. Transition (owner, 2026-09-19): a retry spanning the deploy is answered 409.
 - **Depends on:** none.
 - **Deadline:** before a client that retries with stored keys is deployed.
+
+<a id="bl-113"></a>
+### BL-113 — P3 — `m5-external.int.test.ts` times out under load and then deadlocks its next truncate
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-023's `gp-qa` (Q1-03). With the machine's load average at 9–13, the case «stores only a keyed HMAC…» hit vitest's 5-second default timeout (it takes 0.5–1.6 s unloaded); the next test's `TRUNCATE` then deadlocked (`40P01`) with the timed-out test's still-open transaction. Re-run alone it passed 27/27 (that case 2.8 s). Pre-existing, unrelated to DEV-023, and a false red for anyone running the suite on a busy machine. The fix is a per-case timeout for the slow cases and a teardown that ends a timed-out test's transaction before the next truncate. Ranked by DEV-023.
+- **Evidence:** observed 2026-09-19 at `db892ff`: DEV-023 QA logs `scratchpad/dev023-qa-*.txt` and the Postgres log naming the `TRUNCATE`.
+- **Depends on:** none.
+- **Deadline:** none recorded.
 
 ## Closed, kept for citations
 
