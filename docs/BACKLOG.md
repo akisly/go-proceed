@@ -137,7 +137,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
-| [BL-109](#bl-109) | P3 | open | The planned `invite/{token}` page would carry the invitation token in the URL path |
+| [BL-109](#bl-109) | P3 | closed → DEV-024 | The planned `invite/{token}` page would carry the invitation token in the URL path |
 | [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 | [BL-112](#bl-112) | P2 | closed → DEV-022 | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
@@ -1298,10 +1298,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-109"></a>
 ### BL-109 — P3 — The planned `invite/{token}` page would carry the invitation token in the URL path
 
-- **State:** open
+- **State:** closed → DEV-024
 - **Legacy cite:** none
 - **Why:** DEV-019's `gp-security` review (S1-05). `docs/architecture/system-overview.md:307` lists a v0.1 route `invite/{token}` for invitation redemption. A bearer token in the path reaches hosting and proxy access logs, `Referer` headers and analytics, and a link prefetch could consume it. The external review link avoids this by carrying its token in the URL fragment and exchanging it by POST (`apps/app/src/lib/external-link.ts:155-160`). The page does not exist yet, so nothing is exposed today; the entry exists so the page is designed with a fragment or a POST from the start. Ranked by DEV-019.
 - **Evidence:** observed 2026-09-18 at `8c3772a`: the route table row; no such page under `apps/app/app`.
+- **Closed 2026-09-19 by DEV-024** (owner: correct the design and add a guard; do not build the page): the route table's row is `invite#<token>` — the token in the fragment, exchanged by POST after sign-in — with a binding rule that no bearer secret travels in a path or a query string (INV-104); `apps/app/src/lib/url-secrets.test.ts` refuses a secret-shaped dynamic segment or `searchParams.get` read, proven red by an `invite/[token]` and a `searchParams.get("token")` mutation. The redemption page is still not built.
 - **Depends on:** none.
 - **Deadline:** before the redemption page is built.
 

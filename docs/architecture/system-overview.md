@@ -304,9 +304,18 @@ the repository, and `apps/app` carries no web app manifest or service worker.
 | `assignment/{id}` | v0.1 | One work assignment |
 | `occurrence/{id}` | v0.1 | One requirement occurrence — the object [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md) defines and the runtime has no table for |
 | `capture/{assignmentId}` | v0.1 | Evidence capture opened against one assignment |
-| `invite/{token}` | v0.1 | Membership invitation redemption |
+| `invite#<token>` | v0.1 | Membership invitation redemption. The token rides in the **fragment**, which no browser sends: `invite` is a shell that asks the member to sign in and then exchanges the token by POST to `/v1/invitations/accept`; a GET consumes nothing. Corrected 2026-09-19 by [DEV-024](../tasks/DEV-024-invite-token-in-fragment.md) (BL-109) from `invite/{token}`, which put a bearer token in the path |
 
 Rules that bind whenever those routes are built, in either client:
+
+- **A bearer secret never travels in a path segment or a query string.** An
+  invitation token, an external review token or anything like them rides in the
+  URL fragment and is exchanged by POST; a path or query token reaches access
+  logs, `Referer` headers, analytics and caches, and a link prefetch would
+  consume it. `apps/app/src/lib/url-secrets.test.ts` refuses a dynamic route
+  segment or a query-string read with a secret-shaped name (INV-104, DEV-024).
+  When the v0.3 native client takes the invitation link, its custom-scheme form
+  keeps the token out of the path too.
 
 - **A link is a destination, never an authorization.** Route resolution happens
   after the BFF has re-derived the identity chain for the target object. The
