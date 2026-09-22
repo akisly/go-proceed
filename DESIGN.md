@@ -169,8 +169,9 @@ decoration, so the page reads as an instrument someone can trust, not a pitch.
   container-scroll product frame, the dot-pattern background, feature-grid
   cells, a bento layout, a sticky feature stack, a stepper — taken as
   structure and restyled in roles, never installed as a second system.
-- Motion is the shared twenty-four-word vocabulary in `@goproceed/ui/motion`
-  *[2026-09-19, DEV-023: twenty-two until `PixelRain` and `OrbitText`]*;
+- Motion is the shared twenty-seven-word vocabulary in `@goproceed/ui/motion`
+  *[2026-09-19, DEV-023: twenty-two until `PixelRain` and `OrbitText`; DEV-024:
+  twenty-four until `CellField`, `ArcField` and `ParticleSphere`]*;
   the scroll-linked compositions are the ones the landing spec names, one per
   section.
   [Correction, 2026-09-06: was «Motion is the shared sixteen-word vocabulary
@@ -193,6 +194,26 @@ feature list beside large rounded cards; cards on a fading grid ground; a fact
 band; a radial closing block. The reference's typeface, Syne, has no Cyrillic
 (Google Fonts serves `greek`, `latin`, `latin-ext`), so Onest stays, at the
 reference's sizes and weights. `apps/app` is untouched by any of this.
+
+*[2026-09-19, DEV-024, owner: «пересмотри каждый блок референса детально,
+каждую анимацию, ховеры и тд, примени после на наш сайт. Используй threejs или
+@react-three/fiber».]* DEV-023 took the reference's form from still screenshots
+and so missed how it behaves. On `apps/landing` the landing also takes the
+reference's *behaviour*: the hero's pixel field is deep (about two fifths of the
+first screen), a twinkling raster with a soft light at the centre; the cells of
+the perspective floor and of the fact band's grid light up under the pointer
+and fade out (`CellField`); a dome of particles turns under the fact tiles and
+scatters from the pointer (`ParticleSphere`, three.js — the one WebGL scene, see
+the Don't list); the closing block's ground is a fan of arcs that lean toward
+the pointer (`ArcField`); and every card, row and tile answers a hover. All of
+it is ink on paper *[2026-09-19, later the same day, owner: all but the dome,
+the ink pills' travelling border, the closing arcs and a cell lit under the
+pointer, which are the accent — see the dated DEV-024 notes under «Do» below]*: a canvas word takes its colour from the computed `color` of
+its element, so the role is chosen by a class and no value is written in a
+scene. Pointer reactions exist only under `pointer: fine`; every loop is
+cancelled off screen and in a hidden tab; under reduced motion a canvas shows
+one still frame and reacts to nothing, and a hover changes a ground or a border
+but moves nothing (`motion-safe:` on every hover translate).
 
 ## Colors
 
@@ -381,6 +402,13 @@ current page (`aria-current="page"`), not the section in view. Until then the
 bar held four in-page anchors. Below `md` the strip is the one set of links in
 the accessibility tree, because the desktop row is `display: none` there.]*
 
+*[2026-09-19 (DEV-024, seventh pass, owner: the reference's first screen): the
+bar's ground is a layer of its own, `HeaderVeil`. From `md`, while the page
+stands at its top, a running script lifts it and the header is glass — on the
+home page over the hero's pixel field, whose dots stay dim under it; once the
+page scrolls the ground fades back. Served veiled: below `md`, and without
+JavaScript, it is the bar described above.]*
+
 ## Do's and Don'ts
 
 ### Do:
@@ -393,6 +421,49 @@ the accessibility tree, because the desktop row is `display: none` there.]*
   cobalt `beam` on its ink pills — the header's and at most one section's. No
   heading carries an accent phrase any more; the muted second line does that
   work. The area stays far under the Signal Budget.]*
+  *[2026-09-19, DEV-024, owner, `apps/landing` only: «к основным кнопкам добавь
+  такой же бордер как в референсе, что он там двигается, только цвет тоже
+  фиолетовый основной акцент» and, of the fact band's dome, «добавь свечение по
+  бокам как основной фиолетовый акцент, и точки так же фиолетовые». So the ink
+  pills' light is `beam-pill` — 2px, three seconds a lap, a bright head — where
+  DEV-023 set the 1px, seven-second `beam` *[sixth pass, owner: «посмотри
+  референс как сделана там, сделай точно так же только с нашим цветом» — now
+  the reference's own construction: a faint constant border and a soft accent
+  light moving along the pill's outline, under the pill's face; a browser
+  without `offset-path: inset()` gets the earlier conic ring]*; and the home page's particle dome
+  is drawn in the accent (`text-accent` on the canvas word) over two soft
+  accent lights at its lower corners. That is the one fold of the landing where
+  cobalt is an area and not a mark: the owner's exception, for that block. The
+  grids, the pixel field, the arcs and every other ornament stay ink.]*
+  *[2026-09-19, later, DEV-024, owner, third pass: «полоски в Перевірте
+  маршрут… сделай фиолетовым акцентом» and «может при наведении квадратиков
+  тоже сделать его фиолетовым акцентом». So the closing block's arcs and a cell
+  lit under the pointer (the hero's floor, the fact band's grid) are the accent
+  too. In the same pass the dome's lights moved: not «at its lower corners» any
+  more but a haze at the dome's flanks that climbs past its apex, as the
+  reference's does — a larger cobalt area in that fold *[fourth to sixth passes,
+  owner, three times «меньше»: the same form at about a seventh of that
+  strength — a tint at the dome's foot, no longer a visible area. After the
+  fifth pass `gp-ui-reviewer` warned that the next step down should be deleting
+  the layer; the owner's sixth «меньше» was honoured once more, and THAT is the
+  floor: below it the layer is deleted, not halved]* *[seventh pass, owner: the
+  hero's pixel field is the reference's halftone screen — a dot in every cell,
+  the whole width, from the top edge, behind a header that is glass while the
+  page stands at its top (`HeaderVeil`: from `md` only, lifted by a running
+  script, served veiled; the dots under it kept dim so that the links stay the
+  darkest marks in the bar) — still ink; the pills' constant rim
+  and light are brighter; and the fact band's cells are barred from the dome's
+  disc only, so the grid beside the dome answers the pointer again]*. This
+  supersedes the
+  last sentence of the note above. The whole list, and nothing else, is the
+  accent on `apps/landing`: the brand dot; the ink pills' travelling border;
+  the dome and its haze; the closing arcs; a cell lit under the pointer. What
+  stays ink or `surface`: the grid LINES, the hero's pixel field, the dotted
+  bands, and every hover of a card, row, tile, source cell or link. It is
+  still one hue, still never a text colour outside a display heading, and
+  `apps/app` keeps the ration whole. `gp-ui-reviewer` (third pass): the page
+  «still reads as ink on paper with one accent», the fact fold is the owner's
+  exception, and «a sixth cobalt thing would tip it».]*
 - **Do** build from recognisable community structure (21st.dev, Fora),
   restyled entirely in token roles, with the source named per block.
 - **Do** use thin rules and paper tone, not shadows, to separate ordinary
@@ -410,7 +481,16 @@ the accessibility tree, because the desktop row is `display: none` there.]*
 - **Don't** build a 3D scene — a WebGL or modelled scene, a camera, lit
   geometry. The landing's perspective floor (DEV-023) is one flat grid under a
   CSS `perspective` transform, static, and its pixel-rain field is a 2D canvas;
-  neither is a scene. Pointer tilt is permitted at ≤ 3° on a spring,
+  neither is a scene.
+  *[2026-09-19, DEV-024, owner: «Используй threejs или @react-three/fiber» —
+  for `apps/landing` only, the owner overrules this line for ONE scene: the
+  particle dome under the home page's fact tiles (`ParticleSphere`). It is
+  points, not lit or modelled geometry; one WebGL context a page; three.js
+  arrives in its own chunk only when the block nears the viewport, never before
+  the first screen; without WebGL, and under reduced motion, a still 2D frame
+  of the same dome stands in its place. A second scene is a new owner decision.
+  `apps/app` keeps the rule whole.]*
+  Pointer tilt is permitted at ≤ 3° on a spring,
   `pointer: fine` and desktop only, on the surfaces the landing spec names:
   the product frame, the role cells, the channel cards
   [Correction, 2026-09-06: was «Don't use 3D, tilt, or pointer-driven
@@ -421,6 +501,9 @@ the accessibility tree, because the desktop row is `display: none` there.]*
   and, since DEV-023, the hero's orbiting arc text (`gp-orbit`), the closing
   block's breathing mark (`gp-breathe`) and the `PixelRain` canvas. Each stops
   under reduced motion, where the rain is one still frame
+  *[2026-09-19, DEV-024: `ParticleSphere` turns for as long as it is on screen;
+  `CellField` and `ArcField` are not loops — they draw while something is
+  fading or easing and then rest with no frame pending]*
   [Correction, 2026-09-06: was «except the marquee — the Border Beam is
   finite».]
 - **Don't** imply status through colour alone, or claim a document is signed

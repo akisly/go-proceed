@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
-import { join } from "node:path";
-import { readFileSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { join, relative } from "node:path";
+import { readFileSync, readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 // Typed loosely on purpose: the audit is plain .mjs so CI can run it as
 // `node packages/testing/qa/motion-audit.mjs` with no build step.
@@ -107,7 +107,10 @@ describe("motion audit — the rules actually fire", () => {
 });
 
 describe("the vocabulary is closed", () => {
-  it("exports exactly twenty-four primitives", () => {
+  it("exports exactly twenty-seven primitives", () => {
+    // [2026-09-19, DEV-024] Twenty-four became twenty-seven — `CellField`,
+    // `ArcField` and `ParticleSphere`: the reference's pointer-reactive grounds
+    // and its particle dome, which DEV-023 missed by reading still screenshots.
     // [2026-09-19, DEV-023] Twenty-two became twenty-four — `PixelRain` and
     // `OrbitText`, the two first-screen words the landing reference needed.
     // The what and why are in `motion/index.ts`'s header and each file's own.
@@ -125,7 +128,44 @@ describe("the vocabulary is closed", () => {
       "TrackFill", "SlideSwap", "InViewProgress", "ScrollSettle", "LineReveal",
       "Depth", "Tilt", "Magnetic", "ScrollStack", "ScrollProgress",
       "PixelRain", "OrbitText",
+      "CellField", "ArcField", "ParticleSphere",
     ]));
+  });
+
+  it("keeps every frame loop inside the vocabulary, on one shared loop (DEV-024)", () => {
+    // `motion-audit.mjs` reads CSS and imports; a canvas is invisible to it. So
+    // the rule that a canvas word is cancelled off screen, rests when it has
+    // nothing to draw and stops under reduced motion holds only because there
+    // is ONE loop (`canvas-loop.ts`) and nothing else asks for frames.
+    const users: string[] = [];
+    const walk = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        if (entry.name === "node_modules" || entry.name === ".next" || entry.name === "qa" || entry.name === "qa-output") continue;
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (/\.(ts|tsx)$/.test(entry.name) && /requestAnimationFrame\(/.test(readFileSync(full, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, ""))) users.push(relative(repoRoot, full));
+      }
+    };
+    walk(join(repoRoot, "packages/ui/src"));
+    walk(join(repoRoot, "apps/landing/app"));
+    walk(join(repoRoot, "apps/landing/components"));
+    expect(users).toEqual(["packages/ui/src/motion/canvas-loop.ts"]);
+    // …and three.js is imported by the scene module alone, which `ParticleSphere` imports dynamically.
+    const three: string[] = [];
+    const scan = (dir: string): void => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) { if (entry.name !== "node_modules" && entry.name !== ".next") scan(full); }
+        else if (/\.(ts|tsx)$/.test(entry.name) && /from\s+["']three["']/.test(readFileSync(full, "utf8"))) three.push(relative(repoRoot, full));
+      }
+    };
+    scan(join(repoRoot, "packages/ui/src"));
+    scan(join(repoRoot, "apps/landing/app"));
+    scan(join(repoRoot, "apps/landing/components"));
+    expect(three).toEqual(["packages/ui/src/motion/particle-sphere-scene.ts"]);
+    const sphere = readFileSync(join(repoRoot, "packages/ui/src/motion/ParticleSphere.tsx"), "utf8");
+    expect(sphere).toMatch(/import\("\.\/particle-sphere-scene"\)/);
+    expect(sphere).not.toMatch(/^import .*particle-sphere-scene/m);
   });
 
   it("allows only cheap properties to transition", () => {

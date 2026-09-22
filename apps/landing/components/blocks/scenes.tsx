@@ -23,6 +23,10 @@ const MEDIA = {
  * U-01 before it). Below `wide` the cards stack into a column some 1 300px tall,
  * and an entrance keyed to a fraction of THAT leaves a blank fold under the
  * heading until a quarter of it has scrolled in — under reduced motion too.
+ *
+ * [DEV-024] A card answers the pointer as the reference's do: its ground
+ * brightens and its border firms, its grid comes up (`landing-gridcard`), and
+ * the widget inside lifts and parts (`group/scene`, read by `visuals/mini`).
  */
 export function Scenes() {
   const s = landingContent.scenes;
@@ -32,7 +36,7 @@ export function Scenes() {
       <div className="grid gap-4 wide:grid-cols-3">
         {s.items.map((scene) => (
           <Reveal key={scene.id} size="stately" className="grid">
-            <article data-scene={scene.id} className="landing-gridcard relative isolate grid min-h-[420px] grid-rows-[1fr_auto] overflow-hidden rounded-section border border-line-strong bg-canvas wide:min-h-[520px]">
+            <article data-scene={scene.id} className="landing-gridcard group/scene relative isolate grid min-h-[420px] grid-rows-[1fr_auto] overflow-hidden rounded-section border border-line-strong bg-canvas transition-colors duration-slow ease-out hover:border-ink-muted hover:bg-surface wide:min-h-[520px]">
               <div className="grid place-items-center overflow-hidden px-4 py-10">{MEDIA[scene.id]}</div>
               <div className="px-5 pb-6">
                 <p className="index-label mb-2">{scene.eyebrow}</p>

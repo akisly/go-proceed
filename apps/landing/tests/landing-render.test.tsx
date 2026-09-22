@@ -71,6 +71,10 @@ describe("the four pages — skeleton", () => {
       expect(pages[key], key).toContain('class="landing-frame"');
       // the header sits between the inner guide lines, not across the viewport
       expect(headerOf(pages[key]), key).toContain("landing-header-rail");
+      // [DEV-024, seventh pass] the header's ground is a layer of its own, first in the header, decorative, and SERVED
+      // VEILED: `data-at-top` is only ever written by a running script, so the no-script header keeps its bar.
+      expect(headerOf(pages[key]), key).toMatch(/<header[^>]*class="landing-header [^"]*isolate[^"]*"[^>]*><i aria-hidden="true" data-header-veil="" class="landing-header-veil"><\/i>/);
+      expect(headerOf(pages[key]), key).not.toContain("data-at-top");
       expect(headerOf(pages[key]), key).not.toContain("inset-x-0");
     }
   });
@@ -129,6 +133,17 @@ describe("the first screen (DEV-023: the reference's)", () => {
     expect(hero).toMatch(/<canvas[^>]*aria-hidden="true"[^>]*data-pixel-rain="running"/);
     expect(hero).toMatch(/<div[^>]*aria-hidden="true"[^>]*class="landing-floor/);
   });
+  it("lights the floor's cells under the pointer, on the floor's own plane, and leaves the middle of the screen to a light (DEV-024)", () => {
+    // The plane is an element so that it can carry the field; the field reads the
+    // pointer in the plane's own coordinates, so the browser resolves the perspective.
+    expect(hero).toMatch(/class="landing-floor-plane"><canvas[^>]*aria-hidden="true"[^>]*data-cell-field="off"[^>]*class="pointer-events-auto/);
+    // [owner, third pass] a lit cell is the accent; the pixel field above stays ink
+    expect(hero).toMatch(/class="landing-floor-plane"><canvas[^>]*class="[^"]*text-accent/);
+    expect(hero).toMatch(/<canvas[^>]*data-pixel-rain[^>]*class="[^"]*text-ink/);
+    expect(hero).toMatch(/<div[^>]*aria-hidden="true"[^>]*class="landing-hero-light/);
+    // Two fifths of the first screen, where DEV-023 gave it a quarter.
+    expect(hero).toMatch(/<canvas[^>]*data-pixel-rain[^>]*class="[^"]*h-\[42%\]/);
+  });
   it("turns the product's name on an arc over the heading, hidden from assistive technology", () => {
     expect(hero).toMatch(/<div[^>]*aria-hidden="true"[^>]*data-orbit="turning"/);
     expect(hero).toContain("orbit-spin");
@@ -144,7 +159,15 @@ describe("the first screen (DEV-023: the reference's)", () => {
   it("offers two pills — the ink one to the form's page with a travelling light, the paper one to the route", () => {
     expect(hero).toMatch(new RegExp(`href="${landingContent.pages.pilot.path}"[^>]*data-pill="ink"|data-pill="ink"[^>]*href="${landingContent.pages.pilot.path}"`));
     expect(hero).toMatch(new RegExp(`href="${landingContent.pages.product.path}"[^>]*data-pill="paper"|data-pill="paper"[^>]*href="${landingContent.pages.product.path}"`));
-    expect(count(hero, /class="beam"/g)).toBe(1);
+    // [DEV-024, owner] the primary pill's light is the reference's moving border in our accent:
+    // `beam-pill` (2px, 3 s), not the 1px `beam` — and only the ink pill carries it.
+    // [owner, sixth pass] …built the reference's way: a constant border, a light travelling along the outline, the pill's
+    // face over both — three decorative layers, in that order, before the label; the pill clips them.
+    expect(count(hero, /<i aria-hidden="true" data-pill-layer="ring" class="pill-ring"><\/i><i aria-hidden="true" data-beam="pill" class="pill-light in-focus-visible:hidden"><\/i><i aria-hidden="true" data-pill-layer="face" class="pill-face"><\/i>/g)).toBe(1);
+    expect(hero).not.toContain('class="beam"');
+    expect(hero).toMatch(/data-pill="ink"[^>]*class="[^"]*overflow-hidden[^"]*"|class="[^"]*overflow-hidden[^"]*"[^>]*data-pill="ink"/);
+    expect(hero).not.toMatch(/data-pill="paper"[^>]*><i/);
+    expect(hero).not.toMatch(/data-pill="paper"[^>]*class="[^"]*overflow-hidden|class="[^"]*overflow-hidden[^"]*"[^>]*data-pill="paper"/);
     expect(count(hero, /rounded-pill/g)).toBeGreaterThanOrEqual(2);
     expect(count(hero, /data-magnetic-area="self"/g)).toBe(2);
     // [DEV-022] the role facts live on /roles; [DEV-023] the state board on /product
@@ -218,9 +241,50 @@ describe("the home page's split, cards and fact band (DEV-023)", () => {
     expect(count(facts, /data-fact=""/g)).toBe(4);
     for (const tile of landingContent.facts.tiles) { expect(facts).toContain(tile.value); expect(facts).toContain(tile.label); }
     expect(facts).toContain("landing-gridfield");
+    // [DEV-024] The grid answers the pointer from a canvas UNDER the content, which takes no pointer events itself.
+    expect(facts).toMatch(/<canvas[^>]*aria-hidden="true"[^>]*data-cell-field="off"[^>]*class="pointer-events-none/);
+    // [DEV-024, owner] …but never under the dome: its box is barred to the field.
+    // [seventh pass] …from the dome ITSELF — the box that publishes its disc — not from the strip it stands in
+    expect(facts).toMatch(/<canvas[^>]*data-cell-exclude="\[data-particle-sphere\], \[data-tiles\]"/);
+    expect(facts).not.toMatch(/data-cell-exclude="[^"]*\[data-dome\]/);
+    // [owner, third pass] …nor under the tiles, which stand in a box of their own for that; and a lit cell is the accent
+    expect(facts).toMatch(/<div data-tiles="" class="mt-12"><div class="grid border/);
+    expect(facts).toMatch(/<canvas[^>]*data-cell-field="off"[^>]*class="[^"]*text-accent/);
     expect(facts).toContain(`href="${landingContent.facts.actionHref}"`);
     const said = landingContent.facts.tiles.map((t) => `${t.value} ${t.label}`).join(" ");
     expect(said).not.toMatch(/%|грн|₴|клієнт|економ/i);
+  });
+
+  it("raises a particle dome under the tiles: decorative, a still 2D layer under the WebGL one, nothing fetched at render (DEV-024)", () => {
+    const dome = facts.slice(facts.indexOf('data-dome=""'));
+    expect(dome).toMatch(/<div[^>]*aria-hidden="true"[^>]*data-particle-sphere="still"[^>]*class="pointer-events-none/);
+    // [DEV-024, owner] the dots are the accent — chosen by a text role, which the canvas reads; and its lights are the block's own ground
+    expect(dome).toMatch(/data-particle-sphere="still"[^>]*class="[^"]*text-accent/);
+    expect(dome).not.toMatch(/data-particle-sphere="still"[^>]*class="[^"]*text-ink/);
+    // [owner, third pass] the lights are a layer TALLER than the dome's box (they climb past its apex), and the
+    // dome's canvas reaches 96px above the box too — headroom, so its top dots are not cut at the canvas's edge.
+    expect(facts).toMatch(/data-dome=""[^>]*><div aria-hidden="true" class="landing-dome-light pointer-events-none absolute inset-x-0 bottom-0 h-\[160%\] wide:h-\[210%\]"><\/div>/);
+    expect(dome).toMatch(/data-particle-sphere="still"[^>]*class="[^"]*-top-24 bottom-0/);
+    expect(facts).not.toMatch(/data-dome=""[^>]*class="[^"]*landing-dome-light/);
+    expect(dome).toMatch(/<canvas[^>]*data-sphere-layer="still"/);
+    expect(dome).toMatch(/<canvas[^>]*data-sphere-layer="scene"/);
+    // the dome stands between the tiles and the sources
+    expect(facts.indexOf('data-fact=""')).toBeLessThan(facts.indexOf('data-dome=""'));
+    expect(facts.indexOf('data-dome=""')).toBeLessThan(facts.indexOf('id="sources"'));
+  });
+
+  it("sets the six sources as one even row of equal cells (DEV-024): every cell the same box, hairlines from the grid's gaps", () => {
+    const strip = inHome("sources", "cta-final");
+    const sources = strip.slice(0, strip.indexOf("</section>"));
+    const cells = [...sources.matchAll(/<li class="([^"]*)"/g)].map((m) => m[1]);
+    expect(cells).toHaveLength(6);
+    // one class string for all six: no «first cell» exception, which is what left the old strip ragged
+    expect(new Set(cells).size).toBe(1);
+    expect(cells[0]).toContain("min-h-[116px]");
+    expect(cells[0]).toContain("justify-items-center");
+    // whole rows at every breakpoint: 2 × 3, 3 × 2, 6 × 1
+    expect(sources).toMatch(/<ul class="[^"]*grid-cols-2[^"]*gap-px[^"]*md:grid-cols-3[^"]*wide:grid-cols-6/);
+    for (const item of landingContent.sources.items) expect(sources).toMatch(new RegExp(`<b[^>]*>${item.code.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}</b>`));
   });
 
   it("lists the six requirement sources where the reference sets its customers' logos — readable, and named", () => {
@@ -438,9 +502,13 @@ describe("faq and the closing block", () => {
     expect(faq).not.toContain('data-accordion-marker="plus"');
     expect(count(faq, /data-two-tone=""/g)).toBe(1);
   });
-  it.each(["home", "product", "roles"] as const)("%s closes on radial lines: the five record codes round a breathing mark, the offer in three phrases, the way to the form and the copy-link button", (key) => {
+  it.each(["home", "product", "roles"] as const)("%s closes on a fan of arcs: the five record codes round a breathing mark, the offer in three phrases, the way to the form and the copy-link button", (key) => {
     const cta = sectionOf(pages[key])("cta-final");
-    expect(cta).toContain("landing-burst");
+    // [DEV-024] arcs that lean toward the pointer, where DEV-023 drew straight conic rays in CSS
+    expect(cta).toMatch(/<canvas[^>]*aria-hidden="true"[^>]*data-arc-field="still"[^>]*class="arc-mask pointer-events-none/);
+    // [owner, third pass] the arcs are the accent
+    expect(cta).toMatch(/data-arc-field="still"[^>]*class="[^"]*text-accent/);
+    expect(cta).not.toContain("landing-burst");
     expect(cta).toContain("breathe");
     for (const code of landingContent.cta.codes) expect(cta).toContain(`>${code}<`);
     expect(cta).toContain(landingContent.cta.title);
@@ -456,7 +524,8 @@ describe("faq and the closing block", () => {
     for (const point of landingContent.cta.points) expect(cta).toContain(point);
   });
   it("has no closing offer on /pilot — the page is the offer", () => {
-    expect(pilotPage).not.toContain("landing-burst");
+    expect(pilotPage).not.toContain("data-arc-field");
+    expect(pilotPage).not.toContain('id="cta-final"');
   });
 });
 

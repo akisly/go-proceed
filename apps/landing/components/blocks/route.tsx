@@ -64,7 +64,7 @@ export function Route({ heading = "h2" }: { heading?: "h1" | "h2" }) {
                 </ul>
               </Reveal>
               <Reveal size="stately">
-                <div data-route-card="" className="grid min-h-[380px] place-items-center overflow-hidden rounded-section border border-line-strong bg-canvas p-5 md:p-10 wide:min-h-[520px]">
+                <div data-route-card="" className="grid min-h-[380px] place-items-center overflow-hidden rounded-section border border-line-strong bg-canvas p-5 transition-colors duration-slow ease-out hover:border-ink-muted hover:bg-surface md:p-10 wide:min-h-[520px]">
                   {MEDIA[i]}
                 </div>
               </Reveal>

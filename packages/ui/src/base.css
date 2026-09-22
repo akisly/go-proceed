@@ -215,6 +215,108 @@
   animation: gp-beam 7s linear infinite;
 }
 
+/* THE PILL'S LIGHT, THE REFERENCE'S WAY (DEV-024, owner, sixth pass: «кнопка с
+ * бордером цвет акцента, посмотри референс как сделана там, сделай точно так
+ * же только с нашим цветом»). Watched again, the reference's control is not a
+ * comet on a ring. It is three things stacked: a FAINT CONSTANT BORDER all the
+ * way round; a soft round LIGHT, some 110px wide, that TRAVELS ALONG THE
+ * BUTTON'S OUTLINE (a motion path), three seconds a lap; and the button's own
+ * face laid over both, inset by the border's 2px — so the light shows only in
+ * that 2px, as a glow that swells and fades along the border, with no head and
+ * no tail. Ours is the same construction in our colours: the border is
+ * `surface` at 30 % on the ink pill (16 % until the owner asked for brighter),
+ * the light is the accent.
+ *
+ * Three layers under the label, inside the pill's own stacking context
+ * (`isolate`), all below z 0 so the label needs no wrapper:
+ *   `pill-ring`   z −3  the constant border (it fills the pill; only 2px shows)
+ *   `pill-light`  z −2  the travelling light
+ *   `pill-face`   z −1  the face: the pill's own background, inherited, so the
+ *                       hover colour follows without a second rule
+ * The pill clips them (`overflow: hidden`), which an outline — the focus ring —
+ * is not subject to.
+ *
+ * `offset-path` with a basic shape is not in every browser the landing supports:
+ * MDN's compat data gives Chrome / Edge 116, Firefox 122, Safari 18, and the
+ * landing's browserslist starts at Chrome 111 and Safari 16.4 (checked
+ * 2026-09-19, DEV-024 «Sources»). So where it is missing, a nested
+ * `@supports not` redraws the light as the earlier 2px conic ring on `gp-beam`
+ * and hides the ring and face layers — a different drawing of the same idea,
+ * not a broken one. The keyframes are named `gp-beam-travel`: the
+ * pill's beam, named loop 2, by another route — the loop list does not grow.
+ * Absent under reduced motion: the light is `display: none` there and the
+ * constant border stays, which is a complete still control. */
+@utility pill-ring {
+  position: absolute;
+  inset: 0;
+  z-index: -3;
+  border-radius: inherit;
+  pointer-events: none;
+  /* [owner, seventh pass] «сделай ярче цвет бордера на этой кнопке»: the constant
+   * rim 16 % → 30 %, and the light below wider, fuller and lifted further. */
+  background: color-mix(in srgb, var(--gp-bg-surface) 30%, transparent);
+  @supports not (offset-path: inset(0 round 1px)) {
+    display: none;
+  }
+}
+@utility pill-light {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -2;
+  width: 140px;
+  aspect-ratio: 1;
+  pointer-events: none;
+  /* The core is lifted toward `surface`: pure cobalt on the ink pill is a dark blue on black, and the
+   * reference's light is the brightest thing on its button. Still one hue: the lift is 45 % at the very
+   * centre and gone by a third of the radius, where the accent stands at full strength. */
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--gp-text-accent) 55%, var(--gp-bg-surface)) 0%, var(--gp-text-accent) 32%, color-mix(in srgb, var(--gp-text-accent) 70%, transparent) 58%, transparent 100%);
+  offset-path: inset(0 round var(--gp-radius-pill));
+  offset-anchor: 50% 50%;
+  offset-rotate: 0deg;
+  animation: gp-beam-travel 3s linear infinite;
+  /* THE FALLBACK, nested so that it ships only where the class does and cannot
+   * lose a source-order race with the rule it overrides (R6-06): no motion path
+   * → the light is drawn as a 2px conic ring turning on `gp-beam`, the drawing
+   * the pill carried before the sixth pass. */
+  @supports not (offset-path: inset(0 round 1px)) {
+    /* Stated, not left to the parser dropping the value above: the fallback is
+     * then the same drawing wherever this block applies, however partial a
+     * browser's `offset-*` support is — and it can be forced on in a supporting
+     * browser to be looked at, which is how it was checked (R6-01). */
+    offset-path: none;
+    inset: 0;
+    z-index: 0;
+    width: auto;
+    aspect-ratio: auto;
+    border-radius: inherit;
+    padding: 2px;
+    background: conic-gradient(
+      from var(--gp-beam-angle),
+      transparent 0 52%,
+      color-mix(in srgb, var(--gp-text-accent) 55%, transparent) 70%,
+      var(--gp-text-accent) 88%,
+      color-mix(in srgb, var(--gp-text-accent) 45%, var(--gp-bg-surface)) 97%,
+      transparent 100%
+    );
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    animation: gp-beam 3s linear infinite;
+  }
+}
+@utility pill-face {
+  position: absolute;
+  inset: 2px;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background-color: inherit;
+  @supports not (offset-path: inset(0 round 1px)) {
+    display: none;
+  }
+}
+
 /* The dot-pattern spotlight under a feature cell's pointer. Two custom
  * properties the cell writes on pointer move; the mask is what makes it a
  * spotlight rather than a second background. */
@@ -256,10 +358,26 @@
  * observation; nothing of the reference's code or CSS is here.
  * ------------------------------------------------------------------------- */
 
-/* `PixelRain`'s fade: full at the top edge, gone by the foot of the canvas. */
+/* `PixelRain`'s fade: full at the top edge, gone by the foot of the canvas.
+ * [DEV-024] The field shapes itself now, so the mask only softens its foot —
+ * the last fifth. */
 @utility rain-mask {
-  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 22%, transparent 100%);
-  mask-image: linear-gradient(to bottom, #000 0%, #000 22%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 78%, transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 0%, #000 78%, transparent 100%);
+}
+
+/* `ArcField`'s fade (DEV-024): absent at the centre, where the closing heading
+ * stands, full in a ring round it, gone at the rim. */
+@utility arc-mask {
+  /* Below `md` the block is a tall, narrow box and its copy runs edge to edge:
+   * the clear core is as wide as the copy there, and the arcs show above and
+   * below it, not through it (B-01). */
+  -webkit-mask-image: radial-gradient(ellipse 140% 66% at 50% 50%, transparent 34%, #000 70%, transparent 100%);
+  mask-image: radial-gradient(ellipse 140% 66% at 50% 50%, transparent 34%, #000 70%, transparent 100%);
+  @media (min-width: 48rem) {
+    -webkit-mask-image: radial-gradient(ellipse 72% 84% at 50% 50%, transparent 16%, #000 52%, transparent 100%);
+    mask-image: radial-gradient(ellipse 72% 84% at 50% 50%, transparent 16%, #000 52%, transparent 100%);
+  }
 }
 
 /* `OrbitText`: a ring of glyphs, of which the window shows the top arc only,
@@ -437,6 +555,10 @@
     from { --gp-beam-angle: 0deg; }
     to   { --gp-beam-angle: 360deg; }
   }
+  @keyframes gp-beam-travel {
+    from { offset-distance: 0%; }
+    to   { offset-distance: 100%; }
+  }
 
   @keyframes gp-pulse {
     0%, 100% { opacity: 0.3; transform: scale(0.8); }
@@ -478,7 +600,8 @@
   /* The Border Beam does not travel here, and a ring that cannot travel is a
    * stray cobalt arc parked at 0deg — on the board's top edge and, since
    * DEV-023, on every ink pill. Absent, not still. */
-  .beam {
+  .beam,
+  .pill-light {
     display: none !important;
   }
 

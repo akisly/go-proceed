@@ -38,8 +38,8 @@ export function Intro() {
       </div>
       <Stagger className="grid grid-cols-2 border-t border-line wide:grid-cols-4">
         {c.strip.map((item) => (
-          <StaggerItem key={item.index} size="stately" className="border-b border-line px-4 py-7 odd:border-r md:px-6 md:py-9 wide:border-b-0 wide:border-r wide:last:border-r-0">
-            <p className="font-mono text-meta text-ink-muted">{item.index}</p>
+          <StaggerItem key={item.index} size="stately" className="group border-b border-line px-4 py-7 transition-colors duration-base ease-out odd:border-r hover:bg-surface md:px-6 md:py-9 wide:border-b-0 wide:border-r wide:last:border-r-0">
+            <p className="font-mono text-meta text-ink-muted transition-colors duration-base ease-out group-hover:text-ink">{item.index}</p>
             <h3 className="mt-4 text-h3 font-medium tracking-tight text-ink">{item.title}</h3>
             <p className="mt-2 text-data leading-relaxed text-ink-muted">{item.text}</p>
           </StaggerItem>

@@ -160,7 +160,7 @@ nothing, fails a test, or silently drops a class.
 packages/tokens/src/tokens.json      every value, the only hand-edited token file
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
-packages/ui/src/motion/              the twenty-four motion primitives, and nothing else (twenty-two until DEV-023)
+packages/ui/src/motion/              the twenty-seven motion primitives, and nothing else (twenty-two until DEV-023, twenty-four until DEV-024)
 packages/ui/src/components/          the twenty-seven components, and nothing else
 apps/landing/app/                    the four landing pages (/, /product, /roles, /pilot — DEV-022)
 apps/landing/components/blocks/      the landing blocks the pages compose
@@ -195,6 +195,19 @@ Terse on purpose; each is enforced by a named test.
    closing block's mark). `PixelRain` is a canvas primitive in
    `@goproceed/ui/motion`, not a CSS loop; it draws one still frame under
    reduced motion.]
+   [2026-09-19 (DEV-024, owner: the reference's behaviour, «Используй threejs
+   или @react-three/fiber»): three more canvas words — `CellField`, `ArcField`
+   (2D) and `ParticleSphere` (three.js, the landing's one WebGL scene). None is
+   a CSS loop, so `PERPETUAL_ALLOWLIST` stays at seven. All four canvas words
+   run on `motion/canvas-loop.ts`, which holds their rules: the loop is
+   CANCELLED off screen and in a hidden tab; a scene with nothing left to draw
+   rests with no frame pending; the colour is the element's computed `color`;
+   a pointer is followed only under `pointer: fine`; reduced motion is one
+   still frame. `requestAnimationFrame` outside `packages/ui/src/motion` is a
+   review failure; `motion-audit.test.ts` catches the plain call form
+   (`requestAnimationFrame(` in a `.ts`/`.tsx` file of `packages/ui/src` or the
+   landing's `app` and `components`) anywhere but `canvas-loop.ts` — a net for
+   the ordinary case, not a proof.]
 6. No hard-coded control height, no inline-style colour, no raw hex, no
    per-component focus ring, no `destructive` button variant → `component-contract`
 7. No literal Tailwind class string inside a test — assemble at runtime, or
@@ -314,6 +327,16 @@ class attribute. React does not warn and TypeScript cannot see it.
 Not an addition — a decision. It means the vocabulary was missing something, so
 the new primitive's own file header and `packages/ui/src/motion/index.ts`, whose header counts the vocabulary, say what and why in the same change *[2026-09-14 (DEV-007): this named the rewrite plan's §8.3, now Historical]*. The test that fails
 is the prompt to write that down.
+
+*[2026-09-19 (DEV-024)]* A canvas word — one that draws frames rather than
+animating an element — is built on `motion/canvas-loop.ts` and keeps its
+contract: the caller sizes the canvas in CSS and picks the colour with a text
+role (`text-ink`); the word is `aria-hidden` and takes no pointer events unless
+following the pointer is its purpose; it exposes its state as a `data-*`
+attribute for the harness, which measures the bitmap because the static audit
+cannot see a canvas. A heavy dependency (three.js) is imported dynamically
+inside the word, after the element nears the viewport, and the word names its
+fallback.
 
 ---
 

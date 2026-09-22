@@ -1,4 +1,4 @@
-import { OrbitText, PixelRain } from "@goproceed/ui/motion";
+import { CellField, OrbitText, PixelRain } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import { PillLink } from "./pill-link";
 
@@ -13,13 +13,27 @@ import { PillLink } from "./pill-link";
  * frame. The lead and the actions keep the CSS `entrance` (no JS before paint).
  * The product itself is the second block's job now; the state board moved to
  * /product, where the reference keeps its large app view.
+ *
+ * [DEV-024] Watched live, not from stills: the pixel field reaches two fifths
+ * of the screen and leaves the middle open for a soft light behind the heading
+ * (`landing-hero-light`); and the floor answers the pointer — the cell under it
+ * lights up and fades (`CellField`, on the floor's own plane, so the browser
+ * resolves the perspective). The floor's grid lines stay CSS. [owner, third
+ * pass] a lit cell is the accent: «при наведении квадратиков тоже сделать его
+ * фиолетовым акцентом».
  */
 export function Hero() {
   const h = landingContent.hero;
   return (
     <section id="hero" className="relative isolate grid min-h-dvh place-items-center overflow-hidden px-4 pb-24 pt-32 md:px-8">
-      <PixelRain className="absolute inset-x-0 top-0 -z-10 h-[24%] w-full text-ink" />
-      <div aria-hidden="true" className="landing-floor -z-10" />
+      <div aria-hidden="true" className="landing-hero-light -z-10" />
+      {/* `calm`: the header (58px + its hairline) is glass over this band at the top of the page — the dots under its links stay dim (B7-01). */}
+      <PixelRain calm={64} className="absolute inset-x-0 top-0 -z-10 h-[42%] w-full text-ink" />
+      <div aria-hidden="true" className="landing-floor -z-10">
+        <div className="landing-floor-plane">
+          <CellField pitch={60} track="self" strength={0.16} className="absolute inset-0 h-full w-full text-accent" />
+        </div>
+      </div>
       <div className="mx-auto grid max-w-[880px] justify-items-center text-center">
         <div className="entrance grid w-full justify-items-center">
           <OrbitText text={h.orbit} className="text-body font-medium text-ink" />

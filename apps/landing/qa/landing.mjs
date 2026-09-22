@@ -2,7 +2,9 @@
 // Builds and starts the landing, then photographs each of its four pages
 // (DEV-022) at seven widths, checks for horizontal overflow and console errors,
 // repeats under reduced motion, follows every internal link, measures the
-// Border Beam on the settled product frame, and writes public/og.png from /og.
+// Border Beam on the settled product frame, measures the pointer-reactive canvas
+// words (DEV-024 — a second browser with software WebGL for the particle dome),
+// and writes public/og.png from /og.
 // Run: pnpm --filter @goproceed/landing qa
 import { spawn } from "node:child_process";
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
@@ -365,6 +367,25 @@ try {
     out.rain = await first.evaluate(() => document.querySelector("[data-pixel-rain]")?.getAttribute("data-pixel-rain") ?? null);
     out.orbit = await first.evaluate(() => document.querySelector("[data-orbit]")?.getAttribute("data-orbit") ?? null);
     out.heroFillsViewport = await first.evaluate(() => document.querySelector("#hero").getBoundingClientRect().height >= window.innerHeight);
+    // [DEV-024, seventh pass] the header is glass over the hero's pixel field while the page stands at its top —
+    // the field starts at the very top edge, behind it — and takes its ground back once the page scrolls.
+    const veil = () => first.evaluate(() => ({ atTop: document.querySelector("header").getAttribute("data-at-top"), opacity: getComputedStyle(document.querySelector("[data-header-veil]")).opacity, rainTop: Math.round(document.querySelector("[data-pixel-rain]").getBoundingClientRect().top + scrollY) }));
+    out.veilAtTop = await veil();
+    // [B7-01] under the glass header the raster stays DIM: every cell still holds a dot, none darker than a dim one —
+    // on paper a bright dot beside the wordmark read as a full stop. Max alpha in the band vs the field below it (control).
+    out.rainUnderHeader = await first.evaluate(() => {
+      const c = document.querySelector("[data-pixel-rain]"); const k = c.height / c.getBoundingClientRect().height;
+      const px = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+      const band = Math.round(58 * k); let top = 0, below = 0, dotsInBand = 0;
+      for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) { const a = px[(y * c.width + x) * 4 + 3]; if (y < band) { if (a > top) top = a; if (a > 0) dotsInBand += 1; } else if (a > below) below = a; }
+      // [R7b-01] DOTS, not pixels: a band dot is 2 × 2 CSS px, so painted pixels / (4k²) is the number of dots,
+      // set against the number of cells the band holds (8px pitch, seven whole rows above 58px).
+      const cells = Math.ceil(c.getBoundingClientRect().width / 8) * 7;
+      return { maxAlphaInBand: top, maxAlphaBelow: below, dotsInBand: Math.round(dotsInBand / (4 * k * k)), cellsInBand: cells };
+    });
+    await first.evaluate(() => window.scrollTo({ top: 400, behavior: "instant" })); await new Promise((r) => setTimeout(r, 700));
+    out.veilScrolled = await veil();
+    await first.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" })); await new Promise((r) => setTimeout(r, 700));
     // [B2-01] the closing heading once broke into six one-word lines at 1440: its
     // measure sat on a wrapper, where `ch` is 16px. Lines = height / line-height.
     out.closingHeadingLines = await first.evaluate(() => { const h = document.querySelector("#cta-final h2"); const s = getComputedStyle(h); return Math.round(h.getBoundingClientRect().height / parseFloat(s.lineHeight)); });
@@ -385,7 +406,10 @@ try {
     out.orbitReduced = await firstReduced.evaluate(() => document.querySelector("[data-orbit]")?.getAttribute("data-orbit") ?? null);
     out.rainFramesReduced = await frames(firstReduced);
     // [B-04] a beam that cannot travel is not drawn
-    out.beamsShownReduced = await firstReduced.evaluate(() => [...document.querySelectorAll(".beam")].filter((el) => getComputedStyle(el).display !== "none").length);
+    // [R2-03] …counted through the pill's `data-beam` hook as well as the older `.beam` class, and
+    // with a positive control: «none shown» of none found would pass for the wrong reason.
+    out.beamsFoundReduced = await firstReduced.evaluate(() => document.querySelectorAll(".beam, [data-beam]").length);
+    out.beamsShownReduced = await firstReduced.evaluate(() => [...document.querySelectorAll(".beam, [data-beam]")].filter((el) => getComputedStyle(el).display !== "none").length);
     await firstReduced.close();
 
     // PILOT — the stepper's progress line. `html { scroll-behavior: smooth }`
@@ -423,6 +447,10 @@ try {
     await nav.close();
 
     const narrow = await open("/product", NARROW);
+    // below `md` the header is two rows of links and keeps its ground, at the top of the page too
+    const narrowHome = await open("/", NARROW);
+    out.veilNarrowAtTop = await narrowHome.evaluate(() => getComputedStyle(document.querySelector("[data-header-veil]")).opacity);
+    await narrowHome.close();
     out.tiltOnNarrow = await narrow.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
     out.depthFlatNarrow = await narrow.evaluate(() => [...document.querySelectorAll("[data-depth]")].every((el) => getComputedStyle(el).transform === "none"));
     // Below `wide` the sticky list is not shown at all; the rows stand alone.
@@ -487,7 +515,9 @@ try {
     && p.tiltOnWide === 1 && same(p.magneticOnWide, { home: 5, product: 4, roles: 1, pilot: 2 })
     && p.stickyCurrent === "#step-03" && p.stickyPosition === "sticky" && Math.abs(p.stickyTop - 96) <= 2 && p.stickyOnNarrow === "none"
     && p.closingHeadingLines <= 3
-    && p.rainFrames.painted && p.rainFrames.changed && p.rainFramesReduced.painted && !p.rainFramesReduced.changed && p.beamsShownReduced === 0
+    && p.rainFrames.painted && p.rainFrames.changed && p.rainFramesReduced.painted && !p.rainFramesReduced.changed && p.beamsFoundReduced >= 1 && p.beamsShownReduced === 0
+    && p.rainUnderHeader.maxAlphaInBand <= 90 && p.rainUnderHeader.maxAlphaBelow >= 150 && p.rainUnderHeader.dotsInBand >= 0.9 * p.rainUnderHeader.cellsInBand
+    && p.veilAtTop.atTop === "true" && p.veilAtTop.opacity === "0" && p.veilAtTop.rainTop === 0 && p.veilScrolled.atTop === "false" && p.veilScrolled.opacity === "1" && p.veilNarrowAtTop === "1"
     && p.rain === "running" && p.orbit === "turning" && p.rainReduced === "still" && p.orbitReduced === "still" && p.heroFillsViewport
     && p.stepperProgress >= 0.99
     // the board's two review cards on the home page, the «пілот» chip on /product
@@ -498,6 +528,335 @@ try {
     && p.routeChange.scrolledBefore > 1000 && p.routeChange.scrollYAfter === 0;
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
 
+  /**
+   * DEV-024 — THE POINTER-REACTIVE CANVAS WORDS, measured, because nothing else
+   * can see them: `motion-audit` reads CSS and imports, vitest has no canvas,
+   * and a `data-*` label only says what the word believes about itself.
+   *
+   *  - `CellField` (the hero floor, the fact band's grid): dark at rest; lit
+   *    after the pointer crosses it; DARK AGAIN once the trail has faded;
+   *  - `ArcField` (the closing block): the fan changes while the pointer is over
+   *    the block and returns to the very same picture after it leaves;
+   *  - AT REST NOTHING ASKS FOR A FRAME: with the closing block on screen, and
+   *    the hero and the dome off it, `requestAnimationFrame` is not called at
+   *    all — the rain and the sphere are cancelled, the arcs and the cells rest;
+   *  - under reduced motion none of them reacts, and no frame is asked for
+   *    anywhere on the page;
+   *  - on a touch device (`pointer: coarse`) the cells stay dark;
+   *  - `ParticleSphere`: in this browser (`--disable-gpu`: no WebGL) it keeps
+   *    its still 2D dome and logs nothing; in a second browser with software
+   *    WebGL the scene runs, its picture changes, and its loop is `paused` once
+   *    the block is off screen; three.js is in none of the first screen's
+   *    scripts, in exactly one of those fetched on approach, and in none at all
+   *    where WebGL is missing;
+   *  - a card hovered under reduced motion changes its border and moves nothing.
+   */
+  async function interactions() {
+    const out = {};
+    const WIDE = { width: 1440, height: 900, deviceScaleFactor: 1 };
+    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+    const openIn = async (b, path, { reduced = false, viewport = WIDE } = {}) => {
+      const page = await b.newPage();
+      await page.setViewport(viewport);
+      if (reduced) await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
+      await page.evaluateOnNewDocument(() => {
+        const raf = window.requestAnimationFrame.bind(window);
+        window.__rafCalls = 0;
+        window.requestAnimationFrame = (cb) => { window.__rafCalls += 1; return raf(cb); };
+      });
+      const errors = [];
+      page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+      page.on("pageerror", (e) => errors.push(String(e)));
+      await page.goto(`http://localhost:${PORT}${path}`, { waitUntil: "networkidle0" });
+      await sleep(400);
+      return { page, errors };
+    };
+    // Opaque pixels of a 2D canvas — 0 is a blank canvas.
+    const lit = (page, selector) => page.evaluate((sel) => {
+      const c = document.querySelector(sel);
+      const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+      let n = 0;
+      for (let i = 3; i < d.length; i += 4) if (d[i] > 0) n += 1;
+      return n;
+    }, selector);
+    const rafOver = async (page, ms) => { const a = await page.evaluate(() => window.__rafCalls); await sleep(ms); return (await page.evaluate(() => window.__rafCalls)) - a; };
+    const bring = async (page, selector, block = "center") => { await page.evaluate((sel, b) => document.querySelector(sel).scrollIntoView({ block: b, behavior: "instant" }), selector, block); await sleep(500); };
+
+    // 1 — the fact band's grid
+    const { page: home } = await openIn(browser, "/");
+    await bring(home, "#facts", "start");
+    const GRID = "#facts > canvas[data-cell-field]";
+    await home.mouse.move(8, 8);
+    out.gridRest = await lit(home, GRID);
+    // Over the FREE grid above the heading: since the owner's third pass the tiles are barred
+    // to the field («что бы под карточками не подсвечивался квадраты»), and the old sweep crossed them.
+    // …measured from the SECTION's own box, not from the viewport: the page settles after the
+    // jump and the band's top lands wherever it lands (146px in one run, not the 80px of its
+    // `scroll-mt`), and a fixed y swept the dotted band above the block instead (harness run 6).
+    const freeRow = (page) => page.evaluate(() => { const r = document.querySelector("#facts").getBoundingClientRect(); return { x0: r.left + 170, x1: r.right - 170, y: r.top + 40 }; });
+    const fr = await freeRow(home);
+    await home.mouse.move(fr.x0, fr.y); await home.mouse.move(fr.x1, fr.y + 12, { steps: 20 });
+    out.gridLit = await lit(home, GRID);
+    await home.mouse.move(8, 8); await sleep(1500);
+    out.gridFaded = await lit(home, GRID);
+    // [owner, third pass] no cell lights under the tiles — nor one that only overlaps their box
+    const tiles = await home.evaluate(() => { const r = document.querySelector("[data-tiles]").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+    await home.mouse.move(tiles.x + 20, tiles.y + tiles.h / 2); await home.mouse.move(tiles.x + tiles.w - 20, tiles.y + tiles.h / 2, { steps: 24 });
+    out.gridLitUnderTiles = await lit(home, GRID);
+    // [R3-07] …and the pointer really was over them: a sweep below the viewport delivers no event and reads 0 for the wrong reason
+    out.tilesHovered = await home.evaluate(() => !!document.querySelector("[data-tiles] :hover"));
+    await home.mouse.move(8, 8); await sleep(300);
+    // [owner, second pass] «чтобы под этим глобусом не подсвечивались квадраты»; [seventh pass] «ховер на
+    // квадраты так же должен работать вокруг глобуса, но не на самом глобусе». So the bar is the dome's DISC,
+    // which `ParticleSphere` publishes on its box (`data-disc`, its own px), not the strip it stands in:
+    //  - a sweep ACROSS the dome, well inside the disc, lights nothing;
+    //  - a sweep BESIDE the dome, inside the same strip, lights cells — the control, and the owner's ask;
+    //  - a sweep along the strip's whole width, crossing the dome's limb twice, lights cells on both sides of it
+    //    and not one lit pixel lies within the disc (the bar keeps 10px of margin; 6 are asked here).
+    await bring(home, "[data-dome]");
+    const domeBox = await home.evaluate(() => { const r = document.querySelector("[data-dome]").getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+    const disc = await home.evaluate(() => { const el = document.querySelector("[data-particle-sphere]"); const r = el.getBoundingClientRect(); const [cx, cy, radius] = (el.getAttribute("data-disc") ?? "").split(" ").map(Number); return { cx: r.x + cx, cy: r.y + cy, r: radius }; });
+    out.disc = { r: disc.r, published: Number.isFinite(disc.cx + disc.cy + disc.r) && disc.r > 100 };
+    const chord = (y) => Math.sqrt(Math.max(0, disc.r * disc.r - (disc.cy - y) * (disc.cy - y)));
+    const yIn = domeBox.y + domeBox.h * 0.7;
+    await home.mouse.move(disc.cx - chord(yIn) * 0.7, yIn); await home.mouse.move(disc.cx + chord(yIn) * 0.7, yIn, { steps: 24 });
+    out.gridLitUnderDome = await lit(home, GRID);
+    await home.mouse.move(8, 8); await sleep(300);
+    const yBeside = domeBox.y + domeBox.h * 0.25;
+    await home.mouse.move(domeBox.x + 24, yBeside); await home.mouse.move(Math.min(disc.cx - chord(yBeside) - 90, domeBox.x + 320), yBeside, { steps: 16 });
+    out.gridLitBesideDome = await lit(home, GRID);
+    await home.mouse.move(8, 8); await sleep(1500);
+    // [R7-01] TWO sweeps, each read at once: a lit cell fades in under a second, so one long sweep read at its end
+    // could find its first cells already dark on a slow machine — a FAIL with nothing wrong.
+    const readLimb = () => home.evaluate((sel, d) => {
+      const c = document.querySelector(sel); const r = c.getBoundingClientRect(); const k = c.width / r.width;
+      const px = c.getContext("2d").getImageData(0, 0, c.width, c.height).data;
+      let lit = 0, inside = 0, nearest = Infinity;
+      for (let y = 0; y < c.height; y += 2) for (let x = 0; x < c.width; x += 2) {
+        if (px[(y * c.width + x) * 4 + 3] === 0) continue;
+        lit += 1;
+        const dist = Math.hypot(r.x + x / k - d.cx, r.y + y / k - d.cy);
+        if (dist < nearest) nearest = dist;
+        if (dist < d.r + 6) inside += 1;
+      }
+      return { lit, inside, clearance: lit ? Math.round(nearest - d.r) : null };
+    }, GRID, disc);
+    // …and OUTWARD, from the dome's centre line to the strip's edge (R7b-04): the cells read are then the freshest.
+    await home.mouse.move(disc.cx, yIn); await home.mouse.move(domeBox.x + 24, yIn, { steps: 14 });
+    const leftHalf = await readLimb();
+    await home.mouse.move(8, 8); await sleep(1500);
+    await home.mouse.move(disc.cx, yIn); await home.mouse.move(domeBox.x + domeBox.w - 24, yIn, { steps: 14 });
+    const rightHalf = await readLimb();
+    out.gridAcrossLimb = { lit: leftHalf.lit + rightHalf.lit, inside: leftHalf.inside + rightHalf.inside, left: leftHalf.lit, right: rightHalf.lit, clearance: Math.min(leftHalf.clearance ?? Infinity, rightHalf.clearance ?? Infinity) };
+    await home.mouse.move(8, 8); await sleep(1500);
+    // [R3-01] THE CONTROL is computed, not a fixed line: since the tiles are barred too, a row
+    // at «dome top − 80» is clear only for some grid alignments. The first row that starts at
+    // or below the tiles' foot must end at or above the dome's top — at 1440 the 128px gap
+    // always holds one (128 ≥ 2·62 − 1) — and the sweep runs along ITS middle.
+    const clearRow = await home.evaluate(() => { const c = document.querySelector("#facts > canvas[data-cell-field]").getBoundingClientRect(); const t = document.querySelector("[data-tiles]").getBoundingClientRect(); const d = document.querySelector("[data-dome]").getBoundingClientRect(); const top = Math.ceil((t.bottom - c.top) / 62) * 62; return { top, fits: top + 62 <= d.top - c.top, y: c.top + top + 31 }; });
+    out.clearRow = clearRow;
+    await home.mouse.move(domeBox.x + domeBox.w * 0.15, clearRow.y);
+    await home.mouse.move(domeBox.x + domeBox.w * 0.85, clearRow.y, { steps: 24 });
+    out.gridLitAboveDome = await lit(home, GRID);
+    await home.mouse.move(8, 8); await sleep(1500);
+    // the primary pill's border travels: the ring's angle moves, 3 s a lap
+    out.pillBeam = await home.evaluate(async () => {
+      const el = document.querySelector('[data-pill="ink"] [data-beam="pill"]');
+      if (!el) return null;
+      const s = getComputedStyle(el);
+      // [owner, sixth pass] the reference's construction: the light travels ALONG THE OUTLINE (a motion path), it is not an
+      // angle turning. So what must move is `offset-distance`, and the box itself round the pill; the constant border is the
+      // 2px the face leaves uncovered.
+      const pill = el.closest("[data-pill]");
+      const face = pill.querySelector('[data-pill-layer="face"]');
+      const ringLayer = pill.querySelector('[data-pill-layer="ring"]');
+      const where = () => { const r = el.getBoundingClientRect(); return `${Math.round(r.x)},${Math.round(r.y)}`; };
+      // [R6-02] BOTH must move, each on its own: with the path lost, `offset-distance` still animates in computed
+      // style while the light sits parked in the pill's corner — and with the keyframes lost, nothing moves at all.
+      const d0 = getComputedStyle(el).offsetDistance; const b0 = where(); await new Promise((r) => setTimeout(r, 400)); const d1 = getComputedStyle(el).offsetDistance; const b1 = where();
+      const pr = pill.getBoundingClientRect(); const fr = face.getBoundingClientRect();
+      return { moves: d0 !== d1 && b0 !== b1, distanceMoves: d0 !== d1, boxMoves: b0 !== b1, animation: s.animationName, path: s.offsetPath.slice(0, 40), duration: s.animationDuration, ring: `${Math.round(fr.x - pr.x)}px`, faceIsPillColour: getComputedStyle(face).backgroundColor === getComputedStyle(pill).backgroundColor, ringPainted: getComputedStyle(ringLayer).backgroundColor !== "rgba(0, 0, 0, 0)", clipped: getComputedStyle(pill).overflow, count: document.querySelectorAll('[data-beam="pill"]').length, inkPills: document.querySelectorAll('[data-pill="ink"]').length, onPaper: document.querySelectorAll('[data-pill="paper"] [data-beam]').length };
+    });
+    // [B2-04] …and it steps aside for the focus ring: two cobalt rings round one control blur which is the focus
+    await home.keyboard.press("Tab");
+    out.pillBeamFocused = await home.evaluate(() => { const a = document.querySelector('#hero [data-pill="ink"]'); a.focus(); const shown = getComputedStyle(a.querySelector("[data-beam]")).display; const visible = a.matches(":focus-visible"); a.blur(); return { focusVisible: visible, beam: shown }; });
+    // the dome's dots and lights are the accent, the grid stays ink
+    out.domeColours = await home.evaluate(() => {
+      const probe = document.createElement("i"); probe.className = "text-accent"; document.body.append(probe);
+      const accent = getComputedStyle(probe).color; probe.remove();
+      // [R2-04] not the class again — a PAINTED pixel of the still 2D dome (this browser has no
+      // WebGL, so that layer is what shows), and the lights' computed gradient.
+      const still = document.querySelector('[data-sphere-layer="still"]');
+      const d = still.getContext("2d").getImageData(0, 0, still.width, still.height).data;
+      let best = -1; for (let i = 3; i < d.length; i += 4) if (d[i] > (best < 0 ? 200 : d[best + 3])) best = i - 3;
+      const [r, g, b] = accent.match(/[\d.]+/g).map(Number);
+      const near = (x, y) => Math.abs(x - y) <= 6;
+      const lights = getComputedStyle(document.querySelector("[data-dome] .landing-dome-light")).backgroundImage;
+      return {
+        dotsAreAccent: getComputedStyle(document.querySelector("[data-particle-sphere]")).color === accent,
+        // [owner, third pass] the lit cells — here and on the hero's floor — and the closing arcs are the accent too; the pixel field stays ink
+        gridIsAccent: getComputedStyle(document.querySelector("#facts > canvas[data-cell-field]")).color === accent,
+        floorIsAccent: getComputedStyle(document.querySelector("#hero .landing-floor-plane canvas")).color === accent,
+        arcsAreAccent: getComputedStyle(document.querySelector("#cta-final canvas[data-arc-field]")).color === accent,
+        rainIsAccent: getComputedStyle(document.querySelector("[data-pixel-rain]")).color === accent,
+        // the dome's canvas stands 96px taller than its box, and its topmost painted dot is clear of the canvas's top edge
+        domeHeadroom: (() => { const c = document.querySelector('[data-sphere-layer="still"]'); const box = document.querySelector("[data-dome]").getBoundingClientRect(); const cr = c.getBoundingClientRect(); const px = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let top = -1; for (let y = 0; y < c.height && top < 0; y++) for (let x = 0; x < c.width; x++) if (px[(y * c.width + x) * 4 + 3] > 0) { top = y; break; } return { above: Math.round(box.top - cr.top), firstPaintedRow: Math.round(top / (c.width / cr.width)) }; })(),
+        paintedDot: best < 0 ? null : [d[best], d[best + 1], d[best + 2]], accent: [r, g, b],
+        paintedDotIsAccent: best >= 0 && near(d[best], r) && near(d[best + 1], g) && near(d[best + 2], b),
+        lightsAreGradients: (lights.match(/radial-gradient/g) ?? []).length === 2 && /linear-gradient/.test(lights),
+      };
+    });
+
+    // 2 — the hero floor, read through its perspective
+    await home.evaluate(() => window.scrollTo({ top: 0, behavior: "instant" })); await sleep(500);
+    const FLOOR = "#hero .landing-floor-plane canvas[data-cell-field]";
+    out.floorRest = await lit(home, FLOOR);
+    await home.mouse.move(260, 780); await home.mouse.move(520, 840, { steps: 12 });
+    out.floorLit = await lit(home, FLOOR);
+    await home.mouse.move(8, 8); await sleep(1500);
+    out.floorFaded = await lit(home, FLOOR);
+
+    // 3 — the closing block's arcs, and the page at rest. At the FOOT of the
+    // page: with the block centred the dome above it still reaches 18px into the
+    // viewport, under the header, and its loop is rightly running.
+    const ARCS = "#cta-final canvas[data-arc-field]";
+    const toFoot = async (page) => { await page.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })); await sleep(700); };
+    const inBlock = (page, fx, fy) => page.evaluate((x, y) => { const r = document.querySelector("#cta-final").getBoundingClientRect(); const top = Math.max(r.top, 70); return { x: r.left + r.width * x, y: top + (Math.min(r.bottom, innerHeight) - top) * y }; }, fx, fy);
+    await toFoot(home);
+    await home.mouse.move(8, 8); await sleep(900);
+    const picture = () => home.evaluate((sel) => document.querySelector(sel).toDataURL(), ARCS);
+    const arcsRest = await picture();
+    out.rafAtRest = await rafOver(home, 600);
+    const from = await inBlock(home, 0.2, 0.3); const to = await inBlock(home, 0.3, 0.6);
+    await home.mouse.move(from.x, from.y); await home.mouse.move(to.x, to.y, { steps: 8 }); await sleep(500);
+    out.arcsLean = (await picture()) !== arcsRest;
+    out.arcsState = await home.evaluate((sel) => document.querySelector(sel).getAttribute("data-arc-field"), ARCS);
+    // leave the block: the header is outside it
+    await home.mouse.move(8, 8); await sleep(1800);
+    out.arcsReturn = (await picture()) === arcsRest;
+    out.rafAfterLeave = await rafOver(home, 600);
+    await home.close();
+
+    // 4 — reduced motion: no reaction, no frames
+    const { page: calm } = await openIn(browser, "/", { reduced: true });
+    await bring(calm, "#facts", "start");
+    const frCalm = await freeRow(calm);
+    await calm.mouse.move(frCalm.x0, frCalm.y); await calm.mouse.move(frCalm.x1, frCalm.y + 12, { steps: 20 });
+    out.gridLitReduced = await lit(calm, GRID);
+    out.sphereReduced = await calm.evaluate(() => document.querySelector("[data-particle-sphere]").getAttribute("data-particle-sphere"));
+    out.stillDomePainted = (await lit(calm, '[data-sphere-layer="still"]')) > 0;
+    await toFoot(calm);
+    const calmArcs = await calm.evaluate((sel) => document.querySelector(sel).toDataURL(), ARCS);
+    const c1 = await inBlock(calm, 0.2, 0.3); const c2 = await inBlock(calm, 0.3, 0.6);
+    await calm.mouse.move(c1.x, c1.y); await calm.mouse.move(c2.x, c2.y, { steps: 8 }); await sleep(400);
+    out.arcsLeanReduced = (await calm.evaluate((sel) => document.querySelector(sel).toDataURL(), ARCS)) !== calmArcs;
+    out.arcsPaintedReduced = (await lit(calm, ARCS)) > 0;
+    out.rafReduced = await rafOver(calm, 600);
+    // [B-02] A hover under reduced motion changes a ground or a border and MOVES
+    // NOTHING: the reduced block narrows `transition-property`, it does not undo
+    // a translate that `:hover` sets — only `motion-safe:` on the class does.
+    await bring(calm, '[data-scene="review"]');
+    await calm.mouse.move(8, 8); await sleep(300);
+    const widgetBox = () => calm.evaluate(() => [...document.querySelectorAll('[data-scene="review"] [aria-hidden="true"] *')].map((el) => { const r = el.getBoundingClientRect(); return `${r.x.toFixed(1)},${r.y.toFixed(1)}`; }).join(";"));
+    const border = () => calm.evaluate(() => getComputedStyle(document.querySelector('[data-scene="review"]')).borderTopColor);
+    const boxBefore = await widgetBox(); const borderBefore = await border();
+    const cardAt = await calm.evaluate(() => { const r = document.querySelector('[data-scene="review"]').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height * 0.4 }; });
+    await calm.mouse.move(cardAt.x, cardAt.y); await sleep(500);
+    const boxAfter = await widgetBox();
+    out.cardHoverReduced = { moved: boxBefore === boxAfter ? 0 : 1, answered: (await border()) !== borderBefore };
+    await calm.close();
+
+    // 5 — a touch device: the cells stay dark
+    const { page: thumb } = await openIn(browser, "/", { viewport: { width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true } });
+    await bring(thumb, "#facts", "start");
+    await thumb.touchscreen.tap(190, 300); await thumb.mouse.move(100, 300); await thumb.mouse.move(300, 360, { steps: 10 });
+    out.gridLitTouch = await lit(thumb, GRID);
+    // wherever the thumb lands, the word is not even mounted there (R-06) — the zero above is not an accident of where it swept
+    out.gridStateTouch = await thumb.evaluate((sel) => document.querySelector(sel).getAttribute("data-cell-field"), GRID);
+    await thumb.close();
+
+    // 6 — the dome without WebGL (this browser): the still layer, no error
+    const { page: flat, errors: flatErrors } = await openIn(browser, "/");
+    await bring(flat, "[data-dome]"); await sleep(1500);
+    out.sphereNoWebgl = await flat.evaluate(() => document.querySelector("[data-particle-sphere]").getAttribute("data-particle-sphere"));
+    out.stillDomePaintedNoWebgl = (await lit(flat, '[data-sphere-layer="still"]')) > 0;
+    out.errorsNoWebgl = flatErrors;
+    // [R-10] …and it never downloads three.js to find that out.
+    out.threeWithoutWebgl = await flat.evaluate(async () => {
+      const hits = [];
+      for (const name of performance.getEntriesByType("resource").map((e) => e.name).filter((n) => /\.js(\?|$)/.test(n))) { const text = await fetch(name).then((r) => r.text()).catch(() => ""); if (text.includes("WebGLRenderer")) hits.push(name.split("/").pop()); }
+      return hits;
+    });
+    await flat.close();
+
+    // 7 — the dome with (software) WebGL, in a browser of its own
+    const gl = await puppeteer.launch({
+      ...(process.env.GOPROCEED_CHROME_PATH ? { executablePath: process.env.GOPROCEED_CHROME_PATH } : {}),
+      headless: true, protocolTimeout: 300000,
+      args: ["--no-sandbox", "--disable-dev-shm-usage", "--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist", "--enable-webgl"],
+    });
+    try {
+      const { page: scene, errors: sceneErrors } = await openIn(gl, "/");
+      // [R-07] Not «one more script arrived» — a prefetched link would satisfy that.
+      // Which scripts carry the renderer: none of the first screen's, one of those
+      // that arrive once the dome nears the viewport.
+      const scripts = () => scene.evaluate(() => performance.getEntriesByType("resource").map((e) => e.name).filter((n) => /\.js(\?|$)/.test(n)));
+      const carriesThree = (names) => scene.evaluate(async (list) => {
+        const hits = [];
+        for (const name of list) { const text = await fetch(name).then((r) => r.text()).catch(() => ""); if (text.includes("WebGLRenderer")) hits.push(name.split("/").pop()); }
+        return hits;
+      }, names);
+      const early = await scripts();
+      out.threeInFirstScreen = await carriesThree(early);
+      await bring(scene, "[data-dome]"); await sleep(2500);
+      out.sphere = await scene.evaluate(() => document.querySelector("[data-particle-sphere]").getAttribute("data-particle-sphere"));
+      out.threeOnApproach = await carriesThree((await scripts()).filter((n) => !early.includes(n)));
+      const box = await scene.evaluate(() => { const r = document.querySelector("[data-dome]").getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
+      const clip = { x: box.x, y: box.y + (await scene.evaluate(() => scrollY)), width: box.width, height: box.height };
+      const a = await scene.screenshot({ clip, captureBeyondViewport: false });
+      await sleep(900);
+      const b = await scene.screenshot({ clip, captureBeyondViewport: false });
+      out.sphereTurns = !a.equals(b);
+      // [R3-02] THE SCENE keeps its headroom too — the still layer proving it says nothing about
+      // WebGL. With the pointer parked, the strip above the dome's box (12px clear of the apex's
+      // breath) holds only the static haze, so two shots of it are equal; lose `head` in the scene
+      // and the dome grows into the strip, where its turning dots make them differ.
+      await scene.mouse.move(8, 8); await sleep(1200);
+      const strip = { x: clip.x, y: clip.y - 96, width: clip.width, height: 84 };
+      const s1 = await scene.screenshot({ clip: strip, captureBeyondViewport: false });
+      await sleep(900);
+      const s2 = await scene.screenshot({ clip: strip, captureBeyondViewport: false });
+      out.sceneHeadroomStill = s1.equals(s2);
+      out.sphereLoopOnScreen = await scene.evaluate(() => document.querySelector('[data-sphere-layer="scene"]').getAttribute("data-sphere-loop"));
+      await scene.evaluate(() => window.scrollTo({ top: document.documentElement.scrollHeight, behavior: "instant" })); await sleep(700);
+      out.sphereLoopOffScreen = await scene.evaluate(() => document.querySelector('[data-sphere-layer="scene"]').getAttribute("data-sphere-loop"));
+      out.errorsWebgl = sceneErrors;
+      await scene.close();
+    } finally { await gl.close(); }
+    return out;
+  }
+  report.interactions = await interactions();
+  const x = report.interactions;
+  const interactionsOk = x.gridRest === 0 && x.gridLit > 0 && x.gridFaded === 0
+    && x.disc.published && x.gridLitUnderDome === 0 && x.gridLitBesideDome > 0 && x.gridLitAboveDome > 0
+    && x.gridAcrossLimb.lit > 0 && x.gridAcrossLimb.inside === 0 && x.gridAcrossLimb.left > 0 && x.gridAcrossLimb.right > 0
+    && x.pillBeam && x.pillBeam.moves && x.pillBeam.distanceMoves && x.pillBeam.boxMoves && x.pillBeam.path.startsWith("inset(") && x.pillBeam.animation === "gp-beam-travel" && x.pillBeam.duration === "3s" && x.pillBeam.ring === "2px" && x.pillBeam.faceIsPillColour && x.pillBeam.ringPainted && x.pillBeam.clipped === "hidden" && x.pillBeam.inkPills >= 3 && x.pillBeam.count === x.pillBeam.inkPills && x.pillBeam.onPaper === 0
+    && x.pillBeamFocused.focusVisible && x.pillBeamFocused.beam === "none"
+    && x.gridLitUnderTiles === 0 && x.tilesHovered && x.clearRow.fits
+    && x.domeColours.dotsAreAccent && x.domeColours.gridIsAccent && x.domeColours.floorIsAccent && x.domeColours.arcsAreAccent && !x.domeColours.rainIsAccent
+    && x.domeColours.paintedDotIsAccent && x.domeColours.lightsAreGradients
+    && x.domeColours.domeHeadroom.above === 96 && x.domeColours.domeHeadroom.firstPaintedRow >= 80
+    && x.floorRest === 0 && x.floorLit > 0 && x.floorFaded === 0
+    && x.arcsLean && x.arcsState === "leaning" && x.arcsReturn && x.rafAtRest === 0 && x.rafAfterLeave === 0
+    && x.gridLitReduced === 0 && x.sphereReduced === "still" && x.stillDomePainted && !x.arcsLeanReduced && x.arcsPaintedReduced && x.rafReduced === 0
+    && x.gridLitTouch === 0 && x.gridStateTouch === "off"
+    && x.sphereNoWebgl === "fallback" && x.stillDomePaintedNoWebgl && x.errorsNoWebgl.length === 0
+    && x.sphere === "running" && x.sphereTurns && x.sceneHeadroomStill && x.sphereLoopOnScreen === "running" && x.sphereLoopOffScreen === "paused"
+    && x.threeInFirstScreen.length === 0 && x.threeOnApproach.length === 1 && x.errorsWebgl.length === 0
+    && x.threeWithoutWebgl.length === 0
+    && x.cardHoverReduced.moved === 0 && x.cardHoverReduced.answered;
+  console.log(`interactions: ${interactionsOk ? "ok" : "PROBLEM"} ${JSON.stringify(x)}`);
+
   const og = await browser.newPage();
   await og.setViewport({ width: 1200, height: 630, deviceScaleFactor: 1 });
   await og.goto(`http://localhost:${PORT}/og`, { waitUntil: "networkidle0" });
@@ -505,7 +864,7 @@ try {
   console.log("wrote public/og.png");
 
   writeFileSync(join(out, "report.json"), JSON.stringify(report, null, 2));
-  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && firstFoldOk && linksOk && beamOk && parityOk;
+  const allOk = [...Object.values(report.widths), ...Object.values(report.reduced)].every((r) => r.ok) && firstFoldOk && linksOk && beamOk && parityOk && interactionsOk;
   console.log(allOk ? "landing qa: ok" : "landing qa: PROBLEMS — see qa-output/report.json");
   exitCode = allOk ? 0 : 1;
 } catch (err) {

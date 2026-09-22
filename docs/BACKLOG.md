@@ -141,6 +141,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 | [BL-112](#bl-112) | P2 | open | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
+| [BL-113](#bl-113) | P2 | open | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1360,3 +1361,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `apps/app/tests/progress-adjust.int.test.ts` «the pool a line holds is the share its effective quantity bought», added in `0a7c407`.
 - **Depends on:** —
 - **Deadline:** —
+
+<a id="bl-113"></a>
+### BL-113 — P2 — Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0`
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** ranked by DEV-024 (`gp-qa` Q-01). `Reveal`, `Stagger` and `StaggerItem` (`packages/ui/src/motion/`) server-render their hidden state inline (`opacity:0` and a transform), and only JavaScript ever clears it. A visitor whose scripts fail to load — a blocked CDN, a broken chunk, a reader mode, a crawler that does not execute — gets each page's h1, the home hero's lead and pills, the footer and the CSS grids, and nothing else; on `/pilot` that includes the form. DEV-023 recorded this («every `Reveal`/`Stagger` below the first heading stays hidden»); DEV-024 measured it and did not change it. The number is this branch's next free one (the validator requires a sequence without gaps); unmerged branches elsewhere already use BL-113…BL-115, so the entry is renumbered when the branches meet.
+- **Evidence:** `gp-qa`, 2026-09-19, working tree over `3601658`, the built pages with JavaScript disabled: text elements in `main` whose opacity chain is 0 — `/` 51 of 55 (the six sources, the fact tiles and the closing heading among them), `/product` 113 of 126, `/roles` 80 of 82, `/pilot` 32 of 41 (the form among them). The markup itself is complete (one h1, nav, main, footer, all six source codes).
+- **Depends on:** a decision on the mechanism, which is why this is not a one-line fix: a blanket `<noscript><style>` that forces `opacity: 1` also reveals what is hidden on purpose (`CrossFade` and `PinnedTabs` keep their inactive panels at opacity 0 in the same box, so on `/product` they would overlay each other). The candidates are a `noscript` rule scoped to a `data-*` attribute the entrance words set, or entrances that start visible and are hidden by a class only once the script is known to run. Either changes every page's first paint, so it takes `gp-reviewer` and `gp-ui-reviewer`, and the harness needs a JavaScript-disabled pass.
+- **Deadline:** before the landing is pointed at a production domain and submitted for indexing.
