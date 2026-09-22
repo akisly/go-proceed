@@ -20,12 +20,29 @@ import { ShareLink } from "./share-link";
  * [DEV-025] It is the offer: what the pilot costs, in three words, and the way
  * to the form, which lives on /pilot. «Скопіювати посилання для ПТВ» stays —
  * the payer forwards the page to the person who will run it.
+ *
+ * [2026-09-22, DEV-029, owner] For one pass this block held an orange button;
+ * the owner took it off («оставь только черные с бордером»). The action is the
+ * ink pill, as everywhere else on the site.
+ *
+ * It was a dark block for one revision and the owner threw that out on sight:
+ * «те темные блоки вообще как-то не к чему, не вписываются, они не от мира
+ * сего». The diagnosis that follows is the one this whole task should have
+ * started from — in the reference the near-black is never a section, it is the
+ * backdrop a light product is photographed against, and it only ever earns its
+ * place when something light is lying on it. A closing call has no product on
+ * it; it has a heading, three words and two controls. On a dark ground that is
+ * a black slab, and the arcs behind it — pine at 2.55:1 there — all but
+ * vanished as well.
+ *
+ * So the block stays on paper: the arcs behind it, the brand tile on its
+ * float shadow, and the ink pill.
  */
 export function Cta() {
   const c = landingContent.cta;
   const half = Math.ceil(c.codes.length / 2);
   return (
-    <section id="cta-final" tabIndex={-1} className="relative isolate scroll-mt-20 overflow-hidden px-4 py-24 text-center md:px-8 md:py-36">
+    <section id="cta-final" tabIndex={-1} className="landing-inset relative isolate scroll-mt-20 overflow-hidden py-24 text-center md:py-36">
       <ArcField strength={0.34} className="absolute inset-0 -z-10 h-full w-full text-accent" />
       <div className="mx-auto grid max-w-[760px] justify-items-center gap-8">
         <Reveal size="stately" className="flex items-center gap-3 font-mono text-data font-medium text-ink-secondary md:gap-4">

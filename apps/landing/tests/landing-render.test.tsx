@@ -108,6 +108,9 @@ describe("the four pages — skeleton", () => {
     }
   });
 
+  // [2026-09-22, DEV-029, owner] For one pass the closing call and the pilot
+  // submit were the reference's orange button. The owner took both off:
+  // «убери оранжевые кнопки, оставь только черные с бордером». Back to absence.
   it("uses no signal button anywhere on the site", () => {
     expect(all).not.toContain("bg-action-signal");
   });
@@ -138,18 +141,27 @@ describe("the first screen (DEV-026: the reference's)", () => {
     // The plane is an element so that it can carry the field; the field reads the
     // pointer in the plane's own coordinates, so the browser resolves the perspective.
     expect(hero).toMatch(/class="landing-floor-plane"><canvas[^>]*aria-hidden="true"[^>]*data-cell-field="off"[^>]*class="pointer-events-auto/);
-    // [owner, third pass] a lit cell is the accent; the pixel field above stays ink
+    // [owner, third pass] a lit cell is the accent. [2026-09-22, DEV-029, owner: «сделай цвет этих
+    // сверканий зеленым».] The pixel field above, ink until then, is the accent too.
     expect(hero).toMatch(/class="landing-floor-plane"><canvas[^>]*class="[^"]*text-accent/);
-    expect(hero).toMatch(/<canvas[^>]*data-pixel-rain[^>]*class="[^"]*text-ink/);
-    expect(hero).toMatch(/<div[^>]*aria-hidden="true"[^>]*class="landing-hero-light/);
+    expect(hero).toMatch(/<canvas[^>]*data-pixel-rain[^>]*class="[^"]*text-accent/);
+    // [2026-09-22, owner: «убери это белое свечение в hero по средине».] The
+    // radial bloom behind the h1 is gone; the assertion flips from presence to
+    // absence so nothing reintroduces it quietly.
+    expect(hero).not.toContain("landing-hero-light");
     // Two fifths of the first screen, where DEV-026 gave it a quarter.
     expect(hero).toMatch(/<canvas[^>]*data-pixel-rain[^>]*class="[^"]*h-\[42%\]/);
   });
-  it("turns the product's name on an arc over the heading, hidden from assistive technology", () => {
-    expect(hero).toMatch(/<div[^>]*aria-hidden="true"[^>]*data-orbit="turning"/);
-    expect(hero).toContain("orbit-spin");
-    // glyph by glyph — the phrase itself is never a text node here
-    expect(hero).not.toContain(landingContent.hero.orbit);
+  // [2026-09-22, DEV-029, owner: «снять то, что ничего не держит»] The orbit
+  // text is gone from the hero. It set the product's name glyph by glyph on an
+  // arc above the h1, at a contrast an `impeccable` critique measured at about
+  // 2:1 — type nobody reads, on the one screen that has to be read. `OrbitText`
+  // itself stays in the motion vocabulary and is still asserted as a primitive
+  // by `first-screen-primitives.test.tsx`; what changed is that the landing no
+  // longer calls it.
+  it("does not set type on an arc over the heading", () => {
+    expect(hero).not.toContain("data-orbit");
+    expect(hero).not.toContain("orbit-spin");
   });
   it("states the promise as the page's h1, plain text that paints on the first frame, then the definition", () => {
     expect(hero.match(/<h1/g)).toHaveLength(1);
@@ -188,6 +200,19 @@ describe("the home page's split, cards and fact band (DEV-026)", () => {
   const intro = inHome("intro", "scenes");
   const scenes = inHome("scenes", "facts");
   const facts = inHome("facts", "cta-final");
+
+  it("draws the fact strip's edges once: top and bottom only, in a paper moat off the lattice", () => {
+    // [DEV-029, O-04 and U3-01, owner: «бордеры по бокам двойные».] Full-bleed, so its sides are the page frame's;
+    // a tile draws a right edge only where another tile follows it; no lattice row can touch the strip.
+    expect(facts).toMatch(/data-tiles=""[^>]*class="[^"]*bg-canvas[^"]*py-2/);
+    const strip = facts.slice(facts.indexOf("data-tiles"));
+    const cls = strip.match(/<div[^>]*class="(grid [^"]*)"/)?.[1] ?? "";
+    expect(cls).toContain("border-y");
+    expect(cls).not.toMatch(/(^|\s)border(\s|$)/);
+    expect(strip).toContain("md:even:border-r-0");
+    expect(strip).toContain("md:[&amp;:nth-child(3)]:border-b-0");
+    expect(strip).toContain("wide:[&amp;:nth-child(2)]:border-r");
+  });
 
   it("says what the product is beside the records of one work, over two rows of drifting tags", () => {
     expect(intro).toContain(landingContent.intro.lead);
@@ -256,7 +281,7 @@ describe("the home page's split, cards and fact band (DEV-026)", () => {
     expect(facts).toMatch(/<canvas[^>]*data-cell-exclude="\[data-particle-sphere\], \[data-tiles\]"/);
     expect(facts).not.toMatch(/data-cell-exclude="[^"]*\[data-dome\]/);
     // [owner, third pass] …nor under the tiles, which stand in a box of their own for that; and a lit cell is the accent
-    expect(facts).toMatch(/<div data-tiles="" class="mt-12"><div class="grid border/);
+    expect(facts).toMatch(/<div data-tiles="" class="mt-10 bg-canvas py-2"><div class="grid border-y/);
     expect(facts).toMatch(/<canvas[^>]*data-cell-field="off"[^>]*class="[^"]*text-accent/);
     expect(facts).toContain(`href="${landingContent.facts.actionHref}"`);
     const said = landingContent.facts.tiles.map((t) => `${t.value} ${t.label}`).join(" ");
@@ -387,6 +412,14 @@ describe("roles", () => {
     // [2026-09-08] Only the application view follows the cursor — see pointer-tilt.test.tsx.
     expect(roles).not.toContain("data-tilt");
   });
+
+  it("draws the grid's hairlines with the cells' own outlines, never a container fill", () => {
+    // [DEV-029, F-01] A fill behind cells that fade in is a solid grey slab for
+    // as long as they are transparent — /roles' first fold for a second and a half.
+    const grid = roles.match(/<div[^>]*class="([^"]*gap-px[^"]*)"/)?.[1] ?? "";
+    expect(grid).toContain("*:outline-line-strong");
+    expect(grid).not.toMatch(/(^|\s)bg-line-strong(\s|$)/);
+  });
 });
 
 describe("capture, provenance, position — on /product", () => {
@@ -491,6 +524,18 @@ describe("pilot", () => {
     expect(pilot).toContain(`mailto:${PILOT_EMAIL}`);
     expect(pilot).toContain(landingContent.pilot.form.mailNote);
     expect(pilot).not.toContain("bg-action-signal");
+    // [DEV-029, O-01, owner] «оставь только черные с бордером»: the submit is the
+    // site's ink pill — pill radius and the three layers, in PillLink's order.
+    const submit = pilot.match(/<button[^>]*type="submit"[^>]*>[\s\S]*?<\/button>/)?.[0] ?? "";
+    expect(submit).toContain('data-pill="ink"');
+    expect(submit).toMatch(/class="[^"]*rounded-pill/);
+    expect(submit).not.toContain("rounded-panel");
+    expect(submit).toMatch(/data-pill-layer="ring"[\s\S]*data-beam="pill"[\s\S]*data-pill-layer="face"/);
+    // [DEV-029, F-02] The plan column's hairlines are the cells' outlines, not a
+    // container fill that shows as a grey slab while the cells fade in.
+    const column = pilot.match(/<div[^>]*class="([^"]*gap-px[^"]*)"/)?.[1] ?? "";
+    expect(column).toContain("*:outline-line");
+    expect(column).not.toMatch(/(^|\s)bg-line(\s|$)/);
   });
 
   it("never prints the pilot address as text anywhere on the site", () => {

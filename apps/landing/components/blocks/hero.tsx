@@ -1,12 +1,12 @@
-import { CellField, OrbitText, PixelRain } from "@goproceed/ui/motion";
+import { CellField, PixelRain } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
 import { PillLink } from "./pill-link";
 
 /**
  * The first screen. [DEV-026] The reference's, in our colours: it fills the
- * viewport; pixels fall from its top edge (`PixelRain`); a flat grid tips away
- * under its foot (`landing-floor`); a phrase turns on an arc over a centred
- * 54px/400 heading; one sentence of definition; two pills.
+ * viewport; a halftone field shimmers along its top edge (`PixelRain`); a flat
+ * grid tips away under its foot (`landing-floor`); a centred 54px/400 heading;
+ * one sentence of definition; two pills. (The phrase on an arc went in DEV-029.)
  *
  * The heading is plain text, not `LineReveal`: the reference reveals the whole
  * first screen at once, and the h1 is the LCP element — it paints on the first
@@ -15,8 +15,12 @@ import { PillLink } from "./pill-link";
  * /product, where the reference keeps its large app view.
  *
  * [DEV-027] Watched live, not from stills: the pixel field reaches two fifths
- * of the screen and leaves the middle open for a soft light behind the heading
- * (`landing-hero-light`); and the floor answers the pointer — the cell under it
+ * of the screen and leaves the middle of the screen open.
+ * [2026-09-22, owner: «убери это белое свечение в hero по средине».] The radial
+ * white bloom behind the h1 is gone. It lit the heading off the paper, which on
+ * a page whose ground IS paper reads as a smudge rather than as light; the
+ * pixel field above and the floor below carry the first screen on their own.
+ * The floor answers the pointer — the cell under it
  * lights up and fades (`CellField`, on the floor's own plane, so the browser
  * resolves the perspective). The floor's grid lines stay CSS. [owner, third
  * pass] a lit cell is the accent: «при наведении квадратиков тоже сделать его
@@ -26,18 +30,16 @@ export function Hero() {
   const h = landingContent.hero;
   return (
     <section id="hero" className="relative isolate grid min-h-dvh place-items-center overflow-hidden px-4 pb-24 pt-32 md:px-8">
-      <div aria-hidden="true" className="landing-hero-light -z-10" />
-      {/* `calm`: the header (58px + its hairline) is glass over this band at the top of the page — the dots under its links stay dim (B7-01). */}
-      <PixelRain calm={64} className="absolute inset-x-0 top-0 -z-10 h-[42%] w-full text-ink" />
+      {/* `calm`: the header (58px + its hairline) is glass over this band at the top of the page — the dots under its links stay dim (B7-01).
+        * [2026-09-22, DEV-029, owner: «сделай цвет этих сверканий зеленым».] The field is the accent now, as the floor's lit cells,
+        * the dome and the arcs already were; until today it was the one ornament left in ink. */}
+      <PixelRain calm={56} className="absolute inset-x-0 top-0 -z-10 h-[42%] w-full text-accent" />
       <div aria-hidden="true" className="landing-floor -z-10">
         <div className="landing-floor-plane">
           <CellField pitch={60} track="self" strength={0.16} className="absolute inset-0 h-full w-full text-accent" />
         </div>
       </div>
       <div className="mx-auto grid max-w-[880px] justify-items-center text-center">
-        <div className="entrance grid w-full justify-items-center">
-          <OrbitText text={h.orbit} className="text-body font-medium text-ink" />
-        </div>
         {/* ONE WORD IN THE ACCENT, and it is «доказ» — the word the whole page is
           * about. [2026-09-22] DEV-026 took the accent phrase out of every heading
           * («the muted second line does that work»), and with it the last place the

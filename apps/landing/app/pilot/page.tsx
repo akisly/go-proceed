@@ -17,7 +17,10 @@ export default function PilotPage() {
   return (
     <SiteShell page="pilot">
       <Pilot heading="h1" />
-      <Band />
+      {/* [DEV-029] The one `fade` on the site, and the only seam that earns it:
+        * the FAQ below carries its own tint ground. Between two paper sections a
+        * fade has nothing to fade INTO. */}
+      <Band tone="fade" />
       <Faq />
     </SiteShell>
   );

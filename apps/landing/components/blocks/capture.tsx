@@ -7,6 +7,11 @@ import { ChannelTelegram } from "../visuals/channel-telegram";
 import { ChannelWeb } from "../visuals/channel-web";
 import { SpotlightCard } from "../visuals/spotlight-card";
 
+/** [DEV-029] NO INDEX TINT IN THIS BLOCK, deliberately. Each of these cards
+ * already carries a STATUS chip («доступно», «на перевірці»), and two coloured
+ * marks in one card is how a reader learns that neither of them means anything.
+ * The tints survive in one place on the site, the roles grid. */
+
 const DEVICE = { telegram: <ChannelTelegram />, app: <ChannelApp />, web: <ChannelWeb /> } as const;
 
 export function Capture() {
@@ -18,11 +23,11 @@ export function Capture() {
         <Stagger className="grid gap-3.5 md:grid-cols-3">
           {c.channels.map((ch) => (
             <StaggerItem key={ch.id} size="grand" className="[transform-style:preserve-3d]">
-              <SpotlightCard className="group relative isolate grid h-full grid-rows-[auto_1fr_auto] gap-4 overflow-hidden rounded-surface border border-line-strong bg-canvas p-5.5">
-                <p className="flex items-center justify-between"><span className="index-label">{ch.index}</span><Chip tone={ch.status.tone} dot pulse={ch.status.tone === "review"}>{ch.status.label}</Chip></p>
+              <SpotlightCard className="landing-stage group relative isolate grid h-full grid-rows-[auto_1fr_auto] gap-4 overflow-hidden p-5.5">
+                <p className="flex items-center justify-between gap-3"><span className="index-label">{ch.index}</span><Chip tone={ch.status.tone} dot pulse={ch.status.tone === "review"}>{ch.status.label}</Chip></p>
                 <div>
-                  <h3 className="mt-2 max-w-[16ch] text-h3 font-semibold text-ink">{ch.title}</h3>
-                  <p className="mt-2 max-w-[34ch] text-data leading-relaxed text-ink-secondary">{ch.body}</p>
+                  <h3 className="mt-2 text-balance text-h3 font-semibold text-ink">{ch.title}</h3>
+                  <p className="mt-2 max-w-[44ch] text-data leading-relaxed text-ink-secondary">{ch.body}</p>
                   <div className="grid place-items-center py-6">{DEVICE[ch.id]}</div>
                 </div>
                 <p className="text-meta text-ink-muted">{ch.foot}</p>

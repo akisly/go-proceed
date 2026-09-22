@@ -77,6 +77,51 @@
         "$value": "#0C0C0A",
         "$description": "INK — the brand kit's black #0C0C0A, exactly. Primary text and the primary action fill, 16.12:1 on the canvas. Warm like the paper, not its opposite: in this palette the temperature is carried by ember and pine, not by the distance between ink and paper."
       },
+      "clay-50": {
+        "$type": "color",
+        "$value": "#F3EDE4",
+        "$description": "The faintest warm wash — half a step off the paper, for a highlight that must not read as a panel. It is NOT the tint block: measured against the canvas it stands 7 of 255 in its strongest channel, which on a screen is nothing, and a whole revision of DEV-029 shipped washes nobody could see because this rung was doing that job. Carries ink at 16.82:1."
+      },
+      "clay-100": {
+        "$type": "color",
+        "$value": "#E8DCCE",
+        "$description": "THE WARM TINT BLOCK. 17 of 255 off the paper in its strongest channel — the smallest step that is honestly visible — and the ground the footer, the FAQ band and every warm wash stand on. Carries ink at 14.51:1 and secondary copy at 6.36:1; muted copy clears the body floor at 4.65:1 with little to spare, which is why dense copy on this ground takes the secondary rung instead."
+      },
+      "clay-200": {
+        "$type": "color",
+        "$value": "#D8C6B0",
+        "$description": "Two jobs, and they never meet on one surface. It is the warm hairline — 1.37:1 on the canvas, the same order as the neutral border ladder — and it is the warm index chip, which carries clay-800 at 6.90:1. The chip only ever sits on paper or on a white cell, never on the tint block whose edge this also draws."
+      },
+      "clay-300": {
+        "$type": "color",
+        "$value": "#C8B8A0",
+        "$description": "The reference's mid taupe. The warm index chip's mark in the dark theme, at 7.06:1 on clay-900. Its earlier ruling called it «the light end of the mocha gradient»; that gradient was removed with the landing's dark ground on 2026-09-22."
+      },
+      "clay-500": {
+        "$type": "color",
+        "$value": "#A07858",
+        "$description": "A mid warm brown, held for the dark theme and unreferenced by any role today. Its chroma is 0.0677 against ember's 0.2125 — under a third — and that ratio, not its hue, is what keeps a warm brown from being read as the mark; `palette-derivation.test.ts` holds it under 0.4. It was the mocha behind the product for one revision, until the owner removed the dark ground the mocha was mixed onto."
+      },
+      "clay-600": {
+        "$type": "color",
+        "$value": "#8A6446",
+        "$description": "A deep warm brown, held for the dark theme. No role names it today; it was the mocha gradient's own colour until that gradient was removed on 2026-09-22."
+      },
+      "clay-700": {
+        "$type": "color",
+        "$value": "#705038",
+        "$description": "The reference's deep mocha, sampled from its Insight shot. Held for the dark theme; no role names it today."
+      },
+      "clay-800": {
+        "$type": "color",
+        "$value": "#4A3527",
+        "$description": "The warm index chip's mark: 6.90:1 on clay-200. In the dark theme it is the warm hairline instead."
+      },
+      "clay-900": {
+        "$type": "color",
+        "$value": "#3A2A20",
+        "$description": "The warm tint's ground in the dark theme. Carries the dark theme's ink at 11.28:1."
+      },
       "ember-50": {
         "$type": "color",
         "$value": "#FFF2EA",
@@ -1012,7 +1057,7 @@
       "action-signal-bg": {
         "$type": "color",
         "$value": "{primitive.color.ember-500}",
-        "$description": "The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none.",
+        "$description": "The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none. It carries ink, never white. (DEV-029: the landing carried one per page for one pass; the owner took it off.)",
         "$extensions": {
           "app.goproceed.tailwind": "action-signal",
           "app.goproceed.alpha": 1
@@ -1278,6 +1323,96 @@
           "app.goproceed.tailwind": "accent-soft",
           "app.goproceed.alpha": 1
         }
+      },
+      "bg-tint-warm": {
+        "$type": "color",
+        "$value": "{primitive.color.clay-100}",
+        "$description": "The warm tint block. A section or a card ground that is neither the page nor a sheet — the reference's mocha panel, one honest step of warmth off the paper. It never replaces `bg-canvas` for a whole page; it marks ONE block, which is the whole point of it. It was clay-50 for one revision and that was the mistake: seven units off the paper is a tint that only exists in the stylesheet.",
+        "$extensions": {
+          "app.goproceed.tailwind": "tint-warm",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-warm": {
+        "$type": "color",
+        "$value": "{primitive.color.clay-200}",
+        "$description": "The warm tint block's own edge, so a tinted panel is not outlined in a cooler line than its fill. 1.37:1 on the canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line-warm",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-chip-clay": {
+        "$type": "color",
+        "$value": "{primitive.color.clay-200}",
+        "$description": "Decorative index tint, warm, and a step deeper than the warm GROUND so the two are never confused. The four chip tints tell an ENUMERATION apart — an 01/02/03/04, a role, a channel — and they are never a state: five statuses is the catalog, and a sixth colour reading as one is how a legend stops being true. A chip tint never shares a cell with a status chip.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-clay",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-chip-clay": {
+        "$type": "color",
+        "$value": "{primitive.color.clay-800}",
+        "$description": "The warm index tint's mark. 6.90:1 on its own ground in light, 7.06:1 in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-clay-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-chip-violet": {
+        "$type": "color",
+        "$value": "{primitive.color.violet-100}",
+        "$description": "Decorative index tint, cool. Violet is the safe counter-tint here because it is already data-visualisation only and never a status; cobalt is not available for this, it carries the review state.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-violet",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-chip-violet": {
+        "$type": "color",
+        "$value": "{primitive.color.violet-700}",
+        "$description": "The cool index tint's mark. 6.70:1 on its own ground in light, 8.09:1 in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-violet-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-chip-pine": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-50}",
+        "$description": "Decorative index tint, green. The faintest pine wash, one rung lighter than `bg-accent-soft`, so a decorative chip is never mistaken for a selected state.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-pine",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-chip-pine": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "The green index tint's mark. 7.03:1 on its own ground in light, 7.79:1 in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-pine-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-chip-stone": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-50}",
+        "$description": "Decorative index tint, neutral. The fourth of four: an enumeration longer than three needs a quiet member, and a fifth hue would be a colour nobody can name.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-stone",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-chip-stone": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-700}",
+        "$description": "The neutral index tint's mark. 6.64:1 on its own ground in light, 5.90:1 in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-stone-fg",
+          "app.goproceed.alpha": 1
+        }
       }
     },
     "dark": {
@@ -1509,7 +1644,7 @@
       "action-signal-bg": {
         "$type": "color",
         "$value": "{primitive.color.ember-500}",
-        "$description": "The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none.",
+        "$description": "The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none. It carries ink, never white. (DEV-029: the landing carried one per page for one pass; the owner took it off.)",
         "$extensions": {
           "app.goproceed.tailwind": "action-signal",
           "app.goproceed.alpha": 1
@@ -1773,6 +1908,96 @@
         "$description": "The accent as a ground under copy: a wash at a tenth of the primary, never a fill behind body text at full strength.",
         "$extensions": {
           "app.goproceed.tailwind": "accent-soft",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-tint-warm": {
+        "$type": "color",
+        "$value": "{primitive.color.clay-900}",
+        "$description": "The warm tint block. A section or a card ground that is neither the page nor a sheet — the reference's mocha panel, one honest step of warmth off the paper. It never replaces `bg-canvas` for a whole page; it marks ONE block, which is the whole point of it. It was clay-50 for one revision and that was the mistake: seven units off the paper is a tint that only exists in the stylesheet.",
+        "$extensions": {
+          "app.goproceed.tailwind": "tint-warm",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-warm": {
+        "$type": "color",
+        "$value": "{primitive.color.clay-800}",
+        "$description": "The warm tint block's own edge, so a tinted panel is not outlined in a cooler line than its fill. 1.37:1 on the canvas.",
+        "$extensions": {
+          "app.goproceed.tailwind": "line-warm",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-chip-clay": {
+        "$type": "color",
+        "$value": "{primitive.color.clay-900}",
+        "$description": "Decorative index tint, warm, and a step deeper than the warm GROUND so the two are never confused. The four chip tints tell an ENUMERATION apart — an 01/02/03/04, a role, a channel — and they are never a state: five statuses is the catalog, and a sixth colour reading as one is how a legend stops being true. A chip tint never shares a cell with a status chip.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-clay",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-chip-clay": {
+        "$type": "color",
+        "$value": "{primitive.color.clay-300}",
+        "$description": "The warm index tint's mark. 6.90:1 on its own ground in light, 7.06:1 in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-clay-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-chip-violet": {
+        "$type": "color",
+        "$value": "{primitive.color.violet-900}",
+        "$description": "Decorative index tint, cool. Violet is the safe counter-tint here because it is already data-visualisation only and never a status; cobalt is not available for this, it carries the review state.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-violet",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-chip-violet": {
+        "$type": "color",
+        "$value": "{primitive.color.violet-300}",
+        "$description": "The cool index tint's mark. 6.70:1 on its own ground in light, 8.09:1 in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-violet-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-chip-pine": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-900}",
+        "$description": "Decorative index tint, green. The faintest pine wash, one rung lighter than `bg-accent-soft`, so a decorative chip is never mistaken for a selected state.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-pine",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-chip-pine": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "The green index tint's mark. 7.03:1 on its own ground in light, 7.79:1 in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-pine-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "bg-chip-stone": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-900}",
+        "$description": "Decorative index tint, neutral. The fourth of four: an enumeration longer than three needs a quiet member, and a fifth hue would be a colour nobody can name.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-stone",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "text-chip-stone": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-400}",
+        "$description": "The neutral index tint's mark. 6.64:1 on its own ground in light, 5.90:1 in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "chip-stone-fg",
           "app.goproceed.alpha": 1
         }
       }

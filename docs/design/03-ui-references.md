@@ -178,7 +178,7 @@ as it shipped before that; these rows describe it after:]*
 | Block | Reference composition | What we take | What we do not | Source · licence |
 |---|---|---|---|---|
 | Frame | double guide lines, fixed header between them | the lines at 22px/30px (10px/16px below `md`), the header inside the inner pair | the black ground | https://parlo-black.vercel.app/ observed 2026-09-19 · no licence published — reimplemented, nothing copied |
-| First screen | pixel rain, perspective floor, orbiting arc text, centred 54px/400 heading, two pills | all of it: `PixelRain`, `landing-floor`, `OrbitText`, `PillLink` with our `beam` | the typeface (Syne has no Cyrillic; Onest stays) | same |
+| First screen | pixel rain, perspective floor, orbiting arc text, centred 54px/400 heading, two pills | `PixelRain`, `landing-floor`, `PillLink` with our `beam`. **Not the arc text** — see the note below | the typeface (Syne has no Cyrillic; Onest stays); the orbiting arc text | same |
 | Band | 50px raster band between hairlines | the band between every two sections | — | same |
 | Split + four columns | floating menu over marquee tag rows, two-tone h2, pill; 01–04 columns | the composition; menu = one work's records, tags = the demo register's works, columns = the four roles | the brand icons | same |
 | Sticky list | sticky feature names, label + two-tone lead + rows, large rounded card | the composition over the five route steps and their UI windows | the 3D-tilted inbox cards inside the reference's cards | same |

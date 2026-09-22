@@ -2,8 +2,8 @@
 // Regenerate: node packages/tokens/scripts/generate-native.mjs
 // packages/testing/src/token-fidelity.test.ts fails if this drifts.
 
-export type PrimitiveName = "neutral-0" | "neutral-25" | "neutral-50" | "neutral-100" | "neutral-150" | "neutral-200" | "neutral-300" | "neutral-400" | "neutral-500" | "neutral-600" | "neutral-700" | "neutral-800" | "neutral-900" | "neutral-950" | "neutral-975" | "ember-50" | "ember-100" | "ember-200" | "ember-300" | "ember-400" | "ember-500" | "ember-600" | "ember-700" | "ember-800" | "ember-900" | "pine-50" | "pine-100" | "pine-200" | "pine-300" | "pine-500" | "pine-700" | "pine-800" | "pine-900" | "green-50" | "green-100" | "green-200" | "green-300" | "green-500" | "green-600" | "green-700" | "green-800" | "green-900" | "amber-50" | "amber-100" | "amber-200" | "amber-300" | "amber-500" | "amber-600" | "amber-700" | "amber-800" | "amber-900" | "danger-50" | "danger-100" | "danger-200" | "danger-300" | "danger-500" | "danger-600" | "danger-700" | "danger-800" | "danger-900" | "violet-100" | "violet-200" | "violet-300" | "violet-500" | "violet-700" | "violet-900" | "cobalt-50" | "cobalt-100" | "cobalt-200" | "cobalt-300" | "cobalt-400" | "cobalt-500" | "cobalt-600" | "cobalt-700" | "cobalt-800" | "cobalt-900";
-export type RoleName = "bg-canvas" | "bg-surface" | "bg-subtle" | "bg-muted" | "bg-inverse" | "bg-signal" | "bg-overlay" | "text-primary" | "text-secondary" | "text-muted" | "text-subtle" | "text-on-inverse" | "text-on-inverse-muted" | "text-on-signal" | "text-link" | "text-brand" | "border-subtle" | "border-default" | "border-strong" | "border-inverse" | "border-focus" | "border-focus-inverse" | "action-primary-bg" | "action-primary-fg" | "action-primary-hover" | "action-signal-bg" | "action-signal-fg" | "action-signal-hover" | "action-ghost-hover" | "status-ready-surface" | "status-ready-border" | "status-ready-fg" | "status-attention-surface" | "status-attention-border" | "status-attention-fg" | "status-blocked-surface" | "status-blocked-border" | "status-blocked-fg" | "status-review-surface" | "status-review-border" | "status-review-fg" | "status-idle-surface" | "status-idle-border" | "status-idle-fg" | "evidence-satisfied" | "evidence-pending" | "evidence-blocking" | "viz-1" | "viz-2" | "viz-3" | "viz-4" | "viz-5" | "text-accent" | "border-accent" | "bg-accent-soft";
+export type PrimitiveName = "neutral-0" | "neutral-25" | "neutral-50" | "neutral-100" | "neutral-150" | "neutral-200" | "neutral-300" | "neutral-400" | "neutral-500" | "neutral-600" | "neutral-700" | "neutral-800" | "neutral-900" | "neutral-950" | "neutral-975" | "clay-50" | "clay-100" | "clay-200" | "clay-300" | "clay-500" | "clay-600" | "clay-700" | "clay-800" | "clay-900" | "ember-50" | "ember-100" | "ember-200" | "ember-300" | "ember-400" | "ember-500" | "ember-600" | "ember-700" | "ember-800" | "ember-900" | "pine-50" | "pine-100" | "pine-200" | "pine-300" | "pine-500" | "pine-700" | "pine-800" | "pine-900" | "green-50" | "green-100" | "green-200" | "green-300" | "green-500" | "green-600" | "green-700" | "green-800" | "green-900" | "amber-50" | "amber-100" | "amber-200" | "amber-300" | "amber-500" | "amber-600" | "amber-700" | "amber-800" | "amber-900" | "danger-50" | "danger-100" | "danger-200" | "danger-300" | "danger-500" | "danger-600" | "danger-700" | "danger-800" | "danger-900" | "violet-100" | "violet-200" | "violet-300" | "violet-500" | "violet-700" | "violet-900" | "cobalt-50" | "cobalt-100" | "cobalt-200" | "cobalt-300" | "cobalt-400" | "cobalt-500" | "cobalt-600" | "cobalt-700" | "cobalt-800" | "cobalt-900";
+export type RoleName = "bg-canvas" | "bg-surface" | "bg-subtle" | "bg-muted" | "bg-inverse" | "bg-signal" | "bg-overlay" | "text-primary" | "text-secondary" | "text-muted" | "text-subtle" | "text-on-inverse" | "text-on-inverse-muted" | "text-on-signal" | "text-link" | "text-brand" | "border-subtle" | "border-default" | "border-strong" | "border-inverse" | "border-focus" | "border-focus-inverse" | "action-primary-bg" | "action-primary-fg" | "action-primary-hover" | "action-signal-bg" | "action-signal-fg" | "action-signal-hover" | "action-ghost-hover" | "status-ready-surface" | "status-ready-border" | "status-ready-fg" | "status-attention-surface" | "status-attention-border" | "status-attention-fg" | "status-blocked-surface" | "status-blocked-border" | "status-blocked-fg" | "status-review-surface" | "status-review-border" | "status-review-fg" | "status-idle-surface" | "status-idle-border" | "status-idle-fg" | "evidence-satisfied" | "evidence-pending" | "evidence-blocking" | "viz-1" | "viz-2" | "viz-3" | "viz-4" | "viz-5" | "text-accent" | "border-accent" | "bg-accent-soft" | "bg-tint-warm" | "border-warm" | "bg-chip-clay" | "text-chip-clay" | "bg-chip-violet" | "text-chip-violet" | "bg-chip-pine" | "text-chip-pine" | "bg-chip-stone" | "text-chip-stone";
 export type ThemeName = "light" | "dark";
 
 /** The ramps. Present so a chart or a generated asset can walk a scale;
@@ -24,6 +24,15 @@ export const primitive: Record<PrimitiveName, string> = {
   "neutral-900": "#2A2524",
   "neutral-950": "#1D1818",
   "neutral-975": "#0C0C0A",
+  "clay-50": "#F3EDE4",
+  "clay-100": "#E8DCCE",
+  "clay-200": "#D8C6B0",
+  "clay-300": "#C8B8A0",
+  "clay-500": "#A07858",
+  "clay-600": "#8A6446",
+  "clay-700": "#705038",
+  "clay-800": "#4A3527",
+  "clay-900": "#3A2A20",
   "ember-50": "#FFF2EA",
   "ember-100": "#FFE8DA",
   "ember-200": "#FFCFB7",
@@ -106,6 +115,15 @@ export const primitiveOklch: Record<PrimitiveName, [number, number, number]> = {
   "neutral-900": [0.2696, 0.0078, 31.12],
   "neutral-950": [0.215, 0.008, 17.79],
   "neutral-975": [0.1535, 0.0042, 106.88],
+  "clay-50": [0.9483, 0.013636, 78.26],
+  "clay-100": [0.9003, 0.023012, 71.77],
+  "clay-200": [0.8356, 0.036115, 72.83],
+  "clay-300": [0.7896, 0.037628, 78.06],
+  "clay-500": [0.6044, 0.067664, 59.69],
+  "clay-600": [0.5351, 0.065694, 59.05],
+  "clay-700": [0.4596, 0.056352, 57.66],
+  "clay-800": [0.3489, 0.038115, 54.79],
+  "clay-900": [0.3007, 0.029547, 53.29],
   "ember-50": [0.97, 0.017392, 55],
   "ember-100": [0.945, 0.031474, 52],
   "ember-200": [0.89, 0.063473, 48],
@@ -227,6 +245,16 @@ export const color: Record<ThemeName, Record<RoleName, string>> = {
     "text-accent": "#395A4D",
     "border-accent": "#395A4D",
     "bg-accent-soft": "#E2F1EA",
+    "bg-tint-warm": "#E8DCCE",
+    "border-warm": "#D8C6B0",
+    "bg-chip-clay": "#D8C6B0",
+    "text-chip-clay": "#4A3527",
+    "bg-chip-violet": "#F0EBFC",
+    "text-chip-violet": "#60438D",
+    "bg-chip-pine": "#EFF7F4",
+    "text-chip-pine": "#395A4D",
+    "bg-chip-stone": "#E6E2D7",
+    "text-chip-stone": "#514B46",
   },
   dark: {
     "bg-canvas": "#0C0C0A",
@@ -284,6 +312,16 @@ export const color: Record<ThemeName, Record<RoleName, string>> = {
     "text-accent": "#A0C4B4",
     "border-accent": "#A0C4B4",
     "bg-accent-soft": "#152C24",
+    "bg-tint-warm": "#3A2A20",
+    "border-warm": "#4A3527",
+    "bg-chip-clay": "#3A2A20",
+    "text-chip-clay": "#C8B8A0",
+    "bg-chip-violet": "#36284D",
+    "text-chip-violet": "#D0C3EB",
+    "bg-chip-pine": "#152C24",
+    "text-chip-pine": "#A0C4B4",
+    "bg-chip-stone": "#2A2524",
+    "text-chip-stone": "#A5A19E",
   },
 };
 

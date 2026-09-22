@@ -29,7 +29,7 @@ export function StickyList({ label, items }: { label: string; items: readonly { 
             <a
               href={`#${item.id}`}
               aria-current={active === item.id ? "true" : undefined}
-              className="block py-1.5 touch:py-3 text-data text-ink-muted transition-colors duration-fast ease-out hover:text-ink aria-[current=true]:font-medium aria-[current=true]:text-ink"
+              className="block border-l-2 border-transparent py-1.5 pl-3 touch:py-3 text-data text-ink-muted transition-colors duration-fast ease-out hover:text-ink rounded-field aria-[current=true]:border-line-accent aria-[current=true]:bg-tint-warm aria-[current=true]:font-medium aria-[current=true]:text-ink"
             >
               {item.label}
             </a>

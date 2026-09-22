@@ -22,12 +22,13 @@ export function Pilot({ heading = "h2" }: { heading?: "h1" | "h2" }) {
           * for, what it gives back, and its terms. The plan is below, across the
           * block, on one rail. */}
         <div className="grid gap-10 wide:grid-cols-2 wide:items-start wide:gap-10">
-          <Stagger className="grid content-start gap-px overflow-hidden rounded-surface border border-line-strong bg-line">
-            {/* `y={0}` — a fade, not a rise [R2-12]: these cells sit on the container's
-              * own `bg-line`, and a translated grid item leaves its area behind, so a
-              * 16px band of the hairline colour would show under each white cell for
-              * the length of the entrance. `sources.tsx` — the same 1px-line grid —
-              * fades its group for the same reason. */}
+          <Stagger className="grid content-start gap-px overflow-hidden rounded-surface border border-line-strong *:outline *:outline-line">
+            {/* `y={0}` — a fade, not a rise [R2-12]: a translated grid item leaves
+              * its area behind, so a 16px band of the hairline colour showed under
+              * each white cell for the length of the entrance. `sources.tsx` — the same 1px-line grid —
+              * fades its group for the same reason. [DEV-029] And the hairlines are the
+              * cells' own outlines, not the container's fill: a fill shows as one solid
+              * grey slab for as long as the cells are still transparent. */}
             {boxes.map((box) => (
               <StaggerItem key={box.title} y={0} size="stately" className="grid">
                 <div className="grid content-start gap-3 bg-surface px-5 py-6">
@@ -41,9 +42,17 @@ export function Pilot({ heading = "h2" }: { heading?: "h1" | "h2" }) {
           </Stagger>
           <div id="request" tabIndex={-1} className="scroll-mt-20"><Reveal y={0} size="stately"><PilotForm titleAs={sub} /></Reveal></div>
         </div>
-        <Stepper direction="horizontal" className="mt-16 md:mt-20">
-          {p.steps.map((s, i) => <Step key={s.when} index={i} count={p.steps.length} when={s.when} title={s.title} titleAs={sub}>{s.body}</Step>)}
-        </Stepper>
+        {/* [DEV-029] The plan gets a ground of its own — it is the only thing on
+          * this page read across rather than down — and that ground is the warm
+          * tint. It was the inverse ground for one revision; the owner threw
+          * that out with the rest («не от мира сего»), and rightly: a rail of
+          * four text steps is not a product, and the dark in the reference is
+          * only ever a backdrop for one. */}
+        <div className="landing-stage relative isolate mt-16 overflow-hidden px-5 py-10 md:mt-20 md:px-10 md:py-14">
+          <Stepper direction="horizontal">
+            {p.steps.map((s, i) => <Step key={s.when} index={i} count={p.steps.length} when={s.when} title={s.title} titleAs={sub}>{s.body}</Step>)}
+          </Stepper>
+        </div>
       </div>
     </section>
   );

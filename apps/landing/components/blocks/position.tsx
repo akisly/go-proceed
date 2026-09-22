@@ -9,14 +9,22 @@ const ICON = {
   lock: <span className="grid size-4 place-items-center rounded-pill border-[1.5px] border-ink-muted text-ink-secondary"><Lock aria-hidden="true" strokeWidth={1.75} className="size-2.5" /></span>,
 } as const;
 
+/**
+ * [2026-09-22, DEV-029] The quote glyphs were the accent at `opacity-10` — a
+ * way of drawing something you have decided not to draw — then warm clay with a
+ * blur, which the critique called the loudest ornament on the site and the only
+ * one belonging to no other idiom. They are the structural line colour now, at
+ * one opacity and no filter: an ornament is either a mark or it is nothing, and
+ * on this system a mark that is neither state nor brand is a line.
+ */
 export function Position() {
   const p = landingContent.position;
   return (
-    <section id="position" className="scroll-mt-20 px-4 pt-10 md:px-8 md:pt-20">
+    <section id="position" className="landing-inset scroll-mt-20 py-20 md:py-28">
       <div className="mx-auto max-w-marketing">
-        <div className="relative border-t border-line px-4 pb-10 pt-14 text-center md:px-15 md:pb-10 md:pt-24">
-          <span aria-hidden="true" className="display pointer-events-none absolute left-2 top-5 hidden select-none text-[clamp(120px,16vw,220px)] font-bold leading-[.8] text-accent opacity-10 md:block md:left-6 md:top-10">“</span>
-          <span aria-hidden="true" className="display pointer-events-none absolute right-2 top-5 hidden select-none text-[clamp(120px,16vw,220px)] font-bold leading-[.8] text-accent opacity-10 md:block md:right-6 md:top-10">”</span>
+        <div className="relative border-t border-line px-4 pb-0 pt-14 text-center md:px-15">
+          <span aria-hidden="true" className="display pointer-events-none absolute left-2 top-5 hidden select-none text-[clamp(120px,16vw,220px)] font-bold leading-[.8] text-line-strong opacity-70 md:block md:left-6 md:top-10">“</span>
+          <span aria-hidden="true" className="display pointer-events-none absolute right-2 top-5 hidden select-none text-[clamp(120px,16vw,220px)] font-bold leading-[.8] text-line-strong opacity-70 md:block md:right-6 md:top-10">”</span>
           <div className="relative mx-auto grid max-w-[860px] justify-items-center gap-5">
             <Reveal size="stately"><p className="index-label">{p.eyebrow}</p></Reveal>
             <ScrollTint

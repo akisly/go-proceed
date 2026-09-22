@@ -119,6 +119,12 @@
     z-index: -1;
     pointer-events: none;
     background: color-mix(in srgb, var(--color-canvas) 86%, transparent);
+    /* [2026-09-22, DEV-029] One inset highlight along the top edge. It is what
+     * separates glass from fog: a translucent bar with no lit edge reads as a
+     * pale bar. Neither the ground colour, the opacity nor the blur moves —
+     * `apps/landing/qa/landing.mjs` measures all three, at the top, scrolled
+     * and at 390px, and they must stay equal across the three. */
+    box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--color-surface) 55%, transparent);
     -webkit-backdrop-filter: blur(14px) saturate(1.2);
     backdrop-filter: blur(14px) saturate(1.2);
   }
@@ -201,6 +207,88 @@
     opacity: 0.7;
   }
 
+  /* [2026-09-22, DEV-029] THE BAND'S TWO OTHER TONES. Nine identical rasters a
+   * page was most of what the owner meant by «монотонно»: the divider RESET the
+   * ground every time instead of belonging to it. `fade` lets the raster thin
+   * toward the section it introduces. */
+  /* [2026-09-22, DEV-029] The band carries a GROUND where both sides already
+   * have one. On /pilot the FAQ's tint runs straight into the footer's tint,
+   * and a band with no background of its own cut a paper slot between two
+   * identical warm grounds — C-01's defect in its light form, on the one page
+   * it was never checked on. */
+  .landing-band[data-tone="tint"] {
+    background-color: var(--color-tint-warm);
+    border-block-color: var(--color-line-warm);
+  }
+
+  .landing-band[data-tone="fade"] {
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, color-mix(in srgb, black 30%, transparent) 100%);
+    mask-image: linear-gradient(to bottom, black 0%, color-mix(in srgb, black 30%, transparent) 100%);
+  }
+
+  /* THE STAGE — the site's ONE panel treatment, and the only thing that is
+   * allowed to hold a floating sheet.
+   *
+   * [2026-09-22, DEV-029] This replaces `.landing-wash-warm`, a three-angle
+   * gradient that rendered 16 times across four pages. An `impeccable` critique
+   * measured 32 distinct card treatments on those pages, 20 of them appearing
+   * exactly once, and the same warm card living at 16px on `/` and 14px on
+   * `/product`. The answer to that number is not a better gradient; it is one
+   * panel. One fill, one border, one radius, one light, everywhere.
+   *
+   * The grammar it belongs to: paper is the page, a white sheet with
+   * `shadow-float` is a product artefact, and THIS is what an artefact lies on.
+   * Ground is bound to the object, never to the section — which is the mistake
+   * the whole of DEV-029's second half was. */
+  .landing-stage {
+    border-radius: var(--radius-surface);
+    border: 1px solid var(--color-line-warm);
+    background-color: var(--color-tint-warm);
+    /* THE GRADIENT, and there is exactly one of it.
+     *
+     * [2026-09-22, owner's original brief: «небольших градиентов-блоков».] The
+     * stage was a three-angle gradient (`.landing-wash-warm`) that rendered 16
+     * times and distinguished nothing, so a critique had it flattened. That was
+     * an over-correction: the fault was that the wash was handed out by ADDRESS
+     * — a costume — not that a stage may not be lit. A single light, defined
+     * once and identical at all eight addresses, is still ONE treatment, which
+     * is all the grammar asks.
+     *
+     * It falls from the top-left because that is where the reference's own
+     * mocha falls, and it ends before the halfway point so the bottom of a tall
+     * card is the flat tint and not a second colour. */
+    background-image: linear-gradient(
+      152deg,
+      color-mix(in srgb, var(--color-surface) 58%, transparent) 0%,
+      color-mix(in srgb, var(--color-surface) 16%, transparent) 44%,
+      transparent 72%
+    );
+  }
+
+  /* GLASS. The header's veil proved the treatment on this page and the owner
+   * kept it; these are the same idea for an object that floats OVER something
+   * with texture in it: the ground shows through, blurred by the token that
+   * names a chrome blur. The inner highlight is what separates glass from fog —
+   * without it a translucent pill just looks like a pale one.
+   *
+   * THE GROUND UNDER IT HAS TO HAVE SOMETHING IN IT. `.landing-glass` is on the
+   * hero's secondary pill and nowhere else, because that pill stands on the
+   * perspective floor's grid; over flat paper the blur has nothing to resolve
+   * and a translucent white pill is just a pale one.
+   *
+   * [2026-09-22, owner: «убрать тёмное совсем».] A dark twin existed for one
+   * revision, on the board's two satellites. It went out with the dark panels,
+   * and with it the one real contrast failure the critique measured: that pill
+   * had drifted 7px off the panel onto a white card, where its label read
+   * 2.56:1. */
+  .landing-glass {
+    background: color-mix(in srgb, var(--color-surface) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--color-surface) 76%, transparent);
+    box-shadow: inset 0 1px 0 0 color-mix(in srgb, var(--color-surface) 88%, transparent);
+    -webkit-backdrop-filter: blur(var(--gp-blur-chrome)) saturate(1.15);
+    backdrop-filter: blur(var(--gp-blur-chrome)) saturate(1.15);
+  }
+
   /* THE FLOOR under the hero: one flat grid tipped back under a CSS
    * perspective and faded toward the horizon. Not a scene — no camera moves
    * and nothing is lit (`DESIGN.md`).
@@ -231,23 +319,18 @@
     transform: rotateX(58deg);
     transform-origin: 50% 0%;
     background-image:
-      linear-gradient(color-mix(in srgb, var(--color-ink) 11%, transparent) 1px, transparent 1px),
-      linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 11%, transparent) 1px, transparent 1px);
+      /* [DEV-029] The floor's lines were ink at 11 %, which is a wireframe's
+       * grey. They are the warm line role now, at the same weight: the same
+       * structure, a degree warmer, and one less place where the page is
+       * literally ink on paper. */
+      linear-gradient(color-mix(in srgb, var(--color-line-warm) 82%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-line-warm) 82%, transparent) 1px, transparent 1px);
     /* ~14 columns across 1440 and lines that stay near 1px at the viewer's edge:
      * a 104px pitch under a 520px perspective gave seven soft 3px strokes. */
     background-size: 60px 60px;
     background-position: 50% 0;
   }
 
-  /* THE LIGHT behind the hero's heading (DEV-027): the reference leaves the
-   * middle of its first screen brighter than the corners, where the pixel field
-   * is. On paper the brighter role is `surface`. */
-  .landing-hero-light {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background-image: radial-gradient(ellipse 46% 52% at 50% 34%, var(--color-surface) 0%, color-mix(in srgb, var(--color-surface) 55%, transparent) 38%, transparent 72%);
-  }
 
   /* A CARD ON A GRID GROUND that fades out toward the caption at its foot. */
   .landing-gridcard::before {

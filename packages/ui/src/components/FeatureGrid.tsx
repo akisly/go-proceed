@@ -50,14 +50,33 @@ export function FeatureGrid({
    * own `on="load"` exists for. */
   stagger?: boolean | "load" | undefined;
 }) {
-  const grid = cx("grid gap-px overflow-hidden rounded-surface border border-line-strong bg-line-strong", COLUMNS[columns], className);
-  return stagger ? <Stagger on={stagger === "load" ? "load" : "view"} className={grid}>{children}</Stagger> : <div className={grid}>{children}</div>;
+  const base = ["grid gap-px overflow-hidden rounded-surface border border-line-strong", COLUMNS[columns]] as const;
+  /* [2026-09-22, DEV-029] Staggered, the 1px gaps are drawn by each cell's own
+   * outline, not by the container's fill. The fill is visible for as long as the
+   * cells are fading in, so /roles opened on a solid grey slab the size of the
+   * grid for a second and a half. An outline fades WITH its cell; overflow-hidden
+   * clips the outer ones to the container's border, which stays. */
+  /* The staggered children must be `StaggerItem`s, or anything else that takes
+   * no focus: `*:outline` is a utility and would beat a direct child's own
+   * `:focus-visible` ring. */
+  return stagger
+    ? <Stagger on={stagger === "load" ? "load" : "view"} className={cx(...base, "*:outline *:outline-line-strong", className)}>{children}</Stagger>
+    : <div className={cx(...base, "bg-line-strong", className)}>{children}</div>;
 }
 
 export function FeatureCell({
-  icon, title, titleAs: Title = "h3", subtitle, children, footer, className,
+  icon, iconClassName, title, titleAs: Title = "h3", subtitle, children, footer, className,
 }: {
   icon?: ReactNode | undefined;
+  /**
+   * [2026-09-22, DEV-029] Additive, and empty by default, so every existing
+   * caller renders exactly as before. It exists because the landing's role grid
+   * gives each cell's icon one of four decorative index tints — the reference's
+   * KPI chip row — and a tint that is bound to the ORDER of an enumeration has
+   * no business being a variant of a shared component, where the next caller
+   * would read it as a state.
+   */
+  iconClassName?: string | undefined;
   title: string;
   /** The title's level. `h3` by default; `h2` where the grid sits directly under a page's `h1` (DEV-025 R-02), so the outline never skips a level. */
   titleAs?: "h2" | "h3" | undefined;
@@ -79,7 +98,7 @@ export function FeatureCell({
       >
         <i aria-hidden="true" data-spotlight="true" className="spotlight -z-10 opacity-0 transition-opacity duration-slow ease-out group-hover:opacity-100" />
         {icon && (
-          <span className="grid size-(--gp-control-height-touch) place-items-center rounded-panel border border-line-strong bg-surface text-ink [&_svg]:size-4.5">
+          <span className={cx("grid size-(--gp-control-height-touch) place-items-center rounded-panel border border-line-strong bg-surface text-ink [&_svg]:size-4.5", iconClassName)}>
             {icon}
           </span>
         )}

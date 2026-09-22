@@ -156,6 +156,16 @@
   --color-accent: var(--gp-text-accent);
   --color-line-accent: var(--gp-border-accent);
   --color-accent-soft: var(--gp-bg-accent-soft);
+  --color-tint-warm: var(--gp-bg-tint-warm);
+  --color-line-warm: var(--gp-border-warm);
+  --color-chip-clay: var(--gp-bg-chip-clay);
+  --color-chip-clay-fg: var(--gp-text-chip-clay);
+  --color-chip-violet: var(--gp-bg-chip-violet);
+  --color-chip-violet-fg: var(--gp-text-chip-violet);
+  --color-chip-pine: var(--gp-bg-chip-pine);
+  --color-chip-pine-fg: var(--gp-text-chip-pine);
+  --color-chip-stone: var(--gp-bg-chip-stone);
+  --color-chip-stone-fg: var(--gp-text-chip-stone);
 }
 
 

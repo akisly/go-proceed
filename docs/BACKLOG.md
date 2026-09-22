@@ -147,6 +147,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-116](#bl-116) | P2 | open | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
 | [BL-117](#bl-117) | P2 | open | The office dashboard has not been seen under the Autumn palette or the new typeface |
 | [BL-118](#bl-118) | P3 | open | «→» is rendered on two landing pages and no self-hosted face carries it |
+| [BL-119](#bl-119) | P2 | open | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
+| [BL-120](#bl-120) | P3 | open | A `bg-`named role used as a foreground escapes the contrast coverage guard |
+| [BL-121](#bl-121) | P3 | open | Two browser-harness probes assert their conclusion on a premise that is no longer true |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1429,3 +1432,35 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `gp-qa`, 2026-09-22, cmaps parsed out of the four `.woff2` after Brotli decompression; the CDP platform-font read on the rendered pages.
 - **Depends on:** a decision on the mechanism, which is why it is not a one-line fix: subset one more Unicode block into the Latin face (it grows the file the first screen preloads), swap the character for one the faces do carry, or accept the fallback and say so. The arrow is copy, so the third option is the owner's to take.
 - **Deadline:** none. Cosmetic, one glyph, and older than this task.
+
+<a id="bl-119"></a>
+### BL-119 — P2 — The office dashboard has no direction from the Autumn CRM reference the landing was built to
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** on 2026-09-22 the owner supplied five shots of the «Autumn CRM Dashboard» (Barly Design / Uxerflow) and said, in one sentence, both «я хочу что бы наш так выглядел» about the dashboard and «сейчас основная задача - лендинг». DEV-029 did the landing and deliberately did not touch `apps/app`: the one shared component it changed (`FeatureCell`) took an ADDITIVE prop whose default leaves the dashboard byte-identical — and `apps/app` imports neither `FeatureGrid` nor `FeatureCell` at all *[corrected 2026-09-22: this said «Stepper, FeatureCell, Compare»; the other two are byte-identical to base]*. So the direction now exists as tokens and as a vocabulary, and nothing in the product has read it. The shots are dashboards, not marketing pages — the parts that belong to `apps/app` and not to the landing are: the paper sidebar against a white canvas (our `bg-canvas` / `bg-surface` pair already), a tinted icon chip on each KPI card (the four `chip-*` roles exist since DEV-029), a dot-matrix chart in the mark's colour, and an ember primary action. None of those is a token change now; all of them are a design decision on live screens.
+- **Evidence:** the five posters sampled in DEV-029's «Sources» — the reference's paper is `#EAEADF`, its accent `#EE530A`, its primary button `#4C665B` and its outer ground `#0B0907`, which are our `bg-canvas`, `bg-signal`, `text-accent` and `bg-inverse` to within a step. The palette is not what is missing.
+- **Depends on:** BL-117 first — the dashboard has not been seen under the Autumn palette AT ALL, so there is no current screenshot to redesign from. A `gp-architect` pass is not needed (no table, contract or policy), but `docs/design/04-role-pain-map.md`'s rule is: a screen with no named role and no named pain is a guess, and these shots are somebody else's product.
+- **Deadline:** before the dashboard is shown to a pilot user, so that the landing and the product do not disagree in front of one.
+
+<a id="bl-120"></a>
+### BL-120 — P3 — A `bg-`named role used as a foreground escapes the contrast coverage guard
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** `packages/testing/src/contrast.test.ts:147` makes a missing contrast row a suite failure — but only for roles whose name starts `text-`, `border-`, `evidence-` or ends `-fg`. A role named `bg-*` that a component then uses as a FOREGROUND is invisible to it. DEV-029 produced exactly that case and did not notice until `gp-reviewer` did: `bg-mocha` was a gradient-stop role whose ruling said «no surface is ever painted flat in it», and `position.tsx` painted two 120–220px glyphs flat in `text-mocha`. The role has since been deleted, so the instance is gone and the HOLE is not.
+- **Evidence:** `gp-reviewer`, 2026-09-22, DEV-029 review round 1 (m-5); `gp-qa`, same day, finding G — «it will be lost» unless it has a backlog entry.
+- **Depends on:** a decision on the mechanism. Widening the prefix list catches it but also demands a row for every decorative surface; the alternative is a scan of `apps/landing` and `packages/ui/src` for `text-<tw>` / `fill-<tw>` where `<tw>` belongs to a `bg-` role, which is narrower and catches the real case.
+- **Deadline:** none. No live instance today.
+
+<a id="bl-121"></a>
+### BL-121 — P3 — Two browser-harness probes assert their conclusion on a premise that is no longer true
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** two probes in `apps/landing/qa/landing.mjs` need a control shot rather than a bare threshold.
+  1. **`beamPixels`.** Its comment stands on «paper, white and ink are all near-neutral, so the beam is the one chromatic thing here», with a threshold of 8 on any channel pair. Under the Autumn palette that is false: the canvas `#ECE9DF` has an R−B spread of 13 and the board's warm stage `#E8DCCE` one of 26. `gp-qa` measured the contamination directly — **ground alone paints 90px** of the 2px band, against beam readings of 485…1147 over one revolution and a floor of 200. So the floor still discriminates with roughly five times headroom at the beam's weakest phase, and the conclusion survives; the PREMISE in the comment does not, and the number is «beam + ground». The fix is `full − ground`, which needs a CLIP capture at the full run's document coordinates because the beam element cannot be screenshotted while it is `display: none`.
+  2. **The compare pair's `animateChecks` under reduced motion.** `gp-ui-reviewer` found the reduced captures consistently behind the full ones (0 of 3 at 1440, 2 of 4 at 390) and could not tell from stills whether the reduced variant runs the same staged draw — which §4.3 rule 8 forbids — or rests on the final state. `gp-qa` ruled it NOT a defect by reading the source (`Stagger.tsx:41`: the reduced variant is opacity-only and names no transform, and `Compare.tsx`/`Stagger.tsx` are byte-identical to `6d694f6`), but nothing in the harness asserts it. What would: two timed captures of `#compare [data-compare-tone="now"]` under reduced motion at ≈0.5s and ≈3s, asserting the visible check count rises and stalls at 5, plus a computed-style read of each `StaggerItem` asserting `transform: none` throughout.
+- **Evidence:** `gp-reviewer` and `gp-qa`, 2026-09-22, DEV-029. The beam control was measured, read-only, on a throwaway port; its numbers are above.
+- **Depends on:** nothing. Both are additions to `landing.mjs`. They were deliberately NOT made inside DEV-029: changing how the file that produces this project's visual evidence MEASURES deserves its own review rather than a hurried edit at the end of a long task.
+- **Deadline:** before the next task that changes a ground behind the board, because that is the change these probes would fail to catch.
