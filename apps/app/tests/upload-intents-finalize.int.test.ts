@@ -243,6 +243,34 @@ databaseDescribe("upload_intents.finalize", () => {
     expect(rows[0]!.failure_code).toBe("unrecognised_content");
   });
 
+  it("blocks bytes stored under a content type other than the detected one (BL-089)", async () => {
+    // Storage serves an object with the type its uploader's PUT declared. A
+    // JPEG-prefixed HTML polyglot passes the magic-byte check as image/jpeg;
+    // stored as TEXT/HTML, Storage serves it back as TEXT/HTML — HTML to a
+    // browser — to anyone who opens its signed URL without `download=`
+    // (DEV-032). So the stored type must be the detected one, or the object
+    // never becomes available and no URL is ever signed for it.
+    const polyglot = new Uint8Array([...JPEG, ...new TextEncoder().encode("<html><script>1</script></html>")]);
+    const intent = await createIntent(polyglot, "image/jpeg");
+    await putObject(intent.storage.key, polyglot, "TEXT/HTML");
+
+    const res = await finalize(intent.uploadIntentId);
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe("SCAN_REJECTED");
+    const rows = await q<{ status: string; failure_code: string }>(
+      `select status, failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
+    expect(rows[0]).toEqual({ status: "scan_blocked", failure_code: "stored_type_mismatch" });
+    const evidence = await q<{ n: string }>(
+      `select count(*) n from public.evidence_objects where workspace_id = $1`, [fx.workspaceId]);
+    expect(evidence[0]!.n).toBe("0");
+  });
+
+  it("accepts the detected type stored in another case or with parameters", async () => {
+    const intent = await createIntent(JPEG, "image/jpeg");
+    await putObject(intent.storage.key, JPEG, "IMAGE/JPEG; charset=binary");
+    expect((await finalize(intent.uploadIntentId)).status).toBe(200);
+  });
+
   it("honours an injected blocking inspector", async () => {
     const intent = await staged(JPEG);
     setInspector(() => ({

@@ -21,7 +21,7 @@ import {
 const databaseDescribe = hasIsolatedDatabaseCredentials() ? describe : describe.skip;
 
 const fakes = vi.hoisted(() => ({
-  stored: new Map<string, Uint8Array>(), downloads: [] as string[], payloads: new Map<string, Uint8Array>(),
+  stored: new Map<string, Uint8Array>(), storedTypes: new Map<string, string>(), downloads: [] as string[], payloads: new Map<string, Uint8Array>(),
   failedDownloads: new Set<string>(), retryableDownloads: new Set<string>(), failNextWrite: false,
   sent: [] as Array<{ chatId: string; text: string; replyToMessageId?: string | null; inlineKeyboard?: unknown }>,
   callbacks: [] as Array<{ callbackId: string; text?: string }>, nextProviderMessageId: 70_000, nextKey: 0,
@@ -37,15 +37,20 @@ vi.mock("../src/lib/evidence-storage", () => ({
   EVIDENCE_BUCKET: "evidence",
   newEvidenceKey: () => `telegram-test/${++fakes.nextKey}`,
   createSignedUpload: async (key: string) => ({ signedUrl: `memory://${key}`, token: "memory", path: key }),
-  putObject: async (key: string, bytes: Uint8Array) => {
+  putObject: async (key: string, bytes: Uint8Array, contentType: string) => {
     if (fakes.failNextWrite) { fakes.failNextWrite = false; throw new Error("storage write refused"); }
     fakes.stored.set(key, bytes);
+    fakes.storedTypes.set(key, contentType);
     await fakes.writeStorageObject?.(key, bytes.byteLength);
   },
   downloadObject: async (key: string) => {
     const value = fakes.stored.get(key); if (!value) throw new Error("missing memory object"); return value;
   },
-  objectSize: async (key: string) => fakes.stored.get(key)?.byteLength ?? null,
+  // As Storage's metadata: the size and the type the PUT declared.
+  objectInfo: async (key: string) => {
+    const bytes = fakes.stored.get(key);
+    return bytes ? { size: bytes.byteLength, contentType: fakes.storedTypes.get(key) ?? null } : null;
+  },
 }));
 
 vi.mock("../src/lib/telegram/api", async (importOriginal) => {
@@ -96,7 +101,7 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   beforeEach(async () => {
-    fakes.stored.clear(); fakes.downloads.length = 0; fakes.payloads.clear(); fakes.failedDownloads.clear();
+    fakes.stored.clear(); fakes.storedTypes.clear(); fakes.downloads.length = 0; fakes.payloads.clear(); fakes.failedDownloads.clear();
     fakes.retryableDownloads.clear();
     fakes.failNextWrite = false; fakes.sent.length = 0; fakes.callbacks.length = 0; fakes.nextKey = 0;
     client = new Client({ connectionString: ADMIN_URL }); await client.connect();

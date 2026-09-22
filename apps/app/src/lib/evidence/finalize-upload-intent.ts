@@ -3,7 +3,7 @@ import { type FinalizeUploadIntentResponse } from "@goproceed/contracts";
 import { enqueueOutbox, recordAudit, withServiceTx, withTenantTx } from "@goproceed/database";
 import { requireActiveMembership } from "../authz";
 import type { HandlerResult } from "../command";
-import { downloadObject, objectSize } from "../evidence-storage";
+import { downloadObject, objectInfo } from "../evidence-storage";
 import { inspectContent } from "../evidence-inspection";
 import { HttpProblem, problem } from "../http";
 
@@ -116,7 +116,8 @@ export async function finalizeUploadIntent({
   const serviceCtx = { ...ctx, organizationId: intent.workspace_id };
 
   // Storage I/O is deliberately outside both transactions.
-  const storedSize = await objectSize(intent.staging_storage_key, intent.staging_bucket);
+  const stored = await objectInfo(intent.staging_storage_key, intent.staging_bucket);
+  const storedSize = stored?.size ?? null;
   if (storedSize === null) {
     throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
       "Байти ще не завантажено за цим наміром.",
@@ -148,7 +149,19 @@ export async function finalizeUploadIntent({
         : `Отримано ${bytes.byteLength} Б замість очікуваних ${intent.expected_byte_size} Б.`,
       { requestId, retryable: true, userAction: "retry_part" }));
   }
-  const inspection = await inspectContent(bytes, intent.claimed_media_type);
+  const inspected = await inspectContent(bytes, intent.claimed_media_type);
+  // THE STORED TYPE MUST BE THE DETECTED ONE (BL-089, DEV-032). Storage serves
+  // an object with the type its uploader's PUT declared, verbatim. A signed
+  // read is issued with `download=`, but that flag is appended by the SDK
+  // outside the signature, so whoever holds the URL can strip it and open the
+  // object inline: a JPEG-prefixed HTML polyglot stored as `TEXT/HTML` then
+  // runs as HTML on the Storage origin (measured, DEV-032). Case and
+  // parameters are ignored (MIME types are case-insensitive); anything else
+  // blocks the upload, so no URL is ever signed for such an object.
+  const storedType = stored?.contentType?.split(";")[0]?.trim().toLowerCase() ?? null;
+  const inspection = inspected.outcome === "passed" && storedType !== inspected.detectedMediaType
+    ? { ...inspected, outcome: "blocked" as const, failureCode: "stored_type_mismatch" }
+    : inspected;
   if (inspection.outcome === "blocked") {
     const blocked = await withServiceTx(serviceCtx, async (tx) => {
       const r = await tx.query<{ applied: boolean }>(
@@ -170,7 +183,7 @@ export async function finalizeUploadIntent({
         { requestId, retryable: false, userAction: "refresh_upload_state_or_request_new_grant" }));
     }
     throw new HttpProblem(422, problem("SCAN_REJECTED",
-      inspection.failureCode === "declared_type_mismatch"
+      inspection.failureCode === "declared_type_mismatch" || inspection.failureCode === "stored_type_mismatch"
         ? `Вміст не відповідає заявленому типу «${intent.claimed_media_type}».`
         : "Тип вмісту не розпізнано.",
       { requestId, retryable: false, userAction: "recapture_or_contact_support" }));

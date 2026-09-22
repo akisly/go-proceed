@@ -85,24 +85,33 @@ export async function downloadObject(key: string): Promise<Uint8Array> {
 }
 
 /**
- * The stored object's size in bytes, or null when the key holds nothing.
+ * The stored object's size in bytes and the content type Storage will serve it
+ * with, or null when the key holds nothing.
  *
  * Read from storage metadata rather than by downloading. finalize used to pull
  * the whole object into memory before comparing it with the intent's declared
  * size, so a caller could declare ten bytes, upload fifty megabytes, and force
  * the server to buffer all of it just to reject it.
+ *
+ * `contentType` is whatever the uploader's PUT declared, verbatim (measured on
+ * the local storage API v1.69.0: `TEXT/HTML` is kept and served as
+ * `TEXT/HTML`), which is why finalize compares it with the detected type
+ * (BL-089, DEV-032).
  */
-export async function objectSize(
+export interface ObjectInfo { size: number; contentType: string | null }
+
+export async function objectInfo(
   key: string, bucket: string = EVIDENCE_BUCKET,
-): Promise<number | null> {
+): Promise<ObjectInfo | null> {
   const slash = key.lastIndexOf("/");
   const prefix = slash === -1 ? "" : key.slice(0, slash);
   const name = slash === -1 ? key : key.slice(slash + 1);
   const { data, error } = await storage(bucket).list(prefix, { search: name, limit: 100 });
   if (error) throw new Error(`storage: list failed for ${bucket}/${key}: ${error.message}`);
   const found = data?.find((o) => o.name === name);
-  const size = (found?.metadata as { size?: number } | undefined)?.size;
-  return typeof size === "number" ? size : null;
+  const metadata = found?.metadata as { size?: number; mimetype?: string } | undefined;
+  if (typeof metadata?.size !== "number") return null;
+  return { size: metadata.size, contentType: typeof metadata.mimetype === "string" ? metadata.mimetype : null };
 }
 
 export async function objectExists(key: string): Promise<boolean> {
@@ -137,7 +146,8 @@ export async function removeObject(key: string, bucket: string = EVIDENCE_BUCKET
 export const EVIDENCE_URL_TTL_SECONDS = 60;
 
 /**
- * EVERY SIGNED READ IS A DOWNLOAD, NEVER AN INLINE RENDER (BL-089, DEV-032).
+ * EVERY SIGNED READ IS ISSUED AS A DOWNLOAD (BL-089, DEV-032) — AND THAT IS
+ * ADVISORY, NOT A GUARANTEE.
  *
  * The object's content type is whatever the uploader's PUT declared, and the
  * Storage origin serves it with no `X-Content-Type-Options: nosniff` and no
@@ -150,6 +160,14 @@ export const EVIDENCE_URL_TTL_SECONDS = 60;
  * and still shows the photo. The external plane never gets a Storage URL: it
  * streams through its own route with the detected type, `nosniff` and a
  * sandbox CSP (`app/external/evidence/route.ts`).
+ *
+ * THE FLAG IS NOT SIGNED. storage-js 2.112.3 sends only `expiresIn` (and the
+ * paths) to `/object/sign/…` and appends `&download=` to the returned URL
+ * itself, so whoever holds the URL can delete it and get the object inline for
+ * the rest of its 60 seconds (measured, DEV-032). What makes that harmless is
+ * finalize, not this flag: an object whose stored type is not its detected
+ * type never becomes available, so no URL is ever signed for it
+ * (`finalize-upload-intent.ts`, `stored_type_mismatch`).
  */
 const SIGNED_READ_OPTIONS = { download: true } as const;
 

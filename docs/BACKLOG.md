@@ -154,7 +154,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-123](#bl-123) | P3 | open | Nothing technical keeps an agent session out of the private prospecting copy |
 | [BL-124](#bl-124) | P2 | open | The prospecting-data guard detects only after the fact and knows one field |
 | [BL-125](#bl-125) | P3 | open | Three validator guards read `git ls-files` split by newline and would skip a quoted path |
-| [BL-126](#bl-126) | P3 | open | A Storage evidence object keeps the uploader's content type, not the detected one |
+| [BL-126](#bl-126) | P2 | open | Hosted Storage's signed-read behaviour is unmeasured, and the evidence bucket accepts any content type on upload |
+| [BL-127](#bl-127) | P3 | open | The Telegram album-exhaustion test wrote two terminal receipts in one of ten runs |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1118,7 +1119,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** none
 - **Why:** DEV-012's `gp-security` review (S1-01). The member plane reads evidence through Supabase Storage signed URLs created with no download option (`apps/app/app/v1/assignments/[assignmentId]/evidence/route.ts:116`, `apps/app/src/lib/evidence-storage.ts` `createSignedReadUrls`), so a file is served inline from the Storage origin with the content type stored at upload, which whoever holds the signed upload URL sets on its PUT (the field client, or anyone holding that URL). On the Telegram path the stored type is the claimed type the inspection checked (`apps/app/src/lib/telegram/evidence.ts:199`, `:212`); Telegram's added risk is its less-trusted senders. Finalize checks the bytes against the claimed type from their leading bytes only, and the `evidence` bucket sets no `allowed_mime_types` (`0020`). The external review route already serves the detected type with `nosniff` and a sandbox CSP (`apps/app/app/external/evidence/route.ts:288-336`); the member plane has neither. The owner accepted this for the pilot on 2026-09-15 with revisit triggers (`docs/delivery/production-readiness.md` §12). The cheapest compensating controls are a download (`Content-Disposition: attachment`) on member signed URLs and storing the detected type as the object's content type. Ranked by DEV-012.
 - **Evidence:** observed 2026-09-15 at `48ba14e` by `gp-security` (DEV-012 row 6); unverified: which response headers Supabase Storage sends on a signed read, and whether it serves an HTML or SVG content type as stored.
-- **Closed 2026-09-23 by DEV-032:** every signed read URL `evidence-storage.ts` issues (`createSignedReadUrl`, `createSignedReadUrls`) passes `download: true`, so Storage answers `Content-Disposition: attachment` and a navigation to the URL saves the file instead of rendering it. Measured on the local stack (storage-api v1.69.0): before, an object stored as `image/svg+xml` came back inline with neither `nosniff` nor a sandbox, and opening its signed URL in Chrome ran its script on the Storage origin; after, the same navigation downloads and runs nothing, while an `<img>` — the member plane's only use of these URLs — still shows the image. What stays: the Storage object keeps the uploader's content type and Storage sends no `nosniff` (BL-126); hosted Storage was not measured.
+- **Closed 2026-09-23 by DEV-032:** two controls. (1) Finalization refuses an object whose stored content type (Storage's metadata, what it will serve; case and parameters ignored) is not the type detected from its bytes (`stored_type_mismatch`, `scan_blocked`), so every available evidence object is served as one of the four allowed types. (2) Every signed read `evidence-storage.ts` issues passes `download: true`, so Storage answers `Content-Disposition: attachment` and a navigation to the URL as issued saves the file. The second is advisory: storage-js appends `download=` outside the signature, and a URL holder can strip it; the first is what makes a stripped URL harmless. Measured on the local stack (storage-api v1.69.0): a JPEG-prefixed HTML polyglot stored as `TEXT/HTML` was served as `TEXT/HTML` and, opened by a signed URL without `download=`, ran its script in Chrome; finalization now blocks it. An `<img>` — the member plane's only use of these URLs — still shows the image. What stays is BL-126 (hosted Storage unmeasured; the bucket accepts any type on upload).
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere.
 
@@ -1515,11 +1516,21 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** before a tracked path carries a Cyrillic name.
 
 <a id="bl-126"></a>
-### BL-126 — P3 — A Storage evidence object keeps the uploader's content type, not the detected one
+### BL-126 — P2 — Hosted Storage's signed-read behaviour is unmeasured, and the evidence bucket accepts any content type on upload
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-032 (BL-089) made every member-plane signed read a download, which removes the inline render; the object itself still carries whatever content type the uploader's PUT declared, and Storage serves it without `nosniff`. Finalization records the detected type in `evidence_objects.media_type`, but not on the object. An `<img>` does not run an SVG's script and the detected leading bytes are one of four allowed types, so no path is open today; setting the object's content type to the detected one at finalization (a server-side copy or update) is defence in depth, and `files-and-storage.md` «Download responses use the validated media type» asks for it. Ranked by DEV-032.
-- **Evidence:** `scratchpad/bl089-storage-headers-put.txt`, cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md): a raw PUT with `image/svg+xml` is served back as `image/svg+xml`; `finalize-upload-intent.ts` passes the detected type to `app.finalize_upload_intent` only.
+- **Why:** DEV-032's reviews (`gp-reviewer` R1-01, `gp-security` S1-01 to S1-04). DEV-032 closed BL-089 on measurements of the local storage API v1.69.0 only: which headers a signed read carries, that `download=` gives `attachment`, that a stripped URL serves the stored type inline, and which stored types Storage rewrites (`text/html` → `text/plain`, but not `TEXT/HTML`). Hosted Storage (its version, its CDN, a custom domain) may differ. And the `evidence` bucket sets no `allowed_mime_types` (`0020`), so Storage accepts any type on the upload PUT; finalization now refuses a mismatch before availability, but a bucket allow-list of the four allowed types would refuse it at the door. A named download (`download: "evidence.<ext>"` from the detected type) would also fix the saved file's name. Ranked by DEV-032.
+- **Evidence:** `scratchpad/dev032-variants.txt`, `dev032-strip.txt`, `dev032-polyglot-browser.txt`, cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md); `supabase/migrations/0020_*` creates the bucket without `allowed_mime_types`.
+- **Depends on:** the owner's authorisation to write a test object to staging, for the hosted measurement; a migration (with `gp-architect`) for the bucket allow-list.
+- **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere (BL-089's).
+
+<a id="bl-127"></a>
+### BL-127 — P3 — The Telegram album-exhaustion test wrote two terminal receipts in one of ten runs
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** observed during DEV-032. `apps/app/tests/telegram-evidence.int.test.ts` «waits for retryable album parts, then completes once on retry success or exhaustion» failed once at line 856 (two receipts for message 791 where one is expected) and passed in the nine runs after it; the baseline passed five of five. The 791 part never downloads successfully, so it never reaches finalization, where DEV-032's change lies. Either the test's two back-to-back `processDueTelegramEvidenceRetries` calls race, or the exhaustion path can write its terminal receipt twice — which the product must not do. Ranked by DEV-032.
+- **Evidence:** `scratchpad/dev032-r1-suite-telegram-evidence.txt` (the failure), `dev032-flake-mine-*.txt` and `dev032-baseline-telegram-*.txt` (the reruns), cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md).
 - **Depends on:** nothing.
-- **Deadline:** before any code path serves a Storage URL to a browser other than as an `<img>` or a download.
+- **Deadline:** before the Telegram webhook is enabled anywhere.

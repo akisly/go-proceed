@@ -42,6 +42,8 @@ describe("evidence storage: read access", () => {
     for (const url of [single, urls.get(key)!]) {
       const res = await fetch(url);
       expect(res.status).toBe(200);
+      // The positive control: the hostile type IS what Storage serves.
+      expect(res.headers.get("content-type")).toBe("image/svg+xml");
       expect(res.headers.get("content-disposition") ?? "").toMatch(/^attachment\b/);
       expect(new Uint8Array(await res.arrayBuffer())).toEqual(svg);
     }
