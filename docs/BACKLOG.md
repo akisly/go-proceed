@@ -61,7 +61,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-030](#bl-030) | P2 | open | The evidence purge worker runs nowhere |
 | [BL-031](#bl-031) | P2 | open | Purge claims are not fenced |
 | [BL-032](#bl-032) | P2 | open | A deactivated member cannot abandon their own upload through the route |
-| [BL-033](#bl-033) | P2 | open | `evidence-storage.ts` puts raw storage keys into error messages |
+| [BL-033](#bl-033) | P2 | closed → DEV-034 | `evidence-storage.ts` puts raw storage keys into error messages |
 | [BL-034](#bl-034) | P2 | open | The evidence screen formats times in a hard-coded zone, not the workspace's |
 | [BL-035](#bl-035) | P3 | open | `apps/app` has no application logging, so «never in the logs» cannot be asserted |
 | [BL-036](#bl-036) | P3 | open | The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200 |
@@ -506,10 +506,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-033"></a>
 ### BL-033 — P2 — `evidence-storage.ts` puts raw storage keys into error messages
 
-- **State:** open
+- **State:** closed → DEV-034
 - **Legacy cite:** `TODOS.md` «puts raw storage keys into error messages, and they reach the console»
 - **Why:** these are bare `Error`s, so `toProblemResponse` logs them verbatim. `docs/architecture/files-and-storage.md` §Downloads says logs never record «the signed URL or raw storage key». The file is the house style a new helper copies.
 - **Evidence:** `apps/app/src/lib/evidence-storage.ts:65`, `:78`, `:83`, `:102`, `:123` interpolate the key.
+- **Closed 2026-09-23 by DEV-034:** `createSignedUpload`, `putObject`, `downloadObject`, `objectInfo` (formerly `objectSize`) and `removeObject` throw `EvidenceStorageError` through `readFailed`, as the read helpers already did: the message names the operation and the provider's error code, never the key, the bucket or the provider's message. A unit test with a fake client whose every call fails with «Invalid key: <key>» was red on the five helpers first; an integration test downloads a key the local storage server refuses — whose own message names the key — and finds neither half of it in the error.
 - **Depends on:** nothing.
 - **Deadline:** none recorded; urgent once logging exists (BL-035).
 

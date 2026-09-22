@@ -71,7 +71,7 @@ export interface SignedUpload { signedUrl: string; token: string; path: string }
  */
 export async function createSignedUpload(key: string): Promise<SignedUpload> {
   const { data, error } = await storage().createSignedUploadUrl(key);
-  if (error) throw new Error(`storage: signed upload failed for ${key}: ${error.message}`);
+  if (error) throw readFailed("signed upload", error);
   return { signedUrl: data.signedUrl, token: data.token, path: data.path };
 }
 
@@ -84,12 +84,12 @@ export async function putObject(
 ): Promise<void> {
   const { error } = await storage().uploadToSignedUrl(key, (await createSignedUpload(key)).token,
     bytes, { contentType });
-  if (error) throw new Error(`storage: upload failed for ${key}: ${error.message}`);
+  if (error) throw readFailed("upload", error);
 }
 
 export async function downloadObject(key: string): Promise<Uint8Array> {
   const { data, error } = await storage().download(key);
-  if (error) throw new Error(`storage: download failed for ${key}: ${error.message}`);
+  if (error) throw readFailed("download", error);
   return new Uint8Array(await data.arrayBuffer());
 }
 
@@ -116,7 +116,7 @@ export async function objectInfo(
   const prefix = slash === -1 ? "" : key.slice(0, slash);
   const name = slash === -1 ? key : key.slice(slash + 1);
   const { data, error } = await storage(bucket).list(prefix, { search: name, limit: 100 });
-  if (error) throw new Error(`storage: list failed for ${bucket}/${key}: ${error.message}`);
+  if (error) throw readFailed("list", error);
   const found = data?.find((o) => o.name === name);
   const metadata = found?.metadata as { size?: number; mimetype?: string } | undefined;
   if (typeof metadata?.size !== "number") return null;
@@ -138,7 +138,7 @@ export async function objectExists(key: string): Promise<boolean> {
  */
 export async function removeObject(key: string, bucket: string = EVIDENCE_BUCKET): Promise<void> {
   const { error } = await storage(bucket).remove([key]);
-  if (error) throw new Error(`storage: remove failed for ${bucket}/${key}: ${error.message}`);
+  if (error) throw readFailed("remove", error);
 }
 
 /**
@@ -181,13 +181,14 @@ export const EVIDENCE_URL_TTL_SECONDS = 60;
 const SIGNED_READ_OPTIONS = { download: true } as const;
 
 /**
- * NO KEY, AND NO PROVIDER MESSAGE, IN ANY ERROR THROWN FROM HERE DOWN.
+ * NO KEY, AND NO PROVIDER MESSAGE, IN ANY ERROR THROWN FROM THIS FILE.
  *
- * The functions above this line interpolate the storage key into their errors,
- * which reach `console.error` through `toProblemResponse`'s unmapped branch —
- * against `files-and-storage.md`'s «Logs record the domain object and
- * authorization result, never the signed URL or raw storage key». That is a
- * recorded defect (TODOS.md) and deliberately NOT the style copied here.
+ * Errors reach `console.error` through `toProblemResponse`'s unmapped branch,
+ * and `files-and-storage.md` says «Logs record the domain object and
+ * authorization result, never the signed URL or raw storage key». Until
+ * DEV-034 (BL-033) the upload, download, list and remove helpers interpolated
+ * the key and relayed the provider's message; every one of them now throws
+ * `EvidenceStorageError` through `readFailed`, the same as the read helpers.
  *
  * Relaying the provider's own `error.message` verbatim is not a safe
  * substitute for interpolating the key ourselves — the message can carry the
@@ -204,7 +205,7 @@ const SIGNED_READ_OPTIONS = { download: true } as const;
  * through, and the guarantee has to hold then too — not only for the keys
  * this file currently chooses to mint.
  *
- * So nothing below relays `error.message`. `readFailed` carries forward only
+ * So nothing here relays `error.message`. `readFailed` carries forward only
  * `error.code` — a closed, provider-defined enum (`NoSuchKey`, `NoSuchBucket`,
  * `InvalidKey`, … see
  * https://supabase.com/docs/guides/storage/debugging/error-codes) — and
