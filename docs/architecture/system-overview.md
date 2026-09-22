@@ -304,10 +304,23 @@ the repository, and `apps/app` carries no web app manifest or service worker.
 | `assignment/{id}` | v0.1 | One work assignment |
 | `occurrence/{id}` | v0.1 | One requirement occurrence — the object [ADR-005](../decisions/ADR-005-readiness-gate-and-hidden-works.md) defines and the runtime has no table for |
 | `capture/{assignmentId}` | v0.1 | Evidence capture opened against one assignment |
-| `invite/{token}` | v0.1 | Membership invitation redemption |
+| `invite#<token>` | v0.1 | Membership invitation redemption. The token rides in the **fragment**, which no browser sends; the page exchanges it by POST to `/v1/invitations/accept`, and a GET consumes nothing. Built to the contract in «The invitation link» below. Corrected 2026-09-19 by [DEV-024](../tasks/DEV-024-invite-token-in-fragment.md) (BL-109) from `invite/{token}`, which put a bearer token in the path |
 
 Rules that bind whenever those routes are built, in either client:
 
+- **A link this app mints for its own origin never carries a bearer secret in a
+  path segment or a query string** (INV-104, DEV-024). The invitation token and
+  the external review token ride in the URL fragment and are exchanged by POST;
+  a path or query token reaches this origin's access logs, `Referer` headers,
+  analytics and caches. `apps/app/src/lib/url-secrets.test.ts` holds every
+  dynamic segment to an id-shaped name and every query-string read to a short
+  allowlist. **Links in another party's format are outside this rule**, each for
+  its reason: the Telegram deep link (`t.me/<bot>?start=` / `?startgroup=` — the
+  vendor's protocol, a one-use token that expires in minutes), Supabase Storage
+  signed URLs (`?token=`, another origin, short-lived) and the Supabase Auth
+  confirmation URL in the sign-in email (the vendor's). How a custom-scheme form
+  of any link carries a secret is a v0.3 question for `gp-mobile`: another app
+  can register the same scheme.
 - **A link is a destination, never an authorization.** Route resolution happens
   after the BFF has re-derived the identity chain for the target object. The
   client never trusts an identifier because it arrived in a link.
@@ -384,6 +397,49 @@ A successful byte upload is not an evidence fact. The server must verify size
 and hash, recheck authorization, complete the required inspection boundary, and
 commit the evidence identity and available receipt before the original is
 server-confirmed.
+
+### The invitation link
+
+The v0.1 contract for `invite#<token>` (DEV-024, BL-109). The page is not built
+yet; whoever builds it builds it to this. It follows the external review shell
+(`apps/app/app/external/review/route.ts`, [Protected external
+review](#protected-external-review)) wherever the two agree.
+
+- **The fragment is stripped first.** The page reads `location.hash` and calls
+  `history.replaceState` to remove it before its own code makes any request or
+  renders any link, as the review shell does (`history.replaceState` before its exchange), so the address bar and
+  session history stop holding it. (The document and framework requests before
+  it never carry the fragment.)
+- **The token never leaves the page's memory.** Not `next`, not any other query
+  parameter or path, not a cookie, not `localStorage`, `sessionStorage` or
+  IndexedDB. The proxy's sign-in redirect builds `next` from the path and query
+  (`apps/app/proxy.ts`), and `safeNext` would carry a fragment placed inside it
+  (`apps/app/src/lib/safe-next.ts`), so «put `#token` into `next`» would work and
+  would put the token in the `/login` request line: it is forbidden.
+- **It survives sign-in without leaving the page.** `invite` is excluded from
+  the proxy's sign-in redirect and signs the member in on the page itself,
+  holding the token in memory. The exclusion is load-bearing, not redundant: a
+  signed-out visit would otherwise get a redirect to `/login?next=%2Finvite`,
+  the browser would carry the fragment onto `/login` (RFC 9110 §10.2.2), the
+  strip on `invite` would never run, and the token would sit in `/login`'s
+  address bar and then be lost. Exclude it by a pathname check in the proxy's
+  body, as `/login` is, rather than in its matcher, so the proxy can still send
+  the page's security headers.
+- **No third-party script and no referrer.** The page loads no analytics or
+  other third-party script, and sends `Referrer-Policy: no-referrer` and
+  `Cache-Control: no-store`, as `externalSecurityHeaders`
+  (`apps/app/src/lib/external-link.ts`) does for the review shell: the token is
+  not bound to the invited email (BL-013), so any script that reads it can accept
+  the invitation into its own account.
+- **The invitee must already have an account.** Sign-in is OTP with
+  `shouldCreateUser: false`, and nothing provisions an Auth user for an invitee.
+  Letting the invite page create one is an auth change for `gp-architect` and
+  `gp-security`, not part of building the page.
+- **Its evidence, when built:** a browser audit that opens `/invite#<token>`
+  signed out and asserts that no request URL and no `Referer` through sign-in and
+  accept contains the token; a unit test that the minted link has an empty query
+  and the token only in its fragment; header assertions as in
+  `apps/app/tests/external-shell.test.ts`.
 
 ### Workers and external providers
 
