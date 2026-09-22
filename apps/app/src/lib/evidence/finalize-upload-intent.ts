@@ -17,6 +17,15 @@ type IntentRow = {
   workspace_id: string; project_id: string; work_assignment_id: string;
   device_capture_id: string | null;
 };
+const MIME_TOKEN = "[a-z0-9!#$&^_.+-]+";
+
+/** True when `stored` is `expected`, case aside, followed by nothing but plain `; name=value` parameters. */
+export function storedTypeIs(stored: string | null, expected: string): boolean {
+  if (stored === null) return false;
+  const escaped = expected.toLowerCase().replace(/[.+]/g, "\\$&");
+  return new RegExp(`^${escaped}(?:[ \\t]*;[ \\t]*${MIME_TOKEN}=${MIME_TOKEN})*$`).test(stored.trim().toLowerCase());
+}
+
 type FinalizeResult =
   | { outcome: "unauthorized" }
   | { outcome: "no_content" }
@@ -155,11 +164,14 @@ export async function finalizeUploadIntent({
   // read is issued with `download=`, but that flag is appended by the SDK
   // outside the signature, so whoever holds the URL can strip it and open the
   // object inline: a JPEG-prefixed HTML polyglot stored as `TEXT/HTML` then
-  // runs as HTML on the Storage origin (measured, DEV-032). Case and
-  // parameters are ignored (MIME types are case-insensitive); anything else
-  // blocks the upload, so no URL is ever signed for such an object.
-  const storedType = stored?.contentType?.split(";")[0]?.trim().toLowerCase() ?? null;
-  const inspection = inspected.outcome === "passed" && storedType !== inspected.detectedMediaType
+  // runs as HTML on the Storage origin (measured, DEV-032). The match is
+  // STRICT: the recorded type, in any case, with nothing after it but plain
+  // `name=value` parameters — no comma, no quote. A browser reads the last
+  // type of a comma list, and `image/jpeg;x=1, TEXT/HTML` was stored, served
+  // and rendered as HTML (DEV-032 S2-01). Every outcome but `blocked` is
+  // checked, against the type the row will record.
+  const recordedType = inspected.detectedMediaType ?? intent.claimed_media_type;
+  const inspection = inspected.outcome !== "blocked" && !storedTypeIs(stored?.contentType ?? null, recordedType)
     ? { ...inspected, outcome: "blocked" as const, failureCode: "stored_type_mismatch" }
     : inspected;
   if (inspection.outcome === "blocked") {
@@ -183,9 +195,11 @@ export async function finalizeUploadIntent({
         { requestId, retryable: false, userAction: "refresh_upload_state_or_request_new_grant" }));
     }
     throw new HttpProblem(422, problem("SCAN_REJECTED",
-      inspection.failureCode === "declared_type_mismatch" || inspection.failureCode === "stored_type_mismatch"
+      inspection.failureCode === "declared_type_mismatch"
         ? `Вміст не відповідає заявленому типу «${intent.claimed_media_type}».`
-        : "Тип вмісту не розпізнано.",
+        : inspection.failureCode === "stored_type_mismatch"
+          ? `Файл завантажено до сховища з типом, відмінним від «${intent.claimed_media_type}». Завантажте фото ще раз.`
+          : "Тип вмісту не розпізнано.",
       { requestId, retryable: false, userAction: "recapture_or_contact_support" }));
   }
 

@@ -514,9 +514,9 @@ the closed ones.
         limits do not exist (BL-088); member-plane reads are served inline with
         the stored content type (BL-089).
       - **2026-09-23, [DEV-032](../tasks/DEV-032-evidence-signed-read-download.md):**
-        finalization refuses an object whose stored content type is not the
-        detected one, so every available object is served as one of the four
-        allowed types; and member-plane signed reads are issued as downloads
+        finalization refuses an object whose stored content type is not
+        strictly the detected one, so every object finalized from DEV-032 on is
+        served as one of the four allowed types; and member-plane signed reads are issued as downloads
         (`Content-Disposition: attachment`), which a URL holder can strip — the
         first control is what makes that harmless. An `<img>` still shows the
         image. Measured on the local stack only; hosted Storage and a bucket

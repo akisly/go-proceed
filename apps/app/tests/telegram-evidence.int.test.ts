@@ -107,7 +107,11 @@ databaseDescribe("Telegram evidence bridge", () => {
     client = new Client({ connectionString: ADMIN_URL }); await client.connect();
     fakes.writeStorageObject = async (key, size) => {
       await client.query(`insert into storage.objects (bucket_id, name, metadata)
-        values ('evidence', $1, jsonb_build_object('size', $2::int)) on conflict do nothing`, [key, size]);
+        values ('evidence', $1, jsonb_build_object('size', $2::int))
+        on conflict (bucket_id, name) do update set metadata = excluded.metadata`, [key, size]);
+      // An upsert, not «do nothing»: the fake keys (telegram-test/N) repeat across
+      // runs and are never removed, so a row an earlier run left with another
+      // size made finalization answer no_content (seen in DEV-032/DEV-033).
     };
     rules = await seedRulesWorld(client, { workspaceId: crypto.randomUUID(), userId: crypto.randomUUID(), suffix: "TG-EVIDENCE" });
     world = await seedOccurrenceWorld(client, rules);

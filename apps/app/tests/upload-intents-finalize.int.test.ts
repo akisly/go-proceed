@@ -5,7 +5,7 @@ import {
   ADMIN_URL, hasIsolatedDatabaseCredentials, q, jsonReq, matrixFixture, type MatrixFixture,
 } from "./helpers/fixtures";
 import { dropWorkspaces } from "../../../packages/testing/src/pg";
-import { putObject, objectExists, removeObject } from "../src/lib/evidence-storage";
+import { putObject, objectExists, objectInfo, removeObject } from "../src/lib/evidence-storage";
 import { setInspector, resetInspector, sniffMediaType } from "../src/lib/evidence-inspection";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -265,10 +265,40 @@ databaseDescribe("upload_intents.finalize", () => {
     expect(evidence[0]!.n).toBe("0");
   });
 
-  it("accepts the detected type stored in another case or with parameters", async () => {
+  it("blocks a stored type LIST whose last member is scriptable (DEV-032 S2-01)", async () => {
+    // Measured: Storage keeps `image/jpeg;x=1, TEXT/HTML` verbatim and serves
+    // it so; a browser takes the last type of a list, and the stripped URL ran
+    // the polyglot's script. Cutting at `;` would have read `image/jpeg`.
+    const polyglot = new Uint8Array([...JPEG, ...new TextEncoder().encode("<html><script>1</script></html>")]);
+    const intent = await createIntent(polyglot, "image/jpeg");
+    await putObject(intent.storage.key, polyglot, "image/jpeg;x=1, TEXT/HTML");
+    expect((await objectInfo(intent.storage.key))?.contentType).toBe("image/jpeg;x=1, TEXT/HTML");
+    expect((await finalize(intent.uploadIntentId)).status).toBe(422);
+    const rows = await q<{ failure_code: string }>(
+      `select failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
+    expect(rows[0]!.failure_code).toBe("stored_type_mismatch");
+  });
+
+  it("accepts the detected type stored in another case or with plain parameters", async () => {
     const intent = await createIntent(JPEG, "image/jpeg");
     await putObject(intent.storage.key, JPEG, "IMAGE/JPEG; charset=binary");
+    // The positive control: Storage kept the type as sent, so the check saw it.
+    expect((await objectInfo(intent.storage.key))?.contentType).toBe("IMAGE/JPEG; charset=binary");
     expect((await finalize(intent.uploadIntentId)).status).toBe(200);
+  });
+
+  it("refuses to overwrite an object after finalization, so the checked type and bytes stay (DEV-032 S2-02)", async () => {
+    // The stored-type check and the hash check read the object once. They hold
+    // only because Storage refuses a second PUT to the same key: the signed
+    // upload is created without `upsert`, and that is load-bearing.
+    const intent = await createIntent(JPEG, "image/jpeg");
+    await putObject(intent.storage.key, JPEG, "image/jpeg");
+    expect((await finalize(intent.uploadIntentId)).status).toBe(200);
+    const again = await fetch(intent.upload.signedUrl, {
+      method: "PUT", headers: { "content-type": "TEXT/HTML" }, body: new TextEncoder().encode("<html>"),
+    });
+    expect(again.ok).toBe(false);
+    expect(await objectInfo(intent.storage.key)).toEqual({ size: JPEG.byteLength, contentType: "image/jpeg" });
   });
 
   it("honours an injected blocking inspector", async () => {

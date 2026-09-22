@@ -59,7 +59,16 @@ export function newEvidenceKey(): string {
 
 export interface SignedUpload { signedUrl: string; token: string; path: string }
 
-/** A short-lived, single-key upload grant. Never persisted — it expires. */
+/**
+ * A short-lived, single-key upload grant. Never persisted — it expires.
+ *
+ * NO `upsert`, AND THAT IS LOAD-BEARING (DEV-032 S2-02). Finalization reads
+ * the object's size, stored type and bytes once; they stay what was checked
+ * only because Storage refuses a second PUT to an existing key, while a
+ * signed upload token outlives finalization. Pinned by
+ * `upload-intents-finalize.int.test.ts` («refuses to overwrite an object
+ * after finalization»).
+ */
 export async function createSignedUpload(key: string): Promise<SignedUpload> {
   const { data, error } = await storage().createSignedUploadUrl(key);
   if (error) throw new Error(`storage: signed upload failed for ${key}: ${error.message}`);
