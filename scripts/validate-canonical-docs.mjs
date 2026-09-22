@@ -1405,7 +1405,8 @@ export function contactPointErrors(relPath, text, approved = CONTACT_POINT_APPRO
     for (const m of text.matchAll(TELEPHONE_RE)) if (/[1-9]/.test(m[1].replace(/\D/g, "").replace(/^380/, ""))) lines.add(lineAt(m.index));
     return [...lines].sort((a, b) => a - b).map((n) => `${relPath}:${n}: an approved contactPoint fixture holds `
       + "an email or telephone that is not synthetic (emails on a reserved domain such as example.com or .test, "
-      + "telephones all zeros after an optional +380) — a real person's contact cannot be approved (BL-079)");
+      + "telephones all zeros after an optional +380) — a real person's contact cannot be approved (BL-079). "
+      + PATH_REMEDY);
   }
   const lines = new Set();
   for (const re of CONTACT_POINT_FORMS) for (const m of text.matchAll(re)) lines.add(lineAt(m.index));
@@ -1433,7 +1434,9 @@ export function decodeTrackedText(buf) {
     return Buffer.from(buf.subarray(2, 2 + ((buf.length - 2) & ~1))).swap16().toString("utf16le");
   }
   if (buf.subarray(0, 8000).includes(0)) return null;
-  return buf.toString("utf8");
+  // A UTF-8 byte-order mark (Excel's «CSV UTF-8» writes one) would sit before
+  // line 1 and hide a line-anchored form there.
+  return buf.toString("utf8").replace(/^\uFEFF/, "");
 }
 
 /**
@@ -2272,10 +2275,14 @@ function selfTest() {
   if (cp("x.md", "| parties/0/contactPoint/email | id |\n") !== 1) t.push("contactPoint guard (slash path in a table)");
   if (!contactPointErrors("fixtures/tender.json", "contactPoint:\n  telephone: +380 " + "50 111 11 11\n", fx)[0]?.includes("not synthetic")) t.push("contactPoint guard (unquoted telephone in an approved fixture)");
   if (contactPointErrors("fixtures/tender.json", '{"contactPoint": {}} uses actions/checkout@v4 and next@16\n', fx).length !== 0) t.push("contactPoint guard (a version pin read as an email)");
+  // QA round 1 (DEV-031 Q1): the approved-file remedy, `_` pinned, a UTF-8 BOM.
+  if (!contactPointErrors("fixtures/tender.json", '{"contactPoint": {"email": "someone' + "@" + 'mail.example.com.ua"}}\n', fx)[0]?.includes("pushed")) t.push("contactPoint guard (remedy in the approved-file message)");
+  if (cp("x.json", '{"contact_point": {"name": "X"}}\n') !== 1) t.push("contactPoint guard (contact_point)");
+  if (cp("x.yaml", decodeTrackedText(Buffer.from("\uFEFFcontactPoint:\n  name: X\n")) ?? "") !== 1) t.push("tracked text decoder (UTF-8 BOM hides line 1)");
   if (binaryBlobErrors("data/frame.pkl").length !== 1 || binaryBlobErrors("docs/a.PNG").length !== 0 || binaryBlobErrors("fonts/x.woff2").length !== 0) t.push("binary blob rule");
   const batch = Buffer.from("aaa blob 2\nhi\nbbb missing\nccc blob 1\nx\n");
-  const parsed = parseCatFileBatch(batch, [{ blob: "aaa", path: "a" }, { blob: "bbb", path: "b" }, { blob: "ccc", path: "c" }]);
-  if (!parsed.error?.includes("b") || parsed.entries.length !== 1 || parsed.entries[0]?.body.toString() !== "hi") t.push("cat-file batch parser (missing object fails closed)");
+  const parsed = parseCatFileBatch(batch, [{ blob: "aaa", path: "a" }, { blob: "bbb", path: "path-b" }, { blob: "ccc", path: "c" }]);
+  if (!parsed.error?.startsWith("path-b:") || parsed.entries.length !== 1 || parsed.entries[0]?.body.toString() !== "hi") t.push("cat-file batch parser (missing object fails closed)");
   const whole = parseCatFileBatch(Buffer.from("aaa blob 2\nhi\nccc blob 1\nx\n"), [{ blob: "aaa", path: "a" }, { blob: "ccc", path: "c" }]);
   if (whole.error !== null || whole.entries.map((e) => e.body.toString()).join() !== "hi,x") t.push("cat-file batch parser (well-formed)");
   // outputs/ is no longer a record directory: only its pointer README is tracked (DEV-031).
