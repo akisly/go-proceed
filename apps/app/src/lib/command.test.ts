@@ -12,6 +12,25 @@ const mk = (body: string, headers: Record<string, string> = {}) =>
   new Request("http://x/v1/echo", { method: "POST", headers: { "content-type": "application/json", ...headers }, body });
 
 describe("commandRoute", () => {
+  // DEV-022 / BL-112: the hash a handler receives binds the path target, so a
+  // key reused with the same body on another target cannot replay the first.
+  it("gives the same body on two targets two request hashes", async () => {
+    const seen: string[] = [];
+    const route = commandRoute(z.object({}).strict(), async (a) => {
+      seen.push(a.requestHash);
+      return { status: 200, body: {} };
+    });
+    const req = () => new Request("http://x/v1/items/x/archive",
+      { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "k" }, body: "{}" });
+    await route(req(), { params: Promise.resolve({ itemId: "0f0e0d0c-0b0a-4000-8000-000000000001" }) });
+    await route(req(), { params: Promise.resolve({ itemId: "0f0e0d0c-0b0a-4000-8000-000000000002" }) });
+    await route(req(), { params: Promise.resolve({ itemId: "0F0E0D0C-0B0A-4000-8000-000000000001" }) });
+    expect(seen).toHaveLength(3);
+    expect(seen[0]).not.toBe(seen[1]);
+    expect(seen[2]).toBe(seen[0]);
+    expect(seen[0]).toMatch(/^[0-9a-f]{64}$/);
+  });
+
   it("rejects a missing Idempotency-Key with 422 VALIDATION_FAILED", async () => {
     const res = await echo(mk(JSON.stringify({ name: "x" })), { params: Promise.resolve({}) });
     expect(res.status).toBe(422);

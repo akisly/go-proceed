@@ -769,7 +769,9 @@ validator may detect corruption, but it is not the primary enforcement.
 - Record the authoritative facts, idempotency result, audit event, and outbox
   intents in the same commit.
 - A retry with the same bounded idempotency key and request hash returns the
-  same durable result; the same key with a different request fails.
+  same durable result; the same key with a different request fails. The request
+  hash covers the command's target (its path parameters) and its body, since
+  DEV-022, so the same key on another target fails too.
 
 ### Command serialization matrix
 

@@ -322,6 +322,14 @@ workspace. A record without one (creating a workspace or an organization,
 accepting an invitation) stays fenced by its actor alone; the owner accepted
 that residual.
 
+**Update, 2026-09-19 (DEV-022, BL-112).** The request hash a command is
+replayed by covered its raw body only, so a key reused with the same body on
+another target of the same command replayed the first target's result and left
+the second untouched. `commandRoute` now hashes the route's path parameters
+(UUIDs lower-cased) with the body (`apps/app/src/lib/request-hash.ts`); the reuse
+is 409 `IDEMPOTENCY_CONFLICT`, after the `authorize` step. A retry that spans the
+deploy of this change is answered 409 as well (owner, 2026-09-19).
+
 The client never supplies a trusted `workspace_id`, governance role,
 responsibility, recipient, package scope, rule version, blocking scope, notice
 period, or price/acceptance authority. It supplies an identifier/request; the
