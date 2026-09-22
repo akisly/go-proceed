@@ -209,8 +209,9 @@ const SIGNED_READ_OPTIONS = { download: true } as const;
  * `error.code` — a closed, provider-defined enum (`NoSuchKey`, `NoSuchBucket`,
  * `InvalidKey`, … see
  * https://supabase.com/docs/guides/storage/debugging/error-codes) — and
- * `error.status`. A code is an enum member and cannot contain a key; a status
- * is a number and cannot either. `code` is also the discriminator a caller
+ * `error.status`. A code is an enum member and cannot contain a key — and
+ * `readFailed` enforces that, keeping a code only when it is an identifier
+ * (DEV-034 S1-03); a status is a number and cannot either. `code` is also the discriminator a caller
  * should branch on instead of parsing text: see the NOTE on
  * `createSignedReadUrl` for why `status` alone is not enough to tell a
  * missing object from most other storage failures.
@@ -221,20 +222,41 @@ export class EvidenceStorageError extends Error {
   /** The HTTP status the provider answered with, when there was one. */
   readonly status: number | undefined;
 
-  constructor(what: string, code: string | undefined, status: number | undefined) {
-    super(`storage: ${what} failed${code ? ` (${code})` : ""}`);
+  /**
+   * The message names the operation, the provider's code, the HTTP status and,
+   * when there is no code, the error's class — each an identifier or a number,
+   * never text a provider wrote. The purge worker stores this message as the
+   * reason a purge failed (`upload_intents.purge_failure`), so it has to say
+   * enough on its own (DEV-034 R1-02).
+   */
+  constructor(what: string, code: string | undefined, status: number | undefined, kind?: string) {
+    super(`storage: ${what} failed${code ? ` (${code})` : ""}${status !== undefined ? ` [${status}]` : ""}`
+      + `${!code && kind ? ` <${kind}>` : ""}`);
     this.name = "EvidenceStorageError";
     this.code = code;
     this.status = status;
   }
 }
 
+// An identifier and nothing else: a UUID half has hyphens, a path has
+// slashes, a message has spaces, so none of them passes (DEV-034 S1-03).
+const SAFE_IDENTIFIER = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
+const identifier = (value: unknown) =>
+  typeof value === "string" && SAFE_IDENTIFIER.test(value) ? value : undefined;
+
+/**
+ * THE ONLY WAY AN ERROR LEAVES THIS FILE. It copies the provider's `code`
+ * only when it is an identifier (the storage API documents it as an enum, but
+ * a gateway in front of Storage could send anything), the status only when it
+ * is an integer, and never the provider's message, the SDK error itself (no
+ * `cause`), the key or the bucket.
+ */
 function readFailed(what: string, error: unknown): Error {
-  const code = error instanceof StorageApiError ? error.code : undefined;
-  const status = error instanceof Error && "status" in error
-    ? (error as { status?: number }).status
-    : undefined;
-  return new EvidenceStorageError(what, code, status);
+  const code = error instanceof StorageApiError ? identifier(error.code) : undefined;
+  const raw = error instanceof Error && "status" in error ? (error as { status?: unknown }).status : undefined;
+  const status = Number.isInteger(raw) ? raw as number : undefined;
+  const kind = error instanceof Error ? identifier(error.constructor.name) : undefined;
+  return new EvidenceStorageError(what, code, status, kind);
 }
 
 /** A short-lived read grant for exactly one object. `bucket` is required and never defaulted: the caller's `evidence_objects` row names its own bucket, and a caller must not be able to silently fall back to a constant. */

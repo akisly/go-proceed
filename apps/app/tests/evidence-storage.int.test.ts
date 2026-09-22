@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { createClient } from "@supabase/supabase-js";
 import { randomUUID } from "node:crypto";
+import { inspect } from "node:util";
 import {
   EVIDENCE_BUCKET, newEvidenceKey, createSignedUpload, putObject,
   downloadObject, objectExists, removeObject, EvidenceStorageError,
@@ -105,10 +106,15 @@ describe("evidence storage errors carry no key (BL-033)", () => {
   // are pinned in `src/lib/evidence-storage.test.ts`, with a fake client.
   it("for a download of a key the server refuses, whose own message names it", async () => {
     const bad = `${randomUUID()}/leak{${randomUUID()}}`;
+    // The positive control: the server's own message does name the key.
+    const raw = await createClient(SUPABASE_URL, process.env.SUPABASE_SECRET_KEY ?? "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz",
+      { auth: { persistSession: false } }).storage.from(EVIDENCE_BUCKET).download(bad);
+    expect(raw.error?.message).toContain(bad);
     const err = await downloadObject(bad).then(() => null, (e: unknown) => e);
     expect(err).toBeInstanceOf(EvidenceStorageError);
     expect((err as EvidenceStorageError).code).toBe("InvalidKey");
     expect((err as Error).message).not.toContain(bad.split("/")[1]!);
     expect((err as Error).message).not.toContain(bad.split("/")[0]!);
+    expect(inspect(err, { depth: null })).not.toContain(bad.split("/")[1]!);
   });
 });
