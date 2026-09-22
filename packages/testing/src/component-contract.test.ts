@@ -174,6 +174,24 @@ describe("control size comes from tokens, never from a literal", () => {
         .toContain("touch:h-(--gp-control-height-touch)");
     }
   });
+
+  it("gives the pointer to everything that behaves like a button, once, in the base layer", () => {
+    // [2026-09-22] Tailwind v4's Preflight leaves `button` on the UA's
+    // `cursor: default`, and this system had no rule of its own — so every
+    // `<button>` showed an arrow beside an `<a>` showing a hand. It is a global
+    // treatment like the focus ring, which means two things a test can hold:
+    // it lives in `base.css` and NOT in a component (a variant that ships its
+    // own cursor is a variant that can disagree), and the disabled case is
+    // stated rather than left to `pointer-events: none`.
+    const base = readFileSync(join(repoRoot, "packages/ui/src/base.css"), "utf8");
+    expect(base).toMatch(/button:not\(:disabled\):not\(\[aria-disabled="true"\]\)[\s\S]{0,200}cursor: pointer/);
+    expect(base).toMatch(/button:disabled[\s\S]{0,240}cursor: not-allowed/);
+    // Narrowly: no component may hand out the POINTER. `disabled:cursor-not-allowed`
+    // and the menu items' `cursor-default` are shadcn's own and predate this rule —
+    // they say «this row is not a button», which is a component's business. Which
+    // things ARE buttons is the system's, and it is answered once, above.
+    for (const f of files) expect(code(f), `${f} hands out the pointer itself`).not.toMatch(/cursor-pointer/);
+  });
 });
 
 describe("colour cannot escape the token layer", () => {

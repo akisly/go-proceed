@@ -12,8 +12,8 @@ const DEVICE = { telegram: <ChannelTelegram />, app: <ChannelApp />, web: <Chann
 export function Capture() {
   const c = landingContent.capture;
   return (
-    <section id="capture" tabIndex={-1} className="scroll-mt-20 bg-surface px-4 py-20 md:px-8 md:py-28">
-      <div className="mx-auto max-w-marketing">
+    <section id="capture" tabIndex={-1} className="landing-inset scroll-mt-20 py-20 md:py-28">
+      <div>
         <SectionHead eyebrow={c.eyebrow} title={c.title} titleAccent={c.titleAccent} lead={c.lead} />
         <Stagger className="grid gap-3.5 md:grid-cols-3">
           {c.channels.map((ch) => (

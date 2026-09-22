@@ -1,17 +1,21 @@
 import { Accordion } from "@goproceed/ui/components";
-import { LineReveal, Reveal } from "@goproceed/ui/motion";
+import { Reveal } from "@goproceed/ui/motion";
 import { landingContent } from "../../content/landing-content";
+import { splitTitle } from "./section-head";
+import { TwoTone } from "./two-tone";
 
+/** [DEV-026] The reference's FAQ: a small label and a two-tone heading at left, a chevron accordion between hairlines at right. */
 export function Faq() {
   const q = landingContent.faq;
+  const title = splitTitle(q.title, q.titleAccent);
   return (
-    <section id="faq" tabIndex={-1} className="scroll-mt-20 px-4 pb-10 pt-20 md:px-8 md:pb-14 md:pt-28">
-      <div className="mx-auto grid max-w-marketing gap-8 wide:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] wide:gap-10">
+    <section id="faq" tabIndex={-1} className="landing-inset scroll-mt-20 py-20 md:py-24">
+      <div className="grid gap-10 wide:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] wide:gap-16">
         <div>
-          <Reveal><p className="index-label">{q.eyebrow}</p></Reveal>
-          <LineReveal as="h2" text={q.title} accent={q.titleAccent} className="display mt-3.5 max-w-[12ch] text-mkt-display-2 text-ink" />
+          <Reveal><p className="mb-3 text-data text-ink-secondary">{q.eyebrow}</p></Reveal>
+          <TwoTone lead={title.lead} rest={title.rest} />
         </div>
-        <Reveal y={0}><Accordion entries={[...q.entries]} marker="plus" className="border-t border-line" /></Reveal>
+        <Reveal y={0}><Accordion entries={[...q.entries]} marker="chevron" className="border-t border-line" /></Reveal>
       </div>
     </section>
   );

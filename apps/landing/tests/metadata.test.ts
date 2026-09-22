@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { createLandingMetadata } from "../content/landing-metadata";
+import { landingContent } from "../content/landing-content";
+import { createLandingMetadata, createPageMetadata } from "../content/landing-metadata";
 
 const metadata = createLandingMetadata("https://goproceed.example");
 
@@ -57,4 +58,59 @@ describe("landing metadata", () => {
       ],
     });
   });
+});
+
+describe("each page's metadata (DEV-025)", () => {
+  const pages = ["home", "product", "roles", "pilot"] as const;
+  const all = pages.map((page) => ({ page, meta: createPageMetadata("https://goproceed.example", page) }));
+
+  it("gives every page its own title, description and canonical", () => {
+    for (const field of ["title", "description"] as const) {
+      expect(new Set(all.map(({ meta }) => meta[field])).size, field).toBe(pages.length);
+    }
+    for (const { page, meta } of all) {
+      expect(meta.alternates?.canonical).toBe(landingContent.pages[page].path);
+      expect(meta.openGraph?.url).toBe(landingContent.pages[page].path);
+    }
+  });
+
+  it("keeps the whole social card on every page, because Next merges metadata shallowly", () => {
+    // A page that set only `openGraph.url` would REPLACE the layout's
+    // `openGraph` and lose the image, the locale and the site name.
+    for (const { page, meta } of all) {
+      expect(meta.openGraph?.images, page).toHaveLength(1);
+      expect(meta.openGraph, page).toMatchObject({ siteName: "GoProceed", locale: "uk_UA" });
+      expect(meta.twitter?.images, page).toHaveLength(1);
+    }
+  });
+
+  it("speaks of no payment in any description — «передоплати» excepted", () => {
+    for (const { page, meta } of all) {
+      expect(String(meta.description).match(/(^|[^\p{L}''])оплат/giu), page).toBeNull();
+    }
+  });
+
+  it("serves the home page's as the root layout's default", () => {
+    expect(createLandingMetadata("https://goproceed.example")).toEqual(all[0]?.meta);
+  });
+});
+
+describe("each page exports the metadata of its own path (R-05)", () => {
+  // The factory above is right for every key; this pins that each page asks it
+  // for ITS key. `app/roles/page.tsx` calling `createPageMetadata(…, "product")`
+  // by copy-paste would pass every other test and canonicalise /roles to /product.
+  const modules = {
+    home: () => import("../app/page"),
+    product: () => import("../app/product/page"),
+    roles: () => import("../app/roles/page"),
+    pilot: () => import("../app/pilot/page"),
+  } as const;
+
+  it.each(Object.keys(modules) as (keyof typeof modules)[])("%s", async (key) => {
+    const { metadata } = await modules[key]();
+    expect(metadata.alternates?.canonical).toBe(landingContent.pages[key].path);
+    expect(metadata.openGraph?.url).toBe(landingContent.pages[key].path);
+    expect(metadata.title).toBe(landingContent.pages[key].title);
+    // the first import of a page compiles its whole block tree
+  }, 30_000);
 });

@@ -42,7 +42,7 @@ export function splitAccent(text: string, accent?: string | undefined): AccentWo
  * back on inside one callback, before the browser's next paint. It used to
  * unmount the masks and measure on the next animation frame, and that
  * frame painted the whole heading flat at full opacity — on the hero, where
- * `fonts.ready` re-measures once Onest has swapped in, the reader saw the
+ * `fonts.ready` re-measures once the sans has swapped in, the reader saw the
  * headline flash complete and then rise line by line, «two animations»
  * (2026-09-06).
  *

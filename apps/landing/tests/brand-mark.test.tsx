@@ -12,10 +12,12 @@ describe("the brand mark", () => {
     expect(html).not.toContain("<img");
   });
 
-  it("draws the tile, the chevron and the cobalt dot in roles, never hex", () => {
+  it("draws the tile, the chevron and the accent dot in roles, never hex", () => {
+    // The dot was `fill-signal` while the signal was the brand's mark; on 2026-09-22
+    // the owner put the primary on the dot and ink on the word, so it is `fill-accent`.
     expect(html).toContain("<rect");
     expect(html).toContain("<path");
-    expect(html).toContain("fill-signal");
+    expect(html).toContain("fill-accent");
     expect(html).not.toMatch(/#[0-9A-Fa-f]{6}/);
   });
 

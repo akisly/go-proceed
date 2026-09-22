@@ -31,7 +31,7 @@ describe("the typefaces load without waiting for the stylesheet", () => {
     expect(code).not.toContain("@fontsource");
   });
 
-  it("declares both families through next/font/local", () => {
+  it("declares all three faces through next/font/local", () => {
     expect(layout).toContain('from "next/font/local"');
     expect(layout).toMatch(/localFont\(/);
   });
@@ -42,9 +42,13 @@ describe("the typefaces load without waiting for the stylesheet", () => {
     // were being declared and, in the case of `symbols`, actually downloaded —
     // 18 KB fetched because the copy contains «→», which no other subset
     // covers.
+    // [Autumn, 2026-09-22] Onest's two subsets became Hanken Grotesk's latin
+    // and Commissioner's cyrillic: the brand sheet's face carries no Cyrillic
+    // at all, so the pair is two families, and each ships the one subset it is
+    // there for.
     for (const file of [
-      "app/fonts/onest-latin.woff2",
-      "app/fonts/onest-cyrillic.woff2",
+      "app/fonts/hanken-grotesk-latin.woff2",
+      "app/fonts/commissioner-cyrillic.woff2",
       "app/fonts/jetbrains-mono-latin.woff2",
       "app/fonts/jetbrains-mono-cyrillic.woff2",
     ]) {
@@ -52,13 +56,17 @@ describe("the typefaces load without waiting for the stylesheet", () => {
     }
   });
 
-  it("preloads the body face and not the index face", () => {
-    // Onest sets every heading and all body copy, including the LCP element.
-    // JetBrains Mono sets index labels and evidence codes — small, secondary,
-    // and not worth 52 KB of preload on a phone.
-    const onest = layout.slice(layout.indexOf("onest"), layout.indexOf("jetbrains"));
-    expect(onest).not.toContain("preload: false");
-    expect(layout.slice(layout.indexOf("jetbrains"))).toContain("preload: false");
+  it("preloads the body faces and not the index face", () => {
+    // Hanken Grotesk and Commissioner set every heading and all body copy,
+    // including the LCP element. JetBrains Mono sets index labels and evidence
+    // codes — small, secondary, and not worth 52 KB of preload on a phone.
+    // Sliced on the DECLARATIONS, not on the family names: the comment above
+    // them names both packages in lowercase, so `indexOf("hanken")` used to
+    // land in prose and the assertion below could not fail (found in review,
+    // 2026-09-22 — the same collision existed in the Onest version).
+    const sans = layout.slice(layout.indexOf("const hankenLatin"), layout.indexOf("const monoCyrillic"));
+    expect(sans).not.toContain("preload: false");
+    expect(layout.slice(layout.indexOf("const monoCyrillic"))).toContain("preload: false");
   });
 
   it("declares the token override UNLAYERED, or it loses to the generated sheet", () => {
@@ -80,11 +88,18 @@ describe("the typefaces load without waiting for the stylesheet", () => {
   it("keeps the token as the only name the components see", () => {
     // Components name `font-sans`/`font-mono`, never a family. The generated
     // token still resolves them; the landing only re-points it at the faces it
-    // now owns, Cyrillic first so a Ukrainian glyph never falls through.
-    expect(globals).toMatch(/--gp-font-sans:\s*var\(--font-onest-cyrillic\)/);
+    // now owns. The sans is LATIN first — «GoProceed», every digit and every
+    // W-/EV-/R- code must be found in the brand sheet's own face, and only
+    // Cyrillic, which that face does not carry, falls through to Commissioner.
+    // The mono is one family split by subset, so it stays Cyrillic first.
+    expect(globals).toMatch(/--gp-font-sans:\s*var\(--font-hanken-latin\),\s*var\(--font-commissioner-cyrillic\)/);
     expect(globals).toMatch(/--gp-font-mono:\s*var\(--font-jetbrains-mono-cyrillic\)/);
     // `.display` in base.css names a THIRD token. Miss it and the h1 — the
     // element the fold is measured on — keeps the retired family name.
-    expect(globals).toMatch(/--gp-font-display:\s*var\(--font-onest-cyrillic\)/);
+    // Both names, in order, exactly as the sans row above: drop Commissioner
+    // from the display stack and every heading — all Cyrillic, including the h1
+    // the fold is measured on — falls to `system-ui`, which is the failure the
+    // comment above warns about.
+    expect(globals).toMatch(/--gp-font-display:\s*var\(--font-hanken-latin\),\s*var\(--font-commissioner-cyrillic\)/);
   });
 });

@@ -34,7 +34,7 @@ Not for backend, migrations, or `apps/demo/**` (frozen until D5).
 ## 1. The model, in one paragraph
 
 Three layers. **A component names a ROLE, never a value.** `bg-canvas`, not
-`bg-neutral-25`, and never `bg-[#FBFBF9]`. Roles live in
+`bg-neutral-25`, and never `bg-[#ECE9DF]`. Roles live in
 `packages/tokens/src/tokens.json`, reach CSS through seven generators, and reach
 Tailwind through `@theme inline`. Ramp steps are deliberately unreachable as
 utilities — `bg-neutral-200` does not compile — and a raw `var(--gp-neutral-200)`
@@ -95,7 +95,7 @@ fail the colour audit.
 | Skill | Why not |
 |---|---|
 | `high-end-visual-design` | Its "Variance Mandate" is *never generate the same layout twice*. A design system's entire value is that the same decision produces the same result. Directly opposed |
-| `minimalist-ui` | Bans a prescribed typeface. This product has one, chosen for Cyrillic and tabular figures. *[Correction, 2026-09-05: the face is **Onest**, not Inter — Daylight made it the one typeface on every token-driven surface (`01-tokens.md` §typography, §9 of this file). The field client's routes keep Inter until their migration. The refusal stands on the same ground: a skill that bans the system's chosen face is arguing with the system.]* |
+| `minimalist-ui` | Bans a prescribed typeface. This product has one, chosen for Cyrillic and tabular figures. *[2026-09-22: the face is **Hanken Grotesk with Commissioner behind it for Cyrillic** — the owner's brand sheet, and a pair because Hanken has no Cyrillic at all.]* *[Correction, 2026-09-05: the face is **Onest**, not Inter — Daylight made it the one typeface on every token-driven surface (`01-tokens.md` §typography, §9 of this file). The field client's routes keep Inter until their migration. The refusal stands on the same ground: a skill that bans the system's chosen face is arguing with the system.]* |
 | `brand-guidelines` | Applies *Anthropic's* brand |
 | `web-artifacts-builder` | For claude.ai artifacts, not a Next app |
 | `figma:*` | Figma is deferred (plan §3). The DTCG file generates and waits |
@@ -130,7 +130,7 @@ nothing, fails a test, or silently drops a class.
 
 | Do not write | Write | What happens otherwise |
 |---|---|---|
-| `bg-[#FBFBF9]`, `bg-neutral-25` | `bg-canvas` | Does not compile; the ramp is not in the utility namespace |
+| `bg-[#ECE9DF]`, `bg-neutral-25` | `bg-canvas` | Does not compile; the ramp is not in the utility namespace |
 | `var(--gp-neutral-600)` | `var(--gp-text-muted)` | `primitive-leak.test.ts` fails |
 | `text-sm`, `text-lg` | `text-data`, `text-h3` | Stock namespace is cleared; resolves to nothing |
 | `lg:`, `xl:`, `sm:` | `md:`, `wide:`, `rail-icons:` | A typo fails loudly instead of silently targeting a width this design never reasons about |
@@ -150,9 +150,9 @@ nothing, fails a test, or silently drops a class.
 | a state-driven `motion.span` progress line | `TrackFill` | Rule 5; `LineDraw` is the scroll one |
 | `useTransform` in a landing visual | `InViewProgress` + `calc(var(--gp-progress))` | Rule 5 |
 | `onPointerMove` + `style.transform` for a lean or a pointer follow | `Tilt` / `Magnetic` | Rule 5; and the gates (pointer:fine, `md`, reduced) live in the word, not in the caller |
-| `text-accent` on body copy | `text-accent` only inside a display heading | It clears 3:1, not 4.5:1 — large text only |
+| a paragraph in `text-accent` | `text-accent` inside a display heading; `text-link` for a link | A discipline, not a contrast limit any more: pine measures 6.30:1 on the canvas, where cobalt measured 4.35:1 and was held to the 3:1 large-text bar. An accent phrase is still a phrase, not a paragraph |
 | `h-11` on a marketing control | `size="lg"` on `Button`; `h-(--gp-control-height-marketing)` on an input | The literal stops tracking the token |
-| a lime fill, `bg-signal` as decoration | `bg-action-signal` on at most one action, or ink | The mark is cobalt since 2026-09-05 and the landing uses none |
+| a lime fill, `bg-signal` as decoration | `bg-action-signal` on at most one action, or ink | The spark is ember since 2026-09-22 (cobalt from 2026-09-05), it carries INK and never white, and the landing uses none |
 
 ### 4.2 Where code goes
 
@@ -160,9 +160,10 @@ nothing, fails a test, or silently drops a class.
 packages/tokens/src/tokens.json      every value, the only hand-edited token file
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
-packages/ui/src/motion/              the twenty-two motion primitives, and nothing else
+packages/ui/src/motion/              the twenty-seven motion primitives, and nothing else (twenty-two until DEV-026, twenty-four until DEV-027)
 packages/ui/src/components/          the twenty-seven components, and nothing else
-apps/landing/app/                    routes and the fourteen landing blocks
+apps/landing/app/                    the four landing pages (/, /product, /roles, /pilot — DEV-025)
+apps/landing/components/blocks/      the landing blocks the pages compose
 apps/app/app/                        the product shell and its screens
 packages/testing/src/*.test.ts       every contract test
 packages/testing/qa/motion-audit.mjs the static motion audit
@@ -181,7 +182,7 @@ Terse on purpose; each is enforced by a named test.
 3. No hand-edited hex in `tokens.json`; edit the OKLCH triple → `palette-derivation`
 4. No `motion/react` import outside `packages/ui/src/motion` → `motion-audit` 5
 5. No `transition: all`, no layout-property transition, no `ease-in`, no
-   perpetual animation outside the five loops named in `motion-audit.mjs`'s
+   perpetual animation outside the loops named in `motion-audit.mjs`'s
    `PERPETUAL_ALLOWLIST` → `motion-audit` 1–4
    [Correction, 2026-09-06: until this date the rule read «no perpetual
    animation but the marquee». The landing parity slice
@@ -189,6 +190,24 @@ Terse on purpose; each is enforced by a named test.
    restored the prototype's Border Beam, review-dot pulse, receipt/pill drift
    and dashed «flow» lines, so the allowlist names five loops and a test pins
    the list. A sixth is a §7.3 decision.]
+   [2026-09-19 (DEV-026, owner: the landing «1 в 1» after its reference): the
+   sixth and seventh are `gp-orbit` (the hero's arc text) and `gp-breathe` (the
+   closing block's mark). `PixelRain` is a canvas primitive in
+   `@goproceed/ui/motion`, not a CSS loop; it draws one still frame under
+   reduced motion.]
+   [2026-09-19 (DEV-027, owner: the reference's behaviour, «Используй threejs
+   или @react-three/fiber»): three more canvas words — `CellField`, `ArcField`
+   (2D) and `ParticleSphere` (three.js, the landing's one WebGL scene). None is
+   a CSS loop, so `PERPETUAL_ALLOWLIST` stays at seven. All four canvas words
+   run on `motion/canvas-loop.ts`, which holds their rules: the loop is
+   CANCELLED off screen and in a hidden tab; a scene with nothing left to draw
+   rests with no frame pending; the colour is the element's computed `color`;
+   a pointer is followed only under `pointer: fine`; reduced motion is one
+   still frame. `requestAnimationFrame` outside `packages/ui/src/motion` is a
+   review failure; `motion-audit.test.ts` catches the plain call form
+   (`requestAnimationFrame(` in a `.ts`/`.tsx` file of `packages/ui/src` or the
+   landing's `app` and `components`) anywhere but `canvas-loop.ts` — a net for
+   the ordinary case, not a proof.]
 6. No hard-coded control height, no inline-style colour, no raw hex, no
    per-component focus ring, no `destructive` button variant → `component-contract`
 7. No literal Tailwind class string inside a test — assemble at runtime, or
@@ -309,6 +328,16 @@ Not an addition — a decision. It means the vocabulary was missing something, s
 the new primitive's own file header and `packages/ui/src/motion/index.ts`, whose header counts the vocabulary, say what and why in the same change *[2026-09-14 (DEV-007): this named the rewrite plan's §8.3, now Historical]*. The test that fails
 is the prompt to write that down.
 
+*[2026-09-19 (DEV-027)]* A canvas word — one that draws frames rather than
+animating an element — is built on `motion/canvas-loop.ts` and keeps its
+contract: the caller sizes the canvas in CSS and picks the colour with a text
+role (`text-ink`); the word is `aria-hidden` and takes no pointer events unless
+following the pointer is its purpose; it exposes its state as a `data-*`
+attribute for the harness, which measures the bitmap because the static audit
+cannot see a canvas. A heavy dependency (three.js) is imported dynamically
+inside the word, after the element nears the viewport, and the word names its
+fallback.
+
 ---
 
 ## 8. Traps that already cost a round
@@ -387,6 +416,11 @@ right-aligned, because 620/620 and 180/150 must differ in *shape*.
 *[Correction, 2026-09-05: Onest for display and everything else, JetBrains
 Mono for indices; the serif is retired. Weights 400 / 500 / 600 / 700.]*
 
+*[Correction, 2026-09-22 (DEV-028): Hanken Grotesk for display and everything
+else, with Commissioner behind it for Cyrillic — Hanken carries none — and
+JetBrains Mono for indices. The weights are unchanged. Figures are tabular
+because Hanken's digits are one width, not because a feature is asked for.]*
+
 *[Correction, 2026-09-05, later the same day: Onest on the field client too —
 `apps/app` has one stylesheet, `app/globals.css` on `@goproceed/ui/base.css`;
 the legacy sheet and its Inter are gone.]*
@@ -397,6 +431,11 @@ viewport. It is the only colour in the product that means something specific.
 
 *[Correction, 2026-09-05: the signal is cobalt, not lime — the same ration
 applies.]*
+
+*[Correction, 2026-09-22: the signal is ember (#FF5B04), the brand's secondary,
+and it carries ink rather than white. The same ration applies, and the brand's
+primary — pine — is not under it: pine is text-safe and carries the links, the
+focus ring and the ornaments.]*
 
 **Motion is a consequence, not an entrance.** Something moves because a state
 became durable — evidence was accepted, a stage closed, a line connected. A

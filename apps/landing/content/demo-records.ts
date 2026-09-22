@@ -133,7 +133,7 @@ export const demoRecords = {
       { me: true, text: "Так" },
       { me: false, text: "Збережено як EV-0248. Передано на розгляд.", strong: "EV-0248" },
     ],
-    app: { header: "W-014 · R-041", rows: [{ title: "Загальний вигляд", text: "1 з 2 · зняти" }, { title: "Черга відправки", text: "EV-0251 · очікує мережу" }] },
+    app: { header: "W-014 · R-041", rows: [{ title: "Загальний вигляд", text: "1 з 2 · зняти" }, { title: "Стан відправки", text: "EV-0251 · надсилається" }] },
     web: [{ left: "W-014 · R-041", right: "на розгляді" }, { left: "EV-0248 · 14:32", right: "доказ" }, { left: "DR-0091 · технагляд", right: "прийнято" }],
   },
 } as const;

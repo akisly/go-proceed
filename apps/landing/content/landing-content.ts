@@ -1,6 +1,8 @@
 import type { CompareRowKey } from "@goproceed/ui/components";
 
-export type NavItem = { label: string; href: `#${string}` };
+// [DEV-025] Page paths, not in-page anchors: the landing is four pages.
+export type NavItem = { label: string; href: `/${string}` };
+export type PageKey = "home" | "product" | "roles" | "pilot";
 export type Fact = { value: string; label: string };
 // The key set is closed and it is closed in `packages/ui/src/base.css`, where
 // the five `:has()` pairing selectors are written by hand. Importing the union
@@ -12,38 +14,73 @@ export type RouteStep = { index: string; eyebrow: string; title: string; titleAc
 export type Channel = { id: "telegram" | "app" | "web"; index: string; status: { tone: "ready" | "review"; label: string }; title: string; body: string; foot: string };
 export type AccessLevel = "none" | "own" | "full";
 export type FaqEntry = { id: string; question: string; answer: string };
+export type Scene = { id: "capture" | "review" | "act"; eyebrow: string; title: string; body: string; note: string };
+export type PageMeta = { path: `/${string}`; title: string; description: string };
 
 export const landingContent = {
   nav: {
     items: [
-      { label: "Що зміниться", href: "#compare" },
-      { label: "Для кого", href: "#roles" },
-      { label: "Як працює", href: "#stages" },
-      { label: "Питання", href: "#faq" },
+      { label: "Як працює", href: "/product" },
+      { label: "Для кого", href: "/roles" },
+      { label: "Пілот", href: "/pilot" },
     ] satisfies readonly NavItem[],
     action: "Обговорити пілот",
     actionShort: "Пілот",
+    actionHref: "/pilot",
+    // On /pilot itself the header's action goes to the form, not to the page
+    // it is already on (U-03).
+    actionHrefOnPilot: "/pilot#request",
     brand: "GoProceed",
   },
   hero: {
-    pill: { badge: "Безкоштовний пілот", text: "для субпідрядників із прихованими роботами", href: "#pilot" },
+    pill: { badge: "Безкоштовний пілот", text: "для субпідрядників із прихованими роботами", href: "/pilot" },
     title: "Робота готова до приймання, коли доказ на місці.",
     titleAccent: "доказ",
-    lead: "Затримка приймання затримує гроші. GoProceed показує майстру потрібний кадр до закриття конструкції і передає його технагляду разом із вимогою. Акт збирається з фактів, а не з чатів, тож на нараді сперечаються про посилання, а не про пам'ять.",
+    // [DEV-025] Two sentences for the payer: what it is, then why it matters.
+    // The longer walk through the route moved to /product.
+    lead: "GoProceed — веб-застосунок, який тримає разом вимогу, фото-доказ і рішення технагляду по кожній прихованій роботі. Затримка приймання затримує гроші: тут акт збирається з фактів, а не з чатів, і видно, що заблоковано і чому.",
+    // [DEV-026] The phrase turning on the arc over the heading — the reference's
+    // product category line. Ours names what the product is, in four words.
+    orbit: "Доказовий контур прихованих робіт",
     primaryAction: "Обговорити пілот",
-    secondaryAction: "Що зміниться на нараді",
-    secondaryHref: "#compare",
-    facts: [
-      // First, because he is the one who signs. The claim is exactly what the
-      // demo board behind it already renders — reasons and a blocked count —
-      // and deliberately carries no figure: there is no hryvnia on that screen.
-      { value: "Власник: що заблоковано і чому", label: "з назвою вимоги, а не кольором" },
-      { value: "ПТВ: дві години", label: "на старті пілота" },
-      { value: "Майстер: свій телефон", label: "Telegram-бот або мобільний застосунок" },
-      { value: "Технагляд: одне посилання", label: "без облікового запису" },
-    ] satisfies readonly Fact[],
+    primaryHref: "/pilot",
+    secondaryAction: "Як це працює",
+    secondaryHref: "/product",
     frameLabel: "Стан пакету робіт у веб-застосунку GoProceed",
     dimension: "W-014 · ВРУ-1 · секція А · відм. +3.300",
+  },
+  // [DEV-026] The reference's second block: a split — the records of one work
+  // as a floating menu over two rows of drifting tags, beside a two-tone
+  // statement of what the product is — and, under it, four numbered columns.
+  intro: {
+    lead: "Кожна прихована робота —",
+    rest: "з доказом, рішенням і актом.",
+    body: "GoProceed тримає разом вимогу, фото з майданчика і рішення технагляду по кожній роботі. Закриття записується з підставою, а чернетка акта збирається з того, що вже записано.",
+    action: "Як це працює",
+    actionHref: "/product",
+    menuLabel: "Записи однієї роботи W-014",
+    tagsLabel: "Приклади прихованих робіт із демонстраційного реєстру",
+    strip: [
+      { index: "01", title: "Власник", text: "Бачить, що заблоковано і чому: з назвою вимоги, а не кольором." },
+      { index: "02", title: "ПТВ", text: "Доказ знаходиться по роботі, а не по стрічці чату; акт збирається з записаного." },
+      { index: "03", title: "Майстер", text: "Один екран: що зняти і до якого моменту. Жодних форм після фото." },
+      { index: "04", title: "Технагляд", text: "Одне посилання на одну вимогу, без облікового запису." },
+    ],
+  },
+  // [DEV-026] The reference's statistics band, over facts and not figures of
+  // merit: there are no outcome numbers to show (PRODUCT.md), so each tile is
+  // a term of the pilot that is simply true.
+  facts: {
+    lead: "Один пакет робіт.",
+    rest: "Два тижні, щоб побачити різницю.",
+    action: "План пілота",
+    actionHref: "/pilot",
+    tiles: [
+      { value: "2 тижні", label: "триває пілот" },
+      { value: "1 пакет", label: "робіт на одному об'єкті" },
+      { value: "2 години", label: "ПТВ на старті" },
+      { value: "0", label: "облікових записів для технагляду" },
+    ],
   },
   sources: {
     label: "Джерела вимог",
@@ -57,7 +94,7 @@ export const landingContent = {
     ],
   },
   problem: {
-    rule: { index: "01", label: "Проблема" },
+    rule: { label: "Проблема" },
     statement: "Кожен, хто закривав конструкцію без фото, знає, скільки коштує потім довести, що під нею все зроблено.",
     aside: "GoProceed не зупиняє бригаду і не замінює кошторис. Він тримає разом три факти, без яких приймання перетворюється на суперечку: вимогу, доказ і рішення.",
     figure: {
@@ -68,8 +105,26 @@ export const landingContent = {
       footRecord: "у записі: те саме фото відповідає на всі питання наради",
     },
   },
+  // [DEV-025] The home page's product block: three of the route's five moments,
+  // one per argument the payer weighs. Each reuses the UI window its route card
+  // shows on /product, and claims nothing those cards do not.
+  scenes: {
+    rule: { label: "Продукт" },
+    eyebrow: "Що змінюється",
+    title: "Три моменти, де робота зазвичай втрачає доказ",
+    titleAccent: "втрачає доказ",
+    // [DEV-026] the same sentence, as the reference's two-tone heading
+    headLead: "Три моменти,",
+    headRest: "де робота зазвичай втрачає доказ.",
+    lead: "Вимога, кадр і рішення тримаються на одній роботі: від майданчика до чернетки акта.",
+    items: [
+      { id: "capture", eyebrow: "На майданчику", title: "Майстер бачить потрібний кадр до закриття конструкції", body: "Телефон показує вимогу і кадр у контексті роботи. Час, місце й автор записуються самі, без форм після фото.", note: "Telegram-бот або мобільний застосунок, на своєму телефоні." },
+      { id: "review", eyebrow: "У технагляду", title: "Технагляд вирішує по посиланню, без облікового запису", body: "Одна вимога, її матеріали й історія. Прийняти, повернути або запитати уточнення: рішення зберігається з автором і часом, а не в голосовому.", note: "Без доступу до вашого проєкту." },
+      { id: "act", eyebrow: "В офісі", title: "Видно, що заблоковано і чому, а акт збирається з фактів", body: "Без прийнятого рішення GoProceed відмовляє у записі закриття, і причина названа вимогою. Чернетка Додатка В підставляється з того, що вже записано.", note: "Це чернетка для підпису, а не підписаний документ." },
+    ] satisfies readonly Scene[],
+  },
   compare: {
-    rule: { index: "02", label: "Було і стало" },
+    rule: { label: "Було і стало" },
     eyebrow: "Було і стало",
     title: "На нараді більше не сперечаються про те, що вже сховано",
     titleAccent: "що вже сховано",
@@ -102,20 +157,29 @@ export const landingContent = {
     },
   },
   roles: {
-    rule: { index: "03", label: "Ролі" },
+    rule: { label: "Ролі" },
     eyebrow: "Для кого",
     title: "Кожна роль отримує своє, і ні від кого не вимагається зайвого",
     titleAccent: "і ні від кого не вимагається зайвого",
     lead: "Ролі й болі взяті зі сканування попиту серед українських субпідрядників, які здають приховані роботи: від монолітчиків до інженерних мереж. Правило одне: майстру не можна додавати роботу після того, як фото вже надіслано.",
+    facts: [
+      // First, because he is the one who signs. The claim is exactly what the
+      // demo board on the home page already renders — reasons and a blocked count —
+      // and deliberately carries no figure: there is no hryvnia on that screen.
+      { value: "Власник: що заблоковано і чому", label: "з назвою вимоги, а не кольором" },
+      { value: "ПТВ: дві години", label: "на старті пілота" },
+      { value: "Майстер: свій телефон", label: "Telegram-бот або мобільний застосунок" },
+      { value: "Технагляд: одне посилання", label: "без облікового запису" },
+    ] satisfies readonly Fact[],
     cells: [
+      { id: "owner", title: "Власник", subtitle: "комерційний директор", pain: "Затримка приймання затримує гроші. Потрібно бачити, який обсяг заблокований, чому і як довго.", gets: ["стан пакету за причинами, не за кольором", "заблоковані роботи з назвою вимоги", "час від фіксації до рішення"] },
       { id: "pto", title: "ПТВ", subtitle: "виробничо-технічний відділ", pain: "Дні на пошук фото по чатах, переписування у Word, дзвінки виконробу перед місячною папкою, повернення від замовника.", gets: ["доказ знаходиться по роботі, а не по стрічці чату", "чернетка акта з того, що вже записано", "повернення видно з причинами"] },
       { id: "foreman", title: "Майстер", subtitle: "дільниці", pain: "Обов'язок знімати і вести журнали, але нульова терпимість до адміністрування. Друге поле після того самого фото — вже мінус.", gets: ["один екран: що зняти, до якого моменту", "жодних форм після фото", "Telegram-бот або мобільний застосунок, без форм"] },
-      { id: "owner", title: "Власник", subtitle: "комерційний директор", pain: "Затримка приймання затримує гроші. Потрібно бачити, який обсяг заблокований, чому і як довго.", gets: ["стан пакету за причинами, не за кольором", "заблоковані роботи з назвою вимоги", "час від фіксації до рішення"] },
       { id: "supervision", title: "Технагляд", subtitle: "зовнішній розгляд", pain: "Відповідальність без інструменту і небажання входити в чужий проєкт або відкривати обліковий запис.", gets: ["одне посилання на одну вимогу", "нейтральна квитанція з джерелами", "прийняти, повернути або уточнити за хвилину"] },
     ] satisfies readonly RoleCell[],
   },
   route: {
-    rule: { index: "04", label: "Маршрут" },
+    rule: { label: "Маршрут" },
     eyebrow: "Один маршрут",
     title: "Одна робота проходить весь шлях. Без втрати контексту.",
     titleAccent: "Без втрати контексту.",
@@ -142,22 +206,28 @@ export const landingContent = {
       { kind: "yes", text: "не дає записати закриття без доказу" },
       { kind: "lock", text: "фото не можна замінити або відкріпити пізніше" },
     ] as const,
+    more: { label: "Як проходить пілот", href: "/pilot" },
+  },
+  // [DEV-026] The application view on /product — what the board shows, not how evidence is sent.
+  board: {
+    lead: "Увесь пакет робіт на одному екрані:",
+    rest: "що готово, що на розгляді і що заблоковано.",
   },
   capture: {
-    rule: { index: "05", label: "Фіксація" },
+    rule: { label: "Фіксація" },
     eyebrow: "Фіксація з майданчика",
     title: "Два способи надіслати доказ. Один запис у веб-застосунку",
     titleAccent: "Один запис у веб-застосунку",
     lead: "Майстер знімає там, де йому зручно: у Telegram або в мобільному застосунку. Обидва бачать ту саму вимогу і віддають кадр у той самий запис EV, з яким далі працюють ПТВ, керівник і технагляд у веб-застосунку.",
     channels: [
       { id: "telegram", index: "01 · Telegram-бот · майстер", status: { tone: "ready", label: "доступно" }, title: "Для бригади, яка вже живе в месенджері", body: "Бот отримує фото, питає одне: до якої роботи воно належить, і повертає код EV. Жодних встановлень і форм. Потребує з'єднання.", foot: "→ EV-0248 у веб-застосунку" },
-      { id: "app", index: "02 · Мобільний застосунок · майстер", status: { tone: "review", label: "пілот" }, title: "Показує, що зняти, і тримає чергу, поки немає мережі", body: "iOS та Android. Вимога і потрібний кадр у контексті роботи; кадр стає доказом, щойно завантажиться. Для пілота обираємо роботи з покриттям.", foot: "→ той самий EV-0248" },
+      { id: "app", index: "02 · Мобільний застосунок · майстер", status: { tone: "review", label: "пілот" }, title: "Показує, що зняти, і стан відправки кожного кадру", body: "iOS та Android. Вимога і потрібний кадр у контексті роботи; кадр стає доказом, щойно завантажиться. Потребує з'єднання: для пілота обираємо роботи з покриттям.", foot: "→ той самий EV-0248" },
       { id: "web", index: "03 · Веб-застосунок · офіс", status: { tone: "ready", label: "доступно" }, title: "Для ПТВ і керівника: реєстр, вимоги, рішення, акти", body: "Сюди приходить кожен EV. ПТВ бачить стан за причинами, готує вимоги і чернетки актів; технагляд отримує звідси посилання на одну вимогу.", foot: "→ рішення, закриття, акт" },
     ] satisfies readonly Channel[],
     converge: { code: "EV-0248", text: "один запис у веб-застосунку · очікує рішення технагляду" },
   },
   provenance: {
-    rule: { index: "06", label: "Походження" },
+    rule: { label: "Походження" },
     eyebrow: "Походження",
     title: "Кому що видно, і що не можна підробити",
     titleAccent: "що не можна підробити",
@@ -199,7 +269,7 @@ export const landingContent = {
     },
   },
   pilot: {
-    rule: { index: "07", label: "Пілот" },
+    rule: { label: "Пілот" },
     eyebrow: "Пілот",
     title: "Як проходить пілот на одному пакеті робіт",
     titleAccent: "на одному пакеті робіт",
@@ -246,14 +316,14 @@ export const landingContent = {
     },
   },
   faq: {
-    rule: { index: "08", label: "Питання" },
+    rule: { label: "Питання" },
     eyebrow: "Питання",
     title: "Що зазвичай питають перед пілотом",
     titleAccent: "перед пілотом",
     entries: [
       { id: "replace-tools", question: "GoProceed замінює чати, диск і кошторисну систему?", answer: "Ні. Він утримує доказовий контур роботи: вимогу, фіксацію, рішення, закриття й факти для чернетки акта. Інші інструменти можуть залишатися у своєму призначенні." },
       { id: "supervision", question: "Технагляду потрібен доступ до внутрішнього проєкту?", answer: "Ні. Зовнішній перегляд показує конкретну вимогу, матеріали й історію рішення без доступу до решти робочого простору." },
-      { id: "connection", question: "Чи можна фіксувати матеріали без мережі?", answer: "Фіксація потребує з'єднання: незавантажений оригінал не вважається збереженим доказом. У мобільному застосунку є черга відправки, тож кадр піде, щойно з'явиться мережа; для пілота обираємо роботи з покриттям." },
+      { id: "connection", question: "Чи можна фіксувати матеріали без мережі?", answer: "Фіксація потребує з'єднання: незавантажений оригінал не вважається збереженим доказом. Мобільний застосунок показує стан відправки кожного кадру, тож видно, що вже стало доказом, а що ще ні; для пілота обираємо роботи з покриттям." },
       { id: "adoption", question: "Що, як бригада не буде цим користуватись?", answer: "Майстер не отримує нових форм: у Telegram-боті або мобільному застосунку телефон показує один кадр, який треба зняти, і одну кнопку. Вимоги заносить ПТВ заздалегідь. Якщо на першому тижні пілота майстер не знімає без нагадувань, ми бачимо це в реєстрі і зупиняємось, а не тягнемо впровадження." },
       { id: "refusal", question: "Технагляд замовника не хоче посилання. Що тоді?", answer: "Посилання відкриває одну вимогу з матеріалами, без реєстрації і без доступу до вашого проєкту. Якщо технагляд усе одно відмовляється, це з'ясовується на другому тижні пілота, і ми чесно кажемо, що GoProceed для цього об'єкта поки не підходить." },
       { id: "cost", question: "Скільки коштує пілот і хто відповідає?", answer: "Пілот безкоштовний: два тижні на одному пакеті робіт, без договору і передоплати. Продовження після пілота є окремим рішенням і не вмикається автоматично. Відповідає команда продукту, без відділу продажів. Фото зберігаються разом із полями і не можуть бути замінені або відкріплені від роботи пізніше." },
@@ -264,20 +334,37 @@ export const landingContent = {
     title: "Перевірте маршрут на одному пакеті робіт",
     titleAccent: "на одному пакеті робіт",
     lead: "Візьмемо одну чинну вимогу, один польовий сценарій і один зовнішній розгляд. Цього достатньо, щоб побачити, де процес зберігає доказовість.",
+    rule: { label: "Пілот" },
+    // [DEV-026] the five records of one work, either side of our mark
+    codes: ["W", "R", "EV", "DR", "CL"],
+    points: ["безкоштовно", "два тижні на одному пакеті робіт", "без договору і передоплати"],
     primary: "Заповнити запит на пілот",
+    // «Заповнити запит» lands on the form: below `wide` it sits under the plan,
+    // some 1 650px down a phone (U-02).
+    primaryHref: "/pilot#request",
+    // The share link lands the ПТВ on «Було і стало», and the text promises no more than that (R-03).
+    shareHref: "/roles#compare",
     share: "Скопіювати посилання для ПТВ",
     shared: "Посилання скопійовано",
-    shareFailed: "Не вдалося скопіювати посилання. Скопіюйте адресу сторінки з рядка браузера.",
-    shareText: "GoProceed — приймання прихованих робіт з доказом. Подивись «Було і стало» і план пілота: ",
+    shareFailed: "Не вдалося скопіювати посилання. Відкрийте сторінку «Для кого» і скопіюйте її адресу з рядка браузера.",
+    shareText: "GoProceed — приймання прихованих робіт з доказом. Подивись «Було і стало» на одному етапі: ",
   },
   footer: {
     tagline: "Доказовий контур будівельних робіт: вимога, доказ, рішення, закриття, чернетка акта.",
     columns: [
-      { title: "Продукт", links: [{ label: "Маршрут", href: "#stages" }, { label: "Фіксація з майданчика", href: "#capture" }, { label: "Походження і межі v0.1", href: "#trust" }, { label: "Для кого", href: "#roles" }] },
-      { title: "Пілот", links: [{ label: "Як проходить", href: "#pilot" }, { label: "Було і стало", href: "#compare" }, { label: "Питання", href: "#faq" }, { label: "Написати", href: "mailto" }] },
+      { title: "Продукт", links: [{ label: "Маршрут", href: "/product" }, { label: "Фіксація з майданчика", href: "/product#capture" }, { label: "Походження і межі v0.1", href: "/product#trust" }, { label: "Для кого", href: "/roles" }] },
+      { title: "Пілот", links: [{ label: "Як проходить", href: "/pilot" }, { label: "Було і стало", href: "/roles#compare" }, { label: "Питання", href: "/pilot#faq" }, { label: "Написати", href: "mailto" }] },
     ],
     trust: { title: "Довіра", items: ["Технагляд без облікового запису", "Демо на реальних формах: ДБН А.3.1-5:2016, Додаток В", "Межі версії названі поруч із перевагами"] },
     copyright: "© 2026 GoProceed",
     disclaimer: "Демонстраційні дані. Частина показаних сценаріїв перебуває у розробці. Чернетка акта не є підписаним документом.",
   },
+  // [DEV-025] One title, description and canonical per page. Kept here, not in
+  // landing-metadata.ts, so the forbidden-claim tests read these strings too.
+  pages: {
+    home: { path: "/", title: "GoProceed — робота готова до приймання, коли доказ на місці", description: "GoProceed для підрядників, які здають приховані роботи: вимога, доказ із майданчика і рішення технагляду в одному маршруті, який закінчується чернеткою акта." },
+    product: { path: "/product", title: "Як працює GoProceed — від вимоги до чернетки акта", description: "П'ять кроків однієї роботи: вимога, фіксація з майданчика, рішення технагляду, запис закриття і чернетка акта. Хто що бачить і межі версії 0.1." },
+    roles: { path: "/roles", title: "Для кого GoProceed — власник, ПТВ, майстер, технагляд", description: "Що отримує кожна роль у підрядника, який здає приховані роботи, і що змінюється на нараді: було і стало на одному етапі." },
+    pilot: { path: "/pilot", title: "Безкоштовний пілот GoProceed — два тижні на одному пакеті робіт", description: "Як проходить пілот: один об'єкт, один пакет робіт, два тижні, без договору і передоплати. Запит на пілот і відповіді на часті питання." },
+  } satisfies Record<PageKey, PageMeta>,
 } as const;

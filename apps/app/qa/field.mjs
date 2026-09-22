@@ -1199,11 +1199,15 @@ async function measureUaStyledLinks(page) {
 }
 
 /**
- * The product renders in Onest, headings and body alike. A face that reverts
- * — to a UA serif, to a system sans — is silent in every other gate; only a
- * rendered page can see it.
+ * The product renders in the brand sheet's pair, headings and body alike:
+ * Hanken Grotesk in front for Latin, Commissioner behind it for Cyrillic. A
+ * face that reverts — to a UA serif, to a system sans — is silent in every
+ * other gate; only a rendered page can see it. Asserting the STACK, not one
+ * name, is what catches the order being reversed: Hanken carries no Cyrillic,
+ * so Commissioner in front would leave the sheet's face unused on a page that
+ * still looks plausible. [Autumn, 2026-09-22; was `assertOnest`.]
  */
-async function assertOnest(ctx, page, label) {
+async function assertBrandFaces(ctx, page, label) {
   const faces = await page.evaluate(() => {
     const h = document.querySelector("h1, h2");
     return {
@@ -1211,13 +1215,14 @@ async function assertOnest(ctx, page, label) {
       body: getComputedStyle(document.body).fontFamily,
     };
   });
+  const ok = (f) => /Hanken Grotesk[^,]*,\s*["']?Commissioner/i.test(f);
   if (faces.heading === null) {
     ctx.findings.push(`${label}: no <h1>/<h2> to check the heading face against`);
-  } else if (!/Onest/i.test(faces.heading)) {
-    ctx.findings.push(`${label}: the heading renders in "${faces.heading}" — must be Onest`);
+  } else if (!ok(faces.heading)) {
+    ctx.findings.push(`${label}: the heading renders in "${faces.heading}" — must be Hanken Grotesk ahead of Commissioner`);
   }
-  if (!/Onest/i.test(faces.body)) {
-    ctx.findings.push(`${label}: the body renders in "${faces.body}" — must be Onest`);
+  if (!ok(faces.body)) {
+    ctx.findings.push(`${label}: the body renders in "${faces.body}" — must be Hanken Grotesk ahead of Commissioner`);
   }
 }
 
@@ -3356,7 +3361,7 @@ async function main() {
         for (const s of silentStatus) {
           ctx.findings.push(`${label} @${width}: ${s} carries a status colour and no text — status is never colour alone`);
         }
-        await assertOnest(ctx, page, `${label} @${width}`);
+        await assertBrandFaces(ctx, page, `${label} @${width}`);
       };
 
       const walkRoute = async (page, route) => {
@@ -4024,7 +4029,7 @@ async function main() {
         // migrated. The probe stays because the face has been lost twice
         // already; it now runs on every route in the daylight visual audit,
         // and here once more on the screen where it was first lost.]
-        await assertOnest(ctx, page, "/dash/settings/profile");
+        await assertBrandFaces(ctx, page, "/dash/settings/profile");
         await page.screenshot({ path: path.join(SHOTS, "dash-profile.png"), fullPage: true });
 
         // ── 4. Sign-out: not until confirmed, and then for real ────────────

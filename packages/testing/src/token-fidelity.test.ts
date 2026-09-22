@@ -3,6 +3,7 @@ import { readFileSync, readdirSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFileSync } from "node:child_process";
+import { contrastRatio } from "../../tokens/scripts/lib/color.mjs";
 
 /**
  * The repository's error-catalog guard is the model: it fails when a route
@@ -122,6 +123,52 @@ describe("the source explains itself", () => {
 
   it("the contested list is empty, so every value has been ruled", () => {
     expect(src.contested).toEqual([]);
+  });
+
+  it("every contrast ratio a ruling states is one its own colour produces", () => {
+    // [2026-09-22, DEV-028] THIS IS THE GUARD THE PALETTE CHANGE EARNED TWICE.
+    // A ruling's prose is copied verbatim into `tokens.dtcg.json` and into the
+    // generated `01-tokens.md`, beside a contrast column the generator computes
+    // — and nothing recomputes the prose. When the palette moved, seventeen
+    // rulings kept Daylight's numbers (found in review), and the pass that
+    // corrected them left one behind: `ember-600` said 4.56 where the column on
+    // its own row said 4.57 (found in QA). Both are the same defect: a number
+    // typed by a human beside a number derived by a machine.
+    //
+    // SCOPED TO THE RULING'S OWN COLOUR, which is what makes it bite. A first
+    // version asked only that the number be the contrast of SOME pair in the
+    // palette; with 76 primitives that is ~5 800 pairs and almost every
+    // two-decimal value in range is produced by one of them — it did not even
+    // catch 4.56 → 4.58. A ruling talks about ITS colour, so the candidates are
+    // that colour against each of the others: 76 values, not 5 800. Verified to
+    // reject both real defects this task produced.
+    const hexOf = (name: string) => (src.primitive.color[name] as { hex: string }).hex;
+    const hexes = Object.keys(src.primitive.color).map(hexOf);
+    const against = (hex: string) => new Set(hexes.map((b) => contrastRatio(hex, b).toFixed(2)));
+    // The one sentence that names a pair on purpose to REFUSE it: `text-on-signal`
+    // is ink, and its ruling says why it is not white — «White on ember measures
+    // 3.11:1». The subject of that number is white, not the role's own colour.
+    const NAMES_A_REFUSED_PAIRING = new Set(["text-on-signal:3.11"]);
+    const orphans: string[] = [];
+    for (const [name, token] of Object.entries(src.primitive.color)) {
+      const produced = against(hexOf(name));
+      for (const m of String((token as { ruling: string }).ruling).matchAll(/(\d+\.\d+):1/g)) {
+        if (!produced.has(m[1]!)) orphans.push(`primitive ${name}: ${m[1]} is not this colour's contrast with anything`);
+      }
+    }
+    for (const [role, def] of Object.entries(src.semantic.color)) {
+      const d = def as { light?: unknown; dark?: unknown; ruling?: string };
+      const produced = new Set<string>();
+      for (const ref of [d.light, d.dark]) {
+        if (typeof ref === "string") for (const v of against(hexOf(ref))) produced.add(v);
+      }
+      for (const m of String(d.ruling ?? "").matchAll(/(\d+\.\d+):1/g)) {
+        if (!produced.has(m[1]!) && !NAMES_A_REFUSED_PAIRING.has(`${role}:${m[1]}`)) {
+          orphans.push(`semantic ${role}: ${m[1]} is not a contrast of the rungs it resolves to`);
+        }
+      }
+    }
+    expect(orphans).toEqual([]);
   });
 });
 

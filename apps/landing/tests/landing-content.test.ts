@@ -15,15 +15,50 @@ const copy = flatten(landingContent);
 const everything = `${copy} ${flatten(demoRecords)}`;
 
 describe("landing copy — the Daylight page", () => {
-  it("publishes the fourteen sections in the prototype's order", () => {
+  it("publishes the fourteen blocks, the home page's scenes and the page table", () => {
+    // [DEV-025] Which block renders on which page, and in what order, is pinned
+    // on the DOM in landing-render.test.tsx; this pins that no block's copy
+    // disappears or appears unnoticed.
     expect(Object.keys(landingContent)).toEqual([
-      "nav", "hero", "sources", "problem", "compare", "roles", "route",
-      "position", "capture", "provenance", "pilot", "faq", "cta", "footer",
+      "nav", "hero", "intro", "facts", "sources", "problem", "scenes", "compare", "roles", "route",
+      "position", "board", "capture", "provenance", "pilot", "faq", "cta", "footer", "pages",
     ]);
   });
 
-  it("keeps the header links in page order", () => {
-    expect(landingContent.nav.items.map((i) => i.href)).toEqual(["#compare", "#roles", "#stages", "#faq"]);
+  it("links the header to the three sub-pages, and the action to the form's page", () => {
+    expect(landingContent.nav.items.map((i) => i.href)).toEqual(["/product", "/roles", "/pilot"]);
+    expect(landingContent.nav.actionHref).toBe(landingContent.pages.pilot.path);
+  });
+
+  it("points every link in the copy at a page that exists", () => {
+    const paths = new Set<string>(Object.values(landingContent.pages).map((p) => p.path));
+    const links = [
+      ...landingContent.nav.items.map((i) => i.href), landingContent.nav.actionHref, landingContent.nav.actionHrefOnPilot,
+      landingContent.hero.pill.href, landingContent.hero.primaryHref, landingContent.hero.secondaryHref,
+      landingContent.intro.actionHref, landingContent.facts.actionHref, landingContent.position.more.href,
+      landingContent.cta.primaryHref, landingContent.cta.shareHref,
+      ...landingContent.footer.columns.flatMap((col) => col.links.map((l) => l.href)).filter((h) => h !== "mailto"),
+    ];
+    for (const href of links) {
+      expect(href.startsWith("/"), href).toBe(true);
+      expect(paths.has(href.split("#")[0]!), href).toBe(true);
+    }
+  });
+
+  it("ends every block title with its closing phrase, so the two-tone split never mangles a heading (R-13)", () => {
+    // `splitTitle` leaves a title whole when the phrase is not its suffix; this
+    // is the copy-side guard, so a reworded title is caught here and not on a page.
+    const blocks = ["compare", "roles", "route", "capture", "provenance", "pilot", "faq", "scenes"] as const;
+    for (const key of blocks) {
+      const { title, titleAccent } = landingContent[key];
+      expect(title.endsWith(titleAccent), `${key}: «${titleAccent}» must close «${title}»`).toBe(true);
+      expect(title.length).toBeGreaterThan(titleAccent.length);
+    }
+  });
+
+  it("states no send queue: a frame is evidence once uploaded, and not before (ADR-007 decision 6)", () => {
+    expect(everything.toLowerCase()).not.toContain("черг");
+    expect(everything).not.toContain("очікує мережу");
   });
 
   it.each([
@@ -82,8 +117,15 @@ describe("the first viewport names the consequence and the payer", () => {
     expect(hero.lead).toContain("гроші");
   });
 
-  it("gives the owner a fact of his own, and puts it first", () => {
-    expect(hero.facts[0]?.value).toContain("Власник");
+  it("says what the product is before it says why it matters", () => {
+    // [DEV-025] The home page is short, so the lead carries the definition.
+    expect(hero.lead.indexOf("веб-застосунок")).toBeGreaterThan(-1);
+    expect(hero.lead.indexOf("веб-застосунок")).toBeLessThan(hero.lead.indexOf("гроші"));
+  });
+
+  it("gives the owner a fact of his own, and puts it first — on /roles since DEV-025", () => {
+    expect(landingContent.roles.facts[0]?.value).toContain("Власник");
+    expect(landingContent.roles.cells[0]?.id).toBe("owner");
   });
 
   it("does not repeat the money line in the compare block that used to own it", () => {
@@ -92,7 +134,7 @@ describe("the first viewport names the consequence and the payer", () => {
 
   it("claims only what the demo board already shows — no invented figure", () => {
     // The board renders reasons and a blocked count; it renders no hryvnia.
-    const ownerFact = hero.facts[0];
+    const ownerFact = landingContent.roles.facts[0];
     expect(`${ownerFact?.value} ${ownerFact?.label}`).not.toMatch(/\d|грн|₴|%/);
   });
 });

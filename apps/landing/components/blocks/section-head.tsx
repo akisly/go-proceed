@@ -1,13 +1,41 @@
 import type { ReactNode } from "react";
-import { LineReveal, Reveal } from "@goproceed/ui/motion";
+import { Reveal } from "@goproceed/ui/motion";
+import { TwoTone } from "./two-tone";
 
 /**
- * The prototype's `.head`: eyebrow and h2 on the left, the lead on the right,
- * aligned to the bottom. `stack` puts the lead under the heading (the FAQ and
- * the problem statement do not use this component at all).
+ * A section's head. [DEV-026] The reference's: a small label, then a two-tone
+ * heading — the statement in ink, its closing phrase muted — with the lead
+ * beside it on wide screens. `titleAccent` is the closing phrase of `title`
+ * in every block's copy, so the split needs no second string.
+ *
+ * `as` is `h1` where the block opens a page (DEV-025): /product, /roles and
+ * /pilot each need one.
  */
+/** A block's title as the two-tone pair: everything before its closing phrase, then the phrase. A `titleAccent` that is not a suffix leaves the title whole — never `slice(0, -1)`. */
+export function splitTitle(title: string, titleAccent: string): { lead: string; rest: string | undefined } {
+  const at = title.lastIndexOf(titleAccent);
+  return at > 0 && at + titleAccent.length === title.length
+    ? { lead: title.slice(0, at).trim(), rest: titleAccent }
+    : { lead: title, rest: undefined };
+}
+
+/**
+ * A block's lead paragraph — the one treatment, in one place.
+ *
+ * [2026-09-22, owner: «у блоков разный шрифт заголовков и описания и разная
+ * ширина их же».] Three blocks had drifted into three answers: `SectionHead`
+ * set `text-mkt-lead` / `ink-muted` / `measure`, `problem.tsx` set `text-body`
+ * / `ink-secondary` / `max-w-[34ch]`, `intro.tsx` set `text-mkt-lead` /
+ * `ink-secondary` / no measure. On one page, one under the other, that reads as
+ * two different type systems — which is what the owner saw on /roles. There is
+ * one now, and a block that wants another has to change this component.
+ */
+export function SectionLead({ children }: { children: ReactNode }) {
+  return <p className="measure text-mkt-lead leading-relaxed text-ink-muted">{children}</p>;
+}
+
 export function SectionHead({
-  eyebrow, title, titleAccent, lead, children, layout = "split",
+  eyebrow, title, titleAccent, lead, children, layout = "split", as = "h2",
 }: {
   eyebrow: string;
   title: string;
@@ -15,16 +43,18 @@ export function SectionHead({
   lead?: string | undefined;
   children?: ReactNode | undefined;
   layout?: "split" | "stack" | undefined;
+  as?: "h1" | "h2" | undefined;
 }) {
+  const { lead: first, rest } = splitTitle(title, titleAccent);
   return (
-    <div className={layout === "split" ? "mb-8 grid gap-6 md:mb-12 wide:grid-cols-2 wide:items-end wide:gap-10" : "mb-8 grid gap-6 md:mb-12"}>
+    <div className={layout === "split" ? "mb-10 grid gap-6 md:mb-14 wide:grid-cols-2 wide:items-end wide:gap-10" : "mb-10 grid gap-6 md:mb-14"}>
       <div>
-        <Reveal size="stately"><p className="index-label">{eyebrow}</p></Reveal>
-        <LineReveal as="h2" text={title} accent={titleAccent} className="display mt-3.5 max-w-[20ch] text-mkt-display-2 text-ink" />
+        <Reveal size="stately"><p className="mb-3 text-data text-ink-secondary">{eyebrow}</p></Reveal>
+        <TwoTone as={as} lead={first} rest={rest} />
       </div>
       {(lead || children) && (
         <Reveal size="stately">
-          {lead && <p className="measure text-mkt-lead leading-relaxed text-ink-secondary">{lead}</p>}
+          {lead && <SectionLead>{lead}</SectionLead>}
           {children}
         </Reveal>
       )}

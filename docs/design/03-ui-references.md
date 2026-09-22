@@ -152,7 +152,7 @@ rule the dashboard applies to shadcn). Each block names its source:
 | Roles | Grid Feature Cards | 1px-gap cells, pointer spotlight, pointer tilt ≤ 3° | — | 21st.dev `efferd/grid-feature-cards` · licence unstated (structure already ours) |
 | Provenance | Bento Grid | a two-row cell beside two stacked cells, staggered | icon-led filler cells | Magic UI `bento-grid` · MIT |
 | Route | Fora's sticky feature stack | five sticky cards, sides alternating, the scale/veil scrub and the media parallax (`ScrollStack`) | — | Aceternity `sticky-scroll-reveal` · Aceternity License (structure only) |
-| Pilot plan | Steppers / Timeline | vertical steps with a progress line scrubbed by the scroll (`ScrollProgress`) | timed autoplay | Aceternity `timeline` · Aceternity License (structure only) |
+| Pilot plan | Steppers / Timeline | steps with a progress line scrubbed by the scroll (`ScrollProgress`) — vertical by default, horizontal on `/pilot` since 2026-09-22, where the plan is reference and not narrative | timed autoplay | Aceternity `timeline` · Aceternity License (structure only) |
 | Closing | Cta-4 | light card, copy left, actions right | a second signal button | 21st.dev `shadcnblockscom/cta-4` · licence unstated (structure already ours) |
 | Headings | Text Generate Effect | per-word spans as the unit of a heading reveal; the line grouping is ours (`LineReveal`) | the blur | Aceternity `text-generate-effect` · Aceternity License (structure only) |
 | Pointer words | Magnetic, Tilt | the spring-driven follow and lean (`Magnetic`, `Tilt`) with our springs | their default springs | motion-primitives (`ibelick/motion-primitives`) · MIT |
@@ -160,3 +160,32 @@ rule the dashboard applies to shadcn). Each block names its source:
 Spec: `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` §6, amended by
 `docs/superpowers/specs/2026-09-06-landing-prototype-parity-design.md` §3 and §7
 (the full source list with URLs).
+
+*[2026-09-19 (DEV-025): the landing is now four pages. From
+https://parlo-black.vercel.app/ (read 2026-09-19; no licence published on the
+page) DEV-025 takes block **types** only — a product-scene hero, alternating
+«copy beside live UI» feature scenes (the home page's `Scenes` block), a
+bridge statement and a closing offer — and no code, CSS, asset or visual
+treatment. Every block in the table keeps the source named on its row; the
+`Scenes` block is composed of the route cards' existing UI windows. BL-082
+stays open on the reference's visual treatment.]*
+
+*[2026-09-19 (DEV-026, owner: «1 в 1 … только чтобы цвета сохранились наши»): the
+landing now takes the reference's visual treatment as well — see `DESIGN.md`
+«The landing's form since 2026-09-19». The table above describes the landing
+as it shipped before that; these rows describe it after:]*
+
+| Block | Reference composition | What we take | What we do not | Source · licence |
+|---|---|---|---|---|
+| Frame | double guide lines, fixed header between them | the lines at 22px/30px (10px/16px below `md`), the header inside the inner pair | the black ground | https://parlo-black.vercel.app/ observed 2026-09-19 · no licence published — reimplemented, nothing copied |
+| First screen | pixel rain, perspective floor, orbiting arc text, centred 54px/400 heading, two pills | all of it: `PixelRain`, `landing-floor`, `OrbitText`, `PillLink` with our `beam` | the typeface (Syne has no Cyrillic; Onest stays) | same |
+| Band | 50px raster band between hairlines | the band between every two sections | — | same |
+| Split + four columns | floating menu over marquee tag rows, two-tone h2, pill; 01–04 columns | the composition; menu = one work's records, tags = the demo register's works, columns = the four roles | the brand icons | same |
+| Sticky list | sticky feature names, label + two-tone lead + rows, large rounded card | the composition over the five route steps and their UI windows | the 3D-tilted inbox cards inside the reference's cards | same |
+| Application view | large app mock fading at its foot + four inline statements | the composition over the state board (`ProductFrame`) and the capture channels | — | same |
+| Grid cards | three tall cards on a fading grid, floating widget, caption ink + muted | the composition over майстер / технагляд / офіс | the AI-model list | same |
+| Fact band | grid ground, two-tone h2, pill, four tiles | the composition over four terms of the pilot | the statistics themselves — no outcome figure exists to publish (`PRODUCT.md`); the particle globe | same |
+| Logo row | six customer logos | the row's place, holding the requirement sources | customer logos — there are no customers to name | same |
+| FAQ | label + two-tone h2 left, chevron accordion right | same | — | same |
+| Closing | radial lines, icon row round a breathing mark, 60px h2, two pills | the composition; marks = the five record codes round ours | partner icons | same |
+| Not taken | testimonial rail, pricing table | — | both: no testimonial and no price other than free may be published (`DESIGN.md` Don't) | same |

@@ -1,6 +1,19 @@
 import type { ReactNode } from "react";
 import type { Metadata, Viewport } from "next";
-import "@fontsource-variable/onest";
+// The brand sheet's typeface, with Commissioner behind it for Cyrillic.
+// Hanken Grotesk carries no Cyrillic at all, and the whole interface is
+// Ukrainian, so the two are imported together and ordered in the token stack
+// (`font.sans`): Latin resolves in Hanken, Cyrillic falls through to
+// Commissioner, and Commissioner's own Latin faces are never used and so
+// never fetched. Two costs of importing whole packages, both accepted: the
+// browser fetches Hanken's `cyrillic-ext` file (Ґ and ґ fall in its range),
+// finds no glyph and falls through correctly, one wasted request; and ₴
+// (U+20B4) IS in that file, so the hryvnia on a money figure renders in Hanken
+// beside Ukrainian words in Commissioner. fontsource ships no per-subset CSS
+// entry for either family, so the fix is hand-written @font-face rules — filed
+// with the dashboard's visual pass (BL-117) rather than done blind. [Autumn, 2026-09-22, DEV-028; was @fontsource-variable/onest]
+import "@fontsource-variable/hanken-grotesk";
+import "@fontsource-variable/commissioner";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -29,7 +42,8 @@ export const metadata: Metadata = {
         // TINTS the pinned-tab SVG with this value, so the Daylight mark the
         // brand pipeline draws into that file was still being painted in a
         // colour DESIGN.md now says exists nowhere in the system.]
-        color: "#15161A",
+        // [Autumn, 2026-09-22: was `#15161A`; the brand sheet's black.]
+        color: "#0C0C0A",
       },
     ],
   },
@@ -53,8 +67,8 @@ export const viewport: Viewport = {
   // [Corrected 2026-09-05: was `#191A1A`. `public/manifest.webmanifest` moved
   // to `#15161A` with the Daylight palette, and a meta `theme-color` that names
   // a different ink from the manifest's `theme_color` is two answers to one
-  // question.]
-  themeColor: "#15161A",
+  // question. 2026-09-22: both moved again, to the brand sheet's black.]
+  themeColor: "#0C0C0A",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

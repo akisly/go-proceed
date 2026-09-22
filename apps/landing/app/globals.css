@@ -28,7 +28,8 @@
  * Components never name a family — they name `font-sans` and `font-mono`,
  * which resolve through `--gp-font-sans`/`--gp-font-mono` in the generated
  * token sheet. Those still resolve; only what they resolve TO changes, and
- * only here, because `apps/app` still loads Onest from the package.
+ * only here, because `apps/app` loads the same pair from its packages instead of
+ * self-hosting subsets.
  *
  * DELIBERATELY UNLAYERED, and this is not style. `tokens.generated.css`
  * declares its `:root` outside every layer, and an unlayered rule beats a
@@ -37,19 +38,22 @@
  * and the whole page renders in `system-ui` with nothing failing. That is
  * exactly what happened on the first attempt; only the visual pass caught it.
  *
- * Cyrillic comes first in each stack on purpose. `localFont` cannot set a
- * per-file `unicode-range`, so the ordering does that job: a Ukrainian glyph
- * is found in the first face, a Latin one — «GoProceed», «Telegram», every
- * W-/EV-/R- code — falls through to the second. Reversing them would leave
- * Cyrillic to the system font.
+ * [Autumn, 2026-09-22] LATIN comes first in the sans stack, and Cyrillic
+ * first in the mono. `localFont` cannot set a per-file `unicode-range`, so the
+ * ordering does that job, and the two stacks want opposite orders because one
+ * is two families and the other is one. The sans: «GoProceed», every digit and
+ * every W-/EV-/R- code must be found in Hanken Grotesk, the brand sheet's
+ * face, and only Cyrillic — which Hanken does not carry at all — falls through
+ * to Commissioner. The mono is one family split by subset, so there a
+ * Ukrainian glyph is found first and Latin falls through.
  */
 :root {
-  --gp-font-sans: var(--font-onest-cyrillic), var(--font-onest-latin), system-ui, sans-serif;
+  --gp-font-sans: var(--font-hanken-latin), var(--font-commissioner-cyrillic), system-ui, sans-serif;
   --gp-font-mono: var(--font-jetbrains-mono-cyrillic), var(--font-jetbrains-mono-latin), ui-monospace, monospace;
   /* `.display` (base.css) names its own token, so the headings need it too —
    * without this line the h1, the one element the whole fold is measured on,
    * keeps the retired family name and silently falls back to system-ui. */
-  --gp-font-display: var(--font-onest-cyrillic), var(--font-onest-latin), system-ui, sans-serif;
+  --gp-font-display: var(--font-hanken-latin), var(--font-commissioner-cyrillic), system-ui, sans-serif;
 }
 
 /* The display face is loaded here and nowhere else. It is marketing-only —
@@ -94,36 +98,32 @@
 }
 
 @layer components {
-  /* The Dot Pattern (21st.dev): a fixed, aria-hidden dot field masked to the
-   * top of the page, behind everything. Static — the prototype's scrolling
-   * glows were removed in its sixth iteration. */
-  .landing-dot-field {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 22%, transparent) 1px, transparent 1.2px);
-    background-size: 22px 22px;
-    -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 20%, transparent 100%);
-    mask-image: radial-gradient(ellipse 70% 55% at 50% 0%, #000 20%, transparent 100%);
-    opacity: 0.9;
-  }
+  /* [DEV-026] The page-wide Dot Pattern is gone: the reference's first screen
+   * carries its own texture (`PixelRain`), and its pages have no ground
+   * pattern behind the sections. */
 
-  .landing-body > header,
-  .landing-body > main,
-  .landing-body > footer {
-    position: relative;
-    z-index: 1;
-  }
+  /* [DEV-026] `<main>` and the footer live inside `.landing-frame`, which
+   * carries the stacking context; `<main>` positions itself (site-shell.tsx). */
 
   /* The header's hairline is permanent (F9); the backdrop blurs the page under it. */
-  .landing-header {
+  /* The header's ground is a layer of its own, so that a change to it never
+   * touches the links. [2026-09-22, owner] It is frosted glass at every scroll
+   * position and on every width — the page blurs THROUGH the bar rather than
+   * ending at it. Until this day a script lifted it while the page stood at its
+   * top, so the hero's field ran under a bar with no ground (DEV-027, seventh
+   * pass); the owner asked for the glass to be permanent, which also returned
+   * the header to one appearance with and without JavaScript. */
+  .landing-header-veil {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
     background: color-mix(in srgb, var(--color-canvas) 86%, transparent);
     -webkit-backdrop-filter: blur(14px) saturate(1.2);
     backdrop-filter: blur(14px) saturate(1.2);
   }
 
-  /* Nav link underline: slides in from the left on hover, stays on the active section in the accent. */
+  /* Nav link underline: slides in from the left on hover, stays on the current page in the accent. */
   .landing-nav-link::after {
     content: "";
     position: absolute;
@@ -137,7 +137,204 @@
     transition: transform var(--gp-duration-base) var(--gp-ease-emphatic);
   }
   .landing-nav-link:hover::after { transform: scaleX(1); }
-  .landing-nav-link[aria-current="true"]::after { transform: scaleX(1); background: var(--color-accent); }
+  .landing-nav-link[aria-current="page"]::after { transform: scaleX(1); background: var(--color-accent); }
+
+  /* -------------------------------------------------------------------------
+   * The reference's form (DEV-026) — owner, 2026-09-19: the landing «1 в 1»
+   * after https://parlo-black.vercel.app/, in our colours. Observed and
+   * rebuilt; none of the reference's CSS is here. Every colour below is a
+   * role, mixed toward transparent where the reference uses a faint line.
+   * ----------------------------------------------------------------------- */
+
+  /* THE FRAME. Two guide lines at each edge, fixed for the whole scroll: the
+   * outer pair are these pseudo-elements, the inner pair are the borders of
+   * `.landing-frame`, the column every page lives in. 22px and 30px from the
+   * edge from `md` up, as measured; 10px and 16px below it, because 30px a
+   * side leaves a 360px phone 300px for Ukrainian copy and the UI windows. */
+  .landing-body {
+    --landing-rail-outer: 10px;
+    --landing-rail-inner: 16px;
+  }
+  @media (min-width: 48rem) {
+    .landing-body {
+      --landing-rail-outer: 22px;
+      --landing-rail-inner: 30px;
+    }
+  }
+  .landing-body:has(.landing-frame)::before,
+  .landing-body:has(.landing-frame)::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    z-index: 45;
+    width: 0;
+    pointer-events: none;
+    border-left: 1px solid var(--color-line);
+  }
+  .landing-body:has(.landing-frame)::before { left: var(--landing-rail-outer); }
+  .landing-body:has(.landing-frame)::after { right: var(--landing-rail-outer); }
+  .landing-frame {
+    position: relative;
+    z-index: 1;
+    margin-inline: var(--landing-rail-inner);
+    border-inline: 1px solid var(--color-line);
+  }
+  /* The header sits between the inner rails. */
+  .landing-header-rail {
+    left: var(--landing-rail-inner);
+    right: var(--landing-rail-inner);
+  }
+
+  /* THE INSET of a section inside the frame: the reference's 104px from the
+   * viewport edge on `wide`, less the 30px rail. */
+  .landing-inset { padding-inline: 1rem; }
+  @media (min-width: 48rem) { .landing-inset { padding-inline: 2rem; } }
+  @media (min-width: 77.5rem) { .landing-inset { padding-inline: 74px; } }
+
+  /* THE BAND between sections: 50px of fine raster between two hairlines. */
+  .landing-band {
+    height: 50px;
+    border-block: 1px solid var(--color-line);
+    background-image: radial-gradient(color-mix(in srgb, var(--color-ink) 26%, transparent) 0.75px, transparent 1px);
+    background-size: 4px 4px;
+    opacity: 0.7;
+  }
+
+  /* THE FLOOR under the hero: one flat grid tipped back under a CSS
+   * perspective and faded toward the horizon. Not a scene — no camera moves
+   * and nothing is lit (`DESIGN.md`).
+   * [DEV-027] The plane is an element now, not a pseudo-element, because it
+   * carries a `CellField`: the cell under the pointer lights up and fades, as
+   * on the reference's floor. The grid lines stay CSS, so the floor is whole
+   * without JavaScript, on a touch device and under reduced motion. The plane
+   * is as wide as the floor and 480px deep: under this perspective the first
+   * 450px of depth fill the floor's height, and the 220 %-wide, 911px-deep
+   * sheet of DEV-026 drew six cells out of seven off screen. */
+  .landing-floor {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 46%;
+    overflow: hidden;
+    pointer-events: none;
+    perspective: 900px;
+    perspective-origin: 50% 0%;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 45%, #000 100%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 45%, #000 100%);
+  }
+  .landing-floor-plane {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 480px;
+    transform: rotateX(58deg);
+    transform-origin: 50% 0%;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--color-ink) 11%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 11%, transparent) 1px, transparent 1px);
+    /* ~14 columns across 1440 and lines that stay near 1px at the viewer's edge:
+     * a 104px pitch under a 520px perspective gave seven soft 3px strokes. */
+    background-size: 60px 60px;
+    background-position: 50% 0;
+  }
+
+  /* THE LIGHT behind the hero's heading (DEV-027): the reference leaves the
+   * middle of its first screen brighter than the corners, where the pixel field
+   * is. On paper the brighter role is `surface`. */
+  .landing-hero-light {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background-image: radial-gradient(ellipse 46% 52% at 50% 34%, var(--color-surface) 0%, color-mix(in srgb, var(--color-surface) 55%, transparent) 38%, transparent 72%);
+  }
+
+  /* A CARD ON A GRID GROUND that fades out toward the caption at its foot. */
+  .landing-gridcard::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    border-radius: inherit;
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--color-ink) 9%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 9%, transparent) 1px, transparent 1px);
+    background-size: 26px 26px;
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 82%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 82%);
+    /* [DEV-027] The grid rests a little back and comes up under the pointer. */
+    opacity: 0.7;
+    transition: opacity var(--gp-duration-slow) var(--gp-ease-out);
+  }
+  @media (hover: hover) {
+    .landing-gridcard:hover::before { opacity: 1; }
+  }
+
+  /* THE FACT BAND's ground: a wide grid across the whole section. */
+  .landing-gridfield {
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--color-ink) 8%, transparent) 1px, transparent 1px),
+      linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 8%, transparent) 1px, transparent 1px);
+    background-size: 62px 62px;
+    background-position: 50% 0;
+  }
+
+  /* THE FACT BAND's dome (DEV-027): the light it stands in — a haze from below
+   * the horizon at the dome's flanks, as in the reference — in the accent. */
+  .landing-dome-light {
+    /* [DEV-027, owner, second pass] the lights are the accent, not `surface`.
+     * [third pass] Watched again in the reference: the light is not in the
+     * block's far corners. It is a haze from below the horizon that stands
+     * CLOSE TO THE DOME on either side and climbs past its apex, thinning
+     * toward the tiles, with a low band of it along the whole foot. The layer
+     * is taller than the dome's box (`facts.tsx`).
+     *
+     * [2026-09-22] THE FLOOR MOVED WITH THE COLOUR. The stops were 4 % / 1.75 %
+     * / 1.5 %, set over three passes against COBALT — a colour four times this
+     * one's chroma. At those alphas the Autumn accent composites to a neutral
+     * darkening with no hue at all: `gp-ui-reviewer` could not find the layer in
+     * any screenshot, and a haze nobody sees is a layer, not a decision. Raised
+     * to 9 / 4 / 3.5 (8 / 3.5 / 3.5 below `wide`), which is where the green
+     * reads as green and still does not become an area.
+     *
+     * BELOW `wide` the dome spans 8–92 % of its box, so two side lights would
+     * both stand INSIDE it and read as a pair of horns with paper between them
+     * (B3-01): there it is ONE wide halo behind the dome, and the band. From
+     * `wide` the dome spans 15–85 %, and the two lights stand at 14 % and 86 % —
+     * their core just OUTSIDE the limbs, as the reference's is, so the dome's
+     * smallest dots at its foot are not drawn on the strongest haze (B3-02).
+     *
+     * [owner, fourth pass] «сделай меньше жёсткого цвета для градиента возле
+     * купола, что бы он был слегка заметен»: every stop is under half of what
+     * it was (core 28 % → 13 %, shoulder 12 % → 5.5 %, band 12 % → 5 %; below
+     * `wide` 24 / 10 → 11 / 4.5). The form is untouched — only how loud it is.
+     * [owner, fifth pass] «еще меньше»: halved again — core 7 %, shoulder 3 %,
+     * band 3 %; below `wide` 6 / 2.5 / 3. A quarter of the third pass's.
+     * [owner, sixth pass] «еще меньше», once more: core 4 %, shoulder 1.75 %,
+     * band 1.5 %; below `wide` 3.5 / 1.5 / 1.5 — about a seventh of the third
+     * pass's. `gp-ui-reviewer` had warned after the FIFTH pass that the next
+     * step down should be deleting the layer; the owner's sixth «меньше» was
+     * honoured once more. THIS is the floor: under it the haze is not a quieter
+     * haze but an invisible one, and a banding risk on a wide screen — the next
+     * step down is to delete the layer, not to halve it. */
+    background-image:
+      radial-gradient(ellipse 68% 82% at 50% 100%, color-mix(in srgb, var(--color-accent) 8%, transparent) 0%, color-mix(in srgb, var(--color-accent) 3.5%, transparent) 46%, transparent 78%),
+      linear-gradient(to top, color-mix(in srgb, var(--color-accent) 3.5%, transparent) 0%, transparent 38%);
+  }
+  @media (min-width: 77.5rem) {
+    .landing-dome-light {
+      background-image:
+        radial-gradient(ellipse 26% 86% at 14% 100%, color-mix(in srgb, var(--color-accent) 9%, transparent) 0%, color-mix(in srgb, var(--color-accent) 4%, transparent) 40%, transparent 76%),
+        radial-gradient(ellipse 26% 86% at 86% 100%, color-mix(in srgb, var(--color-accent) 9%, transparent) 0%, color-mix(in srgb, var(--color-accent) 4%, transparent) 40%, transparent 76%),
+        linear-gradient(to top, color-mix(in srgb, var(--color-accent) 3.5%, transparent) 0%, transparent 38%);
+    }
+  }
+
+  /* A floating menu that fades out toward its foot (the intro's card). */
+  .landing-fade-foot {
+    -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+    mask-image: linear-gradient(to bottom, #000 0%, #000 72%, transparent 100%);
+  }
 
   /* The drafting grid inside a route card's media half, masked to its centre. */
   .landing-media-grid::before {

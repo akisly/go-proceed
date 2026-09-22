@@ -30,7 +30,9 @@ const STATES: ClientState[] = [
 const THEME: ThemeName = "light";
 
 // Surface and foreground are taken as a PAIR from the same status role. The
-// `status-*-surface` values are light tints (#EFEEEB … #FCE9E6), so the old
+// `status-*-surface` values are light tints (#EFEEEB … #FCE9E6 until the
+// Autumn palette moved them on 2026-09-22; the line is illustrative and the
+// code beside it reads the tokens), so the old
 // single white label colour would have been unreadable on every row; each
 // role's own `-fg` is the contrast the design system already worked out for it.
 const TONE: Record<ClientState, { surface: string; fg: string }> = {

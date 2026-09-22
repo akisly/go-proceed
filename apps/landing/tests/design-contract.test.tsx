@@ -18,29 +18,31 @@ vi.mock("next/font/local", () => ({
 const { default: RootLayout } = await import("../app/layout");
 
 describe("landing design contract", () => {
-  it("ships the approved evidence-journey direction with the document", () => {
+  it("ships the approved direction with the document — the owner's reference form, 2026-09-19", () => {
     const html = renderToStaticMarkup(
       <RootLayout>
         <main />
       </RootLayout>,
     );
 
-    expect(html).toContain('data-impeccable-contract="user-approved-daylight-parity-2026-09-06"');
+    expect(html).toContain('data-impeccable-contract="user-approved-reference-form-2026-09-19"');
     expect(html).toContain("THESIS: The work is ready");
-    expect(html).toContain("FORM: Daylight parity");
+    expect(html).toContain("FORM: The owner's reference");
     expect(html).toContain("FINISH: Unreviewed and undocumented is unfinished");
   });
 });
 
-describe("the landing loads Onest and nothing else for text", () => {
+describe("the landing loads the brand sheet's faces and nothing else for text", () => {
   const layout = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
-  // [2026-09-07] These two used to assert the @fontsource imports by name. The
-  // families are unchanged; only the loader is — self-hosted through
-  // `next/font/local` so the faces can be preloaded. The guarantee the pair
-  // exists for is the same: two families, and neither of them the retired ones.
-  it("loads Onest and JetBrains Mono", () => {
-    expect(layout).toContain("./fonts/onest-cyrillic.woff2");
-    expect(layout).toContain("./fonts/onest-latin.woff2");
+  // [2026-09-07] These two used to assert the @fontsource imports by name. Only
+  // the loader changed then — self-hosted through `next/font/local` so the
+  // faces can be preloaded. [2026-09-22] The families changed too: Onest gave
+  // way to the brand sheet's Hanken Grotesk, which has no Cyrillic, so
+  // Commissioner stands behind it for the copy. The guarantee is the same:
+  // these faces, and none of the retired ones.
+  it("loads Hanken Grotesk, Commissioner and JetBrains Mono", () => {
+    expect(layout).toContain("./fonts/hanken-grotesk-latin.woff2");
+    expect(layout).toContain("./fonts/commissioner-cyrillic.woff2");
     expect(layout).toContain("./fonts/jetbrains-mono-cyrillic.woff2");
     expect(layout).toContain("./fonts/jetbrains-mono-latin.woff2");
   });
@@ -51,6 +53,7 @@ describe("the landing loads Onest and nothing else for text", () => {
     const code = layout.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").toLowerCase();
     expect(code).not.toMatch(/\binter\b/);
     expect(code).not.toContain("source-serif");
+    expect(code).not.toContain("onest");
     expect(layout.match(/localFont\(/g)).toHaveLength(4);
   });
 });

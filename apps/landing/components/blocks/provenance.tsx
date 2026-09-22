@@ -7,8 +7,8 @@ import { AccessMatrix } from "../visuals/access-matrix";
 export function Provenance() {
   const p = landingContent.provenance;
   return (
-    <section id="trust" tabIndex={-1} className="scroll-mt-20 px-4 py-20 md:px-8 md:py-28">
-      <div className="mx-auto max-w-marketing">
+    <section id="trust" tabIndex={-1} className="scroll-mt-20 landing-inset py-20 md:py-28">
+      <div>
         <SectionHead eyebrow={p.eyebrow} title={p.title} titleAccent={p.titleAccent} lead={p.lead} />
         <Bento stagger>
           <BentoCell stagger span="rows-2" className="md:grid-cols-[minmax(0,0.85fr)_minmax(0,1.25fr)] md:items-start md:gap-10">

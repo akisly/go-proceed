@@ -5,8 +5,8 @@ import { Button } from "@goproceed/ui/components";
 import { landingContent } from "../../content/landing-content";
 
 /**
- * «Скопіювати посилання для ПТВ»: the page URL with the compare anchor and one
- * sentence, onto the clipboard.
+ * «Скопіювати посилання для ПТВ»: the address of «Було і стало» (on /roles since
+ * DEV-025) and one sentence, onto the clipboard.
  *
  * The outcome is ANNOUNCED, not just drawn on the button. Neither NVDA nor
  * JAWS re-announces a focused button whose own label changes, so swapping
@@ -20,7 +20,7 @@ export function ShareLink() {
   const timerRef = useRef<number | null>(null);
 
   async function copy() {
-    const url = `${window.location.href.split("#")[0]}#compare`;
+    const url = new URL(landingContent.cta.shareHref, window.location.origin).href;
     try {
       if (timerRef.current !== null) {
         clearTimeout(timerRef.current);
@@ -42,7 +42,7 @@ export function ShareLink() {
 
   return (
     <>
-      <Button type="button" size="lg" variant="outline" onClick={copy}>
+      <Button type="button" size="lg" variant="outline" className="rounded-pill" onClick={copy}>
         {done ? landingContent.cta.shared : landingContent.cta.share}
       </Button>
       <span role="status" aria-live="polite" className="sr-only">

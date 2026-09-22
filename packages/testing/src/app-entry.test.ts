@@ -33,7 +33,7 @@ const RETIRED: RegExp[] = [
 
 /** Packages the legacy Button/cn pulled in; the shared package owns them now. */
 const RETIRED_IMPORTS = [
-  "@fontsource-variable/inter", "class-variance-authority", "tailwind-merge", "clsx",
+  "@fontsource-variable/inter", "@fontsource-variable/onest", "class-variance-authority", "tailwind-merge", "clsx",
 ];
 
 const EXTENSIONS = [".ts", ".tsx", ".css"];
