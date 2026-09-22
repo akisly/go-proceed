@@ -67,17 +67,26 @@ function heicDerived(o: {
   version?: 0 | 1 | 2; offsetSize?: 0 | 4 | 8; lengthSize?: 0 | 4 | 8; baseSize?: 0 | 4 | 8; indexSize?: 0 | 4 | 8;
   method?: 0 | 1; base?: number; type?: "grid" | "iovl"; data: number[]; ispe?: [number, number];
   iinfTrailing?: number[]; entryCount?: number; extraMeta?: number[]; topLevel?: number[]; duplicateItem?: boolean;
+  /** A second `infe` with the same id and this type (the iinf count follows it). */ duplicateInfeType?: string;
+  /** A second `iloc` entry for item 1: with one extent, or with none. */ duplicateIloc?: "one-extent" | "no-extent";
 }): Uint8Array {
   const v = o.version ?? 1, os = o.offsetSize ?? 4, ls = o.lengthSize ?? 4, bs = o.baseSize ?? 0, is = o.indexSize ?? 0;
   const method = o.method ?? 1, base = o.base ?? 0;
   const infe = box("infe", [2, 0, 0, 0, ...u16(1), ...u16(0), ...ascii(o.type ?? "grid"), 0]);
-  const iinf = box("iinf", [0, 0, 0, 0, ...u16(o.entryCount ?? 1), ...infe, ...(o.duplicateItem ? infe : []), ...(o.iinfTrailing ?? [])]);
+  const second = o.duplicateInfeType ? box("infe", [2, 0, 0, 0, ...u16(1), ...u16(0), ...ascii(o.duplicateInfeType), 0])
+    : o.duplicateItem ? infe : [];
+  const infeCount = 1 + (second.length > 0 ? 1 : 0);
+  const iinf = box("iinf", [0, 0, 0, 0, ...u16(o.entryCount ?? infeCount), ...infe, ...second, ...(o.iinfTrailing ?? [])]);
   const ilocFor = (dataOffset: number) => {
     const item = [...(v < 2 ? u16(1) : u32(1)), ...(v > 0 ? u16(method) : []), ...u16(0), ...uint(base, bs), ...u16(1),
       ...(v > 0 && is > 0 ? uint(0, is) : []), ...uint(dataOffset - base, os), ...uint(o.data.length, ls)];
-    const count = o.duplicateItem ? 2 : 1;
+    const noExtent = [...(v < 2 ? u16(1) : u32(1)), ...(v > 0 ? u16(method) : []), ...u16(0), ...uint(base, bs), ...u16(0)];
+    const extra = o.duplicateIloc === "one-extent" ? item : o.duplicateIloc === "no-extent" ? noExtent : [];
+    const count = extra.length > 0 ? 2 : 1;
+    // A no-extent entry first, so the duplicate is met before any extent is recorded (S2-03).
+    const entries = o.duplicateIloc === "no-extent" ? [...noExtent, ...item] : [...item, ...extra];
     return box("iloc", [v, 0, 0, 0, (os << 4) | ls, (bs << 4) | (v > 0 ? is : 0), ...(v < 2 ? u16(count) : u32(count)),
-      ...item, ...(o.duplicateItem ? item : [])]);
+      ...entries]);
   };
   const ftyp = box("ftyp", [...ascii("heic"), 0, 0, 0, 0, ...ascii("mif1"), ...ascii("heic")]);
   const [w, h] = o.ispe ?? [1000, 1000];
@@ -188,7 +197,14 @@ describe("imageDimensions: read from the header, never decoded (BL-088)", () => 
     const ok = { data: grid32(60000, 60000) };
     expect(imageDimensions(heicDerived({ ...ok, iinfTrailing: [0, 0, 0, 0] }), "image/heic")).toBeNull(); // S1-02 / R1-01
     expect(imageDimensions(heicDerived({ ...ok, entryCount: 2 }), "image/heic")).toBeNull(); // entry_count disagrees
-    expect(imageDimensions(heicDerived({ ...ok, duplicateItem: true }), "image/heic")).toBeNull(); // S1-04
+    expect(imageDimensions(heicDerived({ ...ok, duplicateItem: true }), "image/heic")).toBeNull(); // S1-04, the count agreeing
+    // A later infe reusing the grid's id as a plain image: whichever a decoder keeps, refused (S2-02).
+    expect(imageDimensions(heicDerived({ ...ok, duplicateInfeType: "hvc1" }), "image/heic")).toBeNull();
+    expect(imageDimensions(heicDerived({ ...ok, duplicateIloc: "one-extent" }), "image/heic")).toBeNull(); // S2-02
+    expect(imageDimensions(heicDerived({ ...ok, duplicateIloc: "no-extent" }), "image/heic")).toBeNull(); // S2-03
+    for (const extra of ["iprp", "idat"]) {
+      expect(imageDimensions(heicDerived({ ...ok, extraMeta: box(extra, []) }), "image/heic"), extra).toBeNull();
+    }
     expect(imageDimensions(heicDerived({ ...ok, extraMeta: box("iloc", [1, 0, 0, 0, 0x44, 0, 0, 0]) }), "image/heic")).toBeNull(); // two ilocs
     expect(imageDimensions(heicDerived({ ...ok, topLevel: box("meta", [0, 0, 0, 0]) }), "image/heic")).toBeNull(); // two metas
     expect(imageDimensions(heicDerived({ ...ok, topLevel: box("moov", []) }), "image/heic")).toBeNull(); // S1-05: a sequence
@@ -218,6 +234,8 @@ describe("imageDimensions: read from the header, never decoded (BL-088)", () => 
 
   it("refuses a PNG whose chunks break before its image data", () => {
     expect(imageDimensions(png(10, 10, "IHDR", [], []), "image/png")).toBeNull(); // no IDAT at all
+    const longIhdr = png(10, 10); longIhdr[11] = 14; // IHDR declares 14 bytes, not 13 (S2-05)
+    expect(imageDimensions(longIhdr, "image/png")).toBeNull();
     expect(imageDimensions(png(10, 10, "IHDR", [...u32(1_000_000), ...ascii("tEXt")], []), "image/png")).toBeNull(); // a length past the end
     const padded = png(10, 10, "IHDR", Array.from({ length: 1000 }, () => chunk("tEXt", [])).flat());
     expect(imageDimensions(padded, "image/png")).toBeNull(); // more chunks before IDAT than the parser walks (S1-03)

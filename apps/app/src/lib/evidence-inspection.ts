@@ -131,10 +131,11 @@ function jpegDimensions(b: Uint8Array): ImageDimensions | null {
     i++;
     if (m === 0x00 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) continue; // no length
     if (m === 0xd9 || m === 0xda) return frames.length === 1 ? largest(frames) : null; // EOI, or the first scan
-    // What libjpeg reads before a scan: SOFn, DHT (C4), DAC (CC), DQT (DB),
-    // DRI (DD), APPn (E0–EF), COM (FE). Anything else — a second SOI, JPG (C8),
-    // the hierarchical DHP and EXP (DE, DF), the reserved ranges — libjpeg
-    // refuses, and so does this, leaving no room to size an image differently.
+    // What a camera writes before a scan: SOFn, DHT (C4), DAC (CC), DQT (DB),
+    // DRI (DD), APPn (E0–EF), COM (FE). Anything else is refused: a second SOI,
+    // JPG (C8), the hierarchical DHP and EXP (DE, DF) and the reserved ranges,
+    // which libjpeg refuses too, and DNL (DC), which libjpeg would skip here
+    // but no camera writes before a scan. Stricter than libjpeg, never looser.
     const known = (m >= 0xc0 && m <= 0xcf && m !== 0xc8) || m === 0xdb || m === 0xdd || (m >= 0xe0 && m <= 0xef) || m === 0xfe;
     if (!known) return null;
     if (i + 2 > b.length) return null;
@@ -151,7 +152,8 @@ function jpegDimensions(b: Uint8Array): ImageDimensions | null {
 
 /** The chunks of a PNG before its first IDAT, or null if the walk breaks or runs on. */
 function pngChunksBeforeImageData(b: Uint8Array): string[] | null {
-  if (b.length < 24 || !ascii(b, "IHDR", 12)) return null;
+  // IHDR first, and exactly 13 bytes long, as libpng requires (S2-05).
+  if (b.length < 24 || !ascii(b, "IHDR", 12) || u32be(b, 8) !== 13) return null;
   const types: string[] = [];
   let i = 8;
   for (let n = 0; n < MAX_STRUCTURE_ENTRIES; n++) {
@@ -250,9 +252,13 @@ function itemExtents(b: Uint8Array, iloc: Box): Map<number, { method: number; of
   i += version < 2 ? 2 : 4;
   if (count > MAX_STRUCTURE_ENTRIES) return null;
   const out = new Map<number, { method: number; offset: number; length: number }>();
+  const seen = new Set<number>();
   for (let n = 0; n < count; n++) {
     const id = version < 2 ? u16be(b, i) : u32be(b, i);
     i += version < 2 ? 2 : 4;
+    // A duplicate item id, even one whose first entry has no extent (S2-03).
+    if (seen.has(id)) return null;
+    seen.add(id);
     const method = version === 0 ? 0 : u16be(b, i) & 15;
     if (version > 0) i += 2;
     i += 2; // data_reference_index
@@ -268,10 +274,7 @@ function itemExtents(b: Uint8Array, iloc: Box): Map<number, { method: number; of
       const length = uintBE(b, i, lengthSize);
       i += lengthSize;
       if (offset === null || length === null || i > iloc.end) return null;
-      if (e === 0) {
-        if (out.has(id)) return null; // a duplicate item id
-        out.set(id, { method, offset: base + offset, length });
-      }
+      if (e === 0) out.set(id, { method, offset: base + offset, length });
     }
   }
   return i <= iloc.end ? out : null;

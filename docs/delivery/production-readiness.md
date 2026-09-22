@@ -551,7 +551,10 @@ the closed ones.
         rows, 256 columns, 32 768 characters a field. Not run in CI. **The gate
         stays open:** export neutralization against formula injection has no
         export to act on (gate 3), and BL-088 is open. *(2026-09-23: BL-088
-        and BL-089 closed on the DEV-032/DEV-033 branch; export remains.)*
+        and BL-089 closed on the DEV-032/DEV-033 branch. Export remains, and so
+        do the decoding cost of an at-limit image (BL-129) and the channels the
+        size check does not read (BL-132): the gate closes with them fixed or
+        owner-accepted.)*
 
 ### 13. Demo and data separation
 
