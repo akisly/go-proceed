@@ -137,11 +137,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-106](#bl-106) | P3 | open | `app.service_workspace()` has no pinned `search_path`, and more policies now rest on it |
 | [BL-107](#bl-107) | P2 | closed → DEV-021 | A lost invitation cannot be revoked or reissued, so its address stays blocked until it expires |
 | [BL-108](#bl-108) | P3 | closed → DEV-023 | `withIdempotency` stores any body its callback returns, secret or not |
-| [BL-109](#bl-109) | P3 | open | The planned `invite/{token}` page would carry the invitation token in the URL path |
+| [BL-109](#bl-109) | P3 | closed → DEV-024 | The planned `invite/{token}` page would carry the invitation token in the URL path |
 | [BL-110](#bl-110) | P3 | open | `app.delete_expired_idempotency` has a `public` search path, not an empty one |
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 | [BL-112](#bl-112) | P2 | closed → DEV-022 | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
 | [BL-113](#bl-113) | P3 | open | `m5-external.int.test.ts` times out under load and then deadlocks its next truncate |
+| [BL-114](#bl-114) | P3 | open | The invitation redemption page (`invite#<token>`) is not built |
+| [BL-115](#bl-115) | P3 | open | A prefetching mail scanner may spend the one-time code the sign-in email carries |
 | [BL-116](#bl-116) | P2 | open | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
 | [BL-117](#bl-117) | P2 | open | The office dashboard has not been seen under the Autumn palette or the new typeface |
 | [BL-118](#bl-118) | P3 | open | «→» is rendered on two landing pages and no self-hosted face carries it |
@@ -1306,10 +1308,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-109"></a>
 ### BL-109 — P3 — The planned `invite/{token}` page would carry the invitation token in the URL path
 
-- **State:** open
+- **State:** closed → DEV-024
 - **Legacy cite:** none
 - **Why:** DEV-019's `gp-security` review (S1-05). `docs/architecture/system-overview.md:307` lists a v0.1 route `invite/{token}` for invitation redemption. A bearer token in the path reaches hosting and proxy access logs, `Referer` headers and analytics, and a link prefetch could consume it. The external review link avoids this by carrying its token in the URL fragment and exchanging it by POST (`apps/app/src/lib/external-link.ts:155-160`). The page does not exist yet, so nothing is exposed today; the entry exists so the page is designed with a fragment or a POST from the start. Ranked by DEV-019.
 - **Evidence:** observed 2026-09-18 at `8c3772a`: the route table row; no such page under `apps/app/app`.
+- **Closed 2026-09-19 by DEV-024** (owner: correct the design and add a guard; do not build the page): the route table's row is `invite#<token>` — the token in the fragment, exchanged by POST after sign-in — with a binding rule that a link this app mints for its own origin never carries a bearer secret in a path or a query string (INV-104; the Telegram deep link, Storage signed URLs and the Supabase Auth confirmation URL are named as outside it), and a contract for the page («The invitation link»: strip the fragment first; never into `next`, a URL, a cookie or durable storage; sign in on the page; no third-party script; no referrer). `apps/app/src/lib/url-secrets.test.ts` holds route segments to ids and query reads to an allowlist over every documented read form, proven red by mutations (routes, the page-prop forms, `getAll`, `Object.fromEntries`). The page is BL-114.
 - **Depends on:** none.
 - **Deadline:** before the redemption page is built.
 
@@ -1354,6 +1357,26 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** observed 2026-09-19 at `db892ff`: DEV-023 QA logs `scratchpad/dev023-qa-*.txt` and the Postgres log naming the `TRUNCATE`.
 - **Depends on:** none.
 - **Deadline:** none recorded.
+
+<a id="bl-114"></a>
+### BL-114 — P3 — The invitation redemption page (`invite#<token>`) is not built
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-024 (BL-109) corrected the design but did not build the page (owner, 2026-09-19). Today an invitation token reaches the invitee only as the `token` field of the create response, which the admin passes on by hand. The page is built to the contract in `docs/architecture/system-overview.md` «The invitation link»: strip the fragment first, keep the token out of `next` and every URL, cookie and durable store, sign in on the page (excluded from the proxy's sign-in redirect), load no third-party script, send no referrer; the invitee must already have an Auth user. Its evidence: a browser audit that no request URL or `Referer` through sign-in and accept contains the token, a unit test of the minted link (empty query, token in the fragment), header assertions. «No third-party script» wants enforcement as the review shell has it (a nonce CSP); exclude `invite` from the sign-in redirect by a pathname check in the proxy's body, not in its matcher, so the proxy can still send it (DEV-024 S2-04). A UI task: `docs/design/02-building-ui.md` and `gp-ui-reviewer` apply. Ranked by DEV-024.
+- **Evidence:** observed 2026-09-19 at `33ee859`: no `invite` route under `apps/app/app`; the contract as written by DEV-024.
+- **Depends on:** none (a decision on self-provisioning an invitee's Auth user is separate and goes through `gp-architect` and `gp-security`).
+- **Deadline:** before invitations are sent to people who should not see the raw token.
+
+<a id="bl-115"></a>
+### BL-115 — P3 — A prefetching mail scanner may spend the one-time code the sign-in email carries
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-024's `gp-security` review (S1-02, unverified). `supabase/templates/magic_link.html` carries `{{ .ConfirmationURL }}`, the Supabase Auth verify link with its token in the query, beside the one-time code the member types. A mail gateway that opens links on delivery may call that URL and use the token up, which could spend the code before the member types it. Unverified: whether this project's GoTrue version treats the link and the code as one credential, and whether the pilot's mail provider prefetches. Also (DEV-024 QA, Q1-02, not checked at runtime): `@supabase/ssr`'s browser client uses the PKCE flow, so the verify link should redirect back to this origin with `?code=…` in the query — a one-use code in this origin's request line and, through the proxy, in `/login?next=`. INV-104 still holds (GoTrue mints the link), but the landing is on this origin; a local click of the Mailpit link would settle it. Auth templates take the `gp-architect` and `gp-security` route. Ranked by DEV-024.
+- **Evidence:** observed 2026-09-19 at `33ee859`: the template line; the sign-in flow is OTP with `verifyOtp` (`apps/app/app/(auth)/login/otp-form.tsx`).
+- **Depends on:** none.
+- **Deadline:** before the pilot's members sign in from a mail provider that scans links.
 
 ## Closed, kept for citations
 
