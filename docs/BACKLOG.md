@@ -117,7 +117,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-086](#bl-086) | P3 | open | The HMAC key registry accepts a duplicate key id and the same secret in both key spaces |
 | [BL-087](#bl-087) | P2 | open | A leaked Telegram erasure key still re-identifies the registry rows not yet moved to a newer key |
 | [BL-088](#bl-088) | P2 | open | Uploaded images have no dimension, pixel-count or decoding-resource limit |
-| [BL-089](#bl-089) | P2 | open | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
+| [BL-089](#bl-089) | P2 | closed → DEV-032 | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
 | [BL-090](#bl-090) | P1 | closed → DEV-014 | 16 communication and Telegram registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-091](#bl-091) | P1 | closed → DEV-016 | 8 contract-baseline registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-092](#bl-092) | P1 | closed → DEV-016 | 4 evidence registry rows lack tenant-isolation tests (readiness gate 11) |
@@ -154,6 +154,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-123](#bl-123) | P3 | open | Nothing technical keeps an agent session out of the private prospecting copy |
 | [BL-124](#bl-124) | P2 | open | The prospecting-data guard detects only after the fact and knows one field |
 | [BL-125](#bl-125) | P3 | open | Three validator guards read `git ls-files` split by newline and would skip a quoted path |
+| [BL-126](#bl-126) | P3 | open | A Storage evidence object keeps the uploader's content type, not the detected one |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1113,10 +1114,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-089"></a>
 ### BL-089 — P2 — Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox
 
-- **State:** open
+- **State:** closed → DEV-032
 - **Legacy cite:** none
 - **Why:** DEV-012's `gp-security` review (S1-01). The member plane reads evidence through Supabase Storage signed URLs created with no download option (`apps/app/app/v1/assignments/[assignmentId]/evidence/route.ts:116`, `apps/app/src/lib/evidence-storage.ts` `createSignedReadUrls`), so a file is served inline from the Storage origin with the content type stored at upload, which whoever holds the signed upload URL sets on its PUT (the field client, or anyone holding that URL). On the Telegram path the stored type is the claimed type the inspection checked (`apps/app/src/lib/telegram/evidence.ts:199`, `:212`); Telegram's added risk is its less-trusted senders. Finalize checks the bytes against the claimed type from their leading bytes only, and the `evidence` bucket sets no `allowed_mime_types` (`0020`). The external review route already serves the detected type with `nosniff` and a sandbox CSP (`apps/app/app/external/evidence/route.ts:288-336`); the member plane has neither. The owner accepted this for the pilot on 2026-09-15 with revisit triggers (`docs/delivery/production-readiness.md` §12). The cheapest compensating controls are a download (`Content-Disposition: attachment`) on member signed URLs and storing the detected type as the object's content type. Ranked by DEV-012.
 - **Evidence:** observed 2026-09-15 at `48ba14e` by `gp-security` (DEV-012 row 6); unverified: which response headers Supabase Storage sends on a signed read, and whether it serves an HTML or SVG content type as stored.
+- **Closed 2026-09-23 by DEV-032:** every signed read URL `evidence-storage.ts` issues (`createSignedReadUrl`, `createSignedReadUrls`) passes `download: true`, so Storage answers `Content-Disposition: attachment` and a navigation to the URL saves the file instead of rendering it. Measured on the local stack (storage-api v1.69.0): before, an object stored as `image/svg+xml` came back inline with neither `nosniff` nor a sandbox, and opening its signed URL in Chrome ran its script on the Storage origin; after, the same navigation downloads and runs nothing, while an `<img>` — the member plane's only use of these URLs — still shows the image. What stays: the Storage object keeps the uploader's content type and Storage sends no `nosniff` (BL-126); hosted Storage was not measured.
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere.
 
@@ -1511,3 +1513,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `git ls-files -z | tr '\0' '\n' | LC_ALL=C grep -c '[^ -~]'` → 0 (2026-09-23); the three `execFileSync("git", ["ls-files"], …)` calls (guards 11 and 12, the TODOS line-citation guard).
 - **Depends on:** nothing.
 - **Deadline:** before a tracked path carries a Cyrillic name.
+
+<a id="bl-126"></a>
+### BL-126 — P3 — A Storage evidence object keeps the uploader's content type, not the detected one
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-032 (BL-089) made every member-plane signed read a download, which removes the inline render; the object itself still carries whatever content type the uploader's PUT declared, and Storage serves it without `nosniff`. Finalization records the detected type in `evidence_objects.media_type`, but not on the object. An `<img>` does not run an SVG's script and the detected leading bytes are one of four allowed types, so no path is open today; setting the object's content type to the detected one at finalization (a server-side copy or update) is defence in depth, and `files-and-storage.md` «Download responses use the validated media type» asks for it. Ranked by DEV-032.
+- **Evidence:** `scratchpad/bl089-storage-headers-put.txt`, cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md): a raw PUT with `image/svg+xml` is served back as `image/svg+xml`; `finalize-upload-intent.ts` passes the detected type to `app.finalize_upload_intent` only.
+- **Depends on:** nothing.
+- **Deadline:** before any code path serves a Storage URL to a browser other than as an `<img>` or a download.

@@ -513,6 +513,13 @@ the closed ones.
       - **Open under this box:** image dimension, pixel-count and decoding
         limits do not exist (BL-088); member-plane reads are served inline with
         the stored content type (BL-089).
+      - **2026-09-23, [DEV-032](../tasks/DEV-032-evidence-signed-read-download.md):**
+        member-plane signed reads are now downloads (`Content-Disposition:
+        attachment`), so opening one no longer renders the stored type on the
+        Storage origin; an `<img>` still shows the image. Measured on the local
+        stack only. The object keeps the uploader's content type and Storage
+        sends no `nosniff` (BL-126). The risk bullet above is the owner's
+        acceptance of 2026-09-15 and stays as accepted.
 - [ ] The import hostile-fixture corpus still runs. Import is **frozen, not
       deleted** ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md)
       decision 6): the XLSX/CSV parser built in M1 stays in the code, an object

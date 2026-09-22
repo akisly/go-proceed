@@ -28,6 +28,25 @@ describe("evidence storage: read access", () => {
     expect(EVIDENCE_URL_TTL_SECONDS).toBeLessThanOrEqual(60);
   });
 
+  it("signs URLs a browser downloads rather than renders: Content-Disposition attachment (BL-089)", async () => {
+    // The member plane shows evidence in an <img>, which ignores
+    // Content-Disposition. Opening the same URL as a page is what renders an
+    // uploader-chosen type (an SVG with a script, stored as image/svg+xml) on
+    // the Storage origin; `attachment` turns that navigation into a download.
+    const key = newEvidenceKey();
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>');
+    await putObject(key, svg, "image/svg+xml");
+
+    const single = await createSignedReadUrl(key, EVIDENCE_BUCKET);
+    const { urls } = await createSignedReadUrls([key], EVIDENCE_BUCKET);
+    for (const url of [single, urls.get(key)!]) {
+      const res = await fetch(url);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("content-disposition") ?? "").toMatch(/^attachment\b/);
+      expect(new Uint8Array(await res.arrayBuffer())).toEqual(svg);
+    }
+  });
+
   it("omits a key it could not sign from `urls`, and reports it in `failedKeys` instead", async () => {
     const good = newEvidenceKey();
     await putObject(good, JPEG, "image/jpeg");

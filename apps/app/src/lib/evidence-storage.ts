@@ -137,6 +137,23 @@ export async function removeObject(key: string, bucket: string = EVIDENCE_BUCKET
 export const EVIDENCE_URL_TTL_SECONDS = 60;
 
 /**
+ * EVERY SIGNED READ IS A DOWNLOAD, NEVER AN INLINE RENDER (BL-089, DEV-032).
+ *
+ * The object's content type is whatever the uploader's PUT declared, and the
+ * Storage origin serves it with no `X-Content-Type-Options: nosniff` and no
+ * sandbox (measured against the local storage API v1.69.0 on 2026-09-23: an
+ * object stored as `image/svg+xml` came back as `image/svg+xml`, inline, with
+ * neither header). Opening a signed URL as a page would therefore render an
+ * SVG's script on the Storage origin. `download: true` makes Storage answer
+ * `Content-Disposition: attachment`, so a navigation saves the file instead;
+ * an `<img>` — the member plane's only use of these URLs — ignores the header
+ * and still shows the photo. The external plane never gets a Storage URL: it
+ * streams through its own route with the detected type, `nosniff` and a
+ * sandbox CSP (`app/external/evidence/route.ts`).
+ */
+const SIGNED_READ_OPTIONS = { download: true } as const;
+
+/**
  * NO KEY, AND NO PROVIDER MESSAGE, IN ANY ERROR THROWN FROM HERE DOWN.
  *
  * The functions above this line interpolate the storage key into their errors,
@@ -195,7 +212,7 @@ function readFailed(what: string, error: unknown): Error {
 /** A short-lived read grant for exactly one object. `bucket` is required and never defaulted: the caller's `evidence_objects` row names its own bucket, and a caller must not be able to silently fall back to a constant. */
 export async function createSignedReadUrl(key: string, bucket: string): Promise<string> {
   const { data, error } = await storage(bucket)
-    .createSignedUrl(key, EVIDENCE_URL_TTL_SECONDS);
+    .createSignedUrl(key, EVIDENCE_URL_TTL_SECONDS, SIGNED_READ_OPTIONS);
   // NOTE: a missing object arrives as HTTP 400 with a body saying 404 (code
   // `NoSuchKey`), so `error.status` must not be mapped to a response status by
   // any caller — branch on `EvidenceStorageError.code` instead.
@@ -263,7 +280,7 @@ export async function createSignedReadUrls(
   const failedKeys: string[] = [];
   if (keys.length === 0) return { urls, failedKeys };
   const { data, error } = await storage(bucket)
-    .createSignedUrls(keys, EVIDENCE_URL_TTL_SECONDS);
+    .createSignedUrls(keys, EVIDENCE_URL_TTL_SECONDS, SIGNED_READ_OPTIONS);
   if (error || !data) throw readFailed("signed read batch", error);
   for (const entry of data) {
     if (entry.error || !entry.signedUrl) {
