@@ -7,7 +7,7 @@ export function createLandingMetadata(origin: string): Metadata {
 }
 
 /**
- * [DEV-024] One complete object per page, not a patch over the layout's.
+ * [DEV-025] One complete object per page, not a patch over the layout's.
  * Next merges metadata SHALLOWLY (Next 16.3.1, generate-metadata.md §Merging):
  * a page that set only `openGraph.url` would replace the layout's whole
  * `openGraph` and drop the image, the locale and the site name with it.

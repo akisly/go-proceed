@@ -11,7 +11,7 @@ const ICON = {
   supervision: <ShieldCheck aria-hidden="true" strokeWidth={1.6} />,
 } as const;
 
-/** `h1` on the page the block opens (DEV-024), `h2` anywhere else. */
+/** `h1` on the page the block opens (DEV-025), `h2` anywhere else. */
 export function Roles({ heading = "h2" }: { heading?: "h1" | "h2" }) {
   const r = landingContent.roles;
   return (
@@ -35,7 +35,7 @@ export function Roles({ heading = "h2" }: { heading?: "h1" | "h2" }) {
           ))}
         </FeatureGrid>
         {/* What each role is asked for, in one line — the hero's facts until
-          * DEV-024, the owner's first because he is the one who signs. */}
+          * DEV-025, the owner's first because he is the one who signs. */}
         <Reveal size="stately">
           <ul data-role-facts="" className="mt-8 grid gap-x-6 gap-y-4 border-t border-line pt-6 text-data text-ink-muted md:grid-cols-2 wide:grid-cols-4 wide:gap-x-0">
             {r.facts.map((f) => (

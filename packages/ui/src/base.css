@@ -121,7 +121,7 @@
     cursor: not-allowed;
   }
 
-  /* …with ONE exception, and it is arithmetic, not taste. [2026-09-22, DEV-027]
+  /* …with ONE exception, and it is arithmetic, not taste. [2026-09-22, DEV-028]
    * The ring is the brand's primary, and the primary measures 2.56:1 against
    * the inverse surface — under the 3:1 WCAG 2.1 §1.4.11 asks of a focus
    * indicator. Inside an inverse ground the ring therefore takes the rung that
@@ -266,7 +266,7 @@
   animation: gp-beam 7s linear infinite;
 }
 
-/* THE PILL'S LIGHT, THE REFERENCE'S WAY (DEV-026, owner, sixth pass: «кнопка с
+/* THE PILL'S LIGHT, THE REFERENCE'S WAY (DEV-027, owner, sixth pass: «кнопка с
  * бордером цвет акцента, посмотри референс как сделана там, сделай точно так
  * же только с нашим цветом»). Watched again, the reference's control is not a
  * comet on a ring. It is three things stacked: a FAINT CONSTANT BORDER all the
@@ -290,7 +290,7 @@
  * `offset-path` with a basic shape is not in every browser the landing supports:
  * MDN's compat data gives Chrome / Edge 116, Firefox 122, Safari 18, and the
  * landing's browserslist starts at Chrome 111 and Safari 16.4 (checked
- * 2026-09-19, DEV-026 «Sources»). So where it is missing, a nested
+ * 2026-09-19, DEV-027 «Sources»). So where it is missing, a nested
  * `@supports not` redraws the light as the earlier 2px conic ring on `gp-beam`
  * and hides the ring and face layers — a different drawing of the same idea,
  * not a broken one. The keyframes are named `gp-beam-travel`: the
@@ -409,20 +409,20 @@
 }
 
 /* ---------------------------------------------------------------------------
- * The landing's reference form (DEV-025) — owner, 2026-09-19: «1 в 1» after
+ * The landing's reference form (DEV-026) — owner, 2026-09-19: «1 в 1» after
  * https://parlo-black.vercel.app/, in our colours. Reimplemented from
  * observation; nothing of the reference's code or CSS is here.
  * ------------------------------------------------------------------------- */
 
 /* `PixelRain`'s fade: full at the top edge, gone by the foot of the canvas.
- * [DEV-026] The field shapes itself now, so the mask only softens its foot —
+ * [DEV-027] The field shapes itself now, so the mask only softens its foot —
  * the last fifth. */
 @utility rain-mask {
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 78%, transparent 100%);
   mask-image: linear-gradient(to bottom, #000 0%, #000 78%, transparent 100%);
 }
 
-/* `ArcField`'s fade (DEV-026): absent at the centre, where the closing heading
+/* `ArcField`'s fade (DEV-027): absent at the centre, where the closing heading
  * stands, full in a ring round it, gone at the rim. */
 @utility arc-mask {
   /* Below `md` the block is a tall, narrow box and its copy runs edge to edge:
@@ -665,7 +665,7 @@
 
   /* The Border Beam does not travel here, and a ring that cannot travel is a
    * stray cobalt arc parked at 0deg — on the board's top edge and, since
-   * DEV-025, on every ink pill. Absent, not still. */
+   * DEV-026, on every ink pill. Absent, not still. */
   .beam,
   .pill-light {
     display: none !important;

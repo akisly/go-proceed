@@ -9,7 +9,7 @@ import { Faq } from "../../components/blocks/faq";
 export const metadata: Metadata = createPageMetadata(SITE_ORIGIN, "pilot");
 
 /**
- * «Пілот» (DEV-024): the plan, the terms and the one form on the site, with the
+ * «Пілот» (DEV-025): the plan, the terms and the one form on the site, with the
  * questions a buyer asks before sending it directly underneath. No closing
  * offer here — the page is the offer.
  */

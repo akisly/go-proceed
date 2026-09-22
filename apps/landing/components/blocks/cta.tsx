@@ -6,18 +6,18 @@ import { TwoTone } from "./two-tone";
 import { ShareLink } from "./share-link";
 
 /**
- * The closing block of every page but /pilot. [DEV-025] The reference's: lines
+ * The closing block of every page but /pilot. [DEV-026] The reference's: lines
  * radiating from the centre, a row of small marks either side of ours, which
  * breathes (`breathe`, named loop 7), a 60px heading, two pills. The marks are
  * the five records of one work — W, R, EV, DR, CL — not partner logos.
  *
- * [DEV-026] The ground is `ArcField`: the reference's lines are arcs that lean
- * toward the pointer, not the straight conic rays DEV-025 drew from a still.
+ * [DEV-027] The ground is `ArcField`: the reference's lines are arcs that lean
+ * toward the pointer, not the straight conic rays DEV-026 drew from a still.
  * [owner, third pass] «полоски … сделай фиолетовым акцентом»: the arcs are the
  * accent, a little stronger than ink was — a cobalt hairline at ink's alpha
  * all but disappears on paper.
  *
- * [DEV-024] It is the offer: what the pilot costs, in three words, and the way
+ * [DEV-025] It is the offer: what the pilot costs, in three words, and the way
  * to the form, which lives on /pilot. «Скопіювати посилання для ПТВ» stays —
  * the payer forwards the page to the person who will run it.
  */

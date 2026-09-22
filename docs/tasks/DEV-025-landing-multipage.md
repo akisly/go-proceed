@@ -1,4 +1,4 @@
-# DEV-024 — The landing becomes a short home page and three sub-pages
+# DEV-025 — The landing becomes a short home page and three sub-pages
 
 ## Assignment
 
@@ -103,7 +103,7 @@ Rework count and hypothesis changes: 0 rounds (the first review does not count; 
 
 ## What is not true after this task
 
-- **The block compositions this record describes were replaced the same day by [DEV-025](DEV-025-landing-parlo-rebuild.md).** Shown DEV-024's home page, the owner said the request had been the reference «1 в 1», not its block types. What stands from DEV-024: the four pages and their jobs, the form on `/pilot` only, page links and the phone strip, per-page metadata, sitemap and JSON-LD, the removed send-queue wording, review fixes R-01…R-08. What does not: the home page's block list (criterion 2), the `Scenes` rows, the light-card offer, `SectionRule` numbering.
+- **The block compositions this record describes were replaced the same day by [DEV-026](DEV-026-landing-parlo-rebuild.md).** Shown DEV-025's home page, the owner said the request had been the reference «1 в 1», not its block types. What stands from DEV-025: the four pages and their jobs, the form on `/pilot` only, page links and the phone strip, per-page metadata, sitemap and JSON-LD, the removed send-queue wording, review fixes R-01…R-08. What does not: the home page's block list (criterion 2), the `Scenes` rows, the light-card offer, `SectionRule` numbering.
 
 - The landing is not rebuilt against `parlo-black.vercel.app`'s visual treatment. BL-082 stays open on its questions (a)–(e).
 - No token or motion primitive changed, and no shared component was added. `FeatureCell` and `Step` in `packages/ui` gained an optional `titleAs` (rework R-02); their default output is unchanged.

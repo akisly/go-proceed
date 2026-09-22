@@ -6,7 +6,7 @@ import { domeDisc, drawStillDome } from "./particle-sphere-model";
 import { useReduced } from "./use-reduced";
 
 /**
- * A dome of particles rising out of a block's lower edge (DEV-026): a sphere
+ * A dome of particles rising out of a block's lower edge (DEV-027): a sphere
  * of dots on a Fibonacci lattice, of which only the cap shows; it turns slowly,
  * breathes, and its dots SCATTER FROM THE POINTER and spring home. The landing
  * reference sets one under its statistics; the owner: «есть красивая анимация,

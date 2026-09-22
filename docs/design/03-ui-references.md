@@ -161,16 +161,16 @@ Spec: `docs/superpowers/specs/2026-09-05-landing-daylight-design.md` §6, amende
 `docs/superpowers/specs/2026-09-06-landing-prototype-parity-design.md` §3 and §7
 (the full source list with URLs).
 
-*[2026-09-19 (DEV-024): the landing is now four pages. From
+*[2026-09-19 (DEV-025): the landing is now four pages. From
 https://parlo-black.vercel.app/ (read 2026-09-19; no licence published on the
-page) DEV-024 takes block **types** only — a product-scene hero, alternating
+page) DEV-025 takes block **types** only — a product-scene hero, alternating
 «copy beside live UI» feature scenes (the home page's `Scenes` block), a
 bridge statement and a closing offer — and no code, CSS, asset or visual
 treatment. Every block in the table keeps the source named on its row; the
 `Scenes` block is composed of the route cards' existing UI windows. BL-082
 stays open on the reference's visual treatment.]*
 
-*[2026-09-19 (DEV-025, owner: «1 в 1 … только чтобы цвета сохранились наши»): the
+*[2026-09-19 (DEV-026, owner: «1 в 1 … только чтобы цвета сохранились наши»): the
 landing now takes the reference's visual treatment as well — see `DESIGN.md`
 «The landing's form since 2026-09-19». The table above describes the landing
 as it shipped before that; these rows describe it after:]*

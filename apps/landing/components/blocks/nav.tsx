@@ -4,16 +4,16 @@ import { BrandMark } from "../brand-mark";
 import { PillLink } from "./pill-link";
 
 /**
- * The header. [DEV-025] The reference's: fixed between the inner guide lines,
+ * The header. [DEV-026] The reference's: fixed between the inner guide lines,
  * a hairline at its foot, the mark at left, the page links centred, one pill
  * at right.
  *
- * [DEV-024] The landing is four pages, so the links are page links and the
+ * [DEV-025] The landing is four pages, so the links are page links and the
  * current one is the page being served — a prop from `SiteShell`. That makes
  * this a server component: no effect, no router hook, and `aria-current` is
  * right in the first byte of HTML instead of after hydration.
  *
- * [DEV-026, seventh pass; changed 2026-09-22] Its ground is a static frosted layer. It was a client leaf that at the top
+ * [DEV-027, seventh pass; changed 2026-09-22] Its ground is a static frosted layer. It was a client leaf that at the top
  * of the page, from `md`, the header is glass over the hero's pixel field, as
  * the reference's is; scrolled, below `md`, and without JavaScript it is the bar
  * it always was. The header itself stays a server component.
@@ -25,7 +25,7 @@ export function Nav({ current }: { current: PageKey }) {
       {/* The header’s ground. [2026-09-22, owner: «хедер всегда сделай таким типа
         * прозрачным, а не только на скрол».] It used to be a client leaf that lifted
         * this layer while the page stood at its top, so the hero’s field ran under a
-        * header with no ground at all (DEV-026, seventh pass). The owner wants the
+        * header with no ground at all (DEV-027, seventh pass). The owner wants the
         * frosted glass at every scroll position, so the layer is static, the listener
         * is gone, and the header is one thing at the top, half-way down and without
         * JavaScript. */}
@@ -62,7 +62,7 @@ export function Nav({ current }: { current: PageKey }) {
         * and out of the accessibility tree along with everything else. This
         * strip is therefore the ONLY set of page links a phone has, for a thumb
         * and for a screen reader alike, and it is a labelled `<nav>` of its
-        * own (DEV-024). Only one of the two is ever displayed, so nothing is
+        * own (DEV-025). Only one of the two is ever displayed, so nothing is
         * announced twice: this one is `md:hidden`, the other `hidden md:flex`.
         */}
       <nav aria-label="Сторінки сайту" className="border-t border-line md:hidden">

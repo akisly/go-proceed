@@ -59,7 +59,7 @@ await png("goproceed-maskable-icon.svg", 1024, "apps/mobile/assets/splash-icon.p
 await png("goproceed-landing-icon.svg", 48, "apps/mobile/assets/favicon.png");
 
 // …and the field client's INSTALLABLE web icons, which this script did not own
-// until 2026-09-22 (DEV-027, `gp-mobile` G-01). They were cut from
+// until 2026-09-22 (DEV-028, `gp-mobile` G-01). They were cut from
 // `assets/icon.png` once, by hand, with `sips`, on 2026-08-21 — when that file
 // was still create-expo-app's blue «A». The mark moved twice after that and
 // these four did not, so the manifest asserted the brand's paper and black

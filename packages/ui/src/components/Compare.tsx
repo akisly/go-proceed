@@ -37,7 +37,7 @@ const TONE = {
   /**
    * [2026-09-06] The «now» card takes `shadow-float-accent` — the prototype's
    * cobalt shadow (l.607) and the system's one coloured shadow.
-   * [2026-09-22, DEV-027] It follows the ACCENT, which is pine now. It briefly
+   * [2026-09-22, DEV-028] It follows the ACCENT, which is pine now. It briefly
    * inherited the spark when the roles swapped, and a 70px ember halo at 35 %
    * was instantly the largest continuous area of the loudest colour in the
    * system — decoration, which is the one thing the Signal Budget Rule refuses
@@ -56,7 +56,7 @@ function Row({ row, now, pop }: { row: CompareRow; now: boolean; pop: boolean })
       <div>
         <p className={cx("text-data font-semibold", now ? "text-ink" : "text-ink-secondary")}>{row.question}</p>
         <p className={cx("text-data leading-relaxed", now ? "text-ink-secondary" : "text-ink-muted")}>{row.answer}</p>
-        {/* [2026-09-22, DEV-027] `text-ink-muted`, not `text-status-review-fg`.
+        {/* [2026-09-22, DEV-028] `text-ink-muted`, not `text-status-review-fg`.
           * These codes were cobalt while cobalt was the brand; on the Autumn
           * palette cobalt means «на перевірці» and nothing else, so painting an
           * evidence reference in it said «under review» beside a green check.
@@ -100,7 +100,7 @@ export function CompareCard({
       className={cx("grid grid-rows-[auto_1fr_auto] overflow-hidden rounded-surface border", TONE[tone], now ? "order-3" : "order-1", className)}
     >
       <header className="grid gap-0.5 border-b border-line px-5 pb-3.5 pt-4">
-        {/* The «now» eyebrow is the brand's accent, not the review state (DEV-027). */}
+        {/* The «now» eyebrow is the brand's accent, not the review state (DEV-028). */}
         <p className={cx("index-label", now && "text-accent")}>{eyebrow}</p>
         <p className="text-body font-semibold text-ink">{title}</p>
       </header>

@@ -5,14 +5,14 @@ import { mountCanvasLoop, type CanvasScene } from "./canvas-loop";
 import { useReduced } from "./use-reduced";
 
 /**
- * The hero's pixel field (DEV-025; rebuilt in DEV-026): a halftone screen — a
+ * The hero's pixel field (DEV-026; rebuilt in DEV-027): a halftone screen — a
  * small square in every cell of a regular grid, each brightening and dimming
  * on its own clock — across the whole top of the first screen, deep at the two
  * sides and shallow at the centre, thinning toward its foot, breathing a little.
  * It is the landing reference's first-screen texture, drawn in our ink on our
  * paper.
  *
- * [DEV-026] DEV-025 drew falling columns over a quarter of the screen, from
+ * [DEV-027] DEV-026 drew falling columns over a quarter of the screen, from
  * still screenshots. Watched live, the reference's field is something else:
  * nothing falls; a standing raster shimmers, it reaches two fifths of the
  * screen, and its middle is left open for the light behind the heading. The
@@ -20,7 +20,7 @@ import { useReduced } from "./use-reduced";
  * The name stays — it is the word the hero, the kitchen sink and the harness
  * already use — and the light is the hero's own radial ground, not this canvas.
  *
- * [DEV-026, seventh pass, owner, with a crop of the reference's first screen:
+ * [DEV-027, seventh pass, owner, with a crop of the reference's first screen:
  * «глянь как сделан верх в hero на референсе, он отличается от нашего, хочу
  * так же».] Three things differed, and all three are this file's or its
  * caller's: the reference's is a SCREEN — a dot in every cell of the grid, all

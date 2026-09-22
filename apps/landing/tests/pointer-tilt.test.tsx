@@ -28,7 +28,7 @@ vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
  * The computed-style half of the same check lives in `qa/landing.mjs`, which
  * walks real ancestors in a real browser. This one runs on every commit.
  */
-// [DEV-024] The four pages in one document, each under its own wrapper: the
+// [DEV-025] The four pages in one document, each under its own wrapper: the
 // claims below are about the site, and a block that moved to /roles or /product
 // must stay as still there as it was on the one page.
 const dom = new JSDOM(PAGE_KEYS.map((key) => `<div data-page="${key}">${renderPage(key)}</div>`).join(""));
@@ -52,7 +52,7 @@ describe("pointer tilt reaches every content card", () => {
     // working register, and a register whose panels tip under the cursor reads
     // to this audience as a toy — §9's own argument against decoration.
     expect(tilts).toHaveLength(1);
-    // [DEV-025] The board is /product's application view now, not the home hero.
+    // [DEV-026] The board is /product's application view now, not the home hero.
     expect(doc.querySelectorAll("[data-page='product'] #board [data-tilt]")).toHaveLength(1);
   });
 

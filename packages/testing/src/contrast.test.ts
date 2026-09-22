@@ -73,7 +73,7 @@ const PAIRS: Array<[label: string, fg: string, bg: string, min: number]> = [
   ["evidence blocking on the canvas", "evidence-blocking", "bg-canvas", 4.5],
   ["the focus ring against a surface", "border-focus", "bg-surface", 3.0],
   ["the focus ring against the canvas", "border-focus", "bg-canvas", 3.0],
-  // [2026-09-22, DEV-027] The ordinary ring measures 2.56:1 against the inverse
+  // [2026-09-22, DEV-028] The ordinary ring measures 2.56:1 against the inverse
   // surface — the brand's primary is a deep green and that ground is the ink.
   // `base.css` switches the ring to `border-focus-inverse` inside `bg-inverse`,
   // and this row is what keeps that switch honest; without it the table would

@@ -13,8 +13,8 @@ import { Cta } from "../../components/blocks/cta";
 export const metadata: Metadata = createPageMetadata(SITE_ORIGIN, "product");
 
 /**
- * «Як працює». [DEV-024] The route, the capture channels, who sees what and the
- * limits of v0.1. [DEV-025] In the reference's form: the sticky list of five
+ * «Як працює». [DEV-025] The route, the capture channels, who sees what and the
+ * limits of v0.1. [DEV-026] In the reference's form: the sticky list of five
  * steps beside their cards, the large application view with its four
  * statements, then the channels, the provenance cells and the position —
  * a raster band between each.

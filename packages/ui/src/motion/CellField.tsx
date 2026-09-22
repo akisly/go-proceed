@@ -6,7 +6,7 @@ import { useReduced } from "./use-reduced";
 
 /**
  * A grid ground whose cells light up under the pointer and fade out behind it
- * (DEV-026) — the landing reference's answer to a hover over its perspective
+ * (DEV-027) — the landing reference's answer to a hover over its perspective
  * floor and over its fact band. The owner: «когда наводишь на квадратики, они
  * подсвечиваются, с плавной анимацией затухания».
  *

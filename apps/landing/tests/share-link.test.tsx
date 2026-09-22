@@ -10,7 +10,7 @@ import { landingContent } from "../content/landing-content";
 afterEach(cleanup);
 
 /**
- * «Скопіювати посилання для ПТВ» (DEV-024 R-03). On one page the link was the
+ * «Скопіювати посилання для ПТВ» (DEV-025 R-03). On one page the link was the
  * page's own address plus `#compare`; on four pages the button sits on `/`,
  * `/product` and `/roles`, and what it hands out must be «Було і стало»
  * wherever it was pressed — and the sentence in front of it must promise no

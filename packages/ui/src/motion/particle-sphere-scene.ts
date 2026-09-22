@@ -1,5 +1,5 @@
 /**
- * `ParticleSphere`'s three.js scene (DEV-026). This module is the ONLY place
+ * `ParticleSphere`'s three.js scene (DEV-027). This module is the ONLY place
  * three.js is imported, and `ParticleSphere` imports it dynamically, so
  * three.js is a chunk of its own that the first screen never waits for.
  * Named imports only: the bundler drops what the scene does not name.

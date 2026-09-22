@@ -11,7 +11,7 @@ import type { Metadata, Viewport } from "next";
 // (U+20B4) IS in that file, so the hryvnia on a money figure renders in Hanken
 // beside Ukrainian words in Commissioner. fontsource ships no per-subset CSS
 // entry for either family, so the fix is hand-written @font-face rules — filed
-// with the dashboard's visual pass (BL-115) rather than done blind. [Autumn, 2026-09-22, DEV-027; was @fontsource-variable/onest]
+// with the dashboard's visual pass (BL-117) rather than done blind. [Autumn, 2026-09-22, DEV-028; was @fontsource-variable/onest]
 import "@fontsource-variable/hanken-grotesk";
 import "@fontsource-variable/commissioner";
 import "./globals.css";

@@ -37,19 +37,19 @@ const text = (html: string): string => html
   .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 
 /**
- * The text fold: pill, headline, lead, actions (and, until DEV-024, facts) — everything above the
+ * The text fold: pill, headline, lead, actions (and, until DEV-025, facts) — everything above the
  * product frame. The frame itself keeps its JS entrance on purpose. It is not
  * an LCP candidate, it is the composition `ScrollSettle`, `Depth` and `Tilt`
  * all attach to, and its 0.35s arrival is the prototype's own timing; moving
  * it would buy no metric and risk a composition three primitives deep.
  */
-// [DEV-025] The whole hero is the fold now: the product frame that used to
+// [DEV-026] The whole hero is the fold now: the product frame that used to
 // follow the text (`mt-11`) moved to /product, and the first screen is text
 // over two decorative grounds.
 const foldText = markup;
 
 /**
- * [DEV-025] HISTORY — the h1 WAS excluded until the first screen took the
+ * [DEV-026] HISTORY — the h1 WAS excluded until the first screen took the
  * reference's form; it is plain text now and the rule below covers it too.
  * `withoutHeadline` is kept only so the older assertion still reads as written.
  * What the exemption was for:
@@ -65,12 +65,12 @@ const foldText = markup;
 const withoutHeadline = foldText.replace(/<h1[\s\S]*?<\/h1>/, "");
 
 describe("the hero fold paints on the first frame", () => {
-  it("sends no text of the fold at opacity 0 — the headline included, since DEV-025", () => {
+  it("sends no text of the fold at opacity 0 — the headline included, since DEV-026", () => {
     // Motion writes its `initial` into a style attribute during SSR. Any
     // `opacity:0` here is an element the reader cannot see until JavaScript
     // has arrived, run, and resolved a media query.
     expect(withoutHeadline).not.toMatch(/opacity:\s*0(?![.\d])/);
-    // [DEV-025, R-10] The h1 is plain text now — `hero.tsx` promises it paints on
+    // [DEV-026, R-10] The h1 is plain text now — `hero.tsx` promises it paints on
     // the first frame — so the headline is no longer an exception to the rule.
     expect(markup).not.toMatch(/opacity:\s*0(?![.\d])/);
     // [2026-09-22] The rule was `/<h1[^>]*>[^<]+<\/h1>/` — no element inside the
@@ -98,7 +98,7 @@ describe("the hero fold paints on the first frame", () => {
 
   it("still states the whole fold, so nothing was dropped to win the metric", () => {
     const h = landingContent.hero;
-    // [DEV-025] The reference's first screen has no announcement pill; the free
+    // [DEV-026] The reference's first screen has no announcement pill; the free
     // pilot is said by the fact band and the closing block of the same page.
     // The title is compared with the markup's tags stripped [2026-09-22]: one
     // word of it is wrapped in the accent, so the raw string no longer appears

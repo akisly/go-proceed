@@ -1,7 +1,7 @@
 import { landingContent, type PageKey } from "./landing-content";
 
 /**
- * One `@graph` per page (DEV-024), because its nodes are one statement about
+ * One `@graph` per page (DEV-025), because its nodes are one statement about
  * one page and cross-reference each other by `@id`. Every page carries the
  * publisher, the site and itself; the home page describes the product in full,
  * with its free offer, and a sub-page names it by the same `@id` and no more,

@@ -10,7 +10,7 @@ import { TwoTone } from "./two-tone";
 const TAGS = demoRecords.board.columns.flatMap((column) => column.cards.map((card) => card.title));
 
 /**
- * The reference's second block (DEV-025). Left: two rows of tags drifting
+ * The reference's second block (DEV-026). Left: two rows of tags drifting
  * behind a floating menu — here the kinds of hidden work in the demo register,
  * and the five records one of them leaves. Right: what the product is, as a
  * two-tone heading, one paragraph and a pill. Under both, four numbered

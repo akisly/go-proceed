@@ -1,5 +1,5 @@
 /**
- * The particle dome's model (DEV-026) — the arithmetic `ParticleSphere` shares
+ * The particle dome's model (DEV-027) — the arithmetic `ParticleSphere` shares
  * between its still 2D frame and its three.js scene, so the fallback and the
  * scene are the same dome and not two drawings that drift apart. No import of
  * three.js here: this file is in the first bundle, the scene is not.

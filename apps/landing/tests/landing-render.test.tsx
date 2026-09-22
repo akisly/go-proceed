@@ -14,9 +14,9 @@ vi.mock("../../../packages/ui/src/motion/use-reduced", () => ({
   shouldReduce: () => false,
 }));
 
-// [DEV-024] Four pages, each one whole document body; `all` is what a claim
+// [DEV-025] Four pages, each one whole document body; `all` is what a claim
 // about «the site» is checked on.
-// [DEV-025] The pages took the form of the owner's reference («1 в 1», our
+// [DEV-026] The pages took the form of the owner's reference («1 в 1», our
 // colours). What each block CLAIMS is pinned as before; what changed is the
 // composition those claims sit in, and every assertion below that names a
 // composition names the reference's.
@@ -30,7 +30,7 @@ const inPilot = sectionOf(pilotPage);
 const headerOf = (html: string) => html.slice(html.indexOf("<header"), html.indexOf("</header>"));
 const count = (html: string, re: RegExp) => (html.match(re) ?? []).length;
 
-/** The blocks each page renders, in order — DEV-024's site map in DEV-025's form. */
+/** The blocks each page renders, in order — DEV-025's site map in DEV-026's form. */
 const COMPOSITION = {
   home: ["hero", "intro", "scenes", "facts", "sources", "cta-final"],
   product: ["stages", "board", "capture", "trust", "position", "cta-final"],
@@ -63,7 +63,7 @@ describe("the four pages — skeleton", () => {
   });
 
   it("lives inside the reference's frame, a raster band between the sections and before the footer", () => {
-    // [DEV-025] The numbered section rules are gone with the one-page form.
+    // [DEV-026] The numbered section rules are gone with the one-page form.
     expect(all).not.toContain("data-section-rule");
     const bands = { home: 5, product: 5, roles: 4, pilot: 2 } as const;
     for (const key of PAGE_KEYS) {
@@ -71,7 +71,7 @@ describe("the four pages — skeleton", () => {
       expect(pages[key], key).toContain('class="landing-frame"');
       // the header sits between the inner guide lines, not across the viewport
       expect(headerOf(pages[key]), key).toContain("landing-header-rail");
-      // [DEV-026, seventh pass; 2026-09-22, owner] the header's ground is a layer of its own, first in the header and
+      // [DEV-027, seventh pass; 2026-09-22, owner] the header's ground is a layer of its own, first in the header and
       // decorative. It is PERMANENT now — no script writes to it, so the header has one appearance at the top of the
       // page, half-way down it and without JavaScript. `data-at-top` is the attribute the lifted state used to carry.
       expect(headerOf(pages[key]), key).toMatch(/<header[^>]*class="landing-header [^"]*isolate[^"]*"[^>]*><i aria-hidden="true" data-header-veil="" class="landing-header-veil"><\/i>/);
@@ -127,14 +127,14 @@ describe("the four pages — skeleton", () => {
   });
 });
 
-describe("the first screen (DEV-025: the reference's)", () => {
+describe("the first screen (DEV-026: the reference's)", () => {
   const hero = inHome("hero", "intro");
   it("fills the viewport under a pixel-rain field and over a perspective floor, both decorative", () => {
     expect(hero).toContain("min-h-dvh");
     expect(hero).toMatch(/<canvas[^>]*aria-hidden="true"[^>]*data-pixel-rain="running"/);
     expect(hero).toMatch(/<div[^>]*aria-hidden="true"[^>]*class="landing-floor/);
   });
-  it("lights the floor's cells under the pointer, on the floor's own plane, and leaves the middle of the screen to a light (DEV-026)", () => {
+  it("lights the floor's cells under the pointer, on the floor's own plane, and leaves the middle of the screen to a light (DEV-027)", () => {
     // The plane is an element so that it can carry the field; the field reads the
     // pointer in the plane's own coordinates, so the browser resolves the perspective.
     expect(hero).toMatch(/class="landing-floor-plane"><canvas[^>]*aria-hidden="true"[^>]*data-cell-field="off"[^>]*class="pointer-events-auto/);
@@ -142,7 +142,7 @@ describe("the first screen (DEV-025: the reference's)", () => {
     expect(hero).toMatch(/class="landing-floor-plane"><canvas[^>]*class="[^"]*text-accent/);
     expect(hero).toMatch(/<canvas[^>]*data-pixel-rain[^>]*class="[^"]*text-ink/);
     expect(hero).toMatch(/<div[^>]*aria-hidden="true"[^>]*class="landing-hero-light/);
-    // Two fifths of the first screen, where DEV-025 gave it a quarter.
+    // Two fifths of the first screen, where DEV-026 gave it a quarter.
     expect(hero).toMatch(/<canvas[^>]*data-pixel-rain[^>]*class="[^"]*h-\[42%\]/);
   });
   it("turns the product's name on an arc over the heading, hidden from assistive technology", () => {
@@ -167,7 +167,7 @@ describe("the first screen (DEV-025: the reference's)", () => {
   it("offers two pills — the ink one to the form's page with a travelling light, the paper one to the route", () => {
     expect(hero).toMatch(new RegExp(`href="${landingContent.pages.pilot.path}"[^>]*data-pill="ink"|data-pill="ink"[^>]*href="${landingContent.pages.pilot.path}"`));
     expect(hero).toMatch(new RegExp(`href="${landingContent.pages.product.path}"[^>]*data-pill="paper"|data-pill="paper"[^>]*href="${landingContent.pages.product.path}"`));
-    // [DEV-026, owner] the primary pill's light is the reference's moving border in our accent:
+    // [DEV-027, owner] the primary pill's light is the reference's moving border in our accent:
     // `beam-pill` (2px, 3 s), not the 1px `beam` — and only the ink pill carries it.
     // [owner, sixth pass] …built the reference's way: a constant border, a light travelling along the outline, the pill's
     // face over both — three decorative layers, in that order, before the label; the pill clips them.
@@ -178,13 +178,13 @@ describe("the first screen (DEV-025: the reference's)", () => {
     expect(hero).not.toMatch(/data-pill="paper"[^>]*class="[^"]*overflow-hidden|class="[^"]*overflow-hidden[^"]*"[^>]*data-pill="paper"/);
     expect(count(hero, /rounded-pill/g)).toBeGreaterThanOrEqual(2);
     expect(count(hero, /data-magnetic-area="self"/g)).toBe(2);
-    // [DEV-024] the role facts live on /roles; [DEV-025] the state board on /product
+    // [DEV-025] the role facts live on /roles; [DEV-026] the state board on /product
     expect(hero).not.toContain("data-role-facts");
     expect(hero).not.toContain("data-board-card");
   });
 });
 
-describe("the home page's split, cards and fact band (DEV-025)", () => {
+describe("the home page's split, cards and fact band (DEV-026)", () => {
   const intro = inHome("intro", "scenes");
   const scenes = inHome("scenes", "facts");
   const facts = inHome("facts", "cta-final");
@@ -231,7 +231,7 @@ describe("the home page's split, cards and fact band (DEV-025)", () => {
   });
 
   it("reveals each card on its own, so a stacked phone column paints as it arrives", () => {
-    // [R-02, and DEV-024's U-01 before it] One entrance keyed to the whole
+    // [R-02, and DEV-025's U-01 before it] One entrance keyed to the whole
     // column — ~1 300px below `wide` — leaves a blank fold under the heading.
     // The animated element must be the card's own wrapper, one per card.
     const wrappers = [...scenes.matchAll(/<div class="grid" style="[^"]*opacity:0[^"]*"><article[^>]*data-scene="([a-z]+)"/g)].map((m) => m[1]);
@@ -249,9 +249,9 @@ describe("the home page's split, cards and fact band (DEV-025)", () => {
     expect(count(facts, /data-fact=""/g)).toBe(4);
     for (const tile of landingContent.facts.tiles) { expect(facts).toContain(tile.value); expect(facts).toContain(tile.label); }
     expect(facts).toContain("landing-gridfield");
-    // [DEV-026] The grid answers the pointer from a canvas UNDER the content, which takes no pointer events itself.
+    // [DEV-027] The grid answers the pointer from a canvas UNDER the content, which takes no pointer events itself.
     expect(facts).toMatch(/<canvas[^>]*aria-hidden="true"[^>]*data-cell-field="off"[^>]*class="pointer-events-none/);
-    // [DEV-026, owner] …but never under the dome: its box is barred to the field.
+    // [DEV-027, owner] …but never under the dome: its box is barred to the field.
     // [seventh pass] …from the dome ITSELF — the box that publishes its disc — not from the strip it stands in
     expect(facts).toMatch(/<canvas[^>]*data-cell-exclude="\[data-particle-sphere\], \[data-tiles\]"/);
     expect(facts).not.toMatch(/data-cell-exclude="[^"]*\[data-dome\]/);
@@ -263,10 +263,10 @@ describe("the home page's split, cards and fact band (DEV-025)", () => {
     expect(said).not.toMatch(/%|грн|₴|клієнт|економ/i);
   });
 
-  it("raises a particle dome under the tiles: decorative, a still 2D layer under the WebGL one, nothing fetched at render (DEV-026)", () => {
+  it("raises a particle dome under the tiles: decorative, a still 2D layer under the WebGL one, nothing fetched at render (DEV-027)", () => {
     const dome = facts.slice(facts.indexOf('data-dome=""'));
     expect(dome).toMatch(/<div[^>]*aria-hidden="true"[^>]*data-particle-sphere="still"[^>]*class="pointer-events-none/);
-    // [DEV-026, owner] the dots are the accent — chosen by a text role, which the canvas reads; and its lights are the block's own ground
+    // [DEV-027, owner] the dots are the accent — chosen by a text role, which the canvas reads; and its lights are the block's own ground
     expect(dome).toMatch(/data-particle-sphere="still"[^>]*class="[^"]*text-accent/);
     expect(dome).not.toMatch(/data-particle-sphere="still"[^>]*class="[^"]*text-ink/);
     // [owner, third pass] the lights are a layer TALLER than the dome's box (they climb past its apex), and the
@@ -281,7 +281,7 @@ describe("the home page's split, cards and fact band (DEV-025)", () => {
     expect(facts.indexOf('data-dome=""')).toBeLessThan(facts.indexOf('id="sources"'));
   });
 
-  it("sets the six sources as one even row of equal cells (DEV-026): every cell the same box, hairlines from the grid's gaps", () => {
+  it("sets the six sources as one even row of equal cells (DEV-027): every cell the same box, hairlines from the grid's gaps", () => {
     const strip = inHome("sources", "cta-final");
     const sources = strip.slice(0, strip.indexOf("</section>"));
     const cells = [...sources.matchAll(/<li class="([^"]*)"/g)].map((m) => m[1]);
@@ -304,7 +304,7 @@ describe("the home page's split, cards and fact band (DEV-025)", () => {
   });
 });
 
-describe("the route on /product (DEV-025: the reference's sticky list)", () => {
+describe("the route on /product (DEV-026: the reference's sticky list)", () => {
   const route = inProduct("stages", "board");
   it("names the five steps in a sticky list that links to each row", () => {
     expect(route).toMatch(new RegExp(`<nav[^>]*aria-label="${landingContent.route.eyebrow}"`));
@@ -455,7 +455,7 @@ describe("what assistive technology is told", () => {
   });
 
   it("hides every decorative widget, canvas and mark, and never a claim", () => {
-    // [DEV-025] The reference's form adds pictures of product moments. Each is
+    // [DEV-026] The reference's form adds pictures of product moments. Each is
     // `aria-hidden` or one labelled image; the sentence beside it is the claim.
     expect(count(home, /<canvas(?![^>]*aria-hidden="true")/g)).toBe(0);
     expect(count(all, /<div(?![^>]*aria-hidden="true")[^>]*data-band=""/g)).toBe(0);
@@ -512,7 +512,7 @@ describe("faq and the closing block", () => {
   });
   it.each(["home", "product", "roles"] as const)("%s closes on a fan of arcs: the five record codes round a breathing mark, the offer in three phrases, the way to the form and the copy-link button", (key) => {
     const cta = sectionOf(pages[key])("cta-final");
-    // [DEV-026] arcs that lean toward the pointer, where DEV-025 drew straight conic rays in CSS
+    // [DEV-027] arcs that lean toward the pointer, where DEV-026 drew straight conic rays in CSS
     expect(cta).toMatch(/<canvas[^>]*aria-hidden="true"[^>]*data-arc-field="still"[^>]*class="arc-mask pointer-events-none/);
     // [owner, third pass] the arcs are the accent
     expect(cta).toMatch(/data-arc-field="still"[^>]*class="[^"]*text-accent/);
@@ -537,7 +537,7 @@ describe("faq and the closing block", () => {
   });
 });
 
-describe("headings (DEV-025: two-tone, the statement in ink and its close muted)", () => {
+describe("headings (DEV-026: two-tone, the statement in ink and its close muted)", () => {
   it("sets every section heading in two tones, the sub-pages' h1 included", () => {
     // home: intro, scenes, facts (its h1 and its closing h2 are one tone).
     // product: route (h1), board, capture, trust. roles: roles (h1), compare.
@@ -613,7 +613,7 @@ describe("navigation reaches the pages on a phone", () => {
   });
 
   it("keeps the strip reachable: a labelled nav of its own, focusable, not aria-hidden", () => {
-    // [DEV-024] Until then the strip was `aria-hidden` with `tabindex=-1`, on
+    // [DEV-025] Until then the strip was `aria-hidden` with `tabindex=-1`, on
     // the belief that the row above stayed announced at every width. It does
     // not — `hidden` is `display: none`. Only one of the two navs is ever
     // displayed, so nothing is announced twice.

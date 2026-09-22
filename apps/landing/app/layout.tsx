@@ -10,7 +10,7 @@ import { SITE_ORIGIN } from "../content/site-origin";
 //   Commissioner   — Cyrillic, which is nearly all of the public copy
 //   JetBrains Mono — index labels, evidence IDs, figure captions
 //
-// [Autumn, 2026-09-22, DEV-027] The owner's brand sheet sets the product in
+// [Autumn, 2026-09-22, DEV-028] The owner's brand sheet sets the product in
 // Hanken Grotesk. That face has NO Cyrillic — verified on the family's own v12
 // file: of the 66 Ukrainian letters it carries none, and of the whole Cyrillic
 // block only ₴ — and this site is written in Ukrainian, so Hanken alone would
@@ -85,9 +85,9 @@ const fontVariables = [hankenLatin, commissionerCyrillic, monoCyrillic, monoLati
 const DESIGN_CONTRACT = `<!--
 THESIS: The work is ready for acceptance when the proof is in place; the page shows one work package travelling from requirement to draft act.
 OWN-WORLD: Warm paper, warm ink, one ember mark and one pine word; Hanken Grotesk with Commissioner for Cyrillic, and JetBrains Mono; the owner's reference reimplemented in token roles and the motion vocabulary, nothing of it copied; no 3D scene — the floor is one flat grid under a CSS perspective, the rain a 2D canvas.
-STORY: Four pages (DEV-024) in the reference's form (DEV-025). Home: the full-viewport first screen → what it is, beside the records of one work → the four roles 01–04 → three cards on a grid → the pilot's terms as the fact band, over the requirement sources → the radial closing offer. /product: the sticky list of five steps → the application view → capture channels → provenance → position. /roles: roles, the payer first → Рис. 01 → було і стало. /pilot: the plan, the one form, the questions.
+STORY: Four pages (DEV-025) in the reference's form (DEV-026). Home: the full-viewport first screen → what it is, beside the records of one work → the four roles 01–04 → three cards on a grid → the pilot's terms as the fact band, over the requirement sources → the radial closing offer. /product: the sticky list of five steps → the application view → capture channels → provenance → position. /roles: roles, the payer first → Рис. 01 → було і стало. /pilot: the plan, the one form, the questions.
 FIRST VIEWPORT: One promise and one definition of the product, centred over a perspective floor and under a pixel-rain field, the product's name turning on an arc above the heading, two pills.
-FORM: The owner's reference, https://parlo-black.vercel.app/, «1 в 1» in our colours — owner, 2026-09-19 (DEV-025). Until then: Daylight parity with design-references/contest-2026-09/daylight/index.html (2026-09-06).
+FORM: The owner's reference, https://parlo-black.vercel.app/, «1 в 1» in our colours — owner, 2026-09-19 (DEV-026). Until then: Daylight parity with design-references/contest-2026-09/daylight/index.html (2026-09-06).
 FINISH: Unreviewed and undocumented is unfinished; the build ends with the seven-width QA pass and DESIGN.md.
 -->`;
 
@@ -96,7 +96,7 @@ FINISH: Unreviewed and undocumented is unfinished; the build ends with the seven
 // let every preview host canonicalise the page to itself. The origin now comes
 // from the environment at build time — see content/site-origin.ts.
 //
-// [DEV-024] This is the default, and it is the home page's. Each of the four
+// [DEV-025] This is the default, and it is the home page's. Each of the four
 // pages exports its own complete object (`createPageMetadata`), because Next
 // merges metadata shallowly.
 export const metadata: Metadata = createLandingMetadata(SITE_ORIGIN);
@@ -118,7 +118,7 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   // only; the dark block in tokens.generated.css is authored and inert, and
   // this attribute is the switch that turns it on when that decision is taken.
   return (
-    // [DEV-024 R-01] `data-scroll-behavior`: globals.css sets `scroll-behavior:
+    // [DEV-025 R-01] `data-scroll-behavior`: globals.css sets `scroll-behavior:
     // smooth` for in-page anchors, and since Next 16 the router no longer
     // suspends it during a route transition unless this attribute asks
     // (next/dist/docs/01-app/02-guides/upgrading/version-16.md §«Scroll Behavior

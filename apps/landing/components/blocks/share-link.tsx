@@ -6,7 +6,7 @@ import { landingContent } from "../../content/landing-content";
 
 /**
  * «Скопіювати посилання для ПТВ»: the address of «Було і стало» (on /roles since
- * DEV-024) and one sentence, onto the clipboard.
+ * DEV-025) and one sentence, onto the clipboard.
  *
  * The outcome is ANNOUNCED, not just drawn on the button. Neither NVDA nor
  * JAWS re-announces a focused button whose own label changes, so swapping

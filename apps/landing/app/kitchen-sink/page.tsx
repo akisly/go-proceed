@@ -307,7 +307,7 @@ export default function KitchenSink() {
         </ScrollProgress>
       </Case>
 
-      <Case n="21" name="PixelRain" rule="Растр першого екрана (DEV-025; перебудовано в DEV-026): один 2D-canvas, ~16 кадрів/с, працює лише у в'юпорті й у видимій вкладці. Крапка в кожній клітинці сітки, майже одного розміру — мерехтить яскравість; на всю ширину, глибокий з боків і мілкий по центру (овальний просвіт), м'яко згасає донизу й трохи дихає. calm — смуга зверху (під скляною шапкою), де крапки лишаються найтьмянішими й нерухомими. Колір — обчислений color елемента, тобто роль (text-ink). Під reduced motion — один нерухомий кадр, цикл не стартує.">
+      <Case n="21" name="PixelRain" rule="Растр першого екрана (DEV-026; перебудовано в DEV-027): один 2D-canvas, ~16 кадрів/с, працює лише у в'юпорті й у видимій вкладці. Крапка в кожній клітинці сітки, майже одного розміру — мерехтить яскравість; на всю ширину, глибокий з боків і мілкий по центру (овальний просвіт), м'яко згасає донизу й трохи дихає. calm — смуга зверху (під скляною шапкою), де крапки лишаються найтьмянішими й нерухомими. Колір — обчислений color елемента, тобто роль (text-ink). Під reduced motion — один нерухомий кадр, цикл не стартує.">
         <div className="relative h-40 overflow-hidden rounded-surface border border-line-strong bg-canvas">
           <PixelRain className="absolute inset-0 h-full w-full text-ink" />
         </div>
@@ -319,19 +319,19 @@ export default function KitchenSink() {
         </div>
       </Case>
 
-      <Case n="23" name="CellField" rule="Клітинки сітки загоряються під курсором і плавно згасають за ним (DEV-026). Лінії сітки малює CSS-фон, canvas — лише підсвічені клітинки на тому самому кроці. Не цикл: кадри йдуть, поки щось згасає, далі — спокій без жодного rAF. Лише pointer: fine; під reduced motion нічого не монтується.">
+      <Case n="23" name="CellField" rule="Клітинки сітки загоряються під курсором і плавно згасають за ним (DEV-027). Лінії сітки малює CSS-фон, canvas — лише підсвічені клітинки на тому самому кроці. Не цикл: кадри йдуть, поки щось згасає, далі — спокій без жодного rAF. Лише pointer: fine; під reduced motion нічого не монтується.">
         <div className="landing-gridfield relative h-48 overflow-hidden rounded-surface border border-line-strong bg-canvas">
           <CellField pitch={62} className="absolute inset-0 h-full w-full text-ink" />
         </div>
       </Case>
 
-      <Case n="24" name="ArcField" rule="Віяло тонких дуг із центру блока; все віяло нахиляється до курсора й повертається, коли він іде (DEV-026). Не цикл: після доведення сцена спочиває. Під reduced motion і на тач-пристрої — нерухоме віяло. Маска arc-mask лишає центр під заголовок.">
+      <Case n="24" name="ArcField" rule="Віяло тонких дуг із центру блока; все віяло нахиляється до курсора й повертається, коли він іде (DEV-027). Не цикл: після доведення сцена спочиває. Під reduced motion і на тач-пристрої — нерухоме віяло. Маска arc-mask лишає центр під заголовок.">
         <div className="relative h-64 overflow-hidden rounded-surface border border-line-strong bg-canvas">
           <ArcField className="absolute inset-0 h-full w-full text-ink" />
         </div>
       </Case>
 
-      <Case n="25" name="ParticleSphere" rule="Купол із частинок (DEV-026): сфера точок на ґратці Фібоначчі, видно лише шапку; повільно обертається, дихає, точки розлітаються від курсора й пружинять назад. Єдина WebGL-сцена системи (рішення власника, лише apps/landing): three.js вантажиться окремим чанком, коли блок наближається до в'юпорта. Без WebGL і під reduced motion — той самий купол нерухомим 2D-кадром.">
+      <Case n="25" name="ParticleSphere" rule="Купол із частинок (DEV-027): сфера точок на ґратці Фібоначчі, видно лише шапку; повільно обертається, дихає, точки розлітаються від курсора й пружинять назад. Єдина WebGL-сцена системи (рішення власника, лише apps/landing): three.js вантажиться окремим чанком, коли блок наближається до в'юпорта. Без WebGL і під reduced motion — той самий купол нерухомим 2D-кадром.">
         <div className="relative h-72 overflow-hidden rounded-surface border border-line-strong bg-canvas">
           <ParticleSphere className="absolute inset-0 h-full w-full text-ink" />
         </div>

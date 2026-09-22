@@ -76,7 +76,7 @@ export function Step({
   count: number;
   when: string;
   title: string;
-  /** The title's level. `h3` by default; `h2` where the stepper sits directly under a page's `h1` (DEV-024 R-02), so the outline never skips a level. */
+  /** The title's level. `h3` by default; `h2` where the stepper sits directly under a page's `h1` (DEV-025 R-02), so the outline never skips a level. */
   titleAs?: "h2" | "h3" | undefined;
   children: ReactNode;
   className?: string | undefined;

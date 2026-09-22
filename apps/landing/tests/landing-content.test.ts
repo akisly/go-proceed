@@ -16,7 +16,7 @@ const everything = `${copy} ${flatten(demoRecords)}`;
 
 describe("landing copy — the Daylight page", () => {
   it("publishes the fourteen blocks, the home page's scenes and the page table", () => {
-    // [DEV-024] Which block renders on which page, and in what order, is pinned
+    // [DEV-025] Which block renders on which page, and in what order, is pinned
     // on the DOM in landing-render.test.tsx; this pins that no block's copy
     // disappears or appears unnoticed.
     expect(Object.keys(landingContent)).toEqual([
@@ -118,12 +118,12 @@ describe("the first viewport names the consequence and the payer", () => {
   });
 
   it("says what the product is before it says why it matters", () => {
-    // [DEV-024] The home page is short, so the lead carries the definition.
+    // [DEV-025] The home page is short, so the lead carries the definition.
     expect(hero.lead.indexOf("веб-застосунок")).toBeGreaterThan(-1);
     expect(hero.lead.indexOf("веб-застосунок")).toBeLessThan(hero.lead.indexOf("гроші"));
   });
 
-  it("gives the owner a fact of his own, and puts it first — on /roles since DEV-024", () => {
+  it("gives the owner a fact of his own, and puts it first — on /roles since DEV-025", () => {
     expect(landingContent.roles.facts[0]?.value).toContain("Власник");
     expect(landingContent.roles.cells[0]?.id).toBe("owner");
   });

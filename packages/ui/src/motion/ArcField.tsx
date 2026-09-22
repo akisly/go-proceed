@@ -5,12 +5,12 @@ import { followPointer, mountCanvasLoop, type CanvasScene } from "./canvas-loop"
 import { useReduced } from "./use-reduced";
 
 /**
- * The closing block's ground (DEV-026): a fan of hairline arcs leaving the
+ * The closing block's ground (DEV-027): a fan of hairline arcs leaving the
  * centre of the block, each bending away from the horizontal as it travels, so
  * the bundle reads as field lines and not as a sunburst — and the whole fan
  * LEANS TOWARD THE POINTER, easing there and easing back when it leaves.
  *
- * DEV-025 drew this ground as straight conic rays in CSS, from a still
+ * DEV-026 drew this ground as straight conic rays in CSS, from a still
  * screenshot. The owner: «эти линии в этом блоке в референсе немного другие, и
  * при наведении они взаимодействуют с мышкой — сделай то же самое».
  *

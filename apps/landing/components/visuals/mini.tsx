@@ -2,12 +2,12 @@ import { Check } from "lucide-react";
 import { demoRecords } from "../../content/demo-records";
 
 /**
- * The small floating widgets of the reference's cards (DEV-025), drawn from the
+ * The small floating widgets of the reference's cards (DEV-026), drawn from the
  * same demonstration records the large UI windows use — no string is written
  * here. Each is a picture of a product moment, labelled for assistive
  * technology by the card's caption, so the widgets themselves are `aria-hidden`.
  *
- * [DEV-026] They answer a hover, as the reference's do: a row takes a faint
+ * [DEV-027] They answer a hover, as the reference's do: a row takes a faint
  * ground under the pointer; and when the pointer is anywhere on the card
  * (`group/scene`, set by the card) the sheet lifts and what lies under it
  * parts — the reference's stacked cards rise and brighten the same way. Hover

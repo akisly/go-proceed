@@ -5,7 +5,7 @@ import { Sources } from "./sources";
 import { TwoTone } from "./two-tone";
 
 /**
- * The reference's statistics band (DEV-025): a wide grid ground, a two-tone
+ * The reference's statistics band (DEV-026): a wide grid ground, a two-tone
  * heading with a pill opposite it, four tiles in one bordered row — and, where
  * the reference sets its customers' logos, the requirement sources.
  *
@@ -13,7 +13,7 @@ import { TwoTone } from "./two-tone";
  * publish (PRODUCT.md), and a band of invented numbers is the one part of the
  * reference that must not be matched.
  *
- * [DEV-026] The band behaves as the reference's does. Its grid answers the
+ * [DEV-027] The band behaves as the reference's does. Its grid answers the
  * pointer — the cell under it lights up and fades (`CellField`, on the pitch
  * of `landing-gridfield`, which still draws the lines). Under the tiles a dome
  * of particles rises from the block's lower edge, turns, and scatters from the
@@ -21,7 +21,7 @@ import { TwoTone } from "./two-tone";
  * viewport; a still 2D dome without WebGL and under reduced motion). The
  * sources close the band as one even row.
  *
- * [DEV-026, owner, second pass] «сделай отступ больше до глобуса … добавь
+ * [DEV-027, owner, second pass] «сделай отступ больше до глобуса … добавь
  * свечение по бокам как основной фиолетовый акцент, и точки так же фиолетовые,
  * и чтобы под этим глобусом не подсвечивались квадраты»: more air between the
  * tiles and the dome; the dome's dots and the two lights at its lower corners
@@ -29,7 +29,7 @@ import { TwoTone } from "./two-tone";
  * read by the canvas; and the grid's cells stay dark under the dome's box
  * (`CellField exclude`).
  *
- * [DEV-026, owner, third pass] «посмотри как в референсе сделан градиент по
+ * [DEV-027, owner, third pass] «посмотри как в референсе сделан градиент по
  * бокам возле глобуса, так же верхние точки у него обрезаются … что бы под
  * карточками не подсвечивался квадраты, и может при наведении квадратиков тоже
  * сделать его фиолетовым акцентом»: the lights hug the dome's two sides and
@@ -38,7 +38,7 @@ import { TwoTone } from "./two-tone";
  * the tiles are barred to the grid as the dome is; and a lit cell is the
  * accent.
  *
- * [DEV-026, owner, seventh pass] «ховер на квадраты так же должен работать
+ * [DEV-027, owner, seventh pass] «ховер на квадраты так же должен работать
  * вокруг глобуса, но не на самом глобусе»: the grid is barred from the dome's
  * DISC — which `ParticleSphere` publishes on its box — and no longer from the
  * whole strip the dome stands in; the cells beside the dome answer again.
