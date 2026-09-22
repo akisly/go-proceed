@@ -108,10 +108,10 @@ describe("motion audit — the rules actually fire", () => {
 
 describe("the vocabulary is closed", () => {
   it("exports exactly twenty-seven primitives", () => {
-    // [2026-09-19, DEV-024] Twenty-four became twenty-seven — `CellField`,
+    // [2026-09-19, DEV-026] Twenty-four became twenty-seven — `CellField`,
     // `ArcField` and `ParticleSphere`: the reference's pointer-reactive grounds
-    // and its particle dome, which DEV-023 missed by reading still screenshots.
-    // [2026-09-19, DEV-023] Twenty-two became twenty-four — `PixelRain` and
+    // and its particle dome, which DEV-025 missed by reading still screenshots.
+    // [2026-09-19, DEV-025] Twenty-two became twenty-four — `PixelRain` and
     // `OrbitText`, the two first-screen words the landing reference needed.
     // The what and why are in `motion/index.ts`'s header and each file's own.
     // A twenty-second is a decision, not an addition: it means the vocabulary
@@ -132,7 +132,7 @@ describe("the vocabulary is closed", () => {
     ]));
   });
 
-  it("keeps every frame loop inside the vocabulary, on one shared loop (DEV-024)", () => {
+  it("keeps every frame loop inside the vocabulary, on one shared loop (DEV-026)", () => {
     // `motion-audit.mjs` reads CSS and imports; a canvas is invisible to it. So
     // the rule that a canvas word is cancelled off screen, rests when it has
     // nothing to draw and stops under reduced motion holds only because there
@@ -177,7 +177,7 @@ describe("the vocabulary is closed", () => {
   });
 
   it("names exactly the seven perpetual loops", () => {
-    // [2026-09-19, DEV-023] Five became seven: `gp-orbit` (the hero's arc text)
+    // [2026-09-19, DEV-025] Five became seven: `gp-orbit` (the hero's arc text)
     // and `gp-breathe` (the closing mark). Owner decision, recorded in DESIGN.md.
     // Spec 2026-09-06 §5.1: the marquee and the landing's four ambient loops.
     // A sixth is a §7.3 decision, so the list is pinned by value.

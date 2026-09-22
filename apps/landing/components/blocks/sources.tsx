@@ -3,7 +3,7 @@ import { landingContent } from "../../content/landing-content";
 
 /**
  * The requirement sources, in the composition the reference gives a row of
- * marks (DEV-024): a centred label over one even row of equal cells between
+ * marks (DEV-026): a centred label over one even row of equal cells between
  * hairlines, each cell centred — the code set like a wordmark, its title under
  * it. Six cells, so every breakpoint is whole rows: 2 × 3, 3 × 2, 6 × 1. The
  * hairlines are the grid's own 1px gaps over a `line` ground, so they meet at
@@ -12,7 +12,7 @@ import { landingContent } from "../../content/landing-content";
  * at 360px one title wraps to three lines and its neighbour to two, and
  * centring set the two codes of one row 8px apart.
  *
- * [DEV-024] Until now this was a left-aligned strip whose first cell had no
+ * [DEV-026] Until now this was a left-aligned strip whose first cell had no
  * rule, whose cells differed in height, set in 11px over the fact band's grid.
  * The owner: «блок Джерела вимог какой-то кривой и выглядит не очень».
  *

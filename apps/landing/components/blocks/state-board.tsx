@@ -7,7 +7,7 @@ import { TwoTone } from "./two-tone";
 const ICON = [Send, Smartphone, Globe, Workflow] as const;
 
 /**
- * The reference's «every channel, connected» (DEV-023): a two-tone heading, the
+ * The reference's «every channel, connected» (DEV-025): a two-tone heading, the
  * large application view, and four short statements in a
  * row — an icon, a name in ink, the rest muted. The view is the state board
  * that was the home page's hero until this task; the statements are the three

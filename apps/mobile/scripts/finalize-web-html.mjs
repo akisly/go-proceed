@@ -13,7 +13,7 @@
 // `app.json` sets no explicit `web.output`), and that mode does not honour
 // the file at all. There is also no `app.json` config key for any of this:
 // setting any of it there had no effect on the export. [Corrected 2026-09-22,
-// DEV-025, `gp-mobile` G-05: this read «`@expo/config-types@57.0.2` (the schema
+// DEV-027, `gp-mobile` G-05: this read «`@expo/config-types@57.0.2` (the schema
 // this project resolves) carries no `lang` field, and no manifest/PWA-head
 // field, anywhere under `expo.web`». It does — `interface Web` declares `lang`,
 // `themeColor`, `backgroundColor`, `display`, `scope`, `shortName` and more.
@@ -61,7 +61,7 @@ const distIndexPath = join(import.meta.dirname, "..", "dist", "index.html");
 let html = readFileSync(distIndexPath, "utf8");
 
 // THE MANIFEST IS THE SOURCE OF BOTH COLOURS, read rather than retyped
-// [2026-09-22, DEV-025, `gp-mobile` G-02/G-04]. `theme_color` used to be a
+// [2026-09-22, DEV-027, `gp-mobile` G-02/G-04]. `theme_color` used to be a
 // second hand-typed hex in this file, and nothing asserted that the two agreed;
 // the palette change of 2026-09-22 had to remember both by hand, which is the
 // definition of a value that will drift.

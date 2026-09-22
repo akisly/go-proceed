@@ -1,7 +1,7 @@
 import { Reveal } from "@goproceed/ui/motion";
 
 /**
- * The reference's section heading (DEV-023): two lines, the first in ink and
+ * The reference's section heading (DEV-025): two lines, the first in ink and
  * the second muted — the statement and its consequence. 36px/500 there; here
  * the marketing scale's third display step at medium weight, which is 34px at
  * 1440. `as` is `h1` where the block opens a page.

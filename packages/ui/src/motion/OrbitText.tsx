@@ -4,7 +4,7 @@ import { useReduced } from "./use-reduced";
 
 /**
  * A phrase set around a circle and turning slowly, of which only the top arc
- * shows (DEV-023) — the line that sits over the landing hero's heading in the
+ * shows (DEV-025) — the line that sits over the landing hero's heading in the
  * reference. Named perpetual loop `gp-orbit`.
  *
  * CSS, not Motion, for the reason the marquee is: one endless linear rotation

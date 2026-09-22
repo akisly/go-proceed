@@ -3,12 +3,12 @@ import { Reveal } from "@goproceed/ui/motion";
 import { TwoTone } from "./two-tone";
 
 /**
- * A section's head. [DEV-023] The reference's: a small label, then a two-tone
+ * A section's head. [DEV-025] The reference's: a small label, then a two-tone
  * heading — the statement in ink, its closing phrase muted — with the lead
  * beside it on wide screens. `titleAccent` is the closing phrase of `title`
  * in every block's copy, so the split needs no second string.
  *
- * `as` is `h1` where the block opens a page (DEV-022): /product, /roles and
+ * `as` is `h1` where the block opens a page (DEV-024): /product, /roles and
  * /pilot each need one.
  */
 /** A block's title as the two-tone pair: everything before its closing phrase, then the phrase. A `titleAccent` that is not a suffix leaves the title whole — never `slice(0, -1)`. */

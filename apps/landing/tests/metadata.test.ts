@@ -60,7 +60,7 @@ describe("landing metadata", () => {
   });
 });
 
-describe("each page's metadata (DEV-022)", () => {
+describe("each page's metadata (DEV-024)", () => {
   const pages = ["home", "product", "roles", "pilot"] as const;
   const all = pages.map((page) => ({ page, meta: createPageMetadata("https://goproceed.example", page) }));
 

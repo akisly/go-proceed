@@ -17,14 +17,14 @@ const MEDIA: ReactNode[] = [<UiRequirement key="1" />, <UiCapture key="2" />, <U
 const sentences = (text: string) => text.split(/(?<=\.)\s+/).filter(Boolean);
 
 /**
- * The route. [DEV-023] In the reference's form: a sticky list of the five steps
+ * The route. [DEV-025] In the reference's form: a sticky list of the five steps
  * at left that marks the one in view; beside it, for each step, a label, a lead
  * whose first clause is ink and the rest muted, short rows divided by
  * hairlines, and a large rounded card holding that step's UI window.
  *
- * Until DEV-023 this was Fora's pinned card stack (`ScrollStack`). The windows
+ * Until DEV-025 this was Fora's pinned card stack (`ScrollStack`). The windows
  * and the copy are the same; only the composition changed, with the owner's
- * «1 в 1». `heading` is `h1` on /product, the page this block opens (DEV-022),
+ * «1 в 1». `heading` is `h1` on /product, the page this block opens (DEV-024),
  * and the step titles sit one level under it.
  */
 export function Route({ heading = "h2" }: { heading?: "h1" | "h2" }) {

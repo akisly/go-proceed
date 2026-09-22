@@ -1,10 +1,10 @@
 /**
- * The one frame loop the canvas words share (DEV-024). Not a primitive — the
+ * The one frame loop the canvas words share (DEV-026). Not a primitive — the
  * plumbing under `PixelRain`, `CellField`, `ArcField` and `ParticleSphere`, so
  * the rules a canvas must keep are written once and not four times:
  *
  *  - THE LOOP IS CANCELLED, NOT IDLED, while the canvas is off screen or the
- *    tab is hidden (DEV-023 R-12): a rAF callback that returns early still
+ *    tab is hidden (DEV-025 R-12): a rAF callback that returns early still
  *    wakes the main thread sixty times a second;
  *  - A SCENE THAT HAS NOTHING LEFT TO DRAW RESTS. `frame()` answers whether it
  *    wants another frame; on `false` no callback is pending at all until

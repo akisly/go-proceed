@@ -5,9 +5,9 @@ import { Button } from "@goproceed/ui/components";
 import { Magnetic } from "@goproceed/ui/motion";
 
 /**
- * The reference's control (DEV-023): a pill. The primary one is ink, ends in a
+ * The reference's control (DEV-025): a pill. The primary one is ink, ends in a
  * double chevron and carries a light travelling round its border, which is the
- * same idea the reference calls `star-btn`. [DEV-024, owner] It was the 1px,
+ * same idea the reference calls `star-btn`. [DEV-026, owner] It was the 1px,
  * 7 s `beam`, then a 2px / 3 s conic comet (`beam-pill`), and since the sixth
  * pass it is built the way the reference builds it — a constant faint border
  * and a soft light moving along the outline — in our accent (`pill-ring`,

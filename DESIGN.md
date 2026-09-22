@@ -144,7 +144,7 @@ components:
 
 **Creative North Star: "The work is ready when the proof is in place, shown on paper in daylight."**
 
-*[2026-09-22, DEV-025, owner: a brand sheet — a warm neutral ramp from #0C0C0A
+*[2026-09-22, DEV-027, owner: a brand sheet — a warm neutral ramp from #0C0C0A
 to white, paper #ECE9DF, #FF5B04, #395A4D, Hanken Grotesk — and «сделай
 основным #395A4D, а секондари #FF5B04». The system's name, palette and
 typeface are that sheet; the north star, the structure and the motion
@@ -202,7 +202,7 @@ as an instrument someone can trust, not a pitch.
   cells, a bento layout, a sticky feature stack, a stepper — taken as
   structure and restyled in roles, never installed as a second system.
 - Motion is the shared twenty-seven-word vocabulary in `@goproceed/ui/motion`
-  *[2026-09-19, DEV-023: twenty-two until `PixelRain` and `OrbitText`; DEV-024:
+  *[2026-09-19, DEV-025: twenty-two until `PixelRain` and `OrbitText`; DEV-026:
   twenty-four until `CellField`, `ArcField` and `ParticleSphere`]*;
   the scroll-linked compositions are the ones the landing spec names, one per
   section.
@@ -210,15 +210,15 @@ as an instrument someone can trust, not a pitch.
   in @goproceed/ui/motion, with exactly two scroll-linked elements on the page
   and never in the same fold» — rule 9 was rewritten by the parity spec §8.]
 
-**The landing's form since 2026-09-19 (owner, DEV-023).** The owner asked for
+**The landing's form since 2026-09-19 (owner, DEV-025).** The owner asked for
 the landing «1 в 1» after https://parlo-black.vercel.app/ — its frame, cards,
 animations and transitions — «только чтобы цвета сохранились наши», on the four
-pages of DEV-022. So on `apps/landing` the *form* is the reference's and the
+pages of DEV-024. So on `apps/landing` the *form* is the reference's and the
 *colour* is this document's: the reference's black ground is our paper, its
 white is our ink, its grey second line is `ink-muted`, its hairlines are
 `line`, and the accent stays one colour under the Signal Budget Rule *[since
 2026-09-22 that accent is pine, and the pills' travelling light is ember — see
-the DEV-025 note in «Overview»]*. What the
+the DEV-027 note in «Overview»]*. What the
 landing takes: fixed double guide lines at both edges with the header inside
 them; a full-viewport hero over a pixel-rain field and a perspective floor,
 with an orbiting arc of text above a 54px/400 heading; pill controls, the
@@ -231,9 +231,9 @@ stays, at the reference's sizes and weights *[Onest until 2026-09-22, Hanken
 Grotesk with Commissioner behind it since — and Hanken has the same Cyrillic
 problem Syne has, which is why it is a pair]*. `apps/app` is untouched by any of this.
 
-*[2026-09-19, DEV-024, owner: «пересмотри каждый блок референса детально,
+*[2026-09-19, DEV-026, owner: «пересмотри каждый блок референса детально,
 каждую анимацию, ховеры и тд, примени после на наш сайт. Используй threejs или
-@react-three/fiber».]* DEV-023 took the reference's form from still screenshots
+@react-three/fiber».]* DEV-025 took the reference's form from still screenshots
 and so missed how it behaves. On `apps/landing` the landing also takes the
 reference's *behaviour*: the hero's pixel field is deep (about two fifths of the
 first screen), a twinkling raster with a soft light at the centre; the cells of
@@ -244,7 +244,7 @@ the Don't list); the closing block's ground is a fan of arcs that lean toward
 the pointer (`ArcField`); and every card, row and tile answers a hover. All of
 it is ink on paper *[2026-09-19, later the same day, owner: all but the dome,
 the ink pills' travelling border, the closing arcs and a cell lit under the
-pointer, which are the accent — see the dated DEV-024 notes under «Do» below]*: a canvas word takes its colour from the computed `color` of
+pointer, which are the accent — see the dated DEV-026 notes under «Do» below]*: a canvas word takes its colour from the computed `color` of
 its element, so the role is chosen by a class and no value is written in a
 scene. Pointer reactions exist only under `pointer: fine`; every loop is
 cancelled off screen and in a hidden tab; under reduced motion a canvas shows
@@ -493,13 +493,13 @@ mark and wordmark at left, the page links with a sliding underline that also
 marks the current page, one ink button at right. Below `md` the links move to
 a scrolling strip under the bar and the button shortens to «Пілот».
 
-*[2026-09-19 (DEV-022): the landing is four pages — `/`, `/product`,
+*[2026-09-19 (DEV-024): the landing is four pages — `/`, `/product`,
 `/roles`, `/pilot` — so the links are page links and the underline marks the
 current page (`aria-current="page"`), not the section in view. Until then the
 bar held four in-page anchors. Below `md` the strip is the one set of links in
 the accessibility tree, because the desktop row is `display: none` there.]*
 
-*[2026-09-19 (DEV-024, seventh pass, owner: the reference's first screen): the
+*[2026-09-19 (DEV-026, seventh pass, owner: the reference's first screen): the
 bar's ground is a layer of its own, `HeaderVeil`. From `md`, while the page
 stands at its top, a running script lifts it and the header is glass — on the
 home page over the hero's pixel field, whose dots stay dim under it; once the
@@ -522,23 +522,23 @@ read through the glass rather than beside it.]*
   link, a focus ring, or the accent phrase in a heading — and nothing else in
   that hue. *[2026-09-22: the wordmark was `text-brand` for a day and is ink
   again, at the owner's word.]*
-  *[2026-09-22, DEV-025: the hue is pine, and ember is a second colour under a
+  *[2026-09-22, DEV-027: the hue is pine, and ember is a second colour under a
   harder budget — at most one accent action and the pills' travelling light
   *[2026-09-22: and no longer the mark's dot, which is the primary]*. Everything the notes below call «cobalt» is pine now,
   except that light, which is ember because the primary measures 2.56:1 on a
   near-black pill and would not be seen. The notes are kept as written: they
   are the record of what the owner asked for, and when.]*
-  *[2026-09-19, DEV-023, `apps/landing` only: the reference's pills carry a
+  *[2026-09-19, DEV-025, `apps/landing` only: the reference's pills carry a
   travelling light, so a fold of the landing holds the brand dot and the thin
   cobalt `beam` on its ink pills — the header's and at most one section's. No
   heading carries an accent phrase any more; the muted second line does that
   work. The area stays far under the Signal Budget.]*
-  *[2026-09-19, DEV-024, owner, `apps/landing` only: «к основным кнопкам добавь
+  *[2026-09-19, DEV-026, owner, `apps/landing` only: «к основным кнопкам добавь
   такой же бордер как в референсе, что он там двигается, только цвет тоже
   фиолетовый основной акцент» and, of the fact band's dome, «добавь свечение по
   бокам как основной фиолетовый акцент, и точки так же фиолетовые». So the ink
   pills' light is `beam-pill` — 2px, three seconds a lap, a bright head — where
-  DEV-023 set the 1px, seven-second `beam` *[sixth pass, owner: «посмотри
+  DEV-025 set the 1px, seven-second `beam` *[sixth pass, owner: «посмотри
   референс как сделана там, сделай точно так же только с нашим цветом» — now
   the reference's own construction: a faint constant border and a soft accent
   light moving along the pill's outline, under the pill's face; a browser
@@ -547,7 +547,7 @@ read through the glass rather than beside it.]*
   accent lights at its lower corners. That is the one fold of the landing where
   cobalt is an area and not a mark: the owner's exception, for that block. The
   grids, the pixel field, the arcs and every other ornament stay ink.]*
-  *[2026-09-19, later, DEV-024, owner, third pass: «полоски в Перевірте
+  *[2026-09-19, later, DEV-026, owner, third pass: «полоски в Перевірте
   маршрут… сделай фиолетовым акцентом» and «может при наведении квадратиков
   тоже сделать его фиолетовым акцентом». So the closing block's arcs and a cell
   lit under the pointer (the hero's floor, the fact band's grid) are the accent
@@ -577,7 +577,7 @@ read through the glass rather than beside it.]*
   *[2026-09-22, later the same day: the wordmark was in this list for a few
   hours and is ink again (owner); what joined it instead is the HOME HERO'S
   ACCENT WORD — «доказ» inside the h1, the first accent phrase in a heading
-  since DEV-023 removed them, and the largest chromatic mark above the fold.
+  since DEV-025 removed them, and the largest chromatic mark above the fold.
   The mark's dot is the accent now too, where it used to be the spark.]* What
   stays ink or `surface`: the grid LINES, the hero's pixel field, the dotted
   bands, and every hover of a card, row, tile, source cell or link. It is
@@ -602,10 +602,10 @@ read through the glass rather than beside it.]*
 - **Don't** reach for brutalism — no raw borders as decoration, no oversized
   display type, no deliberate roughness. The system is quiet by contract.
 - **Don't** build a 3D scene — a WebGL or modelled scene, a camera, lit
-  geometry. The landing's perspective floor (DEV-023) is one flat grid under a
+  geometry. The landing's perspective floor (DEV-025) is one flat grid under a
   CSS `perspective` transform, static, and its pixel-rain field is a 2D canvas;
   neither is a scene.
-  *[2026-09-19, DEV-024, owner: «Используй threejs или @react-three/fiber» —
+  *[2026-09-19, DEV-026, owner: «Используй threejs или @react-three/fiber» —
   for `apps/landing` only, the owner overrules this line for ONE scene: the
   particle dome under the home page's fact tiles (`ParticleSphere`). It is
   points, not lit or modelled geometry; one WebGL context a page; three.js
@@ -621,10 +621,10 @@ read through the glass rather than beside it.]*
   — spec 2026-09-06 R2.]
 - **Don't** run any animation forever except the named loops — the marquee,
   the Border Beam, the review-dot pulse, the hero drift, the dashed flow lines,
-  and, since DEV-023, the hero's orbiting arc text (`gp-orbit`), the closing
+  and, since DEV-025, the hero's orbiting arc text (`gp-orbit`), the closing
   block's breathing mark (`gp-breathe`) and the `PixelRain` canvas. Each stops
   under reduced motion, where the rain is one still frame
-  *[2026-09-19, DEV-024: `ParticleSphere` turns for as long as it is on screen;
+  *[2026-09-19, DEV-026: `ParticleSphere` turns for as long as it is on screen;
   `CellField` and `ArcField` are not loops — they draw while something is
   fading or easing and then rest with no frame pending]*
   [Correction, 2026-09-06: was «except the marquee — the Border Beam is

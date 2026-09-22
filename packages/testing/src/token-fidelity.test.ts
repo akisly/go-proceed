@@ -126,7 +126,7 @@ describe("the source explains itself", () => {
   });
 
   it("every contrast ratio a ruling states is one its own colour produces", () => {
-    // [2026-09-22, DEV-025] THIS IS THE GUARD THE PALETTE CHANGE EARNED TWICE.
+    // [2026-09-22, DEV-027] THIS IS THE GUARD THE PALETTE CHANGE EARNED TWICE.
     // A ruling's prose is copied verbatim into `tokens.dtcg.json` and into the
     // generated `01-tokens.md`, beside a contrast column the generator computes
     // — and nothing recomputes the prose. When the palette moved, seventeen

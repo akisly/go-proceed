@@ -45,7 +45,7 @@ export function FeatureGrid({
    * with no extra wrapper between them and their `grid-template-columns`.
    * Off by default so every non-landing caller is unchanged.
    */
-  /** `"load"` where the grid is in the first fold of its page (DEV-023): under `on="view"` a grid already in view when the
+  /** `"load"` where the grid is in the first fold of its page (DEV-025): under `on="view"` a grid already in view when the
    * reduced-motion gate opens can be left on `hidden` — measured on /roles, 3 loads in 5 — which is the case `Stagger`'s
    * own `on="load"` exists for. */
   stagger?: boolean | "load" | undefined;
@@ -59,7 +59,7 @@ export function FeatureCell({
 }: {
   icon?: ReactNode | undefined;
   title: string;
-  /** The title's level. `h3` by default; `h2` where the grid sits directly under a page's `h1` (DEV-022 R-02), so the outline never skips a level. */
+  /** The title's level. `h3` by default; `h2` where the grid sits directly under a page's `h1` (DEV-024 R-02), so the outline never skips a level. */
   titleAs?: "h2" | "h3" | undefined;
   subtitle?: string | undefined;
   children: ReactNode;

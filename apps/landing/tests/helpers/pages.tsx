@@ -7,7 +7,7 @@ import RolesPage from "../../app/roles/page";
 import type { PageKey } from "../../content/landing-content";
 
 /**
- * The four pages (DEV-022), each rendered whole: `SiteShell` puts the header,
+ * The four pages (DEV-024), each rendered whole: `SiteShell` puts the header,
  * `<main>` and the footer inside the page component, so one import is one
  * complete document body.
  *

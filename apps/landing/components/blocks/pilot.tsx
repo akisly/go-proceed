@@ -4,7 +4,7 @@ import { landingContent } from "../../content/landing-content";
 import { PilotForm } from "./pilot-form";
 import { SectionHead } from "./section-head";
 
-/** `h1` on the page the block opens (DEV-022), `h2` anywhere else. */
+/** `h1` on the page the block opens (DEV-024), `h2` anywhere else. */
 export function Pilot({ heading = "h2" }: { heading?: "h1" | "h2" }) {
   const p = landingContent.pilot;
   const boxes = [p.needs, p.gets, p.terms] as const;

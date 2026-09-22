@@ -10,7 +10,7 @@ import { Cta } from "../../components/blocks/cta";
 
 export const metadata: Metadata = createPageMetadata(SITE_ORIGIN, "roles");
 
-/** «Для кого» (DEV-022): the four roles, the payer first; Рис. 01 — the same frame in a chat and in a record; then the same stage as it is argued now and with GoProceed. */
+/** «Для кого» (DEV-024): the four roles, the payer first; Рис. 01 — the same frame in a chat and in a record; then the same stage as it is argued now and with GoProceed. */
 export default function RolesPage() {
   return (
     <SiteShell page="roles">

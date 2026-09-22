@@ -76,7 +76,7 @@ describe("the brand sheet survives the revision", () => {
    * stronger claim than "we kept them", and it is only true while the OKLCH
    * triples are what they are, so it is asserted rather than described.
    *
-   * [2026-09-22, DEV-025] These rows were the Daylight anchors: cobalt-500
+   * [2026-09-22, DEV-027] These rows were the Daylight anchors: cobalt-500
    * #2B4BFF, cobalt-400 #5568DE, green-500 #1E8F5A, amber-600 #C8641F,
    * danger-500 #E45C55, neutral-25 #F6F5F1, neutral-975 #15161A. The owner
    * replaced the palette with a brand sheet (black, #FF5B04, #395A4D and a
@@ -139,7 +139,7 @@ describe("the brand sheet survives the revision", () => {
 
 describe("paper and ink share one warm axis, and measurably so", () => {
   it("keeps the paper and the ink warm", () => {
-    // [2026-09-22, DEV-025] This read «keeps the paper warm and the ink cool»,
+    // [2026-09-22, DEV-027] This read «keeps the paper warm and the ink cool»,
     // and asserted the ink's hue in (240, 300): Daylight opposed a warm paper
     // to a cool ink, and that opposition was the identity. Autumn's ramp runs
     // from the sheet's warm black to white without a cool step — the

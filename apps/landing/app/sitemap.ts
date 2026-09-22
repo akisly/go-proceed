@@ -3,7 +3,7 @@ import { landingContent } from "../content/landing-content";
 import { SITE_ORIGIN } from "../content/site-origin";
 
 /**
- * The four pages (DEV-022). `/og` is a noindex source for the static social
+ * The four pages (DEV-024). `/og` is a noindex source for the static social
  * card and `/kitchen-sink` is the internal component inventory — a sitemap
  * that lists them contradicts the tag they carry.
  *

@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { ArcField, CellField, OrbitText, ParticleSphere, PixelRain, cellIsBarred, cellIsBarredByDisc } from "@goproceed/ui/motion";
 
 /**
- * The two first-screen words DEV-023 added, in the state a reader who asked for
+ * The two first-screen words DEV-025 added, in the state a reader who asked for
  * no motion gets (R-11). `useReduced()` is deliberately NOT mocked here: it is
  * true on the server and on the first client render, which is exactly the
  * reduced branch — the same technique `motion-parity-reduced.test.tsx` uses.
@@ -34,7 +34,7 @@ describe("first-screen primitives under reduced motion", () => {
 });
 
 /**
- * [DEV-024] The three canvas words the reference's BEHAVIOUR needed — AS SERVED.
+ * [DEV-026] The three canvas words the reference's BEHAVIOUR needed — AS SERVED.
  * `renderToStaticMarkup` runs no effect, so what is pinned here is the markup
  * every reader starts from, which is also the whole of what a reduced-motion
  * reader ever gets: the resting `data-*` state, `aria-hidden`, who takes
@@ -42,7 +42,7 @@ describe("first-screen primitives under reduced motion", () => {
  * bitmaps light, fade, lean and scatter under full motion — and do not under
  * reduced motion or on a touch device — is measured by `qa/landing.mjs`.
  */
-describe("the pointer-reactive canvas words as served (DEV-024)", () => {
+describe("the pointer-reactive canvas words as served (DEV-026)", () => {
   it("CellField is served off: the ground's CSS grid is the whole composition, and the canvas over it is decorative", () => {
     const html = renderToStaticMarkup(<CellField pitch={62} className="h-40 w-full text-ink" />);
     expect(html).toContain('data-cell-field="off"');

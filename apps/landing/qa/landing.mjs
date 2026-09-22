@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // Builds and starts the landing, then photographs each of its four pages
-// (DEV-022) at seven widths, checks for horizontal overflow and console errors,
+// (DEV-024) at seven widths, checks for horizontal overflow and console errors,
 // repeats under reduced motion, follows every internal link, measures the
 // Border Beam on the settled product frame, measures the pointer-reactive canvas
-// words (DEV-024 — a second browser with software WebGL for the particle dome),
+// words (DEV-026 — a second browser with software WebGL for the particle dome),
 // and writes public/og.png from /og.
 // Run: pnpm --filter @goproceed/landing qa
 import { spawn } from "node:child_process";
@@ -21,7 +21,7 @@ rmSync(out, { recursive: true, force: true });
 mkdirSync(out, { recursive: true });
 const PORT = 3111;
 const WIDTHS = [1920, 1440, 1240, 1024, 768, 390, 360];
-// The four pages (DEV-022). Keep in step with `landingContent.pages`; the link
+// The four pages (DEV-024). Keep in step with `landingContent.pages`; the link
 // check below fails if a page links to a path that is not served.
 const ROUTES = [["home", "/"], ["product", "/product"], ["roles", "/roles"], ["pilot", "/pilot"]];
 
@@ -55,7 +55,7 @@ try {
   // reduced motion the latch must already read "true" by the same point, since
   // (a) or (b) of the contract fires immediately. Only /product carries a
   // `ScrollSettle` — the application view, which was the home hero until
-  // DEV-023 — so only /product is asked.
+  // DEV-025 — so only /product is asked.
   async function audit([route, path], width, reduced) {
     const page = await browser.newPage();
     const errors = [];
@@ -122,7 +122,7 @@ try {
     console.log(`${reduced ? "reduced " : ""}${route} ${width}px: ${ok ? "ok" : "PROBLEM"} height=${total} scrollWidth=${overflow.scrollWidth} wide=${overflow.wide.length} errors=${errors.length} h1=${h1Count} settledAtLoad=${settledAtLoad === null ? "n/a" : settledAtLoad}`);
   }
 
-  // EVERY INTERNAL LINK LANDS (DEV-022). On one page a dead anchor scrolled
+  // EVERY INTERNAL LINK LANDS (DEV-024). On one page a dead anchor scrolled
   // nowhere; across four pages it is a 404, or a `/product#trust` that opens
   // the page at the top because the id moved. Each page's `a[href^="/"]` is
   // fetched, and its fragment — if it has one — must be an id on the page it
@@ -179,7 +179,7 @@ try {
   async function beamPixels() {
     const page = await browser.newPage();
     await page.setViewport({ width: 1440, height: 900, deviceScaleFactor: 1 });
-    await page.goto(`http://localhost:${PORT}/product`, { waitUntil: "networkidle0" }); // the board is /product's (DEV-023)
+    await page.goto(`http://localhost:${PORT}/product`, { waitUntil: "networkidle0" }); // the board is /product's (DEV-025)
     // The ring runs from first paint now (spec 2026-09-06 §5.1) — it no longer
     // waits on `ScrollSettle`'s latch, so the measurement only needs the beam
     // element scrolled into view, not `data-settled="true"` — AND the frame's
@@ -193,7 +193,7 @@ try {
     // box has not moved for two reads AND every ancestor is at full opacity,
     // capped at 4s so a broken entrance still fails loudly (as 0 pixels).
     const present = await page.evaluate(async () => {
-      // `#board`: the ink pills carry a beam too since DEV-023, and the header's is first in the document.
+      // `#board`: the ink pills carry a beam too since DEV-025, and the header's is first in the document.
       const el = document.querySelector("#board .beam");
       if (!el) return false;
       el.parentElement.scrollIntoView({ block: "center" });
@@ -230,7 +230,7 @@ try {
   for (const route of ROUTES) for (const w of WIDTHS) await audit(route, w, false);
   for (const route of ROUTES) for (const w of [1440, 390]) await audit(route, w, true);
 
-  // NOTHING IN A FIRST FOLD STAYS HIDDEN (DEV-023). A `whileInView` entrance on
+  // NOTHING IN A FIRST FOLD STAYS HIDDEN (DEV-025). A `whileInView` entrance on
   // content that is already in view when the reduced-motion gate opens can be
   // left on its hidden label for good — measured on /roles, whose role cells
   // stayed at opacity 0 in three loads out of five once the grid moved into the
@@ -243,7 +243,7 @@ try {
   // Measured 2026-09-19: the race did not reproduce on any of them at 1440 (four
   // loads each). At 390 two pre-existing blocks (capture, provenance) keep a
   // tall stacked `Stagger` below its 25 % threshold — deterministic, not a race,
-  // older than DEV-022, and filed under BL-059; the deep links are therefore
+  // older than DEV-024, and filed under BL-059; the deep links are therefore
   // checked at 1440 only.
   const DEEP_LINKS = [["roles#compare", "/roles#compare"], ["product#capture", "/product#capture"], ["product#trust", "/product#trust"], ["pilot#request", "/pilot#request"]];
   async function firstFold() {
@@ -298,7 +298,7 @@ try {
     const NARROW = { width: 390, height: 844, deviceScaleFactor: 1, isMobile: true, hasTouch: true };
 
     // PRODUCT — the application view's depth layers and the one tilted surface
-    // (the home hero's until DEV-023). Bring the view in, read, scroll on, read.
+    // (the home hero's until DEV-025). Bring the view in, read, scroll on, read.
     const wide = await open("/product", WIDE);
     await wide.evaluate(() => { const el = document.querySelector("#board"); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 200, behavior: "instant" }); });
     await new Promise((r) => setTimeout(r, 1600));
@@ -352,7 +352,7 @@ try {
       await page.close();
     }
 
-    // PRODUCT — the sticky list marks the step in view (DEV-023: the
+    // PRODUCT — the sticky list marks the step in view (DEV-025: the
     // reference's feature list, where Fora's pinned stack used to be).
     const product = await open("/product", WIDE);
     await product.evaluate(() => { const el = document.querySelector("#step-03"); window.scrollTo({ top: el.getBoundingClientRect().top + window.scrollY - 300, behavior: "instant" }); });
@@ -368,7 +368,7 @@ try {
     out.rain = await first.evaluate(() => document.querySelector("[data-pixel-rain]")?.getAttribute("data-pixel-rain") ?? null);
     out.orbit = await first.evaluate(() => document.querySelector("[data-orbit]")?.getAttribute("data-orbit") ?? null);
     out.heroFillsViewport = await first.evaluate(() => document.querySelector("#hero").getBoundingClientRect().height >= window.innerHeight);
-    // [DEV-024, seventh pass; 2026-09-22, owner: «хедер всегда сделай таким типа прозрачным, а не только на скрол»]
+    // [DEV-026, seventh pass; 2026-09-22, owner: «хедер всегда сделай таким типа прозрачным, а не только на скрол»]
     // the header is frosted glass at EVERY scroll position: the same layer, the same opacity, at the top and below it,
     // and no attribute to carry a state. The hero's field still starts at the very top edge, behind the bar.
     // [R2-07] The ground's OPACITY alone stopped distinguishing anything the day
@@ -513,9 +513,9 @@ try {
   // not hypothetical — a stale build reported 21/21 against a page that
   // actually rendered more, and this gate passed it (2026-09-07).
   //
-  // [DEV-023] The counts below follow the reference's form: the board and its
+  // [DEV-025] The counts below follow the reference's form: the board and its
   // three satellites are on /product; every ink pill is a magnetic control.
-  // [DEV-022] One tilted surface on the whole site — the board. The
+  // [DEV-024] One tilted surface on the whole site — the board. The
   // historical count above (21) is the 2026-09-07 page's; the rule it argues
   // for, that all three numbers must agree, is unchanged.
   //
@@ -545,7 +545,7 @@ try {
   console.log(`parity: ${parityOk ? "ok" : "PROBLEM"} ${JSON.stringify(p)}`);
 
   /**
-   * DEV-024 — THE POINTER-REACTIVE CANVAS WORDS, measured, because nothing else
+   * DEV-026 — THE POINTER-REACTIVE CANVAS WORDS, measured, because nothing else
    * can see them: `motion-audit` reads CSS and imports, vitest has no canvas,
    * and a `data-*` label only says what the word believes about itself.
    *

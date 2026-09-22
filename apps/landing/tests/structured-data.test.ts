@@ -40,7 +40,7 @@ describe("structured data", () => {
   });
 
   it("marks the questions up only where a visitor can read the answers", () => {
-    // [DEV-022] The accordion moved to /pilot. FAQPage on a page that does not
+    // [DEV-024] The accordion moved to /pilot. FAQPage on a page that does not
     // show the answers is marking up invisible content — a policy violation.
     expect(nodeOf("pilot", "FAQPage")).toBeDefined();
     for (const page of ["home", "product", "roles"] as const) expect(nodeOf(page, "FAQPage"), page).toBeUndefined();

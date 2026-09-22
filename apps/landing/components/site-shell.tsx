@@ -7,7 +7,7 @@ import { Footer } from "./blocks/footer";
 import { Nav } from "./blocks/nav";
 
 /**
- * What the four pages share (DEV-022): the page's structured data, the skip
+ * What the four pages share (DEV-024): the page's structured data, the skip
  * link, the header, `<main>` and the footer. A component rather than a route
  * group layout, because `/og` and `/kitchen-sink` take none of it and a page
  * rendered on its own — which is how the render tests read it — is then the
@@ -36,13 +36,13 @@ export function SiteShell({ page, children }: { page: PageKey; children: ReactNo
       {/* The hero clears the fixed header itself. A sub-page opens on an
         * ordinary section, so `<main>` reserves the header — and, below `md`,
         * the link strip under it. */}
-      {/* [DEV-023] The reference's frame: every page lives in one column between
+      {/* [DEV-025] The reference's frame: every page lives in one column between
         * the inner guide lines; the outer pair are drawn by `.landing-body`. */}
       <div className="landing-frame">
         {/* `relative` is load-bearing, not tidiness. `overflow-x: clip` only clips
           * a descendant whose containing block is inside the clipping box, and an
           * absolutely positioned one — every `sr-only` label in the access
-          * matrix — takes the nearest POSITIONED ancestor. Until DEV-023 that was
+          * matrix — takes the nearest POSITIONED ancestor. Until DEV-025 that was
           * `<main>` by a `body > main` rule; inside the frame the rule stopped
           * matching, the labels' containing block became the frame, and /product
           * gained 48px of sideways scroll on a phone. The harness caught it. */}

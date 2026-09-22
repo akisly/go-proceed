@@ -12,8 +12,8 @@ import { Cta } from "../components/blocks/cta";
 export const metadata: Metadata = createPageMetadata(SITE_ORIGIN, "home");
 
 /**
- * The home page. [DEV-022] Short: what GoProceed is, why a late acceptance
- * costs money, what the product does, what the pilot costs. [DEV-023] In the
+ * The home page. [DEV-024] Short: what GoProceed is, why a late acceptance
+ * costs money, what the product does, what the pilot costs. [DEV-025] In the
  * reference's order and form: the full-viewport first screen, the split with
  * its four numbered columns, three cards on a grid ground, the fact band over
  * the requirement sources, the radial closing block — a raster band between

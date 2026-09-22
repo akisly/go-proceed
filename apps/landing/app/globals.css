@@ -98,11 +98,11 @@
 }
 
 @layer components {
-  /* [DEV-023] The page-wide Dot Pattern is gone: the reference's first screen
+  /* [DEV-025] The page-wide Dot Pattern is gone: the reference's first screen
    * carries its own texture (`PixelRain`), and its pages have no ground
    * pattern behind the sections. */
 
-  /* [DEV-023] `<main>` and the footer live inside `.landing-frame`, which
+  /* [DEV-025] `<main>` and the footer live inside `.landing-frame`, which
    * carries the stacking context; `<main>` positions itself (site-shell.tsx). */
 
   /* The header's hairline is permanent (F9); the backdrop blurs the page under it. */
@@ -110,7 +110,7 @@
    * touches the links. [2026-09-22, owner] It is frosted glass at every scroll
    * position and on every width — the page blurs THROUGH the bar rather than
    * ending at it. Until this day a script lifted it while the page stood at its
-   * top, so the hero's field ran under a bar with no ground (DEV-024, seventh
+   * top, so the hero's field ran under a bar with no ground (DEV-026, seventh
    * pass); the owner asked for the glass to be permanent, which also returned
    * the header to one appearance with and without JavaScript. */
   .landing-header-veil {
@@ -140,7 +140,7 @@
   .landing-nav-link[aria-current="page"]::after { transform: scaleX(1); background: var(--color-accent); }
 
   /* -------------------------------------------------------------------------
-   * The reference's form (DEV-023) — owner, 2026-09-19: the landing «1 в 1»
+   * The reference's form (DEV-025) — owner, 2026-09-19: the landing «1 в 1»
    * after https://parlo-black.vercel.app/, in our colours. Observed and
    * rebuilt; none of the reference's CSS is here. Every colour below is a
    * role, mixed toward transparent where the reference uses a faint line.
@@ -204,13 +204,13 @@
   /* THE FLOOR under the hero: one flat grid tipped back under a CSS
    * perspective and faded toward the horizon. Not a scene — no camera moves
    * and nothing is lit (`DESIGN.md`).
-   * [DEV-024] The plane is an element now, not a pseudo-element, because it
+   * [DEV-026] The plane is an element now, not a pseudo-element, because it
    * carries a `CellField`: the cell under the pointer lights up and fades, as
    * on the reference's floor. The grid lines stay CSS, so the floor is whole
    * without JavaScript, on a touch device and under reduced motion. The plane
    * is as wide as the floor and 480px deep: under this perspective the first
    * 450px of depth fill the floor's height, and the 220 %-wide, 911px-deep
-   * sheet of DEV-023 drew six cells out of seven off screen. */
+   * sheet of DEV-025 drew six cells out of seven off screen. */
   .landing-floor {
     position: absolute;
     inset-inline: 0;
@@ -239,7 +239,7 @@
     background-position: 50% 0;
   }
 
-  /* THE LIGHT behind the hero's heading (DEV-024): the reference leaves the
+  /* THE LIGHT behind the hero's heading (DEV-026): the reference leaves the
    * middle of its first screen brighter than the corners, where the pixel field
    * is. On paper the brighter role is `surface`. */
   .landing-hero-light {
@@ -262,7 +262,7 @@
     background-size: 26px 26px;
     -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 82%);
     mask-image: linear-gradient(to bottom, #000 0%, #000 45%, transparent 82%);
-    /* [DEV-024] The grid rests a little back and comes up under the pointer. */
+    /* [DEV-026] The grid rests a little back and comes up under the pointer. */
     opacity: 0.7;
     transition: opacity var(--gp-duration-slow) var(--gp-ease-out);
   }
@@ -279,10 +279,10 @@
     background-position: 50% 0;
   }
 
-  /* THE FACT BAND's dome (DEV-024): the light it stands in — a haze from below
+  /* THE FACT BAND's dome (DEV-026): the light it stands in — a haze from below
    * the horizon at the dome's flanks, as in the reference — in the accent. */
   .landing-dome-light {
-    /* [DEV-024, owner, second pass] the lights are the accent, not `surface`.
+    /* [DEV-026, owner, second pass] the lights are the accent, not `surface`.
      * [third pass] Watched again in the reference: the light is not in the
      * block's far corners. It is a haze from below the horizon that stands
      * CLOSE TO THE DOME on either side and climbs past its apex, thinning

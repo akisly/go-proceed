@@ -19,7 +19,7 @@ const CONTROL = "h-(--gp-control-height-marketing) bg-canvas";
  * fallback. Required fields are checked here before a request is made, and
  * the first empty one takes focus. One live region announces every state.
  */
-/** `titleAs`: the form title's level — `h2` on /pilot, where the block's own heading is the page's `h1` (DEV-022 R-02). */
+/** `titleAs`: the form title's level — `h2` on /pilot, where the block's own heading is the page's `h1` (DEV-024 R-02). */
 export function PilotForm({ titleAs: Title = "h3" }: { titleAs?: "h2" | "h3" } = {}) {
   const [state, setState] = useState<FormState>("idle");
   // Which required fields failed the last submit. The validator names them —

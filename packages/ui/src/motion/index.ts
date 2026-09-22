@@ -10,14 +10,14 @@
  * twenty-seven files. A `motion.div` written by hand in a block is a rule that
  * has to be remembered instead of one that holds.
  *
- * [2026-09-19, DEV-023] Twenty-two became twenty-four. The owner asked for the
+ * [2026-09-19, DEV-025] Twenty-two became twenty-four. The owner asked for the
  * landing «1 в 1» after its reference, whose first screen has two things the
  * vocabulary had no word for: a field of falling pixels (`PixelRain`, the one
  * canvas and the one rAF loop here) and a phrase turning on an arc over the
  * heading (`OrbitText`, a CSS loop). Both stop under reduced motion, where the
  * rain is a still frame and the arc stands still.
  *
- * [2026-09-19, DEV-024] Twenty-four became twenty-seven. DEV-023 read the
+ * [2026-09-19, DEV-026] Twenty-four became twenty-seven. DEV-025 read the
  * reference from still screenshots and so took its form without its behaviour;
  * the owner asked for the behaviour («пересмотри каждый блок референса
  * детально, каждую анимацию, ховеры… Используй threejs»). Three things the

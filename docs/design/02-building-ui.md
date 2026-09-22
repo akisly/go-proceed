@@ -160,9 +160,9 @@ nothing, fails a test, or silently drops a class.
 packages/tokens/src/tokens.json      every value, the only hand-edited token file
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
-packages/ui/src/motion/              the twenty-seven motion primitives, and nothing else (twenty-two until DEV-023, twenty-four until DEV-024)
+packages/ui/src/motion/              the twenty-seven motion primitives, and nothing else (twenty-two until DEV-025, twenty-four until DEV-026)
 packages/ui/src/components/          the twenty-seven components, and nothing else
-apps/landing/app/                    the four landing pages (/, /product, /roles, /pilot — DEV-022)
+apps/landing/app/                    the four landing pages (/, /product, /roles, /pilot — DEV-024)
 apps/landing/components/blocks/      the landing blocks the pages compose
 apps/app/app/                        the product shell and its screens
 packages/testing/src/*.test.ts       every contract test
@@ -190,12 +190,12 @@ Terse on purpose; each is enforced by a named test.
    restored the prototype's Border Beam, review-dot pulse, receipt/pill drift
    and dashed «flow» lines, so the allowlist names five loops and a test pins
    the list. A sixth is a §7.3 decision.]
-   [2026-09-19 (DEV-023, owner: the landing «1 в 1» after its reference): the
+   [2026-09-19 (DEV-025, owner: the landing «1 в 1» after its reference): the
    sixth and seventh are `gp-orbit` (the hero's arc text) and `gp-breathe` (the
    closing block's mark). `PixelRain` is a canvas primitive in
    `@goproceed/ui/motion`, not a CSS loop; it draws one still frame under
    reduced motion.]
-   [2026-09-19 (DEV-024, owner: the reference's behaviour, «Используй threejs
+   [2026-09-19 (DEV-026, owner: the reference's behaviour, «Используй threejs
    или @react-three/fiber»): three more canvas words — `CellField`, `ArcField`
    (2D) and `ParticleSphere` (three.js, the landing's one WebGL scene). None is
    a CSS loop, so `PERPETUAL_ALLOWLIST` stays at seven. All four canvas words
@@ -328,7 +328,7 @@ Not an addition — a decision. It means the vocabulary was missing something, s
 the new primitive's own file header and `packages/ui/src/motion/index.ts`, whose header counts the vocabulary, say what and why in the same change *[2026-09-14 (DEV-007): this named the rewrite plan's §8.3, now Historical]*. The test that fails
 is the prompt to write that down.
 
-*[2026-09-19 (DEV-024)]* A canvas word — one that draws frames rather than
+*[2026-09-19 (DEV-026)]* A canvas word — one that draws frames rather than
 animating an element — is built on `motion/canvas-loop.ts` and keeps its
 contract: the caller sizes the canvas in CSS and picks the colour with a text
 role (`text-ink`); the word is `aria-hidden` and takes no pointer events unless
@@ -416,7 +416,7 @@ right-aligned, because 620/620 and 180/150 must differ in *shape*.
 *[Correction, 2026-09-05: Onest for display and everything else, JetBrains
 Mono for indices; the serif is retired. Weights 400 / 500 / 600 / 700.]*
 
-*[Correction, 2026-09-22 (DEV-025): Hanken Grotesk for display and everything
+*[Correction, 2026-09-22 (DEV-027): Hanken Grotesk for display and everything
 else, with Commissioner behind it for Cyrillic — Hanken carries none — and
 JetBrains Mono for indices. The weights are unchanged. Figures are tabular
 because Hanken's digits are one width, not because a feature is asked for.]*

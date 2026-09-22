@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 /**
- * The reference's sticky feature list (DEV-023): the names of the rows beside
+ * The reference's sticky feature list (DEV-025): the names of the rows beside
  * it, the one in view marked. An IntersectionObserver over the rows' ids — no
  * scroll listener and no motion library, the same technique the one-page
  * header used for its sections. Links, so the list also works as navigation

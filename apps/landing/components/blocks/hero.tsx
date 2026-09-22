@@ -3,7 +3,7 @@ import { landingContent } from "../../content/landing-content";
 import { PillLink } from "./pill-link";
 
 /**
- * The first screen. [DEV-023] The reference's, in our colours: it fills the
+ * The first screen. [DEV-025] The reference's, in our colours: it fills the
  * viewport; pixels fall from its top edge (`PixelRain`); a flat grid tips away
  * under its foot (`landing-floor`); a phrase turns on an arc over a centred
  * 54px/400 heading; one sentence of definition; two pills.
@@ -14,7 +14,7 @@ import { PillLink } from "./pill-link";
  * The product itself is the second block's job now; the state board moved to
  * /product, where the reference keeps its large app view.
  *
- * [DEV-024] Watched live, not from stills: the pixel field reaches two fifths
+ * [DEV-026] Watched live, not from stills: the pixel field reaches two fifths
  * of the screen and leaves the middle open for a soft light behind the heading
  * (`landing-hero-light`); and the floor answers the pointer — the cell under it
  * lights up and fades (`CellField`, on the floor's own plane, so the browser
@@ -39,7 +39,7 @@ export function Hero() {
           <OrbitText text={h.orbit} className="text-body font-medium text-ink" />
         </div>
         {/* ONE WORD IN THE ACCENT, and it is «доказ» — the word the whole page is
-          * about. [2026-09-22] DEV-023 took the accent phrase out of every heading
+          * about. [2026-09-22] DEV-025 took the accent phrase out of every heading
           * («the muted second line does that work»), and with it the last place the
           * brand's colour appeared above the fold: the first screen then held two
           * orange pill rims and nothing else with a hue, which is why the page read

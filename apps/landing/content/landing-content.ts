@@ -1,6 +1,6 @@
 import type { CompareRowKey } from "@goproceed/ui/components";
 
-// [DEV-022] Page paths, not in-page anchors: the landing is four pages.
+// [DEV-024] Page paths, not in-page anchors: the landing is four pages.
 export type NavItem = { label: string; href: `/${string}` };
 export type PageKey = "home" | "product" | "roles" | "pilot";
 export type Fact = { value: string; label: string };
@@ -36,10 +36,10 @@ export const landingContent = {
     pill: { badge: "Безкоштовний пілот", text: "для субпідрядників із прихованими роботами", href: "/pilot" },
     title: "Робота готова до приймання, коли доказ на місці.",
     titleAccent: "доказ",
-    // [DEV-022] Two sentences for the payer: what it is, then why it matters.
+    // [DEV-024] Two sentences for the payer: what it is, then why it matters.
     // The longer walk through the route moved to /product.
     lead: "GoProceed — веб-застосунок, який тримає разом вимогу, фото-доказ і рішення технагляду по кожній прихованій роботі. Затримка приймання затримує гроші: тут акт збирається з фактів, а не з чатів, і видно, що заблоковано і чому.",
-    // [DEV-023] The phrase turning on the arc over the heading — the reference's
+    // [DEV-025] The phrase turning on the arc over the heading — the reference's
     // product category line. Ours names what the product is, in four words.
     orbit: "Доказовий контур прихованих робіт",
     primaryAction: "Обговорити пілот",
@@ -49,7 +49,7 @@ export const landingContent = {
     frameLabel: "Стан пакету робіт у веб-застосунку GoProceed",
     dimension: "W-014 · ВРУ-1 · секція А · відм. +3.300",
   },
-  // [DEV-023] The reference's second block: a split — the records of one work
+  // [DEV-025] The reference's second block: a split — the records of one work
   // as a floating menu over two rows of drifting tags, beside a two-tone
   // statement of what the product is — and, under it, four numbered columns.
   intro: {
@@ -67,7 +67,7 @@ export const landingContent = {
       { index: "04", title: "Технагляд", text: "Одне посилання на одну вимогу, без облікового запису." },
     ],
   },
-  // [DEV-023] The reference's statistics band, over facts and not figures of
+  // [DEV-025] The reference's statistics band, over facts and not figures of
   // merit: there are no outcome numbers to show (PRODUCT.md), so each tile is
   // a term of the pilot that is simply true.
   facts: {
@@ -105,7 +105,7 @@ export const landingContent = {
       footRecord: "у записі: те саме фото відповідає на всі питання наради",
     },
   },
-  // [DEV-022] The home page's product block: three of the route's five moments,
+  // [DEV-024] The home page's product block: three of the route's five moments,
   // one per argument the payer weighs. Each reuses the UI window its route card
   // shows on /product, and claims nothing those cards do not.
   scenes: {
@@ -113,7 +113,7 @@ export const landingContent = {
     eyebrow: "Що змінюється",
     title: "Три моменти, де робота зазвичай втрачає доказ",
     titleAccent: "втрачає доказ",
-    // [DEV-023] the same sentence, as the reference's two-tone heading
+    // [DEV-025] the same sentence, as the reference's two-tone heading
     headLead: "Три моменти,",
     headRest: "де робота зазвичай втрачає доказ.",
     lead: "Вимога, кадр і рішення тримаються на одній роботі: від майданчика до чернетки акта.",
@@ -208,7 +208,7 @@ export const landingContent = {
     ] as const,
     more: { label: "Як проходить пілот", href: "/pilot" },
   },
-  // [DEV-023] The application view on /product — what the board shows, not how evidence is sent.
+  // [DEV-025] The application view on /product — what the board shows, not how evidence is sent.
   board: {
     lead: "Увесь пакет робіт на одному екрані:",
     rest: "що готово, що на розгляді і що заблоковано.",
@@ -335,7 +335,7 @@ export const landingContent = {
     titleAccent: "на одному пакеті робіт",
     lead: "Візьмемо одну чинну вимогу, один польовий сценарій і один зовнішній розгляд. Цього достатньо, щоб побачити, де процес зберігає доказовість.",
     rule: { label: "Пілот" },
-    // [DEV-023] the five records of one work, either side of our mark
+    // [DEV-025] the five records of one work, either side of our mark
     codes: ["W", "R", "EV", "DR", "CL"],
     points: ["безкоштовно", "два тижні на одному пакеті робіт", "без договору і передоплати"],
     primary: "Заповнити запит на пілот",
@@ -359,7 +359,7 @@ export const landingContent = {
     copyright: "© 2026 GoProceed",
     disclaimer: "Демонстраційні дані. Частина показаних сценаріїв перебуває у розробці. Чернетка акта не є підписаним документом.",
   },
-  // [DEV-022] One title, description and canonical per page. Kept here, not in
+  // [DEV-024] One title, description and canonical per page. Kept here, not in
   // landing-metadata.ts, so the forbidden-claim tests read these strings too.
   pages: {
     home: { path: "/", title: "GoProceed — робота готова до приймання, коли доказ на місці", description: "GoProceed для підрядників, які здають приховані роботи: вимога, доказ із майданчика і рішення технагляду в одному маршруті, який закінчується чернеткою акта." },

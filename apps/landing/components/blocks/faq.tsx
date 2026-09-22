@@ -4,7 +4,7 @@ import { landingContent } from "../../content/landing-content";
 import { splitTitle } from "./section-head";
 import { TwoTone } from "./two-tone";
 
-/** [DEV-023] The reference's FAQ: a small label and a two-tone heading at left, a chevron accordion between hairlines at right. */
+/** [DEV-025] The reference's FAQ: a small label and a two-tone heading at left, a chevron accordion between hairlines at right. */
 export function Faq() {
   const q = landingContent.faq;
   const title = splitTitle(q.title, q.titleAccent);
