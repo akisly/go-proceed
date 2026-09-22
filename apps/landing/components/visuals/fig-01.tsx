@@ -10,7 +10,7 @@ export function Fig01() {
   const f = landingContent.problem.figure;
   const { chat, record } = demoRecords.fig01;
   return (
-    <figure className="mt-8 overflow-hidden rounded-card border border-line-strong bg-surface md:mt-12">
+    <figure className="overflow-hidden rounded-card border border-line-strong bg-surface">
       <figcaption className="flex justify-between gap-4 border-b border-line px-4 py-3 font-mono text-micro uppercase tracking-wide text-ink-muted">
         <span><b className="font-medium text-ink">{f.number}</b> · {f.title}</span><span>{f.note}</span>
       </figcaption>

@@ -81,6 +81,16 @@ const PAIRS: Array<[label: string, fg: string, bg: string, min: number]> = [
   ["the focus ring inside an inverse surface", "border-focus-inverse", "bg-inverse", 3.0],
   ["the accent phrase in a display heading, on the canvas (large text)", "text-accent", "bg-canvas", 3.0],
   ["the accent phrase in a display heading, on a surface (large text)", "text-accent", "bg-surface", 3.0],
+  // [2026-09-22, DEV-029] The warm tint block and the four decorative index
+  // tints. Each chip is asserted against its OWN ground, because that is the
+  // only place its mark is ever read; a chip tint is never a page ground and
+  // never a status, so it owes no row against the canvas.
+  ["copy on the warm tint block", "text-primary", "bg-tint-warm", 4.5],
+  ["metadata on the warm tint block", "text-muted", "bg-tint-warm", 4.5],
+  ["the warm index chip's mark", "text-chip-clay", "bg-chip-clay", 4.5],
+  ["the cool index chip's mark", "text-chip-violet", "bg-chip-violet", 4.5],
+  ["the green index chip's mark", "text-chip-pine", "bg-chip-pine", 4.5],
+  ["the neutral index chip's mark", "text-chip-stone", "bg-chip-stone", 4.5],
 ];
 
 /** Structural lines: not a 1.4.11 case, but a border nobody can see is a
@@ -100,6 +110,11 @@ const LINES: Array<[label: string, fg: string, bg: string, min: number]> = [
   // alone in this table carries 3.0). 1.3 is the same margin-below-measured
   // convention as border-subtle/border-default/border-strong above.]
   ["the destructive border on a surface", "status-blocked-border", "bg-surface", 1.3],
+  // [2026-09-22, DEV-029] A tinted panel outlined in a cooler line than its own
+  // fill is what makes a warm block look like a mistake, so the warm tint gets
+  // its own edge and that edge is held to the same order as the neutral ladder.
+  ["the warm border on the canvas", "border-warm", "bg-canvas", 1.2],
+  ["the warm border on the warm tint block", "border-warm", "bg-tint-warm", 1.1],
 ];
 
 for (const theme of ["light", "dark"] as Theme[]) {

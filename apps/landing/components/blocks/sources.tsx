@@ -30,7 +30,7 @@ export function Sources() {
         <p className="index-label border-b border-line py-3.5 text-center">{s.label}</p>
         <ul className="grid grid-cols-2 gap-px bg-line md:grid-cols-3 wide:grid-cols-6">
           {s.items.map((item) => (
-            <li key={item.code} className="grid min-h-[116px] content-start justify-items-center gap-1.5 bg-canvas px-4 pb-5 pt-7 text-center transition-colors duration-base ease-out hover:bg-surface">
+            <li key={item.code} className="grid min-h-[116px] content-start justify-items-center gap-1.5 bg-canvas px-4 pb-5 pt-7 text-center transition-colors duration-base ease-out hover:bg-tint-warm">
               <b className="font-mono text-data font-medium tracking-tight text-ink">{item.code}</b>
               <span className="max-w-[24ch] text-meta leading-snug text-ink-muted">{item.title}</span>
             </li>

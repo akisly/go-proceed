@@ -3,10 +3,24 @@ import { landingContent } from "../../content/landing-content";
 import { PILOT_EMAIL } from "../../content/pilot-request";
 import { BrandMark } from "../brand-mark";
 
+/**
+ * [2026-09-22, DEV-029] The footer closes the page on the WARM TINT.
+ *
+ * It was the inverse ground for one revision, and the owner threw it out on
+ * sight: «те темные блоки вообще как-то не к чему, не вписываются, они не от
+ * мира сего». They were right, and the reason is in the reference itself — in
+ * all five shots the near-black is never a SECTION, it is the backdrop a light
+ * product is photographed against. A footer has no product on it. What is left
+ * on a dark ground there is a black slab with links in it, which belongs to a
+ * different page than the one above it.
+ *
+ * The tint does the job the dark was brought in for — the page stops being one
+ * unbroken sheet of paper — at a hundredth of the cost.
+ */
 export function Footer() {
   const f = landingContent.footer;
   return (
-    <footer className="landing-inset py-10 text-data text-ink-muted">
+    <footer className="landing-inset bg-tint-warm py-14 text-data text-ink-secondary">
       <div>
         <div className="mb-8 grid gap-8 md:grid-cols-2 wide:grid-cols-[1.4fr_1fr_1fr_1fr]">
           <div>
@@ -32,9 +46,9 @@ export function Footer() {
             {f.trust.items.map((t) => <p key={t} className="py-1">{t}</p>)}
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line pt-5">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-t border-line-warm pt-5">
           <span>{f.copyright}</span>
-          <p className="max-w-[70ch] text-meta text-ink-muted">{f.disclaimer}</p>
+          <p className="max-w-[70ch] text-meta text-ink-secondary">{f.disclaimer}</p>
         </div>
       </div>
     </footer>

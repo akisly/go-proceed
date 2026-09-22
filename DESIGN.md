@@ -187,7 +187,11 @@ as an instrument someone can trust, not a pitch.
   owner: «сделай кнопку в лого зеленой, а текст черным» — the mark's dot is the
   PRIMARY now, and the wordmark is ink. The logo is where both brand colours
   could have stood together; the owner chose green on the mark and black on the
-  name, so the secondary appears on the landing in two places only.]*
+  name.]* *[2026-09-22, DEV-029: counted properly, ember is on the landing as LIGHT
+  in three places and as a FILL in none: the ink pills' travelling light, the
+  board's beam ring (`@utility beam`) and the tap highlight. For one pass the
+  closing call and the pilot submit were orange buttons; the owner took them
+  off: «оставь только черные с бордером».]*
 - Structure is a 1px line and a step of lightness between four background
   roles, not a shadow ladder. `shadow-float` is reserved for the handful of
   surfaces that genuinely lift off the page: the product frame, the receipt,
@@ -221,7 +225,7 @@ white is our ink, its grey second line is `ink-muted`, its hairlines are
 the DEV-028 note in «Overview»]*. What the
 landing takes: fixed double guide lines at both edges with the header inside
 them; a full-viewport hero over a pixel-rain field and a perspective floor,
-with an orbiting arc of text above a 54px/400 heading; pill controls, the
+with a 54px/400 heading *[2026-09-22, DEV-029, owner: «снять то, что ничего не держит»: the landing no longer calls `OrbitText` — its type sat on an arc at about 2:1 on the one screen that has to be read. The primitive, its `gp-orbit` loop, its `base.css` styles, its kitchen-sink instance and `first-screen-primitives.test.ts`'s contract all remain.]*; pill controls, the
 primary one with a travelling light on its border; dotted bands between
 sections; two-tone section headings (first line ink, second muted); a sticky
 feature list beside large rounded cards; cards on a fading grid ground; a fact
@@ -316,9 +320,13 @@ warning: rule 4's exact failure mode, in the document that teaches rule 4.]*
 viewport; its scarcity is what makes the one accent action or a travelling
 light legible as *the* thing to look at *[2026-09-22: the mark's dot was the
 third item here until the owner made it the primary; ember is on the landing
-in two places now]*. `bg-action-signal` is a
-ceiling, not a quota: at most one per screen, and the landing carries none,
-because its primary action is ink. Pine is not under this rule — it is the
+as LIGHT in three places (the pills' travelling light, the board's beam ring,
+the tap highlight) and as a FILL in none. An ember GLOW sat under two dark
+panels for one revision and went with them, and the orange buttons at the
+closing call and the pilot submit went after them at the owner's word]*.
+`bg-action-signal` is a ceiling, not a quota: at most one per screen, and **the
+landing carries none** — every action on it is the ink pill with its border.
+Pine is not under this rule — it is the
 brand and it may carry text — but it is still a mark, not a wash: nothing is
 filled with it that a reader has to read through.
 
@@ -399,6 +407,68 @@ signature lift — is reserved for the handful of surfaces that are genuinely
 floating above the page: the product frame, the receipt, the pilot form, the
 route cards, the "now" card in a comparison pair.
 
+*[2026-09-22, DEV-029, owner: «возможно добавить глубины».] ON `apps/landing`,
+AND THERE ONLY, atmospheric depth is now permitted — and it is permitted as a
+LIST, not as a licence. `apps/app` and `apps/mobile` are unchanged: structure
+there is still a 1px line and a step of paper tone.*
+
+**THE GROUND IS BOUND TO THE OBJECT, NEVER TO THE SECTION.** This is the rule
+two revisions of DEV-029 got wrong, and an `impeccable` critique named it
+exactly: «ground stopped being a level and became a costume». Grounds were
+handed out by ADDRESS — «the footer, the FAQ and the pilot's plan take the tint;
+one product moment a page takes the dark» — so the same object appeared on four
+different grounds and one ground carried five unlike things. The measured
+result: **32 distinct card treatments across four pages, 20 of them appearing
+exactly once**, and the same warm card living at 16px on `/` and 14px on
+`/product`.
+
+*There are four legal forms and nothing else:*
+
+1. **Paper** (`bg-canvas`) — the page.
+2. **A white sheet with `shadow-float`** — a product artefact. Nothing else.
+3. **The stage** (`.landing-stage`: `bg-tint-warm`, `radius-surface`, one warm
+   border, and ONE light falling from the top-left) — what an artefact lies on.
+   ONE treatment, everywhere: the
+   intro's panel, the three scene cards, the five route cards, the three channel
+   cards, Рис. 01, the board's panel, the compare pair's panel, the pilot's
+   plan rail. It replaced `.landing-wash-warm`, a three-angle gradient handed
+   out by address. *[2026-09-22: flattened entirely for one revision, which was
+   an over-correction — the fault was the ADDRESSING, not the light. The stage
+   carries a single gradient again, defined once and identical at all eight
+   addresses, which is what the owner's brief asked for («небольших
+   градиентов-блоков») and what the grammar allows.]*
+4. **A full-bleed band** — square, edge to edge, no radius. Two kinds: a
+   hairline grid whose 1px gaps ARE the lines (the intro strip, the fact tiles,
+   the ДБН sources) and a flat tint ground (the FAQ, the footer).
+   *[2026-09-22, owner: «оставь вот такие блоки на всю ширину».] The grid strips
+   were briefly pulled into the house column and the owner put them back. He is
+   right: those passages are the only ones built purely from the native
+   vocabulary — hairline, mono index, edge to edge — and the critique named them
+   as the only ones that could not belong to another product.]*
+
+**THERE IS NO DARK GROUND ON THE LANDING.** *[2026-09-22, owner: «убрать тёмное
+совсем».]* It existed for two revisions: six sections, which the owner threw out
+on sight («не от мира сего»), then two panels. The critique showed why even the
+survivors failed — on the compare pair the dark was a 40px frame around two
+cards that never overlapped its edge, which is an outline, not a backdrop. With
+it go `.landing-deep`, `.landing-glass-deep`, both radial glows and the
+`bg-mocha` role — and with them the one contrast failure the critique measured,
+a glass pill at 3.94:1 that had drifted off its panel onto a white card.
+
+*Glass has two addresses, on one condition: the ground under it must have
+something in it. The header's veil, and the hero's secondary pill, which stands
+on the perspective floor's grid. Over flat paper a blur has nothing to resolve
+and a translucent white pill is just a pale one. [2026-09-22] The board's two
+satellites wore it for one revision; `gp-ui-reviewer` measured that they sit
+above and below the board on the stage's near-flat light, not over the product,
+so they went back to white sheets with a hairline.*
+
+**A TINT HAS TO BE VISIBLE.** `bg-tint-warm` stands 17 of 255 from the paper in
+its strongest channel. It was 7 for one revision, which is a tint that exists in
+the stylesheet and not on the screen — every wash and every band on the site was
+built on it and none of them could be seen. Seven is the number to remember: if
+a new ground is that close to the canvas, it is not a ground.
+
 ### Shadow Vocabulary
 
 - **Raised** (`0px 1px 2px rgba(21, 22, 26, 0.04)`): the role-grid cell at
@@ -414,7 +484,10 @@ route cards, the "now" card in a comparison pair.
   does not have to choose between two documents.]*
 
 **The Structural Shadow Rule.** A shadow must explain overlap; ordinary
-document cells, rows and textual sections stay flat.
+document cells, rows and textual sections stay flat. *[DEV-029: a card that
+LIFTS on hover explains an overlap it is about to have, which is why the scene
+and route cards may add `shadow-float` to a hover that already changes their
+border. A card that carries a shadow at rest still owes one.]*
 
 ## Shapes
 
@@ -579,8 +652,14 @@ read through the glass rather than beside it.]*
   ACCENT WORD — «доказ» inside the h1, the first accent phrase in a heading
   since DEV-026 removed them, and the largest chromatic mark above the fold.
   The mark's dot is the accent now too, where it used to be the spark.]* What
-  stays ink or `surface`: the grid LINES, the hero's pixel field, the dotted
-  bands, and every hover of a card, row, tile, source cell or link. It is
+  stays ink or `surface`: the grid LINES, the dotted
+  bands, and every hover of a card, row, tile, source cell or link.
+  *[2026-09-22, DEV-029, owner: «сделай цвет этих сверканий зеленым, или
+  оранжевым, лучше зеленым».] The hero's pixel field joined the accent list: it
+  was the last ornament in ink, and the owner chose the primary over the spark.
+  The dots under the glass header stay dim (B7-01) — the colour moved, the calm
+  did not. «доказ» stays the only pine TYPE on the first screen; the field is
+  now its largest pine AREA, and it sits behind no text a reader has to read.]* It is
   still one hue, still never a text colour outside a display heading, and
   `apps/app` keeps the ration whole. `gp-ui-reviewer` (third pass): the page
   «still reads as ink on paper with one accent», the fact fold is the owner's
@@ -595,10 +674,29 @@ read through the glass rather than beside it.]*
 
 ### Don't:
 
-- **Don't** add a THIRD brand colour, a gradient fill, or a lime survivor
-  anywhere in the system. The brand sheet is two colours: pine leads, ember
-  sparks. A status hue is not palette variety either — it belongs to the
-  state, and decorating with it is how a legend stops being true.
+- **Don't** add a THIRD brand colour or a lime survivor anywhere in the system.
+  The brand sheet is two colours: pine leads, ember sparks. A status hue is not
+  palette variety either — it belongs to the state, and decorating with it is
+  how a legend stops being true.
+  *[2026-09-22, DEV-029, owner: «поменять только немного палитру, бо выглядит
+  монотоным, возможно добавить глубины, небольших градиентов-блоков,
+  глазморфизма».] This line read «a THIRD brand colour, A GRADIENT FILL, or a
+  lime survivor» until this task. The gradient clause is withdrawn and replaced
+  by the rule below it, which is narrower and says what the clause was actually
+  protecting: not «no gradient» but «no colour that reaches the page without
+  passing through a role». The brand is still two colours. `clay` is a GROUND
+  ramp — the reference's mocha, at under a third of ember's chroma — and the
+  four `chip-*` tints are decorative index marks, not brands and not states.*
+- **Don't** write a gradient, a glow or a glass surface as a VALUE. Every one of
+  them is a named utility in `packages/ui/src/base.css` or the landing's own
+  `globals.css`, composed from role variables with `color-mix` — the way
+  `media-tint-1…5`, `media-glow-*`, `.landing-stage` and `.landing-glass` are
+  built. A gradient in a component is a colour that no role names, no test
+  measures and no theme reaches.
+- **Don't** let a decorative tint sit in the same cell as a status chip. The
+  four `chip-*` tints are bound to the ORDER of an enumeration — the four roles,
+  the five route steps, the four columns of the intro strip. Two coloured marks
+  in one card is how a reader learns that neither of them means anything.
 - **Don't** reach for brutalism — no raw borders as decoration, no oversized
   display type, no deliberate roughness. The system is quiet by contract.
 - **Don't** build a 3D scene — a WebGL or modelled scene, a camera, lit
@@ -621,7 +719,8 @@ read through the glass rather than beside it.]*
   — spec 2026-09-06 R2.]
 - **Don't** run any animation forever except the named loops — the marquee,
   the Border Beam, the review-dot pulse, the hero drift, the dashed flow lines,
-  and, since DEV-026, the hero's orbiting arc text (`gp-orbit`), the closing
+  and, since DEV-026, the arc text (`gp-orbit` — kept in the vocabulary, no
+  longer called by the landing since 2026-09-22), the closing
   block's breathing mark (`gp-breathe`) and the `PixelRain` canvas. Each stops
   under reduced motion, where the rain is one still frame
   *[2026-09-19, DEV-027: `ParticleSphere` turns for as long as it is on screen;

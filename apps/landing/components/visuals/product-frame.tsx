@@ -20,7 +20,7 @@ import { Receipt } from "./receipt";
 export function ProductFrame() {
   const pills = demoRecords.receipt.pills;
   return (
-    <Reveal on="load" delay={0.35} size="grand" y={60} className="mt-11 md:mt-16">
+    <Reveal on="load" delay={0.35} size="grand" y={60} className="mt-8 md:mt-10">
       <ScrollSettle className="pb-4 md:pb-24">
         {/*
           The receipt is a standalone `Reveal` (its own entrance, independent

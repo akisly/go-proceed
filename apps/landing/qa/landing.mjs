@@ -219,8 +219,27 @@ try {
       for (let x = 0; x < info.width; x++) {
         if (!(x < BAND || y < BAND || x >= info.width - BAND || y >= info.height - BAND)) continue;
         const i = (y * info.width + x) * info.channels;
-        // paper, white and ink are all near-neutral; the beam is the signal (ember
-        // since 2026-09-22, cobalt before it) — either way the one chromatic thing here
+        // [2026-09-22, DEV-029] This test used to stand on «paper, white and ink
+        // are all near-neutral, so the beam is the one chromatic thing here».
+        // Under the Autumn palette that is FALSE: the canvas #ECE9DF has an R−B
+        // spread of 13 and the board's warm stage #E8DCCE one of 26, against
+        // this threshold of 8. Both count as painted, so this number is
+        // «beam + ground» and it drifted 674 → 806 across DEV-029 without the
+        // beam changing. It still proves the beam ELEMENT exists, is unclipped
+        // and is painting — the number rose, and a clipped beam measured 64 —
+        // but it no longer measures how much of that is the beam, and the
+        // floor's margin (200 against a clipped 64) has not been re-established
+        // on this ground.
+        //
+        // THE FIX IS NOT A HIGHER THRESHOLD — that would start discarding ember
+        // too. It is a control shot: `beamsShownReduced === 0` proves the beam
+        // is hidden under reduced motion, so the same band there yields the
+        // ground alone and `full − ground` is the beam. That needs a
+        // CLIP-based capture at the full run's document coordinates, because
+        // the beam element cannot be screenshotted while it is `display: none`.
+        // Tried and reverted on 2026-09-22 (DEV-029) rather than rushed:
+        // changing how this file MEASURES deserves its own review. Recorded for
+        // `gp-qa` in the task record.
         if (Math.abs(data[i] - data[i + 1]) > 8 || Math.abs(data[i + 1] - data[i + 2]) > 8 || Math.abs(data[i] - data[i + 2]) > 8) painted++;
       }
     }
@@ -534,7 +553,7 @@ try {
     && p.rainUnderHeader.maxAlphaInBand <= 90 && p.rainUnderHeader.maxAlphaBelow >= 150 && p.rainUnderHeader.dotsInBand >= 0.9 * p.rainUnderHeader.cellsInBand
     && p.veilAtTop.atTop === null && p.veilAtTop.opacity === "1" && p.veilAtTop.rainTop === 0 && p.veilScrolled.atTop === null && p.veilScrolled.opacity === "1" && p.veilNarrowAtTop.opacity === "1" && p.veilNarrowAtTop.blurred && p.veilNarrowAtTop.ground === p.veilAtTop.ground
     && p.veilAtTop.blurred && p.veilScrolled.blurred && p.veilAtTop.ground !== "rgba(0, 0, 0, 0)" && p.veilScrolled.ground === p.veilAtTop.ground
-    && p.rain === "running" && p.orbit === "turning" && p.rainReduced === "still" && p.orbitReduced === "still" && p.heroFillsViewport
+    && p.rain === "running" && p.orbit === null && p.rainReduced === "still" && p.orbitReduced === null && p.heroFillsViewport
     && p.stepperProgress >= 0.99
     // the board's two review cards on the home page, the «пілот» chip on /product
     && same(p.pulsing, { home: 0, product: 3, roles: 0, pilot: 0 })
@@ -710,7 +729,7 @@ try {
       const lights = getComputedStyle(document.querySelector("[data-dome] .landing-dome-light")).backgroundImage;
       return {
         dotsAreAccent: getComputedStyle(document.querySelector("[data-particle-sphere]")).color === accent,
-        // [owner, third pass] the lit cells — here and on the hero's floor — and the closing arcs are the accent too; the pixel field stays ink
+        // [owner, third pass] the lit cells — here and on the hero's floor — and the closing arcs are the accent too; [DEV-029, owner] and so is the pixel field
         gridIsAccent: getComputedStyle(document.querySelector("#facts > canvas[data-cell-field]")).color === accent,
         floorIsAccent: getComputedStyle(document.querySelector("#hero .landing-floor-plane canvas")).color === accent,
         arcsAreAccent: getComputedStyle(document.querySelector("#cta-final canvas[data-arc-field]")).color === accent,
@@ -875,7 +894,7 @@ try {
     && x.pillBeam && x.pillBeam.moves && x.pillBeam.distanceMoves && x.pillBeam.boxMoves && x.pillBeam.path.startsWith("inset(") && x.pillBeam.animation === "gp-beam-travel" && x.pillBeam.duration === "3s" && x.pillBeam.ring === "2px" && x.pillBeam.faceIsPillColour && x.pillBeam.ringPainted && x.pillBeam.clipped === "hidden" && x.pillBeam.inkPills >= 3 && x.pillBeam.count === x.pillBeam.inkPills && x.pillBeam.onPaper === 0
     && x.pillBeamFocused.focusVisible && x.pillBeamFocused.beam === "none"
     && x.gridLitUnderTiles === 0 && x.tilesHovered && x.clearRow.fits
-    && x.domeColours.dotsAreAccent && x.domeColours.gridIsAccent && x.domeColours.floorIsAccent && x.domeColours.arcsAreAccent && !x.domeColours.rainIsAccent
+    && x.domeColours.dotsAreAccent && x.domeColours.gridIsAccent && x.domeColours.floorIsAccent && x.domeColours.arcsAreAccent && x.domeColours.rainIsAccent
     && x.domeColours.paintedDotIsAccent && x.domeColours.lightsAreGradients
     && x.domeColours.domeHeadroom.above === 96 && x.domeColours.domeHeadroom.firstPaintedRow >= 80
     && x.floorRest === 0 && x.floorLit > 0 && x.floorFaded === 0

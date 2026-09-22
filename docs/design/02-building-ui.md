@@ -136,6 +136,8 @@ nothing, fails a test, or silently drops a class.
 | `lg:`, `xl:`, `sm:` | `md:`, `wide:`, `rail-icons:` | A typo fails loudly instead of silently targeting a width this design never reasons about |
 | `h-11`, `h-9` on a control | `h-(--gp-control-height-desk) touch:h-(--gp-control-height-touch)` | `component-contract.test.ts` fails; the literal stops tracking the token |
 | `shadow-md`, a shadow on a panel | nothing — use `border border-line` | Structure is border-led. Folio ships 180 borders to 8 shadows |
+| a gradient, glow or glass written as a VALUE | a named `@utility` built from roles with `color-mix` | DEV-029. `media-tint-*`, `media-glow-*`, `.landing-stage`, `.landing-glass` are the pattern. A gradient in a component is a colour no role names, no test measures and no theme reaches |
+| `bg-chip-*` beside a status chip | one or the other | DEV-029. The four index tints are bound to the ORDER of an enumeration; two coloured marks in one cell teach the reader that neither means anything |
 | `transition-all` | `transition-colors`, `transition-transform`, `transition-opacity` | `motion-audit` rule 1 |
 | `ease-in`, `ease-in-out` | `ease-out`, `ease-enter`, `ease-emphatic`, `ease-soft` | Rule 3. Ease-in stalls the first frame — the frame being watched |
 | `duration-200` | `duration-fast`, `duration-base` | A number means nothing; a name changes everywhere at once |
@@ -152,7 +154,7 @@ nothing, fails a test, or silently drops a class.
 | `onPointerMove` + `style.transform` for a lean or a pointer follow | `Tilt` / `Magnetic` | Rule 5; and the gates (pointer:fine, `md`, reduced) live in the word, not in the caller |
 | a paragraph in `text-accent` | `text-accent` inside a display heading; `text-link` for a link | A discipline, not a contrast limit any more: pine measures 6.30:1 on the canvas, where cobalt measured 4.35:1 and was held to the 3:1 large-text bar. An accent phrase is still a phrase, not a paragraph |
 | `h-11` on a marketing control | `size="lg"` on `Button`; `h-(--gp-control-height-marketing)` on an input | The literal stops tracking the token |
-| a lime fill, `bg-signal` as decoration | `bg-action-signal` on at most one action, or ink | The spark is ember since 2026-09-22 (cobalt from 2026-09-05), it carries INK and never white, and the landing uses none |
+| a lime fill, `bg-signal` as decoration | `bg-action-signal` on at most one action, or ink | The spark is ember since 2026-09-22 (cobalt from 2026-09-05), it carries INK and never white, and the landing uses none (DEV-029 carried one per page for one pass; the owner took it off) |
 
 ### 4.2 Where code goes
 
@@ -191,7 +193,8 @@ Terse on purpose; each is enforced by a named test.
    and dashed «flow» lines, so the allowlist names five loops and a test pins
    the list. A sixth is a §7.3 decision.]
    [2026-09-19 (DEV-026, owner: the landing «1 в 1» after its reference): the
-   sixth and seventh are `gp-orbit` (the hero's arc text) and `gp-breathe` (the
+   sixth and seventh are `gp-orbit` (the arc text — in the vocabulary and the
+   kitchen sink; the landing stopped calling it on 2026-09-22) and `gp-breathe` (the
    closing block's mark). `PixelRain` is a canvas primitive in
    `@goproceed/ui/motion`, not a CSS loop; it draws one still frame under
    reduced motion.]
@@ -220,7 +223,7 @@ Terse on purpose; each is enforced by a named test.
    and never in one fold». The parity spec §3 names them: the hero (settle +
    depth), the problem statement, the route stack, the position quote, the
    pilot stepper. Adding one is a spec change, not a prop.]
-10. At most one `bg-action-signal` per screen *(corrected 2026-09-05: was «exactly one»; the Daylight landing's primary is ink and carries none)*
+10. At most one `bg-action-signal` per screen *(corrected 2026-09-05: was «exactly one»; the Daylight landing's primary is ink and carries none. DEV-029 allowed one per page for one pass on 2026-09-22 and the owner withdrew it the same day)*
 
 ---
 
