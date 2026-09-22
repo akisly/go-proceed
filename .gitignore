@@ -108,9 +108,10 @@ discovery/outreach-log.csv
 discovery/suppression.csv
 discovery/drafts/
 discovery/*.db
-# Any other data file in the store (DEV-031): discovery/README.md and HANDOFF-B0 say its
+# The store's other data formats (DEV-031): discovery/README.md and HANDOFF-B0 say its
 # CSVs, databases and drafts are never committed, and earlier sessions wrote candidates,
-# rankings and merged lead lists there. The validator refuses these paths if forced in.
+# rankings and merged lead lists there. The validator goes further: it refuses any tracked
+# file in discovery/ but its prose, src/ and package files, whatever the extension.
 discovery/**/*.csv
 discovery/**/*.tsv
 discovery/**/*.psv
@@ -119,6 +120,7 @@ discovery/**/*.jsonl
 discovery/**/*.db
 discovery/**/*.sqlite
 discovery/**/*.sqlite3
+discovery/**/*.txt
 .gstack/
 
 # Agent-session screenshots and briefs; DEV-007 removed the tracked copy (2026-09-14).

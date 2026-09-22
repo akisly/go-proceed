@@ -153,7 +153,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-122](#bl-122) | P2 | deferred (owner) | The private prospecting copy has no recorded purpose, retention date or backup, and erasure cannot reach history |
 | [BL-123](#bl-123) | P3 | open | Nothing technical keeps an agent session out of the private prospecting copy |
 | [BL-124](#bl-124) | P2 | open | The prospecting-data guard detects only after the fact and knows one field |
-| [BL-125](#bl-125) | P3 | open | Two validator guards read `git ls-files` split by newline and would skip a quoted path |
+| [BL-125](#bl-125) | P3 | open | Three validator guards read `git ls-files` split by newline and would skip a quoted path |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1497,17 +1497,17 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-031's `gp-security` and `gp-reviewer` reviews (S1-01, S1-05, S1-07; R1-02). BL-081's guards refuse a tracked ProZorro `contactPoint`, anything under `outputs/`, unreadable formats and discovery data files, but: (1) nothing prevents a commit — the validator runs where someone runs it, and CI detects only after a push, when the data is already on the remote and in pull-request refs; a pre-commit or pre-push hook, or a Claude Code hook on `git commit`, would prevent it (an agent-instructions or config change, with its own route); (2) the guard reads the tree, not the commits a branch adds, so a dump committed and then removed passes; a range mode (`origin/main..HEAD`, every blob added) would catch it; (3) the content rule knows one field: outside `outputs/`, content and format would have refused 14 of the session's 250 files, and sole traders' ten-digit tax numbers, outreach routes and customers named in tender titles pass it. Ranked by DEV-031.
+- **Why:** DEV-031's `gp-security` and `gp-reviewer` reviews (S1-01, S1-05, S1-07; R1-02). BL-081's guards refuse a tracked ProZorro `contactPoint`, anything under `outputs/`, unreadable formats and discovery data files, but: (1) nothing prevents a commit — the validator runs where someone runs it, and CI detects only after a push, when the data is already on the remote and in pull-request refs; a pre-commit or pre-push hook, or a Claude Code hook on `git commit`, would prevent it (an agent-instructions or config change, with its own route); (2) the guard reads the tree, not the commits a branch adds, so a dump committed and then removed passes; a range mode (`origin/main..HEAD`, every blob added) would catch it; and its content rule reads the index, so an edit not yet staged is not scanned and `git commit -a` commits it unscanned — a pre-commit hook, which reads the index, is the right place for it; (3) the content rule knows one field: outside `outputs/`, content and format would have refused 14 of the session's 250 files, and sole traders' ten-digit tax numbers, outreach routes and customers named in tender titles pass it; an approved fixture's names are not checked, only its emails and telephones. Ranked by DEV-031.
 - **Evidence:** [DEV-031](tasks/DEV-031-outputs-guards.md) «What is not true» and its pre-move count (`scratchpad/dev031-r1-pre-move.txt`, cited there).
 - **Depends on:** nothing for (2); the hook in (1) is an agent-instructions or configuration change; (3) needs a detector for Ukrainian personal tax numbers that does not refuse company codes (eight digits) or the catalogs' identifiers.
 - **Deadline:** before the next prospecting session writes files inside a clone.
 
 <a id="bl-125"></a>
-### BL-125 — P3 — Two validator guards read `git ls-files` split by newline and would skip a quoted path
+### BL-125 — P3 — Three validator guards read `git ls-files` split by newline and would skip a quoted path
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-031's `gp-reviewer` review (a remark). Guards 11 (stale names) and 12 (the retired workflow) in `scripts/validate-canonical-docs.mjs` split `git ls-files` output by newline. With `core.quotePath` on (git's default), a path with a non-ASCII or special character comes back quoted and escaped, the read fails, and `catch { continue; }` skips the file silently. No such path is tracked today (0 on 2026-09-23), so nothing is skipped yet. DEV-031's guard uses `-z` and raw paths. Ranked by DEV-031.
-- **Evidence:** `git ls-files -z | tr '\0' '\n' | LC_ALL=C grep -c '[^ -~]'` → 0 (2026-09-23); the two `execFileSync("git", ["ls-files"], …)` calls in guards 11 and 12.
+- **Why:** DEV-031's `gp-reviewer` review (a remark). Guards 11 (stale names) and 12 (the retired workflow) and the TODOS line-citation guard in `scripts/validate-canonical-docs.mjs` split `git ls-files` output by newline. With `core.quotePath` on (git's default), a path with a non-ASCII or special character comes back quoted and escaped, the read fails, and `catch { continue; }` skips the file silently. No such path is tracked today (0 on 2026-09-23), so nothing is skipped yet. DEV-031's guard uses `-z` and raw paths. Ranked by DEV-031.
+- **Evidence:** `git ls-files -z | tr '\0' '\n' | LC_ALL=C grep -c '[^ -~]'` → 0 (2026-09-23); the three `execFileSync("git", ["ls-files"], …)` calls (guards 11 and 12, the TODOS line-citation guard).
 - **Depends on:** nothing.
 - **Deadline:** before a tracked path carries a Cyrillic name.

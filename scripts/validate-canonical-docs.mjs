@@ -1349,7 +1349,9 @@ export function retiredWorkflowErrors(relPath, text) {
  * and an approved file is STILL SCANNED: every email in it must be on a
  * reserved domain (RFC 2606, RFC 6761) and every telephone all zeros after an
  * optional +380, so a real
- * response saved «as a fixture» fails even after approval. Adding a path here
+ * response saved «as a fixture» fails even after approval. Names are not
+ * checked: a real name beside a synthetic email passes, so a reviewer reads
+ * an approved fixture's names. Adding a path here
  * is a change to how personal data is kept out of git: `gp-security` reviews
  * it (root AGENTS.md, «retention and deletion of personal data»).
  */
@@ -1364,7 +1366,7 @@ const CONTACT_POINT_FORMS = [
   // a YAML block key
   new RegExp(String.raw`^[ \t]*(?:-[ \t]+)?["']?${CP}["']?[ \t]*:[ \t]*(?:#.*)?$`, "gim"),
   // a flattened column in a table or a delimited line
-  new RegExp(String.raw`(?:^|[|,\t])[ \t]*[\w.\[\]]*${CP}[._](?:name|email|telephone|faxNumber|url)\b`, "gim"),
+  new RegExp(String.raw`(?:^|[|,;\t])[ \t]*["']?[\w.\[\]\/]*${CP}[._\/](?:name|email|telephone|faxNumber|url)\b`, "gim"),
 ];
 const CONTACT_POINT_ANY_RE = new RegExp(CP, "i");
 const DELIMITED_EXT_RE = /\.(csv|tsv|psv|txt)$/i;
@@ -1372,8 +1374,10 @@ const CONTACT_POINT_LINES_SHOWN = 5;
 
 // RFC 2606 and RFC 6761: names reserved so that no real mailbox can hold them.
 const RESERVED_EMAIL_DOMAIN_RE = /(?:^|\.)(?:example\.(?:com|net|org)|example|test|invalid|localhost)$/i;
-const EMAIL_RE = /[A-Za-z0-9._%+-]+@([A-Za-z0-9.-]+\.[A-Za-z]{2,}|[A-Za-z0-9-]+)\b/g;
-const TELEPHONE_RE = /["']?telephone["']?\s*[:=]\s*["']([^"'\n]*)["']/gi;
+// A dotted domain only, so a version pin (`actions/checkout@v4`, `next@16`) is not an email.
+const EMAIL_RE = /[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})\b/g;
+// Quoted, unquoted (YAML) or escaped, and a number as well as a string.
+const TELEPHONE_RE = /\\*["']?(?:telephone|faxNumber)\\*["']?\s*[:=]\s*\\*["']?([+\d(][\d\s()+-]{4,})/gi;
 
 function lineIndex(text) {
   const starts = [0];
@@ -1443,9 +1447,11 @@ export function decodeTrackedText(buf) {
  *   - no file the scan cannot read is tracked unless approved: spreadsheets
  *     (the session's workbooks carried the same data as its JSON), archives,
  *     PDFs, word-processor files, parquet and SQLite;
- *   - no data file in the discovery store: `discovery/` is the documented
- *     prospecting store, and its README and HANDOFF-B0 say its CSVs, databases
- *     and drafts are never committed.
+ *   - nothing in the discovery store but its prose and its package:
+ *     `discovery/` is the documented prospecting store, its README and
+ *     HANDOFF-B0 say its CSVs, databases and drafts are never committed, and
+ *     earlier sessions wrote `candidates.txt` and merged lists there. An
+ *     allowlist, because a denylist of data extensions always misses one.
  *
  * THE APPROVED LIST HOLDS ONE FILE, with its reason. A file joins it WITH ITS
  * REASON on the line above, and `gp-security` reviews the addition. Images are
@@ -1455,10 +1461,51 @@ export const UNREADABLE_APPROVED_PATHS = new Set([
   // The normative text of ДБН А.3.1-5:2016, a public building standard the
   // requirement catalog cites; it names no natural person.
   "technical/requirements/dbn-a31-5-2016.pdf",
+  // A text file with one stray NUL byte (offset 746) in a frozen design
+  // reference; it is still read as text by the content rule.
+  "design-references/contest-2026-09/daylight/api/pilot.js",
 ]);
 
+// Binaries the repository legitimately tracks, which hold no text a dump
+// could hide in: images and fonts. Every other blob with a NUL byte is refused
+// unless approved above, so a pickle, an arrow file or a headerless UTF-16
+// export cannot pass unread (DEV-031 R2-04, S2-07).
+const BINARY_ALLOWED_RE = /\.(png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf)$/i;
+
+export function binaryBlobErrors(path) {
+  if (BINARY_ALLOWED_RE.test(path) || UNREADABLE_APPROVED_PATHS.has(path)) return [];
+  return [`${path}: a tracked binary the contactPoint guard cannot read (a NUL byte, and not an image or font) — `
+    + "keep it out of git, or add it to UNREADABLE_APPROVED_PATHS (scripts/validate-canonical-docs.mjs) with its "
+    + `reason and a \`gp-security\` review. ${PATH_REMEDY}`];
+}
+
+/**
+ * `git cat-file --batch` output, split back into one body per requested blob.
+ * STRICT, because a lenient parse fails open: a `<oid> missing` line (a partial
+ * clone, a pruned object) has no size, and reading on would pair every later
+ * path with the wrong bytes and leave the last ones unread. Any header that is
+ * not `<the requested oid> blob <size>`, or bytes left over, is an error.
+ */
+export function parseCatFileBatch(out, blobs) {
+  const entries = [];
+  let at = 0;
+  for (const b of blobs) {
+    const nl = out.indexOf(0x0a, at);
+    const header = nl === -1 ? "" : out.subarray(at, nl).toString("latin1");
+    const m = /^(\S+) (\w+) (\d+)$/.exec(header);
+    if (!m || m[1] !== b.blob || m[2] !== "blob") {
+      return { entries, error: `${b.path}: git cat-file could not read its blob (${header || "no output"})` };
+    }
+    const size = Number(m[3]);
+    entries.push({ path: b.path, body: out.subarray(nl + 1, nl + 1 + size) });
+    at = nl + 1 + size + 1;
+  }
+  return { entries, error: at === out.length ? null : `git cat-file returned ${out.length - at} unexpected bytes` };
+}
+
 const UNREADABLE_RE = /\.(xlsx|xlsm|xlsb|xls|xltx|xltm|ods|numbers|zip|gz|tgz|bz2|xz|7z|rar|tar|parquet|pdf|docx?|odt|rtf|db|sqlite3?)(?:$|\/)/i;
-const DISCOVERY_DATA_RE = /^discovery\/(?:drafts\/|.*\.(?:csv|tsv|psv|ndjson|jsonl|db|sqlite3?)$)/i;
+// The discovery store tracks prose and its own package, nothing else (DEV-031 S2-06).
+const DISCOVERY_TRACKED_RE = /^discovery\/(?:(?!drafts\/)[^]*\.md|src\/[^]*\.(?:ts|sql)|package\.json|tsconfig\.json)$/;
 
 const PATH_REMEDY = "Not yet committed: unstage it and move it outside the clone. Committed but not pushed: amend "
   + "or reset that commit, since `git rm --cached` leaves it in history. Already pushed: stop and tell the owner "
@@ -1477,9 +1524,10 @@ export function prospectingPathErrors(paths) {
         + "UNREADABLE_APPROVED_PATHS (scripts/validate-canonical-docs.mjs) with its reason and a `gp-security` "
         + `review. ${PATH_REMEDY}`);
     }
-    if (DISCOVERY_DATA_RE.test(p)) {
-      errs.push(`${p}: a data file in the discovery store, whose CSVs, databases and drafts hold personal data and `
-        + `are never committed (discovery/README.md). ${PATH_REMEDY}`);
+    if (p.startsWith("discovery/") && !DISCOVERY_TRACKED_RE.test(p)) {
+      errs.push(`${p}: tracked in the discovery store, which tracks only its prose (\`*.md\` outside drafts/), `
+        + "`src/**/*.{ts,sql}`, `package.json` and `tsconfig.json`; its lists, databases and drafts hold personal "
+        + `data and are never committed (discovery/README.md). ${PATH_REMEDY}`);
     }
   }
   return errs;
@@ -2217,6 +2265,19 @@ function selfTest() {
     t.push("discovery store rule");
   }
   if (!trackedIgnoredErrors(["discovery/leads.csv"])[0]?.includes("discovery/leads.csv") || trackedIgnoredErrors([]).length !== 0) t.push("tracked-but-ignored rule");
+  // Round 2 (DEV-031 R2/S2): the discovery allowlist, other separators and
+  // path styles, the approved-file scan's edges, binaries, the batch parser.
+  if (pp(["discovery/candidates.txt", "discovery/x.json", "discovery/src/x.csv.ts"]).length !== 2) t.push("discovery store allowlist");
+  if (cp("x.dat", '"id";"parties/0/contactPoint/email"\n') !== 1) t.push("contactPoint guard (quoted ; header, OCDS slash path)");
+  if (cp("x.md", "| parties/0/contactPoint/email | id |\n") !== 1) t.push("contactPoint guard (slash path in a table)");
+  if (!contactPointErrors("fixtures/tender.json", "contactPoint:\n  telephone: +380 " + "50 111 11 11\n", fx)[0]?.includes("not synthetic")) t.push("contactPoint guard (unquoted telephone in an approved fixture)");
+  if (contactPointErrors("fixtures/tender.json", '{"contactPoint": {}} uses actions/checkout@v4 and next@16\n', fx).length !== 0) t.push("contactPoint guard (a version pin read as an email)");
+  if (binaryBlobErrors("data/frame.pkl").length !== 1 || binaryBlobErrors("docs/a.PNG").length !== 0 || binaryBlobErrors("fonts/x.woff2").length !== 0) t.push("binary blob rule");
+  const batch = Buffer.from("aaa blob 2\nhi\nbbb missing\nccc blob 1\nx\n");
+  const parsed = parseCatFileBatch(batch, [{ blob: "aaa", path: "a" }, { blob: "bbb", path: "b" }, { blob: "ccc", path: "c" }]);
+  if (!parsed.error?.includes("b") || parsed.entries.length !== 1 || parsed.entries[0]?.body.toString() !== "hi") t.push("cat-file batch parser (missing object fails closed)");
+  const whole = parseCatFileBatch(Buffer.from("aaa blob 2\nhi\nccc blob 1\nx\n"), [{ blob: "aaa", path: "a" }, { blob: "ccc", path: "c" }]);
+  if (whole.error !== null || whole.entries.map((e) => e.body.toString()).join() !== "hi,x") t.push("cat-file batch parser (well-formed)");
   // outputs/ is no longer a record directory: only its pointer README is tracked (DEV-031).
   if (isRoleRecordPath("outputs/README.md") || isRetiredWorkflowRecordPath("outputs/README.md")) t.push("outputs/ still exempt as a record directory");
   // The block this guard exists for: CLAUDE.md as it read before 2026-09-13.
@@ -2866,21 +2927,25 @@ function main() {
       });
     const paths = [...new Set(staged.map((e) => e.path))];
     for (const e of prospectingPathErrors(paths)) fail(e);
-    const ignored = execFileSync("git", ["ls-files", "-ci", "--exclude-standard", "-z"], { cwd: ROOT, encoding: "utf8" })
+    // Only the repository's own .gitignore files: a contributor's global
+    // excludes or .git/info/exclude must not make the result machine-dependent.
+    const ignored = execFileSync("git", ["ls-files", "-ci", "--exclude-per-directory=.gitignore", "-z"], { cwd: ROOT, encoding: "utf8" })
       .split("\0").filter(Boolean);
-    for (const e of trackedIgnoredErrors(ignored)) fail(e);
-    const blobs = staged.filter((e) => e.mode !== "160000");
+    for (const e of trackedIgnoredErrors([...new Set(ignored)])) fail(e);
+    // One read per (path, blob): during a merge conflict the stages repeat a path.
+    const seen = new Set();
+    const blobs = staged.filter((e) => e.mode !== "160000" && !seen.has(`${e.path}\0${e.blob}`) && seen.add(`${e.path}\0${e.blob}`));
     const out = execFileSync("git", ["cat-file", "--batch"], {
       cwd: ROOT, input: blobs.map((e) => e.blob).join("\n") + "\n", maxBuffer: 1 << 30,
     });
-    let at = 0;
-    for (const e of blobs) {
-      const nl = out.indexOf(0x0a, at);
-      const size = Number(out.subarray(at, nl).toString("latin1").split(" ")[2]);
-      const body = out.subarray(nl + 1, nl + 1 + size);
-      at = nl + 1 + size + 1;
+    const { entries, error } = parseCatFileBatch(out, blobs);
+    if (error) fail(`contactPoint guard: ${error} — the scan stopped there, so it fails closed`);
+    for (const { path, body } of entries) {
       const text = decodeTrackedText(body);
-      if (text !== null) for (const err of contactPointErrors(e.path, text)) fail(err);
+      // A binary is still searched as text (an uncompressed pickle or arrow
+      // file holds its strings in the clear), and refused unless allowed.
+      if (text === null) for (const err of binaryBlobErrors(path)) fail(err);
+      for (const err of contactPointErrors(path, text ?? body.toString("latin1"))) fail(err);
     }
   } catch (err) {
     fail(`contactPoint guard could not read the index: ${err.message}`);
