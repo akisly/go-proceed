@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** the 250 files of prospecting session `01a033d9-c008-7011-bf7b-e1dbd14e2e9d`, which hold personal data of natural persons, leave the tracked tree. They move to a private folder outside every clone, `~/GoProceed-private/outputs/`, with a SHA-256 manifest verified before `git rm`. `outputs/README.md` becomes a pointer that names the location, the manifest checksum and the fact that commit `bbfc705` still holds the data, and carries no personal data itself. Nothing is uploaded anywhere.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** the owner's decision carried out: coordinator → `gp-reviewer` + `gp-security` → `gp-qa`. The removal changes no executed code, but it deletes tracked personal data and rewrites the canonical status and backlog, and the owner asked for the full route.
@@ -46,7 +46,9 @@
 | 3 | implementing (coordinator): the removal and the pointer | `git rm -r -q` the session directory (250 deletions); `outputs/README.md` rewritten as the pointer. BL-079 closed; BL-080's evidence annotated with the move; STATUS «Outreach» row, «Next action» items 1–3 (item 1 and item 3's BL-109 clause were stale: DEV-024 merged in #105, `0514602`), and the preamble (its DEV-022 to DEV-026 sentences were garbled by a merge; rebuilt from `docs/tasks/README.md` and those tasks' records — no clean copy exists in any branch, R1-02) | this diff | Runs |
 | 4 | implementing (coordinator): runs over `44e05cd` + the working tree, committed as `0d2de1f` | Pointer scan: no email, phone, 8–10-digit number or Cyrillic word in `outputs/README.md`; `git ls-files outputs` lists only it. `pnpm validate:canonical-docs` OK; `pnpm validate:agents` 16 profiles. `pnpm turbo run typecheck --force` first failed in `@goproceed/ui` (`three` not found: the worktree's `node_modules` dated from 2026-09-06, before `three` was added); after `pnpm install --frozen-lockfile`, 10/10 | `scratchpad/dev030-pointer-scan.txt`, `dev030-canonical-docs.txt`, `dev030-agents.txt`, `dev030-typecheck-stale-node-modules.txt`, `dev030-typecheck.txt` | Commit; `gp-reviewer`, `gp-security` |
 | 5 | reviewing (`gp-reviewer`, `gp-security`, native) on `0d2de1f` | **`gp-reviewer`: APPROVE** — no blocker, major or medium. R1-01 low (BL-080's Resume still offers the `discovery/` store, inside every clone), R1-02 low (the rebuilt DEV-022 sentence omitted item 4's deploy note; provenance unstated), R1-03 low (BL-079 said DEV-031 «followed» before it exists), R1-04 low (the manifest does not cover the saved README), R1-05 nit (typecheck never sees `outputs/`: evidence the absence of dependants by `git grep`), R1-06 nit («Данные» unglossed in English), R1-07 nit (the Outreach row lacks «on its branch»; the record's state), R1-08 nit (BL-080's inserted date reads as a measurement date). **`gp-security`: PASS** — no personal data in anything added; the copy check sound for integrity. S1-01 medium (the residual list omits the GitHub remote, whose cached views and PR refs outlive a force-push, and the agent transcripts sent to a model provider), S1-02 medium (= R1-01), S1-03 low (the pointer does not keep agents out of the folder or out of history), S1-04 low (only the root's mode evidenced), S1-05 low (no purpose, retention or backup rule for the copy; erasure cannot reach history), S1-06 low (= R1-03; CI does not enforce the validator until October), S1-07 info (= R1-04). Its list of what DEV-031 must cover is taken into DEV-031 | review reports | Stated fixes |
-| 6 | rework (coordinator), stated fixes | S1-01: «What is not true» names the GitHub remote, the agent transcripts and model provider, and Vercel's Git builds; the pointer's history bullet names the remote and GitHub Support (GitHub's guide, Sources). S1-02 / R1-01: BL-080's `discovery/` option marked superseded. S1-03: the pointer's «Agents stay out» bullet; the enforcing deny rule is BL-123 (an agent-instructions change, not made here). S1-04: `chmod -R go-rwx ~/GoProceed-private`: 257 entries had group or other bits before, 0 after, 0 ACLs, root `drwx------`, the manifest still verifies. S1-05: the pointer's backup row (encrypted media the owner holds, never a sync service) and a retention clause pointing at BL-122 (deferred, owner); «What is not true» gains it. S1-06 / R1-03: «BL-081's guards are DEV-031, in the same pull request»; CI enforcement is in DEV-031. S1-07 / R1-04: «one line per session file (250); the saved README is outside it». R1-02: DEV-022's sentence names item 4; the provenance stated in row 3. R1-05: criterion 5 amended; `git grep` evidence. R1-06: glossed. R1-07: «on its branch, unmerged»; state set. R1-08: «measured by DEV-007 at `d8a860a`» | `scratchpad/dev030-permissions.txt`, `dev030-references.txt`; this diff | `gp-security` re-check (S1-01, S1-02); `gp-qa` |
+| 6 | rework (coordinator), stated fixes | S1-01: «What is not true» names the GitHub remote, the agent transcripts and model provider, and Vercel's Git builds; the pointer's history bullet names the remote and GitHub Support (GitHub's guide, Sources). S1-02 / R1-01: BL-080's `discovery/` option marked superseded. S1-03: the pointer's «Agents stay out» bullet; the enforcing deny rule is BL-123 (an agent-instructions change, not made here). S1-04: `chmod -R go-rwx ~/GoProceed-private`: 257 entries had group or other bits before, 0 after, 0 ACLs, root `drwx------`, the manifest still verifies. S1-05: the pointer's backup row (encrypted media the owner holds, never a sync service) and a retention clause pointing at BL-122 (deferred, owner); «What is not true» gains it. S1-06 / R1-03: «BL-081's guards are DEV-031, in the same pull request»; CI enforcement is in DEV-031. S1-07 / R1-04: «one line per session file (250); the saved README is outside it». R1-02: DEV-022's sentence names item 4; the provenance stated in row 3. R1-05: criterion 5 amended; `git grep` evidence. R1-06: glossed. R1-07: «on its branch, unmerged»; state set. R1-08: «measured by DEV-007 at `d8a860a`» | `scratchpad/dev030-permissions.txt`, `dev030-references.txt`; this diff | `gp-qa` |
+| 7 | verifying (`gp-qa`, native) on `5294441` | **Verified for the scoped criteria:** 1–5 PASS (1 on the coordinator's evidence, re-run at `5294441` against `bbfc705`: `final-dev030-copy.txt`), 6 NOT RUN (not required). Every stated fix in place. `gp-security`'s re-check within DEV-031's review confirmed S1-01 to S1-07 addressed. New: Q1-01 low (the zero-ACL count had no positive control and no recorded command), Q1-02 info (`git hash-object` applies `core.autocrlf=input`; step 3's byte totals close it) | QA report; `scratchpad/final-dev030-copy.txt` | Evidence re-runs |
+| 8 | closing (coordinator), evidence only | Q1-01: the ACL counter, given a positive control, reported **0 for a file carrying an ACL** — on macOS `ls -le` shows `@` instead of `+` when a file also has extended attributes, and every entry in the private folder has them (257). The earlier «0 ACLs» was therefore not evidence. `acl-count.sh` now counts the ACL entry lines `ls -le` prints: the control reports 1, the private folder 0. Q1-02: `verify-copy.sh` uses `git hash-object --no-filters`; re-run against `bbfc705`: 250 of 250 equal, `shasum -c` 250 OK. No tracked file changed for these | `scratchpad/acl-count.sh`, `final-dev030-q1.txt` | Push, PR |
 
 ## Findings and rework
 
@@ -64,6 +66,8 @@
 | R1-06 | nit | STATUS item 1 | Actual: Russian unglossed | coordinator | Glossed |
 | R1-07 | nit | STATUS Outreach row; the record's state | Actual: no branch qualifier | coordinator | Added |
 | R1-08 | nit | BL-080 Evidence | Actual: date read as a measurement date | coordinator | Reworded |
+| Q1-01 | low | the ACL evidence | Actual: no positive control; the counter proved blind (`@` hides `+`) | coordinator | Counter replaced, control 1, folder 0 (row 8) |
+| Q1-02 | info | `verify-copy.sh` step 2 | Actual: hashes through `core.autocrlf` | coordinator | `--no-filters`, re-run (row 8) |
 
 Rework count and hypothesis changes: none counted — no QA FAIL, no blocker; the fixes precede QA.
 
@@ -82,6 +86,12 @@ Rework count and hypothesis changes: none counted — no QA FAIL, no blocker; th
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The private copy: 250 files byte-identical to `bbfc705` and `44e05cd`, the manifest verifies, owner-only, no ACL | yes | `5294441` (against `bbfc705`); `44e05cd` at the copy | `final-dev030-copy.txt`, `final-dev030-q1.txt` (`verify-copy.sh` with `--no-filters`; `acl-count.sh` with its positive control); `dev030-copy-verify.txt`; `gp-qa`'s review of the script | PASS | assisted: run by the coordinator, since no agent reads the private folder; `gp-qa` reviewed the scripts and evidence, not the folder |
+| 2. The session directory untracked | yes | `5294441` | `git ls-files outputs` → the README only (`gp-qa`) | PASS | — |
+| 3. The pointer, without personal data | yes | `5294441` | `gp-qa`'s element check and pattern scan; `dev030-pointer-scan.txt` | PASS | a pattern scan, not a semantic review |
+| 4. BACKLOG and STATUS agree; validators | yes | `5294441` | `gp-qa`'s reading; `pnpm validate:canonical-docs` OK, `pnpm validate:agents` 16 profiles | PASS | checked with DEV-031's edits to the same files |
+| 5. Nothing tracked depends on the removed files; typecheck | yes | `5294441` | `gp-qa`: `git grep` for `outputs/` and the session id, the 244 removed basenames; `pnpm turbo run typecheck --force` 10/10 | PASS | typecheck is a regression check only |
+| 6. CI `verify` on the PR head | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 ## Sources
 
@@ -91,9 +101,9 @@ No installed library's behaviour is relied on. `shasum` is the macOS system Perl
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: `outputs/` (250 removed, `README.md` rewritten); `docs/BACKLOG.md` (BL-079, BL-080, BL-122, BL-123); `docs/STATUS.md`; this record; `docs/tasks/README.md`. Outside the repository: `~/GoProceed-private/outputs/`. Commits `0d2de1f` (implementation), `9d5ea5c` (review round 1), and the closing record commit.
+- Review independence: independent — `gp-reviewer` (APPROVE, fixes applied), `gp-security` (PASS; its S1-01 to S1-07 re-checked as addressed within DEV-031's review), `gp-qa` on `5294441`, all native subagents.
+- Verified scope: criteria 1–5 PASS; 6 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true»; BL-080 (deferred, owner), BL-122 (deferred, owner), BL-123.
+- Next bounded action and owner: owner — back up `~/GoProceed-private/outputs/` on encrypted media, review and merge the pull request.
+- Final state and reason: done — every required criterion PASS; every finding fixed or filed.
