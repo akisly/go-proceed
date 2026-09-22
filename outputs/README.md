@@ -1,21 +1,30 @@
-# Prospecting session outputs
+# Prospecting session outputs — moved to private storage
 
-> **Personal data of natural persons.** Read [BL-079](../docs/BACKLOG.md#bl-079) and [BL-080](../docs/BACKLOG.md#bl-080) before copying, sharing or adding anything here. Written by DEV-007 on 2026-09-14.
+This directory held the files of one prospecting session, `01a033d9-c008-7011-bf7b-e1dbd14e2e9d` (2026-08-24 and 2026-08-25). They include personal data of natural persons, which the project's own rule keeps out of git ([BL-079](../docs/BACKLOG.md#bl-079)). On 2026-09-15 the owner decided to move them to private storage behind this pointer, without rewriting history. [DEV-030](../docs/tasks/DEV-030-outputs-private-storage.md) carried out the move on 2026-09-23.
 
-One agent session, `01a033d9-c008-7011-bf7b-e1dbd14e2e9d`, dated 2026-08-24 and 2026-08-25, built the pilot prospect base: public procurement records from ProZorro, company sites, scoring, a shortlist and an outreach pack. Commit `bbfc705` (2026-08-28) added the directory together with an unrelated landing change. The owner keeps it as the client-prospecting record (2026-09-13).
+Nothing else belongs here.
 
-| Group | Files |
-|---|---:|
-| Analysis notebooks and their generators | 4 |
-| Pilot shortlist, conversion workbook, workbook screenshots and the unsent A1-N01 outreach pack | 28 |
-| Candidate and ProZorro waves 2–7: collection, normalisation, validation and browser checks | 110 |
-| Unified prospect bases, prospecting workbooks and their inspection dumps | 68 |
-| Workbook preview screenshots | 40 |
-| **Total** | **250** |
+## Where the files are
 
-## What to know before reading
+| | |
+|---|---|
+| Location | `~/GoProceed-private/outputs/` on the owner's machine, outside every clone and worktree |
+| Contents | the session directory `01a033d9-c008-7011-bf7b-e1dbd14e2e9d/` (250 files, 312,542,484 bytes); `MANIFEST.sha256`; the description this README carried before the move, as `README-DEV-007-2026-09-14.md` |
+| Manifest | `MANIFEST.sha256`: one `shasum -a 256` line per file, paths relative to `~/GoProceed-private/outputs/` |
+| Manifest checksum | SHA-256 `22dbc4d990180ce4b44e5321eb75961a5d2db4ce42cd86c9bd97dd8951df3e94` |
+| Checked against | the git blob of every file at `bbfc705` and at `44e05cd` (250 of 250 equal) |
+| Backup | the owner's to make and keep; none is recorded here |
 
-- **Outreach.** The A1-N01 pack (`pilot_outreach_A1-N01_2026-08-25.md` and `.json`) was prepared and never sent; [docs/STATUS.md](../docs/STATUS.md) «Outreach» carries the current state.
-- **Personal data.** DEV-007's security review found buyer-side contact persons in the raw ProZorro search dumps, sole traders under their personal names with personal tax numbers, private customers named in tender titles, and outreach routes that are free-mail addresses or mobile numbers. How the directory is kept is an owner decision (BL-079); the review deleted nothing.
-- **Scripts are a dated record, not runnable.** They load their inputs by absolute paths on the operator's disk on the day they ran, and some of those names carry the product's pre-rename name, so `scripts/validate-canonical-docs.mjs` exempts this directory from the rename guard.
-- **Large files.** The `*.xlsx.inspect.ndjson` files are text dumps of the workbooks, up to about 49 MB each.
+To check the copy:
+
+```bash
+cd ~/GoProceed-private/outputs && shasum -a 256 MANIFEST.sha256 && shasum -a 256 -c --quiet MANIFEST.sha256
+```
+
+The first line must print the checksum above; the second prints nothing when every file matches.
+
+## What the move did not change
+
+- **History still holds the data.** Commit `bbfc705` (2026-08-28) added the directory, and every clone of the repository still contains it there. The owner decided on 2026-09-15 not to rewrite history. Rewriting it would be a separate decision: a force-push, and every clone and worktree re-made.
+- **The private copy is personal data too.** Never upload it, share it, attach it or paste from it into any external service, issue, pull request or agent prompt. Never copy it back into a clone.
+- **The open decisions stay open.** How the outreach routes and the tender-title customers are handled is BL-080, deferred by the owner.

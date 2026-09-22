@@ -107,7 +107,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-076](#bl-076) | P0 | closed → `0a7c407` | The pool stranded once an over-removal parted quantity from money |
 | [BL-077](#bl-077) | P3 | open | Code and documents still send readers to the frozen `TODOS.md` by entry name |
 | [BL-078](#bl-078) | P3 | open | The rewrite plan's rulings D1–D7 were never recorded in an ADR |
-| [BL-079](#bl-079) | P1 | open | `outputs/` keeps personal data in git against the project's own rule |
+| [BL-079](#bl-079) | P1 | closed → DEV-030 | `outputs/` keeps personal data in git against the project's own rule |
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
 | [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
@@ -1002,11 +1002,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-079"></a>
 ### BL-079 — P1 — `outputs/` keeps personal data in git against the project's own rule
 
-- **State:** open
+- **State:** closed → DEV-030
 - **Legacy cite:** none
 - **Why:** DEV-007's `gp-security` review (S1-01, S1-02, S1-05) found personal data of natural persons in the prospecting session that commit `bbfc705` added: buyer-side contact persons in the raw ProZorro search dumps, and sole traders under their personal names with ten-digit identifiers, the length of a personal tax number rather than a company code. The project's rule, live through the `.gitignore` entries headed «personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)», keeps lead data out of git history and promises retention limits and deletion on request, which a tracked copy cannot honour without rewriting history. The repository is private and nothing deploys or uploads the directory, but every clone, worktree, CI checkout and agent session that reads it holds the data. The owner kept `outputs/` on 2026-09-13 as the prospecting record; this entry is the decision on how it is kept. Ranked by DEV-007 from the review's severity.
 - **Evidence:** the coordinator's counts at `d8a860a` (2026-09-14): the five `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/prozorro_wave{3..7}_search_hits_2026-08-24.json` files hold 6,371 `contactPoint` objects, each with a name and an email (2,444 distinct name–email pairs); 9,788 `edrpou` values of ten digits across 52 files. `docs/legacy/40-phase1-discovery-outreach.md` §B.5; `.gitignore`'s Child B block. The review found no credentials.
 - **Owner decision, 2026-09-15:** move the directory to private storage behind a pointer README; the data stays in `bbfc705` without a history rewrite ([DEV-012](tasks/DEV-012-m0-gate12-evidence.md) Owner decisions).
+- **Closed 2026-09-23 by DEV-030** (owner, 2026-09-15 and 2026-09-23): the 250 files of the session directory were copied from git into `~/GoProceed-private/outputs/` on the owner's machine, outside every clone, with a SHA-256 manifest (`22dbc4d9…df3e94`) that `shasum -c` accepts and blob ids equal to `bbfc705`'s, then removed from the tree. `outputs/README.md` is now a pointer that carries no personal data. The data stays in `bbfc705` (no history rewrite); the backup is the owner's. BL-081's guards followed in DEV-031.
 - **Depends on:** nothing further from the owner for the move; a history rewrite would be a separate decision.
 - **Deadline:** none recorded.
 - **Resume:** *(Superseded 2026-09-15 by the owner decision above.)* The owner chooses: keep the directory with a recorded purpose, lawful basis and retention date; move it to private storage behind a pointer README; or redact the personal fields in place. Moving or redacting leaves the data in `bbfc705` unless history is rewritten, a further owner decision (force-push, every clone re-made). The coordinator then opens a task for the chosen option, and BL-080 and BL-081 follow it.
@@ -1017,10 +1018,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** deferred (owner)
 - **Legacy cite:** none
 - **Why:** DEV-007's review (S1-03, S1-04). The unsent A1-N01 outreach pack's own privacy rule promises general corporate addresses without employee names, yet most of its routes are free-mail addresses or mobile numbers, which for a small firm are often the director's own. Tender titles copied verbatim name private customers («Замовник: surname, initials») beside contract numbers and localities, with no bearing on any prospect. Ranked by DEV-007 from the review's severity.
-- **Evidence:** `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/pilot_outreach_A1-N01_2026-08-25.md`: 7 recipient addresses, 6 on free-mail domains (coordinator's count); 101 «Замовник: <surname> <initial>.» matches in 22 files of the same directory (coordinator's count; the review counted 99 with its own pattern).
+- **Evidence:** measured in the tracked tree before DEV-030 moved the directory to `~/GoProceed-private/outputs/` (2026-09-23; the same files, byte for byte, are in `bbfc705`): `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/pilot_outreach_A1-N01_2026-08-25.md`: 7 recipient addresses, 6 on free-mail domains (coordinator's count); 101 «Замовник: <surname> <initial>.» matches in 22 files of the same directory (coordinator's count; the review counted 99 with its own pattern).
 - **Depends on:** BL-079.
 - **Deadline:** none recorded.
-- **Resume:** with BL-079 decided, the owner chooses to keep, to redact the routes and the customer names, or to move the pack to the git-ignored `discovery/` store; the coordinator carries it out.
+- **Resume:** with BL-079 decided, the owner chooses to keep, to redact the routes and the customer names, or to move the pack to the git-ignored `discovery/` store; the coordinator carries it out. Since DEV-030 (2026-09-23) the pack is outside the repository, in the private copy; a redaction there would not reach `bbfc705`.
 
 <a id="bl-081"></a>
 ### BL-081 — P2 — Nothing stops a session from committing prospecting data again
