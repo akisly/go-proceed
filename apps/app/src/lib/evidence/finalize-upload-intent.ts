@@ -26,6 +26,29 @@ export function storedTypeIs(stored: string | null, expected: string): boolean {
   return new RegExp(`^${escaped}(?:[ \\t]*;[ \\t]*${MIME_TOKEN}=${MIME_TOKEN})*$`).test(stored.trim().toLowerCase());
 }
 
+/**
+ * The refusal the field client shows in its alert (`recover.ts` maps
+ * `recapture_or_contact_support` to `failed`). Each one says what went wrong
+ * and what to do instead: «capture again» would fail the same way for an image
+ * that is too large (BL-088, DEV-033).
+ */
+function scanRejectedDetail(failureCode: string | null, claimedMediaType: string): string {
+  switch (failureCode) {
+    case "declared_type_mismatch":
+      return `Вміст не відповідає заявленому типу «${claimedMediaType}».`;
+    case "stored_type_mismatch":
+      return `Файл завантажено до сховища з типом, відмінним від «${claimedMediaType}». Завантажте фото ще раз.`;
+    case "image_dimensions_exceeded":
+      return "Зображення завелике для обробки. Надішліть звичайне фото, а не панораму чи знімок у режимі найвищої роздільності.";
+    case "image_dimensions_unreadable":
+      return "Не вдалося прочитати розмір зображення. Надішліть інше фото.";
+    case "image_animated":
+      return "Анімовані зображення не приймаються. Надішліть звичайне фото.";
+    default:
+      return "Тип вмісту не розпізнано.";
+  }
+}
+
 type FinalizeResult =
   | { outcome: "unauthorized" }
   | { outcome: "no_content" }
@@ -195,11 +218,7 @@ export async function finalizeUploadIntent({
         { requestId, retryable: false, userAction: "refresh_upload_state_or_request_new_grant" }));
     }
     throw new HttpProblem(422, problem("SCAN_REJECTED",
-      inspection.failureCode === "declared_type_mismatch"
-        ? `Вміст не відповідає заявленому типу «${intent.claimed_media_type}».`
-        : inspection.failureCode === "stored_type_mismatch"
-          ? `Файл завантажено до сховища з типом, відмінним від «${intent.claimed_media_type}». Завантажте фото ще раз.`
-          : "Тип вмісту не розпізнано.",
+      scanRejectedDetail(inspection.failureCode, intent.claimed_media_type),
       { requestId, retryable: false, userAction: "recapture_or_contact_support" }));
   }
 

@@ -522,6 +522,12 @@ the closed ones.
         image. Measured on the local stack only; hosted Storage and a bucket
         allow-list are BL-126. The risk bullet above is the owner's acceptance
         of 2026-09-15 and stays as accepted.
+      - **2026-09-23, [DEV-033](../tasks/DEV-033-image-size-limits.md):**
+        finalization reads an image's declared size from its header, without
+        decoding, and refuses one over 268,402,689 pixels or 65,535 px on an
+        edge, one whose size cannot be read, and an animated PNG; BL-088 is
+        closed. The limits still admit a 200 MP photo, which a desktop browser
+        decodes in full (BL-129); real-phone files are unchecked (BL-131).
 - [ ] The import hostile-fixture corpus still runs. Import is **frozen, not
       deleted** ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md)
       decision 6): the XLSX/CSV parser built in M1 stays in the code, an object
@@ -541,7 +547,8 @@ the closed ones.
         20 000 rows, 256 columns, 32 768 characters a cell; CSV 20 MiB, 20 000
         rows, 256 columns, 32 768 characters a field. Not run in CI. **The gate
         stays open:** export neutralization against formula injection has no
-        export to act on (gate 3), and BL-088 is open.
+        export to act on (gate 3), and BL-088 is open. *(2026-09-23: BL-088
+        and BL-089 closed on the DEV-032/DEV-033 branch; export remains.)*
 
 ### 13. Demo and data separation
 

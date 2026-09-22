@@ -15,9 +15,9 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
 const CAPS = ["assignments.manage", "evidence.record"] as const;
 const PRICED = "1.1;Мурування;м2;10;199,99;1 999,90";
 
-/** A minimal but genuine JPEG: SOI + APP0 marker, then a byte of payload. */
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+/** A minimal but genuine JPEG: SOI, a 1×1 baseline frame header, EOI, then a byte (DEV-033: the size check reads the frame). */
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde]);
 const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 let fx: MatrixFixture;
@@ -137,7 +137,7 @@ databaseDescribe("upload_intents.finalize", () => {
     // The key is the one issued at intent time: there is no promotion step.
     expect(rows[0]!.storage_key).toBe(intent.storage.key);
     expect(rows[0]!.inspection_status).toBe("passed");
-    expect(rows[0]!.inspection_policy_version).toBe("m2a-magic-bytes-1");
+    expect(rows[0]!.inspection_policy_version).toBe("m2a-magic-bytes-2");
     expect(rows[0]!.relation_kind).toBe("original");
   });
 
@@ -231,6 +231,33 @@ databaseDescribe("upload_intents.finalize", () => {
       `select count(*) n from public.evidence_objects where workspace_id = $1`,
       [fx.workspaceId]);
     expect(evidence[0]!.n).toBe("0");
+  });
+
+  it("blocks an image whose declared size exceeds the limits, and says why (BL-088)", async () => {
+    // 70,000 × 10: 70 MB of PNG header would decode to 2.8 MB here, but the
+    // edge alone is past JPEG's and the policy's maximum; a few bytes suffice.
+    const wide = new Uint8Array([...PNG]);
+    new DataView(wide.buffer).setUint32(16, 70_000);
+    const intent = await createIntent(wide, "image/png");
+    await putObject(intent.storage.key, wide, "image/png");
+    const res = await finalize(intent.uploadIntentId);
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("SCAN_REJECTED");
+    expect(body.detail).toContain("завелике");
+    const rows = await q<{ status: string; failure_code: string }>(
+      `select status, failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
+    expect(rows[0]).toEqual({ status: "scan_blocked", failure_code: "image_dimensions_exceeded" });
+  });
+
+  it("blocks an image whose size cannot be read (BL-088)", async () => {
+    const soiOnly = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+    const intent = await createIntent(soiOnly, "image/jpeg");
+    await putObject(intent.storage.key, soiOnly, "image/jpeg");
+    expect((await finalize(intent.uploadIntentId)).status).toBe(422);
+    const rows = await q<{ failure_code: string }>(
+      `select failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
+    expect(rows[0]!.failure_code).toBe("image_dimensions_unreadable");
   });
 
   it("blocks unrecognised content", async () => {

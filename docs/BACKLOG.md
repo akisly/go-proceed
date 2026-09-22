@@ -116,7 +116,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-085](#bl-085) | P1 | closed → DEV-011 | `TELEGRAM_LINK_PEPPER` has no key id, so it cannot be rotated without losing data, and readiness gate 14 waits on it |
 | [BL-086](#bl-086) | P3 | open | The HMAC key registry accepts a duplicate key id and the same secret in both key spaces |
 | [BL-087](#bl-087) | P2 | open | A leaked Telegram erasure key still re-identifies the registry rows not yet moved to a newer key |
-| [BL-088](#bl-088) | P2 | open | Uploaded images have no dimension, pixel-count or decoding-resource limit |
+| [BL-088](#bl-088) | P2 | closed → DEV-033 | Uploaded images have no dimension, pixel-count or decoding-resource limit |
 | [BL-089](#bl-089) | P2 | closed → DEV-032 | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
 | [BL-090](#bl-090) | P1 | closed → DEV-014 | 16 communication and Telegram registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-091](#bl-091) | P1 | closed → DEV-016 | 8 contract-baseline registry rows lack tenant-isolation tests (readiness gate 11) |
@@ -156,6 +156,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-125](#bl-125) | P3 | open | Three validator guards read `git ls-files` split by newline and would skip a quoted path |
 | [BL-126](#bl-126) | P2 | open | Hosted Storage's signed-read behaviour is unmeasured, and the evidence bucket accepts any content type on upload |
 | [BL-127](#bl-127) | P3 | open | The Telegram album-exhaustion test wrote two terminal receipts in one of ten runs |
+| [BL-128](#bl-128) | P3 | deferred (owner) | A blocked upload keeps its reserved quota until the purge |
+| [BL-129](#bl-129) | P2 | open | Office and reviewer browsers show evidence originals only: very large photos decode in full, and HEIC does not show in Chrome, Edge or Firefox |
+| [BL-130](#bl-130) | P3 | open | An AVIF whose brand is `mif1` is detected as `image/heic` |
+| [BL-131](#bl-131) | P2 | deferred (owner) | The image size limits and parsers are unchecked against files from real phones |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1105,10 +1109,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-088"></a>
 ### BL-088 — P2 — Uploaded images have no dimension, pixel-count or decoding-resource limit
 
-- **State:** open
+- **State:** closed → DEV-033
 - **Legacy cite:** none
 - **Why:** `docs/architecture/files-and-storage.md` «Content validation and malware boundary» (Approved) lists «image dimension/pixel-count and decoding-resource limits» among the controls applied before availability or parsing. The upload path limits bytes (the `evidence` bucket's `file_size_limit`, the per-workspace quota) and checks the type from magic bytes, but nothing bounds an image's dimensions or pixel count, so a small file that decodes to a very large bitmap is accepted as evidence. The exposure is present now: office members' and external reviewers' browsers decode evidence images as soon as a page shows them. A derivative or thumbnail worker, or an export, would add server-side exposure later. Readiness gate 12 names resource-exhaustion controls on uploads. Ranked by DEV-012.
 - **Evidence:** observed 2026-09-15 at `48ba14e`: no dimension or pixel-count check in `apps/app/src/lib/evidence-inspection.ts`, nor anywhere under `apps/app/src/lib`, `apps/app/app` and `packages/domain/src`; [DEV-012](tasks/DEV-012-m0-gate12-evidence.md) row 2.
+- **Closed 2026-09-23 by DEV-033:** finalization reads an image's declared size from its header without decoding it — JPEG by a libjpeg-style segment walk up to the first scan (exactly one frame), PNG by its first chunk (IHDR), HEIC by walking `meta` → `iprp` → `ipco` for every `ispe` and reading each grid's and overlay's declared output size through `iinf`, `iloc` and `idat` — and blocks (`scan_blocked`, 422 `SCAN_REJECTED` with its own sentence) an image over 268,402,689 pixels (0x3FFF², sharp/libvips' default) or 65,535 px on an edge (`image_dimensions_exceeded`), one whose size cannot be read (`image_dimensions_unreadable`, fail closed), and an animated PNG (`image_animated`). The limits admit a 200 MP frame and a 63 MP panorama (`gp-mobile`, sources in the record). Inspection policy `m2a-magic-bytes-2`. Checked on 83 real files (every tracked JPEG and PNG, and HEIC grids made by macOS ImageIO up to 16,000 × 12,000): every size equal to `sips`'s, none blocked. Not checked: files from real phones (BL-131), evidence finalized before this change, PDF.
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment (the browser path is live today), before any server-side image decoding ships, and before readiness gate 12 closes.
 
@@ -1534,3 +1539,45 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `scratchpad/dev032-r1-suite-telegram-evidence.txt` (the failure), `dev032-flake-mine-*.txt` and `dev032-baseline-telegram-*.txt` (the reruns), cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md).
 - **Depends on:** nothing.
 - **Deadline:** before the Telegram webhook is enabled anywhere.
+
+<a id="bl-128"></a>
+### BL-128 — P3 — A blocked upload keeps its reserved quota until the purge
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report (Q-3). `app.evidence_bytes_in_use` (`0031`) counts every intent that is neither available nor purged, so an upload refused at finalization — now also for its size — holds its reserved bytes until the orphan purge. A field worker retrying a 50 MB panorama five times holds 250 MB of the workspace's quota for the retention window. Whether a `scan_blocked` intent should release its reservation is the owner's decision. Ranked by DEV-033.
+- **Evidence:** `supabase/migrations/0031_upload_state_is_only_commands.sql` (`app.evidence_bytes_in_use`); [DEV-033](tasks/DEV-033-image-size-limits.md).
+- **Depends on:** the owner.
+- **Deadline:** before a workspace quota is set (it is unlimited until a value is set, `0026`).
+- **Resume:** the owner decides whether a blocked intent releases its reservation at once; the coordinator changes the function with `gp-architect`.
+
+<a id="bl-129"></a>
+### BL-129 — P2 — Office and reviewer browsers show evidence originals only: very large photos decode in full, and HEIC does not show in Chrome, Edge or Firefox
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report (Q-2, Q-4). The evidence card and the review page render the original in an `<img>`. DEV-033's limits stop decompression bombs but admit a legitimate 200 MP photo, which desktop Chrome decodes at full size (about 800 MB); and HEIC renders only in Safari 17 and later, so an office member on Chrome, Edge or Firefox sees a broken image for every iPhone HEIC. A preview derivative (a bounded JPEG with its own hash and key, `files-and-storage.md`) fixes both. A UI and worker task. Ranked by DEV-033.
+- **Evidence:** `apps/app/src/components/evidence/evidence-card.tsx` (`<img src={readUrl}>`, no fallback for an undecodable type); WebKit, «WebKit Features in Safari 17.0» (2023-09-18) for HEIC; Chromium `blink_platform_impl.cc` (`MaxDecodedImageBytes`), cited in DEV-033.
+- **Depends on:** nothing.
+- **Deadline:** before an office member reviews real field evidence in a browser other than Safari.
+
+<a id="bl-130"></a>
+### BL-130 — P3 — An AVIF whose brand is `mif1` is detected as `image/heic`
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report. `sniffMediaType` accepts any ISO-BMFF file whose major brand is one of `heic`, `heix`, `hevc`, `hevx`, `mif1`, `msf1` as `image/heic`. `mif1` is the generic HEIF brand, which AVIF files also use, so an AVIF can pass the type check as HEIC although AVIF is not an accepted type. DEV-033's size check still bounds it. Checking the compatible brands for `avif`/`avis` (refuse) would close it. Ranked by DEV-033.
+- **Evidence:** `apps/app/src/lib/evidence-inspection.ts` `sniffMediaType`.
+- **Depends on:** nothing.
+- **Deadline:** none recorded.
+
+<a id="bl-131"></a>
+### BL-131 — P2 — The image size limits and parsers are unchecked against files from real phones
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-033 checked its parsers on synthetic headers, every tracked JPEG and PNG, and HEIC grids made by macOS ImageIO. It has no file from a phone: an iPhone HEIF Max photo and panorama, a Samsung 200 MP photo, Motion Photo and scroll capture, a Pixel Ultra HDR photo and Motion Photo. A false refusal of a real capture would block field evidence. Samsung and Pixel panorama widths are unpublished. Ranked by DEV-033.
+- **Evidence:** [DEV-033](tasks/DEV-033-image-size-limits.md) «What is not true» and `gp-mobile`'s acceptance cases 1–6.
+- **Depends on:** the owner, for the sample files (they are personal photos; never committed — a local folder, as `outputs/` is kept).
+- **Deadline:** before the pilot's first field capture.
+- **Resume:** the owner provides the files locally; the coordinator runs `imageDimensions` and `inspectContent` on them and records sizes and outcomes only.

@@ -34,7 +34,7 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
 const CAPS = ["assignments.manage", "progress.record", "progress.adjust", "evidence.record",
               "stage_closures.close"] as const;
 const PRICED = "1.1;Мурування;м2;10;199,99;1 999,90";
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 let fx: MatrixFixture;
