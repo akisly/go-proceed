@@ -114,7 +114,9 @@ describe("evidence storage errors carry no key (BL-033)", () => {
     expect(err).toBeInstanceOf(EvidenceStorageError);
     expect((err as EvidenceStorageError).code).toBe("InvalidKey");
     expect((err as Error).message).not.toContain(bad.split("/")[1]!);
-    expect((err as Error).message).not.toContain(bad.split("/")[0]!);
-    expect(inspect(err, { depth: null })).not.toContain(bad.split("/")[1]!);
+    // Everything a log line could print: the message, its inspection, its JSON (DEV-034 Q1-03).
+    const printed = [(err as Error).message, inspect(err, { depth: null }), JSON.stringify(err)].join("\n");
+    for (const half of bad.split("/")) expect(printed).not.toContain(half);
+    expect(printed).not.toContain("Invalid key");
   });
 });

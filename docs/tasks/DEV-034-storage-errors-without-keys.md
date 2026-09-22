@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** no error thrown by `apps/app/src/lib/evidence-storage.ts` carries a raw storage key or the storage provider's message, which can name the key. Such errors reach the log through `toProblemResponse`, and `files-and-storage.md` §Downloads says logs never record «the signed URL or raw storage key».
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a bounded bug with an understood cause: coordinator → `gp-reviewer` + `gp-security` → `gp-qa`; failing tests first.
@@ -41,6 +41,8 @@
 | 2 | implementing (coordinator): red, then green | A first integration-only test was red for the wrong reason (the calls it expected to fail did not); replaced by the unit test and one integration case. **Red** at `9771402`'s `evidence-storage.ts`: the five unit cases fail, the messages reading «storage: signed upload failed for 0b8c3…», «download failed for …», «list failed for evidence/…», «remove failed for …»; the integration case fails too. The five `throw new Error(…${key}…${error.message})` become `throw readFailed("<operation>", error)`; the file's comment block updated. **Green:** unit 5, evidence-storage 8, evidence-storage-read 7, upload-intents-finalize 25, evidence-purge 17, telegram-evidence 22, finalize-vanishing-bytes 1 | `scratchpad/dev034-red.txt`, `dev034-red-int.txt`, `dev034-green-unit.txt`, `dev034-suite-*.txt` | Commit (`dbb6658`); reviews |
 | 3 | reviewing (`gp-reviewer`, `gp-security`, native) on `dbb6658` | **`gp-security`: PASS** — the leak is closed for the five helpers; S1-01 minor (the unit test never reached `putObject`'s own upload branch: its signed-upload step failed first), S1-02 minor (the tests read `.message`, not what `console.error` prints; a `cause` would bring the key back), S1-03 minor (the provider's `code` is copied unchecked into the message), S1-04 minor (three more throwing helpers untested); out of scope: OOS-01 the purge worker stores the message, OOS-02 a node-pg `DatabaseError.detail` could name a key on a unique violation (not reachable: fresh uuid keys; BL-035), OOS-03 Storage's own access logs record paths. **`gp-reviewer`: CHANGES REQUESTED** — R1-01 minor (= S1-01), R1-02 minor (the purge worker's `purge_failure` loses its reason when there is no code), R1-03 nit (no positive control that the server's message names the key), R1-04 nit (state; the legacy «throw the domain object's id») | review reports | Stated fixes |
 | 4 | rework (coordinator), stated fixes | **Tests first** (red, 9 of 9 — the meaningful one S1-03: a code `x/<key>` reached `err.code` and the message; the others by the new exact format): every throwing helper in one table, an exact message per operation, `util.inspect` and JSON checked; `putObject` with a signed upload that succeeds, so its upload branch throws. **Fix:** `readFailed` keeps a code only when it is an identifier (`^[A-Za-z][A-Za-z0-9]{0,63}$`), a status only when it is an integer, and adds the error's class name when there is no code; the message carries them — `storage: remove failed (InvalidKey) [400]`, `storage: download failed [502] <StorageUnknownError>` — so `purge_failure` still says why (R1-02). **Mutants:** the key back in `putObject`'s upload branch → 1 red; the SDK error kept as `cause` → 9 red; both restored. The integration test asserts the server's own message names the key before checking ours (R1-03). **Green:** unit 9, evidence-storage 8, storage-read 7, purge 17, finalize 25, external 12, telegram 22; typecheck 10/10 | `scratchpad/dev034-r1-red.txt`, `dev034-r1-mutants.txt`, `dev034-r1-suite-*.txt`, `dev034-r1-checks.txt` | `gp-qa` |
+| 5 | verifying (`gp-qa`, native) on `62476a5` | **Verified for the scoped criteria:** 1–3 PASS; 4 NOT RUN (not required). Its own runs: unit 9; the `putObject` key mutant (1 red), the `cause` mutant (red), a download-branch mutant (the integration test red); a temporary test: download, stream and signed-read errors from the real server carry no part of the key in message, inspection or JSON; evidence-storage 8, purge 17, and the evidence-path suites; typecheck; validators. Every stated fix in place. New: Q1-03 nit (the integration test checked one key half and no JSON) | QA report; `scratchpad/qa1-dev034-*.txt` | Closing |
+| 6 | closing (coordinator) | Q1-03: the integration test checks both halves, `util.inspect` and JSON (evidence-storage 8) | `scratchpad/close-suite-evidence-storage.txt` | Push, PR |
 
 ## Findings and rework
 
@@ -55,6 +57,7 @@
 | R1-04 | nit | state; the legacy suggestion | Actual: stale; unaddressed | coordinator | State set; reason recorded under «Dependencies» |
 | OOS-02 | info | `DatabaseError.detail` | A unique violation could name a key; not reachable | coordinator | Noted here for BL-035 |
 | OOS-03 | info | Storage access logs | Paths and upload tokens there | coordinator | Outside the app; noted for BL-035 |
+| Q1-03 | nit | the integration test | Actual: one half, no JSON | coordinator | Both halves, inspection, JSON (row 6) |
 
 Rework count and hypothesis changes: none counted (no QA FAIL).
 
@@ -68,6 +71,10 @@ Rework count and hypothesis changes: none counted (no QA FAIL).
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. Every throwing helper: exact message, nothing printed carries the key; a non-identifier code dropped; mutants red | yes | `62476a5` | `gp-qa`: unit 9 (`qa1-dev034-unit.txt`); mutants (`qa1-dev034-mutant-*.txt`) | PASS | a fake client for all but the download path |
+| 2. The real server's refused-key download, with its positive control | yes | `62476a5` | `gp-qa`: evidence-storage 8, a download-branch mutant red, its own real-server test (`qa1-dev034-real.txt`); Q1-03 tightening after, evidence-storage 8 (`close-suite-evidence-storage.txt`) | PASS | local storage-api v1.69.0 |
+| 3. Evidence-path suites; typecheck; validators | yes | `62476a5` | `gp-qa`: storage 8, purge 17, storage-read 7, finalize 25, telegram 22, external 12, vanishing-bytes 1; typecheck 10/10; validators | PASS | assisted: re-run after another session's database reset |
+| 4. CI `verify` | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 ## Sources
 
@@ -75,9 +82,9 @@ Rework count and hypothesis changes: none counted (no QA FAIL).
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: `apps/app/src/lib/evidence-storage.ts`; `apps/app/src/lib/evidence-storage.test.ts`; `apps/app/tests/evidence-storage.int.test.ts`; `docs/BACKLOG.md` (BL-033); this record; the index. Commits `dbb6658`, `62476a5`, and the closing commit.
+- Review independence: independent — `gp-reviewer` (CHANGES REQUESTED, stated fixes), `gp-security` (PASS), `gp-qa` on `62476a5`, all native subagents.
+- Verified scope: criteria 1–3 PASS; 4 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true»; BL-035 (structured logging) for the out-of-scope notes.
+- Next bounded action and owner: owner — review and merge the stacked pull request after #108.
+- Final state and reason: done — every required criterion PASS; every finding fixed or recorded.
