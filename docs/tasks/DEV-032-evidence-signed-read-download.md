@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** an office member's signed read URL for evidence can no longer render an uploader-chosen, scriptable content type on the Storage origin. Finalization refuses an object whose stored content type is not the type detected from its bytes (added after review, when the second control proved strippable), and every signed read `evidence-storage.ts` issues passes `download: true`, so Storage answers `Content-Disposition: attachment`: a navigation to the URL as issued saves the file, and the photo in the evidence card (`<img>`) shows as before.
-- **State:** reviewing
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a bounded bug with an understood cause: coordinator → `gp-reviewer` + `gp-security` → `gp-qa`. A failing test first.
@@ -50,6 +50,8 @@
 | 8 | rework (coordinator), stated fixes | **S2-01 measured:** a polyglot PUT as `image/jpeg;x=1, TEXT/HTML` is stored and served verbatim, and **its stripped URL ran the script in Chrome**; `image/jpeg, image/svg+xml` and `image/jpeg,TEXT/HTML` are refused by Storage (400); `image/jpeg; a="b", text/html` is served as `text/plain`. **Red first:** a finalize test for the list (with an `objectInfo` positive control) — red, finalize answered 200. **Fix:** `storedTypeIs` — the recorded type in any case, followed only by plain `name=value` parameters (no comma, no quote); applied to every outcome but `blocked`, against the type the row records (R2-02). **S2-02:** a test that re-PUTs `TEXT/HTML` to the original signed upload URL after finalization: refused, `objectInfo` unchanged (passes: it pins Storage's no-upsert behaviour); a comment at `createSignedUpload` says «no `upsert`» is load-bearing. **R2-03:** the «accepts» test asserts the stored `IMAGE/JPEG; charset=binary` first. **R2-05:** the stored-type refusal has its own sentence. **R2-01, S2-03, R2-04:** title, index row, BL-089, §12 scoped to objects finalized from DEV-032 on; BL-126 gains the one-off metadata check; rationale and out-of-scope lines updated. **The Telegram suite's fake `storage.objects` write** used `on conflict do nothing` on keys that repeat across runs and are never removed, so rows an earlier run left with another size made finalization answer `no_content` (11 failures, seen while DEV-033's fixture was tried): it upserts now. **Green:** finalize 23, telegram-evidence 22, storage-read 7, field-capture 5, upload-intents-get 9; typecheck 10/10 | `scratchpad/dev032-list-variants.txt` (+ `dev032-list.mjs`), `dev032-r2-red.txt`, `dev032-r2-suite-*.txt`, `dev032-r2-typecheck.txt` | `gp-security` re-check (S2-01); `gp-qa` |
 | 9 | reviewing (`gp-security` re-check, native) on `f5a99e3` | **PASS** — S2-01 resolved (no accepted string parses to anything but the four types), S2-02 resolved in intent, S2-03 resolved. New, low: S3-01 (`trim()` strips U+00A0, which a browser keeps; only a HEIC can both pass inspection and start with markup, and only if Storage keeps the byte), S3-02 (the overwrite test had no positive control: the client's URL was never shown to work, and any refusal passed), S3-03 nit (criterion 1a described the round-1 rule) | re-check report | Stated fixes |
 | 10 | rework (coordinator), stated fixes (after DEV-033's commit `36cc4a7`) | **S3-01:** `storedTypeIs` moves to `stored-type.ts` and matches the RAW value: HTTP whitespace only, the `i` flag without `u` (ASCII case only), every metacharacter of the expected type escaped. Its unit test (5 cases, incl. U+00A0, U+000B, NUL, `İ`, `ſ`, a list, a quote) was run first against the `trim()` implementation: **red** on U+00A0; then green. **S3-02:** the overwrite test stages through the client's own signed URL (positive control), re-PUTs with `x-upsert: true`, and asserts a duplicate refusal and the object unchanged; a mutant with `createSignedUploadUrl(key, { upsert: true })` turns it **red**, restored. **S3-03:** criterion 1a rewritten. Finalize 25 | `scratchpad/dev032-r3-red.txt`, `dev032-r3-finalize.txt`, `dev032-r3-mutant-upsert.txt`, `dev032-r3-*.txt` | `gp-qa` |
+| 11 | verifying (`gp-qa`, native) on `62476a5` | **Verified for the scoped criteria:** 1, 1a, 2, 3, 4 PASS; 5 NOT RUN (not required). Its own runs: 13 suites; mutants — no `download` (1 red), prefix-only `storedTypeIs` (unit 3 red, finalize red), the check disconnected (2 red), `upsert: true` (red); a temporary end-to-end test through the real intent, the client's PUT, finalize and `GET /v1/assignments/{id}/evidence` in Chrome: four hostile stored types refused with no URL signed, and an allowed one whose stripped URL renders and runs nothing; the Storage control (bypassing finalize) still runs script. Every stated fix in place. A second session on this machine ran `supabase db reset` on the shared local stack during the run; six suites failed in setup and passed once the database was back at `0089`. New: Q1-01 nit (one unscoped «every available object»), Q1-02 nit (the `TEXT/HTML` finalize case had no stored-type positive control), Q1-04 (the other session's resets) | QA report; `scratchpad/qa1-*.txt`, `qa1b-*.txt` | Closing |
+| 12 | closing (coordinator) | Q1-01 scoped; Q1-02: `objectInfo` asserted `TEXT/HTML` before finalize (finalize 25). Q1-04 reported to the owner | `scratchpad/close-suite-upload-intents-finalize.txt` | Push, PR |
 
 ## Findings and rework
 
@@ -72,12 +74,15 @@
 | S3-01 | low | `trim()` | Actual: U+00A0 accepted | coordinator | Raw match, ASCII case only (row 10) |
 | S3-02 | low | overwrite test | Actual: no positive control | coordinator | Staged through the client URL; `x-upsert`; mutant red (row 10) |
 | S3-03 | nit | criterion 1a | Actual: the old rule | coordinator | Rewritten (row 10) |
+| Q1-01 | nit | «What is not true» | Actual: unscoped | coordinator | Scoped (row 12) |
+| Q1-02 | nit | the `TEXT/HTML` finalize test | Actual: no positive control | coordinator | Asserted (row 12) |
+| Q1-04 | env | the shared local stack | Actual: another session reset it mid-run | owner | Reported; serialise sessions |
 
 Rework count and hypothesis changes: none counted (no QA FAIL). The hypothesis changed at row 5: a download disposition alone was not enough, because it is not signed.
 
 ## What is not true after this task
 
-- **The `download` flag is advisory**: storage-js appends it outside the signature, and a URL holder can strip it. What makes a stripped URL harmless is the stored-type check: every available object is stored as one of the four allowed types. Storage still sends no `nosniff`, and the bucket still accepts any type on upload (BL-126).
+- **The `download` flag is advisory**: storage-js appends it outside the signature, and a URL holder can strip it. What makes a stripped URL harmless is the stored-type check: every object finalized from DEV-032 on is stored as one of the four allowed types. Storage still sends no `nosniff`, and the bucket still accepts any type on upload (BL-126).
 - **Evidence finalized before this change is not re-checked**: an object already available with another stored type keeps it; every claim here about available objects is about objects finalized from DEV-032 on. A one-off comparison of Storage metadata with `evidence_objects.media_type` is in BL-126.
 - **Hosted Storage was not measured**; the headers and the type rewriting are the local storage API v1.69.0's (BL-126).
 - **The browser pass signed through supabase-js on a blank page**, not through `evidence-storage.ts` and the evidence card (R1-02).
@@ -89,6 +94,12 @@ Rework count and hypothesis changes: none counted (no QA FAIL). The hypothesis c
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. Both signing calls give `attachment`, the bytes, the hostile type as control | yes | `62476a5` | `gp-qa`: storage-read 7 (`qa1-dev032-storage-read.txt`); no-`download` mutant red | PASS | local storage-api v1.69.0 only; hosted is BL-126 |
+| 1a. The stored type strictly the recorded one; overwrite refused | yes | `62476a5` | `gp-qa`: finalize 25, stored-type 5; mutants (prefix-only, disconnected, `upsert: true`) red; Q1-02 control added after, finalize 25 (`close-suite-upload-intents-finalize.txt`) | PASS | `not_required` unreachable today (code reading) |
+| 2. Browser: before/after, `<img>` renders | yes | `62476a5` | `gp-qa`: `qa1-dev032-browser.txt`, the end-to-end `qa1-dev032-e2e.txt`, `qa1-dev032-poly-control.txt`; the coordinator's app harness at `9771402` (`app-qa-harness.txt`, 9/9, the card's photo decoded) | PASS | Chrome only; the harness revision precedes changes to error throws only |
+| 3. Suites on the finalize and signing paths; typecheck; validators | yes | `62476a5` | `gp-qa`: 13 suites, typecheck 10/10, both validators (`qa1-*`, `qa1b-*`) | PASS | assisted: six suites re-run after another session's database reset |
+| 4. BL-089, BL-126, §12, §5.12 | yes | `62476a5` | `gp-qa`'s reading | PASS | — |
+| 5. CI `verify` | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 ## Sources
 
@@ -97,9 +108,9 @@ Rework count and hypothesis changes: none counted (no QA FAIL). The hypothesis c
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: `apps/app/src/lib/evidence-storage.ts`, `apps/app/src/lib/evidence/finalize-upload-intent.ts`, `apps/app/src/lib/evidence/stored-type.ts` (+ test); `apps/app/tests/evidence-storage-read.int.test.ts`, `upload-intents-finalize.int.test.ts`, `telegram-evidence.int.test.ts`; `docs/BACKLOG.md` (BL-089, BL-126, BL-127); `production-readiness.md` §12; runbook §5.12; this record; the index. Commits `b5208a8`, `85de15f`, `f5a99e3`, `9771402`, and the closing commit.
+- Review independence: independent — `gp-reviewer` (CHANGES REQUESTED, then APPROVE), `gp-security` (HOLD twice, then PASS), `gp-qa` on `62476a5`, all native subagents.
+- Verified scope: criteria 1–4 PASS; 5 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true»; BL-126 (P2: hosted Storage, a bucket allow-list, a named download, a one-off check of earlier objects), BL-127.
+- Next bounded action and owner: owner — review and merge the stacked pull request after #108.
+- Final state and reason: done — every required criterion PASS; every finding fixed or filed.

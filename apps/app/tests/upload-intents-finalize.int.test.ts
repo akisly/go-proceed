@@ -280,6 +280,8 @@ databaseDescribe("upload_intents.finalize", () => {
     const polyglot = new Uint8Array([...JPEG, ...new TextEncoder().encode("<html><script>1</script></html>")]);
     const intent = await createIntent(polyglot, "image/jpeg");
     await putObject(intent.storage.key, polyglot, "TEXT/HTML");
+    // The positive control: Storage kept the type as sent (DEV-032 Q1-02).
+    expect((await objectInfo(intent.storage.key))?.contentType).toBe("TEXT/HTML");
 
     const res = await finalize(intent.uploadIntentId);
     expect(res.status).toBe(422);
