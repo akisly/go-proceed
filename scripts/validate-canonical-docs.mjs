@@ -125,15 +125,11 @@ const ROLE_RECORD_DIRS = [
   // The AktFlow-era design boards, which are the research record behind
   // `prototype/` — itself frozen and out of scope (.github/workflows/ci.yml).
   "design-references/",
-  // Dated Cowork session outputs (one directory per session id): the outreach
-  // data-processing scripts in there load their source workbooks by the REAL
-  // paths those files had on the operator's disk on the day they ran, and some
-  // of those filenames carry the old product name. Rewriting a path inside a
-  // dated output would falsify how the data was actually produced — the same
-  // reasoning as the dated /cso report below. Added 2026-08-28, when the
-  // 2026-08-27 merges first brought this directory under the walk and the
-  // gate went red on main.
-  "outputs/",
+  // `outputs/` left this list on 2026-09-23 (DEV-031). It was added on
+  // 2026-08-28 for a dated Cowork session whose scripts loaded their workbooks
+  // by paths carrying the old product name; DEV-030 moved that session out of
+  // the repository (it holds personal data, BL-079), and only the pointer
+  // README is tracked there now, which is a live document like any other.
   // A dated security report is a measurement, not a document: the 2026-07-30
   // `/cso` report names the roles as they were called that day — three weeks
   // before migration 0057 renamed them — and rewriting the names would falsify
@@ -1284,7 +1280,7 @@ const RETIRED_WORKFLOW_RECORD_DIRS = [
   "docs/reviews/",
   "migration/",
   "supabase/migrations/",
-  "outputs/",
+  // `outputs/` left this list on 2026-09-23 (DEV-031): only its pointer README is tracked.
   // `.gstack/` left this list on 2026-09-14 (DEV-007): git-ignored, and nothing is tracked there.
 ];
 const RETIRED_WORKFLOW_RECORD_FILES = new Set([
@@ -1315,6 +1311,92 @@ export function retiredWorkflowErrors(relPath, text) {
         + "belongs in isRetiredWorkflowRecordPath (scripts/validate-canonical-docs.mjs)");
     }
   });
+  return errs;
+}
+
+/**
+ * NO TRACKED FILE CARRIES A PROZORRO `contactPoint` OBJECT (BL-081, DEV-031).
+ *
+ * In ProZorro's API a `contactPoint` names the person behind a buyer or a
+ * supplier: a name, an email, a telephone. Commit `bbfc705`, a landing layout
+ * change, tracked a prospecting session with 6,371 of them in passing, and
+ * nothing noticed (DEV-007's review; BL-079 moved the files out in DEV-030).
+ * `.gitignore` now ignores everything under `outputs/` except its pointer
+ * README; this guard is the second line, for a dump committed anywhere else or
+ * forced past the ignore rule.
+ *
+ * It is a CONTENT rule over every tracked text file, and it refuses the forms a
+ * data dump takes, never the prose that names the field:
+ *
+ *   - an object: `"contactPoint": {`, `'contactPoint': {`, `contactPoint: {`,
+ *     `contactPoint={`, the same with escaped quotes inside a JSON string (an
+ *     ndjson dump of a workbook), and the brace on the next line;
+ *   - a YAML block key: `contactPoint:` alone on its line;
+ *   - a CSV or TSV that names the field at all (a flattened export's
+ *     `suppliers.0.contactPoint.email` column).
+ *
+ * `discovery/*.md`, `docs/BACKLOG.md` and the task records name the field as
+ * `suppliers[].contactPoint.email` in prose, to say it is never used; no form
+ * above matches that, so nothing there needs approving. A spreadsheet is a zip
+ * and is not read: the ignore rule is what keeps one out.
+ *
+ * THE APPROVED LIST HOLDS ONLY THIS FILE, whose self-test spells the forms out.
+ * A synthetic fixture that must be tracked (an importer's test data, say) goes
+ * here WITH ITS REASON on the line above it, and holds no real person.
+ */
+export const CONTACT_POINT_APPROVED_PATHS = new Set([ROLE_RULE_DEFINITION]);
+
+const CONTACT_POINT_OBJECT_RE = /\\?["']?\bcontactPoint\\?["']?\s*[:=]\s*[{[]/g;
+const CONTACT_POINT_YAML_KEY_RE = /^[ \t]*(?:-[ \t]+)?["']?contactPoint["']?[ \t]*:[ \t]*(?:#.*)?$/gm;
+
+export function contactPointErrors(relPath, text) {
+  if (CONTACT_POINT_APPROVED_PATHS.has(relPath) || !text.includes("contactPoint")) return [];
+  const lineAt = (index) => text.slice(0, index).split("\n").length;
+  const lines = new Set();
+  for (const m of text.matchAll(CONTACT_POINT_OBJECT_RE)) lines.add(lineAt(m.index));
+  for (const m of text.matchAll(CONTACT_POINT_YAML_KEY_RE)) lines.add(lineAt(m.index));
+  if (/\.(csv|tsv)$/i.test(relPath)) {
+    text.split("\n").forEach((line, i) => { if (line.includes("contactPoint")) lines.add(i + 1); });
+  }
+  return [...lines].sort((a, b) => a - b).map((n) => `${relPath}:${n}: carries a ProZorro \`contactPoint\` `
+    + "(a named buyer or supplier contact: personal data of a natural person, BL-079) — prospecting data stays "
+    + "out of git (outputs/README.md); a synthetic fixture that must be tracked goes into "
+    + "CONTACT_POINT_APPROVED_PATHS (scripts/validate-canonical-docs.mjs) with its reason");
+}
+
+/**
+ * Two PATH rules beside the content rule above (DEV-031, from DEV-030's
+ * security review), for what a text scan cannot see:
+ *
+ *   - under `outputs/` only the pointer README is tracked. `.gitignore`
+ *     ignores the rest, but `git add -f` passes an ignore rule, and a session
+ *     directory holds more than `contactPoint` objects (sole traders' tax
+ *     numbers, outreach routes: DEV-007's review);
+ *   - no spreadsheet is tracked. An `.xlsx` is a zip, so the content rule
+ *     never reads it, and the prospecting session's workbooks carried the same
+ *     data as its JSON. None is tracked today.
+ *
+ * THE APPROVED LIST IS EMPTY. A spreadsheet that must be tracked goes into it
+ * WITH ITS REASON on the line above it, and holds no real person. Screenshots
+ * of workbooks are images and neither rule reads them.
+ */
+export const SPREADSHEET_APPROVED_PATHS = new Set([]);
+
+const SPREADSHEET_RE = /\.(xlsx|xlsm|xls|ods|numbers)$/i;
+
+export function prospectingPathErrors(paths) {
+  const errs = [];
+  for (const p of paths) {
+    if (p.startsWith("outputs/") && p !== "outputs/README.md") {
+      errs.push(`${p}: tracked under outputs/, where only the pointer README belongs — session outputs hold personal `
+        + "data (BL-079) and live outside the repository (outputs/README.md); untrack it with `git rm --cached`");
+    }
+    if (SPREADSHEET_RE.test(p) && !SPREADSHEET_APPROVED_PATHS.has(p)) {
+      errs.push(`${p}: a tracked spreadsheet — a zip the contactPoint guard cannot read, and the form prospecting `
+        + "data took (BL-079); keep it out of git, or add it to SPREADSHEET_APPROVED_PATHS "
+        + "(scripts/validate-canonical-docs.mjs) with its reason");
+    }
+  }
   return errs;
 }
 
@@ -1968,6 +2050,33 @@ function selfTest() {
   }
   if (retiredWorkflowErrors("docs/superpowers/plans/a.md", "superpowers:writing-plans\n").length !== 0) t.push("retired workflow (record not exempt)");
   if (workflowLinkTargets("[a](b.md#c) [d](#e) [f](https://g)").join() !== "b.md") t.push("workflow link extractor");
+
+  // ProZorro contactPoint guard (BL-081): the object forms a data dump takes
+  // are refused; the prose that names the field, as discovery/*.md does, is not.
+  const cp = (p, s) => contactPointErrors(p, s).length;
+  if (cp("outputs/s/hits.json", '{"awards":[{"suppliers":[{"contactPoint": {"name": "X", "email": "x@y.test"}}]}]}\n') !== 1) t.push("contactPoint guard (JSON object)");
+  if (cp("outputs/s/hits.ndjson", '{"row":"{\\"contactPoint\\":{\\"name\\":\\"X\\"}}"}\n') !== 1) t.push("contactPoint guard (JSON escaped in a string)");
+  if (cp("tools/scrape.py", "row = {'contactPoint': {'name': name}}\n") !== 1) t.push("contactPoint guard (Python dict)");
+  if (cp("fixtures/tender.ts", "const s = { contactPoint: { name: 'X' } };\n") !== 1) t.push("contactPoint guard (JS object literal)");
+  if (cp("fixtures/tender.yaml", "suppliers:\n  - contactPoint:\n      name: X\n") !== 1) t.push("contactPoint guard (YAML block)");
+  if (cp("exports/leads.csv", "edrpou,suppliers.0.contactPoint.email\n1,x@y.test\n") !== 1) t.push("contactPoint guard (flattened CSV column)");
+  if (!contactPointErrors("a.json", '\n\n{"contactPoint": {}}\n')[0]?.includes("a.json:3:")) t.push("contactPoint guard (line number)");
+  if (cp("discovery/sources.md", "`suppliers[].contactPoint` is a named individual's address; `suppliers[].contactPoint.email` was never used.\n") !== 0) {
+    t.push("contactPoint guard (prose wrongly reported)");
+  }
+  if (cp("discovery/HANDOFF-B0.1-PROZORRO.md", "ProZorro's `contactPoint`.**\n`awards[].suppliers[].contactPoint` carries `{name, email, telephone}`\n") !== 0) {
+    t.push("contactPoint guard (field description wrongly reported)");
+  }
+  if (cp(ROLE_RULE_DEFINITION, '{"contactPoint": {"name": "X"}}\n') !== 0) t.push("contactPoint guard (approved path not exempt)");
+  // The path rules: under outputs/ only the pointer README; no spreadsheet unless approved.
+  const pp = (paths) => prospectingPathErrors(paths);
+  if (pp(["outputs/README.md", "docs/STATUS.md", "apps/app/outputs/x.json"]).length !== 0) t.push("outputs path rule (pointer and look-alikes wrongly reported)");
+  if (!pp(["outputs/2026-09-23-session/notes.md"])[0]?.includes("outputs/2026-09-23-session/notes.md")) t.push("outputs path rule (a session file)");
+  if (pp(["outputs/README.md", "outputs/stray.txt", "outputs/a/README.md"]).length !== 2) t.push("outputs path rule (count)");
+  if (!pp(["discovery/leads.xlsx"])[0]?.includes("spreadsheet")) t.push("spreadsheet rule (.xlsx)");
+  if (pp(["a/b.XLSX", "c.xls", "d.xlsm", "e.ods", "f.numbers", "g.csv", "h.xlsx.md"]).length !== 5) t.push("spreadsheet rule (extensions)");
+  // outputs/ is no longer a record directory: only its pointer README is tracked (DEV-031).
+  if (isRoleRecordPath("outputs/README.md") || isRetiredWorkflowRecordPath("outputs/README.md")) t.push("outputs/ still exempt as a record directory");
   // The block this guard exists for: CLAUDE.md as it read before 2026-09-13.
   const retiredBlock = "Superpowers is the primary implementation methodology.\n\nUse Superpowers for:\n- brainstorming\n\n"
     + "Use gstack only as explicit quality gates:\n- /plan-ceo-review for product-level decisions\n- /review after implementation\n";
@@ -2598,6 +2707,23 @@ function main() {
     }
   } catch (err) {
     fail(`retired-workflow guard could not enumerate tracked files: ${err.message}`);
+  }
+  // DEV-031 (BL-081): no tracked file carries a ProZorro contactPoint object.
+  // Every tracked file, whatever its extension — a dump's extension is not
+  // ours to predict — except binaries, recognised by a NUL byte near the start.
+  // The two path rules run over the same list.
+  try {
+    const tracked = execFileSync("git", ["ls-files", "-z"], { cwd: ROOT, encoding: "utf8" })
+      .split("\0").filter(Boolean);
+    for (const e of prospectingPathErrors(tracked)) fail(e);
+    for (const p of tracked) {
+      let buf;
+      try { buf = readFileSync(join(ROOT, p)); } catch { continue; }
+      if (buf.subarray(0, 8000).includes(0)) continue;
+      for (const e of contactPointErrors(p, buf.toString("utf8"))) fail(e);
+    }
+  } catch (err) {
+    fail(`contactPoint guard could not enumerate tracked files: ${err.message}`);
   }
   for (const p of WORKFLOW_DOCS) {
     if (!existsSync(join(ROOT, p))) { fail(`missing workflow document: ${p}`); continue; }

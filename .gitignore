@@ -113,6 +113,14 @@ discovery/*.db
 # Agent-session screenshots and briefs; DEV-007 removed the tracked copy (2026-09-14).
 /output/
 
+# Session outputs hold personal data of natural persons (BL-079): DEV-030 moved the
+# prospecting session to private storage outside the repository, and nothing under
+# outputs/ is tracked except the pointer README (BL-081, DEV-031). A file forced
+# past this rule still fails `pnpm validate:canonical-docs` if it carries a ProZorro
+# contactPoint.
+/outputs/*
+!/outputs/README.md
+
 # Impeccable critique snapshots are local reports, never tracked (DEV-007).
 .impeccable/critique/
 apps/app/qa-output-before/

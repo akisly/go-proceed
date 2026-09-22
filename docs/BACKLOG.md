@@ -109,7 +109,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-078](#bl-078) | P3 | open | The rewrite plan's rulings D1–D7 were never recorded in an ADR |
 | [BL-079](#bl-079) | P1 | closed → DEV-030 | `outputs/` keeps personal data in git against the project's own rule |
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
-| [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
+| [BL-081](#bl-081) | P2 | closed → DEV-031 | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
 | [BL-083](#bl-083) | P2 | open | Nothing keeps a package reached through pnpm's private hoist at one version |
 | [BL-084](#bl-084) | P2 | open | The act footer names a «Реєстр будівельних норм» that ЗУ «Про будівельні норми» does not name |
@@ -1028,10 +1028,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-081"></a>
 ### BL-081 — P2 — Nothing stops a session from committing prospecting data again
 
-- **State:** open
+- **State:** closed → DEV-031
 - **Legacy cite:** none
 - **Why:** DEV-007's review (S1-09). Commit `bbfc705`, a landing layout change, added the whole session directory in passing, and no ignore rule or validator check would stop the next one. Two guards fit: ignore new session directories under `outputs/` while the existing tree stays tracked, and a validator check that refuses tracked files carrying ProZorro `contactPoint` objects outside approved paths. Ranked by DEV-007 from the review's severity.
 - **Evidence:** `git log --format='%h %s' -- outputs` lists only `bbfc705` «fix(landing): adjust table borders for improved layout consistency»; `.gitignore` has no `outputs` entry.
+- **Closed 2026-09-23 by DEV-031:** `.gitignore` ignores everything under `outputs/` except the pointer README. `scripts/validate-canonical-docs.mjs` refuses, over every tracked file: a ProZorro `contactPoint` in a dump's forms (a JSON, JS, Python or escaped-JSON object, a YAML block key, a CSV or TSV column), never the prose that names the field; any tracked path under `outputs/` other than the README; and any tracked spreadsheet, which the text scan cannot read. The approved lists hold only the validator itself (its self-test fixtures) and nothing, respectively. Over `44e05cd`, the tree before DEV-030, the check refuses 6,371 lines in the five ProZorro dumps, 250 `outputs/` paths and 9 workbooks; over the tree after, nothing. The validator's two `outputs/` exemptions are gone. Limits: `git add -f` passes the ignore rule, and the validator stops it only where someone runs it, since GitHub Actions starts no jobs until October 2026; screenshots are not read.
 - **Depends on:** BL-079, which decides what may stay tracked.
 - **Deadline:** none recorded.
 

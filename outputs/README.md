@@ -2,7 +2,7 @@
 
 This directory held the files of one prospecting session, `01a033d9-c008-7011-bf7b-e1dbd14e2e9d` (2026-08-24 and 2026-08-25). They include personal data of natural persons, which the project's own rule keeps out of git ([BL-079](../docs/BACKLOG.md#bl-079)). On 2026-09-15 the owner decided to move them to private storage behind this pointer, without rewriting history. [DEV-030](../docs/tasks/DEV-030-outputs-private-storage.md) carried out the move on 2026-09-23.
 
-Nothing else belongs here.
+Nothing else belongs here. `.gitignore` ignores everything under `outputs/` except this file, and `pnpm validate:canonical-docs` refuses any other tracked file here, any tracked spreadsheet, and any tracked file that carries a ProZorro `contactPoint` ([BL-081](../docs/BACKLOG.md#bl-081), [DEV-031](../docs/tasks/DEV-031-outputs-guards.md)).
 
 ## Where the files are
 
