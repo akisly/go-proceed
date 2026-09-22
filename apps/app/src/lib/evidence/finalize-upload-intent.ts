@@ -4,6 +4,7 @@ import { enqueueOutbox, recordAudit, withServiceTx, withTenantTx } from "@goproc
 import { requireActiveMembership } from "../authz";
 import type { HandlerResult } from "../command";
 import { downloadObject, objectInfo } from "../evidence-storage";
+import { storedTypeIs } from "./stored-type";
 import { inspectContent } from "../evidence-inspection";
 import { HttpProblem, problem } from "../http";
 
@@ -17,15 +18,6 @@ type IntentRow = {
   workspace_id: string; project_id: string; work_assignment_id: string;
   device_capture_id: string | null;
 };
-const MIME_TOKEN = "[a-z0-9!#$&^_.+-]+";
-
-/** True when `stored` is `expected`, case aside, followed by nothing but plain `; name=value` parameters. */
-export function storedTypeIs(stored: string | null, expected: string): boolean {
-  if (stored === null) return false;
-  const escaped = expected.toLowerCase().replace(/[.+]/g, "\\$&");
-  return new RegExp(`^${escaped}(?:[ \\t]*;[ \\t]*${MIME_TOKEN}=${MIME_TOKEN})*$`).test(stored.trim().toLowerCase());
-}
-
 /**
  * The refusal the field client shows in its alert (`recover.ts` maps
  * `recapture_or_contact_support` to `failed`). Each one says what went wrong
@@ -188,11 +180,8 @@ export async function finalizeUploadIntent({
   // outside the signature, so whoever holds the URL can strip it and open the
   // object inline: a JPEG-prefixed HTML polyglot stored as `TEXT/HTML` then
   // runs as HTML on the Storage origin (measured, DEV-032). The match is
-  // STRICT: the recorded type, in any case, with nothing after it but plain
-  // `name=value` parameters — no comma, no quote. A browser reads the last
-  // type of a comma list, and `image/jpeg;x=1, TEXT/HTML` was stored, served
-  // and rendered as HTML (DEV-032 S2-01). Every outcome but `blocked` is
-  // checked, against the type the row will record.
+  // strict, as a browser reads a Content-Type (`stored-type.ts`). Every
+  // outcome but `blocked` is checked, against the type the row will record.
   const recordedType = inspected.detectedMediaType ?? intent.claimed_media_type;
   const inspection = inspected.outcome !== "blocked" && !storedTypeIs(stored?.contentType ?? null, recordedType)
     ? { ...inspected, outcome: "blocked" as const, failureCode: "stored_type_mismatch" }

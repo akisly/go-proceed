@@ -319,12 +319,21 @@ databaseDescribe("upload_intents.finalize", () => {
     // only because Storage refuses a second PUT to the same key: the signed
     // upload is created without `upsert`, and that is load-bearing.
     const intent = await createIntent(JPEG, "image/jpeg");
-    await putObject(intent.storage.key, JPEG, "image/jpeg");
-    expect((await finalize(intent.uploadIntentId)).status).toBe(200);
-    const again = await fetch(intent.upload.signedUrl, {
-      method: "PUT", headers: { "content-type": "TEXT/HTML" }, body: new TextEncoder().encode("<html>"),
+    // The positive control: the client's own signed URL is what stages the bytes.
+    const first = await fetch(intent.upload.signedUrl, {
+      method: "PUT", headers: { "content-type": "image/jpeg" }, body: JPEG,
     });
+    expect(first.ok).toBe(true);
+    expect((await finalize(intent.uploadIntentId)).status).toBe(200);
+    // The same URL again — with a client header asking for an upsert, which a
+    // signed token must not grant — is refused as a duplicate, not for any other reason.
+    const again = await fetch(intent.upload.signedUrl, {
+      method: "PUT", headers: { "content-type": "TEXT/HTML", "x-upsert": "true" },
+      body: new TextEncoder().encode("<html>"),
+    });
+    const refusal = await again.text();
     expect(again.ok).toBe(false);
+    expect(refusal).toMatch(/Duplicate|already exists/i);
     expect(await objectInfo(intent.storage.key)).toEqual({ size: JPEG.byteLength, contentType: "image/jpeg" });
   });
 
