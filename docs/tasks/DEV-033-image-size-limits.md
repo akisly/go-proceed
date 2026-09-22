@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** an uploaded image cannot become evidence when it declares a bitmap too large to decode safely, when its size cannot be read, or when it is an animated PNG. Finalization reads the declared size from the header without decoding it and refuses such an image with its own sentence; phone photos up to 200 MP and panoramas up to about 63 MP pass. `files-and-storage.md` «Content validation and malware boundary» asks for «image dimension/pixel-count and decoding-resource limits».
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** new behaviour inside existing boundaries: `gp-mobile` before design (it changes what a field capture may be) → coordinator → `gp-reviewer` + `gp-security` → `gp-qa`. Failing tests first.
@@ -48,6 +48,8 @@ The limits (`gp-mobile`'s Q-1 and Q-2) were set by the coordinator on `gp-mobile
 | 5 | rework (coordinator), stated fixes | **Red first:** the unit tests gain the `iloc` layouts of R1-02 (v0 with a file offset into `mdat`, v2, base and index sizes, 8-byte fields, a 16-bit grid, a readable overlay, a largesize `meta` — these passed at once: the reader already handled them, now pinned) and the fail-open cases: trailing bytes in `iinf`, an `entry_count` that disagrees, a duplicate item, two `iloc`s, two `meta`s, a top-level `moov`, 1,001 boxes; reserved, DHP and JPG markers and a second SOI; a PNG without IDAT, with a length past the end, with 1,000 chunks before IDAT — **red, 3 tests**. **Fix:** `itemTypes` refuses a broken or miscounted entry list and a duplicate id; `itemExtents` a duplicate id; `only()` refuses a second `meta`, `iprp`, `ipco`, `iinf`, `iloc`, `idat`; a top-level `moov` is refused; JPEG markers are allowlisted as libjpeg reads them before a scan; a PNG must walk to its first IDAT within 1,000 chunks, and the animation check reads that walk (S1-03). **Green, 27.** The int tests' PNG fixture becomes a real 1×1 PNG with IDAT and IEND (69 bytes, read by `sips`). **R1-03:** «Зображення завелике: понад 268 мегапікселів або 65 535 пікселів по стороні. Зменште його або надішліть звичайне фото.» **R1-04 / S1-08:** comments in both harnesses and the finalize test. **S1-01:** BL-088's closure, BL-129 (retitled; the attacker path, every browser, the pixels-per-byte floor as an owner option), §12 and «What is not true» say the limit bounds the declared size, not the cost. **S1-06 / R1-05:** BL-132. **R1-06:** real files re-run on the rework — 83 of 83 equal to `sips`, none blocked. **Suites:** unit 37 (inspection, stored-type, storage), finalize 25, purge 17, get 9, telegram 22, field-capture 5, evidence-read 4, external 12, concurrency 9, vertical-m2a 10, vanishing-bytes 1, storage 8, storage-read 7; typecheck 10/10 | `scratchpad/dev033-r1-red.txt`, `dev033-r1-unit.txt`, `dev033-r1-real-files.txt`, `dev033-r1-suite-*.txt`, `dev033-r1-checks.txt` | `gp-security` re-check (S1-01, S1-02); `gp-qa` |
 | 6 | reviewing (`gp-security` re-check, native) on `946a5de` | **PASS** — S1-01, S1-02, S1-03, S1-05, S1-07, S1-08 resolved; S1-04 resolved in code but not pinned; S1-06 tracked (BL-132). New: S2-01 minor (three gate texts implied only export blocks gate 12), S2-02 minor (the duplicate-id checks were never reached by a test: the fixture failed earlier on its entry count), S2-03 info (an `iloc` entry with no extent escaped the duplicate check), S2-04 info (the marker comment was wrong about DNL), S2-05 info (IHDR's length unchecked) | re-check report | Stated fixes |
 | 7 | rework (coordinator), stated fixes | **S2-02, S2-03 red first:** the builder's entry count follows its `infe`s; new cases — a later `infe` reusing the grid's id as `hvc1`, a duplicate `iloc` entry with one extent and with none, a second `iprp`, a second `idat`, an IHDR of 14 bytes: red on the no-extent case; then the id check moves before the extent loop (a `seen` set). **Mutants:** removing `itemTypes`' duplicate check → 1 red; removing `itemExtents`' → 1 red; restored. **S2-05:** IHDR must declare 13 bytes. **S2-04:** the comment says DNL is refused although libjpeg would skip it — stricter, never looser. **S2-01:** §12's gate annotation, §5.12's note and the STATUS «M0 gates» row say BL-129 and BL-132 remain for the gate. Unit 27 | `scratchpad/dev033-r2-red.txt`, `dev033-r2-mutants.txt`, `dev033-r2-*.txt` | `gp-qa` |
+| 8 | verifying (`gp-qa`, native) on `33b3cbd` | **Verified for the scoped criteria:** 1–5 PASS, 6 NOT RUN (not required). Its own runs: unit 27; 17 adversarial probes (hostile APPn and COM segments in real JPEGs, an appended fake MP4, a flat 16,383² PNG of 32,695 bytes that passes — BL-129 measured —, grids placed through `iloc` method 0 and real ImageIO grids rewritten to 60,000², all refused); truncation at every length of seven real files (~208,000 prefixes: none passed with a wrong size); a differential fuzz of 9,000 header mutants against `sips` (never a smaller size than ImageIO reads; 22 cases larger — over-refusal only); 8 mutants, 6 red; the real files 83 of 83; 12 finalize-path suites (129 tests); the app browser harness 9 of 9 at HEAD; typecheck; validators. New: Q1-01 low (the S2-05 test passed with the length check removed: a misaligned walk refused it anyway), Q1-02 info (§5.12's closure condition narrower than §12 and STATUS), Q1-03 info (the parser can over-refuse, never under-refuse — BL-131) | QA report; `scratchpad/qa-dev033-*.txt` | Closing |
+| 9 | closing (coordinator), stated fixes after QA | Q1-01: the case now declares and carries a 14-byte IHDR, and an «IEND before any IDAT» case is added; with the length check removed (M4) the test turns red, restored. Q1-02: §5.12 names BL-129 and BL-132. Unit 27. Applied after QA; not re-verified by an independent stage (a test and a sentence) | `scratchpad/dev033-q1-fix.txt` | Push, PR |
 
 ## Findings and rework
 
@@ -69,6 +71,9 @@ The limits (`gp-mobile`'s Q-1 and Q-2) were set by the coordinator on `gp-mobile
 | S2-03 | info | no-extent duplicate | Actual: escaped | coordinator | Checked before the extents (row 7) |
 | S2-04 | info | marker comment | Actual: wrong about DNL | coordinator | Corrected |
 | S2-05 | info | IHDR length | Actual: unchecked | coordinator | Must be 13 (row 7) |
+| Q1-01 | low | the S2-05 test | Actual: passed for the wrong reason | coordinator | Rebuilt; M4 red (row 9) |
+| Q1-02 | info | §5.12 note | Actual: narrower condition | coordinator | Aligned (row 9) |
+| Q1-03 | info | over-refusal | The largest `ispe` wins | coordinator | Recorded; BL-131 |
 
 Rework count and hypothesis changes: the raw-scan hypothesis was replaced before the first commit (row 1). No QA round yet; the review fixes precede QA.
 
@@ -86,6 +91,12 @@ Rework count and hypothesis changes: the raw-scan hypothesis was replaced before
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The structural parser, red first | yes | `33b3cbd` | `gp-qa`: unit 27, 17 probes, truncation and differential fuzz, mutants (`qa-dev033-*.txt`); red-first `dev033-red-unit.txt`, `dev033-r1-red.txt`, `dev033-r2-red.txt` | PASS | the S2-05 case was fixed after QA (row 9; M4 red) |
+| 2. The three codes; phone captures admitted; PDF and precedence; policy `-2` | yes | `33b3cbd` | `gp-qa`: unit tests and probes (16,383² passes, 16,384² refused, APNG refused in a real favicon) | PASS | — |
+| 3. Real files equal to `sips`, none blocked | yes | `33b3cbd` | `gp-qa`: 83 of 83, six grids, 16,000 × 12,000 (`qa-dev033-real-files.txt`) | PASS | ImageIO HEIC, not a phone's (BL-131) |
+| 4. Finalize end to end; the finalize-path suites | yes | `33b3cbd` | `gp-qa`: 12 suites, 129 tests; the app harness 9/9 at HEAD (`qa-dev033-app-harness.txt`) | PASS | local stack only |
+| 5. Typecheck; validators | yes | `33b3cbd` | `gp-qa`: typecheck 10/10; both validators | PASS | — |
+| 6. CI `verify` | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026; settled by CI `verify` on the PR head |
 
 ## Sources
 
@@ -104,9 +115,9 @@ Local: macOS `sips` (ImageIO) made the HEIC samples and gave the reference sizes
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: `apps/app/src/lib/evidence-inspection.ts` (+ test); `apps/app/src/lib/evidence/finalize-upload-intent.ts`; the fixtures in 12 test files and both QA harnesses; `docs/BACKLOG.md` (BL-088; BL-128 to BL-132); `production-readiness.md` §12; runbook §5.12; `docs/STATUS.md`; this record; the index. Commits `36cc4a7`, `946a5de`, `22958ea`, and the closing commit.
+- Review independence: independent — `gp-mobile` before design, `gp-reviewer` (CHANGES REQUESTED, stated fixes), `gp-security` (HOLD, then PASS), `gp-qa` on `33b3cbd`, all native subagents.
+- Verified scope: criteria 1–5 PASS; 6 NOT RUN, not required.
+- Remaining risks / blocked requirements: «What is not true»; BL-129 (the decoding cost; P2), BL-131 (phone files; owner), BL-128 (quota; owner), BL-130, BL-132. The limits were set by the coordinator on `gp-mobile`'s advice and are the owner's to revise.
+- Next bounded action and owner: owner — the limits, BL-128 and BL-131's files; review and merge the stacked pull request after #108.
+- Final state and reason: done — every required criterion PASS; every finding fixed or filed.

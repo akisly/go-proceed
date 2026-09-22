@@ -234,8 +234,12 @@ describe("imageDimensions: read from the header, never decoded (BL-088)", () => 
 
   it("refuses a PNG whose chunks break before its image data", () => {
     expect(imageDimensions(png(10, 10, "IHDR", [], []), "image/png")).toBeNull(); // no IDAT at all
-    const longIhdr = png(10, 10); longIhdr[11] = 14; // IHDR declares 14 bytes, not 13 (S2-05)
+    // An IHDR that declares AND carries 14 bytes: the walk stays aligned, so only
+    // the length check refuses it (S2-05, QA Q1-01).
+    const longIhdr = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
+      ...chunk("IHDR", [...u32(10), ...u32(10), 8, 2, 0, 0, 0, 0]), ...IDAT_IEND]);
     expect(imageDimensions(longIhdr, "image/png")).toBeNull();
+    expect(imageDimensions(png(10, 10, "IHDR", [], chunk("IEND", [])), "image/png")).toBeNull(); // IEND before any IDAT
     expect(imageDimensions(png(10, 10, "IHDR", [...u32(1_000_000), ...ascii("tEXt")], []), "image/png")).toBeNull(); // a length past the end
     const padded = png(10, 10, "IHDR", Array.from({ length: 1000 }, () => chunk("tEXt", [])).flat());
     expect(imageDimensions(padded, "image/png")).toBeNull(); // more chunks before IDAT than the parser walks (S1-03)
