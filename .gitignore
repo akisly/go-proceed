@@ -108,10 +108,31 @@ discovery/outreach-log.csv
 discovery/suppression.csv
 discovery/drafts/
 discovery/*.db
+# The store's other data formats (DEV-031): discovery/README.md and HANDOFF-B0 say its
+# CSVs, databases and drafts are never committed, and earlier sessions wrote candidates,
+# rankings and merged lead lists there. The validator goes further: it refuses any tracked
+# file in discovery/ but its prose, src/ and package files, whatever the extension.
+discovery/**/*.csv
+discovery/**/*.tsv
+discovery/**/*.psv
+discovery/**/*.ndjson
+discovery/**/*.jsonl
+discovery/**/*.db
+discovery/**/*.sqlite
+discovery/**/*.sqlite3
+discovery/**/*.txt
 .gstack/
 
 # Agent-session screenshots and briefs; DEV-007 removed the tracked copy (2026-09-14).
 /output/
+
+# Session outputs hold personal data of natural persons (BL-079): DEV-030 moved the
+# prospecting session to private storage outside the repository, and nothing under
+# outputs/ is tracked except the pointer README (BL-081, DEV-031). `git add -f` passes
+# this rule; `pnpm validate:canonical-docs` then refuses any tracked file here, but
+# only where someone runs it (CI detects after a push; nothing prevents a commit).
+/outputs/*
+!/outputs/README.md
 
 # Impeccable critique snapshots are local reports, never tracked (DEV-007).
 .impeccable/critique/

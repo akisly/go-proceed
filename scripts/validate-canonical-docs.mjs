@@ -125,15 +125,11 @@ const ROLE_RECORD_DIRS = [
   // The AktFlow-era design boards, which are the research record behind
   // `prototype/` — itself frozen and out of scope (.github/workflows/ci.yml).
   "design-references/",
-  // Dated Cowork session outputs (one directory per session id): the outreach
-  // data-processing scripts in there load their source workbooks by the REAL
-  // paths those files had on the operator's disk on the day they ran, and some
-  // of those filenames carry the old product name. Rewriting a path inside a
-  // dated output would falsify how the data was actually produced — the same
-  // reasoning as the dated /cso report below. Added 2026-08-28, when the
-  // 2026-08-27 merges first brought this directory under the walk and the
-  // gate went red on main.
-  "outputs/",
+  // `outputs/` left this list on 2026-09-23 (DEV-031). It was added on
+  // 2026-08-28 for a dated Cowork session whose scripts loaded their workbooks
+  // by paths carrying the old product name; DEV-030 moved that session out of
+  // the repository (it holds personal data, BL-079), and only the pointer
+  // README is tracked there now, which is a live document like any other.
   // A dated security report is a measurement, not a document: the 2026-07-30
   // `/cso` report names the roles as they were called that day — three weeks
   // before migration 0057 renamed them — and rewriting the names would falsify
@@ -1271,8 +1267,7 @@ export function presetCoherenceErrors(presetCsv, capCsv, exempt) {
  *
  * Like the rename guard it is a PATH rule. Records keep the old names because
  * they describe what happened: the frozen `docs/superpowers/` archive, dated
- * handoffs, reviews and task records, applied migrations, and the session
- * outputs. Plain path citations such as `docs/superpowers/plans/…` never match
+ * handoffs, reviews and task records, and applied migrations. Plain path citations such as `docs/superpowers/plans/…` never match
  * — only the invocation forms do — so the archive can go on being cited.
  * `/review` is deliberately absent: it is also an ordinary route segment.
  */
@@ -1284,7 +1279,7 @@ const RETIRED_WORKFLOW_RECORD_DIRS = [
   "docs/reviews/",
   "migration/",
   "supabase/migrations/",
-  "outputs/",
+  // `outputs/` left this list on 2026-09-23 (DEV-031): only its pointer README is tracked.
   // `.gstack/` left this list on 2026-09-14 (DEV-007): git-ignored, and nothing is tracked there.
 ];
 const RETIRED_WORKFLOW_RECORD_FILES = new Set([
@@ -1316,6 +1311,243 @@ export function retiredWorkflowErrors(relPath, text) {
     }
   });
   return errs;
+}
+
+/**
+ * NO TRACKED FILE CARRIES A PROZORRO `contactPoint` (BL-081, DEV-031).
+ *
+ * In ProZorro's API a `contactPoint` names the person behind a buyer or a
+ * supplier: a name, an email, a telephone. Commit `bbfc705`, a landing layout
+ * change, tracked a prospecting session with 6,371 of them in passing, and
+ * nothing noticed (DEV-007's review; BL-079 moved the files out in DEV-030).
+ * `.gitignore` now ignores everything under `outputs/` except its pointer
+ * README and the discovery store's data files; this guard is the second line,
+ * for a dump committed anywhere else or forced past an ignore rule.
+ *
+ * It is a CONTENT rule over the INDEX (what a commit would record, not what
+ * the working tree happens to hold), case-insensitive, `contactPoint` or
+ * `contact_point`, and it refuses the forms a data dump takes:
+ *
+ *   - an object: `"contactPoint": {`, `'contactPoint': {`, `contactPoint: {`,
+ *     `contactPoint={`, `[` in place of `{`, the brace on the next line, and
+ *     the same with quotes escaped once or twice inside a JSON string;
+ *   - a quoted key that names the field, flattened or not
+ *     (`"suppliers.0.contactPoint.email":`, pandas' `json_normalize`);
+ *   - a YAML block key: `contactPoint:` alone on its line;
+ *   - a column: a flattened `….contactPoint.email` right after a `|`, `,` or
+ *     tab (a markdown table, a CSV), and in a `.csv`, `.tsv`, `.psv` or `.txt`
+ *     any occurrence at all.
+ *
+ * `discovery/*.md`, `docs/BACKLOG.md` and the task records name the field in
+ * backticks, as `suppliers[].contactPoint.email`, to say it is never used; no
+ * form above matches that. A type that NAMES its field type
+ * (`contactPoint: ContactPoint`) passes; an inline object type
+ * (`contactPoint: { name: string }`) is refused, and the message says to name
+ * the type instead. Failing closed there is deliberate.
+ *
+ * THE APPROVED LIST HOLDS ONLY THIS FILE, whose self-test spells the forms out,
+ * and an approved file is STILL SCANNED: every email in it must be on a
+ * reserved domain (RFC 2606, RFC 6761) and every telephone all zeros after an
+ * optional +380, so a real
+ * response saved «as a fixture» fails even after approval. Names are not
+ * checked: a real name beside a synthetic email passes, so a reviewer reads
+ * an approved fixture's names. Adding a path here
+ * is a change to how personal data is kept out of git: `gp-security` reviews
+ * it (root AGENTS.md, «retention and deletion of personal data»).
+ */
+export const CONTACT_POINT_APPROVED_PATHS = new Set([ROLE_RULE_DEFINITION]);
+
+const CP = String.raw`contact[_-]?point`;
+const CONTACT_POINT_FORMS = [
+  // an object or an array under the key, quotes optional or escaped
+  new RegExp(String.raw`\\*["']?\b${CP}\\*["']?\s*[:=]\s*[{[]`, "gi"),
+  // a quoted key naming the field, flattened or not
+  new RegExp(String.raw`\\*["'][\w.\[\]\/-]*${CP}[\w.\[\]\/-]*\\*["']\s*:`, "gi"),
+  // a YAML block key
+  new RegExp(String.raw`^[ \t]*(?:-[ \t]+)?["']?${CP}["']?[ \t]*:[ \t]*(?:#.*)?$`, "gim"),
+  // a flattened column in a table or a delimited line
+  new RegExp(String.raw`(?:^|[|,;\t])[ \t]*["']?[\w.\[\]\/]*${CP}[._\/](?:name|email|telephone|faxNumber|url)\b`, "gim"),
+];
+const CONTACT_POINT_ANY_RE = new RegExp(CP, "i");
+const DELIMITED_EXT_RE = /\.(csv|tsv|psv|txt)$/i;
+const CONTACT_POINT_LINES_SHOWN = 5;
+
+// RFC 2606 and RFC 6761: names reserved so that no real mailbox can hold them.
+const RESERVED_EMAIL_DOMAIN_RE = /(?:^|\.)(?:example\.(?:com|net|org)|example|test|invalid|localhost)$/i;
+// A dotted domain only, so a version pin (`actions/checkout@v4`, `next@16`) is not an email.
+const EMAIL_RE = /[A-Za-z0-9._%+-]+@([A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,})\b/g;
+// Quoted, unquoted (YAML) or escaped, and a number as well as a string.
+const TELEPHONE_RE = /\\*["']?(?:telephone|faxNumber)\\*["']?\s*[:=]\s*\\*["']?([+\d(][\d\s()+-]{4,})/gi;
+
+function lineIndex(text) {
+  const starts = [0];
+  for (let i = text.indexOf("\n"); i !== -1; i = text.indexOf("\n", i + 1)) starts.push(i + 1);
+  return (index) => {
+    let lo = 0, hi = starts.length - 1;
+    while (lo < hi) { const mid = (lo + hi + 1) >> 1; if (starts[mid] <= index) lo = mid; else hi = mid - 1; }
+    return lo + 1;
+  };
+}
+
+const CONTACT_POINT_REMEDY = "prospecting data stays out of git (outputs/README.md). Not yet committed: unstage it "
+  + "and move it outside the clone. Committed but not pushed: amend or reset that commit, since `git rm --cached` "
+  + "leaves it in history. Already pushed: stop and tell the owner (BL-079's history clause). A type or a document "
+  + "rather than data: name the type (`contactPoint: ContactPoint`) or write the field as a path in backticks. "
+  + "Never approve a real ProZorro response as a fixture: public procurement data still names natural persons";
+
+export function contactPointErrors(relPath, text, approved = CONTACT_POINT_APPROVED_PATHS) {
+  if (!CONTACT_POINT_ANY_RE.test(text)) return [];
+  const lineAt = lineIndex(text);
+  if (approved.has(relPath)) {
+    // Approval exempts the forms, never the people: an approved file stays synthetic.
+    const lines = new Set();
+    for (const m of text.matchAll(EMAIL_RE)) if (!RESERVED_EMAIL_DOMAIN_RE.test(m[1])) lines.add(lineAt(m.index));
+    for (const m of text.matchAll(TELEPHONE_RE)) if (/[1-9]/.test(m[1].replace(/\D/g, "").replace(/^380/, ""))) lines.add(lineAt(m.index));
+    return [...lines].sort((a, b) => a - b).map((n) => `${relPath}:${n}: an approved contactPoint fixture holds `
+      + "an email or telephone that is not synthetic (emails on a reserved domain such as example.com or .test, "
+      + "telephones all zeros after an optional +380) — a real person's contact cannot be approved (BL-079). "
+      + PATH_REMEDY);
+  }
+  const lines = new Set();
+  for (const re of CONTACT_POINT_FORMS) for (const m of text.matchAll(re)) lines.add(lineAt(m.index));
+  if (DELIMITED_EXT_RE.test(relPath)) {
+    text.split("\n").forEach((line, i) => { if (CONTACT_POINT_ANY_RE.test(line)) lines.add(i + 1); });
+  }
+  const sorted = [...lines].sort((a, b) => a - b);
+  const errs = sorted.slice(0, CONTACT_POINT_LINES_SHOWN).map((n) => `${relPath}:${n}: carries a ProZorro `
+    + "`contactPoint` (a named buyer or supplier contact: personal data of a natural person, BL-079) — "
+    + CONTACT_POINT_REMEDY);
+  if (sorted.length > CONTACT_POINT_LINES_SHOWN) {
+    errs.push(`${relPath}: …and ${sorted.length - CONTACT_POINT_LINES_SHOWN} more lines carrying a contactPoint`);
+  }
+  return errs;
+}
+
+/**
+ * A tracked file's bytes as text, or null for a binary. A NUL near the start
+ * means binary, except behind a UTF-16 byte-order mark: Excel's «Unicode Text»
+ * export is UTF-16LE, and skipping it as binary would let a dump through.
+ */
+export function decodeTrackedText(buf) {
+  if (buf.length >= 2 && buf[0] === 0xff && buf[1] === 0xfe) return buf.subarray(2).toString("utf16le");
+  if (buf.length >= 2 && buf[0] === 0xfe && buf[1] === 0xff) {
+    return Buffer.from(buf.subarray(2, 2 + ((buf.length - 2) & ~1))).swap16().toString("utf16le");
+  }
+  if (buf.subarray(0, 8000).includes(0)) return null;
+  // A UTF-8 byte-order mark (Excel's «CSV UTF-8» writes one) would sit before
+  // line 1 and hide a line-anchored form there.
+  return buf.toString("utf8").replace(/^\uFEFF/, "");
+}
+
+/**
+ * Three PATH rules beside the content rule (DEV-031, from the security reviews
+ * of DEV-030 and DEV-031), for what a text scan cannot see:
+ *
+ *   - under `outputs/` only the pointer README is tracked. `.gitignore`
+ *     ignores the rest, but `git add -f` passes an ignore rule, and a session
+ *     directory holds more than `contactPoint` objects (sole traders' tax
+ *     numbers, outreach routes: DEV-007's review);
+ *   - no file the scan cannot read is tracked unless approved: spreadsheets
+ *     (the session's workbooks carried the same data as its JSON), archives,
+ *     PDFs, word-processor files, parquet and SQLite;
+ *   - nothing in the discovery store but its prose and its package:
+ *     `discovery/` is the documented prospecting store, its README and
+ *     HANDOFF-B0 say its CSVs, databases and drafts are never committed, and
+ *     earlier sessions wrote `candidates.txt` and merged lists there. An
+ *     allowlist, because a denylist of data extensions always misses one.
+ *
+ * THE APPROVED LIST HOLDS ONE FILE, with its reason. A file joins it WITH ITS
+ * REASON on the line above, and `gp-security` reviews the addition. Images are
+ * not read by any rule.
+ */
+export const UNREADABLE_APPROVED_PATHS = new Set([
+  // The normative text of ДБН А.3.1-5:2016, a public building standard the
+  // requirement catalog cites; it names no natural person.
+  "technical/requirements/dbn-a31-5-2016.pdf",
+  // A text file with one stray NUL byte (offset 746) in a frozen design
+  // reference; it is still read as text by the content rule.
+  "design-references/contest-2026-09/daylight/api/pilot.js",
+]);
+
+// Binaries the repository legitimately tracks, which hold no text a dump
+// could hide in: images and fonts. Every other blob with a NUL byte is refused
+// unless approved above, so a pickle, an arrow file or a headerless UTF-16
+// export cannot pass unread (DEV-031 R2-04, S2-07).
+const BINARY_ALLOWED_RE = /\.(png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf)$/i;
+
+export function binaryBlobErrors(path) {
+  if (BINARY_ALLOWED_RE.test(path) || UNREADABLE_APPROVED_PATHS.has(path)) return [];
+  return [`${path}: a tracked binary the contactPoint guard cannot read (a NUL byte, and not an image or font) — `
+    + "keep it out of git, or add it to UNREADABLE_APPROVED_PATHS (scripts/validate-canonical-docs.mjs) with its "
+    + `reason and a \`gp-security\` review. ${PATH_REMEDY}`];
+}
+
+/**
+ * `git cat-file --batch` output, split back into one body per requested blob.
+ * STRICT, because a lenient parse fails open: a `<oid> missing` line (a partial
+ * clone, a pruned object) has no size, and reading on would pair every later
+ * path with the wrong bytes and leave the last ones unread. Any header that is
+ * not `<the requested oid> blob <size>`, or bytes left over, is an error.
+ */
+export function parseCatFileBatch(out, blobs) {
+  const entries = [];
+  let at = 0;
+  for (const b of blobs) {
+    const nl = out.indexOf(0x0a, at);
+    const header = nl === -1 ? "" : out.subarray(at, nl).toString("latin1");
+    const m = /^(\S+) (\w+) (\d+)$/.exec(header);
+    if (!m || m[1] !== b.blob || m[2] !== "blob") {
+      return { entries, error: `${b.path}: git cat-file could not read its blob (${header || "no output"})` };
+    }
+    const size = Number(m[3]);
+    entries.push({ path: b.path, body: out.subarray(nl + 1, nl + 1 + size) });
+    at = nl + 1 + size + 1;
+  }
+  return { entries, error: at === out.length ? null : `git cat-file returned ${out.length - at} unexpected bytes` };
+}
+
+const UNREADABLE_RE = /\.(xlsx|xlsm|xlsb|xls|xltx|xltm|ods|numbers|zip|gz|tgz|bz2|xz|7z|rar|tar|parquet|pdf|docx?|odt|rtf|db|sqlite3?)(?:$|\/)/i;
+// The discovery store tracks prose and its own package, nothing else (DEV-031 S2-06).
+const DISCOVERY_TRACKED_RE = /^discovery\/(?:(?!drafts\/)[^]*\.md|src\/[^]*\.(?:ts|sql)|package\.json|tsconfig\.json)$/;
+
+const PATH_REMEDY = "Not yet committed: unstage it and move it outside the clone. Committed but not pushed: amend "
+  + "or reset that commit, since `git rm --cached` leaves it in history. Already pushed: stop and tell the owner "
+  + "(BL-079's history clause)";
+
+export function prospectingPathErrors(paths) {
+  const errs = [];
+  for (const p of paths) {
+    if (p.startsWith("outputs/") && p !== "outputs/README.md") {
+      errs.push(`${p}: tracked under outputs/, where only the pointer README belongs — session outputs hold personal `
+        + `data (BL-079) and live outside the repository (outputs/README.md). ${PATH_REMEDY}`);
+    }
+    if (UNREADABLE_RE.test(p) && !UNREADABLE_APPROVED_PATHS.has(p)) {
+      errs.push(`${p}: a tracked file the contactPoint guard cannot read (a spreadsheet, archive, PDF, document or `
+        + "database), the form prospecting data took (BL-079). Keep it out of git, or add it to "
+        + "UNREADABLE_APPROVED_PATHS (scripts/validate-canonical-docs.mjs) with its reason and a `gp-security` "
+        + `review. ${PATH_REMEDY}`);
+    }
+    if (p.startsWith("discovery/") && !DISCOVERY_TRACKED_RE.test(p)) {
+      errs.push(`${p}: tracked in the discovery store, which tracks only its prose (\`*.md\` outside drafts/), `
+        + "`src/**/*.{ts,sql}`, `package.json` and `tsconfig.json`; its lists, databases and drafts hold personal "
+        + `data and are never committed (discovery/README.md). ${PATH_REMEDY}`);
+    }
+  }
+  return errs;
+}
+
+/**
+ * A file that is tracked AND matches an ignore rule was forced in past that
+ * rule (`git add -f`): the lead store's `leads.csv`, a draft, an `.env`. None is
+ * tracked today (`git ls-files -ci --exclude-standard`, 2026-09-23), so the
+ * approved list is empty; a legitimate one joins it with its reason.
+ */
+export const TRACKED_IGNORED_APPROVED_PATHS = new Set([]);
+
+export function trackedIgnoredErrors(paths) {
+  return paths.filter((p) => !TRACKED_IGNORED_APPROVED_PATHS.has(p)).map((p) => `${p}: tracked although .gitignore `
+    + "ignores it — it was forced in with `git add -f`, past a rule that keeps personal data or secrets out of git. "
+    + `Untrack it, or add it to TRACKED_IGNORED_APPROVED_PATHS (scripts/validate-canonical-docs.mjs) with its reason. ${PATH_REMEDY}`);
 }
 
 /**
@@ -1968,6 +2200,93 @@ function selfTest() {
   }
   if (retiredWorkflowErrors("docs/superpowers/plans/a.md", "superpowers:writing-plans\n").length !== 0) t.push("retired workflow (record not exempt)");
   if (workflowLinkTargets("[a](b.md#c) [d](#e) [f](https://g)").join() !== "b.md") t.push("workflow link extractor");
+
+  // ProZorro contactPoint guard (BL-081): the forms a data dump takes are
+  // refused; the prose forms the repository uses (backticked paths) are not.
+  const cp = (p, s) => contactPointErrors(p, s).length;
+  if (cp("outputs/s/hits.json", '{"awards":[{"suppliers":[{"contactPoint": {"name": "X", "email": "x@y.test"}}]}]}\n') !== 1) t.push("contactPoint guard (JSON object)");
+  if (cp("outputs/s/hits.ndjson", '{"row":"{\\"contactPoint\\":{\\"name\\":\\"X\\"}}"}\n') !== 1) t.push("contactPoint guard (JSON escaped in a string)");
+  if (cp("x.ndjson", '{"row":"{\\\\\\"contactPoint\\\\\\":{\\\\\\"name\\\\\\":1}}"}\n') !== 1) t.push("contactPoint guard (JSON escaped twice)");
+  if (cp("tools/scrape.py", "row = {'contactPoint': {'name': name}}\n") !== 1) t.push("contactPoint guard (Python dict)");
+  if (cp("fixtures/tender.ts", "const s = { contactPoint: { name: 'X' } };\n") !== 1) t.push("contactPoint guard (JS object literal)");
+  if (cp("fixtures/tender.yaml", "suppliers:\n  - contactPoint:\n      name: X\n") !== 1) t.push("contactPoint guard (YAML block)");
+  if (cp("x.py", "contactPoint={'name': 'X'}\n") !== 1) t.push("contactPoint guard (= form)");
+  if (cp("x.json", '{"contactPoint": [{"name": "X"}]}\n') !== 1) t.push("contactPoint guard ([ form)");
+  if (!contactPointErrors("x.json", '{\n  "contactPoint":\n    {"name": "X"}\n}\n')[0]?.includes("x.json:2:")) t.push("contactPoint guard (brace on the next line)");
+  if (cp("exports/leads.csv", "edrpou,suppliers.0.contactPoint.email\n1,x@y.test\n") !== 1) t.push("contactPoint guard (flattened CSV column)");
+  if (cp("exports/leads.csv", "edrpou,contactpoint_email\n1,x@y.test\n") !== 1) t.push("contactPoint guard (lower-case CSV column)");
+  if (cp("exports/leads.txt", "edrpou\tprocuringEntity.contactPoint.email\n") !== 1) t.push("contactPoint guard (tab-separated .txt)");
+  if (cp("x.json", '[{"suppliers.0.contactPoint.email": "x@y.test"}]\n') !== 1) t.push("contactPoint guard (flattened JSON key)");
+  if (cp("x.ndjson", '{"r":"{\\"suppliers.0.contactPoint.email\\":\\"x@y.test\\"}"}\n') !== 1) t.push("contactPoint guard (flattened escaped key)");
+  if (cp("x.py", "{'contactPoint.email': 'x@y.test'}\n") !== 1) t.push("contactPoint guard (flattened Python key)");
+  if (cp("x.md", "| procuringEntity.contactPoint.email | edrpou |\n|---|---|\n") !== 1) t.push("contactPoint guard (markdown table column)");
+  if (!contactPointErrors("a.json", '\n\n{"contactPoint": {}}\n')[0]?.includes("a.json:3:")) t.push("contactPoint guard (line number)");
+  if (!contactPointErrors("a.json", '{"contactPoint": {}}\n')[0]?.includes("pushed")) t.push("contactPoint guard (remedy for a committed file)");
+  const many = contactPointErrors("big.json", '{"contactPoint": {}}\n'.repeat(30));
+  if (many.length !== 6 || !many[5]?.includes("25 more")) t.push(`contactPoint guard (output capped per file: ${many.length})`);
+  if (cp("discovery/sources.md", "`suppliers[].contactPoint` is a named individual's address; `suppliers[].contactPoint.email` was never used.\n") !== 0) {
+    t.push("contactPoint guard (prose wrongly reported)");
+  }
+  if (cp("discovery/HANDOFF-B0.1-PROZORRO.md", "ProZorro's `contactPoint`.**\n`awards[].suppliers[].contactPoint` carries `{name, email, telephone}`\n") !== 0) {
+    t.push("contactPoint guard (field description wrongly reported)");
+  }
+  if (cp("discovery/sources.md", "| **Public business contact** | **NOT satisfied.** `suppliers[].contactPoint` is a named address |\n") !== 0) {
+    t.push("contactPoint guard (a prose table cell wrongly reported)");
+  }
+  if (cp("src/prozorro.ts", "interface Supplier { contactPoint: ContactPoint; }\n") !== 0) t.push("contactPoint guard (a named type wrongly reported)");
+  if (cp(ROLE_RULE_DEFINITION, '{"contactPoint": {"name": "X", "email": "x@y.test"}}\n') !== 0) t.push("contactPoint guard (approved path not exempt)");
+  // An approved path is still scanned for anything that is not synthetic.
+  const fx = new Set(["fixtures/tender.json"]);
+  if (contactPointErrors("fixtures/tender.json", '{"contactPoint": {"email": "x@example.test", "telephone": "+380000000000"}}\n', fx).length !== 0) {
+    t.push("contactPoint guard (synthetic approved fixture wrongly reported)");
+  }
+  // The two non-synthetic values are assembled from parts so that this file,
+  // itself approved and scanned, holds no real-looking contact of its own.
+  if (!contactPointErrors("fixtures/tender.json", '{"contactPoint": {"email": "someone' + "@" + 'mail.example.com.ua"}}\n', fx)[0]?.includes("not synthetic")) {
+    t.push("contactPoint guard (a real-looking email in an approved fixture)");
+  }
+  if (!contactPointErrors("fixtures/tender.json", '{"contactPoint": {"telephone": "+380 ' + '67 123 45 67"}}\n', fx)[0]?.includes("not synthetic")) {
+    t.push("contactPoint guard (a real-looking telephone in an approved fixture)");
+  }
+  // Tracked bytes: UTF-16 is decoded, not skipped as binary; a NUL without a BOM is binary.
+  const utf16 = Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from('{"contactPoint": {}}\n', "utf16le")]);
+  if (!decodeTrackedText(utf16)?.includes('"contactPoint"')) t.push("tracked text decoder (UTF-16LE)");
+  if (decodeTrackedText(Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00, 0x00])) !== null) t.push("tracked text decoder (binary)");
+
+  // The path rules: under outputs/ only the pointer README; no file the scan
+  // cannot read unless approved; no data file in the discovery store.
+  const pp = (paths) => prospectingPathErrors(paths);
+  if (pp(["outputs/README.md", "docs/STATUS.md", "apps/app/outputs/x.json"]).length !== 0) t.push("outputs path rule (pointer and look-alikes wrongly reported)");
+  if (!pp(["outputs/2026-09-23-session/notes.md"])[0]?.includes("outputs/2026-09-23-session/notes.md")) t.push("outputs path rule (a session file)");
+  if (pp(["outputs/README.md", "outputs/stray.txt", "outputs/a/README.md"]).length !== 2) t.push("outputs path rule (count)");
+  if (!pp(["docs/leads.xlsx"])[0]?.includes("cannot read")) t.push("unreadable-format rule (.xlsx)");
+  const unreadable = ["a/b.XLSX", "c.xls", "d.xlsm", "e.ods", "f.numbers/Index.zip", "g.xlsb", "h.zip", "i.tar.gz", "j.7z", "k.parquet", "l.pdf", "m.docx", "n.sqlite", "o.db"];
+  if (pp([...unreadable, "p.csv", "q.xlsx.md", "r.png"]).length !== unreadable.length) t.push("unreadable-format rule (extensions)");
+  if (pp(["technical/requirements/dbn-a31-5-2016.pdf"]).length !== 0) t.push("unreadable-format rule (approved PDF)");
+  const store = ["discovery/merged-leads.csv", "discovery/sub/x.tsv", "discovery/x.ndjson", "discovery/x.jsonl", "discovery/drafts/a.md"];
+  if (pp([...store, "discovery/README.md", "discovery/evals/replies/r1.md", "discovery/src/store.ts", "discovery/package.json"]).length !== store.length) {
+    t.push("discovery store rule");
+  }
+  if (!trackedIgnoredErrors(["discovery/leads.csv"])[0]?.includes("discovery/leads.csv") || trackedIgnoredErrors([]).length !== 0) t.push("tracked-but-ignored rule");
+  // Round 2 (DEV-031 R2/S2): the discovery allowlist, other separators and
+  // path styles, the approved-file scan's edges, binaries, the batch parser.
+  if (pp(["discovery/candidates.txt", "discovery/x.json", "discovery/src/x.csv.ts"]).length !== 2) t.push("discovery store allowlist");
+  if (cp("x.dat", '"id";"parties/0/contactPoint/email"\n') !== 1) t.push("contactPoint guard (quoted ; header, OCDS slash path)");
+  if (cp("x.md", "| parties/0/contactPoint/email | id |\n") !== 1) t.push("contactPoint guard (slash path in a table)");
+  if (!contactPointErrors("fixtures/tender.json", "contactPoint:\n  telephone: +380 " + "50 111 11 11\n", fx)[0]?.includes("not synthetic")) t.push("contactPoint guard (unquoted telephone in an approved fixture)");
+  if (contactPointErrors("fixtures/tender.json", '{"contactPoint": {}} uses actions/checkout@v4 and next@16\n', fx).length !== 0) t.push("contactPoint guard (a version pin read as an email)");
+  // QA round 1 (DEV-031 Q1): the approved-file remedy, `_` pinned, a UTF-8 BOM.
+  if (!contactPointErrors("fixtures/tender.json", '{"contactPoint": {"email": "someone' + "@" + 'mail.example.com.ua"}}\n', fx)[0]?.includes("pushed")) t.push("contactPoint guard (remedy in the approved-file message)");
+  if (cp("x.json", '{"contact_point": {"name": "X"}}\n') !== 1) t.push("contactPoint guard (contact_point)");
+  if (cp("x.yaml", decodeTrackedText(Buffer.from("\uFEFFcontactPoint:\n  name: X\n")) ?? "") !== 1) t.push("tracked text decoder (UTF-8 BOM hides line 1)");
+  if (binaryBlobErrors("data/frame.pkl").length !== 1 || binaryBlobErrors("docs/a.PNG").length !== 0 || binaryBlobErrors("fonts/x.woff2").length !== 0) t.push("binary blob rule");
+  const batch = Buffer.from("aaa blob 2\nhi\nbbb missing\nccc blob 1\nx\n");
+  const parsed = parseCatFileBatch(batch, [{ blob: "aaa", path: "a" }, { blob: "bbb", path: "path-b" }, { blob: "ccc", path: "c" }]);
+  if (!parsed.error?.startsWith("path-b:") || parsed.entries.length !== 1 || parsed.entries[0]?.body.toString() !== "hi") t.push("cat-file batch parser (missing object fails closed)");
+  const whole = parseCatFileBatch(Buffer.from("aaa blob 2\nhi\nccc blob 1\nx\n"), [{ blob: "aaa", path: "a" }, { blob: "ccc", path: "c" }]);
+  if (whole.error !== null || whole.entries.map((e) => e.body.toString()).join() !== "hi,x") t.push("cat-file batch parser (well-formed)");
+  // outputs/ is no longer a record directory: only its pointer README is tracked (DEV-031).
+  if (isRoleRecordPath("outputs/README.md") || isRetiredWorkflowRecordPath("outputs/README.md")) t.push("outputs/ still exempt as a record directory");
   // The block this guard exists for: CLAUDE.md as it read before 2026-09-13.
   const retiredBlock = "Superpowers is the primary implementation methodology.\n\nUse Superpowers for:\n- brainstorming\n\n"
     + "Use gstack only as explicit quality gates:\n- /plan-ceo-review for product-level decisions\n- /review after implementation\n";
@@ -2598,6 +2917,45 @@ function main() {
     }
   } catch (err) {
     fail(`retired-workflow guard could not enumerate tracked files: ${err.message}`);
+  }
+  // DEV-031 (BL-081): no tracked file carries a ProZorro contactPoint, sits
+  // under outputs/, is a format the scan cannot read, is a discovery data
+  // file, or was forced past an ignore rule. The content rule reads the INDEX
+  // (`git ls-files -s`, then `git cat-file --batch`): what a commit records,
+  // not the working tree, so a staged dump deleted from disk is still read and
+  // a tracked symlink is read as its target path, never followed. Every
+  // extension; binaries are skipped by decodeTrackedText.
+  try {
+    const staged = execFileSync("git", ["ls-files", "-s", "-z"], { cwd: ROOT, encoding: "utf8", maxBuffer: 1 << 26 })
+      .split("\0").filter(Boolean).map((line) => {
+        const tab = line.indexOf("\t");
+        const [mode, blob] = line.slice(0, tab).split(" ");
+        return { mode, blob, path: line.slice(tab + 1) };
+      });
+    const paths = [...new Set(staged.map((e) => e.path))];
+    for (const e of prospectingPathErrors(paths)) fail(e);
+    // Only the repository's own .gitignore files: a contributor's global
+    // excludes or .git/info/exclude must not make the result machine-dependent.
+    const ignored = execFileSync("git", ["ls-files", "-ci", "--exclude-per-directory=.gitignore", "-z"], { cwd: ROOT, encoding: "utf8" })
+      .split("\0").filter(Boolean);
+    for (const e of trackedIgnoredErrors([...new Set(ignored)])) fail(e);
+    // One read per (path, blob): during a merge conflict the stages repeat a path.
+    const seen = new Set();
+    const blobs = staged.filter((e) => e.mode !== "160000" && !seen.has(`${e.path}\0${e.blob}`) && seen.add(`${e.path}\0${e.blob}`));
+    const out = execFileSync("git", ["cat-file", "--batch"], {
+      cwd: ROOT, input: blobs.map((e) => e.blob).join("\n") + "\n", maxBuffer: 1 << 30,
+    });
+    const { entries, error } = parseCatFileBatch(out, blobs);
+    if (error) fail(`contactPoint guard: ${error} — the scan stopped there, so it fails closed`);
+    for (const { path, body } of entries) {
+      const text = decodeTrackedText(body);
+      // A binary is still searched as text (an uncompressed pickle or arrow
+      // file holds its strings in the clear), and refused unless allowed.
+      if (text === null) for (const err of binaryBlobErrors(path)) fail(err);
+      for (const err of contactPointErrors(path, text ?? body.toString("latin1"))) fail(err);
+    }
+  } catch (err) {
+    fail(`contactPoint guard could not read the index: ${err.message}`);
   }
   for (const p of WORKFLOW_DOCS) {
     if (!existsSync(join(ROOT, p))) { fail(`missing workflow document: ${p}`); continue; }

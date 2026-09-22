@@ -107,9 +107,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-076](#bl-076) | P0 | closed → `0a7c407` | The pool stranded once an over-removal parted quantity from money |
 | [BL-077](#bl-077) | P3 | open | Code and documents still send readers to the frozen `TODOS.md` by entry name |
 | [BL-078](#bl-078) | P3 | open | The rewrite plan's rulings D1–D7 were never recorded in an ADR |
-| [BL-079](#bl-079) | P1 | open | `outputs/` keeps personal data in git against the project's own rule |
+| [BL-079](#bl-079) | P1 | closed → DEV-030 | `outputs/` keeps personal data in git against the project's own rule |
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
-| [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
+| [BL-081](#bl-081) | P2 | closed → DEV-031 | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
 | [BL-083](#bl-083) | P2 | open | Nothing keeps a package reached through pnpm's private hoist at one version |
 | [BL-084](#bl-084) | P2 | open | The act footer names a «Реєстр будівельних норм» that ЗУ «Про будівельні норми» does not name |
@@ -150,6 +150,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-119](#bl-119) | P2 | open | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
 | [BL-120](#bl-120) | P3 | open | A `bg-`named role used as a foreground escapes the contrast coverage guard |
 | [BL-121](#bl-121) | P3 | open | Two browser-harness probes assert their conclusion on a premise that is no longer true |
+| [BL-122](#bl-122) | P2 | deferred (owner) | The private prospecting copy has no recorded purpose, retention date or backup, and erasure cannot reach history |
+| [BL-123](#bl-123) | P3 | open | Nothing technical keeps an agent session out of the private prospecting copy |
+| [BL-124](#bl-124) | P2 | open | The prospecting-data guard detects only after the fact and knows one field |
+| [BL-125](#bl-125) | P3 | open | Three validator guards read `git ls-files` split by newline and would skip a quoted path |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1002,11 +1006,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-079"></a>
 ### BL-079 — P1 — `outputs/` keeps personal data in git against the project's own rule
 
-- **State:** open
+- **State:** closed → DEV-030
 - **Legacy cite:** none
 - **Why:** DEV-007's `gp-security` review (S1-01, S1-02, S1-05) found personal data of natural persons in the prospecting session that commit `bbfc705` added: buyer-side contact persons in the raw ProZorro search dumps, and sole traders under their personal names with ten-digit identifiers, the length of a personal tax number rather than a company code. The project's rule, live through the `.gitignore` entries headed «personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)», keeps lead data out of git history and promises retention limits and deletion on request, which a tracked copy cannot honour without rewriting history. The repository is private and nothing deploys or uploads the directory, but every clone, worktree, CI checkout and agent session that reads it holds the data. The owner kept `outputs/` on 2026-09-13 as the prospecting record; this entry is the decision on how it is kept. Ranked by DEV-007 from the review's severity.
 - **Evidence:** the coordinator's counts at `d8a860a` (2026-09-14): the five `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/prozorro_wave{3..7}_search_hits_2026-08-24.json` files hold 6,371 `contactPoint` objects, each with a name and an email (2,444 distinct name–email pairs); 9,788 `edrpou` values of ten digits across 52 files. `docs/legacy/40-phase1-discovery-outreach.md` §B.5; `.gitignore`'s Child B block. The review found no credentials.
 - **Owner decision, 2026-09-15:** move the directory to private storage behind a pointer README; the data stays in `bbfc705` without a history rewrite ([DEV-012](tasks/DEV-012-m0-gate12-evidence.md) Owner decisions).
+- **Closed 2026-09-23 by DEV-030** (owner, 2026-09-15 and 2026-09-23): the 250 files of the session directory were copied from git into `~/GoProceed-private/outputs/` on the owner's machine, outside every clone, with a SHA-256 manifest (`22dbc4d9…df3e94`) that `shasum -c` accepts and blob ids equal to `bbfc705`'s, then removed from the tree. `outputs/README.md` is now a pointer that carries no personal data. The data stays in `bbfc705` and on the GitHub remote (no history rewrite); the backup is the owner's. BL-081's guards are DEV-031, in the same pull request. The private copy's purpose, retention and backup are BL-122; keeping agent sessions out of it is BL-123.
 - **Depends on:** nothing further from the owner for the move; a history rewrite would be a separate decision.
 - **Deadline:** none recorded.
 - **Resume:** *(Superseded 2026-09-15 by the owner decision above.)* The owner chooses: keep the directory with a recorded purpose, lawful basis and retention date; move it to private storage behind a pointer README; or redact the personal fields in place. Moving or redacting leaves the data in `bbfc705` unless history is rewritten, a further owner decision (force-push, every clone re-made). The coordinator then opens a task for the chosen option, and BL-080 and BL-081 follow it.
@@ -1017,18 +1022,19 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** deferred (owner)
 - **Legacy cite:** none
 - **Why:** DEV-007's review (S1-03, S1-04). The unsent A1-N01 outreach pack's own privacy rule promises general corporate addresses without employee names, yet most of its routes are free-mail addresses or mobile numbers, which for a small firm are often the director's own. Tender titles copied verbatim name private customers («Замовник: surname, initials») beside contract numbers and localities, with no bearing on any prospect. Ranked by DEV-007 from the review's severity.
-- **Evidence:** `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/pilot_outreach_A1-N01_2026-08-25.md`: 7 recipient addresses, 6 on free-mail domains (coordinator's count); 101 «Замовник: <surname> <initial>.» matches in 22 files of the same directory (coordinator's count; the review counted 99 with its own pattern).
+- **Evidence:** measured by DEV-007 at `d8a860a` (2026-09-14), before DEV-030 moved the directory to `~/GoProceed-private/outputs/` (2026-09-23; the same files, byte for byte, are in `bbfc705`): `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/pilot_outreach_A1-N01_2026-08-25.md`: 7 recipient addresses, 6 on free-mail domains (coordinator's count); 101 «Замовник: <surname> <initial>.» matches in 22 files of the same directory (coordinator's count; the review counted 99 with its own pattern).
 - **Depends on:** BL-079.
 - **Deadline:** none recorded.
-- **Resume:** with BL-079 decided, the owner chooses to keep, to redact the routes and the customer names, or to move the pack to the git-ignored `discovery/` store; the coordinator carries it out.
+- **Resume:** with BL-079 decided, the owner chooses to keep or to redact the routes and the customer names; the coordinator carries it out. *(The option to move the pack to the git-ignored `discovery/` store is superseded, 2026-09-23: DEV-030 keeps the data outside every clone, and `discovery/` is inside one.)* Since DEV-030 the pack is in the private copy, and a redaction happens there; it would not reach `bbfc705`.
 
 <a id="bl-081"></a>
 ### BL-081 — P2 — Nothing stops a session from committing prospecting data again
 
-- **State:** open
+- **State:** closed → DEV-031
 - **Legacy cite:** none
 - **Why:** DEV-007's review (S1-09). Commit `bbfc705`, a landing layout change, added the whole session directory in passing, and no ignore rule or validator check would stop the next one. Two guards fit: ignore new session directories under `outputs/` while the existing tree stays tracked, and a validator check that refuses tracked files carrying ProZorro `contactPoint` objects outside approved paths. Ranked by DEV-007 from the review's severity.
 - **Evidence:** `git log --format='%h %s' -- outputs` lists only `bbfc705` «fix(landing): adjust table borders for improved layout consistency»; `.gitignore` has no `outputs` entry.
+- **Closed 2026-09-23 by DEV-031:** `.gitignore` ignores everything under `outputs/` except the pointer README, and every data file in the `discovery/` store (CSV, TSV, ndjson, jsonl, databases, drafts). `scripts/validate-canonical-docs.mjs` reads the index (what a commit records) and refuses: a ProZorro `contactPoint` in the forms a dump takes (an object or array under the key, quoted, unquoted or escaped; a quoted or flattened key such as pandas' `suppliers.0.contactPoint.email`; a YAML block key; a flattened column in a table or delimited file; any occurrence in a CSV, TSV or `.txt`), case-insensitively and in UTF-16 too, never the backticked prose the repository uses; any tracked `outputs/` path but the README; any tracked file the scan cannot read (spreadsheets, archives, PDFs, documents, parquet, SQLite), and any other binary (a NUL byte) but images and fonts, except two approved files (the DBN PDF; a design-reference script with one stray NUL byte); anything in `discovery/` but its prose, `src/` and package files; and any tracked file the repository's own ignore rules cover (forced in with `git add -f`). An approved `contactPoint` file is still scanned for non-synthetic emails and telephones. Over `44e05cd`, the tree before DEV-030, the checks refuse the five ProZorro dumps (6,371 lines), 250 `outputs/` paths and 9 workbooks; over the tree after, nothing. The validator's two `outputs/` exemptions are gone. **Limits:** outside `outputs/`, content and format alone would have refused 14 of the session's 250 files; the other 236 (tax numbers, outreach routes, customers in tender titles) are stopped only by where they sit. The guard reads the tree, not a branch's earlier commits, so a dump committed and then removed passes. `git add -f` passes the ignore rules, and the validator stops it only where someone runs it: CI, once GitHub Actions runs again (October 2026), detects after a push, and nothing prevents a commit. Images are not read. Those follow-ups are BL-124.
 - **Depends on:** BL-079, which decides what may stay tracked.
 - **Deadline:** none recorded.
 
@@ -1464,3 +1470,44 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `gp-reviewer` and `gp-qa`, 2026-09-22, DEV-029. The beam control was measured, read-only, on a throwaway port; its numbers are above.
 - **Depends on:** nothing. Both are additions to `landing.mjs`. They were deliberately NOT made inside DEV-029: changing how the file that produces this project's visual evidence MEASURES deserves its own review rather than a hurried edit at the end of a long task.
 - **Deadline:** before the next task that changes a ground behind the board, because that is the change these probes would fail to catch.
+
+<a id="bl-122"></a>
+### BL-122 — P2 — The private prospecting copy has no recorded purpose, retention date or backup, and erasure cannot reach history
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-030's `gp-security` review (S1-05). The `.gitignore` rule for lead data (doc 40 §B.5) promises retention limits and deletion on request. DEV-030 moved the prospecting session to `~/GoProceed-private/outputs/` but recorded no purpose, lawful basis or retention date for the copy, and no backup exists on record. A request to erase a person's data can reach the private copy and its backups, not commit `bbfc705`, the clones made from it or the GitHub remote (whose cached views and pull-request references need GitHub Support even after a force-push). Whether Time Machine or FileVault cover the owner's disk was not checked. Ranked by DEV-030.
+- **Evidence:** `outputs/README.md` «Backup» row and «What the move did not change»; [DEV-030](tasks/DEV-030-outputs-private-storage.md) «What is not true».
+- **Depends on:** the owner.
+- **Deadline:** before the first outreach send that uses the prospect base, or on the first erasure request, whichever is first.
+- **Resume:** the owner records the copy's purpose and retention date, makes the backup on encrypted media (never a sync service), and decides whether a history rewrite is needed to honour erasure; the coordinator records the decisions in `outputs/README.md`.
+
+<a id="bl-123"></a>
+### BL-123 — P3 — Nothing technical keeps an agent session out of the private prospecting copy
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-030's `gp-security` review (S1-03). `outputs/README.md` tells agent sessions not to open, list, search or hash `~/GoProceed-private/` and not to read or restore the directory from `bbfc705`, but it is prose: a session that reads a file sends it to its model provider, which is the exposure DEV-007 named. A deny rule for that path in `.claude/settings.json` (and the Codex equivalent) would enforce it. That is an agent-instructions change, with its own `gp-reviewer` and `gp-qa`, so DEV-030 did not make it. Ranked by DEV-030.
+- **Evidence:** `outputs/README.md` «Agents stay out»; `.claude/settings.json` has no deny rule for the path (observed 2026-09-23).
+- **Depends on:** nothing.
+- **Deadline:** none recorded.
+
+<a id="bl-124"></a>
+### BL-124 — P2 — The prospecting-data guard detects only after the fact and knows one field
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-031's `gp-security` and `gp-reviewer` reviews (S1-01, S1-05, S1-07; R1-02). BL-081's guards refuse a tracked ProZorro `contactPoint`, anything under `outputs/`, unreadable formats and discovery data files, but: (1) nothing prevents a commit — the validator runs where someone runs it, and CI detects only after a push, when the data is already on the remote and in pull-request refs; a pre-commit or pre-push hook, or a Claude Code hook on `git commit`, would prevent it (an agent-instructions or config change, with its own route); (2) the guard reads the tree, not the commits a branch adds, so a dump committed and then removed passes; a range mode (`origin/main..HEAD`, every blob added) would catch it; and its content rule reads the index, so an edit not yet staged is not scanned and `git commit -a` commits it unscanned — a pre-commit hook, which reads the index, is the right place for it; (3) the content rule knows one field: outside `outputs/`, content and format would have refused 14 of the session's 250 files, and sole traders' ten-digit tax numbers, outreach routes and customers named in tender titles pass it; an approved fixture's names are not checked, only its emails and telephones. Ranked by DEV-031.
+- **Evidence:** [DEV-031](tasks/DEV-031-outputs-guards.md) «What is not true» and its pre-move count (`scratchpad/dev031-r1-pre-move.txt`, cited there).
+- **Depends on:** nothing for (2); the hook in (1) is an agent-instructions or configuration change; (3) needs a detector for Ukrainian personal tax numbers that does not refuse company codes (eight digits) or the catalogs' identifiers.
+- **Deadline:** before the next prospecting session writes files inside a clone.
+
+<a id="bl-125"></a>
+### BL-125 — P3 — Three validator guards read `git ls-files` split by newline and would skip a quoted path
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-031's `gp-reviewer` review (a remark). Guards 11 (stale names) and 12 (the retired workflow) and the TODOS line-citation guard in `scripts/validate-canonical-docs.mjs` split `git ls-files` output by newline. With `core.quotePath` on (git's default), a path with a non-ASCII or special character comes back quoted and escaped, the read fails, and `catch { continue; }` skips the file silently. No such path is tracked today (0 on 2026-09-23), so nothing is skipped yet. DEV-031's guard uses `-z` and raw paths. Ranked by DEV-031.
+- **Evidence:** `git ls-files -z | tr '\0' '\n' | LC_ALL=C grep -c '[^ -~]'` → 0 (2026-09-23); the three `execFileSync("git", ["ls-files"], …)` calls (guards 11 and 12, the TODOS line-citation guard).
+- **Depends on:** nothing.
+- **Deadline:** before a tracked path carries a Cyrillic name.
