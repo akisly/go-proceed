@@ -526,8 +526,11 @@ the closed ones.
         finalization reads an image's declared size from its header, without
         decoding, and refuses one over 268,402,689 pixels or 65,535 px on an
         edge, one whose size cannot be read, and an animated PNG; BL-088 is
-        closed. The limits still admit a 200 MP photo, which a desktop browser
-        decodes in full (BL-129); real-phone files are unchecked (BL-131).
+        closed. This bounds the declared size, not the decoding cost: a bitmap
+        at the limit (about 1 GB decoded) is reachable from a file of tens of
+        kilobytes and decodes in every browser that shows it, as does a
+        legitimate 200 MP photo (BL-129); channels the parser does not read are
+        BL-132; real-phone files are unchecked (BL-131).
 - [ ] The import hostile-fixture corpus still runs. Import is **frozen, not
       deleted** ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md)
       decision 6): the XLSX/CSV parser built in M1 stays in the code, an object

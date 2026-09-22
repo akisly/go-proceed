@@ -24,10 +24,12 @@ function app1With(inner: Uint8Array): number[] {
   return [0xff, 0xe1, ...u16(inner.length + 2), ...inner];
 }
 const chunk = (type: string, body: number[]) => [...u32(body.length), ...ascii(type), ...body, ...u32(0)];
-function png(w: number, h: number, firstChunk = "IHDR", more: number[] = []): Uint8Array {
+const IDAT_IEND = [...chunk("IDAT", [0x78, 0x9c, 0x63, 0, 0, 0, 1, 0, 1]), ...chunk("IEND", [])];
+/** Signature, the first chunk, `more`, then IDAT and IEND unless `tail` says otherwise. */
+function png(w: number, h: number, firstChunk = "IHDR", more: number[] = [], tail: number[] = IDAT_IEND): Uint8Array {
   return new Uint8Array([
     0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a,
-    ...chunk(firstChunk, [...u32(w), ...u32(h), 8, 2, 0, 0, 0]), ...more,
+    ...chunk(firstChunk, [...u32(w), ...u32(h), 8, 2, 0, 0, 0]), ...more, ...tail,
   ]);
 }
 const box = (type: string, body: number[]) => [...u32(8 + body.length), ...ascii(type), ...body];
@@ -53,6 +55,41 @@ function heic(sizes: [number, number][], mdat: number[] = [],
     ...box("mdat", mdat),
   ]);
 }
+
+const u64 = (n: number) => [...u32(Math.floor(n / 2 ** 32)), ...u32(n >>> 0)];
+const uint = (n: number, size: number) => (size === 0 ? [] : size === 4 ? u32(n) : size === 8 ? u64(n) : u16(n));
+
+/**
+ * A HEIC with one derived item (id 1) whose data the `iloc` locates, built in
+ * any `iloc` layout, so each branch of the reader is exercised (R1-02).
+ */
+function heicDerived(o: {
+  version?: 0 | 1 | 2; offsetSize?: 0 | 4 | 8; lengthSize?: 0 | 4 | 8; baseSize?: 0 | 4 | 8; indexSize?: 0 | 4 | 8;
+  method?: 0 | 1; base?: number; type?: "grid" | "iovl"; data: number[]; ispe?: [number, number];
+  iinfTrailing?: number[]; entryCount?: number; extraMeta?: number[]; topLevel?: number[]; duplicateItem?: boolean;
+}): Uint8Array {
+  const v = o.version ?? 1, os = o.offsetSize ?? 4, ls = o.lengthSize ?? 4, bs = o.baseSize ?? 0, is = o.indexSize ?? 0;
+  const method = o.method ?? 1, base = o.base ?? 0;
+  const infe = box("infe", [2, 0, 0, 0, ...u16(1), ...u16(0), ...ascii(o.type ?? "grid"), 0]);
+  const iinf = box("iinf", [0, 0, 0, 0, ...u16(o.entryCount ?? 1), ...infe, ...(o.duplicateItem ? infe : []), ...(o.iinfTrailing ?? [])]);
+  const ilocFor = (dataOffset: number) => {
+    const item = [...(v < 2 ? u16(1) : u32(1)), ...(v > 0 ? u16(method) : []), ...u16(0), ...uint(base, bs), ...u16(1),
+      ...(v > 0 && is > 0 ? uint(0, is) : []), ...uint(dataOffset - base, os), ...uint(o.data.length, ls)];
+    const count = o.duplicateItem ? 2 : 1;
+    return box("iloc", [v, 0, 0, 0, (os << 4) | ls, (bs << 4) | (v > 0 ? is : 0), ...(v < 2 ? u16(count) : u32(count)),
+      ...item, ...(o.duplicateItem ? item : [])]);
+  };
+  const ftyp = box("ftyp", [...ascii("heic"), 0, 0, 0, 0, ...ascii("mif1"), ...ascii("heic")]);
+  const [w, h] = o.ispe ?? [1000, 1000];
+  const metaWith = (dataOffset: number) => box("meta", [0, 0, 0, 0, ...box("hdlr", [0, 0, 0, 0, 0, 0, 0, 0, ...ascii("pict")]),
+    ...iinf, ...ilocFor(dataOffset), ...(method === 1 ? box("idat", o.data) : []),
+    ...box("iprp", box("ipco", ispe(w, h))), ...(o.extraMeta ?? [])]);
+  // Method 0 locates the data in the file: in mdat, after ftyp and meta (whose length does not depend on the offset).
+  const fileOffset = ftyp.length + metaWith(0).length + (o.topLevel?.length ?? 0) + 8;
+  return new Uint8Array([...ftyp, ...metaWith(method === 1 ? 0 : fileOffset), ...(o.topLevel ?? []),
+    ...box("mdat", method === 0 ? o.data : [])]);
+}
+const grid32 = (w: number, h: number) => [0, 1, 0, 0, ...u32(w), ...u32(h)];
 
 describe("imageDimensions: read from the header, never decoded (BL-088)", () => {
   it("reads a baseline and a progressive JPEG's frame size", () => {
@@ -129,8 +166,61 @@ describe("imageDimensions: read from the header, never decoded (BL-088)", () => 
   it("finds an animated PNG before its image data", () => {
     const actl = chunk("acTL", [...u32(2), ...u32(0)]);
     expect(isAnimatedPng(png(10, 10, "IHDR", actl))).toBe(true);
-    expect(isAnimatedPng(png(10, 10, "IHDR", chunk("IDAT", [0]).concat(actl)))).toBe(false);
+    expect(isAnimatedPng(png(10, 10, "IHDR", [], [...chunk("IDAT", [0]), ...actl, ...chunk("IEND", [])]))).toBe(false);
     expect(isAnimatedPng(png(10, 10))).toBe(false);
+  });
+
+  it("reads a grid's output size in every iloc layout (R1-02)", () => {
+    const big = { width: 60000, height: 60000 };
+    expect(imageDimensions(heicDerived({ data: grid32(60000, 60000) }), "image/heic")).toEqual(big);
+    expect(imageDimensions(heicDerived({ version: 0, method: 0, data: grid32(60000, 60000) }), "image/heic")).toEqual(big);
+    expect(imageDimensions(heicDerived({ version: 2, data: grid32(60000, 60000) }), "image/heic")).toEqual(big);
+    expect(imageDimensions(heicDerived({ baseSize: 4, indexSize: 4, base: 0, data: grid32(60000, 60000) }), "image/heic")).toEqual(big);
+    expect(imageDimensions(heicDerived({ version: 0, method: 0, baseSize: 8, base: 7, data: grid32(60000, 60000) }), "image/heic")).toEqual(big);
+    expect(imageDimensions(heicDerived({ offsetSize: 8, lengthSize: 8, data: grid32(60000, 60000) }), "image/heic")).toEqual(big);
+    expect(imageDimensions(heicDerived({ data: [0, 0, 0, 0, ...u16(60000), ...u16(40000)] }), "image/heic"))
+      .toEqual({ width: 60000, height: 40000 }); // a 16-bit grid
+    expect(imageDimensions(heicDerived({ type: "iovl", data: [0, 1, ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(60000), ...u32(20)] }), "image/heic"))
+      .toEqual({ width: 60000, height: 1000 }); // a readable overlay, beside the 1000×1000 ispe
+  });
+
+  it("refuses a HEIC whose item structure is broken or ambiguous, rather than guessing past it", () => {
+    const ok = { data: grid32(60000, 60000) };
+    expect(imageDimensions(heicDerived({ ...ok, iinfTrailing: [0, 0, 0, 0] }), "image/heic")).toBeNull(); // S1-02 / R1-01
+    expect(imageDimensions(heicDerived({ ...ok, entryCount: 2 }), "image/heic")).toBeNull(); // entry_count disagrees
+    expect(imageDimensions(heicDerived({ ...ok, duplicateItem: true }), "image/heic")).toBeNull(); // S1-04
+    expect(imageDimensions(heicDerived({ ...ok, extraMeta: box("iloc", [1, 0, 0, 0, 0x44, 0, 0, 0]) }), "image/heic")).toBeNull(); // two ilocs
+    expect(imageDimensions(heicDerived({ ...ok, topLevel: box("meta", [0, 0, 0, 0]) }), "image/heic")).toBeNull(); // two metas
+    expect(imageDimensions(heicDerived({ ...ok, topLevel: box("moov", []) }), "image/heic")).toBeNull(); // S1-05: a sequence
+    const many = heicDerived({ ...ok, iinfTrailing: Array.from({ length: 1001 }, () => box("free", [])).flat() });
+    expect(imageDimensions(many, "image/heic")).toBeNull(); // more boxes than the parser walks
+  });
+
+  it("reads a HEIC whose meta is a largesize box", () => {
+    const small = heic([[4032, 3024]]);
+    const i = [...small].findIndex((_, k) => String.fromCharCode(...small.subarray(k + 4, k + 8)) === "meta");
+    const size = (small[i]! << 24) | (small[i + 1]! << 16) | (small[i + 2]! << 8) | small[i + 3]!;
+    const largesize = new Uint8Array([...small.subarray(0, i), ...u32(1), ...ascii("meta"), ...u64(size + 8),
+      ...small.subarray(i + 8, i + size), ...small.subarray(i + size)]);
+    expect(imageDimensions(largesize, "image/heic")).toEqual({ width: 4032, height: 3024 });
+  });
+
+  it("refuses a JPEG marker libjpeg refuses, and a second SOI (S1-07)", () => {
+    const withMarker = (m: number[]) => new Uint8Array([0xff, 0xd8, ...m, ...jpeg(10, 10).subarray(2)]);
+    expect(imageDimensions(withMarker([0xff, 0xf0, 0x00, 0x02]), "image/jpeg")).toBeNull(); // reserved
+    expect(imageDimensions(withMarker([0xff, 0xde, 0x00, 0x02]), "image/jpeg")).toBeNull(); // DHP (hierarchical)
+    expect(imageDimensions(withMarker([0xff, 0xc8, 0x00, 0x02]), "image/jpeg")).toBeNull(); // JPG
+    expect(imageDimensions(withMarker([0xff, 0xd8]), "image/jpeg")).toBeNull(); // a second SOI
+    // The markers a camera writes before its frame are fine: DQT, DRI, COM, APP15.
+    expect(imageDimensions(withMarker([0xff, 0xdb, 0x00, 0x03, 0, 0xff, 0xdd, 0x00, 0x04, 0, 0, 0xff, 0xfe, 0x00, 0x02, 0xff, 0xef, 0x00, 0x02]), "image/jpeg"))
+      .toEqual({ width: 10, height: 10 });
+  });
+
+  it("refuses a PNG whose chunks break before its image data", () => {
+    expect(imageDimensions(png(10, 10, "IHDR", [], []), "image/png")).toBeNull(); // no IDAT at all
+    expect(imageDimensions(png(10, 10, "IHDR", [...u32(1_000_000), ...ascii("tEXt")], []), "image/png")).toBeNull(); // a length past the end
+    const padded = png(10, 10, "IHDR", Array.from({ length: 1000 }, () => chunk("tEXt", [])).flat());
+    expect(imageDimensions(padded, "image/png")).toBeNull(); // more chunks before IDAT than the parser walks (S1-03)
   });
 
   it("reads nothing from a truncated header", () => {

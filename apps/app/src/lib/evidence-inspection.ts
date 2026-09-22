@@ -102,7 +102,9 @@ function largest(found: ImageDimensions[]): ImageDimensions | null {
  *   would read as a frame of any size and refuse an ordinary photo. Nothing
  *   after the scan is read.
  * - PNG: the IHDR chunk, which must be the first chunk (a decoder rejects the
- *   file otherwise).
+ *   file otherwise), and a chunk walk that must reach the first IDAT: a PNG
+ *   whose chunks break or run on before its image data is unreadable, so the
+ *   animation check below never has to guess (S1-03).
  * - HEIC: the largest of every `ispe` (image spatial extents) property in
  *   `meta` → `iprp` → `ipco`, and of every grid (`grid`) item's declared
  *   output size, read from its data through `iinf`, `iloc` and `idat` — a
@@ -113,10 +115,7 @@ function largest(found: ImageDimensions[]): ImageDimensions | null {
  */
 export function imageDimensions(bytes: Uint8Array, mediaType: string): ImageDimensions | null {
   if (mediaType === "image/jpeg") return jpegDimensions(bytes);
-  if (mediaType === "image/png") {
-    return bytes.length >= 24 && ascii(bytes, "IHDR", 12)
-      ? largest([{ width: u32be(bytes, 16), height: u32be(bytes, 20) }]) : null;
-  }
+  if (mediaType === "image/png") return pngDimensions(bytes);
   if (mediaType === "image/heic") return heicDimensions(bytes);
   return null;
 }
@@ -130,8 +129,14 @@ function jpegDimensions(b: Uint8Array): ImageDimensions | null {
     if (i >= b.length) return null;
     const m = b[i]!;
     i++;
-    if (m === 0x00 || m === 0xd8 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) continue; // no length
+    if (m === 0x00 || m === 0x01 || (m >= 0xd0 && m <= 0xd7)) continue; // no length
     if (m === 0xd9 || m === 0xda) return frames.length === 1 ? largest(frames) : null; // EOI, or the first scan
+    // What libjpeg reads before a scan: SOFn, DHT (C4), DAC (CC), DQT (DB),
+    // DRI (DD), APPn (E0–EF), COM (FE). Anything else — a second SOI, JPG (C8),
+    // the hierarchical DHP and EXP (DE, DF), the reserved ranges — libjpeg
+    // refuses, and so does this, leaving no room to size an image differently.
+    const known = (m >= 0xc0 && m <= 0xcf && m !== 0xc8) || m === 0xdb || m === 0xdd || (m >= 0xe0 && m <= 0xef) || m === 0xfe;
+    if (!known) return null;
     if (i + 2 > b.length) return null;
     const len = u16be(b, i);
     if (len < 2 || i + len > b.length) return null;
@@ -144,19 +149,33 @@ function jpegDimensions(b: Uint8Array): ImageDimensions | null {
   return null;
 }
 
+/** The chunks of a PNG before its first IDAT, or null if the walk breaks or runs on. */
+function pngChunksBeforeImageData(b: Uint8Array): string[] | null {
+  if (b.length < 24 || !ascii(b, "IHDR", 12)) return null;
+  const types: string[] = [];
+  let i = 8;
+  for (let n = 0; n < MAX_STRUCTURE_ENTRIES; n++) {
+    if (i + 12 > b.length) return null;
+    const type = String.fromCharCode(b[i + 4]!, b[i + 5]!, b[i + 6]!, b[i + 7]!);
+    if (type === "IDAT") return types;
+    types.push(type);
+    i += 12 + u32be(b, i);
+  }
+  return null;
+}
+
+function pngDimensions(b: Uint8Array): ImageDimensions | null {
+  return pngChunksBeforeImageData(b) === null ? null : largest([{ width: u32be(b, 16), height: u32be(b, 20) }]);
+}
+
 /**
  * True when a PNG declares animation (an `acTL` chunk, which APNG requires
  * before the first IDAT). An animated PNG's frame count is not bounded by its
- * IHDR, and no field capture is animated, so it is refused.
+ * IHDR, and no field capture is animated, so it is refused. A PNG whose chunks
+ * cannot be walked to its IDAT is unreadable before this is asked.
  */
 export function isAnimatedPng(b: Uint8Array): boolean {
-  let i = 8;
-  for (let n = 0; n < MAX_STRUCTURE_ENTRIES && i + 8 <= b.length; n++) {
-    if (ascii(b, "acTL", i + 4)) return true;
-    if (ascii(b, "IDAT", i + 4)) return false;
-    i += 12 + u32be(b, i);
-  }
-  return false;
+  return pngChunksBeforeImageData(b)?.includes("acTL") ?? false;
 }
 
 interface Box { type: string; start: number; end: number }
@@ -186,21 +205,34 @@ function boxes(b: Uint8Array, from: number, to: number): Box[] | null {
   return i === to ? out : null;
 }
 
-const child = (list: Box[] | null, type: string) => list?.find((x) => x.type === type);
+/**
+ * The one box of `type` in `list`, undefined when there is none, and null
+ * when there are two: a decoder that picks the other one would size the image
+ * differently, so an ambiguous structure is refused (S1-04).
+ */
+function only(list: Box[] | null, type: string): Box | undefined | null {
+  const found = list?.filter((x) => x.type === type) ?? [];
+  return found.length > 1 ? null : found[0];
+}
 
 /** item_ID → item_type, from `iinf` (a full box) and its `infe` entries of version 2 or 3. */
 function itemTypes(b: Uint8Array, iinf: Box): Map<number, string> | null {
   const version = b[iinf.start]!;
+  const entryCount = version === 0 ? u16be(b, iinf.start + 4) : u32be(b, iinf.start + 4);
   const entriesAt = iinf.start + 4 + (version === 0 ? 2 : 4);
+  // A broken entry list is refused, never read as «no items»: that would
+  // hide a grid and size it by its `ispe` alone (S1-02).
+  const entries = boxes(b, entriesAt, iinf.end);
+  if (entries === null || entries.length !== entryCount || entries.some((x) => x.type !== "infe")) return null;
   const types = new Map<number, string>();
-  for (const infe of boxes(b, entriesAt, iinf.end) ?? []) {
-    if (infe.type !== "infe") continue;
+  for (const infe of entries) {
     const v = b[infe.start]!;
     if (v < 2) continue; // no item_type before version 2
     const idSize = v === 2 ? 2 : 4;
     const at = infe.start + 4;
     if (at + idSize + 6 > infe.end) return null;
     const id = idSize === 2 ? u16be(b, at) : u32be(b, at);
+    if (types.has(id)) return null; // a duplicate item id
     types.set(id, String.fromCharCode(...b.subarray(at + idSize + 2, at + idSize + 6)));
   }
   return types;
@@ -236,17 +268,26 @@ function itemExtents(b: Uint8Array, iloc: Box): Map<number, { method: number; of
       const length = uintBE(b, i, lengthSize);
       i += lengthSize;
       if (offset === null || length === null || i > iloc.end) return null;
-      if (e === 0) out.set(id, { method, offset: base + offset, length });
+      if (e === 0) {
+        if (out.has(id)) return null; // a duplicate item id
+        out.set(id, { method, offset: base + offset, length });
+      }
     }
   }
   return i <= iloc.end ? out : null;
 }
 
 function heicDimensions(b: Uint8Array): ImageDimensions | null {
-  const meta = child(boxes(b, 0, b.length), "meta");
+  const top = boxes(b, 0, b.length);
+  // An image sequence (a top-level moov) sizes its frames in tracks this does
+  // not read; a still HEIC has none, so one is refused (S1-05).
+  if (!top || top.some((x) => x.type === "moov")) return null;
+  const meta = only(top, "meta");
   if (!meta || meta.end - meta.start < 4) return null;
   const inMeta = boxes(b, meta.start + 4, meta.end); // meta is a full box
-  const ipco = child(boxes(b, child(inMeta, "iprp")?.start ?? 0, child(inMeta, "iprp")?.end ?? 0), "ipco");
+  if (!inMeta) return null;
+  const iprp = only(inMeta, "iprp");
+  const ipco = iprp ? only(boxes(b, iprp.start, iprp.end), "ipco") : null;
   const props = ipco ? boxes(b, ipco.start, ipco.end) : null;
   if (!props) return null;
   const found: ImageDimensions[] = [];
@@ -256,14 +297,15 @@ function heicDimensions(b: Uint8Array): ImageDimensions | null {
     found.push({ width: u32be(b, p.start + 4), height: u32be(b, p.start + 8) });
   }
   // Derived images: a decoder allocates a grid or an overlay by its own declared output size.
-  const iinf = child(inMeta, "iinf");
+  const iinf = only(inMeta, "iinf");
+  const iloc = only(inMeta, "iloc");
+  const idat = only(inMeta, "idat");
+  if (iinf === null || iloc === null || idat === null) return null;
   const types = iinf ? itemTypes(b, iinf) : new Map<number, string>();
   if (types === null) return null;
   const derived = [...types].filter(([, t]) => t === "grid" || t === "iovl");
   if (derived.length > 0) {
-    const iloc = child(inMeta, "iloc");
     const extents = iloc ? itemExtents(b, iloc) : null;
-    const idat = child(inMeta, "idat");
     if (!extents) return null;
     for (const [id, type] of derived) {
       const ext = extents.get(id);

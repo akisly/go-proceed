@@ -31,7 +31,7 @@ function scanRejectedDetail(failureCode: string | null, claimedMediaType: string
     case "stored_type_mismatch":
       return `Файл завантажено до сховища з типом, відмінним від «${claimedMediaType}». Завантажте фото ще раз.`;
     case "image_dimensions_exceeded":
-      return "Зображення завелике для обробки. Надішліть звичайне фото, а не панораму чи знімок у режимі найвищої роздільності.";
+      return "Зображення завелике: понад 268 мегапікселів або 65 535 пікселів по стороні. Зменште його або надішліть звичайне фото.";
     case "image_dimensions_unreadable":
       return "Не вдалося прочитати розмір зображення. Надішліть інше фото.";
     case "image_animated":

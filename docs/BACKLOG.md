@@ -157,9 +157,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-126](#bl-126) | P2 | open | Hosted Storage's signed-read behaviour is unmeasured, and the evidence bucket accepts any content type on upload |
 | [BL-127](#bl-127) | P3 | open | The Telegram album-exhaustion test wrote two terminal receipts in one of ten runs |
 | [BL-128](#bl-128) | P3 | deferred (owner) | A blocked upload keeps its reserved quota until the purge |
-| [BL-129](#bl-129) | P2 | open | Office and reviewer browsers show evidence originals only: very large photos decode in full, and HEIC does not show in Chrome, Edge or Firefox |
+| [BL-129](#bl-129) | P2 | open | Office and reviewer browsers show evidence originals only: an at-limit bitmap decodes in full, and HEIC does not show in Chrome, Edge or Firefox |
 | [BL-130](#bl-130) | P3 | open | An AVIF whose brand is `mif1` is detected as `image/heic` |
 | [BL-131](#bl-131) | P2 | deferred (owner) | The image size limits and parsers are unchecked against files from real phones |
+| [BL-132](#bl-132) | P3 | open | Image decoding channels the size check does not read: JPEG secondary images, the HEVC stream's own size, progressive scan counts |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1114,7 +1115,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** none
 - **Why:** `docs/architecture/files-and-storage.md` «Content validation and malware boundary» (Approved) lists «image dimension/pixel-count and decoding-resource limits» among the controls applied before availability or parsing. The upload path limits bytes (the `evidence` bucket's `file_size_limit`, the per-workspace quota) and checks the type from magic bytes, but nothing bounds an image's dimensions or pixel count, so a small file that decodes to a very large bitmap is accepted as evidence. The exposure is present now: office members' and external reviewers' browsers decode evidence images as soon as a page shows them. A derivative or thumbnail worker, or an export, would add server-side exposure later. Readiness gate 12 names resource-exhaustion controls on uploads. Ranked by DEV-012.
 - **Evidence:** observed 2026-09-15 at `48ba14e`: no dimension or pixel-count check in `apps/app/src/lib/evidence-inspection.ts`, nor anywhere under `apps/app/src/lib`, `apps/app/app` and `packages/domain/src`; [DEV-012](tasks/DEV-012-m0-gate12-evidence.md) row 2.
-- **Closed 2026-09-23 by DEV-033:** finalization reads an image's declared size from its header without decoding it — JPEG by a libjpeg-style segment walk up to the first scan (exactly one frame), PNG by its first chunk (IHDR), HEIC by walking `meta` → `iprp` → `ipco` for every `ispe` and reading each grid's and overlay's declared output size through `iinf`, `iloc` and `idat` — and blocks (`scan_blocked`, 422 `SCAN_REJECTED` with its own sentence) an image over 268,402,689 pixels (0x3FFF², sharp/libvips' default) or 65,535 px on an edge (`image_dimensions_exceeded`), one whose size cannot be read (`image_dimensions_unreadable`, fail closed), and an animated PNG (`image_animated`). The limits admit a 200 MP frame and a 63 MP panorama (`gp-mobile`, sources in the record). Inspection policy `m2a-magic-bytes-2`. Checked on 83 real files (every tracked JPEG and PNG, and HEIC grids made by macOS ImageIO up to 16,000 × 12,000): every size equal to `sips`'s, none blocked. Not checked: files from real phones (BL-131), evidence finalized before this change, PDF.
+- **Closed 2026-09-23 by DEV-033:** finalization reads an image's declared size from its header without decoding it — JPEG by a libjpeg-style segment walk up to the first scan (exactly one frame), PNG by its first chunk (IHDR), HEIC by walking `meta` → `iprp` → `ipco` for every `ispe` and reading each grid's and overlay's declared output size through `iinf`, `iloc` and `idat` — and blocks (`scan_blocked`, 422 `SCAN_REJECTED` with its own sentence) an image over 268,402,689 pixels (0x3FFF², sharp/libvips' default) or 65,535 px on an edge (`image_dimensions_exceeded`), one whose size cannot be read (`image_dimensions_unreadable`, fail closed), and an animated PNG (`image_animated`). The limits admit a 200 MP frame and a 63 MP panorama (`gp-mobile`, sources in the record). Inspection policy `m2a-magic-bytes-2`. **What this bounds is the declared size, not the cost:** a bitmap at the limit, about 1 GB decoded, is still reachable from a file of tens of kilobytes (a flat 1-bit PNG), so the decoding-resource half of this entry is carried by BL-129 (previews) and BL-132 (the channels the parser does not read). Checked on 83 real files (every tracked JPEG and PNG, and HEIC grids made by macOS ImageIO up to 16,000 × 12,000): every size equal to `sips`'s, none blocked. Not checked: files from real phones (BL-131), evidence finalized before this change, PDF. A HEIC or PNG whose structure breaks or is ambiguous (duplicate boxes or item ids, an `iinf` whose entries do not match its count, a top-level `moov`, chunks that do not reach IDAT) and a JPEG marker libjpeg refuses are refused as unreadable.
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment (the browser path is live today), before any server-side image decoding ships, and before readiness gate 12 closes.
 
@@ -1553,14 +1554,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Resume:** the owner decides whether a blocked intent releases its reservation at once; the coordinator changes the function with `gp-architect`.
 
 <a id="bl-129"></a>
-### BL-129 — P2 — Office and reviewer browsers show evidence originals only: very large photos decode in full, and HEIC does not show in Chrome, Edge or Firefox
+### BL-129 — P2 — Office and reviewer browsers show evidence originals only: an at-limit bitmap decodes in full, and HEIC does not show in Chrome, Edge or Firefox
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-033's `gp-mobile` report (Q-2, Q-4). The evidence card and the review page render the original in an `<img>`. DEV-033's limits stop decompression bombs but admit a legitimate 200 MP photo, which desktop Chrome decodes at full size (about 800 MB); and HEIC renders only in Safari 17 and later, so an office member on Chrome, Edge or Firefox sees a broken image for every iPhone HEIC. A preview derivative (a bounded JPEG with its own hash and key, `files-and-storage.md`) fixes both. A UI and worker task. Ranked by DEV-033.
-- **Evidence:** `apps/app/src/components/evidence/evidence-card.tsx` (`<img src={readUrl}>`, no fallback for an undecodable type); WebKit, «WebKit Features in Safari 17.0» (2023-09-18) for HEIC; Chromium `blink_platform_impl.cc` (`MaxDecodedImageBytes`), cited in DEV-033.
-- **Depends on:** nothing.
-- **Deadline:** before an office member reviews real field evidence in a browser other than Safari.
+- **Why:** DEV-033's `gp-mobile` report (Q-2, Q-4) and `gp-security` review (S1-01). The evidence card and the review page render the original in an `<img>`. DEV-033's limits bound the declared size at 268,402,689 pixels, which decodes to about 1 GB: an attacker with `evidence.record` (or a Telegram participant once the webhook is on) can reach that with a file of tens of kilobytes — a flat 1-bit PNG of 16,383 × 16,383 deflates to about 33 KB — and every browser, Safari included, decodes it when the page shows it; several on one page multiply the cost. A legitimate 200 MP photo costs the same. And HEIC renders only in Safari 17 and later, so an office member on Chrome, Edge or Firefox sees a broken image for every iPhone HEIC. A bounded preview derivative (its own hash and key, `files-and-storage.md`) fixes all three; until then, an owner-set pixels-per-byte floor above a baseline (for example, refuse over 24 MP when pixels exceed R × bytes, R calibrated on BL-131's phone files) would cut the reachable ratio, though padding weakens it. A UI and worker task. Ranked by DEV-033.
+- **Evidence:** `apps/app/src/components/evidence/evidence-card.tsx` (`<img src={readUrl}>`, no fallback for an undecodable type); WebKit, «WebKit Features in Safari 17.0» (2023-09-18) for HEIC; Chromium `blink_platform_impl.cc` (`MaxDecodedImageBytes`), cited in DEV-033; DEV-033's `gp-security` S1-01 for the PNG ratio.
+- **Depends on:** nothing for the preview; the owner for a pixels-per-byte floor.
+- **Deadline:** before real customer data enters an environment, in every browser, and before the Telegram webhook is enabled anywhere.
 
 <a id="bl-130"></a>
 ### BL-130 — P3 — An AVIF whose brand is `mif1` is detected as `image/heic`
@@ -1582,3 +1583,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** the owner, for the sample files (they are personal photos; never committed — a local folder, as `outputs/` is kept).
 - **Deadline:** before the pilot's first field capture.
 - **Resume:** the owner provides the files locally; the coordinator runs `imageDimensions` and `inspectContent` on them and records sizes and outcomes only.
+
+<a id="bl-132"></a>
+### BL-132 — P3 — Image decoding channels the size check does not read: JPEG secondary images, the HEVC stream's own size, progressive scan counts
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's reviews (`gp-security` S1-06, `gp-reviewer` R1-05). The size check reads a JPEG's primary frame only: MPF secondary images (Ultra HDR and Apple HDR gain maps, which HDR-capable browsers decode) can declare their own size, up to 65,535², and are not read; refusing MPF outright would refuse ordinary Pixel and Samsung photos, so the fix is to follow the MPF index (bounded) and walk each secondary image. A HEIC's HEVC stream carries its own dimensions (SPS), not compared with `ispe`. A progressive JPEG's scan count (Chrome stops at 100) and a PNG's compressed-data ratio are not bounded (BL-129). Ranked by DEV-033.
+- **Evidence:** [DEV-033](tasks/DEV-033-image-size-limits.md) «What is not true».
+- **Depends on:** nothing.
+- **Deadline:** before real customer data enters an environment.
