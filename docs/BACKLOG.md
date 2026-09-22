@@ -152,6 +152,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-121](#bl-121) | P3 | open | Two browser-harness probes assert their conclusion on a premise that is no longer true |
 | [BL-122](#bl-122) | P2 | deferred (owner) | The private prospecting copy has no recorded purpose, retention date or backup, and erasure cannot reach history |
 | [BL-123](#bl-123) | P3 | open | Nothing technical keeps an agent session out of the private prospecting copy |
+| [BL-124](#bl-124) | P2 | open | The prospecting-data guard detects only after the fact and knows one field |
+| [BL-125](#bl-125) | P3 | open | Two validator guards read `git ls-files` split by newline and would skip a quoted path |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1032,7 +1034,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Legacy cite:** none
 - **Why:** DEV-007's review (S1-09). Commit `bbfc705`, a landing layout change, added the whole session directory in passing, and no ignore rule or validator check would stop the next one. Two guards fit: ignore new session directories under `outputs/` while the existing tree stays tracked, and a validator check that refuses tracked files carrying ProZorro `contactPoint` objects outside approved paths. Ranked by DEV-007 from the review's severity.
 - **Evidence:** `git log --format='%h %s' -- outputs` lists only `bbfc705` «fix(landing): adjust table borders for improved layout consistency»; `.gitignore` has no `outputs` entry.
-- **Closed 2026-09-23 by DEV-031:** `.gitignore` ignores everything under `outputs/` except the pointer README. `scripts/validate-canonical-docs.mjs` refuses, over every tracked file: a ProZorro `contactPoint` in a dump's forms (a JSON, JS, Python or escaped-JSON object, a YAML block key, a CSV or TSV column), never the prose that names the field; any tracked path under `outputs/` other than the README; and any tracked spreadsheet, which the text scan cannot read. The approved lists hold only the validator itself (its self-test fixtures) and nothing, respectively. Over `44e05cd`, the tree before DEV-030, the check refuses 6,371 lines in the five ProZorro dumps, 250 `outputs/` paths and 9 workbooks; over the tree after, nothing. The validator's two `outputs/` exemptions are gone. Limits: `git add -f` passes the ignore rule, and the validator stops it only where someone runs it, since GitHub Actions starts no jobs until October 2026; screenshots are not read.
+- **Closed 2026-09-23 by DEV-031:** `.gitignore` ignores everything under `outputs/` except the pointer README, and every data file in the `discovery/` store (CSV, TSV, ndjson, jsonl, databases, drafts). `scripts/validate-canonical-docs.mjs` reads the index (what a commit records) and refuses: a ProZorro `contactPoint` in the forms a dump takes (an object or array under the key, quoted, unquoted or escaped; a quoted or flattened key such as pandas' `suppliers.0.contactPoint.email`; a YAML block key; a flattened column in a table or delimited file; any occurrence in a CSV, TSV or `.txt`), case-insensitively and in UTF-16 too, never the backticked prose the repository uses; any tracked `outputs/` path but the README; any tracked file the scan cannot read (spreadsheets, archives, PDFs, documents, parquet, SQLite) but one approved PDF; any discovery data file; and any tracked file an ignore rule covers (forced in with `git add -f`). An approved `contactPoint` file is still scanned for non-synthetic emails and telephones. Over `44e05cd`, the tree before DEV-030, the checks refuse the five ProZorro dumps (6,371 lines), 250 `outputs/` paths and 9 workbooks; over the tree after, nothing. The validator's two `outputs/` exemptions are gone. **Limits:** outside `outputs/`, content and format alone would have refused 14 of the session's 250 files; the other 236 (tax numbers, outreach routes, customers in tender titles) are stopped only by where they sit. The guard reads the tree, not a branch's earlier commits, so a dump committed and then removed passes. `git add -f` passes the ignore rules, and the validator stops it only where someone runs it: CI, once GitHub Actions runs again (October 2026), detects after a push, and nothing prevents a commit. Images are not read. Those follow-ups are BL-124.
 - **Depends on:** BL-079, which decides what may stay tracked.
 - **Deadline:** none recorded.
 
@@ -1489,3 +1491,23 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `outputs/README.md` «Agents stay out»; `.claude/settings.json` has no deny rule for the path (observed 2026-09-23).
 - **Depends on:** nothing.
 - **Deadline:** none recorded.
+
+<a id="bl-124"></a>
+### BL-124 — P2 — The prospecting-data guard detects only after the fact and knows one field
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-031's `gp-security` and `gp-reviewer` reviews (S1-01, S1-05, S1-07; R1-02). BL-081's guards refuse a tracked ProZorro `contactPoint`, anything under `outputs/`, unreadable formats and discovery data files, but: (1) nothing prevents a commit — the validator runs where someone runs it, and CI detects only after a push, when the data is already on the remote and in pull-request refs; a pre-commit or pre-push hook, or a Claude Code hook on `git commit`, would prevent it (an agent-instructions or config change, with its own route); (2) the guard reads the tree, not the commits a branch adds, so a dump committed and then removed passes; a range mode (`origin/main..HEAD`, every blob added) would catch it; (3) the content rule knows one field: outside `outputs/`, content and format would have refused 14 of the session's 250 files, and sole traders' ten-digit tax numbers, outreach routes and customers named in tender titles pass it. Ranked by DEV-031.
+- **Evidence:** [DEV-031](tasks/DEV-031-outputs-guards.md) «What is not true» and its pre-move count (`scratchpad/dev031-r1-pre-move.txt`, cited there).
+- **Depends on:** nothing for (2); the hook in (1) is an agent-instructions or configuration change; (3) needs a detector for Ukrainian personal tax numbers that does not refuse company codes (eight digits) or the catalogs' identifiers.
+- **Deadline:** before the next prospecting session writes files inside a clone.
+
+<a id="bl-125"></a>
+### BL-125 — P3 — Two validator guards read `git ls-files` split by newline and would skip a quoted path
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-031's `gp-reviewer` review (a remark). Guards 11 (stale names) and 12 (the retired workflow) in `scripts/validate-canonical-docs.mjs` split `git ls-files` output by newline. With `core.quotePath` on (git's default), a path with a non-ASCII or special character comes back quoted and escaped, the read fails, and `catch { continue; }` skips the file silently. No such path is tracked today (0 on 2026-09-23), so nothing is skipped yet. DEV-031's guard uses `-z` and raw paths. Ranked by DEV-031.
+- **Evidence:** `git ls-files -z | tr '\0' '\n' | LC_ALL=C grep -c '[^ -~]'` → 0 (2026-09-23); the two `execFileSync("git", ["ls-files"], …)` calls in guards 11 and 12.
+- **Depends on:** nothing.
+- **Deadline:** before a tracked path carries a Cyrillic name.
