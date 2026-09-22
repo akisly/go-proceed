@@ -87,6 +87,57 @@
     outline-offset: var(--gp-focus-ring-offset);
   }
 
+  /* THE POINTER, on everything that behaves like a button. [2026-09-22, owner:
+   * «пересмотри кнопки, и ссылки как кнопки, чтобы был поинтер курсор».]
+   * Tailwind v4's Preflight leaves `button` on the UA's `cursor: default` — it
+   * follows the platform, where a native button is not a link — and this system
+   * had no rule of its own, so every `<button>` on the site (the pilot form's
+   * two actions, the FAQ's rows, the tabs, the segmented control) showed an
+   * arrow while every `<a>` beside it showed a hand. An anchor is not listed
+   * here: an `<a href>` already has the pointer, and one without `href` is not a
+   * control. `summary` is, and browsers disagree about it.
+   *
+   * The disabled case is stated rather than left to the cascade: `Button` sets
+   * `disabled:pointer-events-none`, which suppresses the cursor as a side
+   * effect, and a control that is disabled some other way should still say so. */
+  button:not(:disabled):not([aria-disabled="true"]),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+
+  /* SCOPED TO CONTROLS, and `:not([aria-disabled])` above it, both found in
+   * review (R2-05/R2-06). `button:not(:disabled)` is (0,1,1) and beat a bare
+   * `[aria-disabled="true"]` at (0,1,0), so a button that says it is disabled
+   * without being disabled — `pilot-form.tsx` while a request is in flight —
+   * showed the hand this block claims to deny it. And `[aria-disabled]` on its
+   * own reaches any element: `apps/app`'s workspace switch puts it on a plain
+   * row, whose every descendant would have inherited `not-allowed` from a rule
+   * written for buttons. */
+  button:disabled,
+  button[aria-disabled="true"],
+  [role="button"][aria-disabled="true"],
+  summary[aria-disabled="true"] {
+    cursor: not-allowed;
+  }
+
+  /* …with ONE exception, and it is arithmetic, not taste. [2026-09-22, DEV-025]
+   * The ring is the brand's primary, and the primary measures 2.56:1 against
+   * the inverse surface — under the 3:1 WCAG 2.1 §1.4.11 asks of a focus
+   * indicator. Inside an inverse ground the ring therefore takes the rung that
+   * is legible there (`border-focus-inverse`, 10.30:1), and it is still one
+   * treatment: same width, same offset, same hue, one step of lightness.
+   * `bg-inverse` is the utility that paints that ground, so it is also the
+   * only honest selector for «on the inverse surface»; `[data-inverse]` is
+   * there for a ground painted some other way. Asserted in
+   * `packages/testing/src/contrast.test.ts`. */
+  .bg-inverse :focus-visible,
+  .bg-inverse:focus-visible,
+  [data-inverse] :focus-visible,
+  [data-inverse]:focus-visible {
+    outline-color: var(--gp-border-focus-inverse);
+  }
+
   /* The display face is opt-in, never inherited. It is marketing-only, never
    * below --text-mkt-display-3, never inside the application shell, never on a
    * figure — so it is attached to a class rather than to h1/h2, which the app
@@ -225,7 +276,7 @@
  * that 2px, as a glow that swells and fades along the border, with no head and
  * no tail. Ours is the same construction in our colours: the border is
  * `surface` at 30 % on the ink pill (16 % until the owner asked for brighter),
- * the light is the accent.
+ * the light is the signal — the spark (see `pill-light`), not the accent.
  *
  * Three layers under the label, inside the pill's own stacking context
  * (`isolate`), all below z 0 so the label needs no wrapper:
@@ -267,10 +318,15 @@
   width: 140px;
   aspect-ratio: 1;
   pointer-events: none;
-  /* The core is lifted toward `surface`: pure cobalt on the ink pill is a dark blue on black, and the
-   * reference's light is the brightest thing on its button. Still one hue: the lift is 45 % at the very
-   * centre and gone by a third of the radius, where the accent stands at full strength. */
-  background: radial-gradient(closest-side, color-mix(in srgb, var(--gp-text-accent) 55%, var(--gp-bg-surface)) 0%, var(--gp-text-accent) 32%, color-mix(in srgb, var(--gp-text-accent) 70%, transparent) 58%, transparent 100%);
+  /* THE SPARK, not the accent. [Autumn, 2026-09-22] The ornaments that sit on PAPER read
+   * `text-accent`, the brand's primary; the two that sit on INK cannot — this one and `beam`
+   * (above), which has read `bg-signal` since before the palette moved. The primary is a deep green that measures 2.55:1 against the ink
+   * pill it travels on — a dark shape on black — and the reference's light is the brightest thing on
+   * its button. `bg-signal`, the secondary, measures 6.29:1 there. So the pill's light is the one place
+   * on a dark ground where the system spends its spark, which is what a scarce loud colour is for.
+   * The core is still lifted toward `surface`: 45 % at the very centre, gone by a third of the radius,
+   * where the colour stands at full strength. */
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--gp-bg-signal) 55%, var(--gp-bg-surface)) 0%, var(--gp-bg-signal) 32%, color-mix(in srgb, var(--gp-bg-signal) 70%, transparent) 58%, transparent 100%);
   offset-path: inset(0 round var(--gp-radius-pill));
   offset-anchor: 50% 50%;
   offset-rotate: 0deg;
@@ -294,9 +350,9 @@
     background: conic-gradient(
       from var(--gp-beam-angle),
       transparent 0 52%,
-      color-mix(in srgb, var(--gp-text-accent) 55%, transparent) 70%,
-      var(--gp-text-accent) 88%,
-      color-mix(in srgb, var(--gp-text-accent) 45%, var(--gp-bg-surface)) 97%,
+      color-mix(in srgb, var(--gp-bg-signal) 55%, transparent) 70%,
+      var(--gp-bg-signal) 88%,
+      color-mix(in srgb, var(--gp-bg-signal) 45%, var(--gp-bg-surface)) 97%,
       transparent 100%
     );
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
@@ -444,19 +500,29 @@
   z-index: -1;
   pointer-events: none;
 }
-@utility media-glow-cobalt { background: color-mix(in srgb, var(--gp-bg-signal) 16%, transparent); }
+/* [Autumn, 2026-09-22] `media-glow-cobalt` until the mark was cobalt. The
+ * utility names the hue it paints, so the name moved with the palette; the
+ * role it reads (`bg-signal`) never changed. */
+@utility media-glow-ember { background: color-mix(in srgb, var(--gp-bg-signal) 16%, transparent); }
 @utility media-glow-sand { background: color-mix(in srgb, var(--gp-status-attention-fg) 18%, transparent); }
 @utility media-glow-green { background: color-mix(in srgb, var(--gp-status-ready-fg) 14%, transparent); }
 
 /* The «було / стало» pairing: a hovered row lights its twin in the other card.
  * `:has()` on the pair container keeps both cards server-rendered; the wash is
- * a background-color transition, rule 2 territory. */
+ * a background-color transition, rule 2 territory.
+ *
+ * [2026-09-22, owner: the highlight «вообще выглядит странно, не вписывается в
+ * палитру».] It was `bg-accent-soft` — the accent's own wash, which on this
+ * palette is a MINT (pine at a tenth over white, hue 167). On warm paper a cool
+ * green patch is the only cold thing in the fold and reads as a highlighter,
+ * not as a pair. The wash is the paper's own sunken tone now: the two rows
+ * still light together, and nothing in the fold changes hue. */
 .compare-pair:has([data-compare-row="photo"]:hover) [data-compare-row="photo"],
 .compare-pair:has([data-compare-row="requirement"]:hover) [data-compare-row="requirement"],
 .compare-pair:has([data-compare-row="decision"]:hover) [data-compare-row="decision"],
 .compare-pair:has([data-compare-row="closure"]:hover) [data-compare-row="closure"],
 .compare-pair:has([data-compare-row="act"]:hover) [data-compare-row="act"] {
-  background-color: var(--gp-bg-accent-soft);
+  background-color: var(--gp-bg-muted);
 }
 
 /* Duration utilities are named rather than numeric. `duration-150` would

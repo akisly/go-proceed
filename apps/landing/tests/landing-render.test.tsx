@@ -71,8 +71,9 @@ describe("the four pages — skeleton", () => {
       expect(pages[key], key).toContain('class="landing-frame"');
       // the header sits between the inner guide lines, not across the viewport
       expect(headerOf(pages[key]), key).toContain("landing-header-rail");
-      // [DEV-024, seventh pass] the header's ground is a layer of its own, first in the header, decorative, and SERVED
-      // VEILED: `data-at-top` is only ever written by a running script, so the no-script header keeps its bar.
+      // [DEV-024, seventh pass; 2026-09-22, owner] the header's ground is a layer of its own, first in the header and
+      // decorative. It is PERMANENT now — no script writes to it, so the header has one appearance at the top of the
+      // page, half-way down it and without JavaScript. `data-at-top` is the attribute the lifted state used to carry.
       expect(headerOf(pages[key]), key).toMatch(/<header[^>]*class="landing-header [^"]*isolate[^"]*"[^>]*><i aria-hidden="true" data-header-veil="" class="landing-header-veil"><\/i>/);
       expect(headerOf(pages[key]), key).not.toContain("data-at-top");
       expect(headerOf(pages[key]), key).not.toContain("inset-x-0");
@@ -152,7 +153,14 @@ describe("the first screen (DEV-023: the reference's)", () => {
   });
   it("states the promise as the page's h1, plain text that paints on the first frame, then the definition", () => {
     expect(hero.match(/<h1/g)).toHaveLength(1);
-    expect(hero).toMatch(new RegExp(`<h1[^>]*>${landingContent.hero.title}</h1>`));
+    // The whole title, in the markup, with one word in the accent inside it
+    // [2026-09-22]: the tags are stripped before the comparison, so the h1 is
+    // still asserted to say exactly what the content file says and nothing else.
+    const h1 = hero.match(/<h1[\s\S]*?<\/h1>/)![0];
+    // Entities decoded [R2-14]: the hero's title has no apostrophe today and the
+    // product's copy is full of them.
+    expect(h1.replace(/<[^>]+>/g, "").replace(/&#x27;|&#39;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, "&")).toBe(landingContent.hero.title);
+    expect(h1).toContain(`<span class="text-accent">${landingContent.hero.titleAccent}</span>`);
     expect(hero).toContain(landingContent.hero.lead);
     expect(hero.indexOf("<h1")).toBeLessThan(hero.indexOf(landingContent.hero.lead));
   });

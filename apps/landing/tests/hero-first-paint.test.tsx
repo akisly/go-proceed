@@ -26,6 +26,17 @@ import { landingContent } from "../content/landing-content";
 const markup = renderToStaticMarkup(<Hero />);
 
 /**
+ * The markup as a reader sees it: tags dropped, entities decoded. [R2-14] The
+ * decode is not decoration — React escapes `&`, `<`, `>`, `"` and `'` in text,
+ * and the product's own copy is full of `об'єкт`, so a title with an apostrophe
+ * would fail three assertions against a page that is correct.
+ */
+const text = (html: string): string => html
+  .replace(/<[^>]+>/g, "")
+  .replace(/&quot;/g, "\"").replace(/&#x27;/g, "'").replace(/&#39;/g, "'")
+  .replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+
+/**
  * The text fold: pill, headline, lead, actions (and, until DEV-022, facts) — everything above the
  * product frame. The frame itself keeps its JS entrance on purpose. It is not
  * an LCP candidate, it is the composition `ScrollSettle`, `Depth` and `Tilt`
@@ -62,7 +73,18 @@ describe("the hero fold paints on the first frame", () => {
     // [DEV-023, R-10] The h1 is plain text now — `hero.tsx` promises it paints on
     // the first frame — so the headline is no longer an exception to the rule.
     expect(markup).not.toMatch(/opacity:\s*0(?![.\d])/);
-    expect(markup).toMatch(/<h1[^>]*>[^<]+<\/h1>/);
+    // [2026-09-22] The rule was `/<h1[^>]*>[^<]+<\/h1>/` — no element inside the
+    // heading at all — until it took its accent word back and now holds one
+    // `<span class="text-accent">`. A substring ban is NOT an equivalent guard,
+    // and the first attempt at one proved it: it forbade `data-reveal`, which
+    // exists nowhere in this repository, and let `.entrance` — the system's own
+    // class-driven entrance, the wrapper every other element in this fold uses —
+    // straight through (found in review, R2-01). So the tag list is asserted
+    // instead: an h1 and one span, and nothing else may appear inside it.
+    const h1 = markup.match(/<h1[\s\S]*?<\/h1>/)![0];
+    expect(h1.match(/<[a-z][a-z0-9]*/g)).toEqual(["<h1", "<span"]);
+    expect(h1).not.toMatch(/opacity|entrance|data-line-reveal/);
+    expect(text(h1)).toBe(landingContent.hero.title);
     expect(withoutHeadline).toContain(landingContent.hero.secondaryAction);
   });
 
@@ -78,7 +100,11 @@ describe("the hero fold paints on the first frame", () => {
     const h = landingContent.hero;
     // [DEV-023] The reference's first screen has no announcement pill; the free
     // pilot is said by the fact band and the closing block of the same page.
-    expect(markup).toContain(h.title);
+    // The title is compared with the markup's tags stripped [2026-09-22]: one
+    // word of it is wrapped in the accent, so the raw string no longer appears
+    // verbatim — while the sentence the reader sees is character for character
+    // the one in the content file, which is what this assertion is about.
+    expect(text(markup)).toContain(h.title);
     expect(markup).toContain(h.primaryAction);
     expect(markup).toContain(h.secondaryAction);
     expect(markup).toContain(h.lead);

@@ -25,7 +25,7 @@ import { TwoTone } from "./two-tone";
  * свечение по бокам как основной фиолетовый акцент, и точки так же фиолетовые,
  * и чтобы под этим глобусом не подсвечивались квадраты»: more air between the
  * tiles and the dome; the dome's dots and the two lights at its lower corners
- * are the accent (cobalt) — the colour is still only a class, `text-accent`,
+ * are the accent (cobalt until 2026-09-22, pine since) — the colour is still only a class, `text-accent`,
  * read by the canvas; and the grid's cells stay dark under the dome's box
  * (`CellField exclude`).
  *

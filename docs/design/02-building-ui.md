@@ -34,7 +34,7 @@ Not for backend, migrations, or `apps/demo/**` (frozen until D5).
 ## 1. The model, in one paragraph
 
 Three layers. **A component names a ROLE, never a value.** `bg-canvas`, not
-`bg-neutral-25`, and never `bg-[#FBFBF9]`. Roles live in
+`bg-neutral-25`, and never `bg-[#ECE9DF]`. Roles live in
 `packages/tokens/src/tokens.json`, reach CSS through seven generators, and reach
 Tailwind through `@theme inline`. Ramp steps are deliberately unreachable as
 utilities — `bg-neutral-200` does not compile — and a raw `var(--gp-neutral-200)`
@@ -95,7 +95,7 @@ fail the colour audit.
 | Skill | Why not |
 |---|---|
 | `high-end-visual-design` | Its "Variance Mandate" is *never generate the same layout twice*. A design system's entire value is that the same decision produces the same result. Directly opposed |
-| `minimalist-ui` | Bans a prescribed typeface. This product has one, chosen for Cyrillic and tabular figures. *[Correction, 2026-09-05: the face is **Onest**, not Inter — Daylight made it the one typeface on every token-driven surface (`01-tokens.md` §typography, §9 of this file). The field client's routes keep Inter until their migration. The refusal stands on the same ground: a skill that bans the system's chosen face is arguing with the system.]* |
+| `minimalist-ui` | Bans a prescribed typeface. This product has one, chosen for Cyrillic and tabular figures. *[2026-09-22: the face is **Hanken Grotesk with Commissioner behind it for Cyrillic** — the owner's brand sheet, and a pair because Hanken has no Cyrillic at all.]* *[Correction, 2026-09-05: the face is **Onest**, not Inter — Daylight made it the one typeface on every token-driven surface (`01-tokens.md` §typography, §9 of this file). The field client's routes keep Inter until their migration. The refusal stands on the same ground: a skill that bans the system's chosen face is arguing with the system.]* |
 | `brand-guidelines` | Applies *Anthropic's* brand |
 | `web-artifacts-builder` | For claude.ai artifacts, not a Next app |
 | `figma:*` | Figma is deferred (plan §3). The DTCG file generates and waits |
@@ -130,7 +130,7 @@ nothing, fails a test, or silently drops a class.
 
 | Do not write | Write | What happens otherwise |
 |---|---|---|
-| `bg-[#FBFBF9]`, `bg-neutral-25` | `bg-canvas` | Does not compile; the ramp is not in the utility namespace |
+| `bg-[#ECE9DF]`, `bg-neutral-25` | `bg-canvas` | Does not compile; the ramp is not in the utility namespace |
 | `var(--gp-neutral-600)` | `var(--gp-text-muted)` | `primitive-leak.test.ts` fails |
 | `text-sm`, `text-lg` | `text-data`, `text-h3` | Stock namespace is cleared; resolves to nothing |
 | `lg:`, `xl:`, `sm:` | `md:`, `wide:`, `rail-icons:` | A typo fails loudly instead of silently targeting a width this design never reasons about |
@@ -150,9 +150,9 @@ nothing, fails a test, or silently drops a class.
 | a state-driven `motion.span` progress line | `TrackFill` | Rule 5; `LineDraw` is the scroll one |
 | `useTransform` in a landing visual | `InViewProgress` + `calc(var(--gp-progress))` | Rule 5 |
 | `onPointerMove` + `style.transform` for a lean or a pointer follow | `Tilt` / `Magnetic` | Rule 5; and the gates (pointer:fine, `md`, reduced) live in the word, not in the caller |
-| `text-accent` on body copy | `text-accent` only inside a display heading | It clears 3:1, not 4.5:1 — large text only |
+| a paragraph in `text-accent` | `text-accent` inside a display heading; `text-link` for a link | A discipline, not a contrast limit any more: pine measures 6.30:1 on the canvas, where cobalt measured 4.35:1 and was held to the 3:1 large-text bar. An accent phrase is still a phrase, not a paragraph |
 | `h-11` on a marketing control | `size="lg"` on `Button`; `h-(--gp-control-height-marketing)` on an input | The literal stops tracking the token |
-| a lime fill, `bg-signal` as decoration | `bg-action-signal` on at most one action, or ink | The mark is cobalt since 2026-09-05 and the landing uses none |
+| a lime fill, `bg-signal` as decoration | `bg-action-signal` on at most one action, or ink | The spark is ember since 2026-09-22 (cobalt from 2026-09-05), it carries INK and never white, and the landing uses none |
 
 ### 4.2 Where code goes
 
@@ -416,6 +416,11 @@ right-aligned, because 620/620 and 180/150 must differ in *shape*.
 *[Correction, 2026-09-05: Onest for display and everything else, JetBrains
 Mono for indices; the serif is retired. Weights 400 / 500 / 600 / 700.]*
 
+*[Correction, 2026-09-22 (DEV-025): Hanken Grotesk for display and everything
+else, with Commissioner behind it for Cyrillic — Hanken carries none — and
+JetBrains Mono for indices. The weights are unchanged. Figures are tabular
+because Hanken's digits are one width, not because a feature is asked for.]*
+
 *[Correction, 2026-09-05, later the same day: Onest on the field client too —
 `apps/app` has one stylesheet, `app/globals.css` on `@goproceed/ui/base.css`;
 the legacy sheet and its Inter are gone.]*
@@ -426,6 +431,11 @@ viewport. It is the only colour in the product that means something specific.
 
 *[Correction, 2026-09-05: the signal is cobalt, not lime — the same ration
 applies.]*
+
+*[Correction, 2026-09-22: the signal is ember (#FF5B04), the brand's secondary,
+and it carries ink rather than white. The same ration applies, and the brand's
+primary — pine — is not under it: pine is text-safe and carries the links, the
+focus ring and the ornaments.]*
 
 **Motion is a consequence, not an entrance.** Something moves because a state
 became durable — evidence was accepted, a stage closed, a line connected. A

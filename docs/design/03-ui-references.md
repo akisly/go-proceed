@@ -152,7 +152,7 @@ rule the dashboard applies to shadcn). Each block names its source:
 | Roles | Grid Feature Cards | 1px-gap cells, pointer spotlight, pointer tilt ≤ 3° | — | 21st.dev `efferd/grid-feature-cards` · licence unstated (structure already ours) |
 | Provenance | Bento Grid | a two-row cell beside two stacked cells, staggered | icon-led filler cells | Magic UI `bento-grid` · MIT |
 | Route | Fora's sticky feature stack | five sticky cards, sides alternating, the scale/veil scrub and the media parallax (`ScrollStack`) | — | Aceternity `sticky-scroll-reveal` · Aceternity License (structure only) |
-| Pilot plan | Steppers / Timeline | vertical steps with a progress line scrubbed by the scroll (`ScrollProgress`) | timed autoplay | Aceternity `timeline` · Aceternity License (structure only) |
+| Pilot plan | Steppers / Timeline | steps with a progress line scrubbed by the scroll (`ScrollProgress`) — vertical by default, horizontal on `/pilot` since 2026-09-22, where the plan is reference and not narrative | timed autoplay | Aceternity `timeline` · Aceternity License (structure only) |
 | Closing | Cta-4 | light card, copy left, actions right | a second signal button | 21st.dev `shadcnblockscom/cta-4` · licence unstated (structure already ours) |
 | Headings | Text Generate Effect | per-word spans as the unit of a heading reveal; the line grouping is ours (`LineReveal`) | the blur | Aceternity `text-generate-effect` · Aceternity License (structure only) |
 | Pointer words | Magnetic, Tilt | the spring-driven follow and lean (`Magnetic`, `Tilt`) with our springs | their default springs | motion-primitives (`ibelick/motion-primitives`) · MIT |

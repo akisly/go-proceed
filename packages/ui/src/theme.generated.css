@@ -122,6 +122,7 @@
   --color-line-strong: var(--gp-border-strong);
   --color-line-inverse: var(--gp-border-inverse);
   --color-focus: var(--gp-border-focus);
+  --color-focus-inverse: var(--gp-border-focus-inverse);
   --color-action: var(--gp-action-primary-bg);
   --color-action-fg: var(--gp-action-primary-fg);
   --color-action-hover: var(--gp-action-primary-hover);

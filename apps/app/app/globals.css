@@ -14,7 +14,7 @@
  *
  * WHAT IT IS NOW. `@goproceed/ui/base.css` — Preflight, the generated theme
  * from `packages/tokens/src/tokens.json`, the focus ring, the reduced-motion
- * block, `body`'s face (Onest) and colour, tabular figures on th/td/output/
+ * block, `body`'s face (Hanken Grotesk, with Commissioner behind it for Cyrillic since 2026-09-22) and colour, tabular figures on th/td/output/
  * time/data, the `touch` and `dark` variants. Every rule the old base layer
  * carried is Preflight's own (tailwindcss 4.3.3, preflight.css): box-sizing,
  * zero margins, `a { color: inherit; text-decoration: inherit }`,

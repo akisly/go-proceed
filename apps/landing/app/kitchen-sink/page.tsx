@@ -198,7 +198,7 @@ export default function KitchenSink() {
       <Case n="11" name="TrackFill" rule="Стрічка прогресу, яка заповнюється тому, що користувач посунувся через послідовність, не тому, що сторінка скролилась. На відміну від LineDraw, відповідає на стан додатку, а не на позицію скролу.">
         <div className="flex gap-2">
           <TrackFill filled={false} className="h-1 flex-1 rounded-pill bg-line" />
-          <TrackFill filled={true} className="h-1 flex-1 rounded-pill bg-signal" />
+          <TrackFill filled={true} className="h-1 flex-1 rounded-pill bg-action" />
           <TrackFill filled={false} className="h-1 flex-1 rounded-pill bg-line" />
         </div>
       </Case>
@@ -245,7 +245,7 @@ export default function KitchenSink() {
         <InViewProgress className="block h-2 overflow-hidden rounded-pill bg-line">
           <div
             aria-hidden="true"
-            className="h-full rounded-pill bg-signal"
+            className="h-full rounded-pill bg-action"
             style={{ width: "calc(var(--gp-progress, 0) * 100%)" }}
           />
         </InViewProgress>
@@ -303,7 +303,7 @@ export default function KitchenSink() {
 
       <Case n="20" name="ScrollProgress" rule="Брат InViewProgress, але керований скролом: публікує прогрес проходу 0 → 1 у --gp-progress від top 70% до bottom 60%. Під reduced motion — одразу 1.">
         <ScrollProgress className="block h-2 overflow-hidden rounded-pill bg-line">
-          <div aria-hidden="true" className="h-full rounded-pill bg-signal" style={{ width: "calc(var(--gp-progress, 0) * 100%)" }} />
+          <div aria-hidden="true" className="h-full rounded-pill bg-action" style={{ width: "calc(var(--gp-progress, 0) * 100%)" }} />
         </ScrollProgress>
       </Case>
 

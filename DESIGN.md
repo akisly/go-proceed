@@ -1,55 +1,57 @@
 ---
-name: GoProceed Daylight
-description: Warm paper, cool ink and one cobalt mark for accountable construction evidence.
+name: GoProceed Autumn
+description: Warm paper, warm ink, a deep green that carries the brand and one orange spark, for accountable construction evidence.
 colors:
-  paper: "#F6F5F1"
+  paper: "#ECE9DF"
   surface: "#FFFFFF"
-  paper-subtle: "#EFEEE8"
-  ink: "#15161A"
-  ink-secondary: "#4E5158"
-  ink-muted: "#5E626B"
-  ink-subtle: "#7A7E87"
-  line: "#D9D9D6"
-  line-strong: "#CFCFCC"
-  cobalt: "#2B4BFF"
-  accent: "#5568DE"
-  accent-soft: "#EAEDFF"
-  ready-surface: "#E8F4EE"
-  ready-ink: "#17754A"
+  paper-subtle: "#E6E2D7"
+  ink: "#0C0C0A"
+  ink-secondary: "#514B46"
+  ink-muted: "#665F58"
+  ink-subtle: "#7B736A"
+  line: "#D1CDC7"
+  line-strong: "#C7C3BD"
+  pine: "#395A4D"
+  accent: "#395A4D"
+  accent-soft: "#E2F1EA"
+  ember: "#FF5B04"
+  on-ember: "#0C0C0A"
+  ready-surface: "#E0F5E3"
+  ready-ink: "#167337"
   review-surface: "#EAEDFF"
   review-ink: "#1E36B8"
-  attention-surface: "#FAEFE8"
-  attention-ink: "#A6511A"
-  blocked-surface: "#FCE9E6"
-  blocked-line: "#FBD5D1"
-  blocked-ink: "#A02827"
+  attention-surface: "#FBEFD8"
+  attention-ink: "#875D00"
+  blocked-surface: "#FEE8E7"
+  blocked-line: "#FED4D3"
+  blocked-ink: "#A3122C"
 typography:
   display:
-    fontFamily: "Onest Variable, Onest, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk Variable, Commissioner Variable, system-ui, sans-serif"
     fontSize: "clamp(38px, 5.2vw, 66px)"
     fontWeight: 600
     lineHeight: 1.05
     letterSpacing: "-0.035em"
   headline:
-    fontFamily: "Onest Variable, Onest, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk Variable, Commissioner Variable, system-ui, sans-serif"
     fontSize: "clamp(28px, 3.3vw, 44px)"
     fontWeight: 600
     lineHeight: 1.05
     letterSpacing: "-0.03em"
   title:
-    fontFamily: "Onest Variable, Onest, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk Variable, Commissioner Variable, system-ui, sans-serif"
     fontSize: "clamp(24px, 2.6vw, 34px)"
     fontWeight: 600
     lineHeight: 1.15
     letterSpacing: "-0.025em"
   body:
-    fontFamily: "Onest Variable, Onest, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk Variable, Commissioner Variable, system-ui, sans-serif"
     fontSize: "16px"
     fontWeight: 400
     lineHeight: 1.6
     letterSpacing: "-0.011em"
   data:
-    fontFamily: "Onest Variable, Onest, system-ui, sans-serif"
+    fontFamily: "Hanken Grotesk Variable, Commissioner Variable, system-ui, sans-serif"
     fontSize: "13px"
     fontWeight: 600
     lineHeight: 1.5
@@ -136,35 +138,65 @@ components:
     padding: "24px"
 ---
 
-# Design System: GoProceed Daylight
+# Design System: GoProceed Autumn
 
 ## Overview
 
 **Creative North Star: "The work is ready when the proof is in place, shown on paper in daylight."**
 
-GoProceed should feel like a construction dossier read at a desk in daylight, not
-a control room. Warm paper carries the page; cool ink carries the copy; one
-cobalt mark — never a wash, never a background — points at the single thing
-that matters on a screen: the accent phrase in a heading, the mark itself, the
-review state. Everything else is built from recognisable, restrained community
-blocks (21st.dev structure, restyled in our token roles) rather than invented
-decoration, so the page reads as an instrument someone can trust, not a pitch.
+*[2026-09-22, DEV-025, owner: a brand sheet — a warm neutral ramp from #0C0C0A
+to white, paper #ECE9DF, #FF5B04, #395A4D, Hanken Grotesk — and «сделай
+основным #395A4D, а секондари #FF5B04». The system's name, palette and
+typeface are that sheet; the north star, the structure and the motion
+vocabulary are unchanged. THREE rules moved with the colours, and they are
+marked where they sit: the accent may now carry body copy (pine clears 4.5:1,
+where cobalt cleared only the 3:1 large-text bar); the accent may be a wash
+under copy (`bg-accent-soft`, 1.04:1 against the canvas); and the one coloured
+shadow follows the accent rather than the mark. Everything else below is as it
+was. What was «warm paper, cool ink and one
+cobalt mark» is now warm paper, warm ink, the deep green that carries the brand
+and one orange spark. The previous palette is recorded in this document's
+history and in the ruling prose of `packages/tokens/src/tokens.json`.]*
+
+GoProceed should feel like a construction dossier read at a desk in daylight,
+not a control room. Warm paper carries the page; warm ink carries the copy; the
+brand's deep green marks what a reader has to find — a link, the focus ring,
+the accent phrase in a heading, the ornament under a figure — and one orange
+spark, scarce by contract, is what the eye lands on first. Everything else is
+built from recognisable, restrained community blocks (21st.dev structure,
+restyled in our token roles) rather than invented decoration, so the page reads
+as an instrument someone can trust, not a pitch.
 
 **Key Characteristics:**
 
-- Warm paper (`#F6F5F1`) grounds every canvas; cool ink (`#15161A`) carries
-  every value. The two are deliberately opposed in temperature — that
-  opposition is the identity.
-- Onest for display, body, UI and figures; JetBrains Mono for indices and
-  evidence IDs. No serif anywhere in this system.
-- One cobalt mark (`#2B4BFF`), used as the brand dot, the review state, the
-  focus ring and — large text only — the accent phrase inside a heading.
-  Never a fill behind copy, never a decorative wash.
+- Warm paper (`#ECE9DF`) grounds every canvas; warm ink (`#0C0C0A`) carries
+  every value. Both come from the brand sheet's own ramp, which runs from that
+  black to white without a cool step: the temperature is carried by the two
+  brand colours now, not by the distance between ink and paper.
+- Hanken Grotesk for display, body, UI and figures, with **Commissioner behind
+  it for Cyrillic** — Hanken carries no Cyrillic at all, and the public copy is
+  Ukrainian. JetBrains Mono for indices and evidence IDs. No serif anywhere.
+- **Pine (`#395A4D`) is the primary.** It is the brand as a word, the link, the
+  focus ring, the accent phrase in a display heading and the colour of every
+  ornament on the landing. It is the text-safe half of the pair: 6.30:1 on the
+  paper.
+- **Ember (`#FF5B04`) is the secondary — the spark.** 2.56:1 on the paper, so
+  it is never text and never a line that has to be seen: it is the one accent
+  action a screen may carry (black on orange, never white) and the light
+  travelling on a dark pill, where the primary would disappear. *[2026-09-22,
+  owner: «сделай кнопку в лого зеленой, а текст черным» — the mark's dot is the
+  PRIMARY now, and the wordmark is ink. The logo is where both brand colours
+  could have stood together; the owner chose green on the mark and black on the
+  name, so the secondary appears on the landing in two places only.]*
 - Structure is a 1px line and a step of lightness between four background
   roles, not a shadow ladder. `shadow-float` is reserved for the handful of
   surfaces that genuinely lift off the page: the product frame, the receipt,
   the pilot form, the route cards. Five shadows; `shadow-float-accent` is the
-  mark's colour under the one card that is the product's promise [2026-09-06].
+  mark's colour under the one card that is the product's promise [2026-09-06]
+  *[2026-09-22: that colour is pine, the accent. It briefly inherited ember
+  when the roles swapped, and a 70px halo of the loudest colour in the system
+  was decoration at the largest scale ember is allowed anywhere — which is
+  none.]*.
 - Recognisable 21st.dev and Fora patterns — the announcement pill, the
   container-scroll product frame, the dot-pattern background, feature-grid
   cells, a bento layout, a sticky feature stack, a stepper — taken as
@@ -184,7 +216,9 @@ animations and transitions — «только чтобы цвета сохран
 pages of DEV-022. So on `apps/landing` the *form* is the reference's and the
 *colour* is this document's: the reference's black ground is our paper, its
 white is our ink, its grey second line is `ink-muted`, its hairlines are
-`line`, and cobalt stays the one accent under the Signal Budget Rule. What the
+`line`, and the accent stays one colour under the Signal Budget Rule *[since
+2026-09-22 that accent is pine, and the pills' travelling light is ember — see
+the DEV-025 note in «Overview»]*. What the
 landing takes: fixed double guide lines at both edges with the header inside
 them; a full-viewport hero over a pixel-rain field and a perspective floor,
 with an orbiting arc of text above a 54px/400 heading; pill controls, the
@@ -192,8 +226,10 @@ primary one with a travelling light on its border; dotted bands between
 sections; two-tone section headings (first line ink, second muted); a sticky
 feature list beside large rounded cards; cards on a fading grid ground; a fact
 band; a radial closing block. The reference's typeface, Syne, has no Cyrillic
-(Google Fonts serves `greek`, `latin`, `latin-ext`), so Onest stays, at the
-reference's sizes and weights. `apps/app` is untouched by any of this.
+(Google Fonts serves `greek`, `latin`, `latin-ext`), so the system's own sans
+stays, at the reference's sizes and weights *[Onest until 2026-09-22, Hanken
+Grotesk with Commissioner behind it since — and Hanken has the same Cyrillic
+problem Syne has, which is why it is a pair]*. `apps/app` is untouched by any of this.
 
 *[2026-09-19, DEV-024, owner: «пересмотри каждый блок референса детально,
 каждую анимацию, ховеры и тд, примени после на наш сайт. Используй threejs или
@@ -217,24 +253,42 @@ but moves nothing (`motion-safe:` on every hover translate).
 
 ## Colors
 
-The palette is warm-paper and cool-ink: Paper holds the page, Ink carries
-copy and the primary action, and Cobalt marks the few moments that are the
-brand, a link, a focus ring, or the accent phrase in a heading.
+The palette is the owner's brand sheet (2026-09-22). Paper holds the page, Ink
+carries copy and the primary action, Pine carries the brand and every state a
+reader has to find, and Ember is the one loud colour in the system.
 
 ### Primary
 
-- **Cobalt** (`cobalt`): the mark. The brand dot, the signal/review state, and
-  the shared focus ring. `accent` (`#5568DE`) is its large-text-only sibling —
-  the highlighted phrase inside a display heading, never body copy.
+- **Pine** (`accent`, `brand`, `focus`, `link`): the deep green `#395A4D`. The
+  brand as a word, a link, the shared focus ring, the highlighted phrase in a
+  display heading, and the colour a canvas ornament reads on the landing. It is
+  text-safe at any size (6.30:1 on the canvas, 7.65:1 on white) and carries
+  white at 7.65:1, which is what lets one colour do all of that. `text-brand`
+  and `text-link` resolve to the same value on purpose: the brand is not a
+  second hue from a link, and on a page whose links are otherwise ink, a word in
+  pine reads as «the brand», not as «clickable». If the two ever have to be told
+  apart, `text-link` moves, not `text-brand`.
 
 ### Secondary
 
-- **Ready, Review, and Attention families** (`status-ready`,
+- **Ember** (`signal`): the orange `#FF5B04`. The one accent action a screen
+  may carry, and the travelling light on a dark pill. Never
+  text, never a hairline: it measures 2.56:1 on the paper. As a FILL it carries
+  ink at 6.29:1 — **black on orange, never white on orange** (3.11:1), which is
+  the pairing the brand sheet itself shows.
+
+### Status
+
+- **Ready, Review, Attention and Blocked families** (`status-ready`,
   `status-ready-line`, `status-ready-fg`, and the same three for
-  `status-review` and `status-attention`): paired surface and foreground roles
-  that always accompany a written state, never color alone. `blocked-*` is
-  unchanged from the prior system — one meaning, one red, across the app and
-  the landing.
+  `status-review`, `status-attention` and `status-blocked`): paired surface and
+  foreground roles that always accompany a written state, never colour alone.
+  *[2026-09-22, owner: «развести статусы от бренда». Attention moved from hue
+  50 to hue 80 — at hue 50 «увага» stood four degrees from the brand's own
+  orange — and blocked from 26 to 20. Review keeps cobalt, which is now the one
+  hue in the system that belongs to no brand colour; that is exactly what «на
+  перевірці» needs. `packages/testing/src/palette-derivation.test.ts` asserts
+  the distances rather than the values.]*
 
 ### Neutral
 
@@ -245,40 +299,66 @@ is reachable as a utility. A reader following the old prose wrote
 `bg-paper-subtle`, which compiles to nothing and renders unstyled with no
 warning: rule 4's exact failure mode, in the document that teaches rule 4.]*
 
-- **Paper** (`canvas`): the warm page canvas, hue ≈ 95.
+- **Paper** (`canvas`): the sheet's own paper, hue ≈ 93.
 - **Clean Sheet** (`surface`): white — product frames, forms, cards laid over
-  the canvas.
+  the canvas. It reads as a sheet on this paper (1.21:1), which it barely did
+  on the lighter one it replaces.
 - **Paper Wash** (`subtle` for zebra rows, the "was" card and inset grounds;
   `sunken` for the inactive segment, ghost hover and idle status ground).
-- **Ink** (`ink`): primary copy and the primary action fill, hue ≈ 270 — cool
-  where the paper is warm.
+- **Ink** (`ink`): primary copy and the primary action fill — the sheet's
+  black, 16.10:1 on the paper.
 - **Document Ink** (`ink-secondary`, `ink-muted`): secondary prose and the
   body-text floor; `ink-subtle` is metadata only, never body copy.
 - **Drawing Rules** (`line`, `line-strong`): one-pixel dividers, card edges,
   table rules.
 
-**The Signal Budget Rule.** Cobalt occupies roughly five percent or less of a
-viewport; its scarcity is what makes the mark, a link or a focus ring legible
-as *the* thing to look at. `bg-action-signal` — the one accent action a screen
-may carry — is a ceiling, not a quota: at most one per screen, and the
-landing carries none, because its primary action is ink.
+**The Signal Budget Rule.** Ember occupies roughly five percent or less of a
+viewport; its scarcity is what makes the one accent action or a travelling
+light legible as *the* thing to look at *[2026-09-22: the mark's dot was the
+third item here until the owner made it the primary; ember is on the landing
+in two places now]*. `bg-action-signal` is a
+ceiling, not a quota: at most one per screen, and the landing carries none,
+because its primary action is ink. Pine is not under this rule — it is the
+brand and it may carry text — but it is still a mark, not a wash: nothing is
+filled with it that a reader has to read through.
 
 **The Semantic Risk Rule.** Cobalt (review), amber (attention), red (blocked)
 and green (ready) describe actual state and never serve as decorative palette
-variety. There is no lime anywhere in this system.
+variety. The brand's own pine carries between a third and a quarter of the
+ready-green's chroma (0.044 against 0.155), so a deep desaturated green beside
+a saturated mid one is never a state; `palette-derivation.test.ts` holds that
+ratio under 0.4. There is no
+lime anywhere in this system.
 
 ## Typography
 
-**Display Font:** Onest Variable (with Onest, system-ui, sans-serif fallbacks)
-**Body Font:** Onest Variable (the same stack — one typeface, not two)
+**Display Font:** Hanken Grotesk Variable, with Commissioner Variable behind it
+**Body Font:** the same stack — one voice, not two faces competing
 **Label/Mono Font:** JetBrains Mono Variable (with JetBrains Mono and
 ui-monospace fallbacks)
 
-**Character:** Onest is direct, warm and legible at every weight it is asked
-to carry — headline and body alike — so the page reads as one voice instead
-of a display face performing against a body face. JetBrains Mono is reserved
-for indices, evidence IDs and timestamps, so a reference reads as
-attributable data rather than as a stylistic flourish.
+**Two files, one voice.** The brand sheet sets the product in Hanken Grotesk.
+That face has **no Cyrillic at all** — of the 66 Ukrainian letters it carries
+none, and of the whole Cyrillic block only ₴ — and the public copy is
+Ukrainian, so Hanken alone would render this site in a system fallback.
+Commissioner stands behind it: full Ukrainian coverage, and the closest metric
+match to Hanken among the Cyrillic-capable faces measured (x-height/cap 0.701
+against 0.707, stem 0.413 em against 0.409). **The order is load-bearing** —
+Hanken first, so every Latin glyph, every digit, «GoProceed» and every W-/EV-/R-
+code are the brand's own face, and only Cyrillic falls through. Reversing the
+stack would leave the sheet's typeface unused on a page that still looks
+plausible, which is why `apps/app`'s QA harness asserts the stack and not a
+name.
+
+**Character:** Hanken Grotesk is narrow-set, even and quiet at every weight it
+is asked to carry — headline and body alike. JetBrains Mono is reserved for
+indices, evidence IDs and timestamps, so a reference reads as attributable data
+rather than as a stylistic flourish.
+
+**Figures.** Hanken's digits are tabular by construction — all ten share one
+560/1000 advance — so a column of numbers lines up without asking for a
+feature. Neither face declares `tnum`; the `tabular` utility stays, and on this
+pair it is a statement of intent rather than the thing that does the work.
 
 ### Hierarchy
 
@@ -293,8 +373,8 @@ attributable data rather than as a stylistic flourish.
   IDs, timestamps.
 
 **The Weight Discipline Rule.** Four weights only — 400 / 500 / 600 / 700 —
-and no more. Onest carries every one of them; nothing in this system asks a
-second typeface to cover a gap.
+and no more. Both faces carry every one of them; nothing in this system asks a
+third typeface to cover a gap.
 
 ## Layout
 
@@ -326,8 +406,12 @@ route cards, the "now" card in a comparison pair.
 - **Overlay** (`0px 12px 30px -16px rgba(21, 22, 26, 0.35)`): the hero's
   floating pills, compact callouts.
 - **Float** (`0px 20px 50px -30px rgba(21, 22, 26, 0.22), 0px 1px 2px rgba(21, 22, 26, 0.05)`):
-  the board, the receipt, the form, the route cards. Marketing only — no
-  colour tint, even on the selected "now" card.
+  the board, the receipt, the form, the route cards. Marketing only.
+  *[2026-09-22: this read «no colour tint, even on the selected "now" card»,
+  which the code has contradicted since 2026-09-06 — the «now» card takes
+  `shadow-float-accent`, the system's ONE coloured shadow, and it is the
+  accent's colour. One coloured shadow, one card, named here so the next reader
+  does not have to choose between two documents.]*
 
 **The Structural Shadow Rule.** A shadow must explain overlap; ordinary
 document cells, rows and textual sections stay flat.
@@ -368,9 +452,10 @@ partition. A table rule or a nested key-value row keeps its edge crisp.
 
 - **Style:** a pill combining a semantic surface, a matching border and dark
   semantic text, with an optional leading dot — never colour alone.
-- **Tones:** ready (green), review (cobalt — "на розгляді" reads in the mark's
-  own hue, not a second brand colour), attention (amber), blocked (red,
-  unchanged from the prior system).
+- **Tones:** ready (green), review (cobalt — since 2026-09-22 the one hue in
+  the system that is neither brand colour, which is what a state most needs),
+  attention (amber, moved to hue 80 so it cannot be read as the brand's
+  orange), blocked (red, moved to hue 20 for the same reason).
 
 ### Cards / Cells
 
@@ -379,15 +464,27 @@ partition. A table rule or a nested key-value row keeps its edge crisp.
 - **Bento cell:** `surface` background, strong-line border, `rounded-surface`;
   one cell may span two rows.
 - **Compare card:** a "was" card (dashed, on `subtle`) beside a "now"
-  card (`border-accent`-tinted, lifted with `shadow-float`, never a coloured
-  shadow).
+  card (`border-accent`-tinted, lifted with `shadow-float-accent` — the one
+  coloured shadow in the system, in the accent's colour). Its eyebrow is the
+  accent and its evidence codes are `ink-muted`: a status hue never marks the
+  brand *[2026-09-22 — they were `status-review-fg` while cobalt WAS the brand,
+  and on a warm page that read as «на перевірці» beside a green check]*.
 
 ### Inputs / Fields
 
 - **Style:** surface background, a 1px line, `rounded-field`, a visible
   label, 42px marketing height with a 44px touch floor.
-- **Focus:** the cobalt focus ring, one treatment for every focusable
-  element.
+- **Focus:** the pine focus ring, one treatment for every focusable element.
+  On the inverse surface it takes the dark theme's lighter rung, because the
+  primary measures 2.56:1 against ink, under the 3:1 a focus ring owes.
+- **Cursor:** the pointer belongs to everything that behaves like a button —
+  `button`, `[role="button"]`, `summary` — and to nothing else; a disabled
+  control says `not-allowed`. One rule in `base.css`, never a component's own,
+  for the same reason the focus ring is global: a variant that ships its own
+  cursor is a variant that can disagree. *[2026-09-22, owner: «пересмотри
+  кнопки, и ссылки как кнопки, что бы был поинтер курсор» — Tailwind v4's
+  Preflight leaves a `button` on the UA's arrow, and this system had no rule of
+  its own, so a button and a link side by side answered differently.]*
 
 ### Navigation
 
@@ -409,13 +506,28 @@ home page over the hero's pixel field, whose dots stay dim under it; once the
 page scrolls the ground fades back. Served veiled: below `md`, and without
 JavaScript, it is the bar described above.]*
 
+*[2026-09-22, owner: «хедер всегда сделай таким типа прозрачным, а не только на
+скрол». The ground is PERMANENT frosted glass — `canvas` at 86 % over a 14px
+backdrop blur — at every scroll position and on every width. The lift, its
+script and the `data-at-top` attribute are gone, which also returns the header
+to ONE appearance with JavaScript and without it. The hero's field still runs
+to the top edge behind the bar, and its dots still stay dim there, but they are
+read through the glass rather than beside it.]*
+
 ## Do's and Don'ts
 
 ### Do:
 
-- **Do** keep one cobalt mark per screen's worth of attention — the brand
-  dot, a link, a focus ring, or the accent phrase in a heading — and nothing
-  else in that hue.
+- **Do** keep one accent per screen's worth of attention — the mark's dot, a
+  link, a focus ring, or the accent phrase in a heading — and nothing else in
+  that hue. *[2026-09-22: the wordmark was `text-brand` for a day and is ink
+  again, at the owner's word.]*
+  *[2026-09-22, DEV-025: the hue is pine, and ember is a second colour under a
+  harder budget — at most one accent action and the pills' travelling light
+  *[2026-09-22: and no longer the mark's dot, which is the primary]*. Everything the notes below call «cobalt» is pine now,
+  except that light, which is ember because the primary measures 2.56:1 on a
+  near-black pill and would not be seen. The notes are kept as written: they
+  are the record of what the owner asked for, and when.]*
   *[2026-09-19, DEV-023, `apps/landing` only: the reference's pills carry a
   travelling light, so a fold of the landing holds the brand dot and the thin
   cobalt `beam` on its ink pills — the header's and at most one section's. No
@@ -448,16 +560,25 @@ JavaScript, it is the bar described above.]*
   the layer; the owner's sixth «меньше» was honoured once more, and THAT is the
   floor: below it the layer is deleted, not halved]* *[seventh pass, owner: the
   hero's pixel field is the reference's halftone screen — a dot in every cell,
-  the whole width, from the top edge, behind a header that is glass while the
-  page stands at its top (`HeaderVeil`: from `md` only, lifted by a running
-  script, served veiled; the dots under it kept dim so that the links stay the
-  darkest marks in the bar) — still ink; the pills' constant rim
+  the whole width, from the top edge, behind the header (`HeaderVeil`: from
+  `md` only, lifted by a running script, served veiled; the dots under it kept
+  dim so that the links stay the darkest marks in the bar — *2026-09-22: the
+  lift, the script and that component are gone, the glass is permanent, and the
+  field is read THROUGH it; see «Navigation»*) — still ink; the pills' constant rim
   and light are brighter; and the fact band's cells are barred from the dome's
   disc only, so the grid beside the dome answers the pointer again]*. This
   supersedes the
   last sentence of the note above. The whole list, and nothing else, is the
   accent on `apps/landing`: the brand dot; the ink pills' travelling border;
-  the dome and its haze; the closing arcs; a cell lit under the pointer. What
+  the dome and its haze; the closing arcs; a cell lit under the pointer
+  *[2026-09-22: and two more the enumeration never named — the position block's
+  quotation glyphs at `opacity-10`. The list is «what may be the accent», not
+  «what is», and the Signal Budget is measured in area, not in items]*
+  *[2026-09-22, later the same day: the wordmark was in this list for a few
+  hours and is ink again (owner); what joined it instead is the HOME HERO'S
+  ACCENT WORD — «доказ» inside the h1, the first accent phrase in a heading
+  since DEV-023 removed them, and the largest chromatic mark above the fold.
+  The mark's dot is the accent now too, where it used to be the spark.]* What
   stays ink or `surface`: the grid LINES, the hero's pixel field, the dotted
   bands, and every hover of a card, row, tile, source cell or link. It is
   still one hue, still never a text colour outside a display heading, and
@@ -474,8 +595,10 @@ JavaScript, it is the bar described above.]*
 
 ### Don't:
 
-- **Don't** add a second accent colour, a gradient fill, or a lime survivor
-  anywhere in the system — cobalt is the only accent hue.
+- **Don't** add a THIRD brand colour, a gradient fill, or a lime survivor
+  anywhere in the system. The brand sheet is two colours: pine leads, ember
+  sparks. A status hue is not palette variety either — it belongs to the
+  state, and decorating with it is how a legend stops being true.
 - **Don't** reach for brutalism — no raw borders as decoration, no oversized
   display type, no deliberate roughness. The system is quiet by contract.
 - **Don't** build a 3D scene — a WebGL or modelled scene, a camera, lit

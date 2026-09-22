@@ -102,7 +102,7 @@ describe("the motion bridge is parsed, not retyped", () => {
     expect(src.primitive.spring.tilt.value).toBe("stiffness 120, damping 20, mass 1");
     expect(src.primitive.spring.magnetic.value).toBe("stiffness 150, damping 18, mass 0.5");
     expect(src.shadow["float-accent"].layers).toHaveLength(2);
-    expect(src.shadow["float-accent"].layers[0].color.hex).toBe("#2B4BFF");
+    expect(src.shadow["float-accent"].layers[0].color.hex).toBe("#395A4D");
     for (const name of ["stately", "grand"]) expect(bridge).toContain(`${name}: seconds(duration.${name})`);
     for (const name of ["tilt", "magnetic"]) expect(bridge).toContain(`${name}: springOf(spring.${name})`);
     // The yoyo loops are the second permitted use of the symmetric curve.

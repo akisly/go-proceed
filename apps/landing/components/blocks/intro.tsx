@@ -1,6 +1,7 @@
 import { Marquee, Reveal, Stagger, StaggerItem } from "@goproceed/ui/motion";
 import { demoRecords } from "../../content/demo-records";
 import { landingContent } from "../../content/landing-content";
+import { SectionLead } from "./section-head";
 import { MiniMenu } from "../visuals/mini";
 import { PillLink } from "./pill-link";
 import { TwoTone } from "./two-tone";
@@ -32,7 +33,7 @@ export function Intro() {
         </div>
         <div className="grid max-w-[620px] gap-6 wide:pr-16">
           <TwoTone lead={c.lead} rest={c.rest} />
-          <Reveal size="stately"><p className="text-mkt-lead leading-relaxed text-ink-secondary">{c.body}</p></Reveal>
+          <Reveal size="stately"><SectionLead>{c.body}</SectionLead></Reveal>
           <Reveal size="stately" className="flex"><PillLink href={c.actionHref}>{c.action}</PillLink></Reveal>
         </div>
       </div>

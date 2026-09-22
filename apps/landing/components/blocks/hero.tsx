@@ -38,7 +38,29 @@ export function Hero() {
         <div className="entrance grid w-full justify-items-center">
           <OrbitText text={h.orbit} className="text-body font-medium text-ink" />
         </div>
-        <h1 className="display mt-2 max-w-[34ch] text-[clamp(42px,3.75vw,54px)] font-normal leading-none tracking-tight text-ink">{h.title}</h1>
+        {/* ONE WORD IN THE ACCENT, and it is «доказ» — the word the whole page is
+          * about. [2026-09-22] DEV-023 took the accent phrase out of every heading
+          * («the muted second line does that work»), and with it the last place the
+          * brand's colour appeared above the fold: the first screen then held two
+          * orange pill rims and nothing else with a hue, which is why the page read
+          * as «orange leads, green structural» to the UI review. `titleAccent` was
+          * already in the content and already rendered this way by the OG image;
+          * only the live heading ignored it. It is mid-sentence here, so the split
+          * is on the word, not on a suffix — and a title that does not contain it
+          * renders whole rather than empty. */}
+        <h1 className="display mt-2 max-w-[34ch] text-[clamp(42px,3.75vw,54px)] font-normal leading-none tracking-tight text-ink">
+          {(() => {
+            const at = h.title.indexOf(h.titleAccent);
+            if (at < 0) return h.title;
+            return (
+              <>
+                {h.title.slice(0, at)}
+                <span className="text-accent">{h.titleAccent}</span>
+                {h.title.slice(at + h.titleAccent.length)}
+              </>
+            );
+          })()}
+        </h1>
         <div className="entrance [--gp-entrance-delay:0.15s]"><p className="measure mt-6 text-body leading-relaxed text-ink-secondary">{h.lead}</p></div>
         <div className="entrance [--gp-entrance-delay:0.25s] mt-7 flex flex-wrap justify-center gap-3">
           <PillLink href={h.primaryHref}>{h.primaryAction}</PillLink>

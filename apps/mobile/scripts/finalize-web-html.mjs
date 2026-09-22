@@ -12,8 +12,14 @@
 // `web.output: "single"` (SPA, one `index.html` for every route —
 // `app.json` sets no explicit `web.output`), and that mode does not honour
 // the file at all. There is also no `app.json` config key for any of this:
-// `@expo/config-types@57.0.2` (the schema this project resolves) carries no
-// `lang` field, and no manifest/PWA-head field, anywhere under `expo.web`.
+// setting any of it there had no effect on the export. [Corrected 2026-09-22,
+// DEV-025, `gp-mobile` G-05: this read «`@expo/config-types@57.0.2` (the schema
+// this project resolves) carries no `lang` field, and no manifest/PWA-head
+// field, anywhere under `expo.web`». It does — `interface Web` declares `lang`,
+// `themeColor`, `backgroundColor`, `display`, `scope`, `shortName` and more.
+// What was observed is that a `web.output: "single"` export through Metro
+// ignores them, which is a different and weaker claim than «the key does not
+// exist», and the weaker one is the true one.]
 //
 // So this is the honest fallback the task brief asked for when the
 // documented mechanism doesn't apply: a direct string patch on the ONE
@@ -53,6 +59,13 @@ import { join } from "node:path";
 
 const distIndexPath = join(import.meta.dirname, "..", "dist", "index.html");
 let html = readFileSync(distIndexPath, "utf8");
+
+// THE MANIFEST IS THE SOURCE OF BOTH COLOURS, read rather than retyped
+// [2026-09-22, DEV-025, `gp-mobile` G-02/G-04]. `theme_color` used to be a
+// second hand-typed hex in this file, and nothing asserted that the two agreed;
+// the palette change of 2026-09-22 had to remember both by hand, which is the
+// definition of a value that will drift.
+const manifest = JSON.parse(readFileSync(join(import.meta.dirname, "..", "public", "manifest.webmanifest"), "utf8"));
 
 function fail(message) {
   console.error(`scripts/finalize-web-html.mjs: ${message}`);
@@ -101,7 +114,14 @@ if (!html.includes(HEAD_CLOSE)) {
 
 const HEAD_INJECTIONS = [
   '<link rel="manifest" href="/manifest.webmanifest">',
-  '<meta name="theme-color" content="#11100F">',
+  `<meta name="theme-color" content="${manifest.theme_color}">`,
+  // …AND THE DOCUMENT'S OWN GROUND. Without this the installed client cold-starts
+  // splash → WHITE → canvas: the root view (`src/app/_layout.tsx`) sets no
+  // background, so until React mounts the document is the UA's white, and on a
+  // site link that gap is seconds, not frames. It was invisible while the splash
+  // was near-white (#FBFBF9); the brand sheet's paper made it a flash. Same value
+  // as the splash, from the same line of the same file.
+  `<style>html,body{background-color:${manifest.background_color}}</style>`,
   '<meta name="apple-mobile-web-app-capable" content="yes">',
   '<meta name="apple-mobile-web-app-status-bar-style" content="default">',
   '<meta name="apple-mobile-web-app-title" content="GoProceed">',

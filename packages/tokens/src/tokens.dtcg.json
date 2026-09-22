@@ -5,261 +5,301 @@
       "neutral-0": {
         "$type": "color",
         "$value": "#FFFFFF",
-        "$description": "Pure white. The working surface a register sits on; a panel reads as a sheet laid on the paper rather than as more paper."
+        "$description": "Pure white. The working surface a register sits on: on the kit's paper a panel now reads as a sheet laid on the page (1.21:1), which it never did against the old, lighter canvas."
       },
       "neutral-25": {
         "$type": "color",
-        "$value": "#F6F5F1",
-        "$description": "The canvas. The prototype's paper #F6F5F1 — warm at hue 95, measurably paper. The ramp's light end is warm and its dark end is cool (hue ≈ 270), on purpose: paper is warm, ink is cool, and each step is its own triple."
+        "$value": "#ECE9DF",
+        "$description": "THE CANVAS — the brand kit's paper #ECE9DF (Autumn, 2026-09-22). Warm at hue 93, and a step darker than the Daylight paper it replaces, so white is a surface again. Every rung of this ramp is warm: the kit's own ladder runs from a warm black to white without a cool step, and the ink is no longer the paper's opposite in temperature but its far end."
       },
       "neutral-50": {
         "$type": "color",
-        "$value": "#EFEEE8",
-        "$description": "Paper-2 #EFEEE8: the «was» card, sunken wells, the ground under an inset control."
+        "$value": "#E6E2D7",
+        "$description": "Paper-2: the «was» card, sunken wells, the ground under an inset control. One rung under the canvas and still unmistakably paper."
       },
       "neutral-100": {
         "$type": "color",
-        "$value": "#E9E8E2",
+        "$value": "#E0DCD1",
         "$description": "Inactive segment, ghost-button hover on the canvas, idle status ground."
       },
       "neutral-150": {
         "$type": "color",
-        "$value": "#E2E1DE",
-        "$description": "Hairline inside a surface, and copy on ink (13.82:1 against neutral-975)."
+        "$value": "#D9D6CD",
+        "$description": "Hairline inside a surface, and copy on ink (13.47:1 against neutral-975)."
       },
       "neutral-200": {
         "$type": "color",
-        "$value": "#D9D9D6",
-        "$description": "The default border: ink at 9% over paper, composited. 1.30:1 against the canvas — visible as structure, invisible as a line you read."
+        "$value": "#D1CDC7",
+        "$description": "The default border. 1.30:1 against the canvas — visible as structure, invisible as a line you read."
       },
       "neutral-300": {
         "$type": "color",
-        "$value": "#CFCFCC",
-        "$description": "The strong border: ink at 16% over paper, composited. Table rules, selected outlines, the edge of a card on white (1.56:1)."
+        "$value": "#C7C3BD",
+        "$description": "The strong border: table rules, selected outlines, the edge of a card on white (1.75:1)."
       },
       "neutral-400": {
         "$type": "color",
-        "$value": "#A9ACB3",
-        "$description": "The prototype's ink-4 #A9ACB3. Non-text only on light: disabled fills, metadata on ink (7.95:1). Never body copy on the canvas."
+        "$value": "#A5A19E",
+        "$description": "The kit's #A5A19E, taken unchanged. Non-text only on light: disabled fills, metadata on ink (7.64:1). Never body copy on the canvas."
       },
       "neutral-500": {
         "$type": "color",
-        "$value": "#7A7E87",
-        "$description": "The prototype's ink-3 #7A7E87. Metadata floor: 3.73:1 on the canvas, so it clears the non-text and large-text threshold and nothing else. Never body text."
+        "$value": "#7B736A",
+        "$description": "The kit's #7B736A, taken unchanged. Metadata floor: 3.84:1 on the canvas, so it clears the non-text and large-text threshold and nothing else. Never body text."
       },
       "neutral-600": {
         "$type": "color",
-        "$value": "#5E626B",
-        "$description": "The body-text floor, measured against the DARKEST ground it lands on: 5.60:1 on canvas, 6.11:1 on white, 5.26:1 on a subtle fill, 4.98:1 on a muted fill. One step darker than the prototype's ink-3, which measures 3.73:1 on paper and cannot carry a caption."
+        "$value": "#665F58",
+        "$description": "The body-text floor, measured against the DARKEST ground it lands on: 5.17:1 on canvas, 6.28:1 on white, 4.85:1 on a subtle fill, 4.59:1 on a muted fill."
       },
       "neutral-700": {
         "$type": "color",
-        "$value": "#4E5158",
-        "$description": "The prototype's ink-2 #4E5158. Secondary copy, 7.29:1 on canvas; also the idle status foreground."
+        "$value": "#514B46",
+        "$description": "Secondary copy, 7.07:1 on canvas; also the idle status foreground. Darker than the Daylight rung it replaces, because the canvas came down with the kit's paper and 7:1 had to be kept."
       },
       "neutral-800": {
         "$type": "color",
-        "$value": "#3A3D45",
-        "$description": "Hairline on ink; the only border that reads on the inverse surface (1.66:1)."
+        "$value": "#403C39",
+        "$description": "The kit's #44403D, one notch darker to hold the hairline on ink at 1.79:1 — the only border that reads on the inverse surface."
       },
       "neutral-900": {
         "$type": "color",
-        "$value": "#2A2C33",
-        "$description": "The prototype's button hover #2A2C33. One step off ink, so the press is felt without the button changing identity."
+        "$value": "#2A2524",
+        "$description": "The kit's #2A2524. One step off ink, so a press is felt without the button changing identity."
       },
       "neutral-950": {
         "$type": "color",
-        "$value": "#1E1F24",
-        "$description": "The inverse working surface — dark mode's panel, authored now and not shipped (D6)."
+        "$value": "#1D1818",
+        "$description": "The kit's #1D1818 — the inverse working surface, dark mode's panel, authored now and not shipped (D6)."
       },
       "neutral-975": {
         "$type": "color",
-        "$value": "#15161A",
-        "$description": "Ink #15161A, the prototype's --ink. Primary text and the primary action fill. 16.57:1 on canvas. Cool where the paper is warm; that contrast is the identity."
+        "$value": "#0C0C0A",
+        "$description": "INK — the brand kit's black #0C0C0A, exactly. Primary text and the primary action fill, 16.12:1 on the canvas. Warm like the paper, not its opposite: in this palette the temperature is carried by ember and pine, not by the distance between ink and paper."
       },
-      "cobalt-50": {
+      "ember-50": {
         "$type": "color",
-        "$value": "#F4F6FF",
-        "$description": "Faintest cobalt wash — a whole row tinted without becoming a chip."
+        "$value": "#FFF2EA",
+        "$description": "Faintest ember wash — a whole row tinted without becoming a chip."
       },
-      "cobalt-100": {
+      "ember-100": {
         "$type": "color",
-        "$value": "#EAEDFF",
-        "$description": "Cobalt at 10% over white, composited: the review chip ground, the selected card's ring, the paired-row wash."
+        "$value": "#FFE8DA",
+        "$description": "Ember at a tenth over white: the soft ground for the ONE accent action a screen may carry, and the wash behind a spark. It is not `bg-accent-soft` — the accent's own wash is pine-100 — and no role names it today."
       },
-      "cobalt-200": {
+      "ember-200": {
         "$type": "color",
-        "$value": "#D5DBFF",
-        "$description": "Review chip border; the selected card's soft edge."
+        "$value": "#FFCFB7",
+        "$description": "The spark's soft edge, for a chip or a card that carries the signal action. Held, not named by a role: the accent's edge is `border-accent` on pine."
       },
-      "cobalt-300": {
+      "ember-300": {
         "$type": "color",
-        "$value": "#9AAAFF",
-        "$description": "The prototype's #9AAAFF — the accent on ink (8.24:1), and every cobalt foreground in dark mode."
+        "$value": "#FF9E74",
+        "$description": "The spark ON INK (9.69:1) — the rung a travelling light or a mark on the inverse surface would take if it needed to be brighter than the signal itself."
       },
-      "cobalt-400": {
+      "ember-400": {
         "$type": "color",
-        "$value": "#5568DE",
-        "$description": "THE ACCENT #5568DE: the highlighted phrase in a display heading. 4.35:1 on the canvas — large text only, never body copy."
+        "$value": "#FF824F",
+        "$description": "The bright spark on a dark ground: 7.98:1 on ink, and 2.02:1 on the canvas, which is non-text only. Held for a signal hover on the inverse surface."
       },
-      "cobalt-500": {
+      "ember-500": {
         "$type": "color",
-        "$value": "#2B4BFF",
-        "$description": "THE MARK #2B4BFF: the brand dot, the signal action, the focus ring, the review state. 5.42:1 on the canvas, 5.91:1 as a ground for white."
+        "$value": "#FF5B04",
+        "$description": "THE SPARK — the kit's orange #FF5B04, exactly, and the brand's SECONDARY colour. 2.56:1 on the canvas, so it is never text and never a thin line that has to be seen; as a FILL it carries ink at 6.29:1, which is why the signal action is black on orange and not white on orange (3.11:1). Where the primary would disappear — a light travelling on a near-black pill, where pine-700 measures 2.56:1 — the spark is what reads."
       },
-      "cobalt-600": {
+      "ember-600": {
         "$type": "color",
-        "$value": "#2440D9",
-        "$description": "Signal hover and link colour. 7.47:1 on white."
+        "$value": "#D84A00",
+        "$description": "The secondary where it has to survive a press or a small area: the signal action's hover (ink at 4.57:1) and a dense accent figure. 3.53:1 on canvas."
       },
-      "cobalt-700": {
+      "ember-700": {
         "$type": "color",
-        "$value": "#1E36B8",
-        "$description": "Review as TEXT: 7.94:1 on cobalt-100, 9.23:1 on white. Also the brand as text."
+        "$value": "#AE390C",
+        "$description": "Ember as TEXT, for the rare case a warm figure has to be read: 5.10:1 on canvas, 6.19:1 on white. Links are the primary's job, not this one."
       },
-      "cobalt-800": {
+      "ember-800": {
         "$type": "color",
-        "$value": "#172A8C",
-        "$description": "Review chip border in dark mode."
+        "$value": "#852A0F",
+        "$description": "Densest ember text, for an accent figure inside a dense table."
       },
-      "cobalt-900": {
+      "ember-900": {
         "$type": "color",
-        "$value": "#101D5E",
-        "$description": "Review ground in dark mode; the accent-soft ground in dark mode."
+        "$value": "#551A0D",
+        "$description": "Ember ground in dark mode: a deep warm ground for a block that carries the signal, not the accent's wash — that is pine-900."
+      },
+      "pine-50": {
+        "$type": "color",
+        "$value": "#EFF7F4",
+        "$description": "Faintest pine wash."
+      },
+      "pine-100": {
+        "$type": "color",
+        "$value": "#E2F1EA",
+        "$description": "Pine at a tenth over white: the brand wash behind a quiet block."
+      },
+      "pine-200": {
+        "$type": "color",
+        "$value": "#CBE3D8",
+        "$description": "The brand hairline."
+      },
+      "pine-300": {
+        "$type": "color",
+        "$value": "#A0C4B4",
+        "$description": "Pine as a foreground in dark mode (7.79:1 on pine-900)."
+      },
+      "pine-500": {
+        "$type": "color",
+        "$value": "#587E6E",
+        "$description": "Mid pine: an icon or a rule that has to stay calm. Non-text on light."
+      },
+      "pine-700": {
+        "$type": "color",
+        "$value": "#395A4D",
+        "$description": "THE PRIMARY BRAND COLOUR — the kit's green #395A4D, exactly (owner, 2026-09-22: «сделай основным #395A4D, а секондари #FF5B04»). Unlike ember it is text-safe (6.30:1 on canvas, 7.65:1 on white) and it carries white at 7.65:1, so it can be what ember cannot: the brand as a word, a link, the focus ring, the accent phrase in a heading and the colour of every ornament on the landing. Its chroma is between a third and a quarter of the ready-green's (0.044 against 0.155): a desaturated deep green beside a saturated mid green is the distance that keeps the brand from reading as a state, and `palette-derivation.test.ts` holds the ratio under 0.4."
+      },
+      "pine-800": {
+        "$type": "color",
+        "$value": "#274439",
+        "$description": "Deep pine: the brand ground when a block has to sit under white copy without becoming black."
+      },
+      "pine-900": {
+        "$type": "color",
+        "$value": "#152C24",
+        "$description": "Pine ground in dark mode."
       },
       "green-50": {
         "$type": "color",
-        "$value": "#F1F9F4",
+        "$value": "#F0F9F2",
         "$description": "Faintest ready wash."
       },
       "green-100": {
         "$type": "color",
-        "$value": "#E8F4EE",
-        "$description": "Ready chip ground: ok at 10% over white, composited."
+        "$value": "#E0F5E3",
+        "$description": "Ready chip ground."
       },
       "green-200": {
         "$type": "color",
-        "$value": "#CFE9DC",
+        "$value": "#BEECC6",
         "$description": "Ready chip border."
       },
       "green-300": {
         "$type": "color",
-        "$value": "#9FD4B8",
-        "$description": "Ready foreground in dark mode (7.15:1 on green-900)."
+        "$value": "#8CD99C",
+        "$description": "Ready foreground in dark mode (7.93:1 on green-900)."
       },
       "green-500": {
         "$type": "color",
-        "$value": "#1E8F5A",
-        "$description": "The prototype's ok #1E8F5A. Icons, dots and check marks. 4.1:1 on white — NOT text."
+        "$value": "#239C4D",
+        "$description": "The ready mark: icons, dots and check marks. 3.54:1 on white — NOT text. Moved to hue 150 with the Autumn palette, and kept at a chroma the brand's pine never reaches, so «готово» cannot be mistaken for the brand."
       },
       "green-600": {
         "$type": "color",
-        "$value": "#1B8050",
+        "$value": "#1C8742",
         "$description": "Viz weight on white."
       },
       "green-700": {
         "$type": "color",
-        "$value": "#17754A",
-        "$description": "Ready as TEXT: 5.06:1 on green-100, 5.23:1 on canvas, 5.71:1 on white."
+        "$value": "#167337",
+        "$description": "Ready as TEXT: 5.18:1 on green-100, 4.88:1 on canvas, 5.93:1 on white."
       },
       "green-800": {
         "$type": "color",
-        "$value": "#125A39",
+        "$value": "#115629",
         "$description": "Ready chip border in dark mode."
       },
       "green-900": {
         "$type": "color",
-        "$value": "#0D3F28",
+        "$value": "#0D371A",
         "$description": "Ready ground in dark mode."
       },
       "amber-50": {
         "$type": "color",
-        "$value": "#FCF5EF",
+        "$value": "#FCF7EC",
         "$description": "Faintest attention wash."
       },
       "amber-100": {
         "$type": "color",
-        "$value": "#FAEFE8",
-        "$description": "Attention chip ground: warn at 10% over white, composited."
+        "$value": "#FBEFD8",
+        "$description": "Attention chip ground."
       },
       "amber-200": {
         "$type": "color",
-        "$value": "#F4D8C4",
+        "$value": "#F7DAA5",
         "$description": "Attention chip border."
       },
       "amber-300": {
         "$type": "color",
-        "$value": "#EDB48F",
-        "$description": "Attention foreground in dark mode (6.90:1 on amber-900)."
+        "$value": "#EDC06B",
+        "$description": "Attention foreground in dark mode (7.55:1 on amber-900)."
       },
       "amber-500": {
         "$type": "color",
-        "$value": "#E07A32",
+        "$value": "#D19A12",
         "$description": "Icon and bar weight; never text."
       },
       "amber-600": {
         "$type": "color",
-        "$value": "#C8641F",
-        "$description": "The prototype's warn #C8641F: the draft stamp, the rule box's border. 3.96:1 on white — icons and strokes, NOT text."
+        "$value": "#BA8400",
+        "$description": "The attention mark: the draft stamp, the rule box's border. 3.29:1 on white — icons and strokes, NOT text. Autumn moved this family from hue 50 to hue 80: at hue 50 «увага» was four degrees from the brand's own orange and read as the brand."
       },
       "amber-700": {
         "$type": "color",
-        "$value": "#A6511A",
-        "$description": "Attention as TEXT: 4.87:1 on amber-100."
+        "$value": "#875D00",
+        "$description": "Attention as TEXT: 5.13:1 on amber-100, 4.81:1 on canvas."
       },
       "amber-800": {
         "$type": "color",
-        "$value": "#7E3E14",
-        "$description": "The evidence-pending foreground (7.44:1 on canvas)."
+        "$value": "#6C4800",
+        "$description": "The evidence-pending foreground (6.74:1 on canvas)."
       },
       "amber-900": {
         "$type": "color",
-        "$value": "#4F2A10",
+        "$value": "#462D03",
         "$description": "Attention ground in dark mode."
       },
       "danger-50": {
         "$type": "color",
-        "$value": "#FBF4F3",
+        "$value": "#FBF4F4",
         "$description": "Faintest blocked wash."
       },
       "danger-100": {
         "$type": "color",
-        "$value": "#FCE9E6",
+        "$value": "#FEE8E7",
         "$description": "Blocked chip ground."
       },
       "danger-200": {
         "$type": "color",
-        "$value": "#FBD5D1",
+        "$value": "#FED4D3",
         "$description": "Blocked chip border."
       },
       "danger-300": {
         "$type": "color",
-        "$value": "#F5BAB3",
-        "$description": "Blocked foreground in dark mode (8.00:1 on danger-900)."
+        "$value": "#FAB7B6",
+        "$description": "Blocked foreground in dark mode (8.15:1 on danger-900)."
       },
       "danger-500": {
         "$type": "color",
-        "$value": "#E45C55",
-        "$description": "Reproduces the legacy Red #E45C55 exactly from its own OKLCH triple (L 0.6484 C 0.1710 H 26). Icon and bar weight."
+        "$value": "#DE4451",
+        "$description": "Icon and bar weight. Autumn moved the family from hue 26 to hue 20 — the legacy red sat fourteen degrees from the brand's orange, which is not a distance a colour-blind reader, or any reader, can be asked to judge."
       },
       "danger-600": {
         "$type": "color",
-        "$value": "#CE2F30",
-        "$description": "The one solid destructive fill: white on it measures 5.16:1. Nothing under /app/** deletes anything, so this exists for the field client and for refusal states, not for a destructive button variant."
+        "$value": "#C71336",
+        "$description": "The one solid destructive fill: white on it measures 5.87:1. Nothing under /app/** deletes anything, so this exists for the field client and for refusal states, not for a destructive button variant."
       },
       "danger-700": {
         "$type": "color",
-        "$value": "#A02827",
-        "$description": "Blocked text: 6.34:1 on danger-100, 7.17:1 on canvas. Also the evidence-blocking foreground."
+        "$value": "#A3122C",
+        "$description": "Blocked text: 6.68:1 on danger-100, 6.45:1 on canvas. Also the evidence-blocking foreground."
       },
       "danger-800": {
         "$type": "color",
-        "$value": "#792623",
+        "$value": "#7E1825",
         "$description": "Densest blocked text, for a blocked figure inside a dense table."
       },
       "danger-900": {
         "$type": "color",
-        "$value": "#531E1B",
+        "$value": "#55181D",
         "$description": "Blocked ground in dark mode."
       },
       "violet-100": {
@@ -291,18 +331,68 @@
         "$type": "color",
         "$value": "#36284D",
         "$description": "Fifth series ground in dark mode."
+      },
+      "cobalt-50": {
+        "$type": "color",
+        "$value": "#F4F6FF",
+        "$description": "Faintest review wash — a whole row tinted without becoming a chip."
+      },
+      "cobalt-100": {
+        "$type": "color",
+        "$value": "#EAEDFF",
+        "$description": "Review chip ground."
+      },
+      "cobalt-200": {
+        "$type": "color",
+        "$value": "#D5DBFF",
+        "$description": "Review chip border."
+      },
+      "cobalt-300": {
+        "$type": "color",
+        "$value": "#9AAAFF",
+        "$description": "Review foreground in dark mode (7.04:1 on cobalt-900)."
+      },
+      "cobalt-400": {
+        "$type": "color",
+        "$value": "#5568DE",
+        "$description": "Review at large-text weight on light. Held for the data-visualisation series and for the review state; it is no longer the accent."
+      },
+      "cobalt-500": {
+        "$type": "color",
+        "$value": "#2B4BFF",
+        "$description": "The review mark. Autumn demoted this family: it was the brand, and it is now the one hue in the system that belongs to no brand colour, which is exactly what «на перевірці» needs — a state that cannot be confused with ember (the mark), pine (the brand), green (ready) or amber (attention)."
+      },
+      "cobalt-600": {
+        "$type": "color",
+        "$value": "#2440D9",
+        "$description": "Review hover and the first data-visualisation series. 7.47:1 on white."
+      },
+      "cobalt-700": {
+        "$type": "color",
+        "$value": "#1E36B8",
+        "$description": "Review as TEXT: 7.94:1 on cobalt-100, 9.23:1 on white."
+      },
+      "cobalt-800": {
+        "$type": "color",
+        "$value": "#172A8C",
+        "$description": "Review chip border in dark mode."
+      },
+      "cobalt-900": {
+        "$type": "color",
+        "$value": "#101D5E",
+        "$description": "Review ground in dark mode."
       }
     },
     "font": {
       "display": {
         "$type": "string",
-        "$value": "'Onest Variable', Onest, system-ui, sans-serif",
-        "$description": "Daylight, 2026-09-05: the prototype sets every heading in Onest, so the display face is the sans. The `.display` class keeps its job (opt-in marketing headings, never inside /app/**) and no longer names a serif."
+        "$value": "'Hanken Grotesk Variable', 'Commissioner Variable', system-ui, sans-serif",
+        "$description": "Autumn, 2026-09-22: one sans for everything, and the `.display` class keeps its job (opt-in marketing headings, never inside /app/**) without naming a second face."
       },
       "sans": {
         "$type": "string",
-        "$value": "'Onest Variable', Onest, system-ui, sans-serif",
-        "$description": "Onest carries all UI, body and figures. Verified on @fontsource-variable/onest 5.3.1: wght 100–900, `tnum` in the latin subset (every digit), Іі Її Єє Ґґ in the cyrillic subset — the two facts the Inter ruling rested on."
+        "$value": "'Hanken Grotesk Variable', 'Commissioner Variable', system-ui, sans-serif",
+        "$description": "TWO FILES, ONE VOICE. The brand sheet sets the product in Hanken Grotesk, which has NO Cyrillic at all — verified on the family's own v12 file: of the 66 Ukrainian letters it carries none, and of the whole Cyrillic block only ₴. Public copy here is Ukrainian, so Hanken alone would render the site in a system fallback. Commissioner stands behind it for Cyrillic: full Ukrainian coverage including Іі Її Єє Ґґ, and the closest metric match to Hanken among the Cyrillic-capable faces measured (x-height/cap 0.701 against 0.707; stem-width 0.413 em against 0.409). Order matters and is load-bearing — Hanken first, so every Latin glyph, every digit and the wordmark are the brand's own face, and only Cyrillic falls through. Hanken's digits are tabular by construction (one 560/1000 advance for all ten), which is what the `tabular` utility needed `tnum` for under Onest; neither face declares `tnum`."
       },
       "mono": {
         "$type": "string",
@@ -312,7 +402,7 @@
       "features": {
         "$type": "string",
         "$value": "\"calt\"",
-        "$description": "Onest has no cv01/ss03; contextual alternates only. Tabular figures come from the `tabular` utility, as before."
+        "$description": "Commissioner has `calt`; Hanken Grotesk has none of `calt`, `cv01` or `ss03` and ignores this setting. Tabular figures no longer come from a feature at all — Hanken's digits are one width (see `font.sans`)."
       }
     },
     "text": {
@@ -401,17 +491,17 @@
       "medium": {
         "$type": "string",
         "$value": "500",
-        "$description": "Onest's medium. The 510 ruling was measured on Inter and does not travel."
+        "$description": "Hanken Grotesk's medium. The 510 ruling was measured on Inter and does not travel; Commissioner matches this weight behind it."
       },
       "semibold": {
         "$type": "string",
         "$value": "600",
-        "$description": "Onest's semibold — the prototype's heading weight."
+        "$description": "Hanken Grotesk's semibold — the prototype's heading weight."
       },
       "bold": {
         "$type": "string",
         "$value": "700",
-        "$description": "Onest's bold; the quote marks in the position block."
+        "$description": "Hanken Grotesk's bold; the quote marks in the position block."
       }
     },
     "leading": {
@@ -741,8 +831,8 @@
       },
       "bg-signal": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-500}",
-        "$description": "The mark as a ground. Cobalt replaced lime on 2026-09-05 with the Daylight direction; 5.91:1 under white.",
+        "$value": "{primitive.color.ember-500}",
+        "$description": "The signal ground, in both themes: the kit's orange, the brand's SECONDARY colour (owner, 2026-09-22). It is the spark of the system — the one accent action a screen may carry, and the light travelling on a dark pill — and it is scarce by contract. (The mark's dot was the third, until the owner made it the primary on 2026-09-22.) It carries INK, not white (6.29:1 against 3.11:1).",
         "$extensions": {
           "app.goproceed.tailwind": "signal",
           "app.goproceed.alpha": 1
@@ -760,7 +850,7 @@
       "text-primary": {
         "$type": "color",
         "$value": "{primitive.color.neutral-975}",
-        "$description": "Values, titles — the thing being read. 18.35:1 on canvas.",
+        "$description": "Values, titles — the thing being read. 16.12:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "ink",
           "app.goproceed.alpha": 1
@@ -769,7 +859,7 @@
       "text-secondary": {
         "$type": "color",
         "$value": "{primitive.color.neutral-700}",
-        "$description": "Supporting copy. 6.56:1 on canvas.",
+        "$description": "Supporting copy. 7.07:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "ink-secondary",
           "app.goproceed.alpha": 1
@@ -778,7 +868,7 @@
       "text-muted": {
         "$type": "color",
         "$value": "{primitive.color.neutral-600}",
-        "$description": "Metadata, labels, placeholders. 5.07:1 on canvas — the body-text floor. Four text levels, never two: two is too flat to build hierarchy from. The dark column is not a mirror of the light one: it sits a step lighter throughout, because a muted fill in dark mode is much closer to its own copy than a muted fill in light mode is to its.",
+        "$description": "Metadata, labels, placeholders. 5.17:1 on canvas — the body-text floor. Four text levels, never two: two is too flat to build hierarchy from. The dark column is not a mirror of the light one: it sits a step lighter throughout, because a muted fill in dark mode is much closer to its own copy than a muted fill in light mode is to its.",
         "$extensions": {
           "app.goproceed.tailwind": "ink-muted",
           "app.goproceed.alpha": 1
@@ -787,7 +877,7 @@
       "text-subtle": {
         "$type": "color",
         "$value": "{primitive.color.neutral-500}",
-        "$description": "Metadata ONLY, never body text. 3.05:1 clears the large-text and non-text threshold and nothing else.",
+        "$description": "Metadata ONLY, never body text. 3.84:1 clears the large-text and non-text threshold and nothing else.",
         "$extensions": {
           "app.goproceed.tailwind": "ink-subtle",
           "app.goproceed.alpha": 1
@@ -796,7 +886,7 @@
       "text-on-inverse": {
         "$type": "color",
         "$value": "{primitive.color.neutral-150}",
-        "$description": "Copy on the inverse surface. 15.22:1.",
+        "$description": "Copy on the inverse surface. 13.47:1.",
         "$extensions": {
           "app.goproceed.tailwind": "on-inverse",
           "app.goproceed.alpha": 1
@@ -805,7 +895,7 @@
       "text-on-inverse-muted": {
         "$type": "color",
         "$value": "{primitive.color.neutral-400}",
-        "$description": "Metadata on the inverse surface. 8.68:1.",
+        "$description": "Metadata on the inverse surface. 7.64:1.",
         "$extensions": {
           "app.goproceed.tailwind": "on-inverse-muted",
           "app.goproceed.alpha": 1
@@ -813,8 +903,8 @@
       },
       "text-on-signal": {
         "$type": "color",
-        "$value": "{primitive.color.neutral-0}",
-        "$description": "White on the mark, 5.91:1 both themes.",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Ink on the signal ground: 6.29:1. White on ember measures 3.11:1 and is not available at body size, so the signal action is black on orange — the pairing the brand sheet itself shows.",
         "$extensions": {
           "app.goproceed.tailwind": "on-signal",
           "app.goproceed.alpha": 1
@@ -822,8 +912,8 @@
       },
       "text-link": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-600}",
-        "$description": "Links. 7.47:1 on a surface.",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "A link, in the primary: 6.30:1 on canvas, 7.65:1 on white, 10.30:1 in dark.",
         "$extensions": {
           "app.goproceed.tailwind": "link",
           "app.goproceed.alpha": 1
@@ -831,8 +921,8 @@
       },
       "text-brand": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-700}",
-        "$description": "The brand as text, and «ready» named in cobalt where a chip would be too loud. 9.23:1 on a surface.",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "The brand as a word — the primary. Held for a word that has to read as the brand. The landing's own wordmark is ink, with the primary on the mark's dot beside it — the owner's arrangement of 2026-09-22.",
         "$extensions": {
           "app.goproceed.tailwind": "brand",
           "app.goproceed.alpha": 1
@@ -876,10 +966,19 @@
       },
       "border-focus": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-500}",
-        "$description": "One focus treatment for every focusable element. 5.91:1 on a surface.",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "One focus treatment on every ordinary ground, in the primary: 6.30:1 on canvas and 7.65:1 on white, both far past the 3:1 a focus ring owes. On the INVERSE surface it measures 2.56:1 and must not be used — `border-focus-inverse` is the ring there, and `base.css` switches to it inside `bg-inverse`.",
         "$extensions": {
           "app.goproceed.tailwind": "focus",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-focus-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "The focus ring inside an inverse surface — the field client's chrome, the phone frames, any marketing band on ink. The ordinary ring is the primary at 2.56:1 against that ground, which is under the 3:1 WCAG 2.1 §1.4.11 asks of a focus indicator; this rung measures 10.30:1. Both themes are the same idea and swap rungs, because «inverse» inverts with the theme.",
+        "$extensions": {
+          "app.goproceed.tailwind": "focus-inverse",
           "app.goproceed.alpha": 1
         }
       },
@@ -895,7 +994,7 @@
       "action-primary-fg": {
         "$type": "color",
         "$value": "{primitive.color.neutral-0}",
-        "$description": "The primary action's label. 19.01:1 — the highest-contrast pair in the system, which is what a control that commits money should carry.",
+        "$description": "The primary action's label. 19.58:1 — the highest-contrast pair in the system, which is what a control that commits money should carry.",
         "$extensions": {
           "app.goproceed.tailwind": "action-fg",
           "app.goproceed.alpha": 1
@@ -912,8 +1011,8 @@
       },
       "action-signal-bg": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-500}",
-        "$description": "The one accent action, when a screen has one. AT MOST one per screen (rule 10, corrected 2026-09-05) — the landing has none, its primary is ink.",
+        "$value": "{primitive.color.ember-500}",
+        "$description": "The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none.",
         "$extensions": {
           "app.goproceed.tailwind": "action-signal",
           "app.goproceed.alpha": 1
@@ -921,8 +1020,8 @@
       },
       "action-signal-fg": {
         "$type": "color",
-        "$value": "{primitive.color.neutral-0}",
-        "$description": "White on cobalt, 5.91:1.",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Ink on the accent action: 6.29:1.",
         "$extensions": {
           "app.goproceed.tailwind": "action-signal-fg",
           "app.goproceed.alpha": 1
@@ -930,8 +1029,8 @@
       },
       "action-signal-hover": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-600}",
-        "$description": "One step darker, 7.47:1 under white.",
+        "$value": "{primitive.color.ember-600}",
+        "$description": "The accent action pressed: one rung down, ink still at 4.57:1.",
         "$extensions": {
           "app.goproceed.tailwind": "action-signal-hover",
           "app.goproceed.alpha": 1
@@ -967,7 +1066,7 @@
       "status-ready-fg": {
         "$type": "color",
         "$value": "{primitive.color.green-700}",
-        "$description": "Ready as text: 5.06:1 on its ground.",
+        "$description": "Ready as text: 5.18:1 on its ground.",
         "$extensions": {
           "app.goproceed.tailwind": "status-ready-fg",
           "app.goproceed.alpha": 1
@@ -994,7 +1093,7 @@
       "status-attention-fg": {
         "$type": "color",
         "$value": "{primitive.color.amber-700}",
-        "$description": "Attention as text: 4.87:1 on its ground.",
+        "$description": "Attention as text: 5.13:1 on its ground.",
         "$extensions": {
           "app.goproceed.tailwind": "status-attention-fg",
           "app.goproceed.alpha": 1
@@ -1021,7 +1120,7 @@
       "status-blocked-fg": {
         "$type": "color",
         "$value": "{primitive.color.danger-700}",
-        "$description": "6.34:1 light, 8.00:1 dark.",
+        "$description": "6.68:1 light, 8.15:1 dark.",
         "$extensions": {
           "app.goproceed.tailwind": "status-blocked-fg",
           "app.goproceed.alpha": 1
@@ -1075,7 +1174,7 @@
       "status-idle-fg": {
         "$type": "color",
         "$value": "{primitive.color.neutral-700}",
-        "$description": "5.86:1 light, 8.64:1 dark.",
+        "$description": "6.27:1 light, 8.62:1 dark.",
         "$extensions": {
           "app.goproceed.tailwind": "status-idle-fg",
           "app.goproceed.alpha": 1
@@ -1084,7 +1183,7 @@
       "evidence-satisfied": {
         "$type": "color",
         "$value": "{primitive.color.green-700}",
-        "$description": "A satisfied requirement, as text on the canvas: 5.23:1.",
+        "$description": "A satisfied requirement, as text on the canvas: 4.88:1.",
         "$extensions": {
           "app.goproceed.tailwind": "evidence-satisfied",
           "app.goproceed.alpha": 1
@@ -1093,7 +1192,7 @@
       "evidence-pending": {
         "$type": "color",
         "$value": "{primitive.color.amber-800}",
-        "$description": "Evidence expected, not yet obtained. 7.09:1 on canvas.",
+        "$description": "Evidence expected, not yet obtained. 6.74:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "evidence-pending",
           "app.goproceed.alpha": 1
@@ -1102,7 +1201,7 @@
       "evidence-blocking": {
         "$type": "color",
         "$value": "{primitive.color.danger-700}",
-        "$description": "Evidence missing and blocking a closure. 7.17:1 on canvas.",
+        "$description": "Evidence missing and blocking a closure. 6.45:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "evidence-blocking",
           "app.goproceed.alpha": 1
@@ -1155,8 +1254,8 @@
       },
       "text-accent": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-400}",
-        "$description": "The highlighted phrase in a display heading — the one accent the prototype uses (F8). LARGE TEXT ONLY: 4.35:1 on the canvas clears 3:1 and not 4.5:1, so it never carries body copy.",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "THE ACCENT, and since 2026-09-22 the brand's PRIMARY colour: the kit's deep green. 6.30:1 on the canvas, so unlike the orange it replaced here it is safe at any size — the highlighted phrase in a display heading, and the colour a canvas ornament reads from its computed `color` on the landing.",
         "$extensions": {
           "app.goproceed.tailwind": "accent",
           "app.goproceed.alpha": 1
@@ -1164,8 +1263,8 @@
       },
       "border-accent": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-500}",
-        "$description": "The selected card's edge and the «now» card's tint. 5.91:1 on a surface.",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "The accent as an edge: 7.65:1 on white, 6.30:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "line-accent",
           "app.goproceed.alpha": 1
@@ -1173,8 +1272,8 @@
       },
       "bg-accent-soft": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-100}",
-        "$description": "The selected card's ring, the paired-row wash, the review tag ground. Cobalt at 10%, composited.",
+        "$value": "{primitive.color.pine-100}",
+        "$description": "The accent as a ground under copy: a wash at a tenth of the primary, never a fill behind body text at full strength.",
         "$extensions": {
           "app.goproceed.tailwind": "accent-soft",
           "app.goproceed.alpha": 1
@@ -1229,8 +1328,8 @@
       },
       "bg-signal": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-500}",
-        "$description": "The mark as a ground. Cobalt replaced lime on 2026-09-05 with the Daylight direction; 5.91:1 under white.",
+        "$value": "{primitive.color.ember-500}",
+        "$description": "The signal ground, in both themes: the kit's orange, the brand's SECONDARY colour (owner, 2026-09-22). It is the spark of the system — the one accent action a screen may carry, and the light travelling on a dark pill — and it is scarce by contract. (The mark's dot was the third, until the owner made it the primary on 2026-09-22.) It carries INK, not white (6.29:1 against 3.11:1).",
         "$extensions": {
           "app.goproceed.tailwind": "signal",
           "app.goproceed.alpha": 1
@@ -1248,7 +1347,7 @@
       "text-primary": {
         "$type": "color",
         "$value": "{primitive.color.neutral-25}",
-        "$description": "Values, titles — the thing being read. 18.35:1 on canvas.",
+        "$description": "Values, titles — the thing being read. 16.12:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "ink",
           "app.goproceed.alpha": 1
@@ -1257,7 +1356,7 @@
       "text-secondary": {
         "$type": "color",
         "$value": "{primitive.color.neutral-200}",
-        "$description": "Supporting copy. 6.56:1 on canvas.",
+        "$description": "Supporting copy. 7.07:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "ink-secondary",
           "app.goproceed.alpha": 1
@@ -1266,7 +1365,7 @@
       "text-muted": {
         "$type": "color",
         "$value": "{primitive.color.neutral-300}",
-        "$description": "Metadata, labels, placeholders. 5.07:1 on canvas — the body-text floor. Four text levels, never two: two is too flat to build hierarchy from. The dark column is not a mirror of the light one: it sits a step lighter throughout, because a muted fill in dark mode is much closer to its own copy than a muted fill in light mode is to its.",
+        "$description": "Metadata, labels, placeholders. 5.17:1 on canvas — the body-text floor. Four text levels, never two: two is too flat to build hierarchy from. The dark column is not a mirror of the light one: it sits a step lighter throughout, because a muted fill in dark mode is much closer to its own copy than a muted fill in light mode is to its.",
         "$extensions": {
           "app.goproceed.tailwind": "ink-muted",
           "app.goproceed.alpha": 1
@@ -1275,7 +1374,7 @@
       "text-subtle": {
         "$type": "color",
         "$value": "{primitive.color.neutral-400}",
-        "$description": "Metadata ONLY, never body text. 3.05:1 clears the large-text and non-text threshold and nothing else.",
+        "$description": "Metadata ONLY, never body text. 3.84:1 clears the large-text and non-text threshold and nothing else.",
         "$extensions": {
           "app.goproceed.tailwind": "ink-subtle",
           "app.goproceed.alpha": 1
@@ -1284,7 +1383,7 @@
       "text-on-inverse": {
         "$type": "color",
         "$value": "{primitive.color.neutral-900}",
-        "$description": "Copy on the inverse surface. 15.22:1.",
+        "$description": "Copy on the inverse surface. 13.47:1.",
         "$extensions": {
           "app.goproceed.tailwind": "on-inverse",
           "app.goproceed.alpha": 1
@@ -1293,7 +1392,7 @@
       "text-on-inverse-muted": {
         "$type": "color",
         "$value": "{primitive.color.neutral-700}",
-        "$description": "Metadata on the inverse surface. 8.68:1.",
+        "$description": "Metadata on the inverse surface. 7.64:1.",
         "$extensions": {
           "app.goproceed.tailwind": "on-inverse-muted",
           "app.goproceed.alpha": 1
@@ -1301,8 +1400,8 @@
       },
       "text-on-signal": {
         "$type": "color",
-        "$value": "{primitive.color.neutral-0}",
-        "$description": "White on the mark, 5.91:1 both themes.",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Ink on the signal ground: 6.29:1. White on ember measures 3.11:1 and is not available at body size, so the signal action is black on orange — the pairing the brand sheet itself shows.",
         "$extensions": {
           "app.goproceed.tailwind": "on-signal",
           "app.goproceed.alpha": 1
@@ -1310,8 +1409,8 @@
       },
       "text-link": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-300}",
-        "$description": "Links. 7.47:1 on a surface.",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "A link, in the primary: 6.30:1 on canvas, 7.65:1 on white, 10.30:1 in dark.",
         "$extensions": {
           "app.goproceed.tailwind": "link",
           "app.goproceed.alpha": 1
@@ -1319,8 +1418,8 @@
       },
       "text-brand": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-300}",
-        "$description": "The brand as text, and «ready» named in cobalt where a chip would be too loud. 9.23:1 on a surface.",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "The brand as a word — the primary. Held for a word that has to read as the brand. The landing's own wordmark is ink, with the primary on the mark's dot beside it — the owner's arrangement of 2026-09-22.",
         "$extensions": {
           "app.goproceed.tailwind": "brand",
           "app.goproceed.alpha": 1
@@ -1364,10 +1463,19 @@
       },
       "border-focus": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-300}",
-        "$description": "One focus treatment for every focusable element. 5.91:1 on a surface.",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "One focus treatment on every ordinary ground, in the primary: 6.30:1 on canvas and 7.65:1 on white, both far past the 3:1 a focus ring owes. On the INVERSE surface it measures 2.56:1 and must not be used — `border-focus-inverse` is the ring there, and `base.css` switches to it inside `bg-inverse`.",
         "$extensions": {
           "app.goproceed.tailwind": "focus",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "border-focus-inverse": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "The focus ring inside an inverse surface — the field client's chrome, the phone frames, any marketing band on ink. The ordinary ring is the primary at 2.56:1 against that ground, which is under the 3:1 WCAG 2.1 §1.4.11 asks of a focus indicator; this rung measures 10.30:1. Both themes are the same idea and swap rungs, because «inverse» inverts with the theme.",
+        "$extensions": {
+          "app.goproceed.tailwind": "focus-inverse",
           "app.goproceed.alpha": 1
         }
       },
@@ -1383,7 +1491,7 @@
       "action-primary-fg": {
         "$type": "color",
         "$value": "{primitive.color.neutral-975}",
-        "$description": "The primary action's label. 19.01:1 — the highest-contrast pair in the system, which is what a control that commits money should carry.",
+        "$description": "The primary action's label. 19.58:1 — the highest-contrast pair in the system, which is what a control that commits money should carry.",
         "$extensions": {
           "app.goproceed.tailwind": "action-fg",
           "app.goproceed.alpha": 1
@@ -1400,8 +1508,8 @@
       },
       "action-signal-bg": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-500}",
-        "$description": "The one accent action, when a screen has one. AT MOST one per screen (rule 10, corrected 2026-09-05) — the landing has none, its primary is ink.",
+        "$value": "{primitive.color.ember-500}",
+        "$description": "The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none.",
         "$extensions": {
           "app.goproceed.tailwind": "action-signal",
           "app.goproceed.alpha": 1
@@ -1409,8 +1517,8 @@
       },
       "action-signal-fg": {
         "$type": "color",
-        "$value": "{primitive.color.neutral-0}",
-        "$description": "White on cobalt, 5.91:1.",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "Ink on the accent action: 6.29:1.",
         "$extensions": {
           "app.goproceed.tailwind": "action-signal-fg",
           "app.goproceed.alpha": 1
@@ -1418,8 +1526,8 @@
       },
       "action-signal-hover": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-600}",
-        "$description": "One step darker, 7.47:1 under white.",
+        "$value": "{primitive.color.ember-600}",
+        "$description": "The accent action pressed: one rung down, ink still at 4.57:1.",
         "$extensions": {
           "app.goproceed.tailwind": "action-signal-hover",
           "app.goproceed.alpha": 1
@@ -1455,7 +1563,7 @@
       "status-ready-fg": {
         "$type": "color",
         "$value": "{primitive.color.green-300}",
-        "$description": "Ready as text: 5.06:1 on its ground.",
+        "$description": "Ready as text: 5.18:1 on its ground.",
         "$extensions": {
           "app.goproceed.tailwind": "status-ready-fg",
           "app.goproceed.alpha": 1
@@ -1482,7 +1590,7 @@
       "status-attention-fg": {
         "$type": "color",
         "$value": "{primitive.color.amber-300}",
-        "$description": "Attention as text: 4.87:1 on its ground.",
+        "$description": "Attention as text: 5.13:1 on its ground.",
         "$extensions": {
           "app.goproceed.tailwind": "status-attention-fg",
           "app.goproceed.alpha": 1
@@ -1509,7 +1617,7 @@
       "status-blocked-fg": {
         "$type": "color",
         "$value": "{primitive.color.danger-300}",
-        "$description": "6.34:1 light, 8.00:1 dark.",
+        "$description": "6.68:1 light, 8.15:1 dark.",
         "$extensions": {
           "app.goproceed.tailwind": "status-blocked-fg",
           "app.goproceed.alpha": 1
@@ -1563,7 +1671,7 @@
       "status-idle-fg": {
         "$type": "color",
         "$value": "{primitive.color.neutral-300}",
-        "$description": "5.86:1 light, 8.64:1 dark.",
+        "$description": "6.27:1 light, 8.62:1 dark.",
         "$extensions": {
           "app.goproceed.tailwind": "status-idle-fg",
           "app.goproceed.alpha": 1
@@ -1572,7 +1680,7 @@
       "evidence-satisfied": {
         "$type": "color",
         "$value": "{primitive.color.green-300}",
-        "$description": "A satisfied requirement, as text on the canvas: 5.23:1.",
+        "$description": "A satisfied requirement, as text on the canvas: 4.88:1.",
         "$extensions": {
           "app.goproceed.tailwind": "evidence-satisfied",
           "app.goproceed.alpha": 1
@@ -1581,7 +1689,7 @@
       "evidence-pending": {
         "$type": "color",
         "$value": "{primitive.color.amber-300}",
-        "$description": "Evidence expected, not yet obtained. 7.09:1 on canvas.",
+        "$description": "Evidence expected, not yet obtained. 6.74:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "evidence-pending",
           "app.goproceed.alpha": 1
@@ -1590,7 +1698,7 @@
       "evidence-blocking": {
         "$type": "color",
         "$value": "{primitive.color.danger-300}",
-        "$description": "Evidence missing and blocking a closure. 7.17:1 on canvas.",
+        "$description": "Evidence missing and blocking a closure. 6.45:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "evidence-blocking",
           "app.goproceed.alpha": 1
@@ -1643,8 +1751,8 @@
       },
       "text-accent": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-300}",
-        "$description": "The highlighted phrase in a display heading — the one accent the prototype uses (F8). LARGE TEXT ONLY: 4.35:1 on the canvas clears 3:1 and not 4.5:1, so it never carries body copy.",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "THE ACCENT, and since 2026-09-22 the brand's PRIMARY colour: the kit's deep green. 6.30:1 on the canvas, so unlike the orange it replaced here it is safe at any size — the highlighted phrase in a display heading, and the colour a canvas ornament reads from its computed `color` on the landing.",
         "$extensions": {
           "app.goproceed.tailwind": "accent",
           "app.goproceed.alpha": 1
@@ -1652,8 +1760,8 @@
       },
       "border-accent": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-300}",
-        "$description": "The selected card's edge and the «now» card's tint. 5.91:1 on a surface.",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "The accent as an edge: 7.65:1 on white, 6.30:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "line-accent",
           "app.goproceed.alpha": 1
@@ -1661,8 +1769,8 @@
       },
       "bg-accent-soft": {
         "$type": "color",
-        "$value": "{primitive.color.cobalt-900}",
-        "$description": "The selected card's ring, the paired-row wash, the review tag ground. Cobalt at 10%, composited.",
+        "$value": "{primitive.color.pine-900}",
+        "$description": "The accent as a ground under copy: a wash at a tenth of the primary, never a fill behind body text at full strength.",
         "$extensions": {
           "app.goproceed.tailwind": "accent-soft",
           "app.goproceed.alpha": 1
@@ -1679,7 +1787,7 @@
           "offsetY": "1px",
           "blur": "2px",
           "spread": "0px",
-          "color": "#15161A",
+          "color": "#0C0C0A",
           "alpha": 0.04
         }
       ],
@@ -1693,7 +1801,7 @@
           "offsetY": "12px",
           "blur": "30px",
           "spread": "-16px",
-          "color": "#15161A",
+          "color": "#0C0C0A",
           "alpha": 0.35
         }
       ],
@@ -1707,7 +1815,7 @@
           "offsetY": "8px",
           "blur": "24px",
           "spread": "0px",
-          "color": "#15161A",
+          "color": "#0C0C0A",
           "alpha": 0.08
         },
         {
@@ -1715,7 +1823,7 @@
           "offsetY": "24px",
           "blur": "64px",
           "spread": "0px",
-          "color": "#15161A",
+          "color": "#0C0C0A",
           "alpha": 0.12
         }
       ],
@@ -1729,7 +1837,7 @@
           "offsetY": "20px",
           "blur": "50px",
           "spread": "-30px",
-          "color": "#15161A",
+          "color": "#0C0C0A",
           "alpha": 0.22
         },
         {
@@ -1737,7 +1845,7 @@
           "offsetY": "1px",
           "blur": "2px",
           "spread": "0px",
-          "color": "#15161A",
+          "color": "#0C0C0A",
           "alpha": 0.05
         }
       ],
@@ -1751,7 +1859,7 @@
           "offsetY": "30px",
           "blur": "70px",
           "spread": "-40px",
-          "color": "#2B4BFF",
+          "color": "#395A4D",
           "alpha": 0.35
         },
         {
@@ -1759,11 +1867,11 @@
           "offsetY": "1px",
           "blur": "2px",
           "spread": "0px",
-          "color": "#15161A",
+          "color": "#0C0C0A",
           "alpha": 0.05
         }
       ],
-      "$description": "The «З GoProceed» compare card only (prototype .cmp-card.now, index.html l.607): the one coloured shadow in the system, and it is the mark colour under the one card that is the product promise. Marketing only."
+      "$description": "The «З GoProceed» compare card only (prototype .cmp-card.now, index.html l.607): the one coloured shadow in the system, and it is the ACCENT's colour — pine since the Autumn palette — under the one card that is the product promise; the spark is never spent on an area this large. Marketing only."
     }
   },
   "component": {

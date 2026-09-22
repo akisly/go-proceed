@@ -219,7 +219,8 @@ try {
       for (let x = 0; x < info.width; x++) {
         if (!(x < BAND || y < BAND || x >= info.width - BAND || y >= info.height - BAND)) continue;
         const i = (y * info.width + x) * info.channels;
-        // paper, white and ink are all near-neutral; the beam is cobalt
+        // paper, white and ink are all near-neutral; the beam is the signal (ember
+        // since 2026-09-22, cobalt before it) — either way the one chromatic thing here
         if (Math.abs(data[i] - data[i + 1]) > 8 || Math.abs(data[i + 1] - data[i + 2]) > 8 || Math.abs(data[i] - data[i + 2]) > 8) painted++;
       }
     }
@@ -367,9 +368,17 @@ try {
     out.rain = await first.evaluate(() => document.querySelector("[data-pixel-rain]")?.getAttribute("data-pixel-rain") ?? null);
     out.orbit = await first.evaluate(() => document.querySelector("[data-orbit]")?.getAttribute("data-orbit") ?? null);
     out.heroFillsViewport = await first.evaluate(() => document.querySelector("#hero").getBoundingClientRect().height >= window.innerHeight);
-    // [DEV-024, seventh pass] the header is glass over the hero's pixel field while the page stands at its top —
-    // the field starts at the very top edge, behind it — and takes its ground back once the page scrolls.
-    const veil = () => first.evaluate(() => ({ atTop: document.querySelector("header").getAttribute("data-at-top"), opacity: getComputedStyle(document.querySelector("[data-header-veil]")).opacity, rainTop: Math.round(document.querySelector("[data-pixel-rain]").getBoundingClientRect().top + scrollY) }));
+    // [DEV-024, seventh pass; 2026-09-22, owner: «хедер всегда сделай таким типа прозрачным, а не только на скрол»]
+    // the header is frosted glass at EVERY scroll position: the same layer, the same opacity, at the top and below it,
+    // and no attribute to carry a state. The hero's field still starts at the very top edge, behind the bar.
+    // [R2-07] The ground's OPACITY alone stopped distinguishing anything the day
+    // it became a constant: an `<i>` with no rule at all reports `1` too. The
+    // blur and the ground colour are read with it, so the probe still knows
+    // frosted glass from an empty element.
+    const veil = () => first.evaluate(() => {
+      const s = getComputedStyle(document.querySelector("[data-header-veil]"));
+      return { atTop: document.querySelector("header").getAttribute("data-at-top"), opacity: s.opacity, blurred: /blur\(/.test(s.backdropFilter || s.webkitBackdropFilter || ""), ground: s.backgroundColor, rainTop: Math.round(document.querySelector("[data-pixel-rain]").getBoundingClientRect().top + scrollY) };
+    });
     out.veilAtTop = await veil();
     // [B7-01] under the glass header the raster stays DIM: every cell still holds a dot, none darker than a dim one —
     // on paper a bright dot beside the wordmark read as a full stop. Max alpha in the band vs the field below it (control).
@@ -449,7 +458,13 @@ try {
     const narrow = await open("/product", NARROW);
     // below `md` the header is two rows of links and keeps its ground, at the top of the page too
     const narrowHome = await open("/", NARROW);
-    out.veilNarrowAtTop = await narrowHome.evaluate(() => getComputedStyle(document.querySelector("[data-header-veil]")).opacity);
+    // [QA, 2026-09-22] The same reading as the wide probe, for the same reason:
+    // with the ground constant, an opacity of 1 is also what an `<i>` carrying
+    // no rule at all reports. R2-07 strengthened the wide pin and left this one.
+    out.veilNarrowAtTop = await narrowHome.evaluate(() => {
+      const s = getComputedStyle(document.querySelector("[data-header-veil]"));
+      return { opacity: s.opacity, blurred: /blur\(/.test(s.backdropFilter || s.webkitBackdropFilter || ""), ground: s.backgroundColor };
+    });
     await narrowHome.close();
     out.tiltOnNarrow = await narrow.evaluate(() => document.querySelectorAll('[data-tilt="on"]').length);
     out.depthFlatNarrow = await narrow.evaluate(() => [...document.querySelectorAll("[data-depth]")].every((el) => getComputedStyle(el).transform === "none"));
@@ -517,7 +532,8 @@ try {
     && p.closingHeadingLines <= 3
     && p.rainFrames.painted && p.rainFrames.changed && p.rainFramesReduced.painted && !p.rainFramesReduced.changed && p.beamsFoundReduced >= 1 && p.beamsShownReduced === 0
     && p.rainUnderHeader.maxAlphaInBand <= 90 && p.rainUnderHeader.maxAlphaBelow >= 150 && p.rainUnderHeader.dotsInBand >= 0.9 * p.rainUnderHeader.cellsInBand
-    && p.veilAtTop.atTop === "true" && p.veilAtTop.opacity === "0" && p.veilAtTop.rainTop === 0 && p.veilScrolled.atTop === "false" && p.veilScrolled.opacity === "1" && p.veilNarrowAtTop === "1"
+    && p.veilAtTop.atTop === null && p.veilAtTop.opacity === "1" && p.veilAtTop.rainTop === 0 && p.veilScrolled.atTop === null && p.veilScrolled.opacity === "1" && p.veilNarrowAtTop.opacity === "1" && p.veilNarrowAtTop.blurred && p.veilNarrowAtTop.ground === p.veilAtTop.ground
+    && p.veilAtTop.blurred && p.veilScrolled.blurred && p.veilAtTop.ground !== "rgba(0, 0, 0, 0)" && p.veilScrolled.ground === p.veilAtTop.ground
     && p.rain === "running" && p.orbit === "turning" && p.rainReduced === "still" && p.orbitReduced === "still" && p.heroFillsViewport
     && p.stepperProgress >= 0.99
     // the board's two review cards on the home page, the «пілот» chip on /product
@@ -677,7 +693,7 @@ try {
       const pr = pill.getBoundingClientRect(); const fr = face.getBoundingClientRect();
       return { moves: d0 !== d1 && b0 !== b1, distanceMoves: d0 !== d1, boxMoves: b0 !== b1, animation: s.animationName, path: s.offsetPath.slice(0, 40), duration: s.animationDuration, ring: `${Math.round(fr.x - pr.x)}px`, faceIsPillColour: getComputedStyle(face).backgroundColor === getComputedStyle(pill).backgroundColor, ringPainted: getComputedStyle(ringLayer).backgroundColor !== "rgba(0, 0, 0, 0)", clipped: getComputedStyle(pill).overflow, count: document.querySelectorAll('[data-beam="pill"]').length, inkPills: document.querySelectorAll('[data-pill="ink"]').length, onPaper: document.querySelectorAll('[data-pill="paper"] [data-beam]').length };
     });
-    // [B2-04] …and it steps aside for the focus ring: two cobalt rings round one control blur which is the focus
+    // [B2-04] …and it steps aside for the focus ring: two coloured rings round one control blur which is the focus
     await home.keyboard.press("Tab");
     out.pillBeamFocused = await home.evaluate(() => { const a = document.querySelector('#hero [data-pill="ink"]'); a.focus(); const shown = getComputedStyle(a.querySelector("[data-beam]")).display; const visible = a.matches(":focus-visible"); a.blur(); return { focusVisible: visible, beam: shown }; });
     // the dome's dots and lights are the accent, the grid stays ink
@@ -808,8 +824,24 @@ try {
       }, names);
       const early = await scripts();
       out.threeInFirstScreen = await carriesThree(early);
-      await bring(scene, "[data-dome]"); await sleep(2500);
-      out.sphere = await scene.evaluate(() => document.querySelector("[data-particle-sphere]").getAttribute("data-particle-sphere"));
+      await bring(scene, "[data-dome]");
+      // WAIT FOR THE STATE, don't sleep at it. This was `sleep(2500)`, and twice
+      // on a loaded machine the software-WebGL browser had not finished fetching
+      // and compiling the scene chunk by then: the run failed with
+      // `sphere: "still"` and an empty `threeOnApproach` while every other probe
+      // on the same page — `sphereTurns`, `sphereLoopOnScreen` — showed the scene
+      // running. A fixed sleep asserts the machine's speed, not the product's
+      // behaviour. Twelve seconds is a ceiling, not a wait: a dome that arrives
+      // in 300ms is read in 300ms, and one that never arrives still fails.
+      out.sphere = await scene.waitForFunction(
+        // A SETTLED state, not «anything but still»: the first version of this
+        // wait took `loading` for an answer and then read the script list before
+        // the chunk had arrived, which failed the run for the same reason the
+        // fixed sleep did. `running` and `fallback` are the two ends of the
+        // scene's life; `still` and `loading` are on the way.
+        () => { const v = document.querySelector("[data-particle-sphere]").getAttribute("data-particle-sphere"); return v === "running" || v === "fallback" ? v : null; },
+        { timeout: 12000, polling: 100 },
+      ).then((h) => h.jsonValue()).catch(() => "still");
       out.threeOnApproach = await carriesThree((await scripts()).filter((n) => !early.includes(n)));
       const box = await scene.evaluate(() => { const r = document.querySelector("[data-dome]").getBoundingClientRect(); return { x: r.x, y: r.y, width: r.width, height: r.height }; });
       const clip = { x: box.x, y: box.y + (await scene.evaluate(() => scrollY)), width: box.width, height: box.height };

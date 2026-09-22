@@ -19,6 +19,21 @@ export function splitTitle(title: string, titleAccent: string): { lead: string; 
     : { lead: title, rest: undefined };
 }
 
+/**
+ * A block's lead paragraph — the one treatment, in one place.
+ *
+ * [2026-09-22, owner: «у блоков разный шрифт заголовков и описания и разная
+ * ширина их же».] Three blocks had drifted into three answers: `SectionHead`
+ * set `text-mkt-lead` / `ink-muted` / `measure`, `problem.tsx` set `text-body`
+ * / `ink-secondary` / `max-w-[34ch]`, `intro.tsx` set `text-mkt-lead` /
+ * `ink-secondary` / no measure. On one page, one under the other, that reads as
+ * two different type systems — which is what the owner saw on /roles. There is
+ * one now, and a block that wants another has to change this component.
+ */
+export function SectionLead({ children }: { children: ReactNode }) {
+  return <p className="measure text-mkt-lead leading-relaxed text-ink-muted">{children}</p>;
+}
+
 export function SectionHead({
   eyebrow, title, titleAccent, lead, children, layout = "split", as = "h2",
 }: {
@@ -39,7 +54,7 @@ export function SectionHead({
       </div>
       {(lead || children) && (
         <Reveal size="stately">
-          {lead && <p className="measure text-mkt-lead leading-relaxed text-ink-muted">{lead}</p>}
+          {lead && <SectionLead>{lead}</SectionLead>}
           {children}
         </Reveal>
       )}

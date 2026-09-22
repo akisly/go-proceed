@@ -569,8 +569,8 @@ name «GoProceed — польовий клієнт», `short_name` "GoProceed", 
 `assets/icon.png` and committed (no build-time image dependency), and a
 separate `apple-touch-icon.png` (180×180) that `finalize-web-html.mjs` links
 from `<head>`. Colours are read from `@goproceed/tokens`' light theme, not
-invented for the manifest: `background_color` `#FBFBF9` (`bg-canvas`),
-`theme_color` `#11100F` (`action-primary-bg`). `apps/mobile/public/` is
+invented for the manifest: `background_color` `#ECE9DF` (`bg-canvas`),
+`theme_color` `#0C0C0A` (`action-primary-bg`). `apps/mobile/public/` is
 copied byte-for-byte into `dist/` by `expo export --platform web`
 (docs.expo.dev/deploy/web, read 2026-08-20), and Vercel serves it under the
 project's filesystem-before-rewrite routing — a static file under

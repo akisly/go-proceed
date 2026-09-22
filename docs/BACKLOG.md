@@ -142,6 +142,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-111](#bl-111) | P3 | open | An invitation cannot be reissued in place: recovery from a lost token is revoke, then create |
 | [BL-112](#bl-112) | P2 | open | A command's request hash covers its body but not its path, so a key reused for another target replays the first target's result |
 | [BL-113](#bl-113) | P2 | open | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
+| [BL-114](#bl-114) | P2 | open | The office dashboard has not been seen under the Autumn palette or the new typeface |
+| [BL-115](#bl-115) | P3 | open | «→» is rendered on two landing pages and no self-hosted face carries it |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1371,3 +1373,23 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `gp-qa`, 2026-09-19, working tree over `3601658`, the built pages with JavaScript disabled: text elements in `main` whose opacity chain is 0 — `/` 51 of 55 (the six sources, the fact tiles and the closing heading among them), `/product` 113 of 126, `/roles` 80 of 82, `/pilot` 32 of 41 (the form among them). The markup itself is complete (one h1, nav, main, footer, all six source codes).
 - **Depends on:** a decision on the mechanism, which is why this is not a one-line fix: a blanket `<noscript><style>` that forces `opacity: 1` also reveals what is hidden on purpose (`CrossFade` and `PinnedTabs` keep their inactive panels at opacity 0 in the same box, so on `/product` they would overlay each other). The candidates are a `noscript` rule scoped to a `data-*` attribute the entrance words set, or entrances that start visible and are hidden by a class only once the script is known to run. Either changes every page's first paint, so it takes `gp-reviewer` and `gp-ui-reviewer`, and the harness needs a JavaScript-disabled pass.
 - **Deadline:** before the landing is pointed at a production domain and submitted for indexing.
+
+<a id="bl-114"></a>
+### BL-114 — P2 — The office dashboard has not been seen under the Autumn palette or the new typeface
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-025 moved the palette and both text faces in `packages/tokens`, so every surface of `apps/app` changed with them, and not one of its screens was rendered during that task. The landing was verified in a browser at seven widths; the dashboard was verified by its build and its types only. The risk is not contrast — every pairing is asserted in `packages/testing/src/contrast.test.ts`, in both themes — but composition: a warm paper a step darker than the old one under dense tables, an ink that is warm rather than cool beside the status chips, and a narrower face in fixed-width columns (the rail, the register's figures, the 32px control heights). Those are the things only a rendered page shows.
+- **Evidence:** DEV-025 «What is not true after this task»; `apps/app/qa/field.mjs` now asserts the new font stack (`assertBrandFaces`) but was not run, because the harness needs `apps/app/.env.local` with the database URLs and `NEXT_PUBLIC_SUPABASE_*`, and the local stack is down.
+- **Depends on:** the local Supabase stack, or a deployed preview of `apps/app`. Then `pnpm --filter @goproceed/app qa` and a `gp-ui-reviewer` pass over the screenshots.
+- **Deadline:** before the dashboard is shown to a pilot user.
+
+<a id="bl-115"></a>
+### BL-115 — P3 — «→» is rendered on two landing pages and no self-hosted face carries it
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** found by `gp-qa` while verifying DEV-025's typography. `U+2192` appears in `apps/landing/content/landing-content.ts` (the role cells' «→ …» lines) and in `roles.tsx` and `fig-01.tsx`, and **none of the four subset files carries it** — not `hanken-grotesk-latin`, not `commissioner-cyrillic`, not either JetBrains subset. It falls through to `system-ui`, so its weight and its vertical position are the operating system's rather than the page's. It is NOT a regression: the retired Onest subsets did not carry it either, so it has fallen through since 2026-09-07. QA enumerated all 130 codepoints the four pages render and this is the only one without a brand face.
+- **Evidence:** `gp-qa`, 2026-09-22, cmaps parsed out of the four `.woff2` after Brotli decompression; the CDP platform-font read on the rendered pages.
+- **Depends on:** a decision on the mechanism, which is why it is not a one-line fix: subset one more Unicode block into the Latin face (it grows the file the first screen preloads), swap the character for one the faces do carry, or accept the fallback and say so. The arrow is copy, so the third option is the owner's to take.
+- **Deadline:** none. Cosmetic, one glyph, and older than this task.

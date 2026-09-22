@@ -27,9 +27,13 @@ import { useReduced } from "./use-reduced";
  * nearly one size, differing in brightness — where ours was a few large squares
  * over a nearly invisible fine grain; it runs the WHOLE WIDTH under the header,
  * deep at the two sides and shallow in the middle, an oval of open ground,
- * where ours was two corners; and it starts at the very top edge, BEHIND a
- * header that is transparent until the page scrolls (`HeaderVeil`, the
- * landing's), where ours began under an opaque bar.
+ * where ours was two corners; and it starts at the very top edge, BEHIND the
+ * header rather than below it, where ours began under an opaque bar.
+ * *[2026-09-22: this read «behind a header that is transparent until the page
+ * scrolls (`HeaderVeil`, the landing's)». The owner asked for the bar's frosted
+ * ground to be permanent, so the field runs UNDER glass now rather than under
+ * open air, and `HeaderVeil` is a file that no longer exists — see `nav.tsx`.
+ * The field's own geometry, and `calm`, are unchanged by that.]*
  *
  * WHY IT IS A PRIMITIVE, AND A CANVAS. Several thousand cells change every
  * tick; as DOM nodes or as a CSS animation per cell that is a layout and a

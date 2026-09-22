@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { landingContent, type PageKey } from "../../content/landing-content";
 import { BrandMark } from "../brand-mark";
-import { HeaderVeil } from "../header-veil";
 import { PillLink } from "./pill-link";
 
 /**
@@ -14,7 +13,7 @@ import { PillLink } from "./pill-link";
  * this a server component: no effect, no router hook, and `aria-current` is
  * right in the first byte of HTML instead of after hydration.
  *
- * [DEV-024, seventh pass] Its ground is `HeaderVeil`, a client leaf: at the top
+ * [DEV-024, seventh pass; changed 2026-09-22] Its ground is a static frosted layer. It was a client leaf that at the top
  * of the page, from `md`, the header is glass over the hero's pixel field, as
  * the reference's is; scrolled, below `md`, and without JavaScript it is the bar
  * it always was. The header itself stays a server component.
@@ -23,7 +22,14 @@ export function Nav({ current }: { current: PageKey }) {
   const currentPath = landingContent.pages[current].path;
   return (
     <header className="landing-header landing-header-rail fixed top-0 z-40 isolate border-b border-line">
-      <HeaderVeil />
+      {/* The header’s ground. [2026-09-22, owner: «хедер всегда сделай таким типа
+        * прозрачным, а не только на скрол».] It used to be a client leaf that lifted
+        * this layer while the page stood at its top, so the hero’s field ran under a
+        * header with no ground at all (DEV-024, seventh pass). The owner wants the
+        * frosted glass at every scroll position, so the layer is static, the listener
+        * is gone, and the header is one thing at the top, half-way down and without
+        * JavaScript. */}
+      <i aria-hidden="true" data-header-veil="" className="landing-header-veil" />
       <nav aria-label="Головна навігація" className="relative flex h-(--gp-header-height-marketing) items-center gap-1.5 px-4 md:px-6">
         <Link href="/" className="mr-auto flex min-h-11 items-center gap-2.5 text-body font-semibold tracking-tight text-ink">
           <BrandMark />
