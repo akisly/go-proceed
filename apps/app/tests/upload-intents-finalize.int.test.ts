@@ -525,3 +525,155 @@ databaseDescribe("upload_intents.finalize", () => {
     },
   );
 });
+
+databaseDescribe("a creator who lost access can still abandon the upload (BL-032, DEV-038)", () => {
+  // Losing evidence.record orphaned the bytes at once (the recheck inside
+  // app.finalize_upload_intent). Losing the membership, or the project read,
+  // did not: the intent row is invisible to the tenant read (ui_select needs
+  // project.view through an active membership), so the route answered 404 and
+  // the bytes waited for the 24-hour intent TTL. INV-047 asks for prompt purge
+  // in both cases; app.abandon_unauthorized_upload_intent (0092) is the
+  // second authorization path, for this case only.
+  const B = "dddddddd-dddd-dddd-dddd-dddddddddddd";
+  const C = "cccccccc-cccc-cccc-cccc-cccccccccccc";
+
+  async function memberWith(userId: string, email: string, caps: string[]): Promise<string> {
+    await q(`delete from auth.users where email = $1 and id <> $2`, [email, userId]);
+    await q(
+      `insert into auth.users (id, instance_id, aud, role, email,
+                               encrypted_password, created_at, updated_at)
+       values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',
+               $2,'',now(),now())
+       on conflict (id) do nothing`, [userId, email]);
+    const member = await q<{ id: string }>(
+      `insert into public.memberships (organization_id, user_id, role, status)
+       values ($1,$2,'member','active') returning id`, [fx.workspaceId, userId]);
+    for (const cap of caps) {
+      await q(
+        `insert into public.project_access_grants
+           (workspace_id, project_id, member_id, capability, granted_by)
+         values ($1,$2,$3,$4,$5)`, [fx.workspaceId, fx.projectId, member[0]!.id, cap, A]);
+    }
+    return member[0]!.id;
+  }
+
+  /** B, a plain member with the capture grants, stages an upload. */
+  async function stagedByB() {
+    const memberId = await memberWith(B, "creator@example.test", ["evidence.record", "project.view"]);
+    current = B;
+    const intent = await createIntent(JPEG);
+    await putObject(intent.storage.key, JPEG, "image/jpeg");
+    return { intent, memberId };
+  }
+
+  const stateOf = async (id: string) => (await q<{ status: string; failure_code: string | null }>(
+    `select status, failure_code from public.upload_intents where id = $1`, [id]))[0]!;
+
+  const ABANDONED = {
+    status: 403, code: "SCOPE_PROJECT_DENIED",
+    detail: "Доступ відкликано під час завантаження. Байти позначено на очищення.",
+  };
+
+  async function expectAbandoned(res: Response) {
+    const body = await res.json() as { code: string; detail: string; userAction: string };
+    expect({ status: res.status, code: body.code, detail: body.detail }).toEqual(ABANDONED);
+    expect(body.userAction).toBe("request_project_scope");
+  }
+
+  it("orphans the upload of a creator whose membership was suspended, at once", async () => {
+    const { intent, memberId } = await stagedByB();
+    await q(`update public.memberships set status = 'suspended' where id = $1`, [memberId]);
+
+    await expectAbandoned(await finalize(intent.uploadIntentId));
+    expect(await stateOf(intent.uploadIntentId))
+      .toEqual({ status: "orphaned_for_purge", failure_code: "authorization_revoked" });
+    const evidence = await q<{ n: string }>(
+      `select count(*) n from public.evidence_objects where workspace_id = $1`, [fx.workspaceId]);
+    expect(evidence[0]!.n).toBe("0");
+    // The bytes are the purge's to delete, now rather than after the TTL.
+    expect(await objectExists(intent.storage.key)).toBe(true);
+  });
+
+  it("answers the same on a retry", async () => {
+    const { intent, memberId } = await stagedByB();
+    await q(`update public.memberships set status = 'ended' where id = $1`, [memberId]);
+    await expectAbandoned(await finalize(intent.uploadIntentId));
+    await expectAbandoned(await finalize(intent.uploadIntentId));
+    expect((await stateOf(intent.uploadIntentId)).status).toBe("orphaned_for_purge");
+  });
+
+  it("orphans the upload of an active creator who lost both the project read and evidence.record", async () => {
+    const { intent, memberId } = await stagedByB();
+    await q(`update public.project_access_grants set revoked_at = now()
+              where workspace_id = $1 and member_id = $2`, [fx.workspaceId, memberId]);
+    await expectAbandoned(await finalize(intent.uploadIntentId));
+    expect(await stateOf(intent.uploadIntentId))
+      .toEqual({ status: "orphaned_for_purge", failure_code: "authorization_revoked" });
+  });
+
+  it("changes nothing for another member of the workspace, even with the capture grants", async () => {
+    const { intent } = await stagedByB();
+    await memberWith(C, "colleague@example.test", ["evidence.record", "project.view"]);
+    current = C;
+    expect((await finalize(intent.uploadIntentId)).status).toBe(404);
+    expect((await stateOf(intent.uploadIntentId)).status).toBe("intent_authorized");
+  });
+
+  it("changes nothing for an outsider", async () => {
+    const { intent } = await stagedByB();
+    current = "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee";
+    expect((await finalize(intent.uploadIntentId)).status).toBe(404);
+    expect((await stateOf(intent.uploadIntentId)).status).toBe("intent_authorized");
+  });
+
+  it("changes nothing for a suspended creator whose intent already expired", async () => {
+    const { intent, memberId } = await stagedByB();
+    await q(`update public.upload_intents set expires_at = now() - interval '1 minute' where id = $1`,
+      [intent.uploadIntentId]);
+    await q(`update public.memberships set status = 'suspended' where id = $1`, [memberId]);
+    expect((await finalize(intent.uploadIntentId)).status).toBe(404);
+    expect(await stateOf(intent.uploadIntentId)).toEqual({ status: "intent_authorized", failure_code: null });
+  });
+
+  it("changes nothing for a suspended creator whose intent the purge has claimed", async () => {
+    const { intent, memberId } = await stagedByB();
+    await q(`update public.upload_intents set purge_claimed_at = now(), purge_claim_token = gen_random_uuid()
+              where id = $1`, [intent.uploadIntentId]);
+    await q(`update public.memberships set status = 'suspended' where id = $1`, [memberId]);
+    expect((await finalize(intent.uploadIntentId)).status).toBe(404);
+    expect((await stateOf(intent.uploadIntentId)).status).toBe("intent_authorized");
+  });
+
+  it("never abandons the upload of a creator who is still fully authorized", async () => {
+    // Unreachable through the route (the tenant read sees the row and finalize
+    // runs), so asked of the function directly: the authorization test inside
+    // it is what keeps a caller from orphaning a live upload.
+    const { withServiceTx } = await import("@goproceed/database");
+    const { intent } = await stagedByB();
+    const ask = () => withServiceTx({ actorUserId: B, organizationId: null, requestId: "t" },
+      async (tx) => (await tx.query<{ ok: boolean }>(
+        "select app.abandon_unauthorized_upload_intent($1) as ok", [intent.uploadIntentId])).rows[0]!.ok);
+    expect(await ask()).toBe(false);
+    expect((await stateOf(intent.uploadIntentId)).status).toBe("intent_authorized");
+    // The same caller, stripped of the read only, is not fully authorized.
+    await q(`update public.project_access_grants set revoked_at = now()
+              where workspace_id = $1 and capability = 'project.view'
+                and member_id = (select id from public.memberships where user_id = $2)`,
+      [fx.workspaceId, B]);
+    expect(await ask()).toBe(true);
+    expect((await stateOf(intent.uploadIntentId)).status).toBe("orphaned_for_purge");
+  });
+
+  it("is callable by the service principal only", async () => {
+    for (const role of ["anon", "authenticated", "goproceed_app", "service_role",
+                        "goproceed_worker", "goproceed_purge_worker"]) {
+      const r = await q<{ ok: boolean }>(
+        "select has_function_privilege($1, 'app.abandon_unauthorized_upload_intent(uuid)', 'execute') as ok",
+        [role]);
+      expect(r[0]!.ok, role).toBe(false);
+    }
+    const s = await q<{ ok: boolean }>(
+      "select has_function_privilege('goproceed_service', 'app.abandon_unauthorized_upload_intent(uuid)', 'execute') as ok");
+    expect(s[0]!.ok).toBe(true);
+  });
+});

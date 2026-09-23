@@ -290,7 +290,12 @@ State rules:
 3. `scan_blocked` is not evidence available for review or packaging. It remains
    in restricted quarantine for the documented remediation/retention period.
 4. Authorization failure before finalization produces no evidence object. The
-   intent becomes `orphaned_for_purge` directly from `intent_authorized`.
+   intent becomes `orphaned_for_purge` directly from `intent_authorized`. When
+   the creator can no longer even read the intent — the membership was
+   suspended or ended, or the project read revoked — a finalize call still
+   orphans it through `app.abandon_unauthorized_upload_intent` (`0092`,
+   DEV-038), so the bytes go at the next purge run rather than after the
+   24-hour intent TTL; anyone but the creator gets the same refusal as before.
 
 Finalization rechecks current membership/project permission, assignment and
 requirement scope, workspace quota, intent expiry, and any relevant revocation or
