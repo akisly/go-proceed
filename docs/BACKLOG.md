@@ -168,12 +168,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-137](#bl-137) | P2 | open | A project can still lose its last administrator: an only admin grant that lapses, or its holder's suspension |
 | [BL-138](#bl-138) | P3 | open | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
 | [BL-139](#bl-139) | P3 | open | No route lists a project's grants or responsibility assignments |
-| [BL-140](#bl-140) | P3 | open | A member's `project.view` can lapse before the action capabilities it was added for |
+| [BL-140](#bl-140) | P3 | scheduled → DEV-048 | A member's `project.view` can lapse before the action capabilities it was added for |
 | [BL-141](#bl-141) | P3 | scheduled → DEV-047 | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
 | [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
 | [BL-143](#bl-143) | P3 | scheduled → DEV-046 | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
 | [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 | [BL-145](#bl-145) | P3 | open | Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public` |
+| [BL-146](#bl-146) | P3 | open | Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1689,7 +1690,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-140"></a>
 ### BL-140 — P3 — A member's `project.view` can lapse before the action capabilities it was added for
 
-- **State:** open
+- **State:** scheduled → DEV-048
 - **Legacy cite:** none
 - **Why:** the grant route adds `project.view` to any action capability but skips a still-unrevoked `project.view` as a duplicate without aligning its window, so a member can hold an action capability whose `project.view` lapses first. The Telegram evidence resolver checks `evidence.record` alone (`0084`), so such a member could still file evidence on a project they cannot see. INV-111 covers the revoke only. Ranked by DEV-043.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the duplicate skip); `supabase/migrations/0084_the_button_that_carried_a_normative_string.sql`; INV-111.
@@ -1745,3 +1746,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** on the local database at `0098`, 2026-09-24: `select p.oid::regprocedure, p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.prosecdef and p.proconfig is distinct from array['search_path=""']`. [DEV-046](tasks/DEV-046-access-helpers-search-path.md) row 5.
 - **Depends on:** a body read per function (`gp-architect`, `gp-security`); BL-106 and BL-110 are the same class.
 - **Deadline:** none recorded.
+
+<a id="bl-146"></a>
+### BL-146 — P3 — Re-granting a lapsed action capability is a silent no-op, and a re-grant never extends an action's window
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-048's `gp-architect` design. `project_access.grant` treats any unrevoked row of a capability as held, live or not, so granting again a capability whose grant lapsed through `valid_until` answers 201 with that capability missing from `granted` and nothing written; the office must first revoke the lapsed row (ADR-014 decision 1 made that possible). A re-grant with a later `validUntil` does not extend a live grant either. DEV-048 fixed both for `project.view` only, because BL-140 was about the view. Ranked by DEV-048.
+- **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the per-capability duplicate check); `supabase/migrations/0010_workspace_access_module.sql` (`project_access_active_unique` over unrevoked rows); [DEV-048](tasks/DEV-048-project-view-window.md) row 4.
+- **Depends on:** a decision whether a re-grant replaces a lapsed action row (as the view now is) or answers 409 naming it.
+- **Deadline:** before the dashboard offers grants to a pilot user (BL-045).

@@ -47,24 +47,92 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
       // Plan decision 6: any action capability implies adding project.view.
       const caps = new Set(a.body.capabilities);
       if ([...caps].some((c) => c !== "project.view")) caps.add("project.view");
+      const requestedUntil = a.body.validUntil ? new Date(a.body.validUntil) : null;
+
+      // DEV-048 / BL-140 / INV-111: the member's project.view must cover every
+      // unexpired action capability they hold here, the ones granted now
+      // included. `null` is «no end»; `undefined` is «no action to cover».
+      const actions = await tx.query<{ capability: string; until: Date | null }>(
+        `select capability, valid_until as until from public.project_access_grants
+          where workspace_id=$1 and project_id=$2 and member_id=$3 and capability <> 'project.view'
+            and revoked_at is null and (valid_until is null or valid_until > now())`,
+        [workspaceId, projectId, a.body.memberId]);
+      const heldActions = new Set(actions.rows.map((r) => r.capability));
+      const actionEnds = [
+        ...actions.rows.map((r) => r.until),
+        ...[...caps].filter((c) => c !== "project.view" && !heldActions.has(c)).map(() => requestedUntil),
+      ];
+      const later = (x: Date | null, y: Date | null) => (x === null || y === null ? null : x > y ? x : y);
+      const required: Date | null | undefined = actionEnds.length === 0 ? undefined : actionEnds.reduce(later);
+      const ends = (until: Date | null, need: Date | null) => until === null || (need !== null && until >= need);
+
+      // A project.view grant alone may not end before the actions it guards.
+      if (a.body.capabilities.every((c) => c === "project.view") && required !== undefined
+          && !ends(requestedUntil, required)) {
+        throw new HttpProblem(422, problem("VALIDATION_FAILED",
+          "Доступ до перегляду проєкту не може закінчитися раніше за інші права учасника на цьому проєкті.", {
+            requestId: a.requestId, retryable: false, userAction: "correct_fields",
+            fieldErrors: [{ path: "validUntil", message: "ends before the member's other capabilities on this project" }],
+          }));
+      }
+
       const granted: { capability: string; grantId: string }[] = [];
+      const insert = async (cap: string, until: Date | null) => {
+        const r = await tx.query(
+          `insert into public.project_access_grants
+             (workspace_id, project_id, member_id, capability, granted_by, valid_until)
+           values ($1,$2,$3,$4,$5,$6) returning id`,
+          [workspaceId, projectId, a.body.memberId, cap, a.userId, until]);
+        granted.push({ capability: cap, grantId: r.rows[0].id });
+      };
       for (const cap of caps) {
+        if (cap === "project.view") continue;
         const dup = await tx.query(
           `select 1 from public.project_access_grants
             where workspace_id=$1 and project_id=$2 and member_id=$3 and capability=$4
               and revoked_at is null`,
           [workspaceId, projectId, a.body.memberId, cap]);
         if (dup.rows.length > 0) continue; // idempotent per-capability (unique index guards races)
-        const r = await tx.query(
-          `insert into public.project_access_grants
-             (workspace_id, project_id, member_id, capability, granted_by, valid_until)
-           values ($1,$2,$3,$4,$5,$6) returning id`,
-          [workspaceId, projectId, a.body.memberId, cap, a.userId, a.body.validUntil ?? null]);
-        granted.push({ capability: cap, grantId: r.rows[0].id });
+        await insert(cap, requestedUntil);
+      }
+
+      // project.view: kept when a live one already ends no earlier than both the
+      // request and the actions; otherwise the unrevoked one (lapsed, not yet
+      // valid, or too short) is revoked and a covering one inserted. Never
+      // shortened. The revoke is the same column write project_access.revoke
+      // makes (0096), under the same member lock.
+      const need = required === undefined ? requestedUntil : later(requestedUntil, required);
+      const view = await tx.query<{ id: string; live: boolean; until: Date | null }>(
+        `select id, valid_from <= now() and (valid_until is null or valid_until > now()) as live, valid_until as until
+           from public.project_access_grants
+          where workspace_id=$1 and project_id=$2 and member_id=$3 and capability='project.view' and revoked_at is null
+            for update`,
+        [workspaceId, projectId, a.body.memberId]);
+      const current = view.rows[0];
+      const replacedGrantIds: string[] = [];
+      if (!current || !current.live || !ends(current.until, need)) {
+        if (current) {
+          const r = await tx.query(
+            `update public.project_access_grants set revoked_at = now(), version = version + 1
+              where workspace_id=$1 and project_id=$2 and id=$3 and revoked_at is null`,
+            [workspaceId, projectId, current.id]);
+          if (r.rowCount !== 1) {
+            throw new HttpProblem(409, problem("VERSION_CONFLICT",
+              "Доступ змінився під час надання. Оновіть дані та повторіть спробу.", {
+                requestId: a.requestId, retryable: false, userAction: "refresh_compare_retry",
+              }));
+          }
+          replacedGrantIds.push(current.id);
+        }
+        // A longer current view keeps the longer end: `need` never shortens it.
+        await insert("project.view", current?.live ? later(current.until, need) : need);
       }
       await recordAudit(tx, ctx, {
         action: "project_access.granted", object_type: "project",
-        object_id: projectId, details: { memberId: a.body.memberId, capabilities: [...caps] },
+        object_id: projectId, details: {
+          memberId: a.body.memberId, capabilities: [...caps],
+          ...(replacedGrantIds.length > 0 ? { replacedGrantIds } : {}),
+        },
       }, { organizationId: workspaceId });
       return { status: 201, body: { granted } };
     });
