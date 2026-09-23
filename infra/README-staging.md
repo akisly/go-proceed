@@ -1118,6 +1118,8 @@ against; there is no dry run, and erased rows are not restorable by design.
 
 ## Status
 
+**2026-09-23 — migrations `0096`–`0097` applied ([DEV-043](../docs/tasks/DEV-043-project-access-revoke.md), [DEV-044](../docs/tasks/DEV-044-responsibility-end.md)).** `supabase db push --linked` (CLI 2.114.0, login role, no database password) from `main` at `12dbdbc` with the owner's approval, after a dry run naming exactly the two: history `0001`–`0097`; `goproceed_app` may update only `revoked_at` and `version` on `project_access_grants`; `project_responsibility_assignment_ends` exists with RLS. `0095` was pushed earlier the same day by DEV-042. Production `goproceed-app` serves `12dbdbc`.
+
 **2026-09-23 — migrations `0059`–`0094` applied; the purge build deployed ([DEV-041](../docs/tasks/DEV-041-staging-migrations-0059-0094.md)).** `supabase db push --linked` (CLI 2.114.0, login role, no database password) in four verified batches with the owner's approval: history `0001`–`0094`, every object owned by `postgres`, row counts unchanged. The owner set `goproceed_purge_worker_login`'s password and `PURGE_DB_URL` / `CRON_SECRET` (Production only, §3.3); the production build of `4434314` passed the preflight and is READY; Settings → Cron Jobs lists four entries on `/internal/evidence/purge`, and a manual «Run» answered 200 (12:51 UTC).
 
 **2026-08-19 — provisioned, deployed, and public at the Vercel alias; the §6
