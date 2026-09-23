@@ -52,6 +52,7 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 5 | `gp-reviewer`, `gp-security` (independent, round 1) | No blocker, no major; for DEV-044: R1-05a–c, S1-03 | `scratchpad/dev043-044-reviewer-r1.md`, `scratchpad/dev043-044-security-r1.md` | Rework |
 | 6 | Coordinator (rework) | Fixed or deferred (below); `2d37c9c` | `scratchpad/dev043-044-green-r1.txt` | `gp-qa` |
 | 7 | `gp-qa` (independent, round 1) | PASS at `c11d175`: criteria 1–5 pass; criterion 6's `rls-coverage` failure a confirmed known-red baseline; the original `m1-schema.test.ts` NOT RUN (resets); every fix in place. Follow-ups filed as BL-144 (R1-05c; the member-id lower-casing untested) | `scratchpad/dev043-044-qa-r1-report.md`, `scratchpad/dev043-044-qa-r1.txt` | Done |
+| 8 | `gp-qa` (independent, post-merge) | PASS at `2a9d111` after merging `main` (#115): the six conflicted files lose and duplicate nothing, counts and ids recount, DEV-044's behaviour unchanged; criterion 6 now PASS (`rls-coverage` 22 of 22 with a positive control) | `scratchpad/dev043-044-qa-r1b-report.md`, `scratchpad/dev043-044-qa-r1b.txt` | Done |
 
 ## Findings and rework
 

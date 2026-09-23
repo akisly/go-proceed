@@ -59,6 +59,7 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 6 | Owner | S1-02: count only an undated survivor | chat, 2026-09-23 | Rework |
 | 7 | Coordinator (rework) | Every finding fixed or deferred (below); `d25ff3b`. The new race test failed 3 of 9 runs with the lock disabled by a temporary environment switch (since removed) and 0 of 8 with it | `scratchpad/dev043-race-without-lock.txt`; `scratchpad/dev043-044-green-r1.txt` at `2d37c9c` | `gp-qa` |
 | 8 | `gp-qa` (independent, round 1) | PASS at `c11d175`: every required criterion passes but criterion 8's `rls-coverage` both-ways check, a known-red baseline it confirmed with a control (the same comparison without PR #115's table exits 0); every review fix in place; no new defect. Follow-ups: the race evidence file lacked its header (annotated since), R1-05c had no backlog row (BL-144), two fixes untested (BL-144), the «view-only» fixture also holds `contracts.edit` (equivalent for the refusal) | `scratchpad/dev043-044-qa-r1-report.md`, `scratchpad/dev043-044-qa-r1.txt` | Done |
+| 9 | `gp-qa` (independent, post-merge) | PASS at `2a9d111` after merging `main` (#115): the six conflicted files lose and duplicate nothing, counts and ids recount, DEV-043's behaviour unchanged; criterion 8 now PASS (`rls-coverage` 22 of 22 with a positive control) | `scratchpad/dev043-044-qa-r1b-report.md`, `scratchpad/dev043-044-qa-r1b.txt` | Done |
 
 ## Findings and rework
 

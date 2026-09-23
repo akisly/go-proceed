@@ -159,7 +159,7 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01**; **76 as of 2026-09-18**; **79 as of 2026-09-23** — see the notes under the table. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01**; **76 as of 2026-09-18**; **77 as of 2026-09-23** (#115, DEV-042); **79 as of 2026-09-23** (#117, DEV-043/DEV-044) — see the notes under the table. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
