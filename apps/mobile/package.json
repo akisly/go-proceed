@@ -50,7 +50,6 @@
     "build": "expo export --platform ios --platform android",
     "generate": "node scripts/generate-labels.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run",
-    "qa": "node qa/native.mjs"
+    "test": "vitest run"
   }
 }

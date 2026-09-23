@@ -28,13 +28,13 @@ describe("reference images: immutable content and publication", () => {
   });
   it("locks the library item before selecting its latest published version", async () => {
     const query = vi.fn().mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: "pinned" }] });
-    expect(await latestReferenceImagePin({ query } as unknown as Tx, "workspace", "item", "request")).toBe("pinned");
+    expect(await latestReferenceImagePin({ query } as unknown as Tx, "workspace", "item")).toBe("pinned");
     expect(query.mock.calls[0]![1]).toEqual(["reference-image|workspace|item"]);
     expect(query.mock.calls[1]![0]).toContain("order by version_no desc");
   });
-  it("fails publication closed when the library has no published image", async () => {
+  it("publishes unpinned while the library item has no published image", async () => {
     const query = vi.fn().mockResolvedValue({ rows: [] });
-    await expect(latestReferenceImagePin({ query } as unknown as Tx, "workspace", "item", "request"))
-      .rejects.toMatchObject({ status: 422, body: { code: "VALIDATION_FAILED" } });
+    expect(await latestReferenceImagePin({ query } as unknown as Tx, "workspace", "item")).toBeNull();
+    expect(query).toHaveBeenCalledTimes(2); // still takes the lock the provisioner takes
   });
 });

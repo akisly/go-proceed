@@ -101,7 +101,7 @@ The history of this rule is in [docs/ai-workflow.md](docs/ai-workflow.md).
 | Agent profiles | `pnpm validate:agents` (regenerate with `python3 scripts/sync-agents.py --write`) |
 | Tokens | `pnpm --filter @goproceed/tokens generate` |
 | Local database | `supabase start -x studio,postgres-meta,logflare,vector,edge-runtime,realtime,postgrest`, then `pnpm db:local-credentials` |
-| Browser harnesses | `pnpm --filter @goproceed/landing qa`, `pnpm --filter @goproceed/app qa`, `pnpm --filter @goproceed/mobile qa` |
+| Browser harnesses | `pnpm --filter @goproceed/landing qa`, `pnpm --filter @goproceed/app qa` (the native field client has no harness yet: DEV-041) |
 
 ## What "the tests pass" means here
 

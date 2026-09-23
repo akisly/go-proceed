@@ -107,7 +107,7 @@ function ReferenceImage({ descriptor, accessToken }: { descriptor: RequirementRe
   return <View style={{ gap: unit * 2 }}>
     <AppText variant="meta" secondary>Ілюстрація GoProceed · не норма і не доказ виконаної роботи</AppText>
     {failed ? <Notice>Приклад зараз недоступний. Орієнтуйтеся на повну вимогу вище.</Notice> :
-      <Image source={{ uri: `${API_ORIGIN}${descriptor.contentPath}`, headers: { Authorization: `Bearer ${accessToken}` } }}
+      <Image source={{ uri: `${API_ORIGIN.replace(/\/$/, "")}${descriptor.contentPath}`, headers: { Authorization: `Bearer ${accessToken}` } }}
         cachePolicy="none" accessibilityLabel={descriptor.altTextUk} accessible contentFit="contain"
         style={{ width: "100%", aspectRatio: descriptor.width / descriptor.height, maxHeight: 320, backgroundColor: palette["bg-subtle"] }}
         onError={() => setFailed(true)} />}

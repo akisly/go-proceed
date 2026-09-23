@@ -18,12 +18,14 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
 describe.skipIf(!hasIsolatedDatabaseCredentials())("DEV-041 reference pins and tenant isolation", () => {
   beforeEach(async () => { current = owner; await truncateAll(); });
 
-  it("refuses a new library publication when licensed content has not been provisioned", async () => {
+  it("publishes a library rule unpinned while licensed content has not been provisioned", async () => {
     const world = await baselineFixture(owner);
     const [item] = await q("select id from public.requirement_library_items where workspace_id=$1 limit 1", [world.workspaceId]);
     const response = await publishRuleVersion(world.workspaceId, ruleVersionBody(item!.id as string));
-    expect(response.status).toBe(422);
-    expect((await response.json()).code).toBe("VALIDATION_FAILED");
+    expect(response.status).toBe(201);
+    const { ruleVersionId } = await response.json() as { ruleVersionId: string };
+    const [row] = await q("select reference_image_version_id from public.requirement_rule_versions where id=$1", [ruleVersionId]);
+    expect(row!.reference_image_version_id).toBeNull();
   });
 
   it("pins publication and occurrence; replay keeps the original pin after the library advances", async () => {

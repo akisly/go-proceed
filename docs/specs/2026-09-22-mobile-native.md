@@ -22,7 +22,7 @@ Expo SDK57 compatible patches, iOS16.4+, Android API29+, phones and tablets. Dis
 
 ## Reference illustrations
 
-Versioned GoProceed-owned source manifest, provisioned per workspace into private immutable storage. Append-only image-version rows bind workspace and library item; published rule and materialized occurrence pin the exact image version. Old rows remain null. New common-library publications require an image; project-sourced rules can remain null. Add referenceImages=v1 opt-in to occurrence response; legacy shape remains byte-shape compatible. Deliver via authorized occurrence-scoped BFF proxy, never a permanent storage URL. Images are product illustrations, never a normative source or evidence. No illustration is claimed licensed without its manifest provenance.
+Versioned GoProceed-owned source manifest, provisioned per workspace into private immutable storage. Append-only image-version rows bind workspace and library item; published rule and materialized occurrence pin the exact image version. Old rows remain null. New common-library publications pin the latest published image, or stay null while that library item has none (owner, 2026-09-23: publication must not wait for licensed content); project-sourced rules can remain null. Add referenceImages=v1 opt-in to occurrence response; legacy shape remains byte-shape compatible. Deliver via authorized occurrence-scoped BFF proxy, never a permanent storage URL. Images are product illustrations, never a normative source or evidence. No illustration is claimed licensed without its manifest provenance.
 
 ## Vault and recovery
 

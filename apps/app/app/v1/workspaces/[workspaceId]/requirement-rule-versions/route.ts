@@ -180,7 +180,7 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
         }
         const item = lib.rows[0];
         libraryItemId = item.id as string;
-        referenceImageVersionId = await latestReferenceImagePin(tx, workspaceId, libraryItemId, a.requestId);
+        referenceImageVersionId = await latestReferenceImagePin(tx, workspaceId, libraryItemId);
         sourceTextUk = item.item_text_uk as string;
         normRef = citationOf(item.source_standard as string, item.position_code as string);
         normRefVerification = item.verification as string;

@@ -75,6 +75,10 @@ requirement_rules,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),r
 requirement_rule_versions,versions,requirement_rules,N:1,yes,workspace_id+requirement_rule_id -> requirement_rules(workspace_id+id),restrict,INV-067
 requirement_rule_versions,cites,requirement_library_items,N:1,no,workspace_id+requirement_library_item_id -> requirement_library_items(workspace_id+id),restrict,INV-073
 requirement_library_items,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-073
+requirement_reference_image_versions,illustrates,requirement_library_items,N:1,yes,workspace_id+requirement_library_item_id -> requirement_library_items(workspace_id+id),restrict,INV-108
+requirement_reference_image_versions,belongs_to,workspaces,N:1,yes,workspace_id -> organizations(id),restrict,INV-108
+requirement_rule_versions,pins,requirement_reference_image_versions,N:1,no,workspace_id+requirement_library_item_id+reference_image_version_id -> requirement_reference_image_versions(workspace_id+requirement_library_item_id+id),restrict,INV-108
+requirement_occurrences,pins,requirement_reference_image_versions,N:1,no,workspace_id+rule_version_id+reference_image_version_id -> requirement_rule_versions(workspace_id+id+reference_image_version_id),restrict,INV-108
 project_sourced_requirement_items,belongs_to,workspaces,N:1,yes,workspace_id -> workspaces(id),restrict,INV-073
 project_sourced_requirement_items,scoped_to,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-073
 requirement_rule_versions,cites,project_sourced_requirement_items,N:1,no,workspace_id+project_sourced_requirement_item_id -> project_sourced_requirement_items(workspace_id+id),restrict,INV-073

@@ -579,6 +579,8 @@ interface RuleVersionOver {
   normRefSource?: string | null;
   requirementLibraryItemId?: string | null;
   projectSourcedRequirementItemId?: string | null;
+  /** Overrides the latest-image pin the helper computes (INV-108 probes). */
+  referenceImageVersionId?: string | null;
 }
 
 /**
@@ -624,7 +626,8 @@ async function insertRuleVersion(over: RuleVersionOver = {}): Promise<string> {
     const pin = await c.query(`select id from public.requirement_reference_image_versions
       where workspace_id=$1 and requirement_library_item_id=$2 order by version_no desc limit 1`,
       [ws, over.requirementLibraryItemId]);
-    v.reference_image_version_id = pin.rows[0]?.id ?? null;
+    v.reference_image_version_id = over.referenceImageVersionId !== undefined
+      ? over.referenceImageVersionId : pin.rows[0]?.id ?? null;
   }
   if (over.projectSourcedRequirementItemId !== undefined) {
     v.project_sourced_requirement_item_id = over.projectSourcedRequirementItemId;
@@ -807,5 +810,60 @@ describe("0059 §4 — the tenant-existence helper's own ACL", () => {
               has_function_privilege('authenticated', $1, 'execute') as authenticated`,
       [fn]);
     expect(r.rows[0]).toEqual({ app: true, anon: false, authenticated: false });
+  });
+});
+
+describe("0095 / INV-108 — a library rule pins the latest illustration, or none while none exists", () => {
+  const verified = { normRefVerification: "VERIFIED_PRIMARY", normRefSource: "ДБН А.3.1-5:2016 Додаток Н" };
+  let libItem: string;
+  let v1: string;
+  let v2: string;
+
+  async function addVersion(ws: string, item: string, versionNo: number): Promise<string> {
+    const r = await c.query<{ id: string }>(`insert into public.requirement_reference_image_versions
+      (id,workspace_id,requirement_library_item_id,version_no,storage_key,sha256,byte_size,
+       mime_type,width,height,alt_text_uk,rights_holder,license,source_uri,manifest_sha256)
+      values (gen_random_uuid(),$1,$2,$3,gen_random_uuid()::text || '/' || gen_random_uuid()::text,
+        repeat('e',64),3,'image/jpeg',1,1,'Приклад-тестовий ракурс','TEST ONLY','TEST ONLY',
+        'https://example.com/test-only',repeat('f',64)) returning id`, [ws, item, versionNo]);
+    return r.rows[0]!.id;
+  }
+
+  beforeAll(async () => {
+    libItem = a.libraryItemIds.get("Н.14/2")!;
+    const seeded = await c.query<{ id: string }>(`select id from public.requirement_reference_image_versions
+      where workspace_id=$1 and requirement_library_item_id=$2 and version_no=1`, [WS_A, libItem]);
+    v1 = seeded.rows[0]!.id;
+    v2 = await addVersion(WS_A, libItem, 2);
+  });
+
+  it("stores a rule pinned to the latest version", async () => {
+    await expect(insertRuleVersion({ requirementLibraryItemId: libItem, ...verified, referenceImageVersionId: v2 }))
+      .resolves.toBeDefined();
+  });
+
+  it("refuses a stale pin and a missing pin once an illustration exists", async () => {
+    expect(await sqlstate(() => insertRuleVersion({
+      requirementLibraryItemId: libItem, ...verified, referenceImageVersionId: v1 }))).toBe("23514");
+    expect(await sqlstate(() => insertRuleVersion({
+      requirementLibraryItemId: libItem, ...verified, referenceImageVersionId: null }))).toBe("23514");
+  });
+
+  it("stores an unpinned library rule while that item has no illustration", async () => {
+    const bare = await c.query<{ id: string }>(`insert into public.requirement_library_items
+        (workspace_id, source_standard, position_code, position_title_uk, item_no, item_text_uk,
+         verification, source_citation)
+      values ($1,'ДБН А.3.1-5:2016','Н.15','Монтаж електротехнічних установок',99,
+              'Приклад-текст без ілюстрації.','VERIFIED_PRIMARY','Приклад-джерело') returning id`, [WS_A]);
+    await expect(insertRuleVersion({ requirementLibraryItemId: bare.rows[0]!.id, ...verified }))
+      .resolves.toBeDefined();
+  });
+
+  it("refuses another workspace's illustration", async () => {
+    const other = await c.query<{ id: string }>(`select id from public.requirement_reference_image_versions
+      where workspace_id=$1 limit 1`, [WS_B]);
+    // The guard compares against this workspace's latest first; either refusal holds the boundary.
+    expect(["23503", "23514"]).toContain(await sqlstate(() => insertRuleVersion({
+      requirementLibraryItemId: libItem, ...verified, referenceImageVersionId: other.rows[0]!.id })));
   });
 });

@@ -1,6 +1,8 @@
 -- DEV-041 / ADR-013. Product-owned illustrations are provisioned by an operator
 -- from a licensed manifest. No browser or BFF role may publish or replace bytes.
 -- Existing rules and occurrences remain null; no historical content is changed.
+-- Hosted apply: the ALTERs take brief ACCESS EXCLUSIVE locks; wait no longer than this.
+set local lock_timeout = '5s';
 create table public.requirement_reference_image_versions (
   id uuid primary key,
   workspace_id uuid not null references public.organizations(id),
@@ -74,8 +76,12 @@ begin
     where workspace_id = new.workspace_id
       and requirement_library_item_id = new.requirement_library_item_id
     order by version_no desc limit 1;
-  if latest is null or new.reference_image_version_id is distinct from latest then
-    raise exception 'new library rule requires latest published reference image' using errcode = '23514';
+  -- Pin the latest published illustration when one exists; before licensed
+  -- content is provisioned the rule stays unpinned (owner, 2026-09-23), so
+  -- publication never depends on content that has not been delivered yet.
+  if new.reference_image_version_id is distinct from latest then
+    raise exception 'new library rule must pin the latest published reference image, or none while none exists'
+      using errcode = '23514';
   end if;
   return new;
 end $$;

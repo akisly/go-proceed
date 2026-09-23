@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 import { requirementReferenceImage, type RequirementReferenceImage } from "@goproceed/contracts";
 import type { Tx } from "@goproceed/database";
-import { HttpProblem, problem } from "./http";
 
 export interface ReferenceImageRow {
   reference_image_version_id: string | null;
@@ -25,22 +24,20 @@ export function referenceImageView(row: ReferenceImageRow, occurrenceId: string)
   });
 }
 
-/** Provisioner and publisher use this same lock before selecting/inserting a version. */
-export async function latestReferenceImagePin(tx: Tx, workspaceId: string, libraryItemId: string,
-  requestId: string): Promise<string> {
+/**
+ * Provisioner and publisher use this same lock before selecting/inserting a version.
+ * The latest published illustration is pinned when one exists; before licensed
+ * content is provisioned the rule publishes unpinned (owner, 2026-09-23), and the
+ * 0095 guard accepts exactly that — null only while the library item has none.
+ */
+export async function latestReferenceImagePin(tx: Tx, workspaceId: string, libraryItemId: string): Promise<string | null> {
   await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))",
     [`reference-image|${workspaceId}|${libraryItemId}`]);
   const result = await tx.query<{ id: string }>(
     `select id from public.requirement_reference_image_versions
       where workspace_id = $1 and requirement_library_item_id = $2
       order by version_no desc limit 1`, [workspaceId, libraryItemId]);
-  const id = result.rows[0]?.id;
-  if (!id) throw new HttpProblem(422, problem("VALIDATION_FAILED",
-    "Для цього пункту бібліотеки ще не опубліковано приклад фотографії.", {
-      requestId, retryable: false, userAction: "correct_fields",
-      fieldErrors: [{ path: "requirementLibraryItemId", message: "published reference image required" }],
-    }));
-  return id;
+  return result.rows[0]?.id ?? null;
 }
 
 /** Bound the download before allocation, then verify immutable content before serving it. */
