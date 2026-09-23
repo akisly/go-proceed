@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["GoProceedVaultModule"]
+  },
+  "android": {
+    "modules": ["expo.modules.goproceedvault.GoProceedVaultModule"]
+  }
+}

@@ -152,6 +152,17 @@ export async function seedRequirementLibrary(workspaceId: string): Promise<Map<s
   if (ids.size !== 12) {
     throw new Error(`seedRequirementLibrary: workspace ${workspaceId} holds ${ids.size} rows, not 12`);
   }
+  // Synthetic metadata only: no real content or licence is claimed or uploaded.
+  // Publication now requires a pinned illustration (0090); content-proxy tests
+  // supply bytes independently and exercise integrity verification.
+  await q(`insert into public.requirement_reference_image_versions
+    (id,workspace_id,requirement_library_item_id,version_no,storage_key,sha256,byte_size,
+     mime_type,width,height,alt_text_uk,rights_holder,license,source_uri,manifest_sha256)
+    select gen_random_uuid(),workspace_id,id,1,gen_random_uuid()::text || '/' || gen_random_uuid()::text,
+      repeat('a',64),3,'image/jpeg',1,1,'Приклад-тестовий ракурс','TEST ONLY','TEST ONLY',
+      'https://example.com/test-only',repeat('b',64)
+    from public.requirement_library_items where workspace_id=$1
+    on conflict (workspace_id,requirement_library_item_id,version_no) do nothing`, [workspaceId]);
   return ids;
 }
 

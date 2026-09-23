@@ -621,6 +621,10 @@ async function insertRuleVersion(over: RuleVersionOver = {}): Promise<string> {
   };
   if (over.requirementLibraryItemId !== undefined) {
     v.requirement_library_item_id = over.requirementLibraryItemId;
+    const pin = await c.query(`select id from public.requirement_reference_image_versions
+      where workspace_id=$1 and requirement_library_item_id=$2 order by version_no desc limit 1`,
+      [ws, over.requirementLibraryItemId]);
+    v.reference_image_version_id = pin.rows[0]?.id ?? null;
   }
   if (over.projectSourcedRequirementItemId !== undefined) {
     v.project_sourced_requirement_item_id = over.projectSourcedRequirementItemId;

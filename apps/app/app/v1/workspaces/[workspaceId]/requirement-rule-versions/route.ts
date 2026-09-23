@@ -11,6 +11,7 @@ import {
   publishRequirementRuleVersionRequest, type PublishRequirementRuleVersionResponse,
 } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit, enqueueOutbox } from "@goproceed/database";
+import { latestReferenceImagePin } from "../../../../../src/lib/reference-images";
 
 export const runtime = "nodejs";
 
@@ -150,6 +151,7 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
       // carrying both ids and a body carrying neither.
       let libraryItemId: string | null = null;
       let projectItemId: string | null = null;
+      let referenceImageVersionId: string | null = null;
       let sourceTextUk: string;
       let normRef: string;
       let normRefVerification: string;
@@ -178,6 +180,7 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
         }
         const item = lib.rows[0];
         libraryItemId = item.id as string;
+        referenceImageVersionId = await latestReferenceImagePin(tx, workspaceId, libraryItemId, a.requestId);
         sourceTextUk = item.item_text_uk as string;
         normRef = citationOf(item.source_standard as string, item.position_code as string);
         normRefVerification = item.verification as string;
@@ -316,6 +319,7 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
         // nothing recomputes them.
         requirementLibraryItemId: libraryItemId,          // null on the project arm
         projectSourcedRequirementItemId: projectItemId,   // null on the library arm
+        referenceImageVersionId,
       });
       const ruleVersionHash = createHash("sha256").update(frozen).digest("hex");
 
@@ -328,9 +332,10 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
             min_evidence_count, max_evidence_count, allowed_media,
             norm_ref, norm_ref_verification, norm_ref_source,
             requirement_library_item_id, project_sourced_requirement_item_id,
-            rule_version_hash, published_at, published_by_member_id, created_by_member_id)
+            rule_version_hash, published_at, published_by_member_id, created_by_member_id,
+            reference_image_version_id)
          values ($1,$2,$3,$4,$5,'published',$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,
-                 $19,$20,$21,$22,$23,$24,now(),$25,$25)
+                 $19,$20,$21,$22,$23,$24,now(),$25,$25,$26)
          returning *`,
         [randomUUID(), workspaceId, requirementRuleId, versionNo, a.body.ordinal,
          a.body.workTypeKey, a.body.stageKey,
@@ -338,7 +343,7 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
          acceptanceCriterion, a.body.performerRole, a.body.approverRole, a.body.approverIsExternal,
          a.body.minEvidenceCount, a.body.maxEvidenceCount, allowedMediaJson,
          normRef, normRefVerification, normRefSource, libraryItemId, projectItemId,
-         ruleVersionHash, m.memberId]);
+         ruleVersionHash, m.memberId, referenceImageVersionId]);
       // location_predicate, form_schema and exception_policy are NOT named: the
       // first keeps its '{}' default because v0.1 has no location predicate
       // (ADR-006 decision 4.2), and the other two have no v0.1 wire field and no
@@ -361,6 +366,7 @@ export const POST = commandRoute(publishRequirementRuleVersionRequest, async (a)
           // arm's versions looking like versions with no source at all.
           requirementLibraryItemId: libraryItemId,
           projectSourcedRequirementItemId: projectItemId,
+          referenceImageVersionId,
         },
       }, { organizationId: workspaceId, objectVersion: versionNo });
       await enqueueOutbox(tx, ctx, {

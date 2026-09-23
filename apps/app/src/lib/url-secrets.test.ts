@@ -19,7 +19,8 @@ import { fileURLToPath } from "node:url";
  * every query-string read must be one of the names below. Adding a name is a
  * deliberate edit here, with the reason in the review.
  */
-const QUERY_NAMES = new Set(["assignee", "limit", "cursor", "evidenceObjectId", "next"]);
+// referenceImages is a closed representation version (v1), never a credential.
+const QUERY_NAMES = new Set(["assignee", "limit", "cursor", "evidenceObjectId", "next", "referenceImages"]);
 const SEGMENT = /^[a-z][A-Za-z]*(Id|No)$/;
 
 const APP_ROOT = fileURLToPath(new URL("../../", import.meta.url));

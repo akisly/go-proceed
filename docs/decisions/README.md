@@ -16,6 +16,7 @@ The lifecycle and the approval procedure are in [docs/README.md](../README.md) (
 
 | ADR | Title | Status | Added | Last reviewed | Supersedes / amends |
 |---|---|---|---|---|---|
+| [ADR-013](ADR-013-native-field-client.md) | Native field client for the pilot | Approved | 2026-09-22 | 2026-09-22 | Supersedes ADR-007's PWA client/distribution decisions and ADR-009's Expo-web deployment and delayed-retirement gate |
 | [ADR-001](ADR-001-product-boundary.md) | GoProceed v0.1 product boundary | Approved | 2026-07-30 | 2026-07-30 | — |
 | [ADR-002](ADR-002-tenancy-parties-and-contracts.md) | Tenancy, parties, projects, and contracts | Approved | 2026-07-30 | 2026-07-30 | — |
 | [ADR-003](ADR-003-evidence-packages-and-acceptance.md) | Evidence packages and acceptance authority | Approved | 2026-07-30 | 2026-07-30 | — |

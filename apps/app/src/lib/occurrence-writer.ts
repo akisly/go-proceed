@@ -76,16 +76,18 @@ export async function materialiseOccurrences(
           rule_version_id, ordinal, intervention_type, blocking_scope, timing,
           evidence_kind, acceptance_criterion, performer_role, approver_role,
           approver_is_external, min_evidence_count, max_evidence_count,
-          norm_ref, norm_ref_verification, norm_ref_source, created_by_member_id)
+          norm_ref, norm_ref_verification, norm_ref_source, created_by_member_id,
+          reference_image_version_id)
        values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,
-               $19,$20,$21,$22,$23,$24,$25)`,
+               $19,$20,$21,$22,$23,$24,$25,$26)`,
       [occurrenceId, at.workspaceId, at.projectId, at.contractId, at.contractVersionId,
        at.assignmentId, stageIdByKey.get(planned.stageKey) ?? null,
        concealedByKey.get(planned.stageKey) ?? null, planned.stageKey,
        r.ruleVersionId, r.ordinal, r.interventionType, r.blockingScope, r.timing,
        r.evidenceKind, r.acceptanceCriterion, r.performerRole, r.approverRole,
        r.approverIsExternal, r.minEvidenceCount, r.maxEvidenceCount,
-       r.normRef, r.normRefVerification, r.normRefSource, at.memberId]);
+       r.normRef, r.normRefVerification, r.normRefSource, at.memberId,
+       r.referenceImageVersionId ?? null]);
     occurrenceIds.push(occurrenceId);
   }
 

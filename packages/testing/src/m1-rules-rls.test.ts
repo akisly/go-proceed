@@ -154,7 +154,7 @@ describe("requirement_rule_versions — tenant isolation and the publication-onl
         work_type_key, stage_key, intervention_type, blocking_scope, timing,
         evidence_kind, acceptance_criterion, performer_role, approver_role,
         requirement_library_item_id, allowed_media, rule_version_hash, published_at,
-        published_by_member_id, created_by_member_id)
+        published_by_member_id, created_by_member_id, reference_image_version_id)
      values ($1::uuid, gen_random_uuid(), 1, 1, $2::text,
              'montazh-elektrotekhnichnykh-ustanovok','stage-policy','hold',
              'blocks_stage_closure','before_concealment','photo',
@@ -164,7 +164,10 @@ describe("requirement_rule_versions — tenant isolation and the publication-onl
              case when $2::text = 'draft' then null else repeat('a',64) end,
              case when $2::text = 'draft' then null else now() end,
              case when $2::text = 'draft' then null else $4::uuid end,
-             $4::uuid)`,
+             $4::uuid,
+             (select id from public.requirement_reference_image_versions
+               where workspace_id=$1::uuid and requirement_library_item_id=$3::uuid
+               order by version_no desc limit 1))`,
     [rowWorkspace, status, libraryItemA, memberId]));
 
   it("is readable by any active member of its own workspace, and by nobody else", async () => {
