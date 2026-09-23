@@ -31,8 +31,9 @@ export function referenceImageView(row: ReferenceImageRow, occurrenceId: string)
  * 0095 guard accepts exactly that — null only while the library item has none.
  */
 export async function latestReferenceImagePin(tx: Tx, workspaceId: string, libraryItemId: string): Promise<string | null> {
-  await tx.query("select pg_advisory_xact_lock(hashtextextended($1, 0))",
-    [`reference-image|${workspaceId}|${libraryItemId}`]);
+  // Canonical uuid text, as the 0095 trigger and the provisioner build the key.
+  await tx.query("select pg_advisory_xact_lock(hashtextextended('reference-image|' || $1::uuid::text || '|' || $2::uuid::text, 0))",
+    [workspaceId, libraryItemId]);
   const result = await tx.query<{ id: string }>(
     `select id from public.requirement_reference_image_versions
       where workspace_id = $1 and requirement_library_item_id = $2

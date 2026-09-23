@@ -29,7 +29,8 @@ describe("reference images: immutable content and publication", () => {
   it("locks the library item before selecting its latest published version", async () => {
     const query = vi.fn().mockResolvedValueOnce({ rows: [] }).mockResolvedValueOnce({ rows: [{ id: "pinned" }] });
     expect(await latestReferenceImagePin({ query } as unknown as Tx, "workspace", "item")).toBe("pinned");
-    expect(query.mock.calls[0]![1]).toEqual(["reference-image|workspace|item"]);
+    expect(query.mock.calls[0]![0]).toContain("'reference-image|' || $1::uuid::text");
+    expect(query.mock.calls[0]![1]).toEqual(["workspace", "item"]);
     expect(query.mock.calls[1]![0]).toContain("order by version_no desc");
   });
   it("publishes unpinned while the library item has no published image", async () => {

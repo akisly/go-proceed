@@ -207,7 +207,7 @@ You may run, on the local checkout:
 - `pnpm turbo run typecheck`, `pnpm turbo run build`, `pnpm validate:canonical-docs` and `pnpm validate:agents`;
 - a package's tests (`pnpm --filter <package> test`), or `pnpm turbo run test --concurrency=1` for the CI shape;
 - the UI gate in `docs/design/02-building-ui.md` §5;
-- the browser harnesses `pnpm --filter @goproceed/landing qa`, `pnpm --filter @goproceed/app qa` and `pnpm --filter @goproceed/mobile qa`.
+- the browser harnesses `pnpm --filter @goproceed/landing qa` and `pnpm --filter @goproceed/app qa` (the native field client has no harness yet: DEV-041).
 
 Database rules:
 

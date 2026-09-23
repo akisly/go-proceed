@@ -853,7 +853,7 @@ describe("0095 / INV-108 — a library rule pins the latest illustration, or non
     const bare = await c.query<{ id: string }>(`insert into public.requirement_library_items
         (workspace_id, source_standard, position_code, position_title_uk, item_no, item_text_uk,
          verification, source_citation)
-      values ($1,'ДБН А.3.1-5:2016','Н.15','Монтаж електротехнічних установок',99,
+      values ($1,'Приклад-стандарт без ілюстрації','Н.15','Монтаж електротехнічних установок',1,
               'Приклад-текст без ілюстрації.','VERIFIED_PRIMARY','Приклад-джерело') returning id`, [WS_A]);
     await expect(insertRuleVersion({ requirementLibraryItemId: bare.rows[0]!.id, ...verified }))
       .resolves.toBeDefined();
