@@ -47,7 +47,7 @@ export async function GET(request: Request): Promise<Response> {
   const requestId = crypto.randomUUID();
   let run;
   try {
-    run = await runEvidencePurge({ budgetMs: RUN_BUDGET_MS });
+    run = await runEvidencePurge({ budgetMs: RUN_BUDGET_MS, requestId });
   } catch (err) {
     // A database or Storage outage, or a misconfigured PURGE_DB_URL. The purge
     // worker's own errors name no key (EvidenceStorageError, DEV-034).

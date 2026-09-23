@@ -487,6 +487,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `apps/app/vercel.json` has no `crons`; `.github/workflows/` holds only `ci.yml`, with no schedule; `drainEvidencePurge` is called only from `tests/evidence-purge.int.test.ts` and `tests/vertical-m2a.int.test.ts`.
 - **Depends on:** runbook Q-12 (what runs consumers).
 - **Deadline:** before real evidence is stored.
+- **Progress 2026-09-23 ([DEV-036](tasks/DEV-036-evidence-purge-runner.md), unmerged):** on the owner's Q-12 decision for the purge (Vercel Cron, four daily expressions, Hobby), `apps/app/vercel.json` schedules `GET /internal/evidence/purge`; it runs as `goproceed_purge_worker` (`0090`) and answers 500 while a row failed, is exhausted or has waited past 24 hours. The Evidence line above describes `main` before it.
 
 <a id="bl-031"></a>
 ### BL-031 — P2 — Purge claims are not fenced
@@ -497,6 +498,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `claim_upload_purge` (`0027:63`) marks a timestamp only; `complete_upload_purge` (`0021:89`) and `fail_upload_purge` (`0024:47`) take only the intent id.
 - **Depends on:** BL-030, so the fencing matches the chosen runner.
 - **Deadline:** before a second worker instance runs.
+- **Progress 2026-09-23 ([DEV-037](tasks/DEV-037-purge-claim-fencing.md), unmerged):** `0091` gives every claim a token; complete and fail apply only for it. The Evidence line above describes `main` before it.
 
 <a id="bl-032"></a>
 ### BL-032 — P2 — A deactivated member cannot abandon their own upload through the route
@@ -507,6 +509,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `apps/app/src/lib/evidence/finalize-upload-intent.ts:76` calls `requireActiveMembership` before any command runs.
 - **Depends on:** a definer for the read, a second authorization path whose only caller is this case.
 - **Deadline:** none recorded (bounded by the TTL).
+- **Progress 2026-09-23 ([DEV-038](tasks/DEV-038-abandon-after-lost-access.md), unmerged):** `app.abandon_unauthorized_upload_intent` (`0092`, `0094`), called by the finalize route after the tenant read refuses, orphans the creator's own intent at once. The Evidence line above describes `main` before it.
 
 <a id="bl-033"></a>
 ### BL-033 — P2 — `evidence-storage.ts` puts raw storage keys into error messages
@@ -548,6 +551,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `apps/app/app/v1/assignments/[assignmentId]/evidence/route.ts:116` `const { urls } = await createSignedReadUrls(keys, bucket);`.
 - **Depends on:** BL-035, or a partial-failure field in the contract.
 - **Deadline:** none recorded.
+- **Progress 2026-09-23 ([DEV-039](tasks/DEV-039-unsigned-evidence-logged.md), unmerged):** the route logs `[EVIDENCE_READ_UNSIGNED]` with the request id and counts. A store that does not answer at all was never a silent 200: it throws, and `http.ts` logs the 500 (`gp-reviewer` R1-03). The Evidence line above describes `main` before it.
 
 <a id="bl-037"></a>
 ### BL-037 — P3 — Evidence groups are labelled by, and ordered by, a bare occurrence UUID

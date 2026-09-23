@@ -185,3 +185,40 @@ describe("the worker under a takeover", () => {
     expect(await drainEvidencePurge()).toEqual({ claimed: 1, purged: 1, failed: 0, superseded: 0 });
   });
 });
+
+describe("a run that must stop, or cannot finish a row (DEV-036 R1-02)", () => {
+  it("stops before the next row once its deadline has passed, leaving that row claimed for a later run", async () => {
+    const first = await dueIntent();
+    const second = await dueIntent();
+    let t = 0;
+    // The clock moves past the deadline while the first row's bytes are deleted.
+    duringRemove = async () => { t = 1_000; };
+    const outcome = await drainEvidencePurge(50, { deadline: 500, now: () => t });
+    expect(outcome).toEqual({ claimed: 2, purged: 1, failed: 0, superseded: 0 });
+    const rows = [await row(first.uploadIntentId), await row(second.uploadIntentId)];
+    expect(rows.filter((r) => r.purged_at !== null)).toHaveLength(1);
+    const left = rows.find((r) => r.purged_at === null)!;
+    // Untouched: still claimed, attempts unspent; the one-hour window hands it on.
+    expect(left.purge_claim_token).not.toBeNull();
+    expect(left.purge_attempts).toBe(0);
+  });
+
+  it("counts a row whose finish cannot be recorded as failed, logs it, and goes on to the next", async () => {
+    await dueIntent();
+    await dueIntent();
+    const errors: unknown[][] = [];
+    vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => { errors.push(a); });
+    duringRemove = async () => {
+      await q("revoke execute on function app.complete_upload_purge(uuid, uuid) from goproceed_purge_worker");
+    };
+    try {
+      const outcome = await drainEvidencePurge();
+      expect(outcome).toEqual({ claimed: 2, purged: 0, failed: 2, superseded: 0 });
+      expect(errors.filter((e) => e[0] === "[EVIDENCE_PURGE]")).toHaveLength(2);
+    } finally {
+      await q("grant execute on function app.complete_upload_purge(uuid, uuid) to goproceed_purge_worker");
+      vi.restoreAllMocks();
+    }
+  });
+});
+

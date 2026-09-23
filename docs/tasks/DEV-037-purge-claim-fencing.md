@@ -40,13 +40,16 @@
 | 1 | designing (`gp-architect`, native; one report for the cluster, DEV-036 row 1) | A token column with `check (purge_claim_token is null or purge_claimed_at is not null)`; the claim sets `gen_random_uuid()`; complete and fail match on id, token and `purged_at is null`, return boolean, clear the token; the one-argument signatures dropped (nothing deployed calls them); the worker counts `applied = false` as superseded. A stale worker's byte deletion is harmless: keys are random and never reused, no transition returns a queued row to a live state, and removing an absent object succeeds | architect report | Tests |
 | 2 | implementing (coordinator): red | fencing 8 of 8 red (the column and the token-taking functions absent; the check case first passed on «column does not exist» and was tightened to the constraint's name); purge 2 red, principal 2 red, route 1 red (new signatures, `superseded`) | `scratchpad/dev037-red-*.txt` | Green |
 | 3 | implementing (coordinator): green | `0091` applied locally as `postgres` (version recorded). fencing 8, purge 24, principal 7, route 13, vertical-m2a 10; `packages/testing` 0038 section 2 (run alone); typecheck 10/10 | `scratchpad/dev037-green-*.txt`, `dev037-testing-0038.txt` | Commit; reviews |
+| 4 | reviewing (`gp-reviewer`, `gp-security`, native) on `52d6b63` (the five commits plus a merge of `origin/main` 206abec: DEV-035, #110 and #111, landed first; one conflict in the task index) | **`gp-security`: PASS WITH FINDINGS** (S1-01, S1-02 minor; S1-03 to S1-06 info). **`gp-reviewer`: CHANGES REQUESTED** (R1-01 to R1-06 minor, R1-07 and R1-08 nits). No blocker, no major. Both confirmed: only the purge role can call the purge functions; the abandon path answers only for the creator; the purge cannot reach an available object's bytes | review reports; `scratchpad/review1.diff` | Stated fixes |
+| 5 | rework (coordinator), stated fixes, tests first | **R1-06** a Progress line on BL-031. No finding against the fencing itself; `gp-reviewer` confirmed the CHECK holds for every existing row and that duplicate or overlapping runs are kept apart by `SKIP LOCKED` and the token. The purge worker's changes after review (R1-02) keep the token logic: fencing 10 | `scratchpad/r1-02-green-evidence-purge-fencing.txt` | Re-review; `gp-qa` |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1-06 | minor | `docs/BACKLOG.md` BL-031 | Actual: untouched | coordinator | Progress line; closure at done (row 5) |
 
-Rework count and hypothesis changes: none yet.
+Rework count and hypothesis changes: none counted (no QA FAIL yet); the review fixes are the first rework, before QA.
 
 ## What is not true after this task
 
