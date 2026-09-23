@@ -53,6 +53,7 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 6 | Coordinator (rework) | Fixed or deferred (below); `2d37c9c` | `scratchpad/dev043-044-green-r1.txt` | `gp-qa` |
 | 7 | `gp-qa` (independent, round 1) | PASS at `c11d175`: criteria 1–5 pass; criterion 6's `rls-coverage` failure a confirmed known-red baseline; the original `m1-schema.test.ts` NOT RUN (resets); every fix in place. Follow-ups filed as BL-144 (R1-05c; the member-id lower-casing untested) | `scratchpad/dev043-044-qa-r1-report.md`, `scratchpad/dev043-044-qa-r1.txt` | Done |
 | 8 | `gp-qa` (independent, post-merge) | PASS at `2a9d111` after merging `main` (#115): the six conflicted files lose and duplicate nothing, counts and ids recount, DEV-044's behaviour unchanged; criterion 6 now PASS (`rls-coverage` 22 of 22 with a positive control) | `scratchpad/dev043-044-qa-r1b-report.md`, `scratchpad/dev043-044-qa-r1b.txt` | Done |
+| 9 | Owner; coordinator (hosted push) | Merged as #117 (`12dbdbc`). On the owner's word «накати 0096–0097 на staging» (2026-09-23): from a `git archive 12dbdbc` copy of `supabase/` (templates included), `supabase link --project-ref asrvzhjaueyvrfozxpzo`, then `supabase db push --linked --dry-run` (exactly `0096`, `0097`; no seeds, no roles) and the push, 21:12:15–21:12:20 UTC, exit 0, Supabase CLI 2.114.0 (the runbook pins 2.115.0; DEV-041 used the same), login role through the access token, no database password. Read-only check through the Supabase connector: versions `0094,0095,0096,0097`; `goproceed_app` has no table-wide UPDATE on `project_access_grants` and column UPDATE on `revoked_at,version` only; `project_responsibility_assignment_ends` has RLS on, `goproceed_app` SELECT and INSERT, `prae_insert`/`prae_select`, one trigger. Production `goproceed-app` deployment `dpl_F7kyr5H3tBwQuykUyYaigvSKmzaV` of `12dbdbc` was created at 21:11:01 UTC, READY; the push completed at 21:12:20, so for at most that interval a build reading `project_responsibility_assignment_ends` (the assign route's warning query) could have run against a database without it | `scratchpad/push-0096-0097-dryrun.txt`, `scratchpad/push-0096-0097.txt`; Vercel `list_deployments` | Done |
 
 ## Findings and rework
 
@@ -95,6 +96,6 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 - Changed / inspected files: the allowed edit paths above, plus `technical/database/schema-v0.1.sql` and `packages/testing/src/m2-fixture.ts` (the end table deleted before its assignments).
 - Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` as native `gp-*` subagents.
 - Verified scope: see Acceptance evidence.
-- Remaining risks / blocked requirements: `m1-schema.test.ts` (R1-05c); BL-139 (no list route); the hosted push of `0097` is the owner's.
-- Next bounded action and owner: the owner merges and decides the hosted push of `0097`.
+- Remaining risks / blocked requirements: `m1-schema.test.ts` (BL-144); BL-139 (no list route). `0097` is on the hosted project (2026-09-23).
+- Next bounded action and owner: none for this task; BL-144 and BL-139 remain.
 - Final state and reason: done — every required gate passes for the scoped criteria, after merging `main` (#115); the original `m1-schema.test.ts` check was revised out and deferred (BL-144).
