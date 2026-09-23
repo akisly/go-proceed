@@ -43,13 +43,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-012](#bl-012) | P3 | deferred (owner) | The two headline measures have nowhere to be recorded |
 | [BL-013](#bl-013) | P3 | open | `app.accept_invitation` ignores the invited email address |
 | [BL-014](#bl-014) | P3 | open | A suspended or ended member can never be re-admitted |
-| [BL-015](#bl-015) | P3 | scheduled → DEV-044 | Responsibility assignments can never be ended |
+| [BL-015](#bl-015) | P3 | closed → DEV-044 | Responsibility assignments can never be ended |
 | [BL-016](#bl-016) | P3 | open | The own-party default has no writer, and party contacts lack the qualification-certificate columns |
 | [BL-017](#bl-017) | P3 | open | `app.work_type_key_is_bindable` arm 2 is not scoped to a draft |
 | [BL-018](#bl-018) | P3 | open | The lineage funding bound has no second bound over admitted allocations |
 | [BL-019](#bl-019) | P3 | deferred (owner) | The service principal inherits the app role's table grants |
 | [BL-020](#bl-020) | P3 | open | Any service-plane session can reproduce an erasure without the registry or the audit row |
-| [BL-021](#bl-021) | P2 | scheduled → DEV-043 | A project access grant can be issued and never taken back |
+| [BL-021](#bl-021) | P2 | closed → DEV-043 | A project access grant can be issued and never taken back |
 | [BL-022](#bl-022) | P2 | open | A hand-typed zero-priced line and an imported one store different provenance |
 | [BL-023](#bl-023) | P2 | open | Nothing in `apps/app` is rate-limited, the external plane included |
 | [BL-024](#bl-024) | P2 | open | Blockers before any environment enables the Telegram webhook |
@@ -172,6 +172,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-141](#bl-141) | P3 | open | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
 | [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
 | [BL-143](#bl-143) | P3 | open | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
+| [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -333,7 +334,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-015"></a>
 ### BL-015 — P3 — Responsibility assignments can never be ended
 
-- **State:** scheduled → DEV-044
+- **State:** closed → DEV-044
 - **Legacy cite:** `TODOS.md` «P3 — responsibility assignments can never be ended»
 - **Why:** the table is append-only and an open-ended assignment is permanent, so separation-of-duties warnings accumulate. A superseding-fact shape to copy exists since `0045`.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/responsibilities/route.ts` exports only `POST`; `technical/openapi/scope-v0.1.csv` has only `project_responsibilities.assign`.
@@ -396,7 +397,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-021"></a>
 ### BL-021 — P2 — A project access grant can be issued and never taken back
 
-- **State:** scheduled → DEV-043
+- **State:** closed → DEV-043
 - **Legacy cite:** `TODOS.md` «a project access grant can be issued through the product and never taken back»
 - **Why:** a mis-scoped grant cannot be corrected through the product; only a superuser UPDATE reverses it. The state is modelled (`revoked_at`, honoured by `requireProjectCapability`); the command is missing.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` exports only `POST`; `scope-v0.1.csv` has only `project_access.grant`; `apps/app/qa/field.mjs:745` revokes with raw SQL.
@@ -1722,4 +1723,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-043's `gp-security` review. The three SECURITY DEFINER helpers from `0011`, on which every workspace-access policy rests — including `0097`'s `prae_select` and `prae_insert` — set `search_path = public` instead of the empty path the project's definer rule asks for. Every table reference in them is schema-qualified, so the risk is low; the same class as BL-106 and BL-110. Ranked by DEV-043.
 - **Evidence:** `supabase/migrations/0011_workspace_access_security.sql` (the three `create or replace function` statements).
 - **Depends on:** a migration that re-creates them with `set search_path = ''` (`gp-architect`, `gp-security`).
+- **Deadline:** none recorded.
+
+<a id="bl-144"></a>
+### BL-144 — P3 — `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
+- **Evidence:** DEV-044's record «Findings and rework» R1-05c; `scratchpad/dev043-044-qa-r1-report.md` (cited in both records).
+- **Depends on:** a CI run (the Actions billing block) or an owner-approved local reset for (1); nothing for (2).
 - **Deadline:** none recorded.

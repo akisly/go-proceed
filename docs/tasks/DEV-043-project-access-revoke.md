@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** a project administrator can revoke a member's grants on a project by member and capability (`POST /v1/projects/{projectId}/access-grants/revoke`); revoking `project.view` removes the member from the project; the last live administrator grant cannot be revoked; a lapsed grant can be revoked, which frees its capability for a new grant; and the application role can change no grant column but `revoked_at` and `version`. Scope set by [ADR-014](../decisions/ADR-014-revoke-access-and-end-responsibility.md) decisions 1 and 4.
-- **State:** verifying
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a scope change (ADR), a new `/v1` command, a grant change and catalog rows: `gp-architect` → coordinator drafts ADR-014 → **owner rules** → failing tests → migration, contract, route, catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -58,6 +58,7 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 5 | `gp-reviewer`, `gp-security` (independent, round 1) | No blocker, no major; minors R1-01…R1-06, S1-01, S1-02; nits R1-07, R1-08, S1-03, S1-04 | `scratchpad/dev043-044-reviewer-r1.md`, `scratchpad/dev043-044-security-r1.md`, diff `scratchpad/dev043-044-diff-r0.patch` (`a4757253..392a0d1`) | Rework |
 | 6 | Owner | S1-02: count only an undated survivor | chat, 2026-09-23 | Rework |
 | 7 | Coordinator (rework) | Every finding fixed or deferred (below); `d25ff3b`. The new race test failed 3 of 9 runs with the lock disabled by a temporary environment switch (since removed) and 0 of 8 with it | `scratchpad/dev043-race-without-lock.txt`; `scratchpad/dev043-044-green-r1.txt` at `2d37c9c` | `gp-qa` |
+| 8 | `gp-qa` (independent, round 1) | PASS at `c11d175`: every required criterion passes but criterion 8's `rls-coverage` both-ways check, a known-red baseline it confirmed with a control (the same comparison without PR #115's table exits 0); every review fix in place; no new defect. Follow-ups: the race evidence file lacked its header (annotated since), R1-05c had no backlog row (BL-144), two fixes untested (BL-144), the «view-only» fixture also holds `contracts.edit` (equivalent for the refusal) | `scratchpad/dev043-044-qa-r1-report.md`, `scratchpad/dev043-044-qa-r1.txt` | Done |
 
 ## Findings and rework
 
@@ -91,13 +92,13 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
-| 1 | yes | red `a02b513`+tests; green `2d37c9c` | `npx vitest run tests/project-access-revoke.int.test.ts` in `apps/app` (APP_DB_URL set): 12 red, then 16 passed | PASS (coordinator's run; `gp-qa` below) | — |
-| 2 | yes | `2d37c9c` | `packages/contracts` all: 145 passed | PASS (coordinator's run) | — |
-| 3 | yes | `2d37c9c` | `packages/testing` `workspace-access-rls.test.ts`: 19 passed (2 DEV-043 cases red before `0096`) | PASS (coordinator's run) | assisted: `0096` hand-applied to the local database |
-| 4 | yes | `2d37c9c` | `idempotency-authorization.int.test.ts`: 13 passed | PASS (coordinator's run) | — |
-| 5 | yes | `2d37c9c` | ADR-014 Approval section, index row; `pnpm validate:canonical-docs` OK | PASS (coordinator's run) | — |
-| 6 | yes | `2d37c9c` | `pnpm validate:canonical-docs` OK; `pnpm validate:agents` OK | PASS (coordinator's run) | — |
-| 7 | yes | `2d37c9c` | `pnpm turbo run typecheck --force`: 10 of 10 | PASS (coordinator's run) | — |
+| 1 | yes | red `a02b513`+tests; green `2d37c9c` | `npx vitest run tests/project-access-revoke.int.test.ts` in `apps/app` (APP_DB_URL set): 12 red, then 16 passed | PASS (coordinator's run; `gp-qa` re-ran it at `c11d175`) | — |
+| 2 | yes | `2d37c9c` | `packages/contracts` all: 145 passed | PASS (coordinator's run; `gp-qa` at `c11d175`) | — |
+| 3 | yes | `2d37c9c` | `packages/testing` `workspace-access-rls.test.ts`: 19 passed (2 DEV-043 cases red before `0096`) | PASS (coordinator's run; `gp-qa` at `c11d175`) | assisted: `0096` hand-applied to the local database |
+| 4 | yes | `2d37c9c` | `idempotency-authorization.int.test.ts`: 13 passed | PASS (coordinator's run; `gp-qa` at `c11d175`) | — |
+| 5 | yes | `2d37c9c` | ADR-014 Approval section, index row; `pnpm validate:canonical-docs` OK | PASS (coordinator's run; `gp-qa` at `c11d175`) | — |
+| 6 | yes | `2d37c9c` | `pnpm validate:canonical-docs` OK; `pnpm validate:agents` OK | PASS (coordinator's run; `gp-qa` at `c11d175`) | — |
+| 7 | yes | `2d37c9c` | `pnpm turbo run typecheck --force`: 10 of 10 | PASS (coordinator's run; `gp-qa` at `c11d175`) | — |
 | 8 | yes | `2d37c9c` | `projects.int.test.ts` 8, `vertical-m1.int.test.ts` 9, `error-catalog-fidelity.test.ts` 1, `capability-vocabulary.test.ts` 2 passed; `rls-coverage.test.ts` 21 of 22 | PASS / FAIL | FAIL: known-red baseline: `rls-coverage` «exposed set equals the registry» names only PR #115's `requirement_reference_image_versions`, present in the shared local database without its migration record |
 | 9 | no | — | GitHub Actions starts no jobs until October 2026 | NOT RUN | environmental: billing block; settles with CI `verify` on the PR head |
 
@@ -111,8 +112,8 @@ Evidence files (scratchpad of this session, each with its command output, exit s
 ## Completion / handoff
 
 - Changed / inspected files: the allowed edit paths above, plus `apps/app/src/lib/project-access-lock.ts` (new, the review fix) and the grant route (the lock).
-- Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` as native `gp-*` subagents; `gp-qa` below.
+- Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` and `gp-qa` as native `gp-*` subagents.
 - Verified scope: see Acceptance evidence.
 - Remaining risks / blocked requirements: BL-137, BL-138, BL-139, BL-140, BL-141, BL-142, BL-143; the hosted project is at `0095` and `0096` is not applied there (the owner's decision).
-- Next bounded action and owner: `gp-qa` on the final revision; then the owner reviews and merges the PR and decides the hosted push of `0096`–`0097`.
-- Final state and reason: verifying, until `gp-qa` reports.
+- Next bounded action and owner: the owner reviews and merges the PR, and decides the hosted push of `0096`–`0097` (`supabase db push --linked`; the hosted project is at `0095`).
+- Final state and reason: done — every required gate passes for the scoped criteria, with criterion 8's `rls-coverage` failure a documented known-red baseline from another branch's table, and criterion 9 (CI) not required.
