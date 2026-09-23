@@ -391,6 +391,17 @@ remain a requirement and remain unprocured. They are a purchase, not a
 conversation, which is why they can be an exit gate honestly and could never be
 an entry gate honestly.
 
+*[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22); the table above is
+unchanged as the record of ADR-007. The three «Removed entirely» rows no longer
+hold for the field client: its internal beta is the native iOS/Android build
+distributed through TestFlight and Google Play Internal Testing, which needs an
+Apple Developer Program membership, a Google Play Console account and signing,
+and the web export at `goproceed-field` is retired (the owner deleted the
+project on 2026-09-23). The device inventory is needed for the native device
+matrix (iPhone, Android phone, iPad, Android tablet), not for browser
+measurement. None of this is established yet: accounts, signing, installs and
+device runs are NOT RUN in [DEV-042](../tasks/DEV-042-mobile-native.md); not merged.]*
+
 The evidence for the gate itself is a landscape inference plus the owner's
 judgement, not customer validation. Question 2 of
 [competitive-landscape.md](competitive-landscape.md) §8 — whether evidence gaps
@@ -631,6 +642,13 @@ a group chat.
   gates below, «the PWA path» and «the PWA» read as the web field client from
   `apps/mobile`, whose capture code is a port of the PWA's; every limit and
   refusal stated for the PWA binds it.]*
+- *[2026-09-23, DEV-042 — [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22) changes the two field-client
+  gates above: the `apps/mobile` field client is its native iOS/Android build,
+  reaching `/v1` with a bearer token and no CORS, and the web export is
+  retired; «native builds come later» no longer holds. The server-side boundary
+  and «the client trusts nothing it holds» stand. The PWA-path limits in the
+  gates below describe the retired web client; the native client keeps durable
+  encrypted pending captures. Not merged; device evidence NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 - assignment supports performer, quantity, optional member and due date, and the
   requirement occurrences materialised from the rule versions bound to the
   published contract version;

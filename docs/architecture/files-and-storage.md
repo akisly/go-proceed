@@ -56,7 +56,9 @@ v0.1 supports:
   `apps/mobile` Expo web export ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2), and
   through the Telegram project channel once an environment enables it (BL-024)
   *[2026-09-23, DEV-035 — was: «from the `apps/app` PWA field client ([ADR-007]
-  decision 1)». The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23»]*;
+  decision 1)». The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23»]*
+  *[2026-09-23, DEV-042 — the Expo web export is retired too; the upload
+  comes from the native field client ([ADR-013](../decisions/ADR-013-native-field-client.md); not merged, [DEV-042](../tasks/DEV-042-mobile-native.md))]*;
 - the controlled XLSX and CSV contract-baseline import already built, **frozen
   as it stands** — no extension of mapping, unit inference, or number-format
   handling is v0.1 work until one real sanitized customer file exists
@@ -126,6 +128,8 @@ them:
 Provider credentials are held only by narrowly scoped server/worker identities.
 No client — web, the v0.1 PWA field client, or the v0.3 native client — ever
 receives bucket-wide credentials or list permission.
+*[2026-09-23, DEV-042 — the rule binds the native field client, which is the
+v0.1 field client under [ADR-013](../decisions/ADR-013-native-field-client.md).]*
 
 ### Downloads and signed URLs
 
@@ -595,6 +599,11 @@ than the withdrawn one:
 - the client uploads the file bytes unmodified and never draws a photo to a
   canvas before upload;
 - no capture is recorded with an origin value asserting a native camera session.
+
+*[2026-09-23, DEV-042 — the list above verifies the retired web client. Under
+[ADR-013](../decisions/ADR-013-native-field-client.md) the native field client is the v0.1 client, so the list below applies to
+it in the internal beta; its witnesses are named in the INV-013, INV-014 and
+INV-053 catalog rows, and device evidence is NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 For the **v0.3 native client**, and for no earlier version:
 

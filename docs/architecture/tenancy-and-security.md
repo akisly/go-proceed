@@ -380,6 +380,14 @@ regression of the retirement. What is owed is the compensating control on the
 field origin, which today sends no security headers at all (no CSP): BL-136 —
 closed as `wontfix (owner)` the same day («goproceed-field не трогай»), so the
 missing headers are the owner's accepted risk, not a control in progress.]*
+*[2026-09-23, DEV-042 — the browser-page field client is retired ([ADR-013](../decisions/ADR-013-native-field-client.md)); the
+owner deleted `goproceed-field`, which makes BL-136 moot. The native field
+client is evaluated through steps 1-8 the same way, and the no-trust rule for
+capture metadata stands (it records `native_camera` or `photo_picker` as
+client-supplied provenance). What changes is the last sentence: it keeps its
+session in SecureStore and does hold local keys — per-file vault keys wrapped
+by Keychain/Keystore — and a durable encrypted pending original, which the
+server still never trusts. Not merged ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 An external command follows the same last three steps but replaces membership
 and responsibility with current grant/session capability and exact approval or

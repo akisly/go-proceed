@@ -341,7 +341,7 @@ capability links remain browser routes ([DEV-042](../tasks/DEV-042-mobile-native
 
 | Element | Version | Contract |
 |---|---|---|
-| HTTPS path on the field client's origin | v0.1 | The v0.1 field-client link, and in v0.1 the only entry mechanism. The web field client's own origin (`goproceed-field`), its own session in that origin's browser storage, the same BFF reached cross-origin with a bearer token. *[2026-09-23, DEV-035 — was: «HTTPS path on the product origin» \| … \| «Same origin as `apps/app`, same member session, same BFF». The owner retired the `apps/app` PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* |
+| HTTPS path on the field client's origin | v0.1 | The v0.1 field-client link, and in v0.1 the only entry mechanism. The web field client's own origin (`goproceed-field`), its own session in that origin's browser storage, the same BFF reached cross-origin with a bearer token. *[2026-09-23, DEV-035 — was: «HTTPS path on the product origin» \| … \| «Same origin as `apps/app`, same member session, same BFF». The owner retired the `apps/app` PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* *[2026-09-23, DEV-042: the web field client's origin is gone — the owner deleted `goproceed-field` ([ADR-013](../decisions/ADR-013-native-field-client.md)); the native client's entry is the `goproceed` scheme with server authorization first (see the note under «What exists»)]* |
 | Host | v0.1 | **Undecided.** The archived screen specification named a host built on the former product name. Choosing and registering the GoProceed host is part of the outstanding rename slice, not of this document — see [`TODOS.md`](../../TODOS.md) P1, split item 2. A browser client does not remove this item; it is now the whole of it |
 | Custom scheme `goproceed://` | v0.3 | Registered today in `apps/mobile`; the fallback entry point for contexts that will not honour an HTTPS association, once a native client exists to receive it |
 | Universal Links (iOS) | v0.3 | An HTTPS host serving `/.well-known/apple-app-site-association`. The file does not exist and is not a v0.1 requirement |
@@ -390,6 +390,9 @@ Rules that bind whenever those routes are built, in either client:
   same origin»; the web field client now has its own origin, see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23»]*: the
   review shell has no account, its
   own short session, and its own POST exchange.
+  *[2026-09-23, DEV-042 — under [ADR-013](../decisions/ADR-013-native-field-client.md) the native client is the v0.1 field
+  client, and the rule holds for it: external capability links remain browser
+  routes and are never routed into the native app.]*
 - **Notification taps depend on this route set.** The v0.1 field client is
   pull-only; the earliest push named in the canonical package is the v0.2
   statutory-notice push at notice-window opening

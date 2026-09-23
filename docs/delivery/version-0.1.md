@@ -708,6 +708,13 @@ settled it stands unchanged and settles the next disagreement the same way.
 - **Closing evidence:** the device-matrix recording plus that measurement table.
   **EAS internal build installation on both platforms is no longer closing
   evidence for this milestone** (ADR-007 decision 2).
+  *[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22) for the field
+  client: the web field client named in the acceptance evidence is retired;
+  the evidence now runs on the native build over ADR-013's device matrix
+  (iPhone, Android phone, iPad, Android tablet), and TestFlight / Google Play
+  Internal installation is required again. INV-013, INV-014 and INV-053 are
+  carried by the native client (see their catalog rows). All of it is NOT RUN
+  in [DEV-042](../tasks/DEV-042-mobile-native.md); not merged.]*
 - **Exclusions:** no offline authorization, task access, background sync, or
   resumable chunks (v0.3); **no push on either platform** — and web push on iOS
   additionally requires an installed home-screen PWA, which is a v0.2 decision

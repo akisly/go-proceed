@@ -27,7 +27,10 @@
 --   entity-catalog.csv status_version, never from its presence here),
 --   docs/decisions/ADR-007-pilot-field-client.md (the v0.1 field client is a
 --   PWA: capture is online-only, a pending original is not durable, and
---   capture_origin carries origin_not_distinguished) and
+--   capture_origin carries origin_not_distinguished) [2026-09-23, DEV-042:
+--   superseded in part by docs/decisions/ADR-013-native-field-client.md -- the
+--   field client is native, keeps durable encrypted pending captures and
+--   records native_camera or photo_picker as client-supplied provenance] and
 --   docs/product/hidden-works-content-rules.md (every regulatory string; no
 --   norm, clause, form field, or Додаток Н item may be asserted here that is
 --   not on that document's allow-list)

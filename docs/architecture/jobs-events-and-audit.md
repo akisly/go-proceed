@@ -385,7 +385,9 @@ from client-supplied display fields:
 
 - member command: Auth subject, membership, workspace, and relevant project
   access/permission — the same chain whether the request came from the web
-  product or the v0.1 PWA field client, which holds no authority of its own;
+  product or the v0.1 PWA field client, which holds no authority of its own
+  *[2026-09-23, DEV-042: now the native field client of [ADR-013](../decisions/ADR-013-native-field-client.md), which likewise
+  holds no authority of its own]*;
 - external command: external session, grant, the grant's scope — one requirement
   occurrence in v0.1, additionally one package version from v0.2 — assurance
   label, and self-declared reviewer claims kept distinct;

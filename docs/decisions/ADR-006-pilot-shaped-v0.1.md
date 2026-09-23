@@ -171,6 +171,13 @@ provenance, and verified capture-time GPS. ADR-007 decision 6 additionally makes
 the pending original **not durable** in v0.1; step 2 promises a warning, never a
 queue.
 
+*[2026-09-23, DEV-042 — [ADR-013](ADR-013-native-field-client.md), approved by
+the owner on 2026-09-22, supersedes ADR-007's client decisions: step 2's client
+is the native iOS/Android build of `apps/mobile`, with a durable encrypted
+foreground queue, so «never a queue» no longer holds for it. The withdrawn
+claims of ADR-007 decision 5 are ADR-013's to restate; this paragraph is
+otherwise unchanged ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
+
 **Nothing outside this list is v0.1.** A capability does not enter because it is
 already specified, already catalogued, already in the DDL, or already written
 down in an Approved document. "It is already specified" is the cheapest argument

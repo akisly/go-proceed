@@ -974,7 +974,12 @@ timings) — a checked box with no evidence is not verification.
    «Amendment, 2026-09-23»), so the Expo client at `goproceed-field` is the
    only web field client, and the boxes below measure its readiness.
    *[2026-09-23, DEV-035 — was: «the PWA remains the pilot's deployed field
-   client in service until that measurement passes.»]* **Before it: custom
+   client in service until that measurement passes.»]*
+   *[2026-09-23, DEV-042 — no web field client is left: the owner deleted
+   `goproceed-field` that day ([ADR-013](../docs/decisions/ADR-013-native-field-client.md)). This step now means opening the native
+   iOS/Android build on the physical device matrix after a TestFlight or Play
+   Internal install; the browser-specific boxes below describe the retired web
+   client. NOT RUN ([DEV-042](../docs/tasks/DEV-042-mobile-native.md)).]* **Before it: custom
    SMTP.** Read from the
    current Supabase docs on 2026-08-19
    (https://supabase.com/docs/guides/auth/auth-smtp): the default email
@@ -1016,7 +1021,8 @@ timings) — a checked box with no evidence is not verification.
      375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI
      *[2026-09-23, DEV-035: removed from `apps/app/qa/field.mjs` with the
      field pages; the remaining equivalent is `apps/mobile/qa/field-web.mjs`'s,
-     which is in no CI job]* —
+     which is in no CI job]* *[2026-09-23, DEV-042: that harness is deleted
+     with the Expo web client; no equivalent remains]* —
      but the point of this step is a REAL engine, not headless Chrome).
      **Partial, 2026-08-21, on iPhone (Expo client):** the disclaimer renders
      unconditionally and was visible. The 44×44 sweep itself was NOT done

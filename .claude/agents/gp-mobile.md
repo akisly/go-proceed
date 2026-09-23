@@ -1,6 +1,6 @@
 ---
 name: "gp-mobile"
-description: "Use before designing or reviewing a GoProceed change involving the PWA field client's installability, offline or capture behaviour, apps/mobile (Expo SDK 57, app.json), signing, store or OTA distribution, or physical-device behaviour: return requirements and acceptance cases."
+description: "Use before designing or reviewing a GoProceed change involving the native field client's installation, offline or capture behaviour, the encrypted local vault, apps/mobile (Expo SDK 57, app.json), signing, store or OTA distribution, or physical-device behaviour: return requirements and acceptance cases."
 tools: Read, Grep, Glob, WebSearch, WebFetch
 ---
 
