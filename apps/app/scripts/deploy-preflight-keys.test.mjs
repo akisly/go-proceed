@@ -142,6 +142,10 @@ describe("deploy-preflight.mjs applies the key rules", () => {
     NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_fakefakefakefake",
     APP_DB_URL: "postgresql://goproceed_app_login.ref:Zq8fakeA@pooler.example.test:5432/postgres",
     SERVICE_DB_URL: "postgresql://goproceed_service_login.ref:Zq8fakeB@pooler.example.test:5432/postgres",
+    // DEV-036: the purge worker's own login, and a cron secret of exactly the
+    // 32-character minimum the purge route accepts.
+    PURGE_DB_URL: "postgresql://goproceed_purge_worker_login.ref:Zq8fakeC@pooler.example.test:5432/postgres",
+    CRON_SECRET: "fakecronsecretfakecronsecret0123",
     SUPABASE_URL: "https://abcdefghijklmnop.supabase.co",
     SUPABASE_SECRET_KEY: "sb_secret_fakefakefakefake",
     EXTERNAL_LINK_ORIGIN: "https://app.example.test",
@@ -159,6 +163,46 @@ describe("deploy-preflight.mjs applies the key rules", () => {
     const r = run({});
     expect(r.status).toBe(0);
     expect(r.stdout).toContain("deploy preflight: OK");
+  });
+
+  // DEV-036 made the purge pair required; these cases keep the preflight from
+  // quietly dropping it again. `undefined` leaves the name out of the child's
+  // environment altogether (Node skips undefined values).
+  it("refuses a deployment without PURGE_DB_URL or CRON_SECRET, and says absent from empty", () => {
+    for (const name of ["PURGE_DB_URL", "CRON_SECRET"]) {
+      const absent = run({ [name]: undefined });
+      expect(absent.status).toBe(1);
+      expect(absent.stderr).toContain(`${name} is unset — ABSENT from the build environment`);
+      const empty = run({ [name]: "" });
+      expect(empty.status).toBe(1);
+      expect(empty.stderr).toContain(`${name} is unset — PRESENT BUT EMPTY`);
+    }
+  });
+
+  it("refuses a CRON_SECRET under 32 characters, without printing it", () => {
+    const secret = varied(32, 13).slice(0, 31);
+    const r = run({ CRON_SECRET: secret });
+    expect(r.status).toBe(1);
+    expect(r.stderr).toContain("CRON_SECRET is shorter than 32 characters");
+    expect(noWindowOf(r.stderr + r.stdout, secret)).toBeNull();
+  });
+
+  it("refuses a PURGE_DB_URL that reuses the app or service login, or a local dev value", () => {
+    for (const other of ["APP_DB_URL", "SERVICE_DB_URL"]) {
+      const r = run({ PURGE_DB_URL: valid[other] });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain("PURGE_DB_URL equals APP_DB_URL or SERVICE_DB_URL");
+    }
+    // One local marker per value, so dropping any one marker from the rule fails.
+    for (const local of [
+      "postgresql://goproceed_purge_worker_login.ref:purge_pw@pooler.example.test:5432/postgres",
+      "postgresql://goproceed_purge_worker_login.ref:Zq8fakeC@127.0.0.1:5432/postgres",
+      "postgresql://goproceed_purge_worker_login.ref:Zq8fakeC@localhost:5432/postgres",
+    ]) {
+      const r = run({ PURGE_DB_URL: local });
+      expect(r.status).toBe(1);
+      expect(r.stderr).toContain("PURGE_DB_URL carries a LOCAL dev value");
+    }
   });
 
   it("refuses a key list the registry would refuse, and says which entry", () => {
