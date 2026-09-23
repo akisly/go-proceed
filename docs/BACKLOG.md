@@ -164,7 +164,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-133](#bl-133) | P3 | open | The dashboard has no time series, so the reference's chart by month and its period picker have nothing to draw |
 | [BL-134](#bl-134) | P3 | open | Dashboard follow-ups the DEV-035 UI review named and left out of scope |
 | [BL-135](#bl-135) | P2 | open | Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links |
-| [BL-136](#bl-136) | P2 | open | The field client's origin sends no security headers, and its session token is readable by script |
+| [BL-136](#bl-136) | P2 | wontfix (owner) | The field client's origin sends no security headers, and its session token is readable by script |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1631,9 +1631,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-136"></a>
 ### BL-136 — P2 — The field client's origin sends no security headers, and its session token is readable by script
 
-- **State:** open
+- **State:** wontfix (owner)
 - **Legacy cite:** none
-- **Why:** DEV-035's `gp-security` pass (S1-01, 2026-09-23). With the `apps/app` PWA retired, `apps/mobile`'s web export at Vercel `goproceed-field` is the only web field client, and `apps/mobile/vercel.json` sets no `headers`: no Content-Security-Policy, no `frame-ancestors`, no `X-Content-Type-Options`, no `Referrer-Policy`. Its Supabase session (including the refresh token) lives in `window.localStorage` (`apps/mobile/src/lib/supabase.ts`, supabase-js's default on web), so any script injected on that origin can read it — a durable account takeover until the session is revoked. The same script-readability holds for `apps/app`'s session cookies (`httpOnly: false`, `@supabase/ssr`'s default), so the gap predates DEV-035; the retirement only makes the field origin the one that matters for foremen. `technical/asvs-profile.csv` ASVS-CONFIG-01 («security headers and CSP enforced») is `specified_no_runtime_evidence`.
+- **Why:** *[2026-09-23, owner: «закрой BL-136, goproceed-field не трогай». Closed without a change to `goproceed-field` or `apps/mobile/vercel.json`: the owner does not take the header set on now. The risk below stands as described and is the owner's accepted risk; reopening it is a new owner decision.]* DEV-035's `gp-security` pass (S1-01, 2026-09-23). With the `apps/app` PWA retired, `apps/mobile`'s web export at Vercel `goproceed-field` is the only web field client, and `apps/mobile/vercel.json` sets no `headers`: no Content-Security-Policy, no `frame-ancestors`, no `X-Content-Type-Options`, no `Referrer-Policy`. Its Supabase session (including the refresh token) lives in `window.localStorage` (`apps/mobile/src/lib/supabase.ts`, supabase-js's default on web), so any script injected on that origin can read it — a durable account takeover until the session is revoked. The same script-readability holds for `apps/app`'s session cookies (`httpOnly: false`, `@supabase/ssr`'s default), so the gap predates DEV-035; the retirement only makes the field origin the one that matters for foremen. `technical/asvs-profile.csv` ASVS-CONFIG-01 («security headers and CSP enforced») is `specified_no_runtime_evidence`.
 - **Evidence:** DEV-035's record, `gp-security` S1-01; `apps/mobile/vercel.json`; `docs/architecture/tenancy-and-security.md` (the 2026-09-23 note on the web field client).
 - **Depends on:** a `gp-security` design of the header set (a `script-src 'self'` CSP with no third-party scripts, `frame-ancestors 'none'`, `nosniff`, a `Referrer-Policy`) and a header assertion in `apps/mobile/qa`.
 - **Deadline:** before a pilot foreman signs in on the field origin.

@@ -41,6 +41,7 @@
 | 2026-09-23 | «сделай dash главным роутом и удали все что в (app)». Asked whether that retires the PWA before ADR-009's parity gate or moves it to `/field`: **«Удалить сейчас»**; scope: **«Всё мёртвое»** (routes plus the code nothing else imports); packaging: **«В тот же DEV-035»**. | chat, answering the coordinator's question |
 | 2026-09-23 | Manifest «Убрать манифест»; assignee hint «Нейтральный»; release-scope and architecture docs «телеграм + expo-mobile». | chat, answering the coordinator's questions |
 | 2026-09-23 | «сделай коммит, пуш и PR в main». | chat |
+| 2026-09-23 | «закрой BL-136, goproceed-field не трогай» — BL-136 (no security headers on the field origin, script-readable session) closed as `wontfix (owner)`; the field origin is not changed. | chat |
 
 ## Plan
 
@@ -130,7 +131,7 @@
 | N5 = S1-03 | remark | proxy matcher still exempts `manifest.webmanifest` | harmless | owner / next proxy change | left (proxy edits take the architect + security route) |
 | U4-01 | minor | 404 advice to open «the app» | neutral | coordinator | «Такої адреси в кабінеті немає — можливо, посилання застаріло.» |
 | U4-02 | remark | garbled catalog note | — | coordinator | fixed |
-| S1-01 | minor | field origin sends no security headers; token script-readable (pre-existing) | a control owed and tracked | coordinator | BL-136; tenancy note cites it and says the `apps/app` cookies are `httpOnly: false` too |
+| S1-01 | minor | field origin sends no security headers; token script-readable (pre-existing) | a control owed and tracked | coordinator → owner | BL-136, then closed by the owner as `wontfix (owner)` («goproceed-field не трогай»): accepted risk; the tenancy note says so |
 | S1-02 | remark | tenancy summary missed Auth and signed-upload paths | one clause | coordinator | added |
 | S1-04 | remark | redirect probes proven on `next start`, not on Vercel's router | a preview run | owner | NOT RUN — before merge, run the three probes against a preview deployment |
 | R2-03 | remark | 03 rule 5 lists three surfaces | four | coordinator | fixed |
