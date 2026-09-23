@@ -71,7 +71,6 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 - No route lists assignments or their ends, and no screen shows them.
 - An assignment whose `valid_until` has passed is not ended by this command; it has already lapsed.
 - `m1-schema.test.ts` does not list the new table, and was not run (it resets the database).
-- `rls-coverage.test.ts`'s both-ways comparison did not pass locally, for the reason DEV-043 records (PR #115's table in the shared local database); the new table's own registry row is not reported by it.
 
 ## Acceptance evidence
 
@@ -82,7 +81,7 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 | 3 | yes | `2d37c9c` | `workspace-access-rls.test.ts`: 19 passed (the four DEV-044 cases skipped red before `0097`); registry row present | PASS (coordinator's run; `gp-qa` at `c11d175`) | assisted: `0097` hand-applied to the local database |
 | 4 | yes | `2d37c9c` | `pnpm validate:canonical-docs` OK; `pnpm validate:agents` OK | PASS (coordinator's run; `gp-qa` at `c11d175`) | — |
 | 5 | yes | `2d37c9c` | typecheck 10 of 10; contracts 145 passed | PASS (coordinator's run; `gp-qa` at `c11d175`) | — |
-| 6 | yes | `2d37c9c` | `projects.int.test.ts` 8 passed; `workspace-access-rls.test.ts` 19; `rls-coverage.test.ts` 21 of 22 | PASS / FAIL | FAIL: known-red baseline: as DEV-043 criterion 8 |
+| 6 | yes | `88fabb5` (after merging `main` with #115) | `projects.int.test.ts` 8, `workspace-access-rls.test.ts` 19, `rls-coverage.test.ts` 22 passed | PASS (coordinator's run; `gp-qa` post-merge) | — *(before the merge, a known-red baseline as DEV-043 criterion 8 records)* |
 | 6 (original, `m1-schema.test.ts`) | no (revised) | — | calls `resetDb()` | NOT RUN | not-provable-locally: the owner forbids a local reset; settles in CI |
 | 7 | no | — | GitHub Actions starts no jobs until October 2026 | NOT RUN | environmental: billing block |
 
@@ -97,4 +96,4 @@ Rework count and hypothesis changes: one rework after the first review (not a ro
 - Verified scope: see Acceptance evidence.
 - Remaining risks / blocked requirements: `m1-schema.test.ts` (R1-05c); BL-139 (no list route); the hosted push of `0097` is the owner's.
 - Next bounded action and owner: the owner merges and decides the hosted push of `0097`.
-- Final state and reason: done — every required gate passes for the scoped criteria, with criterion 6's `rls-coverage` failure a documented known-red baseline and the original `m1-schema.test.ts` check revised out and deferred (BL-144).
+- Final state and reason: done — every required gate passes for the scoped criteria, after merging `main` (#115); the original `m1-schema.test.ts` check was revised out and deferred (BL-144).
