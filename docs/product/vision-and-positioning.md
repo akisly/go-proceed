@@ -259,10 +259,16 @@ Two further constraints from the same research:
 - each requirement names its evidence kind, its acceptance criterion, and the
   norm it comes from, so "надішли фото" stops being both unarguable and
   unfulfillable;
-- the field client keeps capture focused on assigned work. In v0.1 it is a
-  **PWA served from `apps/app`** — a link opens the capture screen and there is
-  no install step ([ADR-007](../decisions/ADR-007-pilot-field-client.md)
-  decision 1). `apps/mobile` stays in the tree and is not on the v0.1 path;
+- the field client keeps capture focused on assigned work. In v0.1 it is the
+  **`apps/mobile` Expo client, shipped as a web export**, with the Telegram
+  project channel beside it ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and
+  «Amendment, 2026-09-23»); the web export needs no store install, and native
+  builds come later from the same codebase. The Telegram channel is built and
+  enabled in no environment yet (BL-024).
+  *[2026-09-23, DEV-035 — was: «In v0.1 it is a **PWA served from `apps/app`** —
+  a link opens the capture screen and there is no install step ([ADR-007]
+  decision 1). `apps/mobile` stays in the tree and is not on the v0.1 path». The
+  owner retired that PWA; see ADR-009 «Amendment, 2026-09-23».]*;
 - **capture is online-only and a pending original is not durable.** The client
   never reports success before the receipt and **warns rather than silently
   losing bytes**, and it promises nothing else about a photograph: a

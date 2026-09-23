@@ -129,6 +129,9 @@
   --color-action-signal: var(--gp-action-signal-bg);
   --color-action-signal-fg: var(--gp-action-signal-fg);
   --color-action-signal-hover: var(--gp-action-signal-hover);
+  --color-action-brand: var(--gp-action-brand-bg);
+  --color-action-brand-fg: var(--gp-action-brand-fg);
+  --color-action-brand-hover: var(--gp-action-brand-hover);
   --color-action-ghost-hover: var(--gp-action-ghost-hover);
   --color-status-ready: var(--gp-status-ready-surface);
   --color-status-ready-line: var(--gp-status-ready-border);
@@ -148,6 +151,8 @@
   --color-evidence-satisfied: var(--gp-evidence-satisfied);
   --color-evidence-pending: var(--gp-evidence-pending);
   --color-evidence-blocking: var(--gp-evidence-blocking);
+  --color-viz-brand: var(--gp-viz-brand);
+  --color-viz-empty: var(--gp-viz-empty);
   --color-viz-1: var(--gp-viz-1);
   --color-viz-2: var(--gp-viz-2);
   --color-viz-3: var(--gp-viz-3);

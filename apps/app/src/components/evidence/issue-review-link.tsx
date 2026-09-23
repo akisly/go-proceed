@@ -277,7 +277,7 @@ export function IssueReviewLink({ occurrenceId }: { occurrenceId: string }) {
         </Field>
 
         <div>
-          <Button type="submit" disabled={pending}>
+          <Button type="submit" variant="brand" disabled={pending}>
             {pending ? "Створюємо посилання…" : "Відправити на перевірку"}
           </Button>
         </div>

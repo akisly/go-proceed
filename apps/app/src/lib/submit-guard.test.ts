@@ -4,7 +4,7 @@ import { SubmitGuard } from "./submit-guard";
 /**
  * `SubmitGuard` is the extracted, pure decision `submit-guard.ts`'s own
  * header says must not stay untested — the exact same rationale as
- * `capture/attempt.test.ts` for `AttemptGuard`: the defect this closes
+ * `capture/attempt.test.ts` [deleted 2026-09-23, DEV-035] for `AttemptGuard`: the defect this closes
  * (two near-simultaneous invocations both reading a stale "not busy") only
  * shows up when something exercises the overlapping-call case directly,
  * in isolation from React, a browser, and a real network. This suite

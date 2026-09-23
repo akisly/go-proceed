@@ -77,11 +77,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-046](#bl-046) | P3 | deferred (owner) | No dashboard screen authors project-sourced requirements |
 | [BL-047](#bl-047) | P2 | open | No container role means «a dialog», so `Dialog`'s default width is dead |
 | [BL-048](#bl-048) | P2 | open | `Checkbox` is below the 44px touch floor |
-| [BL-049](#bl-049) | P3 | open | `next=/dash` is hard-coded in the dashboard's session-expired redirects |
+| [BL-049](#bl-049) | P3 | open | `next=/dash` is hard-coded in the dashboard's session-expired redirects *(now `next=/`, DEV-035)* |
 | [BL-050](#bl-050) | P3 | open | The dashboard browser pass has an unexplained menu-reopen race |
 | [BL-051](#bl-051) | P3 | open | `DialogClose` hand-rolls its ghost and icon styling |
 | [BL-052](#bl-052) | P3 | open | No test enforces «never put a control height behind a `data-[…]` variant» |
-| [BL-053](#bl-053) | P3 | open | The dashboard rail's four nav items are disabled placeholders |
+| [BL-053](#bl-053) | P3 | closed → DEV-035 | The dashboard rail's four nav items are disabled placeholders |
 | [BL-054](#bl-054) | P3 | open | The assignments register scrolls sideways at narrow widths instead of rendering cards |
 | [BL-055](#bl-055) | P3 | open | Final-review minors: tokens, tests and the brand pipeline |
 | [BL-056](#bl-056) | P3 | open | Final-review minors: `packages/ui` |
@@ -145,9 +145,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-114](#bl-114) | P3 | open | The invitation redemption page (`invite#<token>`) is not built |
 | [BL-115](#bl-115) | P3 | open | A prefetching mail scanner may spend the one-time code the sign-in email carries |
 | [BL-116](#bl-116) | P2 | open | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
-| [BL-117](#bl-117) | P2 | open | The office dashboard has not been seen under the Autumn palette or the new typeface |
+| [BL-117](#bl-117) | P2 | closed → DEV-035 | The office dashboard has not been seen under the Autumn palette or the new typeface |
 | [BL-118](#bl-118) | P3 | open | «→» is rendered on two landing pages and no self-hosted face carries it |
-| [BL-119](#bl-119) | P2 | open | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
+| [BL-119](#bl-119) | P2 | closed → DEV-035 | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
 | [BL-120](#bl-120) | P3 | open | A `bg-`named role used as a foreground escapes the contrast coverage guard |
 | [BL-121](#bl-121) | P3 | open | Two browser-harness probes assert their conclusion on a premise that is no longer true |
 | [BL-122](#bl-122) | P2 | deferred (owner) | The private prospecting copy has no recorded purpose, retention date or backup, and erasure cannot reach history |
@@ -161,6 +161,10 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-130](#bl-130) | P3 | open | An AVIF whose brand is `mif1` is detected as `image/heic` |
 | [BL-131](#bl-131) | P2 | deferred (owner) | The image size limits and parsers are unchecked against files from real phones |
 | [BL-132](#bl-132) | P3 | open | Image decoding channels the size check does not read: JPEG secondary images, the HEVC stream's own size, progressive scan counts |
+| [BL-133](#bl-133) | P3 | open | The dashboard has no time series, so the reference's chart by month and its period picker have nothing to draw |
+| [BL-134](#bl-134) | P3 | open | Dashboard follow-ups the DEV-035 UI review named and left out of scope |
+| [BL-135](#bl-135) | P2 | open | Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links |
+| [BL-136](#bl-136) | P2 | wontfix (owner) | The field client's origin sends no security headers, and its session token is readable by script |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -170,11 +174,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** deferred (owner)
 - **Legacy cite:** `TODOS.md` «Plan C — Expo-web field client to parity»; `HANDOFF-2026-08-27.md` «The field-client parity gate»
-- **Why:** ADR-009 keeps `apps/app`'s PWA field pages deployed until the Expo-web client passes `infra/README-staging.md` §6.9 and ADR-007's two measurements (EXIF through SHA-256, the `capture` attribute) on one iPhone and one Android phone. No task may remove the PWA pages before that. A harness run or a laptop smoke test is evidence toward the gate, not the gate.
+- **Why:** *[2026-09-23, DEV-035: the owner retired the PWA field pages BEFORE this gate («Удалить сейчас», ADR-009 amendment of that date). The measurement below is now the readiness gate of the Expo-web client alone — deployed at Vercel `goproceed-field` (observed serving 2026-09-23 08:32 UTC; deployed commit not observed), which is a foreman's only working path until the Telegram channel is enabled (BL-024). The text below is kept as written.]* ADR-009 keeps `apps/app`'s PWA field pages deployed until the Expo-web client passes `infra/README-staging.md` §6.9 and ADR-007's two measurements (EXIF through SHA-256, the `capture` attribute) on one iPhone and one Android phone. No task may remove the PWA pages before that. A harness run or a laptop smoke test is evidence toward the gate, not the gate.
 - **Evidence:** [STATUS.md](STATUS.md) «PWA field client» row: iPhone measurements from 2026-08-21, none from Android. Runbook §8.3.
 - **Depends on:** BL-002.
 - **Deadline:** none recorded.
-- **Resume:** the owner runs §6.9 on both phones. The coordinator records the measurements in a DEV record and re-observes STATUS; only then may a task retire the PWA field pages.
+- **Resume:** the owner runs §6.9 on both phones. The coordinator records the measurements in a DEV record and re-observes STATUS; only then may a task retire the PWA field pages. *[2026-09-23, DEV-035: the PWA pages were retired before this, by the owner's decision; the measurement now only decides the Expo-web client's readiness.]*
 
 <a id="bl-002"></a>
 ### BL-002 — P2 — The pilot-device inventory does not exist
@@ -614,7 +618,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** `TODOS.md` «subtitle at 390»
 - **Why:** a work item with no work code renders its subtitle as the unit alone («м»).
-- **Evidence:** `apps/app/src/lib/field/assignments.ts:148-150` joins `workCode` and `unitCode` with `filter(Boolean)`; quantity is not part of the line.
+- **Evidence:** `apps/app/src/lib/field/assignments.ts:148-150` joins `workCode` and `unitCode` with `filter(Boolean)`; quantity is not part of the line. *[2026-09-23, DEV-035: that file was deleted with the field PWA; the same join lives in `apps/mobile/src/lib/field/assignments.ts`, which is where this now applies.]*
 - **Depends on:** a copy decision on what the line carries.
 - **Deadline:** none recorded.
 
@@ -673,12 +677,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** with that screen.
 
 <a id="bl-049"></a>
-### BL-049 — P3 — `next=/dash` is hard-coded in the dashboard's session-expired redirects
+### BL-049 — P3 — `next=/dash` is hard-coded in the dashboard's session-expired redirects *(now `next=/`, DEV-035)*
 
 - **State:** open
 - **Legacy cite:** `TODOS.md` «is hardcoded in all three `session_expired` arms of»
 - **Why:** a deep link is lost on re-authentication, but only in a same-request race the proxy does not catch. The fix edits the auth gate's cookie-rebuild path.
-- **Evidence:** `apps/app/app/dash/layout.tsx:68`, `:76`, `:98`.
+- **Evidence:** `apps/app/app/dash/layout.tsx:68`, `:76`, `:98`. *[2026-09-23, DEV-035: the file is `apps/app/app/(dash)/layout.tsx` and the literal is `next=/` since the dashboard moved to the root; the defect is unchanged.]*
 - **Depends on:** a `proxy.ts` change, which takes the `gp-architect` and `gp-security` route.
 - **Deadline:** none recorded.
 
@@ -715,9 +719,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-053"></a>
 ### BL-053 — P3 — The dashboard rail's four nav items are disabled placeholders
 
-- **State:** open
+- **State:** closed → DEV-035
 - **Legacy cite:** `TODOS.md` «rail's four nav items read as disabled grey»
-- **Why:** they were placeholders until slices D1–D4; D1–D3 have merged and none of the items is a link. When they become links, two rulings from the removed `.interface-design/system.md` §5 apply, moved here by DEV-007: in the icon band (`rail-icons`, `md` to `wide`) the label stays in the DOM, so the accessible name never depends on a tooltip, which mounts only in that band; and the active item's bar is absolutely positioned, so the label does not shift as you navigate.
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`): the rail's items are real links with `aria-current`, labels `sr-only` in the icon band, no disabled placeholders.]* they were placeholders until slices D1–D4; D1–D3 have merged and none of the items is a link. When they become links, two rulings from the removed `.interface-design/system.md` §5 apply, moved here by DEV-007: in the icon band (`rail-icons`, `md` to `wide`) the label stays in the DOM, so the accessible name never depends on a tooltip, which mounts only in that band; and the active item's bar is absolutely positioned, so the label does not shift as you navigate.
 - **Evidence:** `apps/app/src/components/dash-shell/sidebar.tsx:120` sets `disabled` on every item of `NAV_ITEMS`.
 - **Depends on:** a navigation decision for the merged routes.
 - **Deadline:** none recorded.
@@ -1432,9 +1436,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-117"></a>
 ### BL-117 — P2 — The office dashboard has not been seen under the Autumn palette or the new typeface
 
-- **State:** open
+- **State:** closed → DEV-035
 - **Legacy cite:** none
-- **Why:** DEV-028 moved the palette and both text faces in `packages/tokens`, so every surface of `apps/app` changed with them, and not one of its screens was rendered during that task. The landing was verified in a browser at seven widths; the dashboard was verified by its build and its types only. The risk is not contrast — every pairing is asserted in `packages/testing/src/contrast.test.ts`, in both themes — but composition: a warm paper a step darker than the old one under dense tables, an ink that is warm rather than cool beside the status chips, and a narrower face in fixed-width columns (the rail, the register's figures, the 32px control heights). Those are the things only a rendered page shows.
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`): the dashboard was rendered at six widths and reduced motion under the Autumn palette and typeface by the `apps/app` harness, and reviewed by `gp-ui-reviewer`.]* DEV-028 moved the palette and both text faces in `packages/tokens`, so every surface of `apps/app` changed with them, and not one of its screens was rendered during that task. The landing was verified in a browser at seven widths; the dashboard was verified by its build and its types only. The risk is not contrast — every pairing is asserted in `packages/testing/src/contrast.test.ts`, in both themes — but composition: a warm paper a step darker than the old one under dense tables, an ink that is warm rather than cool beside the status chips, and a narrower face in fixed-width columns (the rail, the register's figures, the 32px control heights). Those are the things only a rendered page shows.
 - **Evidence:** DEV-028 «What is not true after this task»; `apps/app/qa/field.mjs` now asserts the new font stack (`assertBrandFaces`) but was not run, because the harness needs `apps/app/.env.local` with the database URLs and `NEXT_PUBLIC_SUPABASE_*`, and the local stack is down.
 - **Depends on:** the local Supabase stack, or a deployed preview of `apps/app`. Then `pnpm --filter @goproceed/app qa` and a `gp-ui-reviewer` pass over the screenshots.
 - **Deadline:** before the dashboard is shown to a pilot user.
@@ -1452,9 +1456,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-119"></a>
 ### BL-119 — P2 — The office dashboard has no direction from the Autumn CRM reference the landing was built to
 
-- **State:** open
+- **State:** closed → DEV-035
 - **Legacy cite:** none
-- **Why:** on 2026-09-22 the owner supplied five shots of the «Autumn CRM Dashboard» (Barly Design / Uxerflow) and said, in one sentence, both «я хочу что бы наш так выглядел» about the dashboard and «сейчас основная задача - лендинг». DEV-029 did the landing and deliberately did not touch `apps/app`: the one shared component it changed (`FeatureCell`) took an ADDITIVE prop whose default leaves the dashboard byte-identical — and `apps/app` imports neither `FeatureGrid` nor `FeatureCell` at all *[corrected 2026-09-22: this said «Stepper, FeatureCell, Compare»; the other two are byte-identical to base]*. So the direction now exists as tokens and as a vocabulary, and nothing in the product has read it. The shots are dashboards, not marketing pages — the parts that belong to `apps/app` and not to the landing are: the paper sidebar against a white canvas (our `bg-canvas` / `bg-surface` pair already), a tinted icon chip on each KPI card (the four `chip-*` roles exist since DEV-029), a dot-matrix chart in the mark's colour, and an ember primary action. None of those is a token change now; all of them are a design decision on live screens.
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`) for the shell and the project page; what the reference shows beyond them is BL-133 (time series) and BL-134 (dashboard follow-ups).]* on 2026-09-22 the owner supplied five shots of the «Autumn CRM Dashboard» (Barly Design / Uxerflow) and said, in one sentence, both «я хочу что бы наш так выглядел» about the dashboard and «сейчас основная задача - лендинг». DEV-029 did the landing and deliberately did not touch `apps/app`: the one shared component it changed (`FeatureCell`) took an ADDITIVE prop whose default leaves the dashboard byte-identical — and `apps/app` imports neither `FeatureGrid` nor `FeatureCell` at all *[corrected 2026-09-22: this said «Stepper, FeatureCell, Compare»; the other two are byte-identical to base]*. So the direction now exists as tokens and as a vocabulary, and nothing in the product has read it. The shots are dashboards, not marketing pages — the parts that belong to `apps/app` and not to the landing are: the paper sidebar against a white canvas (our `bg-canvas` / `bg-surface` pair already), a tinted icon chip on each KPI card (the four `chip-*` roles exist since DEV-029), a dot-matrix chart in the mark's colour, and an ember primary action. None of those is a token change now; all of them are a design decision on live screens.
 - **Evidence:** the five posters sampled in DEV-029's «Sources» — the reference's paper is `#EAEADF`, its accent `#EE530A`, its primary button `#4C665B` and its outer ground `#0B0907`, which are our `bg-canvas`, `bg-signal`, `text-accent` and `bg-inverse` to within a step. The palette is not what is missing.
 - **Depends on:** BL-117 first — the dashboard has not been seen under the Autumn palette AT ALL, so there is no current screenshot to redesign from. A `gp-architect` pass is not needed (no table, contract or policy), but `docs/design/04-role-pain-map.md`'s rule is: a screen with no named role and no named pain is a guess, and these shots are somebody else's product.
 - **Deadline:** before the dashboard is shown to a pilot user, so that the landing and the product do not disagree in front of one.
@@ -1594,3 +1598,43 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** [DEV-033](tasks/DEV-033-image-size-limits.md) «What is not true».
 - **Depends on:** nothing.
 - **Deadline:** before real customer data enters an environment.
+
+<a id="bl-133"></a>
+### BL-133 — P3 — The dashboard has no time series, so the reference's chart by month and its period picker have nothing to draw
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-035 built the office dashboard after the owner's Autumn CRM reference (2026-09-23), whose signature chart is a column of cells per MONTH with a «Date range / Compare to» picker above it. No `/v1` read returns anything over time — `blocked-value`, `blocked-reasons` and `readiness` are computed now, for now — so DEV-035 drew the same cell grammar over what does exist (a column per work stage, a cell per blocking requirement occurrence) and built no period control, because a picker with nothing to filter is a dead control. A trend («how long has money been blocked, and is it getting better») is the question the payer persona asks in `docs/design/04-role-pain-map.md` («visible blocked value and cycle-time evidence»); it needs a contract.
+- **Evidence:** DEV-035 «What is not true after this task»; the `/v1/projects/{id}` routes listed in that record's analysis.
+- **Depends on:** a `gp-architect` pass — a new read and its contract (`packages/contracts`, `technical/openapi`), and a decision whether the series is computed from the event history or from a projection.
+- **Deadline:** before the dashboard is shown to a payer as a view of trends.
+
+<a id="bl-134"></a>
+### BL-134 — P3 — Dashboard follow-ups the DEV-035 UI review named and left out of scope
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-035 (2026-09-23) built the shell and the project page after the owner's Autumn CRM reference; its `gp-ui-reviewer` pass named four things outside that scope. (1) The evidence page and the new-assignment form sit outside the project frame: no breadcrumb, and on the evidence page no rail item is current, so a reader loses their place (U1-12). (2) `/dash` lists the same projects as the rail, twice on one screen, and the reference's homepage KPI row is not built (U1-13; the reference's workflow cards are the likely shape). (3) The readiness cell chart's columns carry no stage identity — the contract gives only a machine `stageKey` — so the drawing cannot answer «which stage is behind» (U1-11). (4) The KPI says «Без ціни» where the unvalued register panel says «Без оцінки»; if they are one concept they should be one word (U1-14). (5) Two cosmetic remarks from the second UI round: two-letter monograms nearly fill the rail's 20px project tile (U2-01), and at 390px the «Можна закрити» card sits alone on a second row of small cards (U2-02).
+- **Evidence:** DEV-035's record, «Findings and rework» U1-11…U1-14.
+- **Depends on:** (3) needs a human-readable stage label in the readiness response — a contract change and a `gp-architect` pass.
+- **Deadline:** before the dashboard is shown to a pilot user.
+
+<a id="bl-135"></a>
+### BL-135 — P2 — Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-035 (2026-09-23) removed the field PWA from `apps/app` at the owner's word («удали все что в (app)», «Удалить сейчас», «Всё мёртвое») and left these outside its edit list or for the owner. (1) `apps/mobile/src/lib/field/{assignments,obligations,disclaimer}.ts`, `src/lib/capture/attempt.ts`, `src/lib/safe-next.ts` and `otp-error.ts` still say «the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files» — the originals are gone, so these copies are canonical now. (2) `disclaimer.ts`'s copy of the довідковий text has no byte-equality guard against `apps/app/src/lib/statutory-act-form.ts`, and the harness that rendered the `apps/app` copy on a screen is gone. (3) `apps/mobile`'s browser pass (`pnpm --filter @goproceed/mobile qa`, `qa/field-web.mjs`) is in no CI job, so no CI browser pass covers the field screens any more (INV-081, INV-086 witnesses). (4) With the manifest removed («Убрать манифест»), `apps/app/public/icon-192.png`, `icon-512.png` and `maskable-icon-512.png` serve nothing; `scripts/generate-brand-icons.mjs` still writes them. (5) A foreman's old `/a/{id}` link or bookmark now signs in and lands on the Ukrainian 404 (`app/not-found.tsx`); a redirect to the field client's same route needs a build-time variable naming its origin (hostnames are tokens, BL-004) and a `gp-security` pass. (6) What an icon installed from the old PWA does on a real iPhone and Android phone after the deploy is not measured (DEV-035 gp-mobile AC-09, AC-10).
+- **Evidence:** DEV-035's record, `gp-mobile` findings M1-03, M1-04, M1-06, M1-07.
+- **Depends on:** (5) an owner decision; (6) BL-002's phones; (3) the Actions billing block.
+- **Deadline:** (1)–(2) before the next `apps/mobile` change; (3) when CI runs again.
+
+<a id="bl-136"></a>
+### BL-136 — P2 — The field client's origin sends no security headers, and its session token is readable by script
+
+- **State:** wontfix (owner)
+- **Legacy cite:** none
+- **Why:** *[2026-09-23, owner: «закрой BL-136, goproceed-field не трогай». Closed without a change to `goproceed-field` or `apps/mobile/vercel.json`: the owner does not take the header set on now. The risk below stands as described and is the owner's accepted risk; reopening it is a new owner decision.]* DEV-035's `gp-security` pass (S1-01, 2026-09-23). With the `apps/app` PWA retired, `apps/mobile`'s web export at Vercel `goproceed-field` is the only web field client, and `apps/mobile/vercel.json` sets no `headers`: no Content-Security-Policy, no `frame-ancestors`, no `X-Content-Type-Options`, no `Referrer-Policy`. Its Supabase session (including the refresh token) lives in `window.localStorage` (`apps/mobile/src/lib/supabase.ts`, supabase-js's default on web), so any script injected on that origin can read it — a durable account takeover until the session is revoked. The same script-readability holds for `apps/app`'s session cookies (`httpOnly: false`, `@supabase/ssr`'s default), so the gap predates DEV-035; the retirement only makes the field origin the one that matters for foremen. `technical/asvs-profile.csv` ASVS-CONFIG-01 («security headers and CSP enforced») is `specified_no_runtime_evidence`.
+- **Evidence:** DEV-035's record, `gp-security` S1-01; `apps/mobile/vercel.json`; `docs/architecture/tenancy-and-security.md` (the 2026-09-23 note on the web field client).
+- **Depends on:** a `gp-security` design of the header set (a `script-src 'self'` CSP with no third-party scripts, `frame-ancestors 'none'`, `nosniff`, a `Referrer-Policy`) and a header assertion in `apps/mobile/qa`.
+- **Deadline:** before a pilot foreman signs in on the field origin.

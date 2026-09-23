@@ -87,7 +87,7 @@ requirements, repeated revisions», and «manually typing hidden-work acts,
 maintaining an as-built register».
 
 Those sentences justify the **list** half of row 3, and that half has shipped:
-`/dash/projects/{projectId}/assignments`, its columns, and the link into row
+`/dash/projects/{projectId}/assignments` (at `/projects/{projectId}/assignments` since 2026-09-23, DEV-035), its columns, and the link into row
 1's evidence screen. They do **not** justify the **create** half, which is
 carried by the operability section below instead — under a different role and
 a different kind of justification. The row is left as written, per this

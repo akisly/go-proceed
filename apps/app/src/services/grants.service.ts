@@ -21,7 +21,7 @@ import {
  *
  * `apiGet` imports `next/headers`, which exists only on the server: it is the
  * shape a Server Component's read takes, and this is a browser POST driven by
- * a button. The precedent for the browser half is `src/lib/capture/upload.ts`
+ * a button. The precedent for the browser half is `src/lib/capture/upload.ts` [deleted 2026-09-23, DEV-035]
  * — the field client's own capture, which posts to `/v1/assignments/{id}/
  * upload-intents` with a same-origin `fetch` and an `Idempotency-Key`, and
  * relies on the browser attaching the Supabase session cookies itself. This

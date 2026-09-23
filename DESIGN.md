@@ -271,7 +271,10 @@ reader has to find, and Ember is the one loud colour in the system.
   and `text-link` resolve to the same value on purpose: the brand is not a
   second hue from a link, and on a page whose links are otherwise ink, a word in
   pine reads as «the brand», not as «clickable». If the two ever have to be told
-  apart, `text-link` moves, not `text-brand`.
+  apart, `text-link` moves, not `text-brand`. *[2026-09-23, DEV-035:
+  pine is also the dashboard's primary button (`action-brand`) and its one
+  data mark (`viz-brand`, with `viz-empty` beside it) — owner: charts «Зелёный
+  + акцент», data in pine and ember only for a highlighted cell.]*
 
 ### Secondary
 
@@ -412,6 +415,17 @@ AND THERE ONLY, atmospheric depth is now permitted — and it is permitted as a
 LIST, not as a licence. `apps/app` and `apps/mobile` are unchanged: structure
 there is still a 1px line and a step of paper tone.*
 
+*[2026-09-23, DEV-035, owner, of the Autumn CRM Dashboard shots: «это я хочу
+что бы наш так выглядел», and for the dashboard's cards «Как в Autumn».] The
+office dashboard (`apps/app` `/dash/**` — at `/` since the same day's DEV-035 extension) now has TWO grounds and one seat: the
+rail stays on the paper, the screen lies on a white work sheet (`bg-surface`,
+a hairline, `rounded-card`, `shadow-raised`), and every panel, KPI card and
+the current navigation item sit on `shadow-raised` too — one pixel of seat under
+the hairline, which is what the reference's cards carry. That is the whole
+licence: no `shadow-float`, no glass, no tint ground in the app. The border
+still draws every edge; the shadow only seats the sheet. The field client and
+`apps/mobile` are unchanged.*
+
 **THE GROUND IS BOUND TO THE OBJECT, NEVER TO THE SECTION.** This is the rule
 two revisions of DEV-029 got wrong, and an `impeccable` critique named it
 exactly: «ground stopped being a level and became a costume». Grounds were
@@ -515,6 +529,13 @@ partition. A table rule or a nested key-value row keeps its edge crisp.
 - **Ink** (`button-ink`): near-black fill, white text — the primary action on
   every screen, including the landing, where it is the *only* action; there
   is no accent button on the public page.
+  *[2026-09-23, DEV-035, owner: «Зелёная, как в Autumn».] In the office
+  dashboard the primary action is **Brand** (`variant="brand"`, the
+  `action-brand` roles): a pine fill with a white label, 7.65:1 — the
+  reference's own primary. Pine may be a FILL here and only here, because an
+  action's label is a word on a control, not a paragraph read through a wash.
+  The landing keeps the ink pill, and `component-contract.test.ts` refuses
+  the variant anywhere under `apps/landing` but the kitchen sink.*
 - **Outline** (`button-outline`): surface ground, a strong-line border — the
   secondary action, and the only other button variant. There is no signal
   button on the landing.

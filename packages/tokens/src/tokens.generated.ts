@@ -3,7 +3,7 @@
 // packages/testing/src/token-fidelity.test.ts fails if this drifts.
 
 export type PrimitiveName = "neutral-0" | "neutral-25" | "neutral-50" | "neutral-100" | "neutral-150" | "neutral-200" | "neutral-300" | "neutral-400" | "neutral-500" | "neutral-600" | "neutral-700" | "neutral-800" | "neutral-900" | "neutral-950" | "neutral-975" | "clay-50" | "clay-100" | "clay-200" | "clay-300" | "clay-500" | "clay-600" | "clay-700" | "clay-800" | "clay-900" | "ember-50" | "ember-100" | "ember-200" | "ember-300" | "ember-400" | "ember-500" | "ember-600" | "ember-700" | "ember-800" | "ember-900" | "pine-50" | "pine-100" | "pine-200" | "pine-300" | "pine-500" | "pine-700" | "pine-800" | "pine-900" | "green-50" | "green-100" | "green-200" | "green-300" | "green-500" | "green-600" | "green-700" | "green-800" | "green-900" | "amber-50" | "amber-100" | "amber-200" | "amber-300" | "amber-500" | "amber-600" | "amber-700" | "amber-800" | "amber-900" | "danger-50" | "danger-100" | "danger-200" | "danger-300" | "danger-500" | "danger-600" | "danger-700" | "danger-800" | "danger-900" | "violet-100" | "violet-200" | "violet-300" | "violet-500" | "violet-700" | "violet-900" | "cobalt-50" | "cobalt-100" | "cobalt-200" | "cobalt-300" | "cobalt-400" | "cobalt-500" | "cobalt-600" | "cobalt-700" | "cobalt-800" | "cobalt-900";
-export type RoleName = "bg-canvas" | "bg-surface" | "bg-subtle" | "bg-muted" | "bg-inverse" | "bg-signal" | "bg-overlay" | "text-primary" | "text-secondary" | "text-muted" | "text-subtle" | "text-on-inverse" | "text-on-inverse-muted" | "text-on-signal" | "text-link" | "text-brand" | "border-subtle" | "border-default" | "border-strong" | "border-inverse" | "border-focus" | "border-focus-inverse" | "action-primary-bg" | "action-primary-fg" | "action-primary-hover" | "action-signal-bg" | "action-signal-fg" | "action-signal-hover" | "action-ghost-hover" | "status-ready-surface" | "status-ready-border" | "status-ready-fg" | "status-attention-surface" | "status-attention-border" | "status-attention-fg" | "status-blocked-surface" | "status-blocked-border" | "status-blocked-fg" | "status-review-surface" | "status-review-border" | "status-review-fg" | "status-idle-surface" | "status-idle-border" | "status-idle-fg" | "evidence-satisfied" | "evidence-pending" | "evidence-blocking" | "viz-1" | "viz-2" | "viz-3" | "viz-4" | "viz-5" | "text-accent" | "border-accent" | "bg-accent-soft" | "bg-tint-warm" | "border-warm" | "bg-chip-clay" | "text-chip-clay" | "bg-chip-violet" | "text-chip-violet" | "bg-chip-pine" | "text-chip-pine" | "bg-chip-stone" | "text-chip-stone";
+export type RoleName = "bg-canvas" | "bg-surface" | "bg-subtle" | "bg-muted" | "bg-inverse" | "bg-signal" | "bg-overlay" | "text-primary" | "text-secondary" | "text-muted" | "text-subtle" | "text-on-inverse" | "text-on-inverse-muted" | "text-on-signal" | "text-link" | "text-brand" | "border-subtle" | "border-default" | "border-strong" | "border-inverse" | "border-focus" | "border-focus-inverse" | "action-primary-bg" | "action-primary-fg" | "action-primary-hover" | "action-signal-bg" | "action-signal-fg" | "action-signal-hover" | "action-brand-bg" | "action-brand-fg" | "action-brand-hover" | "action-ghost-hover" | "status-ready-surface" | "status-ready-border" | "status-ready-fg" | "status-attention-surface" | "status-attention-border" | "status-attention-fg" | "status-blocked-surface" | "status-blocked-border" | "status-blocked-fg" | "status-review-surface" | "status-review-border" | "status-review-fg" | "status-idle-surface" | "status-idle-border" | "status-idle-fg" | "evidence-satisfied" | "evidence-pending" | "evidence-blocking" | "viz-brand" | "viz-empty" | "viz-1" | "viz-2" | "viz-3" | "viz-4" | "viz-5" | "text-accent" | "border-accent" | "bg-accent-soft" | "bg-tint-warm" | "border-warm" | "bg-chip-clay" | "text-chip-clay" | "bg-chip-violet" | "text-chip-violet" | "bg-chip-pine" | "text-chip-pine" | "bg-chip-stone" | "text-chip-stone";
 export type ThemeName = "light" | "dark";
 
 /** The ramps. Present so a chart or a generated asset can walk a scale;
@@ -218,6 +218,9 @@ export const color: Record<ThemeName, Record<RoleName, string>> = {
     "action-signal-bg": "#FF5B04",
     "action-signal-fg": "#0C0C0A",
     "action-signal-hover": "#D84A00",
+    "action-brand-bg": "#395A4D",
+    "action-brand-fg": "#FFFFFF",
+    "action-brand-hover": "#274439",
     "action-ghost-hover": "#E0DCD1",
     "status-ready-surface": "#E0F5E3",
     "status-ready-border": "#BEECC6",
@@ -237,6 +240,8 @@ export const color: Record<ThemeName, Record<RoleName, string>> = {
     "evidence-satisfied": "#167337",
     "evidence-pending": "#6C4800",
     "evidence-blocking": "#A3122C",
+    "viz-brand": "#395A4D",
+    "viz-empty": "#D9D6CD",
     "viz-1": "#2440D9",
     "viz-2": "#1C8742",
     "viz-3": "#BA8400",
@@ -285,6 +290,9 @@ export const color: Record<ThemeName, Record<RoleName, string>> = {
     "action-signal-bg": "#FF5B04",
     "action-signal-fg": "#0C0C0A",
     "action-signal-hover": "#D84A00",
+    "action-brand-bg": "#A0C4B4",
+    "action-brand-fg": "#0C0C0A",
+    "action-brand-hover": "#CBE3D8",
     "action-ghost-hover": "#2A2524",
     "status-ready-surface": "#0D371A",
     "status-ready-border": "#115629",
@@ -304,6 +312,8 @@ export const color: Record<ThemeName, Record<RoleName, string>> = {
     "evidence-satisfied": "#8CD99C",
     "evidence-pending": "#EDC06B",
     "evidence-blocking": "#FAB7B6",
+    "viz-brand": "#A0C4B4",
+    "viz-empty": "#403C39",
     "viz-1": "#9AAAFF",
     "viz-2": "#8CD99C",
     "viz-3": "#EDC06B",

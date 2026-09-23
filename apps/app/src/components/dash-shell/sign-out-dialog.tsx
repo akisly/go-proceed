@@ -170,7 +170,10 @@ export function SignOutDialog({
         {failed && <Banner tone="blocked" title="Не вдалося вийти. Спробуйте ще раз." />}
 
         <DialogFooter>
-          {/* `outline`, and the confirm is `primary` (ink) — there is no
+          {/* [2026-09-23, DEV-035: the confirm is `brand` (pine) — the
+            * dashboard's primary action, owner: «Зелёная, как в Autumn».
+            * The note below predates it and is kept as written.]
+            * `outline`, and the confirm is `primary` (ink) — there is no
             * `destructive` variant in this system and `signal` is rationed to
             * one per screen. Cancel comes FIRST in the DOM so `DialogFooter`'s
             * `flex-col-reverse` puts it BELOW the confirm on a phone and to
@@ -183,7 +186,7 @@ export function SignOutDialog({
           >
             Скасувати
           </Button>
-          <Button type="button" variant="primary" disabled={pending} onClick={() => void confirm()}>
+          <Button type="button" variant="brand" disabled={pending} onClick={() => void confirm()}>
             {pending ? "Виходимо…" : "Вийти"}
           </Button>
         </DialogFooter>

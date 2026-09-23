@@ -34,9 +34,11 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
   Tooltip, TooltipProvider,
+  Stat, Waffle, TabNav, TabLink, Breadcrumb,
   type AccordionEntry, type DataTableColumnDef, type MeterSegment,
 } from "@goproceed/ui/components";
 import { CountUp } from "@goproceed/ui/motion";
+import { CircleDashed, CircleSlash, ListChecks, Wallet } from "lucide-react";
 
 const uah = (n: number) =>
   new Intl.NumberFormat("uk-UA", { maximumFractionDigits: 0 }).format(Math.round(n));
@@ -113,14 +115,14 @@ export default function ComponentSink() {
           </p>
         </header>
 
-        <Case n="01" name="Button" rule="Шість варіантів, набір закритий. destructive — лише для незворотної дії, і в продукті рівно один виклик: контракт-тест їх рахує. Сигнальна дія — не більше однієї на екран.">
+        <Case n="01" name="Button" rule="Шість варіантів, набір закритий. brand — головна дія дашборда, сосна з білим підписом (власник, 2026-09-23); на лендингу її немає, і контракт-тест це тримає. destructive більше немає: його єдиний виклик пішов разом із польовим PWA. Сигнальна дія — не більше однієї на екран.">
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="primary">Первинна</Button>
+            <Button variant="brand">Нове доручення</Button>
             <Button variant="signal">Сигнальна</Button>
             <Button variant="outline">Робоча конячка</Button>
             <Button variant="ghost">Хром</Button>
             <Button variant="link">Всередині речення</Button>
-            <Button variant="destructive" size="sm">Скасувати фото</Button>
             <Button variant="outline" size="sm">Малий</Button>
             <Button variant="outline" disabled>Вимкнено</Button>
             <Button size="lg">Маркетинговий</Button>
@@ -140,7 +142,7 @@ export default function ComponentSink() {
           </div>
         </Case>
 
-        <Case n="03" name="Panel" rule="Єдина контентна поверхня: біле на папері, 1px бордер, жодної тіні. Усе, що читається «над сторінкою», — це хром, а хром тут не контент.">
+        <Case n="03" name="Panel" rule="Єдина контентна поверхня: біле на папері, 1px бордер і shadow-raised — один піксель посадки, як картка в референсі Autumn (власник, 2026-09-23). Край малює бордер, тінь лише садить аркуш.">
           <Panel>
             <PanelHeader title="Реєстр робіт" count={32} actions={<Button variant="outline" size="sm">Експорт</Button>} />
             <PanelBody>
@@ -157,7 +159,7 @@ export default function ComponentSink() {
               * ~68px while «ЗАПЛАНОВАНО» needs 118 — an eleven-character
               * uppercase word with no break opportunity, which overflows into
               * its neighbour rather than wrapping. That defect shipped once on
-              * `/dash/projects/{id}/assignments` and `apps/app/qa/field.mjs`
+              * `/projects/{id}/assignments` and `apps/app/qa/field.mjs`
               * now measures it per `th`. The kitchen sink demonstrates the
               * ruling or it teaches the defect. */}
             <Table className="min-w-160">
@@ -469,6 +471,35 @@ export default function ComponentSink() {
             <Step index={2} count={4} when="Тиждень 2 · зовнішній розгляд" title="Технагляд приймає або повертає по посиланню">Перший запис закриття з підставою.</Step>
             <Step index={3} count={4} when="Підсумок" title="Чернетка акта і рішення про продовження">Збираємо Додаток В із фактів і чесно називаємо межі v0.1.</Step>
           </Stepper>
+        </Case>
+
+        <Case n="24" name="Stat" rule="Картка KPI дашборда: індексна плитка, підпис, штрихова лінія, цифра, один рядок під нею. Ряд веде одна цифра: лічильники, що уточнюють її, — emphasis=secondary, на крок нижче. Відтінок плитки — це ПОРЯДОК у ряду, а не значення: clay, violet, pine, stone. Поруч зі статусним чипом у тій самій картці він не стоїть.">
+          <div className="grid gap-3 md:grid-cols-2 wide:grid-cols-4">
+            <Stat tint="clay" icon={<Wallet />} label="Заблоковано, UAH" value="1 200,00 ₴" caption="Валова сума · 1 доручення, з них 1 за повною сумою рядка" />
+            <Stat tint="violet" emphasis="secondary" icon={<CircleDashed />} label="Без ціни" value="0" caption="доручень без ціни — їхній розмір є кількістю, не сумою" />
+            <Stat tint="pine" emphasis="secondary" icon={<CircleSlash />} label="Нульова ціна" value="0" caption="доручень за договірною нульовою ціною — усередині суми, дають нуль" />
+            <Stat tint="stone" emphasis="secondary" icon={<ListChecks />} label="Можна закрити" value="3" unit="з 7 етапів" caption="3 заблоковано · 0 без вимог · 1 закрито" />
+          </div>
+        </Case>
+
+        <Case n="25" name="Waffle" rule="Лічба клітинками: колонка — одиниця (етап), клітинка — одна вимога, заповнена — виконана. Нічого не масштабується, тож сітку можна перелічити. Дані — сосна, порожнє — viz-empty; малюнок aria-hidden, число несе підпис.">
+          <Waffle
+            columns={[
+              { id: "a", filled: 3, total: 4 }, { id: "b", filled: 1, total: 2 }, { id: "c", filled: 5, total: 5 },
+              { id: "d", filled: 0, total: 3 }, { id: "e", filled: 2, total: 6 }, { id: "f", filled: 1, total: 1 },
+            ]}
+            summary="12 з 21 вимоги виконано · 6 етапів"
+          />
+        </Case>
+
+        <Case n="26" name="TabNav + TabLink + Breadcrumb" rule="Вкладки, що є сторінками: кожна — посилання, поточна — aria-current=page і акцентна лінія (сосна, не помаранч: ember ніколи не лінія, яку треба побачити). Над ними — шлях, останній пункт якого є текстом, а не посиланням на себе.">
+          <div className="flex flex-col gap-3">
+            <Breadcrumb items={[<a key="p" href="#" className="hover:text-ink">Проєкти</a>, "ЖК Річковий, будинок 2"]} />
+            <TabNav label="Розділи проєкту">
+              <TabLink active><a href="#">Огляд</a></TabLink>
+              <TabLink active={false}><a href="#">Доручення</a></TabLink>
+            </TabNav>
+          </div>
         </Case>
 
         <div className="border-t border-line py-14">

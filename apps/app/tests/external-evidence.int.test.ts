@@ -9,7 +9,7 @@ import {
   publishVersion, ruleVersionBody, seedRequirementLibrary,
 } from "./helpers/manual-baseline";
 import type { CreateUploadIntentResponse, FinalizeUploadIntentResponse } from "@goproceed/contracts";
-import { buildCreateIntentBody } from "../src/lib/capture/upload";
+import { buildCreateIntentBody } from "./helpers/upload-intent-body";
 import {
   EXTERNAL_SESSION_COOKIE, resetKeyRegistriesForTests,
 } from "../src/lib/external-link";

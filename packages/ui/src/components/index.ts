@@ -21,7 +21,9 @@
  *     reference wraps its table in. `DataTable.tsx` says what each would cost.
  *   Toast — nothing in v0.1 is transient enough to need one, and a refusal the
  *     user must be able to re-read must not be able to disappear.
- *   Breadcrumb, Pagination, Timeline — no screen needs them yet; `Stepper` arrived 2026-09-05 with the landing's pilot plan.
+ *   Pagination, Timeline — no screen needs them yet; `Stepper` arrived 2026-09-05 with the landing's pilot plan.
+ *   `Breadcrumb`, `TabNav`, `Stat` and `Waffle` arrived 2026-09-23 (DEV-035)
+ *   with the dashboard's project page, after the owner's Autumn CRM reference.
  *
  * TWO DUPLICATIONS THIS PACKAGE CARRIES ON PURPOSE, named so they cannot go
  * unnoticed. Both are the cost of taking shadcn into a package that already
@@ -64,6 +66,10 @@ export { Separator } from "./Separator";
 export { Tooltip, TooltipProvider } from "./Tooltip";
 export { Accordion, type AccordionEntry } from "./Accordion";
 export { Meter, type MeterSegment } from "./Meter";
+export { Stat, type StatTint } from "./Stat";
+export { Waffle, type WaffleColumn } from "./Waffle";
+export { TabNav, TabLink } from "./TabNav";
+export { Breadcrumb } from "./Breadcrumb";
 export { Figure } from "./Figure";
 export { Pill, PillContent } from "./Pill";
 export { SectionRule } from "./SectionRule";

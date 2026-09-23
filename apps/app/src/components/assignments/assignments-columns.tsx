@@ -74,7 +74,7 @@ export const assignmentColumns: DataTableColumnDef<AssignmentSummary>[] = [
           * number: 44px is `--gp-control-height-touch` and a literal stops
           * tracking it. */}
         <Link
-          href={`/dash/assignments/${row.original.assignmentId}`}
+          href={`/assignments/${row.original.assignmentId}`}
           className="flex items-center font-medium text-ink hover:underline touch:min-h-(--gp-control-height-touch)"
         >
           {row.original.description}

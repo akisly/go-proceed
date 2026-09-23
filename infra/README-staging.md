@@ -14,11 +14,20 @@ this repo has run it yet (see "Status" at the bottom). It provisions:
    the client is built, merged and green in CI, and **nothing serves it on the
    public internet until this runbook has been run.** `apps/landing` is a
    second, optional project and is covered separately in §4.
+   *[2026-09-23, DEV-035 — the PWA field client is retired: the owner removed
+   `apps/app`'s field pages ([ADR-009](../docs/decisions/ADR-009-three-pilot-surfaces.md) «Amendment,
+   2026-09-23»). `apps/app` now serves the API and, at its root, the office
+   dashboard. The field client is the `apps/mobile` Expo web export at
+   `goproceed-field` (§4.5), which calls `/v1` cross-origin with a bearer
+   token, and the Telegram project channel, which is enabled in no
+   environment yet.]*
 3. A verification pass that proves the same vertical slice this repo tests
    locally (`POST /v1/organizations` → `GET /v1/me/context`, audit +
    outbox + cron drain, tenant isolation) also works against staging — plus,
    new with the field client, one signed-in foreman opening «Мої доручення»
-   on a real phone at the real origin (§6 step 9).
+   on a real phone at the real origin (§6 step 9) — since 2026-09-23 the
+   field client's own origin, `goproceed-field` (§4.5), the only web field
+   client left.
 
 Do not commit any secret produced by these steps (project ref is not
 secret; DB URL, publishable key, and secret key are). Store them in a
@@ -931,9 +940,14 @@ timings) — a checked box with no evidence is not verification.
    the step the earlier eight cannot substitute for, and the reason ADR-007
    requires physical devices. **Dated pointer, 2026-08-21:** per ADR-009,
    the five boxes below are now measured against the Expo client at
-   `goproceed-field` (§4.5) on these same two phones, not against this PWA —
-   the PWA remains the pilot's deployed field client in service until that
-   measurement passes. **Before it: custom SMTP.** Read from the
+   `goproceed-field` (§4.5) on these same two phones, not against this PWA.
+   Since 2026-09-23 the PWA no longer exists: the owner retired `apps/app`'s
+   field pages before this measurement ([ADR-009](../docs/decisions/ADR-009-three-pilot-surfaces.md)
+   «Amendment, 2026-09-23»), so the Expo client at `goproceed-field` is the
+   only web field client, and the boxes below measure its readiness.
+   *[2026-09-23, DEV-035 — was: «the PWA remains the pilot's deployed field
+   client in service until that measurement passes.»]* **Before it: custom
+   SMTP.** Read from the
    current Supabase docs on 2026-08-19
    (https://supabase.com/docs/guides/auth/auth-smtp): the default email
    service is «2 messages per hour» and «Unless you configure a custom SMTP
@@ -971,7 +985,10 @@ timings) — a checked box with no evidence is not verification.
      **Brevo custom SMTP**.
    - [ ] Open one assignment; the довідковий disclaimer is visible; every
      control is at least 44×44 CSS px (measure with the browser's inspector at
-     375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI —
+     375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI
+     *[2026-09-23, DEV-035: removed from `apps/app/qa/field.mjs` with the
+     field pages; the remaining equivalent is `apps/mobile/qa/field-web.mjs`'s,
+     which is in no CI job]* —
      but the point of this step is a REAL engine, not headless Chrome).
      **Partial, 2026-08-21, on iPhone (Expo client):** the disclaimer renders
      unconditionally and was visible. The 44×44 sweep itself was NOT done

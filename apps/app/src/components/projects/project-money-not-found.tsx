@@ -12,7 +12,7 @@
  * inventing a second translation of the identical 404.
  *
  * NO HEADER, NO «Доручення» LINK — unlike every other branch of this screen.
- * `ProjectOverviewHeader`'s own comment explains why: there is no project to
+ * `ProjectPage` [`ProjectOverviewHeader` until DEV-035]'s own comment explains why: there is no project to
  * link from.
  *
  * STILL AN `<h1>`, THOUGH — FIX ROUND 1, FINDING E. This was the only branch

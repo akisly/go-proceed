@@ -4,7 +4,7 @@ import { issueReviewLink, type FetchLike } from "./grants.service";
 
 /**
  * The five outcomes of `issueReviewLink`, driven in plain Node with a fake
- * `fetch` — the same shape `src/lib/capture/upload.test.ts` uses, and for the
+ * `fetch` — the same shape `src/lib/capture/upload.test.ts` [deleted 2026-09-23, DEV-035] uses, and for the
  * same reason: `apps/app`'s vitest has no jsdom and no DOM testing library,
  * so the only way to pin behaviour that lives behind a button is to put the
  * behaviour in a function with its collaborator injected.

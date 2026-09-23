@@ -4,7 +4,7 @@ import { EvidenceCard } from "./evidence-card";
 import { IssueReviewLink } from "./issue-review-link";
 
 /**
- * `app/dash/assignments/[assignmentId]/page.tsx`'s landing content once at
+ * `app/(dash)/assignments/[assignmentId]/page.tsx`'s landing content once at
  * least one evidence group exists — one section per
  * `GET /v1/assignments/{assignmentId}/evidence` group, in the order the
  * route already returns it. THE SCREEN THIS WHOLE SLICE EXISTS FOR: ПТВ

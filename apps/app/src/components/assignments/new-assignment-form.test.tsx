@@ -271,7 +271,7 @@ describe("NewAssignmentForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Створити доручення" }));
 
     expect(refresh).toHaveBeenCalledTimes(1);
-    expect(push).toHaveBeenCalledWith("/dash/projects/p1/assignments");
+    expect(push).toHaveBeenCalledWith("/projects/p1/assignments");
 
     // `invocationCallOrder` is a global monotonic counter across all vi mocks,
     // which is what makes an ordering claim between two SEPARATE mocks
@@ -294,7 +294,7 @@ describe("NewAssignmentForm", () => {
     await userEvent.click(screen.getByRole("button", { name: "Створити доручення" }));
 
     expect(push).toHaveBeenCalledWith(
-      "/login?next=%2Fdash%2Fprojects%2Fp1%2Fassignments%2Fnew",
+      "/login?next=%2Fprojects%2Fp1%2Fassignments%2Fnew",
     );
     // Nothing was created, so there is nothing to revalidate. A refresh here
     // would be a wasted round trip on a page the user is leaving.

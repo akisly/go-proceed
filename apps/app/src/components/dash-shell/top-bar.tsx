@@ -9,6 +9,7 @@ import { useState, type ReactNode } from "react";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle, DialogTrigger, cx } from "@goproceed/ui/components";
+import type { ProjectListRow } from "@goproceed/contracts";
 import { Sidebar } from "./sidebar";
 import type { Membership } from "./workspace-switch";
 
@@ -19,9 +20,10 @@ import type { Membership } from "./workspace-switch";
  * desktop top bar; the rail already carries the brand there.
  */
 export function TopBar({
-  memberships, profileSlot, className,
+  memberships, projects, profileSlot, className,
 }: {
   memberships: Membership[];
+  projects: ProjectListRow[];
   /** Required since Task 3 — see `sidebar.tsx`'s own note on this prop. The
    * drawer is the ONLY place a phone can reach the profile menu, so an
    * omitted slot here is "no sign-out on mobile" with nothing to notice it. */
@@ -34,7 +36,7 @@ export function TopBar({
   // This was an uncontrolled `<Dialog>` — no `open`, no `onOpenChange` — and
   // that was a real bug on a phone the moment the drawer gained its first
   // link. Tapping «Профіль» inside it soft-navigates to
-  // `/dash/settings/profile`, which is nested under `app/dash/layout.tsx`, so
+  // `/settings/profile`, which is nested under `app/(dash)/layout.tsx`, so
   // Next re-renders only `children`: this component is not remounted and the
   // Dialog's internal open state survives the navigation. Radix's modal
   // content then keeps `hideOthers()` applied, so the page the user just
@@ -52,7 +54,7 @@ export function TopBar({
   // call sites — DismissableLayer's `onDismiss` (:238) and `DialogClose`'s
   // click (:283). A prop-driven close invokes neither. So the stale path sat
   // in state, and pressing Back — the only way back on a phone, since this
-  // app contains exactly one link — returned `pathname` to `/dash`, matched
+  // app contains exactly one link — returned `pathname` to `/`, matched
   // the stale value, and reopened the drawer over the dashboard.
   //
   // ADJUSTED DURING RENDER, WHICH ACTUALLY CLEARS IT. This is React's
@@ -107,7 +109,7 @@ export function TopBar({
         <DialogContent
           // A LINK INSIDE THE DRAWER CLOSES IT, AND THE ROUTE CHANGE ABOVE IS
           // NOT ENOUGH ON ITS OWN. Tapping «Профіль» while already ON
-          // `/dash/settings/profile` changes no pathname, so the adjustment
+          // `/settings/profile` changes no pathname, so the adjustment
           // above never fires and the drawer would sit over the page the user
           // is already looking at, in the same covered, focus-trapped state.
           // Closing on any activated link covers that, and covers a route
@@ -164,8 +166,9 @@ export function TopBar({
           <Sidebar
             variant="drawer"
             memberships={memberships}
+            projects={projects}
             profileSlot={profileSlot}
-            className="border-r-0 pt-16"
+            className="pt-16"
           />
         </DialogContent>
       </Dialog>
