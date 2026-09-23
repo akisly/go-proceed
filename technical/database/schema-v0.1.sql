@@ -374,7 +374,7 @@ create table public.project_responsibility_assignments (
   member_id uuid not null,
   responsibility responsibility_kind not null,
   valid_from timestamptz not null default now(),
-  valid_until timestamptz,            -- lifecycle column: bounded end via command; identity/content immutable
+  valid_until timestamptz,            -- the planned end, fixed at assignment; an end by command is a separate fact (project_responsibility_assignment_ends, INV-112, 0097); the row is immutable
   assigned_by_member_id uuid not null,
   created_at timestamptz not null default now(),
   primary key (id),

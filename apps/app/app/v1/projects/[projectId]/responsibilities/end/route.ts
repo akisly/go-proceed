@@ -57,8 +57,9 @@ export const POST = commandRoute(endResponsibilityRequest, async (a) => {
           { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
       },
     }, async () => {
+      const memberId = a.body.memberId.toLowerCase();
       const target = await tx.query(
-        "select 1 from public.memberships where organization_id = $1 and id = $2", [workspaceId, a.body.memberId]);
+        "select 1 from public.memberships where organization_id = $1 and id = $2", [workspaceId, memberId]);
       if (target.rows.length === 0) {
         throw new HttpProblem(422, problem("VALIDATION_FAILED",
           "Учасника не знайдено в цьому робочому просторі.", {
@@ -79,15 +80,25 @@ export const POST = commandRoute(endResponsibilityRequest, async (a) => {
             and not exists (select 1 from public.project_responsibility_assignment_ends e
                              where e.workspace_id = a.workspace_id and e.assignment_id = a.id)
           order by a.id`,
-        [workspaceId, projectId, a.body.memberId, a.body.responsibility]);
+        [workspaceId, projectId, memberId, a.body.responsibility]);
       if (open.rows.length === 0) throw nothingToEnd();
 
+      // prae_insert re-checks project.admin on the statement's own snapshot: an
+      // actor whose admin grant was revoked after `authorize` is refused there
+      // (42501), which is 403 here, not a 500 (gp-security S1-03).
       const ended = await tx.query<{ assignment_id: string }>(
         `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
          select $1, $2, x, $4 from unnest($3::uuid[]) as x
          on conflict on constraint prae_one_end_per_assignment_key do nothing
          returning assignment_id`,
-        [workspaceId, projectId, open.rows.map((r) => r.id), a.userId]);
+        [workspaceId, projectId, open.rows.map((r) => r.id), a.userId])
+        .catch((e: unknown) => {
+          if ((e as { code?: string }).code === "42501") {
+            throw new HttpProblem(403, problem("SCOPE_PROJECT_DENIED", "Немає доступу до цього проєкту.",
+              { requestId: a.requestId, retryable: false, userAction: "request_project_scope" }));
+          }
+          throw e;
+        });
       if (ended.rows.length === 0) throw nothingToEnd();
 
       const ids = ended.rows.map((r) => r.assignment_id).sort();
@@ -95,7 +106,7 @@ export const POST = commandRoute(endResponsibilityRequest, async (a) => {
         await recordAudit(tx, ctx, {
           action: "project_responsibility.ended", object_type: "project_responsibility_assignment",
           object_id: assignmentId,
-          details: { memberId: a.body.memberId, responsibility: a.body.responsibility },
+          details: { memberId, responsibility: a.body.responsibility },
         }, { organizationId: workspaceId });
       }
       return { status: 200, body: endResponsibilityResponse.parse({ ended: ids.map((assignmentId) => ({ assignmentId })) }) };
