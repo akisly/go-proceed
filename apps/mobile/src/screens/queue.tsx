@@ -19,6 +19,8 @@ export function Queue() {
   const router = useRouter();
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // One discard per item at a time; its outcome is a modal alert, read by VoiceOver.
+  const [discarding, setDiscarding] = useState<ReadonlySet<string>>(new Set());
   if (!runtime.session || runtime.status === "booting") return <Page><Loading /></Page>;
 
   async function send() {
@@ -26,22 +28,26 @@ export function Queue() {
     try { await runtime.send(); } catch { setError("Не вдалося почати надсилання. Спробуйте ще раз."); }
     finally { setSending(false); }
   }
+  function discard(item: VaultItem) {
+    setDiscarding((set) => new Set([...set, item.id]));
+    void runtime.discard(item.id).catch((reason: unknown) => {
+      const code = (reason as { code?: string }).code;
+      if (code === "ITEM_GONE") return Alert.alert("Цього фото вже немає на пристрої");
+      Alert.alert("Фото не видалено", code === "ALREADY_RECEIVED"
+        ? "Сервер уже отримав це фото. Воно зникне зі списку, щойно сервер це підтвердить."
+        : code === "RECEIPT_PENDING"
+          ? "Сервер ще може отримати це фото. Застосунок спробує надіслати його, коли з’явиться зв’язок і застосунок буде відкритий."
+          : "Не вдалося видалити фото. Спробуйте ще раз.");
+    }).finally(() => setDiscarding((set) => new Set([...set].filter((id) => id !== item.id))));
+  }
   function confirmDiscard(item: VaultItem) {
+    const redo = item.originMethod === "photo_picker" ? "доведеться додати його знову" : "доведеться зняти його знову";
     Alert.alert("Видалити фото з пристрою?",
       item.intentId
-        ? "Надсилання цього фото вже почалося. Якщо сервер його ще може отримати, фото не буде видалено, і ми вас попередимо. Після видалення фото не можна буде надіслати — доведеться зняти його знову."
-        : "Сервер його не отримав. Після видалення фото не можна буде надіслати — доведеться зняти його знову.",
+        ? `Надсилання цього фото вже почалося. Якщо сервер ще може його отримати, фото не буде видалено, і ми вас попередимо. Після видалення фото не можна буде надіслати — ${redo}.`
+        : `Сервер ще не отримав це фото. Після видалення його не можна буде надіслати — ${redo}.`,
       [{ text: "Скасувати", style: "cancel" },
-        { text: "Видалити", style: "destructive", onPress: () => {
-          void runtime.discard(item.id).catch((reason: unknown) => {
-            const code = (reason as { code?: string }).code;
-            setError(code === "ALREADY_RECEIVED"
-              ? "Сервер уже отримав це фото, тому його не видалено. Воно зникне зі списку після підтвердження."
-              : code === "RECEIPT_PENDING"
-                ? "Сервер ще може отримати це фото, тому його не видалено. Застосунок завершить його надсилання, щойно буде зв’язок."
-                : "Не вдалося видалити фото. Спробуйте ще раз.");
-          });
-        } }]);
+        { text: "Видалити", style: "destructive", onPress: () => discard(item) }]);
   }
 
   const summary = pendingSummary(runtime.itemsKnown, runtime.items);
@@ -78,9 +84,10 @@ export function Queue() {
             <AppText selectable={false} style={{ color: palette["text-link"] }}>Відкрити доручення</AppText>
           </Pressable>
           {item.state === "failed" || item.state === "not_sent" ?
-            <Pressable accessibilityRole="button" onPress={() => confirmDiscard(item)}
-              style={{ minHeight: touchHeight, justifyContent: "center", alignSelf: "flex-start" }}>
-              <AppText selectable={false} style={{ color: palette["status-attention-fg"] }}>Видалити з пристрою</AppText>
+            <Pressable accessibilityRole="button" accessibilityState={{ disabled: discarding.has(item.id) }}
+              disabled={discarding.has(item.id)} onPress={() => confirmDiscard(item)}
+              style={{ minHeight: touchHeight, justifyContent: "center", alignSelf: "flex-start", opacity: discarding.has(item.id) ? 0.5 : 1 }}>
+              <AppText selectable={false} style={{ color: palette["status-attention-fg"] }}>{discarding.has(item.id) ? "Видаляємо…" : "Видалити з пристрою"}</AppText>
             </Pressable> : null}
         </Card>;
       })}

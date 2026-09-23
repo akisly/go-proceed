@@ -179,6 +179,16 @@ describe("native durable queue", () => {
     await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "RECEIPT_PENDING" });
     expect(f.vault.discard).not.toHaveBeenCalled();
   });
+  it("does not claim receipt when a second discard finds the row already gone", async () => {
+    const f = fixture(item({ state: "failed" }));
+    let gone = false;
+    const listed = f.vault.list;
+    f.vault.list = async () => gone ? [] : listed();
+    f.vault.discard = vi.fn(async () => { gone = true; });
+    await f.queue.activate(context);
+    await f.queue.discard("capture");
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "ITEM_GONE" });
+  });
   it("refuses to discard what the server already received", async () => {
     const f = fixture(item({ intentId: "intent", state: "failed" }));
     f.vault.discard = vi.fn(async () => {});

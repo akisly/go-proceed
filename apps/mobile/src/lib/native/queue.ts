@@ -80,7 +80,8 @@ export class NativeQueue {
       await inFlight.catch(() => undefined);
     }
     const item = (await this.deps.vault.list()).find((row) => row.id === id);
-    if (!item) throw new QueueRequestError(0, "ALREADY_RECEIVED");
+    // Gone from the journal means confirmed OR already deleted: say neither.
+    if (!item) throw new QueueRequestError(0, "ITEM_GONE");
     if (item.intentId) {
       let receipt: GetUploadIntentResponse;
       try {
