@@ -204,6 +204,24 @@ describe("native durable queue", () => {
     await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "SUPERSEDED" });
     expect(f.vault.discard).not.toHaveBeenCalled();
   });
+  it("a switch during the native delete is SUPERSEDED, not gone", async () => {
+    const f = fixture(item({ state: "failed" }));
+    await f.queue.activate(context);
+    f.vault.discard = vi.fn(async () => { await f.queue.activate({ ...context, workspaceId: "other" }); throw new Error("VAULT_NOT_FOUND"); });
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "SUPERSEDED" });
+  });
+  it("a switch that makes the receipt read fail is SUPERSEDED, not pending", async () => {
+    const f = fixture(item({ intentId: "intent", state: "failed" }));
+    await f.queue.activate(context);
+    f.get.mockImplementationOnce(async () => { await f.queue.activate({ ...context, workspaceId: "other" }); throw new QueueRequestError(403, "MEMBERSHIP_INACTIVE"); });
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "SUPERSEDED" });
+  });
+  it("does not mistake another native code for gone", async () => {
+    const f = fixture(item({ state: "failed" }));
+    f.vault.discard = vi.fn(async () => { throw new Error("Call to function 'GoProceedVault.call' has been rejected.\n→ Caused by: java.lang.IllegalStateException: VAULT_NOT_FOUND_X"); });
+    await f.queue.activate(context);
+    await expect(f.queue.discard("capture")).rejects.toThrow(/VAULT_NOT_FOUND_X/);
+  });
   it("recognises the Android-wrapped VAULT_NOT_FOUND as gone", async () => {
     const f = fixture(item({ state: "failed" }));
     f.vault.discard = vi.fn(async () => { throw new Error("Call to function 'GoProceedVault.call' has been rejected.\n→ Caused by: java.lang.IllegalStateException: VAULT_NOT_FOUND"); });

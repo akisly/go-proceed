@@ -91,7 +91,11 @@ export class NativeQueue {
       let receipt: GetUploadIntentResponse;
       try {
         receipt = await this.deps.api.get(`/v1/upload-intents/${item.intentId}`) as GetUploadIntentResponse;
-      } catch { throw new QueueRequestError(0, "RECEIPT_PENDING"); }
+      } catch {
+        // A switch during the read sends it with another session; the row is now quarantined.
+        if (!sameIdentity(this.context, identity)) throw new QueueRequestError(0, "SUPERSEDED");
+        throw new QueueRequestError(0, "RECEIPT_PENDING");
+      }
       if (receipt.status === "available") throw new QueueRequestError(0, "ALREADY_RECEIVED");
       if (!TERMINAL_STATES.has(receipt.status)) throw new QueueRequestError(0, "RECEIPT_PENDING");
     }
