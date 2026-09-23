@@ -45,7 +45,7 @@ The primary session is the coordinator. It implements the change itself, or dele
 | Stage | When it runs | What it works from |
 |---|---|---|
 | `gp-architect` | Before implementing a change to a table, constraint or migration; an RLS policy, grant, `SECURITY DEFINER` function or database role; a `/v1` or `/external` contract or error code; a state, transition, capability, preset or event catalog; an outbox, worker, retention or erasure job; or the Telegram channel workflow | The task and the affected paths |
-| `gp-mobile` | Before design or review, when the change involves the field client's installability, offline or capture behaviour, `apps/mobile`, signing, store or OTA distribution, or physical-device behaviour | The task and the affected paths |
+| `gp-mobile` | Before design or review, when the change involves the field client's installation, offline or capture behaviour or encrypted local vault, `apps/mobile`, signing, store or OTA distribution, or physical-device behaviour | The task and the affected paths |
 | `gp-reviewer` | **Always** | The implementation diff file (below) |
 | `gp-security` | When a security trigger (below) applies | The same diff file |
 | `gp-ui-reviewer` | When the change touches `apps/landing`, `apps/app/app`, `apps/app/src/components`, `apps/mobile/src`, `packages/ui`, `packages/tokens` or `technical/copy-catalog.csv` | The diff, the pasted output of the §5 gate in `docs/design/02-building-ui.md`, and the §6 screenshots |
