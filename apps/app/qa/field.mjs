@@ -736,11 +736,11 @@ async function seedWorld(baseUrl, bearer) {
   // body. Both describe the seed, not the screen. Revoking the admin row is
   // what makes them describe the screen.
   //
-  // SQL, WHERE EVERY OTHER SEEDING STEP HERE IS HTTP, AND ON PURPOSE: `/v1/
-  // projects/{projectId}/access-grants` carries a POST and nothing else — v0.1
-  // has no operation that revokes a project access grant, and inventing one to
-  // serve a test would be an API change owned by
-  // technical/openapi/scope-v0.1.csv, not by this harness. The column is the
+  // SQL, WHERE EVERY OTHER SEEDING STEP HERE IS HTTP, AND ON PURPOSE. Until
+  // DEV-043 v0.1 had no operation that revokes a project access grant. It has
+  // one now (`project_access.revoke`, ADR-014), and it refuses exactly this
+  // write: the row revoked here is the creator's only `project.admin` grant,
+  // and the route keeps a project's last administrator (INV-110). The column is the
   // one authz.ts itself reads (`revoked_at is null`), so this writes the state
   // the production check already tests for rather than a second mechanism.
   //

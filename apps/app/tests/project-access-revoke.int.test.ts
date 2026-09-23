@@ -90,8 +90,13 @@ const grant = (projectId: string, body: unknown) =>
 const createContract = (projectId: string) =>
   post("projects/[projectId]/contracts", { projectId }, {
     ownPartyId: crypto.randomUUID(), customerPartyId: crypto.randomUUID(),
-    contractNo: "Д-1", currency: "UAH", taxMode: "exclusive",
+    contractNo: "Д-1", currency: "UAH", taxMode: "exempt",
   });
+/** The probe got past authorization: its 422 is the unknown customer party, not the body. */
+async function expectAuthorized(res: Response): Promise<void> {
+  expect(res.status).toBe(422);
+  expect((await res.json()).fieldErrors).toEqual([{ path: "customerPartyId", message: "unknown party" }]);
+}
 
 async function listProjects(): Promise<string[]> {
   const { GET } = await import("../app/v1/projects/route");
@@ -160,7 +165,7 @@ describe("POST /v1/projects/{projectId}/access-grants/revoke (BL-021, ADR-014 de
     const projectId = await project();
     await give(projectId, memberIds.member!, ["project.view", "contracts.edit"]);
     current = MEMBER;
-    expect((await createContract(projectId)).status).toBe(422);
+    await expectAuthorized(await createContract(projectId));
 
     current = ADMIN;
     const res = await revoke(projectId, { memberId: memberIds.member, capabilities: ["contracts.edit"] });
@@ -282,7 +287,7 @@ describe("POST /v1/projects/{projectId}/access-grants/revoke (BL-021, ADR-014 de
     expect(regrant.status).toBe(201);
     expect((await regrant.json()).granted.map((g: { capability: string }) => g.capability)).toEqual(["contracts.edit"]);
     current = MEMBER;
-    expect((await createContract(projectId)).status).toBe(422);
+    await expectAuthorized(await createContract(projectId));
   });
 
   it("authority: a view-only member is 403; an outsider, another workspace's owner and a member without view get 404", async () => {

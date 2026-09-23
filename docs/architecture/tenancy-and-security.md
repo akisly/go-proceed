@@ -163,6 +163,23 @@ atomically creates explicit project administration access for its creator;
 later commands never infer project access merely from a party relationship or
 responsibility title.
 
+**Revoking** (`project_access.revoke`, [ADR-014](../decisions/ADR-014-revoke-access-and-end-responsibility.md)
+decision 1, DEV-043, 2026-09-23). A project administrator revokes a member's
+unrevoked grants on a project by member and capability — live, lapsed or not
+yet valid — and a revoked grant stops authorizing at once. Revoking a lapsed
+grant is what frees its capability for a new grant, since an unrevoked row
+blocks a second one. Revoking `project.view` removes the member from the
+project: every grant they hold there is revoked with it (INV-111). A revoke
+that would leave the project with no live `project.admin` grant held by an
+active member is refused, the actor's own included (INV-110), because the
+creator's bootstrap no longer applies to a project that has grants and a
+workspace role confers no project capability. The rule covers revokes only: an
+only administrator grant that lapses, or its holder's suspension, still leaves
+the project without an administrator (BL-137). The application role may
+update a grant's `revoked_at` and `version` and nothing else (`0096`). A revoke
+does not end responsibilities (INV-021), work assignments, Telegram member
+links or external review links the member issued.
+
 ### Project responsibilities
 
 `project_responsibility_assignments` record operational accountability such as

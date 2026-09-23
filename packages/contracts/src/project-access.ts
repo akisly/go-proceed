@@ -67,6 +67,28 @@ export interface GrantProjectAccessResponse {
   granted: { capability: string; grantId: string }[];
 }
 
+// BL-021 / DEV-043 / ADR-014 decision 1: `project_access.revoke` is addressed
+// the way the grant is — by member and capability — because the grant returns
+// ids only for the rows it inserted and a project's creator receives none. No
+// `validUntil`: a revoke takes effect when it commits, and a dated revoke is not
+// part of ADR-014. Revoking `project.view` revokes every grant the member holds
+// on the project (the route expands it); the response lists what was revoked.
+export const revokeProjectAccessRequest = z.object({
+  memberId: z.string().guid(),
+  capabilities: z.array(projectCapability).min(1),
+}).strict();
+export type RevokeProjectAccessRequest = z.infer<typeof revokeProjectAccessRequest>;
+
+export const revokeProjectAccessResponse = z.object({
+  revoked: z.array(z.object({ capability: projectCapability, grantId: z.string().guid() }).strict()),
+}).strict();
+export type RevokeProjectAccessResponse = z.infer<typeof revokeProjectAccessResponse>;
+
+/** 409 `VERSION_CONFLICT` `details`: the requested capabilities the member holds no unrevoked grant of. */
+export const projectAccessNotHeldDetails = z.object({
+  notHeld: z.array(projectCapability).min(1),
+}).strict();
+
 export const responsibilityKind = z.enum([
   "performer", "progress_recorder", "evidence_recorder", "evidence_custodian",
   "requirement_owner", "package_compiler", "internal_verifier", "package_submitter",
