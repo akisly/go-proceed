@@ -81,7 +81,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-050](#bl-050) | P3 | open | The dashboard browser pass has an unexplained menu-reopen race |
 | [BL-051](#bl-051) | P3 | open | `DialogClose` hand-rolls its ghost and icon styling |
 | [BL-052](#bl-052) | P3 | open | No test enforces «never put a control height behind a `data-[…]` variant» |
-| [BL-053](#bl-053) | P3 | scheduled → DEV-035 | The dashboard rail's four nav items are disabled placeholders |
+| [BL-053](#bl-053) | P3 | closed → DEV-035 | The dashboard rail's four nav items are disabled placeholders |
 | [BL-054](#bl-054) | P3 | open | The assignments register scrolls sideways at narrow widths instead of rendering cards |
 | [BL-055](#bl-055) | P3 | open | Final-review minors: tokens, tests and the brand pipeline |
 | [BL-056](#bl-056) | P3 | open | Final-review minors: `packages/ui` |
@@ -145,9 +145,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-114](#bl-114) | P3 | open | The invitation redemption page (`invite#<token>`) is not built |
 | [BL-115](#bl-115) | P3 | open | A prefetching mail scanner may spend the one-time code the sign-in email carries |
 | [BL-116](#bl-116) | P2 | open | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
-| [BL-117](#bl-117) | P2 | scheduled → DEV-035 | The office dashboard has not been seen under the Autumn palette or the new typeface |
+| [BL-117](#bl-117) | P2 | closed → DEV-035 | The office dashboard has not been seen under the Autumn palette or the new typeface |
 | [BL-118](#bl-118) | P3 | open | «→» is rendered on two landing pages and no self-hosted face carries it |
-| [BL-119](#bl-119) | P2 | scheduled → DEV-035 | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
+| [BL-119](#bl-119) | P2 | closed → DEV-035 | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
 | [BL-120](#bl-120) | P3 | open | A `bg-`named role used as a foreground escapes the contrast coverage guard |
 | [BL-121](#bl-121) | P3 | open | Two browser-harness probes assert their conclusion on a premise that is no longer true |
 | [BL-122](#bl-122) | P2 | deferred (owner) | The private prospecting copy has no recorded purpose, retention date or backup, and erasure cannot reach history |
@@ -719,9 +719,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-053"></a>
 ### BL-053 — P3 — The dashboard rail's four nav items are disabled placeholders
 
-- **State:** scheduled → DEV-035
+- **State:** closed → DEV-035
 - **Legacy cite:** `TODOS.md` «rail's four nav items read as disabled grey»
-- **Why:** they were placeholders until slices D1–D4; D1–D3 have merged and none of the items is a link. When they become links, two rulings from the removed `.interface-design/system.md` §5 apply, moved here by DEV-007: in the icon band (`rail-icons`, `md` to `wide`) the label stays in the DOM, so the accessible name never depends on a tooltip, which mounts only in that band; and the active item's bar is absolutely positioned, so the label does not shift as you navigate.
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`): the rail's items are real links with `aria-current`, labels `sr-only` in the icon band, no disabled placeholders.]* they were placeholders until slices D1–D4; D1–D3 have merged and none of the items is a link. When they become links, two rulings from the removed `.interface-design/system.md` §5 apply, moved here by DEV-007: in the icon band (`rail-icons`, `md` to `wide`) the label stays in the DOM, so the accessible name never depends on a tooltip, which mounts only in that band; and the active item's bar is absolutely positioned, so the label does not shift as you navigate.
 - **Evidence:** `apps/app/src/components/dash-shell/sidebar.tsx:120` sets `disabled` on every item of `NAV_ITEMS`.
 - **Depends on:** a navigation decision for the merged routes.
 - **Deadline:** none recorded.
@@ -1436,9 +1436,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-117"></a>
 ### BL-117 — P2 — The office dashboard has not been seen under the Autumn palette or the new typeface
 
-- **State:** scheduled → DEV-035
+- **State:** closed → DEV-035
 - **Legacy cite:** none
-- **Why:** DEV-028 moved the palette and both text faces in `packages/tokens`, so every surface of `apps/app` changed with them, and not one of its screens was rendered during that task. The landing was verified in a browser at seven widths; the dashboard was verified by its build and its types only. The risk is not contrast — every pairing is asserted in `packages/testing/src/contrast.test.ts`, in both themes — but composition: a warm paper a step darker than the old one under dense tables, an ink that is warm rather than cool beside the status chips, and a narrower face in fixed-width columns (the rail, the register's figures, the 32px control heights). Those are the things only a rendered page shows.
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`): the dashboard was rendered at six widths and reduced motion under the Autumn palette and typeface by the `apps/app` harness, and reviewed by `gp-ui-reviewer`.]* DEV-028 moved the palette and both text faces in `packages/tokens`, so every surface of `apps/app` changed with them, and not one of its screens was rendered during that task. The landing was verified in a browser at seven widths; the dashboard was verified by its build and its types only. The risk is not contrast — every pairing is asserted in `packages/testing/src/contrast.test.ts`, in both themes — but composition: a warm paper a step darker than the old one under dense tables, an ink that is warm rather than cool beside the status chips, and a narrower face in fixed-width columns (the rail, the register's figures, the 32px control heights). Those are the things only a rendered page shows.
 - **Evidence:** DEV-028 «What is not true after this task»; `apps/app/qa/field.mjs` now asserts the new font stack (`assertBrandFaces`) but was not run, because the harness needs `apps/app/.env.local` with the database URLs and `NEXT_PUBLIC_SUPABASE_*`, and the local stack is down.
 - **Depends on:** the local Supabase stack, or a deployed preview of `apps/app`. Then `pnpm --filter @goproceed/app qa` and a `gp-ui-reviewer` pass over the screenshots.
 - **Deadline:** before the dashboard is shown to a pilot user.
@@ -1456,9 +1456,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-119"></a>
 ### BL-119 — P2 — The office dashboard has no direction from the Autumn CRM reference the landing was built to
 
-- **State:** scheduled → DEV-035
+- **State:** closed → DEV-035
 - **Legacy cite:** none
-- **Why:** on 2026-09-22 the owner supplied five shots of the «Autumn CRM Dashboard» (Barly Design / Uxerflow) and said, in one sentence, both «я хочу что бы наш так выглядел» about the dashboard and «сейчас основная задача - лендинг». DEV-029 did the landing and deliberately did not touch `apps/app`: the one shared component it changed (`FeatureCell`) took an ADDITIVE prop whose default leaves the dashboard byte-identical — and `apps/app` imports neither `FeatureGrid` nor `FeatureCell` at all *[corrected 2026-09-22: this said «Stepper, FeatureCell, Compare»; the other two are byte-identical to base]*. So the direction now exists as tokens and as a vocabulary, and nothing in the product has read it. The shots are dashboards, not marketing pages — the parts that belong to `apps/app` and not to the landing are: the paper sidebar against a white canvas (our `bg-canvas` / `bg-surface` pair already), a tinted icon chip on each KPI card (the four `chip-*` roles exist since DEV-029), a dot-matrix chart in the mark's colour, and an ember primary action. None of those is a token change now; all of them are a design decision on live screens.
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`) for the shell and the project page; what the reference shows beyond them is BL-133 (time series) and BL-134 (dashboard follow-ups).]* on 2026-09-22 the owner supplied five shots of the «Autumn CRM Dashboard» (Barly Design / Uxerflow) and said, in one sentence, both «я хочу что бы наш так выглядел» about the dashboard and «сейчас основная задача - лендинг». DEV-029 did the landing and deliberately did not touch `apps/app`: the one shared component it changed (`FeatureCell`) took an ADDITIVE prop whose default leaves the dashboard byte-identical — and `apps/app` imports neither `FeatureGrid` nor `FeatureCell` at all *[corrected 2026-09-22: this said «Stepper, FeatureCell, Compare»; the other two are byte-identical to base]*. So the direction now exists as tokens and as a vocabulary, and nothing in the product has read it. The shots are dashboards, not marketing pages — the parts that belong to `apps/app` and not to the landing are: the paper sidebar against a white canvas (our `bg-canvas` / `bg-surface` pair already), a tinted icon chip on each KPI card (the four `chip-*` roles exist since DEV-029), a dot-matrix chart in the mark's colour, and an ember primary action. None of those is a token change now; all of them are a design decision on live screens.
 - **Evidence:** the five posters sampled in DEV-029's «Sources» — the reference's paper is `#EAEADF`, its accent `#EE530A`, its primary button `#4C665B` and its outer ground `#0B0907`, which are our `bg-canvas`, `bg-signal`, `text-accent` and `bg-inverse` to within a step. The palette is not what is missing.
 - **Depends on:** BL-117 first — the dashboard has not been seen under the Autumn palette AT ALL, so there is no current screenshot to redesign from. A `gp-architect` pass is not needed (no table, contract or policy), but `docs/design/04-role-pain-map.md`'s rule is: a screen with no named role and no named pain is a guess, and these shots are somebody else's product.
 - **Deadline:** before the dashboard is shown to a pilot user, so that the landing and the product do not disagree in front of one.
