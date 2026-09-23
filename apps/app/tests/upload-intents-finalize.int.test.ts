@@ -669,6 +669,46 @@ databaseDescribe("a creator who lost access can still abandon the upload (BL-032
     expect((await stateOf(intent.uploadIntentId)).status).toBe("orphaned_for_purge");
   });
 
+  it("takes no lock on an intent its caller did not create (DEV-038 S1-01)", async () => {
+    // A finalize that ends in 404 reaches the function for any signed-in
+    // caller and any id. It must not lock another member's intent while it
+    // decides that the caller is not its creator: that would let anyone who
+    // knows an id delay the real finalize.
+    const { withServiceTx } = await import("@goproceed/database");
+    const { intent } = await stagedByB();
+    await memberWith(C, "colleague@example.test", ["evidence.record", "project.view"]);
+    await withServiceTx({ actorUserId: C, organizationId: null, requestId: "t" }, async (tx) => {
+      const r = await tx.query<{ ok: boolean }>(
+        "select app.abandon_unauthorized_upload_intent($1) as ok", [intent.uploadIntentId]);
+      expect(r.rows[0]!.ok).toBe(false);
+      // Still inside that transaction: another connection can take the row at once.
+      await expect(q("select id from public.upload_intents where id = $1 for update nowait",
+        [intent.uploadIntentId])).resolves.toHaveLength(1);
+    });
+  });
+
+  it("keeps today's refusal, and logs, when the abandon path itself fails (DEV-038 R1-01)", async () => {
+    // A build running against a database without 0092 (or with it rolled
+    // back) must answer as before, not 500.
+    const { intent, memberId } = await stagedByB();
+    await q(`update public.memberships set status = 'suspended' where id = $1`, [memberId]);
+    const errors: unknown[][] = [];
+    vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => { errors.push(a); });
+    await q("alter function app.abandon_unauthorized_upload_intent(uuid) rename to abandon_unauthorized_upload_intent_away");
+    try {
+      const res = await finalize(intent.uploadIntentId);
+      expect(res.status).toBe(404);
+      expect((await res.json()).code).toBe("RESOURCE_NOT_FOUND");
+      const lines = errors.filter((e) => e[0] === "[FINALIZE_ABANDON_FAILED]");
+      expect(lines).toHaveLength(1);
+      expect(lines[0]![1]).toBe(res.headers.get("x-request-id"));
+    } finally {
+      await q("alter function app.abandon_unauthorized_upload_intent_away(uuid) rename to abandon_unauthorized_upload_intent");
+      vi.restoreAllMocks();
+    }
+    expect((await stateOf(intent.uploadIntentId)).status).toBe("intent_authorized");
+  });
+
   it("is callable by the service principal only", async () => {
     for (const role of ["anon", "authenticated", "goproceed_app", "service_role",
                         "goproceed_worker", "goproceed_purge_worker"]) {

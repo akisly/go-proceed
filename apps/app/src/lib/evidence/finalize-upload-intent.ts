@@ -120,8 +120,14 @@ export async function finalizeUploadIntent({
     // it answers false and the refusal below is exactly today's.
     if (err instanceof HttpProblem
         && (err === notFound || err.body.code === "MEMBERSHIP_INACTIVE")) {
+      // Best-effort (R1-01): if the second path fails — a database without
+      // 0092, or rolled back — the caller gets today's refusal, not a 500.
       const abandoned = await withServiceTx(ctx, async (tx) => (await tx.query<{ ok: boolean }>(
-        "select app.abandon_unauthorized_upload_intent($1) as ok", [intentId])).rows[0]?.ok === true);
+        "select app.abandon_unauthorized_upload_intent($1) as ok", [intentId])).rows[0]?.ok === true)
+        .catch((abandonErr: unknown) => {
+          console.error("[FINALIZE_ABANDON_FAILED]", requestId, (abandonErr as Error).name);
+          return false;
+        });
       if (abandoned) throw accessRevoked(requestId);
     }
     throw err;
