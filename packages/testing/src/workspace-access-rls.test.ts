@@ -269,3 +269,91 @@ describe("project_access_grants: the application role may revoke a grant and cha
     }
   });
 });
+
+/**
+ * DEV-044 / BL-015 / ADR-014 decision 3 (migration 0097): the end of a
+ * responsibility assignment is an append-only fact of its own.
+ *
+ * Seeded here, not in seedSide, so the tests above keep their rows: each side's
+ * assignment gets one end through the admin client, and A gets a second
+ * assignment, held by MEMBER_A2 and ended too, for the holder's own read.
+ */
+describe("project_responsibility_assignment_ends (DEV-044)", () => {
+  const assignmentOf = async (ws: string, memberFilter = "") => {
+    const r = await admin.query<{ id: string; project_id: string; member_id: string }>(
+      `select id, project_id, member_id from public.project_responsibility_assignments where workspace_id = $1 ${memberFilter} order by created_at`, [ws]);
+    return r.rows;
+  };
+  let a2Assignment: string;
+  let a2Member: string;
+  let projectA: string;
+
+  beforeAll(async () => {
+    projectA = (await admin.query<{ id: string }>("select id from public.projects where workspace_id = $1", [WS_A])).rows[0]!.id;
+    a2Member = (await admin.query<{ id: string }>(
+      "select id from public.memberships where organization_id = $1 and user_id = $2", [WS_A, MEMBER_A2])).rows[0]!.id;
+    a2Assignment = (await admin.query<{ id: string }>(
+      `insert into public.project_responsibility_assignments (workspace_id, project_id, member_id, responsibility, assigned_by)
+       values ($1, $2, $3, 'evidence_recorder', $4) returning id`, [WS_A, projectA, a2Member, USER_A])).rows[0]!.id;
+    for (const [ws, user] of [[WS_A, USER_A], [WS_B, USER_B]] as const) {
+      const [first] = await assignmentOf(ws);
+      await admin.query(
+        `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
+         values ($1, $2, $3, $4)`, [ws, first!.project_id, first!.id, user]);
+    }
+    await admin.query(
+      `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
+       values ($1, $2, $3, $4)`, [WS_A, projectA, a2Assignment, USER_A]);
+  });
+
+  it("project_responsibility_assignment_ends: the owner of A reads the ends of A and the owner of B reads only its own; a holder with no grant reads only the end of their own assignment", async () => {
+    const sql = "select workspace_id as ws from public.project_responsibility_assignment_ends where workspace_id = any($1::uuid[])";
+    expect(await seen(USER_A, sql)).toEqual([WS_A, WS_A]);
+    expect(await seen(USER_B, sql)).toEqual([WS_B]);
+    const own = await asActor<{ assignment_id: string }>(MEMBER_A2, WS_A, (c) => c.query(
+      "select assignment_id from public.project_responsibility_assignment_ends where workspace_id = any($1::uuid[])", [BOTH]));
+    expect(own.rows.map((r) => r.assignment_id)).toEqual([a2Assignment]);
+  });
+
+  it("inserts only for a project administrator of the row's project, as the actor and at the transaction's time", async () => {
+    const target = (await admin.query<{ id: string }>(
+      `insert into public.project_responsibility_assignments (workspace_id, project_id, member_id, responsibility, assigned_by)
+       values ($1, $2, $3, 'progress_recorder', $4) returning id`, [WS_A, projectA, a2Member, USER_A])).rows[0]!.id;
+    const insert = (actor: string, endedBy: string, endedAt = "now()") => asActor(actor, WS_A, (c) => c.query(
+      `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by, ended_at)
+       values ($1, $2, $3, $4, ${endedAt})`, [WS_A, projectA, target, endedBy]));
+    await expect(insert(USER_B, USER_B)).rejects.toMatchObject({ code: "42501" });
+    await expect(insert(MEMBER_A2, MEMBER_A2)).rejects.toMatchObject({ code: "42501" });
+    await expect(insert(USER_A, USER_B)).rejects.toMatchObject({ code: "42501" });
+    await expect(insert(USER_A, USER_A, "now() - interval '1 day'")).rejects.toMatchObject({ code: "42501" });
+    await expect(insert(USER_A, USER_A, "now() + interval '1 day'")).rejects.toMatchObject({ code: "42501" });
+    await insert(USER_A, USER_A);
+    // One end per assignment.
+    await expect(insert(USER_A, USER_A)).rejects.toMatchObject({ code: "23505" });
+  });
+
+  it("refuses UPDATE and DELETE even for the table owner, and an end pinned to another project's assignment", async () => {
+    const e = await admin.query<{ id: string }>(
+      "select id from public.project_responsibility_assignment_ends where workspace_id = $1 limit 1", [WS_A]);
+    await expect(admin.query("update public.project_responsibility_assignment_ends set ended_at = now() where id = $1", [e.rows[0]!.id]))
+      .rejects.toThrow(/immutable/i);
+    await expect(admin.query("delete from public.project_responsibility_assignment_ends where id = $1", [e.rows[0]!.id]))
+      .rejects.toThrow(/immutable/i);
+    const other = (await admin.query<{ id: string }>(
+      "insert into public.projects (workspace_id, name, created_by) values ($1, 'Приклад-Обʼєкт-A2', $2) returning id", [WS_A, USER_A])).rows[0]!.id;
+    await expect(admin.query(
+      `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
+       values ($1, $2, $3, $4)`, [WS_A, other, a2Assignment, USER_A])).rejects.toMatchObject({ code: "23503" });
+    await expect(admin.query(
+      `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
+       values ($1, $2, $3, $4)`, [WS_B, projectA, a2Assignment, USER_A])).rejects.toMatchObject({ code: "23503" });
+  });
+
+  it("goproceed_app holds SELECT and INSERT only", async () => {
+    const r = await admin.query<{ privilege_type: string }>(
+      `select privilege_type from information_schema.role_table_grants
+        where grantee = 'goproceed_app' and table_schema = 'public' and table_name = 'project_responsibility_assignment_ends'
+        order by privilege_type`);
+    expect(r.rows.map((row) => row.privilege_type)).toEqual(["INSERT", "SELECT"]);
+  });
+});

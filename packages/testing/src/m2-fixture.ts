@@ -206,6 +206,8 @@ export async function dropM2Workspaces(c: Client, workspaceIds: readonly string[
   const tables = [
     "work_items", "contract_versions", "import_row_results", "import_files",
     "import_batches", "source_amount_resolutions", "contracts",
+    // DEV-044 (0097): an end pins its assignment, so it goes first.
+    "project_responsibility_assignment_ends",
     "project_responsibility_assignments", "project_access_grants",
     "project_parties",
     // audit_events must precede projects: 0040 gave audit_events a tenant-safe

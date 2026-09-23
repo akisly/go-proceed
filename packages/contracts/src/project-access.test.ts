@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  endResponsibilityRequest, endResponsibilityResponse,
   projectAccessNotHeldDetails, revokeProjectAccessRequest, revokeProjectAccessResponse,
 } from "./project-access";
 
@@ -30,5 +31,27 @@ describe("project access revoke contracts", () => {
     expect(projectAccessNotHeldDetails.parse({ notHeld: ["imports.manage"] })).toEqual({ notHeld: ["imports.manage"] });
     expect(() => projectAccessNotHeldDetails.parse({ notHeld: [] })).toThrow();
     expect(() => projectAccessNotHeldDetails.parse({ notHeld: ["imports.manage"], memberId })).toThrow();
+  });
+});
+
+// BL-015 / DEV-044 / ADR-014 decision 2: an end names a member and a
+// responsibility, takes effect when it commits, and lists the assignments it ended.
+describe("responsibility end contracts", () => {
+  const memberId = crypto.randomUUID();
+  const assignmentId = crypto.randomUUID();
+
+  it("the request names a member and one responsibility, and no date", () => {
+    expect(endResponsibilityRequest.parse({ memberId, responsibility: "performer" }))
+      .toEqual({ memberId, responsibility: "performer" });
+    expect(() => endResponsibilityRequest.parse({ memberId, responsibility: "not_a_responsibility" })).toThrow();
+    expect(() => endResponsibilityRequest.parse({ memberId, responsibility: "performer", endAt: "2099-01-01T00:00:00Z" })).toThrow();
+    expect(() => endResponsibilityRequest.parse({ memberId, responsibility: "performer", validUntil: "2099-01-01T00:00:00Z" })).toThrow();
+  });
+
+  it("the response lists the ended assignments and nothing else", () => {
+    const body = { ended: [{ assignmentId }] };
+    expect(endResponsibilityResponse.parse(body)).toEqual(body);
+    expect(() => endResponsibilityResponse.parse({ ...body, memberId })).toThrow();
+    expect(() => endResponsibilityResponse.parse({ ended: [{ assignmentId, endedAt: "2026-09-23T00:00:00Z" }] })).toThrow();
   });
 });
