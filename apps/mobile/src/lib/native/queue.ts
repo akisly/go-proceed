@@ -95,11 +95,15 @@ export class NativeQueue {
       if (receipt.status === "available") throw new QueueRequestError(0, "ALREADY_RECEIVED");
       if (!TERMINAL_STATES.has(receipt.status)) throw new QueueRequestError(0, "RECEIPT_PENDING");
     }
+    // The receipt GET awaited: a switch meanwhile moved the row under another owner.
+    if (!sameIdentity(this.context, identity)) throw new QueueRequestError(0, "SUPERSEDED");
     try {
       await this.deps.vault.discard(id, { confirmed: true });
     } catch (error) {
-      // A concurrent discard of the same item removed it first.
-      if (error instanceof Error && error.message === "VAULT_NOT_FOUND") throw new QueueRequestError(0, "ITEM_GONE");
+      if (!sameIdentity(this.context, identity)) throw new QueueRequestError(0, "SUPERSEDED");
+      // A concurrent discard of the same item removed it first. iOS rejects with the
+      // bare code; Android wraps it («…Caused by: …: VAULT_NOT_FOUND»).
+      if (error instanceof Error && /(^|\W)VAULT_NOT_FOUND$/.test(error.message.trim())) throw new QueueRequestError(0, "ITEM_GONE");
       throw error;
     }
     await this.deps.changed();

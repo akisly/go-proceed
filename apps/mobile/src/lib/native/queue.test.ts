@@ -196,6 +196,20 @@ describe("native durable queue", () => {
     await f.queue.activate(context);
     await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "ITEM_GONE" });
   });
+  it("a switch during the receipt GET is SUPERSEDED and deletes nothing", async () => {
+    const f = fixture(item({ intentId: "intent", state: "failed" }));
+    await f.queue.activate(context);
+    f.get.mockImplementationOnce(async () => { await f.queue.activate({ ...context, workspaceId: "other" }); return { ...available, status: "expired" }; });
+    f.vault.discard = vi.fn(async () => { throw new Error("VAULT_NOT_FOUND"); });
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "SUPERSEDED" });
+    expect(f.vault.discard).not.toHaveBeenCalled();
+  });
+  it("recognises the Android-wrapped VAULT_NOT_FOUND as gone", async () => {
+    const f = fixture(item({ state: "failed" }));
+    f.vault.discard = vi.fn(async () => { throw new Error("Call to function 'GoProceedVault.call' has been rejected.\n→ Caused by: java.lang.IllegalStateException: VAULT_NOT_FOUND"); });
+    await f.queue.activate(context);
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "ITEM_GONE" });
+  });
   it("does not call a row gone when the workspace changed during the discard", async () => {
     const f = fixture(item({ state: "failed" }));
     await f.queue.activate(context);
