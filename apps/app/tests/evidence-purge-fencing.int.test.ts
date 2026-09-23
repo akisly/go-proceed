@@ -204,8 +204,8 @@ describe("a run that must stop, or cannot finish a row (DEV-036 R1-02)", () => {
   });
 
   it("counts a row whose finish cannot be recorded as failed, logs it, and goes on to the next", async () => {
-    await dueIntent();
-    await dueIntent();
+    const a = await dueIntent();
+    const b = await dueIntent();
     const errors: unknown[][] = [];
     vi.spyOn(console, "error").mockImplementation((...a: unknown[]) => { errors.push(a); });
     duringRemove = async () => {
@@ -214,7 +214,17 @@ describe("a run that must stop, or cannot finish a row (DEV-036 R1-02)", () => {
     try {
       const outcome = await drainEvidencePurge();
       expect(outcome).toEqual({ claimed: 2, purged: 0, failed: 2, superseded: 0 });
-      expect(errors.filter((e) => e[0] === "[EVIDENCE_PURGE]")).toHaveLength(2);
+      const lines = errors.filter((e) => e[0] === "[EVIDENCE_PURGE]");
+      expect(lines).toHaveLength(2);
+      expect(lines.map((l) => (l[3] as { code?: string }).code)).toEqual(["42501", "42501"]);
+      // The rows keep their claims, spend no attempt and stay unpurged (R2-02):
+      // the one-hour window hands them on.
+      for (const intent of [a, b]) {
+        const r = await row(intent.uploadIntentId);
+        expect(r.purge_claim_token).not.toBeNull();
+        expect(r.purge_attempts).toBe(0);
+        expect(r.purged_at).toBeNull();
+      }
     } finally {
       await q("grant execute on function app.complete_upload_purge(uuid, uuid) to goproceed_purge_worker");
       vi.restoreAllMocks();

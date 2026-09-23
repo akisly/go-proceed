@@ -137,7 +137,9 @@ async function finish(run: RunContext, sql: string, params: unknown[]):
     return ok ? "applied" : "superseded";
   } catch (err) {
     console.error("[EVIDENCE_PURGE]", run.requestId, "could not record a row's outcome",
-      { uploadIntentId: params[0], error: (err as Error).name });
+      // The SQLSTATE says why (a missing function, a revoked grant) and carries
+      // no data; node-postgres sets `name` to "error" for every database error.
+      { uploadIntentId: params[0], error: (err as Error).name, code: (err as { code?: string }).code });
     return "error";
   }
 }

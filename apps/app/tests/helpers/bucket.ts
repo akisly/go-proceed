@@ -1,6 +1,9 @@
 import { q } from "./fixtures";
 import { EVIDENCE_BUCKET } from "../../src/lib/evidence-storage";
 
+/** 0093's allow-list, restored literally so a crashed run cannot leave the bucket open for the next. */
+export const EVIDENCE_BUCKET_TYPES = ["image/jpeg", "image/png", "image/heic", "application/pdf"];
+
 /**
  * Runs `fn` with the evidence bucket's type allow-list (0093, BL-126) lifted,
  * then restores it.
@@ -13,9 +16,6 @@ import { EVIDENCE_BUCKET } from "../../src/lib/evidence-storage";
  * refuses; this is how it does, without weakening the bucket for any other test
  * (test files run one at a time, `vitest.config.ts`).
  */
-/** 0093's allow-list, restored literally so a crashed run cannot leave the bucket open for the next. */
-export const EVIDENCE_BUCKET_TYPES = ["image/jpeg", "image/png", "image/heic", "application/pdf"];
-
 export async function withBucketAcceptingAnyType<T>(fn: () => Promise<T>): Promise<T> {
   const before = await q<{ allowed_mime_types: string[] | null }>(
     "select allowed_mime_types from storage.buckets where id = $1", [EVIDENCE_BUCKET]);

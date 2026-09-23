@@ -702,6 +702,7 @@ databaseDescribe("a creator who lost access can still abandon the upload (BL-032
       const lines = errors.filter((e) => e[0] === "[FINALIZE_ABANDON_FAILED]");
       expect(lines).toHaveLength(1);
       expect(lines[0]![1]).toBe(res.headers.get("x-request-id"));
+      expect(lines[0]![3]).toBe("42883"); // undefined_function: the deploy-order case
     } finally {
       await q("alter function app.abandon_unauthorized_upload_intent_away(uuid) rename to abandon_unauthorized_upload_intent");
       vi.restoreAllMocks();

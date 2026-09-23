@@ -125,7 +125,10 @@ export async function finalizeUploadIntent({
       const abandoned = await withServiceTx(ctx, async (tx) => (await tx.query<{ ok: boolean }>(
         "select app.abandon_unauthorized_upload_intent($1) as ok", [intentId])).rows[0]?.ok === true)
         .catch((abandonErr: unknown) => {
-          console.error("[FINALIZE_ABANDON_FAILED]", requestId, (abandonErr as Error).name);
+          // The SQLSTATE tells deploy-order skew (42883) from a misconfigured
+          // service login (P0001, 42501); it carries no data (R2-01).
+          console.error("[FINALIZE_ABANDON_FAILED]", requestId, (abandonErr as Error).name,
+            (abandonErr as { code?: string }).code);
           return false;
         });
       if (abandoned) throw accessRevoked(requestId);

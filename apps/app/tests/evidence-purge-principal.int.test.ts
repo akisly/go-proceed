@@ -84,12 +84,20 @@ describe("the purge principal (BL-030)", () => {
   it("inherits nothing callable through PUBLIC: no SECURITY DEFINER function is PUBLIC-executable (DEV-036 S1-03)", async () => {
     // The login keeps what PUBLIC holds, which the «only the five» case above
     // leaves out by construction. What would matter is a definer PUBLIC can run.
-    const r = await q<{ fn: string }>(
+    const publicDefiners = () => q<{ fn: string }>(
       `select p.oid::regprocedure::text as fn from pg_proc p
          join pg_namespace n on n.oid = p.pronamespace
         where n.nspname in ('public', 'app') and p.prosecdef
           and has_function_privilege('public', p.oid, 'execute')`);
-    expect(r).toEqual([]);
+    // The positive control (R2-03): a definer created with PUBLIC's execute is found.
+    await q("create function app.zz_public_definer_probe() returns int language sql security definer set search_path = '' as 'select 1'");
+    await q("grant execute on function app.zz_public_definer_probe() to public");
+    try {
+      expect((await publicDefiners()).map((x) => x.fn)).toEqual(["app.zz_public_definer_probe()"]);
+    } finally {
+      await q("drop function app.zz_public_definer_probe()");
+    }
+    expect(await publicDefiners()).toEqual([]);
   });
 
   it("is the only principal that may call them", async () => {
