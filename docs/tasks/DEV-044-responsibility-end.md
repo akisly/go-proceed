@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** a project administrator can end a member's responsibility on a project (`POST /v1/projects/{projectId}/responsibilities/end`, body `{ memberId, responsibility }`): every assignment of that pair that is live or has not started yet is ended at the moment of the command by an append-only end fact, and a later assign no longer counts it in its separation-of-duties warnings. Scope set by [ADR-014](../decisions/ADR-014-revoke-access-and-end-responsibility.md) decisions 2 and 3.
-- **State:** implementing
+- **State:** verifying
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a scope change (ADR), a new table with RLS and grants, a new `/v1` command and catalog rows: `gp-architect` → coordinator drafts ADR-014 → **owner rules** → failing tests → migration, contract, route, catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -47,24 +47,43 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 |---|---|---|---|---|
 | 1 | `gp-architect` | Recommended deferring to v0.2; designed option (i), the append-only end table after `0045`'s one-successor key, and the route | `scratchpad/dev043-044-architect-r0.md` | Owner questions |
 | 2 | Owner | Build now, outside the list, end at the command's time | chat, 2026-09-23 | Tests |
+| 3 | Coordinator (tests first) | Three test files red at `76b531c` for the right reasons: the route module, the contract exports and the table missing | `scratchpad/dev044-red.txt` | Implement |
+| 4 | Coordinator (implementing) | Migration `0097` hand-applied to the local database; contract, route, the warning query, catalogs, the design DDL (`schema-v0.1.sql`, which the validator requires for every catalogued entity); `392a0d1`. The RLS test's composite-pin case first used an assignment that already had an end, so the unique key answered first; it now pins a fresh one | `scratchpad/dev043-044-green-r0.txt` | Review |
+| 5 | `gp-reviewer`, `gp-security` (independent, round 1) | No blocker, no major; for DEV-044: R1-05a–c, S1-03 | `scratchpad/dev043-044-reviewer-r1.md`, `scratchpad/dev043-044-security-r1.md` | Rework |
+| 6 | Coordinator (rework) | Fixed or deferred (below); `2d37c9c` | `scratchpad/dev043-044-green-r1.txt` | `gp-qa` |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| S1-03 | nit | `end/route.ts`, the actor loses admin after `authorize` | 403 vs 500 (unmapped 42501) | coordinator | Fixed in `2d37c9c`: 42501 from the insert is 403 `SCOPE_PROJECT_DENIED`; not reproducible deterministically |
+| R1-01 (applied here too) | minor | an upper-case `memberId` | one canonical id in the audit record | coordinator | Fixed in `2d37c9c`: lower-cased once |
+| R1-05a | minor | `schema-v0.1.sql` said `valid_until` is ended by a command | the end is a separate fact | coordinator | Fixed in `2d37c9c` |
+| R1-05b | minor | criterion 6 called `m1-schema.test.ts` non-resetting | it calls `resetDb()` | coordinator | Fixed in `2d37c9c`: criterion revised, file NOT RUN |
+| R1-05c | minor | the new table is not in `m1-schema.test.ts`'s lists | added | coordinator | Deferred: an edit that cannot be run locally under the owner's no-reset rule would be unverified; it waits for a CI run or an owner-approved reset |
 
-Rework count and hypothesis changes:
+Rework count and hypothesis changes: one rework after the first review (not a round). The rework changed behaviour only by the stated fixes.
 
 ## What is not true after this task
 
 - Warnings already recorded in an assign's response and audit row are not revised when an assignment ends.
 - No route lists assignments or their ends, and no screen shows them.
 - An assignment whose `valid_until` has passed is not ended by this command; it has already lapsed.
+- `m1-schema.test.ts` does not list the new table, and was not run (it resets the database).
+- `rls-coverage.test.ts`'s both-ways comparison did not pass locally, for the reason DEV-043 records (PR #115's table in the shared local database); the new table's own registry row is not reported by it.
 
 ## Acceptance evidence
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1 | yes | red `76b531c`+tests; green `2d37c9c` | `npx vitest run tests/responsibility-end.int.test.ts` in `apps/app`: 7 red, then 7 passed | PASS (coordinator's run; `gp-qa` below) | — |
+| 2 | yes | `2d37c9c` | `packages/contracts` all: 145 passed | PASS (coordinator's run) | — |
+| 3 | yes | `2d37c9c` | `workspace-access-rls.test.ts`: 19 passed (the four DEV-044 cases skipped red before `0097`); registry row present | PASS (coordinator's run) | assisted: `0097` hand-applied to the local database |
+| 4 | yes | `2d37c9c` | `pnpm validate:canonical-docs` OK; `pnpm validate:agents` OK | PASS (coordinator's run) | — |
+| 5 | yes | `2d37c9c` | typecheck 10 of 10; contracts 145 passed | PASS (coordinator's run) | — |
+| 6 | yes | `2d37c9c` | `projects.int.test.ts` 8 passed; `workspace-access-rls.test.ts` 19; `rls-coverage.test.ts` 21 of 22 | PASS / FAIL | FAIL: known-red baseline: as DEV-043 criterion 8 |
+| 6 (original, `m1-schema.test.ts`) | no (revised) | — | calls `resetDb()` | NOT RUN | not-provable-locally: the owner forbids a local reset; settles in CI |
+| 7 | no | — | GitHub Actions starts no jobs until October 2026 | NOT RUN | environmental: billing block |
 
 ## Sources
 
@@ -72,9 +91,9 @@ Rework count and hypothesis changes:
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: the allowed edit paths above, plus `technical/database/schema-v0.1.sql` and `packages/testing/src/m2-fixture.ts` (the end table deleted before its assignments).
+- Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` as native `gp-*` subagents; `gp-qa` below.
+- Verified scope: see Acceptance evidence.
+- Remaining risks / blocked requirements: `m1-schema.test.ts` (R1-05c); BL-139 (no list route); the hosted push of `0097` is the owner's.
+- Next bounded action and owner: `gp-qa` on the final revision; then the owner.
+- Final state and reason: verifying, until `gp-qa` reports.

@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** a project administrator can revoke a member's grants on a project by member and capability (`POST /v1/projects/{projectId}/access-grants/revoke`); revoking `project.view` removes the member from the project; the last live administrator grant cannot be revoked; a lapsed grant can be revoked, which frees its capability for a new grant; and the application role can change no grant column but `revoked_at` and `version`. Scope set by [ADR-014](../decisions/ADR-014-revoke-access-and-end-responsibility.md) decisions 1 and 4.
-- **State:** implementing
+- **State:** verifying
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why:** a scope change (ADR), a new `/v1` command, a grant change and catalog rows: `gp-architect` → coordinator drafts ADR-014 → **owner rules** → failing tests → migration, contract, route, catalogs → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -36,6 +36,7 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 | 2026-09-23 | The last live `project.admin`, one's own included: refused with 409 and a new code `PROJECT_FINAL_ADMIN` | chat, answer «Отказ 409 PROJECT_FINAL_ADMIN» |
 | 2026-09-23 | Revoking `project.view` while other capabilities remain cascades: the member is removed from the project | chat, answer «Каскад — убрать из проекта» |
 | 2026-09-23 | Which database runs: the coordinator chooses the necessary suites, one by one; truncating tenant tables is allowed | the session's standing brief |
+| 2026-09-23 | After review: only a surviving admin grant with no end date keeps a revoke of a live admin grant allowed (gp-security S1-02) | chat, answer «Считать только бессрочные» |
 
 ## Plan
 
@@ -52,18 +53,36 @@ Record each decision on the day it is made. Write it in the owner's terms; never
 |---|---|---|---|---|
 | 1 | `gp-architect` | Design: route, check order, one-statement revoke under RLS, last-admin and view-cascade rules, column grant instead of a trigger, catalog rows, tests, four owner questions | `scratchpad/dev043-044-architect-r0.md` | Owner questions |
 | 2 | Owner | Ruled on the four questions (above) and on DEV-044's two follow-ups | chat, 2026-09-23 | ADR-014, tests |
+| 3 | Coordinator (tests first) | Four test files red at `a02b513` for the right reasons: the route module missing, the column privileges absent | `scratchpad/dev043-red.txt` | Implement |
+| 4 | Coordinator (implementing) | Migration `0096` hand-applied to the local database (as `postgres`, version recorded); contract, route, error code, catalogs; `76b531c`. The test's `contracts.edit` probe was itself wrong (a schema 422 on both sides: `taxMode` `exclusive` without a rate) and now asserts the unknown customer party, which only an authorized call reaches | `scratchpad/dev043-green.txt` at `76b531c` | Review |
+| 5 | `gp-reviewer`, `gp-security` (independent, round 1) | No blocker, no major; minors R1-01…R1-06, S1-01, S1-02; nits R1-07, R1-08, S1-03, S1-04 | `scratchpad/dev043-044-reviewer-r1.md`, `scratchpad/dev043-044-security-r1.md`, diff `scratchpad/dev043-044-diff-r0.patch` (`a4757253..392a0d1`) | Rework |
+| 6 | Owner | S1-02: count only an undated survivor | chat, 2026-09-23 | Rework |
+| 7 | Coordinator (rework) | Every finding fixed or deferred (below); `d25ff3b`. The new race test failed 3 of 9 runs with the lock disabled by a temporary environment switch (since removed) and 0 of 8 with it | `scratchpad/dev043-race-without-lock.txt`; `scratchpad/dev043-044-green-r1.txt` at `2d37c9c` | `gp-qa` |
 
 ## Findings and rework
 
 | Finding ID | Severity | Trigger / location | Expected vs actual | Owner | Resolution and evidence |
 |---|---|---|---|---|---|
+| R1-01 | minor | `revoke/route.ts`, an upper-case `memberId` | 200 vs a false 409 `notHeld` | coordinator | Fixed in `d25ff3b`: the id is lower-cased once; test «an upper-case member id is the same member» |
+| R1-02 | minor | the self-removal cascade in one UPDATE was untested | a test vs none | coordinator | Fixed in `d25ff3b`: test «an administrator removing themselves…» (200, `[project.admin, project.view]`, then a 404 replay) |
+| R1-03 | minor | the actor loses admin after `authorize` | 403 vs a false 409 `notHeld` | coordinator | Fixed in `d25ff3b`: `authorize` returns the actor's member id; without their live admin row in the lock set the answer is 403. Not reproducible deterministically; covered by reasoning, as the reviewer allowed |
+| R1-04 / S1-01 | minor | a grant racing a `project.view` cascade | INV-111 holds vs an action capability left without view | coordinator | Fixed in `d25ff3b`: `apps/app/src/lib/project-access-lock.ts`, a transaction advisory lock both routes take before reading the member's grants; race test (3/9 red without the lock, 0/8 with it) |
+| S1-02 | minor | a dated admin survivor let an administrator orphan a project in two steps | refused vs allowed | owner | Fixed in `d25ff3b` on the owner's ruling: only an undated survivor counts; test «a surviving administrator grant with an end date…»; INV-110, ADR-014 and BL-137 amended |
+| R1-05d | minor | `rls-coverage.csv`, the grants row cited only the read test | traceability to the UPDATE test | coordinator | Fixed in `d25ff3b`: the row's reason names the DEV-043 UPDATE test |
+| R1-06 | minor | STATUS «v1 API» row counts | the branch's counts vs 75/66 | coordinator | Fixed in `d25ff3b`: a dated prefix with 78 rows (M1 38) and 69 route files; the route-per-row pass not repeated |
+| R1-07 | nit | two assertions could pass for the wrong reason | pinned causes | coordinator | Fixed in `d25ff3b`: the refusals assert «permission denied for table project_access_grants»; the mutual-revoke loser's code is checked |
+| R1-08 | nit | `PROJECT_FINAL_ADMIN`'s producer named a state machine that does not exist | `guard:project_last_admin` | coordinator | Fixed in `d25ff3b` |
+| S1-04 | nit | `capabilities` unbounded | bounded | coordinator | Fixed in `d25ff3b`: `.max(projectCapability.options.length)` |
+| S1-rec | note | Telegram group membership and issued external links survive a removal; the `0011` helpers' `search_path` | recorded | coordinator | Deferred: BL-142, BL-143 |
 
-Rework count and hypothesis changes:
+Rework count and hypothesis changes: one rework after the first review (not a round: no QA FAIL and no new blocker). The rework changed behaviour only by the stated fixes; the last-administrator rule's tightening is the owner's ruling on S1-02. `gp-security` had no blocker or major, so no re-check is owed.
 
 ## What is not true after this task
 
-- A project whose only administrator grant lapses through `valid_until`, or whose only administrator's membership is suspended, still cannot be administered through the product; the last-administrator rule covers revokes only.
-- The product can still clear `revoked_at` through a defect: the column grant allows it and no trigger makes it write-once.
+- A project whose administrator grants are all dated can still lapse, and a suspended only administrator (including a suspension committed while a revoke runs) still leaves a project that cannot be administered through the product; the last-administrator rule covers revokes only (BL-137).
+- `packages/testing/src/rls-coverage.test.ts`'s «the exposed set equals the registry, both ways» did not pass locally: the shared local database carries `public.requirement_reference_image_versions`, which PR #115's `0095` creates and which another session applied without a migration record. Its output names no relation of this change.
+- The product can still clear `revoked_at` through a defect: the column grant allows it and no trigger makes it write-once (BL-138).
+- A removed member stays in the project's Telegram group, and external review links they issued stay live (BL-142).
 - No route lists grants, and no screen shows who holds what.
 - External review links a revoked member issued stay live until `external_grants.revoke_reissue` retires them.
 - A command the revoked member started before the revoke committed can still finish.
@@ -72,6 +91,17 @@ Rework count and hypothesis changes:
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1 | yes | red `a02b513`+tests; green `2d37c9c` | `npx vitest run tests/project-access-revoke.int.test.ts` in `apps/app` (APP_DB_URL set): 12 red, then 16 passed | PASS (coordinator's run; `gp-qa` below) | — |
+| 2 | yes | `2d37c9c` | `packages/contracts` all: 145 passed | PASS (coordinator's run) | — |
+| 3 | yes | `2d37c9c` | `packages/testing` `workspace-access-rls.test.ts`: 19 passed (2 DEV-043 cases red before `0096`) | PASS (coordinator's run) | assisted: `0096` hand-applied to the local database |
+| 4 | yes | `2d37c9c` | `idempotency-authorization.int.test.ts`: 13 passed | PASS (coordinator's run) | — |
+| 5 | yes | `2d37c9c` | ADR-014 Approval section, index row; `pnpm validate:canonical-docs` OK | PASS (coordinator's run) | — |
+| 6 | yes | `2d37c9c` | `pnpm validate:canonical-docs` OK; `pnpm validate:agents` OK | PASS (coordinator's run) | — |
+| 7 | yes | `2d37c9c` | `pnpm turbo run typecheck --force`: 10 of 10 | PASS (coordinator's run) | — |
+| 8 | yes | `2d37c9c` | `projects.int.test.ts` 8, `vertical-m1.int.test.ts` 9, `error-catalog-fidelity.test.ts` 1, `capability-vocabulary.test.ts` 2 passed; `rls-coverage.test.ts` 21 of 22 | PASS / FAIL | FAIL: known-red baseline: `rls-coverage` «exposed set equals the registry» names only PR #115's `requirement_reference_image_versions`, present in the shared local database without its migration record |
+| 9 | no | — | GitHub Actions starts no jobs until October 2026 | NOT RUN | environmental: billing block; settles with CI `verify` on the PR head |
+
+Evidence files (scratchpad of this session, each with its command output, exit status and `git rev-parse HEAD`): `dev043-red.txt`, `dev043-green.txt`, `dev043-race-without-lock.txt`, `dev043-044-green-r0.txt`, `dev043-044-green-r1.txt`.
 
 ## Sources
 
@@ -80,9 +110,9 @@ Rework count and hypothesis changes:
 
 ## Completion / handoff
 
-- Changed / inspected files:
-- Review independence:
-- Verified scope:
-- Remaining risks / blocked requirements:
-- Next bounded action and owner:
-- Final state and reason:
+- Changed / inspected files: the allowed edit paths above, plus `apps/app/src/lib/project-access-lock.ts` (new, the review fix) and the grant route (the lock).
+- Review independence: independent — `gp-architect`, `gp-reviewer`, `gp-security` as native `gp-*` subagents; `gp-qa` below.
+- Verified scope: see Acceptance evidence.
+- Remaining risks / blocked requirements: BL-137, BL-138, BL-139, BL-140, BL-141, BL-142, BL-143; the hosted project is at `0095` and `0096` is not applied there (the owner's decision).
+- Next bounded action and owner: `gp-qa` on the final revision; then the owner reviews and merges the PR and decides the hosted push of `0096`–`0097`.
+- Final state and reason: verifying, until `gp-qa` reports.
