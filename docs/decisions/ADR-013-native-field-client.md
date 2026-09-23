@@ -24,4 +24,4 @@ GoProceed-owned reference illustrations are immutable, workspace-scoped and pinn
 
 ## Consequences and release gate
 
-Topology: landing and office/BFF web deployments plus native binaries. Display name GoProceed; com.lightholdlabs.goproceed for iOS/Android. Internal beta targets TestFlight and Google Play Internal Testing. Physical phone/tablet testing, memory/backup evidence, signing and store installation are required; source compilation cannot close them. Missing evidence is NOT RUN in [DEV-041](../tasks/DEV-041-mobile-native.md).
+Topology: landing and office/BFF web deployments plus native binaries. Display name GoProceed; com.lightholdlabs.goproceed for iOS/Android. Internal beta targets TestFlight and Google Play Internal Testing. Physical phone/tablet testing, memory/backup evidence, signing and store installation are required; source compilation cannot close them. Missing evidence is NOT RUN in [DEV-042](../tasks/DEV-042-mobile-native.md).

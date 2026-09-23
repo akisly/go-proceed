@@ -8,7 +8,7 @@
 
 **Related decisions:** [ADR-013](../decisions/ADR-013-native-field-client.md)
 
-Approved by the owner on 2026-09-22 in the task's “PLEASE IMPLEMENT THIS PLAN” message. Execution record: [DEV-041](../tasks/DEV-041-mobile-native.md).
+Approved by the owner on 2026-09-22 in the task's “PLEASE IMPLEMENT THIS PLAN” message. Execution record: [DEV-042](../tasks/DEV-042-mobile-native.md).
 
 ## Product and presentation
 

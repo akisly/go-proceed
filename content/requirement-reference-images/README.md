@@ -1,6 +1,6 @@
 # Requirement reference illustrations
 
-DEV-041 / ADR-013. This directory is the versioned source manifest, not an
+DEV-042 / ADR-013. This directory is the versioned source manifest, not an
 assertion that licensed illustrations have been supplied. The initial manifest
 is deliberately empty. New common-library rules cannot publish until an operator
 provisions the relevant illustration. Existing rule and occurrence pins stay null.

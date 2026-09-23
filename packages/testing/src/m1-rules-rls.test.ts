@@ -139,7 +139,7 @@ describe("requirement_library_items — tenant isolation", () => {
 });
 
 describe("requirement_reference_image_versions — tenant isolation", () => {
-  // DEV-041 / migration 0095: `rriv_select` asks only for active membership, the
+  // DEV-042 / migration 0095: `rriv_select` asks only for active membership, the
   // same reader set as the library item the illustration belongs to.
   it("is readable by any ACTIVE MEMBER of its own workspace, and by nobody else", async () => {
     const pinned = await c.query(

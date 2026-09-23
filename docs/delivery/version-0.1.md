@@ -589,7 +589,7 @@ settled it stands unchanged and settles the next disagreement the same way.
   `requirement_occurrences.dry_run`, `requirement_occurrences.reference_image`,
   `progress.record`, `progress.adjust`, `upload_intents.create`,
   `upload_intents.finalize`, `upload_intents.get`. *[Changed 2026-09-23
-  (DEV-041): the reference-image read joined M2 with the native field client.]*
+  (DEV-042): the reference-image read joined M2 with the native field client.]*
   `requirement_occurrences.create` and `.bulk_instantiate` leave v0.1: the only
   way an occurrence exists in v0.1 is materialisation from the rule versions
   bound to the published contract version, at assignment creation. A hand-made

@@ -958,7 +958,7 @@ create table public.requirement_library_items (
   check ((position_code = 'Н.14' and item_no <= 5)
       or (position_code = 'Н.15' and item_no <= 7))
 );
--- DEV-041 / ADR-013 (migration 0095): an immutable, licensed product
+-- DEV-042 / ADR-013 (migration 0095): an immutable, licensed product
 -- illustration of a library item. Operator-provisioned only; the application
 -- role reads it (active member) and never writes it. Rules and occurrences pin
 -- one exact version; a pin is never an evidence object or a normative source.

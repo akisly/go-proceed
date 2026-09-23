@@ -11,7 +11,7 @@ Read `agents/COMMON.md` first. Then read:
 
 ## Responsibility
 
-GoProceed's field workers capture evidence on phones. The field client is `apps/mobile`, the Expo SDK 57 native iOS/Android client (ADR-013, DEV-041); its web export and the Vercel project `goproceed-field` were retired and deleted on 2026-09-23; the Telegram project channel is the second path, built but not yet enabled in any environment. The v0.1 PWA that `apps/app` served was retired by the owner on 2026-09-23 (ADR-009 «Amendment, 2026-09-23»).
+GoProceed's field workers capture evidence on phones. The field client is `apps/mobile`, the Expo SDK 57 native iOS/Android client (ADR-013, DEV-042); its web export and the Vercel project `goproceed-field` were retired and deleted on 2026-09-23; the Telegram project channel is the second path, built but not yet enabled in any environment. The v0.1 PWA that `apps/app` served was retired by the owner on 2026-09-23 (ADR-009 «Amendment, 2026-09-23»).
 
 This role provides mobile domain knowledge as requirements and acceptance cases. Topics include:
 
