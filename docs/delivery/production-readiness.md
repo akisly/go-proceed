@@ -513,6 +513,24 @@ the closed ones.
       - **Open under this box:** image dimension, pixel-count and decoding
         limits do not exist (BL-088); member-plane reads are served inline with
         the stored content type (BL-089).
+      - **2026-09-23, [DEV-032](../tasks/DEV-032-evidence-signed-read-download.md):**
+        finalization refuses an object whose stored content type is not
+        strictly the detected one, so every object finalized from DEV-032 on is
+        served as one of the four allowed types; and member-plane signed reads are issued as downloads
+        (`Content-Disposition: attachment`), which a URL holder can strip — the
+        first control is what makes that harmless. An `<img>` still shows the
+        image. Measured on the local stack only; hosted Storage and a bucket
+        allow-list are BL-126. The risk bullet above is the owner's acceptance
+        of 2026-09-15 and stays as accepted.
+      - **2026-09-23, [DEV-033](../tasks/DEV-033-image-size-limits.md):**
+        finalization reads an image's declared size from its header, without
+        decoding, and refuses one over 268,402,689 pixels or 65,535 px on an
+        edge, one whose size cannot be read, and an animated PNG; BL-088 is
+        closed. This bounds the declared size, not the decoding cost: a bitmap
+        at the limit (about 1 GB decoded) is reachable from a file of tens of
+        kilobytes and decodes in every browser that shows it, as does a
+        legitimate 200 MP photo (BL-129); channels the parser does not read are
+        BL-132; real-phone files are unchecked (BL-131).
 - [ ] The import hostile-fixture corpus still runs. Import is **frozen, not
       deleted** ([ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md)
       decision 6): the XLSX/CSV parser built in M1 stays in the code, an object
@@ -532,7 +550,11 @@ the closed ones.
         20 000 rows, 256 columns, 32 768 characters a cell; CSV 20 MiB, 20 000
         rows, 256 columns, 32 768 characters a field. Not run in CI. **The gate
         stays open:** export neutralization against formula injection has no
-        export to act on (gate 3), and BL-088 is open.
+        export to act on (gate 3), and BL-088 is open. *(2026-09-23: BL-088
+        and BL-089 closed on the DEV-032/DEV-033 branch. Export remains, and so
+        do the decoding cost of an at-limit image (BL-129) and the channels the
+        size check does not read (BL-132): the gate closes with them fixed or
+        owner-accepted.)*
 
 ### 13. Demo and data separation
 

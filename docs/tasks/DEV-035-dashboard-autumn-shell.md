@@ -57,10 +57,11 @@
 |---|---|---|---|---|
 | 1 | analysis | The reference's brand sheet is ours (DEV-028); the gap is composition. Four rule conflicts put to the owner and answered. | this record, «Owner decisions» | implement |
 | 2 | implementation | Tokens, `packages/ui` (Button `brand`, `Stat`, `Waffle`, `TabNav`/`TabLink`, `Breadcrumb`, `Panel` on `shadow-raised`, `Meter` `data-slot`), shell, project frame, readiness block, register frame, harness, docs. | working tree on `27dea79` | gate |
-| 3 | numbering | The number DEV-032 was taken by a parallel session (branch `claude/evidence-hardening`: DEV-032…034, BL-126…132). This task is **DEV-035**. Its backlog entries stay **BL-126** and **BL-127** because the validator demands a gap-free sequence on `main`; both collide with that branch's range, and whichever branch merges second shifts its BL numbers. | `git log --all`; the Evidence session's message | — |
+| 3 | numbering | The number DEV-032 was taken by a parallel session (branch `claude/evidence-hardening`: DEV-032…034, BL-126…132). This task is **DEV-035**. Its backlog entries were written as BL-126…BL-129 on `main`'s sequence; PR #109 merged first (`b16fc9b`), so on merging `main` into this branch they became **BL-133…BL-136** (time series, dashboard follow-ups, PWA-retirement loose ends, field-origin security headers). | `git log --all`; the Evidence session's message | — |
 | 4 | INCIDENT | While running the non-database contract suites, the file list was built with a zsh glob that came back empty (`src/*.test.tsx` has no match), so `npx vitest run` ran EVERY `packages/testing` suite — fifteen call `resetDb()` → `supabase db reset`. The shared local database was rebuilt from `0001`–`0089` + `seed.sql` without the owner's consent, which `AGENTS.md` forbids; the login roles lost their dev passwords (restored by the other session with `scripts/set-local-app-password.mjs`). Schema intact; local data gone. Reported to the owner; memory `local-supabase-stack.md` records how to avoid it. | this session, ~02:22 | owner informed |
 | 5 | gate | tokens generate; motion-audit clean; 13 non-database contract suites 206/206; `apps/app` `src` unit tests 536 pass, 1 skipped; typecheck 10/10; landing build; app build; `validate:canonical-docs` OK. | scratchpad `gate.txt` | harness |
 | 6 | harness run 1–3 | Run 1: every API read failed — the copied `apps/app/.env.local` carried `NEXT_PUBLIC_APP_ORIGIN=` and `SUPABASE_SECRET_KEY=` EMPTY, which defeats both local fallbacks (environment, not code; empty lines commented out in the worktree copy). Runs 2–3: project page, register, evidence and create audits PASS; two real findings (tab «Огляд» 37px wide on touch; the status-colour-alone check firing on `Meter`) fixed; the late daylight pass failed because the shared database was truncated mid-run by another session's `apps/app` integration suites (one organization, created 02:36:59). | scratchpad `qa-run1..3.log` | clean re-run in an agreed quiet window |
+| 7 | merge of `main` | PR #110 conflicted after PR #109 (Evidence, DEV-032…034, BL-126…132) merged as `b16fc9b`. Conflicts were only `docs/tasks/README.md` and `docs/BACKLOG.md`, resolved by keeping both sides (`main`'s rows first); this task's entries renumbered BL-126…129 → **BL-133…136** in the backlog, this record, `ci.yml` and `tenancy-and-security.md` (only lines this task added). No code conflict; nothing in the merged tree imports a module this task deleted. Owner: «поправь конфликты». | gate on the merged tree: 13 contract suites 202/202, `apps/app` 514 + 1 skipped, typecheck 10/10, both builds, docs and agents OK; harness 6/6, zero findings (12:33) | — |
 
 ## Findings and rework
 
@@ -89,22 +90,22 @@
 | U1-08 = R2-02 | minor | copy catalog | unrendered and duplicate rows; missing fragments | coordinator | `dash.project_overview.heading` and `dash.page.assignments_heading` removed; `gross_basis`, `kpi_unit`, `kpi_caption` added; `currency_eyebrow` re-described |
 | U1-09 | minor | kitchen sink case 24 | withdrawn wording | coordinator | current labels, captions and `emphasis` |
 | U1-10 | remark | action between h1 and tabs at 390 | tabs stay with the heading | coordinator | header grid; the action is `order-last` below `md` |
-| U1-11…U1-14 | remark | stage identity in the chart; evidence/new screens outside the frame; `/dash` home; «Без ціни» vs «Без оцінки» | — | owner / next slice | BL-127 |
+| U1-11…U1-14 | remark | stage identity in the chart; evidence/new screens outside the frame; `/dash` home; «Без ціни» vs «Без оцінки» | — | owner / next slice | BL-134 |
 | U1-15 | remark | gate evidence | unabridged gate in the record | coordinator | «Acceptance evidence» below |
-| U2-01 | remark | monogram tile | two letters fill a 20px tile | owner / next slice | deferred — BL-127 (5) |
-| U2-02 | remark | KPI row at 390 | «Можна закрити» alone on a second row | owner / next slice | deferred — BL-127 (5) |
+| U2-01 | remark | monogram tile | two letters fill a 20px tile | owner / next slice | deferred — BL-134 (5) |
+| U2-02 | remark | KPI row at 390 | «Можна закрити» alone on a second row | owner / next slice | deferred — BL-134 (5) |
 | Q2-01 | minor | this record: «typechecked» | the gate does not compile `tests/` | coordinator | reworded, with gp-qa's ad-hoc `tsc` result |
 | Q2-02 | remark | three scope statements naming Telegram without the caveat | caveat | coordinator | added |
 | Q2-03 | remark | two walks without positive controls | controls | coordinator | `scanned > 20` in both |
 | Q2-04 | remark | contrast label named the removed variant | rename | coordinator | «the blocked border on a surface» |
 | Q1-01 | remark | `02-building-ui.md` §4.2 | «twenty-seven components» vs 31 | coordinator | «thirty-one … (twenty-seven until DEV-035)» |
 | Q1-02 | remark | copy catalog `dash.page.evidence_heading` | cites the removed `dash.nav.evidence` | coordinator | reworded |
-| Q1-03 | remark | this record, U2-01/U2-02 | no destination | coordinator | both added to BL-127 (5) |
+| Q1-03 | remark | this record, U2-01/U2-02 | no destination | coordinator | both added to BL-134 (5) |
 | Q1-04 | remark | this record | rework line, state, handoff | coordinator | closed out below |
 | U2-03 | remark | `sidebar.tsx` comment | «four tinted folders» | coordinator | comment rewritten (no behaviour change) |
 | R3-01 | minor | copy catalog `dash.project_money.gross_basis_suffix` | unrendered since U1-03 | coordinator | row removed (`gross_basis` carries the fact) |
 | R3-02 | remark | `ProjectPage` action DOM order below `md` | reading order = visual order | coordinator | action last in the DOM, placed from `md` with `md:col-start-2 md:row-start-2` |
-| R3-03 | remark | BL-126 wording; numbering note | stale | coordinator | «blocking requirement»; progress row 3 names BL-127 |
+| R3-03 | remark | BL-133 wording; numbering note | stale | coordinator | «blocking requirement»; progress row 3 names BL-134 |
 | R4-01 | major | release-scope, architecture, runbook, staging docs and agent instructions still called the PWA the field client | dated corrections in the owner's words («телеграм + expo-mobile») | coordinator + `gp-implementer` (bounded) | 12 docs rewritten with the old wording kept; `agents/COMMON.md`, `agents/roles/gp-mobile.md`, profiles regenerated (`validate:agents` OK) |
 | R4-02 | major | `gp-mobile` not run | required by the field-client installability/capture trigger | coordinator | `gp-mobile` ran (M1-*); a short `gp-security` pass too (S1-*) |
 | R4-03 | minor | the path rewrite falsified historical comments | history kept as written | coordinator | restored from `27dea79` with dated notes |
@@ -116,9 +117,9 @@
 | U3-03…05 | minor/remark | catalog paths; gate abridged; `danger-600` ruling | — | coordinator | fixed; `gate6.txt` unabridged |
 | M1-01 | blocker | the recorded cost («no deployed web field client; Telegram is the path») was false | `goproceed-field` serves; Telegram enabled nowhere | coordinator | re-observed 2026-09-23 08:32 UTC; ADR, README, BL-001, STATUS, criterion 13 corrected |
 | M1-02 | major | merging IS the production retirement | a before-merge block | coordinator | «Before merge» section |
-| M1-03 | minor | old `/a/{id}` links → English 404 | Ukrainian 404 (option b) | coordinator | `app/not-found.tsx` + harness probe; redirect option → BL-128 (5) |
-| M1-04 | minor | keep the manifest under a new name | superseded by the owner («Убрать манифест») | owner | recorded; BL-128 (4)(6) |
-| M1-05…M1-08 | major/minor | higher-precedence docs, invariant witnesses, mobile headers, leftovers | — | coordinator | docs (R4-01), INV-081/086 notes, `ci.yml` comment, BL-128, `src/lib/capture` deleted |
+| M1-03 | minor | old `/a/{id}` links → English 404 | Ukrainian 404 (option b) | coordinator | `app/not-found.tsx` + harness probe; redirect option → BL-135 (5) |
+| M1-04 | minor | keep the manifest under a new name | superseded by the owner («Убрать манифест») | owner | recorded; BL-135 (4)(6) |
+| M1-05…M1-08 | major/minor | higher-precedence docs, invariant witnesses, mobile headers, leftovers | — | coordinator | docs (R4-01), INV-081/086 notes, `ci.yml` comment, BL-135, `src/lib/capture` deleted |
 | R5-01 | major | a tag after `*/}` rendered «[deleted …]» on the money-refusal screen | no stray text | coordinator | tag moved inside the comment; `project-money-forbidden.test.tsx`; `jsx-comment-guard.test.ts` scans every `.tsx` |
 | R5-02 | minor | tags at line ends, mid-sentence | beside the reference | coordinator | 24 tags moved; `proxy.ts` sentence rewritten (comment only) |
 | R5-03 = N1 | minor | ADR amendment and criterion 11 still said `upload.ts` stays and the manifest opens the dashboard | same-day corrections | coordinator | fixed |
@@ -129,7 +130,7 @@
 | N5 = S1-03 | remark | proxy matcher still exempts `manifest.webmanifest` | harmless | owner / next proxy change | left (proxy edits take the architect + security route) |
 | U4-01 | minor | 404 advice to open «the app» | neutral | coordinator | «Такої адреси в кабінеті немає — можливо, посилання застаріло.» |
 | U4-02 | remark | garbled catalog note | — | coordinator | fixed |
-| S1-01 | minor | field origin sends no security headers; token script-readable (pre-existing) | a control owed and tracked | coordinator | BL-129; tenancy note cites it and says the `apps/app` cookies are `httpOnly: false` too |
+| S1-01 | minor | field origin sends no security headers; token script-readable (pre-existing) | a control owed and tracked | coordinator | BL-136; tenancy note cites it and says the `apps/app` cookies are `httpOnly: false` too |
 | S1-02 | remark | tenancy summary missed Auth and signed-upload paths | one clause | coordinator | added |
 | S1-04 | remark | redirect probes proven on `next start`, not on Vercel's router | a preview run | owner | NOT RUN — before merge, run the three probes against a preview deployment |
 | R2-03 | remark | 03 rule 5 lists three surfaces | four | coordinator | fixed |
@@ -149,16 +150,16 @@ Merging to `main` IS the production retirement of the PWA: `goproceed-app` build
 
 ## What is not true after this task
 
-- **The dashboard is not «done» against the reference.** Built: the shell and the project page. Not built: the homepage KPI row and project cards (`/dash` is still a list, BL-127), the reference's chart by month and its period picker (no time series exists, BL-126), the evidence page and the new-assignment form inside the project frame (BL-127), the members screen (D4).
-- **The readiness chart shows counts, not stages.** Its columns are unlabelled because the contract has only a machine `stageKey` (BL-127).
+- **The dashboard is not «done» against the reference.** Built: the shell and the project page. Not built: the homepage KPI row and project cards (`/dash` is still a list, BL-134), the reference's chart by month and its period picker (no time series exists, BL-133), the evidence page and the new-assignment form inside the project frame (BL-134), the members screen (D4).
+- **The readiness chart shows counts, not stages.** Its columns are unlabelled because the contract has only a machine `stageKey` (BL-134).
 - **Dark theme not seen.** The dark `action-brand` and `viz-*` pairs are asserted by `contrast.test.ts` but no screenshot was taken.
 - **Data states the seeded world does not reach were not seen:** several currencies, readiness with closable/vacuous/closed stages above zero, the readiness error banner, `stageCount = 0`, long Ukrainian project names at 360, a rail long enough to scroll.
 - **The database suites were not run as a pass.** `apps/app/tests/*.int.test.ts` and the database suites of `packages/testing` are NOT RUN for this task: they truncate or reset the shared local stack. (One unintended full `packages/testing` run did happen — progress row 4 — and its result is not claimed as evidence.)
 - **CI is NOT RUN** (the Actions billing block).
-- **The PWA is still in production** until this change is merged and deployed; after that, an icon a foreman installed earlier opens the office dashboard (no manifest, no service worker) — what it looks like on real phones is not measured (BL-128 (6)).
+- **The PWA is still in production** until this change is merged and deployed; after that, an icon a foreman installed earlier opens the office dashboard (no manifest, no service worker) — what it looks like on real phones is not measured (BL-135 (6)).
 - **The Telegram channel is not a path yet**: built, enabled in no environment (BL-024). The field client that remains is `apps/mobile` at `goproceed-field`.
-- **The field screens have no browser pass in this repository's CI**: `apps/app`'s harness no longer reaches them and `apps/mobile`'s is in no job (BL-128 (3)).
-- **Old `/a/{id}` links** land on the Ukrainian 404 after sign-in; no redirect to the field client (BL-128 (5)).
+- **The field screens have no browser pass in this repository's CI**: `apps/app`'s harness no longer reaches them and `apps/mobile`'s is in no job (BL-135 (3)).
+- **Old `/a/{id}` links** land on the Ukrainian 404 after sign-in; no redirect to the field client (BL-135 (5)).
 - **Three integration suites** (`field-capture`, `evidence-read`, `external-evidence`) now import `tests/helpers/upload-intent-body.ts`; they were not run (they need the database), and the gate's typecheck does not cover `tests/` (`apps/app/tsconfig.json` includes only `src` and `app`). `gp-qa` round 2 compiled them with an ad-hoc `tsc`: the helper import compiles; seven type errors remain, all present at base, none from DEV-035.
 - **Local database state changed.** See progress row 4: the shared local database was reset by this session without the owner's consent.
 
@@ -188,9 +189,9 @@ Merging to `main` IS the production retirement of the PWA: `goproceed-app` build
 
 ## Completion / handoff
 
-- Changed / inspected files: the 53 files of the final diff — tokens (`tokens.json` + seven generated), `packages/ui` (Button, Panel, Meter, index, Stat, Waffle, TabNav, Breadcrumb), `packages/testing` (contrast, component-contract), the landing kitchen sink, `apps/app` dash routes, shell, project frame, readiness block and service, register, evidence/new-assignment/sign-out buttons, harness, `technical/copy-catalog.csv`, DESIGN.md, docs/design 01/02/03, BACKLOG (BL-053, BL-117, BL-119 scheduled; BL-126, BL-127 added), this record and the task index.
+- Changed / inspected files: the 53 files of the final diff — tokens (`tokens.json` + seven generated), `packages/ui` (Button, Panel, Meter, index, Stat, Waffle, TabNav, Breadcrumb), `packages/testing` (contrast, component-contract), the landing kitchen sink, `apps/app` dash routes, shell, project frame, readiness block and service, register, evidence/new-assignment/sign-out buttons, harness, `technical/copy-catalog.csv`, DESIGN.md, docs/design 01/02/03, BACKLOG (BL-053, BL-117, BL-119 scheduled; BL-133, BL-134 added), this record and the task index.
 - Review independence: independent subagents — `gp-reviewer` (three rounds), `gp-ui-reviewer` (two rounds), `gp-qa` (one pass). No architect, security or mobile trigger.
 - Verified scope: the nine acceptance criteria above; the harness 9/9 with zero findings on the final revision.
-- Remaining risks / blocked requirements: database suites and CI NOT RUN; dark theme not seen; data states beyond the seeded world not seen; the local database was reset once by this session without consent (progress row 4); BL numbers 126/127 and DEV-035 collide with / sit beside the parallel `claude/evidence-hardening` branch and shift at merge.
+- Remaining risks / blocked requirements: database suites and CI NOT RUN; dark theme not seen; data states beyond the seeded world not seen; the local database was reset once by this session without consent (progress row 4); the BL collision with the Evidence branch is resolved: its PR #109 merged first and this task's entries are BL-133…BL-136.
 - Next bounded action and owner: the owner — commit, push and PR (not done: this session commits only when asked), and a decision on the NOT RUN items. Then BL-053, BL-117 and BL-119 close → DEV-035 in the same change that lands it.
 - Final state and reason: verifying — `gp-qa` PASS on criteria 1–13 after the scope extension; every review stage PASS (`gp-reviewer` R5 HOLD resolved by the stated R5-01 fix, confirmed by QA); awaiting the owner.

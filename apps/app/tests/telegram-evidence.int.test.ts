@@ -21,7 +21,7 @@ import {
 const databaseDescribe = hasIsolatedDatabaseCredentials() ? describe : describe.skip;
 
 const fakes = vi.hoisted(() => ({
-  stored: new Map<string, Uint8Array>(), downloads: [] as string[], payloads: new Map<string, Uint8Array>(),
+  stored: new Map<string, Uint8Array>(), storedTypes: new Map<string, string>(), downloads: [] as string[], payloads: new Map<string, Uint8Array>(),
   failedDownloads: new Set<string>(), retryableDownloads: new Set<string>(), failNextWrite: false,
   sent: [] as Array<{ chatId: string; text: string; replyToMessageId?: string | null; inlineKeyboard?: unknown }>,
   callbacks: [] as Array<{ callbackId: string; text?: string }>, nextProviderMessageId: 70_000, nextKey: 0,
@@ -37,15 +37,20 @@ vi.mock("../src/lib/evidence-storage", () => ({
   EVIDENCE_BUCKET: "evidence",
   newEvidenceKey: () => `telegram-test/${++fakes.nextKey}`,
   createSignedUpload: async (key: string) => ({ signedUrl: `memory://${key}`, token: "memory", path: key }),
-  putObject: async (key: string, bytes: Uint8Array) => {
+  putObject: async (key: string, bytes: Uint8Array, contentType: string) => {
     if (fakes.failNextWrite) { fakes.failNextWrite = false; throw new Error("storage write refused"); }
     fakes.stored.set(key, bytes);
+    fakes.storedTypes.set(key, contentType);
     await fakes.writeStorageObject?.(key, bytes.byteLength);
   },
   downloadObject: async (key: string) => {
     const value = fakes.stored.get(key); if (!value) throw new Error("missing memory object"); return value;
   },
-  objectSize: async (key: string) => fakes.stored.get(key)?.byteLength ?? null,
+  // As Storage's metadata: the size and the type the PUT declared.
+  objectInfo: async (key: string) => {
+    const bytes = fakes.stored.get(key);
+    return bytes ? { size: bytes.byteLength, contentType: fakes.storedTypes.get(key) ?? null } : null;
+  },
 }));
 
 vi.mock("../src/lib/telegram/api", async (importOriginal) => {
@@ -53,7 +58,7 @@ vi.mock("../src/lib/telegram/api", async (importOriginal) => {
   return { ...actual, createTelegramApiClient: () => fakeTelegramApi() };
 });
 
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 const CHAT_ID = "-100991";
 const BOT_ID = "123456789";
 const UPLOADER_ID = "901";
@@ -96,13 +101,17 @@ databaseDescribe("Telegram evidence bridge", () => {
   });
 
   beforeEach(async () => {
-    fakes.stored.clear(); fakes.downloads.length = 0; fakes.payloads.clear(); fakes.failedDownloads.clear();
+    fakes.stored.clear(); fakes.storedTypes.clear(); fakes.downloads.length = 0; fakes.payloads.clear(); fakes.failedDownloads.clear();
     fakes.retryableDownloads.clear();
     fakes.failNextWrite = false; fakes.sent.length = 0; fakes.callbacks.length = 0; fakes.nextKey = 0;
     client = new Client({ connectionString: ADMIN_URL }); await client.connect();
     fakes.writeStorageObject = async (key, size) => {
       await client.query(`insert into storage.objects (bucket_id, name, metadata)
-        values ('evidence', $1, jsonb_build_object('size', $2::int)) on conflict do nothing`, [key, size]);
+        values ('evidence', $1, jsonb_build_object('size', $2::int))
+        on conflict (bucket_id, name) do update set metadata = excluded.metadata`, [key, size]);
+      // An upsert, not «do nothing»: the fake keys (telegram-test/N) repeat across
+      // runs and are never removed, so a row an earlier run left with another
+      // size made finalization answer no_content (seen in DEV-032/DEV-033).
     };
     rules = await seedRulesWorld(client, { workspaceId: crypto.randomUUID(), userId: crypto.randomUUID(), suffix: "TG-EVIDENCE" });
     world = await seedOccurrenceWorld(client, rules);

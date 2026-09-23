@@ -72,8 +72,8 @@ const LINE = {
   unitPrice: "100.00",
 };
 
-/** A minimal but genuine JPEG: SOI + APP0 marker, then a byte of payload. */
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+/** A minimal but genuine JPEG: SOI, a 1×1 baseline frame header, EOI, then a byte (DEV-033: the size check reads the frame). */
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 interface Fx extends BaselineFixture {

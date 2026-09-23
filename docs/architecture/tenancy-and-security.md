@@ -368,7 +368,7 @@ client's session token is readable by script in its origin's browser storage —
 as the `apps/app` Supabase session cookies are too (`httpOnly: false`, the
 `@supabase/ssr` default, `apps/app/src/lib/supabase-browser.ts`), so this is not a
 regression of the retirement. What is owed is the compensating control on the
-field origin, which today sends no security headers at all (no CSP): BL-129.]*
+field origin, which today sends no security headers at all (no CSP): BL-136.]*
 
 An external command follows the same last three steps but replaces membership
 and responsibility with current grant/session capability and exact approval or

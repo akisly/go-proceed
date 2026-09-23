@@ -59,10 +59,19 @@ export function newEvidenceKey(): string {
 
 export interface SignedUpload { signedUrl: string; token: string; path: string }
 
-/** A short-lived, single-key upload grant. Never persisted — it expires. */
+/**
+ * A short-lived, single-key upload grant. Never persisted — it expires.
+ *
+ * NO `upsert`, AND THAT IS LOAD-BEARING (DEV-032 S2-02). Finalization reads
+ * the object's size, stored type and bytes once; they stay what was checked
+ * only because Storage refuses a second PUT to an existing key, while a
+ * signed upload token outlives finalization. Pinned by
+ * `upload-intents-finalize.int.test.ts` («refuses to overwrite an object
+ * after finalization»).
+ */
 export async function createSignedUpload(key: string): Promise<SignedUpload> {
   const { data, error } = await storage().createSignedUploadUrl(key);
-  if (error) throw new Error(`storage: signed upload failed for ${key}: ${error.message}`);
+  if (error) throw readFailed("signed upload", error);
   return { signedUrl: data.signedUrl, token: data.token, path: data.path };
 }
 
@@ -75,34 +84,43 @@ export async function putObject(
 ): Promise<void> {
   const { error } = await storage().uploadToSignedUrl(key, (await createSignedUpload(key)).token,
     bytes, { contentType });
-  if (error) throw new Error(`storage: upload failed for ${key}: ${error.message}`);
+  if (error) throw readFailed("upload", error);
 }
 
 export async function downloadObject(key: string): Promise<Uint8Array> {
   const { data, error } = await storage().download(key);
-  if (error) throw new Error(`storage: download failed for ${key}: ${error.message}`);
+  if (error) throw readFailed("download", error);
   return new Uint8Array(await data.arrayBuffer());
 }
 
 /**
- * The stored object's size in bytes, or null when the key holds nothing.
+ * The stored object's size in bytes and the content type Storage will serve it
+ * with, or null when the key holds nothing.
  *
  * Read from storage metadata rather than by downloading. finalize used to pull
  * the whole object into memory before comparing it with the intent's declared
  * size, so a caller could declare ten bytes, upload fifty megabytes, and force
  * the server to buffer all of it just to reject it.
+ *
+ * `contentType` is whatever the uploader's PUT declared, verbatim (measured on
+ * the local storage API v1.69.0: `TEXT/HTML` is kept and served as
+ * `TEXT/HTML`), which is why finalize compares it with the detected type
+ * (BL-089, DEV-032).
  */
-export async function objectSize(
+export interface ObjectInfo { size: number; contentType: string | null }
+
+export async function objectInfo(
   key: string, bucket: string = EVIDENCE_BUCKET,
-): Promise<number | null> {
+): Promise<ObjectInfo | null> {
   const slash = key.lastIndexOf("/");
   const prefix = slash === -1 ? "" : key.slice(0, slash);
   const name = slash === -1 ? key : key.slice(slash + 1);
   const { data, error } = await storage(bucket).list(prefix, { search: name, limit: 100 });
-  if (error) throw new Error(`storage: list failed for ${bucket}/${key}: ${error.message}`);
+  if (error) throw readFailed("list", error);
   const found = data?.find((o) => o.name === name);
-  const size = (found?.metadata as { size?: number } | undefined)?.size;
-  return typeof size === "number" ? size : null;
+  const metadata = found?.metadata as { size?: number; mimetype?: string } | undefined;
+  if (typeof metadata?.size !== "number") return null;
+  return { size: metadata.size, contentType: typeof metadata.mimetype === "string" ? metadata.mimetype : null };
 }
 
 export async function objectExists(key: string): Promise<boolean> {
@@ -120,7 +138,7 @@ export async function objectExists(key: string): Promise<boolean> {
  */
 export async function removeObject(key: string, bucket: string = EVIDENCE_BUCKET): Promise<void> {
   const { error } = await storage(bucket).remove([key]);
-  if (error) throw new Error(`storage: remove failed for ${bucket}/${key}: ${error.message}`);
+  if (error) throw readFailed("remove", error);
 }
 
 /**
@@ -137,13 +155,40 @@ export async function removeObject(key: string, bucket: string = EVIDENCE_BUCKET
 export const EVIDENCE_URL_TTL_SECONDS = 60;
 
 /**
- * NO KEY, AND NO PROVIDER MESSAGE, IN ANY ERROR THROWN FROM HERE DOWN.
+ * EVERY SIGNED READ IS ISSUED AS A DOWNLOAD (BL-089, DEV-032) — AND THAT IS
+ * ADVISORY, NOT A GUARANTEE.
  *
- * The functions above this line interpolate the storage key into their errors,
- * which reach `console.error` through `toProblemResponse`'s unmapped branch —
- * against `files-and-storage.md`'s «Logs record the domain object and
- * authorization result, never the signed URL or raw storage key». That is a
- * recorded defect (TODOS.md) and deliberately NOT the style copied here.
+ * The object's content type is whatever the uploader's PUT declared, and the
+ * Storage origin serves it with no `X-Content-Type-Options: nosniff` and no
+ * sandbox (measured against the local storage API v1.69.0 on 2026-09-23: an
+ * object stored as `image/svg+xml` came back as `image/svg+xml`, inline, with
+ * neither header). Opening a signed URL as a page would therefore render an
+ * SVG's script on the Storage origin. `download: true` makes Storage answer
+ * `Content-Disposition: attachment`, so a navigation saves the file instead;
+ * an `<img>` — the member plane's only use of these URLs — ignores the header
+ * and still shows the photo. The external plane never gets a Storage URL: it
+ * streams through its own route with the detected type, `nosniff` and a
+ * sandbox CSP (`app/external/evidence/route.ts`).
+ *
+ * THE FLAG IS NOT SIGNED. storage-js 2.112.3 sends only `expiresIn` (and the
+ * paths) to `/object/sign/…` and appends `&download=` to the returned URL
+ * itself, so whoever holds the URL can delete it and get the object inline for
+ * the rest of its 60 seconds (measured, DEV-032). What makes that harmless is
+ * finalize, not this flag: an object whose stored type is not its detected
+ * type never becomes available, so no URL is ever signed for it
+ * (`finalize-upload-intent.ts`, `stored_type_mismatch`).
+ */
+const SIGNED_READ_OPTIONS = { download: true } as const;
+
+/**
+ * NO KEY, AND NO PROVIDER MESSAGE, IN ANY ERROR THROWN FROM THIS FILE.
+ *
+ * Errors reach `console.error` through `toProblemResponse`'s unmapped branch,
+ * and `files-and-storage.md` says «Logs record the domain object and
+ * authorization result, never the signed URL or raw storage key». Until
+ * DEV-034 (BL-033) the upload, download, list and remove helpers interpolated
+ * the key and relayed the provider's message; every one of them now throws
+ * `EvidenceStorageError` through `readFailed`, the same as the read helpers.
  *
  * Relaying the provider's own `error.message` verbatim is not a safe
  * substitute for interpolating the key ourselves — the message can carry the
@@ -160,12 +205,13 @@ export const EVIDENCE_URL_TTL_SECONDS = 60;
  * through, and the guarantee has to hold then too — not only for the keys
  * this file currently chooses to mint.
  *
- * So nothing below relays `error.message`. `readFailed` carries forward only
+ * So nothing here relays `error.message`. `readFailed` carries forward only
  * `error.code` — a closed, provider-defined enum (`NoSuchKey`, `NoSuchBucket`,
  * `InvalidKey`, … see
  * https://supabase.com/docs/guides/storage/debugging/error-codes) — and
- * `error.status`. A code is an enum member and cannot contain a key; a status
- * is a number and cannot either. `code` is also the discriminator a caller
+ * `error.status`. A code is an enum member and cannot contain a key — and
+ * `readFailed` enforces that, keeping a code only when it is an identifier
+ * (DEV-034 S1-03); a status is a number and cannot either. `code` is also the discriminator a caller
  * should branch on instead of parsing text: see the NOTE on
  * `createSignedReadUrl` for why `status` alone is not enough to tell a
  * missing object from most other storage failures.
@@ -176,26 +222,47 @@ export class EvidenceStorageError extends Error {
   /** The HTTP status the provider answered with, when there was one. */
   readonly status: number | undefined;
 
-  constructor(what: string, code: string | undefined, status: number | undefined) {
-    super(`storage: ${what} failed${code ? ` (${code})` : ""}`);
+  /**
+   * The message names the operation, the provider's code, the HTTP status and,
+   * when there is no code, the error's class — each an identifier or a number,
+   * never text a provider wrote. The purge worker stores this message as the
+   * reason a purge failed (`upload_intents.purge_failure`), so it has to say
+   * enough on its own (DEV-034 R1-02).
+   */
+  constructor(what: string, code: string | undefined, status: number | undefined, kind?: string) {
+    super(`storage: ${what} failed${code ? ` (${code})` : ""}${status !== undefined ? ` [${status}]` : ""}`
+      + `${!code && kind ? ` <${kind}>` : ""}`);
     this.name = "EvidenceStorageError";
     this.code = code;
     this.status = status;
   }
 }
 
+// An identifier and nothing else: a UUID half has hyphens, a path has
+// slashes, a message has spaces, so none of them passes (DEV-034 S1-03).
+const SAFE_IDENTIFIER = /^[A-Za-z][A-Za-z0-9]{0,63}$/;
+const identifier = (value: unknown) =>
+  typeof value === "string" && SAFE_IDENTIFIER.test(value) ? value : undefined;
+
+/**
+ * THE ONLY WAY AN ERROR LEAVES THIS FILE. It copies the provider's `code`
+ * only when it is an identifier (the storage API documents it as an enum, but
+ * a gateway in front of Storage could send anything), the status only when it
+ * is an integer, and never the provider's message, the SDK error itself (no
+ * `cause`), the key or the bucket.
+ */
 function readFailed(what: string, error: unknown): Error {
-  const code = error instanceof StorageApiError ? error.code : undefined;
-  const status = error instanceof Error && "status" in error
-    ? (error as { status?: number }).status
-    : undefined;
-  return new EvidenceStorageError(what, code, status);
+  const code = error instanceof StorageApiError ? identifier(error.code) : undefined;
+  const raw = error instanceof Error && "status" in error ? (error as { status?: unknown }).status : undefined;
+  const status = Number.isInteger(raw) ? raw as number : undefined;
+  const kind = error instanceof Error ? identifier(error.constructor.name) : undefined;
+  return new EvidenceStorageError(what, code, status, kind);
 }
 
 /** A short-lived read grant for exactly one object. `bucket` is required and never defaulted: the caller's `evidence_objects` row names its own bucket, and a caller must not be able to silently fall back to a constant. */
 export async function createSignedReadUrl(key: string, bucket: string): Promise<string> {
   const { data, error } = await storage(bucket)
-    .createSignedUrl(key, EVIDENCE_URL_TTL_SECONDS);
+    .createSignedUrl(key, EVIDENCE_URL_TTL_SECONDS, SIGNED_READ_OPTIONS);
   // NOTE: a missing object arrives as HTTP 400 with a body saying 404 (code
   // `NoSuchKey`), so `error.status` must not be mapped to a response status by
   // any caller — branch on `EvidenceStorageError.code` instead.
@@ -263,7 +330,7 @@ export async function createSignedReadUrls(
   const failedKeys: string[] = [];
   if (keys.length === 0) return { urls, failedKeys };
   const { data, error } = await storage(bucket)
-    .createSignedUrls(keys, EVIDENCE_URL_TTL_SECONDS);
+    .createSignedUrls(keys, EVIDENCE_URL_TTL_SECONDS, SIGNED_READ_OPTIONS);
   if (error || !data) throw readFailed("signed read batch", error);
   for (const entry of data) {
     if (entry.error || !entry.signedUrl) {

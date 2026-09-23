@@ -1,8 +1,10 @@
 import { describe, it, expect } from "vitest";
 import { createClient } from "@supabase/supabase-js";
+import { randomUUID } from "node:crypto";
+import { inspect } from "node:util";
 import {
   EVIDENCE_BUCKET, newEvidenceKey, createSignedUpload, putObject,
-  downloadObject, objectExists, removeObject,
+  downloadObject, objectExists, removeObject, EvidenceStorageError,
 } from "../src/lib/evidence-storage";
 
 const SUPABASE_URL = process.env.SUPABASE_URL ?? "http://127.0.0.1:54321";
@@ -93,5 +95,28 @@ describe("the bucket is genuinely private", () => {
     expect(res.ok).toBe(false);
 
     await removeObject(key);
+  });
+});
+
+describe("evidence storage errors carry no key (BL-033)", () => {
+  // Measured on the local stack: downloading a key the storage server's name
+  // validator refuses answers «Invalid key: <the raw key>». A bare Error that
+  // relays that message reaches the log verbatim through `toProblemResponse`,
+  // against `files-and-storage.md` §Downloads. The other functions' failures
+  // are pinned in `src/lib/evidence-storage.test.ts`, with a fake client.
+  it("for a download of a key the server refuses, whose own message names it", async () => {
+    const bad = `${randomUUID()}/leak{${randomUUID()}}`;
+    // The positive control: the server's own message does name the key.
+    const raw = await createClient(SUPABASE_URL, process.env.SUPABASE_SECRET_KEY ?? "sb_secret_N7UND0UgjKTVK-Uodkm0Hg_xSvEMPvz",
+      { auth: { persistSession: false } }).storage.from(EVIDENCE_BUCKET).download(bad);
+    expect(raw.error?.message).toContain(bad);
+    const err = await downloadObject(bad).then(() => null, (e: unknown) => e);
+    expect(err).toBeInstanceOf(EvidenceStorageError);
+    expect((err as EvidenceStorageError).code).toBe("InvalidKey");
+    expect((err as Error).message).not.toContain(bad.split("/")[1]!);
+    // Everything a log line could print: the message, its inspection, its JSON (DEV-034 Q1-03).
+    const printed = [(err as Error).message, inspect(err, { depth: null }), JSON.stringify(err)].join("\n");
+    for (const half of bad.split("/")) expect(printed).not.toContain(half);
+    expect(printed).not.toContain("Invalid key");
   });
 });

@@ -233,7 +233,7 @@ jobs:
   # disclaimer, the obligation screen's touch floor and the INV-081 banner are
   # no longer in apps/app, and this job no longer covers them. It covers the
   # office dashboard. The field client's browser pass is apps/mobile's
-  # `pnpm --filter @goproceed/mobile qa`, which is in no CI job yet (BL-128).
+  # `pnpm --filter @goproceed/mobile qa`, which is in no CI job yet (BL-135).
   app-qa:
     runs-on: ubuntu-latest
     timeout-minutes: 20

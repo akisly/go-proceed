@@ -6,7 +6,7 @@ import {
   createSignedReadUrl, createSignedReadUrls, openObjectStream,
 } from "../src/lib/evidence-storage";
 
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 
 describe("evidence storage: read access", () => {
   it("signs a URL that actually serves the bytes, and expires in 60 seconds", async () => {
@@ -26,6 +26,27 @@ describe("evidence storage: read access", () => {
     ) as { iat: number; exp: number };
     expect(payload.exp - payload.iat).toBe(EVIDENCE_URL_TTL_SECONDS);
     expect(EVIDENCE_URL_TTL_SECONDS).toBeLessThanOrEqual(60);
+  });
+
+  it("signs URLs a browser downloads rather than renders: Content-Disposition attachment (BL-089)", async () => {
+    // The member plane shows evidence in an <img>, which ignores
+    // Content-Disposition. Opening the same URL as a page is what renders an
+    // uploader-chosen type (an SVG with a script, stored as image/svg+xml) on
+    // the Storage origin; `attachment` turns that navigation into a download.
+    const key = newEvidenceKey();
+    const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>');
+    await putObject(key, svg, "image/svg+xml");
+
+    const single = await createSignedReadUrl(key, EVIDENCE_BUCKET);
+    const { urls } = await createSignedReadUrls([key], EVIDENCE_BUCKET);
+    for (const url of [single, urls.get(key)!]) {
+      const res = await fetch(url);
+      expect(res.status).toBe(200);
+      // The positive control: the hostile type IS what Storage serves.
+      expect(res.headers.get("content-type")).toBe("image/svg+xml");
+      expect(res.headers.get("content-disposition") ?? "").toMatch(/^attachment\b/);
+      expect(new Uint8Array(await res.arrayBuffer())).toEqual(svg);
+    }
   });
 
   it("omits a key it could not sign from `urls`, and reports it in `failedKeys` instead", async () => {
