@@ -27,7 +27,10 @@
 --   entity-catalog.csv status_version, never from its presence here),
 --   docs/decisions/ADR-007-pilot-field-client.md (the v0.1 field client is a
 --   PWA: capture is online-only, a pending original is not durable, and
---   capture_origin carries origin_not_distinguished) and
+--   capture_origin carries origin_not_distinguished) [2026-09-23, DEV-042:
+--   superseded in part by docs/decisions/ADR-013-native-field-client.md -- the
+--   field client is native, keeps durable encrypted pending captures and
+--   records native_camera or photo_picker as client-supplied provenance] and
 --   docs/product/hidden-works-content-rules.md (every regulatory string; no
 --   norm, clause, form field, or Додаток Н item may be asserted here that is
 --   not on that document's allow-list)
@@ -978,6 +981,33 @@ create table public.requirement_library_items (
   -- (hidden-works-content-rules.md A).
   check ((position_code = 'Н.14' and item_no <= 5)
       or (position_code = 'Н.15' and item_no <= 7))
+);
+-- DEV-042 / ADR-013 (migration 0095): an immutable, licensed product
+-- illustration of a library item. Operator-provisioned only; the application
+-- role reads it (active member) and never writes it. Rules and occurrences pin
+-- one exact version; a pin is never an evidence object or a normative source.
+create table public.requirement_reference_image_versions (
+  id uuid primary key,
+  workspace_id uuid not null references public.organizations(id),
+  requirement_library_item_id uuid not null,
+  version_no integer not null check (version_no > 0),
+  storage_bucket text not null default 'requirement-reference-images'
+    check (storage_bucket = 'requirement-reference-images'),
+  storage_key text not null unique,
+  sha256 text not null,
+  byte_size integer not null check (byte_size between 1 and 5242880),
+  mime_type text not null check (mime_type in ('image/jpeg','image/png','image/webp')),
+  width integer not null,
+  height integer not null,
+  alt_text_uk text not null,
+  rights_holder text not null,
+  license text not null,
+  source_uri text not null,
+  manifest_sha256 text not null,
+  published_at timestamptz not null default now(),
+  unique (workspace_id, requirement_library_item_id, version_no),
+  foreign key (workspace_id, requirement_library_item_id)
+    references public.requirement_library_items(workspace_id, id)
 );
 comment on table public.requirement_library_items is
   'Shipped regulatory reference content: the twelve VERIFIED_PRIMARY items of Додаток Н positions Н.14 and Н.15 (technical/requirements/dbn-a31-5-2016-dodatok-n.csv). Content is a repository change under hidden-works-content-rules.md, never a runtime command. Anything outside those two positions belongs to a separate non-normative block and never to this table. NOTE: entity-catalog.csv and relationship-catalog.csv scope these rows to a workspace; domain-model.md calls them workspace-independent reference rows. The catalogs win on shape (tenant-safe FKs, INV-001); the document wins on substance, and a rule version COPIES the quoted text, its verification tag, and its source into its own immutable content so no tenant obligation depends on a shared row.';

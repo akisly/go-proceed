@@ -132,6 +132,13 @@ GoProceed is architected as three separately-deployed pilot surfaces, not one:
   ([ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md) decision 2), and
   will deploy as its own, third, Vercel project once the Expo-web client
   ships.
+  *[2026-09-23, DEV-042 — changed by
+  [ADR-013](docs/decisions/ADR-013-native-field-client.md): `apps/mobile` is
+  now built native for iOS and Android, distributed to an internal beta through
+  TestFlight and Google Play Internal Testing; the Expo-web client and its
+  Vercel project `goproceed-field` are retired (the owner deleted the project
+  on 2026-09-23). Not merged; see
+  [DEV-042](docs/tasks/DEV-042-mobile-native.md).]*
 
 **Transition state, in force now:** the **v0.1 field client is still a PWA
 served from `apps/app`**, behind the same BFF boundary as the web product
@@ -152,6 +159,14 @@ as a web export at Vercel project `goproceed-field` (observed serving on
 2026-09-23); the Telegram project channel is built but not yet enabled. See
 [ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md) «Amendment,
 2026-09-23».]*
+
+*[2026-09-23, DEV-042 — the web export is retired as well.
+[ADR-013](docs/decisions/ADR-013-native-field-client.md) makes the field client
+the native iOS/Android build of `apps/mobile` (encrypted local vault, foreground
+queue); the owner deleted the Vercel project `goproceed-field` and removed
+`FIELD_CLIENT_ORIGINS` from `goproceed-app` the same day. The native client is on
+branch `codex/mobile-native` (PR #115, not merged), and its device and store
+evidence is NOT RUN ([DEV-042](docs/tasks/DEV-042-mobile-native.md)).]*
 
 `apps/demo` and `prototype/` were the legacy reference material and are
 **gone** — `prototype/` on 2026-08-19, `apps/demo` on 2026-08-20. Neither

@@ -138,6 +138,34 @@ describe("requirement_library_items — tenant isolation", () => {
   });
 });
 
+describe("requirement_reference_image_versions — tenant isolation", () => {
+  // DEV-042 / migration 0095: `rriv_select` asks only for active membership, the
+  // same reader set as the library item the illustration belongs to.
+  it("is readable by any ACTIVE MEMBER of its own workspace, and by nobody else", async () => {
+    const pinned = await c.query(
+      `select id from public.requirement_reference_image_versions
+        where workspace_id = $1 and requirement_library_item_id = $2`, [WS_A, libraryItemA]);
+    const imageA = pinned.rows[0]?.id as string | undefined;
+    if (!imageA) throw new Error("m1-rules-rls: the fixture seeded no illustration for Н.14/1");
+    expect(await visible(USER_A, WS_A, "requirement_reference_image_versions", imageA)).toBe(1);
+    expect(await visible(USER_M, WS_A, "requirement_reference_image_versions", imageA)).toBe(1);
+    expect(await visible(USER_B, WS_B, "requirement_reference_image_versions", imageA)).toBe(0);
+  });
+
+  it("refuses any write by the application role, even in its own workspace", async () => {
+    // Only the operator's provisioning script publishes bytes (0095 header);
+    // goproceed_app holds SELECT alone.
+    expect(await sqlstate(() => asActor(USER_A, WS_A, (cl) => cl.query(
+      `insert into public.requirement_reference_image_versions
+         (id, workspace_id, requirement_library_item_id, version_no, storage_key, sha256, byte_size,
+          mime_type, width, height, alt_text_uk, rights_holder, license, source_uri, manifest_sha256)
+       values (gen_random_uuid(), $1, $2, 99, gen_random_uuid()::text || '/' || gen_random_uuid()::text,
+               repeat('c',64), 3, 'image/jpeg', 1, 1, 'Приклад', 'TEST ONLY', 'TEST ONLY',
+               'https://example.com/test-only', repeat('d',64))`,
+      [WS_A, libraryItemA])))).toBe("42501");
+  });
+});
+
 describe("requirement_rule_versions — tenant isolation and the publication-only write", () => {
   const insertRuleVersion = (
     user: string, actorWorkspace: string, rowWorkspace: string,
@@ -154,7 +182,7 @@ describe("requirement_rule_versions — tenant isolation and the publication-onl
         work_type_key, stage_key, intervention_type, blocking_scope, timing,
         evidence_kind, acceptance_criterion, performer_role, approver_role,
         requirement_library_item_id, allowed_media, rule_version_hash, published_at,
-        published_by_member_id, created_by_member_id)
+        published_by_member_id, created_by_member_id, reference_image_version_id)
      values ($1::uuid, gen_random_uuid(), 1, 1, $2::text,
              'montazh-elektrotekhnichnykh-ustanovok','stage-policy','hold',
              'blocks_stage_closure','before_concealment','photo',
@@ -164,7 +192,10 @@ describe("requirement_rule_versions — tenant isolation and the publication-onl
              case when $2::text = 'draft' then null else repeat('a',64) end,
              case when $2::text = 'draft' then null else now() end,
              case when $2::text = 'draft' then null else $4::uuid end,
-             $4::uuid)`,
+             $4::uuid,
+             (select id from public.requirement_reference_image_versions
+               where workspace_id=$1::uuid and requirement_library_item_id=$3::uuid
+               order by version_no desc limit 1))`,
     [rowWorkspace, status, libraryItemA, memberId]));
 
   it("is readable by any active member of its own workspace, and by nobody else", async () => {

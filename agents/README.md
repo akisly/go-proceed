@@ -13,7 +13,7 @@ Every profile is the shared protocol in [COMMON.md](COMMON.md) followed by one r
 | `gp-qa` | On the final revision of every behavior change | PASS / FAIL / NOT RUN matrix | + Bash | workspace-write |
 | `gp-researcher` | A decision rests on an unverified library, service or regulatory fact | Evidence table with versions and dates | + WebSearch, WebFetch | read-only |
 | `gp-ui-reviewer` | After a change to landing, app UI, mobile screens, `packages/ui`, tokens or copy | PASS / HOLD finish gate | Read, Grep, Glob | read-only |
-| `gp-mobile` | Field-client installability, offline or capture behaviour, Expo, signing, store or OTA | Requirements and acceptance cases | + WebSearch, WebFetch | read-only |
+| `gp-mobile` | Native field-client installation, offline or capture behaviour, the encrypted local vault, Expo, signing, store or OTA | Requirements and acceptance cases | + WebSearch, WebFetch | read-only |
 
 When a stage is required is decided by the repository's root rules (`AGENTS.md` and `CLAUDE.md`), not by this table.
 

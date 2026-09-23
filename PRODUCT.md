@@ -49,6 +49,11 @@ contractor's workspace.
   payment-presentation eligibility.
 - Current field capture requires an active network connection; an unuploaded
   original is not durable evidence.
+  *[2026-09-23, DEV-042 — under
+  [ADR-013](docs/decisions/ADR-013-native-field-client.md) the native field
+  client keeps an unuploaded original durably, encrypted on the device, until
+  the server receipt; it is still not evidence until then. Not merged; device
+  evidence NOT RUN ([DEV-042](docs/tasks/DEV-042-mobile-native.md)).]*
 - A draft act is not a signed document and GoProceed does not claim qualified
   electronic signature support.
 - Internal review, immutable evidence packages, partial acceptance, claim

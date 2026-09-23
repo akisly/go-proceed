@@ -49,6 +49,18 @@ export at the Vercel project `goproceed-field`. See ADR-009 «Amendment,
 2026-09-23». Below, «the v0.1 PWA» and «the PWA path» read as that web field
 client, whose capture code is a port of the PWA's; every limit and refusal
 stated for the PWA binds it.]*
+*[2026-09-23, DEV-042 — the web export is retired as well. [ADR-013](../decisions/ADR-013-native-field-client.md)
+supersedes ADR-007's PWA client and distribution decisions and ADR-009's
+Expo-web deployment: the field client is the native iOS/Android build of
+`apps/mobile` (phones and tablets, email OTP, the same bearer `/v1` API), with
+durable encrypted pending captures in a local vault and a foreground queue. The
+owner deleted the Vercel project `goproceed-field` and removed
+`FIELD_CLIENT_ORIGINS` from `goproceed-app` the same day; the CORS layer in
+`apps/app/src/lib/cors.ts` is therefore off. The native client is on branch
+`codex/mobile-native` (PR #115, not merged), and its device, Android and store
+evidence is NOT RUN ([DEV-042](../tasks/DEV-042-mobile-native.md)). Statements below about the web export, its origin
+and «the v0.1 PWA path» are historical for the field client; the Telegram
+channel is unchanged.]*
 
 ## Implemented baseline versus approved target
 
@@ -66,6 +78,9 @@ stated for the PWA binds it.]*
   and `apps/mobile/src/app/index.tsx` (8 lines), the one screen they render is
   `apps/mobile/src/screens/token-proof.tsx`, and `apps/mobile/package.json`
   declares no camera and no image-picker dependency.
+  *[2026-09-23, DEV-042 — no longer the tree: `apps/mobile` is the native field
+  client ([ADR-013](../decisions/ADR-013-native-field-client.md)); `src/app/token-proof.tsx` and `src/screens/token-proof.tsx` are
+  deleted, and `package.json` declares `expo-camera` and `expo-image-picker`.]*
 - **The v0.1 field client does not exist either.** `apps/app` carries no web app
   manifest, no service worker, and no `.well-known` directory. No capture screen
   has been written in either client, which is why ADR-007 is a choice of client
@@ -81,9 +96,9 @@ stated for the PWA binds it.]*
 |---|---|---|
 | `apps/landing` | Public marketing, positioning, and acquisition surface | Permanent separate product and deployment. It is not a tenant application and receives no customer-database service credential. Separate free Vercel domains are acceptable initially. |
 | `apps/app` | Next.js authenticated UI and backend-for-frontend (BFF) for members, public protected-link shell, command/query API, and server-rendered product views | Canonical web product from v0.0 onward. Browser and native clients use this BFF for domain access. |
-| Field client: the `apps/mobile` Expo web export and the Telegram project channel | Authenticated field surface for the foreman: the requirement that must be photographed before covering, in the standard's own wording with a reference image, and the capture itself | v0.1 per [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and «Amendment, 2026-09-23». The Expo web export is a separate deployment (Vercel project `goproceed-field`) on its own origin; it keeps its session in that origin's browser storage and reaches the `apps/app` BFF cross-origin with a bearer token through the `FIELD_CLIENT_ORIGINS` CORS allowlist. It needs an HTTPS origin and no store account or distribution track. The Telegram channel's ingress is in `apps/app` and is enabled in no environment yet (BL-024). *[2026-09-23, DEV-035 — was: «`apps/app` field client (PWA)» \| … \| «v0.1 per [ADR-007]. It is a route set inside `apps/app` — same origin, same session, same BFF — and not a separate deployment. It needs an HTTPS origin, which `apps/app` already requires, and no install step, store account, or distribution track.» The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* |
+| Field client: the `apps/mobile` Expo web export and the Telegram project channel | Authenticated field surface for the foreman: the requirement that must be photographed before covering, in the standard's own wording with a reference image, and the capture itself | v0.1 per [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and «Amendment, 2026-09-23». The Expo web export is a separate deployment (Vercel project `goproceed-field`) on its own origin; it keeps its session in that origin's browser storage and reaches the `apps/app` BFF cross-origin with a bearer token through the `FIELD_CLIENT_ORIGINS` CORS allowlist. It needs an HTTPS origin and no store account or distribution track. The Telegram channel's ingress is in `apps/app` and is enabled in no environment yet (BL-024). *[2026-09-23, DEV-035 — was: «`apps/app` field client (PWA)» \| … \| «v0.1 per [ADR-007]. It is a route set inside `apps/app` — same origin, same session, same BFF — and not a separate deployment. It needs an HTTPS origin, which `apps/app` already requires, and no install step, store account, or distribution track.» The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* *[2026-09-23, DEV-042 — the Expo web export and `goproceed-field` are retired too; the field client is the native `apps/mobile` build and needs no CORS allowlist, but a store account and distribution track ([ADR-013](../decisions/ADR-013-native-field-client.md); not merged, [DEV-042](../tasks/DEV-042-mobile-native.md)).]* |
 | `apps/app` `/demo` | Durable interactive product demo backed only by isolated synthetic data | v0.2, not v0.1. Demo mode is selected by the server-side route/deployment boundary, never by `?demo=true` or another query switch on a customer session. |
-| `apps/mobile` | Expo/React Native client: the v0.1 field client's codebase, shipped as a web export (row above); native builds come later from the same codebase | Web export v0.1 ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2); native builds **v0.3** per [ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 2. Offline authorization, task access, sync, conflicts, resumable chunks, and a hardware-key-backed durable pending original are the work the native build is kept for. *[2026-09-23, DEV-035 — was: «Expo/React Native client, retained in the tree and off the v0.1 delivery path» \| «**v0.3** per [ADR-007] decision 2. […] It is removed from the v0.1 milestone outcome, entry evidence, and closing evidence, and its presence proves no v0.1 capability.» The owner retired the `apps/app` PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* |
+| `apps/mobile` | Expo/React Native client: the v0.1 field client's codebase, shipped as a web export (row above); native builds come later from the same codebase | Web export v0.1 ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2); native builds **v0.3** per [ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 2. Offline authorization, task access, sync, conflicts, resumable chunks, and a hardware-key-backed durable pending original are the work the native build is kept for. *[2026-09-23, DEV-035 — was: «Expo/React Native client, retained in the tree and off the v0.1 delivery path» \| «**v0.3** per [ADR-007] decision 2. […] It is removed from the v0.1 milestone outcome, entry evidence, and closing evidence, and its presence proves no v0.1 capability.» The owner retired the `apps/app` PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* *[2026-09-23, DEV-042 — [ADR-013](../decisions/ADR-013-native-field-client.md): the native iOS/Android build is the v0.1 field client (internal beta through TestFlight and Google Play Internal Testing), durable encrypted pending captures move into it from v0.3, and the web export is retired. Offline tasks, background sync, push, OTA and public store launch stay later work. Not merged; [DEV-042](../tasks/DEV-042-mobile-native.md).]* |
 | Worker runtime | Claims outbox/jobs, scans and finalizes evidence, generates artifacts, refreshes projections, and delivers notifications | Private service identity with no public user interface. It may be deployed as one process initially and split only when operational evidence requires it. |
 | Email delivery adapter | Sends transactional product mail through an external provider and records delivery evidence | Outbound-only provider boundary. It receives the minimum template and recipient data needed for one delivery. |
 
@@ -153,6 +168,9 @@ and executes one bounded transaction. The client trusts nothing it holds.
 v0.1 field client a PWA served from `apps/app`, reversing the one ADR-004
 sentence that required a separate native client rather than a responsive-web
 substitute.» The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]*
+*[2026-09-23, DEV-042 — this section describes the retired web export. Under
+[ADR-013](../decisions/ADR-013-native-field-client.md) the field client is the native `apps/mobile` build, not a browser page; the
+BFF boundary and «the client trusts nothing it holds» stand ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 It carries exactly two of the six steps that are v0.1 under
 [ADR-006](../decisions/ADR-006-pilot-shaped-v0.1.md): it shows the foreman what
@@ -260,6 +278,11 @@ invariants and become v0.3 obligations, and they may not be re-scoped back onto
 the browser path by a catalog edit. `quarantined` and `expired_purged` are
 native-client states for the same reason; the PWA discards the in-memory
 original on logout, revocation, or account switch, and says so.
+*[2026-09-23, DEV-042 — [ADR-013](../decisions/ADR-013-native-field-client.md) brings durable encrypted pending captures into
+the v0.1 internal beta through the native client, so INV-013, INV-014 and
+INV-053 now have native witnesses (see their catalog rows); device evidence is
+NOT RUN, and the warned seven-day expiry to `expired_purged` is not wired yet
+([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 What v0.1 claims in their place is weaker and testable:
 
@@ -308,12 +331,17 @@ deep-linking *mechanism* is real and is kept for v0.3. Its entire route table is
 `apps/mobile/src/app/_layout.tsx` and `apps/mobile/src/app/index.tsx`. **None of
 the routes below exist in either client**, neither well-known file below is in
 the repository, and `apps/app` carries no web app manifest or service worker.
+*[2026-09-23, DEV-042 — with the web export retired ([ADR-013](../decisions/ADR-013-native-field-client.md)) the field client
+has no HTTPS origin of its own; the native client registers `goproceed`, and
+the [approved spec](../specs/2026-09-22-mobile-native.md) requires protected
+deep links to resolve only after current server authorization. External
+capability links remain browser routes ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 **Approved target.**
 
 | Element | Version | Contract |
 |---|---|---|
-| HTTPS path on the field client's origin | v0.1 | The v0.1 field-client link, and in v0.1 the only entry mechanism. The web field client's own origin (`goproceed-field`), its own session in that origin's browser storage, the same BFF reached cross-origin with a bearer token. *[2026-09-23, DEV-035 — was: «HTTPS path on the product origin» \| … \| «Same origin as `apps/app`, same member session, same BFF». The owner retired the `apps/app` PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* |
+| HTTPS path on the field client's origin | v0.1 | The v0.1 field-client link, and in v0.1 the only entry mechanism. The web field client's own origin (`goproceed-field`), its own session in that origin's browser storage, the same BFF reached cross-origin with a bearer token. *[2026-09-23, DEV-035 — was: «HTTPS path on the product origin» \| … \| «Same origin as `apps/app`, same member session, same BFF». The owner retired the `apps/app` PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* *[2026-09-23, DEV-042: the web field client's origin is gone — the owner deleted `goproceed-field` ([ADR-013](../decisions/ADR-013-native-field-client.md)); the native client's entry is the `goproceed` scheme with server authorization first (see the note under «What exists»)]* |
 | Host | v0.1 | **Undecided.** The archived screen specification named a host built on the former product name. Choosing and registering the GoProceed host is part of the outstanding rename slice, not of this document — see [`TODOS.md`](../../TODOS.md) P1, split item 2. A browser client does not remove this item; it is now the whole of it |
 | Custom scheme `goproceed://` | v0.3 | Registered today in `apps/mobile`; the fallback entry point for contexts that will not honour an HTTPS association, once a native client exists to receive it |
 | Universal Links (iOS) | v0.3 | An HTTPS host serving `/.well-known/apple-app-site-association`. The file does not exist and is not a v0.1 requirement |
@@ -362,6 +390,9 @@ Rules that bind whenever those routes are built, in either client:
   same origin»; the web field client now has its own origin, see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23»]*: the
   review shell has no account, its
   own short session, and its own POST exchange.
+  *[2026-09-23, DEV-042 — under [ADR-013](../decisions/ADR-013-native-field-client.md) the native client is the v0.1 field
+  client, and the rule holds for it: external capability links remain browser
+  routes and are never routed into the native app.]*
 - **Notification taps depend on this route set.** The v0.1 field client is
   pull-only; the earliest push named in the canonical package is the v0.2
   statutory-notice push at notice-window opening
@@ -504,6 +535,10 @@ the Expo web export from `apps/mobile` on its own origin and reaches the BFF
 cross-origin with a bearer token. The diagram does not draw the Telegram project
 channel, the field client's second path, which is enabled in no environment
 yet.]*
+*[2026-09-23, DEV-042 — the `Field` node's Expo web client is retired
+([ADR-013](../decisions/ADR-013-native-field-client.md)); the foreman's path is the `Native` node, the native build of
+`apps/mobile`, which reaches the BFF with a bearer token and no CORS. The node's
+«v0.3» label and dotted edge are historical; not merged ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 The diagram shows logical trust, not a requirement for a particular number of
 processes. The important boundaries are:
@@ -570,6 +605,9 @@ cosmetic: the v0.3 native client quarantines its local original under the
 approved recovery/deletion policy, while the v0.1 field client has no quarantine
 to offer and instead tells the user plainly that GoProceed did not save the
 photo.
+*[2026-09-23, DEV-042 — under [ADR-013](../decisions/ADR-013-native-field-client.md) the native field client is the v0.1
+client, and it quarantines its local original on the identity boundary; the
+warned seven-day expiry is not wired yet ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 
 ### Frozen package and artifacts — v0.2
 
@@ -665,6 +703,10 @@ during migration, but they do not become the durable `/demo` implementation.
   environment configuration and the same member session. The one thing it
   requires that a native client does not is an HTTPS origin, which `apps/app`
   already requires.» The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]*
+  *[2026-09-23, DEV-042 — retired: the owner deleted `goproceed-field` and
+  removed `FIELD_CLIENT_ORIGINS` from `goproceed-app` ([ADR-013](../decisions/ADR-013-native-field-client.md)). The field client
+  is now native binaries, which need signing and a store track but no web
+  origin ([DEV-042](../tasks/DEV-042-mobile-native.md)).]*
 - Any service worker or cached asset the field client ships is client code on its
   own origin *[2026-09-23, DEV-035 — was: «on the product origin»]*: it receives no service credential and must not cache evidence
   originals or authenticated domain responses. `apps/app` ships no service worker

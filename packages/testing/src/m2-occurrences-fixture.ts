@@ -171,11 +171,14 @@ export const OCCURRENCE_INSERT = `
      rule_version_id, ordinal, intervention_type, blocking_scope, timing,
      evidence_kind, acceptance_criterion, performer_role, approver_role,
      approver_is_external, min_evidence_count, max_evidence_count,
-     norm_ref, norm_ref_verification, norm_ref_source, created_by_member_id)
+     norm_ref, norm_ref_verification, norm_ref_source, created_by_member_id,
+     reference_image_version_id)
   values ($1::uuid,$2::uuid,$3::uuid,$4::uuid,$5::uuid,$6::uuid,$7::boolean,$8::text,
           $9::uuid,$10::integer,$11::text,$12::text,$13::text,$14::text,$15::text,
           $16::text,$17::text,$18::boolean,$19::integer,$20::integer,
-          $21::text,$22::text,$23::text,$24::uuid)
+          $21::text,$22::text,$23::text,$24::uuid,
+          (select reference_image_version_id from public.requirement_rule_versions
+            where workspace_id=$1::uuid and id=$9::uuid))
   returning id`;
 
 /**

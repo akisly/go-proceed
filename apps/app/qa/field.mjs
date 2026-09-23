@@ -1800,6 +1800,9 @@ async function main() {
     // The owner retired that client («удали все что в (app)»); the field
     // client is `apps/mobile` (ADR-009 as amended), whose own harness is
     // `pnpm --filter @goproceed/mobile qa`. Their history is in git.
+    // [2026-09-23, DEV-042] That harness (apps/mobile/qa/field-web.mjs) and
+    // its script are deleted with the Expo web field client (ADR-013). The
+    // native field client has no browser or device harness yet.
 
     await runAudit(ctx, "evidence, the review link, and the external plane", async () => {
       // ═══════════════════════════════════════════════════════════════════
@@ -3992,9 +3995,10 @@ async function main() {
     const NOT_COVERED = [
       "The field client's screens are not covered here at all since DEV-035 " +
       "(2026-09-23): the owner retired the field PWA (app/(app)/**) and this " +
-      "file's three field audits went with it. The field client is apps/mobile; " +
-      "its browser pass is `pnpm --filter @goproceed/mobile qa` " +
-      "(apps/mobile/qa/field-web.mjs), which runs in no CI job.",
+      "file's three field audits went with it. The field client is apps/mobile's " +
+      "native iOS/Android build (ADR-013), which has no harness yet (DEV-042, " +
+      "2026-09-23): the Expo web export's browser pass (apps/mobile/qa/field-web.mjs, " +
+      "`pnpm --filter @goproceed/mobile qa`) was deleted with that client.",
       "No colour-contrast (WCAG AA) scan is run, and no screen-reader pass " +
       "(NVDA/VoiceOver/JAWS) was performed — same limitation apps/demo/qa/verify.mjs " +
       "states about itself.",

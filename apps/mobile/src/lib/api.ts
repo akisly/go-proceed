@@ -1,16 +1,11 @@
 import type { Session } from "@supabase/supabase-js";
 
 import { API_ORIGIN } from "./env";
-import { supabase } from "./supabase";
 
 /**
  * NO REACT-NATIVE IMPORT IN THIS FILE, DIRECT OR TRANSITIVE, ON PURPOSE.
- * `./env` is a pure `process.env` reader and `./supabase` only reaches
- * `@supabase/supabase-js` (no `storage` adapter — see its own comment) — both
- * run under plain Node, which is what lets `api.test.ts` run under
- * `vitest.config.ts`'s `environment: "node"` with a fake `fetch` and a fake
- * `supabase.auth.getSession`, instead of needing RN/jsdom globals just to
- * import this module.
+ * Native auth storage is imported only when a real request needs a token.
+ * Pure queue and request tests inject their dependencies under plain Node.
  */
 
 /**
@@ -56,6 +51,7 @@ export async function readProblem(res: Response): Promise<Problem> {
  * its own.
  */
 export async function requireSession(): Promise<Session | null> {
+  const { supabase } = await import("./supabase");
   const { data } = await supabase.auth.getSession();
   return data.session;
 }
@@ -65,20 +61,35 @@ async function authHeader(): Promise<Record<string, string>> {
   return session ? { Authorization: `Bearer ${session.access_token}` } : {};
 }
 
-/** GETs `${EXPO_PUBLIC_API_ORIGIN}${path}`, with a bearer token attached when signed in. */
-export async function apiGet(path: string): Promise<Response> {
-  return fetch(`${API_ORIGIN}${path}`, {
+function apiUrl(path: string): string {
+  // `%2e` is normalised to `.` by the URL parser, so it counts as a dot segment.
+  if (!/^\/v1(?:\/|$)/.test(path) || /[\\#\r\n]/.test(path) || path.includes("..") || /%2e/i.test(path)) {
+    throw new Error("INVALID_API_PATH");
+  }
+  // A bearer never travels over plain HTTP, except to this machine during development.
+  const origin = new URL(API_ORIGIN);
+  if (origin.protocol !== "https:" && !["localhost", "127.0.0.1", "[::1]"].includes(origin.hostname)) {
+    throw new Error("INSECURE_API_ORIGIN");
+  }
+  return `${API_ORIGIN.replace(/\/$/, "")}${path}`;
+}
+
+/** GETs only the configured BFF; an external destination never receives a bearer. */
+export async function apiGet(path: string, signal?: AbortSignal): Promise<Response> {
+  const url = apiUrl(path);
+  return fetch(url, {
     method: "GET",
     headers: await authHeader(),
+    signal,
+    cache: "no-store",
   });
 }
 
 /**
  * POSTs a JSON body to `${EXPO_PUBLIC_API_ORIGIN}${path}`, with a bearer
  * token attached when signed in, plus the `Idempotency-Key` every `/v1`
- * mutation requires — a fresh key per call ATTEMPT, not per logical resource
- * (see `attemptKey()` in `apps/app/src/lib/capture/upload.ts`); the caller
- * owns generating it.
+ * mutation requires. The durable queue supplies the SAME key on a replay of
+ * the same immutable logical command; it never generates keys per retry.
  *
  * `signal`, ADDED FOR `src/lib/capture/upload.ts`: optional, and threaded
  * straight through to `fetch` with no other change to this function's
@@ -97,7 +108,8 @@ export async function apiPost(
   idempotencyKey: string,
   signal?: AbortSignal,
 ): Promise<Response> {
-  return fetch(`${API_ORIGIN}${path}`, {
+  const url = apiUrl(path);
+  return fetch(url, {
     method: "POST",
     headers: {
       ...(await authHeader()),

@@ -684,6 +684,9 @@ commands this repository owns are in no CI job and therefore did not run:
 recorded in [02-building-ui.md](../design/02-building-ui.md) §5),
 `pnpm --filter @goproceed/mobile qa` (the field client's browser harness — the
 150 `@goproceed/mobile` tests above are its unit suite, not that harness), and
-`pnpm --filter @goproceed/tokens generate`. It is also a CI baseline only: no
+`pnpm --filter @goproceed/tokens generate`. *[2026-09-23, DEV-042 — that
+harness (`apps/mobile/qa/field-web.mjs`) and its `qa` script are deleted with
+the Expo web field client ([ADR-013](../decisions/ADR-013-native-field-client.md)); the native client has no browser or device
+harness yet ([DEV-042](../tasks/DEV-042-mobile-native.md)). The baseline above is unchanged.]* It is also a CI baseline only: no
 run has been reproduced in a local worktree, and it says nothing about staging
 or about any environment holding real data.

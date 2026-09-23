@@ -330,6 +330,11 @@ to be enforced somewhere a UI cannot quietly reverse.
       a photo as recorded before the `available` receipt is persisted. Silent
       loss is the one outcome ADR-007 decision 6 forbids, and this gate is where
       it is checked before a real photograph depends on it.
+      *[2026-09-23, DEV-042 — [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22) changes «a pending
+      original is not durable in v0.1»: the native field client keeps durable
+      encrypted pending captures in its internal beta. No success before the
+      receipt, and no silent loss, still bind. Device evidence is NOT RUN
+      ([DEV-042](../tasks/DEV-042-mobile-native.md)); this item stays unticked.]*
 
 Re-asserting any withdrawn claim requires an ADR, not a UI change (ADR-007
 replacement rule 1).

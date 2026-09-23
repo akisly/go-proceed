@@ -159,20 +159,20 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01**; **76 as of 2026-09-18**; **78 as of 2026-09-23** — see the notes under the table. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01**; **76 as of 2026-09-18**; **79 as of 2026-09-23** — see the notes under the table. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
 |---|---|---|---|
 | M0 — cross-cutting | — | — | — |
 | `v0.1-M1` | 38 | 8 | 8 |
-| `v0.1-M2` | 9 | 5 | 5 |
+| `v0.1-M2` | 10 | 5 | 5 |
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
 | `v0.1-M6` | 3 | 0 | — |
 | `v0.1-M7` | 10 | 0 | — |
-| Total | 78 | 26 | 26 |
+| Total | 79 | 26 | 26 |
 
 *M1 is 36 operations, not 35, as of 2026-09-18: `invitations.revoke` was added by [ADR-012](../decisions/ADR-012-invitation-revoke.md) ([DEV-021](../tasks/DEV-021-invitation-revoke.md), BL-107), because since DEV-019 a lost invitation token cannot be recovered and a leaked one cannot be withdrawn before it expires. No new table.*
 
@@ -586,10 +586,12 @@ settled it stands unchanged and settles the next disagreement the same way.
   deployed allocation-ledger tables keep working and are not extended, because
   what they exist for — carving minor units out of a work-item pool for admission
   into a claim — has nothing to be admitted to until packages ship in v0.2.
-- **API slice:** the 9 `v0.1-M2` operations — `assignments.create`,
+- **API slice:** the 10 `v0.1-M2` operations — `assignments.create`,
   `assignments.list`, `requirement_occurrences.list`,
-  `requirement_occurrences.dry_run`, `progress.record`, `progress.adjust`,
-  `upload_intents.create`, `upload_intents.finalize`, `upload_intents.get`.
+  `requirement_occurrences.dry_run`, `requirement_occurrences.reference_image`,
+  `progress.record`, `progress.adjust`, `upload_intents.create`,
+  `upload_intents.finalize`, `upload_intents.get`. *[Changed 2026-09-23
+  (DEV-042): the reference-image read joined M2 with the native field client.]*
   `requirement_occurrences.create` and `.bulk_instantiate` leave v0.1: the only
   way an occurrence exists in v0.1 is materialisation from the rule versions
   bound to the published contract version, at assignment creation. A hand-made
@@ -647,7 +649,12 @@ settled it stands unchanged and settles the next disagreement the same way.
     (decision 2)». The owner retired that PWA; see ADR-009 «Amendment,
     2026-09-23». In this milestone, «PWA capture» and «the PWA path» read as the
     web field client from `apps/mobile`, whose capture code is a port of the
-    PWA's; every limit and refusal stated for the PWA binds it.]*;
+    PWA's; every limit and refusal stated for the PWA binds it.]*
+    *[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22): the web export
+    and `goproceed-field` are retired; the `apps/mobile` field client is its
+    native iOS/Android build, with durable encrypted pending captures, and its
+    physical-device matrix and TestFlight / Play Internal install are NOT RUN
+    ([DEV-042](../tasks/DEV-042-mobile-native.md); not merged).]*;
   - capture is **online-only** and a pending original is **not durable**: no
     screen reports success before the persisted `available` receipt, the client
     uploads immediately rather than offering a queue it cannot honour, and the
@@ -703,6 +710,13 @@ settled it stands unchanged and settles the next disagreement the same way.
 - **Closing evidence:** the device-matrix recording plus that measurement table.
   **EAS internal build installation on both platforms is no longer closing
   evidence for this milestone** (ADR-007 decision 2).
+  *[2026-09-23, DEV-042 — changed by [ADR-013](../decisions/ADR-013-native-field-client.md) (owner, 2026-09-22) for the field
+  client: the web field client named in the acceptance evidence is retired;
+  the evidence now runs on the native build over ADR-013's device matrix
+  (iPhone, Android phone, iPad, Android tablet), and TestFlight / Google Play
+  Internal installation is required again. INV-013, INV-014 and INV-053 are
+  carried by the native client (see their catalog rows). All of it is NOT RUN
+  in [DEV-042](../tasks/DEV-042-mobile-native.md); not merged.]*
 - **Exclusions:** no offline authorization, task access, background sync, or
   resumable chunks (v0.3); **no push on either platform** — and web push on iOS
   additionally requires an installed home-screen PWA, which is a v0.2 decision

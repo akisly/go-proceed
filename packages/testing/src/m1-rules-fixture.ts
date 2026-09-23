@@ -210,6 +210,14 @@ export async function seedRulesWorld(c: Client, o: RulesSeedOptions): Promise<Ru
        row.itemNo, row.itemTextUk, row.verification, row.source]);
     libraryItemIds.set(`${row.position}/${row.itemNo}`, r.rows[0].id);
   }
+  // Test-only illustration metadata; these are not shipped or licensed photos.
+  await c.query(`insert into public.requirement_reference_image_versions
+    (id,workspace_id,requirement_library_item_id,version_no,storage_key,sha256,byte_size,
+     mime_type,width,height,alt_text_uk,rights_holder,license,source_uri,manifest_sha256)
+    select gen_random_uuid(),workspace_id,id,1,gen_random_uuid()::text || '/' || gen_random_uuid()::text,
+      repeat('a',64),3,'image/jpeg',1,1,'Приклад-тестовий ракурс','TEST ONLY','TEST ONLY',
+      'https://example.com/test-only',repeat('b',64)
+    from public.requirement_library_items where workspace_id=$1`, [o.workspaceId]);
 
   return {
     workspaceId: o.workspaceId, userId: o.userId, memberId, projectId, contractId,
@@ -316,14 +324,18 @@ export async function seedRuleVersion(
         acceptance_criterion, performer_role, approver_role,
         norm_ref, norm_ref_verification, norm_ref_source, requirement_library_item_id,
         allowed_media,
-        rule_version_hash, published_at, published_by_member_id, created_by_member_id)
+        rule_version_hash, published_at, published_by_member_id, created_by_member_id,
+        reference_image_version_id)
      select $1::uuid,$2::uuid,$3::integer,$4::integer,$5::text,
             $6::text,$7::text,$8::text,$9::text,$11::text,$12::text,
             li.item_text_uk, 'foreman', 'technical_supervisor',
             li.source_standard || ', Додаток Н (довідковий), позиція ' || li.position_code,
             li.verification, li.source_citation, li.id,
             $14::jsonb,
-            ${publishedBits}, $10::uuid
+            ${publishedBits}, $10::uuid,
+            (select id from public.requirement_reference_image_versions
+              where workspace_id=$1::uuid and requirement_library_item_id=$13::uuid
+              order by version_no desc limit 1)
        from public.requirement_library_items li
       where li.workspace_id = $1::uuid and li.id = $13::uuid
      returning id`,

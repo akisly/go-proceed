@@ -112,6 +112,18 @@ rows now mean the v0.1 web field client, the `apps/mobile` Expo web export
 `apps/mobile/src/lib/capture/state.ts` carries the same six states. That client
 is still a browser page, so `quarantined` and `expired_purged` stay native-only.]*
 
+*[2026-09-23, DEV-042 — the Expo web export named in the note above is retired
+too: [ADR-013](../../docs/decisions/ADR-013-native-field-client.md) makes the
+field client the native iOS/Android build of `apps/mobile`, and the owner
+deleted the Vercel project `goproceed-field` the same day. The native client
+holds pending originals in an encrypted local vault with a foreground queue, so
+`quarantined` is a state it reaches (identity boundary, sign-out, revocation);
+its warned seven-day expiry to `expired_purged` is not wired yet
+([DEV-042](../../docs/tasks/DEV-042-mobile-native.md), owner acceptance owed).
+The native client is on branch `codex/mobile-native` (PR #115, not merged) and
+its device evidence is NOT RUN. The catalog rows are not re-scoped by this
+note.]*
+
 ## The rule that follows from it
 
 A state machine whose entity is append-only cannot be `stored_lifecycle`. If a

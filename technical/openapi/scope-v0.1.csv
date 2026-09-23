@@ -1,4 +1,5 @@
 operation_id,method,path,kind,idempotency,auth_plane,request_contract_owner,response_contract_owner,milestone
+requirement_occurrences.reference_image,GET,/v1/occurrences/{occurrenceId}/reference-image,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M2
 workspaces.create,POST,/v1/workspaces,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 me.context,GET,/v1/me/context,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 invitations.create,POST,/v1/workspaces/{workspaceId}/invitations,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1

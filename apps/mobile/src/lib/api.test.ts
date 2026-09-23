@@ -106,6 +106,14 @@ describe("apiGet / apiPost — bearer attachment", () => {
 });
 
 describe("readProblem", () => {
+  it("refuses encoded dot segments before any request", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    await expect(apiGet("/v1/%2e%2e/admin")).rejects.toThrow("INVALID_API_PATH");
+    await expect(apiGet("/v1/%2E./x")).rejects.toThrow("INVALID_API_PATH");
+    expect(fetchMock).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
+  });
   it("parses detail, userAction, and code off a JSON problem body", async () => {
     const res = new Response(
       JSON.stringify({
