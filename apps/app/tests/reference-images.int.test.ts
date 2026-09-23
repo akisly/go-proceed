@@ -13,8 +13,8 @@ const stranger = "a0292222-2222-4222-8222-222222222222";
 let current = owner;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
-// These suites truncate the isolated database. They are deliberately NOT RUN
-// during DEV-042 without owner authorization and migration 0095 applied there.
+// These suites truncate the isolated database and run only with isolated
+// credentials; last run 2026-09-24 with the owner's consent (DEV-042 row 13).
 describe.skipIf(!hasIsolatedDatabaseCredentials())("DEV-042 reference pins and tenant isolation", () => {
   beforeEach(async () => {
     current = owner; await truncateAll();
