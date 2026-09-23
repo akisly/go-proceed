@@ -1736,6 +1736,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Depends on:** a CI run (the Actions billing block) or an owner-approved local reset for (1); nothing for (2).
 - **Deadline:** none recorded.
 
+<a id="bl-145"></a>
 ### BL-145 — P3 — `m3-refusal.int.test.ts` sees two `work_stage.closed` outbox rows in a full `apps/app` run, one when run alone
 
 - **State:** open
