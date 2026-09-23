@@ -41,6 +41,13 @@ function scanRejectedDetail(failureCode: string | null, claimedMediaType: string
   }
 }
 
+/** The refusal for an upload whose creator lost access: its bytes are now the purge's. */
+function accessRevoked(requestId: string): HttpProblem {
+  return new HttpProblem(403, problem("SCOPE_PROJECT_DENIED",
+    "Доступ відкликано під час завантаження. Байти позначено на очищення.",
+    { requestId, retryable: false, userAction: "request_project_scope" }));
+}
+
 type FinalizeResult =
   | { outcome: "unauthorized" }
   | { outcome: "no_content" }
@@ -103,6 +110,30 @@ export async function finalizeUploadIntent({
     const m = await requireActiveMembership(tx, requestId, actorUserId, row.workspace_id);
     if (row.created_by_member_id !== m.memberId) throw notFound;
     return { ...row, memberId: m.memberId };
+  }).catch(async (err: unknown) => {
+    // THE CREATOR WHO LOST ACCESS (BL-032, DEV-038). An intent is invisible to
+    // the tenant read once its creator has lost the membership or the project
+    // read (ui_select), so finalize's own recheck — which orphans the intent at
+    // once — was never reached, and the bytes waited for the 24-hour TTL. The
+    // second path runs after the tenant transaction has ended and applies only
+    // to the intent's own creator who is no longer authorized; for anyone else
+    // it answers false and the refusal below is exactly today's.
+    if (err instanceof HttpProblem
+        && (err === notFound || err.body.code === "MEMBERSHIP_INACTIVE")) {
+      // Best-effort (R1-01): if the second path fails — a database without
+      // 0092, or rolled back — the caller gets today's refusal, not a 500.
+      const abandoned = await withServiceTx(ctx, async (tx) => (await tx.query<{ ok: boolean }>(
+        "select app.abandon_unauthorized_upload_intent($1) as ok", [intentId])).rows[0]?.ok === true)
+        .catch((abandonErr: unknown) => {
+          // The SQLSTATE tells deploy-order skew (42883) from a misconfigured
+          // service login (P0001, 42501); it carries no data (R2-01).
+          console.error("[FINALIZE_ABANDON_FAILED]", requestId, (abandonErr as Error).name,
+            (abandonErr as { code?: string }).code);
+          return false;
+        });
+      if (abandoned) throw accessRevoked(requestId);
+    }
+    throw err;
   });
 
   if (intent.status === "available") {
@@ -258,11 +289,7 @@ export async function finalizeUploadIntent({
       serverReceivedAt: received.rows[0].server_received_at as Date,
     };
   });
-  if (result.outcome === "unauthorized") {
-    throw new HttpProblem(403, problem("SCOPE_PROJECT_DENIED",
-      "Доступ відкликано під час завантаження. Байти позначено на очищення.",
-      { requestId, retryable: false, userAction: "request_project_scope" }));
-  }
+  if (result.outcome === "unauthorized") throw accessRevoked(requestId);
   if (result.outcome === "no_content") {
     throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
       "Байти цього завантаження більше не знайдено. Потрібне нове завантаження.",

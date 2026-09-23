@@ -54,6 +54,9 @@ jobs:
       # The service principal's connection (migration 0034). Set by the same
       # local-credentials script as APP_DB_URL, one step below.
       SERVICE_DB_URL: postgresql://goproceed_service_login:service_pw@127.0.0.1:54322/postgres
+      # The evidence purge worker's own login (migration 0090, DEV-036), set by
+      # the same local-credentials script. It has no fallback URL.
+      PURGE_DB_URL: postgresql://goproceed_purge_worker_login:purge_pw@127.0.0.1:54322/postgres
       SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       # THE ISOLATED INTEGRATION SUITES SKIP THEMSELVES WITHOUT THIS. apps/app's
       # tests/helpers/fixtures.ts (`hasIsolatedDatabaseCredentials`) turns seven
@@ -243,6 +246,7 @@ jobs:
       # because GitHub Actions jobs do not share state.
       APP_DB_URL: postgresql://goproceed_app_login:app_pw@127.0.0.1:54322/postgres
       SERVICE_DB_URL: postgresql://goproceed_service_login:service_pw@127.0.0.1:54322/postgres
+      PURGE_DB_URL: postgresql://goproceed_purge_worker_login:purge_pw@127.0.0.1:54322/postgres
       SUPABASE_DB_URL: postgresql://postgres:postgres@127.0.0.1:54322/postgres
       # UNLIKE `verify`'s build (which uses a placeholder — no page there hits
       # Supabase at build time), this job's build MUST use the real local

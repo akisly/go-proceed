@@ -111,10 +111,24 @@ export const GET = queryRoute(async (a) => {
   // is worse than the failure it guarded against. `signed` below is built
   // from `.urls` only; a key absent from it — whether one key or the whole
   // batch failed — simply omits `readUrl` on its row, below.
+  //
+  // BUT NEVER SILENT EITHER (BL-036, DEV-039). An object that could not be
+  // signed — purged or missing — renders a «недоступне» row inside a 200, so
+  // the operator's half is one log line: how many of how many failed, and the
+  // request id that ties it to the response. (A store that does not answer at
+  // all throws above and is a logged 500, not this.) Counts only —
+  // never a key, a bucket or a URL (`files-and-storage.md` §Downloads; the
+  // same rule `EvidenceStorageError` follows, DEV-034). An available object is
+  // never a purge target, so any failure here is worth a look.
   const signed = new Map<string, string>();
+  let unsigned = 0;
   for (const [bucket, keys] of byBucket) {
-    const { urls } = await createSignedReadUrls(keys, bucket);
+    const { urls, failedKeys } = await createSignedReadUrls(keys, bucket);
     for (const [k, url] of urls) signed.set(k, url);
+    unsigned += failedKeys.length;
+  }
+  if (unsigned > 0) {
+    console.error("[EVIDENCE_READ_UNSIGNED]", a.requestId, { failed: unsigned, total: rows.length });
   }
 
   // Grouped by a Map keyed on occurrence id, NOT by comparing against

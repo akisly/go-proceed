@@ -67,7 +67,7 @@ Database principals:
 |---|---|---|
 | BFF | Assumes the `NOLOGIN`, `NOBYPASSRLS` role `goproceed_app` | Delivered: `goproceed_app` via `goproceed_app_login` |
 | `goproceed_service` | `NOBYPASSRLS`; carries the caller's actor | Delivered |
-| Workers | Separate `NOLOGIN` roles, one per workload | Target. Today there is one `goproceed_worker`, it has no login role, and no worker workload has a credential |
+| Workers | Separate `NOLOGIN` roles, one per workload | Target. `goproceed_worker` (the outbox's) has no login role. The evidence purge has its own pair, `goproceed_purge_worker` and `goproceed_purge_worker_login` (`0090`), with EXECUTE on five `app` functions (expire, claim, complete and fail an upload purge, and its health count) and nothing else beyond what PUBLIC holds; it is the one worker workload with a credential |
 | Browser and field client | Reach only the reviewed `api` views and functions | Target. One view exists (`api.me_context`) and the exposed-schema list is not narrowed, so treat every new exposure as needing review |
 | `anon` | No access to tenant tables | Delivered |
 

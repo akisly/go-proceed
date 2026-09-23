@@ -58,13 +58,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-027](#bl-027) | P3 | open | `technical/openapi/README.md` says the public plane never consumes a grant |
 | [BL-028](#bl-028) | P3 | open | INV-090 is allocated, and two catalogs do not point at it |
 | [BL-029](#bl-029) | P3 | open | Reading a statutory act requires the capability that composes and freezes one |
-| [BL-030](#bl-030) | P2 | open | The evidence purge worker runs nowhere |
-| [BL-031](#bl-031) | P2 | open | Purge claims are not fenced |
-| [BL-032](#bl-032) | P2 | open | A deactivated member cannot abandon their own upload through the route |
+| [BL-030](#bl-030) | P2 | closed → DEV-036 | The evidence purge worker runs nowhere |
+| [BL-031](#bl-031) | P2 | closed → DEV-037 | Purge claims are not fenced |
+| [BL-032](#bl-032) | P2 | closed → DEV-038 | A deactivated member cannot abandon their own upload through the route |
 | [BL-033](#bl-033) | P2 | closed → DEV-034 | `evidence-storage.ts` puts raw storage keys into error messages |
 | [BL-034](#bl-034) | P2 | open | The evidence screen formats times in a hard-coded zone, not the workspace's |
 | [BL-035](#bl-035) | P3 | open | `apps/app` has no application logging, so «never in the logs» cannot be asserted |
-| [BL-036](#bl-036) | P3 | open | The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200 |
+| [BL-036](#bl-036) | P3 | closed → DEV-039 | The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200 |
 | [BL-037](#bl-037) | P3 | open | Evidence groups are labelled by, and ordered by, a bare occurrence UUID |
 | [BL-038](#bl-038) | P3 | open | The evidence screen renders full-size originals |
 | [BL-039](#bl-039) | P2 | open | The retention mechanism does not reach every table it claims |
@@ -481,32 +481,38 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-030"></a>
 ### BL-030 — P2 — The evidence purge worker runs nowhere
 
-- **State:** open
+- **State:** closed → DEV-036
 - **Legacy cite:** `TODOS.md` «the evidence purge worker still runs nowhere»
 - **Why:** deleting bytes needs storage credentials, so `apps/app/src/lib/evidence-purge.ts` needs a runtime. Until it has one, INV-047's 24-hour guarantee is only demonstrated by tests, and a workspace with a quota eventually stops accepting uploads.
 - **Evidence:** `apps/app/vercel.json` has no `crons`; `.github/workflows/` holds only `ci.yml`, with no schedule; `drainEvidencePurge` is called only from `tests/evidence-purge.int.test.ts` and `tests/vertical-m2a.int.test.ts`.
 - **Depends on:** runbook Q-12 (what runs consumers).
 - **Deadline:** before real evidence is stored.
+- **Progress 2026-09-23 ([DEV-036](tasks/DEV-036-evidence-purge-runner.md), unmerged):** on the owner's Q-12 decision for the purge (Vercel Cron, four daily expressions, Hobby), `apps/app/vercel.json` schedules `GET /internal/evidence/purge`; it runs as `goproceed_purge_worker` (`0090`) and answers 500 while a row failed, is exhausted or has waited past 24 hours. The Evidence line above describes `main` before it.
+- **Closed 2026-09-23 by DEV-036:** on the owner's Q-12 decision for the purge (Vercel Cron, four daily expressions, Hobby plan), `GET /internal/evidence/purge` runs the purge as `goproceed_purge_worker` (`0090`), a role with EXECUTE on five `app` functions and a NOINHERIT login of its own (`PURGE_DB_URL`, no fallback); it answers 500 `purge_attention_required` while a row failed, has spent its five attempts or has waited past 24 hours. It runs in an environment once `0090`–`0094` are applied there and `PURGE_DB_URL` and `CRON_SECRET` are set (`infra/README-staging.md` §3.3). Telegram delivery's scheduler stays open under Q-12.
 
 <a id="bl-031"></a>
 ### BL-031 — P2 — Purge claims are not fenced
 
-- **State:** open
+- **State:** closed → DEV-037
 - **Legacy cite:** `TODOS.md` «purge claims are not fenced»
 - **Why:** a worker that stalls past the one-hour reclaim window and resumes can clear a newer worker's claim or spend its retry budget. Theoretical while one caller exists.
 - **Evidence:** `claim_upload_purge` (`0027:63`) marks a timestamp only; `complete_upload_purge` (`0021:89`) and `fail_upload_purge` (`0024:47`) take only the intent id.
 - **Depends on:** BL-030, so the fencing matches the chosen runner.
 - **Deadline:** before a second worker instance runs.
+- **Progress 2026-09-23 ([DEV-037](tasks/DEV-037-purge-claim-fencing.md), unmerged):** `0091` gives every claim a token; complete and fail apply only for it. The Evidence line above describes `main` before it.
+- **Closed 2026-09-23 by DEV-037:** `0091` gives every claim a fresh `purge_claim_token`; complete and fail apply only for it and say whether they did, so a worker whose claim was reclaimed can neither finish the row nor spend its retries; the worker counts such a row as superseded.
 
 <a id="bl-032"></a>
 ### BL-032 — P2 — A deactivated member cannot abandon their own upload through the route
 
-- **State:** open
+- **State:** closed → DEV-038
 - **Legacy cite:** `TODOS.md` «a deactivated member cannot abandon their own upload through the route»
 - **Why:** losing `evidence.record` orphans the bytes at once; losing the membership leaves them until the 24-hour intent TTL. INV-047 asks for prompt purge in both cases.
 - **Evidence:** `apps/app/src/lib/evidence/finalize-upload-intent.ts:76` calls `requireActiveMembership` before any command runs.
 - **Depends on:** a definer for the read, a second authorization path whose only caller is this case.
 - **Deadline:** none recorded (bounded by the TTL).
+- **Progress 2026-09-23 ([DEV-038](tasks/DEV-038-abandon-after-lost-access.md), unmerged):** `app.abandon_unauthorized_upload_intent` (`0092`, `0094`), called by the finalize route after the tenant read refuses, orphans the creator's own intent at once. The Evidence line above describes `main` before it.
+- **Closed 2026-09-23 by DEV-038:** `app.abandon_unauthorized_upload_intent` (`0092`, with `0094` locking only the caller's own intent), a service-only definer, is called by the finalize route after the tenant read refuses; it orphans the intent at once only for its own creator who is no longer an active member with `evidence.record` and the project read. Anyone else gets the refusal they got before.
 
 <a id="bl-033"></a>
 ### BL-033 — P2 — `evidence-storage.ts` puts raw storage keys into error messages
@@ -542,12 +548,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-036"></a>
 ### BL-036 — P3 — The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200
 
-- **State:** open
+- **State:** closed → DEV-039
 - **Legacy cite:** `TODOS.md` «the evidence route discards `failedKeys`»
 - **Why:** one purged object and an unreachable store render the same screen, and an operator cannot tell them apart.
 - **Evidence:** `apps/app/app/v1/assignments/[assignmentId]/evidence/route.ts:116` `const { urls } = await createSignedReadUrls(keys, bucket);`.
 - **Depends on:** BL-035, or a partial-failure field in the contract.
 - **Deadline:** none recorded.
+- **Progress 2026-09-23 ([DEV-039](tasks/DEV-039-unsigned-evidence-logged.md), unmerged):** the route logs `[EVIDENCE_READ_UNSIGNED]` with the request id and counts. A store that does not answer at all was never a silent 200: it throws, and `http.ts` logs the 500 (`gp-reviewer` R1-03). The Evidence line above describes `main` before it.
+- **Closed 2026-09-23 by DEV-039:** the route logs `[EVIDENCE_READ_UNSIGNED]` with the request id and `{ failed, total }`, never a key or URL. The screen and the 200 are unchanged. An unreachable store was never this case: it throws, and `http.ts` logs the 500.
 
 <a id="bl-037"></a>
 ### BL-037 — P3 — Evidence groups are labelled by, and ordered by, a bare occurrence UUID
@@ -1534,6 +1542,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-032's reviews (`gp-reviewer` R1-01, `gp-security` S1-01 to S1-04). DEV-032 closed BL-089 on measurements of the local storage API v1.69.0 only: which headers a signed read carries, that `download=` gives `attachment`, that a stripped URL serves the stored type inline, and which stored types Storage rewrites (`text/html` → `text/plain`, but not `TEXT/HTML`). Hosted Storage (its version, its CDN, a custom domain) may differ. And the `evidence` bucket sets no `allowed_mime_types` (`0020`), so Storage accepts any type on the upload PUT; finalization now refuses a mismatch before availability, but a bucket allow-list of the four allowed types would refuse it at the door. A named download (`download: "evidence.<ext>"` from the detected type) would also fix the saved file's name. And objects finalized before DEV-032 were never checked: before real data, compare Storage's `list()` metadata with `evidence_objects.media_type` for every available object in each environment that holds evidence. Ranked by DEV-032.
 - **Evidence:** `scratchpad/dev032-variants.txt`, `dev032-strip.txt`, `dev032-polyglot-browser.txt`, cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md); `supabase/migrations/0020_*` creates the bucket without `allowed_mime_types`.
 - **Depends on:** the owner's authorisation to write a test object to staging, for the hosted measurement; a migration (with `gp-architect`) for the bucket allow-list.
+- **Progress 2026-09-23 ([DEV-040](tasks/DEV-040-evidence-bucket-type-allow-list.md)):** the allow-list half is done in the repository — `0093` sets the `evidence` bucket's `allowed_mime_types` to exactly the four types, and the local storage API refuses any other declared type at the PUT (exact, case-sensitive match; parameters and lists refused). Open: the hosted measurement, the named download, and the stored-type comparison for objects finalized before DEV-032.
 - **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere (BL-089's).
 
 <a id="bl-127"></a>

@@ -4,5 +4,11 @@
   "regions": ["arn1"],
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "buildCommand": "cd ../.. && pnpm turbo run build --filter=@goproceed/app",
-  "ignoreCommand": "cd ../.. && if [ \"$VERCEL_ENV\" != \"production\" ]; then echo 'ignoreCommand: not a production build (VERCEL_ENV='\"$VERCEL_ENV\"') — skipped; apps/app/vercel.json builds Production only for the pilot'; exit 0; fi; npx turbo-ignore @goproceed/app"
+  "ignoreCommand": "cd ../.. && if [ \"$VERCEL_ENV\" != \"production\" ]; then echo 'ignoreCommand: not a production build (VERCEL_ENV='\"$VERCEL_ENV\"') — skipped; apps/app/vercel.json builds Production only for the pilot'; exit 0; fi; npx turbo-ignore @goproceed/app",
+  "crons": [
+    { "path": "/internal/evidence/purge", "schedule": "0 0 * * *" },
+    { "path": "/internal/evidence/purge", "schedule": "0 6 * * *" },
+    { "path": "/internal/evidence/purge", "schedule": "0 12 * * *" },
+    { "path": "/internal/evidence/purge", "schedule": "0 18 * * *" }
+  ]
 }

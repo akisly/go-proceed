@@ -5,6 +5,7 @@ import {
   putObject, newEvidenceKey,
   createSignedReadUrl, createSignedReadUrls, openObjectStream,
 } from "../src/lib/evidence-storage";
+import { withBucketAcceptingAnyType } from "./helpers/bucket";
 
 const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 
@@ -35,7 +36,9 @@ describe("evidence storage: read access", () => {
     // the Storage origin; `attachment` turns that navigation into a download.
     const key = newEvidenceKey();
     const svg = new TextEncoder().encode('<svg xmlns="http://www.w3.org/2000/svg"><script>1</script></svg>');
-    await putObject(key, svg, "image/svg+xml");
+    // Staged with the bucket's allow-list lifted: 0093 refuses this type at the
+    // PUT, and this case pins the defence behind it for objects stored before.
+    await withBucketAcceptingAnyType(() => putObject(key, svg, "image/svg+xml"));
 
     const single = await createSignedReadUrl(key, EVIDENCE_BUCKET);
     const { urls } = await createSignedReadUrls([key], EVIDENCE_BUCKET);

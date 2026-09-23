@@ -305,7 +305,12 @@ State rules:
 3. `scan_blocked` is not evidence available for review or packaging. It remains
    in restricted quarantine for the documented remediation/retention period.
 4. Authorization failure before finalization produces no evidence object. The
-   intent becomes `orphaned_for_purge` directly from `intent_authorized`.
+   intent becomes `orphaned_for_purge` directly from `intent_authorized`. When
+   the creator can no longer even read the intent — the membership was
+   suspended or ended, or the project read revoked — a finalize call still
+   orphans it through `app.abandon_unauthorized_upload_intent` (`0092`,
+   DEV-038), so the bytes go at the next purge run rather than after the
+   24-hour intent TTL; anyone but the creator gets the same refusal as before.
 
 Finalization rechecks current membership/project permission, assignment and
 requirement scope, workspace quota, intent expiry, and any relevant revocation or
@@ -318,6 +323,17 @@ idempotent job within 24 hours. The purge records intent/key hash, reason,
 attempt, and outcome without preserving file content. Repeated purge failure
 raises an operational alert and never makes the object available.
 
+*Implementation (2026-09-23, DEV-036):* the job is
+`apps/app/app/internal/evidence/purge/route.ts`, called by Vercel Cron four
+times a day (`apps/app/vercel.json`; one run per expression per day on the
+Hobby plan, anywhere in its hour, so the longest wait between runs is under
+seven hours). It runs as `goproceed_purge_worker` (`0090`), expires due
+intents, drains the queue in batches, and answers 500
+`purge_attention_required` — the alert, visible in the Vercel Cron log — when
+a row failed in the run, a row has spent its five attempts, or a due row has
+waited more than 24 hours; it keeps answering 500 until the row is dealt
+with. `pg_cron` also expires intents every 15 minutes where it exists.
+
 ## Content validation and malware boundary
 
 File extension, browser/mobile media type, original filename, and spreadsheet
@@ -326,6 +342,10 @@ cell content are untrusted input.
 Before availability or parsing, GoProceed applies:
 
 - allowlisted file families per command and requirement;
+- at the storage door, the `evidence` bucket's own type allow-list —
+  `image/jpeg`, `image/png`, `image/heic`, `application/pdf`, matched exactly
+  (`0093`, DEV-040) — so an upload PUT declaring any other stored type is
+  refused before an object exists;
 - magic-byte/content sniffing independent of the claimed MIME type;
 - rejection of extension, claimed type, and detected type conflicts unless an
   explicit safe normalization rule exists;

@@ -110,39 +110,47 @@ describe("0037 every public table carries row level security", () => {
 });
 
 describe("0038 the purge functions name a principal other than the superuser", () => {
+  // 0038 granted the four to goproceed_worker and service_role. 0090 (DEV-036,
+  // BL-030) moved them to the unexposed `app` schema and gave them — with a
+  // fifth, the health count — to a principal of the purge's own, because
+  // goproceed_worker also holds the outbox and service_role is the Data API's
+  // key. The fixed state 0038 was written for (a non-superuser principal, and
+  // no browser-reachable role) is what this case keeps asserting.
   const FNS = [
-    "public.expire_upload_intents()",
-    "public.claim_upload_purge(integer)",
-    "public.complete_upload_purge(uuid)",
-    "public.fail_upload_purge(uuid, text)",
+    "app.expire_upload_intents()",
+    "app.claim_upload_purge(integer)",
+    "app.complete_upload_purge(uuid, uuid)",
+    "app.fail_upload_purge(uuid, uuid, text)",
+    "app.upload_purge_health()",
   ];
 
-  it("goproceed_worker and service_role may execute all four", async () => {
+  it("goproceed_purge_worker may execute all five", async () => {
     const c = await adminClient();
     try {
       for (const fn of FNS) {
         const r = await c.query(
-          `select has_function_privilege('goproceed_worker', $1, 'execute') as worker,
-                  has_function_privilege('service_role',   $1, 'execute') as service`, [fn]);
-        expect(r.rows[0], fn).toEqual({ worker: true, service: true });
+          "select has_function_privilege('goproceed_purge_worker', $1, 'execute') as ok", [fn]);
+        expect(r.rows[0], fn).toEqual({ ok: true });
       }
     } finally {
       await c.end();
     }
   });
 
-  it("browser-reachable roles and the BFF role may not", async () => {
+  it("browser-reachable roles, the BFF role, the Data API key and the outbox worker may not", async () => {
     // 0021 revoked from PUBLIC only, which does not strip the direct EXECUTE
-    // the local stack grants anon/authenticated at creation time. This case is
-    // the one in this file that closes an exposure rather than posture.
+    // the local stack grants anon/authenticated at creation time.
     const c = await adminClient();
     try {
       for (const fn of FNS) {
         const r = await c.query(
-          `select has_function_privilege('anon',          $1, 'execute') as anon,
-                  has_function_privilege('authenticated', $1, 'execute') as authenticated,
-                  has_function_privilege('goproceed_app',   $1, 'execute') as app`, [fn]);
-        expect(r.rows[0], fn).toEqual({ anon: false, authenticated: false, app: false });
+          `select has_function_privilege('anon',             $1, 'execute') as anon,
+                  has_function_privilege('authenticated',    $1, 'execute') as authenticated,
+                  has_function_privilege('goproceed_app',    $1, 'execute') as app,
+                  has_function_privilege('service_role',     $1, 'execute') as service_role,
+                  has_function_privilege('goproceed_worker', $1, 'execute') as worker`, [fn]);
+        expect(r.rows[0], fn).toEqual(
+          { anon: false, authenticated: false, app: false, service_role: false, worker: false });
       }
     } finally {
       await c.end();

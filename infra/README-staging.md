@@ -197,7 +197,7 @@ If either apply exits non-zero, or the second `push` offers to apply anything
 at all, treat that as a migration bug and stop — do not proceed to §3 against
 a staging DB in an unknown state.
 
-## 3. Set the `goproceed_app_login` and `goproceed_service_login` passwords on staging (mandatory, do this now)
+## 3. Set the `goproceed_app_login`, `goproceed_service_login` and `goproceed_purge_worker_login` passwords on staging (mandatory, do this now)
 
 **Never run any of the following against this (or any real) Supabase
 project. Each one destroys and rebuilds, or reseeds, the target database:**
@@ -346,6 +346,56 @@ upload.
    complete — there is no working `SERVICE_DB_URL` to configure the
    deployment with otherwise.
 
+### 3.3 `goproceed_purge_worker_login` and `CRON_SECRET` (DEV-036, after `0090`)
+
+The evidence purge (INV-047: orphaned and expired upload bytes deleted within
+24 hours) runs as its own login, which can execute the five
+`app.*upload*purge*` functions and nothing else (migration `0090`). Vercel
+Cron calls `GET /internal/evidence/purge` four times a day
+(`apps/app/vercel.json`; Hobby allows one run a day per expression, anywhere in
+its hour) with `Authorization: Bearer <CRON_SECRET>`. Crons run on
+**production** deployments only, and this project builds production only.
+
+**If this step is skipped**, the deploy preflight refuses the build (both
+names are required). If the variables are set but `0090` is not applied, every
+scheduled run answers 500 and the bytes stay.
+
+**Order.** Apply `0090`–`0094` to the database **before** the production
+deployment that carries this build (the build calls the `app.*` purge functions
+and `app.abandon_unauthorized_upload_intent`), and roll back in reverse order:
+`0094` and `0092` before `0091`, `0091` before `0090`. Without `0092` the
+finalize route logs `[FINALIZE_ABANDON_FAILED]` and answers as before; without
+`0090`/`0091` the purge route answers 500.
+
+1. Once `0090` is applied, set a **third** freshly generated secret (`openssl
+   rand -hex 24`; never the §3.1 or §3.2 value, never `purge_pw`). Prefer
+   psql's `\password goproceed_purge_worker_login`, which sends only a SCRAM
+   verifier; an `alter role … password '<secret>'` statement carries the
+   plain secret into statement logs and SQL-editor history (§3.1 and §3.2 use
+   that form, and the same caution applies to them):
+   ```sql
+   alter role goproceed_purge_worker_login password '<generated-secret>';
+   ```
+2. Record it in the password manager as its own entry.
+3. Compose `PURGE_DB_URL` with the same Session pooler host and `.<project-ref>`
+   username suffix as §3.1:
+   ```
+   postgresql://goproceed_purge_worker_login.<project-ref>:<generated-secret>@<pooler-host>:5432/postgres
+   ```
+   The worker refuses any other login (`withPurgeWorkerTx` checks
+   `session_user`), a superuser's included.
+4. Generate `CRON_SECRET` (32+ characters, e.g. `openssl rand -hex 32`) and set
+   it, with `PURGE_DB_URL`, in the Vercel project (§4.3), for **Production
+   only**. Vercel sends it on
+   every cron call; the route refuses every call while it is unset or short.
+5. After the next production deploy, check **Settings → Cron Jobs**: four
+   entries on `/internal/evidence/purge`. Trigger one (**Run**, or `vercel crons
+   run /internal/evidence/purge`) and read its log: 200 with counts, or 500
+   `purge_attention_required` with counts and a request id. A 500 that persists
+   means a row failed five times or has waited past 24 hours:
+   `select id, status, purge_attempts, purge_failure from public.upload_intents
+    where purged_at is null and purge_attempts >= 5;` names it.
+
 ## 4. Create the Vercel project for `apps/app`
 
 **Everything Vercel needs to know about HOW to build is in the repository
@@ -385,7 +435,8 @@ should show it as detected.
 
 The complete contract, with reasoning per variable, is
 `apps/app/.env.example`. Set each of these in **Project Settings → Environment
-Variables**, for **both** Production and Preview:
+Variables**, for **both** Production and Preview — except `PURGE_DB_URL` and
+`CRON_SECRET`, which are Production only (DEV-036):
 
 | Variable | Kind | Value | Source |
 |---|---|---|---|
@@ -394,6 +445,8 @@ Variables**, for **both** Production and Preview:
 | `NEXT_PUBLIC_APP_ORIGIN` | build | `https://{{APP_HOSTNAME}}` — **the exact origin, https, no path** | §0 |
 | `APP_DB_URL` | runtime | `postgresql://goproceed_app_login.<project-ref>:<secret-1>@<pooler-host>:5432/postgres` — `<secret-1>` is the password YOU set in §3.1 | §3.1 |
 | `SERVICE_DB_URL` | runtime | same shape as `goproceed_service_login.<project-ref>` with `<secret-2>` from §3.2 — **a different role and password from `APP_DB_URL`** | §3.2 |
+| `PURGE_DB_URL` | runtime | same shape as `goproceed_purge_worker_login.<project-ref>` with the §3.3 secret — **a third role and password. Production only**: crons run on production deployments, and a Preview has no use for a purge credential | §3.3 |
+| `CRON_SECRET` | runtime | 32+ random characters; Vercel Cron sends it as the Bearer token to `/internal/evidence/purge`. **Production only**, as `PURGE_DB_URL` | §3.3 |
 | `SUPABASE_URL` | runtime | same host as `NEXT_PUBLIC_SUPABASE_URL` | §1 |
 | `SUPABASE_SECRET_KEY` | runtime | an `sb_secret_…` key | §1 → Project Settings → API → Secret keys. **Server secret. Never `NEXT_PUBLIC_`.** |
 | `EXTERNAL_LINK_ORIGIN` | runtime | `https://{{APP_HOSTNAME}}` | same as the app origin |
