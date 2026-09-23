@@ -7,6 +7,7 @@ import {
 import { dropWorkspaces } from "../../../packages/testing/src/pg";
 import { putObject, objectExists, objectInfo, removeObject } from "../src/lib/evidence-storage";
 import { setInspector, resetInspector, sniffMediaType } from "../src/lib/evidence-inspection";
+import { withBucketAcceptingAnyType } from "./helpers/bucket";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 let current = A;
@@ -279,7 +280,9 @@ databaseDescribe("upload_intents.finalize", () => {
     // never becomes available and no URL is ever signed for it.
     const polyglot = new Uint8Array([...JPEG, ...new TextEncoder().encode("<html><script>1</script></html>")]);
     const intent = await createIntent(polyglot, "image/jpeg");
-    await putObject(intent.storage.key, polyglot, "TEXT/HTML");
+    // Staged with the bucket's allow-list lifted: 0093 now refuses this type at
+    // the PUT, and this case pins the defence behind it (BL-126).
+    await withBucketAcceptingAnyType(() => putObject(intent.storage.key, polyglot, "TEXT/HTML"));
     // The positive control: Storage kept the type as sent (DEV-032 Q1-02).
     expect((await objectInfo(intent.storage.key))?.contentType).toBe("TEXT/HTML");
 
@@ -300,7 +303,7 @@ databaseDescribe("upload_intents.finalize", () => {
     // the polyglot's script. Cutting at `;` would have read `image/jpeg`.
     const polyglot = new Uint8Array([...JPEG, ...new TextEncoder().encode("<html><script>1</script></html>")]);
     const intent = await createIntent(polyglot, "image/jpeg");
-    await putObject(intent.storage.key, polyglot, "image/jpeg;x=1, TEXT/HTML");
+    await withBucketAcceptingAnyType(() => putObject(intent.storage.key, polyglot, "image/jpeg;x=1, TEXT/HTML"));
     expect((await objectInfo(intent.storage.key))?.contentType).toBe("image/jpeg;x=1, TEXT/HTML");
     expect((await finalize(intent.uploadIntentId)).status).toBe(422);
     const rows = await q<{ failure_code: string }>(
@@ -310,7 +313,7 @@ databaseDescribe("upload_intents.finalize", () => {
 
   it("accepts the detected type stored in another case or with plain parameters", async () => {
     const intent = await createIntent(JPEG, "image/jpeg");
-    await putObject(intent.storage.key, JPEG, "IMAGE/JPEG; charset=binary");
+    await withBucketAcceptingAnyType(() => putObject(intent.storage.key, JPEG, "IMAGE/JPEG; charset=binary"));
     // The positive control: Storage kept the type as sent, so the check saw it.
     expect((await objectInfo(intent.storage.key))?.contentType).toBe("IMAGE/JPEG; charset=binary");
     expect((await finalize(intent.uploadIntentId)).status).toBe(200);
@@ -329,10 +332,12 @@ databaseDescribe("upload_intents.finalize", () => {
     expect((await finalize(intent.uploadIntentId)).status).toBe(200);
     // The same URL again — with a client header asking for an upsert, which a
     // signed token must not grant — is refused as a duplicate, not for any other reason.
-    const again = await fetch(intent.upload.signedUrl, {
+    // With the bucket's allow-list lifted, so the refusal below is the
+    // duplicate's and not the type's (0093 would refuse TEXT/HTML first).
+    const again = await withBucketAcceptingAnyType(() => fetch(intent.upload.signedUrl, {
       method: "PUT", headers: { "content-type": "TEXT/HTML", "x-upsert": "true" },
       body: new TextEncoder().encode("<html>"),
-    });
+    }));
     const refusal = await again.text();
     expect(again.ok).toBe(false);
     expect(refusal).toMatch(/Duplicate|already exists/i);

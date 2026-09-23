@@ -327,6 +327,10 @@ cell content are untrusted input.
 Before availability or parsing, GoProceed applies:
 
 - allowlisted file families per command and requirement;
+- at the storage door, the `evidence` bucket's own type allow-list —
+  `image/jpeg`, `image/png`, `image/heic`, `application/pdf`, matched exactly
+  (`0093`, DEV-040) — so an upload PUT declaring any other stored type is
+  refused before an object exists;
 - magic-byte/content sniffing independent of the claimed MIME type;
 - rejection of extension, claimed type, and detected type conflicts unless an
   explicit safe normalization rule exists;
