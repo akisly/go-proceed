@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { q, truncateAll, jsonReq, matrixFixture, type MatrixFixture } from "./helpers/fixtures";
 import { putObject, objectExists } from "../src/lib/evidence-storage";
 import { expireUploadIntents, drainEvidencePurge } from "../src/lib/evidence-purge";
+import { resetPurgePoolForTests } from "@goproceed/database";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
 let current = A;
@@ -216,14 +217,14 @@ describe("purge worker", () => {
     await expireUploadIntents();
 
     const claimed = await q<{ upload_intent_id: string }>(
-      `select * from public.claim_upload_purge(50)`);
+      `select * from app.claim_upload_purge(50)`);
     expect(claimed.map((r) => r.upload_intent_id)).toContain(intent.uploadIntentId);
     // Claiming spends no retry budget: a worker that dies here attempted
     // nothing, and burning an attempt for that was how a row could be excluded
     // permanently with no failure ever recorded (0024).
     expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(0);
 
-    await q(`select public.fail_upload_purge($1,$2)`,
+    await q(`select app.fail_upload_purge($1,$2)`,
       [intent.uploadIntentId, "storage unavailable"]);
 
     const failed = await statusOf(intent.uploadIntentId);
@@ -232,7 +233,7 @@ describe("purge worker", () => {
 
     // Released, so the next run picks it up again instead of stranding the bytes.
     const again = await q<{ upload_intent_id: string }>(
-      `select * from public.claim_upload_purge(50)`);
+      `select * from app.claim_upload_purge(50)`);
     expect(again.map((r) => r.upload_intent_id)).toContain(intent.uploadIntentId);
     expect(await objectExists(intent.storage.key)).toBe(true);
   });
@@ -242,7 +243,7 @@ describe("purge worker", () => {
     await q(`update public.upload_intents set expires_at = now() - interval '1 hour'
               where id = $1`, [intent.uploadIntentId]);
     await expireUploadIntents();
-    await q(`select * from public.claim_upload_purge(50)`);
+    await q(`select * from app.claim_upload_purge(50)`);
 
     // Claimed but not completed: the bytes are still there and the row is not
     // done, which is what a crash mid-batch must look like.
@@ -266,12 +267,14 @@ describe("purge worker", () => {
 
   it("is not reachable from the member-facing database role", async () => {
     // Purging crosses tenants by nature, so goproceed_app must not be able to
-    // trigger byte deletion in another workspace.
+    // trigger byte deletion in another workspace. The whole principal is
+    // pinned in `evidence-purge-principal.int.test.ts` (DEV-036).
     const grants = await q<{ n: string }>(
       `select count(*) n from information_schema.role_routine_grants
         where grantee = 'goproceed_app'
           and routine_name in ('claim_upload_purge','complete_upload_purge',
-                               'fail_upload_purge','expire_upload_intents')`);
+                               'fail_upload_purge','expire_upload_intents',
+                               'upload_purge_health')`);
     expect(grants[0]!.n).toBe("0");
   });
 
@@ -283,15 +286,15 @@ describe("purge worker", () => {
 
     // Three claims with no worker outcome, standing in for three crashes.
     for (let i = 0; i < 3; i++) {
-      await q(`select * from public.claim_upload_purge(50)`);
+      await q(`select * from app.claim_upload_purge(50)`);
       await q(`update public.upload_intents set purge_claimed_at = null where id = $1`,
         [intent.uploadIntentId]);
     }
     expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(0);
 
     // One real failure does cost a retry.
-    await q(`select * from public.claim_upload_purge(50)`);
-    await q(`select public.fail_upload_purge($1,$2)`,
+    await q(`select * from app.claim_upload_purge(50)`);
+    await q(`select app.fail_upload_purge($1,$2)`,
       [intent.uploadIntentId, "storage unavailable"]);
     expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(1);
 
@@ -320,3 +323,93 @@ describe("purge worker", () => {
     expect(await objectExists(intent.storage.key)).toBe(true);
   });
 });
+
+describe("the purge worker's connection (DEV-036, BL-030)", () => {
+  // It used to fall back to the local superuser URL. A deployment missing its
+  // purge URL must fail, not run as whatever the default names.
+  it("refuses to run when PURGE_DB_URL is unset", async () => {
+    vi.stubEnv("PURGE_DB_URL", "");
+    await resetPurgePoolForTests();
+    try {
+      await expect(drainEvidencePurge()).rejects.toThrow(/PURGE_DB_URL/);
+      await expect(expireUploadIntents()).rejects.toThrow(/PURGE_DB_URL/);
+    } finally {
+      vi.unstubAllEnvs();
+      await resetPurgePoolForTests();
+    }
+  });
+
+  it("refuses a PURGE_DB_URL whose login is not the purge role's member", async () => {
+    // On the local stack `postgres` is not a superuser, so `set local role`
+    // refuses it first.
+    vi.stubEnv("PURGE_DB_URL", "postgresql://postgres:postgres@127.0.0.1:54322/postgres");
+    await resetPurgePoolForTests();
+    try {
+      await expect(drainEvidencePurge()).rejects.toThrow(/permission denied to set role/);
+    } finally {
+      vi.unstubAllEnvs();
+      await resetPurgePoolForTests();
+    }
+  });
+
+  it("refuses a login that CAN become the purge role but is not the purge login", async () => {
+    // What a superuser URL looks like to the worker: `set local role` succeeds,
+    // so only the session_user check stands between it and the purge.
+    await q("drop role if exists purge_guard_probe");
+    await q("create role purge_guard_probe login password 'probe_pw' noinherit");
+    await q("grant goproceed_purge_worker to purge_guard_probe");
+    vi.stubEnv("PURGE_DB_URL", "postgresql://purge_guard_probe:probe_pw@127.0.0.1:54322/postgres");
+    await resetPurgePoolForTests();
+    try {
+      await expect(drainEvidencePurge()).rejects.toThrow(/not the purge login/);
+    } finally {
+      vi.unstubAllEnvs();
+      await resetPurgePoolForTests();
+      await q("drop role if exists purge_guard_probe");
+    }
+  });
+});
+
+describe("purge health (INV-047 alerting)", () => {
+  const health = async () => (await q<{ exhausted: number; overdue: number }>(
+    "select * from app.upload_purge_health()"))[0]!;
+
+  it("counts nothing when nothing is stuck", async () => {
+    await stagedIntent();
+    expect(await health()).toEqual({ exhausted: 0, overdue: 0 });
+  });
+
+  it("counts a row whose retry budget is spent, for as long as it stays unpurged", async () => {
+    const intent = await stagedIntent();
+    await q(`update public.upload_intents set expires_at = now() - interval '1 hour' where id = $1`,
+      [intent.uploadIntentId]);
+    await expireUploadIntents();
+    await q("update public.upload_intents set purge_attempts = 5 where id = $1", [intent.uploadIntentId]);
+    expect(await health()).toEqual({ exhausted: 1, overdue: 0 });
+    expect((await drainEvidencePurge()).claimed).toBe(0);
+    expect(await health()).toEqual({ exhausted: 1, overdue: 0 });
+  });
+
+  it("counts a row due for more than 24 hours, and forgets it once purged", async () => {
+    const intent = await stagedIntent();
+    await q(`update public.upload_intents set expires_at = now() - interval '25 hours' where id = $1`,
+      [intent.uploadIntentId]);
+    await expireUploadIntents();
+    expect(await health()).toEqual({ exhausted: 0, overdue: 1 });
+    await drainEvidencePurge();
+    expect(await health()).toEqual({ exhausted: 0, overdue: 0 });
+  });
+
+  it("counts scan-blocked content past its retention window plus a day, not before", async () => {
+    const intent = await stagedIntent(PNG, "image/jpeg");
+    await finalize(intent.uploadIntentId);
+    await q(`update public.upload_intents set blocked_at = now() - interval '7 days 23 hours',
+                    purge_claimed_at = now()
+              where id = $1`, [intent.uploadIntentId]);
+    expect(await health()).toEqual({ exhausted: 0, overdue: 0 });
+    await q(`update public.upload_intents set blocked_at = now() - interval '8 days 1 hour'
+              where id = $1`, [intent.uploadIntentId]);
+    expect(await health()).toEqual({ exhausted: 0, overdue: 1 });
+  });
+});
+

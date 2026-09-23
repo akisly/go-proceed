@@ -1,4 +1,5 @@
-import { createHash, timingSafeEqual } from "node:crypto";
+import { createHash } from "node:crypto";
+import { sameSecret } from "../worker-secret";
 import { withServiceTx } from "@goproceed/database";
 import { loadTelegramConfig } from "./config";
 import { normalizeTelegramUpdate } from "./normalize";
@@ -9,12 +10,7 @@ const TELEGRAM_SECRET_HEADER = "x-telegram-bot-api-secret-token";
 const MAX_POSTGRES_BIGINT = 9_223_372_036_854_775_807n;
 
 /** Compare the provider's webhook secret without exposing a prefix match. */
-export function sameSecret(actual: string | null, expected: string): boolean {
-  if (actual === null) return false;
-  const a = Buffer.from(actual);
-  const b = Buffer.from(expected);
-  return a.length === b.length && timingSafeEqual(a, b);
-}
+export { sameSecret };
 
 export function verifyTelegramWebhookSecret(request: Request, expected: string): boolean {
   return sameSecret(request.headers.get(TELEGRAM_SECRET_HEADER), expected);

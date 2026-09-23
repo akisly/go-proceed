@@ -303,6 +303,17 @@ idempotent job within 24 hours. The purge records intent/key hash, reason,
 attempt, and outcome without preserving file content. Repeated purge failure
 raises an operational alert and never makes the object available.
 
+*Implementation (2026-09-23, DEV-036):* the job is
+`apps/app/app/internal/evidence/purge/route.ts`, called by Vercel Cron four
+times a day (`apps/app/vercel.json`; one run per expression per day on the
+Hobby plan, anywhere in its hour, so the longest wait between runs is under
+seven hours). It runs as `goproceed_purge_worker` (`0090`), expires due
+intents, drains the queue in batches, and answers 500
+`purge_attention_required` — the alert, visible in the Vercel Cron log — when
+a row failed in the run, a row has spent its five attempts, or a due row has
+waited more than 24 hours; it keeps answering 500 until the row is dealt
+with. `pg_cron` also expires intents every 15 minutes where it exists.
+
 ## Content validation and malware boundary
 
 File extension, browser/mobile media type, original filename, and spreadsheet
