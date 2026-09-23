@@ -5,7 +5,7 @@ import {
   ADMIN_URL, hasIsolatedDatabaseCredentials, q, jsonReq, matrixFixture, type MatrixFixture,
 } from "./helpers/fixtures";
 import { dropWorkspaces } from "../../../packages/testing/src/pg";
-import { putObject, objectExists, removeObject } from "../src/lib/evidence-storage";
+import { putObject, objectExists, objectInfo, removeObject } from "../src/lib/evidence-storage";
 import { setInspector, resetInspector, sniffMediaType } from "../src/lib/evidence-inspection";
 
 const A = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -15,9 +15,9 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
 const CAPS = ["assignments.manage", "evidence.record"] as const;
 const PRICED = "1.1;Мурування;м2;10;199,99;1 999,90";
 
-/** A minimal but genuine JPEG: SOI + APP0 marker, then a byte of payload. */
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00]);
+/** A minimal but genuine JPEG: SOI, a 1×1 baseline frame header, EOI, then a byte (DEV-033: the size check reads the frame). */
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
+const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00, 0x01, 0x08, 0x02, 0x00, 0x00, 0x00, 0x90, 0x77, 0x53, 0xde, 0x00, 0x00, 0x00, 0x0c, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8, 0xcf, 0xc0, 0x00, 0x00, 0x03, 0x01, 0x01, 0x00, 0xc9, 0xfe, 0x92, 0xef, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82]);
 const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 let fx: MatrixFixture;
@@ -137,7 +137,7 @@ databaseDescribe("upload_intents.finalize", () => {
     // The key is the one issued at intent time: there is no promotion step.
     expect(rows[0]!.storage_key).toBe(intent.storage.key);
     expect(rows[0]!.inspection_status).toBe("passed");
-    expect(rows[0]!.inspection_policy_version).toBe("m2a-magic-bytes-1");
+    expect(rows[0]!.inspection_policy_version).toBe("m2a-magic-bytes-2");
     expect(rows[0]!.relation_kind).toBe("original");
   });
 
@@ -233,6 +233,33 @@ databaseDescribe("upload_intents.finalize", () => {
     expect(evidence[0]!.n).toBe("0");
   });
 
+  it("blocks an image whose declared size exceeds the limits, and says why (BL-088)", async () => {
+    // The 1×1 fixture's IHDR rewritten to 70,000 × 1: one edge past the
+    // policy's 65,535, declared by a file of a few dozen bytes.
+    const wide = new Uint8Array([...PNG]);
+    new DataView(wide.buffer).setUint32(16, 70_000);
+    const intent = await createIntent(wide, "image/png");
+    await putObject(intent.storage.key, wide, "image/png");
+    const res = await finalize(intent.uploadIntentId);
+    expect(res.status).toBe(422);
+    const body = await res.json();
+    expect(body.code).toBe("SCAN_REJECTED");
+    expect(body.detail).toContain("завелике");
+    const rows = await q<{ status: string; failure_code: string }>(
+      `select status, failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
+    expect(rows[0]).toEqual({ status: "scan_blocked", failure_code: "image_dimensions_exceeded" });
+  });
+
+  it("blocks an image whose size cannot be read (BL-088)", async () => {
+    const soiOnly = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+    const intent = await createIntent(soiOnly, "image/jpeg");
+    await putObject(intent.storage.key, soiOnly, "image/jpeg");
+    expect((await finalize(intent.uploadIntentId)).status).toBe(422);
+    const rows = await q<{ failure_code: string }>(
+      `select failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
+    expect(rows[0]!.failure_code).toBe("image_dimensions_unreadable");
+  });
+
   it("blocks unrecognised content", async () => {
     const text = new TextEncoder().encode("не зображення");
     const intent = await createIntent(text, "image/jpeg");
@@ -241,6 +268,75 @@ databaseDescribe("upload_intents.finalize", () => {
     const rows = await q<{ failure_code: string }>(
       `select failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
     expect(rows[0]!.failure_code).toBe("unrecognised_content");
+  });
+
+  it("blocks bytes stored under a content type other than the detected one (BL-089)", async () => {
+    // Storage serves an object with the type its uploader's PUT declared. A
+    // JPEG-prefixed HTML polyglot passes the magic-byte check as image/jpeg;
+    // stored as TEXT/HTML, Storage serves it back as TEXT/HTML — HTML to a
+    // browser — to anyone who opens its signed URL without `download=`
+    // (DEV-032). So the stored type must be the detected one, or the object
+    // never becomes available and no URL is ever signed for it.
+    const polyglot = new Uint8Array([...JPEG, ...new TextEncoder().encode("<html><script>1</script></html>")]);
+    const intent = await createIntent(polyglot, "image/jpeg");
+    await putObject(intent.storage.key, polyglot, "TEXT/HTML");
+    // The positive control: Storage kept the type as sent (DEV-032 Q1-02).
+    expect((await objectInfo(intent.storage.key))?.contentType).toBe("TEXT/HTML");
+
+    const res = await finalize(intent.uploadIntentId);
+    expect(res.status).toBe(422);
+    expect((await res.json()).code).toBe("SCAN_REJECTED");
+    const rows = await q<{ status: string; failure_code: string }>(
+      `select status, failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
+    expect(rows[0]).toEqual({ status: "scan_blocked", failure_code: "stored_type_mismatch" });
+    const evidence = await q<{ n: string }>(
+      `select count(*) n from public.evidence_objects where workspace_id = $1`, [fx.workspaceId]);
+    expect(evidence[0]!.n).toBe("0");
+  });
+
+  it("blocks a stored type LIST whose last member is scriptable (DEV-032 S2-01)", async () => {
+    // Measured: Storage keeps `image/jpeg;x=1, TEXT/HTML` verbatim and serves
+    // it so; a browser takes the last type of a list, and the stripped URL ran
+    // the polyglot's script. Cutting at `;` would have read `image/jpeg`.
+    const polyglot = new Uint8Array([...JPEG, ...new TextEncoder().encode("<html><script>1</script></html>")]);
+    const intent = await createIntent(polyglot, "image/jpeg");
+    await putObject(intent.storage.key, polyglot, "image/jpeg;x=1, TEXT/HTML");
+    expect((await objectInfo(intent.storage.key))?.contentType).toBe("image/jpeg;x=1, TEXT/HTML");
+    expect((await finalize(intent.uploadIntentId)).status).toBe(422);
+    const rows = await q<{ failure_code: string }>(
+      `select failure_code from public.upload_intents where id = $1`, [intent.uploadIntentId]);
+    expect(rows[0]!.failure_code).toBe("stored_type_mismatch");
+  });
+
+  it("accepts the detected type stored in another case or with plain parameters", async () => {
+    const intent = await createIntent(JPEG, "image/jpeg");
+    await putObject(intent.storage.key, JPEG, "IMAGE/JPEG; charset=binary");
+    // The positive control: Storage kept the type as sent, so the check saw it.
+    expect((await objectInfo(intent.storage.key))?.contentType).toBe("IMAGE/JPEG; charset=binary");
+    expect((await finalize(intent.uploadIntentId)).status).toBe(200);
+  });
+
+  it("refuses to overwrite an object after finalization, so the checked type and bytes stay (DEV-032 S2-02)", async () => {
+    // The stored-type check and the hash check read the object once. They hold
+    // only because Storage refuses a second PUT to the same key: the signed
+    // upload is created without `upsert`, and that is load-bearing.
+    const intent = await createIntent(JPEG, "image/jpeg");
+    // The positive control: the client's own signed URL is what stages the bytes.
+    const first = await fetch(intent.upload.signedUrl, {
+      method: "PUT", headers: { "content-type": "image/jpeg" }, body: JPEG,
+    });
+    expect(first.ok).toBe(true);
+    expect((await finalize(intent.uploadIntentId)).status).toBe(200);
+    // The same URL again — with a client header asking for an upsert, which a
+    // signed token must not grant — is refused as a duplicate, not for any other reason.
+    const again = await fetch(intent.upload.signedUrl, {
+      method: "PUT", headers: { "content-type": "TEXT/HTML", "x-upsert": "true" },
+      body: new TextEncoder().encode("<html>"),
+    });
+    const refusal = await again.text();
+    expect(again.ok).toBe(false);
+    expect(refusal).toMatch(/Duplicate|already exists/i);
+    expect(await objectInfo(intent.storage.key)).toEqual({ size: JPEG.byteLength, contentType: "image/jpeg" });
   });
 
   it("honours an injected blocking inspector", async () => {

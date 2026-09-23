@@ -1463,17 +1463,17 @@ const ONE_TIME_LINK_NOTICE =
   "Посилання показано один раз. Скопіюйте його зараз — відновити його неможливо, "
   + "лише відкликати й видати нове.";
 
-/** A minimal but genuine JPEG (SOI + APP0), identical to field-capture.int.test.ts's fixture. */
-const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+/** A minimal but genuine JPEG (SOI, a 1×1 frame header, EOI), identical to field-capture.int.test.ts's fixture; since DEV-033 finalization reads the frame's size. */
+const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 
 /**
  * A JPEG A BROWSER CAN ACTUALLY DECODE — and it has to be a second constant,
  * because `JPEG_BYTES` above cannot be one.
  *
- * `JPEG_BYTES` is eleven bytes: a start-of-image marker and an APP0 header.
- * `evidence-inspection.ts` recognises it as `image/jpeg` (it reads the magic
- * bytes, which is the whole point of that fixture) and every Node-side test
- * that uses it is right to. But it carries no frame header and no scan data,
+ * `JPEG_BYTES` is eighteen bytes: a start-of-image marker, a 1×1 frame header
+ * and an end-of-image marker. `evidence-inspection.ts` recognises it as
+ * `image/jpeg` and reads its size from the frame header (since DEV-033), and
+ * every Node-side test that uses it is right to. But it carries no scan data,
  * so `<img>.naturalWidth` on it is 0 in every browser — which is exactly the
  * assertion the seventh audit makes, and would make the seeded photo
  * indistinguishable from a photo that failed to load. The two fixtures are for
@@ -2154,7 +2154,7 @@ async function main() {
       // WHAT IT PROVES, in the order it proves it:
       //   1. ПТВ opens /dash/assignments/{id} and the photo is THERE —
       //      asserted on the <img>'s own `naturalWidth`, which is zero for
-      //      a broken image, a 403 signed URL and an eleven-byte fixture
+      //      a broken image, a 403 signed URL and an eighteen-byte fixture
       //      alike, and non-zero only if the browser decoded real pixels.
       //      A screenshot would have looked correct in every one of those
       //      cases;

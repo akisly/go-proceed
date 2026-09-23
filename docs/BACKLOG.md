@@ -61,7 +61,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-030](#bl-030) | P2 | open | The evidence purge worker runs nowhere |
 | [BL-031](#bl-031) | P2 | open | Purge claims are not fenced |
 | [BL-032](#bl-032) | P2 | open | A deactivated member cannot abandon their own upload through the route |
-| [BL-033](#bl-033) | P2 | open | `evidence-storage.ts` puts raw storage keys into error messages |
+| [BL-033](#bl-033) | P2 | closed → DEV-034 | `evidence-storage.ts` puts raw storage keys into error messages |
 | [BL-034](#bl-034) | P2 | open | The evidence screen formats times in a hard-coded zone, not the workspace's |
 | [BL-035](#bl-035) | P3 | open | `apps/app` has no application logging, so «never in the logs» cannot be asserted |
 | [BL-036](#bl-036) | P3 | open | The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200 |
@@ -116,8 +116,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-085](#bl-085) | P1 | closed → DEV-011 | `TELEGRAM_LINK_PEPPER` has no key id, so it cannot be rotated without losing data, and readiness gate 14 waits on it |
 | [BL-086](#bl-086) | P3 | open | The HMAC key registry accepts a duplicate key id and the same secret in both key spaces |
 | [BL-087](#bl-087) | P2 | open | A leaked Telegram erasure key still re-identifies the registry rows not yet moved to a newer key |
-| [BL-088](#bl-088) | P2 | open | Uploaded images have no dimension, pixel-count or decoding-resource limit |
-| [BL-089](#bl-089) | P2 | open | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
+| [BL-088](#bl-088) | P2 | closed → DEV-033 | Uploaded images have no dimension, pixel-count or decoding-resource limit |
+| [BL-089](#bl-089) | P2 | closed → DEV-032 | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
 | [BL-090](#bl-090) | P1 | closed → DEV-014 | 16 communication and Telegram registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-091](#bl-091) | P1 | closed → DEV-016 | 8 contract-baseline registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-092](#bl-092) | P1 | closed → DEV-016 | 4 evidence registry rows lack tenant-isolation tests (readiness gate 11) |
@@ -154,6 +154,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-123](#bl-123) | P3 | open | Nothing technical keeps an agent session out of the private prospecting copy |
 | [BL-124](#bl-124) | P2 | open | The prospecting-data guard detects only after the fact and knows one field |
 | [BL-125](#bl-125) | P3 | open | Three validator guards read `git ls-files` split by newline and would skip a quoted path |
+| [BL-126](#bl-126) | P2 | open | Hosted Storage's signed-read behaviour is unmeasured, and the evidence bucket accepts any content type on upload |
+| [BL-127](#bl-127) | P3 | open | The Telegram album-exhaustion test wrote two terminal receipts in one of ten runs |
+| [BL-128](#bl-128) | P3 | deferred (owner) | A blocked upload keeps its reserved quota until the purge |
+| [BL-129](#bl-129) | P2 | open | Office and reviewer browsers show evidence originals only: an at-limit bitmap decodes in full, and HEIC does not show in Chrome, Edge or Firefox |
+| [BL-130](#bl-130) | P3 | open | An AVIF whose brand is `mif1` is detected as `image/heic` |
+| [BL-131](#bl-131) | P2 | deferred (owner) | The image size limits and parsers are unchecked against files from real phones |
+| [BL-132](#bl-132) | P3 | open | Image decoding channels the size check does not read: JPEG secondary images, the HEVC stream's own size, progressive scan counts |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -500,10 +507,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-033"></a>
 ### BL-033 — P2 — `evidence-storage.ts` puts raw storage keys into error messages
 
-- **State:** open
+- **State:** closed → DEV-034
 - **Legacy cite:** `TODOS.md` «puts raw storage keys into error messages, and they reach the console»
 - **Why:** these are bare `Error`s, so `toProblemResponse` logs them verbatim. `docs/architecture/files-and-storage.md` §Downloads says logs never record «the signed URL or raw storage key». The file is the house style a new helper copies.
 - **Evidence:** `apps/app/src/lib/evidence-storage.ts:65`, `:78`, `:83`, `:102`, `:123` interpolate the key.
+- **Closed 2026-09-23 by DEV-034:** `createSignedUpload`, `putObject`, `downloadObject`, `objectInfo` (formerly `objectSize`) and `removeObject` throw `EvidenceStorageError` through `readFailed`, as the read helpers already did: the message names the operation and the provider's error code, never the key, the bucket or the provider's message. `readFailed` keeps the provider's code only when it is an identifier and adds the status and, without a code, the error's class, so the purge worker's stored reason still says why. A unit test with a fake client covers every throwing helper, including `putObject`'s own upload step, and checks what the log prints (`util.inspect`), not only the message; mutants that put the key back or keep the SDK error as `cause` turn it red. An integration test shows the local storage server's own message names a refused key, then finds neither half of it in ours.
 - **Depends on:** nothing.
 - **Deadline:** none recorded; urgent once logging exists (BL-035).
 
@@ -1103,20 +1111,22 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-088"></a>
 ### BL-088 — P2 — Uploaded images have no dimension, pixel-count or decoding-resource limit
 
-- **State:** open
+- **State:** closed → DEV-033
 - **Legacy cite:** none
 - **Why:** `docs/architecture/files-and-storage.md` «Content validation and malware boundary» (Approved) lists «image dimension/pixel-count and decoding-resource limits» among the controls applied before availability or parsing. The upload path limits bytes (the `evidence` bucket's `file_size_limit`, the per-workspace quota) and checks the type from magic bytes, but nothing bounds an image's dimensions or pixel count, so a small file that decodes to a very large bitmap is accepted as evidence. The exposure is present now: office members' and external reviewers' browsers decode evidence images as soon as a page shows them. A derivative or thumbnail worker, or an export, would add server-side exposure later. Readiness gate 12 names resource-exhaustion controls on uploads. Ranked by DEV-012.
 - **Evidence:** observed 2026-09-15 at `48ba14e`: no dimension or pixel-count check in `apps/app/src/lib/evidence-inspection.ts`, nor anywhere under `apps/app/src/lib`, `apps/app/app` and `packages/domain/src`; [DEV-012](tasks/DEV-012-m0-gate12-evidence.md) row 2.
+- **Closed 2026-09-23 by DEV-033:** finalization reads an image's declared size from its header without decoding it — JPEG by a libjpeg-style segment walk up to the first scan (exactly one frame), PNG by its first chunk (IHDR), HEIC by walking `meta` → `iprp` → `ipco` for every `ispe` and reading each grid's and overlay's declared output size through `iinf`, `iloc` and `idat` — and blocks (`scan_blocked`, 422 `SCAN_REJECTED` with its own sentence) an image over 268,402,689 pixels (0x3FFF², sharp/libvips' default) or 65,535 px on an edge (`image_dimensions_exceeded`), one whose size cannot be read (`image_dimensions_unreadable`, fail closed), and an animated PNG (`image_animated`). The limits admit a 200 MP frame and a 63 MP panorama (`gp-mobile`, sources in the record). Inspection policy `m2a-magic-bytes-2`. **What this bounds is the declared size, not the cost:** a bitmap at the limit, about 1 GB decoded, is still reachable from a file of tens of kilobytes (a flat 1-bit PNG), so the decoding-resource half of this entry is carried by BL-129 (previews) and BL-132 (the channels the parser does not read). Checked on 83 real files (every tracked JPEG and PNG, and HEIC grids made by macOS ImageIO up to 16,000 × 12,000): every size equal to `sips`'s, none blocked. Not checked: files from real phones (BL-131), evidence finalized before this change, PDF. A HEIC or PNG whose structure breaks or is ambiguous (duplicate boxes or item ids, an `iinf` whose entries do not match its count, a top-level `moov`, chunks that do not reach IDAT) and a JPEG marker libjpeg refuses are refused as unreadable.
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment (the browser path is live today), before any server-side image decoding ships, and before readiness gate 12 closes.
 
 <a id="bl-089"></a>
 ### BL-089 — P2 — Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox
 
-- **State:** open
+- **State:** closed → DEV-032
 - **Legacy cite:** none
 - **Why:** DEV-012's `gp-security` review (S1-01). The member plane reads evidence through Supabase Storage signed URLs created with no download option (`apps/app/app/v1/assignments/[assignmentId]/evidence/route.ts:116`, `apps/app/src/lib/evidence-storage.ts` `createSignedReadUrls`), so a file is served inline from the Storage origin with the content type stored at upload, which whoever holds the signed upload URL sets on its PUT (the field client, or anyone holding that URL). On the Telegram path the stored type is the claimed type the inspection checked (`apps/app/src/lib/telegram/evidence.ts:199`, `:212`); Telegram's added risk is its less-trusted senders. Finalize checks the bytes against the claimed type from their leading bytes only, and the `evidence` bucket sets no `allowed_mime_types` (`0020`). The external review route already serves the detected type with `nosniff` and a sandbox CSP (`apps/app/app/external/evidence/route.ts:288-336`); the member plane has neither. The owner accepted this for the pilot on 2026-09-15 with revisit triggers (`docs/delivery/production-readiness.md` §12). The cheapest compensating controls are a download (`Content-Disposition: attachment`) on member signed URLs and storing the detected type as the object's content type. Ranked by DEV-012.
 - **Evidence:** observed 2026-09-15 at `48ba14e` by `gp-security` (DEV-012 row 6); unverified: which response headers Supabase Storage sends on a signed read, and whether it serves an HTML or SVG content type as stored.
+- **Closed 2026-09-23 by DEV-032:** two controls. (1) Finalization refuses an object whose stored content type (Storage's metadata, kept verbatim from the upload PUT) is not the type detected from its bytes — strictly: that type in any case, followed only by plain `name=value` parameters, no comma list and no quotes (`stored_type_mismatch`, `scan_blocked`) — so every evidence object finalized from DEV-032 on is served as one of the four allowed types. (2) Every signed read `evidence-storage.ts` issues passes `download: true`, so Storage answers `Content-Disposition: attachment` and a navigation to the URL as issued saves the file. The second is advisory: storage-js appends `download=` outside the signature, and a URL holder can strip it; the first is what makes a stripped URL harmless. Measured on the local stack (storage-api v1.69.0): a JPEG-prefixed HTML polyglot stored as `TEXT/HTML`, or as `image/jpeg;x=1, TEXT/HTML`, was served so and, opened by a signed URL without `download=`, ran its script in Chrome; finalization now blocks both. Storage refuses a second PUT to a finalized key (pinned by a test). An `<img>` — the member plane's only use of these URLs — still shows the image. What stays is BL-126 (hosted Storage unmeasured; the bucket accepts any type on upload).
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere.
 
@@ -1511,3 +1521,75 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `git ls-files -z | tr '\0' '\n' | LC_ALL=C grep -c '[^ -~]'` → 0 (2026-09-23); the three `execFileSync("git", ["ls-files"], …)` calls (guards 11 and 12, the TODOS line-citation guard).
 - **Depends on:** nothing.
 - **Deadline:** before a tracked path carries a Cyrillic name.
+
+<a id="bl-126"></a>
+### BL-126 — P2 — Hosted Storage's signed-read behaviour is unmeasured, and the evidence bucket accepts any content type on upload
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-032's reviews (`gp-reviewer` R1-01, `gp-security` S1-01 to S1-04). DEV-032 closed BL-089 on measurements of the local storage API v1.69.0 only: which headers a signed read carries, that `download=` gives `attachment`, that a stripped URL serves the stored type inline, and which stored types Storage rewrites (`text/html` → `text/plain`, but not `TEXT/HTML`). Hosted Storage (its version, its CDN, a custom domain) may differ. And the `evidence` bucket sets no `allowed_mime_types` (`0020`), so Storage accepts any type on the upload PUT; finalization now refuses a mismatch before availability, but a bucket allow-list of the four allowed types would refuse it at the door. A named download (`download: "evidence.<ext>"` from the detected type) would also fix the saved file's name. And objects finalized before DEV-032 were never checked: before real data, compare Storage's `list()` metadata with `evidence_objects.media_type` for every available object in each environment that holds evidence. Ranked by DEV-032.
+- **Evidence:** `scratchpad/dev032-variants.txt`, `dev032-strip.txt`, `dev032-polyglot-browser.txt`, cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md); `supabase/migrations/0020_*` creates the bucket without `allowed_mime_types`.
+- **Depends on:** the owner's authorisation to write a test object to staging, for the hosted measurement; a migration (with `gp-architect`) for the bucket allow-list.
+- **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere (BL-089's).
+
+<a id="bl-127"></a>
+### BL-127 — P3 — The Telegram album-exhaustion test wrote two terminal receipts in one of ten runs
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** observed during DEV-032. `apps/app/tests/telegram-evidence.int.test.ts` «waits for retryable album parts, then completes once on retry success or exhaustion» failed once at line 856 (two receipts for message 791 where one is expected) and passed in the nine runs after it; the baseline passed five of five. The 791 part never downloads successfully, so it never reaches finalization, where DEV-032's change lies. Either the test's two back-to-back `processDueTelegramEvidenceRetries` calls race, or the exhaustion path can write its terminal receipt twice — which the product must not do. Ranked by DEV-032.
+- **Evidence:** `scratchpad/dev032-r1-suite-telegram-evidence.txt` (the failure), `dev032-flake-mine-*.txt` and `dev032-baseline-telegram-*.txt` (the reruns), cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md).
+- **Depends on:** nothing.
+- **Deadline:** before the Telegram webhook is enabled anywhere.
+
+<a id="bl-128"></a>
+### BL-128 — P3 — A blocked upload keeps its reserved quota until the purge
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report (Q-3). `app.evidence_bytes_in_use` (`0031`) counts every intent that is neither available nor purged, so an upload refused at finalization — now also for its size — holds its reserved bytes until the orphan purge. A field worker retrying a 50 MB panorama five times holds 250 MB of the workspace's quota for the retention window. Whether a `scan_blocked` intent should release its reservation is the owner's decision. Ranked by DEV-033.
+- **Evidence:** `supabase/migrations/0031_upload_state_is_only_commands.sql` (`app.evidence_bytes_in_use`); [DEV-033](tasks/DEV-033-image-size-limits.md).
+- **Depends on:** the owner.
+- **Deadline:** before a workspace quota is set (it is unlimited until a value is set, `0026`).
+- **Resume:** the owner decides whether a blocked intent releases its reservation at once; the coordinator changes the function with `gp-architect`.
+
+<a id="bl-129"></a>
+### BL-129 — P2 — Office and reviewer browsers show evidence originals only: an at-limit bitmap decodes in full, and HEIC does not show in Chrome, Edge or Firefox
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report (Q-2, Q-4) and `gp-security` review (S1-01). The evidence card and the review page render the original in an `<img>`. DEV-033's limits bound the declared size at 268,402,689 pixels, which decodes to about 1 GB: an attacker with `evidence.record` (or a Telegram participant once the webhook is on) can reach that with a file of tens of kilobytes — a flat 1-bit PNG of 16,383 × 16,383 deflates to about 33 KB — and every browser, Safari included, decodes it when the page shows it; several on one page multiply the cost. A legitimate 200 MP photo costs the same. And HEIC renders only in Safari 17 and later, so an office member on Chrome, Edge or Firefox sees a broken image for every iPhone HEIC. A bounded preview derivative (its own hash and key, `files-and-storage.md`) fixes all three; until then, an owner-set pixels-per-byte floor above a baseline (for example, refuse over 24 MP when pixels exceed R × bytes, R calibrated on BL-131's phone files) would cut the reachable ratio, though padding weakens it. A UI and worker task. Ranked by DEV-033.
+- **Evidence:** `apps/app/src/components/evidence/evidence-card.tsx` (`<img src={readUrl}>`, no fallback for an undecodable type); WebKit, «WebKit Features in Safari 17.0» (2023-09-18) for HEIC; Chromium `blink_platform_impl.cc` (`MaxDecodedImageBytes`), cited in DEV-033; DEV-033's `gp-security` S1-01 for the PNG ratio.
+- **Depends on:** nothing for the preview; the owner for a pixels-per-byte floor.
+- **Deadline:** before real customer data enters an environment, in every browser, and before the Telegram webhook is enabled anywhere.
+
+<a id="bl-130"></a>
+### BL-130 — P3 — An AVIF whose brand is `mif1` is detected as `image/heic`
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report. `sniffMediaType` accepts any ISO-BMFF file whose major brand is one of `heic`, `heix`, `hevc`, `hevx`, `mif1`, `msf1` as `image/heic`. `mif1` is the generic HEIF brand, which AVIF files also use, so an AVIF can pass the type check as HEIC although AVIF is not an accepted type. DEV-033's size check still bounds it. Checking the compatible brands for `avif`/`avis` (refuse) would close it. Ranked by DEV-033.
+- **Evidence:** `apps/app/src/lib/evidence-inspection.ts` `sniffMediaType`.
+- **Depends on:** nothing.
+- **Deadline:** none recorded.
+
+<a id="bl-131"></a>
+### BL-131 — P2 — The image size limits and parsers are unchecked against files from real phones
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-033 checked its parsers on synthetic headers, every tracked JPEG and PNG, and HEIC grids made by macOS ImageIO. It has no file from a phone: an iPhone HEIF Max photo and panorama, a Samsung 200 MP photo, Motion Photo and scroll capture, a Pixel Ultra HDR photo and Motion Photo. A false refusal of a real capture would block field evidence. Samsung and Pixel panorama widths are unpublished. Ranked by DEV-033.
+- **Evidence:** [DEV-033](tasks/DEV-033-image-size-limits.md) «What is not true» and `gp-mobile`'s acceptance cases 1–6.
+- **Depends on:** the owner, for the sample files (they are personal photos; never committed — a local folder, as `outputs/` is kept).
+- **Deadline:** before the pilot's first field capture.
+- **Resume:** the owner provides the files locally; the coordinator runs `imageDimensions` and `inspectContent` on them and records sizes and outcomes only.
+
+<a id="bl-132"></a>
+### BL-132 — P3 — Image decoding channels the size check does not read: JPEG secondary images, the HEVC stream's own size, progressive scan counts
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's reviews (`gp-security` S1-06, `gp-reviewer` R1-05). The size check reads a JPEG's primary frame only: MPF secondary images (Ultra HDR and Apple HDR gain maps, which HDR-capable browsers decode) can declare their own size, up to 65,535², and are not read; refusing MPF outright would refuse ordinary Pixel and Samsung photos, so the fix is to follow the MPF index (bounded) and walk each secondary image. A HEIC's HEVC stream carries its own dimensions (SPS), not compared with `ispe`. A progressive JPEG's scan count (Chrome stops at 100) and a PNG's compressed-data ratio are not bounded (BL-129). Ranked by DEV-033.
+- **Evidence:** [DEV-033](tasks/DEV-033-image-size-limits.md) «What is not true».
+- **Depends on:** nothing.
+- **Deadline:** before real customer data enters an environment.
