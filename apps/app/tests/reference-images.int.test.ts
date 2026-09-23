@@ -16,7 +16,16 @@ vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current 
 // These suites truncate the isolated database. They are deliberately NOT RUN
 // during DEV-042 without owner authorization and migration 0095 applied there.
 describe.skipIf(!hasIsolatedDatabaseCredentials())("DEV-042 reference pins and tenant isolation", () => {
-  beforeEach(async () => { current = owner; await truncateAll(); });
+  beforeEach(async () => {
+    current = owner; await truncateAll();
+    // memberships.user_id references auth.users, which truncateAll leaves alone and
+    // no seed provides for these two ids (same pattern as project-requirements).
+    for (const [id, email] of [[owner, "dev042-owner@fixture.test"], [stranger, "dev042-stranger@fixture.test"]]) {
+      await q(`insert into auth.users (id, instance_id, aud, role, email, encrypted_password, created_at, updated_at)
+        values ($1,'00000000-0000-0000-0000-000000000000','authenticated','authenticated',$2,'',now(),now())
+        on conflict (id) do nothing`, [id, email]);
+    }
+  });
 
   it("publishes a library rule unpinned while licensed content has not been provisioned", async () => {
     const world = await baselineFixture(owner);
