@@ -58,13 +58,17 @@ export async function loadManifest(path) {
     }
     // Served byte-for-byte to every project member and hash-pinned forever:
     // location, device and author metadata must be stripped before hashing.
-    if (meta.exif || meta.xmp || meta.iptc) throw new Error("Image must carry no EXIF, XMP or IPTC metadata");
+    if (meta.exif || meta.xmp || meta.iptc || meta.comments?.length) throw new Error("Image must carry no EXIF, XMP, IPTC or text-comment metadata");
     images.push({ ...entry, bytes });
   }
   return { sha256: digest(raw), images };
 }
 
-/** Opaque reproducible UUID-shaped keys let retries verify an orphaned upload. */
+/**
+ * Reproducible UUID-shaped keys let retries verify an orphaned upload. They are
+ * NOT secret (a member can derive them): confidentiality rests on the bucket being
+ * private with no client storage.objects policy.
+ */
 export function storageIdentity(workspaceId, libraryItemId, versionNo) {
   const hex = digest(JSON.stringify(["goproceed-reference-v1", workspaceId, libraryItemId, versionNo]));
   const uuid = (s) => `${s.slice(0, 8)}-${s.slice(8, 12)}-4${s.slice(13, 16)}-8${s.slice(17, 20)}-${s.slice(20, 32)}`;
