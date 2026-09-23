@@ -159,22 +159,24 @@ Two consequences the re-cut draws from that, rather than from any market signal:
 ## Operations and tables per milestone
 
 Counted from [scope-v0.1.csv](../../technical/openapi/scope-v0.1.csv) on
-2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01**; **76 as of 2026-09-18** — see the notes under the table. The per-milestone operation ids are listed
+2026-08-06 — **58 operations in v0.1**; **60 as of 2026-08-18**; **62 as of 2026-08-22**; **65 as of 2026-08-24**; **68 as of 2026-08-28**; **69 as of 2026-08-29**; **75 as of 2026-09-01**; **76 as of 2026-09-18**; **77 as of 2026-09-23** (#115, DEV-042); **79 as of 2026-09-23** (#117, DEV-043/DEV-044) — see the notes under the table. The per-milestone operation ids are listed
 in each API slice below. The table columns come from ADR-006 decision 4.
 
 | Milestone | Operations | v0.1 tables | Already in the runtime |
 |---|---|---|---|
 | M0 — cross-cutting | — | — | — |
-| `v0.1-M1` | 36 | 8 | 8 |
+| `v0.1-M1` | 38 | 8 | 8 |
 | `v0.1-M2` | 10 | 5 | 5 |
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
 | `v0.1-M6` | 3 | 0 | — |
 | `v0.1-M7` | 10 | 0 | — |
-| Total | 76 | 26 | 26 |
+| Total | 79 | 26 | 26 |
 
 *M1 is 36 operations, not 35, as of 2026-09-18: `invitations.revoke` was added by [ADR-012](../decisions/ADR-012-invitation-revoke.md) ([DEV-021](../tasks/DEV-021-invitation-revoke.md), BL-107), because since DEV-019 a lost invitation token cannot be recovered and a leaked one cannot be withdrawn before it expires. No new table.*
+
+*M1 is 38 operations as of 2026-09-23: [ADR-014](../decisions/ADR-014-revoke-access-and-end-responsibility.md) added `project_access.revoke` ([DEV-043](../tasks/DEV-043-project-access-revoke.md), BL-021), because a project access grant could be issued and never taken back and a grant that lapsed blocked its capability for good, and `project_responsibilities.end` ([DEV-044](../tasks/DEV-044-responsibility-end.md), BL-015), because a responsibility assignment could never be ended. The end's table, `project_responsibility_assignment_ends` (`0097`), sits outside ADR-006 decision 4's 26 like its parent, so the table columns are unchanged.*
 
 *The «v0.1 tables» column is ADR-006 decision 4's build list and stays at
 its 26. `project_sourced_requirement_items` is a twenty-seventh v0.1 table,
@@ -464,11 +466,11 @@ settled it stands unchanged and settles the next disagreement the same way.
   predicate narrows to **(work type, stage)** — `locations` stays deployed and is
   not read by the predicate, and `unit_definitions` is used only as far as a
   manual line needs a unit (decision 4.2).
-- **API slice:** the 36 `v0.1-M1` operations — `workspaces.create`,
+- **API slice:** the 38 `v0.1-M1` operations — `workspaces.create`,
   `me.context`, `invitations.create`, `invitations.accept`, `invitations.revoke`, `members.list`,
   `parties.create`, `parties.update`, `parties.legal_profile.put`,
   `parties.own_profile.create`, `projects.create`, `projects.list`,
-  `project_access.grant`, `project_responsibilities.assign`, `contracts.create`,
+  `project_access.grant`, `project_access.revoke`, `project_responsibilities.assign`, `project_responsibilities.end`, `contracts.create`,
   `contract_versions.create`, `work_items.create`, `work_items.update`,
   `work_items.remove`, `contract_versions.bind_rules`, `contract_versions.publish`,
   `contract_versions.get`, `import_batches.create`, `import_files.add`,

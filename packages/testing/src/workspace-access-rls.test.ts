@@ -207,3 +207,158 @@ describe("workspace_access isolation — the owner of A reads rows of A and the 
     expect(await seen(USER_B, sql)).toEqual([WS_B]);
   });
 });
+
+/**
+ * DEV-043 / BL-021 / ADR-014 decision 4 (migration 0096): the application role
+ * revokes a grant and changes nothing else about it.
+ *
+ * Before 0096 `goproceed_app` held UPDATE on every column of
+ * project_access_grants (0011), so a defect in the BFF could move a grant to
+ * another member or capability, or widen its window, on any project the actor
+ * administers. The write is revoked_at and version, which is the revoke.
+ *
+ * The grant revoked here is seeded and removed inside the test, on MEMBER_A2,
+ * so the read tests above keep their counts.
+ */
+describe("project_access_grants: the application role may revoke a grant and change nothing else (DEV-043)", () => {
+  const COLUMNS = ["id", "workspace_id", "project_id", "member_id", "capability", "valid_from",
+    "valid_until", "revoked_at", "granted_by", "version", "created_at"];
+
+  it("goproceed_app holds UPDATE on revoked_at and version only", async () => {
+    const r = await admin.query<{ column_name: string; can: boolean }>(
+      `select column_name, has_column_privilege('goproceed_app', 'public.project_access_grants', column_name, 'UPDATE') as can
+         from unnest($1::text[]) as column_name`, [COLUMNS]);
+    expect(r.rows.filter((row) => row.can).map((row) => row.column_name).sort()).toEqual(["revoked_at", "version"]);
+    const table = await admin.query<{ can: boolean }>(
+      "select has_table_privilege('goproceed_app', 'public.project_access_grants', 'UPDATE') as can");
+    // has_table_privilege is true only for a table-level grant, not for column grants.
+    expect(table.rows[0]!.can).toBe(false);
+  });
+
+  it("the owner of A revokes a grant of A; the owner of B declaring A and a view-only member of A update no row; a member_id update is refused", async () => {
+    const p = await admin.query<{ id: string }>("select id from public.projects where workspace_id = $1", [WS_A]);
+    const projectId = p.rows[0]!.id;
+    const m = await admin.query<{ id: string }>(
+      "select id from public.memberships where organization_id = $1 and user_id = $2", [WS_A, MEMBER_A2]);
+    const memberId = m.rows[0]!.id;
+    const g = await admin.query<{ id: string }>(
+      `insert into public.project_access_grants (workspace_id, project_id, member_id, capability, granted_by)
+       values ($1, $2, $3, 'project.view', $4), ($1, $2, $3, 'contracts.edit', $4) returning id, capability`,
+      [WS_A, projectId, memberId, USER_A]);
+    try {
+      const target = g.rows[1]!.id;
+      const revokeSql = (c: Client) => c.query(
+        "update public.project_access_grants set revoked_at = now(), version = version + 1 where id = $1 and revoked_at is null returning id",
+        [target]);
+
+      expect((await asActor(USER_B, WS_A, revokeSql)).rowCount).toBe(0);
+      expect((await asActor(MEMBER_A2, WS_A, revokeSql)).rowCount).toBe(0);
+      // The column grant, not RLS (USER_A administers the project): the message names the table's privilege.
+      await expect(asActor(USER_A, WS_A, (c) => c.query(
+        "update public.project_access_grants set member_id = $2 where id = $1", [target, memberId])))
+        .rejects.toMatchObject({ code: "42501", message: expect.stringMatching(/permission denied for table project_access_grants/) });
+      await expect(asActor(USER_A, WS_A, (c) => c.query(
+        "update public.project_access_grants set valid_until = now() + interval '1 day' where id = $1", [target])))
+        .rejects.toMatchObject({ code: "42501", message: expect.stringMatching(/permission denied for table project_access_grants/) });
+      expect((await asActor(USER_A, WS_A, revokeSql)).rowCount).toBe(1);
+
+      const after = await admin.query<{ revoked: boolean; version: string }>(
+        "select revoked_at is not null as revoked, version from public.project_access_grants where id = $1", [target]);
+      expect(after.rows[0]).toEqual({ revoked: true, version: "2" });
+    } finally {
+      await admin.query("delete from public.project_access_grants where id = any($1::uuid[])", [g.rows.map((row) => row.id)]);
+    }
+  });
+});
+
+/**
+ * DEV-044 / BL-015 / ADR-014 decision 3 (migration 0097): the end of a
+ * responsibility assignment is an append-only fact of its own.
+ *
+ * Seeded here, not in seedSide, so the tests above keep their rows: each side's
+ * assignment gets one end through the admin client, and A gets a second
+ * assignment, held by MEMBER_A2 and ended too, for the holder's own read.
+ */
+describe("project_responsibility_assignment_ends (DEV-044)", () => {
+  const assignmentOf = async (ws: string, memberFilter = "") => {
+    const r = await admin.query<{ id: string; project_id: string; member_id: string }>(
+      `select id, project_id, member_id from public.project_responsibility_assignments where workspace_id = $1 ${memberFilter} order by created_at`, [ws]);
+    return r.rows;
+  };
+  let a2Assignment: string;
+  let a2Member: string;
+  let projectA: string;
+
+  beforeAll(async () => {
+    projectA = (await admin.query<{ id: string }>("select id from public.projects where workspace_id = $1", [WS_A])).rows[0]!.id;
+    a2Member = (await admin.query<{ id: string }>(
+      "select id from public.memberships where organization_id = $1 and user_id = $2", [WS_A, MEMBER_A2])).rows[0]!.id;
+    a2Assignment = (await admin.query<{ id: string }>(
+      `insert into public.project_responsibility_assignments (workspace_id, project_id, member_id, responsibility, assigned_by)
+       values ($1, $2, $3, 'evidence_recorder', $4) returning id`, [WS_A, projectA, a2Member, USER_A])).rows[0]!.id;
+    for (const [ws, user] of [[WS_A, USER_A], [WS_B, USER_B]] as const) {
+      const [first] = await assignmentOf(ws);
+      await admin.query(
+        `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
+         values ($1, $2, $3, $4)`, [ws, first!.project_id, first!.id, user]);
+    }
+    await admin.query(
+      `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
+       values ($1, $2, $3, $4)`, [WS_A, projectA, a2Assignment, USER_A]);
+  });
+
+  it("project_responsibility_assignment_ends: the owner of A reads the ends of A and the owner of B reads only its own; a holder with no grant reads only the end of their own assignment", async () => {
+    const sql = "select workspace_id as ws from public.project_responsibility_assignment_ends where workspace_id = any($1::uuid[])";
+    expect(await seen(USER_A, sql)).toEqual([WS_A, WS_A]);
+    expect(await seen(USER_B, sql)).toEqual([WS_B]);
+    const own = await asActor<{ assignment_id: string }>(MEMBER_A2, WS_A, (c) => c.query(
+      "select assignment_id from public.project_responsibility_assignment_ends where workspace_id = any($1::uuid[])", [BOTH]));
+    expect(own.rows.map((r) => r.assignment_id)).toEqual([a2Assignment]);
+  });
+
+  it("inserts only for a project administrator of the row's project, as the actor and at the transaction's time", async () => {
+    const target = (await admin.query<{ id: string }>(
+      `insert into public.project_responsibility_assignments (workspace_id, project_id, member_id, responsibility, assigned_by)
+       values ($1, $2, $3, 'progress_recorder', $4) returning id`, [WS_A, projectA, a2Member, USER_A])).rows[0]!.id;
+    const insert = (actor: string, endedBy: string, endedAt = "now()") => asActor(actor, WS_A, (c) => c.query(
+      `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by, ended_at)
+       values ($1, $2, $3, $4, ${endedAt})`, [WS_A, projectA, target, endedBy]));
+    await expect(insert(USER_B, USER_B)).rejects.toMatchObject({ code: "42501" });
+    await expect(insert(MEMBER_A2, MEMBER_A2)).rejects.toMatchObject({ code: "42501" });
+    await expect(insert(USER_A, USER_B)).rejects.toMatchObject({ code: "42501" });
+    await expect(insert(USER_A, USER_A, "now() - interval '1 day'")).rejects.toMatchObject({ code: "42501" });
+    await expect(insert(USER_A, USER_A, "now() + interval '1 day'")).rejects.toMatchObject({ code: "42501" });
+    await insert(USER_A, USER_A);
+    // One end per assignment.
+    await expect(insert(USER_A, USER_A)).rejects.toMatchObject({ code: "23505" });
+  });
+
+  it("refuses UPDATE and DELETE even for the table owner, and an end pinned to another project's assignment", async () => {
+    const e = await admin.query<{ id: string }>(
+      "select id from public.project_responsibility_assignment_ends where workspace_id = $1 limit 1", [WS_A]);
+    await expect(admin.query("update public.project_responsibility_assignment_ends set ended_at = now() where id = $1", [e.rows[0]!.id]))
+      .rejects.toThrow(/immutable/i);
+    await expect(admin.query("delete from public.project_responsibility_assignment_ends where id = $1", [e.rows[0]!.id]))
+      .rejects.toThrow(/immutable/i);
+    // An assignment with no end yet, so the unique key cannot answer before the foreign key.
+    const unended = (await admin.query<{ id: string }>(
+      `insert into public.project_responsibility_assignments (workspace_id, project_id, member_id, responsibility, assigned_by)
+       values ($1, $2, $3, 'requirement_owner', $4) returning id`, [WS_A, projectA, a2Member, USER_A])).rows[0]!.id;
+    const other = (await admin.query<{ id: string }>(
+      "insert into public.projects (workspace_id, name, created_by) values ($1, 'Приклад-Обʼєкт-A2', $2) returning id", [WS_A, USER_A])).rows[0]!.id;
+    await expect(admin.query(
+      `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
+       values ($1, $2, $3, $4)`, [WS_A, other, unended, USER_A])).rejects.toMatchObject({ code: "23503" });
+    await expect(admin.query(
+      `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
+       values ($1, $2, $3, $4)`, [WS_B, projectA, unended, USER_A])).rejects.toMatchObject({ code: "23503" });
+  });
+
+  it("goproceed_app holds SELECT and INSERT only", async () => {
+    const r = await admin.query<{ privilege_type: string }>(
+      `select privilege_type from information_schema.role_table_grants
+        where grantee = 'goproceed_app' and table_schema = 'public' and table_name = 'project_responsibility_assignment_ends'
+        order by privilege_type`);
+    expect(r.rows.map((row) => row.privilege_type)).toEqual(["INSERT", "SELECT"]);
+  });
+});

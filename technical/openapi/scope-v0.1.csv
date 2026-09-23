@@ -13,7 +13,9 @@ parties.own_profile.create,POST,/v1/parties/{partyId}/own-profile,command,requir
 projects.create,POST,/v1/workspaces/{workspaceId}/projects,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 projects.list,GET,/v1/projects,query,natural,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 project_access.grant,POST,/v1/projects/{projectId}/access-grants,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
+project_access.revoke,POST,/v1/projects/{projectId}/access-grants/revoke,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 project_responsibilities.assign,POST,/v1/projects/{projectId}/responsibilities,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
+project_responsibilities.end,POST,/v1/projects/{projectId}/responsibilities/end,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 contracts.create,POST,/v1/projects/{projectId}/contracts,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 contract_versions.create,POST,/v1/contracts/{contractId}/versions,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1
 work_items.create,POST,/v1/contract-versions/{versionId}/work-items,command,required,member,@goproceed/contracts,@goproceed/contracts,v0.1-M1

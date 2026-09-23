@@ -172,6 +172,25 @@ atomically creates explicit project administration access for its creator;
 later commands never infer project access merely from a party relationship or
 responsibility title.
 
+**Revoking** (`project_access.revoke`, [ADR-014](../decisions/ADR-014-revoke-access-and-end-responsibility.md)
+decision 1, DEV-043, 2026-09-23). A project administrator revokes a member's
+unrevoked grants on a project by member and capability — live, lapsed or not
+yet valid — and a revoked grant stops authorizing at once. Revoking a lapsed
+grant is what frees its capability for a new grant, since an unrevoked row
+blocks a second one. Revoking `project.view` removes the member from the
+project: every grant they hold there is revoked with it (INV-111), and a grant
+of the same member is serialized with the revoke so it cannot slip past the
+cascade. A revoke that takes away a live `project.admin` grant is refused
+unless another active member keeps a live admin grant with no end date, the
+actor's own included (INV-110), because the
+creator's bootstrap no longer applies to a project that has grants and a
+workspace role confers no project capability. The rule covers revokes only: a
+project whose administrator grants are all dated can still lapse, and a
+suspension still leaves it without an administrator (BL-137). The application role may
+update a grant's `revoked_at` and `version` and nothing else (`0096`). A revoke
+does not end responsibilities (INV-021), work assignments, Telegram member
+links or external review links the member issued.
+
 ### Project responsibilities
 
 `project_responsibility_assignments` record operational accountability such as
@@ -195,6 +214,16 @@ A responsibility:
 - narrows which already-authorized member may perform a named command;
 - is time-bounded and project-bound;
 - is retained as accountability history after it expires.
+
+**Ending** (`project_responsibilities.end`, [ADR-014](../decisions/ADR-014-revoke-access-and-end-responsibility.md)
+decisions 2 and 3, DEV-044, 2026-09-23). A project administrator ends a
+member's responsibility on a project: every assignment of that pair that is
+live or has not started is ended at the moment of the command, by one row per
+assignment in the append-only `project_responsibility_assignment_ends` (`0097`,
+INV-112). An end before an assignment's start cancels it; no past or future end
+date is accepted. The assignment row, and its planned window, is never changed,
+so the history keeps both. An ended assignment no longer counts as held. Ending
+a responsibility does not touch access (INV-021).
 
 One member may hold multiple responsibilities in v0.1. Separation-of-duties
 conflicts produce an explicit warning/fact; they do not silently grant or deny a

@@ -43,13 +43,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-012](#bl-012) | P3 | deferred (owner) | The two headline measures have nowhere to be recorded |
 | [BL-013](#bl-013) | P3 | open | `app.accept_invitation` ignores the invited email address |
 | [BL-014](#bl-014) | P3 | open | A suspended or ended member can never be re-admitted |
-| [BL-015](#bl-015) | P3 | open | Responsibility assignments can never be ended |
+| [BL-015](#bl-015) | P3 | closed → DEV-044 | Responsibility assignments can never be ended |
 | [BL-016](#bl-016) | P3 | open | The own-party default has no writer, and party contacts lack the qualification-certificate columns |
 | [BL-017](#bl-017) | P3 | open | `app.work_type_key_is_bindable` arm 2 is not scoped to a draft |
 | [BL-018](#bl-018) | P3 | open | The lineage funding bound has no second bound over admitted allocations |
 | [BL-019](#bl-019) | P3 | deferred (owner) | The service principal inherits the app role's table grants |
 | [BL-020](#bl-020) | P3 | open | Any service-plane session can reproduce an erasure without the registry or the audit row |
-| [BL-021](#bl-021) | P2 | open | A project access grant can be issued and never taken back |
+| [BL-021](#bl-021) | P2 | closed → DEV-043 | A project access grant can be issued and never taken back |
 | [BL-022](#bl-022) | P2 | open | A hand-typed zero-priced line and an imported one store different provenance |
 | [BL-023](#bl-023) | P2 | open | Nothing in `apps/app` is rate-limited, the external plane included |
 | [BL-024](#bl-024) | P2 | open | Blockers before any environment enables the Telegram webhook |
@@ -165,6 +165,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-134](#bl-134) | P3 | open | Dashboard follow-ups the DEV-035 UI review named and left out of scope |
 | [BL-135](#bl-135) | P2 | open | Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links |
 | [BL-136](#bl-136) | P2 | wontfix (owner) | The field client's origin sends no security headers, and its session token is readable by script |
+| [BL-137](#bl-137) | P2 | open | A project can still lose its last administrator: an only admin grant that lapses, or its holder's suspension |
+| [BL-138](#bl-138) | P3 | open | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
+| [BL-139](#bl-139) | P3 | open | No route lists a project's grants or responsibility assignments |
+| [BL-140](#bl-140) | P3 | open | A member's `project.view` can lapse before the action capabilities it was added for |
+| [BL-141](#bl-141) | P3 | open | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
+| [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
+| [BL-143](#bl-143) | P3 | open | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
+| [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -326,7 +334,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-015"></a>
 ### BL-015 — P3 — Responsibility assignments can never be ended
 
-- **State:** open
+- **State:** closed → DEV-044
 - **Legacy cite:** `TODOS.md` «P3 — responsibility assignments can never be ended»
 - **Why:** the table is append-only and an open-ended assignment is permanent, so separation-of-duties warnings accumulate. A superseding-fact shape to copy exists since `0045`.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/responsibilities/route.ts` exports only `POST`; `technical/openapi/scope-v0.1.csv` has only `project_responsibilities.assign`.
@@ -389,7 +397,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-021"></a>
 ### BL-021 — P2 — A project access grant can be issued and never taken back
 
-- **State:** open
+- **State:** closed → DEV-043
 - **Legacy cite:** `TODOS.md` «a project access grant can be issued through the product and never taken back»
 - **Why:** a mis-scoped grant cannot be corrected through the product; only a superuser UPDATE reverses it. The state is modelled (`revoked_at`, honoured by `requireProjectCapability`); the command is missing.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` exports only `POST`; `scope-v0.1.csv` has only `project_access.grant`; `apps/app/qa/field.mjs:745` revokes with raw SQL.
@@ -1646,3 +1654,83 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** DEV-035's record, `gp-security` S1-01; `apps/mobile/vercel.json`; `docs/architecture/tenancy-and-security.md` (the 2026-09-23 note on the web field client).
 - **Depends on:** a `gp-security` design of the header set (a `script-src 'self'` CSP with no third-party scripts, `frame-ancestors 'none'`, `nosniff`, a `Referrer-Policy`) and a header assertion in `apps/mobile/qa`.
 - **Deadline:** before a pilot foreman signs in on the field origin.
+
+<a id="bl-137"></a>
+### BL-137 — P2 — A project can still lose its last administrator: an only admin grant that lapses, or its holder's suspension
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-043's `gp-architect` design and `gp-security` review (S1-02). `project_access.revoke` refuses to take away a live `project.admin` grant unless another active member keeps an undated one (INV-110; the owner ruled on 2026-09-23 that a dated survivor does not count, which closed the two-step path of granting admin for a minute and then revoking one's own), but two other paths reach the same state and nothing refuses them: the grant route accepts `validUntil` on `project.admin`, so a project whose admin grants are all dated can simply lapse; and a membership suspension (BL-014) makes its holder's grant stop counting — including one committed while a revoke runs, since the revoke locks grant rows, not memberships. Either way the project cannot be administered through the product again: `pag_insert`'s bootstrap arm (`0011`) counts revoked and lapsed rows, and a workspace owner holds no project capability by role. Ranked by DEV-043.
+- **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (`validUntil` on any capability); `supabase/migrations/0011_workspace_access_security.sql` (`app.project_has_grants`, `pag_insert`); INV-110's «Not covered».
+- **Depends on:** a decision between refusing a dated `project.admin` grant when no undated one remains, and a recovery path for a workspace owner (an ADR: it would give a workspace role a project capability).
+- **Deadline:** before a pilot workspace has more than one project administrator to lose.
+
+<a id="bl-138"></a>
+### BL-138 — P3 — Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-043 narrowed `goproceed_app`'s `UPDATE` on `project_access_grants` to `revoked_at` and `version` (`0096`), and RLS cannot compare the old row with the new one, so a defect in the application can still set `revoked_at` back to null. A trigger that refuses clearing `revoked_at` (and any change of the other columns) would close it; it fires for superusers too, and at least ten fixture sites un-revoke, delete or re-date grants (`m2-rls.test.ts`, `m1-rules-rls.test.ts`, `m2-policy-gaps.test.ts`, `m3-closure-rls.test.ts`, `project-communications.int.test.ts`, `telegram-evidence.int.test.ts`), so it needs their rework. Ranked by DEV-043.
+- **Evidence:** DEV-043's `gp-architect` design, point f; `supabase/migrations/0096_the_grant_that_could_be_rewritten.sql` «What this does not change».
+- **Depends on:** a `gp-security` pass on the trigger and the fixture rework.
+- **Deadline:** none recorded.
+
+<a id="bl-139"></a>
+### BL-139 — P3 — No route lists a project's grants or responsibility assignments
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** ADR-014 addressed `project_access.revoke` and `project_responsibilities.end` by member and capability or responsibility because no route lists grants or assignments, and it did not authorise one. The office dashboard therefore cannot show who holds what on a project, and a client that wants to revoke must already know it. A read route is new v0.1 scope under ADR-006 replacement rule 1. Ranked by DEV-043.
+- **Evidence:** ADR-014 «What this decision does NOT authorise»; `technical/openapi/scope-v0.1.csv` (no `project_access.list`).
+- **Depends on:** an ADR, and the dashboard's members-and-access slice (BL-045).
+- **Deadline:** before the dashboard offers revoke or end to a pilot user.
+
+<a id="bl-140"></a>
+### BL-140 — P3 — A member's `project.view` can lapse before the action capabilities it was added for
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** the grant route adds `project.view` to any action capability but skips a still-unrevoked `project.view` as a duplicate without aligning its window, so a member can hold an action capability whose `project.view` lapses first. The Telegram evidence resolver checks `evidence.record` alone (`0084`), so such a member could still file evidence on a project they cannot see. INV-111 covers the revoke only. Ranked by DEV-043.
+- **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (the duplicate skip); `supabase/migrations/0084_the_button_that_carried_a_normative_string.sql`; INV-111.
+- **Depends on:** a decision whether the grant extends `project.view`'s window or the capability checks require `project.view` too.
+- **Deadline:** before the Telegram webhook is enabled anywhere.
+
+<a id="bl-141"></a>
+### BL-141 — P3 — The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-043's `gp-architect` design. `project_access.grant` and `project_responsibilities.assign` pass the path's project id to a `uuid` comparison without checking its form, so a malformed id raises a cast error that becomes 500 `INTERNAL_ERROR`; the revoke and end routes check it first and answer 404, as `invitations.revoke` does. And `technical/error-catalog.csv` marks `VERSION_CONFLICT` retryable while the revoke routes (DEV-021, DEV-043, DEV-044) send `retryable: false`, because retrying the same revoke cannot succeed. Ranked by DEV-043.
+- **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` and `responsibilities/route.ts` (no UUID check); `technical/error-catalog.csv` row `VERSION_CONFLICT`; `apps/app/app/v1/invitations/[invitationId]/revoke/route.ts`.
+- **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-142"></a>
+### BL-142 — P2 — Removing a member from a project leaves their Telegram group membership and the external review links they issued
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-043's `gp-security` review. `project_access.revoke` of `project.view` removes a member from a project in the product, and ADR-014 deliberately cascades nothing else: the person stays in the project's bound Telegram group and keeps seeing the cards posted there, their Telegram member link survives, and every external review link they issued stays live until `external_grants.revoke_reissue` retires it (v0.1 has no plain external revoke). The Telegram resolvers check the grant at each action, so they can no longer act, but they can still read. An offboarding step or checklist is needed before a pilot relies on the revoke to remove someone. Ranked by DEV-043.
+- **Evidence:** ADR-014 «What this decision does NOT authorise»; DEV-043's `gp-security` report, «Record these, don't fix them here».
+- **Depends on:** the Telegram webhook's enablement (BL-024) for the group half; an owner decision on whether offboarding kicks from the group or only records it.
+- **Deadline:** before the Telegram webhook is enabled anywhere, and before a pilot offboards a member.
+
+<a id="bl-143"></a>
+### BL-143 — P3 — The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-043's `gp-security` review. The three SECURITY DEFINER helpers from `0011`, on which every workspace-access policy rests — including `0097`'s `prae_select` and `prae_insert` — set `search_path = public` instead of the empty path the project's definer rule asks for. Every table reference in them is schema-qualified, so the risk is low; the same class as BL-106 and BL-110. Ranked by DEV-043.
+- **Evidence:** `supabase/migrations/0011_workspace_access_security.sql` (the three `create or replace function` statements).
+- **Depends on:** a migration that re-creates them with `set search_path = ''` (`gp-architect`, `gp-security`).
+- **Deadline:** none recorded.
+
+<a id="bl-144"></a>
+### BL-144 — P3 — `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
+- **Evidence:** DEV-044's record «Findings and rework» R1-05c; `scratchpad/dev043-044-qa-r1-report.md` (cited in both records).
+- **Depends on:** a CI run (the Actions billing block) or an owner-approved local reset for (1); nothing for (2).
+- **Deadline:** none recorded.

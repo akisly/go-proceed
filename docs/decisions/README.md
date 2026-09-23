@@ -29,5 +29,6 @@ The lifecycle and the approval procedure are in [docs/README.md](../README.md) (
 | [ADR-010](ADR-010-project-sourced-requirements.md) | Requirements a site supplies from its own робоча документація | Approved | 2026-08-24 | 2026-08-24 | Supersedes one clause of ADR-006 decision 4.1 |
 | [ADR-011](ADR-011-telegram-locked-project-channel.md) | Telegram as the locked project channel | Approved | 2026-09-02 | 2026-09-13 | Amends ADR-007 on three passages; decisions 9–11 ruled by the owner on 2026-09-03 |
 | [ADR-012](ADR-012-invitation-revoke.md) | Invitation revoke in v0.1-M1 | Approved | 2026-09-18 | 2026-09-18 | Adds one operation to v0.1 under ADR-006 replacement rule 1 and changes none of ADR-006's decisions |
+| [ADR-014](ADR-014-revoke-access-and-end-responsibility.md) | Revoking project access and ending a responsibility in v0.1-M1 | Approved | 2026-09-23 | 2026-09-23 | Adds two operations and one table to v0.1 under ADR-006 replacement rule 1 and changes none of ADR-006's decisions |
 
 The «Supersedes / amends» column quotes each ADR's own statement of its relationship; it adds no relationship an ADR does not state. An ADR numbered 011 also exists under `docs/legacy/`; that file is historical and is not part of this series (ADR-011 lists the collision).
