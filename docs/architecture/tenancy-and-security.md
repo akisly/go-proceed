@@ -32,10 +32,24 @@ relational chain defined in [data-model architecture](data-model.md).
 segments, internal review, the statutory notice apparatus, `commercial_decision`
 and the closure-without-evidence bypass to v0.2; where a control below names one
 of them and carries no marker, it is a v0.2 control by that fact alone.
-[ADR-007](../decisions/ADR-007-pilot-field-client.md) makes the v0.1 field
-client a PWA served from `apps/app` — the same origin, the same member session,
-and the same BFF authorization boundary as the web product, so it adds no actor
-plane, no grant, and no policy shape to this document. It does subtract one
+The v0.1 field client is the Telegram project channel (not yet enabled in any environment, BL-024) and the `apps/mobile` Expo
+client, deployed as a web export at the Vercel project `goproceed-field`
+([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and «Amendment, 2026-09-23»). The web
+client is **cross-origin**: its member session lives in its own origin's browser
+storage (supabase-js's default on web, `apps/mobile/src/lib/supabase.ts`), and it
+reaches `/v1` with an `Authorization: Bearer` token through the
+`FIELD_CLIENT_ORIGINS` CORS allowlist (`apps/app/src/lib/cors.ts`), behind the
+same BFF authorization boundary as the web product. Beyond `/v1` it talks only to
+Supabase Auth (the OTP sign-in, `apps/mobile/src/screens/login.tsx`) and to the
+server-issued signed upload URL for the bytes of a capture
+(`apps/mobile/src/lib/capture/upload.ts`).
+*[2026-09-23, DEV-035 — was: «[ADR-007] makes the v0.1 field client a PWA served
+from `apps/app` — the same origin, the same member session, and the same BFF
+authorization boundary as the web product, so it adds no actor plane, no grant,
+and no policy shape to this document.» The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».
+The same-origin reasoning no longer describes any field client; this correction
+does not re-assess whether the cross-origin client adds a policy shape.]*
+[ADR-007](../decisions/ADR-007-pilot-field-client.md) does subtract one
 thing: the client-held encrypted pending original, which is a v0.3 native
 obligation and is not a v0.1 security control (see
 [files-and-storage.md](files-and-storage.md)).
@@ -337,14 +351,24 @@ server resolves authority from current facts and validates the complete
 relational chain. `earliest_proceed_at` on a witness notice is server-computed
 for the same reason, in **v0.2**, where the witness notice lands.
 
-**The v0.1 field client is a browser page and changes none of this.** The PWA of
-[ADR-007](../decisions/ADR-007-pilot-field-client.md) is an authenticated member
+**The v0.1 field client is a browser page and changes none of this.** The web
+field client from `apps/mobile` is an authenticated member surface on its own
+origin; each `/v1` request it sends carries a bearer token and is evaluated
+through steps 1-8 exactly as the web product's is. Two consequences bind here
+rather than in the UI: nothing in the capture path may be trusted because it
+claims a camera — an origin label, a device time, or an EXIF block is
+client-supplied metadata and is stored as such — and the client holds no
+credential beyond the member's own session, no local decryption key, and no
+durable pending original that a security control could rest on.
+*[2026-09-23, DEV-035 — was: «The PWA of [ADR-007] is an authenticated member
 surface on the product origin, evaluated through steps 1-8 exactly as the web
-product is. Two consequences bind here rather than in the UI: nothing in the
-capture path may be trusted because it claims a camera — an origin label, a
-device time, or an EXIF block is client-supplied metadata and is stored as such
-— and the client holds no credential, no local decryption key, and no durable
-pending original that a security control could rest on.
+product is» and «the client holds no credential, no local decryption key, and no
+durable pending original». The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23». The web
+client's session token is readable by script in its origin's browser storage —
+as the `apps/app` Supabase session cookies are too (`httpOnly: false`, the
+`@supabase/ssr` default, `apps/app/src/lib/supabase-browser.ts`), so this is not a
+regression of the retirement. What is owed is the compensating control on the
+field origin, which today sends no security headers at all (no CSP): BL-129.]*
 
 An external command follows the same last three steps but replaces membership
 and responsibility with current grant/session capability and exact approval or
@@ -355,12 +379,23 @@ occurrence scope.
 ### Browser, field client, and native
 
 No service-role key, database password, HMAC key, or worker credential may
-enter browser code, the v0.1 PWA field client, a v0.3 native build, public
-environment variables, source maps, logs, or analytics. The field client is a
-route set inside `apps/app` on the same origin, so it inherits this rule rather
-than needing its own: any service worker or cached asset it ships is client code
-on the product origin, receives no service credential, and must not cache
-evidence originals or authenticated domain responses.
+enter browser code, the v0.1 web field client, a v0.3 native build, public
+environment variables, source maps, logs, or analytics. The web field client is
+a separate deployment on its own origin (the `apps/mobile` Expo web export,
+Vercel project `goproceed-field`), so this rule binds it directly — its build's
+public variables (`EXPO_PUBLIC_*`) and its source maps included — rather than by
+inheritance from `apps/app`: any service worker or cached asset it ships is
+client code on its origin, receives no service credential, and must not cache
+evidence originals or authenticated domain responses. Its session lives in that
+origin's browser storage and reaches `/v1` with a bearer token through the
+`FIELD_CLIENT_ORIGINS` allowlist, and it does not inherit `apps/app`'s
+same-origin cookie rules.
+*[2026-09-23, DEV-035 — was: «[…] the v0.1 PWA field client […]. The field
+client is a route set inside `apps/app` on the same origin, so it inherits this
+rule rather than needing its own: any service worker or cached asset it ships is
+client code on the product origin, receives no service credential, and must not
+cache evidence originals or authenticated domain responses.» The owner retired
+that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]*
 
 Authenticated clients call reviewed BFF/API routes. If a Supabase Data API
 query is intentionally exposed, it is limited to reviewed `api` views/functions

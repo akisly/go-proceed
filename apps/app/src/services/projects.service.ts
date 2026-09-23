@@ -35,3 +35,15 @@ export async function listProjects(): Promise<ProjectsResult> {
     return { kind: "error", error };
   }
 }
+
+/**
+ * The name a project page shows in its breadcrumb and heading (DEV-035).
+ * Read from the same list the shell's sidebar renders — there is no
+ * single-project read — and `null` when the member cannot see the project,
+ * so the page decides what to show rather than this helper inventing a name.
+ */
+export async function getProjectName(projectId: string): Promise<string | null> {
+  const result = await listProjects();
+  if (result.kind !== "ok") return null;
+  return result.projects.find((p) => p.projectId === projectId)?.name ?? null;
+}

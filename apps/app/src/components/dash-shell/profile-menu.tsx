@@ -126,7 +126,7 @@ export function ProfileMenu({
             * call site's single-line content, not the component's contract.
             */}
           <DropdownMenuItem asChild className="h-(--gp-control-height-desk) touch:h-(--gp-control-height-touch)">
-            <Link href="/dash/settings/profile">
+            <Link href="/settings/profile">
               <UserRound aria-hidden="true" strokeWidth={1.75} className="size-4 shrink-0" />
               Профіль
             </Link>

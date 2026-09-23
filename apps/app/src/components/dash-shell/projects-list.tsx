@@ -4,17 +4,17 @@ import type { ProjectListRow } from "@goproceed/contracts";
 /**
  * `dash/page.tsx`'s landing content once at least one project exists.
  *
- * EACH ROW NOW LINKS TO `/dash/projects/{projectId}` — CHANGED in Plan D
+ * EACH ROW NOW LINKS TO `/projects/{projectId}` — CHANGED in Plan D
  * slice D2, from the `.../assignments` target Task 5's fix round 1 set. That
  * choice was correct for its own moment: D1 had not built a project detail
  * screen yet, and `.../assignments` was "the closest thing to a project
  * detail view that exists today" (this comment's own earlier wording, kept
  * below in spirit). D2 built the actual one — the blocked-value screen at
- * `app/dash/projects/[projectId]/page.tsx` — and the task brief for it is
+ * `app/(dash)/projects/[projectId]/page.tsx` — and the task brief for it is
  * explicit that the project → доручення chain now goes THROUGH the money
  * screen, not around it: "project → money → доручення → докази". The
  * assignments register is still one click away — the new screen's own
- * `ProjectOverviewHeader` links to it — so nothing this row used to reach is
+ * `ProjectPage` [`ProjectOverviewHeader` until DEV-035] links to it — so nothing this row used to reach is
  * now unreachable, only one hop further in.
  *
  * THE PROJECT NAME IS STILL THE LINK (matching `assignments-list.tsx`'s own
@@ -51,7 +51,7 @@ export function ProjectsList({ projects }: { projects: ProjectListRow[] }) {
              * is a token (`--gp-control-height-touch`), and a hard-coded
              * height stops tracking it the moment it moves. */}
             <Link
-              href={`/dash/projects/${project.projectId}`}
+              href={`/projects/${project.projectId}`}
               className="flex min-h-(--gp-control-height-touch) flex-1 items-center py-3 pl-4 text-data font-medium text-ink hover:underline"
             >
               {project.name}

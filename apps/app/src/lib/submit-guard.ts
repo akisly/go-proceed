@@ -3,7 +3,7 @@
  * never run twice concurrently — e.g. `app/(auth)/login/otp-form.tsx`'s
  * `requestCode`/`verifyCode`.
  *
- * THE DEFECT THIS CLOSES, THE SAME SHAPE `capture/attempt.ts`'s
+ * THE DEFECT THIS CLOSES, THE SAME SHAPE `capture/attempt.ts`'s [deleted 2026-09-23, DEV-035]
  * `AttemptGuard` already closed for the capture island: `otp-form.tsx`
  * used to guard re-entry with `pending`, a `useState` boolean. React state
  * does not apply synchronously — `setPending(true)` schedules a re-render;

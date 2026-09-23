@@ -104,6 +104,14 @@ which a browser has. `mobile_pending_original` keeps its other six states on the
 PWA path. The `client_local` bullet above should therefore be read as *the field
 client* rather than *the mobile app*: in v0.1 that client is a browser page.
 
+*[2026-09-23, DEV-035 — the `apps/app` PWA is retired: the owner removed its
+field pages ([ADR-009](../../docs/decisions/ADR-009-three-pilot-surfaces.md)
+«Amendment, 2026-09-23»). «The PWA path» and any «v0.1 PWA path» in the catalog
+rows now mean the v0.1 web field client, the `apps/mobile` Expo web export
+(Vercel project `goproceed-field`), whose `ClientState` in
+`apps/mobile/src/lib/capture/state.ts` carries the same six states. That client
+is still a browser page, so `quarantined` and `expired_purged` stay native-only.]*
+
 ## The rule that follows from it
 
 A state machine whose entity is append-only cannot be `stored_lifecycle`. If a

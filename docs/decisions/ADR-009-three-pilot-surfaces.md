@@ -368,3 +368,48 @@ one of that bullet's three grounds and leaves the other two carrying it.
 that already exist. The reads those screens will need are a separate question
 with its own dated amendment when it is answered; the «no new API» rule bends
 only where an amendment says it bends, and this one bends it nowhere.
+
+## Amendment, 2026-09-23 — the owner retires the field PWA before the parity gate
+
+**Owner's decision, in the owner's words:** «сделай dash главным роутом и удали
+все что в (app)», and, asked whether that meant retiring the PWA before the
+parity gate above or moving it to `/field`, **«Удалить сейчас»**, with
+**«Всё мёртвое»** for the code that becomes unreachable (recorded in
+[DEV-035](../tasks/DEV-035-dashboard-autumn-shell.md)).
+
+What this changes, and nothing else:
+
+- **«The parity gate» no longer holds `apps/app`'s field pages.** They are
+  removed: `app/(app)/**` (the «Мої доручення» list at `/` and the obligation
+  and capture screen at `/a/{id}`), `src/lib/field/**`,
+  `src/lib/capture/attempt.ts`, the `Button` `destructive` variant their one
+  control used, and the harness audits that drove them. `src/lib/capture/upload.ts`
+  and its helpers stay: three integration suites build their upload-intent
+  bodies with it. *[Corrected the same day: the whole of `src/lib/capture` was
+  deleted after all; its body builder moved verbatim to the test helper
+  `apps/app/tests/helpers/upload-intent-body.ts`, which those three suites
+  import.]*
+- **The office dashboard is the root of `apps/app`.** `/dash/**` moved to `/**`
+  (`app/(dash)/**`); `next.config.ts` answers the old addresses with a
+  temporary redirect. `manifest.webmanifest`'s `start_url` `/` now opens the
+  dashboard. *[Corrected the same day: the owner chose «Убрать манифест», so
+  the manifest is deleted. An icon installed from the old PWA opens `/`, which
+  is the dashboard now; there is no manifest and there never was a service
+  worker.]*
+- **Decisions 1–4 stand.** The field client's codebase is `apps/mobile`
+  (decision 2), and the parity gate's measurement — now BL-001 — is the gate
+  for THAT client's readiness, no longer a condition for removing anything.
+
+**The cost, named rather than hidden** *[corrected the same day after the
+`gp-mobile` review: the first wording said no web field client was deployed
+and that Telegram was the foreman's path; both were false]*: the field client that remains is `apps/mobile`'s Expo client, deployed as a
+web export at Vercel project `goproceed-field` — observed on 2026-09-23 at
+08:32 UTC serving its Ukrainian sign-in page and manifest, with a
+cross-origin read to `goproceed-app` `/v1/projects` passing CORS (401,
+unauthenticated, as expected); its deployed commit was not observed. The
+Telegram project channel (`apps/app/app/integrations/telegram/**`) is built
+but enabled in no environment (STATUS «Telegram channel», BL-024), so today
+it is not a path. Merging this change to `main` retires the PWA in production
+(`goproceed-app` builds Production from `main`). This ADR's «Consequences» paragraph «a
+foreman has a working client: the `apps/app` PWA, unchanged and deployed»
+stops being true when this change reaches production.

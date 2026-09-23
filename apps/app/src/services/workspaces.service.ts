@@ -10,7 +10,7 @@ import { apiGet, isSessionExpired } from "../lib/api";
  *
  * A DISCRIMINATED RESULT, NOT A THROW: `apiGet` throws `ApiError` on a
  * non-2xx response, which is the right shape for a leaf route to catch
- * directly (`app/(app)/page.tsx`'s own pattern) but the wrong shape to hand a
+ * directly (`app/(app)/page.tsx`'s [deleted 2026-09-23, DEV-035] own pattern) but the wrong shape to hand a
  * THIN route file — a route that "wires params, calls a service, and renders
  * a component" reads a `.kind` switch, not a try/catch around someone else's
  * exception type. `session_expired` is called out on its own arm (rather

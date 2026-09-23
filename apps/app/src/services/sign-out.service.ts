@@ -49,7 +49,7 @@
  * not sit one Back press away.
  *
  * `router.refresh()` after it is not decoration. Next's client-side Router
- * Cache holds the rendered RSC payload for `/dash`; the cookies are gone but
+ * Cache holds the rendered RSC payload for `/`; the cookies are gone but
  * that payload is not, so a Back navigation can repaint the signed-in shell —
  * chrome, workspace name, the user's own address — from cache, with no server
  * round trip to notice the session died. `refresh()` invalidates it. The
@@ -61,7 +61,9 @@
  * it is guarded `if (!user && pathname !== "/login")`, so a signed-in user
  * who lands on `/login` is served the OTP form like anyone else. Nothing
  * anywhere in this app redirects to `/dash`: every `redirect()` call in
- * `apps/app/app` and `apps/app/src` targets `/login?next=…`. (Corrected
+ * `apps/app/app` and `apps/app/src` targets `/login?next=…`. [2026-09-23,
+ * DEV-035: `/dash` is now itself a redirect to `/` (`next.config.ts`), and
+ * `safeNext` falls back to `/`; neither reaches the sign-out path.] (Corrected
  * 2026-08-22, fix round 1. The count that stood here — "all nine" — was
  * already stale by one when it was written, which is why this says what is
  * true of all of them instead of how many there are.)

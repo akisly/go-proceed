@@ -13,7 +13,9 @@ import { V1_PATH_RE, v1CorsResponse } from "./src/lib/cors";
  * fail. A foreman who cold-opens `/assignments/…` from a bookmark with no
  * session should never see that shell at all; this proxy is what turns "the
  * API will 401" into "you never got here", by running before any route in
- * `app/(app)` renders.
+ * `app/(app)` renders. [2026-09-23, DEV-035: `app/(app)` — the field PWA — was
+ * deleted; the pages this proxy now runs before are the office dashboard's,
+ * `app/(dash)/**`, served at `/`. The matcher did not change.]
  *
  * `proxy.ts`, NOT `middleware.ts`, SINCE 2026-08-19. Next 16.3 deprecated the
  * `middleware` file convention in favour of `proxy` — the vendor's stated

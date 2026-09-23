@@ -7,7 +7,7 @@ import {
 } from "./helpers/manual-baseline";
 import type { CreateUploadIntentResponse, FinalizeUploadIntentResponse } from "@goproceed/contracts";
 import { assignmentEvidenceResponse } from "@goproceed/contracts";
-import { buildCreateIntentBody } from "../src/lib/capture/upload";
+import { buildCreateIntentBody } from "./helpers/upload-intent-body";
 
 /**
  * Task 3 (`GET /v1/assignments/{assignmentId}/evidence`).
@@ -107,7 +107,7 @@ async function finalize(intentId: string): Promise<Response> {
   return POST(jsonReq("http://x", {}), { params: Promise.resolve({ intentId }) });
 }
 
-/** The exact, unauthenticated PUT `uploadCapture` performs against a signed upload URL. */
+/** The exact, unauthenticated PUT `uploadCapture` performs against a signed upload URL (apps/mobile's; the apps/app copy was deleted 2026-09-23, DEV-035). */
 async function putToSignedUrl(signedUrl: string, bytes: Uint8Array, contentType: string): Promise<Response> {
   return fetch(signedUrl, { method: "PUT", headers: { "content-type": contentType }, body: bytes });
 }

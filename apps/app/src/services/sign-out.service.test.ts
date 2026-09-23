@@ -48,7 +48,7 @@ describe("performSignOut — the success path", () => {
     expect(result).toEqual({ kind: "ok" });
     expect(h.signOut).toHaveBeenCalledTimes(1);
     // The ORDER is the assertion. `replace` before `refresh` is what keeps a
-    // Back press from repainting the signed-in `/dash` shell out of Next's
+    // Back press from repainting the signed-in `/` shell out of Next's
     // client Router Cache; refreshing first would invalidate a cache the user
     // is still looking at and then navigate away from it.
     expect(h.calls).toEqual(["signOut:local", "replace:/login", "refresh"]);
@@ -85,7 +85,7 @@ describe("performSignOut — the failure path never navigates", () => {
     // to `/login` regardless would show a login form to someone who is still
     // signed in — on the shared machine they are trying to leave — and would
     // wipe the only message saying it did not work. `proxy.ts` does NOT send
-    // them back to `/dash`; its one redirect is guarded on `!user`, so a
+    // them back to `/`; its one redirect is guarded on `!user`, so a
     // signed-in visitor to `/login` simply gets the OTP form. The harm is a
     // false impression of having signed out, not a bounce.
     expect(h.replace).not.toHaveBeenCalled();

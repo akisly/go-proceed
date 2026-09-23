@@ -42,7 +42,7 @@ export function OtpForm({ next }: OtpFormProps) {
   // See submit-guard.ts's header for the full defect this closes and the
   // evidence behind it. `useRef` (not `useState`) because the guard's own
   // identity must survive re-renders and mutating it must not itself
-  // trigger one — same reasoning as capture.tsx's `guardRef`. Lazily
+  // trigger one — same reasoning as capture.tsx's [deleted 2026-09-23, DEV-035] `guardRef`. Lazily
   // assigned (`??=`), not `useRef(new SubmitGuard())`: the latter would
   // construct a fresh, immediately-discarded instance on every render,
   // since `useRef`'s argument is only used on the first call but is still

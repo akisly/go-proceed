@@ -112,6 +112,12 @@ structure is decided here. `interface-design` may inform domain exploration insi
    scale, `radius-card`/`surface`/`section`, and `shadow-float`. `apps/app` may
    use none of those: it is dense, its type scale is the product scale, and
    nothing floats off the page.
+   *[2026-09-23, DEV-035, owner, for the office dashboard after the Autumn CRM
+   reference: «Как в Autumn».] Two exceptions, and only these: the shell's
+   work sheet is `rounded-card`, and `shadow-raised` sits under the work
+   sheet, a dashboard panel, a KPI card and the current navigation item. `shadow-float`, the marketing
+   scale and `radius-surface`/`section` stay out of `apps/app`. The
+   dashboard's primary action is `Button variant="brand"` (pine), not ink.*
 2. **Does a role exist for what you mean?** If you want a colour that no role
    names, you have found a missing role, not a missing value. Add it to
    `tokens.json` (§7), do not reach past the layer.
@@ -135,7 +141,7 @@ nothing, fails a test, or silently drops a class.
 | `text-sm`, `text-lg` | `text-data`, `text-h3` | Stock namespace is cleared; resolves to nothing |
 | `lg:`, `xl:`, `sm:` | `md:`, `wide:`, `rail-icons:` | A typo fails loudly instead of silently targeting a width this design never reasons about |
 | `h-11`, `h-9` on a control | `h-(--gp-control-height-desk) touch:h-(--gp-control-height-touch)` | `component-contract.test.ts` fails; the literal stops tracking the token |
-| `shadow-md`, a shadow on a panel | nothing — use `border border-line` | Structure is border-led. Folio ships 180 borders to 8 shadows |
+| `shadow-md`, a shadow on a panel | nothing — use `border border-line` (a dashboard panel gets `shadow-raised` from `Panel` itself since DEV-035) | Structure is border-led. Folio ships 180 borders to 8 shadows |
 | a gradient, glow or glass written as a VALUE | a named `@utility` built from roles with `color-mix` | DEV-029. `media-tint-*`, `media-glow-*`, `.landing-stage`, `.landing-glass` are the pattern. A gradient in a component is a colour no role names, no test measures and no theme reaches |
 | `bg-chip-*` beside a status chip | one or the other | DEV-029. The four index tints are bound to the ORDER of an enumeration; two coloured marks in one cell teach the reader that neither means anything |
 | `transition-all` | `transition-colors`, `transition-transform`, `transition-opacity` | `motion-audit` rule 1 |
@@ -163,7 +169,7 @@ packages/tokens/src/tokens.json      every value, the only hand-edited token fil
 packages/ui/src/base.css             the one hand-written stylesheet: variants, base, @utility
 packages/ui/src/*.generated.*        NEVER EDIT — regenerate (§7.1)
 packages/ui/src/motion/              the twenty-seven motion primitives, and nothing else (twenty-two until DEV-026, twenty-four until DEV-027)
-packages/ui/src/components/          the twenty-seven components, and nothing else
+packages/ui/src/components/          the thirty-one components, and nothing else (twenty-seven until DEV-035)
 apps/landing/app/                    the four landing pages (/, /product, /roles, /pilot — DEV-025)
 apps/landing/components/blocks/      the landing blocks the pages compose
 apps/app/app/                        the product shell and its screens

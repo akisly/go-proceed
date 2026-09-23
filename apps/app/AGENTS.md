@@ -10,7 +10,7 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## GoProceed app
 
-This is the BFF: the `/v1` and `/external` routes, the office dashboard and the PWA field client. The repository rules in the root `AGENTS.md` apply here, including required independent review. Tenancy and database principals are described in `docs/architecture/tenancy-and-security.md`. UI work follows `docs/design/02-building-ui.md`.
+This is the BFF: the `/v1` and `/external` routes and the office dashboard, which is the app's root (`app/(dash)/**`; the PWA field client that lived in `app/(app)/**` was retired on 2026-09-23 — ADR-009's amendment of that date). The repository rules in the root `AGENTS.md` apply here, including required independent review. Tenancy and database principals are described in `docs/architecture/tenancy-and-security.md`. UI work follows `docs/design/02-building-ui.md`.
 
 **Integration tests and the local database.** Only the integration suites under `tests/*.int.test.ts` that check database credentials skip themselves. They check in one of two ways:
 

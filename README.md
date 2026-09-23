@@ -144,6 +144,15 @@ Until that measurement, `apps/mobile` is not on the pilot's *live* path even
 though it is now the field client's codebase — the pilot is never blocked on
 the migration.
 
+*[2026-09-23, DEV-035 — no longer in force. The owner retired the PWA before
+the parity gate («удали все что в (app)», «Удалить сейчас»): `apps/app`'s field
+pages are gone and the office dashboard is its root (`/`; old `/dash/**`
+addresses redirect). The field client is `apps/mobile`'s Expo client, deployed
+as a web export at Vercel project `goproceed-field` (observed serving on
+2026-09-23); the Telegram project channel is built but not yet enabled. See
+[ADR-009](docs/decisions/ADR-009-three-pilot-surfaces.md) «Amendment,
+2026-09-23».]*
+
 `apps/demo` and `prototype/` were the legacy reference material and are
 **gone** — `prototype/` on 2026-08-19, `apps/demo` on 2026-08-20. Neither
 was a product surface; the durable `/demo` named above arrives inside

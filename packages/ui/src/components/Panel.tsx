@@ -2,16 +2,24 @@ import type { ReactNode } from "react";
 import { cx } from "./cn";
 
 /**
- * The one content surface: White on Paper, 1px border, no shadow.
+ * The one content surface: White on Paper, 1px border, and — since DEV-035 —
+ * `shadow-raised`, see below. [Until 2026-09-23 this read «no shadow … Do not
+ * add a shadow to a panel».]
  *
- * Everything that reads as "above the page" is chrome, and content stays flat.
- * There is no elevation ladder — structure comes from the border and from the
- * lightness step between `bg-canvas` and `bg-surface`. Do not add a shadow to
- * a panel; `elevation.float` is forbidden under `/app/**` entirely.
+ * Everything that reads as "above the page" is chrome, and content stays
+ * nearly flat. There is no elevation ladder — structure comes from the border
+ * and from the lightness step between `bg-canvas` and `bg-surface`;
+ * `elevation.float` is still forbidden under `/app/**` entirely.
+ *
+ * [2026-09-23, DEV-035, owner: «Как в Autumn» for the dashboard's cards.] A
+ * panel now sits on `shadow-raised` — one pixel of seat under its hairline,
+ * the reference's card and no more. Every caller of `Panel` is in the office
+ * dashboard (the landing renders it only in the kitchen sink), which is why the
+ * default moved instead of a prop being added. The border still draws the edge.
  */
 export function Panel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <section className={cx("rounded-panel border border-line bg-surface", className)}>
+    <section className={cx("rounded-panel border border-line bg-surface shadow-raised", className)}>
       {children}
     </section>
   );
