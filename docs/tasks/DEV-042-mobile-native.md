@@ -124,6 +124,13 @@ FAIL-1 re-verification: gp-qa PASS (criterion 5; 177 tests, typecheck exit 0); g
 | New discard copy not UI-reviewed | gp-qa | Copy-only QA fix; gp-ui-reviewer on the next UI pass |
 
 
+### Escalation (2026-09-23) — three QA rounds on the final branch
+
+- **Failure history.** Final QA at `2ad7d5d`: FAIL-1 (owner's permission rule swept into `.claude/settings.json` by `git add -A`), FAIL-2 (catalogs/harness naming the retired web client), FAIL-3 (STATUS, architecture docs, ADRs, record). Fixed in `737f6e0`, `ff3079c`. Re-check: FAIL-1/2 PASS, FAIL-3b (release scope, roadmap, delivery, runbooks, backlog). Fixed in `6ed52bf`. Re-check: those notes PASS, but a wider sweep found 11 more live statements of the old client (roadmap accounts row and M2 exit gates, runbook §8.3 and Plan C, README-staging §6.9, BL-001/BL-136, personas-and-workflows, vision-and-positioning, scope-and-boundaries v0.3 paragraph, production-readiness).
+- **Root cause.** The web field client was the pilot's surface for months; its description is spread across dozens of product, delivery and infra documents, and each QA pass swept a wider net than the last. No code, build or migration finding is open.
+- **Options.** (a) One more docs-only slice with an exhaustive repository sweep (all of `docs/product`, `docs/delivery`, `infra`, `docs/BACKLOG.md`) before QA; (b) accept with documented limits: merge with the remaining stale prose recorded as a backlog item; (c) defer the sweep to its own task after merge.
+- **Decision:** owed to the owner.
+
 ## What is not true after this task
 
 This record does not assert a beta exists, a migration was applied, a backup exclusion was verified or an app was published. Physical-device, signing, content and independent-review gates remain open until evidence below establishes them.
