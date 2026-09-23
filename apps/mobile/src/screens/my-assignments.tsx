@@ -116,7 +116,7 @@ export function MyAssignments() {
       </Pressable>} />
     {split ? <View style={{ flex: 1 }}>{selected ? <AssignmentDetail key={selected.assignmentId} assignmentId={selected.assignmentId} heading /> :
       <View style={{ flex: 1, justifyContent: "center", padding: unit * 8, gap: unit * 3 }}>
-        <AppText variant="h2">Оберіть доручення</AppText><AppText secondary>Тут з’являться вимоги до фіксації та приклади фотографій.</AppText>
+        <AppText variant="h2">Оберіть доручення</AppText><AppText secondary>Тут з’являться вимоги до фіксації та ілюстрації до них.</AppText>
       </View>}</View> : null}
   </View>;
 }

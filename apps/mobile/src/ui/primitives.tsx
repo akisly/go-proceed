@@ -42,7 +42,8 @@ export function Notice({ title, children, error = false, announce = false }: {
   useEffect(() => {
     if (announce && Platform.OS === "ios" && typeof children === "string") AccessibilityInfo.announceForAccessibility(children);
   }, [announce, children]);
-  return <View accessibilityRole={error ? "alert" : undefined} style={{ padding: unit * 4, gap: unit * 2,
+  return <View accessibilityRole={error ? "alert" : undefined}
+    accessibilityLiveRegion={announce ? "assertive" : undefined} style={{ padding: unit * 4, gap: unit * 2,
     borderRadius: corners.panel, borderWidth: 1,
     borderColor: palette[error ? "status-attention-border" : "border-default"],
     backgroundColor: palette[error ? "status-attention-surface" : "bg-subtle"] }}>

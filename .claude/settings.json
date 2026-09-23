@@ -4,5 +4,8 @@
   },
   "env": {
     "CLAUDE_CODE_MAX_SUBAGENT_SPAWN_DEPTH": "1"
+  },
+  "permissions": {
+    "allow": ["mcp__b47fba21-d14e-466e-ba30-33210f008836__apply_migration"]
   }
 }

@@ -54,5 +54,6 @@ export function mediaList(mimeTypes: readonly string[]): string {
 }
 /** Whole megabytes, rounded down so the stated limit is never above the real one. */
 export function megabytes(bytes: number): string {
-  return `${Math.max(1, Math.floor(bytes / (1024 * 1024)))} МБ`;
+  const whole = Math.floor(bytes / (1024 * 1024));
+  return whole >= 1 ? `${whole} МБ` : `${Math.max(1, Math.floor(bytes / 1024))} КБ`;
 }

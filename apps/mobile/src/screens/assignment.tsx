@@ -1,4 +1,4 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshControl, View } from "react-native";
 import { Stack, useFocusEffect, useLocalSearchParams, useRouter } from "expo-router";
 import { useNetworkState } from "expo-network";
@@ -18,12 +18,15 @@ import { palette, unit } from "../ui/theme";
 
 /** A refusal the server explained in Ukrainian; anything else gets generic copy. */
 class ServerRefusal extends Error {}
+/** A malformed id: retrying cannot help. */
+class InvalidAssignment extends Error {}
 
 export function Assignment() {
   const { assignmentId } = useLocalSearchParams<{ assignmentId?: string }>();
-  const opened = openedAssignment(assignmentId ?? "");
-  return <><Stack.Screen options={{ headerRight: () => <HeaderActions />, ...(opened ? { title: opened.description } : {}) }} />
-    <AssignmentDetail key={assignmentId} assignmentId={assignmentId ?? ""} /></>;
+  // The full name is the page heading (a header title truncates the part that tells
+  // two similar assignments apart), so the header keeps its generic title.
+  return <><Stack.Screen options={{ headerRight: () => <HeaderActions /> }} />
+    <AssignmentDetail key={assignmentId} assignmentId={assignmentId ?? ""} heading /></>;
 }
 
 export function AssignmentDetail({ assignmentId, heading = false }: { assignmentId: string; heading?: boolean }) {
@@ -37,6 +40,17 @@ export function AssignmentDetail({ assignmentId, heading = false }: { assignment
   const [verified, setVerified] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
+  // Only a pull by the user shows the spinner: a background re-read must not move the page.
+  const [pulling, setPulling] = useState(false);
+  const [invalid, setInvalid] = useState(false);
+  // Read through a ref so a dropped signal does not itself trigger a re-read.
+  const offline = useRef(false);
+  offline.current = network.isConnected === false;
+  const wasOffline = useRef(false);
+  useEffect(() => {
+    if (network.isConnected === false) wasOffline.current = true;
+    else if (network.isConnected === true && wasOffline.current) { wasOffline.current = false; setRevision((value) => value + 1); }
+  }, [network.isConnected]);
   const subject = runtime.session?.user.id;
   const activateWorkspace = runtime.activateWorkspace;
   useFocusEffect(useCallback(() => {
@@ -45,7 +59,7 @@ export function AssignmentDetail({ assignmentId, heading = false }: { assignment
     setLoading(true); setVerified(false); setError(null);
     void (async () => {
       try {
-        if (!/^[a-f\d-]{36}$/i.test(assignmentId)) throw new Error("invalid");
+        if (!/^[a-f\d-]{36}$/i.test(assignmentId)) throw new InvalidAssignment();
         const response = await apiGet(`/v1/assignments/${assignmentId}/requirement-occurrences?referenceImages=v1`);
         if (!response.ok) {
           const problem = await readProblem(response);
@@ -57,22 +71,31 @@ export function AssignmentDetail({ assignmentId, heading = false }: { assignment
         if (current) { setData(result); setVerified(true); }
       } catch (reason) {
         if (!current) return;
-        setData(null);
-        setError(network.isConnected === false
-          ? "Немає з’єднання. Доручення відкриваються онлайн; уже збережені фото залишаються в черзі надсилання."
-          : reason instanceof ServerRefusal ? reason.message : "Не вдалося завантажити вимоги. Спробуйте ще раз.");
-      } finally { if (current) setLoading(false); }
+        // Only the server saying no removes the requirements; a lost signal keeps them
+        // on screen (capture stays off until a re-read succeeds).
+        if (reason instanceof ServerRefusal || reason instanceof InvalidAssignment) setData(null);
+        setInvalid(reason instanceof InvalidAssignment);
+        setError(reason instanceof InvalidAssignment ? "Це посилання не веде до доручення. Відкрийте його зі списку."
+          : reason instanceof ServerRefusal ? reason.message
+          : offline.current ? "Немає з’єднання. Вимоги показано з останнього завантаження; знімання ввімкнеться, щойно з’явиться зв’язок."
+          : "Не вдалося оновити вимоги. Спробуйте ще раз.");
+      } finally { if (current) { setLoading(false); setPulling(false); } }
     })();
     return () => { current = false; };
-  }, [assignmentId, subject, revision, activateWorkspace, network.isConnected]));
+  }, [assignmentId, subject, revision, activateWorkspace]));
   if (!runtime.session || (loading && !data)) return <Page><Loading /></Page>;
   if (!data) return <Page><Notice error>{error ?? "Доручення недоступне."}</Notice>
-    <Button label="Спробувати ще раз" onPress={() => setRevision(value => value + 1)} /></Page>;
+    {invalid ? null : <Button label="Спробувати ще раз" onPress={() => setRevision(value => value + 1)} />}</Page>;
   const model = buildObligationScreen(data);
   const opened = openedAssignment(assignmentId);
   const references = new Map(data.occurrences.map((o) => [o.occurrenceId, o.referenceImage]));
-  return <Page refreshControl={<RefreshControl refreshing={loading} onRefresh={() => setRevision(value => value + 1)} tintColor={palette["text-link"]} />}>
-    {heading && opened ? <AppText variant="h2">{opened.description}</AppText> : null}
+  return <Page refreshControl={<RefreshControl refreshing={pulling} onRefresh={() => { setPulling(true); setRevision(value => value + 1); }} tintColor={palette["text-link"]} />}>
+    {heading && opened ? <View style={{ gap: unit }}>
+      <AppText variant="meta" secondary>{opened.projectName}</AppText>
+      <AppText variant="h2">{opened.description}</AppText>
+    </View> : null}
+    {error ? <Notice error>{error}</Notice> : null}
+    {!verified && !error ? <AppText variant="meta" secondary>Перевіряємо доступ…</AppText> : null}
     <AppText variant={heading && opened ? "h3" : "h2"}>Обов’язкові фіксації</AppText>
     <AppText secondary>{model.coverageMessage}</AppText>
     {!data.captureAllowed ? <Notice>У вас немає дозволу додавати фото. Зверніться до керівника проєкту.</Notice> : null}
@@ -106,7 +129,7 @@ function ReferenceImage({ descriptor, accessToken }: { descriptor: RequirementRe
   const [failed, setFailed] = useState(false);
   return <View style={{ gap: unit * 2 }}>
     <AppText variant="meta" secondary>Ілюстрація GoProceed · не норма і не доказ виконаної роботи</AppText>
-    {failed ? <Notice>Приклад зараз недоступний. Орієнтуйтеся на повну вимогу вище.</Notice> :
+    {failed ? <Notice>Ілюстрація зараз недоступна. Орієнтуйтеся на повну вимогу вище.</Notice> :
       <Image source={{ uri: `${API_ORIGIN.replace(/\/$/, "")}${descriptor.contentPath}`, headers: { Authorization: `Bearer ${accessToken}` } }}
         cachePolicy="none" accessibilityLabel={descriptor.altTextUk} accessible contentFit="contain"
         style={{ width: "100%", aspectRatio: descriptor.width / descriptor.height, maxHeight: 320, backgroundColor: palette["bg-subtle"] }}

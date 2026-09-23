@@ -36,5 +36,6 @@ describe("local queue labels", () => {
     expect(mediaList(["image/jpeg", "image/heic"])).toBe("JPEG, HEIC");
     expect(megabytes(20 * 1024 * 1024)).toBe("20 МБ");
     expect(megabytes(8_000_000)).toBe("7 МБ");
+    expect(megabytes(500 * 1024)).toBe("500 КБ");
   });
 });
