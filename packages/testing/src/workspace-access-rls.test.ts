@@ -253,12 +253,13 @@ describe("project_access_grants: the application role may revoke a grant and cha
 
       expect((await asActor(USER_B, WS_A, revokeSql)).rowCount).toBe(0);
       expect((await asActor(MEMBER_A2, WS_A, revokeSql)).rowCount).toBe(0);
+      // The column grant, not RLS (USER_A administers the project): the message names the table's privilege.
       await expect(asActor(USER_A, WS_A, (c) => c.query(
         "update public.project_access_grants set member_id = $2 where id = $1", [target, memberId])))
-        .rejects.toMatchObject({ code: "42501" });
+        .rejects.toMatchObject({ code: "42501", message: expect.stringMatching(/permission denied for table project_access_grants/) });
       await expect(asActor(USER_A, WS_A, (c) => c.query(
         "update public.project_access_grants set valid_until = now() + interval '1 day' where id = $1", [target])))
-        .rejects.toMatchObject({ code: "42501" });
+        .rejects.toMatchObject({ code: "42501", message: expect.stringMatching(/permission denied for table project_access_grants/) });
       expect((await asActor(USER_A, WS_A, revokeSql)).rowCount).toBe(1);
 
       const after = await admin.query<{ revoked: boolean; version: string }>(

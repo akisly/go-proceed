@@ -169,13 +169,15 @@ unrevoked grants on a project by member and capability — live, lapsed or not
 yet valid — and a revoked grant stops authorizing at once. Revoking a lapsed
 grant is what frees its capability for a new grant, since an unrevoked row
 blocks a second one. Revoking `project.view` removes the member from the
-project: every grant they hold there is revoked with it (INV-111). A revoke
-that would leave the project with no live `project.admin` grant held by an
-active member is refused, the actor's own included (INV-110), because the
+project: every grant they hold there is revoked with it (INV-111), and a grant
+of the same member is serialized with the revoke so it cannot slip past the
+cascade. A revoke that takes away a live `project.admin` grant is refused
+unless another active member keeps a live admin grant with no end date, the
+actor's own included (INV-110), because the
 creator's bootstrap no longer applies to a project that has grants and a
-workspace role confers no project capability. The rule covers revokes only: an
-only administrator grant that lapses, or its holder's suspension, still leaves
-the project without an administrator (BL-137). The application role may
+workspace role confers no project capability. The rule covers revokes only: a
+project whose administrator grants are all dated can still lapse, and a
+suspension still leaves it without an administrator (BL-137). The application role may
 update a grant's `revoked_at` and `version` and nothing else (`0096`). A revoke
 does not end responsibilities (INV-021), work assignments, Telegram member
 links or external review links the member issued.

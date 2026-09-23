@@ -170,6 +170,8 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-139](#bl-139) | P3 | open | No route lists a project's grants or responsibility assignments |
 | [BL-140](#bl-140) | P3 | open | A member's `project.view` can lapse before the action capabilities it was added for |
 | [BL-141](#bl-141) | P3 | open | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
+| [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
+| [BL-143](#bl-143) | P3 | open | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1657,7 +1659,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** open
 - **Legacy cite:** none
-- **Why:** DEV-043's `gp-architect` design. `project_access.revoke` refuses to revoke the last live `project.admin` grant held by an active member (INV-110), but two other paths reach the same state and nothing refuses them: the grant route accepts `validUntil` on `project.admin`, so an only administrator grant can simply lapse; and a membership suspension (BL-014) makes its holder's grant stop counting. Either way the project cannot be administered through the product again: `pag_insert`'s bootstrap arm (`0011`) counts revoked and lapsed rows, and a workspace owner holds no project capability by role. Ranked by DEV-043.
+- **Why:** DEV-043's `gp-architect` design and `gp-security` review (S1-02). `project_access.revoke` refuses to take away a live `project.admin` grant unless another active member keeps an undated one (INV-110; the owner ruled on 2026-09-23 that a dated survivor does not count, which closed the two-step path of granting admin for a minute and then revoking one's own), but two other paths reach the same state and nothing refuses them: the grant route accepts `validUntil` on `project.admin`, so a project whose admin grants are all dated can simply lapse; and a membership suspension (BL-014) makes its holder's grant stop counting — including one committed while a revoke runs, since the revoke locks grant rows, not memberships. Either way the project cannot be administered through the product again: `pag_insert`'s bootstrap arm (`0011`) counts revoked and lapsed rows, and a workspace owner holds no project capability by role. Ranked by DEV-043.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` (`validUntil` on any capability); `supabase/migrations/0011_workspace_access_security.sql` (`app.project_has_grants`, `pag_insert`); INV-110's «Not covered».
 - **Depends on:** a decision between refusing a dated `project.admin` grant when no undated one remains, and a recovery path for a workspace owner (an ADR: it would give a workspace role a project capability).
 - **Deadline:** before a pilot workspace has more than one project administrator to lose.
@@ -1700,4 +1702,24 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-043's `gp-architect` design. `project_access.grant` and `project_responsibilities.assign` pass the path's project id to a `uuid` comparison without checking its form, so a malformed id raises a cast error that becomes 500 `INTERNAL_ERROR`; the revoke and end routes check it first and answer 404, as `invitations.revoke` does. And `technical/error-catalog.csv` marks `VERSION_CONFLICT` retryable while the revoke routes (DEV-021, DEV-043, DEV-044) send `retryable: false`, because retrying the same revoke cannot succeed. Ranked by DEV-043.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` and `responsibilities/route.ts` (no UUID check); `technical/error-catalog.csv` row `VERSION_CONFLICT`; `apps/app/app/v1/invitations/[invitationId]/revoke/route.ts`.
 - **Depends on:** none.
+- **Deadline:** none recorded.
+
+<a id="bl-142"></a>
+### BL-142 — P2 — Removing a member from a project leaves their Telegram group membership and the external review links they issued
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-043's `gp-security` review. `project_access.revoke` of `project.view` removes a member from a project in the product, and ADR-014 deliberately cascades nothing else: the person stays in the project's bound Telegram group and keeps seeing the cards posted there, their Telegram member link survives, and every external review link they issued stays live until `external_grants.revoke_reissue` retires it (v0.1 has no plain external revoke). The Telegram resolvers check the grant at each action, so they can no longer act, but they can still read. An offboarding step or checklist is needed before a pilot relies on the revoke to remove someone. Ranked by DEV-043.
+- **Evidence:** ADR-014 «What this decision does NOT authorise»; DEV-043's `gp-security` report, «Record these, don't fix them here».
+- **Depends on:** the Telegram webhook's enablement (BL-024) for the group half; an owner decision on whether offboarding kicks from the group or only records it.
+- **Deadline:** before the Telegram webhook is enabled anywhere, and before a pilot offboards a member.
+
+<a id="bl-143"></a>
+### BL-143 — P3 — The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-043's `gp-security` review. The three SECURITY DEFINER helpers from `0011`, on which every workspace-access policy rests — including `0097`'s `prae_select` and `prae_insert` — set `search_path = public` instead of the empty path the project's definer rule asks for. Every table reference in them is schema-qualified, so the risk is low; the same class as BL-106 and BL-110. Ranked by DEV-043.
+- **Evidence:** `supabase/migrations/0011_workspace_access_security.sql` (the three `create or replace function` statements).
+- **Depends on:** a migration that re-creates them with `set search_path = ''` (`gp-architect`, `gp-security`).
 - **Deadline:** none recorded.

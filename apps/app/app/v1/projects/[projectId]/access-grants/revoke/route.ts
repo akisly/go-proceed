@@ -6,12 +6,15 @@ import {
   type RevokeProjectAccessResponse,
 } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
+import { projectAccessMemberLock } from "../../../../../../src/lib/project-access-lock";
 
 export const runtime = "nodejs";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-type LockedGrant = { id: string; member_id: string; capability: string; member_active: boolean; live: boolean };
+type LockedGrant = {
+  id: string; member_id: string; capability: string; member_active: boolean; live: boolean; undated: boolean;
+};
 
 /**
  * `project_access.revoke` — POST /v1/projects/{projectId}/access-grants/revoke
@@ -41,14 +44,31 @@ type LockedGrant = { id: string; member_id: string; capability: string; member_a
  * member holds on the project, so no one keeps an action capability on a
  * project they cannot see (owner, 2026-09-23).
  *
- * THE LAST ADMINISTRATOR IS KEPT. A revoke that would leave no live
- * `project.admin` grant held by an active member — the actor's own included —
- * is 409 PROJECT_FINAL_ADMIN with nothing written (owner, 2026-09-23). The
- * bootstrap arm of `pag_insert` counts revoked rows, and workspace roles confer
- * no project capability, so such a project could never be administered again.
- * The member's rows and every unrevoked admin row of the project are locked in
- * id order in one statement, so two administrators revoking each other cannot
- * both succeed, and a concurrent revoke re-reads `revoked_at` after its wait.
+ * THE LAST ADMINISTRATOR IS KEPT. A revoke that takes away a live
+ * `project.admin` grant is refused with 409 PROJECT_FINAL_ADMIN, nothing
+ * written, unless another active member keeps a live admin grant WITH NO END
+ * DATE — the actor's own revoke included (owner, 2026-09-23). A dated survivor
+ * does not count: granting someone admin for a minute and then revoking one's
+ * own would otherwise orphan the project a minute later (gp-security S1-02).
+ * The bootstrap arm of `pag_insert` counts revoked rows, and workspace roles
+ * confer no project capability, so such a project could never be administered
+ * again. The member's rows and every unrevoked admin row of the project are
+ * locked in id order in one statement, so two administrators revoking each
+ * other cannot both succeed, and a concurrent revoke re-reads `revoked_at`
+ * after its wait.
+ *
+ * A GRANT AND A REVOKE OF ONE MEMBER ON ONE PROJECT ARE SERIALIZED by a
+ * transaction advisory lock both routes take first (`projectAccessMemberLock`).
+ * Without it a grant racing a `project.view` cascade saw `project.view` still
+ * unrevoked, skipped it, and inserted an action capability the cascade's lock
+ * set had never seen — a member with an action and no view (gp-security S1-01,
+ * gp-reviewer R1-04; INV-111).
+ *
+ * AUTHORITY LOST MID-REQUEST is 403. The lock statement also applies
+ * `pag_update`'s USING on its own snapshot; if another administrator revoked the
+ * actor's admin grant after `authorize`, the actor's live admin row is missing
+ * from the lock set and the answer is SCOPE_PROJECT_DENIED, not a false
+ * `notHeld` (gp-reviewer R1-03).
  *
  * ONE UPDATE STATEMENT. `pag_update` asks `app.has_project_capability`, a STABLE
  * function that sees the snapshot of the statement that calls it, so a
@@ -71,19 +91,23 @@ export const POST = commandRoute(revokeProjectAccessRequest, async (a) => {
     if (p.rows.length === 0) throw notFound;
     const workspaceId = p.rows[0]!.workspace_id;
 
-    return withIdempotency<RevokeProjectAccessResponse>(tx, {
+    return withIdempotency<RevokeProjectAccessResponse, string>(tx, {
       organizationId: workspaceId, actorScope: `user:${a.userId}`,
       operationId: "project_access.revoke", key: a.idempotencyKey, requestHash: a.requestHash,
       authorize: async () => {
         const m = await requireActiveMembership(tx, a.requestId, a.userId, workspaceId);
         await requireProjectCapability(tx, a.requestId,
           { workspaceId, projectId, memberId: m.memberId, capability: "project.admin" });
+        return m.memberId;
       },
-    }, async () => {
+    }, async (actorMemberId) => {
+      // Canonical from here on: SQL compares uuids whatever their case, the JS
+      // filters below compare strings (gp-reviewer R1-01).
+      const memberId = a.body.memberId.toLowerCase();
       // Any status: a suspended member's unrevoked grants come back to life on
       // reinstatement, so they must be revocable.
       const target = await tx.query(
-        "select 1 from public.memberships where organization_id = $1 and id = $2", [workspaceId, a.body.memberId]);
+        "select 1 from public.memberships where organization_id = $1 and id = $2", [workspaceId, memberId]);
       if (target.rows.length === 0) {
         throw new HttpProblem(422, problem("VALIDATION_FAILED",
           "Учасника не знайдено в цьому робочому просторі.", {
@@ -92,20 +116,28 @@ export const POST = commandRoute(revokeProjectAccessRequest, async (a) => {
           }));
       }
 
+      await projectAccessMemberLock(tx, projectId, memberId);
       const locked = await tx.query<LockedGrant>(
         `select g.id, g.member_id, g.capability,
                 m.status = 'active' as member_active,
-                g.valid_from <= now() and (g.valid_until is null or g.valid_until > now()) as live
+                g.valid_from <= now() and (g.valid_until is null or g.valid_until > now()) as live,
+                g.valid_until is null as undated
            from public.project_access_grants g
            join public.memberships m on m.organization_id = g.workspace_id and m.id = g.member_id
           where g.workspace_id = $1 and g.project_id = $2 and g.revoked_at is null
             and (g.member_id = $3 or g.capability = 'project.admin')
           order by g.id
             for update of g`,
-        [workspaceId, projectId, a.body.memberId]);
+        [workspaceId, projectId, memberId]);
+
+      const isLiveAdmin = (r: LockedGrant) => r.capability === "project.admin" && r.live && r.member_active;
+      if (!locked.rows.some((r) => r.member_id === actorMemberId && isLiveAdmin(r))) {
+        throw new HttpProblem(403, problem("SCOPE_PROJECT_DENIED", "Немає доступу до цього проєкту.",
+          { requestId: a.requestId, retryable: false, userAction: "request_project_scope" }));
+      }
 
       const requested = new Set<string>(a.body.capabilities);
-      const held = locked.rows.filter((r) => r.member_id === a.body.memberId);
+      const held = locked.rows.filter((r) => r.member_id === memberId);
       const heldCaps = new Set(held.map((r) => r.capability));
       const notHeld = [...requested].filter((c) => !heldCaps.has(c)).sort();
       if (notHeld.length > 0) {
@@ -118,10 +150,9 @@ export const POST = commandRoute(revokeProjectAccessRequest, async (a) => {
 
       const targets = requested.has("project.view") ? held : held.filter((r) => requested.has(r.capability));
       const targetIds = new Set(targets.map((r) => r.id));
-      const isLiveAdmin = (r: LockedGrant) => r.capability === "project.admin" && r.live && r.member_active;
-      if (targets.some(isLiveAdmin) && !locked.rows.some((r) => !targetIds.has(r.id) && isLiveAdmin(r))) {
+      if (targets.some(isLiveAdmin) && !locked.rows.some((r) => !targetIds.has(r.id) && isLiveAdmin(r) && r.undated)) {
         throw new HttpProblem(409, problem("PROJECT_FINAL_ADMIN",
-          "Не можна відкликати доступ останнього адміністратора проєкту. Спершу надайте права адміністратора іншому учаснику.", {
+          "Не можна відкликати доступ останнього адміністратора проєкту. Спершу надайте іншому учаснику безстрокові права адміністратора.", {
             requestId: a.requestId, retryable: false, userAction: "grant_project_admin_to_another_member_first",
           }));
       }
@@ -145,7 +176,7 @@ export const POST = commandRoute(revokeProjectAccessRequest, async (a) => {
       await recordAudit(tx, ctx, {
         action: "project_access.revoked", object_type: "project", object_id: projectId,
         details: {
-          memberId: a.body.memberId,
+          memberId,
           capabilities: revoked.map((r) => r.capability),
           grantIds: revoked.map((r) => r.grantId),
         },

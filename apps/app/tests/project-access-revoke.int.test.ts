@@ -246,9 +246,10 @@ describe("POST /v1/projects/{projectId}/access-grants/revoke (BL-021, ADR-014 de
       revoke(projectId, { memberId: memberIds.admin2, capabilities: ["project.admin"] }, undefined, ADMIN),
       revoke(projectId, { memberId: memberIds.admin, capabilities: ["project.admin"] }, undefined, ADMIN2),
     ]);
-    const statuses = [x.status, y.status].sort();
-    expect(statuses[0]).toBe(200);
-    expect([403, 409]).toContain(statuses[1]);
+    const [won, lost] = x.status === 200 ? [x, y] : [y, x];
+    expect(won.status).toBe(200);
+    expect([403, 409]).toContain(lost.status);
+    expect(["PROJECT_FINAL_ADMIN", "SCOPE_PROJECT_DENIED", "VERSION_CONFLICT"]).toContain((await lost.json()).code);
     const live = await q("select 1 from public.project_access_grants where project_id = $1 and capability = 'project.admin' and revoked_at is null", [projectId]);
     expect(live).toHaveLength(1);
   });
@@ -364,5 +365,68 @@ describe("POST /v1/projects/{projectId}/access-grants/revoke (BL-021, ADR-014 de
     expect((await revoke(projectId, { memberId: memberIds.member, capabilities: ["project.view"] })).status).toBe(200);
     const kept = await q("select 1 from public.project_responsibility_assignments where project_id = $1 and member_id = $2", [projectId, memberIds.member]);
     expect(kept).toHaveLength(1);
+  });
+
+  // Review round 1 (gp-reviewer R1-01, R1-02; gp-security S1-01, S1-02).
+
+  it("an upper-case member id is the same member (R1-01)", async () => {
+    const projectId = await project();
+    await give(projectId, memberIds.member!, ["project.view", "contracts.edit"]);
+    current = ADMIN;
+    const res = await revoke(projectId, { memberId: memberIds.member!.toUpperCase(), capabilities: ["contracts.edit"] });
+    expect(res.status).toBe(200);
+    expect(await unrevoked(projectId, memberIds.member!)).toEqual(["project.view"]);
+  });
+
+  it("an administrator removing themselves revokes their admin and view in one statement; the replay is then 404 (R1-02)", async () => {
+    const projectId = await project();
+    await give(projectId, memberIds.admin2!, ["project.admin", "project.view"]);
+    current = ADMIN;
+    const key = crypto.randomUUID();
+    const body = { memberId: memberIds.admin, capabilities: ["project.view"] };
+    const res = await revoke(projectId, body, key);
+    expect(res.status).toBe(200);
+    expect((await res.json()).revoked.map((r: { capability: string }) => r.capability)).toEqual(["project.admin", "project.view"]);
+    expect(await unrevoked(projectId, memberIds.admin!)).toEqual([]);
+    const replay = await revoke(projectId, body, key);
+    expect(replay.status).toBe(404);
+    expect((await replay.json()).code).toBe("RESOURCE_NOT_FOUND");
+  });
+
+  it("a surviving administrator grant with an end date does not keep the project administrable (S1-02, owner 2026-09-23)", async () => {
+    const projectId = await project();
+    await give(projectId, memberIds.admin2!, ["project.admin", "project.view"], { until: "2099-01-01T00:00:00Z" });
+    current = ADMIN;
+    const res = await revoke(projectId, { memberId: memberIds.admin, capabilities: ["project.admin"] });
+    expect(res.status).toBe(409);
+    expect((await res.json()).code).toBe("PROJECT_FINAL_ADMIN");
+    // Revoking the dated grant instead is allowed: the actor's own undated grant survives.
+    const other = await revoke(projectId, { memberId: memberIds.admin2, capabilities: ["project.admin"] });
+    expect(other.status).toBe(200);
+  });
+
+  it("a grant racing a project.view cascade never leaves an action capability without project.view (S1-01, INV-111)", async () => {
+    const projectId = await project();
+    const racers: string[] = [];
+    for (let i = 0; i < 10; i++) {
+      const user = id(`b${i}`);
+      await seedUser(user);
+      const m = await q<{ id: string }>(
+        `insert into public.memberships (organization_id, user_id, role, status) values ($1, $2, 'member', 'active')
+         on conflict do nothing returning id`, [WS.a, user]);
+      const memberId = m[0]?.id ?? (await q<{ id: string }>(
+        "select id from public.memberships where organization_id = $1 and user_id = $2", [WS.a, user]))[0]!.id;
+      await give(projectId, memberId, ["project.view"]);
+      racers.push(memberId);
+    }
+    current = ADMIN;
+    await Promise.all(racers.flatMap((memberId) => [
+      grant(projectId, { memberId, capabilities: ["evidence.record"] }),
+      revoke(projectId, { memberId, capabilities: ["project.view"] }),
+    ]));
+    for (const memberId of racers) {
+      const left = await unrevoked(projectId, memberId);
+      if (left.length > 0) expect(left).toContain("project.view");
+    }
   });
 });

@@ -69,14 +69,19 @@ for:
    - **A capability the member does not hold unrevoked** is refused with 409
      `VERSION_CONFLICT`, naming the capabilities in `details.notHeld`, and
      nothing is written.
-   - **The last administrator is kept.** A revoke that would leave the project
-     with no live `project.admin` grant held by an active member — the actor's
-     own included — is refused with 409 `PROJECT_FINAL_ADMIN`, a new error code,
-     and nothing is written.
+   - **The last administrator is kept.** A revoke that takes away a live
+     `project.admin` grant is refused with 409 `PROJECT_FINAL_ADMIN`, a new
+     error code, and nothing is written, unless another active member keeps a
+     live `project.admin` grant **with no end date** — the actor's own revoke
+     included. A dated survivor does not count: an administrator could
+     otherwise grant someone admin for a minute and then revoke their own.
    - **Revoking `project.view` removes the member from the project**: it
      revokes every unrevoked grant the member holds there. This mirrors the
      grant's rule that any action capability adds `project.view`, and it keeps a
      member from holding an action capability on a project they cannot see.
+   - A grant and a revoke of the same member on the same project are
+     serialized, so a grant racing a `project.view` revoke cannot leave the
+     member an action capability without `project.view`.
    - The target member may have any membership status: a suspended member's
      grants come back to life on reinstatement, so they must be revocable.
    - An id the caller cannot see is 404, before any authority check; a member
@@ -146,6 +151,10 @@ coordinator put after the `gp-architect` design:
   decision 3's table.
 - «Вне списка, как её родитель» — decision 3's place outside decision 4's list.
 - «Только «сейчас»» — decision 2's end at the moment of the command.
+- «Считать только бессрочные» — decision 1's last-administrator rule counts
+  only a surviving admin grant with no end date. Ruled on the same day after
+  `gp-security`'s review (S1-02) showed that a dated survivor let an
+  administrator orphan a project in two steps.
 
 The owner ruled on those options, not on this text. The remaining clauses are
 the coordinator's and `gp-architect`'s detail of the approved options — the

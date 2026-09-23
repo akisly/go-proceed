@@ -3,6 +3,7 @@ import { requireActiveMembership, requireProjectCapability } from "../../../../.
 import { HttpProblem, problem } from "../../../../../src/lib/http";
 import { grantProjectAccessRequest, type GrantProjectAccessResponse } from "@goproceed/contracts";
 import { withTenantTx, withIdempotency, recordAudit } from "@goproceed/database";
+import { projectAccessMemberLock } from "../../../../../src/lib/project-access-lock";
 
 export const runtime = "nodejs";
 
@@ -40,6 +41,9 @@ export const POST = commandRoute(grantProjectAccessRequest, async (a) => {
             fieldErrors: [{ path: "memberId", message: "not an active member" }],
           }));
       }
+      // Serialized with a revoke of the same member (DEV-043, INV-111): the
+      // duplicate check below must see a project.view a concurrent cascade revoked.
+      await projectAccessMemberLock(tx, projectId, a.body.memberId);
       // Plan decision 6: any action capability implies adding project.view.
       const caps = new Set(a.body.capabilities);
       if ([...caps].some((c) => c !== "project.view")) caps.add("project.view");

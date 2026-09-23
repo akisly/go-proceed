@@ -75,7 +75,7 @@ export interface GrantProjectAccessResponse {
 // on the project (the route expands it); the response lists what was revoked.
 export const revokeProjectAccessRequest = z.object({
   memberId: z.string().guid(),
-  capabilities: z.array(projectCapability).min(1),
+  capabilities: z.array(projectCapability).min(1).max(projectCapability.options.length),
 }).strict();
 export type RevokeProjectAccessRequest = z.infer<typeof revokeProjectAccessRequest>;
 
