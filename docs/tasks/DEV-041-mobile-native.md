@@ -1,4 +1,4 @@
-# DEV-029 — GoProceed native field client
+# DEV-041 — GoProceed native field client
 
 ## Assignment
 
@@ -36,8 +36,9 @@
 |---|---|---|---|---|
 | 1 | gp-mobile, gp-architect, gp-researcher | Independent planning completed. Whole-buffer Expo Crypto is unsuitable for the chosen streaming vault; native libsodium secretstream selected. | Planning conversation and spec | Implement bounded slices |
 | 2 | Coordinator | Clean baseline; Xcode 26.4 and Android SDK present, no adb device attached. | xcodebuild -version; adb devices | Native build checks |
-| 3 | Coordinator | iOS device link failed: `_gp_*` undefined because the podspec compiled no `.c` and linked no libsodium. The podspec now compiles `GPVault.c` (top-level sources only, so sodium headers stay out of the umbrella), drops tvOS, and vendors `ios/Vendor/Sodium.xcframework` (gitignored) that `pod install` builds from the pinned 1.0.22 via `scripts/sodium-xcframework.mjs` (device arm64 + simulator arm64/x86_64). Android still has no libsodium/JNI build wiring. | `xcodebuild … generic/platform=iOS` and `… iOS Simulator`, `CODE_SIGNING_ALLOWED=NO`: BUILD SUCCEEDED; `nm` shows `_gp_encrypt_file`, `_crypto_secretstream_xchacha20poly1305_init_push` | Include in DEV-029 review diff; wire Android CMake + sodium |
+| 3 | Coordinator | iOS device link failed: `_gp_*` undefined because the podspec compiled no `.c` and linked no libsodium. The podspec now compiles `GPVault.c` (top-level sources only, so sodium headers stay out of the umbrella), drops tvOS, and vendors `ios/Vendor/Sodium.xcframework` (gitignored) that `pod install` builds from the pinned 1.0.22 via `scripts/sodium-xcframework.mjs` (device arm64 + simulator arm64/x86_64). Android still has no libsodium/JNI build wiring. | `xcodebuild … generic/platform=iOS` and `… iOS Simulator`, `CODE_SIGNING_ALLOWED=NO`: BUILD SUCCEEDED; `nm` shows `_gp_encrypt_file`, `_crypto_secretstream_xchacha20poly1305_init_push` | Include in DEV-041 review diff; wire Android CMake + sodium |
 | 4 | Coordinator | Metro failed: `_layout`, `login`, `session-gate`, `header-actions` and the `camera`/`queue`/`profile` routes imported files never written (`lib/native/runtime`, `screens/capture`, `screens/queue`, `screens/profile`). Owner chose to finish them here. Added the runtime provider (vault init, identity boundary → queue quarantine, last-workspace reopen per subject, foreground-only sending, authorize = current occurrence read with matching workspace and `captureAllowed`, launch sweep of `Caches/Camera` and `Caches/ImagePicker`), the three screens and `lib/native/item-labels.ts`; typed `queue.test.ts` mocks. `warnQuarantine`/`purgeExpired` are not wired: the native `warnQuarantine` needs an identity that quarantine has just cleared. | `tsc --noEmit` clean; `vitest run` 19 files / 152 tests pass; `expo export --platform ios` bundles. No simulator/device run: `apps/mobile/.env` absent | Reviews; wire warned retention; device run |
+| 5 | Coordinator | Owner chose the full rollout route (2026-09-23): commit, merge main, review the unreviewed slices, apply migrations to staging, open a PR; the owner merges and sets `PURGE_DB_URL`/`CRON_SECRET`. Merging main (46 commits) collided on numbers: this task was DEV-029 (main's DEV-029 is the landing depth task) and is now DEV-041; migration 0090 is now 0095 (main owns 0090–0094); catalog rows DA-185…187 → DA-191…193 and INV-105/106 → INV-108/109. One merge conflict: `apps/mobile/qa/field-web.mjs` (retired here, touched by main's DEV-033) — deleted. | `git merge origin/main`; duplicate-ID scan of the catalogs | Validators, reviews of the reference-image BFF/migration/web retirement, staging |
 
 ## Findings and rework
 
@@ -102,7 +103,7 @@ Final QA (gp-qa, 2026-09-23): FAIL on criterion 5 — a `failed` item with an in
 | Finding | Source | Resolution |
 |---|---|---|
 | Discard after a finalize was issued | gp-qa FAIL-1 | Fixed: `NativeQueue.discard` deletes an item with an intent only when the intent is terminal (`expired`, `scan_blocked`, `orphaned_for_purge`); unreadable or pre-final intent → `RECEIPT_PENDING` with copy; available → `ALREADY_RECEIVED`. Test inverted; positive controls for terminal intent and no intent; unreadable-intent test |
-| `src/app/index.tsx` comment names the deleted `token-proof` route; `screens/token-proof.tsx` unused | gp-qa nit | Open: pre-existing DEV-029 web-retirement cleanup, outside rows 3–4 |
+| `src/app/index.tsx` comment names the deleted `token-proof` route; `screens/token-proof.tsx` unused | gp-qa nit | Open: pre-existing DEV-041 web-retirement cleanup, outside rows 3–4 |
 | Offline sign-out fails closed | reviewer M4 | **Owner decision owed** (listed separately at QA's request) |
 | Auth keychain may survive app deletion | security m7 | **Owner acceptance owed**: internal beta on testers' own devices only until the device check and a first-launch reset |
 | Stale `authenticate` reopening the native identity; minisign digest verification | security | **Owner acceptance owed** for the internal beta |
@@ -148,7 +149,7 @@ Accessed 2026-09-22. Expo installed baseline 57.0.9 / RN 0.86.2; patch alignment
 
 ## Completion / handoff
 
-- Review independence: planning independent; rows 3–4 reviewed by independent gp-reviewer, gp-security, gp-ui-reviewer and gp-qa subagents (Claude Code session, 2026-09-23); other DEV-029 slices not yet reviewed.
+- Review independence: planning independent; rows 3–4 reviewed by independent gp-reviewer, gp-security, gp-ui-reviewer and gp-qa subagents (Claude Code session, 2026-09-23); other DEV-041 slices not yet reviewed.
 - Verified scope: inspection only at task creation.
 - Remaining risks / blocked requirements: native compilation, device integrity/backup/performance, licensed illustrations, signing/store installation.
 - Next bounded action: implement foundation and independent backend/vault slices.

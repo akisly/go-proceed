@@ -1,6 +1,6 @@
 # Requirement reference illustrations
 
-DEV-029 / ADR-013. This directory is the versioned source manifest, not an
+DEV-041 / ADR-013. This directory is the versioned source manifest, not an
 assertion that licensed illustrations have been supplied. The initial manifest
 is deliberately empty. New common-library rules cannot publish until an operator
 provisions the relevant illustration. Existing rule and occurrence pins stay null.
@@ -22,7 +22,7 @@ Validate locally without any writes:
 node scripts/reference-image-provision.mjs --manifest content/requirement-reference-images/manifest.json
 ```
 
-After migration 0090 is manually applied and the owner has authorized content
+After migration 0095 is manually applied and the owner has authorized content
 provisioning, supply `SUPABASE_DB_URL` (operator database connection),
 `SUPABASE_URL`, `SUPABASE_SECRET_KEY` through the secret manager, then:
 

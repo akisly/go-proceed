@@ -1,4 +1,4 @@
--- DEV-029 / ADR-013. Product-owned illustrations are provisioned by an operator
+-- DEV-041 / ADR-013. Product-owned illustrations are provisioned by an operator
 -- from a licensed manifest. No browser or BFF role may publish or replace bytes.
 -- Existing rules and occurrences remain null; no historical content is changed.
 create table public.requirement_reference_image_versions (

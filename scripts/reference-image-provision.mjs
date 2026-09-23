@@ -31,7 +31,7 @@ async function main() {
   const storage = createClient(storageUrl, key, { auth: { persistSession: false, autoRefreshToken: false } }).storage;
   const bucket = await storage.getBucket(BUCKET);
   if (bucket.error || !bucket.data || bucket.data.public || Number(bucket.data.file_size_limit) !== 5242880) {
-    throw new Error("Private reference bucket is absent or misconfigured; apply migration0090 first");
+    throw new Error("Private reference bucket is absent or misconfigured; apply migration 0095 first");
   }
   const client = new pg.Client({ connectionString: databaseUrl });
   await client.connect();

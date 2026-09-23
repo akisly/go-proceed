@@ -23,7 +23,7 @@ const response = { workAssignmentId: occurrence.workAssignmentId,
   contractVersionId: "55555555-5555-4555-8555-555555555555", coverage: "covered",
   occurrences: [occurrence] };
 
-describe("DEV-029 reference image opt-in", () => {
+describe("DEV-041 reference image opt-in", () => {
   it("keeps the strict legacy shape unchanged", () => {
     expect(listRequirementOccurrencesResponse.safeParse(response).success).toBe(true);
     expect(listRequirementOccurrencesResponse.safeParse({ ...response,

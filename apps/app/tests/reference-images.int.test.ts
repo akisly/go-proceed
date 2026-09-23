@@ -14,8 +14,8 @@ let current = owner;
 vi.mock("../src/lib/auth", () => ({ requireUser: async () => ({ userId: current }) }));
 
 // These suites truncate the isolated database. They are deliberately NOT RUN
-// during DEV-029 without owner authorization and migration0090 applied there.
-describe.skipIf(!hasIsolatedDatabaseCredentials())("DEV-029 reference pins and tenant isolation", () => {
+// during DEV-041 without owner authorization and migration 0095 applied there.
+describe.skipIf(!hasIsolatedDatabaseCredentials())("DEV-041 reference pins and tenant isolation", () => {
   beforeEach(async () => { current = owner; await truncateAll(); });
 
   it("refuses a new library publication when licensed content has not been provisioned", async () => {

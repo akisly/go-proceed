@@ -138,6 +138,34 @@ describe("requirement_library_items — tenant isolation", () => {
   });
 });
 
+describe("requirement_reference_image_versions — tenant isolation", () => {
+  // DEV-041 / migration 0095: `rriv_select` asks only for active membership, the
+  // same reader set as the library item the illustration belongs to.
+  it("is readable by any ACTIVE MEMBER of its own workspace, and by nobody else", async () => {
+    const pinned = await c.query(
+      `select id from public.requirement_reference_image_versions
+        where workspace_id = $1 and requirement_library_item_id = $2`, [WS_A, libraryItemA]);
+    const imageA = pinned.rows[0]?.id as string | undefined;
+    if (!imageA) throw new Error("m1-rules-rls: the fixture seeded no illustration for Н.14/1");
+    expect(await visible(USER_A, WS_A, "requirement_reference_image_versions", imageA)).toBe(1);
+    expect(await visible(USER_M, WS_A, "requirement_reference_image_versions", imageA)).toBe(1);
+    expect(await visible(USER_B, WS_B, "requirement_reference_image_versions", imageA)).toBe(0);
+  });
+
+  it("refuses any write by the application role, even in its own workspace", async () => {
+    // Only the operator's provisioning script publishes bytes (0095 header);
+    // goproceed_app holds SELECT alone.
+    expect(await sqlstate(() => asActor(USER_A, WS_A, (cl) => cl.query(
+      `insert into public.requirement_reference_image_versions
+         (id, workspace_id, requirement_library_item_id, version_no, storage_key, sha256, byte_size,
+          mime_type, width, height, alt_text_uk, rights_holder, license, source_uri, manifest_sha256)
+       values (gen_random_uuid(), $1, $2, 99, gen_random_uuid()::text || '/' || gen_random_uuid()::text,
+               repeat('c',64), 3, 'image/jpeg', 1, 1, 'Приклад', 'TEST ONLY', 'TEST ONLY',
+               'https://example.com/test-only', repeat('d',64))`,
+      [WS_A, libraryItemA])))).toBe("42501");
+  });
+});
+
 describe("requirement_rule_versions — tenant isolation and the publication-only write", () => {
   const insertRuleVersion = (
     user: string, actorWorkspace: string, rowWorkspace: string,

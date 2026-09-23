@@ -22,7 +22,6 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 
 | Task | State | Scope |
 |---|---|---|
-| [DEV-029](DEV-029-mobile-native.md) | implementing | Native iOS/Android field client, functional glass, pinned reference images and encrypted restart-safe capture queue; immediate web-field retirement |
 | [DEV-001](DEV-001-agent-infrastructure.md) | done | Project development roles `gp-*`: canonical sources in `agents/`, generated Claude and Codex profiles, `pnpm validate:agents` in CI |
 | [DEV-002](DEV-002-workflow-rules.md) | done | Workflow switch: root `AGENTS.md` rules, coordination, playbooks and template, project settings, retired-workflow validator guard |
 | [DEV-003](DEV-003-runbook-process.md) | done | Pilot runbook §3, §4, §6.6 and §7 onto the `gp-*` process; retired-loop measurements moved to `docs/ai-workflow.md`; validator runbook exemption removed |
@@ -63,3 +62,4 @@ Records before DEV-001 are not converted. Earlier slices kept their plans, specs
 | [DEV-038](DEV-038-abandon-after-lost-access.md) | done | BL-032: an upload whose creator lost the membership or the project read is orphaned at their finalize call, through a service-only definer that answers only for the creator, so its bytes go at the next purge run instead of after the 24-hour TTL |
 | [DEV-039](DEV-039-unsigned-evidence-logged.md) | done | BL-036: the member-plane evidence read logs how many objects it could not sign, with the request id and no key or URL, instead of discarding the failures; the screen and the 200 are unchanged |
 | [DEV-040](DEV-040-evidence-bucket-type-allow-list.md) | done | BL-126, the allow-list half: the evidence bucket stores only image/jpeg, image/png, image/heic and application/pdf, so an upload declaring any other type is refused by Storage before an object exists; BL-126 stays open for the hosted measurement |
+| [DEV-041](DEV-041-mobile-native.md) | implementing | Native iOS/Android field client, functional glass, pinned reference images and encrypted restart-safe capture queue; immediate web-field retirement |

@@ -166,7 +166,7 @@ in each API slice below. The table columns come from ADR-006 decision 4.
 |---|---|---|---|
 | M0 — cross-cutting | — | — | — |
 | `v0.1-M1` | 36 | 8 | 8 |
-| `v0.1-M2` | 9 | 5 | 5 |
+| `v0.1-M2` | 10 | 5 | 5 |
 | `v0.1-M3` | 6 | 8 | 8 |
 | `v0.1-M4` | 6 | 2 | 2 |
 | `v0.1-M5` | 6 | 3 | 3 |
@@ -584,10 +584,12 @@ settled it stands unchanged and settles the next disagreement the same way.
   deployed allocation-ledger tables keep working and are not extended, because
   what they exist for — carving minor units out of a work-item pool for admission
   into a claim — has nothing to be admitted to until packages ship in v0.2.
-- **API slice:** the 9 `v0.1-M2` operations — `assignments.create`,
+- **API slice:** the 10 `v0.1-M2` operations — `assignments.create`,
   `assignments.list`, `requirement_occurrences.list`,
-  `requirement_occurrences.dry_run`, `progress.record`, `progress.adjust`,
-  `upload_intents.create`, `upload_intents.finalize`, `upload_intents.get`.
+  `requirement_occurrences.dry_run`, `requirement_occurrences.reference_image`,
+  `progress.record`, `progress.adjust`, `upload_intents.create`,
+  `upload_intents.finalize`, `upload_intents.get`. *[Changed 2026-09-23
+  (DEV-041): the reference-image read joined M2 with the native field client.]*
   `requirement_occurrences.create` and `.bulk_instantiate` leave v0.1: the only
   way an occurrence exists in v0.1 is materialisation from the rule versions
   bound to the published contract version, at assignment creation. A hand-made
