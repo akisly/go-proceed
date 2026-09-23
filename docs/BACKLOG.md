@@ -43,13 +43,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-012](#bl-012) | P3 | deferred (owner) | The two headline measures have nowhere to be recorded |
 | [BL-013](#bl-013) | P3 | open | `app.accept_invitation` ignores the invited email address |
 | [BL-014](#bl-014) | P3 | open | A suspended or ended member can never be re-admitted |
-| [BL-015](#bl-015) | P3 | open | Responsibility assignments can never be ended |
+| [BL-015](#bl-015) | P3 | scheduled → DEV-044 | Responsibility assignments can never be ended |
 | [BL-016](#bl-016) | P3 | open | The own-party default has no writer, and party contacts lack the qualification-certificate columns |
 | [BL-017](#bl-017) | P3 | open | `app.work_type_key_is_bindable` arm 2 is not scoped to a draft |
 | [BL-018](#bl-018) | P3 | open | The lineage funding bound has no second bound over admitted allocations |
 | [BL-019](#bl-019) | P3 | deferred (owner) | The service principal inherits the app role's table grants |
 | [BL-020](#bl-020) | P3 | open | Any service-plane session can reproduce an erasure without the registry or the audit row |
-| [BL-021](#bl-021) | P2 | open | A project access grant can be issued and never taken back |
+| [BL-021](#bl-021) | P2 | scheduled → DEV-043 | A project access grant can be issued and never taken back |
 | [BL-022](#bl-022) | P2 | open | A hand-typed zero-priced line and an imported one store different provenance |
 | [BL-023](#bl-023) | P2 | open | Nothing in `apps/app` is rate-limited, the external plane included |
 | [BL-024](#bl-024) | P2 | open | Blockers before any environment enables the Telegram webhook |
@@ -326,7 +326,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-015"></a>
 ### BL-015 — P3 — Responsibility assignments can never be ended
 
-- **State:** open
+- **State:** scheduled → DEV-044
 - **Legacy cite:** `TODOS.md` «P3 — responsibility assignments can never be ended»
 - **Why:** the table is append-only and an open-ended assignment is permanent, so separation-of-duties warnings accumulate. A superseding-fact shape to copy exists since `0045`.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/responsibilities/route.ts` exports only `POST`; `technical/openapi/scope-v0.1.csv` has only `project_responsibilities.assign`.
@@ -389,7 +389,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-021"></a>
 ### BL-021 — P2 — A project access grant can be issued and never taken back
 
-- **State:** open
+- **State:** scheduled → DEV-043
 - **Legacy cite:** `TODOS.md` «a project access grant can be issued through the product and never taken back»
 - **Why:** a mis-scoped grant cannot be corrected through the product; only a superuser UPDATE reverses it. The state is modelled (`revoked_at`, honoured by `requireProjectCapability`); the command is missing.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` exports only `POST`; `scope-v0.1.csv` has only `project_access.grant`; `apps/app/qa/field.mjs:745` revokes with raw SQL.
