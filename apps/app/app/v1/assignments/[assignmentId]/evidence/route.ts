@@ -112,10 +112,11 @@ export const GET = queryRoute(async (a) => {
   // from `.urls` only; a key absent from it — whether one key or the whole
   // batch failed — simply omits `readUrl` on its row, below.
   //
-  // BUT NEVER SILENT EITHER (BL-036, DEV-039). A purged object and an
-  // unreachable or misconfigured store render the same «недоступне» rows and
-  // the same 200, so the operator's half is one log line: how many of how many
-  // failed, and the request id that ties it to the response. Counts only —
+  // BUT NEVER SILENT EITHER (BL-036, DEV-039). An object that could not be
+  // signed — purged or missing — renders a «недоступне» row inside a 200, so
+  // the operator's half is one log line: how many of how many failed, and the
+  // request id that ties it to the response. (A store that does not answer at
+  // all throws above and is a logged 500, not this.) Counts only —
   // never a key, a bucket or a URL (`files-and-storage.md` §Downloads; the
   // same rule `EvidenceStorageError` follows, DEV-034). An available object is
   // never a purge target, so any failure here is worth a look.
