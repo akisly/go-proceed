@@ -188,6 +188,20 @@ describe("native durable queue", () => {
     await f.queue.activate(context);
     await f.queue.discard("capture");
     await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "ITEM_GONE" });
+    expect(f.vault.discard).toHaveBeenCalledTimes(1);
+  });
+  it("reports a lost race with a concurrent discard as gone, not as a failure", async () => {
+    const f = fixture(item({ state: "failed" }));
+    f.vault.discard = vi.fn(async () => { throw new Error("VAULT_NOT_FOUND"); });
+    await f.queue.activate(context);
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "ITEM_GONE" });
+  });
+  it("does not call a row gone when the workspace changed during the discard", async () => {
+    const f = fixture(item({ state: "failed" }));
+    await f.queue.activate(context);
+    const listed = f.vault.list;
+    f.vault.list = async () => { await f.queue.activate({ ...context, workspaceId: "other" }); f.vault.list = listed; return []; };
+    await expect(f.queue.discard("capture")).rejects.toMatchObject({ code: "SUPERSEDED" });
   });
   it("refuses to discard what the server already received", async () => {
     const f = fixture(item({ intentId: "intent", state: "failed" }));

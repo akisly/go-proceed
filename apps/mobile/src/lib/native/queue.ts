@@ -72,6 +72,7 @@ export class NativeQueue {
    * does not stop it, nor does a restart), so only a terminal intent qualifies.
    */
   async discard(id: string): Promise<void> {
+    const identity = this.context;
     const inFlight = this.running;
     if (inFlight) {
       this.generation += 1;
@@ -79,7 +80,11 @@ export class NativeQueue {
       await this.deps.vault.cancelUpload();
       await inFlight.catch(() => undefined);
     }
-    const item = (await this.deps.vault.list()).find((row) => row.id === id);
+    const rows = await this.deps.vault.list();
+    // The list covers only the open identity; after a switch the row may be
+    // quarantined elsewhere, which is neither gone nor received.
+    if (!identity || !sameIdentity(this.context, identity)) throw new QueueRequestError(0, "SUPERSEDED");
+    const item = rows.find((row) => row.id === id);
     // Gone from the journal means confirmed OR already deleted: say neither.
     if (!item) throw new QueueRequestError(0, "ITEM_GONE");
     if (item.intentId) {
@@ -90,7 +95,13 @@ export class NativeQueue {
       if (receipt.status === "available") throw new QueueRequestError(0, "ALREADY_RECEIVED");
       if (!TERMINAL_STATES.has(receipt.status)) throw new QueueRequestError(0, "RECEIPT_PENDING");
     }
-    await this.deps.vault.discard(id, { confirmed: true });
+    try {
+      await this.deps.vault.discard(id, { confirmed: true });
+    } catch (error) {
+      // A concurrent discard of the same item removed it first.
+      if (error instanceof Error && error.message === "VAULT_NOT_FOUND") throw new QueueRequestError(0, "ITEM_GONE");
+      throw error;
+    }
     await this.deps.changed();
   }
 

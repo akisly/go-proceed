@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert, Pressable, RefreshControl } from "react-native";
 import { useNetworkState } from "expo-network";
 import { useRouter } from "expo-router";
@@ -21,6 +21,7 @@ export function Queue() {
   const [error, setError] = useState<string | null>(null);
   // One discard per item at a time; its outcome is a modal alert, read by VoiceOver.
   const [discarding, setDiscarding] = useState<ReadonlySet<string>>(new Set());
+  const discardingNow = useRef(new Set<string>()); // synchronous guard; state lags a render
   if (!runtime.session || runtime.status === "booting") return <Page><Loading /></Page>;
 
   async function send() {
@@ -29,6 +30,8 @@ export function Queue() {
     finally { setSending(false); }
   }
   function discard(item: VaultItem) {
+    if (discardingNow.current.has(item.id)) return;
+    discardingNow.current.add(item.id);
     setDiscarding((set) => new Set([...set, item.id]));
     void runtime.discard(item.id).catch((reason: unknown) => {
       const code = (reason as { code?: string }).code;
@@ -38,7 +41,10 @@ export function Queue() {
         : code === "RECEIPT_PENDING"
           ? "Сервер ще може отримати це фото. Застосунок спробує надіслати його, коли з’явиться зв’язок і застосунок буде відкритий."
           : "Не вдалося видалити фото. Спробуйте ще раз.");
-    }).finally(() => setDiscarding((set) => new Set([...set].filter((id) => id !== item.id))));
+    }).finally(() => {
+      discardingNow.current.delete(item.id);
+      setDiscarding((set) => new Set([...set].filter((id) => id !== item.id)));
+    });
   }
   function confirmDiscard(item: VaultItem) {
     const redo = item.originMethod === "photo_picker" ? "доведеться додати його знову" : "доведеться зняти його знову";
