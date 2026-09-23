@@ -362,3 +362,35 @@ describe("project_responsibility_assignment_ends (DEV-044)", () => {
     expect(r.rows.map((row) => row.privilege_type)).toEqual(["INSERT", "SELECT"]);
   });
 });
+
+/**
+ * DEV-046 / BL-143 (migration 0098): the three SECURITY DEFINER helpers every
+ * workspace-access policy rests on — `app.active_member_id`,
+ * `app.has_project_capability` and `app.project_has_grants` (0011) — pin the
+ * empty search path the project's definer rule asks for, not `public`. Their
+ * bodies qualify every name, so behaviour is unchanged: the isolation tests
+ * above run every one of them through the policies after the change.
+ */
+describe("the workspace-access helpers pin an empty search_path (DEV-046)", () => {
+  it("app.active_member_id, app.has_project_capability and app.project_has_grants are SECURITY DEFINER with search_path=\"\"", async () => {
+    const r = await admin.query<{ fn: string; definer: boolean; config: string[] | null }>(
+      `select p.oid::regprocedure::text as fn, p.prosecdef as definer, p.proconfig as config
+         from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'app' and p.proname = any($1::text[])
+        order by 1`, [["active_member_id", "has_project_capability", "project_has_grants"]]);
+    expect(r.rows).toEqual([
+      { fn: "app.active_member_id(uuid)", definer: true, config: ['search_path=""'] },
+      { fn: "app.has_project_capability(uuid,uuid,text[])", definer: true, config: ['search_path=""'] },
+      { fn: "app.project_has_grants(uuid,uuid)", definer: true, config: ['search_path=""'] },
+    ]);
+  });
+
+  it("anon and authenticated cannot execute them", async () => {
+    const r = await admin.query<{ fn: string; anon: boolean; authenticated: boolean }>(
+      `select f as fn, has_function_privilege('anon', f, 'EXECUTE') as anon,
+              has_function_privilege('authenticated', f, 'EXECUTE') as authenticated
+         from unnest($1::text[]) as f order by 1`,
+      [["app.active_member_id(uuid)", "app.has_project_capability(uuid,uuid,text[])", "app.project_has_grants(uuid,uuid)"]]);
+    expect(r.rows.every((row) => !row.anon && !row.authenticated)).toBe(true);
+  });
+});

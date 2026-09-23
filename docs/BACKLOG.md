@@ -171,8 +171,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-140](#bl-140) | P3 | open | A member's `project.view` can lapse before the action capabilities it was added for |
 | [BL-141](#bl-141) | P3 | open | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
 | [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
-| [BL-143](#bl-143) | P3 | open | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
+| [BL-143](#bl-143) | P3 | scheduled → DEV-046 | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
 | [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
+| [BL-145](#bl-145) | P3 | open | Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public` |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1718,7 +1719,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-143"></a>
 ### BL-143 — P3 — The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one
 
-- **State:** open
+- **State:** scheduled → DEV-046
 - **Legacy cite:** none
 - **Why:** DEV-043's `gp-security` review. The three SECURITY DEFINER helpers from `0011`, on which every workspace-access policy rests — including `0097`'s `prae_select` and `prae_insert` — set `search_path = public` instead of the empty path the project's definer rule asks for. Every table reference in them is schema-qualified, so the risk is low; the same class as BL-106 and BL-110. Ranked by DEV-043.
 - **Evidence:** `supabase/migrations/0011_workspace_access_security.sql` (the three `create or replace function` statements).
@@ -1733,4 +1734,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
 - **Evidence:** DEV-044's record «Findings and rework» R1-05c; `scratchpad/dev043-044-qa-r1-report.md` (cited in both records).
 - **Depends on:** a CI run (the Actions billing block) or an owner-approved local reset for (1); nothing for (2).
+- **Deadline:** none recorded.
+
+<a id="bl-145"></a>
+### BL-145 — P3 — Twenty-one other SECURITY DEFINER functions in `app` pin `search_path` to `public`
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-046 moved the three workspace-access helpers (BL-143) to the empty search path the project's definer rule asks for, and observed on the local database that 21 other definer functions in `app` still set `public` — ten as `public` (`org_has_members`, `delete_expired_idempotency` (BL-110), `purge_expired_idempotency`, `claim_outbox`, `complete_outbox`, `fail_outbox`, `accept_invitation`, `member_role`, `contract_version_is_draft`, `work_type_key_is_bindable`) and eleven as `public, pg_temp` (`assert_reservation_invariant`, `open_allocation_head`, `evidence_bytes_in_use`, the upload-intent functions, `member_id_any_status`, `assert_stage_closure_set`, `assert_statutory_act_version_complete`, `assert_funded_within_lineage`). Each must have its body read for unqualified names before its path is emptied; `public, pg_temp` is the pattern PostgreSQL's own documentation shows, so those eleven are the lower risk. Ranked by DEV-046.
+- **Evidence:** on the local database at `0098`, 2026-09-24: `select p.oid::regprocedure, p.proconfig from pg_proc p join pg_namespace n on n.oid = p.pronamespace where n.nspname = 'app' and p.prosecdef and p.proconfig is distinct from array['search_path=""']`. [DEV-046](tasks/DEV-046-access-helpers-search-path.md) row 5.
+- **Depends on:** a body read per function (`gp-architect`, `gp-security`); BL-106 and BL-110 are the same class.
 - **Deadline:** none recorded.
