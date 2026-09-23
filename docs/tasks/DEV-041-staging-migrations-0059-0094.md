@@ -47,6 +47,7 @@
 | 4 | applying (coordinator; Supabase CLI 2.114.0, `supabase link`, login role through the access token, no database password) | Dry run: exactly `0059`–`0094`, no seeds, no roles. **A** (11:25 UTC) head `0060`; `project_sourced_requirement_items` owned by `postgres`; counts unchanged. **B** (12:18) head `0086`; 14 Telegram/communication tables; `communication-retention` cron owned by `postgres`; `app.retention_policy` 3 rows, all durations NULL (the job does nothing); owners `postgres`; counts unchanged. **C** (12:19) head `0089`; `app.upload_intent_scope_matches` present; `idem_select` requires an active membership; no invitation token; counts unchanged. **D** (12:19) head `0094`, 36 rows `0059`–`0094`; criterion 3 all as expected; counts unchanged (audit 4, capture 4, evidence 2, intents 2, grants 6, outbox 2, bucket objects 2, users 1). The first attempt at A failed before connecting (the copied working directory lacked `supabase/templates/`); nothing was applied | `scratchpad/dev041-dryrun.txt`, `dev041-push-{A,B,C,D}.txt`, `dev041-baseline-counts.txt`; the verification queries in the session | The owner's secrets |
 | 5 | the owner | Password set; `PURGE_DB_URL` and `CRON_SECRET` added, Production only (Vercel API: both keys present, target `production`) | Vercel API env list (names and targets only) | Redeploy |
 | 6 | deploying (coordinator) | Redeploy of `4434314` (`dpl_9LUw1aKx7GEw5w41Q4HkJzCbR8z7`): build log «deploy preflight (VERCEL_ENV=production): OK»; READY at 12:33 UTC, aliased to `goproceed-app.vercel.app`. `GET /login` 200; `GET /internal/evidence/purge` without a token → 401 `worker_unauthorized`, with a wrong 40-character token → 401; the runtime log for the deployment shows both 401s and no «CRON_SECRET is not configured» line, so the secret is set and at least 32 characters | Vercel API (deployment, build log, runtime logs); `curl` | A cron run |
+| 7 | verifying (the owner, then the coordinator) | Settings → Cron Jobs lists four entries on `/internal/evidence/purge` (owner); the owner pressed «Run»: the runtime log shows `GET /internal/evidence/purge 200` at 12:51:20 UTC with no `[EVIDENCE_PURGE]` error line. The database after it: `app.upload_purge_health()` `0/0`, both intents `available` and unpurged, 2 objects in `evidence` — nothing was due, and nothing was deleted | owner's screenshot; Vercel runtime logs; `execute_sql` (select) | Done |
 
 ## Findings and rework
 
@@ -58,7 +59,7 @@ Rework count and hypothesis changes: none.
 
 ## What is not true after this task
 
-- **No cron run has been observed.** The Vercel API used here does not list a project's crons; whether the four entries are registered, and a 200 from a run, are for the owner to see in Settings → Cron Jobs (or «Run»), or for the first scheduled run (18:00 UTC ±59 min) in the runtime log. Criterion 5 is NOT RUN.
+- **The run purged nothing, because nothing was due**: both intents are `available`. A purge that actually deletes bytes in production has not been observed yet.
 - **No real capture was made after `0087`**; finalize's path through the new policy is proven by the suites, not in production.
 - **Q-9 is answered for this push only.** Nothing applies the next migration automatically.
 - **The Telegram channel's schema is live but the channel is off**; enabling it still waits on ADR-011 decision 10 and BL-024.
@@ -72,7 +73,7 @@ Rework count and hypothesis changes: none.
 | 2. Owners and row counts after each batch | yes | hosted | the four verification queries (row 4) | PASS | |
 | 3. The purge, bucket and abandon state after `0094` | yes | hosted | the batch-D query (row 4) | PASS | |
 | 4. Preflight OK, READY, `/login` 200, route 401 without a «not configured» log | yes | `4434314`, `dpl_9LUw1aKx7GEw5w41Q4HkJzCbR8z7` | Vercel build and runtime logs; `curl` (row 6) | PASS | |
-| 5. A cron run answers 200 | yes | — | — | NOT RUN | not-provable-locally: the session holds no `CRON_SECRET` and the API used lists no crons; settled by the owner's «Run» in Settings → Cron Jobs, or the 18:00 UTC run's runtime log |
+| 5. A cron run answers 200 | yes | `4434314`, `dpl_9LUw1aKx7GEw5w41Q4HkJzCbR8z7` | the owner's «Run» (12:51:20 UTC); the runtime log: `GET /internal/evidence/purge 200`, no `[EVIDENCE_PURGE]` error line; the database after it: health `0/0`, both intents `available` and unpurged, 2 objects in the bucket (row 7) | PASS | owner-reported: the four cron entries in Settings → Cron Jobs and the «Run» were the owner's; the 200 is read from the runtime log |
 
 ## Sources
 
@@ -84,6 +85,6 @@ Rework count and hypothesis changes: none.
 - Changed / inspected files: this record, `docs/tasks/README.md`, `docs/STATUS.md`, `infra/README-staging.md` §Status.
 - Review independence: `gp-architect` (plan, native); no code diff.
 - Verified scope: the hosted database and the production deployment, read back through the Supabase and Vercel APIs.
-- Remaining risks / blocked requirements: criterion 5; Q-9's standing answer.
-- Next bounded action and owner: the owner checks Settings → Cron Jobs (four entries on `/internal/evidence/purge`) and presses «Run» once, or reads the 18:00 UTC run's log.
-- Final state and reason: done — the push and the deploy are verified; the cron run is recorded NOT RUN with its settling step.
+- Remaining risks / blocked requirements: Q-9's standing answer.
+- Next bounded action and owner: none for this task; Q-9's standing answer is the owner's.
+- Final state and reason: done — the push, the deploy and a cron run (200) are verified.
