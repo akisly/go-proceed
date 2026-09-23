@@ -49,9 +49,11 @@ export async function GET(request: Request): Promise<Response> {
   try {
     run = await runEvidencePurge({ budgetMs: RUN_BUDGET_MS, requestId });
   } catch (err) {
-    // A database or Storage outage, or a misconfigured PURGE_DB_URL. The purge
-    // worker's own errors name no key (EvidenceStorageError, DEV-034).
-    console.error("[EVIDENCE_PURGE]", requestId, "run failed", err);
+    // A database or Storage outage, or a misconfigured PURGE_DB_URL. Only the
+    // error's class and SQLSTATE are logged: a database error's detail can
+    // quote a row, storage keys included (DEV-036 Q1-01).
+    console.error("[EVIDENCE_PURGE]", requestId, "run failed",
+      { name: (err as Error).name, code: (err as { code?: string }).code });
     return Response.json({ code: "purge_failed", requestId },
       { status: 500, headers: { "cache-control": "no-store" } });
   }

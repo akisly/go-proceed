@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** the bytes behind expired, orphaned and aged scan-blocked upload intents are deleted by a scheduled job, as INV-047 requires («purged within 24 hours», «repeated failure alerts»), instead of by tests only. No user-visible screen changes; a workspace's reserved quota is released as its orphans are purged.
-- **State:** implementing
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a worker, a database role, grants and `SECURITY DEFINER` functions: `gp-architect` → coordinator (tests first) → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -50,6 +50,8 @@
 | 6 | rework (coordinator), stated fixes, tests first | **R1-02** red first (2 of 2): the deadline is checked before every row and a row's finish that throws is logged and counted failed, the run going on; **R1-08** the route's request id reaches every transaction; **R1-05** `agents/COMMON.md` «Workers» row updated and the profiles regenerated; **R1-06** Progress lines on BL-030 to BL-036; **R1-01** the migration order and reverse rollback in README-staging §3.3 and the records; **R1-07/S1-03** INV-105 narrowed to «beyond what PUBLIC holds», and a new case: no `SECURITY DEFINER` function in `public` or `app` is PUBLIC-executable; **S1-04** the two variables Production only; **S1-05** `\password` advised in §3.3. Green: fencing 10, purge 24, route 13, principal 8 | `scratchpad/r1-02-red.txt`, `r1-02-green-*.txt`, `dev036-s1-03.txt` | Re-review; `gp-qa` |
 | 7 | re-review (`gp-reviewer`, native) on `51e31bb` | **CHANGES REQUESTED**: every round-1 finding fixed (S1-03's optional revokes deferred with a reason); new R2-01 minor (the new log lines logged `err.name`, which node-postgres sets to "error" for every database error, so a missing function looked like a misconfigured login), R2-02 to R2-05 nits. Confirmed: a finish error spends no attempt and leaves `exhausted`/`overdue` untouched; rows past the deadline are reclaimed by a later run; `0094` preserves `0092` exactly (`created_by_member_id` is NOT NULL) | re-review report; `scratchpad/review2.diff` | Stated fixes |
 | 8 | rework (coordinator), stated fixes | **R2-01** the purge's finish log carries the SQLSTATE; the finish-error case asserts 42501. **R2-02** that case asserts both rows keep their claims, spend no attempt and stay unpurged. **R2-03** the PUBLIC-definer case has a positive control (a throwaway definer granted to PUBLIC is found, then dropped). **R2-04** COMMON.md names the five functions and «beyond what PUBLIC holds»; profiles regenerated. Green: fencing 10, principal 8, route 13; typecheck 10/10 | `scratchpad/r2-*.txt` | `gp-qa` |
+| 9 | verifying (`gp-qa`, native) on `37b7f11` | **All criteria PASS; CI `verify` NOT RUN (not required).** Its own runs, one suite at a time, none skipped for credentials: purge 24, principal 8, route 13, fencing 10, storage 24, storage-read 7, evidence-read 6, finalize 36, create 23, get 9, vanishing-bytes 1, external-evidence 12, telegram-evidence 22, telegram-processing 17, vertical-m2a 10, concurrency 9; unit 515 (572 before the merge of DEV-035, which removed the PWA's tests); `packages/testing` 0038 section 2; typecheck, docs and agents validators; the live database's roles, grants, functions and constraint; everything its suites revoke, rename or lift restored. Every stated fix in place. New: Q1-01 info (the route's «run failed» line logged the raw error, whose database detail can quote a row), Q1-02 nit (no committed test of the route's request id) | QA report; `scratchpad/qa1-*.txt` | Closing |
+| 10 | closing (coordinator) | **Q1-01** the «run failed» line logs the error's class and SQLSTATE only; **Q1-02** a case makes the run fail (EXECUTE on `app.expire_upload_intents` revoked, then restored) and checks the 500 `purge_failed`, the log line's request id against the body's and `{ name, code: "42501" }`; the success case checks the body's request id. Red first (the raw error), then green: route 14; typecheck 10/10. `http.ts:97` logs the raw error the same way; that is DEV-034 OOS-02, under BL-035 | `scratchpad/q1-red.txt`, `q1-green.txt` | Push, PR |
 
 ## Findings and rework
 
@@ -68,8 +70,10 @@
 | R2-02 | nit | the finish-error case | Actual: counts only | coordinator | Row state asserted (row 8) |
 | R2-03 | nit | the PUBLIC-definer case | Actual: no positive control | coordinator | Throwaway definer found, dropped (row 8) |
 | R2-04 | nit | `agents/COMMON.md` «Workers» | Actual: a glob the expiry function does not match, and «only» | coordinator | Named the five; «beyond what PUBLIC holds» (row 8) |
+| Q1-01 | info | the route's «run failed» line | Actual: the raw error, whose detail can quote a row | coordinator | Class and SQLSTATE only; a failing-run case (row 10) |
+| Q1-02 | nit | the route's request id | Actual: no committed test | coordinator | Checked in two cases (row 10) |
 
-Rework count and hypothesis changes: none counted (no QA FAIL yet); the review fixes are the first rework, before QA.
+Rework count and hypothesis changes: none counted — no QA FAIL and no blocker; two review rounds fixed minor findings and nits before QA.
 
 ## What is not true after this task
 
@@ -85,6 +89,13 @@ Rework count and hypothesis changes: none counted (no QA FAIL yet); the review f
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. The principal, the functions, the grants, the cron job | yes | `37b7f11` | `gp-qa`: principal 8, the live database (`qa1-evidence-purge-principal.txt`, `qa1-dbstate.txt`) | PASS | |
+| 2. `PURGE_DB_URL` only; refuses other logins; the mutant | yes | `37b7f11` | `gp-qa`: purge 24 (`qa1-evidence-purge.txt`); `dev036-mutant-session-user.txt` | PASS | assisted: the mutant ran on the tree of `e58907c`; `tx.ts` unchanged since |
+| 3. The route: authentication, the run, the alert, counts and request id only | yes | `37b7f11` + closing | `gp-qa`: route 13 and its probe (`qa1-evidence-purge-route.txt`, `qa1-probe-route-requestid.txt`); after Q1-01/Q1-02, route 14 (`q1-green.txt`) | PASS | |
+| 4. The schedule: daily expressions, no gap over six hours | yes | `37b7f11` | `gp-qa`: the schedule cases in the route suite | PASS | |
+| 5. Existing purge behaviour; `sameSecret` moved | yes | `37b7f11` | `gp-qa`: purge 24, vertical-m2a 10, telegram-evidence 22, telegram-processing 17, unit 515 | PASS | |
+| 6. Typecheck, docs, agents | yes | `37b7f11` + closing | `gp-qa` (`qa1-typecheck.txt`, `qa1-canonical-docs.txt`, `qa1-agents.txt`); typecheck again at closing | PASS | |
+| 7. CI `verify` | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026 (billing); settled by CI `verify` on the PR head |
 
 ## Sources
 
@@ -96,8 +107,8 @@ Rework count and hypothesis changes: none counted (no QA FAIL yet); the review f
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
-- Verified scope: pending.
+- Review independence: independent — `gp-architect`, `gp-reviewer` (two rounds), `gp-security` and `gp-qa`, native project agents; the coordinator implemented.
+- Verified scope: the scoped criteria on the local stack (`0090`–`0094` hand-applied); nothing hosted.
 - Remaining risks / blocked requirements: see «What is not true».
-- Next bounded action and owner: reviews (coordinator).
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner — merge the PR; then apply `0090`–`0094` to the hosted project before the production deploy that carries this build, set the purge login's password and `PURGE_DB_URL` and `CRON_SECRET` (Production only), per `infra/README-staging.md` §3.3.
+- Final state and reason: done — every required criterion PASS on `37b7f11` and the closing fix; CI not required.

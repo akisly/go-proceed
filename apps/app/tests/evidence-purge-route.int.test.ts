@@ -103,6 +103,7 @@ describe("GET /internal/evidence/purge — the run", () => {
     const body = await res.json();
     expect(body).toMatchObject({ expired: 1, claimed: 1, purged: 1, failed: 0, superseded: 0,
       exhausted: 0, overdue: 0 });
+    expect(body.requestId).toMatch(/^[0-9a-f-]{36}$/);
     expect(await objectExists(intent.storage.key)).toBe(false);
     const row = await q<{ purged_at: Date | null }>(
       "select purged_at from public.upload_intents where id = $1", [intent.uploadIntentId]);
@@ -131,6 +132,24 @@ describe("GET /internal/evidence/purge — the run", () => {
     expect(printed).toContain("[EVIDENCE_PURGE]");
     for (const half of intent.storage.key.split("/")) expect(printed).not.toContain(half);
     expect(JSON.stringify(body)).not.toContain(intent.storage.key.split("/")[1]!);
+  });
+
+  it("answers 500 purge_failed when the run itself fails, logging the request id and the SQLSTATE only (DEV-036 Q1-01, Q1-02)", async () => {
+    await expiredIntent();
+    await q("revoke execute on function app.expire_upload_intents() from goproceed_purge_worker");
+    try {
+      const res = await purge(`Bearer ${SECRET}`);
+      expect(res.status).toBe(500);
+      const body = await res.json();
+      expect(body.code).toBe("purge_failed");
+      const lines = errors.filter((e) => e[0] === "[EVIDENCE_PURGE]");
+      expect(lines).toHaveLength(1);
+      expect(lines[0]![1]).toBe(body.requestId);
+      // Counts-and-codes only: a database error's detail can quote a row, keys included.
+      expect(lines[0]![3]).toEqual({ name: "error", code: "42501" });
+    } finally {
+      await q("grant execute on function app.expire_upload_intents() to goproceed_purge_worker");
+    }
   });
 
   it("keeps answering 500 while a row stands exhausted, not only on the run it failed", async () => {

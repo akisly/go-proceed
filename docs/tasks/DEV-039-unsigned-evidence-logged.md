@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** when the member-plane evidence read cannot sign some objects (purged or missing — the per-object failures `createSignedReadUrls` reports in `failedKeys`), the operator sees it: one server log line with the failed and total counts and the request id. The screen is unchanged — rows without `readUrl` render «недоступне» and the response stays 200.
-- **State:** implementing
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a bounded change with an understood cause: coordinator (tests first) → `gp-reviewer` + `gp-security` → `gp-qa`. `gp-architect` was asked as part of the cluster and chose the no-contract option.
@@ -41,6 +41,8 @@
 | 2 | implementing (coordinator): red, then green | **Red:** 1 of 6 (no line logged); the «nothing logged» case passes before and after. **Green:** evidence-read 6, storage-read 7, the evidence component unit tests 23 | `scratchpad/dev039-red.txt`, `dev039-green.txt`, `dev039-suite-evidence-storage-read.txt`, `dev039-unit-evidence.txt` | Commit; reviews |
 | 3 | reviewing (`gp-reviewer`, `gp-security`, native) on `52d6b63` (the five commits plus a merge of `origin/main` 206abec: DEV-035, #110 and #111, landed first; one conflict in the task index) | **`gp-security`: PASS WITH FINDINGS** (S1-01, S1-02 minor; S1-03 to S1-06 info). **`gp-reviewer`: CHANGES REQUESTED** (R1-01 to R1-06 minor, R1-07 and R1-08 nits). No blocker, no major. Both confirmed: only the purge role can call the purge functions; the abandon path answers only for the creator; the purge cannot reach an available object's bytes | review reports; `scratchpad/review1.diff` | Stated fixes |
 | 4 | rework (coordinator), stated fixes, tests first | **R1-03** the route comment and this record now say «purged or missing»; an unreachable store throws and is a logged 500; noted on BL-036. **R1-06** a Progress line on BL-036. No code change | the diff | Re-review; `gp-qa` |
+| 5 | verifying (`gp-qa`, native) on `37b7f11` | **All criteria PASS; CI `verify` NOT RUN (not required).** Its own runs, one suite at a time, none skipped for credentials: purge 24, principal 8, route 13, fencing 10, storage 24, storage-read 7, evidence-read 6, finalize 36, create 23, get 9, vanishing-bytes 1, external-evidence 12, telegram-evidence 22, telegram-processing 17, vertical-m2a 10, concurrency 9; unit 515 (572 before the merge of DEV-035, which removed the PWA's tests); `packages/testing` 0038 section 2; typecheck, docs and agents validators; the live database's roles, grants, functions and constraint; everything its suites revoke, rename or lift restored. Every stated fix in place. New: Q1-01 info (the route's «run failed» line logged the raw error, whose database detail can quote a row), Q1-02 nit (no committed test of the route's request id) | QA report; `scratchpad/qa1-*.txt` | Closing |
+| 6 | closing (coordinator) | QA's Q1-01 and Q1-02 belong to DEV-036 and were fixed there | DEV-036 | Push, PR |
 
 ## Findings and rework
 
@@ -49,7 +51,7 @@
 | R1-03 | minor | route comment; the objective | Actual: claimed an unreachable store was a silent 200 | coordinator | Reworded (row 4) |
 | R1-06 | minor | `docs/BACKLOG.md` BL-036 | Actual: untouched | coordinator | Progress line; closure at done (row 4) |
 
-Rework count and hypothesis changes: none counted (no QA FAIL yet); the review fixes are the first rework, before QA.
+Rework count and hypothesis changes: none counted — no QA FAIL and no blocker; two review rounds fixed minor findings and nits before QA.
 
 ## What is not true after this task
 
@@ -61,6 +63,11 @@ Rework count and hypothesis changes: none counted (no QA FAIL yet); the review f
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. One unsigned of three: 200, one row without `readUrl`, one line with request id and counts, no key or token | yes | `37b7f11` | `gp-qa`: evidence-read 6 (`qa1-evidence-read.txt`); `dev039-red.txt` red first | PASS | |
+| 2. Nothing logged when all sign | yes | `37b7f11` | the same suite | PASS | negative: the empty log is the evidence |
+| 3. Evidence-read, storage-read, component tests | yes | `37b7f11` | `gp-qa`: 6, 7, unit 515 | PASS | |
+| 4. Typecheck, docs, agents | yes | `37b7f11` | `gp-qa` static checks | PASS | |
+| 5. CI `verify` | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026 (billing); settled by CI `verify` on the PR head |
 
 ## Sources
 
@@ -69,8 +76,8 @@ Rework count and hypothesis changes: none counted (no QA FAIL yet); the review f
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
-- Verified scope: pending.
+- Review independence: independent — `gp-architect`, `gp-reviewer` (two rounds), `gp-security` and `gp-qa`, native project agents; the coordinator implemented.
+- Verified scope: the scoped criteria on the local stack; nothing hosted.
 - Remaining risks / blocked requirements: see «What is not true».
-- Next bounded action and owner: reviews (coordinator).
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner — merge the PR; then apply `0090`–`0094` to the hosted project before the production deploy that carries this build, set the purge login's password and `PURGE_DB_URL` and `CRON_SECRET` (Production only), per `infra/README-staging.md` §3.3.
+- Final state and reason: done — every required criterion PASS on `37b7f11`; CI not required.

@@ -3,7 +3,7 @@
 ## Assignment
 
 - **Objective and user-visible outcome:** when the creator of an upload has lost the workspace membership, or the project's read, between authorizing the upload and finalizing it, their finalize call orphans the intent at once — as losing `evidence.record` already did — so its bytes go at the next purge run instead of after the 24-hour intent TTL (INV-047). The creator sees the existing «Доступ відкликано під час завантаження. Байти позначено на очищення.» refusal instead of «not found». Anyone else sees exactly what they saw before.
-- **State:** implementing
+- **State:** done
 - **Coordinator:** primary Claude Code session, 2026-09-23.
 - **Execution mode:** independent subagents for the required stages, as native `gp-*` agent types.
 - **Selected route and why (`agents/COORDINATION.md`):** a `SECURITY DEFINER` function and grants, a second authorization path: `gp-architect` (shared with DEV-036) → coordinator (tests first) → `gp-reviewer` + `gp-security` → `gp-qa`.
@@ -45,6 +45,8 @@
 | 5 | rework (coordinator), stated fixes, tests first | **S1-01** red first (the other connection could not take the row: «could not obtain lock»), then `0094`: the creator test moves into the locking select, so a stranger never holds the row; grants kept (checked). **R1-01** red first (500 without the function), then the call is best-effort: its failure is logged `[FINALIZE_ABANDON_FAILED]` with the request id and the caller gets today's refusal; the order is stated in README-staging §3.3. **R1-04** the Telegram code sentence corrected. **R1-06** a Progress line on BL-032. Green: finalize 36 | `scratchpad/dev038-s1-01-red.txt`, `dev038-s1-01-green.txt`, `r1-01-red.txt`, `r1-01-green.txt` | Re-review; `gp-qa` |
 | 6 | re-review (`gp-reviewer`, native) on `51e31bb` | **CHANGES REQUESTED**: every round-1 finding fixed (S1-03's optional revokes deferred with a reason); new R2-01 minor (the new log lines logged `err.name`, which node-postgres sets to "error" for every database error, so a missing function looked like a misconfigured login), R2-02 to R2-05 nits. Confirmed: a finish error spends no attempt and leaves `exhausted`/`overdue` untouched; rows past the deadline are reclaimed by a later run; `0094` preserves `0092` exactly (`created_by_member_id` is NOT NULL) | re-review report; `scratchpad/review2.diff` | Stated fixes |
 | 7 | rework (coordinator), stated fixes | **R2-01** `[FINALIZE_ABANDON_FAILED]` carries the SQLSTATE; the rename-away case asserts 42883. Green: finalize 36 | `scratchpad/r2-*.txt` | `gp-qa` |
+| 8 | verifying (`gp-qa`, native) on `37b7f11` | **All criteria PASS; CI `verify` NOT RUN (not required).** Its own runs, one suite at a time, none skipped for credentials: purge 24, principal 8, route 13, fencing 10, storage 24, storage-read 7, evidence-read 6, finalize 36, create 23, get 9, vanishing-bytes 1, external-evidence 12, telegram-evidence 22, telegram-processing 17, vertical-m2a 10, concurrency 9; unit 515 (572 before the merge of DEV-035, which removed the PWA's tests); `packages/testing` 0038 section 2; typecheck, docs and agents validators; the live database's roles, grants, functions and constraint; everything its suites revoke, rename or lift restored. Every stated fix in place. New: Q1-01 info (the route's «run failed» line logged the raw error, whose database detail can quote a row), Q1-02 nit (no committed test of the route's request id) | QA report; `scratchpad/qa1-*.txt` | Closing |
+| 9 | closing (coordinator) | QA's Q1-01 and Q1-02 belong to DEV-036 and were fixed there | DEV-036 | Push, PR |
 
 ## Findings and rework
 
@@ -56,7 +58,7 @@
 | R1-06 | minor | `docs/BACKLOG.md` BL-032 | Actual: untouched | coordinator | Progress line; closure at done (row 5) |
 | R2-01 | minor | `finalize-upload-intent.ts` best-effort catch | Actual: the log did not tell deploy-order skew from a misconfigured service login | coordinator | SQLSTATE logged; 42883 asserted (row 7) |
 
-Rework count and hypothesis changes: none counted (no QA FAIL yet); the review fixes are the first rework, before QA.
+Rework count and hypothesis changes: none counted — no QA FAIL and no blocker; two review rounds fixed minor findings and nits before QA.
 
 ## What is not true after this task
 
@@ -68,6 +70,12 @@ Rework count and hypothesis changes: none counted (no QA FAIL yet); the review f
 
 | Criterion | Required? | Checked revision | Command or evidence | PASS / FAIL / NOT RUN | Limitation |
 |---|---|---|---|---|---|
+| 1. Suspended, ended, or stripped creator: 403, orphaned, bytes kept, same on retry | yes | `37b7f11` | `gp-qa`: finalize 36 (`qa1-upload-intents-finalize.txt`); `dev038-red.txt` red first | PASS | |
+| 2. Another member, an outsider, an expired or claimed intent: unchanged | yes | `37b7f11` | the same suite | PASS | |
+| 3. A fully authorized creator refused; the mutant; service-only | yes | `37b7f11` | the direct and grant cases; `qa1-dbstate.txt`; `dev038-mutant-authz.txt` | PASS | assisted: the mutant ran before `0094`, whose authorization test is unchanged (`gp-qa` diffed the bodies) |
+| 4. Finalize, vanishing-bytes, Telegram evidence, concurrency, upload-get | yes | `37b7f11` | `gp-qa`: 36, 1, 22, 9, 9 | PASS | |
+| 5. Typecheck, docs, agents | yes | `37b7f11` | `gp-qa` static checks | PASS | |
+| 6. CI `verify` | no | — | — | NOT RUN | environmental: GitHub Actions starts no jobs until October 2026 (billing); settled by CI `verify` on the PR head |
 
 ## Sources
 
@@ -76,8 +84,8 @@ Rework count and hypothesis changes: none counted (no QA FAIL yet); the review f
 ## Completion / handoff
 
 - Changed / inspected files: see «Owning module».
-- Review independence: pending.
-- Verified scope: pending.
+- Review independence: independent — `gp-architect`, `gp-reviewer` (two rounds), `gp-security` and `gp-qa`, native project agents; the coordinator implemented.
+- Verified scope: the scoped criteria on the local stack; nothing hosted.
 - Remaining risks / blocked requirements: see «What is not true».
-- Next bounded action and owner: reviews (coordinator).
-- Final state and reason: implementing.
+- Next bounded action and owner: the owner — merge the PR; then apply `0090`–`0094` to the hosted project before the production deploy that carries this build, set the purge login's password and `PURGE_DB_URL` and `CRON_SECRET` (Production only), per `infra/README-staging.md` §3.3.
+- Final state and reason: done — every required criterion PASS on `37b7f11`; CI not required.
