@@ -173,6 +173,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
 | [BL-143](#bl-143) | P3 | open | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
 | [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
+| [BL-145](#bl-145) | P3 | open | `m3-refusal.int.test.ts` sees two `work_stage.closed` outbox rows in a full `apps/app` run, one when run alone |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -1733,4 +1734,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Why:** DEV-044's `gp-reviewer` R1-05c and DEV-043/044's `gp-qa` follow-ups 2 and 3. (1) `packages/testing/src/m1-schema.test.ts` asserts the workspace-access tables' NOT NULL `workspace_id`, `(workspace_id, id)` key and composite foreign key to `projects`; the new end table (`0097`) is in none of its lists. The file calls `resetDb()`, which the owner does not allow locally, so an edit could not be run and was deferred. (2) `project_responsibilities.end` lower-cases the member id and `revokeProjectAccessRequest` bounds `capabilities`, and no test drives either. Ranked by DEV-044.
 - **Evidence:** DEV-044's record «Findings and rework» R1-05c; `scratchpad/dev043-044-qa-r1-report.md` (cited in both records).
 - **Depends on:** a CI run (the Actions billing block) or an owner-approved local reset for (1); nothing for (2).
+- **Deadline:** none recorded.
+
+### BL-145 — P3 — `m3-refusal.int.test.ts` sees two `work_stage.closed` outbox rows in a full `apps/app` run, one when run alone
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-042's database-suite run (2026-09-24, row 13). «the closure records how many obligations were escaped rather than met > counts decisions and exceptions in the audit row and in the outbox payload» (`apps/app/tests/m3-refusal.int.test.ts:971`) expected one `work_stage.closed` row in `transaction_outbox` and found two in the first two full `pnpm --filter @goproceed/app test` runs; it passed alone (29/29) and in the third, clean full run. The query reads the whole outbox by topic, so a row left by another suite (or an earlier case) in the same database can be counted. Order-dependent, not a product defect as far as observed.
+- **Evidence:** DEV-042's record row 13; session scratchpad logs `app-suite.log`, `app-suite2.log`, `app-suite3.log`.
+- **Depends on:** nothing. Scope the query to the case's own workspace or aggregate id.
 - **Deadline:** none recorded.
