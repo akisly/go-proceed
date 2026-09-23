@@ -339,14 +339,18 @@ describe("project_responsibility_assignment_ends (DEV-044)", () => {
       .rejects.toThrow(/immutable/i);
     await expect(admin.query("delete from public.project_responsibility_assignment_ends where id = $1", [e.rows[0]!.id]))
       .rejects.toThrow(/immutable/i);
+    // An assignment with no end yet, so the unique key cannot answer before the foreign key.
+    const unended = (await admin.query<{ id: string }>(
+      `insert into public.project_responsibility_assignments (workspace_id, project_id, member_id, responsibility, assigned_by)
+       values ($1, $2, $3, 'requirement_owner', $4) returning id`, [WS_A, projectA, a2Member, USER_A])).rows[0]!.id;
     const other = (await admin.query<{ id: string }>(
       "insert into public.projects (workspace_id, name, created_by) values ($1, 'Приклад-Обʼєкт-A2', $2) returning id", [WS_A, USER_A])).rows[0]!.id;
     await expect(admin.query(
       `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
-       values ($1, $2, $3, $4)`, [WS_A, other, a2Assignment, USER_A])).rejects.toMatchObject({ code: "23503" });
+       values ($1, $2, $3, $4)`, [WS_A, other, unended, USER_A])).rejects.toMatchObject({ code: "23503" });
     await expect(admin.query(
       `insert into public.project_responsibility_assignment_ends (workspace_id, project_id, assignment_id, ended_by)
-       values ($1, $2, $3, $4)`, [WS_B, projectA, a2Assignment, USER_A])).rejects.toMatchObject({ code: "23503" });
+       values ($1, $2, $3, $4)`, [WS_B, projectA, unended, USER_A])).rejects.toMatchObject({ code: "23503" });
   });
 
   it("goproceed_app holds SELECT and INSERT only", async () => {

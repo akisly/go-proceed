@@ -30,6 +30,8 @@ project_access_grants,scopes,projects,N:1,yes,workspace_id+project_id -> project
 project_access_grants,grants_to,memberships,N:1,yes,workspace_id+member_id -> memberships(workspace_id+id),restrict,INV-021
 project_responsibility_assignments,scopes,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-021
 project_responsibility_assignments,assigns,memberships,N:1,yes,workspace_id+member_id -> memberships(workspace_id+id),restrict,INV-021
+project_responsibility_assignment_ends,scopes,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-112
+project_responsibility_assignment_ends,ends,project_responsibility_assignments,1:1,yes,workspace_id+project_id+assignment_id -> project_responsibility_assignments(workspace_id+project_id+id),restrict,INV-112
 contracts,belongs_to,projects,N:1,yes,workspace_id+project_id -> projects(workspace_id+id),restrict,INV-001
 contracts,own_party,parties,N:1,yes,workspace_id+own_party_id -> parties(workspace_id+id) plus own_legal_entity_profiles existence,restrict,INV-002
 contracts,customer_party,parties,N:1,yes,workspace_id+customer_party_id -> parties(workspace_id+id),restrict,INV-002

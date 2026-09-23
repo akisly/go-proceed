@@ -204,6 +204,16 @@ A responsibility:
 - is time-bounded and project-bound;
 - is retained as accountability history after it expires.
 
+**Ending** (`project_responsibilities.end`, [ADR-014](../decisions/ADR-014-revoke-access-and-end-responsibility.md)
+decisions 2 and 3, DEV-044, 2026-09-23). A project administrator ends a
+member's responsibility on a project: every assignment of that pair that is
+live or has not started is ended at the moment of the command, by one row per
+assignment in the append-only `project_responsibility_assignment_ends` (`0097`,
+INV-112). An end before an assignment's start cancels it; no past or future end
+date is accepted. The assignment row, and its planned window, is never changed,
+so the history keeps both. An ended assignment no longer counts as held. Ending
+a responsibility does not touch access (INV-021).
+
 One member may hold multiple responsibilities in v0.1. Separation-of-duties
 conflicts produce an explicit warning/fact; they do not silently grant or deny a
 different capability. **That warning is v0.2**

@@ -47,10 +47,13 @@ export const POST = commandRoute(assignResponsibilityRequest, async (a) => {
             fieldErrors: [{ path: "memberId", message: "not an active member" }],
           }));
       }
+      // An ended assignment (DEV-044, 0097) is no longer held, whatever its window said.
       const existing = await tx.query(
-        `select distinct responsibility from public.project_responsibility_assignments
-          where workspace_id=$1 and project_id=$2 and member_id=$3
-            and (valid_until is null or valid_until > now())`,
+        `select distinct a.responsibility from public.project_responsibility_assignments a
+          where a.workspace_id=$1 and a.project_id=$2 and a.member_id=$3
+            and (a.valid_until is null or a.valid_until > now())
+            and not exists (select 1 from public.project_responsibility_assignment_ends e
+                             where e.workspace_id = a.workspace_id and e.assignment_id = a.id)`,
         [workspaceId, projectId, a.body.memberId]);
       const held = new Set<string>(existing.rows.map((r: { responsibility: string }) => r.responsibility));
       const warnings = SOD_PAIRS

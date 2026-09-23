@@ -386,6 +386,27 @@ create table public.project_responsibility_assignments (
 comment on table public.project_responsibility_assignments is
   'Operational accountability fact. Never grants visibility (INV-021). Retained as history after expiry; separation-of-duties conflicts warn, never silently deny (domain-model.md).';
 
+-- ADDED 2026-09-23 (ADR-014 decisions 2 and 3, DEV-044; deployed by migration 0097):
+-- the end of an assignment is a fact of its own, so the assignment keeps its
+-- planned window as history.
+create table public.project_responsibility_assignment_ends (
+  id uuid not null default gen_random_uuid(),
+  workspace_id uuid not null references public.workspaces(id),
+  project_id uuid not null,
+  assignment_id uuid not null,
+  ended_by uuid not null,             -- the acting user (auth.users), a project administrator
+  ended_at timestamptz not null default now(),  -- the command's time; no past or future end
+  created_at timestamptz not null default now(),
+  primary key (id),
+  unique (workspace_id, id),
+  unique (workspace_id, assignment_id),           -- at most one end per assignment (INV-112)
+  foreign key (workspace_id, project_id) references public.projects (workspace_id, id),
+  foreign key (workspace_id, project_id, assignment_id)
+    references public.project_responsibility_assignments (workspace_id, project_id, id)
+);
+comment on table public.project_responsibility_assignment_ends is
+  'Append-only end of one responsibility assignment (INV-112). An end before the assignment starts cancels it. Never touches access (INV-021).';
+
 -- =============================================================================
 -- 2. CONTRACT BASELINE AND IMPORT
 -- =============================================================================
@@ -3382,6 +3403,7 @@ alter table public.projects enable row level security;
 alter table public.project_parties enable row level security;
 alter table public.project_access_grants enable row level security;
 alter table public.project_responsibility_assignments enable row level security;
+alter table public.project_responsibility_assignment_ends enable row level security;
 alter table public.unit_definitions enable row level security;
 alter table public.locations enable row level security;
 alter table public.contracts enable row level security;

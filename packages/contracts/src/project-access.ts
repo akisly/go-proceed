@@ -107,3 +107,18 @@ export interface AssignResponsibilityResponse {
   assignmentId: string;
   warnings: string[];
 }
+
+// BL-015 / DEV-044 / ADR-014 decision 2: `project_responsibilities.end` ends
+// every assignment of the (member, responsibility) pair that is live or has not
+// started, at the moment of the command — no date is accepted (owner,
+// 2026-09-23). Addressed by the pair, as a separation-of-duties warning names it.
+export const endResponsibilityRequest = z.object({
+  memberId: z.string().guid(),
+  responsibility: responsibilityKind,
+}).strict();
+export type EndResponsibilityRequest = z.infer<typeof endResponsibilityRequest>;
+
+export const endResponsibilityResponse = z.object({
+  ended: z.array(z.object({ assignmentId: z.string().guid() }).strict()),
+}).strict();
+export type EndResponsibilityResponse = z.infer<typeof endResponsibilityResponse>;
