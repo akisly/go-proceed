@@ -23,7 +23,7 @@ import { createHash } from "node:crypto";
  * the envelope changes every stored hash — a retry that spans such a deploy is
  * answered 409 — so the pinned vectors in request-hash.test.ts must move with it.
  */
-const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const sha256 = (s: string) => createHash("sha256").update(s, "utf8").digest("hex");
 
 export const COMMAND_REQUEST_HASH_SCHEME = "goproceed-command-request/1";

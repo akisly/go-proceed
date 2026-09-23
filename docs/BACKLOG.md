@@ -169,7 +169,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-138](#bl-138) | P3 | open | Nothing makes a grant's `revoked_at` write-once, so a defect can un-revoke a grant |
 | [BL-139](#bl-139) | P3 | open | No route lists a project's grants or responsibility assignments |
 | [BL-140](#bl-140) | P3 | open | A member's `project.view` can lapse before the action capabilities it was added for |
-| [BL-141](#bl-141) | P3 | open | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
+| [BL-141](#bl-141) | P3 | scheduled → DEV-047 | The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row |
 | [BL-142](#bl-142) | P2 | open | Removing a member from a project leaves their Telegram group membership and the external review links they issued |
 | [BL-143](#bl-143) | P3 | scheduled → DEV-046 | The workspace-access helpers `app.has_project_capability`, `app.active_member_id` and `app.project_has_grants` pin `search_path = public`, not an empty one |
 | [BL-144](#bl-144) | P3 | open | `m1-schema.test.ts` does not list `project_responsibility_assignment_ends`, and two review fixes of DEV-043/DEV-044 have no test |
@@ -1699,7 +1699,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-141"></a>
 ### BL-141 — P3 — The grant and assign routes answer a malformed project id with 500, and `VERSION_CONFLICT`'s `retryable` disagrees with its catalog row
 
-- **State:** open
+- **State:** scheduled → DEV-047
 - **Legacy cite:** none
 - **Why:** DEV-043's `gp-architect` design. `project_access.grant` and `project_responsibilities.assign` pass the path's project id to a `uuid` comparison without checking its form, so a malformed id raises a cast error that becomes 500 `INTERNAL_ERROR`; the revoke and end routes check it first and answer 404, as `invitations.revoke` does. And `technical/error-catalog.csv` marks `VERSION_CONFLICT` retryable while the revoke routes (DEV-021, DEV-043, DEV-044) send `retryable: false`, because retrying the same revoke cannot succeed. Ranked by DEV-043.
 - **Evidence:** `apps/app/app/v1/projects/[projectId]/access-grants/route.ts` and `responsibilities/route.ts` (no UUID check); `technical/error-catalog.csv` row `VERSION_CONFLICT`; `apps/app/app/v1/invitations/[invitationId]/revoke/route.ts`.
