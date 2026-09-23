@@ -60,7 +60,7 @@ export const WORKSPACE_TIMEZONE_DEFAULT = "Europe/Kyiv";
  * Vercel's runtime clock is UTC. `evidence-card.tsx` carries no
  * `"use client"` anywhere in this tree (grep-verified), so this function
  * always runs on the SERVER, in the server process's own zone — unlike
- * `app/(app)/a/[assignmentId]/capture.tsx:50`'s superficially identical
+ * `app/(app)/a/[assignmentId]/capture.tsx:50`'s [deleted 2026-09-23, DEV-035] superficially identical
  * `formatClaimed`, which this file's previous header wrongly called "the
  * same one-line helper": that file IS `"use client"`, so it runs in the
  * VIEWER's own browser zone. Copying the one-liner without copying the
@@ -172,10 +172,10 @@ export function EvidenceCard({ item }: { item: EvidenceObjectView }) {
         <div className="flex flex-col gap-1">
           <dt className="text-ink-muted">Контрольна сума (SHA-256)</dt>
           {/* `break-all`, WITH `font-mono` (unlike the field client's own
-           * `capture.tsx:355-360`, which explicitly refuses `font-mono`
+           * `capture.tsx:355-360` [deleted 2026-09-23, DEV-035], which explicitly refuses `font-mono`
            * because `globals.css` clears `--font-*` there). The dash theme
            * does not: `packages/ui/src/theme.generated.css:46` re-adds
-           * `--font-mono`, so it resolves under `/dash` — verified against
+           * `--font-mono`, so it resolves under `/` — verified against
            * that file, not assumed from the field client's comment about a
            * different stylesheet. */}
           <dd className="break-all font-mono text-ink">{item.contentHash}</dd>

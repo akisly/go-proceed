@@ -35,7 +35,7 @@ import { apiGet, ApiError, isSessionExpired } from "../lib/api";
  *     `assignments.service.ts`'s own header already documents for its
  *     sibling route.
  *
- *   `forbidden`  — the caller CAN see the project (so `/dash/projects/
+ *   `forbidden`  — the caller CAN see the project (so `/projects/
  *     {projectId}/assignments` is reachable to them) but cannot see the
  *     MONEY. Unlike the assignments route, this one calls
  *     `requireProjectCapability` TWICE — once for `readiness.view`, once for
@@ -62,7 +62,7 @@ import { apiGet, ApiError, isSessionExpired } from "../lib/api";
  *     `project.view` WITHOUT `readiness.view` —
  *     `requirement_owner` (line 6), `internal_verifier` (line 8),
  *     `package_submitter` (line 9) and `foreman` (line 12). A member holding
- *     one of those four can open `/dash/projects/{projectId}/assignments`
+ *     one of those four can open `/projects/{projectId}/assignments`
  *     and then land on THIS screen's 403: the RLS-gated read at the route's
  *     own `notFound` guard passes (it only checks `project.view`/`project.
  *     admin`), `requireActiveMembership` passes, and `requireProjectCapability
@@ -112,7 +112,7 @@ export async function getBlockedValue(projectId: string): Promise<BlockedValueRe
  * Surfaces the route's own Ukrainian `detail` rather than a second,
  * hand-written translation of the same refusal — the server already
  * localizes `ProblemJson.detail` (`src/lib/http.ts`'s `problem()`), matching
- * `app/(app)/a/[assignmentId]/page.tsx`'s own `problemDetail` for the
+ * `app/(app)/a/[assignmentId]/page.tsx`'s [deleted 2026-09-23, DEV-035] own `problemDetail` for the
  * identical reason. `null` when the shape is not what `ApiError` promises,
  * so a caller always has a safe generic fallback to show instead.
  */

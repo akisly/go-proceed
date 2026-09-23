@@ -34,11 +34,22 @@ makes the v0.1 field client a PWA served from `apps/app` and takes `apps/mobile`
 off the v0.1 path, which is why the local-encryption section below is marked
 v0.3. Storage rules are unchanged in kind by either decision; each is stated
 against the version it lands in.
+*[2026-09-23, DEV-035 — that PWA is retired: [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2
+made `apps/mobile` the field client's codebase, and on 2026-09-23 the owner
+removed `apps/app`'s field pages ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23»). The v0.1 field
+client is now the Telegram project channel (not yet enabled in any environment, BL-024) and the `apps/mobile` Expo client,
+deployed as a web export at the Vercel project `goproceed-field`; native builds
+come later from the same codebase, so the local-encryption section stays v0.3.
+Below, «the v0.1 PWA» reads as that web field client, whose capture code is a
+port of the PWA's; every limit and refusal stated for the PWA binds it.]*
 
 v0.1 supports:
 
-- whole-file online evidence upload from the `apps/app` PWA field client
-  ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 1);
+- whole-file online evidence upload from the v0.1 web field client, the
+  `apps/mobile` Expo web export ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2), and
+  through the Telegram project channel once an environment enables it (BL-024)
+  *[2026-09-23, DEV-035 — was: «from the `apps/app` PWA field client ([ADR-007]
+  decision 1)». The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23»]*;
 - the controlled XLSX and CSV contract-baseline import already built, **frozen
   as it stands** — no extension of mapping, unit inference, or number-format
   handling is v0.1 work until one real sanitized customer file exists
@@ -209,8 +220,12 @@ v0.3 native client, and it is not the v0.3 offline outbox either.
 
 ## The v0.1 PWA holds no local tier
 
-The v0.1 field client is a browser page on the product origin
-([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 1). It has no
+The v0.1 web field client is a browser page on its own origin: the
+`apps/mobile` Expo web export at `goproceed-field`
+([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and «Amendment, 2026-09-23»).
+*[2026-09-23, DEV-035 — was: «The v0.1 field client is a browser page on the
+product origin ([ADR-007] decision 1).» The owner retired the `apps/app` PWA.]*
+It has no
 Keychain/Keystore-bound wrapping key: a non-extractable Web Crypto key in
 IndexedDB is bound to the **origin**, not to a secure element, so it is evicted
 together with the ciphertext it was protecting rather than outliving it. Safari

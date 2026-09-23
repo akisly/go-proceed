@@ -16,7 +16,7 @@ import { apiGet, isSessionExpired } from "../lib/api";
  * `project.view` — see
  * `apps/app/app/v1/projects/[projectId]/assignments/route.ts`. No `?assignee`
  * filter is sent: that query param exists on the route for the field client's
- * "my assignments" view (`app/(app)/page.tsx`'s `?assignee=me`), but this
+ * "my assignments" view (`app/(app)/page.tsx`'s [deleted 2026-09-23, DEV-035] `?assignee=me`), but this
  * screen is the office register — every assignment on the project, not one
  * member's own.
  */

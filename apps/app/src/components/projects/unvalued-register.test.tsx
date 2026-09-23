@@ -10,7 +10,7 @@ import { UnvaluedRegister } from "./unvalued-register";
  * `apps/app/qa/field.mjs` drives the assignments register at 1280, 390 and 360
  * and asserts per-`th` overflow, page overflow and touch targets on it — so
  * the TanStack migration of THAT table is proven in a real browser. The
- * unvalued register is on `/dash/projects/{projectId}`, which the same harness
+ * unvalued register is on `/projects/{projectId}`, which the same harness
  * opens, but the seeded world has no unvalued assignment: `register.length ===
  * 0`, the component returns `null`, and every assertion about it would be
  * vacuously true. That gap predates this commit (it is named in the harness's

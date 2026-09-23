@@ -91,6 +91,11 @@ and the reason is worth recording because it is easy to get wrong:
    (§3.3). Structure there is border-led — «`shadow-md` on a panel → nothing,
    use `border border-line`». The references lean on cards and shadows; that
    part does not come across.
+   *[2026-09-23, DEV-035, owner: «Как в Autumn».] Amended for the office
+   dashboard after the Autumn CRM Dashboard shots (Uxerflow, Dribbble
+   27537255 / 27543770 / 27554333 / 27557794 / 27564607 — structure only): the
+   work sheet is `rounded-card`, and the sheet, panels, KPI cards and the
+   current nav item carry `shadow-raised`. `shadow-float` still does not come across.*
 
 ## The hierarchy — plane's shape, mapped onto our tree
 

@@ -17,7 +17,7 @@ GoProceed is a pnpm/turbo monorepo. It holds the product applications, the Supab
 
 | Path | Owns |
 |---|---|
-| `apps/app` | Next.js BFF: `/v1` and `/external` routes, the office dashboard, the PWA field client |
+| `apps/app` | Next.js BFF: `/v1` and `/external` routes, and the office dashboard at `/` (the PWA field client was retired 2026-09-23, ADR-009 amendment) |
 | `apps/landing` | Next.js public site and the pilot request form (`apps/landing/AGENTS.md`) |
 | `apps/mobile` | Expo SDK 57 field client (`apps/mobile/AGENTS.md`) |
 | `packages/contracts` | Request and response shapes of the public API |

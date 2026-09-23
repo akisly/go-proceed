@@ -330,7 +330,7 @@
       "danger-600": {
         "$type": "color",
         "$value": "#C71336",
-        "$description": "The one solid destructive fill: white on it measures 5.87:1. Nothing under /app/** deletes anything, so this exists for the field client and for refusal states, not for a destructive button variant."
+        "$description": "The one solid destructive fill: white on it measures 5.87:1. It exists for refusal states, not for a destructive button variant — there is none (DEV-035, 2026-09-23: the field PWA it once also served was retired, and with it the variant's only call site)."
       },
       "danger-700": {
         "$type": "color",
@@ -627,7 +627,7 @@
       "card": {
         "$type": "dimension",
         "$value": "12px",
-        "$description": "Marketing only: the prototype's --r 12px — the figure, the form, the needs cells."
+        "$description": "The prototype's --r 12px — the figure, the form, the needs cells — and since 2026-09-23 (DEV-035) the dashboard's work sheet, the one outer instrument of `apps/app`'s shell."
       },
       "surface": {
         "$type": "dimension",
@@ -1081,6 +1081,33 @@
           "app.goproceed.alpha": 1
         }
       },
+      "action-brand-bg": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "The dashboard's primary action in the brand's primary (owner, 2026-09-23: «Зелёная, как в Autumn»). `apps/app` only — the landing's actions stay the ink pill. White on it measures 7.65:1.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-brand",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-brand-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-0}",
+        "$description": "The brand action's label: white on pine in light, ink on the light pine rung in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-brand-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-brand-hover": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-800}",
+        "$description": "The brand action pressed: one rung deeper, so the label only gains contrast.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-brand-hover",
+          "app.goproceed.alpha": 1
+        }
+      },
       "action-ghost-hover": {
         "$type": "color",
         "$value": "{primitive.color.neutral-100}",
@@ -1249,6 +1276,24 @@
         "$description": "Evidence missing and blocking a closure. 6.45:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "evidence-blocking",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-brand": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-700}",
+        "$description": "The dashboard's one-series data mark — a filled cell of a count, a tick of a bar — in the brand's primary (owner, 2026-09-23: «Зелёный + акцент»: data in pine, ember only for a highlighted cell). A mark, not a wash: nothing is read through it. 7.65:1 on white, so a single cell survives as a non-text mark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-brand",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-empty": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-150}",
+        "$description": "The empty cell beside `viz-brand`: the slot a count has not filled. Paler than any line so the filled cells carry the figure; the count is always also written in text.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-empty",
           "app.goproceed.alpha": 1
         }
       },
@@ -1668,6 +1713,33 @@
           "app.goproceed.alpha": 1
         }
       },
+      "action-brand-bg": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "The dashboard's primary action in the brand's primary (owner, 2026-09-23: «Зелёная, как в Autumn»). `apps/app` only — the landing's actions stay the ink pill. White on it measures 7.65:1.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-brand",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-brand-fg": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-975}",
+        "$description": "The brand action's label: white on pine in light, ink on the light pine rung in dark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-brand-fg",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "action-brand-hover": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-200}",
+        "$description": "The brand action pressed: one rung deeper, so the label only gains contrast.",
+        "$extensions": {
+          "app.goproceed.tailwind": "action-brand-hover",
+          "app.goproceed.alpha": 1
+        }
+      },
       "action-ghost-hover": {
         "$type": "color",
         "$value": "{primitive.color.neutral-900}",
@@ -1836,6 +1908,24 @@
         "$description": "Evidence missing and blocking a closure. 6.45:1 on canvas.",
         "$extensions": {
           "app.goproceed.tailwind": "evidence-blocking",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-brand": {
+        "$type": "color",
+        "$value": "{primitive.color.pine-300}",
+        "$description": "The dashboard's one-series data mark — a filled cell of a count, a tick of a bar — in the brand's primary (owner, 2026-09-23: «Зелёный + акцент»: data in pine, ember only for a highlighted cell). A mark, not a wash: nothing is read through it. 7.65:1 on white, so a single cell survives as a non-text mark.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-brand",
+          "app.goproceed.alpha": 1
+        }
+      },
+      "viz-empty": {
+        "$type": "color",
+        "$value": "{primitive.color.neutral-800}",
+        "$description": "The empty cell beside `viz-brand`: the slot a count has not filled. Paler than any line so the filled cells carry the figure; the count is always also written in text.",
+        "$extensions": {
+          "app.goproceed.tailwind": "viz-empty",
           "app.goproceed.alpha": 1
         }
       },
@@ -2016,7 +2106,7 @@
           "alpha": 0.04
         }
       ],
-      "$description": "The role grid cell at rest. Structure is border-led; a panel gets no shadow at all."
+      "$description": "The role grid cell at rest, and since 2026-09-23 (DEV-035, owner: «Как в Autumn») the dashboard's work sheet, its panels, its KPI cards and the current navigation item in `apps/app`: the reference's cards lift by this much and no more. Structure is still border-led — the border draws the edge, this only seats it."
     },
     "overlay": {
       "$type": "shadow",

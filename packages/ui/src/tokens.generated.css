@@ -212,6 +212,9 @@
   --gp-action-signal-bg: var(--gp-ember-500);
   --gp-action-signal-fg: var(--gp-neutral-975);
   --gp-action-signal-hover: var(--gp-ember-600);
+  --gp-action-brand-bg: var(--gp-pine-700);
+  --gp-action-brand-fg: var(--gp-neutral-0);
+  --gp-action-brand-hover: var(--gp-pine-800);
   --gp-action-ghost-hover: var(--gp-neutral-100);
   --gp-status-ready-surface: var(--gp-green-100);
   --gp-status-ready-border: var(--gp-green-200);
@@ -231,6 +234,8 @@
   --gp-evidence-satisfied: var(--gp-green-700);
   --gp-evidence-pending: var(--gp-amber-800);
   --gp-evidence-blocking: var(--gp-danger-700);
+  --gp-viz-brand: var(--gp-pine-700);
+  --gp-viz-empty: var(--gp-neutral-150);
   --gp-viz-1: var(--gp-cobalt-600);
   --gp-viz-2: var(--gp-green-600);
   --gp-viz-3: var(--gp-amber-600);
@@ -298,6 +303,9 @@
   --gp-action-signal-bg: var(--gp-ember-500);
   --gp-action-signal-fg: var(--gp-neutral-975);
   --gp-action-signal-hover: var(--gp-ember-600);
+  --gp-action-brand-bg: var(--gp-pine-300);
+  --gp-action-brand-fg: var(--gp-neutral-975);
+  --gp-action-brand-hover: var(--gp-pine-200);
   --gp-action-ghost-hover: var(--gp-neutral-900);
   --gp-status-ready-surface: var(--gp-green-900);
   --gp-status-ready-border: var(--gp-green-800);
@@ -317,6 +325,8 @@
   --gp-evidence-satisfied: var(--gp-green-300);
   --gp-evidence-pending: var(--gp-amber-300);
   --gp-evidence-blocking: var(--gp-danger-300);
+  --gp-viz-brand: var(--gp-pine-300);
+  --gp-viz-empty: var(--gp-neutral-800);
   --gp-viz-1: var(--gp-cobalt-300);
   --gp-viz-2: var(--gp-green-300);
   --gp-viz-3: var(--gp-amber-300);

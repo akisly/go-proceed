@@ -1,5 +1,5 @@
 import { Banner } from "@goproceed/ui/components";
-import { ProjectOverviewHeader } from "./project-overview-header";
+import { ProjectPage } from "./project-page";
 
 /**
  * `getBlockedValue`'s `forbidden` branch (403 `SCOPE_PROJECT_DENIED`) — the
@@ -11,8 +11,8 @@ import { ProjectOverviewHeader } from "./project-overview-header";
  * `project.view`/`project.admin` only, `supabase/migrations/
  * 0011_workspace_access_security.sql`, the `create policy projects_select`
  * block). A member holding `project.view` — and therefore ABLE to open
- * `/dash/projects/{projectId}/assignments`, the register `ProjectOverviewHeader`'s
- * own link points at — but not `readiness.view` reaches this exact branch:
+ * `/projects/{projectId}/assignments`, the register the «Доручення» tab
+ * points at (`ProjectOverviewHeader`'s outline link until DEV-035) — but not `readiness.view` reaches this exact branch:
  * the route's own `notFound` guard passes, `requireActiveMembership` passes,
  * and `requireProjectCapability(…, "readiness.view")` then throws its own
  * `SCOPE_PROJECT_DENIED`. NAMED BY FUNCTION, NOT BY LINE — round 2's own
@@ -28,25 +28,24 @@ import { ProjectOverviewHeader } from "./project-overview-header";
  * branch's own review history warns against repeating).
  *
  * A MEMBER WHO CAN SEE ДОРУЧЕННЯ MAY THEREFORE LAND HERE, which is exactly
- * why this branch keeps `ProjectOverviewHeader` (and its link back to the
+ * why this branch keeps `ProjectPage` [`ProjectOverviewHeader` until DEV-035] (and its link back to the
  * register) rather than replacing the whole page with a dead end — the
  * refusal is about the MONEY, not about the project.
  */
 export function ProjectMoneyForbidden({
-  projectId, detail,
-}: { projectId: string; detail: string | null }) {
+  projectId, projectName, detail,
+}: { projectId: string; projectName: string | null; detail: string | null }) {
   return (
-    <div className="mx-auto flex w-full max-w-content flex-col gap-4 p-6">
-      <ProjectOverviewHeader projectId={projectId} />
+    <ProjectPage projectId={projectId} projectName={projectName} tab="overview">
       <Banner tone="attention" title="Немає доступу до заблокованої вартості">
         {/* The route's own Ukrainian `detail` ("Немає доступу до цього
          * проєкту.") is rendered rather than a second hand-written
          * translation of the same refusal — same move `problemDetail`
-         * makes in `app/(app)/a/[assignmentId]/page.tsx`. */}
+         * makes in `app/(app)/a/[assignmentId]/page.tsx` [deleted 2026-09-23, DEV-035]. */}
         {detail ??
           "Перегляд доручень цього проєкту не дає права бачити його гроші. "
           + "Зверніться до адміністратора проєкту, щоб отримати доступ."}
       </Banner>
-    </div>
+    </ProjectPage>
   );
 }

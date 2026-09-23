@@ -21,10 +21,14 @@ describe("matcher", () => {
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/login" })).toBe(true);
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/_next/static/x.js" })).toBe(false);
   });
-  it("leaves provider integrations outside the member-session proxy while retaining /dash", () => {
+  it("leaves provider integrations outside the member-session proxy while retaining the dashboard", () => {
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/integrations/telegram/webhook" })).toBe(false);
     expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/internal/telegram/jobs" })).toBe(false);
-    expect(unstable_doesMiddlewareMatch({ config, nextConfig, url: "/dash" })).toBe(true);
+    // DEV-035: the dashboard is the root now (it was `/dash/**`); every one of
+    // its routes must stay behind the member-session gate.
+    for (const url of ["/", "/projects/p-1", "/projects/p-1/assignments/new", "/assignments/a-1", "/settings/profile"]) {
+      expect(unstable_doesMiddlewareMatch({ config, nextConfig, url })).toBe(true);
+    }
   });
 });
 

@@ -423,12 +423,25 @@ outside the payment-eligibility half of the gate, and nobody would notice.
   and in v0.1 one original is bound to one occurrence by the upload intent it was
   captured under (`upload_intents.requirement_occurrence_id`).
 
-**The v0.1 field client is a PWA served from `apps/app`**
-([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 1). It is an
-authenticated member surface behind the same BFF boundary the web product already
-uses, and it does **not** merge with the protected external review shell, which
-keeps its own discipline unchanged. `apps/mobile` stays in the tree and is not on
-the v0.1 path.
+**The v0.1 field client is the Telegram project channel and the `apps/mobile`
+Expo client** ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2
+and «Amendment, 2026-09-23»). The Expo client is deployed as a web export at the
+Vercel project `goproceed-field`, and native builds come later from the same
+codebase; it reaches the `/v1` BFF cross-origin, with a bearer token, through the
+`FIELD_CLIENT_ORIGINS` allowlist. The Telegram channel is built but enabled in no
+environment yet (BL-024). `apps/app` serves no field pages: its root is the office
+dashboard. Neither field client merges with the protected external review shell,
+which keeps its own discipline unchanged.
+*[2026-09-23, DEV-035 — was: «**The v0.1 field client is a PWA served from
+`apps/app`** ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 1).
+It is an authenticated member surface behind the same BFF boundary the web
+product already uses, and it does **not** merge with the protected external
+review shell, which keeps its own discipline unchanged. `apps/mobile` stays in the
+tree and is not on the v0.1 path.» The owner retired that PWA; see
+[ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».
+Below, «the PWA» and «PWA capture» read as the web field client from
+`apps/mobile`: its capture code is a port of the PWA's, and every limit and
+refusal stated for the PWA binds it.]*
 
 **Capture is online-only and a pending original is not durable**
 ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 6). The client:
@@ -750,7 +763,7 @@ ADR.
 | Додаток Г as a separate template for responsible structures | v0.2 | Scope assumption **c** is MEP / electrical, and prohibition **H** forbids calling electrical installations «відповідальні конструкції». No v0.1 step reaches form Г |
 | Audit warning when one person combines sensitive responsibilities | v0.2 | It warns about self-review, and the internal review it protects moves to v0.2. The v0.1 blocking decision is made by an external технагляд, not by the capturer. **The risk is recorded, not dismissed:** until it ships, nothing warns an authorised actor who waives their own requirement, and the exception's visibility is what carries that weight |
 | Capture telemetry | v0.2 | No step needs it, and `capture_events` already exists in the runtime and is not dropped |
-| The `apps/mobile` Expo client, EAS internal preview distribution, and TestFlight / Google Play internal pilot distribution | v0.3 | [ADR-007](../decisions/ADR-007-pilot-field-client.md) decisions 1–2: the v0.1 field client is a PWA. `apps/mobile` stays in the tree as the starting point for v0.3 offline work |
+| EAS internal preview distribution, and TestFlight / Google Play internal pilot distribution — the native builds of the `apps/mobile` Expo client | v0.3 | [ADR-007](../decisions/ADR-007-pilot-field-client.md) decisions 1–2 as amended by [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md): the `apps/mobile` Expo client is the v0.1 field client's codebase, shipped as a web export (`goproceed-field`) beside the Telegram project channel; native builds come later from the same codebase, and none of the store chain is entered for v0.1. *[2026-09-23, DEV-035 — was, in the first column: «The `apps/mobile` Expo client, EAS internal preview distribution, and TestFlight / Google Play internal pilot distribution»; in the third: «[ADR-007] decisions 1–2: the v0.1 field client is a PWA. `apps/mobile` stays in the tree as the starting point for v0.3 offline work». The owner retired that PWA; see ADR-009 «Amendment, 2026-09-23».]* |
 | The durable pending original — local original retained until server receipt, survival across an ordinary app restart, envelope-encrypted quarantine (INV-013, INV-014, INV-053) | v0.3 | They rest on an OS-sandboxed app area and a Keychain/Keystore-bound key. A browser gives neither, and site storage may be evicted. They remain the native client's invariants |
 | Camera-only capture for blocking requirements, camera-versus-gallery labelling, tamper-evident provenance, verified capture-time GPS | **Withdrawn; uncommitted research** | The `capture` attribute is a hint, not a guarantee, and browsers may strip or re-encode metadata before the page sees the bytes, so the server-side inference loses both inputs. Which engines and versions do what is **measured on the two physical devices**, and the measurement decides what may be said in v0.2 — not whether the PWA ships. Re-asserting any of these requires an ADR, not a UI change |
 | Push notification of any kind in the field client | v0.2 at the earliest | The earliest push named anywhere in the package is the v0.2 statutory-notice push. Web push on iOS additionally requires an **installed** home-screen PWA on iOS 16.4+, which reintroduces an install step; v0.2 decides between an installed PWA and the native client. No document may describe v0.1 as push-capable on either platform |
@@ -789,9 +802,14 @@ routing note, not an approval.
 These belong to v0.3. v0.1 connection-loss protection is a safe retry of an
 online capture, not an offline workflow — and in a browser it is not even a
 durable queue: the pending original is held in memory, the client uploads
-immediately, and a loss is always surfaced. **v0.3 is expected to return to the
-`apps/mobile` client** rather than to extend the PWA
-([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 8): an offline
+immediately, and a loss is always surfaced. **v0.3 is expected to build the
+`apps/mobile` client native** — the codebase whose web export is already the v0.1
+field client — rather than to extend a browser client
+([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 8;
+[ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2).
+*[2026-09-23, DEV-035 — was: «**v0.3 is expected to return to the `apps/mobile`
+client** rather than to extend the PWA». The owner retired that PWA; see ADR-009
+«Amendment, 2026-09-23».]* An offline
 outbox cannot tolerate storage the OS may reclaim under a policy the page does
 not control, or the absence of a hardware-backed key to bind ciphertext to.
 ADR-007 scopes a pilot client and never establishes that a browser is sufficient

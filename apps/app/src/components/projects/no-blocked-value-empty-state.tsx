@@ -1,5 +1,6 @@
 import { EmptyState } from "@goproceed/ui/components";
-import { ProjectOverviewHeader } from "./project-overview-header";
+import { ProjectPage } from "./project-page";
+import { ReadinessBlock, type ReadinessView } from "./project-readiness";
 
 /**
  * `getBlockedValue`'s `ok` branch with an empty `blockedReasons` array —
@@ -27,15 +28,23 @@ import { ProjectOverviewHeader } from "./project-overview-header";
  * entirely, and `max-w-112` is the SPACING scale's 28rem, which the dash
  * chunk does emit.
  */
-export function NoBlockedValueEmptyState({ projectId }: { projectId: string }) {
+export function NoBlockedValueEmptyState({
+  projectId, projectName, readiness,
+}: {
+  projectId: string;
+  projectName: string | null;
+  readiness: ReadinessView;
+}) {
   return (
-    <div className="mx-auto flex w-full max-w-content flex-col gap-4 p-6">
-      <ProjectOverviewHeader projectId={projectId} />
+    <ProjectPage projectId={projectId} projectName={projectName} tab="overview">
       <EmptyState
         className="mx-auto max-w-112 py-16"
         title="Нічого не заблоковано"
         description="Жодна вимога на цьому проєкті не тримає гроші заблокованими: усе або підтверджено, або ще не має ціни, за якою можна щось заблокувати."
       />
-    </div>
+      {/* DEV-035: nothing blocked is not nothing to show — the stages may
+        * still be open, and the readiness block says which. */}
+      <ReadinessBlock readiness={readiness} />
+    </ProjectPage>
   );
 }

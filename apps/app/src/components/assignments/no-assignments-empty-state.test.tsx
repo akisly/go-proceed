@@ -30,14 +30,14 @@ afterEach(cleanup);
  */
 describe("NoAssignmentsEmptyState", () => {
   it("offers the create screen as a real link, from the state that needs it most", () => {
-    render(<NoAssignmentsEmptyState projectId="p-1" />);
+    render(<NoAssignmentsEmptyState projectId="p-1" projectName="Приклад-Об’єкт" />);
 
     const link = screen.getByRole("link", { name: "Нове доручення" });
-    expect(link).toHaveAttribute("href", "/dash/projects/p-1/assignments/new");
+    expect(link).toHaveAttribute("href", "/projects/p-1/assignments/new");
   });
 
   it("still names the condition, so the action has something to be the answer to", () => {
-    render(<NoAssignmentsEmptyState projectId="p-1" />);
+    render(<NoAssignmentsEmptyState projectId="p-1" projectName="Приклад-Об’єкт" />);
 
     expect(screen.getByText("Немає доручень")).toBeTruthy();
     expect(screen.getByText("У цьому проєкті ще немає доручень.")).toBeTruthy();

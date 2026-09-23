@@ -1,7 +1,7 @@
 import { EmptyState } from "@goproceed/ui/components";
 
 /**
- * `app/dash/assignments/[assignmentId]/page.tsx` renders this when
+ * `app/(dash)/assignments/[assignmentId]/page.tsx` renders this when
  * `GET /v1/assignments/{assignmentId}/evidence` returns zero groups for an
  * assignment that does exist (an empty `groups` array — no occurrence group
  * AND no unbound-photo group) — catalogued as `dash.empty.no_evidence_title`

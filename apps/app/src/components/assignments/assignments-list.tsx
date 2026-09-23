@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { AssignmentSummary } from "@goproceed/contracts";
 import { Button, DataTable } from "@goproceed/ui/components";
 import { assignmentColumns } from "./assignments-columns";
+import { ProjectPage } from "../projects/project-page";
 
 /**
  * `dash/projects/[projectId]/assignments/page.tsx`'s landing content once at
@@ -48,25 +49,36 @@ import { assignmentColumns } from "./assignments-columns";
  * `projectId` IS NEW, FOR THE CREATE LINK ABOVE THE TABLE — Plan D slice A.
  * `Button asChild` wraps a `Link`, not an `onClick` navigation, so the
  * control is a real anchor (right-click "open in new tab", crawlable, no JS
- * required to follow it) that merely looks like a button — `ProjectOverviewHeader`'s
- * own `Button asChild`+`Link` pair is the precedent. The height comes from
+ * required to follow it) that merely looks like a button — the deleted
+ * `project-overview-header.tsx`'s own `Button asChild`+`Link` pair was the
+ * precedent. [DEV-035: the link now renders in `ProjectPage`'s action slot.] The height comes from
  * `Button`'s own `SIZE` table, which ties every size to
  * `--gp-control-height-touch` (44px) under the `touch` variant regardless of
  * which size is chosen — so the 44px floor `qa/field.mjs`'s register audit
  * checks holds without a size prop of its own.
  */
 export function AssignmentsList(
-  { assignments, projectId }: { assignments: AssignmentSummary[]; projectId: string },
+  { assignments, projectId, projectName }: {
+    assignments: AssignmentSummary[];
+    projectId: string;
+    projectName: string | null;
+  },
 ) {
+  // [DEV-035, 2026-09-23] The register sits inside the project frame: the
+  // project's name is the `h1` and «Доручення» is the current tab, so the
+  // create link moved into the frame's action slot, in the brand variant.
   return (
-    <div className="mx-auto flex w-full max-w-content flex-col gap-4 p-6">
-      <div className="flex items-center justify-between gap-4">
-        <h1 className="text-h1 font-semibold text-ink">Доручення</h1>
-        <Button asChild>
-          <Link href={`/dash/projects/${projectId}/assignments/new`}>Нове доручення</Link>
+    <ProjectPage
+      projectId={projectId}
+      projectName={projectName}
+      tab="assignments"
+      action={(
+        <Button asChild variant="brand">
+          <Link href={`/projects/${projectId}/assignments/new`}>Нове доручення</Link>
         </Button>
-      </div>
-      <div className="overflow-hidden rounded-panel border border-line bg-surface">
+      )}
+    >
+      <div className="overflow-hidden rounded-panel border border-line bg-surface shadow-raised">
         <DataTable
           columns={assignmentColumns}
           data={assignments}
@@ -74,6 +86,6 @@ export function AssignmentsList(
           empty="Немає доручень."
         />
       </div>
-    </div>
+    </ProjectPage>
   );
 }

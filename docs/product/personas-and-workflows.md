@@ -402,12 +402,22 @@ validate.
 
 **Primary actors:** progress recorder, evidence recorder, performer.
 
-**The client is a PWA served from `apps/app`** — an authenticated member surface
-behind the same BFF boundary the web product already uses
-([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 1). There is no
-install step: a link opens the capture screen. `apps/mobile` stays in the tree
-and is not on the v0.1 path; it is the starting point for the v0.3 offline work.
+**The client is the `apps/mobile` Expo client, shipped as a web export, with
+the Telegram project channel beside it** ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and
+«Amendment, 2026-09-23»). The Expo client is an authenticated member surface
+behind the same BFF boundary the web product already uses, which it reaches
+cross-origin with a bearer token; its web export needs no store install, and its
+native builds come later from the same codebase. The Telegram channel is built
+and enabled in no environment yet (BL-024). `apps/app` serves no field pages.
 The API and the domain are unchanged, which is what makes the client replaceable.
+*[2026-09-23, DEV-035 — was: «**The client is a PWA served from `apps/app`** — an
+authenticated member surface behind the same BFF boundary the web product already
+uses ([ADR-007] decision 1). There is no install step: a link opens the capture
+screen. `apps/mobile` stays in the tree and is not on the v0.1 path; it is the
+starting point for the v0.3 offline work.» The owner retired that PWA; see
+[ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23». Below, «PWA capture» and «the PWA
+path» read as the web field client from `apps/mobile`, whose capture code is a
+port of the PWA's; every limit and refusal stated for the PWA binds it.]*
 
 1. Authorized member creates an operational assignment from a work line, with
    performer party, planned quantity, and optional member assignee and due date.

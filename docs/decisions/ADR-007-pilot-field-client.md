@@ -610,3 +610,9 @@ Three specific protections:
    evidence object, an upload intent, or a requirement occurrence would destroy
    the replaceability that decision 3 buys and that decision 9 depends on, and is
    prohibited without an ADR that says so on purpose.
+
+## Pointer, 2026-09-23
+
+Decision 1's PWA is retired by the owner before ADR-009's parity gate: see
+[ADR-009](ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23». The text
+above is kept as written, per the rule that a correction is a dated addition.

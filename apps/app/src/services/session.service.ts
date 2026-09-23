@@ -35,8 +35,8 @@ export type SessionIdentityResult =
 /**
  * `cache()` FROM REACT, AND IT IS LOAD-BEARING, NOT AN OPTIMISATION.
  *
- * `app/dash/layout.tsx` needs the email for the profile menu and
- * `app/dash/settings/profile/page.tsx` needs it for the profile itself, and
+ * `app/(dash)/layout.tsx` needs the email for the profile menu and
+ * `app/(dash)/settings/profile/page.tsx` needs it for the profile itself, and
  * the App Router gives a layout no way to hand a value to its page. Unlike
  * the two `apiGet` services either side of this one, there is no `fetch` here
  * for Next to memoize — `auth.getUser()` is an SDK call — so without this
@@ -102,8 +102,8 @@ export const getSessionIdentity = cache(async function getSessionIdentity(): Pro
  *
  * Kept here, beside the only thing that can produce a `null`, so the sidebar
  * menu and the profile page cannot drift into two different sentences for the
- * same state. Both callers are server components (`app/dash/layout.tsx` and
- * `app/dash/settings/profile/page.tsx`) and resolve this before the string
+ * same state. Both callers are server components (`app/(dash)/layout.tsx` and
+ * `app/(dash)/settings/profile/page.tsx`) and resolve this before the string
  * reaches a `"use client"` component, which is why this can live in a module
  * that imports `next/headers` transitively.
  *

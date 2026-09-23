@@ -36,13 +36,13 @@ import type { EvidenceObjectView } from "@goproceed/contracts";
  * considered and rejected as a `ready`/`attention`/`idle` mapping (mirroring
  * `Chip`'s own status tones) for a reason specific to this product's subject
  * matter — `device_claimed` is NOT verified capture-time evidence.
- * `apps/app/app/(app)/a/[assignmentId]/capture.tsx:349` — the field client's
+ * `apps/app/app/(app)/a/[assignmentId]/capture.tsx:349` [deleted 2026-09-23, DEV-035] — the field client's
  * own receipt panel — labels the identical fact «Час пристрою (не
  * перевірено)», and that is a RENDERED `<dt>`, in ordinary lowercase, not a
  * reasoning comment and not in caps (this sentence used to say both, and both
  * were wrong; the caps were this comment's own emphasis, read back as if the
  * source carried them). What the source does carry, in the reasoning comment
- * immediately above that `<dt>` at capture.tsx:330-348, is the argument: ADR-007
+ * immediately above that `<dt>` at capture.tsx:330-348 [deleted 2026-09-23, DEV-035], is the argument: ADR-007
  * decision 5 «names exactly three — the device's own unverified capture-time
  * claim, the server's receipt time, and a client-computed content hash — and
  * nothing stronger», because the device's own claim binds nothing about the
@@ -96,8 +96,10 @@ export const ORIGIN_METHOD_LABELS: Readonly<Record<string, string>> = Object.fre
    * ADDED 2026-08-22 (Plan D slice D1 task 7), AND IT WAS THE ONLY VALUE THE
    * PRODUCT CAN ACTUALLY PRODUCE TODAY.
    *
-   * Every photo this repository can capture is a PWA capture, and
-   * `buildCreateIntentBody` (`src/lib/capture/upload.ts`) has exactly one
+   * Every photo this repository can capture is a PWA capture [2026-09-23,
+   * DEV-035: the PWA is retired; the field client is `apps/mobile`, whose web
+   * capture carries the same single literal], and
+   * `buildCreateIntentBody` (`src/lib/capture/upload.ts` [deleted 2026-09-23, DEV-035]) has exactly one
    * literal to send: `origin_not_distinguished` (ADR-007 decision 5, INV-086 —
    * a browser has no camera-session identity and may be handed transcoded
    * bytes, so the origin cannot be established and the vocabulary says so

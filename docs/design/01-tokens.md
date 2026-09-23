@@ -141,7 +141,7 @@ to point at, and so a chart or a generated asset can walk a scale.
 | `danger-200` | `#FED4D3` | 0.905, 0.048, 20 | 1.11 | 14.52 | Blocked chip border. |
 | `danger-300` | `#FAB7B6` | 0.84, 0.078, 20 | 1.38 | 11.67 | Blocked foreground in dark mode (8.15:1 on danger-900). |
 | `danger-500` | `#DE4451` | 0.61, 0.19, 20 | 3.42 | 4.71 | Icon and bar weight. Autumn moved the family from hue 26 to hue 20 — the legacy red sat fourteen degrees from the brand's orange, which is not a distance a colour-blind reader, or any reader, can be asked to judge. |
-| `danger-600` | `#C71336` | 0.53, 0.205, 20 | 4.84 | 3.33 | The one solid destructive fill: white on it measures 5.87:1. Nothing under /app/** deletes anything, so this exists for the field client and for refusal states, not for a destructive button variant. |
+| `danger-600` | `#C71336` | 0.53, 0.205, 20 | 4.84 | 3.33 | The one solid destructive fill: white on it measures 5.87:1. It exists for refusal states, not for a destructive button variant — there is none (DEV-035, 2026-09-23: the field PWA it once also served was retired, and with it the variant's only call site). |
 | `danger-700` | `#A3122C` | 0.46, 0.175, 20 | 6.45 | 2.50 | Blocked text: 6.68:1 on danger-100, 6.45:1 on canvas. Also the evidence-blocking foreground. |
 | `danger-800` | `#7E1825` | 0.39, 0.135, 20 | 8.46 | 1.91 | Densest blocked text, for a blocked figure inside a dense table. |
 | `danger-900` | `#55181D` | 0.31, 0.09, 20 | 11.26 | 1.43 | Blocked ground in dark mode. |
@@ -244,6 +244,9 @@ turning it on is a decision rather than a project.
 | `action-signal-bg` | `action-signal` | `ember-500` `#FF5B04` | `ember-500` `#FF5B04` | The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none. It carries ink, never white. (DEV-029: the landing carried one per page for one pass; the owner took it off.) |
 | `action-signal-fg` | `action-signal-fg` | `neutral-975` `#0C0C0A` | `neutral-975` `#0C0C0A` | Ink on the accent action: 6.29:1. |
 | `action-signal-hover` | `action-signal-hover` | `ember-600` `#D84A00` | `ember-600` `#D84A00` | The accent action pressed: one rung down, ink still at 4.57:1. |
+| `action-brand-bg` | `action-brand` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | The dashboard's primary action in the brand's primary (owner, 2026-09-23: «Зелёная, как в Autumn»). `apps/app` only — the landing's actions stay the ink pill. White on it measures 7.65:1. |
+| `action-brand-fg` | `action-brand-fg` | `neutral-0` `#FFFFFF` | `neutral-975` `#0C0C0A` | The brand action's label: white on pine in light, ink on the light pine rung in dark. |
+| `action-brand-hover` | `action-brand-hover` | `pine-800` `#274439` | `pine-200` `#CBE3D8` | The brand action pressed: one rung deeper, so the label only gains contrast. |
 | `action-ghost-hover` | `action-ghost-hover` | `neutral-100` `#E0DCD1` | `neutral-900` `#2A2524` | Chrome hover. |
 
 ### Status
@@ -278,6 +281,8 @@ turning it on is a decision rather than a project.
 
 | Role | Utility | Light | Dark | Ruling |
 |---|---|---|---|---|
+| `viz-brand` | `viz-brand` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | The dashboard's one-series data mark — a filled cell of a count, a tick of a bar — in the brand's primary (owner, 2026-09-23: «Зелёный + акцент»: data in pine, ember only for a highlighted cell). A mark, not a wash: nothing is read through it. 7.65:1 on white, so a single cell survives as a non-text mark. |
+| `viz-empty` | `viz-empty` | `neutral-150` `#D9D6CD` | `neutral-800` `#403C39` | The empty cell beside `viz-brand`: the slot a count has not filled. Paler than any line so the filled cells carry the figure; the count is always also written in text. |
 | `viz-1` | `viz-1` | `cobalt-600` `#2440D9` | `cobalt-300` `#9AAAFF` | First categorical series. |
 | `viz-2` | `viz-2` | `green-600` `#1C8742` | `green-300` `#8CD99C` | Second categorical series. |
 | `viz-3` | `viz-3` | `amber-600` `#BA8400` | `amber-300` `#EDC06B` | Third categorical series. |
@@ -293,7 +298,7 @@ lightness shift between the surface roles; there is no elevation ladder.
 
 | Token | Value | Ruling |
 |---|---|---|
-| `raised` | `0px 1px 2px 0px rgba(12, 12, 10, 0.04)` | The role grid cell at rest. Structure is border-led; a panel gets no shadow at all. |
+| `raised` | `0px 1px 2px 0px rgba(12, 12, 10, 0.04)` | The role grid cell at rest, and since 2026-09-23 (DEV-035, owner: «Как в Autumn») the dashboard's work sheet, its panels, its KPI cards and the current navigation item in `apps/app`: the reference's cards lift by this much and no more. Structure is still border-led — the border draws the edge, this only seats it. |
 | `overlay` | `0px 12px 30px -16px rgba(12, 12, 10, 0.35)` | The floating pills over the product frame, compact callouts, a popover. |
 | `modal` | `0px 8px 24px 0px rgba(12, 12, 10, 0.08), 0px 24px 64px 0px rgba(12, 12, 10, 0.12)` | The only things that cover content: dialog and the off-canvas rail. Under D2 the rail is no longer dark, so this shadow now carries the whole 'this covers content' signal that colour used to carry with it. |
 | `float` | `0px 20px 50px -30px rgba(12, 12, 10, 0.22), 0px 1px 2px 0px rgba(12, 12, 10, 0.05)` | The prototype's --sh: the board, the receipt, the form, the route cards and the «now» card. Marketing only. |
@@ -369,7 +374,7 @@ lightness shift between the surface roles; there is no elevation ladder.
 | `control` | `6px` | v1, kept. Buttons, inputs, chips inside /app/**. A register is not a set of cards. |
 | `field` | `8px` | New. Folio's most frequent radius by a wide margin (301 elements at 8px against 89 at 6px). Marketing controls and evidence tiles. |
 | `panel` | `10px` | v1, kept. Panels and cards inside /app/**. |
-| `card` | `12px` | Marketing only: the prototype's --r 12px — the figure, the form, the needs cells. |
+| `card` | `12px` | The prototype's --r 12px — the figure, the form, the needs cells — and since 2026-09-23 (DEV-035) the dashboard's work sheet, the one outer instrument of `apps/app`'s shell. |
 | `surface` | `14px` | Marketing only: route cards, the role grid, bento cells, compare cards, channel cards, the board. |
 | `section` | `16px` | Marketing only: the closing CTA card. |
 | `pill` | `999px` | v1, kept. Status chips, indicators, the floating nav, pill CTAs. |
