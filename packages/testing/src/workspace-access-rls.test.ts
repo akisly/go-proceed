@@ -207,3 +207,65 @@ describe("workspace_access isolation — the owner of A reads rows of A and the 
     expect(await seen(USER_B, sql)).toEqual([WS_B]);
   });
 });
+
+/**
+ * DEV-043 / BL-021 / ADR-014 decision 4 (migration 0096): the application role
+ * revokes a grant and changes nothing else about it.
+ *
+ * Before 0096 `goproceed_app` held UPDATE on every column of
+ * project_access_grants (0011), so a defect in the BFF could move a grant to
+ * another member or capability, or widen its window, on any project the actor
+ * administers. The write is revoked_at and version, which is the revoke.
+ *
+ * The grant revoked here is seeded and removed inside the test, on MEMBER_A2,
+ * so the read tests above keep their counts.
+ */
+describe("project_access_grants: the application role may revoke a grant and change nothing else (DEV-043)", () => {
+  const COLUMNS = ["id", "workspace_id", "project_id", "member_id", "capability", "valid_from",
+    "valid_until", "revoked_at", "granted_by", "version", "created_at"];
+
+  it("goproceed_app holds UPDATE on revoked_at and version only", async () => {
+    const r = await admin.query<{ column_name: string; can: boolean }>(
+      `select column_name, has_column_privilege('goproceed_app', 'public.project_access_grants', column_name, 'UPDATE') as can
+         from unnest($1::text[]) as column_name`, [COLUMNS]);
+    expect(r.rows.filter((row) => row.can).map((row) => row.column_name).sort()).toEqual(["revoked_at", "version"]);
+    const table = await admin.query<{ can: boolean }>(
+      "select has_table_privilege('goproceed_app', 'public.project_access_grants', 'UPDATE') as can");
+    // has_table_privilege is true only for a table-level grant, not for column grants.
+    expect(table.rows[0]!.can).toBe(false);
+  });
+
+  it("the owner of A revokes a grant of A; the owner of B declaring A and a view-only member of A update no row; a member_id update is refused", async () => {
+    const p = await admin.query<{ id: string }>("select id from public.projects where workspace_id = $1", [WS_A]);
+    const projectId = p.rows[0]!.id;
+    const m = await admin.query<{ id: string }>(
+      "select id from public.memberships where organization_id = $1 and user_id = $2", [WS_A, MEMBER_A2]);
+    const memberId = m.rows[0]!.id;
+    const g = await admin.query<{ id: string }>(
+      `insert into public.project_access_grants (workspace_id, project_id, member_id, capability, granted_by)
+       values ($1, $2, $3, 'project.view', $4), ($1, $2, $3, 'contracts.edit', $4) returning id, capability`,
+      [WS_A, projectId, memberId, USER_A]);
+    try {
+      const target = g.rows[1]!.id;
+      const revokeSql = (c: Client) => c.query(
+        "update public.project_access_grants set revoked_at = now(), version = version + 1 where id = $1 and revoked_at is null returning id",
+        [target]);
+
+      expect((await asActor(USER_B, WS_A, revokeSql)).rowCount).toBe(0);
+      expect((await asActor(MEMBER_A2, WS_A, revokeSql)).rowCount).toBe(0);
+      await expect(asActor(USER_A, WS_A, (c) => c.query(
+        "update public.project_access_grants set member_id = $2 where id = $1", [target, memberId])))
+        .rejects.toMatchObject({ code: "42501" });
+      await expect(asActor(USER_A, WS_A, (c) => c.query(
+        "update public.project_access_grants set valid_until = now() + interval '1 day' where id = $1", [target])))
+        .rejects.toMatchObject({ code: "42501" });
+      expect((await asActor(USER_A, WS_A, revokeSql)).rowCount).toBe(1);
+
+      const after = await admin.query<{ revoked: boolean; version: string }>(
+        "select revoked_at is not null as revoked, version from public.project_access_grants where id = $1", [target]);
+      expect(after.rows[0]).toEqual({ revoked: true, version: "2" });
+    } finally {
+      await admin.query("delete from public.project_access_grants where id = any($1::uuid[])", [g.rows.map((row) => row.id)]);
+    }
+  });
+});

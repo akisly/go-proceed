@@ -40,6 +40,8 @@ const WS = {
   sameBody: "de200000-0000-4000-8000-00000000000b",
   otherWorkspace: "de200000-0000-4000-8000-00000000000c",
   demotedReuse: "de200000-0000-4000-8000-00000000000d",
+  // DEV-043 / BL-021: project_access.revoke binds its project too.
+  revoke: "de200000-0000-4000-8000-00000000000e",
 } as const;
 const ALL = Object.values(WS);
 
@@ -405,5 +407,34 @@ describe("a key reused for another target is refused, not replayed (BL-112)", ()
     expect(refused.status).toBe(403);
     expect((await refused.json()).code).toBe("SCOPE_DENIED");
     expect(await templateStatus(c)).toBe("draft");
+  });
+
+  it("project_access.revoke: the same key and body on another project is 409, and that project's grants are untouched", async () => {
+    current = U;
+    const project = async (name: string) => {
+      const res = await createProject(WS.revoke, JSON.stringify({ name }), crypto.randomUUID());
+      expect(res.status).toBe(201);
+      return (await res.json()).projectId as string;
+    };
+    const a = await project("Об'єкт DEV-043 A");
+    const b = await project("Об'єкт DEV-043 B");
+    const target = (await q<{ id: string }>(
+      "select id from public.memberships where organization_id = $1 and user_id = $2", [WS.revoke, T]))[0]!.id;
+    for (const projectId of [a, b]) {
+      const g = await call("projects/[projectId]/access-grants", "POST", { projectId },
+        JSON.stringify({ memberId: target, capabilities: ["contracts.edit"] }), crypto.randomUUID());
+      expect(g.status).toBe(201);
+    }
+    const raw = JSON.stringify({ memberId: target, capabilities: ["contracts.edit"] });
+    const key = crypto.randomUUID();
+    const revoke = (projectId: string) =>
+      call("projects/[projectId]/access-grants/revoke", "POST", { projectId }, raw, key);
+    expect((await revoke(a)).status).toBe(200);
+    const reused = await revoke(b);
+    expect(reused.status).toBe(409);
+    expect((await reused.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    const left = await q("select 1 from public.project_access_grants where project_id = $1 and member_id = $2 and revoked_at is null",
+      [b, target]);
+    expect(left).toHaveLength(2);
   });
 });
