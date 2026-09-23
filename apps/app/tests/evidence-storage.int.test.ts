@@ -113,6 +113,63 @@ describe("the evidence bucket takes only the four evidence types (BL-126)", () =
   });
 });
 
+describe("the allow-list holds on every upload shape a signed token opens (BL-126, DEV-040 S1-02)", () => {
+  // `putObject` and the field client send a raw body. Storage also takes a
+  // multipart form on the same signed URL, where the type comes from the file
+  // part or a `contentType` field, and a TUS resumable upload. Measured on the
+  // local storage API v1.69.0 (`scratchpad/dev040-s1-02-probe.txt`).
+  const jpeg = () => new Blob([new Uint8Array([0xff, 0xd8, 0xff, 0xd9])], { type: "image/jpeg" });
+
+  it.each([
+    ["a file part typed text/html", (fd: FormData) => fd.append("", new Blob(["<html>"], { type: "text/html" }), "x")],
+    ["an image/jpeg part with a contentType field of text/html",
+      (fd: FormData) => { fd.append("contentType", "text/html"); fd.append("", jpeg(), "x"); }],
+    ["a file part with no type", (fd: FormData) => fd.append("", new Blob(["<html>"]), "x")],
+  ])("refuses a multipart upload with %s", async (_label, build) => {
+    const key = newEvidenceKey();
+    const { signedUrl } = await createSignedUpload(key);
+    const fd = new FormData();
+    build(fd);
+    const res = await fetch(signedUrl, { method: "PUT", body: fd });
+    expect(res.ok).toBe(false);
+    expect(await res.text()).toMatch(/invalid_mime_type/);
+    expect(await objectInfo(key, EVIDENCE_BUCKET)).toBeNull();
+  });
+
+  it("stores a multipart upload of an allowed type (the positive control)", async () => {
+    const key = newEvidenceKey();
+    const { signedUrl } = await createSignedUpload(key);
+    const fd = new FormData();
+    fd.append("", jpeg(), "x");
+    const res = await fetch(signedUrl, { method: "PUT", body: fd });
+    expect(res.status).toBe(200);
+    expect((await objectInfo(key, EVIDENCE_BUCKET))?.contentType).toBe("image/jpeg");
+    await removeObject(key);
+  });
+
+  it("refuses a TUS resumable upload declaring a disallowed type", async () => {
+    const key = newEvidenceKey();
+    const { signedUrl } = await createSignedUpload(key);
+    const token = new URL(signedUrl).searchParams.get("token")!;
+    const meta = (o: Record<string, string>) => Object.entries(o)
+      .map(([k, v]) => `${k} ${Buffer.from(v).toString("base64")}`).join(",");
+    const create = (contentType: string) => fetch(`${SUPABASE_URL}/storage/v1/upload/resumable/sign`, {
+      method: "POST",
+      headers: {
+        "tus-resumable": "1.0.0", "upload-length": "4", "x-signature": token,
+        "upload-metadata": meta({ bucketName: EVIDENCE_BUCKET, objectName: key, contentType }),
+      },
+    });
+    const refused = await create("text/html");
+    expect(refused.status).toBe(415);
+    expect(await refused.text()).toMatch(/not supported/);
+    // The positive control: the same request shape with an allowed type is taken.
+    const allowed = await create("image/jpeg");
+    expect(allowed.status).toBe(201);
+    expect(await objectInfo(key, EVIDENCE_BUCKET)).toBeNull();
+  });
+});
+
 describe("the bucket is genuinely private", () => {
   it("denies an anonymous client both download and listing", async () => {
     // The assertion that matters: without this the bucket is only undocumented,
