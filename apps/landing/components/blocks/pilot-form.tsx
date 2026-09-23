@@ -164,8 +164,16 @@ export function PilotForm({ titleAs: Title = "h3" }: { titleAs?: "h2" | "h3" } =
         <Textarea id="pilot-context" name="context" placeholder={f.fields.context.placeholder} className="bg-canvas" />
       </div>
       <div className="grid gap-2 md:grid-cols-[1fr_auto]">
-        <Magnetic className="w-full"><Button type="submit" size="lg" className="w-full" aria-disabled={state === "sending" || undefined}>{state === "sending" ? f.submitting : f.submit}</Button></Magnetic>
-        <Magnetic className="w-full"><Button type="button" size="lg" variant="outline" className="w-full" onClick={onCopy}>{copied ? f.copied : f.copy}</Button></Magnetic>
+        <Magnetic className="w-full"><Button type="submit" size="lg" className="relative isolate w-full overflow-hidden rounded-pill" data-pill="ink" aria-disabled={state === "sending" || undefined}>
+          {/* [2026-09-22, DEV-029, owner] «оставь только черные с бордером»: the submit is the
+            * site's ink pill — the same three layers as `PillLink`, so it is not a second kind of
+            * black button. */}
+          <i aria-hidden="true" data-pill-layer="ring" className="pill-ring" />
+          <i aria-hidden="true" data-beam="pill" className="pill-light in-focus-visible:hidden" />
+          <i aria-hidden="true" data-pill-layer="face" className="pill-face" />
+          {state === "sending" ? f.submitting : f.submit}
+        </Button></Magnetic>
+        <Magnetic className="w-full"><Button type="button" size="lg" variant="outline" className="w-full rounded-pill" onClick={onCopy}>{copied ? f.copied : f.copy}</Button></Magnetic>
       </div>
       {/* One live region for every outcome. «Надсилаю…» and the clipboard's
         * result are announced but not drawn — the button and its label already

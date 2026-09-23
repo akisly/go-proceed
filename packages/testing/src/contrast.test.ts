@@ -61,17 +61,19 @@ const PAIRS: Array<[label: string, fg: string, bg: string, min: number]> = [
   ["the primary action's label on hover", "action-primary-fg", "action-primary-hover", 4.5],
   ["the signal action's label", "action-signal-fg", "action-signal-bg", 4.5],
   ["the signal action's label on hover", "action-signal-fg", "action-signal-hover", 4.5],
+  ["the dashboard's brand action label", "action-brand-fg", "action-brand-bg", 4.5],
+  ["the dashboard's brand action label on hover", "action-brand-fg", "action-brand-hover", 4.5],
   ["ready chip", "status-ready-fg", "status-ready-surface", 4.5],
   ["attention chip", "status-attention-fg", "status-attention-surface", 4.5],
   ["blocked chip", "status-blocked-fg", "status-blocked-surface", 4.5],
-  ["destructive action's label at rest", "status-blocked-fg", "bg-surface", 4.5],
-  ["destructive action's label on hover", "action-primary-fg", "status-blocked-fg", 4.5],
   ["review chip", "status-review-fg", "status-review-surface", 4.5],
   ["idle chip", "status-idle-fg", "status-idle-surface", 4.5],
   ["evidence satisfied on the canvas", "evidence-satisfied", "bg-canvas", 4.5],
   ["evidence pending on the canvas", "evidence-pending", "bg-canvas", 4.5],
   ["evidence blocking on the canvas", "evidence-blocking", "bg-canvas", 4.5],
   ["the focus ring against a surface", "border-focus", "bg-surface", 3.0],
+  ["a filled data cell against a surface (non-text)", "viz-brand", "bg-surface", 3.0],
+  ["a filled data cell against an empty one (non-text)", "viz-brand", "viz-empty", 3.0],
   ["the focus ring against the canvas", "border-focus", "bg-canvas", 3.0],
   // [2026-09-22, DEV-028] The ordinary ring measures 2.56:1 against the inverse
   // surface — the brand's primary is a deep green and that ground is the ink.
@@ -81,6 +83,16 @@ const PAIRS: Array<[label: string, fg: string, bg: string, min: number]> = [
   ["the focus ring inside an inverse surface", "border-focus-inverse", "bg-inverse", 3.0],
   ["the accent phrase in a display heading, on the canvas (large text)", "text-accent", "bg-canvas", 3.0],
   ["the accent phrase in a display heading, on a surface (large text)", "text-accent", "bg-surface", 3.0],
+  // [2026-09-22, DEV-029] The warm tint block and the four decorative index
+  // tints. Each chip is asserted against its OWN ground, because that is the
+  // only place its mark is ever read; a chip tint is never a page ground and
+  // never a status, so it owes no row against the canvas.
+  ["copy on the warm tint block", "text-primary", "bg-tint-warm", 4.5],
+  ["metadata on the warm tint block", "text-muted", "bg-tint-warm", 4.5],
+  ["the warm index chip's mark", "text-chip-clay", "bg-chip-clay", 4.5],
+  ["the cool index chip's mark", "text-chip-violet", "bg-chip-violet", 4.5],
+  ["the green index chip's mark", "text-chip-pine", "bg-chip-pine", 4.5],
+  ["the neutral index chip's mark", "text-chip-stone", "bg-chip-stone", 4.5],
 ];
 
 /** Structural lines: not a 1.4.11 case, but a border nobody can see is a
@@ -99,7 +111,12 @@ const LINES: Array<[label: string, fg: string, bg: string, min: number]> = [
   // accent edge (compare border-accent's actual ~3:1+, which is why that row
   // alone in this table carries 3.0). 1.3 is the same margin-below-measured
   // convention as border-subtle/border-default/border-strong above.]
-  ["the destructive border on a surface", "status-blocked-border", "bg-surface", 1.3],
+  ["the blocked border on a surface", "status-blocked-border", "bg-surface", 1.3],
+  // [2026-09-22, DEV-029] A tinted panel outlined in a cooler line than its own
+  // fill is what makes a warm block look like a mistake, so the warm tint gets
+  // its own edge and that edge is held to the same order as the neutral ladder.
+  ["the warm border on the canvas", "border-warm", "bg-canvas", 1.2],
+  ["the warm border on the warm tint block", "border-warm", "bg-tint-warm", 1.1],
 ];
 
 for (const theme of ["light", "dark"] as Theme[]) {

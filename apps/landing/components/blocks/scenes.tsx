@@ -27,16 +27,21 @@ const MEDIA = {
  * [DEV-027] A card answers the pointer as the reference's do: its ground
  * brightens and its border firms, its grid comes up (`landing-gridcard`), and
  * the widget inside lifts and parts (`group/scene`, read by `visuals/mini`).
+ *
+ * [DEV-029] Two things more. Each card carries a warm wash at its own angle, so
+ * the row is three grounds rather than one repeated three times; and the hover
+ * now adds ELEVATION as well as colour, because a card that only changes its
+ * border on hover does not read as a card you could pick up.
  */
 export function Scenes() {
   const s = landingContent.scenes;
   return (
-    <section id="scenes" tabIndex={-1} className="landing-inset scroll-mt-20 py-20 md:py-24">
+    <section id="scenes" tabIndex={-1} className="landing-inset scroll-mt-20 py-20 md:py-28">
       <TwoTone lead={s.headLead} rest={s.headRest} className="mb-12 md:mb-16" />
       <div className="grid gap-4 wide:grid-cols-3">
         {s.items.map((scene) => (
           <Reveal key={scene.id} size="stately" className="grid">
-            <article data-scene={scene.id} className="landing-gridcard group/scene relative isolate grid min-h-[420px] grid-rows-[1fr_auto] overflow-hidden rounded-section border border-line-strong bg-canvas transition-colors duration-slow ease-out hover:border-ink-muted hover:bg-surface wide:min-h-[520px]">
+            <article data-scene={scene.id} className="landing-gridcard landing-stage group/scene relative isolate grid min-h-[420px] grid-rows-[1fr_auto] overflow-hidden transition-[background-color,border-color,box-shadow] duration-slow ease-out hover:border-ink-muted hover:bg-surface hover:shadow-float wide:min-h-[520px]">
               <div className="grid place-items-center overflow-hidden px-4 py-10">{MEDIA[scene.id]}</div>
               <div className="px-5 pb-6">
                 <p className="index-label mb-2">{scene.eyebrow}</p>

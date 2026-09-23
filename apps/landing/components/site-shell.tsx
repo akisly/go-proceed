@@ -49,7 +49,10 @@ export function SiteShell({ page, children }: { page: PageKey; children: ReactNo
         <main id="main-content" tabIndex={-1} className={page === "home" ? "relative overflow-x-clip" : "relative overflow-x-clip pt-16 md:pt-10"}>
           {children}
         </main>
-        <Band />
+        {/* [DEV-029] On /pilot the FAQ above this band is already the warm
+          * tint and the footer below it is too, so the band takes that ground
+          * rather than cutting a paper slot between two identical ones. */}
+        <Band tone={page === "pilot" ? "tint" : "paper"} />
         <Footer />
       </div>
     </>

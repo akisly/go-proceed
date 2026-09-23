@@ -32,10 +32,24 @@ relational chain defined in [data-model architecture](data-model.md).
 segments, internal review, the statutory notice apparatus, `commercial_decision`
 and the closure-without-evidence bypass to v0.2; where a control below names one
 of them and carries no marker, it is a v0.2 control by that fact alone.
-[ADR-007](../decisions/ADR-007-pilot-field-client.md) makes the v0.1 field
-client a PWA served from `apps/app` — the same origin, the same member session,
-and the same BFF authorization boundary as the web product, so it adds no actor
-plane, no grant, and no policy shape to this document. It does subtract one
+The v0.1 field client is the Telegram project channel (not yet enabled in any environment, BL-024) and the `apps/mobile` Expo
+client, deployed as a web export at the Vercel project `goproceed-field`
+([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and «Amendment, 2026-09-23»). The web
+client is **cross-origin**: its member session lives in its own origin's browser
+storage (supabase-js's default on web, `apps/mobile/src/lib/supabase.ts`), and it
+reaches `/v1` with an `Authorization: Bearer` token through the
+`FIELD_CLIENT_ORIGINS` CORS allowlist (`apps/app/src/lib/cors.ts`), behind the
+same BFF authorization boundary as the web product. Beyond `/v1` it talks only to
+Supabase Auth (the OTP sign-in, `apps/mobile/src/screens/login.tsx`) and to the
+server-issued signed upload URL for the bytes of a capture
+(`apps/mobile/src/lib/capture/upload.ts`).
+*[2026-09-23, DEV-035 — was: «[ADR-007] makes the v0.1 field client a PWA served
+from `apps/app` — the same origin, the same member session, and the same BFF
+authorization boundary as the web product, so it adds no actor plane, no grant,
+and no policy shape to this document.» The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».
+The same-origin reasoning no longer describes any field client; this correction
+does not re-assess whether the cross-origin client adds a policy shape.]*
+[ADR-007](../decisions/ADR-007-pilot-field-client.md) does subtract one
 thing: the client-held encrypted pending original, which is a v0.3 native
 obligation and is not a v0.1 security control (see
 [files-and-storage.md](files-and-storage.md)).
@@ -83,7 +97,7 @@ the migration text that decides it.
 | 4 | First-owner bootstrap serialized between actors | **Delivered** | `0006:78-83` — `app.org_has_members` takes `pg_advisory_xact_lock` *before* the membership check, so the losing claim waits for the winner's commit instead of racing past it under READ COMMITTED |
 | 5 | Audit enforced append-only | **Delivered** | `0006:10-19` — `app.reject_mutation` on a `BEFORE UPDATE OR DELETE` trigger, which fires for the table owner too, so a widened grant alone cannot rewrite history |
 | 6 | Future object privileges deny-by-default | **Delivered, with one residual the runner cannot close** | `0009:8` revokes `CREATE` on `public`; `0009:28-62` discovers every creator role from `pg_default_acl` rather than assuming one, and revokes tables, sequences, and functions from `anon`/`authenticated`, plus a **global**-scope function revoke because a schema-scoped one cannot subtract the built-in PUBLIC execute (`0009:16-20`). The residual is `supabase_admin`, documented at `0009:21-27` — see Current risks |
-| 7 | Reviewed BFF, worker, and service roles with no browser-reachable secret | **Partial** | `goproceed_app`/`goproceed_app_login` (`0003:8,11`) and `goproceed_service`/`goproceed_service_login` (`0034:25,28`) exist with `NOLOGIN`/`NOINHERIT` separation. `goproceed_worker` (`0008:35`) still has **no login role**, so no worker workload has a credential |
+| 7 | Reviewed BFF, worker, and service roles with no browser-reachable secret | **Partial** | `goproceed_app`/`goproceed_app_login` (`0003:8,11`) and `goproceed_service`/`goproceed_service_login` (`0034:25,28`) exist with `NOLOGIN`/`NOINHERIT` separation. `goproceed_worker` (`0008:35`) still has **no login role**, so the outbox has no credential. *[2026-09-23, DEV-036: the evidence purge has its own pair, `goproceed_purge_worker`/`goproceed_purge_worker_login` (`0090`), with EXECUTE on five `app.*upload*purge*` functions and nothing else.]* |
 | 8 | Live catalog comparison proving no staging/production drift | **Not delivered** | The newest snapshot, `catalog-snapshots/20260731-2102.md`, was taken against `127.0.0.1` and predates `0034`: its `## roles (6)` block contains no `goproceed_service` |
 
 The `0009` design note is worth keeping visible because it is the kind of thing a
@@ -100,7 +114,7 @@ default-privilege work repeats both the global-scope revoke and the
 | RLS on every application table | **Delivered** | 33 `enable row level security` statements across the chain; `0037:37` was the last, on `outbox_dead_letters` — the only table that had been left out, tenant-owned, and readable by a `nobypassrls` role (`0037:9-12`) |
 | Dead letters unreadable by the worker role | **Delivered** | `0037:42` withdraws the `0008:40` grant as well as enabling RLS, so a future policy cannot silently reopen the path |
 | Outbox drain cannot defeat the lease protocol | **Delivered** | `0036:40` unschedules the 30-second job; `0036:53` revokes `execute` on `public.drain_outbox(int)` from `service_role`, leaving only a superuser session able to call it |
-| Purge functions reachable by a non-superuser principal | **Delivered** | `0038:42-45` strips the direct `anon`/`authenticated` execute that `0021:108-111` left in place; `0038:47-50` grants the four functions to `goproceed_worker` and `service_role` — deliberately not to `goproceed_app` (cross-tenant system action) and not to `goproceed_service` (upload finalization only) |
+| Purge functions reachable by a non-superuser principal | **Delivered** | `0038:42-45` strips the direct `anon`/`authenticated` execute that `0021:108-111` left in place; `0038:47-50` grants the four functions to `goproceed_worker` and `service_role` — deliberately not to `goproceed_app` (cross-tenant system action) and not to `goproceed_service` (upload finalization only). *[Superseded 2026-09-23 by `0090` (DEV-036): moved to `app` and granted to `goproceed_purge_worker` only.]* |
 | No false UPDATE affordance on `organizations` | **Delivered** | `0039:31` withdraws the `0003:57` grant that RLS had made inert since `0004` created only `org_select` and `org_insert` |
 | `audit_events.project_id` is tenant-safe | **Delivered** | `0040:81-89` — composite FK `(organization_id, project_id) → projects (workspace_id, id)`, `MATCH SIMPLE` so the NULL-project majority stays legal, `NO ACTION` because a referential action would have to UPDATE or DELETE an append-only row and would fail at run time instead of review time |
 | Service principal separated from the application principal | **Delivered** | `0034:32-33` makes `goproceed_service` a member of `goproceed_app` and `goproceed_service_login` a member of `goproceed_service`, so SQL injected into an ordinary route runs on a connection that cannot reach the service role; `0035:150` and `0035:167-170` make server-observed facts service-only |
@@ -241,10 +255,10 @@ identity.
 | BFF command/query execution | `goproceed_app` via `goproceed_app_login` (`0003:8,11,14`) |
 | Upload finalization and integrity/scan state | `goproceed_service` via `goproceed_service_login` (`0034:25,28,32-33`); execute on `app.finalize_upload_intent` is service-only (`0035:167-170`) |
 | Outbox/job claiming and delivery | **None.** `goproceed_worker` exists (`0008:35`) with no login role, and the outbox has no consumer at all — see Current risks |
-| Storage byte purge | Function-level only. `0038:47-50` grants the four purge functions to `goproceed_worker` and `service_role`; the byte-deleting half is wired to no runtime |
+| Storage byte purge | `goproceed_purge_worker` via `goproceed_purge_worker_login` (`0090`, DEV-036): EXECUTE on `app.expire_upload_intents`, `app.claim_upload_purge`, `app.complete_upload_purge`, `app.fail_upload_purge` and `app.upload_purge_health`, and nothing else; the `public` versions `0038` granted to `goproceed_worker` and `service_role` are dropped. The runner is `apps/app/app/internal/evidence/purge/route.ts`, called by Vercel Cron four times a day (`apps/app/vercel.json`); the bytes are deleted with `SUPABASE_SECRET_KEY` |
 | Artifact rendering | **None.** No table to render from, no role, no grant |
 | Projection rebuilding | **None.** No projection table exists |
-| Scheduled maintenance | **None named.** Two `pg_cron` jobs remain — `idempotency-purge` (`0007:45`) and `upload-intent-expiry` (`0021:132`) — and both run as the scheduling superuser, not as an application principal |
+| Scheduled maintenance | **None named.** Two `pg_cron` jobs remain — `idempotency-purge` (`0007:45`) and `upload-intent-expiry` (`0021:132`, repointed to `app.expire_upload_intents` by `0090`) — and both run as the scheduling superuser, not as an application principal |
 
 A service identity is not a generic administrator. Every service command records
 its service principal plus the originating user/external command when one
@@ -337,14 +351,26 @@ server resolves authority from current facts and validates the complete
 relational chain. `earliest_proceed_at` on a witness notice is server-computed
 for the same reason, in **v0.2**, where the witness notice lands.
 
-**The v0.1 field client is a browser page and changes none of this.** The PWA of
-[ADR-007](../decisions/ADR-007-pilot-field-client.md) is an authenticated member
+**The v0.1 field client is a browser page and changes none of this.** The web
+field client from `apps/mobile` is an authenticated member surface on its own
+origin; each `/v1` request it sends carries a bearer token and is evaluated
+through steps 1-8 exactly as the web product's is. Two consequences bind here
+rather than in the UI: nothing in the capture path may be trusted because it
+claims a camera — an origin label, a device time, or an EXIF block is
+client-supplied metadata and is stored as such — and the client holds no
+credential beyond the member's own session, no local decryption key, and no
+durable pending original that a security control could rest on.
+*[2026-09-23, DEV-035 — was: «The PWA of [ADR-007] is an authenticated member
 surface on the product origin, evaluated through steps 1-8 exactly as the web
-product is. Two consequences bind here rather than in the UI: nothing in the
-capture path may be trusted because it claims a camera — an origin label, a
-device time, or an EXIF block is client-supplied metadata and is stored as such
-— and the client holds no credential, no local decryption key, and no durable
-pending original that a security control could rest on.
+product is» and «the client holds no credential, no local decryption key, and no
+durable pending original». The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23». The web
+client's session token is readable by script in its origin's browser storage —
+as the `apps/app` Supabase session cookies are too (`httpOnly: false`, the
+`@supabase/ssr` default, `apps/app/src/lib/supabase-browser.ts`), so this is not a
+regression of the retirement. What is owed is the compensating control on the
+field origin, which today sends no security headers at all (no CSP): BL-136 —
+closed as `wontfix (owner)` the same day («goproceed-field не трогай»), so the
+missing headers are the owner's accepted risk, not a control in progress.]*
 
 An external command follows the same last three steps but replaces membership
 and responsibility with current grant/session capability and exact approval or
@@ -355,12 +381,23 @@ occurrence scope.
 ### Browser, field client, and native
 
 No service-role key, database password, HMAC key, or worker credential may
-enter browser code, the v0.1 PWA field client, a v0.3 native build, public
-environment variables, source maps, logs, or analytics. The field client is a
-route set inside `apps/app` on the same origin, so it inherits this rule rather
-than needing its own: any service worker or cached asset it ships is client code
-on the product origin, receives no service credential, and must not cache
-evidence originals or authenticated domain responses.
+enter browser code, the v0.1 web field client, a v0.3 native build, public
+environment variables, source maps, logs, or analytics. The web field client is
+a separate deployment on its own origin (the `apps/mobile` Expo web export,
+Vercel project `goproceed-field`), so this rule binds it directly — its build's
+public variables (`EXPO_PUBLIC_*`) and its source maps included — rather than by
+inheritance from `apps/app`: any service worker or cached asset it ships is
+client code on its origin, receives no service credential, and must not cache
+evidence originals or authenticated domain responses. Its session lives in that
+origin's browser storage and reaches `/v1` with a bearer token through the
+`FIELD_CLIENT_ORIGINS` allowlist, and it does not inherit `apps/app`'s
+same-origin cookie rules.
+*[2026-09-23, DEV-035 — was: «[…] the v0.1 PWA field client […]. The field
+client is a route set inside `apps/app` on the same origin, so it inherits this
+rule rather than needing its own: any service worker or cached asset it ships is
+client code on the product origin, receives no service credential, and must not
+cache evidence originals or authenticated domain responses.» The owner retired
+that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]*
 
 Authenticated clients call reviewed BFF/API routes. If a Supabase Data API
 query is intentionally exposed, it is limited to reviewed `api` views/functions
@@ -871,12 +908,12 @@ described are proved delivered in Implementation status above.
    `## cron_jobs (3)` block still lists `outbox-drain`. No snapshot in the
    repository corroborates `0034`-`0040` anywhere. Grants, policies, default
    ACLs, and cron presence on a hosted environment are unproven.
-5. **The purge worker's byte-deleting half is wired to no runtime.**
-   `0038:29-32` is explicit that granting the four functions does not make the
-   purge work: marking an intent expired is scheduled, but deleting the bytes
-   needs storage credentials and a runner that does not exist. Storage is
-   therefore never reclaimed, and `0038`'s improvement is that a future runner
-   need not be a superuser — not that one runs.
+5. **The purge worker's byte-deleting half was wired to no runtime.**
+   `0038:29-32` was explicit that granting the four functions did not make the
+   purge work. *[Closed in the repository 2026-09-23 by DEV-036 (BL-030): a
+   principal of its own (`0090`), a secret-authenticated route, and four daily
+   Vercel Cron runs. Not yet true of any environment: `0090`, `PURGE_DB_URL` and
+   `CRON_SECRET` must reach one first (`infra/README-staging.md` §3.3).]*
 
 Two further deviations were recorded in `TODOS.md`, now frozen, rather than here. The first,
 `service_role` holding `TRUNCATE` on `outbox_dead_letters`, which neither the append-only trigger

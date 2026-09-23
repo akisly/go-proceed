@@ -5,7 +5,7 @@ import { membershipRoleLabel, membershipStatusLabel } from "../../lib/membership
 import type { Membership } from "../dash-shell/workspace-switch";
 
 /**
- * `/dash/settings/profile` — what the product actually knows about the person
+ * `/settings/profile` — what the product actually knows about the person
  * signed in, and nothing it does not.
  *
  * NO EDITABLE FIELD, AND THAT IS A DECISION, NOT AN OMISSION. There is no
@@ -58,10 +58,10 @@ export function ProfileView({
         {/*
           * ZERO MEMBERSHIPS IS REACHABLE ON THIS SCREEN, and only became so in
           * fix round 1: `dash-layout.tsx` used to swap the whole of `children`
-          * for «Немає робочого простору» on every `/dash/**` route, which meant
+          * for «Немає робочого простору» on every `/**` route, which meant
           * a brand-new account could not reach the one screen that tells them
           * which address they signed in as. That decision moved to
-          * `app/dash/page.tsx`, so this panel now has to say the same thing for
+          * `app/(dash)/page.tsx`, so this panel now has to say the same thing for
           * itself rather than render an empty box under a count of 0. The
           * sentence is the catalogue's existing `dash.empty.no_workspace`, not
           * a second wording for the same fact.

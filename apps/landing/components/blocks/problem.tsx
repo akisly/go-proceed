@@ -14,12 +14,20 @@ export function Problem() {
           * different weight, over a 1.25fr/0.75fr split with a `34ch` lead in
           * another size and another colour — so on /roles it sat under the page's
           * own head looking like a different site. Only the ScrollTint stays: the
-          * statement earns its animation, not its own type scale. */}
-        <div className="grid gap-6 wide:grid-cols-2 wide:items-end wide:gap-10">
+          * statement earns its animation, not its own type scale. [DEV-029] And the
+          * same gap under it as `SectionHead` leaves — without it the stage below
+          * touched the lead. */}
+        <div className="mb-10 grid gap-6 md:mb-14 wide:grid-cols-2 wide:items-end wide:gap-10">
           <ScrollTint text={p.statement} className="display text-mkt-display-3 font-medium leading-tight tracking-tight text-ink" />
           <Reveal size="stately"><SectionLead>{p.aside}</SectionLead></Reveal>
         </div>
-        <Reveal y={0}><Fig01 /></Reveal>
+        {/* [DEV-029] The figure stands on a warm panel, the same arrangement the
+          * route's media cards use: it is an exhibit, and an exhibit on the same
+          * paper as the argument around it is just more paper. The plan named
+          * this and the first implementation pass missed it. */}
+        <Reveal y={0}>
+          <div className="landing-stage p-3 md:p-6"><Fig01 /></div>
+        </Reveal>
       </div>
     </section>
   );

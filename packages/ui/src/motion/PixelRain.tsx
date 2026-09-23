@@ -9,8 +9,8 @@ import { useReduced } from "./use-reduced";
  * small square in every cell of a regular grid, each brightening and dimming
  * on its own clock — across the whole top of the first screen, deep at the two
  * sides and shallow at the centre, thinning toward its foot, breathing a little.
- * It is the landing reference's first-screen texture, drawn in our ink on our
- * paper.
+ * It is the landing reference's first-screen texture, drawn on our paper in the
+ * caller's colour (the landing's is the accent since 2026-09-22, DEV-029).
  *
  * [DEV-027] DEV-026 drew falling columns over a quarter of the screen, from
  * still screenshots. Watched live, the reference's field is something else:
@@ -47,7 +47,8 @@ import { useReduced } from "./use-reduced";
  *  - under reduced motion it draws ONE still frame and never starts the loop —
  *    a different composition, not a slower one;
  *  - the colour is the element's computed `color`, so it is a token role chosen
- *    by the caller's class (`text-ink`), never a value written here;
+ *    by the caller's class (`text-accent` on the landing, `text-ink` in the
+ *    kitchen sink), never a value written here;
  *  - the foot fade is `rain-mask` in `base.css`, so the audit can read it;
  *  - THE CALLER SIZES THE CANVAS IN CSS (`h-… w-full`).
  *
@@ -68,7 +69,8 @@ export function PixelRain({
    * over this band, and on paper a bright dot is darker than the header's muted
    * links — one standing after the wordmark read as a full stop, others as
    * interpuncts between the links (B7-01). The reference has no such trouble:
-   * its text is white and its dots are dim; ink on paper reverses that order.
+   * its text is white and its dots are dim; dark dots on paper reverse that order
+   * (ink until 2026-09-22, pine since — the reversal is the same).
    */
   calm?: number | undefined;
 }) {
@@ -129,11 +131,21 @@ export function PixelRain({
             const standing = 0.1 + 0.9 * rank * rank * rank;
             const speed = 0.3 + hash(x, y, 1) * 0.9;
             const wave = 0.5 + 0.5 * Math.sin(t * speed * 2 + hash(x, y, 2) * Math.PI * 2);
-            // Under `calm` every dot is the dimmest a dot gets (the standing floor, 0.1): no twinkle, one size,
-            // alpha ≤ 0.30 — only the field's slow breath remains where it thins toward the centre. Over the
-            // next 24px the field comes up to itself, so the band has no edge.
-            const lift = calm ? Math.min(1, Math.max(0, (py - calm) / 24)) : 1;
-            const bright = 0.1 + (standing * (0.45 + 0.55 * wave) - 0.1) * lift;
+            // Under `calm` every dot is held at 0.1, a dim level: no twinkle, one size,
+            // alpha ≤ 0.30 — only the field's slow breath remains where it thins toward the centre. The field
+            // comes up to itself over ONE ROW, not 24px. [2026-09-22, DEV-029, owner, on the band just under
+            // the header: «тут сверху вообще не мигают».] Measured: 0 % of the dots between 0 and 64px changed
+            // between two frames and 18 % between 64 and 100px, because the 24px ramp ran on past the
+            // header's foot. The header is what the calm is FOR (B7-01); below it the field is itself.
+            const lift = calm ? Math.min(1, Math.max(0, (py - calm) / cell)) : 1;
+            // THE TWINKLE, for every dot and not only the few bright ones. The standing brightness is cubed,
+            // so most dots sit near the floor, where `standing * wave` barely moves: the field read as still
+            // with a few sparks. This swings each dot ±0.14 around its own level on its own clock — the
+            // field's average barely changes (the 0.04 floor trims the dimmest dots' lows); its motion does.
+            const twinkle = 0.28 * (wave - 0.5);
+            // Capped at 1: above it the alpha passes 1, which a canvas IGNORES — it keeps the previous cell's
+            // alpha, so the brightest spark went dim at its peak (`gp-reviewer` F-1).
+            const bright = Math.min(1, Math.max(0.04, 0.1 + (standing * (0.45 + 0.55 * wave) + twinkle - 0.1) * lift));
             const size = bright > 0.6 ? 3 : 2;
             ctx.globalAlpha = env * (0.22 + 0.74 * bright);
             const o = (cell - size) >> 1;

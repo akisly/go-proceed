@@ -8,13 +8,17 @@ import {
   publishVersion, ruleVersionBody, seedRequirementLibrary,
 } from "./helpers/manual-baseline";
 import type { CreateUploadIntentResponse, FinalizeUploadIntentResponse } from "@goproceed/contracts";
-import { buildCreateIntentBody } from "../src/lib/capture/upload";
+import { buildCreateIntentBody } from "./helpers/upload-intent-body";
 
+// [2026-09-23, DEV-035] `uploadCapture` in the notes below was the retired
+// field PWA's orchestrator (`src/lib/capture/upload.ts`, deleted with it).
+// `apps/mobile`'s own `uploadCapture` drives the same three routes the same
+// way, so the sequence this suite pins is still the field client's.
 /**
  * ---------------------------------------------------------------------------
  * Task 9: the capture island. This suite drives the three routes the field
  * client actually calls (create → PUT to Supabase Storage → finalize) in
- * exactly the sequence `src/lib/capture/upload.ts`'s `uploadCapture` follows,
+ * exactly the sequence `src/lib/capture/upload.ts`'s [deleted 2026-09-23, DEV-035] `uploadCapture` follows,
  * and separately proves the negative migration 0043 asks for (§6): a v0.1 PWA
  * build cannot express `native_camera`, because `buildCreateIntentBody` — the
  * one place this client's request body is assembled — has no parameter that
@@ -22,7 +26,7 @@ import { buildCreateIntentBody } from "../src/lib/capture/upload";
  *
  * `uploadCapture` ITSELF, and the state transitions it drives through
  * `onStateChange`, are covered separately and more directly in
- * `src/lib/capture/upload.test.ts` — a plain-Node unit test with a fake
+ * `src/lib/capture/upload.test.ts` [deleted 2026-09-23, DEV-035] — a plain-Node unit test with a fake
  * `fetch`, which is what actually catches a regression in the fetch
  * sequencing or in the body handed to `fetch` (as opposed to
  * `buildCreateIntentBody` called in isolation). This file's job is the one a
@@ -68,8 +72,8 @@ const LINE = {
   unitPrice: "100.00",
 };
 
-/** A minimal but genuine JPEG: SOI + APP0 marker, then a byte of payload. */
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+/** A minimal but genuine JPEG: SOI, a 1×1 baseline frame header, EOI, then a byte (DEV-033: the size check reads the frame). */
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 interface Fx extends BaselineFixture {

@@ -8,6 +8,8 @@ import { UiClosure } from "../visuals/ui-closure";
 import { UiRequirement } from "../visuals/ui-requirement";
 import { UiReview } from "../visuals/ui-review";
 import { StickyList } from "./sticky-list";
+import { IndexTile } from "./index-tile";
+
 import { splitTitle } from "./section-head";
 import { TwoTone } from "./two-tone";
 
@@ -33,7 +35,7 @@ export function Route({ heading = "h2" }: { heading?: "h1" | "h2" }) {
   const title = splitTitle(r.title, r.titleAccent);
   const items = r.steps.map((step) => ({ id: `step-${step.index}`, label: step.eyebrow }));
   return (
-    <section id="stages" tabIndex={-1} className="landing-inset scroll-mt-20 py-20 md:py-24">
+    <section id="stages" tabIndex={-1} className="landing-inset scroll-mt-20 py-20 md:py-28">
       <TwoTone as={heading} lead={title.lead} rest={title.rest} />
       <Reveal size="stately">
         <p className="mt-6 flex flex-wrap gap-1.5">
@@ -50,7 +52,7 @@ export function Route({ heading = "h2" }: { heading?: "h1" | "h2" }) {
           {r.steps.map((step, i) => (
             <article key={step.index} id={`step-${step.index}`} data-route-step={step.index} className="grid scroll-mt-28 gap-8 wide:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)] wide:gap-12">
               <Reveal size="stately">
-                <p className="text-data text-ink-muted"><span className="mr-2 font-mono text-ink-muted">{step.index}</span>{step.eyebrow}</p>
+                <p className="flex items-center gap-2.5 text-data text-ink-muted"><IndexTile>{step.index}</IndexTile>{step.eyebrow}</p>
                 <div className="mt-5 text-h3 leading-snug tracking-tight text-ink-muted">
                   <StepTitle className="inline font-medium text-ink">{step.title}.</StepTitle>{" "}
                   <p className="inline">{step.note}</p>
@@ -64,7 +66,7 @@ export function Route({ heading = "h2" }: { heading?: "h1" | "h2" }) {
                 </ul>
               </Reveal>
               <Reveal size="stately">
-                <div data-route-card="" className="grid min-h-[380px] place-items-center overflow-hidden rounded-section border border-line-strong bg-canvas p-5 transition-colors duration-slow ease-out hover:border-ink-muted hover:bg-surface md:p-10 wide:min-h-[520px]">
+                <div data-route-card="" className="landing-stage grid min-h-[380px] place-items-center overflow-hidden p-5 transition-[background-color,border-color,box-shadow] duration-slow ease-out hover:border-ink-muted hover:bg-surface hover:shadow-float md:p-10 wide:min-h-[520px]">
                   {MEDIA[i]}
                 </div>
               </Reveal>

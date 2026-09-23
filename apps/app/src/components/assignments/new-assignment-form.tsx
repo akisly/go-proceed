@@ -271,14 +271,14 @@ export function NewAssignmentForm({
       setState((s) => nextSubmitState(s, "succeeded"));
       // The Router Cache would otherwise serve the register's previous list.
       router.refresh();
-      router.push(`/dash/projects/${projectId}/assignments`);
+      router.push(`/projects/${projectId}/assignments`);
       return;
     }
 
     setState((s) => nextSubmitState(s, "failed"));
 
     if (result.kind === "session_expired") {
-      router.push(`/login?next=${encodeURIComponent(`/dash/projects/${projectId}/assignments/new`)}`);
+      router.push(`/login?next=${encodeURIComponent(`/projects/${projectId}/assignments/new`)}`);
       return;
     }
 
@@ -437,7 +437,9 @@ export function NewAssignmentForm({
                 </SelectContent>
               </Select>
               <FieldDescription id={assignee.description}>
-                Доручення з&apos;явиться в «Мої доручення» на телефоні цієї людини.
+                {/* DEV-035 (owner: «Нейтральный»): this promised «Мої доручення» on the
+                  * assignee's phone, a screen of the field PWA the owner retired. */}
+                Учасник робочого простору, який виконуватиме роботу.
               </FieldDescription>
               {fieldState.invalid && (
                 <FieldError id={assignee.error} errors={[fieldState.error]} />
@@ -498,7 +500,7 @@ export function NewAssignmentForm({
             container, which stretches its children, and a submit stretched to
             the width of a form is not a button this system draws anywhere. */}
         <div className="flex">
-          <Button type="submit" disabled={state === "submitting" || state === "created"}>
+          <Button type="submit" variant="brand" disabled={state === "submitting" || state === "created"}>
             {state === "submitting" ? "Створюємо доручення…" : "Створити доручення"}
           </Button>
         </div>

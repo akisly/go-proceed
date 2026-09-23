@@ -129,6 +129,9 @@
   --color-action-signal: var(--gp-action-signal-bg);
   --color-action-signal-fg: var(--gp-action-signal-fg);
   --color-action-signal-hover: var(--gp-action-signal-hover);
+  --color-action-brand: var(--gp-action-brand-bg);
+  --color-action-brand-fg: var(--gp-action-brand-fg);
+  --color-action-brand-hover: var(--gp-action-brand-hover);
   --color-action-ghost-hover: var(--gp-action-ghost-hover);
   --color-status-ready: var(--gp-status-ready-surface);
   --color-status-ready-line: var(--gp-status-ready-border);
@@ -148,6 +151,8 @@
   --color-evidence-satisfied: var(--gp-evidence-satisfied);
   --color-evidence-pending: var(--gp-evidence-pending);
   --color-evidence-blocking: var(--gp-evidence-blocking);
+  --color-viz-brand: var(--gp-viz-brand);
+  --color-viz-empty: var(--gp-viz-empty);
   --color-viz-1: var(--gp-viz-1);
   --color-viz-2: var(--gp-viz-2);
   --color-viz-3: var(--gp-viz-3);
@@ -156,6 +161,16 @@
   --color-accent: var(--gp-text-accent);
   --color-line-accent: var(--gp-border-accent);
   --color-accent-soft: var(--gp-bg-accent-soft);
+  --color-tint-warm: var(--gp-bg-tint-warm);
+  --color-line-warm: var(--gp-border-warm);
+  --color-chip-clay: var(--gp-bg-chip-clay);
+  --color-chip-clay-fg: var(--gp-text-chip-clay);
+  --color-chip-violet: var(--gp-bg-chip-violet);
+  --color-chip-violet-fg: var(--gp-text-chip-violet);
+  --color-chip-pine: var(--gp-bg-chip-pine);
+  --color-chip-pine-fg: var(--gp-text-chip-pine);
+  --color-chip-stone: var(--gp-bg-chip-stone);
+  --color-chip-stone-fg: var(--gp-text-chip-stone);
 }
 
 

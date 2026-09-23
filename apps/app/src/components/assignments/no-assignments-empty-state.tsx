@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Button, EmptyState } from "@goproceed/ui/components";
+import { ProjectPage } from "../projects/project-page";
 
 /**
- * `app/dash/projects/[projectId]/assignments/page.tsx` renders this when
+ * `app/(dash)/projects/[projectId]/assignments/page.tsx` renders this when
  * `GET /v1/projects/{projectId}/assignments` returns none for a project that
  * does exist — the exact copy named in `task-5-brief.md`, catalogued as
  * `dash.empty.no_assignments_title` / `dash.empty.no_assignments`. Mirrors
@@ -65,7 +66,7 @@ import { Button, EmptyState } from "@goproceed/ui/components";
  *      unresolvable variable behind it;
  *   2. the ONE chunk that does define `--container-md:28rem` and
  *      `.max-w-md{max-width:var(--container-md)}` is the same chunk
- *      `apps/app/app/(app)/page` (the field client's root route) loads, so it
+ *      `apps/app/app/(app)/page` [deleted 2026-09-23, DEV-035] (the field client's root route) loads, so it
  *      is the global `app/globals.css` chunk leaking onto dash pages through
  *      the shared root layout — until 2026-09-05, a dedicated
  *      `app/dash/dash-theme.css` imported the real system for `/dash/**` only,
@@ -88,18 +89,27 @@ import { Button, EmptyState } from "@goproceed/ui/components";
  * `TODOS.md`'s "Surfaced by Plan D slice D0" P2 entry already records all
  * four, and the real fix is a missing container ROLE in `packages/tokens/
  * src/tokens.json` (§3.3 question 2), not a fifth scattered substitution.
+ *
+ * [DEV-035, 2026-09-23] Inside the project frame (`ProjectPage`) with its
+ * tabs, and WITHOUT the frame's header action: the empty state's own
+ * «Нове доручення» is the one create link on this screen, so a reader is not
+ * offered the same act twice.
  */
-export function NoAssignmentsEmptyState({ projectId }: { projectId: string }) {
+export function NoAssignmentsEmptyState({
+  projectId, projectName,
+}: { projectId: string; projectName: string | null }) {
   return (
-    <EmptyState
-      className="mx-auto max-w-112 py-16"
-      title="Немає доручень"
-      description="У цьому проєкті ще немає доручень."
-      action={(
-        <Button asChild>
-          <Link href={`/dash/projects/${projectId}/assignments/new`}>Нове доручення</Link>
-        </Button>
-      )}
-    />
+    <ProjectPage projectId={projectId} projectName={projectName} tab="assignments">
+      <EmptyState
+        className="mx-auto max-w-112 py-16"
+        title="Немає доручень"
+        description="У цьому проєкті ще немає доручень."
+        action={(
+          <Button asChild variant="brand">
+            <Link href={`/projects/${projectId}/assignments/new`}>Нове доручення</Link>
+          </Button>
+        )}
+      />
+    </ProjectPage>
   );
 }

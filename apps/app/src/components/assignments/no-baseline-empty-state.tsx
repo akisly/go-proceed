@@ -1,7 +1,7 @@
 import { EmptyState } from "@goproceed/ui/components";
 
 /**
- * `/dash/projects/{projectId}/assignments/new` renders this when
+ * `/projects/{projectId}/assignments/new` renders this when
  * `listPublishedBaselines` returns none — the expected state of a fresh pilot
  * project, not an error. Доручення are created against a work item, and a
  * work item only exists on a published contract version's own line list

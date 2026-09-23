@@ -1,5 +1,5 @@
 import type { PoolClient } from "pg";
-import { getPool, getServicePool } from "./pool";
+import { getPool, getPurgePool, getServicePool } from "./pool";
 
 export interface TenantContext {
   /**
@@ -196,4 +196,29 @@ export async function withServiceTx<T>(
  */
 export async function adoptServiceWorkspace(tx: Tx, workspaceId: string): Promise<void> {
   await tx.query("select set_config('app.organization_id', $1, true)", [workspaceId]);
+}
+
+/**
+ * A transaction on the evidence purge worker's connection (DEV-036).
+ *
+ * No actor and no workspace: the purge crosses tenants by nature, and the
+ * functions it may call (migration 0090) take neither. Keep each one short —
+ * one claim, or one completion — because the byte deletion between them is
+ * HTTP to Storage and must not hold a connection in `begin`.
+ */
+export async function withPurgeWorkerTx<T>(
+  ctx: { requestId: string }, fn: (tx: Tx) => Promise<T>,
+): Promise<T> {
+  return runTx(getPurgePool(), "goproceed_purge_worker",
+    { actorUserId: "", organizationId: null, requestId: ctx.requestId, externalSessionId: null },
+    fn, async (client) => {
+      // The same reason as withServiceTx: a superuser URL passes every role
+      // check, so the connection is asked who it is. `set local role` has
+      // already refused any login that is not a member of the purge role.
+      const who = await client.query<{ ok: boolean }>(
+        "select session_user = 'goproceed_purge_worker_login' as ok");
+      if (who.rows[0]?.ok !== true) {
+        throw new Error("PURGE_DB_URL is not the purge login; refusing to purge");
+      }
+    });
 }

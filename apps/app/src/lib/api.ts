@@ -27,7 +27,7 @@ export async function apiGet<T>(path: string): Promise<T> {
  * Thrown when the inbound `Host` header names a host this process is not
  * willing to send a session cookie to. Deliberately NOT an `ApiError`: no
  * status came back from anywhere, because no request was made. Callers that
- * special-case 401 (see `app/(app)/page.tsx`) therefore fall through to their
+ * special-case 401 (see `app/(app)/page.tsx` [deleted 2026-09-23, DEV-035]) therefore fall through to their
  * generic error screen, which is right — this is a deployment fault, not
  * something the foreman can fix by signing in again.
  */
@@ -167,7 +167,7 @@ export class ApiError extends Error {
 /**
  * "The session is gone" as one predicate, rather than the same
  * `err instanceof ApiError && err.status === 401` written at each of the three
- * places that must agree about it (`app/(app)/page.tsx`'s two catches and
+ * places that must agree about it (`app/(app)/page.tsx`'s [deleted 2026-09-23, DEV-035] two catches and
  * `loadAssignmentsByProject`'s per-project catch). A 401 is never a
  * per-project failure to absorb: every other in-flight request would fail the
  * identical way a moment later.

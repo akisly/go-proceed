@@ -42,3 +42,30 @@ export async function resetServicePoolForTests(): Promise<void> {
   servicePool = null;
   if (previous) await previous.end();
 }
+
+let purgePool: pg.Pool | null = null;
+/**
+ * The evidence purge worker's own connection (DEV-036, migration 0090).
+ *
+ * A third login, not the service one: goproceed_service inherits every tenant
+ * table grant through goproceed_app, and the purge needs none of them — only
+ * EXECUTE on the five app.*upload*purge* functions. There is no default URL:
+ * a deployment without PURGE_DB_URL must fail, not run the purge as whatever a
+ * fallback names (evidence-purge.ts once fell back to the local superuser).
+ */
+export function getPurgePool(): pg.Pool {
+  if (!purgePool) {
+    const connectionString = process.env.PURGE_DB_URL;
+    if (!connectionString) throw new Error("PURGE_DB_URL is not set");
+    purgePool = new Pool({ connectionString, max: 2 });
+    purgePool.on("error", (err) => { console.error("[db] idle purge client error", err); });
+  }
+  return purgePool;
+}
+
+/** Test-only, as resetServicePoolForTests: the next getPurgePool() reads PURGE_DB_URL again. */
+export async function resetPurgePoolForTests(): Promise<void> {
+  const previous = purgePool;
+  purgePool = null;
+  if (previous) await previous.end();
+}

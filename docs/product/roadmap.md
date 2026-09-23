@@ -381,7 +381,7 @@ stood in front of them:
 
 | Was an M2 entry condition | Now |
 |---|---|
-| An Apple Developer Program membership (with a D-U-N-S number for organisational enrolment), a Google Play Console account, and a funded Expo plan with build minutes | **Removed entirely.** The v0.1 field client is a PWA served from `apps/app`; its whole distribution requirement is an HTTPS origin, which the product already requires |
+| An Apple Developer Program membership (with a D-U-N-S number for organisational enrolment), a Google Play Console account, and a funded Expo plan with build minutes | **Removed entirely.** The v0.1 field client is the Telegram project channel (built, not enabled in any environment, BL-024) and the `apps/mobile` Expo client shipped as a web export (Vercel project `goproceed-field`); the web export's whole distribution requirement is an HTTPS origin, and only the native builds that come later from the same codebase need these accounts. *[2026-09-23, DEV-035 — was: «The v0.1 field client is a PWA served from `apps/app`; its whole distribution requirement is an HTTPS origin, which the product already requires». The owner retired that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23».]* |
 | The test iPhone's UDID registered under that membership | **Removed entirely.** No internal-distribution build is installed in v0.1 |
 | EAS internal preview builds installing on both platforms; TestFlight and Google Play internal-testing distribution | **Removed entirely**, as entry evidence and as exit evidence |
 | An actual pilot-device inventory confirming the support floor, before capture UX is frozen | **Moved from entry to exit.** The devices are still required and matter more, not less — but what they are now needed for is measuring what a browser does with EXIF, with the `capture` attribute, and with storage eviction, and that measurement runs against the client M2 builds. A measurement of a built client cannot precede the build. What is entry is the written measurement plan; what is exit is the measurement |
@@ -578,9 +578,14 @@ a group chat.
 
 **Entry evidence:**
 
-- an HTTPS origin serving `apps/app`, which the product already requires. Under
-  [ADR-007](../decisions/ADR-007-pilot-field-client.md) that is the entire
-  distribution requirement for the v0.1 field client. No store account, no
+- an HTTPS origin serving the v0.1 field client's web export from `apps/mobile`
+  (Vercel project `goproceed-field`), beside the one serving `apps/app`. Under
+  [ADR-007](../decisions/ADR-007-pilot-field-client.md) as amended by
+  [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) that is the entire distribution requirement for the
+  v0.1 field client's web build. *[2026-09-23, DEV-035 — was: «an HTTPS origin
+  serving `apps/app`, which the product already requires. Under [ADR-007] that is
+  the entire distribution requirement for the v0.1 field client.» The owner
+  retired the `apps/app` PWA; see ADR-009 «Amendment, 2026-09-23».]* No store account, no
   D-U-N-S number, no funded Expo plan, no UDID registration, and no
   internal-distribution track is an entry condition for this milestone or an
   exit gate for it;
@@ -604,13 +609,23 @@ a group chat.
 
 **Exit gates:**
 
-- the v0.1 field client is a **PWA served from `apps/app`**, behind the same BFF
-  boundary the web product uses: the server authenticates the subject, resolves
-  membership, project access and permission, and executes one bounded
-  transaction. The client trusts nothing it holds;
-- `apps/mobile` is **not on the v0.1 path** and is not deleted: it stays in the
-  tree on Expo SDK 57.0.9 with its scheme registered, as the starting point for
-  v0.3;
+- the v0.1 field client is the **Telegram project channel (built, not enabled in any environment, BL-024) and the `apps/mobile`
+  Expo client, shipped as a web export**, behind the same BFF boundary the web
+  product uses: the server authenticates the subject, resolves membership,
+  project access and permission, and executes one bounded transaction. The web
+  client reaches `/v1` cross-origin with a bearer token. The client trusts
+  nothing it holds;
+- `apps/mobile` is the v0.1 field client's codebase, and its native builds come
+  later from the same codebase;
+- *[2026-09-23, DEV-035 — the two gates above were: «the v0.1 field client is a
+  **PWA served from `apps/app`**, behind the same BFF boundary the web product
+  uses: […]. The client trusts nothing it holds» and «`apps/mobile` is **not on
+  the v0.1 path** and is not deleted: it stays in the tree on Expo SDK 57.0.9
+  with its scheme registered, as the starting point for v0.3». The owner retired
+  that PWA; see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23». In the
+  gates below, «the PWA path» and «the PWA» read as the web field client from
+  `apps/mobile`, whose capture code is a port of the PWA's; every limit and
+  refusal stated for the PWA binds it.]*
 - assignment supports performer, quantity, optional member and due date, and the
   requirement occurrences materialised from the rule versions bound to the
   published contract version;
@@ -1243,16 +1258,27 @@ reviewed quarterly and enter a version only through the scope-change rule below.
 ## Surface roadmap
 
 - `apps/landing`: separate marketing product and deployment throughout.
-- `apps/app`: authenticated product from v0.0 onward, and **the host of the v0.1
+- `apps/app`: authenticated product from v0.0 onward; its root is the office
+  dashboard, and it serves no field pages.
+- `apps/mobile`: **the v0.1 field client**, an Expo client shipped as a web
+  export (Vercel project `goproceed-field`) that reaches the `/v1` BFF
+  cross-origin with a bearer token ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2). The
+  web export's whole distribution requirement is an HTTPS origin: no store
+  account, no UDID registration, no internal-distribution track. Native builds
+  come later from the same codebase.
+- The Telegram project channel: the v0.1 field client's second path, built and
+  enabled in no environment yet (BL-024).
+- *[2026-09-23, DEV-035 — the `apps/app` and `apps/mobile` bullets were:
+  «`apps/app`: authenticated product from v0.0 onward, and **the host of the v0.1
   field client**, which is a PWA behind the same BFF boundary as the web product
-  ([ADR-007](../decisions/ADR-007-pilot-field-client.md) decision 1). Its whole
-  distribution requirement is an HTTPS origin: no store account, no UDID
-  registration, no internal-distribution track.
-- `apps/mobile`: stays in the tree on Expo SDK 57.0.9 with its scheme registered
+  ([ADR-007] decision 1). Its whole distribution requirement is an HTTPS origin:
+  no store account, no UDID registration, no internal-distribution track.» and
+  «`apps/mobile`: stays in the tree on Expo SDK 57.0.9 with its scheme registered
   and its token-proof screen intact, and is **not on the v0.1 path** — not in the
   v0.1 milestone outcome, not in v0.1 entry evidence, not in v0.1 closing
   evidence. It is the starting point for v0.3. It is not free while it sits: it
-  is a workspace in CI with an SDK that ages off the delivery path.
+  is a workspace in CI with an SDK that ages off the delivery path.» The owner
+  retired that PWA; see ADR-009 «Amendment, 2026-09-23».]*
 - online-only browser capture with a **non-durable pending original**, and a
   client that warns rather than silently losing bytes: v0.1. Native online
   capture with OS-sandboxed persistence through an ordinary restart: v0.3.

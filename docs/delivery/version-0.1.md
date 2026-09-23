@@ -633,9 +633,19 @@ settled it stands unchanged and settles the next disagreement the same way.
     command's own output, not as a report someone may choose to run, because
     silent non-coverage means there is no gate (INV-072, in its v0.1 form over a
     contract version rather than a location subtree);
-  - the field client is a **PWA served from `apps/app`** behind the same BFF
-    boundary as the web product (ADR-007 decision 1); `apps/mobile` is not on the
-    v0.1 path and is not deleted (decision 2);
+  - the field client is the **Telegram project channel and the `apps/mobile`
+    Expo client**, the latter shipped as a web export (Vercel project
+    `goproceed-field`) behind the same BFF boundary as the web product, which it
+    reaches cross-origin with a bearer token ([ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) decision 2 and
+    «Amendment, 2026-09-23»); native builds come later from the same codebase,
+    and the Telegram channel is built and enabled in no environment yet
+    (BL-024). *[2026-09-23, DEV-035 — was: «the field client is a **PWA served
+    from `apps/app`** behind the same BFF boundary as the web product (ADR-007
+    decision 1); `apps/mobile` is not on the v0.1 path and is not deleted
+    (decision 2)». The owner retired that PWA; see ADR-009 «Amendment,
+    2026-09-23». In this milestone, «PWA capture» and «the PWA path» read as the
+    web field client from `apps/mobile`, whose capture code is a port of the
+    PWA's; every limit and refusal stated for the PWA binds it.]*;
   - capture is **online-only** and a pending original is **not durable**: no
     screen reports success before the persisted `available` receipt, the client
     uploads immediately rather than offering a queue it cannot honour, and the
@@ -679,8 +689,10 @@ settled it stands unchanged and settles the next disagreement the same way.
 - **Acceptance evidence:** on one physical supported iPhone and one
   lower-resource physical Android device — still required, and now the only way
   to know what the client actually does (ADR-007 "What this decision does not
-  remove") — open the PWA as a foreman, read the occurrence set before work
-  starts, and capture through a simulated connection loss, a backgrounded tab,
+  remove") — open the web field client from `apps/mobile` as a foreman
+  *[2026-09-23, DEV-035 — was: «open the PWA as a foreman»; the owner retired
+  that PWA, see [ADR-009](../decisions/ADR-009-three-pilot-surfaces.md) «Amendment, 2026-09-23»]*, read the
+  occurrence set before work starts, and capture through a simulated connection loss, a backgrounded tab,
   and a retry. Prove no success is reported before the receipt and that a lost
   pending original is surfaced. Record, per browser and OS version, the measured
   behaviour of the `capture` hint, of image-metadata stripping or transcoding,

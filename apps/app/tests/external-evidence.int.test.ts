@@ -9,7 +9,7 @@ import {
   publishVersion, ruleVersionBody, seedRequirementLibrary,
 } from "./helpers/manual-baseline";
 import type { CreateUploadIntentResponse, FinalizeUploadIntentResponse } from "@goproceed/contracts";
-import { buildCreateIntentBody } from "../src/lib/capture/upload";
+import { buildCreateIntentBody } from "./helpers/upload-intent-body";
 import {
   EXTERNAL_SESSION_COOKIE, resetKeyRegistriesForTests,
 } from "../src/lib/external-link";
@@ -64,12 +64,12 @@ const WORK_TYPE = "montazh-elektrotekhnichnykh-ustanovok";
 const STAGE = "prykhovani-roboty";
 const APPROVER = EXTERNAL_TEST_APPROVER;
 
-/** A minimal but genuine JPEG: SOI + APP0 marker, then a byte of payload. */
-const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+/** A minimal but genuine JPEG: SOI, a 1×1 baseline frame header, EOI, then a byte (DEV-033: the size check reads the frame). */
+const JPEG = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 /** The SIBLING occurrence's photo — a distinct payload, so the two rows cannot collide on content_hash. */
-const JPEG_SIBLING = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x01]);
+const JPEG_SIBLING = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x01]);
 /** A third payload for the photo captured with NO occurrence at all — the fallback door. */
-const JPEG_FALLBACK = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x02]);
+const JPEG_FALLBACK = new Uint8Array([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x02]);
 const hashOf = (b: Uint8Array) => createHash("sha256").update(b).digest("hex");
 
 interface Fx extends BaselineFixture {

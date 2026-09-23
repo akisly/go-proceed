@@ -18,7 +18,7 @@ import { launch } from "./browser.mjs";
  * obligation screen, the unsaved-photo banner — lives BEHIND that gate.
  *
  * ITS NAME IS `field.mjs` AND IT IS NO LONGER ONLY THE FIELD PASS (2026-08-22,
- * Plan D slice D0 task 3). It now also drives the OFFICE DASHBOARD at `/dash`
+ * Plan D slice D0 task 3). It now also drives the OFFICE DASHBOARD at `/`
  * — the profile control's reachability in the icon-rail band, the mobile
  * drawer's geometry, and the sign-out flow end to end, including the session
  * cookies before and after and the Back press afterwards. The file keeps its
@@ -35,7 +35,7 @@ import { launch } from "./browser.mjs";
  * browser, and the exchange it performs has never run»). The seventh audit
  * closes the whole loop in one pass: it seeds ONE REAL, AVAILABLE evidence
  * object through the product's own three capture routes, opens
- * `/dash/assignments/{id}` and asserts the photo DECODED (`naturalWidth > 0`,
+ * `/assignments/{id}` and asserts the photo DECODED (`naturalWidth > 0`,
  * never a screenshot), presses «Відправити на перевірку» and reads the
  * one-time link off the screen, then opens that link in a SECOND BROWSER
  * CONTEXT WITH ITS OWN EMPTY COOKIE JAR, taps the gate, and asserts the same
@@ -52,7 +52,7 @@ import { launch } from "./browser.mjs";
  * return are still Node-only, in `m5-external.int.test.ts`.
  *
  * AND SINCE PLAN D SLICE D2 IT ALSO DRIVES THE MONEY SCREEN —
- * `/dash/projects/{projectId}`, the blocked-value read the subcontractor
+ * `/projects/{projectId}`, the blocked-value read the subcontractor
  * owner actually asks for (`docs/design/04-role-pain-map.md`'s own account
  * of the demand scan). Opens the route with the real seeded world's
  * `readiness.view` grant, asserts the headline sum, the blocked-reasons
@@ -341,7 +341,9 @@ async function startNextServer() {
   let lastErr;
   while (Date.now() < deadline) {
     try {
-      const res = await fetch(`${baseUrl}/manifest.webmanifest`);
+      // Readiness probe: `/login` answers 200 with no session. It was
+      // `/manifest.webmanifest` until DEV-035 removed the manifest.
+      const res = await fetch(`${baseUrl}/login`);
       if (res.ok) {
         return {
           baseUrl,
@@ -508,13 +510,18 @@ const WORK_ITEM_DESCRIPTION = "Приклад-улаштування прокл�
  *
  * NEITHER CHANGES ANY EXISTING ASSERTION, and that was checked rather than
  * hoped: `showProjectName` is `distinctProjectsWithWork > 1`
- * (src/lib/field/assignments.ts) and neither project carries an assignment, so
+ * (src/lib/field/assignments.ts [deleted 2026-09-23, DEV-035]) and neither project carries an assignment, so
  * «Мої доручення» still renders one row and still hides the project name; no
- * audit counts the rows in `/dash`'s project list.
+ * audit counts the rows in `/`'s project list.
  */
 const EMPTY_PROJECT_NAME = "Приклад-Порожній проєкт QA";
 const NO_MONEY_PROJECT_NAME = "Приклад-Проєкт без доступу до грошей QA";
 
+// [2026-09-23, DEV-035] «Мої доручення» in the comments below names the field
+// client's assignment list — once `app/(app)/page.tsx` here, now only
+// apps/mobile's. The seed shape those comments justify is kept: `/v1`'s
+// `?assignee=me` still serves that list, and the dashboard audits read the
+// same world.
 async function seedWorld(baseUrl, bearer) {
   const f = authedFetch(baseUrl, bearer);
 
@@ -553,7 +560,7 @@ async function seedWorld(baseUrl, bearer) {
       // `project.view` (`app/v1/projects/[projectId]/blocked-value/route.ts`),
       // and `project.view` alone does NOT imply it
       // (`authz.ts`'s `IMPLIED_BY_PROJECT_ADMIN` covers `project.admin`
-      // only). Without this grant `/dash/projects/{projectId}` would render
+      // only). Without this grant `/projects/{projectId}` would render
       // its 403 branch for the very member this world seeds as a foreman —
       // a seeding gap, not the thing the new audit exists to exercise (that
       // refusal is proven separately, in `apps/app/src/services/
@@ -662,7 +669,7 @@ async function seedWorld(baseUrl, bearer) {
   // re-typed in the audits: «Мої доручення» renders the description as each
   // row's title and — because this world has exactly ONE project — must NOT
   // render the project name at all (`showProjectName` in
-  // src/lib/field/assignments.ts). Asserting against the values this function
+  // src/lib/field/assignments.ts [deleted 2026-09-23, DEV-035]). Asserting against the values this function
   // actually sent keeps that check honest if either literal above changes.
   // A SECOND WORKSPACE, SEEDED FOR ONE ASSERTION AND NAMED HERE SO IT IS NOT
   // MISTAKEN FOR PADDING. `WorkspaceSwitch` renders plain text with one
@@ -773,7 +780,7 @@ async function seedWorld(baseUrl, bearer) {
   // evidence screen and the external review page, render nothing without one.
   //
   // THE CHAIN IS THE PRODUCT'S OWN, over the same three routes
-  // `src/lib/capture/upload.ts` drives and `tests/field-capture.int.test.ts`
+  // `src/lib/capture/upload.ts` [deleted 2026-09-23, DEV-035] drives and `tests/field-capture.int.test.ts`
   // proves: create an upload intent, PUT the bytes STRAIGHT to the signed
   // storage URL with no Authorization header (the signed token in the URL is
   // the authorization), then finalize. No raw SQL, no direct storage write,
@@ -807,7 +814,7 @@ async function seedWorld(baseUrl, bearer) {
       claimedCaptureTime: new Date(Date.now() - 3_600_000).toISOString(),
     }));
 
-  // No Authorization, no apikey: exactly what `uploadCapture` sends.
+  // No Authorization, no apikey: exactly what `uploadCapture` sends (apps/mobile's; the apps/app copy was deleted 2026-09-23, DEV-035).
   const put = await fetch(intent.upload.signedUrl, {
     method: "PUT",
     headers: { "content-type": "image/jpeg" },
@@ -830,7 +837,7 @@ async function seedWorld(baseUrl, bearer) {
   return {
     assignmentId: assignment.assignmentId,
     workspaceId: ws.workspaceId,
-    // The register `/dash/projects/{projectId}/assignments` is addressed by
+    // The register `/projects/{projectId}/assignments` is addressed by
     // this and nothing else. It was not returned until the D1 final fix wave,
     // which is a large part of why no audit had ever opened that route.
     projectId: proj.projectId,
@@ -1440,16 +1447,6 @@ async function measureSmallTargets(page) {
       .filter((r) => r.h > 0 && (r.h < 44 || r.w < 44)));
 }
 
-const DOVIDKOVYI_DISCLAIMER_TEXT =
-  "Наведений перелік — це довідковий Додаток Н ДБН А.3.1-5:2016 (позиція Н.15 "
-  + "«Монтаж електротехнічних установок» / Н.14 «Внутрішні санітарно-технічні роботи»), "
-  + "відтворений дослівно. Обов'язковий перелік прихованих робіт для вашого об'єкта "
-  + "визначає робоча документація (п. 8.4.3.3 ДБН А.3.1-5:2016). Цей перелік її не "
-  + "замінює. За потреби такими актами оформлюють й інші види робіт.";
-
-const UNSAVED_PHOTO_WARNING =
-  "GoProceed не зберіг це фото. Зробіть його ще раз або збережіть у себе.";
-
 /**
  * INV-044's sentence, retyped here rather than imported — this file is plain
  * Node ESM with no TypeScript loader, the same reason `lineManifestHash` above
@@ -1463,17 +1460,17 @@ const ONE_TIME_LINK_NOTICE =
   "Посилання показано один раз. Скопіюйте його зараз — відновити його неможливо, "
   + "лише відкликати й видати нове.";
 
-/** A minimal but genuine JPEG (SOI + APP0), identical to field-capture.int.test.ts's fixture. */
-const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00]);
+/** A minimal but genuine JPEG (SOI, a 1×1 frame header, EOI), identical to field-capture.int.test.ts's fixture; since DEV-033 finalization reads the frame's size. */
+const JPEG_BYTES = Uint8Array.from([0xff, 0xd8, 0xff, 0xc0, 0x00, 0x0b, 0x08, 0x00, 0x01, 0x00, 0x01, 0x01, 0x01, 0x11, 0x00, 0xff, 0xd9, 0x00]);
 
 /**
  * A JPEG A BROWSER CAN ACTUALLY DECODE — and it has to be a second constant,
  * because `JPEG_BYTES` above cannot be one.
  *
- * `JPEG_BYTES` is eleven bytes: a start-of-image marker and an APP0 header.
- * `evidence-inspection.ts` recognises it as `image/jpeg` (it reads the magic
- * bytes, which is the whole point of that fixture) and every Node-side test
- * that uses it is right to. But it carries no frame header and no scan data,
+ * `JPEG_BYTES` is eighteen bytes: a start-of-image marker, a 1×1 frame header
+ * and an end-of-image marker. `evidence-inspection.ts` recognises it as
+ * `image/jpeg` and reads its size from the frame header (since DEV-033), and
+ * every Node-side test that uses it is right to. But it carries no scan data,
  * so `<img>.naturalWidth` on it is 0 in every browser — which is exactly the
  * assertion the seventh audit makes, and would make the seeded photo
  * indistinguishable from a photo that failed to load. The two fixtures are for
@@ -1524,9 +1521,6 @@ const PHOTO_FILENAME = "приклад-фото-qa.jpg";
 const EXPECTED_AUDITS = [
   "unauthenticated surface",
   "sign-in",
-  "my assignments list",
-  "obligation screen",
-  "capture in-flight banner",
   // BEFORE THE SIGN-OUT AUDIT AND AFTER SIGN-IN — its own header says why:
   // its first half is an authenticated office screen, so it cannot follow the
   // audit that signs the user out.
@@ -1537,7 +1531,8 @@ const EXPECTED_AUDITS = [
   // is the write half) rather than beside "my assignments list", which reads
   // a different screen entirely.
   "assignment creation",
-  // BEFORE SIGN-OUT, LIKE EVERYTHING AUTHENTICATED. Nine routes, six widths,
+  // BEFORE SIGN-OUT, LIKE EVERYTHING AUTHENTICATED. Seven routes (nine until
+  // the field PWA was retired, DEV-035), six widths,
   // two reduced-motion passes; screenshots for the controller, assertions
   // for the machine. Added 2026-09-05 with the field client's migration onto
   // @goproceed/ui — the first pass that can cover the field screens at all.
@@ -1643,20 +1638,18 @@ async function main() {
       }).then((d) => reportDiagnostics("unauthenticated /", d, ctx.findings, ctx.missingAssets));
     });
 
-    // The manifest, fetched directly (not through the page) so a parse
-    // failure is unambiguous and not entangled with the page's own fetch of
-    // it via <link rel="manifest">.
+    // The manifest's ABSENCE (it was asserted present, parsed and Ukrainian
+    // until DEV-035 removed it with the field PWA).
     try {
+      // DEV-035 (owner: «Убрать манифест»): the office dashboard is not
+      // installable. The file must be gone, and no page may still point at it.
       const manifestRes = await fetch(`${server.baseUrl}/manifest.webmanifest`);
-      if (!manifestRes.ok) {
-        ctx.findings.push(`/manifest.webmanifest: expected 200, got ${manifestRes.status}`);
-      } else {
-        const manifest = await manifestRes.json();
-        if (manifest.lang !== "uk") ctx.findings.push(`manifest.lang is "${manifest.lang}", expected "uk"`);
-        if (!manifest.name) ctx.findings.push("manifest carries no name");
-        if (!Array.isArray(manifest.icons) || manifest.icons.length === 0) {
-          ctx.findings.push("manifest carries no icons");
-        }
+      if (manifestRes.status !== 404) {
+        ctx.findings.push(`/manifest.webmanifest: expected 404 now that the manifest is removed, got ${manifestRes.status}`);
+      }
+      const loginHtml = await fetch(`${server.baseUrl}/login`).then((r) => r.text());
+      if (/rel=["']?manifest/.test(loginHtml)) {
+        ctx.findings.push("/login still links a web app manifest");
       }
     } catch (err) {
       ctx.findings.push(`/manifest.webmanifest: failed to fetch/parse: ${err}`);
@@ -1667,6 +1660,28 @@ async function main() {
     // the client contract promises, never a 307 to an HTML login page. Task
     // 5's report verified this by hand once; this keeps it verified on every
     // run rather than trusting it stays true.
+    // DEV-035: the dashboard moved from `/dash/**` to the root; the old
+    // addresses answer a temporary redirect to the same path without the
+    // prefix (`next.config.ts`), so a bookmark keeps working.
+    try {
+      const old = await fetch(`${server.baseUrl}/dash/projects/qa-probe/assignments?x=1`, { redirect: "manual" });
+      const to = old.headers.get("location") ?? "";
+      const toUrl = new URL(to, server.baseUrl);
+      if (old.status !== 307 || toUrl.pathname !== "/projects/qa-probe/assignments" || toUrl.search !== "?x=1") {
+        ctx.findings.push(`/dash/projects/qa-probe/assignments?x=1: expected a 307 to /projects/qa-probe/assignments?x=1, got ${old.status} → ${JSON.stringify(to)}`);
+      }
+      // The redirect must never manufacture a protocol-relative or off-origin
+      // Location from a crafted path (DEV-035 review R4-06).
+      for (const probe of ["/dash//evil.example", "/dash/%2F%2Fevil.example", "/dash/%5C%5Cevil.example"]) {
+        const r = await fetch(`${server.baseUrl}${probe}`, { redirect: "manual" });
+        const loc = r.headers.get("location") ?? "";
+        if (loc.startsWith("//") || loc.startsWith("\\") || (loc && new URL(loc, server.baseUrl).origin !== new URL(server.baseUrl).origin)) {
+          ctx.findings.push(`${probe}: the /dash redirect produced an off-origin Location ${JSON.stringify(loc)}`);
+        }
+      }
+    } catch (err) {
+      ctx.findings.push(`/dash redirect probe failed: ${err}`);
+    }
     try {
       const v1Res = await fetch(`${server.baseUrl}/v1/me/context`, { redirect: "manual" });
       if (v1Res.status !== 401) {
@@ -1754,7 +1769,9 @@ async function main() {
       // foreman who signed in once and kept using the same phone.
       const loginDiagnostics = await withPage(browser, async (page) => {
         await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
-        await page.goto(`${server.baseUrl}/login?next=${encodeURIComponent(`/a/${assignmentId}`)}`,
+        // DEV-035: the deep link that proves `?next=` is a dashboard page now
+        // (the field PWA's `/a/{id}` it used to be is retired).
+        await page.goto(`${server.baseUrl}/login?next=${encodeURIComponent(`/projects/${projectId}`)}`,
           { waitUntil: "networkidle0" });
 
         await page.type("#otp-email", email);
@@ -1771,372 +1788,18 @@ async function main() {
         ]);
 
         const landedOn = new URL(page.url()).pathname;
-        if (landedOn !== `/a/${assignmentId}`) {
-          ctx.findings.push(`sign-in: expected to land on /a/${assignmentId} (via ?next=), landed on ${landedOn}`);
+        if (landedOn !== `/projects/${projectId}`) {
+          ctx.findings.push(`sign-in: expected to land on /projects/${projectId} (via ?next=), landed on ${landedOn}`);
         }
       });
       reportDiagnostics("sign-in", loginDiagnostics, ctx.findings, ctx.missingAssets);
     });
 
-    await runAudit(ctx, "my assignments list", async () => {
-      // ── «Мої доручення», the screen a foreman actually lands on ─────────
-      // ADDED BY THE FINAL WHOLE-BRANCH REVIEW (Important 5). This file used
-      // to visit `/` only UNAUTHENTICATED (to prove the redirect to /login),
-      // then sign in with `?next=/a/{id}` and go straight to the obligation
-      // screen — so the authenticated list, ~252 lines of real decisions, had
-      // never been rendered by anything at all. Its decisions now live in
-      // `src/lib/field/assignments.ts` and are unit-tested; this audit is the
-      // other half, proving they reach a real browser against real seeded
-      // data.
-      const listDiagnostics = await withPage(browser, async (page) => {
-        await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
-        const res = await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
-        if (!res || res.status() !== 200) {
-          ctx.findings.push(`/: expected 200 for the signed-in list, got ${res ? res.status() : "no response"}`);
-          return;
-        }
-        const landedOn = new URL(page.url()).pathname;
-        if (landedOn !== "/") {
-          ctx.findings.push(`/: a signed-in foreman was redirected to ${landedOn} instead of seeing his list`);
-          return;
-        }
-
-        const bodyText = await page.evaluate(() => document.body.innerText);
-
-        if (!bodyText.includes("Мої доручення")) {
-          ctx.findings.push('/: expected the heading "Мої доручення", not found');
-        }
-
-        // THE ROW ITSELF, from the seeded world — not just the chrome. This
-        // is what separates "the page rendered" from "the two-hop fetch,
-        // `?assignee=me`, and the row mapping all actually worked".
-        if (!bodyText.includes(workItemDescription)) {
-          ctx.findings.push(`/: the seeded assignment ("${workItemDescription}") is not on the list — the projects→assignments fan-out or ?assignee=me may have regressed`);
-        }
-
-        // NEITHER EMPTY STATE, AND NOT THE ERROR STATE. Each of these is a
-        // real branch of `buildMyAssignmentsScreen`, and reaching one of them
-        // here would mean the seeded assignment was invisible for a reason
-        // the assertion above alone would not name.
-        for (const wrong of [
-          "У вас немає доступу до жодного проєкту",
-          "Наразі за вами не закріплено жодного доручення",
-          "Не вдалося завантажити ваші доручення",
-        ]) {
-          if (bodyText.includes(wrong)) {
-            ctx.findings.push(`/: rendered "${wrong}" although one assignment was seeded for this member`);
-          }
-        }
-
-        // The `showProjectName` rule, asserted rather than eyeballed: this
-        // world has exactly ONE project, so repeating its name on the single
-        // row buys nothing and must not appear.
-        if (bodyText.includes(projectName)) {
-          ctx.findings.push(`/: the project name ("${projectName}") is shown although only one project contributes rows — showProjectName should be false`);
-        }
-
-        // The row must be a link to the obligation screen; a list a foreman
-        // cannot tap through is not a list.
-        const href = `/a/${assignmentId}`;
-        const linked = await page.evaluate(
-          (h) => [...document.querySelectorAll("a")].some((a) => a.getAttribute("href") === h), href);
-        if (!linked) {
-          ctx.findings.push(`/: no <a href="${href}"> — the row does not link to its obligation screen`);
-        }
-
-        const small = await measureSmallTargets(page);
-        for (const t of small) {
-          ctx.findings.push(`/ @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
-        }
-        const overflow = await measureHorizontalOverflow(page);
-        if (overflow) {
-          ctx.findings.push(`/ @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
-        }
-
-        // THE SCREEN THIS ONE IS ACTUALLY FOR. Every obligation row here is an
-        // anchor, so before the `a` reset landed a foreman's whole list was
-        // blue and underlined, and each row he opened went visited-purple.
-        for (const link of await measureUaStyledLinks(page)) {
-          ctx.findings.push(`/ @375: anchor "${link.label}" (href=${link.href}) renders with user-agent link styling — color ${link.color}, text-decoration ${link.decoration}; app/globals.css's \`a\` reset has been lost`);
-        }
-
-        await page.screenshot({ path: path.join(SHOTS, "my-assignments.png"), fullPage: true });
-      });
-      reportDiagnostics("my assignments list", listDiagnostics, ctx.findings, ctx.missingAssets);
-    });
-
-    await runAudit(ctx, "obligation screen", async () => {
-      // ── The obligation screen: the disclaimer and the touch floor ───────
-      const obligationDiagnostics = await withPage(browser, async (page) => {
-        await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
-        const res = await page.goto(`${server.baseUrl}/a/${assignmentId}`, { waitUntil: "networkidle0" });
-        if (!res || res.status() !== 200) {
-          ctx.findings.push(`/a/${assignmentId}: expected 200, got ${res ? res.status() : "no response"} — was the session cookie carried over?`);
-          return;
-        }
-
-        // THE ДОВІДКОВИЙ DISCLAIMER — INV-081's regulatory half, and the
-        // reason this task exists. The text must be present verbatim
-        // (byte-identical to statutory-act-form.ts's own constant, duplicated
-        // here for the same reason lineManifestHash is above — this script
-        // cannot import the .ts source) AND genuinely rendered — not sitting
-        // inside a collapsed <details>, a display:none/visibility:hidden
-        // ancestor, or an overflow:hidden box too short to show it.
-        //
-        // THREE CHECKS, NOT ONE — AND THIS IS A CORRECTION OF THIS FILE'S OWN
-        // FIRST DRAFT. That draft walked ancestors reading
-        // `getComputedStyle().display`/`.visibility`, which PASSED even when
-        // the disclaimer was deliberately wrapped in a CLOSED `<details>`
-        // during this task's own negative-case testing (confirmed by hand: a
-        // `<p>` inside `details:not([open])` in this puppeteer's bundled
-        // Chrome reports `display: "block"`, `visibility: "visible"`, and a
-        // non-zero `getBoundingClientRect()` — none of the signals that draft
-        // checked actually change). `element.checkVisibility()` and
-        // `document.body.innerText` both DO correctly exclude it (innerText
-        // is defined in terms of what is actually rendered, and a closed
-        // `<details>`'s non-summary children are not) — confirmed the same
-        // way, by hand, before relying on it. But innerText/checkVisibility
-        // have the OPPOSITE gap: text clipped by a zero-height
-        // `overflow:hidden` ancestor still generates a box and so still
-        // counts as "rendered" to both of them, even though a reader cannot
-        // see it — confirmed by the same hand-check. Neither signal alone
-        // catches every case the brief asks for ("not inside any collapsed
-        // element"), so both run, and either one flagging a problem is a
-        // finding.
-        const disclaimerCheck = await page.evaluate((expectedText) => {
-          const all = [...document.querySelectorAll("p, div, span")];
-          const el = all.find((e) => (e.textContent ?? "").trim() === expectedText.trim());
-          if (!el) return { found: false };
-
-          const renderedByEngine =
-            (typeof el.checkVisibility === "function" ? el.checkVisibility() : true)
-            && document.body.innerText.includes(expectedText.trim());
-
-          // The overflow:hidden case innerText/checkVisibility do not catch
-          // (see the comment above): walk ancestors for a box too short to
-          // contain the element it claims to show.
-          const rect = el.getBoundingClientRect();
-          let node = el;
-          let clippedBy = null;
-          while (node && node !== document.body) {
-            const s = getComputedStyle(node);
-            const nodeRect = node.getBoundingClientRect();
-            if (s.overflow === "hidden" || s.overflowY === "hidden") {
-              if (nodeRect.height <= 0 || rect.bottom > nodeRect.bottom + 1 || rect.top < nodeRect.top - 1) {
-                clippedBy = `${node.tagName}.${node.className} (overflow:hidden, ${Math.round(nodeRect.height)}px)`;
-                break;
-              }
-            }
-            node = node.parentElement;
-          }
-          return { found: true, renderedByEngine, clippedBy };
-        }, DOVIDKOVYI_DISCLAIMER_TEXT);
-
-        if (!disclaimerCheck.found) {
-          ctx.findings.push("obligation screen: довідковий disclaimer text not found verbatim anywhere on the page");
-        } else if (!disclaimerCheck.renderedByEngine) {
-          ctx.findings.push("obligation screen: довідковий disclaimer is present in the DOM but not genuinely rendered (checkVisibility()/document.body.innerText both say it is not shown — collapsed <details>, display:none, or visibility:hidden)");
-        } else if (disclaimerCheck.clippedBy) {
-          ctx.findings.push(`obligation screen: довідковий disclaimer is clipped by an ancestor — ${disclaimerCheck.clippedBy}`);
-        }
-
-        // THE NORM-REF META LINE CARRIES THE UKRAINIAN LABEL, NEVER THE
-        // STORAGE TOKEN (TODOS 2026-08-27 residual 7: a foreman's phone
-        // showed the literal PROJECT_DOCUMENTATION where the Approved
-        // document mandates «за робочою документацією об'єкта»). This world's
-        // obligations are library-sourced, so the visible tag must be a
-        // «перевірено за …» label, and NO storage token may appear in the
-        // rendered text — asserted against innerText, the same rendered-text
-        // signal the disclaimer check above trusts. The same assertion lives
-        // in apps/mobile/qa/field-web.mjs (obligations.ts's both-files rule).
-        const normRefTag = await page.evaluate(() => {
-          const text = document.body.innerText;
-          const raw = /\b(?:VERIFIED_PRIMARY|VERIFIED_SECONDARY|PROJECT_DOCUMENTATION)\b/.exec(text);
-          return {
-            raw: raw ? raw[0] : null,
-            labelled: text.includes("перевірено за першоджерелом")
-              || text.includes("перевірено за вторинним джерелом")
-              || text.includes("за робочою документацією об'єкта"),
-          };
-        });
-        if (normRefTag.raw) {
-          ctx.findings.push(`obligation screen: the raw verification token ${normRefTag.raw} is rendered — normRefVerificationLabel's Ukrainian label must stand in its place`);
-        }
-        if (!normRefTag.labelled) {
-          ctx.findings.push("obligation screen: no norm-ref verification label in the rendered text — the citation's tag line is missing entirely");
-        }
-
-        const small = await measureSmallTargets(page);
-        for (const t of small) {
-          ctx.findings.push(`/a/${assignmentId} @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
-        }
-        const overflow = await measureHorizontalOverflow(page);
-        if (overflow) {
-          ctx.findings.push(`/a/${assignmentId} @375: the page scrolls sideways by ${overflow.overflow}px (viewport ${overflow.viewport}px) — ${overflow.offender}`);
-        }
-
-        // Both anchors on this screen are `<Button asChild>` and so exempt by
-        // `data-slot` — which is exactly why it is worth checking here too: the
-        // day one of them is hand-rolled back into a bare `<a>`, this catches
-        // it, and the exemption cannot quietly become a blanket one.
-        for (const link of await measureUaStyledLinks(page)) {
-          ctx.findings.push(`/a/${assignmentId} @375: anchor "${link.label}" (href=${link.href}) renders with user-agent link styling — color ${link.color}, text-decoration ${link.decoration}; app/globals.css's \`a\` reset has been lost`);
-        }
-
-        // The negative half of INV-081: nothing on this screen may ever
-        // claim device-only persistence — GoProceed cannot back that claim,
-        // and a foreman reading it would reasonably stop worrying about a
-        // photo the server has not actually received.
-        const bodyText = await page.evaluate(() => document.body.innerText);
-        if (bodyText.includes("Збережено на пристрої")) {
-          ctx.findings.push('obligation screen: renders the forbidden claim "Збережено на пристрої"');
-        }
-
-        await page.screenshot({ path: path.join(SHOTS, "obligation.png"), fullPage: true });
-      });
-      reportDiagnostics("obligation screen", obligationDiagnostics, ctx.findings, ctx.missingAssets);
-    });
-
-    await runAudit(ctx, "capture in-flight banner", async () => {
-      // ── The unsaved-photo banner: visible while a capture is in flight ──
-      // `page.evaluateOnNewDocument` installs the stub before any of the
-      // page's own scripts run, so `uploadCapture`'s first fetch — the
-      // upload-intents POST — is the one this catches. It is held for 700ms
-      // before resolving to a failure: that hold is what makes the IN-FLIGHT
-      // state (not just the eventual failure) something this harness can
-      // actually witness, which is the assertion context item 4 asks for
-      // ("the unsaved-photo warning appears when a capture is in flight").
-      const captureDiagnostics = await withPage(browser, async (page) => {
-        await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
-        await page.evaluateOnNewDocument(() => {
-          const realFetch = window.fetch.bind(window);
-          window.fetch = async (input, init) => {
-            const url = typeof input === "string" ? input : input.url;
-            if (url.includes("/upload-intents") && init?.method === "POST") {
-              await new Promise((resolve) => setTimeout(resolve, 700));
-              return new Response(JSON.stringify({
-                code: "INTERNAL_ERROR", detail: "QA-stubbed failure (qa/field.mjs)",
-                userAction: "retry_later", retryable: true, requestId: "qa-stub",
-              }), { status: 500, headers: { "content-type": "application/problem+json" } });
-            }
-            return realFetch(input, init);
-          };
-        });
-
-        const res = await page.goto(`${server.baseUrl}/a/${assignmentId}`, { waitUntil: "networkidle0" });
-        if (!res || res.status() !== 200) {
-          ctx.findings.push(`capture pass: expected 200 on /a/${assignmentId}, got ${res ? res.status() : "no response"}`);
-          return;
-        }
-
-        const fileInput = await page.$('input[type="file"]');
-        if (!fileInput) {
-          ctx.findings.push("capture pass: no <input type=\"file\"> found on the obligation screen — is there a photo-evidenceKind occurrence?");
-          return;
-        }
-
-        // AT REST, NOTHING IS AT RISK — and this used to be the opposite.
-        // Task 11's first draft recorded a surprise here: `holdsUnsavedBytes`
-        // was a function of the client state alone, `not_sent` is also the
-        // INITIAL state, and so the red banner and the «Скасувати фото»
-        // control were already on screen before any file had been picked (and
-        // a `beforeunload` listener was already registered). It was recorded
-        // as out of that task's scope; the final whole-branch review made it
-        // Critical 1, and `holdsUnsavedBytes` now takes `hasPickedFile` too.
-        //
-        // So this is now an ASSERTION, not a console warning. A screen a
-        // foreman has merely opened must carry neither affordance: a red
-        // warning about a photo that does not exist is how people learn that
-        // this product's red text means nothing, and the browser's own
-        // close-tab prompt is the mechanism INV-081's second half rests on.
-        const bodyTextAtRest = await page.evaluate(() => document.body.innerText);
-        if (bodyTextAtRest.includes(UNSAVED_PHOTO_WARNING)) {
-          ctx.findings.push(`capture pass: the unsaved-photo banner ("${UNSAVED_PHOTO_WARNING}") is on screen before any file has been picked — serverDoesNotHaveThePhoto has lost its hasPickedFile term`);
-        }
-        if (bodyTextAtRest.includes("Скасувати фото")) {
-          ctx.findings.push("capture pass: the \"Скасувати фото\" control is offered before any file has been picked — there is nothing to discard");
-        }
-        //
-        // Because the banner is now genuinely absent at rest, its appearance
-        // IS evidence on its own — but the unambiguous in-flight proof below
-        // stays the STATE LABEL «Надсилання» (`CLIENT_STATE_LABEL.sending`),
-        // which is unique to the "sending" state and reachable no other way.
-
-        const jpegPath = path.join(OUTPUT, "фото.jpg");
-        await writeFile(jpegPath, JPEG_BYTES);
-        await fileInput.uploadFile(jpegPath);
-
-        // THE UNAMBIGUOUS IN-FLIGHT PROOF. "Надсилання" is `CLIENT_STATE_LABEL.sending`
-        // (state.ts) — it renders for the "sending" state alone, so seeing it
-        // proves `uploadCapture` actually started (its very first line is
-        // `onStateChange("sending")`), independent of the banner's own
-        // already-true-at-rest condition above.
-        const reachedSending = await page.waitForFunction(
-          () => document.body.innerText.includes("Надсилання"),
-          { timeout: 2_000 },
-        ).then(() => true).catch(() => false);
-        if (!reachedSending) {
-          ctx.findings.push('capture pass: expected the "sending" state label ("Надсилання") after picking a file — the upload never appears to have started');
-        }
-
-        // The banner must still be up during this same in-flight window — bytes
-        // genuinely at risk with no visible warning is the regression context
-        // item 4 warns against.
-        const bannerUpWhileInFlight = await page.evaluate(
-          (expected) => document.body.innerText.includes(expected), UNSAVED_PHOTO_WARNING);
-        if (!bannerUpWhileInFlight) {
-          ctx.findings.push(`capture pass: unsaved-photo banner ("${UNSAVED_PHOTO_WARNING}") is not visible while the upload is in flight ("Надсилання")`);
-        }
-
-        // ── THIS ASSERTION IS INVERTED FROM WHAT IT WAS, AND THE OLD ONE WAS
-        // GREEN THE WHOLE TIME IT WAS WRONG. ──────────────────────────────────
-        //
-        // It used to require the banner to come back DOWN once the stub
-        // resolved, on the strength of `holdsUnsavedBytes("failed") === false`.
-        // That is a test written to describe the code rather than the
-        // invariant, and it made this harness a defender of the defect:
-        // `invariant-catalog.csv:82` requires the unsaved-photo warning on
-        // «every failed or abandoned in-flight upload», and this pass drove the
-        // exact failure it names and then demanded the warning be gone.
-        //
-        // Worse, THIS STUB IS THE BAD PATH ITSELF. It returns a `detail` —
-        // "QA-stubbed failure (qa/field.mjs)" — so what replaced the banner was
-        // a server string that says nothing whatsoever about a photo being
-        // lost. A real deployment's `detail` (a storage quota, a media-policy
-        // refusal) behaves the same way. The only reason this ever looked
-        // acceptable is that the OTHER failure path falls back to
-        // `GENERIC_FAILURE`, which does mention the photo.
-        //
-        // The banner is gated on `serverDoesNotHaveThePhoto` now, which is true
-        // at `failed`, so it must PERSIST. Asserted after waiting for the
-        // failure label rather than immediately, so this cannot pass on the
-        // in-flight render it was already true in.
-        const reachedFailed = await page.waitForFunction(
-          () => document.body.innerText.includes("Потрібна дія"),
-          { timeout: 5_000 },
-        ).then(() => true).catch(() => false);
-        if (!reachedFailed) {
-          ctx.findings.push('capture pass: expected the "failed" state label ("Потрібна дія") after the stubbed failure, not found');
-        }
-
-        const bodyTextAfter = await page.evaluate(() => document.body.innerText);
-        if (!bodyTextAfter.includes(UNSAVED_PHOTO_WARNING)) {
-          ctx.findings.push(`capture pass: the unsaved-photo banner ("${UNSAVED_PHOTO_WARNING}") is gone after the upload FAILED — invariant-catalog.csv:82 requires it on every failed upload, and this stub supplies a server \`detail\` that says nothing about the photo being lost`);
-        }
-        // …and it coexists with the server's own reason rather than replacing
-        // it, or being replaced by it. Both must be on screen: the invariant's
-        // fixed warning, and the specific remedy beside it.
-        if (!bodyTextAfter.includes("QA-stubbed failure")) {
-          ctx.findings.push("capture pass: the server-supplied problem `detail` is not rendered after a failed upload — the foreman is told the photo is unsaved but not why");
-        }
-        if (bodyTextAfter.includes("Збережено на пристрої")) {
-          ctx.findings.push('capture pass: renders the forbidden claim "Збережено на пристрої" after a failed upload');
-        }
-
-        await page.screenshot({ path: path.join(SHOTS, "capture-failed.png"), fullPage: true });
-      });
-      reportDiagnostics("capture in-flight banner", captureDiagnostics, ctx.findings, ctx.missingAssets);
-    });
+    // [2026-09-23, DEV-035] Three audits of the field PWA — «my assignments
+    // list», «obligation screen» and «capture in-flight banner» — stood here.
+    // The owner retired that client («удали все что в (app)»); the field
+    // client is `apps/mobile` (ADR-009 as amended), whose own harness is
+    // `pnpm --filter @goproceed/mobile qa`. Their history is in git.
 
     await runAudit(ctx, "evidence, the review link, and the external plane", async () => {
       // ═══════════════════════════════════════════════════════════════════
@@ -2152,9 +1815,9 @@ async function main() {
       // explained instead of assuming one of the two is wrong.
       //
       // WHAT IT PROVES, in the order it proves it:
-      //   1. ПТВ opens /dash/assignments/{id} and the photo is THERE —
+      //   1. ПТВ opens /assignments/{id} and the photo is THERE —
       //      asserted on the <img>'s own `naturalWidth`, which is zero for
-      //      a broken image, a 403 signed URL and an eleven-byte fixture
+      //      a broken image, a 403 signed URL and an eighteen-byte fixture
       //      alike, and non-zero only if the browser decoded real pixels.
       //      A screenshot would have looked correct in every one of those
       //      cases;
@@ -2176,7 +1839,7 @@ async function main() {
 
       // ── -1. THE MONEY SCREEN, ONE STEP BEFORE THE REGISTER NOW ─────────
       //
-      // ADDED FOR PLAN D SLICE D2. `/dash/projects/{projectId}` is the new
+      // ADDED FOR PLAN D SLICE D2. `/projects/{projectId}` is the new
       // head of the chain this whole slice is about — "project → money →
       // доручення → докази" — and until this audit, exactly like the
       // register before it, NO HARNESS HAD EVER OPENED IT. The lesson that
@@ -2218,10 +1881,10 @@ async function main() {
       // of proportion to what this audit is for; it is recorded in
       // `NOT_COVERED` below rather than silently left unstated.
       const moneyDiagnostics = await withPage(browser, async (page) => {
-        const url = `${server.baseUrl}/dash/projects/${projectId}`;
+        const url = `${server.baseUrl}/projects/${projectId}`;
         const res = await page.goto(url, { waitUntil: "networkidle0" });
         if (!res || res.status() !== 200) {
-          ctx.findings.push(`/dash/projects/${projectId}: expected 200, got ${res ? res.status() : "no response"}`);
+          ctx.findings.push(`/projects/${projectId}: expected 200, got ${res ? res.status() : "no response"}`);
           return;
         }
 
@@ -2239,10 +1902,10 @@ async function main() {
           };
         });
 
-        const expectedAssignmentsHref = `/dash/projects/${projectId}/assignments`;
+        const expectedAssignmentsHref = `/projects/${projectId}/assignments`;
         if (structural.assignmentsHref !== expectedAssignmentsHref) {
           ctx.findings.push(
-            `/dash/projects/${projectId}: the «Доручення» link's href is `
+            `/projects/${projectId}: the «Доручення» link's href is `
             + `${JSON.stringify(structural.assignmentsHref)}, expected ${JSON.stringify(expectedAssignmentsHref)} — `
             + "the project → money → доручення chain is broken at its second hop",
           );
@@ -2254,7 +1917,7 @@ async function main() {
         // `formatMoney` actually ran rather than a blank or a raw number).
         if (!structural.bodyText.includes("₴")) {
           ctx.findings.push(
-            `/dash/projects/${projectId}: no ₴ figure on the page — the headline sum did not render, `
+            `/projects/${projectId}: no ₴ figure on the page — the headline sum did not render, `
             + "or formatMoney produced something that does not look like money",
           );
         }
@@ -2275,13 +1938,56 @@ async function main() {
         // assertion fail rather than silently keep passing.
         if (!structural.bodyText.includes("технічний нагляд")) {
           ctx.findings.push(
-            `/dash/projects/${projectId}: expected the approver role's Ukrainian label "технічний `
+            `/projects/${projectId}: expected the approver role's Ukrainian label "технічний `
             + `нагляд" (technical_supervisor via approverRoleLabel) on the page — either the row did `
             + "not render, or the label regressed to a raw identifier",
           );
         }
         if (!structural.bodyText.includes("Заблоковані вимоги")) {
-          ctx.findings.push(`/dash/projects/${projectId}: the blocked-reasons list panel did not render`);
+          ctx.findings.push(`/projects/${projectId}: the blocked-reasons list panel did not render`);
+        }
+
+        // DEV-035 (2026-09-23): the project frame after the owner's Autumn CRM
+        // reference. Asserted on roles and `data-*` hooks, never on classes
+        // (02-building-ui.md §8): the trail, the current tab, the KPI row, the
+        // readiness block and the work sheet the shell puts the page on.
+        const frame = await page.evaluate(() => {
+          const tabs = document.querySelector('nav[aria-label="Розділи проєкту"]');
+          const current = tabs?.querySelector('[aria-current="page"]');
+          return {
+            trail: document.querySelector('nav[aria-label="Шлях"]')?.textContent ?? null,
+            currentTab: current ? (current.textContent ?? "").trim() : null,
+            stats: document.querySelectorAll('[data-slot="stat"]').length,
+            readiness: document.body.innerText.includes("Готовність етапів"),
+            waffleCells: document.querySelectorAll('[data-slot="waffle"] span').length,
+            sheet: !!document.querySelector('main[data-slot="work-sheet"]'),
+            railCurrent: document.querySelector('nav[aria-label="Основна навігація"] a[aria-current="page"]')
+              ?.getAttribute("href") ?? null,
+          };
+        });
+        if (!frame.trail || !frame.trail.startsWith("Проєкти")) {
+          ctx.findings.push(`/projects/${projectId}: no «Проєкти / …» trail (nav «Шлях») above the heading`);
+        }
+        if (frame.currentTab !== "Огляд") {
+          ctx.findings.push(`/projects/${projectId}: the current tab reads ${JSON.stringify(frame.currentTab)}, expected «Огляд» with aria-current=page`);
+        }
+        if (frame.stats < 3) {
+          ctx.findings.push(`/projects/${projectId}: ${frame.stats} KPI card(s) — expected the money card and the two honesty counts at least`);
+        }
+        if (!frame.readiness || frame.waffleCells === 0) {
+          ctx.findings.push(
+            `/projects/${projectId}: the readiness block did not render with its requirement cells `
+            + `(heading: ${frame.readiness}, cells: ${frame.waffleCells}) — seedWorld's assignment carries one occurrence`,
+          );
+        }
+        if (!frame.sheet) {
+          ctx.findings.push(`/projects/${projectId}: the page is not on the shell's work sheet (main[data-slot=work-sheet])`);
+        }
+        if (frame.railCurrent !== `/projects/${projectId}`) {
+          ctx.findings.push(
+            `/projects/${projectId}: the rail marks ${JSON.stringify(frame.railCurrent)} as current, `
+            + "expected this project's own link",
+          );
         }
         // Task item 4: the one-line cause split. The seeded block is
         // SUPERVISION_SIGNATURE_MISSING (evidence present, decision
@@ -2291,7 +1997,7 @@ async function main() {
         // failure this line exists to prevent.
         if (!structural.bodyText.includes("з них повернуто замовником: 0")) {
           ctx.findings.push(
-            `/dash/projects/${projectId}: expected the cause-split sentence "з них повернуто замовником: 0" `
+            `/projects/${projectId}: expected the cause-split sentence "з них повернуто замовником: 0" `
             + "verbatim — either it did not render, or byCause's CUSTOMER_MOTIVATED_REFUSAL count is wrong",
           );
         }
@@ -2301,7 +2007,7 @@ async function main() {
         // one, which is a worse failure than an overflow.
         if (structural.bodyText.includes("Нічого не заблоковано")) {
           ctx.findings.push(
-            `/dash/projects/${projectId}: rendered the good-news empty state over a project with a real `
+            `/projects/${projectId}: rendered the good-news empty state over a project with a real `
             + "live block — blockedReasons came back empty when it should not have",
           );
         }
@@ -2313,13 +2019,13 @@ async function main() {
           const overflow = await measureHorizontalOverflow(page);
           if (overflow) {
             ctx.findings.push(
-              `/dash/projects/${projectId} @${width}: the page scrolls sideways by ${overflow.overflow}px `
+              `/projects/${projectId} @${width}: the page scrolls sideways by ${overflow.overflow}px `
               + `(viewport ${overflow.viewport}px) — ${overflow.offender}`,
             );
           }
           if (touch) {
             for (const t of await measureSmallTargets(page)) {
-              ctx.findings.push(`/dash/projects/${projectId} @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+              ctx.findings.push(`/projects/${projectId} @${width}: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
             }
           }
         }
@@ -2331,7 +2037,7 @@ async function main() {
       // ── 0. THE REGISTER, THE SCREEN BEFORE THIS ONE ────────────────────
       //
       // ADDED IN THE D1 FINAL FIX WAVE, for a defect that shipped because
-      // nothing here had ever opened this route. `/dash/projects/{id}/
+      // nothing here had ever opened this route. `/projects/{id}/
       // assignments` is the MIDDLE of the chain the slice exists for
       // (project → assignments → evidence) and no audit addressed it, so the
       // §6 width pass — run against the evidence screen only — could not
@@ -2356,10 +2062,10 @@ async function main() {
       // true of a page with no headers — the same shape as the INV-044
       // reload assertion this audit had to have corrected in fix round 1.
       const registerDiagnostics = await withPage(browser, async (page) => {
-        const url = `${server.baseUrl}/dash/projects/${projectId}/assignments`;
+        const url = `${server.baseUrl}/projects/${projectId}/assignments`;
         const res = await page.goto(url, { waitUntil: "networkidle0" });
         if (!res || res.status() !== 200) {
-          ctx.findings.push(`/dash/projects/${projectId}/assignments: expected 200, got ${res ? res.status() : "no response"}`);
+          ctx.findings.push(`/projects/${projectId}/assignments: expected 200, got ${res ? res.status() : "no response"}`);
           return;
         }
         for (const width of [1280, 390, 360]) {
@@ -2378,7 +2084,7 @@ async function main() {
             };
           }, workItemDescription);
 
-          if (state.path !== `/dash/projects/${projectId}/assignments`) {
+          if (state.path !== `/projects/${projectId}/assignments`) {
             ctx.findings.push(`register @${width}: no longer on the register — path is ${state.path}`);
             break;
           }
@@ -2426,10 +2132,10 @@ async function main() {
 
       const officeDiagnostics = await withPage(browser, async (page) => {
         await page.setViewport({ width: 1280, height: 900 });
-        const res = await page.goto(`${server.baseUrl}/dash/assignments/${assignmentId}`,
+        const res = await page.goto(`${server.baseUrl}/assignments/${assignmentId}`,
           { waitUntil: "networkidle0" });
         if (!res || res.status() !== 200) {
-          ctx.findings.push(`/dash/assignments/${assignmentId}: expected 200, got ${res ? res.status() : "no response"}`);
+          ctx.findings.push(`/assignments/${assignmentId}: expected 200, got ${res ? res.status() : "no response"}`);
           return;
         }
 
@@ -2437,7 +2143,7 @@ async function main() {
         const decoded = await measureDecodedImage(page, PHOTO_FILENAME);
         if (decoded.count === 0) {
           ctx.findings.push(
-            `evidence screen: no <img alt="${PHOTO_FILENAME}"> on /dash/assignments/${assignmentId} — `
+            `evidence screen: no <img alt="${PHOTO_FILENAME}"> on /assignments/${assignmentId} — `
             + "the seeded evidence object did not reach the card, or `readUrl` was absent and the "
             + "«Зображення тимчасово недоступне» fallback rendered instead",
           );
@@ -2631,7 +2337,7 @@ async function main() {
         // THIS WAS THE DEFECT THIS AUDIT WAS SUPPOSED TO BE INCAPABLE OF.
         //
         // The response used to be discarded and nothing after it re-established
-        // that this was still the evidence screen. Make `/dash/assignments/{id}`
+        // that this was still the evidence screen. Make `/assignments/{id}`
         // 500 on a second request — a server-component read that only fails
         // warm, a session read that trips on the freshly written grant row — or
         // redirect it to `/login`, and the search below finds no token on the
@@ -2654,7 +2360,7 @@ async function main() {
         const formIsBack = await page.evaluate(() => document.querySelectorAll('button[type="submit"]').length);
         const stillDecodes = await measureDecodedImage(page, PHOTO_FILENAME);
 
-        if (reloadStatus !== 200 || reloadPath !== `/dash/assignments/${assignmentId}`
+        if (reloadStatus !== 200 || reloadPath !== `/assignments/${assignmentId}`
             || formIsBack === 0 || !stillDecodes.ok) {
           ctx.findings.push(
             `evidence screen: the reload did not land back on a working evidence screen — status ${reloadStatus}, `
@@ -2842,7 +2548,7 @@ async function main() {
     //
     // BESIDE THE REGISTER ON PURPOSE (both in EXPECTED_AUDITS and here): the
     // register audit above is the READ half of this same neighbourhood — it
-    // opens `/dash/projects/{projectId}/assignments` and asserts on what is
+    // opens `/projects/{projectId}/assignments` and asserts on what is
     // already there. This is the WRITE half, on the screen one hop further
     // in, and it reuses that audit's `projectId` and `workItemDescription`
     // rather than seeding a second world.
@@ -2888,7 +2594,7 @@ async function main() {
       // a project with no published contract version.
       const entryDiag = await withPage(browser, async (page) => {
         await page.setViewport({ width: 1280, height: 900 });
-        const registerUrl = `${server.baseUrl}/dash/projects/${emptyProjectId}/assignments`;
+        const registerUrl = `${server.baseUrl}/projects/${emptyProjectId}/assignments`;
         const res = await page.goto(registerUrl, { waitUntil: "networkidle0" });
         if (!res || res.status() !== 200) {
           ctx.findings.push(
@@ -2912,7 +2618,7 @@ async function main() {
             + "everything below would be measuring the wrong screen");
           return;
         }
-        const wantHref = `/dash/projects/${emptyProjectId}/assignments/new`;
+        const wantHref = `/projects/${emptyProjectId}/assignments/new`;
         if (!empty.createHrefs.includes(wantHref)) {
           ctx.findings.push(
             `empty register: no «Нове доручення» link to ${wantHref} on a project with no доручення — `
@@ -2989,7 +2695,7 @@ async function main() {
       // way to stand in that person's shoes without minting a second user.
       const forbiddenDiag = await withPage(browser, async (page) => {
         await page.setViewport({ width: 1280, height: 900 });
-        const url = `${server.baseUrl}/dash/projects/${noMoneyProjectId}/assignments/new`;
+        const url = `${server.baseUrl}/projects/${noMoneyProjectId}/assignments/new`;
         const res = await page.goto(url, { waitUntil: "networkidle0" });
         if (!res || res.status() !== 200) {
           ctx.findings.push(
@@ -3042,7 +2748,7 @@ async function main() {
           }
         });
 
-        const url = `${server.baseUrl}/dash/projects/${projectId}/assignments/new`;
+        const url = `${server.baseUrl}/projects/${projectId}/assignments/new`;
         const res = await page.goto(url, { waitUntil: "networkidle0" });
         if (!res || res.status() !== 200) {
           ctx.findings.push(`assignment creation: expected 200 for ${url}, got ${res ? res.status() : "no response"}`);
@@ -3260,7 +2966,7 @@ async function main() {
 
         await page.waitForFunction(
           (want) => location.pathname === want,
-          { timeout: 10_000 }, `/dash/projects/${projectId}/assignments`,
+          { timeout: 10_000 }, `/projects/${projectId}/assignments`,
         ).catch(() => {});
 
         const after = await countAssignments(workspaceId, projectId);
@@ -3303,6 +3009,21 @@ async function main() {
       // captured through a second browser context with an empty cookie jar,
       // so the signed-in page's session cannot leak into it.
       // ═══════════════════════════════════════════════════════════════════
+      // DEV-035: an old field-PWA link, signed in, lands on the Ukrainian 404
+      // (`app/not-found.tsx`) — not on Next's built-in English page.
+      await withPage(browser, async (page) => {
+        const res = await page.goto(`${server.baseUrl}/a/qa-retired-probe`, { waitUntil: "networkidle0" });
+        const text = await page.evaluate(() => document.body.innerText);
+        const lang = await page.evaluate(() => document.documentElement.lang);
+        if (!res || res.status() !== 404) ctx.findings.push(`/a/qa-retired-probe: expected 404, got ${res ? res.status() : "no response"}`);
+        if (!text.includes("Сторінку не знайдено") || lang !== "uk") {
+          ctx.findings.push(`/a/qa-retired-probe: the Ukrainian not-found page did not render (lang ${JSON.stringify(lang)})`);
+        }
+        const home = await page.evaluate(() => [...document.querySelectorAll("a")].find((a) => a.textContent?.trim() === "До кабінету")?.getAttribute("href") ?? null);
+        if (home !== "/") ctx.findings.push(`/a/qa-retired-probe: «До кабінету» points at ${JSON.stringify(home)}, expected "/"`);
+        await page.screenshot({ path: path.join(SHOTS, "not-found.png"), fullPage: true });
+      });
+
       const DAYLIGHT_WIDTHS = [1920, 1440, 1240, 768, 390, 360];
       const DAYLIGHT_REDUCED = [1440, 390];
       const daylightShots = path.join(SHOTS, "daylight");
@@ -3310,14 +3031,12 @@ async function main() {
 
       const routes = [
         { slug: "login", path: "/login", anonymous: true },
-        { slug: "field-assignments", path: "/" },
-        { slug: "field-obligation", path: `/a/${assignmentId}` },
-        { slug: "dash-home", path: "/dash" },
-        { slug: "dash-project", path: `/dash/projects/${projectId}` },
-        { slug: "dash-register", path: `/dash/projects/${projectId}/assignments` },
-        { slug: "dash-new-assignment", path: `/dash/projects/${emptyProjectId}/assignments/new` },
-        { slug: "dash-evidence", path: `/dash/assignments/${assignmentId}` },
-        { slug: "dash-profile", path: "/dash/settings/profile" },
+        { slug: "dash-home", path: "/" },
+        { slug: "dash-project", path: `/projects/${projectId}` },
+        { slug: "dash-register", path: `/projects/${projectId}/assignments` },
+        { slug: "dash-new-assignment", path: `/projects/${emptyProjectId}/assignments/new` },
+        { slug: "dash-evidence", path: `/assignments/${assignmentId}` },
+        { slug: "dash-profile", path: "/settings/profile" },
       ];
 
       const inspect = async (page, label, width) => {
@@ -3354,9 +3073,23 @@ async function main() {
         } else if (budget.count > 1) {
           ctx.findings.push(`${label} @${width}: ${budget.count} elements carry the signal background (${budget.samples.join(", ")}) — at most one per screen`);
         }
+        // DEV-035 (2026-09-23): `Meter` reached a dashboard page for the first
+        // time (the readiness block). Its colour is never alone, but it is not
+        // INSIDE the text either: a legend dot sits beside its label in the
+        // same `li`, and the bar is `aria-hidden` with every state named in the
+        // legend under it. So a status colour passes when it is a dot in a
+        // Meter legend `li` that carries text, or when it is inside an
+        // `aria-hidden` drawing of a Meter whose legend carries text. Both are
+        // scoped to `[data-slot="meter"]`, so no other swatch is excused by
+        // text that happens to sit nearby (review R1-04). A swatch with no
+        // label anywhere near it still fails.
         const silentStatus = await page.evaluate(() =>
           [...document.querySelectorAll('[class*="bg-status-"]')]
             .filter((el) => (el.textContent ?? "").trim().length === 0 && !el.querySelector("img, svg[aria-label]"))
+            .filter((el) => !(el.closest('[data-slot="meter"] li')
+              && (el.closest("li")?.textContent ?? "").trim().length > 0))
+            .filter((el) => !(el.closest('[aria-hidden="true"]')
+              && (el.closest('[data-slot="meter"]')?.querySelector("ul")?.textContent ?? "").trim().length > 0))
             .map((el) => `${el.tagName.toLowerCase()}.${(el.getAttribute("class") ?? "").split(" ").find((c) => c.startsWith("bg-status-"))}`));
         for (const s of silentStatus) {
           ctx.findings.push(`${label} @${width}: ${s} carries a status colour and no text — status is never colour alone`);
@@ -3403,7 +3136,7 @@ async function main() {
         for (const width of [1440, 390]) {
           const touch = width < 768;
           await page.setViewport({ width, height: 900, isMobile: touch, hasTouch: touch });
-          await page.goto(`${server.baseUrl}/dash/settings/profile`, { waitUntil: "networkidle0" });
+          await page.goto(`${server.baseUrl}/settings/profile`, { waitUntil: "networkidle0" });
           // Below 768 the profile control sits inside the mobile drawer — open
           // it first, the same way the sign-out audit's own drawer opens it.
           if (touch) {
@@ -3493,20 +3226,20 @@ async function main() {
         // is inside `768 ≤ w < 1240`, which is the only width that shows it:
         // every other pinned viewport passes either way.
         await page.setViewport({ width: 1000, height: 800 });
-        let res = await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
+        let res = await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
         if (!res || res.status() !== 200) {
-          ctx.findings.push(`/dash: expected 200 for a signed-in office user, got ${res ? res.status() : "no response"}`);
+          ctx.findings.push(`/: expected 200 for a signed-in office user, got ${res ? res.status() : "no response"}`);
           return;
         }
-        if (new URL(page.url()).pathname !== "/dash") {
-          ctx.findings.push(`/dash: a signed-in user was redirected to ${new URL(page.url()).pathname}`);
+        if (new URL(page.url()).pathname !== "/") {
+          ctx.findings.push(`/: a signed-in user was redirected to ${new URL(page.url()).pathname}`);
           return;
         }
 
         const railTrigger = await visibleHandle(page, PROFILE_TRIGGER);
         if (!railTrigger) {
           ctx.findings.push(
-            "/dash @1000: no VISIBLE profile control — the only way to sign out of this product is display:none "
+            "/ @1000: no VISIBLE profile control — the only way to sign out of this product is display:none "
             + "between 768px and 1240px (the `rail-icons` band). The label may collapse; the control may not.",
           );
         } else {
@@ -3522,7 +3255,10 @@ async function main() {
           // Width is deliberately NOT asserted against 44. The collapsed rail
           // is 68px wide with a 1px right border and `p-3`, so its content box
           // is 68 − 1 − 24 = 43px, and EVERY control in it — the four nav
-          // buttons included — is 43px wide. That one missing pixel predates
+          // buttons included — is 43px wide. [DEV-035: the rail has no right
+          // border any more (the work sheet draws its own edge) and the nav
+          // items are links, so the box is 68 − 24 = 44px; the width is still
+          // measured against the nav links, not against 44.] That one missing pixel predates
           // this task and belongs to `--gp-rail-width-collapsed`, not to the
           // profile menu; hard-coding 44 here would fail this gate on a rail
           // nobody in this task designed. What IS this task's business is that
@@ -3530,17 +3266,20 @@ async function main() {
           // rather than shrinking to its avatar and leaving a dead strip — so
           // that is what it is measured against.
           if (railRect.height < 44) {
-            ctx.findings.push(`/dash @1000: the profile control is ${Math.round(railRect.height)}px tall — below the 44px floor`);
+            ctx.findings.push(`/ @1000: the profile control is ${Math.round(railRect.height)}px tall — below the 44px floor`);
           }
           const navItemWidth = await page.evaluate((VIS) => {
-            const btn = [...document.querySelectorAll('nav[aria-label="Основна навігація"] li button')]
+            // DEV-035: the nav items are LINKS now (they were disabled
+            // buttons until the rail got real routes), so the sibling the
+            // profile control is measured against is an `li a`.
+            const btn = [...document.querySelectorAll('nav[aria-label="Основна навігація"] li a')]
               .find((b) => b.checkVisibility(VIS));
             return btn ? btn.getBoundingClientRect().width : null;
           }, VISIBILITY_OPTIONS);
           if (navItemWidth === null) {
-            ctx.findings.push("/dash @1000: no visible nav button to compare the profile control's width against");
+            ctx.findings.push("/ @1000: no visible nav button to compare the profile control's width against");
           } else if (Math.abs(railRect.width - navItemWidth) > 1) {
-            ctx.findings.push(`/dash @1000: the profile control is ${Math.round(railRect.width)}px wide but the nav items beside it are ${Math.round(navItemWidth)}px — it no longer fills the rail`);
+            ctx.findings.push(`/ @1000: the profile control is ${Math.round(railRect.width)}px wide but the nav items beside it are ${Math.round(navItemWidth)}px — it no longer fills the rail`);
           }
           // …and the LABEL beside it IS collapsed at this width, which is the
           // other half of the rule. Asserting only that the button is visible
@@ -3552,7 +3291,7 @@ async function main() {
               return btn ? (btn.innerText ?? "").includes(addr) : false;
             }, PROFILE_TRIGGER, email, VISIBILITY_OPTIONS);
           if (emailShownInRail) {
-            ctx.findings.push(`/dash @1000: the address is still rendered in the collapsed icon rail — \`rail-icons:hidden\` has been lost from ProfileMenu's label`);
+            ctx.findings.push(`/ @1000: the address is still rendered in the collapsed icon rail — \`rail-icons:hidden\` has been lost from ProfileMenu's label`);
           }
           await railTrigger.dispose();
         }
@@ -3576,7 +3315,7 @@ async function main() {
           await page.setViewport(phone
             ? { width, height, isMobile: true, hasTouch: true }
             : { width, height });
-          await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
+          await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
 
           const state = await page.evaluate((VIS) => ({
             railProfile: !!(() => {
@@ -3589,15 +3328,15 @@ async function main() {
             })(),
           }), VISIBILITY_OPTIONS);
           if (phone && (state.railProfile || !state.menuButton)) {
-            ctx.findings.push(`/dash @${width}: below md the persistent rail must be gone and the drawer's menu button present — rail profile visible: ${state.railProfile}, menu button visible: ${state.menuButton}`);
+            ctx.findings.push(`/ @${width}: below md the persistent rail must be gone and the drawer's menu button present — rail profile visible: ${state.railProfile}, menu button visible: ${state.menuButton}`);
           }
           if (!phone && (!state.railProfile || state.menuButton)) {
-            ctx.findings.push(`/dash @${width}: at md and up the rail must carry the profile control and the mobile bar must be gone — rail profile visible: ${state.railProfile}, menu button visible: ${state.menuButton}`);
+            ctx.findings.push(`/ @${width}: at md and up the rail must carry the profile control and the mobile bar must be gone — rail profile visible: ${state.railProfile}, menu button visible: ${state.menuButton}`);
           }
 
           const sweepOverflow = await measureHorizontalOverflow(page);
           if (sweepOverflow) {
-            ctx.findings.push(`/dash @${width}: the page scrolls sideways by ${sweepOverflow.overflow}px — ${sweepOverflow.offender}`);
+            ctx.findings.push(`/ @${width}: the page scrolls sideways by ${sweepOverflow.overflow}px — ${sweepOverflow.offender}`);
           }
           await page.screenshot({ path: path.join(SHOTS, `dash-${width}.png`), fullPage: true });
         }
@@ -3611,7 +3350,7 @@ async function main() {
         // why this is now assertable at all.
         await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
         await page.setViewport({ width: 390, height: 844, isMobile: true, hasTouch: true });
-        await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
+        await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
         await page.click('button[aria-label="Відкрити меню"]');
         await page.waitForSelector('[role="dialog"]');
         await waitForAnimations(page);
@@ -3631,7 +3370,7 @@ async function main() {
 
         // ── 2. The mobile drawer ───────────────────────────────────────────
         await page.setViewport({ width: 375, height: 812, isMobile: true, hasTouch: true });
-        await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
+        await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
         await page.click('button[aria-label="Відкрити меню"]');
         await page.waitForSelector('[role="dialog"]');
         await waitForAnimations(page);
@@ -3643,8 +3382,8 @@ async function main() {
         // workspace row is found by `aria-disabled` — `WorkspaceSwitch` sets
         // it when the caller has more than one membership (which is why
         // `seedWorld` creates a second workspace), and the nav items beside
-        // it use the native `disabled` attribute instead, so this selector
-        // cannot pick one of them up by accident.
+        // it are links with no `aria-disabled` [disabled buttons until
+        // DEV-035], so this selector cannot pick one of them up by accident.
         const closeButton = await visibleHandleWithText(page, '[role="dialog"] button', "Закрити");
         const workspaceRow = await visibleHandle(page, '[role="dialog"] [aria-disabled="true"]');
         if (!closeButton) {
@@ -3705,7 +3444,7 @@ async function main() {
         // ── 2b. «Профіль» FROM THE DRAWER — THE ROUTE CHANGE MUST CLOSE IT ──
         // THIS WAS A SHIPPED BUG AND NO ASSERTION HERE WOULD HAVE CAUGHT IT.
         // `top-bar.tsx` held a bare uncontrolled `<Dialog>`, and
-        // `/dash/settings/profile` is nested under `app/dash/layout.tsx`, so
+        // `/settings/profile` is nested under `app/(dash)/layout.tsx`, so
         // the soft navigation re-renders only `children` — `TopBar` is not
         // remounted and the drawer's open state survives. Radix's modal
         // content keeps `hideOthers()` applied, so the page the user just
@@ -3725,9 +3464,9 @@ async function main() {
           ctx.findings.push("drawer @375: the profile menu has no visible «Профіль» item — the drawer navigation check could not run");
         } else {
           await Promise.all([
-            page.waitForFunction(() => location.pathname === "/dash/settings/profile", { timeout: 10_000 }),
+            page.waitForFunction(() => location.pathname === "/settings/profile", { timeout: 10_000 }),
             drawerProfileItem.click(),
-          ]).catch(() => ctx.findings.push("drawer @375: «Профіль» did not navigate to /dash/settings/profile"));
+          ]).catch(() => ctx.findings.push("drawer @375: «Профіль» did not navigate to /settings/profile"));
           await drawerProfileItem.dispose();
 
           // Given up to 3s rather than sampled instantly: Radix unmounts the
@@ -3778,7 +3517,7 @@ async function main() {
           // navigation a phone has, since this app contains exactly one link.
           //
           // THIS MUST BE A REAL `goBack()`, NOT A `page.goto`. The previous
-          // version of this block returned to `/dash` with a hard navigation,
+          // version of this block returned to `/` with a hard navigation,
           // which remounts `TopBar` and wipes the very state the bug lives in
           // — which is why six consecutive green runs said nothing about it.
           await page.evaluate(() => {
@@ -3794,8 +3533,8 @@ async function main() {
           if (backHappened === 0) {
             ctx.findings.push("drawer @375: the Back press never navigated — the reopen check below cannot have tested anything");
           }
-          if (afterBackToDash.pathname !== "/dash") {
-            ctx.findings.push(`drawer @375: Back from the profile screen landed on ${afterBackToDash.pathname}, expected /dash`);
+          if (afterBackToDash.pathname !== "/") {
+            ctx.findings.push(`drawer @375: Back from the profile screen landed on ${afterBackToDash.pathname}, expected /`);
           }
           if (afterBackToDash.openDialogs > 0) {
             ctx.findings.push(
@@ -3811,7 +3550,7 @@ async function main() {
           // change, so nothing keyed on a route change can close it, and only
           // the link handler can.
           await page.goForward({ waitUntil: "networkidle0" }).catch(() => {});
-          if (new URL(page.url()).pathname !== "/dash/settings/profile") {
+          if (new URL(page.url()).pathname !== "/settings/profile") {
             ctx.findings.push(`drawer @375: goForward did not return to the profile screen (on ${new URL(page.url()).pathname}) — the same-route check could not run`);
           } else {
             await page.click('button[aria-label="Відкрити меню"]');
@@ -3834,39 +3573,39 @@ async function main() {
                 .then(() => true).catch(() => false);
               if (!closedOnSameRoute) {
                 ctx.findings.push(
-                  "drawer @375: pressing «Профіль» while already on /dash/settings/profile left the drawer open over the "
+                  "drawer @375: pressing «Профіль» while already on /settings/profile left the drawer open over the "
                   + "page — no route change happens, so the drawer has to close on the link activation itself",
                 );
               }
             }
           }
 
-          // Back to `/dash` for the touch-target and overflow checks below,
+          // Back to `/` for the touch-target and overflow checks below,
           // which are about the dashboard index, not this screen. A hard
           // navigation is correct HERE — the state-sensitive checks are done.
-          await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
+          await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
           await page.click('button[aria-label="Відкрити меню"]');
           await page.waitForSelector('[role="dialog"]');
           await waitForAnimations(page);
         }
 
         for (const t of await measureSmallTargets(page)) {
-          ctx.findings.push(`/dash drawer @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
+          ctx.findings.push(`/ drawer @375: touch target below 44px — "${t.label}" ${t.w}x${t.h}`);
         }
         const drawerOverflow = await measureHorizontalOverflow(page);
         if (drawerOverflow) {
-          ctx.findings.push(`/dash @375: the page scrolls sideways by ${drawerOverflow.overflow}px (viewport ${drawerOverflow.viewport}px) — ${drawerOverflow.offender}`);
+          ctx.findings.push(`/ @375: the page scrolls sideways by ${drawerOverflow.overflow}px (viewport ${drawerOverflow.viewport}px) — ${drawerOverflow.offender}`);
         }
         await page.screenshot({ path: path.join(SHOTS, "dash-drawer.png"), fullPage: true });
 
         // ── 3. The profile screen, reached the way a user reaches it ───────
-        // A SOFT NAVIGATION ON PURPOSE, not a `page.goto`. It leaves `/dash`
+        // A SOFT NAVIGATION ON PURPOSE, not a `page.goto`. It leaves `/`
         // in the history stack AND its rendered RSC payload in Next's client
         // Router Cache, which is precisely what step 4's Back press has to
         // find stale. A hard navigation would prove sign-out works and prove
         // nothing about the cache.
         await page.setViewport({ width: 1280, height: 900 });
-        await page.goto(`${server.baseUrl}/dash`, { waitUntil: "networkidle0" });
+        await page.goto(`${server.baseUrl}/`, { waitUntil: "networkidle0" });
 
         // A MENU THAT WILL NOT OPEN HAS SEVERAL POSSIBLE CAUSES AND THIS NAMES
         // THE ONE IT OBSERVED, rather than letting a bare `waitForSelector`
@@ -3985,21 +3724,21 @@ async function main() {
           return opened;
         };
 
-        if (await openMenu("/dash @1280")) {
+        if (await openMenu("/ @1280")) {
           // The address IS shown at this width, both on the control and as
           // the menu's own label — the other side of the collapse assertion
           // at 1000px above.
           const addressShown = await page.evaluate(() => document.body.innerText);
           if (!addressShown.includes(email)) {
-            ctx.findings.push(`/dash @1280: the signed-in address (${email}) appears nowhere in the profile control or its menu — /v1/me/context carries no email, so this is the Supabase session read in session.service.ts`);
+            ctx.findings.push(`/ @1280: the signed-in address (${email}) appears nowhere in the profile control or its menu — /v1/me/context carries no email, so this is the Supabase session read in session.service.ts`);
           }
 
           const profileItem = await visibleHandleWithText(page, '[role="menuitem"]', "Профіль");
           if (!profileItem) {
-            ctx.findings.push('/dash @1280: no «Профіль» item in the profile menu');
+            ctx.findings.push('/ @1280: no «Профіль» item in the profile menu');
           } else {
             await Promise.all([
-              page.waitForFunction(() => location.pathname === "/dash/settings/profile", { timeout: 10_000 }),
+              page.waitForFunction(() => location.pathname === "/settings/profile", { timeout: 10_000 }),
               profileItem.click(),
             ]);
             await profileItem.dispose();
@@ -4009,17 +3748,17 @@ async function main() {
         const profileText = await page.evaluate(() => document.body.innerText);
         for (const expected of ["Профіль", "Обліковий запис", "Електронна пошта", "Робочі простори", email]) {
           if (!profileText.includes(expected)) {
-            ctx.findings.push(`/dash/settings/profile: expected "${expected}" on the screen, not found`);
+            ctx.findings.push(`/settings/profile: expected "${expected}" on the screen, not found`);
           }
         }
         // THE ROLE IS RENDERED IN UKRAINIAN, NEVER AS ITS DATABASE IDENTIFIER.
         // The seeded user created both workspaces, so both memberships are
         // `owner` — «Власник» in `src/lib/membership-labels.ts`.
         if (!profileText.includes("Власник")) {
-          ctx.findings.push('/dash/settings/profile: the membership role is not rendered in Ukrainian — expected «Власник» for the workspace creator');
+          ctx.findings.push('/settings/profile: the membership role is not rendered in Ukrainian — expected «Власник» for the workspace creator');
         }
         if (/\bowner\b|pto_manager/.test(profileText)) {
-          ctx.findings.push("/dash/settings/profile: a raw membership role identifier is on screen — membership-labels.ts is not being applied");
+          ctx.findings.push("/settings/profile: a raw membership role identifier is on screen — membership-labels.ts is not being applied");
         }
 
         // ONE FACE, EVERY SCREEN. [Corrected 2026-09-05: the cascade race this
@@ -4029,7 +3768,7 @@ async function main() {
         // migrated. The probe stays because the face has been lost twice
         // already; it now runs on every route in the daylight visual audit,
         // and here once more on the screen where it was first lost.]
-        await assertBrandFaces(ctx, page, "/dash/settings/profile");
+        await assertBrandFaces(ctx, page, "/settings/profile");
         await page.screenshot({ path: path.join(SHOTS, "dash-profile.png"), fullPage: true });
 
         // ── 4. Sign-out: not until confirmed, and then for real ────────────
@@ -4040,7 +3779,7 @@ async function main() {
 
         const openSignOutDialog = async (attempt) => {
           await settleAfterDialog();
-          if (!await openMenu(`/dash/settings/profile (${attempt})`)) return false;
+          if (!await openMenu(`/settings/profile (${attempt})`)) return false;
           const item = await visibleHandleWithText(page, '[role="menuitem"]', "Вийти");
           if (!item) {
             ctx.findings.push(`profile menu (${attempt}): no «Вийти» item`);
@@ -4063,7 +3802,7 @@ async function main() {
           if (cookiesWithDialogOpen.join() !== cookiesBefore.join()) {
             ctx.findings.push(`sign-out: opening the confirm changed the session cookies (${cookiesBefore.join()} → ${cookiesWithDialogOpen.join()}) — it must sign nothing out until confirmed`);
           }
-          if (new URL(page.url()).pathname !== "/dash/settings/profile") {
+          if (new URL(page.url()).pathname !== "/settings/profile") {
             ctx.findings.push(`sign-out: opening the confirm navigated to ${new URL(page.url()).pathname} — it must not navigate at all`);
           }
           const dialogText = await page.evaluate(() =>
@@ -4183,7 +3922,7 @@ async function main() {
             }
 
             // THE BACK PRESS, AND THIS IS WHAT `router.refresh()` IS FOR.
-            // Next's client Router Cache holds `/dash`'s rendered RSC payload
+            // Next's client Router Cache holds `/`'s rendered RSC payload
             // — the chrome, the workspace name, the user's own address — and
             // the cookies being gone does not evict it. Without the refresh a
             // Back press repaints the signed-in shell from cache, with no
@@ -4200,7 +3939,7 @@ async function main() {
             // same-document navigation and resolves to `null` exactly as a
             // no-op would. A `popstate` counter installed first distinguishes
             // them, and the pathname afterwards is NOT the signal either — the
-            // proxy legitimately sends a session-less `/dash` straight back to
+            // proxy legitimately sends a session-less `/` straight back to
             // `/login`, so landing there again is a pass, not a failure.
             await page.evaluate(() => {
               window.__qaPopstates = 0;
@@ -4251,32 +3990,18 @@ async function main() {
 
     // ─────────────────────────────────────────────────────────────────────
     const NOT_COVERED = [
-      "beforeunload is not exercised in the browser: headless Chrome's handling " +
-      "of the beforeunload dialog is version-dependent and Puppeteer cannot " +
-      "reliably assert on it across Chrome builds, so guardBeforeUnload/" +
-      "holdsUnsavedBytes's WIRING to window.addEventListener is untested by any " +
-      "browser pass. The DECISION function itself (holdsUnsavedBytes, discard, " +
-      "guardBeforeUnload) is unit-tested with no DOM in src/lib/capture/state.test.ts.",
+      "The field client's screens are not covered here at all since DEV-035 " +
+      "(2026-09-23): the owner retired the field PWA (app/(app)/**) and this " +
+      "file's three field audits went with it. The field client is apps/mobile; " +
+      "its browser pass is `pnpm --filter @goproceed/mobile qa` " +
+      "(apps/mobile/qa/field-web.mjs), which runs in no CI job.",
       "No colour-contrast (WCAG AA) scan is run, and no screen-reader pass " +
       "(NVDA/VoiceOver/JAWS) was performed — same limitation apps/demo/qa/verify.mjs " +
       "states about itself.",
-      "Only ONE occurrence shape is exercised end to end (evidenceKind=photo, " +
-      "coverage=covered, exactly one occurrence). The three refusal branches " +
-      "(no_bindings / work_type_unresolved / no_matching_rule) and a multi-" +
-      "occurrence assignment are covered by src/lib/field/obligations.test.ts " +
-      "with no browser, not by this file.",
-      "The discard control (\"Скасувати фото\") is asserted ABSENT at rest but is " +
-      "never clicked here, and the successful-upload receipt path " +
-      "(server_confirmed) is not driven in the browser — only the failure path " +
-      "this harness's assertions are about. In particular the ABORT a discard now " +
-      "performs (capture.tsx's AbortController) is proven only in Node, in " +
-      "src/lib/capture/upload.test.ts. Both paths are otherwise covered without a " +
-      "browser in tests/field-capture.int.test.ts (the real routes) and " +
-      "src/lib/capture/upload.test.ts (the state machine, fake fetch).",
       "No real device/OS was used — headless Chrome via puppeteer only, no " +
       "Safari/iOS, no physical gloved-hand touch input.",
       "The dash pass exercises ONE identity shape: a signed-in user who OWNS both " +
-      "of their workspaces, so every membership rendered on /dash/settings/profile " +
+      "of their workspaces, so every membership rendered on /settings/profile " +
       "is role=owner status=active. The other twelve roles and the other three " +
       "statuses reach no browser here — `api.me_context` filters status='active' " +
       "outright, and nothing in D0 can mint a second role. Their labels are covered " +
@@ -4297,9 +4022,9 @@ async function main() {
       "Keyboard-only navigation of the dash shell is not driven end to end. Escape " +
       "is pressed (the menu-inside-drawer case) but Tab order, focus return to the " +
       "trigger after the menu closes, and the confirm dialog's focus trap are not " +
-      "asserted — and the four disabled nav items are, by HTML, unreachable by " +
-      "keyboard at all, which is why their reason now lives in the button's own " +
-      "aria-label rather than only in a hover title.",
+      "asserted. The rail's items are links since DEV-035 (the four disabled " +
+      "placeholders are gone), so they are in the tab order, but that order is " +
+      "not asserted either.",
       "The seeded Auth user is deleted after the run (best-effort); the workspace/" +
       "project/contract rows it created under \"Приклад-*\" names are NOT deleted — " +
       "harmless synthetic data, left the same way the Node integration suites " +
@@ -4359,7 +4084,7 @@ async function main() {
       "scanner the gate exists for), no second device and no real phone is involved — " +
       "so the gate is proven to work for a person, and proven against nothing.",
 
-      "THE MONEY SCREEN (Plan D slice D2, `/dash/projects/{projectId}`) IS DRIVEN " +
+      "THE MONEY SCREEN (Plan D slice D2, `/projects/{projectId}`) IS DRIVEN " +
       "THROUGH EXACTLY ONE SHAPE: one live block, SUPERVISION_SIGNATURE_MISSING " +
       "(evidence present, decision pending — never CUSTOMER_MOTIVATED_REFUSAL), " +
       "whole-line attribution, one currency (UAH), a priced work item. Not exercised " +

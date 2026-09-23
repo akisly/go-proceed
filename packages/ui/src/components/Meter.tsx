@@ -35,7 +35,7 @@ export function Meter({
 }) {
   const total = segments.reduce((sum, s) => sum + s.count, 0);
   return (
-    <div className={cx("flex flex-col gap-3", className)}>
+    <div data-slot="meter" className={cx("flex flex-col gap-3", className)}>
       <div aria-hidden="true" className="flex h-2 gap-0.5 overflow-hidden rounded-pill">
         {segments.filter((s) => s.count > 0).map((s) => (
           <div key={s.id} style={{ flexGrow: s.count }} className={TONE[s.tone]} />

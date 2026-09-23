@@ -3,7 +3,8 @@ import { type FinalizeUploadIntentResponse } from "@goproceed/contracts";
 import { enqueueOutbox, recordAudit, withServiceTx, withTenantTx } from "@goproceed/database";
 import { requireActiveMembership } from "../authz";
 import type { HandlerResult } from "../command";
-import { downloadObject, objectSize } from "../evidence-storage";
+import { downloadObject, objectInfo } from "../evidence-storage";
+import { storedTypeIs } from "./stored-type";
 import { inspectContent } from "../evidence-inspection";
 import { HttpProblem, problem } from "../http";
 
@@ -17,6 +18,36 @@ type IntentRow = {
   workspace_id: string; project_id: string; work_assignment_id: string;
   device_capture_id: string | null;
 };
+/**
+ * The refusal the field client shows in its alert (`recover.ts` maps
+ * `recapture_or_contact_support` to `failed`). Each one says what went wrong
+ * and what to do instead: «capture again» would fail the same way for an image
+ * that is too large (BL-088, DEV-033).
+ */
+function scanRejectedDetail(failureCode: string | null, claimedMediaType: string): string {
+  switch (failureCode) {
+    case "declared_type_mismatch":
+      return `Вміст не відповідає заявленому типу «${claimedMediaType}».`;
+    case "stored_type_mismatch":
+      return `Файл завантажено до сховища з типом, відмінним від «${claimedMediaType}». Завантажте фото ще раз.`;
+    case "image_dimensions_exceeded":
+      return "Зображення завелике: понад 268 мегапікселів або 65 535 пікселів по стороні. Зменште його або надішліть звичайне фото.";
+    case "image_dimensions_unreadable":
+      return "Не вдалося прочитати розмір зображення. Надішліть інше фото.";
+    case "image_animated":
+      return "Анімовані зображення не приймаються. Надішліть звичайне фото.";
+    default:
+      return "Тип вмісту не розпізнано.";
+  }
+}
+
+/** The refusal for an upload whose creator lost access: its bytes are now the purge's. */
+function accessRevoked(requestId: string): HttpProblem {
+  return new HttpProblem(403, problem("SCOPE_PROJECT_DENIED",
+    "Доступ відкликано під час завантаження. Байти позначено на очищення.",
+    { requestId, retryable: false, userAction: "request_project_scope" }));
+}
+
 type FinalizeResult =
   | { outcome: "unauthorized" }
   | { outcome: "no_content" }
@@ -79,6 +110,30 @@ export async function finalizeUploadIntent({
     const m = await requireActiveMembership(tx, requestId, actorUserId, row.workspace_id);
     if (row.created_by_member_id !== m.memberId) throw notFound;
     return { ...row, memberId: m.memberId };
+  }).catch(async (err: unknown) => {
+    // THE CREATOR WHO LOST ACCESS (BL-032, DEV-038). An intent is invisible to
+    // the tenant read once its creator has lost the membership or the project
+    // read (ui_select), so finalize's own recheck — which orphans the intent at
+    // once — was never reached, and the bytes waited for the 24-hour TTL. The
+    // second path runs after the tenant transaction has ended and applies only
+    // to the intent's own creator who is no longer authorized; for anyone else
+    // it answers false and the refusal below is exactly today's.
+    if (err instanceof HttpProblem
+        && (err === notFound || err.body.code === "MEMBERSHIP_INACTIVE")) {
+      // Best-effort (R1-01): if the second path fails — a database without
+      // 0092, or rolled back — the caller gets today's refusal, not a 500.
+      const abandoned = await withServiceTx(ctx, async (tx) => (await tx.query<{ ok: boolean }>(
+        "select app.abandon_unauthorized_upload_intent($1) as ok", [intentId])).rows[0]?.ok === true)
+        .catch((abandonErr: unknown) => {
+          // The SQLSTATE tells deploy-order skew (42883) from a misconfigured
+          // service login (P0001, 42501); it carries no data (R2-01).
+          console.error("[FINALIZE_ABANDON_FAILED]", requestId, (abandonErr as Error).name,
+            (abandonErr as { code?: string }).code);
+          return false;
+        });
+      if (abandoned) throw accessRevoked(requestId);
+    }
+    throw err;
   });
 
   if (intent.status === "available") {
@@ -116,7 +171,8 @@ export async function finalizeUploadIntent({
   const serviceCtx = { ...ctx, organizationId: intent.workspace_id };
 
   // Storage I/O is deliberately outside both transactions.
-  const storedSize = await objectSize(intent.staging_storage_key, intent.staging_bucket);
+  const stored = await objectInfo(intent.staging_storage_key, intent.staging_bucket);
+  const storedSize = stored?.size ?? null;
   if (storedSize === null) {
     throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
       "Байти ще не завантажено за цим наміром.",
@@ -148,7 +204,19 @@ export async function finalizeUploadIntent({
         : `Отримано ${bytes.byteLength} Б замість очікуваних ${intent.expected_byte_size} Б.`,
       { requestId, retryable: true, userAction: "retry_part" }));
   }
-  const inspection = await inspectContent(bytes, intent.claimed_media_type);
+  const inspected = await inspectContent(bytes, intent.claimed_media_type);
+  // THE STORED TYPE MUST BE THE DETECTED ONE (BL-089, DEV-032). Storage serves
+  // an object with the type its uploader's PUT declared, verbatim. A signed
+  // read is issued with `download=`, but that flag is appended by the SDK
+  // outside the signature, so whoever holds the URL can strip it and open the
+  // object inline: a JPEG-prefixed HTML polyglot stored as `TEXT/HTML` then
+  // runs as HTML on the Storage origin (measured, DEV-032). The match is
+  // strict, as a browser reads a Content-Type (`stored-type.ts`). Every
+  // outcome but `blocked` is checked, against the type the row will record.
+  const recordedType = inspected.detectedMediaType ?? intent.claimed_media_type;
+  const inspection = inspected.outcome !== "blocked" && !storedTypeIs(stored?.contentType ?? null, recordedType)
+    ? { ...inspected, outcome: "blocked" as const, failureCode: "stored_type_mismatch" }
+    : inspected;
   if (inspection.outcome === "blocked") {
     const blocked = await withServiceTx(serviceCtx, async (tx) => {
       const r = await tx.query<{ applied: boolean }>(
@@ -170,9 +238,7 @@ export async function finalizeUploadIntent({
         { requestId, retryable: false, userAction: "refresh_upload_state_or_request_new_grant" }));
     }
     throw new HttpProblem(422, problem("SCAN_REJECTED",
-      inspection.failureCode === "declared_type_mismatch"
-        ? `Вміст не відповідає заявленому типу «${intent.claimed_media_type}».`
-        : "Тип вмісту не розпізнано.",
+      scanRejectedDetail(inspection.failureCode, intent.claimed_media_type),
       { requestId, retryable: false, userAction: "recapture_or_contact_support" }));
   }
 
@@ -223,11 +289,7 @@ export async function finalizeUploadIntent({
       serverReceivedAt: received.rows[0].server_received_at as Date,
     };
   });
-  if (result.outcome === "unauthorized") {
-    throw new HttpProblem(403, problem("SCOPE_PROJECT_DENIED",
-      "Доступ відкликано під час завантаження. Байти позначено на очищення.",
-      { requestId, retryable: false, userAction: "request_project_scope" }));
-  }
+  if (result.outcome === "unauthorized") throw accessRevoked(requestId);
   if (result.outcome === "no_content") {
     throw new HttpProblem(409, problem("UPLOAD_INTENT_CONFLICT",
       "Байти цього завантаження більше не знайдено. Потрібне нове завантаження.",

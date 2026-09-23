@@ -2,7 +2,7 @@ import { Banner } from "@goproceed/ui/components";
 
 /**
  * `listPublishedBaselines`'s `forbidden` branch on
- * `/dash/projects/{projectId}/assignments/new` — the refusal that used to
+ * `/projects/{projectId}/assignments/new` — the refusal that used to
  * render as `ShellFatalError`.
  *
  * WHO SEES IT, TRACED RATHER THAN ASSUMED. The screen's only source of a

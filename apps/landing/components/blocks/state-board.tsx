@@ -12,6 +12,18 @@ const ICON = [Send, Smartphone, Globe, Workflow] as const;
  * row — an icon, a name in ink, the rest muted. The view is the state board
  * that was the home page's hero until this task; the statements are the three
  * capture channels and the one record they converge on.
+ *
+ * [2026-09-22, DEV-029] THE VIEW STANDS ON A PANEL, not on the page — and the
+ * panel is the WARM one, the site's single stage treatment. It was near-black
+ * for one revision, taken from the reference's own product shots; the owner
+ * removed the dark from the whole site («убрать тёмное совсем») after a
+ * critique measured 32 distinct panel treatments across four pages. The fix for
+ * that number is one stage, used everywhere a sheet needs something to lie on,
+ * not a second one that is darker.
+ *
+ * The heading and the four statements stay on paper. The board itself is
+ * untouched: a white sheet with its own beam, which is what the stage exists to
+ * hold.
  */
 export function StateBoard() {
   const c = landingContent.capture;
@@ -20,9 +32,11 @@ export function StateBoard() {
     { name: c.converge.code, text: c.converge.text },
   ];
   return (
-    <section id="board" tabIndex={-1} className="landing-inset scroll-mt-20 py-20 md:py-24">
+    <section id="board" tabIndex={-1} className="landing-inset scroll-mt-20 py-20 md:py-28">
       <TwoTone lead={landingContent.board.lead} rest={landingContent.board.rest} />
-      <ProductFrame />
+      <div className="landing-stage relative isolate mt-10 px-4 pb-10 pt-8 md:px-10 md:pb-16 md:pt-12">
+        <ProductFrame />
+      </div>
       <Stagger className="mt-4 grid gap-x-8 gap-y-6 md:grid-cols-2 wide:grid-cols-4">
         {statements.map((s, i) => {
           const Icon = ICON[i]!;

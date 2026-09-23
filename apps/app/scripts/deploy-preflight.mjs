@@ -142,6 +142,8 @@ if ((process.env.NEXT_PUBLIC_SUPABASE_URL ?? "").includes("127.0.0.1")) {
 const runtime = {
   APP_DB_URL: "packages/database/src/pool.ts — every tenant read and write; the app is inert without it",
   SERVICE_DB_URL: "packages/database/src/pool.ts — every upload finalization 500s without it (README-staging.md §3.2)",
+  PURGE_DB_URL: "packages/database/src/pool.ts — the evidence purge worker's own login (goproceed_purge_worker_login, migration 0090); every scheduled purge run 500s without it and orphaned bytes outlive INV-047's 24 hours (README-staging.md §3.3)",
+  CRON_SECRET: "app/internal/evidence/purge/route.ts — Vercel Cron sends it as the Bearer token; unset or under 32 characters, the route refuses every run (README-staging.md §3.3)",
   SUPABASE_URL: "src/lib/evidence-storage.ts — DEFAULTS TO 127.0.0.1:54321 when unset, so every evidence upload would target a Supabase that does not exist on the server",
   SUPABASE_SECRET_KEY: "src/lib/evidence-storage.ts — the signed-upload issuer (an sb_secret_ key, not the legacy service_role JWT); without it the module throws at import on any non-local SUPABASE_URL",
   EXTERNAL_LINK_ORIGIN: "src/lib/external-link.ts — the only Origin the external exchange accepts",
@@ -153,11 +155,18 @@ const runtime = {
 for (const [name, why] of Object.entries(runtime)) {
   if (!process.env[name]) problems.push(`${name} is unset — ${unsetHow(name)} (${why}).`);
 }
-for (const name of ["APP_DB_URL", "SERVICE_DB_URL"]) {
+for (const name of ["APP_DB_URL", "SERVICE_DB_URL", "PURGE_DB_URL"]) {
   const v = process.env[name] ?? "";
-  if (/app_pw|service_pw|127\.0\.0\.1|localhost/.test(v)) {
-    problems.push(`${name} carries a LOCAL dev value — a real deployment must use the secrets from README-staging.md §3, never app_pw / service_pw or a loopback host.`);
+  if (/app_pw|service_pw|purge_pw|127\.0\.0\.1|localhost/.test(v)) {
+    problems.push(`${name} carries a LOCAL dev value — a real deployment must use the secrets from README-staging.md §3, never app_pw / service_pw / purge_pw or a loopback host.`);
   }
+}
+if ((process.env.CRON_SECRET ?? "") && (process.env.CRON_SECRET ?? "").length < 32) {
+  problems.push("CRON_SECRET is shorter than 32 characters — app/internal/evidence/purge/route.ts refuses every run with it (README-staging.md §3.3).");
+}
+if (process.env.PURGE_DB_URL
+    && [process.env.APP_DB_URL, process.env.SERVICE_DB_URL].includes(process.env.PURGE_DB_URL)) {
+  problems.push("PURGE_DB_URL equals APP_DB_URL or SERVICE_DB_URL — the purge worker has its own login (goproceed_purge_worker_login, migration 0090), and withPurgeWorkerTx refuses any other.");
 }
 // A KEY LIST THE RUNTIME CANNOT LOAD IS A BUILD THAT FAILS ITS FIRST EXTERNAL
 // REQUEST (DEV-010). Checked only when both names are set: an unset one is

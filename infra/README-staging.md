@@ -14,11 +14,20 @@ this repo has run it yet (see "Status" at the bottom). It provisions:
    the client is built, merged and green in CI, and **nothing serves it on the
    public internet until this runbook has been run.** `apps/landing` is a
    second, optional project and is covered separately in §4.
+   *[2026-09-23, DEV-035 — the PWA field client is retired: the owner removed
+   `apps/app`'s field pages ([ADR-009](../docs/decisions/ADR-009-three-pilot-surfaces.md) «Amendment,
+   2026-09-23»). `apps/app` now serves the API and, at its root, the office
+   dashboard. The field client is the `apps/mobile` Expo web export at
+   `goproceed-field` (§4.5), which calls `/v1` cross-origin with a bearer
+   token, and the Telegram project channel, which is enabled in no
+   environment yet.]*
 3. A verification pass that proves the same vertical slice this repo tests
    locally (`POST /v1/organizations` → `GET /v1/me/context`, audit +
    outbox + cron drain, tenant isolation) also works against staging — plus,
    new with the field client, one signed-in foreman opening «Мої доручення»
-   on a real phone at the real origin (§6 step 9).
+   on a real phone at the real origin (§6 step 9) — since 2026-09-23 the
+   field client's own origin, `goproceed-field` (§4.5), the only web field
+   client left.
 
 Do not commit any secret produced by these steps (project ref is not
 secret; DB URL, publishable key, and secret key are). Store them in a
@@ -188,7 +197,7 @@ If either apply exits non-zero, or the second `push` offers to apply anything
 at all, treat that as a migration bug and stop — do not proceed to §3 against
 a staging DB in an unknown state.
 
-## 3. Set the `goproceed_app_login` and `goproceed_service_login` passwords on staging (mandatory, do this now)
+## 3. Set the `goproceed_app_login`, `goproceed_service_login` and `goproceed_purge_worker_login` passwords on staging (mandatory, do this now)
 
 **Never run any of the following against this (or any real) Supabase
 project. Each one destroys and rebuilds, or reseeds, the target database:**
@@ -337,6 +346,56 @@ upload.
    complete — there is no working `SERVICE_DB_URL` to configure the
    deployment with otherwise.
 
+### 3.3 `goproceed_purge_worker_login` and `CRON_SECRET` (DEV-036, after `0090`)
+
+The evidence purge (INV-047: orphaned and expired upload bytes deleted within
+24 hours) runs as its own login, which can execute the five
+`app.*upload*purge*` functions and nothing else (migration `0090`). Vercel
+Cron calls `GET /internal/evidence/purge` four times a day
+(`apps/app/vercel.json`; Hobby allows one run a day per expression, anywhere in
+its hour) with `Authorization: Bearer <CRON_SECRET>`. Crons run on
+**production** deployments only, and this project builds production only.
+
+**If this step is skipped**, the deploy preflight refuses the build (both
+names are required). If the variables are set but `0090` is not applied, every
+scheduled run answers 500 and the bytes stay.
+
+**Order.** Apply `0090`–`0094` to the database **before** the production
+deployment that carries this build (the build calls the `app.*` purge functions
+and `app.abandon_unauthorized_upload_intent`), and roll back in reverse order:
+`0094` and `0092` before `0091`, `0091` before `0090`. Without `0092` the
+finalize route logs `[FINALIZE_ABANDON_FAILED]` and answers as before; without
+`0090`/`0091` the purge route answers 500.
+
+1. Once `0090` is applied, set a **third** freshly generated secret (`openssl
+   rand -hex 24`; never the §3.1 or §3.2 value, never `purge_pw`). Prefer
+   psql's `\password goproceed_purge_worker_login`, which sends only a SCRAM
+   verifier; an `alter role … password '<secret>'` statement carries the
+   plain secret into statement logs and SQL-editor history (§3.1 and §3.2 use
+   that form, and the same caution applies to them):
+   ```sql
+   alter role goproceed_purge_worker_login password '<generated-secret>';
+   ```
+2. Record it in the password manager as its own entry.
+3. Compose `PURGE_DB_URL` with the same Session pooler host and `.<project-ref>`
+   username suffix as §3.1:
+   ```
+   postgresql://goproceed_purge_worker_login.<project-ref>:<generated-secret>@<pooler-host>:5432/postgres
+   ```
+   The worker refuses any other login (`withPurgeWorkerTx` checks
+   `session_user`), a superuser's included.
+4. Generate `CRON_SECRET` (32+ characters, e.g. `openssl rand -hex 32`) and set
+   it, with `PURGE_DB_URL`, in the Vercel project (§4.3), for **Production
+   only**. Vercel sends it on
+   every cron call; the route refuses every call while it is unset or short.
+5. After the next production deploy, check **Settings → Cron Jobs**: four
+   entries on `/internal/evidence/purge`. Trigger one (**Run**, or `vercel crons
+   run /internal/evidence/purge`) and read its log: 200 with counts, or 500
+   `purge_attention_required` with counts and a request id. A 500 that persists
+   means a row failed five times or has waited past 24 hours:
+   `select id, status, purge_attempts, purge_failure from public.upload_intents
+    where purged_at is null and purge_attempts >= 5;` names it.
+
 ## 4. Create the Vercel project for `apps/app`
 
 **Everything Vercel needs to know about HOW to build is in the repository
@@ -376,7 +435,8 @@ should show it as detected.
 
 The complete contract, with reasoning per variable, is
 `apps/app/.env.example`. Set each of these in **Project Settings → Environment
-Variables**, for **both** Production and Preview:
+Variables**, for **both** Production and Preview — except `PURGE_DB_URL` and
+`CRON_SECRET`, which are Production only (DEV-036):
 
 | Variable | Kind | Value | Source |
 |---|---|---|---|
@@ -385,6 +445,8 @@ Variables**, for **both** Production and Preview:
 | `NEXT_PUBLIC_APP_ORIGIN` | build | `https://{{APP_HOSTNAME}}` — **the exact origin, https, no path** | §0 |
 | `APP_DB_URL` | runtime | `postgresql://goproceed_app_login.<project-ref>:<secret-1>@<pooler-host>:5432/postgres` — `<secret-1>` is the password YOU set in §3.1 | §3.1 |
 | `SERVICE_DB_URL` | runtime | same shape as `goproceed_service_login.<project-ref>` with `<secret-2>` from §3.2 — **a different role and password from `APP_DB_URL`** | §3.2 |
+| `PURGE_DB_URL` | runtime | same shape as `goproceed_purge_worker_login.<project-ref>` with the §3.3 secret — **a third role and password. Production only**: crons run on production deployments, and a Preview has no use for a purge credential | §3.3 |
+| `CRON_SECRET` | runtime | 32+ random characters; Vercel Cron sends it as the Bearer token to `/internal/evidence/purge`. **Production only**, as `PURGE_DB_URL` | §3.3 |
 | `SUPABASE_URL` | runtime | same host as `NEXT_PUBLIC_SUPABASE_URL` | §1 |
 | `SUPABASE_SECRET_KEY` | runtime | an `sb_secret_…` key | §1 → Project Settings → API → Secret keys. **Server secret. Never `NEXT_PUBLIC_`.** |
 | `EXTERNAL_LINK_ORIGIN` | runtime | `https://{{APP_HOSTNAME}}` | same as the app origin |
@@ -891,9 +953,14 @@ timings) — a checked box with no evidence is not verification.
    the step the earlier eight cannot substitute for, and the reason ADR-007
    requires physical devices. **Dated pointer, 2026-08-21:** per ADR-009,
    the five boxes below are now measured against the Expo client at
-   `goproceed-field` (§4.5) on these same two phones, not against this PWA —
-   the PWA remains the pilot's deployed field client in service until that
-   measurement passes. **Before it: custom SMTP.** Read from the
+   `goproceed-field` (§4.5) on these same two phones, not against this PWA.
+   Since 2026-09-23 the PWA no longer exists: the owner retired `apps/app`'s
+   field pages before this measurement ([ADR-009](../docs/decisions/ADR-009-three-pilot-surfaces.md)
+   «Amendment, 2026-09-23»), so the Expo client at `goproceed-field` is the
+   only web field client, and the boxes below measure its readiness.
+   *[2026-09-23, DEV-035 — was: «the PWA remains the pilot's deployed field
+   client in service until that measurement passes.»]* **Before it: custom
+   SMTP.** Read from the
    current Supabase docs on 2026-08-19
    (https://supabase.com/docs/guides/auth/auth-smtp): the default email
    service is «2 messages per hour» and «Unless you configure a custom SMTP
@@ -931,7 +998,10 @@ timings) — a checked box with no evidence is not verification.
      **Brevo custom SMTP**.
    - [ ] Open one assignment; the довідковий disclaimer is visible; every
      control is at least 44×44 CSS px (measure with the browser's inspector at
-     375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI —
+     375 px, or trust `qa/field.mjs`'s identical assertion, which passed in CI
+     *[2026-09-23, DEV-035: removed from `apps/app/qa/field.mjs` with the
+     field pages; the remaining equivalent is `apps/mobile/qa/field-web.mjs`'s,
+     which is in no CI job]* —
      but the point of this step is a REAL engine, not headless Chrome).
      **Partial, 2026-08-21, on iPhone (Expo client):** the disclaimer renders
      unconditionally and was visible. The 44×44 sweep itself was NOT done

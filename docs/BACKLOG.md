@@ -58,13 +58,13 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-027](#bl-027) | P3 | open | `technical/openapi/README.md` says the public plane never consumes a grant |
 | [BL-028](#bl-028) | P3 | open | INV-090 is allocated, and two catalogs do not point at it |
 | [BL-029](#bl-029) | P3 | open | Reading a statutory act requires the capability that composes and freezes one |
-| [BL-030](#bl-030) | P2 | open | The evidence purge worker runs nowhere |
-| [BL-031](#bl-031) | P2 | open | Purge claims are not fenced |
-| [BL-032](#bl-032) | P2 | open | A deactivated member cannot abandon their own upload through the route |
-| [BL-033](#bl-033) | P2 | open | `evidence-storage.ts` puts raw storage keys into error messages |
+| [BL-030](#bl-030) | P2 | closed → DEV-036 | The evidence purge worker runs nowhere |
+| [BL-031](#bl-031) | P2 | closed → DEV-037 | Purge claims are not fenced |
+| [BL-032](#bl-032) | P2 | closed → DEV-038 | A deactivated member cannot abandon their own upload through the route |
+| [BL-033](#bl-033) | P2 | closed → DEV-034 | `evidence-storage.ts` puts raw storage keys into error messages |
 | [BL-034](#bl-034) | P2 | open | The evidence screen formats times in a hard-coded zone, not the workspace's |
 | [BL-035](#bl-035) | P3 | open | `apps/app` has no application logging, so «never in the logs» cannot be asserted |
-| [BL-036](#bl-036) | P3 | open | The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200 |
+| [BL-036](#bl-036) | P3 | closed → DEV-039 | The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200 |
 | [BL-037](#bl-037) | P3 | open | Evidence groups are labelled by, and ordered by, a bare occurrence UUID |
 | [BL-038](#bl-038) | P3 | open | The evidence screen renders full-size originals |
 | [BL-039](#bl-039) | P2 | open | The retention mechanism does not reach every table it claims |
@@ -77,11 +77,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-046](#bl-046) | P3 | deferred (owner) | No dashboard screen authors project-sourced requirements |
 | [BL-047](#bl-047) | P2 | open | No container role means «a dialog», so `Dialog`'s default width is dead |
 | [BL-048](#bl-048) | P2 | open | `Checkbox` is below the 44px touch floor |
-| [BL-049](#bl-049) | P3 | open | `next=/dash` is hard-coded in the dashboard's session-expired redirects |
+| [BL-049](#bl-049) | P3 | open | `next=/dash` is hard-coded in the dashboard's session-expired redirects *(now `next=/`, DEV-035)* |
 | [BL-050](#bl-050) | P3 | open | The dashboard browser pass has an unexplained menu-reopen race |
 | [BL-051](#bl-051) | P3 | open | `DialogClose` hand-rolls its ghost and icon styling |
 | [BL-052](#bl-052) | P3 | open | No test enforces «never put a control height behind a `data-[…]` variant» |
-| [BL-053](#bl-053) | P3 | open | The dashboard rail's four nav items are disabled placeholders |
+| [BL-053](#bl-053) | P3 | closed → DEV-035 | The dashboard rail's four nav items are disabled placeholders |
 | [BL-054](#bl-054) | P3 | open | The assignments register scrolls sideways at narrow widths instead of rendering cards |
 | [BL-055](#bl-055) | P3 | open | Final-review minors: tokens, tests and the brand pipeline |
 | [BL-056](#bl-056) | P3 | open | Final-review minors: `packages/ui` |
@@ -107,17 +107,17 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-076](#bl-076) | P0 | closed → `0a7c407` | The pool stranded once an over-removal parted quantity from money |
 | [BL-077](#bl-077) | P3 | open | Code and documents still send readers to the frozen `TODOS.md` by entry name |
 | [BL-078](#bl-078) | P3 | open | The rewrite plan's rulings D1–D7 were never recorded in an ADR |
-| [BL-079](#bl-079) | P1 | open | `outputs/` keeps personal data in git against the project's own rule |
+| [BL-079](#bl-079) | P1 | closed → DEV-030 | `outputs/` keeps personal data in git against the project's own rule |
 | [BL-080](#bl-080) | P2 | deferred (owner) | Outreach routes and tender-title customers in `outputs/` are personal data the drafts treat as corporate |
-| [BL-081](#bl-081) | P2 | open | Nothing stops a session from committing prospecting data again |
+| [BL-081](#bl-081) | P2 | closed → DEV-031 | Nothing stops a session from committing prospecting data again |
 | [BL-082](#bl-082) | P2 | open | The landing is not yet rebuilt against its new reference |
 | [BL-083](#bl-083) | P2 | open | Nothing keeps a package reached through pnpm's private hoist at one version |
 | [BL-084](#bl-084) | P2 | open | The act footer names a «Реєстр будівельних норм» that ЗУ «Про будівельні норми» does not name |
 | [BL-085](#bl-085) | P1 | closed → DEV-011 | `TELEGRAM_LINK_PEPPER` has no key id, so it cannot be rotated without losing data, and readiness gate 14 waits on it |
 | [BL-086](#bl-086) | P3 | open | The HMAC key registry accepts a duplicate key id and the same secret in both key spaces |
 | [BL-087](#bl-087) | P2 | open | A leaked Telegram erasure key still re-identifies the registry rows not yet moved to a newer key |
-| [BL-088](#bl-088) | P2 | open | Uploaded images have no dimension, pixel-count or decoding-resource limit |
-| [BL-089](#bl-089) | P2 | open | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
+| [BL-088](#bl-088) | P2 | closed → DEV-033 | Uploaded images have no dimension, pixel-count or decoding-resource limit |
+| [BL-089](#bl-089) | P2 | closed → DEV-032 | Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox |
 | [BL-090](#bl-090) | P1 | closed → DEV-014 | 16 communication and Telegram registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-091](#bl-091) | P1 | closed → DEV-016 | 8 contract-baseline registry rows lack tenant-isolation tests (readiness gate 11) |
 | [BL-092](#bl-092) | P1 | closed → DEV-016 | 4 evidence registry rows lack tenant-isolation tests (readiness gate 11) |
@@ -145,8 +145,26 @@ A priority is the source entry's own where it had one. Entries whose source carr
 | [BL-114](#bl-114) | P3 | open | The invitation redemption page (`invite#<token>`) is not built |
 | [BL-115](#bl-115) | P3 | open | A prefetching mail scanner may spend the one-time code the sign-in email carries |
 | [BL-116](#bl-116) | P2 | open | Without JavaScript the landing paints its h1 and little else: `Reveal`/`Stagger` server-render `opacity:0` |
-| [BL-117](#bl-117) | P2 | open | The office dashboard has not been seen under the Autumn palette or the new typeface |
+| [BL-117](#bl-117) | P2 | closed → DEV-035 | The office dashboard has not been seen under the Autumn palette or the new typeface |
 | [BL-118](#bl-118) | P3 | open | «→» is rendered on two landing pages and no self-hosted face carries it |
+| [BL-119](#bl-119) | P2 | closed → DEV-035 | The office dashboard has no direction from the Autumn CRM reference the landing was built to |
+| [BL-120](#bl-120) | P3 | open | A `bg-`named role used as a foreground escapes the contrast coverage guard |
+| [BL-121](#bl-121) | P3 | open | Two browser-harness probes assert their conclusion on a premise that is no longer true |
+| [BL-122](#bl-122) | P2 | deferred (owner) | The private prospecting copy has no recorded purpose, retention date or backup, and erasure cannot reach history |
+| [BL-123](#bl-123) | P3 | open | Nothing technical keeps an agent session out of the private prospecting copy |
+| [BL-124](#bl-124) | P2 | open | The prospecting-data guard detects only after the fact and knows one field |
+| [BL-125](#bl-125) | P3 | open | Three validator guards read `git ls-files` split by newline and would skip a quoted path |
+| [BL-126](#bl-126) | P2 | open | Hosted Storage's signed-read behaviour is unmeasured, and the evidence bucket accepts any content type on upload |
+| [BL-127](#bl-127) | P3 | open | The Telegram album-exhaustion test wrote two terminal receipts in one of ten runs |
+| [BL-128](#bl-128) | P3 | deferred (owner) | A blocked upload keeps its reserved quota until the purge |
+| [BL-129](#bl-129) | P2 | open | Office and reviewer browsers show evidence originals only: an at-limit bitmap decodes in full, and HEIC does not show in Chrome, Edge or Firefox |
+| [BL-130](#bl-130) | P3 | open | An AVIF whose brand is `mif1` is detected as `image/heic` |
+| [BL-131](#bl-131) | P2 | deferred (owner) | The image size limits and parsers are unchecked against files from real phones |
+| [BL-132](#bl-132) | P3 | open | Image decoding channels the size check does not read: JPEG secondary images, the HEVC stream's own size, progressive scan counts |
+| [BL-133](#bl-133) | P3 | open | The dashboard has no time series, so the reference's chart by month and its period picker have nothing to draw |
+| [BL-134](#bl-134) | P3 | open | Dashboard follow-ups the DEV-035 UI review named and left out of scope |
+| [BL-135](#bl-135) | P2 | open | Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links |
+| [BL-136](#bl-136) | P2 | wontfix (owner) | The field client's origin sends no security headers, and its session token is readable by script |
 <!-- index:end -->
 
 ## Owner decisions and external actions
@@ -156,11 +174,11 @@ A priority is the source entry's own where it had one. Entries whose source carr
 
 - **State:** deferred (owner)
 - **Legacy cite:** `TODOS.md` «Plan C — Expo-web field client to parity»; `HANDOFF-2026-08-27.md` «The field-client parity gate»
-- **Why:** ADR-009 keeps `apps/app`'s PWA field pages deployed until the Expo-web client passes `infra/README-staging.md` §6.9 and ADR-007's two measurements (EXIF through SHA-256, the `capture` attribute) on one iPhone and one Android phone. No task may remove the PWA pages before that. A harness run or a laptop smoke test is evidence toward the gate, not the gate.
+- **Why:** *[2026-09-23, DEV-035: the owner retired the PWA field pages BEFORE this gate («Удалить сейчас», ADR-009 amendment of that date). The measurement below is now the readiness gate of the Expo-web client alone — deployed at Vercel `goproceed-field` (observed serving 2026-09-23 08:32 UTC; deployed commit not observed), which is a foreman's only working path until the Telegram channel is enabled (BL-024). The text below is kept as written.]* ADR-009 keeps `apps/app`'s PWA field pages deployed until the Expo-web client passes `infra/README-staging.md` §6.9 and ADR-007's two measurements (EXIF through SHA-256, the `capture` attribute) on one iPhone and one Android phone. No task may remove the PWA pages before that. A harness run or a laptop smoke test is evidence toward the gate, not the gate.
 - **Evidence:** [STATUS.md](STATUS.md) «PWA field client» row: iPhone measurements from 2026-08-21, none from Android. Runbook §8.3.
 - **Depends on:** BL-002.
 - **Deadline:** none recorded.
-- **Resume:** the owner runs §6.9 on both phones. The coordinator records the measurements in a DEV record and re-observes STATUS; only then may a task retire the PWA field pages.
+- **Resume:** the owner runs §6.9 on both phones. The coordinator records the measurements in a DEV record and re-observes STATUS; only then may a task retire the PWA field pages. *[2026-09-23, DEV-035: the PWA pages were retired before this, by the owner's decision; the measurement now only decides the Expo-web client's readiness.]*
 
 <a id="bl-002"></a>
 ### BL-002 — P2 — The pilot-device inventory does not exist
@@ -463,40 +481,47 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-030"></a>
 ### BL-030 — P2 — The evidence purge worker runs nowhere
 
-- **State:** open
+- **State:** closed → DEV-036
 - **Legacy cite:** `TODOS.md` «the evidence purge worker still runs nowhere»
 - **Why:** deleting bytes needs storage credentials, so `apps/app/src/lib/evidence-purge.ts` needs a runtime. Until it has one, INV-047's 24-hour guarantee is only demonstrated by tests, and a workspace with a quota eventually stops accepting uploads.
 - **Evidence:** `apps/app/vercel.json` has no `crons`; `.github/workflows/` holds only `ci.yml`, with no schedule; `drainEvidencePurge` is called only from `tests/evidence-purge.int.test.ts` and `tests/vertical-m2a.int.test.ts`.
 - **Depends on:** runbook Q-12 (what runs consumers).
 - **Deadline:** before real evidence is stored.
+- **Progress 2026-09-23 ([DEV-036](tasks/DEV-036-evidence-purge-runner.md), unmerged):** on the owner's Q-12 decision for the purge (Vercel Cron, four daily expressions, Hobby), `apps/app/vercel.json` schedules `GET /internal/evidence/purge`; it runs as `goproceed_purge_worker` (`0090`) and answers 500 while a row failed, is exhausted or has waited past 24 hours. The Evidence line above describes `main` before it.
+- **Closed 2026-09-23 by DEV-036:** on the owner's Q-12 decision for the purge (Vercel Cron, four daily expressions, Hobby plan), `GET /internal/evidence/purge` runs the purge as `goproceed_purge_worker` (`0090`), a role with EXECUTE on five `app` functions and a NOINHERIT login of its own (`PURGE_DB_URL`, no fallback); it answers 500 `purge_attention_required` while a row failed, has spent its five attempts or has waited past 24 hours. It runs in an environment once `0090`–`0094` are applied there and `PURGE_DB_URL` and `CRON_SECRET` are set (`infra/README-staging.md` §3.3). Telegram delivery's scheduler stays open under Q-12.
 
 <a id="bl-031"></a>
 ### BL-031 — P2 — Purge claims are not fenced
 
-- **State:** open
+- **State:** closed → DEV-037
 - **Legacy cite:** `TODOS.md` «purge claims are not fenced»
 - **Why:** a worker that stalls past the one-hour reclaim window and resumes can clear a newer worker's claim or spend its retry budget. Theoretical while one caller exists.
 - **Evidence:** `claim_upload_purge` (`0027:63`) marks a timestamp only; `complete_upload_purge` (`0021:89`) and `fail_upload_purge` (`0024:47`) take only the intent id.
 - **Depends on:** BL-030, so the fencing matches the chosen runner.
 - **Deadline:** before a second worker instance runs.
+- **Progress 2026-09-23 ([DEV-037](tasks/DEV-037-purge-claim-fencing.md), unmerged):** `0091` gives every claim a token; complete and fail apply only for it. The Evidence line above describes `main` before it.
+- **Closed 2026-09-23 by DEV-037:** `0091` gives every claim a fresh `purge_claim_token`; complete and fail apply only for it and say whether they did, so a worker whose claim was reclaimed can neither finish the row nor spend its retries; the worker counts such a row as superseded.
 
 <a id="bl-032"></a>
 ### BL-032 — P2 — A deactivated member cannot abandon their own upload through the route
 
-- **State:** open
+- **State:** closed → DEV-038
 - **Legacy cite:** `TODOS.md` «a deactivated member cannot abandon their own upload through the route»
 - **Why:** losing `evidence.record` orphans the bytes at once; losing the membership leaves them until the 24-hour intent TTL. INV-047 asks for prompt purge in both cases.
 - **Evidence:** `apps/app/src/lib/evidence/finalize-upload-intent.ts:76` calls `requireActiveMembership` before any command runs.
 - **Depends on:** a definer for the read, a second authorization path whose only caller is this case.
 - **Deadline:** none recorded (bounded by the TTL).
+- **Progress 2026-09-23 ([DEV-038](tasks/DEV-038-abandon-after-lost-access.md), unmerged):** `app.abandon_unauthorized_upload_intent` (`0092`, `0094`), called by the finalize route after the tenant read refuses, orphans the creator's own intent at once. The Evidence line above describes `main` before it.
+- **Closed 2026-09-23 by DEV-038:** `app.abandon_unauthorized_upload_intent` (`0092`, with `0094` locking only the caller's own intent), a service-only definer, is called by the finalize route after the tenant read refuses; it orphans the intent at once only for its own creator who is no longer an active member with `evidence.record` and the project read. Anyone else gets the refusal they got before.
 
 <a id="bl-033"></a>
 ### BL-033 — P2 — `evidence-storage.ts` puts raw storage keys into error messages
 
-- **State:** open
+- **State:** closed → DEV-034
 - **Legacy cite:** `TODOS.md` «puts raw storage keys into error messages, and they reach the console»
 - **Why:** these are bare `Error`s, so `toProblemResponse` logs them verbatim. `docs/architecture/files-and-storage.md` §Downloads says logs never record «the signed URL or raw storage key». The file is the house style a new helper copies.
 - **Evidence:** `apps/app/src/lib/evidence-storage.ts:65`, `:78`, `:83`, `:102`, `:123` interpolate the key.
+- **Closed 2026-09-23 by DEV-034:** `createSignedUpload`, `putObject`, `downloadObject`, `objectInfo` (formerly `objectSize`) and `removeObject` throw `EvidenceStorageError` through `readFailed`, as the read helpers already did: the message names the operation and the provider's error code, never the key, the bucket or the provider's message. `readFailed` keeps the provider's code only when it is an identifier and adds the status and, without a code, the error's class, so the purge worker's stored reason still says why. A unit test with a fake client covers every throwing helper, including `putObject`'s own upload step, and checks what the log prints (`util.inspect`), not only the message; mutants that put the key back or keep the SDK error as `cause` turn it red. An integration test shows the local storage server's own message names a refused key, then finds neither half of it in ours.
 - **Depends on:** nothing.
 - **Deadline:** none recorded; urgent once logging exists (BL-035).
 
@@ -523,12 +548,14 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-036"></a>
 ### BL-036 — P3 — The evidence route discards `failedKeys`, so a storage outage is a silent HTTP 200
 
-- **State:** open
+- **State:** closed → DEV-039
 - **Legacy cite:** `TODOS.md` «the evidence route discards `failedKeys`»
 - **Why:** one purged object and an unreachable store render the same screen, and an operator cannot tell them apart.
 - **Evidence:** `apps/app/app/v1/assignments/[assignmentId]/evidence/route.ts:116` `const { urls } = await createSignedReadUrls(keys, bucket);`.
 - **Depends on:** BL-035, or a partial-failure field in the contract.
 - **Deadline:** none recorded.
+- **Progress 2026-09-23 ([DEV-039](tasks/DEV-039-unsigned-evidence-logged.md), unmerged):** the route logs `[EVIDENCE_READ_UNSIGNED]` with the request id and counts. A store that does not answer at all was never a silent 200: it throws, and `http.ts` logs the 500 (`gp-reviewer` R1-03). The Evidence line above describes `main` before it.
+- **Closed 2026-09-23 by DEV-039:** the route logs `[EVIDENCE_READ_UNSIGNED]` with the request id and `{ failed, total }`, never a key or URL. The screen and the 200 are unchanged. An unreachable store was never this case: it throws, and `http.ts` logs the 500.
 
 <a id="bl-037"></a>
 ### BL-037 — P3 — Evidence groups are labelled by, and ordered by, a bare occurrence UUID
@@ -599,7 +626,7 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** open
 - **Legacy cite:** `TODOS.md` «subtitle at 390»
 - **Why:** a work item with no work code renders its subtitle as the unit alone («м»).
-- **Evidence:** `apps/app/src/lib/field/assignments.ts:148-150` joins `workCode` and `unitCode` with `filter(Boolean)`; quantity is not part of the line.
+- **Evidence:** `apps/app/src/lib/field/assignments.ts:148-150` joins `workCode` and `unitCode` with `filter(Boolean)`; quantity is not part of the line. *[2026-09-23, DEV-035: that file was deleted with the field PWA; the same join lives in `apps/mobile/src/lib/field/assignments.ts`, which is where this now applies.]*
 - **Depends on:** a copy decision on what the line carries.
 - **Deadline:** none recorded.
 
@@ -658,12 +685,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Deadline:** with that screen.
 
 <a id="bl-049"></a>
-### BL-049 — P3 — `next=/dash` is hard-coded in the dashboard's session-expired redirects
+### BL-049 — P3 — `next=/dash` is hard-coded in the dashboard's session-expired redirects *(now `next=/`, DEV-035)*
 
 - **State:** open
 - **Legacy cite:** `TODOS.md` «is hardcoded in all three `session_expired` arms of»
 - **Why:** a deep link is lost on re-authentication, but only in a same-request race the proxy does not catch. The fix edits the auth gate's cookie-rebuild path.
-- **Evidence:** `apps/app/app/dash/layout.tsx:68`, `:76`, `:98`.
+- **Evidence:** `apps/app/app/dash/layout.tsx:68`, `:76`, `:98`. *[2026-09-23, DEV-035: the file is `apps/app/app/(dash)/layout.tsx` and the literal is `next=/` since the dashboard moved to the root; the defect is unchanged.]*
 - **Depends on:** a `proxy.ts` change, which takes the `gp-architect` and `gp-security` route.
 - **Deadline:** none recorded.
 
@@ -700,9 +727,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-053"></a>
 ### BL-053 — P3 — The dashboard rail's four nav items are disabled placeholders
 
-- **State:** open
+- **State:** closed → DEV-035
 - **Legacy cite:** `TODOS.md` «rail's four nav items read as disabled grey»
-- **Why:** they were placeholders until slices D1–D4; D1–D3 have merged and none of the items is a link. When they become links, two rulings from the removed `.interface-design/system.md` §5 apply, moved here by DEV-007: in the icon band (`rail-icons`, `md` to `wide`) the label stays in the DOM, so the accessible name never depends on a tooltip, which mounts only in that band; and the active item's bar is absolutely positioned, so the label does not shift as you navigate.
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`): the rail's items are real links with `aria-current`, labels `sr-only` in the icon band, no disabled placeholders.]* they were placeholders until slices D1–D4; D1–D3 have merged and none of the items is a link. When they become links, two rulings from the removed `.interface-design/system.md` §5 apply, moved here by DEV-007: in the icon band (`rail-icons`, `md` to `wide`) the label stays in the DOM, so the accessible name never depends on a tooltip, which mounts only in that band; and the active item's bar is absolutely positioned, so the label does not shift as you navigate.
 - **Evidence:** `apps/app/src/components/dash-shell/sidebar.tsx:120` sets `disabled` on every item of `NAV_ITEMS`.
 - **Depends on:** a navigation decision for the merged routes.
 - **Deadline:** none recorded.
@@ -999,11 +1026,12 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-079"></a>
 ### BL-079 — P1 — `outputs/` keeps personal data in git against the project's own rule
 
-- **State:** open
+- **State:** closed → DEV-030
 - **Legacy cite:** none
 - **Why:** DEV-007's `gp-security` review (S1-01, S1-02, S1-05) found personal data of natural persons in the prospecting session that commit `bbfc705` added: buyer-side contact persons in the raw ProZorro search dumps, and sole traders under their personal names with ten-digit identifiers, the length of a personal tax number rather than a company code. The project's rule, live through the `.gitignore` entries headed «personal data under ЗУ «Про захист персональних даних» (doc 40 §B.5)», keeps lead data out of git history and promises retention limits and deletion on request, which a tracked copy cannot honour without rewriting history. The repository is private and nothing deploys or uploads the directory, but every clone, worktree, CI checkout and agent session that reads it holds the data. The owner kept `outputs/` on 2026-09-13 as the prospecting record; this entry is the decision on how it is kept. Ranked by DEV-007 from the review's severity.
 - **Evidence:** the coordinator's counts at `d8a860a` (2026-09-14): the five `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/prozorro_wave{3..7}_search_hits_2026-08-24.json` files hold 6,371 `contactPoint` objects, each with a name and an email (2,444 distinct name–email pairs); 9,788 `edrpou` values of ten digits across 52 files. `docs/legacy/40-phase1-discovery-outreach.md` §B.5; `.gitignore`'s Child B block. The review found no credentials.
 - **Owner decision, 2026-09-15:** move the directory to private storage behind a pointer README; the data stays in `bbfc705` without a history rewrite ([DEV-012](tasks/DEV-012-m0-gate12-evidence.md) Owner decisions).
+- **Closed 2026-09-23 by DEV-030** (owner, 2026-09-15 and 2026-09-23): the 250 files of the session directory were copied from git into `~/GoProceed-private/outputs/` on the owner's machine, outside every clone, with a SHA-256 manifest (`22dbc4d9…df3e94`) that `shasum -c` accepts and blob ids equal to `bbfc705`'s, then removed from the tree. `outputs/README.md` is now a pointer that carries no personal data. The data stays in `bbfc705` and on the GitHub remote (no history rewrite); the backup is the owner's. BL-081's guards are DEV-031, in the same pull request. The private copy's purpose, retention and backup are BL-122; keeping agent sessions out of it is BL-123.
 - **Depends on:** nothing further from the owner for the move; a history rewrite would be a separate decision.
 - **Deadline:** none recorded.
 - **Resume:** *(Superseded 2026-09-15 by the owner decision above.)* The owner chooses: keep the directory with a recorded purpose, lawful basis and retention date; move it to private storage behind a pointer README; or redact the personal fields in place. Moving or redacting leaves the data in `bbfc705` unless history is rewritten, a further owner decision (force-push, every clone re-made). The coordinator then opens a task for the chosen option, and BL-080 and BL-081 follow it.
@@ -1014,18 +1042,19 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **State:** deferred (owner)
 - **Legacy cite:** none
 - **Why:** DEV-007's review (S1-03, S1-04). The unsent A1-N01 outreach pack's own privacy rule promises general corporate addresses without employee names, yet most of its routes are free-mail addresses or mobile numbers, which for a small firm are often the director's own. Tender titles copied verbatim name private customers («Замовник: surname, initials») beside contract numbers and localities, with no bearing on any prospect. Ranked by DEV-007 from the review's severity.
-- **Evidence:** `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/pilot_outreach_A1-N01_2026-08-25.md`: 7 recipient addresses, 6 on free-mail domains (coordinator's count); 101 «Замовник: <surname> <initial>.» matches in 22 files of the same directory (coordinator's count; the review counted 99 with its own pattern).
+- **Evidence:** measured by DEV-007 at `d8a860a` (2026-09-14), before DEV-030 moved the directory to `~/GoProceed-private/outputs/` (2026-09-23; the same files, byte for byte, are in `bbfc705`): `outputs/01a033d9-c008-7011-bf7b-e1dbd14e2e9d/pilot_outreach_A1-N01_2026-08-25.md`: 7 recipient addresses, 6 on free-mail domains (coordinator's count); 101 «Замовник: <surname> <initial>.» matches in 22 files of the same directory (coordinator's count; the review counted 99 with its own pattern).
 - **Depends on:** BL-079.
 - **Deadline:** none recorded.
-- **Resume:** with BL-079 decided, the owner chooses to keep, to redact the routes and the customer names, or to move the pack to the git-ignored `discovery/` store; the coordinator carries it out.
+- **Resume:** with BL-079 decided, the owner chooses to keep or to redact the routes and the customer names; the coordinator carries it out. *(The option to move the pack to the git-ignored `discovery/` store is superseded, 2026-09-23: DEV-030 keeps the data outside every clone, and `discovery/` is inside one.)* Since DEV-030 the pack is in the private copy, and a redaction happens there; it would not reach `bbfc705`.
 
 <a id="bl-081"></a>
 ### BL-081 — P2 — Nothing stops a session from committing prospecting data again
 
-- **State:** open
+- **State:** closed → DEV-031
 - **Legacy cite:** none
 - **Why:** DEV-007's review (S1-09). Commit `bbfc705`, a landing layout change, added the whole session directory in passing, and no ignore rule or validator check would stop the next one. Two guards fit: ignore new session directories under `outputs/` while the existing tree stays tracked, and a validator check that refuses tracked files carrying ProZorro `contactPoint` objects outside approved paths. Ranked by DEV-007 from the review's severity.
 - **Evidence:** `git log --format='%h %s' -- outputs` lists only `bbfc705` «fix(landing): adjust table borders for improved layout consistency»; `.gitignore` has no `outputs` entry.
+- **Closed 2026-09-23 by DEV-031:** `.gitignore` ignores everything under `outputs/` except the pointer README, and every data file in the `discovery/` store (CSV, TSV, ndjson, jsonl, databases, drafts). `scripts/validate-canonical-docs.mjs` reads the index (what a commit records) and refuses: a ProZorro `contactPoint` in the forms a dump takes (an object or array under the key, quoted, unquoted or escaped; a quoted or flattened key such as pandas' `suppliers.0.contactPoint.email`; a YAML block key; a flattened column in a table or delimited file; any occurrence in a CSV, TSV or `.txt`), case-insensitively and in UTF-16 too, never the backticked prose the repository uses; any tracked `outputs/` path but the README; any tracked file the scan cannot read (spreadsheets, archives, PDFs, documents, parquet, SQLite), and any other binary (a NUL byte) but images and fonts, except two approved files (the DBN PDF; a design-reference script with one stray NUL byte); anything in `discovery/` but its prose, `src/` and package files; and any tracked file the repository's own ignore rules cover (forced in with `git add -f`). An approved `contactPoint` file is still scanned for non-synthetic emails and telephones. Over `44e05cd`, the tree before DEV-030, the checks refuse the five ProZorro dumps (6,371 lines), 250 `outputs/` paths and 9 workbooks; over the tree after, nothing. The validator's two `outputs/` exemptions are gone. **Limits:** outside `outputs/`, content and format alone would have refused 14 of the session's 250 files; the other 236 (tax numbers, outreach routes, customers in tender titles) are stopped only by where they sit. The guard reads the tree, not a branch's earlier commits, so a dump committed and then removed passes. `git add -f` passes the ignore rules, and the validator stops it only where someone runs it: CI, once GitHub Actions runs again (October 2026), detects after a push, and nothing prevents a commit. Images are not read. Those follow-ups are BL-124.
 - **Depends on:** BL-079, which decides what may stay tracked.
 - **Deadline:** none recorded.
 
@@ -1094,20 +1123,22 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-088"></a>
 ### BL-088 — P2 — Uploaded images have no dimension, pixel-count or decoding-resource limit
 
-- **State:** open
+- **State:** closed → DEV-033
 - **Legacy cite:** none
 - **Why:** `docs/architecture/files-and-storage.md` «Content validation and malware boundary» (Approved) lists «image dimension/pixel-count and decoding-resource limits» among the controls applied before availability or parsing. The upload path limits bytes (the `evidence` bucket's `file_size_limit`, the per-workspace quota) and checks the type from magic bytes, but nothing bounds an image's dimensions or pixel count, so a small file that decodes to a very large bitmap is accepted as evidence. The exposure is present now: office members' and external reviewers' browsers decode evidence images as soon as a page shows them. A derivative or thumbnail worker, or an export, would add server-side exposure later. Readiness gate 12 names resource-exhaustion controls on uploads. Ranked by DEV-012.
 - **Evidence:** observed 2026-09-15 at `48ba14e`: no dimension or pixel-count check in `apps/app/src/lib/evidence-inspection.ts`, nor anywhere under `apps/app/src/lib`, `apps/app/app` and `packages/domain/src`; [DEV-012](tasks/DEV-012-m0-gate12-evidence.md) row 2.
+- **Closed 2026-09-23 by DEV-033:** finalization reads an image's declared size from its header without decoding it — JPEG by a libjpeg-style segment walk up to the first scan (exactly one frame), PNG by its first chunk (IHDR), HEIC by walking `meta` → `iprp` → `ipco` for every `ispe` and reading each grid's and overlay's declared output size through `iinf`, `iloc` and `idat` — and blocks (`scan_blocked`, 422 `SCAN_REJECTED` with its own sentence) an image over 268,402,689 pixels (0x3FFF², sharp/libvips' default) or 65,535 px on an edge (`image_dimensions_exceeded`), one whose size cannot be read (`image_dimensions_unreadable`, fail closed), and an animated PNG (`image_animated`). The limits admit a 200 MP frame and a 63 MP panorama (`gp-mobile`, sources in the record). Inspection policy `m2a-magic-bytes-2`. **What this bounds is the declared size, not the cost:** a bitmap at the limit, about 1 GB decoded, is still reachable from a file of tens of kilobytes (a flat 1-bit PNG), so the decoding-resource half of this entry is carried by BL-129 (previews) and BL-132 (the channels the parser does not read). Checked on 83 real files (every tracked JPEG and PNG, and HEIC grids made by macOS ImageIO up to 16,000 × 12,000): every size equal to `sips`'s, none blocked. Not checked: files from real phones (BL-131), evidence finalized before this change, PDF. A HEIC or PNG whose structure breaks or is ambiguous (duplicate boxes or item ids, an `iinf` whose entries do not match its count, a top-level `moov`, chunks that do not reach IDAT) and a JPEG marker libjpeg refuses are refused as unreadable.
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment (the browser path is live today), before any server-side image decoding ships, and before readiness gate 12 closes.
 
 <a id="bl-089"></a>
 ### BL-089 — P2 — Office members open evidence inline from Storage with the uploader's content type, without `nosniff` or a sandbox
 
-- **State:** open
+- **State:** closed → DEV-032
 - **Legacy cite:** none
 - **Why:** DEV-012's `gp-security` review (S1-01). The member plane reads evidence through Supabase Storage signed URLs created with no download option (`apps/app/app/v1/assignments/[assignmentId]/evidence/route.ts:116`, `apps/app/src/lib/evidence-storage.ts` `createSignedReadUrls`), so a file is served inline from the Storage origin with the content type stored at upload, which whoever holds the signed upload URL sets on its PUT (the field client, or anyone holding that URL). On the Telegram path the stored type is the claimed type the inspection checked (`apps/app/src/lib/telegram/evidence.ts:199`, `:212`); Telegram's added risk is its less-trusted senders. Finalize checks the bytes against the claimed type from their leading bytes only, and the `evidence` bucket sets no `allowed_mime_types` (`0020`). The external review route already serves the detected type with `nosniff` and a sandbox CSP (`apps/app/app/external/evidence/route.ts:288-336`); the member plane has neither. The owner accepted this for the pilot on 2026-09-15 with revisit triggers (`docs/delivery/production-readiness.md` §12). The cheapest compensating controls are a download (`Content-Disposition: attachment`) on member signed URLs and storing the detected type as the object's content type. Ranked by DEV-012.
 - **Evidence:** observed 2026-09-15 at `48ba14e` by `gp-security` (DEV-012 row 6); unverified: which response headers Supabase Storage sends on a signed read, and whether it serves an HTML or SVG content type as stored.
+- **Closed 2026-09-23 by DEV-032:** two controls. (1) Finalization refuses an object whose stored content type (Storage's metadata, kept verbatim from the upload PUT) is not the type detected from its bytes — strictly: that type in any case, followed only by plain `name=value` parameters, no comma list and no quotes (`stored_type_mismatch`, `scan_blocked`) — so every evidence object finalized from DEV-032 on is served as one of the four allowed types. (2) Every signed read `evidence-storage.ts` issues passes `download: true`, so Storage answers `Content-Disposition: attachment` and a navigation to the URL as issued saves the file. The second is advisory: storage-js appends `download=` outside the signature, and a URL holder can strip it; the first is what makes a stripped URL harmless. Measured on the local stack (storage-api v1.69.0): a JPEG-prefixed HTML polyglot stored as `TEXT/HTML`, or as `image/jpeg;x=1, TEXT/HTML`, was served so and, opened by a signed URL without `download=`, ran its script in Chrome; finalization now blocks both. Storage refuses a second PUT to a finalized key (pinned by a test). An `<img>` — the member plane's only use of these URLs — still shows the image. What stays is BL-126 (hosted Storage unmeasured; the bucket accepts any type on upload).
 - **Depends on:** none.
 - **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere.
 
@@ -1413,9 +1444,9 @@ A priority is the source entry's own where it had one. Entries whose source carr
 <a id="bl-117"></a>
 ### BL-117 — P2 — The office dashboard has not been seen under the Autumn palette or the new typeface
 
-- **State:** open
+- **State:** closed → DEV-035
 - **Legacy cite:** none
-- **Why:** DEV-028 moved the palette and both text faces in `packages/tokens`, so every surface of `apps/app` changed with them, and not one of its screens was rendered during that task. The landing was verified in a browser at seven widths; the dashboard was verified by its build and its types only. The risk is not contrast — every pairing is asserted in `packages/testing/src/contrast.test.ts`, in both themes — but composition: a warm paper a step darker than the old one under dense tables, an ink that is warm rather than cool beside the status chips, and a narrower face in fixed-width columns (the rail, the register's figures, the 32px control heights). Those are the things only a rendered page shows.
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`): the dashboard was rendered at six widths and reduced motion under the Autumn palette and typeface by the `apps/app` harness, and reviewed by `gp-ui-reviewer`.]* DEV-028 moved the palette and both text faces in `packages/tokens`, so every surface of `apps/app` changed with them, and not one of its screens was rendered during that task. The landing was verified in a browser at seven widths; the dashboard was verified by its build and its types only. The risk is not contrast — every pairing is asserted in `packages/testing/src/contrast.test.ts`, in both themes — but composition: a warm paper a step darker than the old one under dense tables, an ink that is warm rather than cool beside the status chips, and a narrower face in fixed-width columns (the rail, the register's figures, the 32px control heights). Those are the things only a rendered page shows.
 - **Evidence:** DEV-028 «What is not true after this task»; `apps/app/qa/field.mjs` now asserts the new font stack (`assertBrandFaces`) but was not run, because the harness needs `apps/app/.env.local` with the database URLs and `NEXT_PUBLIC_SUPABASE_*`, and the local stack is down.
 - **Depends on:** the local Supabase stack, or a deployed preview of `apps/app`. Then `pnpm --filter @goproceed/app qa` and a `gp-ui-reviewer` pass over the screenshots.
 - **Deadline:** before the dashboard is shown to a pilot user.
@@ -1429,3 +1460,189 @@ A priority is the source entry's own where it had one. Entries whose source carr
 - **Evidence:** `gp-qa`, 2026-09-22, cmaps parsed out of the four `.woff2` after Brotli decompression; the CDP platform-font read on the rendered pages.
 - **Depends on:** a decision on the mechanism, which is why it is not a one-line fix: subset one more Unicode block into the Latin face (it grows the file the first screen preloads), swap the character for one the faces do carry, or accept the fallback and say so. The arrow is copy, so the third option is the owner's to take.
 - **Deadline:** none. Cosmetic, one glyph, and older than this task.
+
+<a id="bl-119"></a>
+### BL-119 — P2 — The office dashboard has no direction from the Autumn CRM reference the landing was built to
+
+- **State:** closed → DEV-035
+- **Legacy cite:** none
+- **Why:** *[Closed 2026-09-23 by DEV-035 (PR #110, `3141a33`) for the shell and the project page; what the reference shows beyond them is BL-133 (time series) and BL-134 (dashboard follow-ups).]* on 2026-09-22 the owner supplied five shots of the «Autumn CRM Dashboard» (Barly Design / Uxerflow) and said, in one sentence, both «я хочу что бы наш так выглядел» about the dashboard and «сейчас основная задача - лендинг». DEV-029 did the landing and deliberately did not touch `apps/app`: the one shared component it changed (`FeatureCell`) took an ADDITIVE prop whose default leaves the dashboard byte-identical — and `apps/app` imports neither `FeatureGrid` nor `FeatureCell` at all *[corrected 2026-09-22: this said «Stepper, FeatureCell, Compare»; the other two are byte-identical to base]*. So the direction now exists as tokens and as a vocabulary, and nothing in the product has read it. The shots are dashboards, not marketing pages — the parts that belong to `apps/app` and not to the landing are: the paper sidebar against a white canvas (our `bg-canvas` / `bg-surface` pair already), a tinted icon chip on each KPI card (the four `chip-*` roles exist since DEV-029), a dot-matrix chart in the mark's colour, and an ember primary action. None of those is a token change now; all of them are a design decision on live screens.
+- **Evidence:** the five posters sampled in DEV-029's «Sources» — the reference's paper is `#EAEADF`, its accent `#EE530A`, its primary button `#4C665B` and its outer ground `#0B0907`, which are our `bg-canvas`, `bg-signal`, `text-accent` and `bg-inverse` to within a step. The palette is not what is missing.
+- **Depends on:** BL-117 first — the dashboard has not been seen under the Autumn palette AT ALL, so there is no current screenshot to redesign from. A `gp-architect` pass is not needed (no table, contract or policy), but `docs/design/04-role-pain-map.md`'s rule is: a screen with no named role and no named pain is a guess, and these shots are somebody else's product.
+- **Deadline:** before the dashboard is shown to a pilot user, so that the landing and the product do not disagree in front of one.
+
+<a id="bl-120"></a>
+### BL-120 — P3 — A `bg-`named role used as a foreground escapes the contrast coverage guard
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** `packages/testing/src/contrast.test.ts:147` makes a missing contrast row a suite failure — but only for roles whose name starts `text-`, `border-`, `evidence-` or ends `-fg`. A role named `bg-*` that a component then uses as a FOREGROUND is invisible to it. DEV-029 produced exactly that case and did not notice until `gp-reviewer` did: `bg-mocha` was a gradient-stop role whose ruling said «no surface is ever painted flat in it», and `position.tsx` painted two 120–220px glyphs flat in `text-mocha`. The role has since been deleted, so the instance is gone and the HOLE is not.
+- **Evidence:** `gp-reviewer`, 2026-09-22, DEV-029 review round 1 (m-5); `gp-qa`, same day, finding G — «it will be lost» unless it has a backlog entry.
+- **Depends on:** a decision on the mechanism. Widening the prefix list catches it but also demands a row for every decorative surface; the alternative is a scan of `apps/landing` and `packages/ui/src` for `text-<tw>` / `fill-<tw>` where `<tw>` belongs to a `bg-` role, which is narrower and catches the real case.
+- **Deadline:** none. No live instance today.
+
+<a id="bl-121"></a>
+### BL-121 — P3 — Two browser-harness probes assert their conclusion on a premise that is no longer true
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** two probes in `apps/landing/qa/landing.mjs` need a control shot rather than a bare threshold.
+  1. **`beamPixels`.** Its comment stands on «paper, white and ink are all near-neutral, so the beam is the one chromatic thing here», with a threshold of 8 on any channel pair. Under the Autumn palette that is false: the canvas `#ECE9DF` has an R−B spread of 13 and the board's warm stage `#E8DCCE` one of 26. `gp-qa` measured the contamination directly — **ground alone paints 90px** of the 2px band, against beam readings of 485…1147 over one revolution and a floor of 200. So the floor still discriminates with roughly five times headroom at the beam's weakest phase, and the conclusion survives; the PREMISE in the comment does not, and the number is «beam + ground». The fix is `full − ground`, which needs a CLIP capture at the full run's document coordinates because the beam element cannot be screenshotted while it is `display: none`.
+  2. **The compare pair's `animateChecks` under reduced motion.** `gp-ui-reviewer` found the reduced captures consistently behind the full ones (0 of 3 at 1440, 2 of 4 at 390) and could not tell from stills whether the reduced variant runs the same staged draw — which §4.3 rule 8 forbids — or rests on the final state. `gp-qa` ruled it NOT a defect by reading the source (`Stagger.tsx:41`: the reduced variant is opacity-only and names no transform, and `Compare.tsx`/`Stagger.tsx` are byte-identical to `6d694f6`), but nothing in the harness asserts it. What would: two timed captures of `#compare [data-compare-tone="now"]` under reduced motion at ≈0.5s and ≈3s, asserting the visible check count rises and stalls at 5, plus a computed-style read of each `StaggerItem` asserting `transform: none` throughout.
+- **Evidence:** `gp-reviewer` and `gp-qa`, 2026-09-22, DEV-029. The beam control was measured, read-only, on a throwaway port; its numbers are above.
+- **Depends on:** nothing. Both are additions to `landing.mjs`. They were deliberately NOT made inside DEV-029: changing how the file that produces this project's visual evidence MEASURES deserves its own review rather than a hurried edit at the end of a long task.
+- **Deadline:** before the next task that changes a ground behind the board, because that is the change these probes would fail to catch.
+
+<a id="bl-122"></a>
+### BL-122 — P2 — The private prospecting copy has no recorded purpose, retention date or backup, and erasure cannot reach history
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-030's `gp-security` review (S1-05). The `.gitignore` rule for lead data (doc 40 §B.5) promises retention limits and deletion on request. DEV-030 moved the prospecting session to `~/GoProceed-private/outputs/` but recorded no purpose, lawful basis or retention date for the copy, and no backup exists on record. A request to erase a person's data can reach the private copy and its backups, not commit `bbfc705`, the clones made from it or the GitHub remote (whose cached views and pull-request references need GitHub Support even after a force-push). Whether Time Machine or FileVault cover the owner's disk was not checked. Ranked by DEV-030.
+- **Evidence:** `outputs/README.md` «Backup» row and «What the move did not change»; [DEV-030](tasks/DEV-030-outputs-private-storage.md) «What is not true».
+- **Depends on:** the owner.
+- **Deadline:** before the first outreach send that uses the prospect base, or on the first erasure request, whichever is first.
+- **Resume:** the owner records the copy's purpose and retention date, makes the backup on encrypted media (never a sync service), and decides whether a history rewrite is needed to honour erasure; the coordinator records the decisions in `outputs/README.md`.
+
+<a id="bl-123"></a>
+### BL-123 — P3 — Nothing technical keeps an agent session out of the private prospecting copy
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-030's `gp-security` review (S1-03). `outputs/README.md` tells agent sessions not to open, list, search or hash `~/GoProceed-private/` and not to read or restore the directory from `bbfc705`, but it is prose: a session that reads a file sends it to its model provider, which is the exposure DEV-007 named. A deny rule for that path in `.claude/settings.json` (and the Codex equivalent) would enforce it. That is an agent-instructions change, with its own `gp-reviewer` and `gp-qa`, so DEV-030 did not make it. Ranked by DEV-030.
+- **Evidence:** `outputs/README.md` «Agents stay out»; `.claude/settings.json` has no deny rule for the path (observed 2026-09-23).
+- **Depends on:** nothing.
+- **Deadline:** none recorded.
+
+<a id="bl-124"></a>
+### BL-124 — P2 — The prospecting-data guard detects only after the fact and knows one field
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-031's `gp-security` and `gp-reviewer` reviews (S1-01, S1-05, S1-07; R1-02). BL-081's guards refuse a tracked ProZorro `contactPoint`, anything under `outputs/`, unreadable formats and discovery data files, but: (1) nothing prevents a commit — the validator runs where someone runs it, and CI detects only after a push, when the data is already on the remote and in pull-request refs; a pre-commit or pre-push hook, or a Claude Code hook on `git commit`, would prevent it (an agent-instructions or config change, with its own route); (2) the guard reads the tree, not the commits a branch adds, so a dump committed and then removed passes; a range mode (`origin/main..HEAD`, every blob added) would catch it; and its content rule reads the index, so an edit not yet staged is not scanned and `git commit -a` commits it unscanned — a pre-commit hook, which reads the index, is the right place for it; (3) the content rule knows one field: outside `outputs/`, content and format would have refused 14 of the session's 250 files, and sole traders' ten-digit tax numbers, outreach routes and customers named in tender titles pass it; an approved fixture's names are not checked, only its emails and telephones. Ranked by DEV-031.
+- **Evidence:** [DEV-031](tasks/DEV-031-outputs-guards.md) «What is not true» and its pre-move count (`scratchpad/dev031-r1-pre-move.txt`, cited there).
+- **Depends on:** nothing for (2); the hook in (1) is an agent-instructions or configuration change; (3) needs a detector for Ukrainian personal tax numbers that does not refuse company codes (eight digits) or the catalogs' identifiers.
+- **Deadline:** before the next prospecting session writes files inside a clone.
+
+<a id="bl-125"></a>
+### BL-125 — P3 — Three validator guards read `git ls-files` split by newline and would skip a quoted path
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-031's `gp-reviewer` review (a remark). Guards 11 (stale names) and 12 (the retired workflow) and the TODOS line-citation guard in `scripts/validate-canonical-docs.mjs` split `git ls-files` output by newline. With `core.quotePath` on (git's default), a path with a non-ASCII or special character comes back quoted and escaped, the read fails, and `catch { continue; }` skips the file silently. No such path is tracked today (0 on 2026-09-23), so nothing is skipped yet. DEV-031's guard uses `-z` and raw paths. Ranked by DEV-031.
+- **Evidence:** `git ls-files -z | tr '\0' '\n' | LC_ALL=C grep -c '[^ -~]'` → 0 (2026-09-23); the three `execFileSync("git", ["ls-files"], …)` calls (guards 11 and 12, the TODOS line-citation guard).
+- **Depends on:** nothing.
+- **Deadline:** before a tracked path carries a Cyrillic name.
+
+<a id="bl-126"></a>
+### BL-126 — P2 — Hosted Storage's signed-read behaviour is unmeasured, and the evidence bucket accepts any content type on upload
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-032's reviews (`gp-reviewer` R1-01, `gp-security` S1-01 to S1-04). DEV-032 closed BL-089 on measurements of the local storage API v1.69.0 only: which headers a signed read carries, that `download=` gives `attachment`, that a stripped URL serves the stored type inline, and which stored types Storage rewrites (`text/html` → `text/plain`, but not `TEXT/HTML`). Hosted Storage (its version, its CDN, a custom domain) may differ. And the `evidence` bucket sets no `allowed_mime_types` (`0020`), so Storage accepts any type on the upload PUT; finalization now refuses a mismatch before availability, but a bucket allow-list of the four allowed types would refuse it at the door. A named download (`download: "evidence.<ext>"` from the detected type) would also fix the saved file's name. And objects finalized before DEV-032 were never checked: before real data, compare Storage's `list()` metadata with `evidence_objects.media_type` for every available object in each environment that holds evidence. Ranked by DEV-032.
+- **Evidence:** `scratchpad/dev032-variants.txt`, `dev032-strip.txt`, `dev032-polyglot-browser.txt`, cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md); `supabase/migrations/0020_*` creates the bucket without `allowed_mime_types`.
+- **Depends on:** the owner's authorisation to write a test object to staging, for the hosted measurement; a migration (with `gp-architect`) for the bucket allow-list.
+- **Progress 2026-09-23 ([DEV-040](tasks/DEV-040-evidence-bucket-type-allow-list.md)):** the allow-list half is done in the repository — `0093` sets the `evidence` bucket's `allowed_mime_types` to exactly the four types, and the local storage API refuses any other declared type at the PUT (exact, case-sensitive match; parameters and lists refused). Open: the hosted measurement, the named download, and the stored-type comparison for objects finalized before DEV-032.
+- **Deadline:** before real customer data enters an environment, and before the Telegram webhook is enabled anywhere (BL-089's).
+
+<a id="bl-127"></a>
+### BL-127 — P3 — The Telegram album-exhaustion test wrote two terminal receipts in one of ten runs
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** observed during DEV-032. `apps/app/tests/telegram-evidence.int.test.ts` «waits for retryable album parts, then completes once on retry success or exhaustion» failed once at line 856 (two receipts for message 791 where one is expected) and passed in the nine runs after it; the baseline passed five of five. The 791 part never downloads successfully, so it never reaches finalization, where DEV-032's change lies. Either the test's two back-to-back `processDueTelegramEvidenceRetries` calls race, or the exhaustion path can write its terminal receipt twice — which the product must not do. Ranked by DEV-032.
+- **Evidence:** `scratchpad/dev032-r1-suite-telegram-evidence.txt` (the failure), `dev032-flake-mine-*.txt` and `dev032-baseline-telegram-*.txt` (the reruns), cited in [DEV-032](tasks/DEV-032-evidence-signed-read-download.md).
+- **Depends on:** nothing.
+- **Deadline:** before the Telegram webhook is enabled anywhere.
+
+<a id="bl-128"></a>
+### BL-128 — P3 — A blocked upload keeps its reserved quota until the purge
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report (Q-3). `app.evidence_bytes_in_use` (`0031`) counts every intent that is neither available nor purged, so an upload refused at finalization — now also for its size — holds its reserved bytes until the orphan purge. A field worker retrying a 50 MB panorama five times holds 250 MB of the workspace's quota for the retention window. Whether a `scan_blocked` intent should release its reservation is the owner's decision. Ranked by DEV-033.
+- **Evidence:** `supabase/migrations/0031_upload_state_is_only_commands.sql` (`app.evidence_bytes_in_use`); [DEV-033](tasks/DEV-033-image-size-limits.md).
+- **Depends on:** the owner.
+- **Deadline:** before a workspace quota is set (it is unlimited until a value is set, `0026`).
+- **Resume:** the owner decides whether a blocked intent releases its reservation at once; the coordinator changes the function with `gp-architect`.
+
+<a id="bl-129"></a>
+### BL-129 — P2 — Office and reviewer browsers show evidence originals only: an at-limit bitmap decodes in full, and HEIC does not show in Chrome, Edge or Firefox
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report (Q-2, Q-4) and `gp-security` review (S1-01). The evidence card and the review page render the original in an `<img>`. DEV-033's limits bound the declared size at 268,402,689 pixels, which decodes to about 1 GB: an attacker with `evidence.record` (or a Telegram participant once the webhook is on) can reach that with a file of tens of kilobytes — a flat 1-bit PNG of 16,383 × 16,383 deflates to about 33 KB — and every browser, Safari included, decodes it when the page shows it; several on one page multiply the cost. A legitimate 200 MP photo costs the same. And HEIC renders only in Safari 17 and later, so an office member on Chrome, Edge or Firefox sees a broken image for every iPhone HEIC. A bounded preview derivative (its own hash and key, `files-and-storage.md`) fixes all three; until then, an owner-set pixels-per-byte floor above a baseline (for example, refuse over 24 MP when pixels exceed R × bytes, R calibrated on BL-131's phone files) would cut the reachable ratio, though padding weakens it. A UI and worker task. Ranked by DEV-033.
+- **Evidence:** `apps/app/src/components/evidence/evidence-card.tsx` (`<img src={readUrl}>`, no fallback for an undecodable type); WebKit, «WebKit Features in Safari 17.0» (2023-09-18) for HEIC; Chromium `blink_platform_impl.cc` (`MaxDecodedImageBytes`), cited in DEV-033; DEV-033's `gp-security` S1-01 for the PNG ratio.
+- **Depends on:** nothing for the preview; the owner for a pixels-per-byte floor.
+- **Deadline:** before real customer data enters an environment, in every browser, and before the Telegram webhook is enabled anywhere.
+
+<a id="bl-130"></a>
+### BL-130 — P3 — An AVIF whose brand is `mif1` is detected as `image/heic`
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's `gp-mobile` report. `sniffMediaType` accepts any ISO-BMFF file whose major brand is one of `heic`, `heix`, `hevc`, `hevx`, `mif1`, `msf1` as `image/heic`. `mif1` is the generic HEIF brand, which AVIF files also use, so an AVIF can pass the type check as HEIC although AVIF is not an accepted type. DEV-033's size check still bounds it. Checking the compatible brands for `avif`/`avis` (refuse) would close it. Ranked by DEV-033.
+- **Evidence:** `apps/app/src/lib/evidence-inspection.ts` `sniffMediaType`.
+- **Depends on:** nothing.
+- **Deadline:** none recorded.
+
+<a id="bl-131"></a>
+### BL-131 — P2 — The image size limits and parsers are unchecked against files from real phones
+
+- **State:** deferred (owner)
+- **Legacy cite:** none
+- **Why:** DEV-033 checked its parsers on synthetic headers, every tracked JPEG and PNG, and HEIC grids made by macOS ImageIO. It has no file from a phone: an iPhone HEIF Max photo and panorama, a Samsung 200 MP photo, Motion Photo and scroll capture, a Pixel Ultra HDR photo and Motion Photo. A false refusal of a real capture would block field evidence. Samsung and Pixel panorama widths are unpublished. Ranked by DEV-033.
+- **Evidence:** [DEV-033](tasks/DEV-033-image-size-limits.md) «What is not true» and `gp-mobile`'s acceptance cases 1–6.
+- **Depends on:** the owner, for the sample files (they are personal photos; never committed — a local folder, as `outputs/` is kept).
+- **Deadline:** before the pilot's first field capture.
+- **Resume:** the owner provides the files locally; the coordinator runs `imageDimensions` and `inspectContent` on them and records sizes and outcomes only.
+
+<a id="bl-132"></a>
+### BL-132 — P3 — Image decoding channels the size check does not read: JPEG secondary images, the HEVC stream's own size, progressive scan counts
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-033's reviews (`gp-security` S1-06, `gp-reviewer` R1-05). The size check reads a JPEG's primary frame only: MPF secondary images (Ultra HDR and Apple HDR gain maps, which HDR-capable browsers decode) can declare their own size, up to 65,535², and are not read; refusing MPF outright would refuse ordinary Pixel and Samsung photos, so the fix is to follow the MPF index (bounded) and walk each secondary image. A HEIC's HEVC stream carries its own dimensions (SPS), not compared with `ispe`. A progressive JPEG's scan count (Chrome stops at 100) and a PNG's compressed-data ratio are not bounded (BL-129). Ranked by DEV-033.
+- **Evidence:** [DEV-033](tasks/DEV-033-image-size-limits.md) «What is not true».
+- **Depends on:** nothing.
+- **Deadline:** before real customer data enters an environment.
+
+<a id="bl-133"></a>
+### BL-133 — P3 — The dashboard has no time series, so the reference's chart by month and its period picker have nothing to draw
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-035 built the office dashboard after the owner's Autumn CRM reference (2026-09-23), whose signature chart is a column of cells per MONTH with a «Date range / Compare to» picker above it. No `/v1` read returns anything over time — `blocked-value`, `blocked-reasons` and `readiness` are computed now, for now — so DEV-035 drew the same cell grammar over what does exist (a column per work stage, a cell per blocking requirement occurrence) and built no period control, because a picker with nothing to filter is a dead control. A trend («how long has money been blocked, and is it getting better») is the question the payer persona asks in `docs/design/04-role-pain-map.md` («visible blocked value and cycle-time evidence»); it needs a contract.
+- **Evidence:** DEV-035 «What is not true after this task»; the `/v1/projects/{id}` routes listed in that record's analysis.
+- **Depends on:** a `gp-architect` pass — a new read and its contract (`packages/contracts`, `technical/openapi`), and a decision whether the series is computed from the event history or from a projection.
+- **Deadline:** before the dashboard is shown to a payer as a view of trends.
+
+<a id="bl-134"></a>
+### BL-134 — P3 — Dashboard follow-ups the DEV-035 UI review named and left out of scope
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-035 (2026-09-23) built the shell and the project page after the owner's Autumn CRM reference; its `gp-ui-reviewer` pass named four things outside that scope. (1) The evidence page and the new-assignment form sit outside the project frame: no breadcrumb, and on the evidence page no rail item is current, so a reader loses their place (U1-12). (2) `/dash` lists the same projects as the rail, twice on one screen, and the reference's homepage KPI row is not built (U1-13; the reference's workflow cards are the likely shape). (3) The readiness cell chart's columns carry no stage identity — the contract gives only a machine `stageKey` — so the drawing cannot answer «which stage is behind» (U1-11). (4) The KPI says «Без ціни» where the unvalued register panel says «Без оцінки»; if they are one concept they should be one word (U1-14). (5) Two cosmetic remarks from the second UI round: two-letter monograms nearly fill the rail's 20px project tile (U2-01), and at 390px the «Можна закрити» card sits alone on a second row of small cards (U2-02).
+- **Evidence:** DEV-035's record, «Findings and rework» U1-11…U1-14.
+- **Depends on:** (3) needs a human-readable stage label in the readiness response — a contract change and a `gp-architect` pass.
+- **Deadline:** before the dashboard is shown to a pilot user.
+
+<a id="bl-135"></a>
+### BL-135 — P2 — Loose ends of the field PWA's retirement: apps/mobile's ported headers, its browser pass outside CI, dead icon assets, old `/a/{id}` links
+
+- **State:** open
+- **Legacy cite:** none
+- **Why:** DEV-035 (2026-09-23) removed the field PWA from `apps/app` at the owner's word («удали все что в (app)», «Удалить сейчас», «Всё мёртвое») and left these outside its edit list or for the owner. (1) `apps/mobile/src/lib/field/{assignments,obligations,disclaimer}.ts`, `src/lib/capture/attempt.ts`, `src/lib/safe-next.ts` and `otp-error.ts` still say «the PWA original retires when the Expo client passes the parity gate; until then fix bugs in BOTH files» — the originals are gone, so these copies are canonical now. (2) `disclaimer.ts`'s copy of the довідковий text has no byte-equality guard against `apps/app/src/lib/statutory-act-form.ts`, and the harness that rendered the `apps/app` copy on a screen is gone. (3) `apps/mobile`'s browser pass (`pnpm --filter @goproceed/mobile qa`, `qa/field-web.mjs`) is in no CI job, so no CI browser pass covers the field screens any more (INV-081, INV-086 witnesses). (4) With the manifest removed («Убрать манифест»), `apps/app/public/icon-192.png`, `icon-512.png` and `maskable-icon-512.png` serve nothing; `scripts/generate-brand-icons.mjs` still writes them. (5) A foreman's old `/a/{id}` link or bookmark now signs in and lands on the Ukrainian 404 (`app/not-found.tsx`); a redirect to the field client's same route needs a build-time variable naming its origin (hostnames are tokens, BL-004) and a `gp-security` pass. (6) What an icon installed from the old PWA does on a real iPhone and Android phone after the deploy is not measured (DEV-035 gp-mobile AC-09, AC-10).
+- **Evidence:** DEV-035's record, `gp-mobile` findings M1-03, M1-04, M1-06, M1-07.
+- **Depends on:** (5) an owner decision; (6) BL-002's phones; (3) the Actions billing block.
+- **Deadline:** (1)–(2) before the next `apps/mobile` change; (3) when CI runs again.
+
+<a id="bl-136"></a>
+### BL-136 — P2 — The field client's origin sends no security headers, and its session token is readable by script
+
+- **State:** wontfix (owner)
+- **Legacy cite:** none
+- **Why:** *[2026-09-23, owner: «закрой BL-136, goproceed-field не трогай». Closed without a change to `goproceed-field` or `apps/mobile/vercel.json`: the owner does not take the header set on now. The risk below stands as described and is the owner's accepted risk; reopening it is a new owner decision.]* DEV-035's `gp-security` pass (S1-01, 2026-09-23). With the `apps/app` PWA retired, `apps/mobile`'s web export at Vercel `goproceed-field` is the only web field client, and `apps/mobile/vercel.json` sets no `headers`: no Content-Security-Policy, no `frame-ancestors`, no `X-Content-Type-Options`, no `Referrer-Policy`. Its Supabase session (including the refresh token) lives in `window.localStorage` (`apps/mobile/src/lib/supabase.ts`, supabase-js's default on web), so any script injected on that origin can read it — a durable account takeover until the session is revoked. The same script-readability holds for `apps/app`'s session cookies (`httpOnly: false`, `@supabase/ssr`'s default), so the gap predates DEV-035; the retirement only makes the field origin the one that matters for foremen. `technical/asvs-profile.csv` ASVS-CONFIG-01 («security headers and CSP enforced») is `specified_no_runtime_evidence`.
+- **Evidence:** DEV-035's record, `gp-security` S1-01; `apps/mobile/vercel.json`; `docs/architecture/tenancy-and-security.md` (the 2026-09-23 note on the web field client).
+- **Depends on:** a `gp-security` design of the header set (a `script-src 'self'` CSP with no third-party scripts, `frame-ancestors 'none'`, `nosniff`, a `Referrer-Policy`) and a header assertion in `apps/mobile/qa`.
+- **Deadline:** before a pilot foreman signs in on the field origin.

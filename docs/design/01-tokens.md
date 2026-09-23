@@ -62,6 +62,20 @@ to point at, and so a chart or a generated asset can walk a scale.
 | `neutral-950` | `#1D1818` | 0.215, 0.008, 17.79 | 14.45 | 1.12 | The kit's #1D1818 — the inverse working surface, dark mode's panel, authored now and not shipped (D6). |
 | `neutral-975` | `#0C0C0A` | 0.1535, 0.0042, 106.88 | 16.12 | 1.00 | INK — the brand kit's black #0C0C0A, exactly. Primary text and the primary action fill, 16.12:1 on the canvas. Warm like the paper, not its opposite: in this palette the temperature is carried by ember and pine, not by the distance between ink and paper. |
 
+### `clay`
+
+| Token | Hex | OKLCH (L, C, H) | on canvas | on ink | Ruling |
+|---|---|---|---:|---:|---|
+| `clay-50` | `#F3EDE4` | 0.9483, 0.013636, 78.26 | 1.04 | 16.82 | The faintest warm wash — half a step off the paper, for a highlight that must not read as a panel. It is NOT the tint block: measured against the canvas it stands 7 of 255 in its strongest channel, which on a screen is nothing, and a whole revision of DEV-029 shipped washes nobody could see because this rung was doing that job. Carries ink at 16.82:1. |
+| `clay-100` | `#E8DCCE` | 0.9003, 0.023012, 71.77 | 1.11 | 14.51 | THE WARM TINT BLOCK. 17 of 255 off the paper in its strongest channel — the smallest step that is honestly visible — and the ground the footer, the FAQ band and every warm wash stand on. Carries ink at 14.51:1 and secondary copy at 6.36:1; muted copy clears the body floor at 4.65:1 with little to spare, which is why dense copy on this ground takes the secondary rung instead. |
+| `clay-200` | `#D8C6B0` | 0.8356, 0.036115, 72.83 | 1.37 | 11.77 | Two jobs, and they never meet on one surface. It is the warm hairline — 1.37:1 on the canvas, the same order as the neutral border ladder — and it is the warm index chip, which carries clay-800 at 6.90:1. The chip only ever sits on paper or on a white cell, never on the tint block whose edge this also draws. |
+| `clay-300` | `#C8B8A0` | 0.7896, 0.037628, 78.06 | 1.60 | 10.09 | The reference's mid taupe. The warm index chip's mark in the dark theme, at 7.06:1 on clay-900. Its earlier ruling called it «the light end of the mocha gradient»; that gradient was removed with the landing's dark ground on 2026-09-22. |
+| `clay-500` | `#A07858` | 0.6044, 0.067664, 59.69 | 3.25 | 4.96 | A mid warm brown, held for the dark theme and unreferenced by any role today. Its chroma is 0.0677 against ember's 0.2125 — under a third — and that ratio, not its hue, is what keeps a warm brown from being read as the mark; `palette-derivation.test.ts` holds it under 0.4. It was the mocha behind the product for one revision, until the owner removed the dark ground the mocha was mixed onto. |
+| `clay-600` | `#8A6446` | 0.5351, 0.065694, 59.05 | 4.33 | 3.72 | A deep warm brown, held for the dark theme. No role names it today; it was the mocha gradient's own colour until that gradient was removed on 2026-09-22. |
+| `clay-700` | `#705038` | 0.4596, 0.056352, 57.66 | 5.97 | 2.70 | The reference's deep mocha, sampled from its Insight shot. Held for the dark theme; no role names it today. |
+| `clay-800` | `#4A3527` | 0.3489, 0.038115, 54.79 | 9.45 | 1.71 | The warm index chip's mark: 6.90:1 on clay-200. In the dark theme it is the warm hairline instead. |
+| `clay-900` | `#3A2A20` | 0.3007, 0.029547, 53.29 | 11.28 | 1.43 | The warm tint's ground in the dark theme. Carries the dark theme's ink at 11.28:1. |
+
 ### `ember`
 
 | Token | Hex | OKLCH (L, C, H) | on canvas | on ink | Ruling |
@@ -127,7 +141,7 @@ to point at, and so a chart or a generated asset can walk a scale.
 | `danger-200` | `#FED4D3` | 0.905, 0.048, 20 | 1.11 | 14.52 | Blocked chip border. |
 | `danger-300` | `#FAB7B6` | 0.84, 0.078, 20 | 1.38 | 11.67 | Blocked foreground in dark mode (8.15:1 on danger-900). |
 | `danger-500` | `#DE4451` | 0.61, 0.19, 20 | 3.42 | 4.71 | Icon and bar weight. Autumn moved the family from hue 26 to hue 20 — the legacy red sat fourteen degrees from the brand's orange, which is not a distance a colour-blind reader, or any reader, can be asked to judge. |
-| `danger-600` | `#C71336` | 0.53, 0.205, 20 | 4.84 | 3.33 | The one solid destructive fill: white on it measures 5.87:1. Nothing under /app/** deletes anything, so this exists for the field client and for refusal states, not for a destructive button variant. |
+| `danger-600` | `#C71336` | 0.53, 0.205, 20 | 4.84 | 3.33 | The one solid destructive fill: white on it measures 5.87:1. It exists for refusal states, not for a destructive button variant — there is none (DEV-035, 2026-09-23: the field PWA it once also served was retired, and with it the variant's only call site). |
 | `danger-700` | `#A3122C` | 0.46, 0.175, 20 | 6.45 | 2.50 | Blocked text: 6.68:1 on danger-100, 6.45:1 on canvas. Also the evidence-blocking foreground. |
 | `danger-800` | `#7E1825` | 0.39, 0.135, 20 | 8.46 | 1.91 | Densest blocked text, for a blocked figure inside a dense table. |
 | `danger-900` | `#55181D` | 0.31, 0.09, 20 | 11.26 | 1.43 | Blocked ground in dark mode. |
@@ -182,6 +196,11 @@ turning it on is a decision rather than a project.
 | `bg-signal` | `signal` | `ember-500` `#FF5B04` | `ember-500` `#FF5B04` | The signal ground, in both themes: the kit's orange, the brand's SECONDARY colour (owner, 2026-09-22). It is the spark of the system — the one accent action a screen may carry, and the light travelling on a dark pill — and it is scarce by contract. (The mark's dot was the third, until the owner made it the primary on 2026-09-22.) It carries INK, not white (6.29:1 against 3.11:1). |
 | `bg-overlay` | `overlay` | `neutral-975` @ 32% | `neutral-975` @ 56% | Scrim behind a dialog or the off-canvas rail. Alpha is held apart from the hex here for the same reason it is everywhere else: React Native composes it differently. |
 | `bg-accent-soft` | `accent-soft` | `pine-100` `#E2F1EA` | `pine-900` `#152C24` | The accent as a ground under copy: a wash at a tenth of the primary, never a fill behind body text at full strength. |
+| `bg-tint-warm` | `tint-warm` | `clay-100` `#E8DCCE` | `clay-900` `#3A2A20` | The warm tint block. A section or a card ground that is neither the page nor a sheet — the reference's mocha panel, one honest step of warmth off the paper. It never replaces `bg-canvas` for a whole page; it marks ONE block, which is the whole point of it. It was clay-50 for one revision and that was the mistake: seven units off the paper is a tint that only exists in the stylesheet. |
+| `bg-chip-clay` | `chip-clay` | `clay-200` `#D8C6B0` | `clay-900` `#3A2A20` | Decorative index tint, warm, and a step deeper than the warm GROUND so the two are never confused. The four chip tints tell an ENUMERATION apart — an 01/02/03/04, a role, a channel — and they are never a state: five statuses is the catalog, and a sixth colour reading as one is how a legend stops being true. A chip tint never shares a cell with a status chip. |
+| `bg-chip-violet` | `chip-violet` | `violet-100` `#F0EBFC` | `violet-900` `#36284D` | Decorative index tint, cool. Violet is the safe counter-tint here because it is already data-visualisation only and never a status; cobalt is not available for this, it carries the review state. |
+| `bg-chip-pine` | `chip-pine` | `pine-50` `#EFF7F4` | `pine-900` `#152C24` | Decorative index tint, green. The faintest pine wash, one rung lighter than `bg-accent-soft`, so a decorative chip is never mistaken for a selected state. |
+| `bg-chip-stone` | `chip-stone` | `neutral-50` `#E6E2D7` | `neutral-900` `#2A2524` | Decorative index tint, neutral. The fourth of four: an enumeration longer than three needs a quiet member, and a fifth hue would be a colour nobody can name. |
 
 ### Text
 
@@ -197,6 +216,10 @@ turning it on is a decision rather than a project.
 | `text-link` | `link` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | A link, in the primary: 6.30:1 on canvas, 7.65:1 on white, 10.30:1 in dark. |
 | `text-brand` | `brand` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | The brand as a word — the primary. Held for a word that has to read as the brand. The landing's own wordmark is ink, with the primary on the mark's dot beside it — the owner's arrangement of 2026-09-22. |
 | `text-accent` | `accent` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | THE ACCENT, and since 2026-09-22 the brand's PRIMARY colour: the kit's deep green. 6.30:1 on the canvas, so unlike the orange it replaced here it is safe at any size — the highlighted phrase in a display heading, and the colour a canvas ornament reads from its computed `color` on the landing. |
+| `text-chip-clay` | `chip-clay-fg` | `clay-800` `#4A3527` | `clay-300` `#C8B8A0` | The warm index tint's mark. 6.90:1 on its own ground in light, 7.06:1 in dark. |
+| `text-chip-violet` | `chip-violet-fg` | `violet-700` `#60438D` | `violet-300` `#D0C3EB` | The cool index tint's mark. 6.70:1 on its own ground in light, 8.09:1 in dark. |
+| `text-chip-pine` | `chip-pine-fg` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | The green index tint's mark. 7.03:1 on its own ground in light, 7.79:1 in dark. |
+| `text-chip-stone` | `chip-stone-fg` | `neutral-700` `#514B46` | `neutral-400` `#A5A19E` | The neutral index tint's mark. 6.64:1 on its own ground in light, 5.90:1 in dark. |
 
 ### Structure
 
@@ -209,6 +232,7 @@ turning it on is a decision rather than a project.
 | `border-focus` | `focus` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | One focus treatment on every ordinary ground, in the primary: 6.30:1 on canvas and 7.65:1 on white, both far past the 3:1 a focus ring owes. On the INVERSE surface it measures 2.56:1 and must not be used — `border-focus-inverse` is the ring there, and `base.css` switches to it inside `bg-inverse`. |
 | `border-focus-inverse` | `focus-inverse` | `pine-300` `#A0C4B4` | `pine-700` `#395A4D` | The focus ring inside an inverse surface — the field client's chrome, the phone frames, any marketing band on ink. The ordinary ring is the primary at 2.56:1 against that ground, which is under the 3:1 WCAG 2.1 §1.4.11 asks of a focus indicator; this rung measures 10.30:1. Both themes are the same idea and swap rungs, because «inverse» inverts with the theme. |
 | `border-accent` | `line-accent` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | The accent as an edge: 7.65:1 on white, 6.30:1 on canvas. |
+| `border-warm` | `line-warm` | `clay-200` `#D8C6B0` | `clay-800` `#4A3527` | The warm tint block's own edge, so a tinted panel is not outlined in a cooler line than its fill. 1.37:1 on the canvas. |
 
 ### Action
 
@@ -217,9 +241,12 @@ turning it on is a decision rather than a project.
 | `action-primary-bg` | `action` | `neutral-975` `#0C0C0A` | `neutral-0` `#FFFFFF` | D1: ink is the action colour. Primary buttons are near-black, exactly as Folio and Linear. This is what removes the readable-accent problem from the system entirely rather than working around it. |
 | `action-primary-fg` | `action-fg` | `neutral-0` `#FFFFFF` | `neutral-975` `#0C0C0A` | The primary action's label. 19.58:1 — the highest-contrast pair in the system, which is what a control that commits money should carry. |
 | `action-primary-hover` | `action-hover` | `neutral-900` `#2A2524` | `neutral-150` `#D9D6CD` | One step off ink. |
-| `action-signal-bg` | `action-signal` | `ember-500` `#FF5B04` | `ember-500` `#FF5B04` | The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none. |
+| `action-signal-bg` | `action-signal` | `ember-500` `#FF5B04` | `ember-500` `#FF5B04` | The one accent action a screen may carry — the secondary as a fill. At most one per screen; the landing carries none. It carries ink, never white. (DEV-029: the landing carried one per page for one pass; the owner took it off.) |
 | `action-signal-fg` | `action-signal-fg` | `neutral-975` `#0C0C0A` | `neutral-975` `#0C0C0A` | Ink on the accent action: 6.29:1. |
 | `action-signal-hover` | `action-signal-hover` | `ember-600` `#D84A00` | `ember-600` `#D84A00` | The accent action pressed: one rung down, ink still at 4.57:1. |
+| `action-brand-bg` | `action-brand` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | The dashboard's primary action in the brand's primary (owner, 2026-09-23: «Зелёная, как в Autumn»). `apps/app` only — the landing's actions stay the ink pill. White on it measures 7.65:1. |
+| `action-brand-fg` | `action-brand-fg` | `neutral-0` `#FFFFFF` | `neutral-975` `#0C0C0A` | The brand action's label: white on pine in light, ink on the light pine rung in dark. |
+| `action-brand-hover` | `action-brand-hover` | `pine-800` `#274439` | `pine-200` `#CBE3D8` | The brand action pressed: one rung deeper, so the label only gains contrast. |
 | `action-ghost-hover` | `action-ghost-hover` | `neutral-100` `#E0DCD1` | `neutral-900` `#2A2524` | Chrome hover. |
 
 ### Status
@@ -254,6 +281,8 @@ turning it on is a decision rather than a project.
 
 | Role | Utility | Light | Dark | Ruling |
 |---|---|---|---|---|
+| `viz-brand` | `viz-brand` | `pine-700` `#395A4D` | `pine-300` `#A0C4B4` | The dashboard's one-series data mark — a filled cell of a count, a tick of a bar — in the brand's primary (owner, 2026-09-23: «Зелёный + акцент»: data in pine, ember only for a highlighted cell). A mark, not a wash: nothing is read through it. 7.65:1 on white, so a single cell survives as a non-text mark. |
+| `viz-empty` | `viz-empty` | `neutral-150` `#D9D6CD` | `neutral-800` `#403C39` | The empty cell beside `viz-brand`: the slot a count has not filled. Paler than any line so the filled cells carry the figure; the count is always also written in text. |
 | `viz-1` | `viz-1` | `cobalt-600` `#2440D9` | `cobalt-300` `#9AAAFF` | First categorical series. |
 | `viz-2` | `viz-2` | `green-600` `#1C8742` | `green-300` `#8CD99C` | Second categorical series. |
 | `viz-3` | `viz-3` | `amber-600` `#BA8400` | `amber-300` `#EDC06B` | Third categorical series. |
@@ -269,7 +298,7 @@ lightness shift between the surface roles; there is no elevation ladder.
 
 | Token | Value | Ruling |
 |---|---|---|
-| `raised` | `0px 1px 2px 0px rgba(12, 12, 10, 0.04)` | The role grid cell at rest. Structure is border-led; a panel gets no shadow at all. |
+| `raised` | `0px 1px 2px 0px rgba(12, 12, 10, 0.04)` | The role grid cell at rest, and since 2026-09-23 (DEV-035, owner: «Как в Autumn») the dashboard's work sheet, its panels, its KPI cards and the current navigation item in `apps/app`: the reference's cards lift by this much and no more. Structure is still border-led — the border draws the edge, this only seats it. |
 | `overlay` | `0px 12px 30px -16px rgba(12, 12, 10, 0.35)` | The floating pills over the product frame, compact callouts, a popover. |
 | `modal` | `0px 8px 24px 0px rgba(12, 12, 10, 0.08), 0px 24px 64px 0px rgba(12, 12, 10, 0.12)` | The only things that cover content: dialog and the off-canvas rail. Under D2 the rail is no longer dark, so this shadow now carries the whole 'this covers content' signal that colour used to carry with it. |
 | `float` | `0px 20px 50px -30px rgba(12, 12, 10, 0.22), 0px 1px 2px 0px rgba(12, 12, 10, 0.05)` | The prototype's --sh: the board, the receipt, the form, the route cards and the «now» card. Marketing only. |
@@ -345,7 +374,7 @@ lightness shift between the surface roles; there is no elevation ladder.
 | `control` | `6px` | v1, kept. Buttons, inputs, chips inside /app/**. A register is not a set of cards. |
 | `field` | `8px` | New. Folio's most frequent radius by a wide margin (301 elements at 8px against 89 at 6px). Marketing controls and evidence tiles. |
 | `panel` | `10px` | v1, kept. Panels and cards inside /app/**. |
-| `card` | `12px` | Marketing only: the prototype's --r 12px — the figure, the form, the needs cells. |
+| `card` | `12px` | The prototype's --r 12px — the figure, the form, the needs cells — and since 2026-09-23 (DEV-035) the dashboard's work sheet, the one outer instrument of `apps/app`'s shell. |
 | `surface` | `14px` | Marketing only: route cards, the role grid, bento cells, compare cards, channel cards, the board. |
 | `section` | `16px` | Marketing only: the closing CTA card. |
 | `pill` | `999px` | v1, kept. Status chips, indicators, the floating nav, pill CTAs. |

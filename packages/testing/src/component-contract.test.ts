@@ -222,26 +222,50 @@ describe("colour cannot escape the token layer", () => {
 });
 
 describe("rulings that a variant would quietly undo", () => {
-  it("Button's destructive variant has exactly one call site", () => {
-    // [Correction, 2026-09-05.] This ruling used to read «Button has no
-    // destructive variant: nothing under /app/** deletes anything». That
-    // stopped being true when the field client's capture island shipped
-    // «Скасувати фото» — it drops a photo the server does not have,
-    // irreversibly — and the field client answered by keeping a private
-    // Button with the variant (apps/app/src/ui/button.tsx, deleted 2026-09-05).
-    // One Button for the system, then; and the variant is held to the shape
-    // of the old ruling by COUNTING its call sites. A second irreversible
-    // action is a deliberate act that edits this number, never a drift.
-    expect(code("Button.tsx")).toMatch(/destructive:/);
+  it("Button has no destructive variant, and nothing asks for one", () => {
+    // [2026-09-23, DEV-035.] Back to the original ruling: «Button has no
+    // destructive variant». From 2026-09-05 it carried one for the field
+    // PWA's «Скасувати фото» and this test counted its single call site; the
+    // owner retired that client, so the variant went with its only caller.
+    // A new irreversible action re-adds it as a decision, not as a drift.
+    expect(code("Button.tsx")).not.toMatch(/destructive:/);
     const callSites: string[] = [];
+    let scanned = 0;
     for (const root of ["apps/app/app", "apps/app/src", "apps/landing/app", "apps/landing/components"]) {
       for (const file of walkTsx(join(repoRoot, root))) {
-        if (file.includes("kitchen-sink") || /\.test\.tsx?$/.test(file)) continue;
-        const text = readFileSync(file, "utf8");
-        if (/variant=["']destructive["']/.test(text)) callSites.push(relative(repoRoot, file));
+        if (/\.test\.tsx?$/.test(file)) continue;
+        scanned += 1;
+        if (/variant=\{?["']destructive["']/.test(readFileSync(file, "utf8"))) callSites.push(relative(repoRoot, file));
       }
     }
-    expect(callSites).toEqual(["apps/app/app/(app)/a/[assignmentId]/capture.tsx"]);
+    expect(callSites).toEqual([]);
+    // Positive control: an empty walk must not pass as «no call site».
+    expect(scanned).toBeGreaterThan(20);
+  });
+
+  it("Button's brand variant lives in the dashboard and nowhere on the landing", () => {
+    // DEV-035 (owner, 2026-09-23: «Зелёная, как в Autumn»): the dashboard's
+    // primary action is pine; the landing's actions stay the ink pill («оставь
+    // только черные с бордером», DEV-029). The kitchen sink shows the variant
+    // and is the one landing file allowed to.
+    expect(code("Button.tsx")).toMatch(/brand:/);
+    const brand = /variant=\{?["']brand["']/;
+    const landing: string[] = [];
+    let scanned = 0;
+    for (const root of ["apps/landing/app", "apps/landing/components"]) {
+      for (const file of walkTsx(join(repoRoot, root))) {
+        if (file.includes("kitchen-sink") || /\.test\.tsx?$/.test(file)) continue;
+        scanned += 1;
+        if (brand.test(readFileSync(file, "utf8"))) landing.push(relative(repoRoot, file));
+      }
+    }
+    expect(landing).toEqual([]);
+    // Positive controls: the walk saw the landing, and the pattern catches the
+    // one place allowed to show the variant — so an empty result above means
+    // «none», not «looked nowhere» (DEV-035 review, R1-09).
+    expect(scanned).toBeGreaterThan(10);
+    expect(brand.test(readFileSync(
+      join(repoRoot, "apps/landing/app/kitchen-sink/components/page.tsx"), "utf8"))).toBe(true);
   });
 
   it("Button defines no focus ring of its own", () => {

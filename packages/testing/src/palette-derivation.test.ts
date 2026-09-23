@@ -135,6 +135,20 @@ describe("the brand sheet survives the revision", () => {
     const [, brand] = colors["pine-700"]!.oklch;
     expect(brand / ready).toBeLessThan(0.4);
   });
+
+  // [2026-09-22, DEV-029] The warm ground ramp. Clay sits 20 degrees from
+  // ember, which is inside the distance every STATUS family owes the mark — and
+  // deliberately so: it is the same autumn family, which is why the reference's
+  // mocha and its orange belong on one screen. Hue therefore cannot be what
+  // separates them, so chroma is, exactly as it is for pine against the ready
+  // green: a desaturated brown beside a saturated orange. Measured 0.0677
+  // against 0.2125, a ratio of 0.32. Without this guard the ramp could drift
+  // saturated one step at a time until the page carried two sparks.
+  it("keeps the warm ground desaturated where the mark is not", () => {
+    const [, ground] = colors["clay-500"]!.oklch;
+    const [, mark] = colors["ember-500"]!.oklch;
+    expect(ground / mark).toBeLessThan(0.4);
+  });
 });
 
 describe("paper and ink share one warm axis, and measurably so", () => {

@@ -42,22 +42,38 @@ import { TwoTone } from "./two-tone";
  * вокруг глобуса, но не на самом глобусе»: the grid is barred from the dome's
  * DISC — which `ParticleSphere` publishes on its box — and no longer from the
  * whole strip the dome stands in; the cells beside the dome answer again.
+ *
+ * [2026-09-22, DEV-029] The dome stood on the inverse ground for one revision
+ * and it was the clearest case of the mistake the owner threw out on sight:
+ * «те темные блоки вообще как-то не к чему, не вписываются». In the reference
+ * the near-black is the backdrop a LIGHT PRODUCT is photographed against — a
+ * laptop, an application panel. What lay on ours was a cloud of pine dots at
+ * 2.55:1 against that ground, so the band read as a black rectangle with almost
+ * nothing in it. The dome is back on paper, where its haze was tuned over seven
+ * rounds to sit.
  */
 export function Facts() {
   const f = landingContent.facts;
   return (
     <section id="facts" tabIndex={-1} className="landing-gridfield relative isolate scroll-mt-20 overflow-hidden">
       <CellField pitch={62} strength={0.16} exclude="[data-particle-sphere], [data-tiles]" className="absolute inset-0 -z-10 h-full w-full text-accent" />
-      <div className="px-4 pb-20 pt-20 md:px-8 md:pb-28 md:pt-28 wide:px-12 wide:pb-32">
-        <div className="flex flex-wrap items-end justify-between gap-6">
+      <div className="py-20 md:py-28">
+        <div className="landing-inset flex flex-wrap items-end justify-between gap-6">
           <TwoTone lead={f.lead} rest={f.rest} />
           <Reveal size="stately"><PillLink href={f.actionHref}>{f.action}</PillLink></Reveal>
         </div>
-        {/* A box of its own, because `Stagger` forwards no attribute: `data-tiles` is what the grid's `CellField` is barred from. */}
-        <div data-tiles="" className="mt-12">
-          <Stagger className="grid border border-line-strong bg-subtle md:grid-cols-2 wide:grid-cols-4">
+        {/* A box of its own, because `Stagger` forwards no attribute: `data-tiles` is what the grid's `CellField` is barred from.
+          * [2026-09-22, DEV-029, owner: «бордеры по бокам двойные».] The strip is full-bleed, so it draws only its top and
+          * bottom — its sides are the page frame's. A tile draws a right edge only where a tile follows it in the row
+          * (2 × 2 at md, 4 × 1 at wide), and the bottom-left tile of the 2 × 2 no bottom edge, for the same reason.
+          * The box is an 8px paper moat round the strip: the section's 62px lattice starts at the section's top and the
+          * strip's place depends on how the heading wraps, so at some widths a lattice row fell 1.5px from the strip's
+          * edge and read as a second border (`gp-ui-reviewer` U3-01, 1000px). No lattice line can touch it now.
+          * `mt-10` + `py-2` keeps the 48px the strip stood below the heading at. */}
+        <div data-tiles="" className="mt-10 bg-canvas py-2">
+          <Stagger className="grid border-y border-line-strong bg-subtle md:grid-cols-2 wide:grid-cols-4">
           {f.tiles.map((tile) => (
-            <StaggerItem key={tile.label} size="stately" className="border-b border-line-strong px-6 py-6 transition-colors duration-base ease-out last:border-b-0 hover:bg-surface md:border-r md:last:border-r-0 wide:border-b-0">
+            <StaggerItem key={tile.label} size="stately" className="border-b border-line-strong px-6 py-6 transition-colors duration-base ease-out last:border-b-0 hover:bg-surface md:border-r md:even:border-r-0 md:[&:nth-child(3)]:border-b-0 wide:border-b-0 wide:[&:nth-child(2)]:border-r">
               <p data-fact="" className="display text-mkt-display-3 font-medium tracking-tight text-ink">{tile.value}</p>
               <p className="mt-1.5 text-body text-ink-muted">{tile.label}</p>
             </StaggerItem>

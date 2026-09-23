@@ -19,6 +19,15 @@
   --gp-neutral-900: #2A2524;
   --gp-neutral-950: #1D1818;
   --gp-neutral-975: #0C0C0A;
+  --gp-clay-50: #F3EDE4;
+  --gp-clay-100: #E8DCCE;
+  --gp-clay-200: #D8C6B0;
+  --gp-clay-300: #C8B8A0;
+  --gp-clay-500: #A07858;
+  --gp-clay-600: #8A6446;
+  --gp-clay-700: #705038;
+  --gp-clay-800: #4A3527;
+  --gp-clay-900: #3A2A20;
   --gp-ember-50: #FFF2EA;
   --gp-ember-100: #FFE8DA;
   --gp-ember-200: #FFCFB7;
@@ -203,6 +212,9 @@
   --gp-action-signal-bg: var(--gp-ember-500);
   --gp-action-signal-fg: var(--gp-neutral-975);
   --gp-action-signal-hover: var(--gp-ember-600);
+  --gp-action-brand-bg: var(--gp-pine-700);
+  --gp-action-brand-fg: var(--gp-neutral-0);
+  --gp-action-brand-hover: var(--gp-pine-800);
   --gp-action-ghost-hover: var(--gp-neutral-100);
   --gp-status-ready-surface: var(--gp-green-100);
   --gp-status-ready-border: var(--gp-green-200);
@@ -222,6 +234,8 @@
   --gp-evidence-satisfied: var(--gp-green-700);
   --gp-evidence-pending: var(--gp-amber-800);
   --gp-evidence-blocking: var(--gp-danger-700);
+  --gp-viz-brand: var(--gp-pine-700);
+  --gp-viz-empty: var(--gp-neutral-150);
   --gp-viz-1: var(--gp-cobalt-600);
   --gp-viz-2: var(--gp-green-600);
   --gp-viz-3: var(--gp-amber-600);
@@ -230,6 +244,16 @@
   --gp-text-accent: var(--gp-pine-700);
   --gp-border-accent: var(--gp-pine-700);
   --gp-bg-accent-soft: var(--gp-pine-100);
+  --gp-bg-tint-warm: var(--gp-clay-100);
+  --gp-border-warm: var(--gp-clay-200);
+  --gp-bg-chip-clay: var(--gp-clay-200);
+  --gp-text-chip-clay: var(--gp-clay-800);
+  --gp-bg-chip-violet: var(--gp-violet-100);
+  --gp-text-chip-violet: var(--gp-violet-700);
+  --gp-bg-chip-pine: var(--gp-pine-50);
+  --gp-text-chip-pine: var(--gp-pine-700);
+  --gp-bg-chip-stone: var(--gp-neutral-50);
+  --gp-text-chip-stone: var(--gp-neutral-700);
   /* component values that are not derivable from a role */
   --gp-rail-width-wide: 240px;
   --gp-rail-width-collapsed: 68px;
@@ -279,6 +303,9 @@
   --gp-action-signal-bg: var(--gp-ember-500);
   --gp-action-signal-fg: var(--gp-neutral-975);
   --gp-action-signal-hover: var(--gp-ember-600);
+  --gp-action-brand-bg: var(--gp-pine-300);
+  --gp-action-brand-fg: var(--gp-neutral-975);
+  --gp-action-brand-hover: var(--gp-pine-200);
   --gp-action-ghost-hover: var(--gp-neutral-900);
   --gp-status-ready-surface: var(--gp-green-900);
   --gp-status-ready-border: var(--gp-green-800);
@@ -298,6 +325,8 @@
   --gp-evidence-satisfied: var(--gp-green-300);
   --gp-evidence-pending: var(--gp-amber-300);
   --gp-evidence-blocking: var(--gp-danger-300);
+  --gp-viz-brand: var(--gp-pine-300);
+  --gp-viz-empty: var(--gp-neutral-800);
   --gp-viz-1: var(--gp-cobalt-300);
   --gp-viz-2: var(--gp-green-300);
   --gp-viz-3: var(--gp-amber-300);
@@ -306,4 +335,14 @@
   --gp-text-accent: var(--gp-pine-300);
   --gp-border-accent: var(--gp-pine-300);
   --gp-bg-accent-soft: var(--gp-pine-900);
+  --gp-bg-tint-warm: var(--gp-clay-900);
+  --gp-border-warm: var(--gp-clay-800);
+  --gp-bg-chip-clay: var(--gp-clay-900);
+  --gp-text-chip-clay: var(--gp-clay-300);
+  --gp-bg-chip-violet: var(--gp-violet-900);
+  --gp-text-chip-violet: var(--gp-violet-300);
+  --gp-bg-chip-pine: var(--gp-pine-900);
+  --gp-text-chip-pine: var(--gp-pine-300);
+  --gp-bg-chip-stone: var(--gp-neutral-900);
+  --gp-text-chip-stone: var(--gp-neutral-400);
 }

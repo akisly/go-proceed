@@ -6,7 +6,8 @@ import { Press } from "../motion/Press";
 import { cx } from "./cn";
 
 /**
- * Six variants, and the set is closed.
+ * Six variants, and the set is closed. [2026-09-23, DEV-035: `brand` joined
+ * and `destructive` left, see both notes below.]
  *
  * `primary` — Ink. Under D1 the action colour is near-black, not the brand
  *   lime. That is what removes the readable-accent problem from the system
@@ -14,18 +15,20 @@ import { cx } from "./cn";
  * `signal` — the mark. EXACTLY ONE per screen. v1 allowed a single Lime fill
  *   in the entire product and that discipline is why the colour still means
  *   "next action" rather than "button".
+ * `brand` — the dashboard's primary action in the brand's primary, pine with
+ *   a white label (owner, 2026-09-23, DEV-035: «Зелёная, как в Autumn»).
+ *   `apps/app` only: the landing's actions stay the ink pill, and a test
+ *   holds that. Where `primary` still stands in the app it is a control that
+ *   has not been moved yet, not a second primary.
  * `outline` — the workhorse.
  * `ghost` — chrome.
  * `link` — inline, inside a sentence.
- * `destructive` — irreversible, and only irreversible. Outlined at rest,
- *   filled on hover: the border and the ink carry it, so beside a signal
- *   primary it does not out-shout the action the person is there to take.
- *   [Added 2026-09-05. This paragraph used to say there was NO destructive
- *   variant because nothing under /app/** deletes anything. The field
- *   client's «Скасувати фото» drops a photo the server never received, and
- *   it had kept a private Button for that one control. One Button now; the
- *   contract test counts the variant's call sites — one — so a second
- *   irreversible action is a deliberate edit to that number.]
+ *
+ * There is no `destructive` variant. [It existed from 2026-09-05 for exactly
+ * one control, the field PWA's «Скасувати фото»; the owner retired that
+ * client on 2026-09-23 (DEV-035), the variant's only call site went with it,
+ * and an unused variant is the first thing to drift. A new irreversible
+ * action brings the variant back as a decision, with its own contract test.]
  *
  * SIZES CARRY TWO NUMBERS AND THE SMALL ONE IS NEVER BELOW 44px ON TOUCH.
  * WCAG 2.5.5's 44px is a floor, not a preference, and this audience is gloved
@@ -41,13 +44,11 @@ import { cx } from "./cn";
  */
 const VARIANT = {
   primary: "bg-action text-action-fg hover:bg-action-hover",
+  brand: "bg-action-brand text-action-brand-fg hover:bg-action-brand-hover",
   signal: "bg-action-signal text-action-signal-fg hover:bg-action-signal-hover font-semibold",
   outline: "border border-line-strong bg-surface text-ink hover:bg-action-ghost-hover",
   ghost: "text-ink-secondary hover:bg-action-ghost-hover",
   link: "text-link underline underline-offset-4 hover:text-ink",
-  destructive:
-    "border border-status-blocked-line bg-surface text-status-blocked-fg " +
-    "hover:bg-status-blocked-fg hover:text-action-fg",
 } as const;
 
 const SIZE = {
