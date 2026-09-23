@@ -101,7 +101,7 @@ describe("GET /internal/evidence/purge — the run", () => {
     expect(res.status).toBe(200);
     expect(res.headers.get("cache-control")).toBe("no-store");
     const body = await res.json();
-    expect(body).toMatchObject({ expired: 1, claimed: 1, purged: 1, failed: 0,
+    expect(body).toMatchObject({ expired: 1, claimed: 1, purged: 1, failed: 0, superseded: 0,
       exhausted: 0, overdue: 0 });
     expect(await objectExists(intent.storage.key)).toBe(false);
     const row = await q<{ purged_at: Date | null }>(

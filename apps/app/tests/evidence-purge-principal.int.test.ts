@@ -21,8 +21,8 @@ const APP_URL = process.env.APP_DB_URL
 const PURGE_FUNCTIONS = [
   "app.expire_upload_intents()",
   "app.claim_upload_purge(integer)",
-  "app.complete_upload_purge(uuid)",
-  "app.fail_upload_purge(uuid, text)",
+  "app.complete_upload_purge(uuid, uuid)",
+  "app.fail_upload_purge(uuid, uuid, text)",
   "app.upload_purge_health()",
 ];
 
@@ -76,8 +76,8 @@ describe("the purge principal (BL-030)", () => {
           and not has_function_privilege('public', p.oid, 'execute')
         order by 1`);
     expect(callable.map((r) => r.fn).sort()).toEqual(
-      ["app.claim_upload_purge(integer)", "app.complete_upload_purge(uuid)",
-        "app.expire_upload_intents()", "app.fail_upload_purge(uuid,text)",
+      ["app.claim_upload_purge(integer)", "app.complete_upload_purge(uuid,uuid)",
+        "app.expire_upload_intents()", "app.fail_upload_purge(uuid,uuid,text)",
         "app.upload_purge_health()"].sort());
   });
 

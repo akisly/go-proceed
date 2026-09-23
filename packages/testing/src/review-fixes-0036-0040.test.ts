@@ -119,8 +119,8 @@ describe("0038 the purge functions name a principal other than the superuser", (
   const FNS = [
     "app.expire_upload_intents()",
     "app.claim_upload_purge(integer)",
-    "app.complete_upload_purge(uuid)",
-    "app.fail_upload_purge(uuid, text)",
+    "app.complete_upload_purge(uuid, uuid)",
+    "app.fail_upload_purge(uuid, uuid, text)",
     "app.upload_purge_health()",
   ];
 

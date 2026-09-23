@@ -216,7 +216,7 @@ describe("purge worker", () => {
               where id = $1`, [intent.uploadIntentId]);
     await expireUploadIntents();
 
-    const claimed = await q<{ upload_intent_id: string }>(
+    const claimed = await q<{ upload_intent_id: string; claim_token: string }>(
       `select * from app.claim_upload_purge(50)`);
     expect(claimed.map((r) => r.upload_intent_id)).toContain(intent.uploadIntentId);
     // Claiming spends no retry budget: a worker that dies here attempted
@@ -224,8 +224,8 @@ describe("purge worker", () => {
     // permanently with no failure ever recorded (0024).
     expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(0);
 
-    await q(`select app.fail_upload_purge($1,$2)`,
-      [intent.uploadIntentId, "storage unavailable"]);
+    await q(`select app.fail_upload_purge($1,$2,$3)`,
+      [intent.uploadIntentId, claimed[0]!.claim_token, "storage unavailable"]);
 
     const failed = await statusOf(intent.uploadIntentId);
     expect(failed.purged_at).toBeNull();
@@ -287,15 +287,15 @@ describe("purge worker", () => {
     // Three claims with no worker outcome, standing in for three crashes.
     for (let i = 0; i < 3; i++) {
       await q(`select * from app.claim_upload_purge(50)`);
-      await q(`update public.upload_intents set purge_claimed_at = null where id = $1`,
-        [intent.uploadIntentId]);
+      await q(`update public.upload_intents set purge_claimed_at = null, purge_claim_token = null
+                where id = $1`, [intent.uploadIntentId]);
     }
     expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(0);
 
     // One real failure does cost a retry.
-    await q(`select * from app.claim_upload_purge(50)`);
-    await q(`select app.fail_upload_purge($1,$2)`,
-      [intent.uploadIntentId, "storage unavailable"]);
+    const [held] = await q<{ claim_token: string }>(`select * from app.claim_upload_purge(50)`);
+    await q(`select app.fail_upload_purge($1,$2,$3)`,
+      [intent.uploadIntentId, held!.claim_token, "storage unavailable"]);
     expect(Number((await statusOf(intent.uploadIntentId)).purge_attempts)).toBe(1);
 
     // And the bytes are still there to be retried.

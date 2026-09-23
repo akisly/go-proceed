@@ -25,6 +25,12 @@ export interface PurgeOutcome {
   claimed: number;
   purged: number;
   failed: number;
+  /**
+   * Rows another worker took over while this one held them (its claim aged
+   * past the hour and was reclaimed with a new token, DEV-037). Neither purged
+   * nor failed by this worker: the new holder finishes them.
+   */
+  superseded: number;
 }
 
 export interface PurgeHealth {
@@ -63,11 +69,15 @@ export async function expireUploadIntents(): Promise<number> {
 export async function drainEvidencePurge(batch = 50): Promise<PurgeOutcome> {
   const claimed = await withPurgeWorkerTx(ctx(), async (tx) => (await tx.query<{
     upload_intent_id: string; workspace_id: string;
-    storage_bucket: string | null; storage_key: string | null;
+    storage_bucket: string | null; storage_key: string | null; claim_token: string;
   }>("select * from app.claim_upload_purge($1)", [batch])).rows);
 
   let purged = 0;
   let failed = 0;
+  let superseded = 0;
+  // Every outcome is fenced by the claim's token (0091): a worker whose claim
+  // was reclaimed while it stalled can neither mark the row purged nor spend
+  // the new holder's retry budget.
   for (const row of claimed) {
     try {
       if (row.storage_key) {
@@ -85,16 +95,18 @@ export async function drainEvidencePurge(batch = 50): Promise<PurgeOutcome> {
       // failed. A worker that dies before getting here leaves only its claim,
       // which the one-hour window reclaims. The message names no key
       // (`EvidenceStorageError`, DEV-034).
-      await withPurgeWorkerTx(ctx(), (tx) => tx.query("select app.fail_upload_purge($1,$2)",
-        [row.upload_intent_id, (e as Error).message.slice(0, 500)]));
-      failed += 1;
+      const applied = await withPurgeWorkerTx(ctx(), async (tx) => (await tx.query<{ ok: boolean }>(
+        "select app.fail_upload_purge($1,$2,$3) as ok",
+        [row.upload_intent_id, row.claim_token, (e as Error).message.slice(0, 500)])).rows[0]?.ok === true);
+      if (applied) failed += 1; else superseded += 1;
       continue;
     }
-    await withPurgeWorkerTx(ctx(), (tx) =>
-      tx.query("select app.complete_upload_purge($1)", [row.upload_intent_id]));
-    purged += 1;
+    const applied = await withPurgeWorkerTx(ctx(), async (tx) => (await tx.query<{ ok: boolean }>(
+      "select app.complete_upload_purge($1,$2) as ok",
+      [row.upload_intent_id, row.claim_token])).rows[0]?.ok === true);
+    if (applied) purged += 1; else superseded += 1;
   }
-  return { claimed: claimed.length, purged, failed };
+  return { claimed: claimed.length, purged, failed, superseded };
 }
 
 /** Counts only; what the runner alerts on (INV-047 «repeated failure alerts»). */
@@ -121,12 +133,13 @@ export async function runEvidencePurge(opts: {
   const deadline = now() + (opts.budgetMs ?? 40_000);
 
   const expired = await expireUploadIntents();
-  const total: PurgeOutcome = { claimed: 0, purged: 0, failed: 0 };
+  const total: PurgeOutcome = { claimed: 0, purged: 0, failed: 0, superseded: 0 };
   for (let i = 0; i < maxBatches && now() < deadline; i++) {
     const outcome = await drainEvidencePurge(batch);
     total.claimed += outcome.claimed;
     total.purged += outcome.purged;
     total.failed += outcome.failed;
+    total.superseded += outcome.superseded;
     if (outcome.claimed < batch) break;
   }
   return { expired, ...total, ...(await purgeHealth()) };

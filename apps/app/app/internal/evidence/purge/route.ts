@@ -57,7 +57,7 @@ export async function GET(request: Request): Promise<Response> {
   }
   const counts = {
     expired: run.expired, claimed: run.claimed, purged: run.purged, failed: run.failed,
-    exhausted: run.exhausted, overdue: run.overdue,
+    superseded: run.superseded, exhausted: run.exhausted, overdue: run.overdue,
   };
   if (run.failed + run.exhausted + run.overdue > 0) {
     console.error("[EVIDENCE_PURGE]", requestId, "attention required", counts);
