@@ -1,4 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { inspect } from "node:util";
+import { removeObject } from "../src/lib/evidence-storage";
 import { createHash } from "node:crypto";
 import { q, truncateAll, jsonReq, baselineFixture, type BaselineFixture } from "./helpers/fixtures";
 import {
@@ -280,5 +282,51 @@ describe("GET /v1/assignments/{id}/evidence", () => {
     const res = await getEvidence(assignmentId);
     expect(res.status).toBe(404);
     expect((await res.json()).code).toBe("RESOURCE_NOT_FOUND");
+  });
+});
+
+describe("an object that could not be signed is not a silent 200 (BL-036, DEV-039)", () => {
+  // A purged object and an unreachable or misconfigured store both render a
+  // row without `readUrl` («недоступне»), and the response stays 200 — the
+  // screen, not the request, carries the per-row failure (see the route's own
+  // comment on why «all failed» is not a 500). What was missing is the
+  // operator's half: the route discarded `failedKeys`, so nothing anywhere
+  // said that signing had failed. It now logs one line with counts and the
+  // request id — never a key or a URL (files-and-storage.md §Downloads).
+  let errors: unknown[][];
+  beforeEach(() => {
+    errors = [];
+    vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => { errors.push(args); });
+  });
+  afterEach(() => { vi.restoreAllMocks(); });
+
+  it("logs the unsigned count with the request id, no key and no token, and still answers 200", async () => {
+    const gone = await q<{ storage_key: string }>(
+      `select storage_key from public.evidence_objects where workspace_id = $1
+        order by server_received_at limit 1`, [fx.workspaceId]);
+    const key = gone[0]!.storage_key;
+    await removeObject(key);
+
+    const res = await getEvidence(assignmentId);
+    expect(res.status).toBe(200);
+    const body = assignmentEvidenceResponse.parse(await res.json());
+    const rows = body.groups.flatMap((g) => g.evidence);
+    expect(rows).toHaveLength(3);
+    expect(rows.filter((r) => r.readUrl === undefined)).toHaveLength(1);
+
+    const lines = errors.filter((e) => e[0] === "[EVIDENCE_READ_UNSIGNED]");
+    expect(lines).toHaveLength(1);
+    expect(lines[0]![1]).toBe(res.headers.get("x-request-id"));
+    expect(lines[0]![2]).toEqual({ failed: 1, total: 3 });
+    const printed = errors.map((e) => inspect(e, { depth: null })).join("\n");
+    for (const half of key.split("/")) expect(printed).not.toContain(half);
+    expect(printed).not.toContain("token=");
+    expect(printed).not.toContain("evidence/");
+  });
+
+  it("logs nothing when every object signed", async () => {
+    const res = await getEvidence(assignmentId);
+    expect(res.status).toBe(200);
+    expect(errors).toEqual([]);
   });
 });
